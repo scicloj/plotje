@@ -4,10 +4,12 @@
 
 ;; ## Setup
 ;;
-;; Add Plotje to your `deps.edn`. Current release:
+;; Add Plotje to your `deps.edn`. Current release: [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/plotje.svg)](https://clojars.org/org.scicloj/plotje)
 ;;
-;; [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/plotje.svg)](https://clojars.org/org.scicloj/plotje)
-;;
+;; For this demo, you will also need:
+;; * [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/clay.svg)](clay) - to visualize plots with [Clay](https://scicloj.github.io/clay). Follow Clay documentation for recommended usage. You may find the [videos](https://scicloj.github.io/clay/#videos) useful. It is recommended to set Clay up using the [Setup](https://scicloj.github.io/clay/#setup) for your specific IDE or editor.
+;; * [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/metamorph.ml.svg)](https://clojars.org/org.scicloj/metamorph.ml) - for [the RDatasets collection](./plotje_book.datasets.html#the-rdatasets-collection)
+
 ;; Then require the API:
 
 (ns plotje-book.quickstart
