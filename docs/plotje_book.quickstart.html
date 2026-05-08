@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.36">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -76,7 +76,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-7fe93b6278088d83a8942670f25c821e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -482,13 +482,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A minimal introduction to Plotje</p>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<p>Add Plotje to your <code>deps.edn</code>. Current release:</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="https://clojars.org/org.scicloj/plotje"><img src="https://img.shields.io/clojars/v/org.scicloj/plotje.svg" class="img-fluid figure-img"></a></p>
-<figcaption>Clojars Project</figcaption>
-</figure>
-</div>
+<p>Add Plotje to your <code>deps.edn</code>. Current release: <a href="https://clojars.org/org.scicloj/plotje"><img src="https://img.shields.io/clojars/v/org.scicloj/plotje.svg" class="img-fluid" alt="Clojars Project"></a></p>
+<p>For this demo, you will also need:</p>
+<ul>
+<li><a href="clay"><img src="https://img.shields.io/clojars/v/org.scicloj/clay.svg" class="img-fluid" alt="Clojars Project"></a> - to visualize plots with <a href="https://scicloj.github.io/clay">Clay</a>. Follow Clay documentation for recommended usage. You may find the <a href="https://scicloj.github.io/clay/#videos">videos</a> useful. It is recommended to set Clay up using the <a href="https://scicloj.github.io/clay/#setup">Setup</a> for your specific IDE or editor.</li>
+<li><a href="https://clojars.org/org.scicloj/metamorph.ml"><img src="https://img.shields.io/clojars/v/org.scicloj/metamorph.ml.svg" class="img-fluid" alt="Clojars Project"></a> - for <a href="./plotje_book.datasets.html#the-rdatasets-collection">the RDatasets collection</a></li>
+</ul>
 <p>Then require the API:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">ns</span> plotje-book.quickstart</span>
