@@ -383,6 +383,9 @@
    :band-opacity ["Annotations" "Opacity for confidence bands"]
    :tick-spacing-x ["Ticks" "Minimum pixel spacing between x-axis ticks"]
    :tick-spacing-y ["Ticks" "Minimum pixel spacing between y-axis ticks"]
+   :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
+   :x-tick-label-height ["Ticks" "Manual override for vertical space reserved below panels for x-tick labels (pixels); auto-computed
+   from :x-tick-angle when nil"]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
