@@ -224,7 +224,7 @@
   (let [base (cond x-label? (:label-offset cfg)
                    :else (+ (tick-font-size cfg) 6))
         angle (get cfg :x-tick-angle 0)
-        extra (or (:x-tick-label-height cfg)
+        extra (or (:x-tick-label-pad cfg)
                   (+ (long (* 50 (Math/abs (Math/sin (Math/toRadians (double angle)))))) 
                      (if (zero? angle) 0 8)))]
     (+ base extra)))

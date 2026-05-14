@@ -384,9 +384,7 @@
    :tick-spacing-x ["Ticks" "Minimum pixel spacing between x-axis ticks"]
    :tick-spacing-y ["Ticks" "Minimum pixel spacing between y-axis ticks"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
-   :x-tick-label-height ["Ticks" "Extra vertical space (px) reserved below panels for angled x-tick labels, added on top of :label-offset.
-                                  When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be 
-                                  clipped by the SVG boundary."]
+   :x-tick-label-pad ["Ticks" "Extra vertical space (px) reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
