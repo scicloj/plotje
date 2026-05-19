@@ -33,7 +33,9 @@
 (defn- fmt
   "Format a numeric value to 2 decimal places for SVG coordinates."
   [v]
-  (if v (format "%.2f" (double v)) "0.00"))
+  (if v
+    (String/format java.util.Locale/ROOT "%.2f" (to-array [(double v)]))
+    "0.00"))
 
 (defn- points->str
   "Convert a seq of [x y] pairs to SVG points attribute string."
