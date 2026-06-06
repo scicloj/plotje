@@ -8,7 +8,7 @@
             [scicloj.plotje.render.membrane :as membrane]
             [scicloj.plotje.impl.render :as render])
   (:import [membrane.ui Translate WithColor WithStyle WithStrokeWidth
-            Path RoundedRectangle Rectangle Label Rotate]
+            Path RoundedRectangle Rectangle Label Rotate ScissorView]
            [scicloj.plotje.impl.membrane PlotjeMembrane]))
 
 ;; ---- Color helpers ----
@@ -27,6 +27,15 @@
   {:color [0.2 0.2 0.2 1.0]
    :style :fill
    :stroke-width 1})
+
+;; clipPath ids must be unique within the HTML document, and a notebook
+;; page commonly embeds many independent SVGs. A process-global counter
+;; (defonce so a namespace reload does not reset it mid-document) gives
+;; each clip a distinct id across every render in the JVM.
+(defonce ^:private clip-id-counter (atom 0))
+
+(defn- next-clip-id []
+  (str "plotje-clip-" (swap! clip-id-counter inc)))
 
 ;; ---- Membrane → SVG conversion ----
 
@@ -153,6 +162,20 @@
                font-name (assoc :font-family font-name)
                text-anchor (assoc :text-anchor text-anchor))
        text]))
+
+  ScissorView
+  (-to-svg [elem ctx]
+    (let [{:keys [offset bounds drawable]} elem
+          [ox oy] offset
+          [w h] bounds
+          inner (membrane->svg drawable ctx)]
+      (when inner
+        (let [id (next-clip-id)]
+          [:g {}
+           [:clipPath {:id id}
+            [:rect {:x (fmt ox) :y (fmt oy)
+                    :width (fmt w) :height (fmt h)}]]
+           [:g {:clip-path (str "url(#" id ")")} inner]]))))
 
   PlotjeMembrane
   (-to-svg [elem ctx]
@@ -350,6 +373,10 @@
                      (= "true" (get (second x) :data-legend)))
                 nil ;; skip entire legend subtree
 
+                (and (vector? x) (= :clipPath (first x)))
+                nil ;; skip clip-path definitions -- their rect is a
+                    ;; clip region, not a drawn shape
+
                 (and (vector? x) (= tag (first x)) (map? (second x))
                      (not in-legend?))
                 (do (swap! result conj x)
@@ -463,6 +490,7 @@
    :polygons — number of filled polygons (bars, histogram bins, areas, violins)
    :tiles   — number of heatmap tile rectangles (small rects without border-radius)
    :visible-tiles — tiles with positive width and height (excludes degenerate zero-extent tiles)
+   :clips   — number of clipPath definitions (one per panel per clip region in use: the drawing area for data marks, plus the panel box when a margin mark such as rug is present)
    :texts   — vector of all text content strings
 
    Aesthetic-coverage sets (extracted across data shapes only;
@@ -573,6 +601,7 @@
       :polygons (count polygons)
       :tiles (count tile-rects)
       :visible-tiles (count visible-tile-rects)
+      :clips (count (collect-elements svg :clipPath))
       :texts (mapv last texts)
       :colors data-colors
       :sizes data-sizes

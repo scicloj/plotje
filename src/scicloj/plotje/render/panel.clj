@@ -182,8 +182,18 @@
                      (vec (concat base-grid ridge-lines)))
                    base-grid)))
 
-        ;; Data marks from plan layers
-        marks (vec (mapcat #(mark/layer->membrane % ctx) layers))
+        ;; Data marks from plan layers, rendered once and grouped by the
+        ;; clip region each mark declares (mark/mark-clip-region). Most
+        ;; marks clip to the drawing area; rug-like margin marks clip to
+        ;; the panel box. The decision lives with each mark, so a custom
+        ;; margin mark from an extension opts in without touching this
+        ;; renderer.
+        marks-by-region
+        (into {} (for [[region region-layers]
+                       (group-by #(mark/mark-clip-region (:mark %)) layers)]
+                   [region (vec (mapcat #(mark/layer->membrane % ctx)
+                                        region-layers))]))
+        marks (vec (mapcat val marks-by-region))
 
         ;; Annotation marks
         ann-marks
@@ -283,7 +293,35 @@
                                                      (assoc (ui/label label (ui/font nil fsize))
                                                             :text-anchor "end")))))))
                           (render-tick-labels :y y-ticks sy pw ph m cfg)))]
-    (vec (concat (when include-bg? [background])
-                 grid marks ann-marks
-                 (when no-data-label [no-data-label])
-                 x-tick-labels y-tick-labels))))
+    ;; Clip marks so geometry extending past the domain -- a line beyond
+    ;; a narrowed y-scale, say -- cannot paint outside the panel. Each
+    ;; region the marks declared resolves to a rectangle, and the marks
+    ;; in that region are wrapped in a scissor at it. :drawing-area (the
+    ;; grey panel background) matches ggplot's default panel clip, so
+    ;; data marks do not spill into the axis margin; :panel-box is the
+    ;; wider rectangle, for margin marks like rug. Annotations clip with
+    ;; the drawing-area marks. The scissor is a membrane primitive, so
+    ;; every backend that honours it clips identically; a single panel
+    ;; and a composite then behave the same way.
+    (let [region->rect (fn [region]
+                         (case region
+                           :panel-box [[0 0] [pw ph]]
+                           ;; :drawing-area and any unknown region
+                           [[m m] [(- pw m m) (- ph m m)]]))
+          drawing-area-content (vec (concat (get marks-by-region :drawing-area [])
+                                            ann-marks))
+          other-regions (dissoc marks-by-region :drawing-area)
+          scissor (fn [region content]
+                    (let [[off bnd] (region->rect region)]
+                      (ui/scissor-view off bnd (vec content))))
+          clipped (vec
+                   (concat
+                    (when (seq drawing-area-content)
+                      [(scissor :drawing-area drawing-area-content)])
+                    (for [[region content] other-regions
+                          :when (seq content)]
+                      (scissor region content))))]
+      (vec (concat (when include-bg? [background])
+                   grid clipped
+                   (when no-data-label [no-data-label])
+                   x-tick-labels y-tick-labels)))))
