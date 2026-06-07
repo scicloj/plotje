@@ -296,13 +296,15 @@
     ;; Clip marks so geometry extending past the domain -- a line beyond
     ;; a narrowed y-scale, say -- cannot paint outside the panel. Each
     ;; region the marks declared resolves to a rectangle, and the marks
-    ;; in that region are wrapped in a scissor at it. :drawing-area (the
-    ;; grey panel background) matches ggplot's default panel clip, so
-    ;; data marks do not spill into the axis margin; :panel-box is the
-    ;; wider rectangle, for margin marks like rug. Annotations clip with
-    ;; the drawing-area marks. The scissor is a membrane primitive, so
-    ;; every backend that honours it clips identically; a single panel
-    ;; and a composite then behave the same way.
+    ;; in that region are wrapped in a scissor at it -- a Membrane
+    ;; primitive (membrane.ui/scissor-view) that masks its contents to a
+    ;; rectangle. :drawing-area (the grey panel background) matches
+    ;; ggplot's default panel clip, so data marks do not spill into the
+    ;; axis margin; :panel-box is the wider rectangle, for margin marks
+    ;; like rug. Annotations clip with the drawing-area marks. Because
+    ;; the scissor is a node in the membrane tree, every backend that
+    ;; honours it clips identically; a single panel and a composite then
+    ;; behave the same way.
     (let [region->rect (fn [region]
                          (case region
                            :panel-box [[0 0] [pw ph]]

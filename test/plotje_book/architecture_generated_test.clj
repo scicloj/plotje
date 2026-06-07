@@ -77,13 +77,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__92391#] (= :petal-length (:x p1__92391#)))
+        (fn* [p1__106059#] (= :petal-length (:x p1__106059#)))
         layers)
        (every?
-        (fn* [p1__92392#] (= :petal-width (:y p1__92392#)))
+        (fn* [p1__106060#] (= :petal-width (:y p1__106060#)))
         layers)
        (every?
-        (fn* [p1__92393#] (= :species (:color p1__92393#)))
+        (fn* [p1__106061#] (= :species (:color p1__106061#)))
         layers)))
      (= {} (:opts d))))
    v14_l200)))
@@ -137,8 +137,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__92394#]
-       (.startsWith (.getName (class p1__92394#)) "membrane.ui."))
+       [p1__106062#]
+       (.startsWith (.getName (class p1__106062#)) "membrane.ui."))
       (:drawables v))))
    v27_l258)))
 
@@ -224,7 +224,7 @@
        2
        (count
         (filter
-         (fn* [p1__92395#] (.startsWith p1__92395# "rgb"))
+         (fn* [p1__106063#] (.startsWith p1__106063# "rgb"))
          (:colors s)))))))
    v40_l436)))
 
@@ -312,6 +312,6 @@
 
 
 (def
- v61_l638
+ v61_l651
  (kind/mermaid
   "\ngraph TD\n  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]\n  API --> RES[\"impl/resolve.clj\"]\n  API --> PL[\"impl/plan.clj\"]\n  API --> COMP[\"impl/compositor.clj\"]\n  POSE --> RES\n  COMP --> POSE\n  COMP --> PL\n  PL --> RES\n  PL --> STAT[\"impl/stat.clj\"]\n  PL --> SCALE[\"impl/scale.clj\"]\n  PL --> DEFAULTS[\"impl/defaults.clj\"]\n  PL --> PS[\"impl/plan_schema.clj\"]\n  API --> RENDER[\"impl/render.clj\"]\n  RENDER --> SVG[\"render/svg.clj\"]\n  SVG --> MEMBRANE[\"render/membrane.clj\"]\n  MEMBRANE --> PANEL[\"render/panel.clj\"]\n  PANEL --> MARK[\"render/mark.clj\"]\n  PANEL --> SCALE\n  PANEL --> COORD[\"impl/coord.clj\"]\n  API --> RC[\"render/composite.clj\"]\n  RC --> MEMBRANE\n  style API fill:#c8e6c9\n  style COMP fill:#d1c4e9\n  style PL fill:#d1c4e9\n  style SVG fill:#f8bbd0\n  style MEMBRANE fill:#f8bbd0\n  style RC fill:#f8bbd0\n"))

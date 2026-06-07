@@ -240,6 +240,52 @@ two-up-png
 ;; [Extensibility](./plotje_book.extensibility.html) chapter walks a
 ;; worked example.
 
+;; ## Clipping marks to the panel
+;;
+;; A panel confines its marks to its drawing area (the grey panel
+;; background), so geometry running past the panel's domain -- a
+;; reference line beyond the visible range, points under a tightened
+;; scale -- cannot paint outside it. The membrane stage expresses this
+;; with a Membrane scissor: the panel's data marks are wrapped in a
+;; `membrane.ui/scissor-view`, a primitive that masks its child to a
+;; rectangle. Because the clip is a node in the membrane tree, every
+;; backend that honours scissors clips identically -- a single panel
+;; and a panel inside a composite behave the same way. (Rug ticks draw
+;; in the axis margin on purpose; they get a second scissor at the
+;; wider panel box, so they are not cut at the drawing-area edge.) The
+;; [Composition](./plotje_book.composition.html) chapter shows the
+;; behaviour; this section locates the node.
+;;
+;; Build a membrane whose line layer runs far past a tightened
+;; y-domain:
+
+(def clipped-membrane
+  (-> {:x [1 2 3 4 5] :y [10 20 15 25 18]}
+      (pj/lay-point :x :y)
+      (pj/lay-line {:data {:x [1 5] :y [-200 300]}})
+      (pj/scale :y {:type :linear :domain [0 30]})
+      pj/membrane))
+
+;; The scissor sits inside the panel's drawable, not at the top
+;; level, so finding it means walking the tree. Its offset is the
+;; panel margin and its bounds are the drawing area, both in drawing
+;; units:
+
+(def panel-scissor
+  (->> (tree-seq coll? seq (ui/children clipped-membrane))
+       (filter #(instance? membrane.ui.ScissorView %))
+       first))
+
+{:found?  (some? panel-scissor)
+ :offset  (:offset panel-scissor)
+ :bounds  (:bounds panel-scissor)}
+
+(kind/test-last
+ [(fn [info] (and (:found? info)
+                  (= 2 (count (:offset info)))
+                  (every? pos? (:offset info))
+                  (= 2 (count (:bounds info)))))])
+
 ;; ## Schema
 ;;
 ;; Plotje publishes a Malli schema for the `PlotjeMembrane` shape.

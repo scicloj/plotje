@@ -271,6 +271,26 @@ dashboard
 ;; `pj/arrange` or the explicit composite-pose form shown
 ;; earlier in the chapter.)
 
+;; ## Panels Clip Their Own Content
+;;
+;; Each panel confines its marks to its own rectangle. A layer whose
+;; data runs past the panel's domain -- a reference line drawn well
+;; beyond the visible range, say -- is clipped at the panel edge
+;; rather than painting across its neighbours. The clip is applied per
+;; panel, so a stacked arrangement reports one clip region per panel.
+
+(def bounded
+  (-> {:x [1 2 3 4 5] :y [10 20 15 25 18]}
+      (pj/lay-point :x :y)
+      (pj/lay-line {:data {:x [1 5] :y [-200 300]}})
+      (pj/scale :y {:type :linear :domain [0 30]})))
+
+(pj/arrange [bounded bounded] {:cols 1})
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 2 (:clips s)))))])
+
 ;; ## Notes on the Current Implementation
 ;;
 ;; A few details about how composition renders today, in case they

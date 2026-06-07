@@ -56,6 +56,7 @@ graph LR
 ;; | `compute-stat` | `impl/stat.clj` | `:stat` key | Transform data (identity, bin, count, lm, loess, kde, boxplot) |
 ;; | `extract-layer` | `impl/extract.clj` | `:mark` key | Convert a stat result into a plan layer descriptor |
 ;; | `layer->membrane` | `render/mark.clj` | `:mark` key | Render a plan layer as membrane drawables |
+;; | `mark-clip-region` | `render/mark.clj` | `:mark` key | Name the panel region a mark's geometry clips to |
 ;; | `plan->plot` | `impl/render.clj` | format keyword | Convert a plan directly into a figure (the direct path) |
 ;; | `membrane->plot` | `impl/render.clj` | format keyword | Convert a membrane tree into a figure (the membrane path) |
 ;; | `make-scale` | `impl/scale.clj` | domain type + spec | Build a wadogo scale |
@@ -247,6 +248,56 @@ graph LR
 ;; `scicloj.plotje.impl.resolve/annotation-marks`, the canonical set of
 ;; annotation mark keywords; if you add a custom annotation-style mark
 ;; that should follow the same lifecycle, register it there.
+
+;; ## `mark-clip-region`
+;;
+;; Each panel clips its marks so geometry past the domain cannot paint
+;; outside the panel. The region a mark clips to is itself an extension
+;; point: `mark-clip-region` (in `render/mark.clj`, dispatching on the
+;; `:mark` key) names the region, and the panel renderer resolves it to
+;; a rectangle and clips the mark to it. (The clip itself is a Membrane
+;; scissor; the [Membranes](./plotje_book.membranes.html) chapter shows
+;; the mechanism.)
+;;
+;; Two regions exist:
+;;
+;; - `:drawing-area` (the default) -- the grey panel background. Data
+;;   marks clip here, so geometry past the domain is masked at the
+;;   plotting edge and nothing spills into the axis margin.
+;; - `:panel-box` -- the wider panel rectangle including the axis
+;;   margin, for marks that draw in the margin on purpose. The built-in
+;;   `:rug` mark uses it so its ticks are not cut at the drawing-area
+;;   edge.
+
+(mark/mark-clip-region :point)
+
+(kind/test-last [#(= :drawing-area %)])
+
+(mark/mark-clip-region :rug)
+
+(kind/test-last [#(= :panel-box %)])
+
+;; ### How to extend: a mark that draws in the margin
+;;
+;; A custom mark that paints in the axis margin (a marginal density, an
+;; axis-edge glyph) registers a `mark-clip-region` defmethod returning
+;; `:panel-box`, so the renderer does not clip it at the drawing-area
+;; edge. Without this, a margin-drawing mark defaults to
+;; `:drawing-area` and is cut off.
+
+(defmethod mark/mark-clip-region :margin-glyph [_] :panel-box)
+
+(mark/mark-clip-region :margin-glyph)
+
+(kind/test-last [#(= :panel-box %)])
+
+;; Cleanup -- remove the example defmethod:
+
+(remove-method mark/mark-clip-region :margin-glyph)
+
+(contains? (methods mark/mark-clip-region) :margin-glyph)
+
+(kind/test-last [false?])
 
 ;; ## `plan->plot`
 ;;

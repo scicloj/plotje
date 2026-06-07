@@ -178,6 +178,24 @@
                            (and (= 1 (:panels s))
                                 (= 150 (:points s)))))])
 
+;; A domain narrower than the data turns the axis into a view window:
+;; marks falling outside it are clipped to the panel, and the
+;; underlying data is kept. This matches ggplot2's `coord_cartesian`,
+;; which zooms the view, rather than scale limits, which drop rows.
+;; Here the sepal-width domain is tightened to [3.0, 3.5], so points
+;; above and below that band are clipped at the panel edge. All 150
+;; observations are still rendered -- the marks simply sit behind a
+;; clip region, one per panel.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/scale :y {:type :linear :domain [3.0 3.5]})
+    (pj/options {:title "Tight Y Domain [3.0, 3.5]"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 150 (:points s))
+                                (= 1 (:clips s)))))])
+
 ;; Pin exact tick locations with `:breaks` (ggplot2's
 ;; `scale_*_continuous(breaks=...)`).
 

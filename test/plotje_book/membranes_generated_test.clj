@@ -160,13 +160,58 @@
  (is ((fn [v] (instance? java.awt.image.BufferedImage v)) v40_l231)))
 
 
-(def v43_l249 (plotje-mem/valid? iris-membrane))
+(def
+ v43_l262
+ (def
+  clipped-membrane
+  (->
+   {:x [1 2 3 4 5], :y [10 20 15 25 18]}
+   (pj/lay-point :x :y)
+   (pj/lay-line {:data {:x [1 5], :y [-200 300]}})
+   (pj/scale :y {:type :linear, :domain [0 30]})
+   pj/membrane)))
 
 
-(deftest t44_l251 (is (true? v43_l249)))
+(def
+ v45_l274
+ (def
+  panel-scissor
+  (->>
+   (tree-seq coll? seq (ui/children clipped-membrane))
+   (filter
+    (fn*
+     [p1__100440#]
+     (instance? membrane.ui.ScissorView p1__100440#)))
+   first)))
 
 
-(def v46_l255 (some? (plotje-mem/explain {:not :a-membrane})))
+(def
+ v46_l279
+ {:found? (some? panel-scissor),
+  :offset (:offset panel-scissor),
+  :bounds (:bounds panel-scissor)})
 
 
-(deftest t47_l257 (is (true? v46_l255)))
+(deftest
+ t47_l283
+ (is
+  ((fn
+    [info]
+    (and
+     (:found? info)
+     (= 2 (count (:offset info)))
+     (every? pos? (:offset info))
+     (= 2 (count (:bounds info)))))
+   v46_l279)))
+
+
+(def v49_l295 (plotje-mem/valid? iris-membrane))
+
+
+(deftest t50_l297 (is (true? v49_l295)))
+
+
+(def v52_l301 (some? (plotje-mem/explain {:not :a-membrane})))
+
+
+(deftest t53_l303 (is (true? v52_l301)))

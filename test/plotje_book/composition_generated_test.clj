@@ -145,7 +145,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__87198#] (-> p1__87198# :plan :panels first))
+       (fn* [p1__97202#] (-> p1__97202# :plan :panels first))
        (:sub-plots (pj/plan marginal)))
       [d-x s-x]
       (mapv :x-domain panels)
@@ -245,8 +245,33 @@
    v34_l257)))
 
 
+(def
+ v37_l282
+ (def
+  bounded
+  (->
+   {:x [1 2 3 4 5], :y [10 20 15 25 18]}
+   (pj/lay-point :x :y)
+   (pj/lay-line {:data {:x [1 5], :y [-200 300]}})
+   (pj/scale :y {:type :linear, :domain [0 30]}))))
+
+
+(def v38_l288 (pj/arrange [bounded bounded] {:cols 1}))
+
+
 (deftest
- t37_l305
+ t39_l290
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 2 (:panels s)) (= 2 (:clips s)))))
+   v38_l288)))
+
+
+(deftest
+ t41_l325
  (is
   ((fn
     [_]
@@ -273,4 +298,4 @@
      (and
       (= #{:color} (-> all-color pj/plan :chrome :shared-aesthetics))
       (= #{} (-> mixed pj/plan :chrome :shared-aesthetics)))))
-   v34_l257)))
+   v38_l288)))

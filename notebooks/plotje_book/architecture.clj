@@ -600,6 +600,19 @@ graph LR
 ;; e.g., a Plotly-spec target) registers a `defmethod plan->plot
 ;; :foo` instead.
 ;;
+;; Clipping -- bounding each panel's marks to the panel so geometry
+;; past the axis domain cannot paint outside it -- lives at this
+;; boundary too. A panel's domain (resolved at the plan stage) names
+;; the visible window; the membrane stage realizes that window in
+;; drawing space by wrapping the panel's marks in a scissor -- a
+;; Membrane primitive that masks whatever it contains to a rectangle --
+;; so geometry running past the domain is hidden at the panel edge
+;; instead of painting into a neighbour. Because the clip is a node in
+;; the shared membrane tree, every backend that honours it clips
+;; identically -- the [Membranes](./plotje_book.membranes.html) chapter
+;; locates the node, and [Glossary](./plotje_book.glossary.html)
+;; defines the term.
+;;
 ;; The membrane stage of Plotje is built on
 ;; [Membrane](https://github.com/phronmophobic/membrane) -- the
 ;; library that defines the primitive types Plotje uses

@@ -172,16 +172,17 @@
 ;; ---- Clip region ----
 
 (defmulti mark-clip-region
-  "Names the panel region a mark's geometry is clipped to. The panel
-   renderer resolves the name to a rectangle and wraps the mark in a
-   scissor. Two regions exist:
+  "Names the panel region a mark's geometry is clipped to -- bounded so
+   it cannot paint outside the region. The panel renderer resolves the
+   name to a rectangle and clips the mark to it. Two regions exist:
 
    - :drawing-area (the default) -- the grey panel background. The
-     right choice for data marks: geometry past the domain is masked
-     at the plotting edge, and nothing spills into the axis margin.
-   - :panel-box -- the wider panel rectangle, including the axis
-     margin. For marks that draw in the margin on purpose (rug ticks),
-     so they are not cut off at the drawing-area edge.
+     right choice for data marks: geometry past the domain is hidden
+     at the plotting edge, and nothing spills into the axis margin (the
+     band around the plot where ticks and labels sit).
+   - :panel-box -- the wider panel rectangle, including that margin.
+     For marks that draw in the margin on purpose (rug ticks), so they
+     are not cut off at the drawing-area edge.
 
    This keeps the clip decision with each mark rather than hardcoded
    in the panel renderer. An extension whose mark draws in the margin

@@ -472,6 +472,31 @@ my-pose
          (= 2 (count (:y-domain m)))
          (number? (first (:y-domain m)))))])
 
+;; ## Clip
+;;
+;; **Clipping** bounds a panel's marks to the panel, so geometry that
+;; runs past the axis domain -- a line beyond a narrowed scale, a
+;; point at the very edge -- is masked at the panel boundary rather
+;; than painting outside it (and, in a multi-panel layout, into a
+;; neighbour). It is the visual counterpart of the **Domain**: the
+;; domain names the window, the clip enforces it. A narrowed domain
+;; therefore acts as a view window -- the data is kept, only the view
+;; is bounded.
+;;
+;; Data marks clip to the drawing area (the grey panel background);
+;; rug ticks, which sit in the axis margin by design, clip to the
+;; wider panel box -- the panel rectangle including that margin. The
+;; clip is realized in the **Membrane** stage as a scissor (a
+;; `membrane.ui/scissor-view`, a Membrane primitive that masks its
+;; contents to a rectangle), so every backend that honours it clips
+;; identically. `pj/svg-summary` reports the clip regions as `:clips`
+;; -- one per panel for the data marks, plus one per panel that also
+;; carries a margin mark such as rug.
+
+(:clips (pj/svg-summary (pj/plot my-pose)))
+
+(kind/test-last [(fn [n] (= 1 n))])
+
 ;; ## Tick
 ;;
 ;; A **tick** is an axis mark with a label at a domain value. Ticks
