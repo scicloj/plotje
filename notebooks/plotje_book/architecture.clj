@@ -591,6 +591,16 @@ graph LR
 ;; carrying a colored shape). The plan is renderer-agnostic; the
 ;; membrane is format-agnostic.
 ;;
+;; Clipping -- keeping each panel's marks within the panel -- is an
+;; instance of this same translation. A panel's domain, resolved at the
+;; plan stage, is a data-space fact: the range of values the panel
+;; shows. The membrane turns it into a drawing-space clip that hides
+;; any geometry reaching past that window, so a mark cannot paint
+;; outside its panel, or into a neighbour in a multi-panel layout. The
+;; [Membranes](./plotje_book.membranes.html) chapter shows the
+;; mechanism; the [Glossary](./plotje_book.glossary.html) has an entry
+;; for **clip**.
+;;
 ;; This boundary lets one membrane tree be rendered to many output
 ;; formats. The pose, draft, plan, and membrane stages are reused
 ;; unchanged across formats. A new format that consumes the membrane
@@ -599,19 +609,6 @@ graph LR
 ;; that goes from a plan directly to bytes (skipping membrane --
 ;; e.g., a Plotly-spec target) registers a `defmethod plan->plot
 ;; :foo` instead.
-;;
-;; Clipping -- bounding each panel's marks to the panel so geometry
-;; past the axis domain cannot paint outside it -- lives at this
-;; boundary too. A panel's domain (resolved at the plan stage) names
-;; the visible window; the membrane stage realizes that window in
-;; drawing space by wrapping the panel's marks in a scissor -- a
-;; Membrane primitive that masks whatever it contains to a rectangle --
-;; so geometry running past the domain is hidden at the panel edge
-;; instead of painting into a neighbour. Because the clip is a node in
-;; the shared membrane tree, every backend that honours it clips
-;; identically -- the [Membranes](./plotje_book.membranes.html) chapter
-;; locates the node, and [Glossary](./plotje_book.glossary.html)
-;; defines the term.
 ;;
 ;; The membrane stage of Plotje is built on
 ;; [Membrane](https://github.com/phronmophobic/membrane) -- the
