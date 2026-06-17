@@ -242,49 +242,48 @@ two-up-png
 
 ;; ## Clipping marks to the panel
 ;;
-;; A panel confines its marks to its drawing area (the grey panel
-;; background), so geometry running past the panel's domain -- a
-;; reference line beyond the visible range, points under a tightened
-;; scale -- cannot paint outside it. The membrane stage expresses this
-;; with a Membrane scissor: the panel's data marks are wrapped in a
-;; `membrane.ui/scissor-view`, a primitive that masks its child to a
-;; rectangle. Because the clip is a node in the membrane tree, every
-;; backend that honours scissors clips identically -- a single panel
-;; and a panel inside a composite behave the same way. (Rug ticks draw
-;; in the axis margin on purpose; they get a second scissor at the
-;; wider panel box, so they are not cut at the drawing-area edge.) The
-;; [Composition](./plotje_book.composition.html) chapter shows the
-;; behaviour; this section locates the node.
+;; Clipping -- keeping each panel's marks inside the panel (the
+;; [Glossary](./plotje_book.glossary.html) entry for clip defines the
+;; term) -- needs no special machinery in the membrane stage: the clip
+;; is just another node in the tree. The panel's marks are wrapped in a
+;; `membrane.ui/scissor-view`, a Membrane primitive that masks its
+;; contents to a rectangle, so the clip can be found and inspected like
+;; any other drawable.
 ;;
-;; Build a membrane whose line layer runs far past a tightened
-;; y-domain:
+;; A panel uses two clip rectangles. Data marks clip to the drawing
+;; area (the grey panel background); rug ticks, which sit in the axis
+;; margin on purpose, clip to the wider panel box. Which rectangle a
+;; mark uses is itself an extension point -- the
+;; [Extensibility](./plotje_book.extensibility.html) chapter covers it.
+;;
+;; Build a membrane with one mark of each kind: a line running far past
+;; a tightened y-domain (a data mark) and a rug (a margin mark).
 
 (def clipped-membrane
   (-> {:x [1 2 3 4 5] :y [10 20 15 25 18]}
       (pj/lay-point :x :y)
       (pj/lay-line {:data {:x [1 5] :y [-200 300]}})
+      (pj/lay-rug :x)
       (pj/scale :y {:type :linear :domain [0 30]})
       pj/membrane))
 
-;; The scissor sits inside the panel's drawable, not at the top
-;; level, so finding it means walking the tree. Its offset is the
-;; panel margin and its bounds are the drawing area, both in drawing
-;; units:
+;; The scissors sit inside the panel's drawable, so finding them means
+;; walking the tree. Each one's clip rectangle (offset and bounds, in
+;; drawing units): the data scissor at the drawing area, its offset the
+;; panel margin; the rug scissor at the panel box, its offset [0 0].
 
-(def panel-scissor
-  (->> (tree-seq coll? seq (ui/children clipped-membrane))
-       (filter #(instance? membrane.ui.ScissorView %))
-       first))
-
-{:found?  (some? panel-scissor)
- :offset  (:offset panel-scissor)
- :bounds  (:bounds panel-scissor)}
+(->> (ui/children clipped-membrane)
+     (tree-seq coll? seq)
+     (filter #(instance? membrane.ui.ScissorView %))
+     (mapv #(select-keys % [:offset :bounds])))
 
 (kind/test-last
- [(fn [info] (and (:found? info)
-                  (= 2 (count (:offset info)))
-                  (every? pos? (:offset info))
-                  (= 2 (count (:bounds info)))))])
+ [(fn [rects]
+    (and (= 2 (count rects))
+         ;; one clips to the panel box (offset [0 0]), one to the
+         ;; drawing area (offset = the positive panel margin)
+         (some #(= [0 0] (:offset %)) rects)
+         (some #(every? pos? (:offset %)) rects)))])
 
 ;; ## Schema
 ;;
