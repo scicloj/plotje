@@ -1938,17 +1938,14 @@
 ;; ### Stacked bar (diamonds cut by color)
 ;; Source: [Vega-Lite: Stacked Bar](https://vega.github.io/vega-lite/examples/stacked_bar_weather.html)
 
-;; Note: stacked bar with many color categories may trigger a known
-;; fmt-name bug. Using tips which has fewer categories:
-
-(-> (rdatasets/reshape2-tips)
-    (pj/pose :day {:color :time})
+(-> (rdatasets/ggplot2-diamonds)
+    (pj/pose :cut {:color :color})
     (pj/lay-bar {:position :stack})
-    (pj/options {:title "Tips by Day and Meal Time (Stacked)"
-                 :x-label "Day"
+    (pj/options {:title "Diamonds by Cut and Color (Stacked)"
+                 :x-label "Cut"
                  :y-label "Count"}))
 
-(kind/test-last [(fn [v] (pj/pose? v))])
+(kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; ### Bar + point overlay
 ;; Source: [Vega-Lite: Layered Bar](https://vega.github.io/vega-lite/examples/bar_layered_transparent.html)

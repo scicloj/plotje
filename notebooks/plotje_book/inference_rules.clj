@@ -97,8 +97,8 @@ scatter-pose
 ;; | Domain extent | data range + 5% padding | `(pj/scale pose :x {:domain [0 10]})` |
 ;; | Domain zero-anchor | bar/stacked charts include zero | `(pj/scale pose :y {:domain [5 20]})` |
 ;; | Fill domain | `[0.0, 1.0]` for fill position | `(pj/scale pose :y {:domain [0 2]})` |
-;; | Tick values | round intervals (linear), powers of 10 (log) | wadogo scale configuration |
-;; | Tick labels | number formatting, calendar formatting | wadogo label formatting |
+;; | Tick values | round intervals (linear), powers of 10 (log) | `(pj/scale pose :x {:breaks [1 2 3]})` |
+;; | Tick labels | number formatting, calendar formatting | `(pj/scale pose :x {:breaks [...] :labels [...]})` |
 ;; | Axis labels | column name, with underscores replaced by spaces | `(pj/options {:x-label "Custom"})` |
 ;; | Color legend | categorical = discrete, numerical = continuous, none = no legend | `:color` mapping controls presence |
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
