@@ -329,7 +329,7 @@
    v70_l331)))
 
 
-(def v73_l366 (-> (base-plot) (pj/options {:palette :tableau10})))
+(def v73_l366 (-> (base-plot) (pj/options {:palette :tableau-10})))
 
 
 (deftest

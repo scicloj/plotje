@@ -44,7 +44,7 @@ Line chart with point markers from plain Clojure data:
 ```
 ![](readme_files/image1.svg)
 
-Scatter plot matrix (SPLOM) — all pairwise combinations with color grouping:
+Scatter plot matrix (SPLOM) -- all pairwise combinations with color grouping:
 ```clj
 (-> (rdatasets/datasets-iris)
     (pj/pose (pj/cross [:sepal-length :sepal-width

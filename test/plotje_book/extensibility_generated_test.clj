@@ -140,7 +140,7 @@
 
 (deftest
  t30_l274
- (is ((fn* [p1__97296#] (= :drawing-area p1__97296#)) v29_l272)))
+ (is ((fn* [p1__88918#] (= :drawing-area p1__88918#)) v29_l272)))
 
 
 (def v31_l276 (mark/mark-clip-region :rug))
@@ -148,7 +148,7 @@
 
 (deftest
  t32_l278
- (is ((fn* [p1__97297#] (= :panel-box p1__97297#)) v31_l276)))
+ (is ((fn* [p1__88919#] (= :panel-box p1__88919#)) v31_l276)))
 
 
 (def
@@ -161,7 +161,7 @@
 
 (deftest
  t36_l292
- (is ((fn* [p1__97298#] (= :panel-box p1__97298#)) v35_l290)))
+ (is ((fn* [p1__88920#] (= :panel-box p1__88920#)) v35_l290)))
 
 
 (def v38_l296 (remove-method mark/mark-clip-region :margin-glyph))
