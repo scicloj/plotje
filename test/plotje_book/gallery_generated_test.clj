@@ -370,9 +370,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__87351#]
+    [p1__87311#]
     (#{"Australia" "Brazil" "Japan" "Nigeria" "Germany"}
-     (:country p1__87351#))))
+     (:country p1__87311#))))
   (pj/pose :year :life-exp {:color :country})
   pj/lay-line
   pj/lay-point
@@ -755,7 +755,7 @@
  v115_l595
  (->
   (rdatasets/gapminder-gapminder)
-  (tc/select-rows (fn* [p1__87352#] (= 2007 (:year p1__87352#))))
+  (tc/select-rows (fn* [p1__87312#] (= 2007 (:year p1__87312#))))
   (pj/lay-point :gdp-percap :life-exp {:color :continent, :size :pop})
   (pj/scale :x :log)
   (pj/options
@@ -775,9 +775,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__87353#]
+    [p1__87313#]
     (#{"Brazil" "United States" "Japan" "China" "India"}
-     (:country p1__87353#))))
+     (:country p1__87313#))))
   (pj/lay-line :year :life-exp {:color :country})
   (pj/options
    {:title "Life Expectancy Over Time",
@@ -1112,8 +1112,8 @@
   (rdatasets/ggplot2-txhousing)
   (tc/select-rows
    (fn*
-    [p1__87354#]
-    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__87354#))))
+    [p1__87314#]
+    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__87314#))))
   (pj/pose :date :median {:color :city})
   pj/lay-line
   (pj/options
@@ -1156,7 +1156,7 @@
  (->
   (rdatasets/lme4-sleepstudy)
   (tc/select-rows
-   (fn* [p1__87355#] (= "308" (str (:subject p1__87355#)))))
+   (fn* [p1__87315#] (= "308" (str (:subject p1__87315#)))))
   (pj/pose :days :reaction)
   pj/lay-step
   pj/lay-point
@@ -1274,7 +1274,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__87356#] (= 2007 (:year p1__87356#))))
+   (fn* [p1__87316#] (= 2007 (:year p1__87316#))))
   (pj/lay-point
    :gdp-percap
    :life-exp
@@ -1802,8 +1802,8 @@
      [ds]
      (map
       (fn*
-       [p1__87357#]
-       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__87357#))
+       [p1__87317#]
+       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__87317#))
       (ds :month)))))))
 
 
@@ -2105,10 +2105,10 @@
  v321_l1526
  (->
   (tc/dataset
-   {:row (mapcat (fn* [p1__87358#] (repeat 6 p1__87358#)) (range 6)),
+   {:row (mapcat (fn* [p1__87318#] (repeat 6 p1__87318#)) (range 6)),
     :col (flatten (repeat 6 (range 6))),
     :value
-    (map (fn* [p1__87359#] (Math/sin (* p1__87359# 0.5))) (range 36))})
+    (map (fn* [p1__87319#] (Math/sin (* p1__87319# 0.5))) (range 36))})
   (pj/pose :col :row {:fill :value})
   pj/lay-tile
   (pj/options
@@ -2539,7 +2539,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__87360#] (= 2007 (:year p1__87360#))))
+   (fn* [p1__87320#] (= 2007 (:year p1__87320#))))
   (pj/pose :gdp-percap :life-exp)
   pj/lay-point
   (pj/scale :x :log)
@@ -2667,22 +2667,24 @@
 
 
 (def
- v405_l1944
+ v405_l1941
  (->
-  (rdatasets/reshape2-tips)
-  (pj/pose :day {:color :time})
+  (rdatasets/ggplot2-diamonds)
+  (pj/pose :cut {:color :color})
   (pj/lay-bar {:position :stack})
   (pj/options
-   {:title "Tips by Day and Meal Time (Stacked)",
-    :x-label "Day",
+   {:title "Diamonds by Cut and Color (Stacked)",
+    :x-label "Cut",
     :y-label "Count"})))
 
 
-(deftest t406_l1951 (is ((fn [v] (pj/pose? v)) v405_l1944)))
+(deftest
+ t406_l1948
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v405_l1941)))
 
 
 (def
- v408_l1958
+ v408_l1955
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -2695,18 +2697,18 @@
 
 
 (deftest
- t409_l1966
+ t409_l1963
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (pos? (:points s)))))
-   v408_l1958)))
+   v408_l1955)))
 
 
 (def
- v411_l1979
+ v411_l1976
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -2718,12 +2720,12 @@
 
 
 (deftest
- t412_l1986
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v411_l1979)))
+ t412_l1983
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v411_l1976)))
 
 
 (def
- v414_l1991
+ v414_l1988
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 1000)
@@ -2737,18 +2739,18 @@
 
 
 (deftest
- t415_l2000
+ t415_l1997
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v414_l1991)))
+   v414_l1988)))
 
 
 (def
- v417_l2012
+ v417_l2009
  (->
   {:task ["Design" "Build" "Integration" "Testing" "Launch"],
    :start
@@ -2769,11 +2771,11 @@
 
 
 (deftest
- t418_l2023
+ t418_l2020
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 5 (:polygons s)))))
-   v417_l2012)))
+   v417_l2009)))

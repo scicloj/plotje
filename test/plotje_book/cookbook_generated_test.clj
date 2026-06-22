@@ -102,8 +102,8 @@
    :value
    (map
     (fn*
-     [p1__84428#]
-     (+ 100.0 (* 30.0 (Math/sin (* (double p1__84428#) 0.12)))))
+     [p1__84388#]
+     (+ 100.0 (* 30.0 (Math/sin (* (double p1__84388#) 0.12)))))
     (range 52))}))
 
 
@@ -485,7 +485,7 @@
      (and
       (pos? (:points s))
       (some
-       (fn* [p1__84429#] (= "virginica" p1__84429#))
+       (fn* [p1__84389#] (= "virginica" p1__84389#))
        (:texts s)))))
    v70_l325)))
 
@@ -520,7 +520,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__84430#] (= :text (:mark p1__84430#))))
+       (filter (fn* [p1__84390#] (= :text (:mark p1__84390#))))
        first)]
      (= :right (-> text-layer :style :align-x))))
    v74_l344)))
@@ -575,8 +575,8 @@
  (->
   {:x (range 20),
    :y
-   (map (fn* [p1__84431#] (Math/sin (/ p1__84431# 3.0))) (range 20)),
-   :change (map (fn* [p1__84432#] (- p1__84432# 10)) (range 20))}
+   (map (fn* [p1__84391#] (Math/sin (/ p1__84391# 3.0))) (range 20)),
+   :change (map (fn* [p1__84392#] (- p1__84392# 10)) (range 20))}
   (pj/lay-point :x :y {:color :change})
   (pj/options
    {:color-scale :diverging,
@@ -691,8 +691,8 @@
    ys
    (map
     (fn*
-     [p1__84433#]
-     (+ (* 3 p1__84433#) 5 (* 2 (- (rng/drandom r) 0.5))))
+     [p1__84393#]
+     (+ (* 3 p1__84393#) 5 (* 2 (- (rng/drandom r) 0.5))))
     xs)]
   (->
    {:x xs, :y ys}
@@ -1019,7 +1019,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__84434#] (bit-and p1__84434# 255)) (vec bs))))))
+    (mapv (fn* [p1__84394#] (bit-and p1__84394# 255)) (vec bs))))))
 
 
 (deftest
