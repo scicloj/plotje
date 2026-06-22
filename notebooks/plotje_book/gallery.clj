@@ -1575,8 +1575,8 @@
 ;; Source: [Vega-Lite: Layered Line](https://vega.github.io/vega-lite/examples/layer_line_color_rule.html)
 
 ;; Two different y-variables, each in its own panel. Distinct
-;; positional aesthetics mean distinct poses (Pose Rule LP2);
-;; threading two pairs through `pj/pose` produces a horizontal
+;; positional aesthetics mean distinct poses; threading two pairs
+;; through `pj/pose` produces a horizontal
 ;; row of panels.
 
 (-> (rdatasets/ggplot2-economics)
@@ -1600,7 +1600,7 @@
 ;; Source: [D3 Graph Gallery: Connected Scatter](https://d3-graph-gallery.com/graph/connectedscatter_basic.html)
 
 ;; Highway MPG as a scatter and city MPG as a line, side by side.
-;; The two columns get separate panels (Rule LP2). Each panel uses
+;; The two columns get separate panels. Each panel uses
 ;; a different layer type, threaded onto its own pose via
 ;; `pj/arrange`.
 
