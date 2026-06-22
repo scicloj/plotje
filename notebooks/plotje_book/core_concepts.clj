@@ -33,7 +33,12 @@
 
 (rdatasets/datasets-iris)
 
-(kind/test-last [(fn [ds] (= 150 (count (tc/rows ds))))])
+(kind/test-last
+ [(fn [ds]
+    (and (= 150 (tc/row-count ds))
+         (= 6 (tc/column-count ds))
+         (= [:rownames :sepal-length :sepal-width :petal-length :petal-width :species]
+            (vec (tc/column-names ds)))))])
 
 ;; The dataset has 150 rows and 6 columns: a `:rownames` index plus
 ;; four **numerical** measurements (in centimeters) and one
@@ -152,9 +157,9 @@ two-panel
 ;; ---
 ;; ## Scope
 ;;
-;; A **mapping** connects a column to a visual property -- like
-;; mapping `:species` to color. Where you write a mapping determines
-;; who sees it. There are two levels:
+;; A **mapping** maps a column (or a literal value) to a visual
+;; property -- like mapping `:species` to color. Where you write a
+;; mapping determines who sees it. There are two levels:
 ;;
 ;; | Where you write it | What sees it |
 ;; |:-------------------|:-------------|
@@ -386,13 +391,13 @@ two-panel
 ;; ---
 ;; ## Mark, Stat, and Position
 ;;
-;; Each layer has a **layer-type** -- a rendering recipe with three parts:
+;; Each layer has a **layer type** -- a rendering recipe with three parts:
 ;;
 ;; - **Mark** -- the visual shape (point, bar, line, area, tile, ...)
 ;; - **Stat** -- the computation before rendering (identity, bin, linear-model, density, ...)
 ;; - **Position** -- how overlapping groups share space (identity, dodge, stack, ...)
 ;;
-;; A keyword like `:histogram` or `:point` names a layer-type --
+;; A keyword like `:histogram` or `:point` names a layer type --
 ;; look it up to see its parts:
 
 (pj/layer-type-lookup :histogram)
@@ -429,12 +434,11 @@ two-panel
 ;;
 ;; Plotje tries to make small poses work without you having
 ;; to specify everything. You give it what you know -- a dataset,
-;; perhaps a column or two -- and it fills in the rest by looking
-;; at the data.
+;; perhaps a column or two -- and it fills in the rest by
+;; inspecting the data.
 ;;
-;; The underlying principle is short: **resolved = your-choice,
-;; or else inferred-from-data**. Wherever you make a choice it
-;; wins; wherever you don't, the library picks something
+;; The underlying principle is short: wherever you make a choice
+;; it wins; wherever you don't, the library picks something
 ;; sensible.
 ;;
 ;; **Column inference** kicks in when a dataset has up to three
@@ -457,7 +461,7 @@ two-panel
 
 (kind/test-last [(fn [v] (= 4 (:points (pj/svg-summary v))))])
 
-;; **Layer-type inference** fires when a pose has no explicit
+;; **Layer type inference** fires when a pose has no explicit
 ;; layer. The library inspects the types of the columns the
 ;; mapping refers to and picks a chart type that fits. Two
 ;; numerical columns produce a scatter plot:
@@ -830,4 +834,4 @@ two-panel
 ;;
 ;; - [**Composition**](./plotje_book.composition.html) -- composite poses, shared scales, and multi-panel patterns
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- where options live and how scope determines what they reach
-;; - [**Pose Rules**](./plotje_book.pose_rules.html) -- 30 rules that formalize the model with tested assertions
+;; - [**Pose Rules**](./plotje_book.pose_rules.html) -- the rules that formalize the model, each with tested assertions

@@ -58,7 +58,7 @@
 ;; Under `pj/arrange` there is a plain-map composite pose. You can
 ;; construct one directly when you need finer control -- unequal
 ;; weights, shared scales, or (in future work) non-plot leaves like
-;; text panels and KPIs.
+;; text panels and key performance indicators.
 ;;
 ;; An explicit `:layout` accepts `:direction` (`:horizontal` or
 ;; `:vertical`) and `:weights` (one weight per sub-pose). Here the

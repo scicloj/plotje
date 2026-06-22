@@ -48,7 +48,7 @@
     pj/lay-point
     (pj/options {:title "Monthly Sales"}))
 
-;; Scatter plot matrix (SPLOM) — all pairwise combinations with color grouping:
+;; Scatter plot matrix (SPLOM) -- all pairwise combinations with color grouping:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose (pj/cross [:sepal-length :sepal-width

@@ -21,7 +21,7 @@
    (:layers pose)
    (update
     :layers
-    (partial mapv (fn* [p1__87344#] (dissoc p1__87344# :data))))
+    (partial mapv (fn* [p1__91611#] (dissoc p1__91611# :data))))
    (:poses pose)
    (update :poses (partial mapv strip-data)))))
 
@@ -444,7 +444,7 @@
      (= {:color :species} (:mapping pose))
      (= 2 (count (:poses pose)))
      (every?
-      (fn* [p1__87345#] (= 2 (count (:poses p1__87345#))))
+      (fn* [p1__91612#] (= 2 (count (:poses p1__91612#))))
       (:poses pose))))
    v76_l411)))
 
@@ -1011,8 +1011,8 @@
       rule
       (some
        (fn*
-        [p1__87346#]
-        (when (= :rule-h (:layer-type p1__87346#)) p1__87346#))
+        [p1__91613#]
+        (when (= :rule-h (:layer-type p1__91613#)) p1__91613#))
        layers)]
      (and (some? rule) (= 3.0 (get-in rule [:mapping :y-intercept])))))
    v159_l932)))
@@ -1181,8 +1181,8 @@
       domains
       (mapv
        (fn*
-        [p1__87347#]
-        (get-in p1__87347# [:plan :panels 0 :x-scale :domain]))
+        [p1__91614#]
+        (get-in p1__91614# [:plan :panels 0 :x-scale :domain]))
        sub-plots)]
      (and (= 2 (count domains)) (= (first domains) (second domains)))))
    v181_l1095)))
@@ -1207,7 +1207,7 @@
      (= #{:y :x} (get-in pose [:opts :share-scales]))
      (= 2 (count (:poses pose)))
      (every?
-      (fn* [p1__87348#] (= 2 (count (:poses p1__87348#))))
+      (fn* [p1__91615#] (= 2 (count (:poses p1__91615#))))
       (:poses pose))
      (= {:color :species} (:mapping pose))))
    v184_l1128)))

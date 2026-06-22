@@ -100,9 +100,9 @@
 ;; ## Annotated time series
 ;;
 ;; A regular line chart gains context when key dates appear as
-;; vertical reference lines. The rules sit at constants in the
-;; options map -- not in a data column -- so they are treated as
-;; annotations.
+;; vertical reference lines. Each rule's position is passed as a
+;; constant to `lay-rule-v` -- not drawn from a data column -- so it
+;; is treated as an annotation.
 ;;
 ;; The data is from
 ;; [`ggplot2::economics`](https://github.com/tidyverse/ggplot2/blob/main/data-raw/economics.R),

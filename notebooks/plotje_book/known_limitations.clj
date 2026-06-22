@@ -12,7 +12,7 @@
 ;; ## Layout and Visuals
 ;;
 ;; - Multi-layer overlays like
-;;   `(-> data (pj/lay-point ...) (pj/lay-lm ...) (pj/lay-loess ...))`
+;;   `(-> data (pj/lay-point ...) (pj/lay-smooth {:stat :linear-model}) (pj/lay-smooth {:stat :loess}))`
 ;;   do not auto-generate a layer-kind legend to distinguish the two
 ;;   regression curves. Workaround: color each layer explicitly.
 ;;
@@ -40,7 +40,7 @@
 
 ;; ## Marks
 ;;
-;; - **Aesthetic-gate vs. mark-consumer asymmetry.** Several
+;; - **Aesthetic-gate versus mark-consumer asymmetry.** Several
 ;;   aesthetics are accepted at the universal pose-mapping gate but
 ;;   consumed only by one or two mark extractors. Setting them on
 ;;   other marks is a silent no-op rather than an error.
@@ -120,8 +120,9 @@
 ;; - Large scatters produce large SVGs (~220 bytes/point). For >10k
 ;;   points, use `:format :bufimg` for raster output.
 ;;
-;; - `pj/save-png` (and the `:bufimg` raster path generally)
-;;   truncates the rotated y-axis label after ~6 characters. The
+;; - Saving to PNG (`(pj/save pose "plot.png")`, and the `:bufimg`
+;;   raster path generally) truncates the rotated y-axis label after
+;;   ~6 characters. The
 ;;   SVG path (`pj/plot` + Clay GFM, or `rsvg-convert` on the saved
 ;;   SVG) renders the full label. Root cause lives in Membrane's
 ;;   Java2D backend (the rotated-text bounding box is clipped).
@@ -173,7 +174,7 @@
 ;;   `tc/group-by` + `tc/aggregate`, then map the count or density
 ;;   column directly.
 ;;
-;; - Theme support is shallow vs. ggplot2: today the theme map
+;; - Theme support is shallow versus ggplot2: today the theme map
 ;;   carries `:bg`, `:grid`, `:font-size`, and a small handful of
 ;;   other keys. Named theme presets (`theme_minimal`, `theme_bw`,
 ;;   `theme_classic`), axis text rotation, panel borders, strip

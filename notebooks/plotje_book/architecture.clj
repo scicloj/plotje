@@ -22,8 +22,6 @@
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
-   ;; Malli schema validation
-   [scicloj.plotje.impl.plan-schema :as ss]
    ;; Membrane UI protocols
    [membrane.ui]))
 
@@ -48,7 +46,7 @@ graph LR
 
 ;; Two terms used throughout: **data space** is values in their
 ;; original units (centimeters, dollars, dates, species names);
-;; **drawing space** is pixel coordinates inside the output canvas.
+;; **drawing space** is the drawing-unit coordinates inside the output canvas.
 ;; The plan stage holds geometry in data space; the membrane stage
 ;; holds geometry in drawing space.
 
@@ -66,7 +64,7 @@ graph LR
 ;;   aesthetic keys) and `:opts` (the pose-level options that flow
 ;;   into the plan stage). A composite pose produces a
 ;;   `CompositeDraft` instead, carrying per-leaf drafts
-;;   (`:sub-drafts`), the resolved chrome geometry (`:chrome-spec`),
+;;   (`:sub-drafts`), the resolved composite-framing geometry (`:chrome-spec`),
 ;;   the layout map from leaf path to rect (`:layout`), and the
 ;;   composite's overall dimensions (`:width`, `:height`). Produced by
 ;;   `pj/pose->draft`.
@@ -188,7 +186,7 @@ trace-pose
 ;; The pose-level mapping (`:x :petal-length`, `:y :petal-width`,
 ;; `:color :species`) appears inside *each* of the two layer maps,
 ;; alongside layer-specific keys (`:mark`, `:stat`). The layer
-;; engine downstream sees a uniform shape regardless of where each
+;; engine downstream receives a uniform shape regardless of where each
 ;; mapping was originally specified. Keys prefixed with double
 ;; underscores (e.g. `:__panel-idx`) are internal markers; they pass
 ;; through the plan stage and follow the Clojure "do not consume"
@@ -237,7 +235,7 @@ trace-pose
 
 ;; The plan validates against a Malli schema:
 
-(ss/valid? trace-plan)
+(pj/valid-plan? trace-plan)
 
 (kind/test-last [true?])
 
@@ -382,8 +380,8 @@ trace-pose
 ;;
 ;; `pj/membrane` is the analogous shortcut for the membrane stage,
 ;; useful for consumers that want a membrane tree without choosing
-;; an output format yet -- a custom backend, a target Membrane
-;; itself supports but Plotje has not wired in yet.
+;; an output format yet -- for example a custom backend, or a target
+;; that Membrane supports but Plotje has not wired in yet.
 ;;
 ;; Because the compositions call the atomic steps, redefining an
 ;; atomic step (with `with-redefs` for testing, or with a custom
@@ -513,8 +511,8 @@ composite-pose
                               (= 2 (count (:sub-plots p)))))])
 
 ;; `pj/membrane` returns a `PlotjeMembrane` whose `:drawables` carry
-;; one `Translate` per leaf plus chrome (column strip labels, shared
-;; legend, title if any). Plan-derived width and height ride as
+;; one `Translate` per leaf plus composite framing (column strip
+;; labels, shared legend, title if any). Plan-derived width and height ride as
 ;; record fields and the title as `:plotje/title`.
 
 (pj/membrane composite-pose)
@@ -596,7 +594,7 @@ graph LR
 ;; plan stage, is a data-space fact: the range of values the panel
 ;; shows. The membrane turns it into a drawing-space clip that hides
 ;; any geometry reaching past that window, so a mark cannot paint
-;; outside its panel, or into a neighbour in a multi-panel layout. The
+;; outside its panel, or into a neighbor in a multi-panel layout. The
 ;; [Membranes](./plotje_book.membranes.html) chapter shows the
 ;; mechanism; the [Glossary](./plotje_book.glossary.html) has an entry
 ;; for **clip**.
@@ -682,7 +680,7 @@ graph TD
 ;; (the leaf-pose flattening that the public `pj/pose->draft` calls),
 ;; and the multi-pair / grid composite utilities.
 ;;
-;; `impl/compositor.clj` handles composite chrome layout,
+;; `impl/compositor.clj` handles composite framing layout,
 ;; `composite-pose->draft`, and `composite-draft->plan` -- pure
 ;; data-side, no membrane dependency.
 ;;
@@ -698,7 +696,7 @@ graph TD
 ;; The `render/` directory uses membrane for layout and SVG/raster
 ;; conversion. `render/composite.clj` carries the composite
 ;; `plan->membrane` defmethod and the membrane drawables for
-;; composite chrome (title, strip labels, shared legend).
+;; composite framing (title, strip labels, shared legend).
 
 ;; ## Dependencies
 ;;

@@ -104,7 +104,7 @@
                            (and (= 150 (:points s))
                                 (some #{"Petal length (override)"} (:texts s)))))])
 
-;; ### Color and Fill
+;; ### Color and fill
 ;;
 ;; Most marks expose `:color` as the encoding channel -- scatter
 ;; dots, lines, bar interiors, area fills, violins, lollipops -- all
@@ -184,8 +184,8 @@
 ;; which zooms the view, rather than scale limits, which drop rows.
 ;; Here the sepal-width domain is tightened to [3.0, 3.5], so points
 ;; above and below that band are clipped at the panel edge. All 150
-;; observations are still rendered -- the marks simply sit behind a
-;; clip region, one per panel.
+;; observations are still rendered -- the marks sit behind a clip
+;; region, one per panel.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})

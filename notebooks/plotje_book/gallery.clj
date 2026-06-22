@@ -406,8 +406,9 @@
 
 ;; All pairwise combinations of iris measurements on a 4x4 grid with
 ;; shared x-scales down columns and shared y-scales across rows.
-;; Off-diagonal cells show scatter plots; diagonal cells (where x = y)
-;; show histograms -- per-cell inference picks the layer type:
+;; Off-diagonal cells show scatter plots; diagonal cells (where the two
+;; axes use the same column) show histograms -- per-cell inference picks
+;; the layer type:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose (pj/cross [:sepal-length :sepal-width :petal-length :petal-width]
@@ -1163,7 +1164,7 @@
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; ### Simulated normal distribution
+;; ### Simulated approximately-normal distribution
 ;; Source: [ECharts: Histogram](https://echarts.apache.org/examples/en/editor.html?c=bar-histogram)
 
 (-> (tc/dataset {:value (repeatedly 500 #(+ (* 2.0 (rand)) (* 2.0 (rand)) (* 2.0 (rand)) -3.0))})
@@ -1600,7 +1601,7 @@
 
 ;; Highway MPG as a scatter and city MPG as a line, side by side.
 ;; The two columns get separate panels (Rule LP2). Each panel uses
-;; a different layer type, threaded onto its own sub-pose via
+;; a different layer type, threaded onto its own pose via
 ;; `pj/arrange`.
 
 (pj/arrange
@@ -1904,7 +1905,6 @@
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
 ;; ---
-;; ---
 ;; ## Scale Variations
 
 ;; ### Log scale scatter
@@ -1968,9 +1968,10 @@
                                 (pos? (:points s)))))])
 
 ;; ---
-;; ## Iris Dataset Comprehensive
+;; ## Density-Based Views
 
-;; These examples systematically show iris data in every applicable chart type.
+;; Two density-based examples: a 2D density of iris measurements, and a
+;; contour-plus-scatter of the diamonds data.
 
 ;; ### Iris density2d
 ;; Source: [Python Graph Gallery: 2D Density](https://python-graph-gallery.com/2d-density-plot-with-ggplot2/)
@@ -1984,7 +1985,7 @@
 
 (kind/test-last [(fn [v] (pos? (:visible-tiles (pj/svg-summary v))))])
 
-;; ### Iris contour with scatter
+;; ### Diamonds contour with scatter
 ;; Source: [D3 Graph Gallery: Contour](https://d3-graph-gallery.com/graph/density2d_contour.html)
 
 (-> (rdatasets/ggplot2-diamonds)

@@ -55,6 +55,7 @@ scatter-pose
                                      pj/plan
                                      :panels first :layers first :groups first :color)]
       (and (= 5 (:points (pj/svg-summary v)))
+           (= "#333" (:default-color (pj/config)))
            (= :single (:layout-type plan))
            (= 1 (count (:panels plan)))
            (= "x" (:x-label plan))
@@ -101,7 +102,7 @@ scatter-pose
 ;; | Axis labels | column name, with underscores replaced by spaces | `(pj/options {:x-label "Custom"})` |
 ;; | Color legend | categorical = discrete, numerical = continuous, none = no legend | `:color` mapping controls presence |
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
-;; | Alpha legend | 5 graduated opacity squares when `:alpha` maps to numerical column | `:alpha` mapping controls presence |
+;; | Alpha legend | ~5 graduated opacity squares (count varies with range) when `:alpha` maps to numerical column | `:alpha` mapping controls presence |
 ;; | Layout padding | adjusts for title, labels, legend | `:width`, `:height` in options |
 ;; | Layout type | single, facet-grid, multi-variable | `pj/facet`, multiple x-y pairs |
 ;; | Coordinate system | `:cartesian` | `(pj/coord :flip)`, `(pj/coord :polar)` |
@@ -553,8 +554,9 @@ explicit-group-pose
 ;; ### What grouping affects
 ;;
 ;; Grouping determines how statistical transformations operate.
-;; Without grouping, `(pj/lay-smooth {:stat :linear-model})` (linear model) fits one regression line through
-;; all the data. With grouping, it fits one line per group.
+;; Without grouping, `(pj/lay-smooth {:stat :linear-model})` fits one
+;; regression line through all the data. With grouping, it fits one
+;; line per group.
 
 ;; One regression line -- no grouping:
 
@@ -849,8 +851,9 @@ iris-label-pose
       (and (= "sepal length" (:x-label plan))
            (= "sepal width" (:y-label plan)))))])
 
-;; When only one column is specified, the y-axis shows computed counts.
-;; The system omits the y-label since it would repeat the column name:
+;; When only one column is specified, the y-axis shows computed
+;; counts. There is no y source column, so there is no column name to
+;; draw a y-label from, and the y-label stays empty:
 
 (def x-only-pose
   (-> five-points (pj/pose :x)))

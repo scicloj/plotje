@@ -1,9 +1,9 @@
 ;; # Pose Rules
 ;;
-;; Poses gave the mental picture; this chapter proves it. Each
-;; of the 30 rules below carries a rendered pose, a printed
-;; structure, and a tested assertion, so the model claims are
-;; verified on every run.
+;; Poses gave the mental picture; this chapter proves it. Each of
+;; the 29 rules below carries a rendered pose and a tested
+;; assertion, with the printed structure shown where the shape is
+;; the point, so the model claims are verified on every run.
 ;;
 ;; The rules are organized into seven sections (Construction, Layer
 ;; Placement, Leaf Identity, Scope, Options, Assembly, Layout) and
@@ -68,7 +68,7 @@
 ;; ---
 ;; ## Construction
 ;;
-;; How poses and composites come into existence. Eight rules
+;; How poses and composites come into existence. Nine rules
 ;; covering every `pj/pose` call shape plus `pj/arrange`.
 
 ;; ### Rule C1: `pj/pose` on raw data creates a leaf
@@ -664,9 +664,9 @@ composite-pose
 ;; ---
 ;; ## Leaf Identity
 ;;
-;; How columns identify a leaf. Two rules -- one about inference
-;; when the user omits column names, one about how column refs are
-;; compared.
+;; How columns identify a leaf. One rule, about inference when the
+;; user omits column names. (How column references are compared is
+;; covered by Rule LP2.)
 
 ;; ### Rule LI1: few-column datasets auto-infer columns by position
 ;;
@@ -1016,9 +1016,9 @@ s2-tree
 ;; ---
 ;; ## Layout
 ;;
-;; How leaves become panels in the rendered plot. Four rules
-;; covering single panels, overlays, faceting, and composite grids
-;; with shared scales.
+;; How leaves become panels in the rendered plot. Five rules
+;; covering single panels, overlays, faceting, composite grids with
+;; shared scales, and the SPLOM reshape of multi-pair poses.
 
 ;; ### Rule L1: each leaf produces a panel block
 ;;

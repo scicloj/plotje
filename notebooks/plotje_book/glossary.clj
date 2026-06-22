@@ -167,7 +167,7 @@ my-pose
 ;; maps, one per applicable layer with merged pose-and-layer scope)
 ;; and `:opts` (the pose-level options that flow into the plan
 ;; stage). For a composite pose, it is a `CompositeDraft` carrying
-;; per-leaf drafts plus chrome geometry. Draft layers carry all the
+;; per-leaf drafts plus composite layout geometry. Draft layers carry all the
 ;; information the plan stage needs: data, columns, mark, stat,
 ;; color, grouping.
 ;;
@@ -207,8 +207,8 @@ my-pose
 
 ;; ## Mapping
 ;;
-;; A **mapping** is a binding from a column (or literal value) to
-;; an aesthetic. Aesthetics come in two groups:
+;; A **mapping** maps a column (or a literal value) to an
+;; aesthetic. Aesthetics come in two groups:
 ;;
 ;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:x-min`,
 ;;   `:x-max`, `:y-min`, `:y-max` for marks that need them) place
@@ -323,9 +323,11 @@ my-pose
 ;;
 ;; On categorical x-axes, jitter is applied along the band axis only.
 
-(merge (pj/layer-type-lookup :point) {:jitter true})
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :species :sepal-length {:jitter true}))
 
-(kind/test-last [(fn [m] (true? (:jitter m)))])
+(kind/test-last [(fn [v] (and (pj/pose? v)
+                              (pos? (:points (pj/svg-summary v)))))])
 
 ;; ## Inference
 ;;
@@ -338,8 +340,7 @@ my-pose
 ;; layer to override the detected type.
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose :sepal-length :sepal-width)
-    pj/lay-point)
+    (pj/pose :sepal-length :sepal-width))
 
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 

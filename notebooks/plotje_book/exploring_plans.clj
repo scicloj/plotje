@@ -21,9 +21,7 @@
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje -- composable plotting
-   [scicloj.plotje.api :as pj]
-   ;; Layer-type registry -- lookup mark/stat/position by keyword
-   [scicloj.plotje.layer-type :as layer-type]))
+   [scicloj.plotje.api :as pj]))
 
 ;; ## A Minimal Scatter Plot
 ;;
@@ -166,7 +164,7 @@ iris-plan
 
 ;; Now we have three groups -- one per species:
 
-(def iris-layer (first (:layers (first (:panels iris-plan)))))
+(def iris-layer (-> iris-plan :panels first :layers first))
 
 (count (:groups iris-layer))
 
@@ -237,7 +235,7 @@ hist-plan
 
 (kind/test-last [(fn [m] (= 1 (count (:panels m))))])
 
-(def hist-layer (first (:layers (first (:panels hist-plan)))))
+(def hist-layer (-> hist-plan :panels first :layers first))
 
 (:mark hist-layer)
 
@@ -271,7 +269,7 @@ hist-plan
                   (pj/lay-bar :island {:color :species})
                   pj/plan))
 
-(def bar-layer (first (:layers (first (:panels bar-plan)))))
+(def bar-layer (-> bar-plan :panels first :layers first))
 
 ;; The mark type is `:rect` and the layer carries the categories:
 
@@ -301,7 +299,7 @@ bar-layer
                       (pj/lay-bar :island {:position :stack :color :species})
                       pj/plan))
 
-(def stacked-layer (first (:layers (first (:panels stacked-plan)))))
+(def stacked-layer (-> stacked-plan :panels first :layers first))
 
 (:position stacked-layer)
 
@@ -329,9 +327,9 @@ bar-layer
 
 ;; Two layers -- points and line:
 
-(mapv :mark (:layers (first (:panels lm-plan))))
+(mapv :mark (-> lm-plan :panels first :layers))
 (kind/test-last [(fn [marks] (= [:point :line] marks))])
-(def lm-layer (second (:layers (first (:panels lm-plan)))))
+(def lm-layer (-> lm-plan :panels first :layers second))
 
 ;; Its group has endpoints -- a line segment in data space:
 
@@ -363,7 +361,7 @@ bar-layer
                   (pj/lay-smooth {:stat :linear-model})
                   pj/plan))
 
-(let [line-layer (second (:layers (first (:panels grp-plan))))]
+(let [line-layer (-> grp-plan :panels first :layers second)]
   (mapv (fn [g]
           {:color (:color g)
            :x1 (some-> (:x1 g) (Math/round) int)
@@ -392,7 +390,7 @@ bar-layer
                    (pj/lay-line :x :y)
                    pj/plan))
 
-(def wave-group (first (:groups (first (:layers (first (:panels wave-plan)))))))
+(def wave-group (-> wave-plan :panels first :layers first :groups first))
 
 {:n-points (count (:xs wave-group))
  :first-x (first (:xs wave-group))
@@ -421,7 +419,7 @@ bar-layer
                     (pj/lay-value-bar :product :revenue)
                     pj/plan))
 
-(let [g (first (:groups (first (:layers (first (:panels sales-plan))))))]
+(let [g (-> sales-plan :panels first :layers first :groups first)]
   {:xs (:xs g)
    :ys (:ys g)})
 
@@ -502,7 +500,7 @@ final-plan
 (mapv (fn [l]
         {:mark (:mark l)
          :n-groups (count (:groups l))})
-      (:layers (first (:panels final-plan))))
+      (-> final-plan :panels first :layers))
 
 (kind/test-last [(fn [ls] (= 2 (count ls)))])
 
@@ -610,13 +608,13 @@ final-plan
 ;; `:ys`, etc.). The buffers support `nth`, `count`, `seq`, and
 ;; standard sequence operations.
 
-(type (:xs (first (:groups (first (:layers (first (:panels tiny-plan))))))))
+(-> tiny-plan :panels first :layers first :groups first :xs type)
 
 (kind/test-last [(fn [t] (not= clojure.lang.PersistentVector t))])
 
 ;; You can convert any numeric buffer to a plain vector with `vec`:
 
-(vec (:xs (first (:groups (first (:layers (first (:panels tiny-plan))))))))
+(-> tiny-plan :panels first :layers first :groups first :xs vec)
 
 (kind/test-last [(fn [v] (and (vector? v) (number? (first v))))])
 

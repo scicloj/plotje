@@ -245,8 +245,8 @@
 
 ;; ### Confidence ribbon -- small n
 
-;; Linear regression with se=true on exactly 3 points
-;; (minimum for lm -- linear model).
+;; Linear regression with `:confidence-band true` on exactly 3 points
+;; (the minimum for a linear model).
 
 (-> {:x [1 2 3] :y [2 4 5]}
     (pj/lay-point :x :y)

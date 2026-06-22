@@ -48,7 +48,6 @@
   [pose]
   (kind/pprint (strip-data pose)))
 
-;; ---
 ;; ## Layer Options
 ;;
 ;; Layer options describe a specific layer. They include:
@@ -113,7 +112,6 @@
 ;; teaches how layer placement interacts with pose mappings, and
 ;; the detailed combination rules for each category of layer option.
 
-;; ---
 ;; ## Plot Options
 ;;
 ;; Plot options describe the plot as a whole: its title, labels,
@@ -127,10 +125,11 @@
 ;;   and legend labels) and panel dimensions. It also accepts
 ;;   configuration keys as per-plot overrides (see Configuration
 ;;   below).
-;; - `pj/scale` -- scale on an axis (`:x`, `:y`) or a continuous
-;;   visual channel (`:size`, `:alpha`, `:fill`, `:color`). Axis
-;;   scales accept `:linear`, `:log`, `:categorical`; visual channels
-;;   accept `:linear` and `:log`.
+;; - `pj/scale` -- scale on an axis (`:x`, `:y`) or a visual channel.
+;;   Axis scales accept `:linear`, `:log`, `:categorical`. Continuous
+;;   visual channels (`:size`, `:alpha`, `:fill`, `:color`) accept
+;;   `:linear` and `:log`; discrete visual channels (`:shape`,
+;;   `:group`) accept `:categorical`.
 ;; - `pj/coord` -- coordinate system (cartesian, flipped, polar,
 ;;   fixed).
 ;; - `pj/facet` and `pj/facet-grid` -- split the plot into panels
@@ -191,7 +190,6 @@
 ;; -- is a category mistake: plot options belong in `:opts` via
 ;; their dedicated functions above.
 
-;; ---
 ;; ## Configuration
 ;;
 ;; Configuration controls the rendering defaults -- palette,
@@ -229,7 +227,6 @@
          (number? (:height m))
          (number? (:margin m))))])
 
-;; ---
 ;; ## A Worked Example
 ;;
 ;; The pose below touches two categories explicitly. The third,
@@ -273,7 +270,6 @@ demo
 ;;   will consult `(pj/config)` for theme, default dimensions,
 ;;   and other defaults.
 
-;; ---
 ;; ## Coming from ggplot2
 ;;
 ;; For readers familiar with ggplot2, the three categories map
@@ -296,7 +292,6 @@ demo
 ;; and `pj/facet` remain dedicated functions because each carries
 ;; non-trivial structure, but everything else merges.
 
-;; ---
 ;; ## See Also
 ;;
 ;; - [Core Concepts](./plotje_book.core_concepts.html) --

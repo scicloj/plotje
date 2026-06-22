@@ -189,7 +189,7 @@
 
 (kind/test-last [(fn [v] (= 152 (:points (pj/svg-summary v))))])
 
-;; ### Points with [Error Bars](https://en.wikipedia.org/wiki/Error_bar)
+;; ### Points with [error bars](https://en.wikipedia.org/wiki/Error_bar)
 ;;
 ;; Combining `point` and `errorbar` layers shows measurements
 ;; with uncertainty.
@@ -220,7 +220,7 @@
                            (and (= 4 (:points s))
                                 (= 16 (:lines s)))))])
 
-;; ### Summary (Mean +/- SE) with Raw Data
+;; ### Summary (mean +/- SE) with raw data
 ;;
 ;; The `summary` layer type computes mean and SE (standard error) per category.
 
@@ -401,7 +401,7 @@
                            (and (= 1 (:panels s))
                                 (= 20 (:points s)))))])
 
-;; ### LOESS (Local Regression) [Confidence Ribbon](https://en.wikipedia.org/wiki/Confidence_band)
+;; ### LOESS (local regression) [confidence ribbon](https://en.wikipedia.org/wiki/Confidence_band)
 ;;
 ;; Add `{:confidence-band true}` to a LOESS smoother for a bootstrap confidence band.
 
@@ -701,8 +701,8 @@
 ;; A pose's `:opts {:format ...}` flows into both contexts. If you
 ;; pin `:format :bufimg` on a pose so the notebook renders raster,
 ;; saving that pose still produces a PNG file -- the save path
-;; reinterprets the pose-level `:bufimg` as `:png` because what hits
-;; the disk is a PNG.
+;; reinterprets the pose-level `:bufimg` as `:png` because what is
+;; written to disk is a PNG.
 
 ;; ## See Also
 ;;

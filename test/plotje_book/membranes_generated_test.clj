@@ -168,50 +168,42 @@
    {:x [1 2 3 4 5], :y [10 20 15 25 18]}
    (pj/lay-point :x :y)
    (pj/lay-line {:data {:x [1 5], :y [-200 300]}})
+   (pj/lay-rug :x)
    (pj/scale :y {:type :linear, :domain [0 30]})
    pj/membrane)))
 
 
 (def
- v45_l274
- (def
-  panel-scissor
-  (->>
-   (tree-seq coll? seq (ui/children clipped-membrane))
-   (filter
-    (fn*
-     [p1__100440#]
-     (instance? membrane.ui.ScissorView p1__100440#)))
-   first)))
-
-
-(def
- v46_l279
- {:found? (some? panel-scissor),
-  :offset (:offset panel-scissor),
-  :bounds (:bounds panel-scissor)})
+ v45_l275
+ (->>
+  (ui/children clipped-membrane)
+  (tree-seq coll? seq)
+  (filter
+   (fn* [p1__98903#] (instance? membrane.ui.ScissorView p1__98903#)))
+  (mapv (fn* [p1__98904#] (select-keys p1__98904# [:offset :bounds])))))
 
 
 (deftest
- t47_l283
+ t46_l280
  (is
   ((fn
-    [info]
+    [rects]
     (and
-     (:found? info)
-     (= 2 (count (:offset info)))
-     (every? pos? (:offset info))
-     (= 2 (count (:bounds info)))))
-   v46_l279)))
+     (= 2 (count rects))
+     (some (fn* [p1__98905#] (= [0 0] (:offset p1__98905#))) rects)
+     (some
+      (fn* [p1__98906#] (every? pos? (:offset p1__98906#)))
+      rects)))
+   v45_l275)))
 
 
-(def v49_l295 (plotje-mem/valid? iris-membrane))
+(def v48_l294 (plotje-mem/valid? iris-membrane))
 
 
-(deftest t50_l297 (is (true? v49_l295)))
+(deftest t49_l296 (is (true? v48_l294)))
 
 
-(def v52_l301 (some? (plotje-mem/explain {:not :a-membrane})))
+(def v51_l300 (some? (plotje-mem/explain {:not :a-membrane})))
 
 
-(deftest t53_l303 (is (true? v52_l301)))
+(deftest t52_l302 (is (true? v51_l300)))

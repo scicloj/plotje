@@ -99,10 +99,10 @@ iris-membrane
 ;; not recompute them; it inherits the canvas size the plan
 ;; resolved. The origin is `[0 0]` because a `PlotjeMembrane` is the
 ;; full canvas; when it is embedded in a larger Membrane layout, the
-;; layout's translation places it. The nine top-level drawables for
-;; this iris scatter are the title, the y-axis label, the x-axis
-;; label, the panel background, the panel grid plus marks, and the
-;; three legend rows.
+;; layout's translation places it. The top-level drawables for this
+;; iris scatter are the title, the axis labels, the panel (its
+;; background and grid, and the marks drawn on it), and the legend
+;; (a heading plus one row per category).
 
 ;; The map keys, as the record presents them, are three record
 ;; fields plus the namespaced title:

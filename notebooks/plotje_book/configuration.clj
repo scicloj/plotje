@@ -272,7 +272,7 @@ precedence-point-radius
 ;; {:width 800
 ;;  :height 500
 ;;  :theme {:bg "#FFFFFF" :grid "#F0F0F0" :font-size 10}
-;;  :palette :tableau10
+;;  :palette :tableau-10
 ;;  :point-radius 3}
 ;; ```
 ;;
@@ -308,7 +308,7 @@ precedence-point-radius
     (let [s (str v)]
       ;; beige background
       (and (clojure.string/includes? s "rgb(245,245,220)")
-           ;; default grid color is still white
+           ;; default grid color (#F5F5F5, off-white grey) is kept
            (clojure.string/includes? s "rgb(245,245,245)"))))])
 
 ;; Override all three for a dark theme:
@@ -355,7 +355,7 @@ precedence-point-radius
 ;; - a vector of hex strings: `["#E74C3C" "#3498DB" "#2ECC71"]`
 ;; - a map of `{category-value "#hex"}` for explicit assignment
 ;;
-;; Common palette names: `:set1`, `:set2`, `:dark2`, `:tableau10`,
+;; Common palette names: `:set1`, `:set2`, `:dark2`, `:tableau-10`,
 ;; `:category10`, `:pastel1`, `:accent`, `:paired`.
 ;; Use `(clojure2d.color/find-palette #"pattern")` to discover more.
 ;;
@@ -364,7 +364,7 @@ precedence-point-radius
 ;; Named palette via plot options:
 
 (-> (base-plot)
-    (pj/options {:palette :tableau10}))
+    (pj/options {:palette :tableau-10}))
 
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])

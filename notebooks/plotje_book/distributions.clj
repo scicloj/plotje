@@ -13,7 +13,7 @@
    [scicloj.plotje.api :as pj]))
 
 ;; ## Histogram
-
+;;
 ;; Distribution of sepal length across all species.
 
 (-> (rdatasets/datasets-iris)
@@ -25,7 +25,7 @@
                  (pos? (:polygons s)))))])
 
 ;; ## Colored Histogram
-
+;;
 ;; Split by species -- each group gets its own color.
 
 (-> (rdatasets/datasets-iris)
@@ -37,7 +37,7 @@
                  (pos? (:polygons s)))))])
 
 ;; ## Petal Width Histogram
-
+;;
 ;; Petal width has a bimodal distribution.
 
 (-> (rdatasets/datasets-iris)
@@ -76,7 +76,7 @@
                                 (pos? (:polygons s)))))])
 
 ;; ## Log-Scale Histogram
-
+;;
 ;; When bin counts span orders of magnitude, the smallest bars
 ;; disappear next to the largest on a linear y-axis. A log y-scale
 ;; lets every bar register. The data below doubles the count of
@@ -103,7 +103,7 @@
            (< 500.0 hi 2000.0))))])
 
 ;; ## Density Plot
-
+;;
 ;; A smooth curve estimating the probability density function.
 ;; Less sensitive to bin width than histograms.
 
@@ -116,7 +116,7 @@
                  (= 1 (:polygons s)))))])
 
 ;; ## Grouped Density
-
+;;
 ;; Per-species density curves with automatic color mapping.
 
 (-> (rdatasets/datasets-iris)
@@ -128,7 +128,7 @@
                  (= 3 (:polygons s)))))])
 
 ;; ## Density with Custom Bandwidth
-
+;;
 ;; A narrow bandwidth reveals more detail; a wide bandwidth smooths more.
 
 (-> (rdatasets/datasets-iris)
@@ -140,7 +140,7 @@
                  (= 1 (:polygons s)))))])
 
 ;; ## Rug
-
+;;
 ;; A rug shows the raw data positions as short tick marks along the
 ;; axis. Layered with a density curve, it shows the smooth shape and
 ;; the underlying observations together.
@@ -178,8 +178,8 @@
                                 (= 150 (:points s)))))])
 
 ;; ## Boxplot
-
-;; Median, quartiles, whiskers at 1.5xIQR (interquartile range), and outlier points.
+;;
+;; Median, quartiles, whiskers at 1.5 times the IQR (interquartile range), and outlier points.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-boxplot :species :sepal-width))
@@ -190,7 +190,7 @@
                  (= 3 (:polygons s))
                  (pos? (:lines s)))))])
 
-;; The 1.5xIQR claim is structural: each whisker stays within the
+;; The 1.5-times-IQR claim is structural: each whisker stays within the
 ;; Tukey fence `[Q1 - 1.5*IQR, Q3 + 1.5*IQR]`, and every outlier
 ;; falls outside it.
 
@@ -218,7 +218,7 @@
                    results))))])
 
 ;; ## Grouped Boxplot
-
+;;
 ;; Side-by-side boxplots colored by a grouping variable.
 
 (-> (rdatasets/reshape2-tips)
@@ -240,7 +240,7 @@
            (= 2 (count (:color-categories box-layer))))))])
 
 ;; ## Horizontal Boxplot
-
+;;
 ;; Flipped coordinate for horizontal orientation.
 
 (-> (rdatasets/datasets-iris)
@@ -267,7 +267,7 @@
                  (= 4 (:polygons s)))))])
 
 ;; ## Grouped Violin
-
+;;
 ;; Color splits each category into side-by-side violins.
 
 (-> (rdatasets/reshape2-tips)
@@ -312,7 +312,7 @@
                  (pos? (:polygons s)))))])
 
 ;; ## Colored Ridgeline
-
+;;
 ;; Map color to the same categorical column for distinct curves.
 
 (-> (rdatasets/datasets-iris)

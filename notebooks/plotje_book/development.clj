@@ -74,8 +74,8 @@
 ;; After editing a notebook, you may regenerate its test file by rendering it:
 ;;
 ;; ```clojure
-;; (require '[scicloj.clay.v2.api :as clay])
-;; (clay/make! {:source-path "plotje_book/relationships.clj"})
+;; (require '[dev :as dev])
+;; (dev/make-gfm! "plotje_book/relationships.clj")
 ;; ```
 ;;
 ;; This updates `test/plotje_book/relationships_generated_test.clj`.
