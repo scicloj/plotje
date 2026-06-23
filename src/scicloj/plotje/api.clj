@@ -13,6 +13,7 @@
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.render.membrane :as membrane]
+            [scicloj.plotje.impl.membrane :as membrane-schema]
             [scicloj.plotje.render.composite]
             [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.render.svg :as svg]
@@ -355,6 +356,21 @@
    - `(explain-plan (plan pose))`"
   [plan]
   (ss/explain plan))
+
+(defn valid-membrane?
+  "Check if a membrane conforms to the Malli schema.
+
+   - `(valid-membrane? (membrane pose))` -- true if valid."
+  [membrane]
+  (membrane-schema/valid? membrane))
+
+(defn explain-membrane
+  "Explain why a membrane does not conform to the Malli schema.
+   Returns `nil` if valid, or a Malli explanation map if invalid.
+
+   - `(explain-membrane (membrane pose))`"
+  [membrane]
+  (membrane-schema/explain membrane))
 
 ;; ---- API ----
 
