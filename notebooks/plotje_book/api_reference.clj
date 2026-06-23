@@ -793,6 +793,18 @@ plan1
 
 (kind/test-last [true?])
 
+(kind/doc #'pj/valid-membrane?)
+
+(pj/valid-membrane? m1)
+
+(kind/test-last [true?])
+
+(kind/doc #'pj/explain-membrane)
+
+(pj/explain-membrane m1)
+
+(kind/test-last [nil?])
+
 (kind/doc #'pj/membrane->plot)
 
 (first (pj/membrane->plot m1 :svg {}))

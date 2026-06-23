@@ -284,15 +284,18 @@ two-up-png
 
 ;; ## Schema
 ;;
-;; Plotje publishes a Malli schema for the `PlotjeMembrane` shape.
-;; Backend authors validating an incoming membrane (or constructing
-;; their own for testing) can use it:
+;; Plotje validates the `PlotjeMembrane` shape against a Malli schema
+;; through `pj/valid-membrane?` and `pj/explain-membrane` -- the
+;; membrane counterpart of `pj/valid-plan?` and `pj/explain-plan` for
+;; plans. Backend authors validating an incoming membrane (or
+;; constructing their own for testing) can use them:
 
 (pj/valid-membrane? iris-membrane)
 
 (kind/test-last [true?])
 
-;; A non-membrane value fails validation:
+;; A non-membrane value fails validation; `pj/explain-membrane`
+;; returns a Malli explanation map (nil when the value is valid):
 
 (some? (pj/explain-membrane {:not :a-membrane}))
 

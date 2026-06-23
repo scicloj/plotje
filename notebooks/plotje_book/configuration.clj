@@ -454,6 +454,10 @@ precedence-point-radius
 ;;
 ;; - `pj/valid-plan?` -- returns true or false
 ;; - `pj/explain-plan` -- returns nil if valid, or a [Malli](https://github.com/metosin/malli) explanation map
+;;
+;; The membrane stage has the same pair -- `pj/valid-membrane?` and
+;; `pj/explain-membrane` -- shown in the
+;; [Membranes](./plotje_book.membranes.html) chapter.
 
 ;; Default behavior (validate = true) -- a valid plan passes silently:
 
