@@ -162,29 +162,11 @@
    v29_l115)))
 
 
-(def
- v32_l126
- (pj/lay-histogram
-  (rdatasets/datasets-iris)
-  [:sepal-length :sepal-width]))
-
-
-(deftest
- t33_l128
- (is
-  ((fn
-    [v]
-    (let
-     [s (pj/svg-summary v)]
-     (and (= 2 (:panels s)) (pos? (:polygons s)))))
-   v32_l126)))
-
-
-(def v35_l134 (kind/doc #'pj/lay))
+(def v32_l126 (kind/doc #'pj/lay))
 
 
 (def
- v37_l142
+ v34_l134
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -192,58 +174,76 @@
 
 
 (deftest
- t38_l146
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v37_l142)))
+ t35_l138
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v34_l134)))
 
 
-(def v40_l157 (kind/doc #'pj/lay-point))
+(def v37_l149 (kind/doc #'pj/lay-point))
 
 
 (def
- v41_l159
+ v38_l151
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})))
 
 
 (deftest
- t42_l162
+ t39_l154
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s)))) v41_l159)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s)))) v38_l151)))
 
 
-(def v43_l165 (kind/doc #'pj/lay-line))
+(def v40_l157 (kind/doc #'pj/lay-line))
 
 
 (def
- v44_l167
+ v41_l159
  (def
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__86561#] (Math/sin (* p1__86561# 0.3))) (range 30))}))
+   (map (fn* [p1__96315#] (Math/sin (* p1__96315# 0.3))) (range 30))}))
 
 
-(def v45_l170 (-> wave (pj/lay-line :x :y)))
+(def v42_l162 (-> wave (pj/lay-line :x :y)))
 
 
 (deftest
- t46_l173
- (is ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:lines s)))) v45_l170)))
+ t43_l165
+ (is ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:lines s)))) v42_l162)))
 
 
-(def v47_l176 (kind/doc #'pj/lay-histogram))
+(def v44_l168 (kind/doc #'pj/lay-histogram))
 
 
 (def
- v48_l178
+ v45_l170
  (-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length)))
 
 
 (deftest
- t49_l181
+ t46_l173
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
+   v45_l170)))
+
+
+(def
+ v48_l178
+ (pj/lay-histogram
+  (rdatasets/datasets-iris)
+  [:sepal-length :sepal-width]))
+
+
+(deftest
+ t49_l180
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 2 (:panels s)) (pos? (:polygons s)))))
    v48_l178)))
 
 
@@ -330,9 +330,9 @@
     :y
     (mapv
      (fn*
-      [p1__86562#]
+      [p1__96316#]
       (+
-       (Math/sin (* p1__86562# 0.2))
+       (Math/sin (* p1__96316# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1403,7 +1403,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__86563#] (bit-and p1__86563# 255)) (vec bs))))))
+    (mapv (fn* [p1__96317#] (bit-and p1__96317# 255)) (vec bs))))))
 
 
 (deftest
@@ -1424,7 +1424,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__86564#] (bit-and p1__86564# 255)) (vec bs))))))
+    (mapv (fn* [p1__96318#] (bit-and p1__96318# 255)) (vec bs))))))
 
 
 (deftest t326_l973 (is ((fn [bs] (= [137 80 78 71] bs)) v325_l964)))

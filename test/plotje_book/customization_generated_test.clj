@@ -200,7 +200,7 @@
   {:x (range 1 50),
    :y
    (map
-    (fn* [p1__85779#] (* 2 (Math/pow 1.1 p1__85779#)))
+    (fn* [p1__95533#] (* 2 (Math/pow 1.1 p1__95533#)))
     (range 1 50))}))
 
 
@@ -494,8 +494,8 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__85780#] (= :text (:mark p1__85780#))))
-      (mapv (fn* [p1__85781#] (-> p1__85781# :style :align-x))))))
+      (filter (fn* [p1__95534#] (= :text (:mark p1__95534#))))
+      (mapv (fn* [p1__95535#] (-> p1__95535# :style :align-x))))))
    v71_l351)))
 
 
@@ -523,7 +523,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__85782#] (= :text (:mark p1__85782#))))
+       (filter (fn* [p1__95536#] (= :text (:mark p1__95536#))))
        first
        :style)]
      (and
@@ -549,12 +549,12 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__85783#] (= mark (:mark p1__85783#))))
+        (filter (fn* [p1__95537#] (= mark (:mark p1__95537#))))
         first
         :style
         ((fn*
-          [p1__85784#]
-          (select-keys p1__85784# [:align-x :align-y])))))]
+          [p1__95538#]
+          (select-keys p1__95538# [:align-x :align-y])))))]
      (and
       (=
        {:align-x :left, :align-y :center}

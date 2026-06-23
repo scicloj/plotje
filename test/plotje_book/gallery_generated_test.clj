@@ -370,9 +370,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__87311#]
+    [p1__97065#]
     (#{"Australia" "Brazil" "Japan" "Nigeria" "Germany"}
-     (:country p1__87311#))))
+     (:country p1__97065#))))
   (pj/pose :year :life-exp {:color :country})
   pj/lay-line
   pj/lay-point
@@ -755,7 +755,7 @@
  v115_l595
  (->
   (rdatasets/gapminder-gapminder)
-  (tc/select-rows (fn* [p1__87312#] (= 2007 (:year p1__87312#))))
+  (tc/select-rows (fn* [p1__97066#] (= 2007 (:year p1__97066#))))
   (pj/lay-point :gdp-percap :life-exp {:color :continent, :size :pop})
   (pj/scale :x :log)
   (pj/options
@@ -775,9 +775,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__87313#]
+    [p1__97067#]
     (#{"Brazil" "United States" "Japan" "China" "India"}
-     (:country p1__87313#))))
+     (:country p1__97067#))))
   (pj/lay-line :year :life-exp {:color :country})
   (pj/options
    {:title "Life Expectancy Over Time",
@@ -1112,8 +1112,8 @@
   (rdatasets/ggplot2-txhousing)
   (tc/select-rows
    (fn*
-    [p1__87314#]
-    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__87314#))))
+    [p1__97068#]
+    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__97068#))))
   (pj/pose :date :median {:color :city})
   pj/lay-line
   (pj/options
@@ -1156,7 +1156,7 @@
  (->
   (rdatasets/lme4-sleepstudy)
   (tc/select-rows
-   (fn* [p1__87315#] (= "308" (str (:subject p1__87315#)))))
+   (fn* [p1__97069#] (= "308" (str (:subject p1__97069#)))))
   (pj/pose :days :reaction)
   pj/lay-step
   pj/lay-point
@@ -1274,7 +1274,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__87316#] (= 2007 (:year p1__87316#))))
+   (fn* [p1__97070#] (= 2007 (:year p1__97070#))))
   (pj/lay-point
    :gdp-percap
    :life-exp
@@ -1438,7 +1438,7 @@
   (pj/lay-smooth {:stat :linear-model})
   pj/lay-smooth
   (pj/options
-   {:title "Cars: LM and LOESS Smoothers",
+   {:title "Cars: Linear Model and LOESS Smoothers",
     :x-label "Weight (1000 lbs)",
     :y-label "Miles per Gallon"})))
 
@@ -1802,8 +1802,8 @@
      [ds]
      (map
       (fn*
-       [p1__87317#]
-       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__87317#))
+       [p1__97071#]
+       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__97071#))
       (ds :month)))))))
 
 
@@ -2105,10 +2105,10 @@
  v321_l1526
  (->
   (tc/dataset
-   {:row (mapcat (fn* [p1__87318#] (repeat 6 p1__87318#)) (range 6)),
+   {:row (mapcat (fn* [p1__97072#] (repeat 6 p1__97072#)) (range 6)),
     :col (flatten (repeat 6 (range 6))),
     :value
-    (map (fn* [p1__87319#] (Math/sin (* p1__87319# 0.5))) (range 36))})
+    (map (fn* [p1__97073#] (Math/sin (* p1__97073# 0.5))) (range 36))})
   (pj/pose :col :row {:fill :value})
   pj/lay-tile
   (pj/options
@@ -2539,7 +2539,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__87320#] (= 2007 (:year p1__87320#))))
+   (fn* [p1__97074#] (= 2007 (:year p1__97074#))))
   (pj/pose :gdp-percap :life-exp)
   pj/lay-point
   (pj/scale :x :log)

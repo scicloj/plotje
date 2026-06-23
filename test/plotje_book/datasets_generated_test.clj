@@ -86,16 +86,16 @@
   (tc/map-columns
    :function
    :var
-   (fn* [p1__89679#] (-> p1__89679# meta :name)))
-  (tc/map-columns :dataset :var (fn* [p1__89680#] (p1__89680#)))
+   (fn* [p1__92162#] (-> p1__92162# meta :name)))
+  (tc/map-columns :dataset :var (fn* [p1__92163#] (p1__92163#)))
   (tc/map-columns :rows :dataset tc/row-count)
   (tc/map-columns
    :description
    :var
    (fn*
-    [p1__89681#]
+    [p1__92164#]
     (->
-     p1__89681#
+     p1__92164#
      meta
      :doc-link
      slurp
@@ -117,7 +117,7 @@
  (->
   (rdatasets/datasets-iris)
   (tc/select-rows
-   (fn* [p1__89682#] (= "setosa" (:species p1__89682#))))))
+   (fn* [p1__92165#] (= "setosa" (:species p1__92165#))))))
 
 
 (deftest t27_l180 (is ((fn [ds] (= 50 (tc/row-count ds))) v26_l177)))
@@ -220,12 +220,7 @@
 
 (def
  v55_l268
- (->
-  temps-long
-  (pj/lay-line
-   :month
-   :temperature
-   {:color :city, :x-type :categorical})))
+ (-> temps-long (pj/lay-line :month :temperature {:color :city})))
 
 
 (deftest
