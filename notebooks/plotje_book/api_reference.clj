@@ -56,7 +56,7 @@
                            (and (= 1 (:panels s))
                                 (= 150 (:points s)))))])
 
-;; Map form -- include aesthetics on the pose so every layer sees them:
+;; Map form -- include aesthetics on the pose so every layer inherits them:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width {:color :species})
@@ -83,7 +83,7 @@
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
 ;; Multi-pair pose -- a vector of `[x y]` pairs creates a composite
-;; with one sub-pose per pair:
+;; with one pose per pair:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose [[:sepal-length :sepal-width]
@@ -120,14 +120,6 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))
                                 (= 600 (:points s)))))])
-
-;; Multi-column vector creates one panel per column:
-
-(pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width])
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (pos? (:polygons s)))))])
 
 ;; ## Layer Functions
 
@@ -180,6 +172,14 @@
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
+
+;; A vector of columns creates one panel per column:
+
+(pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width])
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (pos? (:polygons s)))))])
 
 (kind/doc #'pj/lay-bar)
 

@@ -21,9 +21,6 @@
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje, the public API
    [scicloj.plotje.api :as pj]
-   ;; Plotje's membrane impl namespace -- defines the schema and
-   ;; the record class
-   [scicloj.plotje.impl.membrane :as plotje-mem]
    ;; Rdatasets for example data
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Membrane core: protocols and primitives
@@ -291,13 +288,13 @@ two-up-png
 ;; Backend authors validating an incoming membrane (or constructing
 ;; their own for testing) can use it:
 
-(plotje-mem/valid? iris-membrane)
+(pj/valid-membrane? iris-membrane)
 
 (kind/test-last [true?])
 
 ;; A non-membrane value fails validation:
 
-(some? (plotje-mem/explain {:not :a-membrane}))
+(some? (pj/explain-membrane {:not :a-membrane}))
 
 (kind/test-last [true?])
 

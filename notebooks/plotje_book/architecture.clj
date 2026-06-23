@@ -466,7 +466,7 @@ trace-pose
 ;;
 ;; All but mapping inference happens in the plan stage. Mapping
 ;; inference runs earlier -- before any draft exists -- so the rest
-;; of the pipeline always sees a pose with mappings. The plan stage
+;; of the pipeline always receives a pose with mappings. The plan stage
 ;; is where the geometry, types, and layer choice are resolved: the
 ;; draft may leave them unspecified, and the plan fills them in.
 ;; Every inferred default has an explicit override (`pj/scale`,

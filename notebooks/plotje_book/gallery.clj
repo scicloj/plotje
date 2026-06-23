@@ -1066,7 +1066,7 @@
     pj/lay-point
     (pj/lay-smooth {:stat :linear-model})
     pj/lay-smooth
-    (pj/options {:title "Cars: LM and LOESS Smoothers"
+    (pj/options {:title "Cars: Linear Model and LOESS Smoothers"
                  :x-label "Weight (1000 lbs)"
                  :y-label "Miles per Gallon"}))
 

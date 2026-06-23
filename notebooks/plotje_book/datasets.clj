@@ -267,7 +267,7 @@ temps-long
 
 (-> temps-long
     (pj/lay-line :month :temperature
-                 {:color :city :x-type :categorical}))
+                 {:color :city}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))

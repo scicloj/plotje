@@ -105,7 +105,6 @@
 ;; See the [Datasets](./plotje_book.datasets.html) chapter for
 ;; loading from CSV, URLs, and other file formats.
 
-;; ---
 ;; ## Mappings and Layers
 ;;
 ;; The [Poses](./plotje_book.pose_model.html) chapter introduced
@@ -154,7 +153,6 @@ two-panel
 ;; Each sub-pose has its own mapping and layers. `pj/arrange`
 ;; produces a composite pose that contains them as siblings.
 
-;; ---
 ;; ## Scope
 ;;
 ;; A **mapping** maps a column (or a literal value) to a visual
@@ -310,7 +308,6 @@ two-panel
 
 ;; Three panels, each with its own data subset.
 
-;; ---
 ;; ## Identity
 ;;
 ;; Scope determines what each pose and layer sees. But how do
@@ -368,7 +365,6 @@ two-panel
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; ---
 ;; ## The Pose
 ;;
 ;; The [Poses](./plotje_book.pose_model.html) chapter walked
@@ -388,7 +384,6 @@ two-panel
 ;; [Composition](./plotje_book.composition.html) chapter for that
 ;; shape.
 
-;; ---
 ;; ## Mark, Stat, and Position
 ;;
 ;; Each layer has a **layer type** -- a rendering recipe with three parts:
@@ -429,7 +424,6 @@ two-panel
 ;; See the [Layer Types](./plotje_book.layer_types.html) chapter
 ;; for complete tables of every mark, stat, and position.
 
-;; ---
 ;; ## Inference
 ;;
 ;; Plotje tries to make small poses work without you having
@@ -487,7 +481,6 @@ two-panel
 ;; [Architecture](./plotje_book.architecture.html) for where in
 ;; the pipeline each kind of inference happens.
 
-;; ---
 ;; ## Incremental Building
 ;;
 ;; Because poses are plain data, you can save a partial plot and
@@ -514,7 +507,6 @@ two-panel
                            (and (= 150 (:points s))
                                 (= 1 (:lines s)))))])
 
-;; ---
 ;; ## Reusable Pose Templates
 ;;
 ;; A pose does not need to carry data. `(pj/pose)` creates an
@@ -565,7 +557,6 @@ two-panel
 ;; naming the missing columns -- no cryptic failure deep in the
 ;; rendering path.
 
-;; ---
 ;; ## Color and Grouping
 ;;
 ;; `:color` controls point and line colors. Its behavior depends on
@@ -674,7 +665,6 @@ two-panel
 
 ;; Three regression lines but all the same color.
 
-;; ---
 ;; ## Plot Options and Annotations
 ;;
 ;; So far you've seen mappings, layers, and data -- all scoped at
@@ -730,7 +720,6 @@ two-panel
 ;; (`LocalDate`, `Instant`) are covered in
 ;; [Timelines](./plotje_book.timelines.html).
 
-;; ---
 ;; ## Coordinates and Scales
 ;;
 ;; `pj/coord` sets the coordinate system. `:flip` swaps the axes:
@@ -769,7 +758,6 @@ two-panel
 
 ;; Both are plot-level -- they apply uniformly across the whole pose.
 
-;; ---
 ;; ## Faceting and Multi-Panel Layouts
 ;;
 ;; **Faceting** splits a pose into panels by a column's values:
