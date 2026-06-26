@@ -178,8 +178,8 @@
   (ui/children clipped-membrane)
   (tree-seq coll? seq)
   (filter
-   (fn* [p1__98536#] (instance? membrane.ui.ScissorView p1__98536#)))
-  (mapv (fn* [p1__98537#] (select-keys p1__98537# [:offset :bounds])))))
+   (fn* [p1__88796#] (instance? membrane.ui.ScissorView p1__88796#)))
+  (mapv (fn* [p1__88797#] (select-keys p1__88797# [:offset :bounds])))))
 
 
 (deftest
@@ -189,20 +189,20 @@
     [rects]
     (and
      (= 2 (count rects))
-     (some (fn* [p1__98538#] (= [0 0] (:offset p1__98538#))) rects)
+     (some (fn* [p1__88798#] (= [0 0] (:offset p1__88798#))) rects)
      (some
-      (fn* [p1__98539#] (every? pos? (:offset p1__98539#)))
+      (fn* [p1__88799#] (every? pos? (:offset p1__88799#)))
       rects)))
    v45_l272)))
 
 
-(def v48_l291 (pj/valid-membrane? iris-membrane))
+(def v48_l293 (pj/valid-membrane? iris-membrane))
 
 
-(deftest t49_l293 (is (true? v48_l291)))
+(deftest t49_l295 (is (true? v48_l293)))
 
 
-(def v51_l297 (some? (pj/explain-membrane {:not :a-membrane})))
+(def v51_l300 (some? (pj/explain-membrane {:not :a-membrane})))
 
 
-(deftest t52_l299 (is (true? v51_l297)))
+(deftest t52_l302 (is (true? v51_l300)))

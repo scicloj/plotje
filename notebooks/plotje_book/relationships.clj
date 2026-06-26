@@ -145,8 +145,8 @@
                                      :panels first :layers first :ribbons first)
                                widths (map - (:ymaxs r) (:ymins r))]
                            (nth (sort widths) (quot (count widths) 2))))]
-      ;; Wider :level produces a wider median band: 0.99 > 0.80.
-      (> (median-width 0.99) (median-width 0.80))))])
+      ;; Wider :level produces a wider median band: 0.99 > 0.95 > 0.80.
+      (> (median-width 0.99) (median-width 0.95) (median-width 0.80))))])
 
 ;; ## Tips with Regression
 

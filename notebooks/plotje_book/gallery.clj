@@ -435,7 +435,9 @@
                  :x-label "Day"
                  :y-label "Count"}))
 
-(kind/test-last [(fn [v] (pj/pose? v))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 8 (:polygons s)))))])
 
 ;; Proportional stacked bar (stacked fill):
 
@@ -446,7 +448,9 @@
                  :x-label "Day"
                  :y-label "Proportion"}))
 
-(kind/test-last [(fn [v] (pj/pose? v))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 8 (:polygons s)))))])
 
 ;; ### Stacked area
 ;; Source: [R Graph Gallery: Stacked Area Chart](https://r-graph-gallery.com/stacked-area-graph.html)
