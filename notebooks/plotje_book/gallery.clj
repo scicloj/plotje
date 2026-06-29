@@ -1367,11 +1367,10 @@
 
 (-> (tc/dataset {:country ["US" "China" "Japan" "Germany" "UK" "India" "France"]
                  :gdp [21.4 14.7 5.1 3.8 2.8 2.7 2.6]})
-    (pj/lay-bar :country :gdp)
-    (pj/coord :flip)
+    (pj/lay-bar :gdp :country)
     (pj/options {:title "GDP by Country (2019)"
-                 :x-label "Country"
-                 :y-label "GDP (Trillion $)"}))
+                 :x-label "GDP (Trillion $)"
+                 :y-label "Country"}))
 
 (kind/test-last [(fn [v] (= 7 (:polygons (pj/svg-summary v))))])
 
@@ -1382,12 +1381,11 @@
 
 (-> (tc/dataset {:metric ["Quality" "Speed" "Usability" "Reliability" "Support" "Price" "Design" "Docs"]
                  :score [-30 -20 -10 5 15 25 35 45]})
-    (pj/lay-bar :metric :score)
-    (pj/lay-rule-h {:y-intercept 0})
-    (pj/coord :flip)
+    (pj/lay-bar :score :metric)
+    (pj/lay-rule-v {:x-intercept 0})
     (pj/options {:title "Customer Satisfaction Scores"
-                 :x-label "Metric"
-                 :y-label "Net Score"}))
+                 :x-label "Net Score"
+                 :y-label "Metric"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 8 (:polygons s))

@@ -223,8 +223,9 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
 
-;; A bar chart needs a categorical x. To use a numeric column for the
-;; categories, declare it categorical with `{:x-type :categorical}`:
+;; A bar chart needs a categorical axis. To put the categories on a
+;; numeric column, declare it categorical with `{:x-type :categorical}`
+;; (or `{:y-type :categorical}`):
 
 (-> {:hour [9 10 11] :sales [3 5 4]}
     (pj/lay-bar :hour :sales {:x-type :categorical}))

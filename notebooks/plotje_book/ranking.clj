@@ -126,11 +126,10 @@
 
 ;; ## Value Bar (Horizontal)
 
-;; Flip for horizontal orientation.
+;; Put the category on y for horizontal value bars -- no coord flip needed.
 
 (-> sales
-    (pj/lay-bar :product :revenue)
-    (pj/coord :flip))
+    (pj/lay-bar :revenue :product))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))

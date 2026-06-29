@@ -158,13 +158,11 @@
    v22_l120)))
 
 
-(def
- v25_l131
- (-> sales (pj/lay-bar :product :revenue) (pj/coord :flip)))
+(def v25_l131 (-> sales (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t26_l135
+ t26_l134
  (is
   ((fn
     [v]
@@ -174,38 +172,38 @@
    v25_l131)))
 
 
-(def v28_l143 (-> sales (pj/lay-lollipop :product :revenue)))
+(def v28_l142 (-> sales (pj/lay-lollipop :product :revenue)))
 
 
 (deftest
- t29_l146
+ t29_l145
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v28_l143)))
+   v28_l142)))
 
 
 (def
- v31_l154
+ v31_l153
  (-> sales (pj/lay-lollipop :product :revenue) (pj/coord :flip)))
 
 
 (deftest
- t32_l158
+ t32_l157
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v31_l154)))
+   v31_l153)))
 
 
 (def
- v34_l167
+ v34_l166
  (->
   {:product ["A" "B" "C" "D" "E" "F"],
    :revenue [120 95 150 80 200 110],
@@ -214,11 +212,11 @@
 
 
 (deftest
- t35_l172
+ t35_l171
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v) fills (disj (:colors s) "none")]
      (and (= 6 (:points s)) (= 2 (count fills)))))
-   v34_l167)))
+   v34_l166)))

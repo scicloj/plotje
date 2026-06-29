@@ -750,7 +750,8 @@ scatter-pose
 ;;
 ;; Special domain rules apply in certain contexts:
 ;;
-;; Bar chart y-domains always include zero:
+;; Bar charts always include zero on the value axis -- for these
+;; vertical bars, that is the y-domain:
 
 bar-pose
 

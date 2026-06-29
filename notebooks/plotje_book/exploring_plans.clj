@@ -402,8 +402,8 @@ bar-layer
 
 ;; ## Value Bars
 ;;
-;; Value bars map categorical x to numeric y without any counting.
-;; The plan stores the raw x/y pairs:
+;; Value bars map a categorical axis to a numeric value without any
+;; counting. The plan stores the raw x/y pairs:
 
 (def sales {:product [:widget :gadget :gizmo :doohickey]
             :revenue [120 340 210 95]})
