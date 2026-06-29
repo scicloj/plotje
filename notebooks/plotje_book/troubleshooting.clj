@@ -128,24 +128,25 @@
 ;; See [Inference Rules](./plotje_book.inference_rules.html)
 ;; for the full mechanism.
 
-;; ## Numeric Column Rejected by a Categorical-Axis Mark
+;; ## Numeric Column Treated as Continuous Instead of Categorical
 ;;
-;; **Symptom**: An error like `"lay-bar with a y column (value bars)
-;; requires a categorical column on :x or :y, but :x (:hour) is
-;; numerical and :y (:count) is numerical"`, or the equivalent for
-;; `:boxplot`, `:violin`, `:lollipop`, or similar marks that need a
-;; categorical axis.
+;; **Symptom**: A column of discrete numbers (hour of day, year,
+;; subject ID) is treated as a continuous axis. A categorical-axis
+;; mark like `:boxplot`, `:violin`, or `:lollipop` rejects it with an
+;; error like `"requires a categorical column"`. (`pj/lay-bar` does
+;; not error on a numeric axis -- it draws a bar at each numeric
+;; position; use the same fix below to get evenly-spaced bands
+;; instead.)
 ;;
-;; **Cause**: The column you passed (e.g., hour of day, year, subject
-;; ID) contains numbers, so column-type inference classifies it as
-;; `:numerical`. The mark needs `:categorical`.
+;; **Cause**: The column contains numbers, so column-type inference
+;; classifies it as `:numerical`. These marks need `:categorical`.
 ;;
-;; A bar chart of hourly counts runs into this -- `:hour` looks like
+;; A boxplot keyed by hour runs into this -- `:hour` looks like
 ;; integers, so it is inferred numerical:
 
 (try
-  (-> {:hour [9 10 11 12] :count [5 8 12 7]}
-      (pj/lay-bar :hour :count)
+  (-> {:hour [9 9 10 10 11 11] :value [1 2 3 4 5 6]}
+      (pj/lay-boxplot :hour :value)
       pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
@@ -156,10 +157,10 @@
 ;; horizontal layouts) to override the inferred type. No need to
 ;; convert the column itself:
 
-(-> {:hour [9 10 11 12] :count [5 8 12 7]}
-    (pj/lay-bar :hour :count {:x-type :categorical}))
+(-> {:hour [9 9 10 10 11 11] :value [1 2 3 4 5 6]}
+    (pj/lay-boxplot :hour :value {:x-type :categorical}))
 
-(kind/test-last [(fn [v] (= 4 (:polygons (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; The override propagates into `infer-column-types`, so every
 ;; downstream step (scale type, tick placement, domain) treats

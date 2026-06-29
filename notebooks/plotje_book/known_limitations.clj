@@ -99,6 +99,11 @@
 ;;   is the categorical band for a horizontal bar. Workaround: put the
 ;;   category on `:x` and add `(pj/coord :flip)`, where stacking works.
 ;;
+;; - Numeric/temporal-position bars (`pj/lay-bar` with both axes numeric
+;;   or temporal) draw one bar per row at its x position; grouped bars
+;;   (via `:color`) overlap rather than dodge, and `:position :stack` is
+;;   not applied. Pre-aggregate or jitter positions to separate groups.
+;;
 ;; - Stack order in `pj/lay-area` and `pj/lay-bar` (with
 ;;   `:position :stack`) follows the sort order of the `:color`
 ;;   column. There is no `:stack-order` / `:color-order` option yet,

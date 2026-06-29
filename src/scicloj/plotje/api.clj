@@ -1870,9 +1870,10 @@
   ([pose-or-data x y opts] (lay-layer-type :histogram pose-or-data x y opts)))
 
 (defn lay-bar
-  "Add a `:bar` layer type. Requires a categorical x column.
+  "Add a `:bar` layer type.
 
-   - One column (x only): counts occurrences of each category.
+   - One column (x only): counts occurrences of each category. Requires a
+     categorical x.
    - Two columns (x and y): uses the y value directly as the bar height.
 
    The stat is inferred from whether a y column is present, and overridable:
@@ -1885,7 +1886,13 @@
    bars, no `pj/coord` needed. (Stacked/filled horizontal bars are not yet
    supported directly -- put the category on x and add `(pj/coord :flip)`.)
    To treat a numeric column as categorical, pass `{:x-type :categorical}`
-   (or `{:y-type :categorical}`)."
+   (or `{:y-type :categorical}`).
+
+   When both axes are numeric or temporal (`(pj/lay-bar :x :y)` with no
+   categorical axis), each bar sits at its x position with a width taken from
+   `0.9` of the smallest gap between adjacent x values -- a time-series or
+   numeric-position bar chart. Pass `{:bar-width n}` (data units) to set the
+   width. Grouped numeric bars currently overlap rather than dodge."
   ([pose-or-data] (lay-layer-type :bar pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :bar pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :bar pose-or-data x y-or-opts))

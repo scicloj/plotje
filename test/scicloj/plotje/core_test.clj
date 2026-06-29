@@ -1661,11 +1661,11 @@
                           #"lay-bar \(counting\) requires a categorical column for :x"
                           (-> {:x [1 2 3 4 5]} (pj/lay-bar :x) pj/plan))))
 
-  (testing "lay-bar value bars with two numeric axes throws clear error"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"requires a categorical column on :x or :y"
-                          (-> {:x [1.0 2.0 3.0] :y [10 20 30]}
-                              (pj/lay-bar :x :y) pj/plan))))
+  (testing "lay-bar value bars with two numeric axes draw numeric-position bars"
+    ;; (see numeric-position-bar-test) -- no longer an error
+    (is (= 3 (:polygons (pj/svg-summary
+                         (pj/plot (-> {:x [1.0 2.0 3.0] :y [10 20 30]}
+                                      (pj/lay-bar :x :y))))))))
 
   (testing "the numeric-x error suggests the :x-type override"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
@@ -1706,11 +1706,39 @@
                             (-> grp (pj/lay-bar :val :cat {:color :g :position :stack}) pj/plan)))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"Stacked/filled horizontal value bars"
-                            (-> grp (pj/lay-bar :val :cat {:color :g :position :fill}) pj/plan))))
-    (testing "two numeric axes still rejected"
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"requires a categorical column on :x or :y"
-                            (-> {:x [1 2 3] :y [4 5 6]} (pj/lay-bar :x :y) pj/plan))))))
+                            (-> grp (pj/lay-bar :val :cat {:color :g :position :fill}) pj/plan))))))
+
+(deftest numeric-position-bar-test
+  (testing "numeric x + numeric y draws one bar per row at its x position"
+    (let [p (-> {:x [1 2 3 4 5] :y [10 20 15 30 25]} (pj/lay-bar :x :y) pj/plan
+                :panels first)]
+      (is (not (:categorical? (:x-ticks p))))
+      ;; x-domain widened by half a bar each side (gap 1, width 0.9 -> half 0.45)
+      ;; plus padding, so it extends below the data minimum of 1.0
+      (is (< (double (first (:x-domain p))) 1.0))
+      (is (= 5 (:polygons (pj/svg-summary
+                           (pj/plot (-> {:x [1 2 3 4 5] :y [10 20 15 30 25]}
+                                        (pj/lay-bar :x :y)))))))))
+  (testing "{:bar-width ...} overrides the inferred width"
+    (let [wide (-> {:x [1 2 3] :y [10 20 15]} (pj/lay-bar :x :y {:bar-width 0.5})
+                   pj/plan :panels first :x-domain)
+          [lo hi] wide]
+      ;; half-width 0.25 -> domain spans roughly [0.75, 3.25] before padding
+      (is (< 0.5 (double lo) 0.8))
+      (is (< 3.2 (double hi) 3.5))))
+  (testing "numeric bars support negative heights (diverging)"
+    (is (= 3 (:polygons (pj/svg-summary
+                         (pj/plot (-> {:x [1 2 3] :y [-10 20 -5]} (pj/lay-bar :x :y))))))))
+  (testing "temporal x draws bars with calendar tick labels"
+    (let [p (-> {:date [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"] :v [10 20 15]}
+                (pj/lay-bar :date :v) pj/plan :panels first)]
+      (is (not (:categorical? (:x-ticks p))))
+      (is (= 3 (:polygons (pj/svg-summary
+                           (pj/plot (-> {:date [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"] :v [10 20 15]}
+                                        (pj/lay-bar :date :v)))))))))
+  (testing "a bare pose with temporal x still infers a line, not bars"
+    (is (= :line (-> {:date [#inst "2024-01-01" #inst "2024-02-01"] :v [10 20]}
+                     (pj/pose :date :v) pj/plan :panels first :layers first :mark)))))
 
 (deftest lollipop-y-type-categorical-rejected-test
   ;; user-report-3 issue 4: passing :y-type :categorical on a numeric :y

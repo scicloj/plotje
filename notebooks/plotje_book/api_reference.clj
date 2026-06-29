@@ -247,6 +247,25 @@
 ;; are not supported directly yet -- put the category on x and add
 ;; `(pj/coord :flip)` for those.
 
+;; When neither axis is categorical, each bar sits at its numeric x position.
+;; The width is `0.9` of the smallest gap between adjacent x values, or set it
+;; with `{:bar-width n}` (in data units):
+
+(-> {:x [1 2 3 4 5] :y [10 20 15 30 25]}
+    (pj/lay-bar :x :y))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 5 (:polygons s))))])
+
+;; A temporal x gives a time-series bar chart, with calendar tick labels:
+
+(-> {:month [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"]
+     :revenue [120 180 150]}
+    (pj/lay-bar :month :revenue))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 3 (:polygons s))))])
+
 ;; Linear regression: pass `{:stat :linear-model}` to `pj/lay-smooth`.
 
 (-> (rdatasets/datasets-iris)

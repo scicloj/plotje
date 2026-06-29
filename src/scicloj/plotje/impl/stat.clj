@@ -76,13 +76,27 @@
                            ", but :" (name (get draft-layer col-key)) " is categorical.")
                       {:stat stat-name :column (get draft-layer col-key) :column-type col-type})))))
 
+(defn- min-adjacent-gap
+  "Smallest gap between adjacent distinct values, or nil when fewer than two
+   distinct values exist. Used to size bars on a numeric/temporal axis where
+   there is no categorical band to provide a width."
+  [xs]
+  (let [sorted (vec (sort (distinct (remove nil? xs))))]
+    (when (> (count sorted) 1)
+      (reduce min (map (fn [a b] (- (double b) (double a)))
+                       sorted (rest sorted))))))
+
 (defn prepare-points
   "Clean data, compute domains, group by columns.
    Drops rows with missing values in x/y AND in any referenced numeric
    aesthetic column (color/size/alpha/y-min/y-max/fill) so downstream code
-   never sees nil/NaN values where it tries to coerce to double."
+   never sees nil/NaN values where it tries to coerce to double.
+
+   For a `:rect` mark with both axes numeric (a bar at a numeric or temporal
+   position), returns a `:bar-width` in data units and widens the x-domain by
+   half a bar on each side so edge bars are not clipped."
   [draft-layer]
-  (let [{:keys [data x y color color-type size alpha shape text-col x-type y-type group mark y-min y-max x-end fill]} draft-layer
+  (let [{:keys [data x y color color-type size alpha shape text-col x-type y-type group mark y-min y-max x-end fill bar-width]} draft-layer
         x-only? (or (nil? y) (= x y))
         data-idx (tc/add-column data :__row-idx (range (tc/row-count data)))
         ds-cols (set (tc/column-names data-idx))
@@ -110,6 +124,15 @@
             ys-col (if x-only? nil (clean y))
             cat-x? (= x-type :categorical)
             cat-y? (= y-type :categorical)
+            ;; A :rect bar with neither axis categorical sits at a numeric (or
+            ;; temporal) x position and needs a width in data units: the
+            ;; explicit :bar-width, else 0.9 of the smallest gap between
+            ;; adjacent x positions, else 1.0 for a lone bar.
+            numeric-bar? (and (= mark :rect) (not x-only?) (not cat-x?) (not cat-y?))
+            w (when numeric-bar?
+                (double (or bar-width
+                            (some-> (min-adjacent-gap xs-col) (* 0.9))
+                            1.0)))
             x-dom (if cat-x?
                     (distinct xs-col)
                     (let [[lo hi] (numeric-extent xs-col)]
@@ -122,6 +145,10 @@
                         ;; mirroring the vertical bar's y-domain anchoring below.
                         (and (= mark :rect) cat-y?)
                         [(min 0 lo) (max 0 hi)]
+                        ;; Numeric-position bars: widen by half a bar each side
+                        ;; so the first and last bars are not clipped.
+                        numeric-bar?
+                        [(- lo (/ w 2.0)) (+ hi (/ w 2.0))]
                         :else [lo hi])))
             y-dom (cond
                     x-only? nil
@@ -158,7 +185,8 @@
                             y-max (assoc :ymaxs (ds y-max))
                             (col-ref? x-end) (assoc :x-ends (ds x-end))))
             groups (group-by-columns clean (or group []) point-group)]
-        {:points groups :x-domain x-dom :y-domain y-dom}))))
+        (cond-> {:points groups :x-domain x-dom :y-domain y-dom}
+          numeric-bar? (assoc :bar-width w))))))
 
 ;; ---- compute-stat multimethod ----
 
