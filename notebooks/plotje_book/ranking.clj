@@ -14,7 +14,12 @@
 (def sales {:product [:widget :gadget :gizmo :doohickey]
             :revenue [120 340 210 95]})
 
-;; ## Bar Chart
+;; ## Count bars
+;;
+;; `pj/lay-bar` with only a category column counts the rows in each
+;; category -- the bar height is the number of occurrences.
+
+;; ### Plain
 
 ;; Count occurrences of a categorical column.
 
@@ -26,7 +31,7 @@
             (and (= 1 (:panels s))
                  (pos? (:polygons s)))))])
 
-;; ## Colored Bar Chart
+;; ### Colored (dodged)
 
 ;; Grouped (dodged) bars -- count by day, colored by smoking status.
 
@@ -38,7 +43,7 @@
             (and (= 1 (:panels s))
                  (pos? (:polygons s)))))])
 
-;; ## Stacked Bar Chart
+;; ### Stacked
 
 ;; Same data, stacked instead of dodged.
 
@@ -50,7 +55,7 @@
             (and (= 1 (:panels s))
                  (pos? (:polygons s)))))])
 
-;; ## Stacked Bar (Proportions)
+;; ### Proportions (100% stacked)
 
 ;; 100% stacked bars -- shows proportions instead of counts.
 
@@ -72,9 +77,10 @@
            (== 0.0 y0)
            (== 1.0 y1))))])
 
-;; ## Horizontal Bar Chart
+;; ### Horizontal
 
-;; Flip the bar chart for horizontal orientation.
+;; Counting bars have no native horizontal form (the category would
+;; need to be counted onto the y-axis), so flip the chart instead.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-bar :species)
@@ -100,7 +106,7 @@
 ;; ascending before plotting, e.g.
 ;; `(tc/order-by data [:value] [:asc])`.
 
-;; ## Horizontal Colored Bars
+;; ### Horizontal, colored
 
 ;; Colored bars, flipped.
 
@@ -113,9 +119,14 @@
             (and (= 1 (:panels s))
                  (pos? (:polygons s)))))])
 
-;; ## Value Bar
+;; ## Value bars
+;;
+;; Give `pj/lay-bar` a value column too and it uses those numbers
+;; directly as the bar heights -- no counting.
 
-;; Pre-computed y values (no counting).
+;; ### Vertical
+
+;; One bar per product, height = revenue.
 
 (-> sales
     (pj/lay-bar :product :revenue))
@@ -124,9 +135,9 @@
                            (and (= 1 (:panels s))
                                 (= 4 (:polygons s)))))])
 
-;; ## Value Bar (Horizontal)
+;; ### Horizontal
 
-;; Put the category on y for horizontal value bars -- no coord flip needed.
+;; Put the category on y -- no coord flip needed (unlike count bars).
 
 (-> sales
     (pj/lay-bar :revenue :product))
