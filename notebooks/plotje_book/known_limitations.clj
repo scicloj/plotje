@@ -104,6 +104,12 @@
 ;;   (via `:color`) overlap rather than dodge, and `:position :stack` is
 ;;   not applied. Pre-aggregate or jitter positions to separate groups.
 ;;
+;; - Value bars (`pj/lay-bar` with a value column) cannot use a log scale
+;;   on the value axis: a bar rests on a zero baseline, and a log scale has
+;;   no zero. Plotje raises a clear error pointing to the alternatives --
+;;   a linear scale, or a baseline-free mark (`pj/lay-point`, `pj/lay-line`,
+;;   `pj/lay-lollipop`). Count bars and histograms do support a log axis.
+;;
 ;; - Stack order in `pj/lay-area` and `pj/lay-bar` (with
 ;;   `:position :stack`) follows the sort order of the `:color`
 ;;   column. There is no `:stack-order` / `:color-order` option yet,

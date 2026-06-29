@@ -57,9 +57,12 @@
   (let [log? (= :log (:type scale-spec))
         padding (:domain-padding defaults/defaults)
         _ (when (and log? (or (not (pos? (double lo))) (not (pos? (double hi)))))
-            (throw (ex-info (str "pad-domain on a log scale requires positive bounds, got ["
-                                 lo " " hi "]. This is an internal invariant: the caller "
-                                 "should have filtered non-positive values upstream.")
+            (throw (ex-info (str "A log scale cannot include zero or negative values, but this "
+                                 "axis spans [" lo ", " hi "]. Bar and area marks draw from a "
+                                 "zero baseline, so they cannot sit on a log-scaled value axis -- "
+                                 "use a linear scale for those, or a mark without a baseline "
+                                 "(lay-point, lay-line, lay-lollipop). If the data itself has "
+                                 "non-positive values, a log scale does not apply to this axis.")
                             {:lo lo :hi hi :scale-spec scale-spec})))
         [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
         span (- b a)
