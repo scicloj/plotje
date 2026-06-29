@@ -220,7 +220,8 @@
 ;; ### Horizontal bar
 ;; Source: [R Graph Gallery: Barplot](https://r-graph-gallery.com/barplot.html)
 
-;; Flip coordinates for horizontal bars:
+;; The same count, flipped to horizontal. (Count bars have no native
+;; horizontal form -- only value bars can put the category on y.)
 
 (-> (rdatasets/ggplot2-diamonds)
     (pj/pose :cut)
@@ -555,6 +556,8 @@
 ;; ### Grouped bar chart
 ;; Source: [Vega-Lite: Grouped Bar](https://vega.github.io/vega-lite/examples/bar_grouped.html)
 
+;; Counts of tips by day, grouped (dodged) by gender:
+
 (-> (rdatasets/reshape2-tips)
     (pj/lay-bar :day {:color :sex})
     (pj/options {:title "Tips by Day and Gender"}))
@@ -704,6 +707,8 @@
 
 ;; ### Stacked bar (proportional / fill)
 ;; Source: [Vega-Lite: Stacked Bar Normalized](https://vega.github.io/vega-lite/examples/stacked_bar_normalize.html)
+
+;; Counts normalized to a proportion within each day:
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-bar :day {:position :fill :color :sex})
@@ -1353,6 +1358,8 @@
 
 ;; ### Grouped bar chart
 ;; Source: [Vega-Lite: Grouped Bar](https://vega.github.io/vega-lite/examples/bar_grouped.html)
+
+;; Counts of tips by day, grouped (dodged) by gender:
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-bar :day {:color :sex})
