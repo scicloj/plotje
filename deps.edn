@@ -13,6 +13,7 @@
         :extra-deps {org.scicloj/clay {:mvn/version "2.0.14"}
                      org.scicloj/noj {:mvn/version "2-beta24"}
                      org.scicloj/tableplot {:mvn/version "1-beta16"}
+                     org.scicloj/zulipdata {:mvn/version "0.1.1"}
                      org.slf4j/slf4j-simple {:mvn/version "2.0.16"}}}
 
   :test {:extra-paths ["notebooks" "test"]
