@@ -203,9 +203,7 @@
   wave
   {:x (range 30),
    :y
-   (map
-    (fn* [p1__111937#] (Math/sin (* p1__111937# 0.3)))
-    (range 30))}))
+   (map (fn* [p1__94110#] (Math/sin (* p1__94110# 0.3))) (range 30))}))
 
 
 (def v42_l162 (-> wave (pj/lay-line :x :y)))
@@ -358,8 +356,11 @@
   ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v75_l262)))
 
 
+(def v77_l269 (kind/doc #'pj/lay-smooth))
+
+
 (def
- v78_l271
+ v79_l273
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -367,17 +368,14 @@
 
 
 (deftest
- t79_l275
+ t80_l277
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 1 (:lines s)))))
-   v78_l271)))
-
-
-(def v80_l279 (kind/doc #'pj/lay-smooth))
+   v79_l273)))
 
 
 (def
@@ -389,9 +387,9 @@
     :y
     (mapv
      (fn*
-      [p1__111938#]
+      [p1__94111#]
       (+
-       (Math/sin (* p1__111938# 0.2))
+       (Math/sin (* p1__94111# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1481,7 +1479,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__111939#] (bit-and p1__111939# 255)) (vec bs))))))
+    (mapv (fn* [p1__94112#] (bit-and p1__94112# 255)) (vec bs))))))
 
 
 (deftest
@@ -1502,7 +1500,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__111940#] (bit-and p1__111940# 255)) (vec bs))))))
+    (mapv (fn* [p1__94113#] (bit-and p1__94113# 255)) (vec bs))))))
 
 
 (deftest t347_l1038 (is ((fn [bs] (= [137 80 78 71] bs)) v346_l1029)))

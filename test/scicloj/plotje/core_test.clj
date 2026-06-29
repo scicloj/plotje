@@ -1740,6 +1740,29 @@
     (is (= :line (-> {:date [#inst "2024-01-01" #inst "2024-02-01"] :v [10 20]}
                      (pj/pose :date :v) pj/plan :panels first :layers first :mark)))))
 
+(deftest value-bar-log-scale-error-test
+  ;; Value bars rest on a zero baseline, which a log value-axis cannot
+  ;; represent. Instead of an internal pad-domain invariant crash, the user
+  ;; gets a clear, actionable message pointing at the alternatives.
+  (let [re #"log scale cannot include zero or negative"]
+    (testing "vertical value bars on a log y axis"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo re
+                            (-> {:c ["a" "b" "c"] :v [10 100 1000]}
+                                (pj/lay-bar :c :v) (pj/scale :y :log) pj/plan))))
+    (testing "numeric-position bars on a log y axis"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo re
+                            (-> {:x [1 2 3] :y [10 100 1000]}
+                                (pj/lay-bar :x :y) (pj/scale :y :log) pj/plan))))
+    (testing "horizontal value bars on a log x axis"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo re
+                            (-> {:c ["a" "b" "c"] :v [10 100 1000]}
+                                (pj/lay-bar :v :c) (pj/scale :x :log) pj/plan))))
+    (testing "count bars and histograms still work on a log axis"
+      (is (some? (-> {:c ["a" "a" "b" "c" "c" "c"]} (pj/lay-bar :c)
+                     (pj/scale :y :log) pj/plan)))
+      (is (some? (-> {:x (range 100)} (pj/lay-histogram :x {:bins 10})
+                     (pj/scale :y :log) pj/plan))))))
+
 (deftest lollipop-y-type-categorical-rejected-test
   ;; user-report-3 issue 4: passing :y-type :categorical on a numeric :y
   ;; column previously NPE'd deep in the renderer; the layer requires a

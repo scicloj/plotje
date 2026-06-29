@@ -15,63 +15,63 @@
    :revenue [120 340 210 95]}))
 
 
-(def v4_l21 (-> (rdatasets/datasets-iris) (pj/lay-bar :species)))
+(def v4_l26 (-> (rdatasets/datasets-iris) (pj/lay-bar :species)))
 
 
 (deftest
- t5_l24
+ t5_l29
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v4_l21)))
+   v4_l26)))
 
 
 (def
- v7_l33
+ v7_l38
  (-> (rdatasets/reshape2-tips) (pj/lay-bar :day {:color :smoker})))
 
 
 (deftest
- t8_l36
+ t8_l41
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v7_l33)))
+   v7_l38)))
 
 
 (def
- v10_l45
+ v10_l50
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:position :stack, :color :smoker})))
 
 
 (deftest
- t11_l48
+ t11_l53
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v10_l45)))
+   v10_l50)))
 
 
 (def
- v13_l57
+ v13_l62
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:position :fill, :color :species})))
 
 
 (deftest
- t14_l60
+ t14_l65
  (is
   ((fn
     [v]
@@ -92,16 +92,16 @@
       (pos? (:polygons s))
       (== 0.0 y0)
       (== 1.0 y1))))
-   v13_l57)))
+   v13_l62)))
 
 
 (def
- v16_l79
+ v16_l85
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t17_l83
+ t17_l89
  (is
   ((fn
     [v]
@@ -122,11 +122,11 @@
       (= 1 (:panels s))
       (pos? (:polygons s))
       (= iris-order (:values (:y-ticks panel))))))
-   v16_l79)))
+   v16_l85)))
 
 
 (def
- v19_l107
+ v19_l113
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:color :time})
@@ -134,76 +134,76 @@
 
 
 (deftest
- t20_l111
+ t20_l117
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v19_l107)))
+   v19_l113)))
 
 
-(def v22_l120 (-> sales (pj/lay-bar :product :revenue)))
+(def v22_l131 (-> sales (pj/lay-bar :product :revenue)))
 
 
 (deftest
- t23_l123
+ t23_l134
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v22_l120)))
+   v22_l131)))
 
 
-(def v25_l131 (-> sales (pj/lay-bar :revenue :product)))
+(def v25_l142 (-> sales (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t26_l134
+ t26_l145
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v25_l131)))
+   v25_l142)))
 
 
-(def v28_l142 (-> sales (pj/lay-lollipop :product :revenue)))
+(def v28_l153 (-> sales (pj/lay-lollipop :product :revenue)))
 
 
 (deftest
- t29_l145
+ t29_l156
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v28_l142)))
+   v28_l153)))
 
 
 (def
- v31_l153
+ v31_l164
  (-> sales (pj/lay-lollipop :product :revenue) (pj/coord :flip)))
 
 
 (deftest
- t32_l157
+ t32_l168
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v31_l153)))
+   v31_l164)))
 
 
 (def
- v34_l166
+ v34_l177
  (->
   {:product ["A" "B" "C" "D" "E" "F"],
    :revenue [120 95 150 80 200 110],
@@ -212,11 +212,11 @@
 
 
 (deftest
- t35_l171
+ t35_l182
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v) fills (disj (:colors s) "none")]
      (and (= 6 (:points s)) (= 2 (count fills)))))
-   v34_l166)))
+   v34_l177)))
