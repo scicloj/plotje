@@ -4,9 +4,9 @@
 ;; heatmaps -- revealing structure between two variables.
 ;;
 ;; Scatter is the foundation. Each row becomes a point in the
-;; plane, and the eye reads structure off the cloud. Regression
+;; plane, and clusters or trends become visible. Regression
 ;; and smoothing draw trend lines through it; 2D density and
-;; contours reveal where the cloud is dense or sparse; the
+;; contours reveal where points are dense or sparse; the
 ;; scatter-plot matrix (SPLOM) at the end shows every pair of
 ;; columns at once.
 

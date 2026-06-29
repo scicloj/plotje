@@ -43,9 +43,9 @@
 ;; - **Aesthetic-gate versus mark-consumer asymmetry.** Several
 ;;   aesthetics are accepted at the universal pose-mapping gate but
 ;;   consumed only by one or two mark extractors. Setting them on
-;;   other marks is a silent no-op rather than an error.
+;;   other marks has no effect and raises no error.
 ;;
-;;   | Aesthetic | Consumed on | Silently no-op on |
+;;   | Aesthetic | Consumed on | Silently ignored on |
 ;;   |:----------|:------------|:------------------|
 ;;   | `:size` (column ref) | `lay-point` | every other lay-* |
 ;;   | `:alpha` (column ref) | `lay-point` | every other lay-* (literal `:alpha N` works on most via `:fixed-alpha`) |

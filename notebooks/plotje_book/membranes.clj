@@ -55,7 +55,7 @@ iris-pose
 
 (kind/test-last [true?])
 
-;; The atomic step `pj/plan->membrane` does the same starting from an
+;; The step `pj/plan->membrane` does the same starting from an
 ;; already-resolved plan -- handy when you have a plan in hand from
 ;; inspection and want to skip re-running the earlier stages:
 
@@ -242,7 +242,7 @@ two-up-png
 ;; Clipping -- keeping each panel's marks inside the panel (the
 ;; [Glossary](./plotje_book.glossary.html) entry for clip defines the
 ;; term) -- needs no special machinery in the membrane stage: the clip
-;; is just another node in the tree. The panel's marks are wrapped in a
+;; is another node in the tree. The panel's marks are wrapped in a
 ;; `membrane.ui/scissor-view`, a Membrane primitive that masks its
 ;; contents to a rectangle, so the clip can be found and inspected like
 ;; any other drawable.

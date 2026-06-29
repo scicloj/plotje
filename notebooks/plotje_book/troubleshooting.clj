@@ -139,7 +139,7 @@
 ;; ID) contains numbers, so column-type inference classifies it as
 ;; `:numerical`. The mark needs `:categorical`.
 ;;
-;; A bar chart of hourly counts hits this -- `:hour` looks like
+;; A bar chart of hourly counts runs into this -- `:hour` looks like
 ;; integers, so it is inferred numerical:
 
 (try
@@ -179,7 +179,7 @@
 ;; amount. On a categorical axis the coordinates are still category
 ;; labels at this stage -- their drawing positions are assigned later by
 ;; the renderer -- so a numeric shift has no defined meaning. A value
-;; label on a bar hits this, because the bar's axis is categorical:
+;; label on a bar runs into this, because the bar's axis is categorical:
 
 (try
   (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
@@ -482,7 +482,7 @@
 (kind/test-last [(fn [v] (= 3 (:polygons (pj/svg-summary v))))])
 
 ;; A future opt-in option (e.g. `(pj/coord :flip
-;; {:reverse-categorical true})`) would spare the sort dance.
+;; {:reverse-categorical true})`) would remove the need to pre-sort.
 ;; Tracked in `CHANGELOG.md` Known limitations.
 
 ;; ## Stacked Bars Reject Pre-Aggregated Counts
@@ -528,7 +528,7 @@
 ;; several other marks the option is accepted but silently ignored.
 ;;
 ;; The two plans below produce identical x-coordinates for the
-;; rendered points -- `:position :dodge` is a no-op on points:
+;; rendered points -- `:position :dodge` has no effect on points:
 
 (def points-data
   {:x [1 1 2 2 3 3] :y [10 15 20 25 30 35] :group ["A" "B" "A" "B" "A" "B"]})

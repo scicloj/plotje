@@ -37,7 +37,7 @@
 
 ;; ## Construction
 ;;
-;; `pj/pose` is not a literal composition of the atomic steps:
+;; `pj/pose` is not a literal composition of the single-step transitions:
 ;; where the other four shortcuts (`pj/draft`, `pj/plan`,
 ;; `pj/membrane`, `pj/plot`) compose them directly, `pj/pose` adds
 ;; mapping inference, positional column-arg parsing, multi-pair
@@ -733,12 +733,12 @@ plan1
 
 ;; ## Pipeline
 ;;
-;; The pipeline is a composition of atomic single-step transitions.
+;; The pipeline is a composition of single-step transitions.
 ;; The user-facing functions (`pj/draft`, `pj/plan`, `pj/membrane`,
 ;; `pj/plot`) are literal compositions of these steps -- each one
 ;; runs the chain up through its named stage.
 ;;
-;; Each atomic step is independently callable, so you can stop the
+;; Each step is independently callable, so you can stop the
 ;; pipeline at any point to inspect the intermediate value.
 
 (kind/doc #'pj/membrane)
@@ -768,7 +768,7 @@ plan1
 ;; Lift raw input to a pose. Raw data (datasets, vectors of row
 ;; maps, column maps) becomes an empty leaf pose with `:data` set;
 ;; an existing pose flows through unchanged (idempotent). The first
-;; atomic step of the pipeline.
+;; step of the pipeline.
 
 (pj/pose? (pj/->pose tiny))
 

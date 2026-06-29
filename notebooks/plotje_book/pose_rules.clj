@@ -290,7 +290,7 @@
 ;; - **Position-carrying call** -- append a new sub-pose to `:poses`.
 ;; - **Aesthetic-only call** -- merge the aesthetic into the root
 ;;   `:mapping` (no new sub-pose).
-;; - **Empty call** -- no-op (see C7).
+;; - **Empty call** -- has no effect (see C7).
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -326,11 +326,11 @@
          (= {:x :sepal-length :y :sepal-width}
             (:mapping (first (:poses pose))))))])
 
-;; ### Rule C7: empty `pj/pose` on an existing pose is a no-op
+;; ### Rule C7: empty `pj/pose` on an existing pose has no effect
 ;;
 ;; `(pj/pose pose)` where `pose` is a leaf or a composite returns `pose`
-;; unchanged. This makes the 1-arity `pj/pose` safe as a syntactic
-;; nullity.
+;; unchanged. This makes the 1-arity `pj/pose` safe to use as a
+;; pipeline step that does nothing.
 
 ;; A leaf pose. First the rendered plot, then its structure:
 
@@ -357,7 +357,7 @@ composite-pose
 
 (pose-summary composite-pose)
 
-;; And again, 1-arity `pj/pose` is a no-op:
+;; And again, 1-arity `pj/pose` has no effect:
 
 (= composite-pose (pj/pose composite-pose))
 

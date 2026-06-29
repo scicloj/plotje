@@ -156,7 +156,7 @@
 ;; ## Thread-Local Overrides with with-config
 ;;
 ;; `pj/with-config` is a macro that binds configuration overrides for
-;; the duration of its body, then automatically reverts. This is ideal
+;; the duration of its body, then automatically reverts. This is useful
 ;; for one-off experiments or when different sections of a notebook
 ;; need different settings.
 

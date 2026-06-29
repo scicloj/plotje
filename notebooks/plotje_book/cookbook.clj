@@ -626,8 +626,9 @@
 
 ;; ## Large Datasets and Raster Output
 ;;
-;; By default Plotje renders to SVG -- great for crisp, scalable
-;; charts. But when a plot has tens of thousands of points, the browser
+;; By default Plotje renders to SVG, which produces scalable charts
+;; that stay sharp at any zoom. But when a plot has tens of thousands
+;; of points, the browser
 ;; must parse and layout a huge SVG DOM. For example, the full diamonds
 ;; dataset (53,940 rows) produces an 11 MB SVG file.
 ;;

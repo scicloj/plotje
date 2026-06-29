@@ -1,6 +1,6 @@
 ;; # Composition
 ;;
-;; Plotje's pose substrate lets you combine whole plots into a
+;; Plotje's poses let you combine whole plots into a
 ;; single rendered image. A **composite pose** holds other poses
 ;; and a layout; each sub-pose renders independently and the
 ;; composite tiles them together.

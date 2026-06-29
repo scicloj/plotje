@@ -2,14 +2,14 @@
 ;;
 ;; Plotje has a five-stage pipeline: **pose** -> **draft** -> **plan**
 ;; -> **membrane** -> **plot**. Each stage is produced from the
-;; previous one by a single atomic step. The user-facing functions
+;; previous one by a single step. The user-facing functions
 ;; `pj/draft`, `pj/plan`, and `pj/plot` are literal compositions of
-;; those atomic steps, with `pj/options` folded in to inject
-;; pose-level options. Building the API as composition makes each
-;; intermediate value inspectable, each transition independently
-;; testable, and the pipeline as a whole transparent.
+;; those steps, with `pj/options` folded in to inject
+;; pose-level options. Because the API is built as a composition, you
+;; can inspect each intermediate value and test each transition on
+;; its own.
 ;;
-;; This chapter introduces the atomic steps, walks a small example
+;; This chapter introduces the single-step transitions, walks a small example
 ;; through every stage, shows the user-facing functions as
 ;; compositions, and explains how composite poses traverse the same
 ;; pipeline through internal shape dispatch.
@@ -131,7 +131,7 @@ graph LR
 ;; The [Extensibility](./plotje_book.extensibility.html)
 ;; chapter walks each extension point.
 
-;; ## The Atomic Steps
+;; ## The Single-Step Transitions
 ;;
 ;; Each transition is its own public function. Walk the example
 ;; below to see what enters and what leaves at each step. The
@@ -309,7 +309,7 @@ trace-pose
 ;; - **pj/plot** -- raw input -> rendered figure.
 ;;
 ;; The four stage-after-pose shortcuts (`pj/draft`, `pj/plan`,
-;; `pj/membrane`, `pj/plot`) are literal compositions of the atomic
+;; `pj/membrane`, `pj/plot`) are literal compositions of these
 ;; steps. Their source shows the pipeline directly:
 ;;
 ;; Pseudocode:
@@ -369,7 +369,7 @@ trace-pose
 ;; ```
 ;;
 ;; In `plot`, the `let` binds `pose`, `opts`, and `fmt` for use in
-;; the subsequent `->` thread, which runs the four atomic transitions
+;; the subsequent `->` thread, which runs the four transitions
 ;; (`pose->draft`, `draft->plan`, `plan->membrane`, `membrane->plot`)
 ;; in order. The plan-derived dimensions and title are attached to
 ;; the membrane tree as metadata, so `membrane->plot` can read them
@@ -383,10 +383,9 @@ trace-pose
 ;; an output format yet -- for example a custom backend, or a target
 ;; that Membrane supports but Plotje has not wired in yet.
 ;;
-;; Because the compositions call the atomic steps, redefining an
-;; atomic step (with `with-redefs` for testing, or with a custom
-;; `defmethod` for plan->membrane) takes effect in every user-facing
-;; function.
+;; Because the compositions call the steps, redefining a step
+;; (with `with-redefs` for testing, or with a custom `defmethod` for
+;; plan->membrane) takes effect in every user-facing function.
 
 ;; The composition holds at runtime:
 
@@ -415,17 +414,17 @@ trace-pose
 
 ;; Plot-level options (title, x-label, width, ...) are stored on the
 ;; pose's `:opts`, copied into the `LeafDraft`'s `:opts`, and read
-;; by `pj/draft->plan`. Calling the atomic steps directly, without
+;; by `pj/draft->plan`. Calling the steps directly, without
 ;; the user-facing convenience, produces the identical plan.
 ;;
 ;; The same property allows inspection at any stage: stop the chain
-;; before the next atomic step. `(-> data ... pj/pose->draft
+;; before the next step. `(-> data ... pj/pose->draft
 ;; kind/pprint)` shows the draft; `(-> data ... pj/pose->draft
 ;; pj/draft->plan)` shows the plan.
 
 ;; ## Where Inference Happens
 ;;
-;; Each atomic step also **infers**: it fills in choices the user
+;; Each step also **infers**: it fills in choices the user
 ;; did not specify. Inference is what lets a dataset alone -- with
 ;; no mapping, no layers, no opts -- produce a complete plot. Most
 ;; one-line examples in this book rely on inference at one or more
@@ -477,7 +476,7 @@ trace-pose
 ;; ## Composite Poses
 ;;
 ;; A composite pose -- one with `:poses` inside --
-;; flows through the same atomic steps. Each step dispatches
+;; flows through the same steps. Each step dispatches
 ;; internally on shape: a leaf pose produces a `LeafDraft`; a
 ;; composite pose produces a `CompositeDraft`. The user-facing
 ;; pipeline is unchanged.
@@ -534,7 +533,7 @@ composite-pose
 
 ;; The composition holds for both leaf and composite poses --
 ;; `pj/plan` is `(-> pose pj/->pose pj/pose->draft pj/draft->plan)`
-;; either way -- because each atomic step dispatches on shape at
+;; either way -- because each step dispatches on shape at
 ;; the bottom of its call.
 
 ;; The composite path also performs cross-leaf work that has no
@@ -675,7 +674,7 @@ graph TD
   style RC fill:#f8bbd0
 ")
 
-;; `impl/pose.clj` holds the pose substrate: `resolve-tree` (merges
+;; `impl/pose.clj` holds the core pose operations: `resolve-tree` (merges
 ;; mappings/data/options down from root to every leaf), `leaf->draft`
 ;; (the leaf-pose flattening that the public `pj/pose->draft` calls),
 ;; and the multi-pair / grid composite utilities.

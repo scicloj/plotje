@@ -435,7 +435,7 @@ two-panel
 ;; it wins; wherever you don't, the library picks something
 ;; sensible.
 ;;
-;; **Column inference** kicks in when a dataset has up to three
+;; **Column inference** applies when a dataset has up to three
 ;; columns and you call `pj/pose` (or a `pj/lay-*`) without
 ;; naming any column. Plotje pairs the columns with
 ;; aesthetics in dataset order:
@@ -455,7 +455,7 @@ two-panel
 
 (kind/test-last [(fn [v] (= 4 (:points (pj/svg-summary v))))])
 
-;; **Layer type inference** fires when a pose has no explicit
+;; **Layer type inference** happens when a pose has no explicit
 ;; layer. The library inspects the types of the columns the
 ;; mapping refers to and picks a chart type that fits. Two
 ;; numerical columns produce a scatter plot:
@@ -512,7 +512,7 @@ two-panel
 ;; A pose does not need to carry data. `(pj/pose)` creates an
 ;; empty pose you can evolve like any other -- adding layers,
 ;; options -- and then attach a dataset at the end with
-;; `pj/with-data`. The result is a plotting *instrument* that can
+;; `pj/with-data`. The result is a reusable pose that can
 ;; be applied to many datasets:
 
 (def scatter-with-regression
