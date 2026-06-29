@@ -266,6 +266,8 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:polygons s))))])
 
+(kind/doc #'pj/lay-smooth)
+
 ;; Linear regression: pass `{:stat :linear-model}` to `pj/lay-smooth`.
 
 (-> (rdatasets/datasets-iris)
@@ -275,8 +277,6 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 150 (:points s))
                                 (= 1 (:lines s)))))])
-
-(kind/doc #'pj/lay-smooth)
 
 (-> (let [r (rng/rng :jdk 42)
           xs (vec (range 50))]
