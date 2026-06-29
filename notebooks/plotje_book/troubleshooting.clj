@@ -131,9 +131,10 @@
 ;; ## Numeric Column Rejected by a Categorical-Axis Mark
 ;;
 ;; **Symptom**: An error like `"lay-bar with a y column (value bars)
-;; requires a categorical column for :x, but :hour is numerical"`, or
-;; the equivalent for `:boxplot`, `:violin`, `:lollipop`, or similar
-;; marks that need a categorical axis.
+;; requires a categorical column on :x or :y, but :x (:hour) is
+;; numerical and :y (:count) is numerical"`, or the equivalent for
+;; `:boxplot`, `:violin`, `:lollipop`, or similar marks that need a
+;; categorical axis.
 ;;
 ;; **Cause**: The column you passed (e.g., hour of day, year, subject
 ;; ID) contains numbers, so column-type inference classifies it as
@@ -149,7 +150,7 @@
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"requires a categorical column for :x" msg))])
+ [(fn [msg] (re-find #"requires a categorical column" msg))])
 
 ;; **Fix**: Add `:x-type :categorical` (or `:y-type :categorical` for
 ;; horizontal layouts) to override the inferred type. No need to

@@ -234,15 +234,33 @@
                 {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
                  :label (defaults/fmt-category-label color)
                  :counts (vec counts)}))}
-    ;; Value bars (from :identity stat) -- need categorical x for band layout
-    (do
-      (when-not (= (:x-type draft-layer) :categorical)
-        (throw (ex-info (str "lay-bar with a y column (value bars) requires a categorical column for :x, "
-                             "but " (:x draft-layer) " is " (name (or (:x-type draft-layer) :unknown))
-                             ". Use lay-line/lay-point for numeric x, convert " (:x draft-layer)
-                             " to a string column, or pass {:x-type :categorical} to treat a numeric"
-                             " column as categorical. For horizontal bars, add (pj/coord :flip).")
-                        {:mark :rect :x (:x draft-layer) :x-type (:x-type draft-layer)})))
+    ;; Value bars (from :identity stat) -- need a categorical axis for band
+    ;; layout, on x (vertical bars) or y (horizontal bars). When the
+    ;; categorical axis is y, the orientation is flipped (mirrors boxplot).
+    (let [x-cat? (= (:x-type draft-layer) :categorical)
+          y-cat? (= (:y-type draft-layer) :categorical)
+          flipped? (and y-cat? (not x-cat?))]
+      (when-not (or x-cat? y-cat?)
+        (throw (ex-info (str "lay-bar with a y column (value bars) requires a categorical column "
+                             "on :x or :y, but :x (" (:x draft-layer) ") is "
+                             (name (or (:x-type draft-layer) :unknown)) " and :y (" (:y draft-layer)
+                             ") is " (name (or (:y-type draft-layer) :unknown))
+                             ". Use lay-line/lay-point for two numeric axes, or pass "
+                             "{:x-type :categorical} (or {:y-type :categorical}) to treat a numeric"
+                             " column as categorical.")
+                        {:mark :rect :x (:x draft-layer) :y (:y draft-layer)
+                         :x-type (:x-type draft-layer) :y-type (:y-type draft-layer)})))
+      ;; Horizontal value bars (categorical y) stack/fill along x, but the
+      ;; stacking machinery accumulates on the y-axis. Until that is made
+      ;; orientation-aware, route this case through coord :flip (which lays
+      ;; the bars out vertically, then flips), where stacking works.
+      (when (and flipped? (#{:stack :fill} (:position draft-layer)))
+        (throw (ex-info (str "Stacked/filled horizontal value bars are not supported directly yet. "
+                             "Put the category on :x and use (pj/coord :flip): "
+                             "(-> data (pj/lay-bar " (pr-str (:y draft-layer)) " " (pr-str (:x draft-layer))
+                             " {:position " (pr-str (:position draft-layer)) " ...}) (pj/coord :flip)).")
+                        {:mark :rect :position (:position draft-layer)
+                         :x (:x draft-layer) :y (:y draft-layer)})))
       {:mark :rect
        :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
        :position (default-position draft-layer)
@@ -250,7 +268,11 @@
                 (for [{:keys [color xs ys]} (:points stat)]
                   {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
                    :label (defaults/fmt-category-label color)
-                   :xs xs :ys ys}))})))
+                   ;; Canonical slots: category on :xs, numeric value on :ys.
+                   ;; The renderer bands :xs (on the auto-swapped band scale)
+                   ;; and measures :ys, so this draws correctly either way.
+                   :xs (if flipped? ys xs)
+                   :ys (if flipped? xs ys)}))})))
 
 (def ^:private align-x-values
   "Horizontal anchor values: which part of the text lands on the data point."

@@ -232,6 +232,20 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:polygons s))))])
 
+;; The categorical axis can be either x or y. Put the category on y and the
+;; value on x for horizontal bars -- no `pj/coord` needed (the orientation
+;; follows the categorical axis, the same way `pj/lay-boxplot` does):
+
+(-> sales
+    (pj/lay-bar :revenue :product))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 4 (:polygons s))))])
+
+;; Grouped horizontal bars dodge as well. Stacked or filled horizontal bars
+;; are not supported directly yet -- put the category on x and add
+;; `(pj/coord :flip)` for those.
+
 ;; Linear regression: pass `{:stat :linear-model}` to `pj/lay-smooth`.
 
 (-> (rdatasets/datasets-iris)

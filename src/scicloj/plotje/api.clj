@@ -1878,8 +1878,14 @@
    The stat is inferred from whether a y column is present, and overridable:
    pass `{:stat :count}` to count even with a y column, or `{:stat :identity}`
    to require an explicit height. `:color` (with `:position` `:dodge`/`:stack`)
-   gives grouped or stacked bars. For horizontal bars, add `(pj/coord :flip)`.
-   To treat a numeric x column as categorical, pass `{:x-type :categorical}`."
+   gives grouped or stacked bars.
+
+   The categorical axis can be x (vertical bars) or y (horizontal bars):
+   `(pj/lay-bar :value :category)` with a categorical y draws horizontal value
+   bars, no `pj/coord` needed. (Stacked/filled horizontal bars are not yet
+   supported directly -- put the category on x and add `(pj/coord :flip)`.)
+   To treat a numeric column as categorical, pass `{:x-type :categorical}`
+   (or `{:y-type :categorical}`)."
   ([pose-or-data] (lay-layer-type :bar pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :bar pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :bar pose-or-data x y-or-opts))

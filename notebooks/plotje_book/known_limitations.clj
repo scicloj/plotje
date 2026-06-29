@@ -93,6 +93,12 @@
 ;;   `pj/lay-bar` with a `y` column and `{:color :value}` gives a
 ;;   categorical "heatmap" look.
 ;;
+;; - Horizontal value bars (`pj/lay-bar` with the category on `:y`)
+;;   support plain and dodged layouts, but not `:position :stack` or
+;;   `:position :fill` -- stacking accumulates along the y-axis, which
+;;   is the categorical band for a horizontal bar. Workaround: put the
+;;   category on `:x` and add `(pj/coord :flip)`, where stacking works.
+;;
 ;; - Stack order in `pj/lay-area` and `pj/lay-bar` (with
 ;;   `:position :stack`) follows the sort order of the `:color`
 ;;   column. There is no `:stack-order` / `:color-order` option yet,

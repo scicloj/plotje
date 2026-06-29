@@ -98,7 +98,12 @@
                          (col-ref? fill)  (conj fill))
         drop-cols (vec (distinct (concat (if x-only? [x] [x y]) aesthetic-cols)))
         clean (cond-> (tc/drop-missing data-idx drop-cols)
-                (= x-type :categorical) (tc/map-columns x [x] defaults/fmt-category-label))]
+                (= x-type :categorical) (tc/map-columns x [x] defaults/fmt-category-label)
+                ;; Format the categorical axis whichever side it is on, so a
+                ;; horizontal value bar's category labels (on y) match its band
+                ;; scale -- keyword/number categories become display strings.
+                (and (not x-only?) (= y-type :categorical))
+                (tc/map-columns y [y] defaults/fmt-category-label))]
     (if (zero? (tc/row-count clean))
       {:points [] :x-domain [0 1] :y-domain [0 1]}
       (let [xs-col (clean x)
@@ -108,10 +113,16 @@
             x-dom (if cat-x?
                     (distinct xs-col)
                     (let [[lo hi] (numeric-extent xs-col)]
-                      (if (col-ref? x-end)
+                      (cond
+                        (col-ref? x-end)
                         (let [[lo2 hi2] (numeric-extent (clean x-end))]
                           [(min lo lo2) (max hi hi2)])
-                        [lo hi])))
+                        ;; Horizontal value bars (categorical y, numeric x):
+                        ;; the bar runs along x, so anchor the x-domain at 0,
+                        ;; mirroring the vertical bar's y-domain anchoring below.
+                        (and (= mark :rect) cat-y?)
+                        [(min 0 lo) (max 0 hi)]
+                        :else [lo hi])))
             y-dom (cond
                     x-only? nil
                     cat-y? (distinct ys-col)
