@@ -126,7 +126,7 @@
 
 ;; ### Vertical
 
-;; One bar per product, height = revenue.
+;; One bar per product; the bar height is the revenue.
 
 (-> sales
     (pj/lay-bar :product :revenue))
