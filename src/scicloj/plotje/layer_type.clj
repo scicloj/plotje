@@ -80,7 +80,7 @@
 (def layer-type-order
   "Canonical display order for built-in layer types."
   [:point :line :step :area
-   :histogram :bar :value-bar
+   :histogram :bar
    :smooth :density
    :tile :density-2d :contour
    :boxplot :violin :ridgeline
@@ -96,8 +96,7 @@
 (register! :step {:mark :step :stat :identity :accepts [:size] :doc "Step — horizontal-then-vertical connected points."})
 (register! :area {:mark :area :stat :identity :accepts [] :doc "Area — filled region under a line."})
 (register! :histogram {:mark :bar :stat :bin :x-only true :accepts [:normalize :bins :binwidth] :doc "Histogram — bins numerical data into bars."})
-(register! :bar {:mark :rect :stat :count :x-only true :accepts [] :doc "Bar — counts categorical values."})
-(register! :value-bar {:mark :rect :stat :identity :accepts [] :doc "Value bar — categorical x with pre-computed y."})
+(register! :bar {:mark :rect :accepts [] :doc "Bar — counts categories (x only), or uses y as the bar height when a y column is given."})
 (register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :nudge-x :nudge-y] :doc "Smoothed trend line — defaults to LOESS; pass {:stat :linear-model} for OLS."})
 (register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth] :doc "Density — KDE (kernel density estimation) as filled area."})
 (register! :tile {:mark :tile :stat :bin2d :accepts [:fill :density-2d-grid] :doc "Tile/heatmap — 2D grid binning."})

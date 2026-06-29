@@ -57,11 +57,11 @@
 
 ;; ## Wind Rose
 ;;
-;; A value-bar chart in polar makes a wind rose -- each direction
-;; gets a wedge proportional to wind speed.
+;; A bar chart with a y column (value bars) in polar makes a wind
+;; rose -- each direction gets a wedge proportional to wind speed.
 
 (-> wind
-    (pj/lay-value-bar :direction :speed)
+    (pj/lay-bar :direction :speed)
     (pj/coord :polar))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

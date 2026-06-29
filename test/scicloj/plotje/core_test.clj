@@ -263,10 +263,10 @@
             (is (pos? count) (str (:label g) " should have count for " category))
             (is (zero? count) (str (:label g) " should have 0 count for " category))))))))
 
-(deftest value-bar-stacking-y0s-test
+(deftest stacked-bars-y0s-test
   (testing "stacked value bars use y0s baselines"
     (let [pl (-> {:day ["Mon" "Mon"] :count [30 20] :meal ["lunch" "dinner"]}
-                 (pj/lay-value-bar :day :count {:color :meal :position :stack})
+                 (pj/lay-bar :day :count {:color :meal :position :stack})
                  pj/plan)
           groups (get-in pl [:panels 0 :layers 0 :groups])
           dinner (second groups)]
@@ -394,7 +394,6 @@
       :step :step
       :histogram :bar
       :bar :rect
-      :value-bar :rect
       :smooth :line
       :text :text
       :label :label
@@ -865,7 +864,7 @@
 (deftest categorical-single-category-test
   (testing "bar chart with only one category"
     (let [ds (tc/dataset {:cat ["a" "a" "a"] :val [1 2 3]})
-          pl (pj/plan (-> ds (pj/lay-value-bar :cat :val)))]
+          pl (pj/plan (-> ds (pj/lay-bar :cat :val)))]
       (is (= 1 (count (:panels pl)))))))
 
 (deftest histogram-uniform-data-test
@@ -979,7 +978,7 @@
     (let [pl (pj/plan (-> {:category ["A" "A" "B" "B"]
                            :group ["g1" "g2" "g1" "g2"]
                            :value [-10 -20 -5 -15]}
-                          (pj/lay-value-bar :category :value {:color :group :position :stack})))
+                          (pj/lay-bar :category :value {:color :group :position :stack})))
           [lo hi] (:y-domain (first (:panels pl)))]
       (is (neg? lo) "lower bound should be negative for all-negative stacked data")
       (is (pos? hi) "upper bound includes 0 baseline with padding")))
@@ -987,7 +986,7 @@
     (let [pl (pj/plan (-> {:category ["A" "A" "B" "B"]
                            :group ["g1" "g2" "g1" "g2"]
                            :value [10 -20 5 -15]}
-                          (pj/lay-value-bar :category :value {:color :group :position :stack})))
+                          (pj/lay-bar :category :value {:color :group :position :stack})))
           [lo hi] (:y-domain (first (:panels pl)))]
       (is (neg? lo) "lower bound extends below zero")
       (is (pos? hi) "upper bound extends above zero")))
@@ -995,7 +994,7 @@
     (let [svg (pj/plot (-> {:category ["A" "A" "B" "B"]
                             :group ["g1" "g2" "g1" "g2"]
                             :value [-10 -20 -5 -15]}
-                           (pj/lay-value-bar :category :value {:color :group :position :stack})))]
+                           (pj/lay-bar :category :value {:color :group :position :stack})))]
       (is (not (clojure.string/includes? (str svg) "NaN"))))))
 
 (deftest boolean-color-test
@@ -1025,10 +1024,8 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"lay-histogram uses only the x column"
                           (pj/lay-histogram {:x [1 2 3] :y [4 5 6]} :x :y))))
-  (testing "bar rejects :y column"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"lay-bar uses only the x column"
-                          (pj/lay-bar {:x ["a" "b"] :y [1 2]} :x :y))))
+  (testing "bar accepts a :y column (value bars)"
+    (is (some? (pj/lay-bar {:x ["a" "b"] :y [1 2]} :x :y))))
   (testing "density rejects :y column"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"lay-density uses only the x column"
@@ -1659,23 +1656,32 @@
 
 (deftest bar-numeric-x-test
   ;; persona-16 H9. Closes P9-R2 F7.
-  (testing "lay-bar with numeric x throws clear error"
+  (testing "lay-bar counting with numeric x throws clear error"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Stat :count.*requires a categorical column for :x"
+                          #"lay-bar \(counting\) requires a categorical column for :x"
                           (-> {:x [1 2 3 4 5]} (pj/lay-bar :x) pj/plan))))
 
-  (testing "lay-value-bar with numeric x throws clear error"
+  (testing "lay-bar value bars with numeric x throws clear error"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Mark :rect.*requires a categorical column for :x"
+                          #"lay-bar with a y column .* requires a categorical column for :x"
                           (-> {:x [1.0 2.0 3.0] :y [10 20 30]}
-                              (pj/lay-value-bar :x :y) pj/plan))))
+                              (pj/lay-bar :x :y) pj/plan))))
 
-  (testing "lay-bar with categorical x still works"
+  (testing "the numeric-x error suggests the :x-type override"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"\{:x-type :categorical\}"
+                          (-> {:x [1 2 3 4 5]} (pj/lay-bar :x) pj/plan))))
+
+  (testing "lay-bar counting with categorical x still works"
     (is (some? (-> {:cat ["a" "b" "c"]} (pj/lay-bar :cat) pj/plan))))
 
-  (testing "lay-value-bar with categorical x still works"
+  (testing "lay-bar value bars with categorical x still works"
     (is (some? (-> {:cat ["a" "b" "c"] :y [10 20 30]}
-                   (pj/lay-value-bar :cat :y) pj/plan)))))
+                   (pj/lay-bar :cat :y) pj/plan))))
+
+  (testing "{:x-type :categorical} lets lay-bar accept a numeric x"
+    (is (some? (-> {:x [1 2 3] :y [10 20 30]}
+                   (pj/lay-bar :x :y {:x-type :categorical}) pj/plan)))))
 
 (deftest lollipop-y-type-categorical-rejected-test
   ;; user-report-3 issue 4: passing :y-type :categorical on a numeric :y

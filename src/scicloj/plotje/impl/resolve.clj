@@ -330,7 +330,17 @@
           ;; everything else: scatter
           :else [:point :identity])
         mark (or (:mark v) default-mark)
-        stat (or (:stat v) (if (:mark v) :identity default-stat))]
+        ;; When the user fixed a mark (e.g. via lay-bar -> :rect) but not a
+        ;; stat, default the stat. A :rect mark is a bar: with no y column it
+        ;; counts categories (:count), with a y column it uses the y as the
+        ;; bar height (:identity). Any other fixed mark defaults to :identity.
+        ;; An explicit :stat always overrides this -- the same infer-then-
+        ;; override rule the rest of the pipeline follows.
+        stat (or (:stat v)
+                 (cond
+                   (nil? (:mark v))                        default-stat
+                   (and (= (:mark v) :rect) (nil? (:y v))) :count
+                   :else                                   :identity))]
     {:mark mark :stat stat}))
 
 (defn resolve-draft-layer

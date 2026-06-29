@@ -140,9 +140,7 @@
   {:animal ["cat" "dog" "bird" "fish"], :count [12 8 15 5]}))
 
 
-(def
- v28_l219
- (def bar-pose (-> animals (pj/lay-value-bar :animal :count))))
+(def v28_l219 (def bar-pose (-> animals (pj/lay-bar :animal :count))))
 
 
 (def v29_l223 bar-pose)
@@ -198,7 +196,7 @@
   hour-bar-pose
   (->
    {:hour [9 10 11 12], :count [5 8 12 7]}
-   (pj/lay-value-bar :hour :count {:x-type :categorical}))))
+   (pj/lay-bar :hour :count {:x-type :categorical}))))
 
 
 (def v37_l275 hour-bar-pose)
@@ -1036,7 +1034,7 @@
 
 (def
  v181_l1030
- (def normal-pose (-> animals (pj/lay-value-bar :animal :count))))
+ (def normal-pose (-> animals (pj/lay-bar :animal :count))))
 
 
 (def v182_l1034 normal-pose)
@@ -1046,7 +1044,7 @@
  v183_l1036
  (def
   flip-pose
-  (-> animals (pj/lay-value-bar :animal :count) (pj/coord :flip))))
+  (-> animals (pj/lay-bar :animal :count) (pj/coord :flip))))
 
 
 (def v184_l1041 flip-pose)

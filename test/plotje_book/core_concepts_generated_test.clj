@@ -79,7 +79,7 @@
    {:city "London", :temperature 18}
    {:city "Berlin", :temperature 20}
    {:city "Rome", :temperature 28}]
-  (pj/lay-value-bar :city :temperature)))
+  (pj/lay-bar :city :temperature)))
 
 
 (deftest
@@ -251,7 +251,7 @@
   setosa
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__81926#] (= "setosa" (:species p1__81926#))))))
+   (fn* [p1__81924#] (= "setosa" (:species p1__81924#))))))
 
 
 (def
@@ -260,7 +260,7 @@
   versicolor
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__81927#] (= "versicolor" (:species p1__81927#))))))
+   (fn* [p1__81925#] (= "versicolor" (:species p1__81925#))))))
 
 
 (def
@@ -419,7 +419,7 @@
   {:day ["Mon" "Mon" "Tue" "Tue"],
    :count [30 20 45 15],
    :meal ["lunch" "dinner" "lunch" "dinner"]}
-  (pj/lay-value-bar :day :count {:color :meal, :position :stack})))
+  (pj/lay-bar :day :count {:color :meal, :position :stack})))
 
 
 (deftest

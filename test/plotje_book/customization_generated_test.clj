@@ -200,7 +200,7 @@
   {:x (range 1 50),
    :y
    (map
-    (fn* [p1__85781#] (* 2 (Math/pow 1.1 p1__85781#)))
+    (fn* [p1__85779#] (* 2 (Math/pow 1.1 p1__85779#)))
     (range 1 50))}))
 
 
@@ -336,7 +336,7 @@
  v50_l233
  (->
   {:size ["medium" "small" "large"], :count [12 30 7]}
-  (pj/lay-value-bar :size :count)
+  (pj/lay-bar :size :count)
   (pj/scale
    :x
    {:type :categorical, :domain ["large" "medium" "small"]})))
@@ -494,8 +494,8 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__85782#] (= :text (:mark p1__85782#))))
-      (mapv (fn* [p1__85783#] (-> p1__85783# :style :align-x))))))
+      (filter (fn* [p1__85780#] (= :text (:mark p1__85780#))))
+      (mapv (fn* [p1__85781#] (-> p1__85781# :style :align-x))))))
    v71_l351)))
 
 
@@ -503,7 +503,7 @@
  v74_l371
  (->
   {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
-  (pj/lay-value-bar :species :pct {:color "#a6cee3"})
+  (pj/lay-bar :species :pct {:color "#a6cee3"})
   (pj/lay-text
    :species
    :pct
@@ -523,7 +523,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__85784#] (= :text (:mark p1__85784#))))
+       (filter (fn* [p1__85782#] (= :text (:mark p1__85782#))))
        first
        :style)]
      (and
@@ -549,12 +549,12 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__85785#] (= mark (:mark p1__85785#))))
+        (filter (fn* [p1__85783#] (= mark (:mark p1__85783#))))
         first
         :style
         ((fn*
-          [p1__85786#]
-          (select-keys p1__85786# [:align-x :align-y])))))]
+          [p1__85784#]
+          (select-keys p1__85784# [:align-x :align-y])))))]
      (and
       (=
        {:align-x :left, :align-y :center}

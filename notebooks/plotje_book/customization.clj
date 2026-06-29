@@ -232,7 +232,7 @@
 
 (-> {:size ["medium" "small" "large"]
      :count [12 30 7]}
-    (pj/lay-value-bar :size :count)
+    (pj/lay-bar :size :count)
     (pj/scale :x {:type :categorical :domain ["large" "medium" "small"]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
@@ -370,7 +370,7 @@
 
 (-> {:species ["setosa" "versicolor" "virginica"]
      :pct     [33.3 33.3 33.3]}
-    (pj/lay-value-bar :species :pct {:color "#a6cee3"})
+    (pj/lay-bar :species :pct {:color "#a6cee3"})
     (pj/lay-text :species :pct {:text :pct :align-x :center :align-y :bottom}))
 
 (kind/test-last

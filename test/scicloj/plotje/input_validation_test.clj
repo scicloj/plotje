@@ -842,17 +842,18 @@
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"Pass explicit x and y: \(pj/lay-point data :x :y\)"
-           (pj/lay-point big))))
+           (pj/lay-point big)))
+      ;; lay-bar is no longer x-only -- it accepts a y column (value bars)
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"Pass explicit x and y: \(pj/lay-bar data :x :y\)"
+           (pj/lay-bar big))))
 
     (testing "x-only mark suggests :x only"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"Pass explicit x: \(pj/lay-histogram data :x\)"
            (pj/lay-histogram big)))
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"Pass explicit x: \(pj/lay-bar data :x\)"
-           (pj/lay-bar big)))
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"Pass explicit x: \(pj/lay-density data :x\)"

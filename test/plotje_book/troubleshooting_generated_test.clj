@@ -105,7 +105,7 @@
  (try
   (->
    {:hour [9 10 11 12], :count [5 8 12 7]}
-   (pj/lay-value-bar :hour :count)
+   (pj/lay-bar :hour :count)
    pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
@@ -121,7 +121,7 @@
  v29_l158
  (->
   {:hour [9 10 11 12], :count [5 8 12 7]}
-  (pj/lay-value-bar :hour :count {:x-type :categorical})))
+  (pj/lay-bar :hour :count {:x-type :categorical})))
 
 
 (deftest
@@ -135,7 +135,7 @@
   (->
    {:species ["setosa" "versicolor" "virginica"],
     :pct [33.3 33.3 33.3]}
-   (pj/lay-value-bar :species :pct)
+   (pj/lay-bar :species :pct)
    (pj/lay-text :species :pct {:text :pct, :nudge-x -2})
    pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
@@ -152,7 +152,7 @@
  v35_l199
  (->
   {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
-  (pj/lay-value-bar :species :pct {:color "#a6cee3"})
+  (pj/lay-bar :species :pct {:color "#a6cee3"})
   (pj/lay-text :species :pct {:text :pct, :align-x :right})
   (pj/coord :flip)))
 
@@ -170,7 +170,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__86312#] (= :text (:mark p1__86312#))))
+      (filter (fn* [p1__86310#] (= :text (:mark p1__86310#))))
       first
       :style
       :align-x)))
@@ -207,7 +207,7 @@
 
 
 (def
- v44_l260
+ v44_l261
  (try
   (->
    (rdatasets/datasets-iris)
@@ -217,22 +217,22 @@
 
 
 (deftest
- t45_l266
- (is ((fn [msg] (re-find #"uses only the x column" msg)) v44_l260)))
+ t45_l267
+ (is ((fn [msg] (re-find #"uses only the x column" msg)) v44_l261)))
 
 
 (def
- v47_l271
+ v47_l272
  (-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length)))
 
 
 (deftest
- t48_l274
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v47_l271)))
+ t48_l275
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v47_l272)))
 
 
 (def
- v50_l283
+ v50_l284
  (try
   (->
    (rdatasets/datasets-iris)
@@ -243,12 +243,12 @@
 
 
 (deftest
- t51_l290
- (is ((fn [msg] (re-find #"[Ll]og scale" msg)) v50_l283)))
+ t51_l291
+ (is ((fn [msg] (re-find #"[Ll]og scale" msg)) v50_l284)))
 
 
 (def
- v53_l307
+ v53_l308
  (try
   (->
    {:x [1 2 3 4 5], :y [2 4 3 5 4]}
@@ -259,14 +259,14 @@
 
 
 (deftest
- t54_l314
+ t54_l315
  (is
   ((fn [msg] (re-find #"not supported with polar coordinates" msg))
-   v53_l307)))
+   v53_l308)))
 
 
 (def
- v56_l320
+ v56_l321
  (->
   (rdatasets/datasets-chickwts)
   (pj/pose :feed)
@@ -275,12 +275,12 @@
 
 
 (deftest
- t57_l325
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v56_l320)))
+ t57_l326
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v56_l321)))
 
 
 (def
- v59_l345
+ v59_l346
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -288,12 +288,12 @@
 
 
 (deftest
- t60_l349
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v59_l345)))
+ t60_l350
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v59_l346)))
 
 
 (def
- v62_l362
+ v62_l363
  (try
   (->
    (rdatasets/datasets-iris)
@@ -304,12 +304,12 @@
 
 
 (deftest
- t63_l369
- (is ((fn [msg] (re-find #"Faceting is plot-level" msg)) v62_l362)))
+ t63_l370
+ (is ((fn [msg] (re-find #"Faceting is plot-level" msg)) v62_l363)))
 
 
 (def
- v65_l375
+ v65_l376
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -317,12 +317,12 @@
 
 
 (deftest
- t66_l379
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v65_l375)))
+ t66_l380
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v65_l376)))
 
 
 (def
- v68_l394
+ v68_l395
  (try
   (->
    (rdatasets/datasets-iris)
@@ -333,13 +333,13 @@
 
 
 (deftest
- t69_l401
+ t69_l402
  (is
-  ((fn [msg] (re-find #":y must be a column reference" msg)) v68_l394)))
+  ((fn [msg] (re-find #":y must be a column reference" msg)) v68_l395)))
 
 
 (def
- v71_l407
+ v71_l408
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -351,33 +351,33 @@
 
 
 (deftest
- t72_l412
- (is ((fn [v] (some #{"mean"} (:texts (pj/svg-summary v)))) v71_l407)))
+ t72_l413
+ (is ((fn [v] (some #{"mean"} (:texts (pj/svg-summary v)))) v71_l408)))
 
 
 (def
- v74_l425
+ v74_l426
  (def
   template
   (-> (pj/pose nil {:x :x, :y :y, :color :group}) pj/lay-point)))
 
 
 (def
- v75_l429
+ v75_l430
  (try
   (-> template (pj/with-data {:x [1 2 3], :y [4 5 6]}))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t76_l434
+ t76_l435
  (is
   ((fn [msg] (re-find #"\[:group\] not present in the dataset" msg))
-   v75_l429)))
+   v75_l430)))
 
 
 (def
- v78_l441
+ v78_l442
  (->
   (pj/pose nil {:x :x, :y :y})
   pj/lay-point
@@ -385,74 +385,45 @@
 
 
 (deftest
- t79_l445
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v78_l441)))
+ t79_l446
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v78_l442)))
 
 
 (def
- v81_l461
+ v81_l462
  (->
   [{:category "A", :value 100}
    {:category "B", :value 50}
    {:category "C", :value 25}]
   (tc/dataset)
-  (pj/lay-value-bar :category :value)
+  (pj/lay-bar :category :value)
   (pj/coord :flip)))
 
 
 (deftest
- t82_l468
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v81_l461)))
+ t82_l469
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v81_l462)))
 
 
 (def
- v84_l474
+ v84_l475
  (->
   [{:category "A", :value 100}
    {:category "B", :value 50}
    {:category "C", :value 25}]
   (tc/dataset)
   (tc/order-by [:value] :asc)
-  (pj/lay-value-bar :category :value)
+  (pj/lay-bar :category :value)
   (pj/coord :flip)))
 
 
 (deftest
- t85_l482
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v84_l474)))
+ t85_l483
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v84_l475)))
 
 
 (def
- v87_l498
- (try
-  (->
-   {:x [1 2 3], :y [10 20 30], :group ["A" "B" "A"]}
-   (pj/lay-bar :x :y {:position :stack, :color :group})
-   pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e))))
-
-
-(deftest
- t88_l504
- (is ((fn [msg] (re-find #"uses only the x column" msg)) v87_l498)))
-
-
-(def
- v90_l513
- (->
-  {:x (concat (range 5) (range 5)),
-   :y [1 2 3 4 5 2 2 2 3 3],
-   :group (concat (repeat 5 "A") (repeat 5 "B"))}
-  (pj/lay-area :x :y {:position :stack, :color :group})))
-
-
-(deftest
- t91_l518
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v90_l513)))
-
-
-(def
- v93_l533
+ v87_l502
  (def
   points-data
   {:x [1 1 2 2 3 3],
@@ -461,7 +432,7 @@
 
 
 (def
- v94_l536
+ v88_l505
  (defn
   point-xs
   [pose]
@@ -477,7 +448,7 @@
 
 
 (def
- v95_l540
+ v89_l509
  (=
   (point-xs (-> points-data (pj/lay-point :x :y {:color :group})))
   (point-xs
@@ -486,25 +457,25 @@
     (pj/lay-point :x :y {:color :group, :position :dodge})))))
 
 
-(deftest t96_l543 (is ((fn [v] (true? v)) v95_l540)))
+(deftest t90_l512 (is ((fn [v] (true? v)) v89_l509)))
 
 
 (def
- v98_l552
+ v92_l521
  (->
   {:cat ["A" "A" "B" "B" "C" "C"],
    :y [10 20 30 40 50 60],
    :group ["a" "b" "a" "b" "a" "b"]}
-  (pj/lay-value-bar :cat :y {:color :group, :position :dodge})))
+  (pj/lay-bar :cat :y {:color :group, :position :dodge})))
 
 
 (deftest
- t99_l557
- (is ((fn [v] (= 6 (:polygons (pj/svg-summary v)))) v98_l552)))
+ t93_l526
+ (is ((fn [v] (= 6 (:polygons (pj/svg-summary v)))) v92_l521)))
 
 
 (def
- v101_l573
+ v95_l542
  (->
   (rdatasets/datasets-chickwts)
   (pj/pose :feed)
@@ -513,7 +484,7 @@
 
 
 (deftest
- t102_l578
+ t96_l547
  (is
   ((fn
     [v]
@@ -527,16 +498,16 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v101_l573)))
+   v95_l542)))
 
 
 (def
- v104_l587
+ v98_l556
  (-> (rdatasets/datasets-chickwts) (pj/pose :feed) pj/lay-bar))
 
 
 (deftest
- t105_l591
+ t99_l560
  (is
   ((fn
     [v]
@@ -550,11 +521,11 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v104_l587)))
+   v98_l556)))
 
 
 (def
- v107_l606
+ v101_l575
  (try
   (->
    {:x ["a" "b" "c"], :y ["a" "b" "c"], :v [1 2 3]}
@@ -564,14 +535,14 @@
 
 
 (deftest
- t108_l612
+ t102_l581
  (is
   ((fn [msg] (re-find #"String cannot be cast to.*Number" msg))
-   v107_l606)))
+   v101_l575)))
 
 
 (def
- v110_l619
+ v104_l588
  (->
   (for
    [day (range 1 8) hour (range 0 24)]
@@ -587,11 +558,11 @@
 
 
 (deftest
- t111_l627
+ t105_l596
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v110_l619)))
+   v104_l588)))

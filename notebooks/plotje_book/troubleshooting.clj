@@ -130,9 +130,9 @@
 
 ;; ## Numeric Column Rejected by a Categorical-Axis Mark
 ;;
-;; **Symptom**: An error like `"Mark :rect (lay-value-bar) requires
-;; a categorical column for :x, but :hour is numerical"`, or the
-;; equivalent for `:boxplot`, `:violin`, `:lollipop`, or similar
+;; **Symptom**: An error like `"lay-bar with a y column (value bars)
+;; requires a categorical column for :x, but :hour is numerical"`, or
+;; the equivalent for `:boxplot`, `:violin`, `:lollipop`, or similar
 ;; marks that need a categorical axis.
 ;;
 ;; **Cause**: The column you passed (e.g., hour of day, year, subject
@@ -144,7 +144,7 @@
 
 (try
   (-> {:hour [9 10 11 12] :count [5 8 12 7]}
-      (pj/lay-value-bar :hour :count)
+      (pj/lay-bar :hour :count)
       pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
@@ -156,7 +156,7 @@
 ;; convert the column itself:
 
 (-> {:hour [9 10 11 12] :count [5 8 12 7]}
-    (pj/lay-value-bar :hour :count {:x-type :categorical}))
+    (pj/lay-bar :hour :count {:x-type :categorical}))
 
 (kind/test-last [(fn [v] (= 4 (:polygons (pj/svg-summary v))))])
 
@@ -183,7 +183,7 @@
 
 (try
   (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
-      (pj/lay-value-bar :species :pct)
+      (pj/lay-bar :species :pct)
       (pj/lay-text :species :pct {:text :pct :nudge-x -2})
       pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
@@ -197,7 +197,7 @@
 ;; axis, use `:jitter` or `:position :dodge`.)
 
 (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
-    (pj/lay-value-bar :species :pct {:color "#a6cee3"})
+    (pj/lay-bar :species :pct {:color "#a6cee3"})
     (pj/lay-text :species :pct {:text :pct :align-x :right})
     (pj/coord :flip))
 
@@ -254,8 +254,9 @@
 ;; **Symptom**: `"lay-histogram uses only the x column; do not pass
 ;; a y column"` error.
 ;;
-;; **Cause**: Histogram, bar, density, and rug layer types use only
-;; the x column. Passing a y column is an error.
+;; **Cause**: Histogram, density, and rug layer types use only
+;; the x column. Passing a y column is an error. (`lay-bar` is not
+;; among them -- it uses a y column as the bar height when given one.)
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -301,8 +302,8 @@
 ;;
 ;; **Cause**: Polar coordinates currently support a subset of marks:
 ;; `:bar`, `:point`, `:rect`, `:rug`, and `:text`. Layer types built
-;; on these marks (such as `:value-bar` and `:histogram`, which both
-;; render as bars) work too.
+;; on these marks (such as `:histogram`, which renders as bars, and
+;; `:bar` with a y column, which renders as rectangles) work too.
 
 (try
   (-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
@@ -462,7 +463,7 @@
      {:category "B" :value 50}
      {:category "C" :value 25}]
     (tc/dataset)
-    (pj/lay-value-bar :category :value)
+    (pj/lay-bar :category :value)
     (pj/coord :flip))
 
 (kind/test-last [(fn [v] (= 3 (:polygons (pj/svg-summary v))))])
@@ -476,7 +477,7 @@
      {:category "C" :value 25}]
     (tc/dataset)
     (tc/order-by [:value] :asc)
-    (pj/lay-value-bar :category :value)
+    (pj/lay-bar :category :value)
     (pj/coord :flip))
 
 (kind/test-last [(fn [v] (= 3 (:polygons (pj/svg-summary v))))])
@@ -485,46 +486,14 @@
 ;; {:reverse-categorical true})`) would remove the need to pre-sort.
 ;; Tracked in `CHANGELOG.md` Known limitations.
 
-;; ## Stacked Bars Reject Pre-Aggregated Counts
-;;
-;; **Symptom**: `"lay-bar uses only the x column; do not pass a
-;; y column"` when you have already grouped and aggregated the
-;; data and want a stacked bar chart of the computed values.
-;;
-;; **Cause**: `pj/lay-bar {:position :stack}` is count-only -- it
-;; bins by `x` internally and sums counts. It has no mode that
-;; accepts a pre-computed `y`.
-
-(try
-  (-> {:x [1 2 3] :y [10 20 30] :group ["A" "B" "A"]}
-      (pj/lay-bar :x :y {:position :stack :color :group})
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e)))
-
-(kind/test-last
- [(fn [msg] (re-find #"uses only the x column" msg))])
-
-;; **Fix for now**: Either use `(pj/lay-area ... {:position :stack})`
-;; on a numeric x (it accepts pre-aggregated `y`), or expand
-;; aggregated rows back into count-many duplicates so the count
-;; stat sums to the pre-aggregated value. A proper stacked value-bar
-;; is tracked in `CHANGELOG.md` Known limitations.
-
-(-> {:x     (concat (range 5) (range 5))
-     :y     [1  2  3  4  5  2  2  2  3  3]
-     :group (concat (repeat 5 "A") (repeat 5 "B"))}
-    (pj/lay-area :x :y {:position :stack :color :group}))
-
-(kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
-
 ;; ## Dodge Has No Effect on Point Layers
 
 ;; **Symptom**: Adding `:position :dodge` to `pj/lay-point` (or other
 ;; non-bar marks) does not spread points apart by group -- the plot
 ;; looks identical to the version without `:position :dodge`.
 ;;
-;; **Cause**: `:position :dodge` is implemented for bar-family marks
-;; (`pj/lay-bar`, `pj/lay-value-bar`). On point/line/jitter and
+;; **Cause**: `:position :dodge` is implemented for the bar mark
+;; (`pj/lay-bar`). On point/line/jitter and
 ;; several other marks the option is accepted but silently ignored.
 ;;
 ;; The two plans below produce identical x-coordinates for the
@@ -543,8 +512,8 @@
 (kind/test-last [(fn [v] (true? v))])
 
 ;; **Fix for now**: For grouped categorical layouts use
-;; `pj/lay-value-bar` (or `pj/lay-bar` when binning a count); dodge
-;; works there. To distinguish overlapping points by group on a
+;; `pj/lay-bar` (counting with x only, or using a y column as height);
+;; dodge works there. To distinguish overlapping points by group on a
 ;; numeric x, encode the group with `:color`, `:shape`, or
 ;; pre-compute small offsets in the data. A proper dodge for points
 ;; is tracked in `CHANGELOG.md` Known limitations.
@@ -552,7 +521,7 @@
 (-> {:cat   ["A" "A" "B" "B" "C" "C"]
      :y     [10 20 30 40 50 60]
      :group ["a" "b" "a" "b" "a" "b"]}
-    (pj/lay-value-bar :cat :y {:color :group :position :dodge}))
+    (pj/lay-bar :cat :y {:color :group :position :dodge}))
 
 (kind/test-last [(fn [v] (= 6 (:polygons (pj/svg-summary v))))])
 

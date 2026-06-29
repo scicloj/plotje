@@ -205,13 +205,32 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
 
-(kind/doc #'pj/lay-value-bar)
+;; Pass a y column and `pj/lay-bar` uses it as the bar height instead of
+;; counting (value bars):
 
 (-> sales
-    (pj/lay-value-bar :product :revenue))
+    (pj/lay-bar :product :revenue))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 4 (:polygons s))))])
+
+;; The stat is inferred from whether a y column is present. Override it to
+;; count even when a y column is supplied:
+
+(-> sales
+    (pj/lay-bar :product :revenue {:stat :count}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (pos? (:polygons s))))])
+
+;; A bar chart needs a categorical x. To use a numeric column for the
+;; categories, declare it categorical with `{:x-type :categorical}`:
+
+(-> {:hour [9 10 11] :sales [3 5 4]}
+    (pj/lay-bar :hour :sales {:x-type :categorical}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 3 (:polygons s))))])
 
 ;; Linear regression: pass `{:stat :linear-model}` to `pj/lay-smooth`.
 
@@ -894,7 +913,7 @@ plan1
 
 (count (pj/registered-layer-types))
 
-(kind/test-last [(fn [n] (= 26 n))])
+(kind/test-last [(fn [n] (= 25 n))])
 
 (first (pj/registered-layer-types))
 

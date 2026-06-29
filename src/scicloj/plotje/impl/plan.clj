@@ -50,7 +50,7 @@
   "Compute global y-domain from position-adjusted layers.
    Reads pre-computed :y0/:y1 from stacked layers. Extends domain to
    include 0 for marks that draw from a zero baseline (bar, area,
-   lollipop, value-bar) on linear scales. On log scales, baseline
+   lollipop) on linear scales. On log scales, baseline
    extension is skipped -- the lower bound is the smallest positive
    value the layers report -- because log scales have no zero."
   [plan-layers scale-spec]
@@ -59,7 +59,8 @@
         log? (= :log (:type scale-spec))
         ;; Marks whose visual identity anchors at y=0 (rectangle base, fill
         ;; baseline, lollipop stem). :rect is the categorical-bar mark (from
-        ;; lay-bar/lay-value-bar); :bar is the histogram mark.
+        ;; lay-bar, whether counting or using y heights); :bar is the
+        ;; histogram mark.
         zero-baseline-marks #{:bar :rect :lollipop :area}
         needs-zero? (and (not log?)
                          (some #(zero-baseline-marks (:mark %)) plan-layers))

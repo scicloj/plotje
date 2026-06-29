@@ -218,7 +218,7 @@ two-col-pose
 
 (def bar-pose
   (-> animals
-      (pj/lay-value-bar :animal :count)))
+      (pj/lay-bar :animal :count)))
 
 bar-pose
 
@@ -270,7 +270,7 @@ temporal-pose
 
 (def hour-bar-pose
   (-> {:hour [9 10 11 12] :count [5 8 12 7]}
-      (pj/lay-value-bar :hour :count {:x-type :categorical})))
+      (pj/lay-bar :hour :count {:x-type :categorical})))
 
 hour-bar-pose
 
@@ -281,7 +281,7 @@ hour-bar-pose
             (:x-domain (first (:panels (pj/plan hour-bar-pose)))))))])
 
 ;; Four bars at discrete hour bands. Without the override,
-;; `lay-value-bar` would reject the numeric `:hour` column; with
+;; `lay-bar` would reject the numeric `:hour` column; with
 ;; it, the column is treated as categorical (values cast to strings
 ;; for display). The same override exists for `:y-type` and for
 ;; `:color-type` (see the Grouping section below for a `:color-type`
@@ -1029,13 +1029,13 @@ scatter-pose
 
 (def normal-pose
   (-> animals
-      (pj/lay-value-bar :animal :count)))
+      (pj/lay-bar :animal :count)))
 
 normal-pose
 
 (def flip-pose
   (-> animals
-      (pj/lay-value-bar :animal :count)
+      (pj/lay-bar :animal :count)
       (pj/coord :flip)))
 
 flip-pose

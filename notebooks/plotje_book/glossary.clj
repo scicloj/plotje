@@ -145,14 +145,14 @@ my-pose
            :meal ["lunch" "dinner" "lunch" "dinner"]})
 
 (-> tips
-    (pj/lay-value-bar :day :count {:color :meal :position :stack}))
+    (pj/lay-bar :day :count {:color :meal :position :stack}))
 
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
           dinner-bar (-> tips
-                         (pj/lay-value-bar :day :count
-                                           {:color :meal :position :stack})
+                         (pj/lay-bar :day :count
+                                     {:color :meal :position :stack})
                          pj/plan
                          (get-in [:panels 0 :layers 0 :groups 1]))]
       (and (= 4 (:polygons s))

@@ -237,10 +237,11 @@
     ;; Value bars (from :identity stat) -- need categorical x for band layout
     (do
       (when-not (= (:x-type draft-layer) :categorical)
-        (throw (ex-info (str "Mark :rect (lay-value-bar) requires a categorical column for :x, "
+        (throw (ex-info (str "lay-bar with a y column (value bars) requires a categorical column for :x, "
                              "but " (:x draft-layer) " is " (name (or (:x-type draft-layer) :unknown))
-                             ". Use lay-line/lay-point for numeric x, or convert " (:x draft-layer)
-                             " to a string column.")
+                             ". Use lay-line/lay-point for numeric x, convert " (:x draft-layer)
+                             " to a string column, or pass {:x-type :categorical} to treat a numeric"
+                             " column as categorical. For horizontal bars, add (pj/coord :flip).")
                         {:mark :rect :x (:x draft-layer) :x-type (:x-type draft-layer)})))
       {:mark :rect
        :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}

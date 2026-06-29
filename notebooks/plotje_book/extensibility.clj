@@ -91,11 +91,13 @@ graph LR
 
 (kind/test-last [(fn [m] (= :bin (:stat m)))])
 
-;; `(layer-type/lookup :bar)` returns a layer type with `:stat :count`:
+;; A layer type may omit `:stat` so the stat is inferred from the data.
+;; `(layer-type/lookup :bar)` carries no `:stat`: with x only it counts,
+;; with a y column it uses the y as the bar height.
 
 (layer-type/lookup :bar)
 
-(kind/test-last [(fn [m] (= :count (:stat m)))])
+(kind/test-last [(fn [m] (nil? (:stat m)))])
 
 ;; `(layer-type/lookup :point)` returns a layer type with `:stat :identity`:
 

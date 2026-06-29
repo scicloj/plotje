@@ -167,7 +167,7 @@
 (-> (let [r (rng/rng :jdk 99)]
       {:category (map #(keyword (str "cat-" %)) (range 12))
        :value (repeatedly 12 #(+ 10 (rng/irandom r 90)))})
-    (pj/lay-value-bar :category :value))
+    (pj/lay-bar :category :value))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
@@ -208,7 +208,7 @@
 
 (-> {:category ["a" "b" "c"]
      :count [10 20 15]}
-    (pj/lay-value-bar :category :count {:position :stack}))
+    (pj/lay-bar :category :count {:position :stack}))
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
@@ -383,7 +383,7 @@
 
 (-> {:cat (map #(str "cat-" %) (range 12))
      :val (repeatedly 12 #(rand-int 100))}
-    (pj/lay-value-bar :cat :val)
+    (pj/lay-bar :cat :val)
     (pj/coord :polar))
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])

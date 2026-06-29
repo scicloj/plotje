@@ -118,7 +118,7 @@
 ;; Pre-computed y values (no counting).
 
 (-> sales
-    (pj/lay-value-bar :product :revenue))
+    (pj/lay-bar :product :revenue))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
@@ -129,7 +129,7 @@
 ;; Flip for horizontal orientation.
 
 (-> sales
-    (pj/lay-value-bar :product :revenue)
+    (pj/lay-bar :product :revenue)
     (pj/coord :flip))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

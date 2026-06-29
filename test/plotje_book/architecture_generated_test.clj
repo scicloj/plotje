@@ -76,13 +76,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__88259#] (= :petal-length (:x p1__88259#)))
+        (fn* [p1__88257#] (= :petal-length (:x p1__88257#)))
         layers)
        (every?
-        (fn* [p1__88260#] (= :petal-width (:y p1__88260#)))
+        (fn* [p1__88258#] (= :petal-width (:y p1__88258#)))
         layers)
        (every?
-        (fn* [p1__88261#] (= :species (:color p1__88261#)))
+        (fn* [p1__88259#] (= :species (:color p1__88259#)))
         layers)))
      (= {} (:opts d))))
    v14_l198)))
@@ -136,8 +136,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__88262#]
-       (.startsWith (.getName (class p1__88262#)) "membrane.ui."))
+       [p1__88260#]
+       (.startsWith (.getName (class p1__88260#)) "membrane.ui."))
       (:drawables v))))
    v27_l256)))
 
@@ -170,7 +170,7 @@
 
 
 (def
- v37_l393
+ v37_l392
  (let
   [pose-with-opts
    (->
@@ -190,7 +190,7 @@
 
 
 (deftest
- t38_l409
+ t38_l408
  (is
   ((fn
     [m]
@@ -201,16 +201,16 @@
      (= "Iris Petals" (:title m))
      (= "Petal length" (:x-label m))
      (= 700 (:width m))))
-   v37_l393)))
+   v37_l392)))
 
 
 (def
- v40_l434
+ v40_l433
  (pj/pose {:x [1 2 3 4 5], :y [2 4 3 5 4], :g [:a :a :b :b :b]}))
 
 
 (deftest
- t41_l438
+ t41_l437
  (is
   ((fn
     [v]
@@ -223,13 +223,13 @@
        2
        (count
         (filter
-         (fn* [p1__88263#] (.startsWith p1__88263# "rgb"))
+         (fn* [p1__88261#] (.startsWith p1__88261# "rgb"))
          (:colors s)))))))
-   v40_l434)))
+   v40_l433)))
 
 
 (def
- v43_l485
+ v43_l484
  (def
   composite-pose
   (->
@@ -240,45 +240,45 @@
    pj/lay-point)))
 
 
-(def v44_l492 composite-pose)
+(def v44_l491 composite-pose)
 
 
 (deftest
- t45_l494
+ t45_l493
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v44_l492)))
+   v44_l491)))
 
 
-(def v47_l501 (-> composite-pose pj/draft kind/pprint))
+(def v47_l500 (-> composite-pose pj/draft kind/pprint))
 
 
 (deftest
- t48_l503
+ t48_l502
  (is
   ((fn [d] (and (pj/composite-draft? d) (= 2 (count (:sub-drafts d)))))
-   v47_l501)))
+   v47_l500)))
 
 
-(def v50_l508 (pj/plan composite-pose))
+(def v50_l507 (pj/plan composite-pose))
 
 
 (deftest
- t51_l510
+ t51_l509
  (is
   ((fn [p] (and (pj/composite-plan? p) (= 2 (count (:sub-plots p)))))
-   v50_l508)))
+   v50_l507)))
 
 
-(def v53_l518 (pj/membrane composite-pose))
+(def v53_l517 (pj/membrane composite-pose))
 
 
 (deftest
- t54_l520
+ t54_l519
  (is
   ((fn
     [m]
@@ -287,30 +287,30 @@
      (pos? (count (:drawables m)))
      (number? (membrane.ui/width m))
      (number? (membrane.ui/height m))))
-   v53_l518)))
+   v53_l517)))
 
 
-(def v56_l529 (kind/pprint (pj/plot composite-pose)))
+(def v56_l528 (kind/pprint (pj/plot composite-pose)))
 
 
 (deftest
- t57_l531
+ t57_l530
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v56_l529)))
+   v56_l528)))
 
 
 (def
- v59_l558
+ v59_l557
  (kind/mermaid
   "\ngraph LR\n  A[\"Pose + draft\"] -->|plan| P[\"Plan\"]\n  P --> R[\"membrane + plot\"]\n  style A fill:#e8f5e9\n  style P fill:#fff3e0\n  style R fill:#e3f2fd\n"))
 
 
 (def
- v61_l646
+ v61_l645
  (kind/mermaid
   "\ngraph TD\n  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]\n  API --> RES[\"impl/resolve.clj\"]\n  API --> PL[\"impl/plan.clj\"]\n  API --> COMP[\"impl/compositor.clj\"]\n  POSE --> RES\n  COMP --> POSE\n  COMP --> PL\n  PL --> RES\n  PL --> STAT[\"impl/stat.clj\"]\n  PL --> SCALE[\"impl/scale.clj\"]\n  PL --> DEFAULTS[\"impl/defaults.clj\"]\n  PL --> PS[\"impl/plan_schema.clj\"]\n  API --> RENDER[\"impl/render.clj\"]\n  RENDER --> SVG[\"render/svg.clj\"]\n  SVG --> MEMBRANE[\"render/membrane.clj\"]\n  MEMBRANE --> PANEL[\"render/panel.clj\"]\n  PANEL --> MARK[\"render/mark.clj\"]\n  PANEL --> SCALE\n  PANEL --> COORD[\"impl/coord.clj\"]\n  API --> RC[\"render/composite.clj\"]\n  RC --> MEMBRANE\n  style API fill:#c8e6c9\n  style COMP fill:#d1c4e9\n  style PL fill:#d1c4e9\n  style SVG fill:#f8bbd0\n  style MEMBRANE fill:#f8bbd0\n  style RC fill:#f8bbd0\n"))

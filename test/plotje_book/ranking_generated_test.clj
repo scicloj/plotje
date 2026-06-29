@@ -144,7 +144,7 @@
    v19_l107)))
 
 
-(def v22_l120 (-> sales (pj/lay-value-bar :product :revenue)))
+(def v22_l120 (-> sales (pj/lay-bar :product :revenue)))
 
 
 (deftest
@@ -160,7 +160,7 @@
 
 (def
  v25_l131
- (-> sales (pj/lay-value-bar :product :revenue) (pj/coord :flip)))
+ (-> sales (pj/lay-bar :product :revenue) (pj/coord :flip)))
 
 
 (deftest

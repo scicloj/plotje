@@ -409,14 +409,14 @@ bar-layer
             :revenue [120 340 210 95]})
 
 (-> sales
-    (pj/lay-value-bar :product :revenue))
+    (pj/lay-bar :product :revenue))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
                                 (= 4 (:polygons s)))))])
 
 (def sales-plan (-> sales
-                    (pj/lay-value-bar :product :revenue)
+                    (pj/lay-bar :product :revenue)
                     pj/plan))
 
 (let [g (-> sales-plan :panels first :layers first :groups first)]

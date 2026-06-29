@@ -90,20 +90,8 @@
 ;;   pair `:breaks` with `:labels` on the axis -- see Customization
 ;;   and Troubleshooting for a worked example. For a true categorical
 ;;   axis (binning over labels rather than numeric intervals),
-;;   `pj/lay-value-bar` with `{:color :value}` gives a categorical
-;;   "heatmap" look.
-;;
-;; - `pj/lay-bar` with `:position :stack` (or `:fill`) is count-only
-;;   and rejects a `y` column -- there is no clean way to render a
-;;   stacked bar chart of pre-aggregated values (e.g. a "messages
-;;   per year broken down by tenure bucket" chart where the counts
-;;   are already computed). `pj/lay-area` with `:position :stack`
-;;   does accept pre-aggregated `y`, so the pattern works there.
-;;   Workarounds: lift the aggregation (expand each row back into
-;;   count-many duplicate rows so `:count` sums to the pre-aggregated
-;;   value), or use `pj/lay-area` with `:position :stack` on a
-;;   numeric x. A proper fix (lifting the count-only restriction
-;;   when `y` is supplied) is planned.
+;;   `pj/lay-bar` with a `y` column and `{:color :value}` gives a
+;;   categorical "heatmap" look.
 ;;
 ;; - Stack order in `pj/lay-area` and `pj/lay-bar` (with
 ;;   `:position :stack`) follows the sort order of the `:color`

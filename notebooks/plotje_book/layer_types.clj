@@ -72,10 +72,10 @@
 
 (kind/test-last
  [(fn [t]
-    (= 26 (count (:row-maps t))))])
+    (= 25 (count (:row-maps t))))])
 
 ;; The "Position" column shows each layer-type's registered default.
-;; A few marks (`:bar`, `:value-bar`, `:lollipop`, `:boxplot`,
+;; A few marks (`:bar`, `:lollipop`, `:boxplot`,
 ;; `:violin`) carry no registered default and the table therefore
 ;; lists `:identity` for them, but they apply `:dodge` at extract
 ;; time when a categorical color or group splits the data into
@@ -88,7 +88,7 @@
 ;;
 ;; A **mark** is the visual shape shown for each data point or
 ;; group. Several layer types may share the same mark -- for
-;; instance, `histogram` and `value-bar` both produce bars, and `lm`
+;; instance, `tile` and `density-2d` both produce tiles, and `lm`
 ;; (linear model) and `loess` (local regression) both produce lines.
 
 (kind/table

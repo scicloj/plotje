@@ -513,7 +513,7 @@
 
 (-> (tc/dataset {:day ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]
                  :hours [8 7 6 9 5 3 4]})
-    (pj/lay-value-bar :day :hours)
+    (pj/lay-bar :day :hours)
     (pj/coord :polar)
     (pj/options {:title "Weekly Working Hours (Polar)"}))
 
@@ -738,7 +738,7 @@
 
 (-> (tc/dataset {:category ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]
                  :value [120 200 150 80 70 110 130]})
-    (pj/lay-value-bar :category :value)
+    (pj/lay-bar :category :value)
     (pj/options {:title "Weekly Sales"}))
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
@@ -1367,7 +1367,7 @@
 
 (-> (tc/dataset {:country ["US" "China" "Japan" "Germany" "UK" "India" "France"]
                  :gdp [21.4 14.7 5.1 3.8 2.8 2.7 2.6]})
-    (pj/lay-value-bar :country :gdp)
+    (pj/lay-bar :country :gdp)
     (pj/coord :flip)
     (pj/options {:title "GDP by Country (2019)"
                  :x-label "Country"
@@ -1382,7 +1382,7 @@
 
 (-> (tc/dataset {:metric ["Quality" "Speed" "Usability" "Reliability" "Support" "Price" "Design" "Docs"]
                  :score [-30 -20 -10 5 15 25 35 45]})
-    (pj/lay-value-bar :metric :score)
+    (pj/lay-bar :metric :score)
     (pj/lay-rule-h {:y-intercept 0})
     (pj/coord :flip)
     (pj/options {:title "Customer Satisfaction Scores"

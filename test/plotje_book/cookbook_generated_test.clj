@@ -102,8 +102,8 @@
    :value
    (map
     (fn*
-     [p1__84390#]
-     (+ 100.0 (* 30.0 (Math/sin (* (double p1__84390#) 0.12)))))
+     [p1__84388#]
+     (+ 100.0 (* 30.0 (Math/sin (* (double p1__84388#) 0.12)))))
     (range 52))}))
 
 
@@ -485,7 +485,7 @@
      (and
       (pos? (:points s))
       (some
-       (fn* [p1__84391#] (= "virginica" p1__84391#))
+       (fn* [p1__84389#] (= "virginica" p1__84389#))
        (:texts s)))))
    v70_l325)))
 
@@ -502,7 +502,7 @@
  v74_l344
  (->
   species-share
-  (pj/lay-value-bar :species :percent {:color "#a6cee3"})
+  (pj/lay-bar :species :percent {:color "#a6cee3"})
   (pj/lay-text :species :percent {:text :percent, :align-x :right})
   (pj/coord :flip)))
 
@@ -520,7 +520,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__84392#] (= :text (:mark p1__84392#))))
+       (filter (fn* [p1__84390#] (= :text (:mark p1__84390#))))
        first)]
      (= :right (-> text-layer :style :align-x))))
    v74_l344)))
@@ -575,8 +575,8 @@
  (->
   {:x (range 20),
    :y
-   (map (fn* [p1__84393#] (Math/sin (/ p1__84393# 3.0))) (range 20)),
-   :change (map (fn* [p1__84394#] (- p1__84394# 10)) (range 20))}
+   (map (fn* [p1__84391#] (Math/sin (/ p1__84391# 3.0))) (range 20)),
+   :change (map (fn* [p1__84392#] (- p1__84392# 10)) (range 20))}
   (pj/lay-point :x :y {:color :change})
   (pj/options
    {:color-scale :diverging,
@@ -691,8 +691,8 @@
    ys
    (map
     (fn*
-     [p1__84395#]
-     (+ (* 3 p1__84395#) 5 (* 2 (- (rng/drandom r) 0.5))))
+     [p1__84393#]
+     (+ (* 3 p1__84393#) 5 (* 2 (- (rng/drandom r) 0.5))))
     xs)]
   (->
    {:x xs, :y ys}
@@ -977,7 +977,7 @@
 
 
 (def
- v140_l643
+ v140_l644
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 500)
@@ -986,12 +986,12 @@
 
 
 (deftest
- t141_l648
- (is ((fn [v] (= 500 (:points (pj/svg-summary v)))) v140_l643)))
+ t141_l649
+ (is ((fn [v] (= 500 (:points (pj/svg-summary v)))) v140_l644)))
 
 
 (def
- v143_l655
+ v143_l656
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/lay-point :carat :price {:color :cut, :alpha 0.3})
@@ -1000,14 +1000,14 @@
 
 
 (deftest
- t144_l660
+ t144_l661
  (is
   ((fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))
-   v143_l655)))
+   v143_l656)))
 
 
 (def
- v146_l667
+ v146_l668
  (let
   [path (str (java.io.File/createTempFile "plotje-diamonds" ".png"))]
   (->
@@ -1019,9 +1019,9 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__84396#] (bit-and p1__84396# 255)) (vec bs))))))
+    (mapv (fn* [p1__84394#] (bit-and p1__84394# 255)) (vec bs))))))
 
 
 (deftest
- t147_l677
- (is ((fn [bs] (= [137 80 78 71 13 10 26 10] bs)) v146_l667)))
+ t147_l678
+ (is ((fn [bs] (= [137 80 78 71 13 10 26 10] bs)) v146_l668)))

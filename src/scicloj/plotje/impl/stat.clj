@@ -302,9 +302,11 @@
 
 (defmethod compute-stat :count [draft-layer]
   (when-not (= (:x-type draft-layer) :categorical)
-    (throw (ex-info (str "Stat :count (used by lay-bar) requires a categorical column for :x, "
+    (throw (ex-info (str "lay-bar (counting) requires a categorical column for :x, "
                          "but " (:x draft-layer) " is " (name (or (:x-type draft-layer) :unknown))
-                         ". Use lay-histogram for numeric data, or convert " (:x draft-layer) " to a string column.")
+                         ". Use lay-histogram to bin numeric data, convert " (:x draft-layer)
+                         " to a string column, or pass {:x-type :categorical} to treat a numeric"
+                         " column as categorical. For horizontal bars, add (pj/coord :flip).")
                     {:stat :count :x (:x draft-layer) :x-type (:x-type draft-layer)})))
   (let [{:keys [data x x-type group]} draft-layer
         group-cols (or group [])

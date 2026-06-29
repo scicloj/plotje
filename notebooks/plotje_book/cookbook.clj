@@ -342,7 +342,7 @@
    :percent [33.3 33.3 33.3]})
 
 (-> species-share
-    (pj/lay-value-bar :species :percent {:color "#a6cee3"})
+    (pj/lay-bar :species :percent {:color "#a6cee3"})
     (pj/lay-text :species :percent {:text :percent :align-x :right})
     (pj/coord :flip))
 

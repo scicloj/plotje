@@ -1870,21 +1870,20 @@
   ([pose-or-data x y opts] (lay-layer-type :histogram pose-or-data x y opts)))
 
 (defn lay-bar
-  "Add `:bar` layer type -- count occurrences of each category.
-   X-only: pass one categorical column. Accepts `:color` for grouped bars."
+  "Add a `:bar` layer type. Requires a categorical x column.
+
+   - One column (x only): counts occurrences of each category.
+   - Two columns (x and y): uses the y value directly as the bar height.
+
+   The stat is inferred from whether a y column is present, and overridable:
+   pass `{:stat :count}` to count even with a y column, or `{:stat :identity}`
+   to require an explicit height. `:color` (with `:position` `:dodge`/`:stack`)
+   gives grouped or stacked bars. For horizontal bars, add `(pj/coord :flip)`.
+   To treat a numeric x column as categorical, pass `{:x-type :categorical}`."
   ([pose-or-data] (lay-layer-type :bar pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :bar pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :bar pose-or-data x y-or-opts))
   ([pose-or-data x y opts] (lay-layer-type :bar pose-or-data x y opts)))
-
-(defn lay-value-bar
-  "Add `:value-bar` layer type -- bars with pre-computed heights.
-   Requires categorical x and numerical y. Unlike `:bar` (which counts),
-   `:value-bar` uses the y value directly as the bar height."
-  ([pose-or-data] (lay-layer-type :value-bar pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :value-bar pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :value-bar pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :value-bar pose-or-data x y opts)))
 
 (defn lay-smooth
   "Add `:smooth` layer type -- a smoothed trend line.
@@ -1976,7 +1975,7 @@
 
 (defn lay-lollipop
   "Add `:lollipop` layer type -- dot on a stem from the baseline.
-   Requires categorical x and numerical y. Like value-bar but with
+   Requires categorical x and numerical y. Like a value bar but with
    a circle+line instead of a filled rectangle."
   ([pose-or-data] (lay-layer-type :lollipop pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :lollipop pose-or-data x-or-opts))

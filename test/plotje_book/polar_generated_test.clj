@@ -50,9 +50,7 @@
    v7_l50)))
 
 
-(def
- v10_l63
- (-> wind (pj/lay-value-bar :direction :speed) (pj/coord :polar)))
+(def v10_l63 (-> wind (pj/lay-bar :direction :speed) (pj/coord :polar)))
 
 
 (deftest

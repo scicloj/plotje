@@ -60,9 +60,7 @@
 
 (def
  v14_l147
- (->
-  tips
-  (pj/lay-value-bar :day :count {:color :meal, :position :stack})))
+ (-> tips (pj/lay-bar :day :count {:color :meal, :position :stack})))
 
 
 (deftest
@@ -76,7 +74,7 @@
       dinner-bar
       (->
        tips
-       (pj/lay-value-bar :day :count {:color :meal, :position :stack})
+       (pj/lay-bar :day :count {:color :meal, :position :stack})
        pj/plan
        (get-in [:panels 0 :layers 0 :groups 1]))]
      (and (= 4 (:polygons s)) (every? pos? (:y0s dinner-bar)))))

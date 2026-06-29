@@ -206,7 +206,7 @@
          widths
          (map - (:ymaxs r) (:ymins r))]
         (nth (sort widths) (quot (count widths) 2))))]
-     (> (median-width 0.99) (median-width 0.8))))
+     (> (median-width 0.99) (median-width 0.95) (median-width 0.8))))
    v23_l130)))
 
 
@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__84167#]
+      [p1__84165#]
       (+
-       (Math/sin (* p1__84167# 0.2))
+       (Math/sin (* p1__84165# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)

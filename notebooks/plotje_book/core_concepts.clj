@@ -88,7 +88,7 @@
      {:city "London" :temperature 18}
      {:city "Berlin" :temperature 20}
      {:city "Rome" :temperature 28}]
-    (pj/lay-value-bar :city :temperature))
+    (pj/lay-bar :city :temperature))
 
 (kind/test-last [(fn [v] (= 4 (:polygons (pj/svg-summary v))))])
 
@@ -417,7 +417,7 @@ two-panel
 (-> {:day ["Mon" "Mon" "Tue" "Tue"]
      :count [30 20 45 15]
      :meal ["lunch" "dinner" "lunch" "dinner"]}
-    (pj/lay-value-bar :day :count {:color :meal :position :stack}))
+    (pj/lay-bar :day :count {:color :meal :position :stack}))
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 

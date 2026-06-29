@@ -173,7 +173,7 @@ multi-layer
 
 (-> {:species ["setosa" "versicolor" "virginica"]
      :pct     [33.3 33.3 33.3]}
-    (pj/lay-value-bar :species :pct {:color "#a6cee3"})
+    (pj/lay-bar :species :pct {:color "#a6cee3"})
     (pj/lay-text :species :pct {:text :pct :align-x :right})
     (pj/coord :flip))
 
@@ -193,12 +193,12 @@ multi-layer
                 :pct     [33.3 33.3 33.3]}]
       (and (= [:rect :text]
               (marks (-> data
-                         (pj/lay-value-bar :species :pct)
+                         (pj/lay-bar :species :pct)
                          (pj/lay-text :species :pct {:text :pct}))))
            (= [:text :rect]
               (marks (-> data
                          (pj/lay-text :species :pct {:text :pct})
-                         (pj/lay-value-bar :species :pct)))))))])
+                         (pj/lay-bar :species :pct)))))))])
 
 ;; ## Inference fills the gaps
 ;;
