@@ -340,7 +340,8 @@
 
 (defmethod render/plan->plot :svg [plan _ opts]
   (let [render-opts (select-keys opts [:tooltip :width :height :theme :palette
-                                       :color-scale :color-midpoint])
+                                       :color-scale :color-midpoint
+                                       :x-tick-angle :x-tick-label-pad])
         membrane-tree (membrane/plan->membrane plan render-opts)]
     (render/membrane->plot membrane-tree :svg
                            (assoc opts

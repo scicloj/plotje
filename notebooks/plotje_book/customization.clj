@@ -138,6 +138,40 @@
                                 ;; three distinct interior colors
                                 (= 3 (count fills)))))])
 
+;; ## Rotating tick labels
+
+;; When a categorical x-axis has many categories, or long category
+;; names, the tick labels run into each other and become hard to
+;; read. Rotate them with `:x-tick-angle`, given in degrees. A value
+;; of -45 is a common diagonal that keeps the text legible while
+;; saving horizontal room.
+
+(-> {:product (map #(str "Product " %) (range 12))
+     :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
+    (pj/lay-bar :product :revenue)
+    (pj/options {:x-tick-angle -45}))
+
+(kind/test-last [(fn [v] (and (= 12 (:polygons (pj/svg-summary v)))
+                              (.contains ^String (pr-str (pj/plot v)) "rotate(-45")))])
+
+;; Plotje reserves extra vertical space below the panel for the
+;; angled labels, scaled by the angle. When that automatic estimate
+;; reserves too much or too little, set `:x-tick-label-pad` (in
+;; pixels) to control the reserved height directly:
+
+(-> {:product (map #(str "Product " %) (range 12))
+     :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
+    (pj/lay-bar :product :revenue)
+    (pj/options {:x-tick-angle -45
+                 :x-tick-label-pad 90}))
+
+(kind/test-last [(fn [v] (= 12 (:polygons (pj/svg-summary v))))])
+
+;; A label rotated this way extends down and to the left of its
+;; tick. Very long names can run past the left edge of the plotting
+;; area; see
+;; [Known Limitations](./plotje_book.known_limitations.html).
+
 ;; ## Scales
 
 ;; Use a log scale for data spanning orders of magnitude.

@@ -37,6 +37,13 @@
 ;;   `(tc/order-by data [:value] [:asc])`. A future opt-in flag such
 ;;   as `(pj/coord :flip {:reverse-categorical true})` would spare
 ;;   users the sort.
+;;
+;; - Rotated x-tick labels (`:x-tick-angle`) reserve extra vertical
+;;   space below the panel, but not extra horizontal space. A long
+;;   label rotated to a diagonal extends to the left of its tick, so
+;;   very long category names on the leftmost tick can run past the
+;;   left edge of the plotting area. Workaround: shorten the labels,
+;;   reduce the angle, or widen the plot with `:width`.
 
 ;; ## Marks
 ;;

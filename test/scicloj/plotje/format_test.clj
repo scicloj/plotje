@@ -119,6 +119,42 @@
       (is (png? path))
       (.delete (java.io.File. path)))))
 
+;; ---- :x-tick-angle flows through the save / plan->plot render paths ----
+;; pj/plot passes the full opts to plan->membrane, but pj/save goes through
+;; plan->plot :svg / :bufimg, which rebuild the membrane tree from a
+;; select-keys whitelist. :x-tick-angle / :x-tick-label-pad must be in that
+;; whitelist or saved files silently lose the rotation the notebook shows.
+
+(def bars {:cat ["a" "b" "c" "d"] :n [1 2 3 4]})
+
+(deftest save-svg-carries-x-tick-angle
+  (testing "pj/save SVG includes the x-tick rotation transform"
+    (let [path "/tmp/_plotje_xtick_angle.svg"
+          pose (-> bars
+                   (pj/lay-bar :cat :n)
+                   (pj/options {:x-tick-angle -45}))]
+      (pj/save pose path)
+      (is (.contains ^String (slurp path) "rotate(-45"))
+      (.delete (java.io.File. path)))))
+
+(deftest save-svg-no-rotation-without-angle
+  (testing "without :x-tick-angle, no x-tick rotation transform is emitted"
+    (let [path "/tmp/_plotje_xtick_none.svg"
+          pose (pj/lay-bar bars :cat :n)]
+      (pj/save pose path)
+      (is (not (.contains ^String (slurp path) "rotate(-45")))
+      (.delete (java.io.File. path)))))
+
+(deftest save-png-with-x-tick-angle-renders
+  (testing "pj/save PNG with :x-tick-angle renders without error (bufimg whitelist)"
+    (let [path "/tmp/_plotje_xtick_angle.png"
+          pose (-> bars
+                   (pj/lay-bar :cat :n)
+                   (pj/options {:x-tick-angle -45}))]
+      (pj/save pose path)
+      (is (png? path))
+      (.delete (java.io.File. path)))))
+
 (deftest save-translates-bufimg-from-pose-opts
   (testing "pj/save translates legacy :bufimg from pose opts to :png"
     (let [path "/tmp/_plotje_save_format_bufimg_alias.png"

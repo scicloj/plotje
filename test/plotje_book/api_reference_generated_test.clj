@@ -203,7 +203,9 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__94110#] (Math/sin (* p1__94110# 0.3))) (range 30))}))
+   (map
+    (fn* [p1__104753#] (Math/sin (* p1__104753# 0.3)))
+    (range 30))}))
 
 
 (def v42_l162 (-> wave (pj/lay-line :x :y)))
@@ -387,9 +389,9 @@
     :y
     (mapv
      (fn*
-      [p1__94111#]
+      [p1__104754#]
       (+
-       (Math/sin (* p1__94111# 0.2))
+       (Math/sin (* p1__104754# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1343,7 +1345,7 @@
 (def v301_l921 (count pj/config-key-docs))
 
 
-(deftest t302_l923 (is ((fn [n] (= 37 n)) v301_l921)))
+(deftest t302_l923 (is ((fn [n] (= 39 n)) v301_l921)))
 
 
 (def v303_l925 (kind/doc #'pj/plot-option-docs))
@@ -1479,7 +1481,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__94112#] (bit-and p1__94112# 255)) (vec bs))))))
+    (mapv (fn* [p1__104755#] (bit-and p1__104755# 255)) (vec bs))))))
 
 
 (deftest
@@ -1500,7 +1502,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__94113#] (bit-and p1__94113# 255)) (vec bs))))))
+    (mapv (fn* [p1__104756#] (bit-and p1__104756# 255)) (vec bs))))))
 
 
 (deftest t347_l1038 (is ((fn [bs] (= [137 80 78 71] bs)) v346_l1029)))

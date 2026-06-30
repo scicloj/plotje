@@ -16,7 +16,8 @@
 
 (defmethod render/plan->plot :bufimg [plan _ opts]
   (let [render-opts (select-keys opts [:width :height :theme :palette
-                                       :color-scale :color-midpoint])
+                                       :color-scale :color-midpoint
+                                       :x-tick-angle :x-tick-label-pad])
         membrane-tree (membrane/plan->membrane plan render-opts)]
     (render/membrane->plot membrane-tree :bufimg
                            (assoc opts
