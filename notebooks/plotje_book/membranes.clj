@@ -10,7 +10,7 @@
 ;; A `PlotjeMembrane` is itself a Membrane UI component. It implements
 ;; the standard Membrane protocols (`IOrigin`, `IBounds`, `IChildren`),
 ;; so any tool that consumes Membrane components consumes a Plotje
-;; plot without special-casing, and any Plotje plot can be composed
+;; plot without special handling, and any Plotje plot can be composed
 ;; into a larger Membrane interface alongside hand-built Membrane
 ;; elements. This chapter walks the membrane stage end to end and
 ;; shows that interop in action.
@@ -204,11 +204,10 @@ iris-membrane
 
 two-up-png
 
-;; This is why the membrane stage matters as a separate boundary.
-;; Plotje produces values that any Membrane consumer understands;
-;; Plotje plots compose with hand-built Membrane elements; nothing
-;; about the value type is Plotje-specific beyond the namespaced
-;; title key.
+;; The membrane stage is a separate boundary for this reason: Plotje
+;; produces values that any Membrane consumer understands, and Plotje
+;; plots compose with hand-built Membrane elements. Nothing about the
+;; value type is Plotje-specific beyond the namespaced title key.
 
 ;; ## Rendering through Plotje's backends
 ;;

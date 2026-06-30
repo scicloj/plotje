@@ -26,7 +26,7 @@
 ;;   continuous color and fill legends do carry intermediate ticks.
 ;;
 ;; - SPLOMs with 6+ variables at the default 600x400 have tight
-;;   panels. Bump `:width`/`:height` or pin
+;;   panels. Increase `:width`/`:height` or pin
 ;;   `:panel-width`/`:panel-height`.
 ;;
 ;; - Horizontal bars from `(pj/coord :flip)` render the first row of
@@ -141,8 +141,8 @@
 ;;
 ;; - `:panel-size` is a legacy configuration key from the
 ;;   pre-total-first layout. It now emits a deprecation warning and
-;;   is ignored. Use `:panel-width` / `:panel-height` (total-first
-;;   escape hatches).
+;;   is ignored. Use `:panel-width` / `:panel-height` (which set the
+;;   panel size directly).
 ;;
 ;; - The `:width` key on a `pj/plan` result preserves the user's
 ;;   original request even when `:panel-width` pins the real size --

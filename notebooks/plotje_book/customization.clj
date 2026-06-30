@@ -1,6 +1,6 @@
 ;; # Customization
 ;;
-;; How to tweak the look of a plot: dimensions, labels, scales,
+;; How to adjust the look of a plot: dimensions, labels, scales,
 ;; mark styling, palettes, themes, and legend placement.
 ;;
 ;; Other appearance topics live in their natural homes:

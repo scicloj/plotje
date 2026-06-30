@@ -1,7 +1,7 @@
 ;; # Cookbook
 ;;
 ;; Practical plotting recipes -- how to combine marks, overlay stats,
-;; and build publication-ready charts.
+;; and build finished charts.
 
 (ns plotje-book.cookbook
   (:require

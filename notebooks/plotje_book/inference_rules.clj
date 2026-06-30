@@ -289,7 +289,7 @@ hour-bar-pose
 
 ;; ## Aesthetic Resolution
 ;;
-;; The `:color` parameter triggers different behaviors depending on
+;; The `:color` parameter does different things depending on
 ;; what you pass. Each aesthetic channel (`:color`, `:size`,
 ;; `:alpha`, `:text`) is classified as either a column reference or
 ;; a fixed literal.
@@ -317,8 +317,8 @@ colored-pose
 ;; with its own color drawn from the palette. A legend appears on the
 ;; right (100 pixels wide) and the panel shrinks to make room.
 ;;
-;; The next section explores why a categorical color column triggers
-;; grouping while a numeric color column does not.
+;; The next section explores why a categorical color column creates
+;; groups while a numeric color column does not.
 
 ;; ### Fixed color string -- single color, no legend
 
@@ -467,8 +467,8 @@ numeric-color-pose
 ;; groups. Setting `:color-type :categorical` overrides this so
 ;; the column is treated as categorical despite its numeric dtype.
 ;;
-;; This is a core principle of the library: **inference provides good
-;; defaults, but the user can always override**.
+;; **Inference provides good defaults, but the user can always
+;; override.**
 
 (def study-data
   {:subject [1 1 1 2 2 2 3 3 3]
@@ -509,7 +509,7 @@ study-categorical-pose
 ;; The same data, the same columns -- but `:color-type :categorical`
 ;; changes inference from "one gradient" to "three distinct groups."
 ;; This affects grouping, line splitting, legend style, and palette
-;; assignment. The rendered plots look completely different:
+;; assignment. The rendered plots differ:
 
 (-> {:subject [1 1 1 2 2 2 3 3 3]
      :day     [1 2 3 1 2 3 1 2 3]
@@ -805,7 +805,7 @@ scatter-pose
            (= ["1.0" "1.5" "2.0" "2.5" "3.0" "3.5" "4.0" "4.5" "5.0"]
               (:labels (:x-ticks p))))))])
 
-;; Nine ticks from 1.0 to 5.0 at 0.5 intervals -- round and readable.
+;; Nine ticks from 1.0 to 5.0 at 0.5 intervals.
 ;;
 ;; Log ticks for a multi-decade range:
 

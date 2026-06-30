@@ -226,7 +226,7 @@
 ;; ### Fill -- zero count category
 
 ;; One group has zero count for a category.
-;; Fill should handle the zero gracefully.
+;; Fill should handle the zero without error.
 
 (-> {:x ["a" "a" "b" "b" "b"]
      :g ["g1" "g2" "g1" "g1" "g1"]}

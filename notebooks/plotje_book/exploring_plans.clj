@@ -25,7 +25,7 @@
 
 ;; ## A Minimal Scatter Plot
 ;;
-;; Let's start with the simplest possible plot: 5 points, no color,
+;; Let's start with the simplest plot: 5 points, no color,
 ;; no title.
 
 (def tiny {:x [1 2 3 4 5]

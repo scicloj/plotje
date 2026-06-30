@@ -94,8 +94,8 @@
 ;; smooth, error bars). Several layers attached to one pose share
 ;; its mapping and coordinate system, so a scatter and its
 ;; regression line stack as one picture. This split -- mapping for
-;; what, layer for how -- is the principle the rest of the library
-;; builds on. Written as a literal map, `pj/pose` accepts the
+;; what, layer for how -- runs through the rest of the library.
+;; Written as a literal map, `pj/pose` accepts the
 ;; nested-map shape directly:
 
 (def multi-layer
@@ -265,7 +265,7 @@ two-panel
                               (= :horizontal (get-in v [:layout :direction]))))])
 
 ;; The outer `:data` is inherited by every sub-pose. `pj/arrange`
-;; is the ergonomic way to build this shape from a list of already-
+;; is the convenient way to build this shape from a list of already-
 ;; built poses:
 
 (pj/arrange
@@ -298,7 +298,7 @@ two-panel
                               (= 2 (count (:poses (first (:poses v)))))
                               (= :horizontal (get-in v [:poses 0 :layout :direction]))))])
 
-;; The pipeline reads like a sentence; composites nest the same
+;; Composites nest the same
 ;; shape inside `:poses`. The
 ;; [Composition](./plotje_book.composition.html) chapter covers
 ;; the multi-pose patterns in depth.

@@ -191,7 +191,7 @@
 ;; The blue-and-red palette mirrors the conventional US party
 ;; colors (Democratic / Republican). Each bar's length is the
 ;; literal duration of the term -- tight bars (Kennedy, Ford)
-;; jump out next to long ones (Reagan, Obama).
+;; stand out next to long ones (Reagan, Obama).
 
 ;; ## Adjusting bar thickness
 ;;
@@ -381,7 +381,7 @@
 ;; ### Hour-of-day numeric
 ;;
 ;; Re-index the x-axis to "hours since midnight" and the
-;; within-day shape becomes the headline. The data structure
+;; within-day shape is what stands out. The data structure
 ;; is the same -- still `(start, end, day, kind)` -- but
 ;; `start` and `end` are now hours-from-midnight numbers, and
 ;; the x-axis spans the workday rather than the whole week.
@@ -421,7 +421,7 @@
                            (and (= 1 (:panels s))
                                 (= 15 (:polygons s)))))])
 
-;; At a glance: Wednesday's afternoon block is the longest
+;; Wednesday's afternoon block is the longest
 ;; uninterrupted deep-work stretch; Mondays start with a
 ;; meeting, Fridays with deep work. The trade-off is that you
 ;; lose absolute time -- "Monday 10am" no longer reads as a

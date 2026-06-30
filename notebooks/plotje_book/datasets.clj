@@ -67,7 +67,7 @@
 ;; The core implementation is
 ;; [tech.ml.dataset](https://techascent.github.io/tech.ml.dataset/).
 ;; [Tablecloth](https://scicloj.github.io/tablecloth/) is a
-;; higher-level wrapper with a more ergonomic API. Plotje
+;; higher-level wrapper with a more convenient API. Plotje
 ;; uses Tablecloth internally and in its documentation.
 
 ;; ## Creating Datasets

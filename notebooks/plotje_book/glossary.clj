@@ -346,7 +346,7 @@ my-pose
 
 ;; ## Plan
 ;;
-;; A **plan** is the fully resolved intermediate representation --
+;; A **plan** is the fully resolved description of the plot --
 ;; a plain Clojure map containing everything needed to render a
 ;; plot: data-space geometry, domains, tick info, legend, layout
 ;; dimensions. No membrane types, no datasets, no scale objects.
@@ -402,7 +402,7 @@ my-pose
 ;; A **dataset** is the tabular data backing a plot. Plotje uses
 ;; [tech.ml.dataset](https://github.com/techascent/tech.ml.dataset)
 ;; datasets internally -- column-oriented, dtype-next-backed tables.
-;; The most ergonomic way to create and manipulate them is the
+;; The most convenient way to create and manipulate them is the
 ;; [Tablecloth](https://scicloj.github.io/tablecloth/) API, which is
 ;; a Clojure-idiomatic wrapper over `tech.ml.dataset`.
 ;;
@@ -678,7 +678,7 @@ annotated
 ;; [Membrane](https://github.com/phronmophobic/membrane) library's
 ;; UI protocols (`IOrigin`, `IBounds`, `IChildren`), so it composes
 ;; with other Membrane elements and any Membrane consumer can use
-;; it without special-casing.
+;; it without special handling.
 ;;
 ;; Plotje produces a membrane via `pj/plan->membrane` (single-step
 ;; transition from a plan) or `pj/membrane` (composition shortcut

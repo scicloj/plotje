@@ -290,7 +290,7 @@ demo
 ;; accepts title, axis labels, theme, legend position, dimensions,
 ;; and other settings as keys in a single map. `pj/scale`, `pj/coord`,
 ;; and `pj/facet` remain dedicated functions because each carries
-;; non-trivial structure, but everything else merges.
+;; more structure, but everything else merges.
 
 ;; ## See Also
 ;;

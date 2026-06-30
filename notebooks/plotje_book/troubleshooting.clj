@@ -423,7 +423,7 @@
 ;;
 ;; **Cause**: `pj/with-data` validates at attach time -- every
 ;; keyword column reference in the template must exist in the
-;; dataset, or the attachment fails fast.
+;; dataset, or the attachment fails immediately.
 
 (def template
   (-> (pj/pose nil {:x :x :y :y :color :group})

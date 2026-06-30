@@ -186,15 +186,15 @@
 
 ;; ## Optional: Convenience Function
 ;;
-;; For a polished API, wrap the pattern in a pose-compatible
-;; function:
+;; To make the call read like a built-in layer, wrap the pattern in a
+;; pose-compatible function:
 
 (defn lay-waterfall
   ([pose] (pj/lay pose (layer-type/lookup :waterfall)))
   ([data x y] (-> data (pj/pose x y) (pj/lay (layer-type/lookup :waterfall))))
   ([data x y opts] (-> data (pj/pose x y) (pj/lay (merge (layer-type/lookup :waterfall) opts)))))
 
-;; Now the call is as clean as any built-in layer type:
+;; Now the call matches any built-in layer type:
 
 (-> pnl-data
     (lay-waterfall :category :amount)

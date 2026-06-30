@@ -218,8 +218,8 @@ temp-pose
 
 ;; ## Smoothed Time Series
 
-;; A LOESS smoother overlaid on a noisy time series helps the eye
-;; pick out the underlying trend. `pj/lay-smooth` works on any
+;; A LOESS smoother overlaid on a noisy time series makes the
+;; underlying trend easier to see. `pj/lay-smooth` works on any
 ;; numerical y axis, including dates on x.
 
 (-> {:date  [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"

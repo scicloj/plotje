@@ -1119,7 +1119,7 @@ l4-shared
 ;; - `:suppress-y-label true` on every non-leftmost column (y-axis
 ;;   label shows only on the leftmost column).
 ;;
-;; Idiomatic SPLOM usage therefore omits `pj/lay-point` -- each
+;; In practice, SPLOM usage therefore omits `pj/lay-point` -- each
 ;; cell infers its own layer type: scatter off-diagonal, histogram
 ;; on the diagonal (where x = y). Pair lists that are not
 ;; rectangular fall through to the flat one-panel-per-pair behaviour

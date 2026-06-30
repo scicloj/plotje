@@ -568,8 +568,8 @@
 ;; Source: [ECharts: Scatter Logarithmic](https://echarts.apache.org/examples/en/editor.html?c=scatter-logarithmic-regression)
 
 ;; The ggplot2 diamonds dataset is ~54k rows; rendered as SVG that
-;; is a ~10MB document, heavy to load. We use `{:format :bufimg}`
-;; here for raster output -- crisp at the demonstrated zoom and
+;; is a ~10MB document, slow to load. We use `{:format :bufimg}`
+;; here for raster output -- sharp at the demonstrated zoom and
 ;; far lighter on the page.
 
 (-> (rdatasets/ggplot2-diamonds)
@@ -834,7 +834,7 @@
 ;; ### Area chart with line overlay
 ;; Source: [ECharts: Basic Area](https://echarts.apache.org/examples/en/editor.html?c=area-basic)
 
-;; Layering area and line gives a filled region with a crisp boundary:
+;; Layering area and line gives a filled region with a sharp boundary:
 
 (-> (rdatasets/ggplot2-economics)
     (pj/pose :date :psavert)
