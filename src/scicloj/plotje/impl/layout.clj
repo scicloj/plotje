@@ -226,9 +226,13 @@
    room for the x-tick labels themselves; reserve tick-font-size
    plus a small padding."
   [{:keys [x-label?]} cfg]
-  (cond
-    x-label? (:label-offset cfg)
-    :else    (+ (tick-font-size cfg) 6)))
+  (let [base (cond x-label? (:label-offset cfg)
+                   :else (+ (tick-font-size cfg) 6))
+        angle (get cfg :x-tick-angle 0)
+        extra (or (:x-tick-label-pad cfg)
+                  (+ (long (* 50 (Math/abs (Math/sin (Math/toRadians (double angle)))))) 
+                     (if (zero? angle) 0 8)))]
+    (+ base extra)))
 
 (defn- y-tick-text-width
   "Over-estimate of the widest y-tick label in pixels. Runs the tick

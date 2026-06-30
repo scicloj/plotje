@@ -85,8 +85,13 @@
                   (ui/translate (double px)
                                 (+ (double ph) 2)
                                 (ui/with-color tick-color
-                                  (assoc (ui/label label (ui/font nil fsize))
-                                         :text-anchor "middle"))))
+                                  (let [angle (get cfg :x-tick-angle 0)]
+                                    (if (zero? angle)
+                                      (assoc (ui/label label (ui/font nil fsize))
+                                             :text-anchor "middle")
+                                      (membrane.ui.Rotate. (double angle)
+                                                           (assoc (ui/label label (ui/font nil fsize))
+                                                                  :text-anchor (if (neg? angle) "end" "start"))))))))
                 (let [py (scale t)]
                   (ui/translate (- (double m) 3)
                                 (- (double py) (/ fsize 2.0))
