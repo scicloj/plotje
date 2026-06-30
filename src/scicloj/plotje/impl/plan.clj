@@ -169,6 +169,31 @@
                                :out-of-range out-of-range}))
               (println (str "Warning: " msg)))))))))
 
+(defn- warn-unknown-categorical-breaks!
+  "When user-supplied :breaks on a categorical axis include values that
+   are not among the categories, those ticks have nowhere to render.
+   Print a warning naming the offending values (breaks are matched to
+   categories by their displayed label). Strict mode upgrades to ex-info."
+  [unknown domain]
+  (when (seq unknown)
+    (let [strict-val (:strict (defaults/config))
+          shown (vec (take 12 (map defaults/fmt-category-label domain)))
+          msg (str "pj/scale :breaks " (vec unknown)
+                   " include value(s) not among the axis categories "
+                   shown (when (> (count domain) 12) " ...")
+                   ". Those ticks are dropped. Breaks select which categories"
+                   " get a tick and are matched by their displayed label.")]
+      (when-not (or (nil? strict-val) (boolean? strict-val))
+        (throw (ex-info (str ":strict config value must be true or false, got: "
+                             (pr-str strict-val))
+                        {:value strict-val})))
+      (if strict-val
+        (throw (ex-info msg
+                        {:caller "pj/plan"
+                         :unknown (vec unknown)
+                         :categories (vec domain)}))
+        (println (str "Warning: " msg))))))
+
 (defn compute-ticks
   "Compute tick values and labels for a domain+pixel range, using wadogo transiently.
    When temporal-extent is provided (a [min max] pair of temporal objects),
@@ -178,15 +203,40 @@
    -- ggplot2's `scale_*_continuous(breaks = ...)` equivalent. When
    `scale-spec` also contains `:labels` (a vector of strings), those
    replace the auto-formatted labels at the corresponding break
-   positions."
+   positions.
+
+   On a categorical axis, `:breaks` selects which categories get a tick
+   (ggplot2's discrete `breaks`): each break is matched to a category by
+   its displayed label, unmatched breaks are dropped with a warning, and
+   `:labels` relabels the kept ticks. Explicit `:breaks` take precedence
+   over `:n-ticks` -- when both are given, the exact breaks win and no
+   thinning is applied."
   ([domain pixel-range scale-spec spacing]
    (compute-ticks domain pixel-range scale-spec spacing nil))
   ([domain pixel-range scale-spec spacing temporal-extent]
    (if (scale/categorical-domain? domain)
-     (let [s (scale/make-scale domain pixel-range scale-spec)]
-       {:values (vec (ws/ticks s))
-        :labels (mapv defaults/fmt-category-label (ws/ticks s))
-        :categorical? true})
+     (let [user-breaks (:breaks scale-spec)
+           user-labels (:labels scale-spec)]
+       (if (and user-breaks (sequential? user-breaks) (seq user-breaks))
+         ;; Explicit category subset -- :breaks wins over :n-ticks. Match
+         ;; each break to a category by displayed label, keep them in the
+         ;; user's order, and relabel with :labels when given.
+         (let [display->cat (into {} (map (juxt defaults/fmt-category-label identity)
+                                          domain))
+               break-labels (if (and user-labels (sequential? user-labels))
+                              (mapv str user-labels)
+                              (mapv defaults/fmt-category-label user-breaks))
+               matched? (fn [b] (contains? display->cat (defaults/fmt-category-label b)))
+               pairs (map vector user-breaks break-labels)]
+           (warn-unknown-categorical-breaks! (remove matched? user-breaks) domain)
+           (let [kept (filter (fn [[b _]] (matched? b)) pairs)]
+             {:values (mapv (fn [[b _]] (display->cat (defaults/fmt-category-label b))) kept)
+              :labels (mapv second kept)
+              :categorical? true}))
+         (let [s (scale/make-scale domain pixel-range scale-spec)]
+           {:values (vec (ws/ticks s))
+            :labels (mapv defaults/fmt-category-label (ws/ticks s))
+            :categorical? true})))
      (let [n (scale/tick-count (Math/abs (double (- (second pixel-range) (first pixel-range)))) spacing)
            log? (= :log (:type scale-spec))
            user-breaks (:breaks scale-spec)

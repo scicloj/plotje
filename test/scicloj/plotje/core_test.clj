@@ -308,6 +308,31 @@
                      pj/plan :panels first :x-ticks :labels)]
       (is (= ["a" "b" "c"] (vec labels))))))
 
+(deftest categorical-breaks-labels-test
+  (let [xticks (fn [pose] (-> pose pj/plan :panels first :x-ticks))]
+    (testing ":breaks selects a category subset and :labels relabels it"
+      (let [t (xticks (-> (tc/dataset {:x ["a" "m" "q" "z"] :y [1 2 3 4]})
+                          (pj/lay-point :x :y)
+                          (pj/scale :x {:breaks ["a" "z"] :labels ["A" "Z"]})))]
+        (is (= ["a" "z"] (vec (:values t))))
+        (is (= ["A" "Z"] (vec (:labels t))))))
+    (testing "a break naming no category is dropped (matched categories remain)"
+      (let [t (xticks (-> (tc/dataset {:x (mapv str (range 50)) :y (range 50)})
+                          (pj/lay-point :x :y)
+                          (pj/scale :x {:breaks ["1" "25" "50"]})))]
+        ;; "50" is not a category (domain is "0".."49") -- dropped.
+        (is (= ["1" "25"] (vec (:values t))))))
+    (testing "explicit :breaks win over :n-ticks (no thinning applied)"
+      (let [t (xticks (-> (tc/dataset {:x (mapv str (range 50)) :y (range 50)})
+                          (pj/lay-point :x :y)
+                          (pj/scale :x {:n-ticks 5 :breaks ["3" "40"]})))]
+        (is (= ["3" "40"] (vec (:values t))))))
+    (testing "breaks match categories by displayed label (keyword column)"
+      (let [t (xticks (-> (tc/dataset {:x [:widget :gadget :gizmo] :y [1 2 3]})
+                          (pj/lay-point :x :y)
+                          (pj/scale :x {:breaks ["widget" "gizmo"]})))]
+        (is (= ["widget" "gizmo"] (mapv str (:labels t))))))))
+
 (deftest make-scale-log-test
   (let [s (scale/make-scale [1 1000] [0 300] {:type :log})]
     (is (== 0 (s 1)))

@@ -273,10 +273,28 @@
                                labels (filter #{"large" "medium" "small"} (:texts s))]
                            (= ["large" "medium" "small"] (vec labels))))])
 
+;; On a categorical axis, `:breaks` selects which categories get a
+;; tick, and `:labels` relabels them -- the discrete counterpart to
+;; numeric `:breaks` above. Each break is matched to a category by its
+;; displayed label; a break that names no category is dropped with a
+;; warning. Here only two of the four quarters are ticked, with custom
+;; text:
+
+(-> {:quarter ["Q1" "Q2" "Q3" "Q4"]
+     :revenue [120 150 90 200]}
+    (pj/lay-bar :quarter :revenue)
+    (pj/scale :x {:breaks ["Q1" "Q4"] :labels ["First" "Fourth"]}))
+
+(kind/test-last [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
+                           (and (contains? texts "First")
+                                (contains? texts "Fourth")
+                                (not (contains? texts "Q2")))))])
+
 ;; Thin a crowded categorical axis with `:n-ticks`. A categorical
 ;; axis labels every category by default, so with many categories
 ;; the labels overlap. `:n-ticks` keeps roughly that many
-;; evenly-spaced tick labels instead. (Rotating the labels with
+;; evenly-spaced tick labels instead. (When both are given, explicit
+;; `:breaks` win over `:n-ticks`. Rotating the labels with
 ;; `:x-tick-angle` is the other way to handle crowding -- see
 ;; Rotating tick labels above.)
 

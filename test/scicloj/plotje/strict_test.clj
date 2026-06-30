@@ -37,7 +37,17 @@
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"does not recognize option"
-           (-> tiny (pj/pose {:colour :a})))))))
+           (-> tiny (pj/pose {:colour :a}))))))
+
+  (testing ":strict true throws when a categorical :break names no category"
+    (pj/with-config {:strict true}
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"not among the axis categories"
+           (-> {:x ["a" "b" "c"] :y [1 2 3]}
+               (pj/lay-point :x :y)
+               (pj/scale :x {:breaks ["a" "zzz"]})
+               pj/plan))))))
 
 (deftest strict-mode-allows-known-keys
   (testing ":strict true does not interfere with valid options"
