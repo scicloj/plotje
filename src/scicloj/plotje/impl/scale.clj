@@ -33,8 +33,14 @@
   "Create a wadogo scale mapping domain values to a pixel range."
   (fn [domain pixel-range scale-spec] (scale-kind domain scale-spec)))
 
-(defmethod make-scale :categorical [domain pixel-range _]
-  (ws/scale :bands {:domain domain :range pixel-range}))
+(defmethod make-scale :categorical [domain pixel-range scale-spec]
+  (let [ticks-option
+        (if (some? (:n-ticks scale-spec))
+          {:ticks (:n-ticks scale-spec)}
+          {})]
+    (ws/scale :bands (merge {:domain domain
+                             :range pixel-range}
+                            ticks-option))))
 
 (defmethod make-scale :linear [domain pixel-range _]
   (ws/scale :linear {:domain domain :range pixel-range}))
