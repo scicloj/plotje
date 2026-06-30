@@ -32,12 +32,11 @@
 ;; A pose flows through the pipeline. The composition functions --
 ;; `pj/pose`, `pj/lay-*`, `pj/options`, `pj/scale`, `pj/coord`,
 ;; `pj/facet`, `pj/arrange` -- all take a pose and return a pose,
-;; so plots build up through ordinary `->` threading. The output
-;; functions (`pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot`,
-;; `pj/save`) take a pose and return a different shape -- a draft,
-;; a plan, a membrane, an SVG, a file path -- and so close
-;; the pipeline. See the Architecture chapter for how the output
-;; functions are literal compositions of single-step transitions.
+;; so plots build up through ordinary `->` threading. When the pose
+;; is ready, `pj/plot` renders it. (`pj/plot` is one of a few output
+;; functions that turn a finished pose into a rendered result; the
+;; [Architecture](./plotje_book.architecture.html) chapter walks the
+;; full pipeline behind it.)
 ;;
 ;; The simplest pose carries some data and picks columns. With no
 ;; explicit chart type, the library infers one from the column
@@ -221,10 +220,11 @@ multi-layer
 (kind/test-last [(fn [v] (empty? (:layers v)))])
 
 ;; The principle: **the inferred value fills in only when you have
-;; not specified one yourself.** Explicit choices flow down the
-;; pose tree and override inference; an explicit `nil` is a real
-;; choice and cancels inheritance, not a request for inference (see
-;; Pose Rule S3 for the precise semantics).
+;; not specified one yourself.** An explicit choice is always kept;
+;; inference supplies only what you leave out. (How explicit choices
+;; override inherited ones -- including the special case of an
+;; explicit `nil` -- comes up once scope is in play; see Core
+;; Concepts and Pose Rule S3.)
 ;;
 ;; Inference covers marks (the shape shown, like points or bars),
 ;; stats (the computation before rendering, like binning), color
