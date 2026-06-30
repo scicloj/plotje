@@ -17,3 +17,4 @@ user-report-*.md
 # truth lives under notebooks/.
 /chapters.edn
 /custom.scss
+.calva/
