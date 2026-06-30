@@ -67,6 +67,35 @@ iris-pose
 
 ;; Both routes return the same shape: a `PlotjeMembrane` record.
 
+;; ## Options flow through the explicit route
+;;
+;; `pj/membrane` is the shortcut. The same membrane also comes out of
+;; the explicit two-step route -- `pj/pose->draft` followed by
+;; `pj/draft->membrane`. Options set on the pose with `pj/options`,
+;; including the title, the axis labels, and the theme, ride on the
+;; draft's options and reach the membrane stage on either route.
+;;
+;; Here is a themed pose, rendered so the theme is visible:
+
+(def themed-pose
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width
+                    {:color :species})
+      (pj/options {:title "Iris"
+                   :theme {:bg "aliceblue" :grid "#cccccc"}})))
+
+themed-pose
+
+;; Taking that pose through the explicit route gives the same membrane
+;; as the shortcut -- the theme is carried through, not dropped:
+
+(= (pj/membrane themed-pose)
+   (-> themed-pose
+       pj/pose->draft
+       pj/draft->membrane))
+
+(kind/test-last [true?])
+
 ;; ## Anatomy
 ;;
 ;; The record carries three structural fields plus optional

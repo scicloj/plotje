@@ -50,11 +50,35 @@
 (deftest t13_l66 (is (true? v12_l64)))
 
 
-(def v15_l77 iris-membrane)
+(def
+ v15_l80
+ (def
+  themed-pose
+  (->
+   (rdatasets/datasets-iris)
+   (pj/lay-point :sepal-length :sepal-width {:color :species})
+   (pj/options
+    {:title "Iris", :theme {:bg "aliceblue", :grid "#cccccc"}}))))
+
+
+(def v16_l87 themed-pose)
 
 
 (def
- v17_l81
+ v18_l92
+ (=
+  (pj/membrane themed-pose)
+  (-> themed-pose pj/pose->draft pj/draft->membrane)))
+
+
+(deftest t19_l97 (is (true? v18_l92)))
+
+
+(def v21_l106 iris-membrane)
+
+
+(def
+ v23_l110
  {:width (ui/width iris-membrane),
   :height (ui/height iris-membrane),
   :origin (ui/origin iris-membrane),
@@ -63,7 +87,7 @@
 
 
 (deftest
- t18_l87
+ t24_l116
  (is
   ((fn
     [info]
@@ -73,21 +97,21 @@
      (= [0 0] (:origin info))
      (= "Iris" (:title info))
      (= 9 (:n-drawables info))))
-   v17_l81)))
+   v23_l110)))
 
 
-(def v20_l107 (sort (filter keyword? (keys iris-membrane))))
+(def v26_l136 (sort (filter keyword? (keys iris-membrane))))
 
 
 (deftest
- t21_l109
+ t27_l138
  (is
   ((fn [ks] (= [:drawables :height :width :plotje/title] ks))
-   v20_l107)))
+   v26_l136)))
 
 
 (def
- v23_l144
+ v29_l173
  (:plotje/title
   (pj/membrane
    (->
@@ -95,11 +119,11 @@
     (pj/lay-point :sepal-length :sepal-width)))))
 
 
-(deftest t24_l147 (is (nil? v23_l144)))
+(deftest t30_l176 (is (nil? v29_l173)))
 
 
 (def
- v26_l162
+ v32_l191
  (def
   two-up
   (ui/horizontal-layout
@@ -117,18 +141,18 @@
       {:title "Sepal length vs petal length", :y-label "petal"}))))))
 
 
-(def v28_l179 {:width (ui/width two-up), :height (ui/height two-up)})
+(def v34_l208 {:width (ui/width two-up), :height (ui/height two-up)})
 
 
 (deftest
- t29_l182
+ t35_l211
  (is
   ((fn [info] (and (= 1201 (:width info)) (= 400 (:height info))))
-   v28_l179)))
+   v34_l208)))
 
 
 (def
- v31_l194
+ v37_l223
  (def
   two-up-png
   ((requiring-resolve 'membrane.java2d/draw-to-image)
@@ -136,31 +160,31 @@
    [(ui/width two-up) (ui/height two-up)])))
 
 
-(def v32_l199 (instance? java.awt.image.BufferedImage two-up-png))
+(def v38_l228 (instance? java.awt.image.BufferedImage two-up-png))
 
 
-(deftest t33_l201 (is (true? v32_l199)))
+(deftest t39_l230 (is (true? v38_l228)))
 
 
-(def v35_l205 two-up-png)
+(def v41_l234 two-up-png)
 
 
-(def v37_l220 (pj/membrane->plot iris-membrane :svg {}))
+(def v43_l248 (pj/membrane->plot iris-membrane :svg {}))
 
 
-(deftest t38_l222 (is ((fn [v] (= :svg (first v))) v37_l220)))
+(deftest t44_l250 (is ((fn [v] (= :svg (first v))) v43_l248)))
 
 
-(def v40_l228 (pj/membrane->plot iris-membrane :bufimg {}))
+(def v46_l256 (pj/membrane->plot iris-membrane :bufimg {}))
 
 
 (deftest
- t41_l230
- (is ((fn [v] (instance? java.awt.image.BufferedImage v)) v40_l228)))
+ t47_l258
+ (is ((fn [v] (instance? java.awt.image.BufferedImage v)) v46_l256)))
 
 
 (def
- v43_l259
+ v49_l287
  (def
   clipped-membrane
   (->
@@ -173,36 +197,37 @@
 
 
 (def
- v45_l272
+ v51_l300
  (->>
   (ui/children clipped-membrane)
   (tree-seq coll? seq)
   (filter
-   (fn* [p1__96373#] (instance? membrane.ui.ScissorView p1__96373#)))
-  (mapv (fn* [p1__96374#] (select-keys p1__96374# [:offset :bounds])))))
+   (fn* [p1__107993#] (instance? membrane.ui.ScissorView p1__107993#)))
+  (mapv
+   (fn* [p1__107994#] (select-keys p1__107994# [:offset :bounds])))))
 
 
 (deftest
- t46_l277
+ t52_l305
  (is
   ((fn
     [rects]
     (and
      (= 2 (count rects))
-     (some (fn* [p1__96375#] (= [0 0] (:offset p1__96375#))) rects)
+     (some (fn* [p1__107995#] (= [0 0] (:offset p1__107995#))) rects)
      (some
-      (fn* [p1__96376#] (every? pos? (:offset p1__96376#)))
+      (fn* [p1__107996#] (every? pos? (:offset p1__107996#)))
       rects)))
-   v45_l272)))
+   v51_l300)))
 
 
-(def v48_l293 (pj/valid-membrane? iris-membrane))
+(def v54_l321 (pj/valid-membrane? iris-membrane))
 
 
-(deftest t49_l295 (is (true? v48_l293)))
+(deftest t55_l323 (is (true? v54_l321)))
 
 
-(def v51_l300 (some? (pj/explain-membrane {:not :a-membrane})))
+(def v57_l328 (some? (pj/explain-membrane {:not :a-membrane})))
 
 
-(deftest t52_l302 (is (true? v51_l300)))
+(deftest t58_l330 (is (true? v57_l328)))

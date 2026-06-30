@@ -276,19 +276,32 @@
   "Compose draft -> plan -> membrane. The 2-arity takes an opts map
    for `plan->membrane` (e.g. `{:tooltip true}`).
 
+   Render-stage options set on the original pose via `pj/options`
+   (`:theme`, `:palette`, ...) ride on the draft's `:opts` and form
+   the base; any opts passed here override them per key. This keeps
+   the explicit pipeline consistent with `pj/plot`, which feeds the
+   pose's opts into the membrane stage.
+
    - `(draft->membrane (draft pose))`
    - `(draft->membrane (draft pose) {:tooltip true})`"
   ([draft] (draft->membrane draft {}))
   ([draft opts]
-   (membrane/plan->membrane (draft->plan draft) opts)))
+   (membrane/plan->membrane (draft->plan draft)
+                            (merge (:opts draft) opts))))
 
 (defn draft->plot
   "Compose draft -> plan -> plot for the given format.
 
+   Render-stage options set on the original pose via `pj/options`
+   (`:theme`, `:palette`, ...) ride on the draft's `:opts` and form
+   the base; the passed opts override them per key.
+
    - `(draft->plot (draft pose) :svg {})`
    - `(draft->plot (draft pose) :bufimg {})`"
   [draft format opts]
-  (render-impl/plan->plot (draft->plan draft) format opts))
+  (render-impl/plan->plot (draft->plan draft)
+                          format
+                          (merge (:opts draft) opts)))
 
 (defn plan->membrane
   "Convert a plan into a `PlotjeMembrane` -- a Membrane UI component
