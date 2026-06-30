@@ -146,6 +146,24 @@
                            (and (= 1 (:panels s))
                                 (= 4 (:polygons s)))))])
 
+;; ### Rotated labels
+
+;; Horizontal bars are one way to fit long category names. To keep
+;; the bars vertical instead, rotate the x-tick labels with
+;; `:x-tick-angle` (see
+;; [Customization](./plotje_book.customization.html#rotating-tick-labels)
+;; for details, including `:x-tick-label-pad`):
+
+(-> {:department ["Office Supplies" "Electronics" "Home Goods"
+                  "Sporting Gear" "Garden Tools" "Toys"]
+     :revenue [120 340 210 95 160 80]}
+    (pj/lay-bar :department :revenue)
+    (pj/options {:x-tick-angle -45}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 6 (:polygons s))
+                                (.contains ^String (pr-str (pj/plot v)) "rotate(-45"))))])
+
 ;; ## [Lollipop](https://en.wikipedia.org/wiki/Lollipop_chart)
 
 ;; Stem + dot -- a lighter alternative to bar charts.

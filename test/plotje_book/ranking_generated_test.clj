@@ -172,38 +172,66 @@
    v25_l142)))
 
 
-(def v28_l153 (-> sales (pj/lay-lollipop :product :revenue)))
+(def
+ v28_l157
+ (->
+  {:department
+   ["Office Supplies"
+    "Electronics"
+    "Home Goods"
+    "Sporting Gear"
+    "Garden Tools"
+    "Toys"],
+   :revenue [120 340 210 95 160 80]}
+  (pj/lay-bar :department :revenue)
+  (pj/options {:x-tick-angle -45})))
 
 
 (deftest
- t29_l156
+ t29_l163
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and
+      (= 6 (:polygons s))
+      (.contains (pr-str (pj/plot v)) "rotate(-45"))))
+   v28_l157)))
+
+
+(def v31_l171 (-> sales (pj/lay-lollipop :product :revenue)))
+
+
+(deftest
+ t32_l174
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v28_l153)))
+   v31_l171)))
 
 
 (def
- v31_l164
+ v34_l182
  (-> sales (pj/lay-lollipop :product :revenue) (pj/coord :flip)))
 
 
 (deftest
- t32_l168
+ t35_l186
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v31_l164)))
+   v34_l182)))
 
 
 (def
- v34_l177
+ v37_l195
  (->
   {:product ["A" "B" "C" "D" "E" "F"],
    :revenue [120 95 150 80 200 110],
@@ -212,11 +240,11 @@
 
 
 (deftest
- t35_l182
+ t38_l200
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v) fills (disj (:colors s) "none")]
      (and (= 6 (:points s)) (= 2 (count fills)))))
-   v34_l177)))
+   v37_l195)))
