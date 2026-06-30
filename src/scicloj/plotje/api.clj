@@ -2249,10 +2249,11 @@
 (defn scale
   "Set scale on a pose. Scale is plot-level -- it applies across every
    panel. Accepts a type keyword or a scale spec map with `:type`, optional
-   `:domain`, optional `:breaks` (explicit tick locations), and optional
-   `:labels` (custom tick text paired with `:breaks`). On a composite
-   pose the scale attaches to the root so every descendant leaf inherits
-   it at plan time.
+   `:domain`, optional `:breaks` (explicit tick locations), optional
+   `:labels` (custom tick text paired with `:breaks`), and optional
+   `:n-ticks` (thin a categorical axis to about this many ticks). On a
+   composite pose the scale attaches to the root so every descendant leaf
+   inherits it at plan time.
 
    Channels and accepted scale types:
 
@@ -2269,9 +2270,16 @@
    render numeric positions with custom text -- for example, days of the
    week on a tile heatmap.
 
+   `:n-ticks` thins a crowded categorical axis to about that many
+   evenly-spaced tick labels (a categorical axis otherwise labels every
+   category). It applies to discrete axes; numeric axes control tick
+   density through the `:tick-spacing-x` / `:tick-spacing-y` options.
+
    - `(scale pose :x :log)` -- log scale on x-axis.
    - `(scale pose :x {:type :categorical :domain [...]})` -- explicit
      category order.
+   - `(scale pose :x {:n-ticks 8})` -- thin a crowded categorical axis to
+     about eight evenly-spaced tick labels.
    - `(scale pose :y {:type :linear :breaks [0 5 10]})` -- pin tick locations.
    - `(scale pose :x {:type :linear :breaks [1 2 3 4 5 6 7]
                       :labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`

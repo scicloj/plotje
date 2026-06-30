@@ -273,6 +273,22 @@
                                labels (filter #{"large" "medium" "small"} (:texts s))]
                            (= ["large" "medium" "small"] (vec labels))))])
 
+;; Thin a crowded categorical axis with `:n-ticks`. A categorical
+;; axis labels every category by default, so with many categories
+;; the labels overlap. `:n-ticks` keeps roughly that many
+;; evenly-spaced tick labels instead. (Rotating the labels with
+;; `:x-tick-angle` is the other way to handle crowding -- see
+;; Rotating tick labels above.)
+
+(-> {:bin (map #(str "bin-" %) (range 40))
+     :count (range 40)}
+    (pj/lay-bar :bin :count)
+    (pj/scale :x {:n-ticks 8}))
+
+(kind/test-last [(fn [v] (let [labels (filter #(.startsWith ^String % "bin-")
+                                              (:texts (pj/svg-summary v)))]
+                           (= 8 (count labels))))])
+
 ;; ### Log scale on visual channels
 ;;
 ;; `pj/scale` works on continuous visual channels too -- `:size`,

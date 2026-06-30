@@ -288,6 +288,26 @@
     (is (some? s))
     (is (pos? (wadogo.scale/data s :bandwidth)))))
 
+(deftest make-scale-categorical-n-ticks-test
+  (testing ":n-ticks thins a categorical band scale to roughly n evenly-spaced ticks"
+    (let [dom (mapv str (range 50))
+          all (scale/make-scale dom [0 300] {})
+          ten (scale/make-scale dom [0 300] {:n-ticks 10})]
+      (is (= 50 (count (wadogo.scale/ticks all))))
+      (is (= 10 (count (wadogo.scale/ticks ten))))))
+  (testing ":n-ticks flows end-to-end through pj/scale onto a categorical x-axis"
+    (let [d (tc/dataset {:x (mapv str (range 50)) :y (range 50)})
+          labels (fn [pose] (-> pose pj/plan :panels first :x-ticks :labels))]
+      (is (= 50 (count (labels (pj/lay-point d :x :y)))))
+      (is (= 10 (count (labels (-> (pj/lay-point d :x :y)
+                                   (pj/scale :x {:n-ticks 10}))))))))
+  (testing ":n-ticks larger than the category count shows every category, no error"
+    (let [d (tc/dataset {:x ["a" "b" "c"] :y [1 2 3]})
+          labels (-> (pj/lay-point d :x :y)
+                     (pj/scale :x {:n-ticks 10})
+                     pj/plan :panels first :x-ticks :labels)]
+      (is (= ["a" "b" "c"] (vec labels))))))
+
 (deftest make-scale-log-test
   (let [s (scale/make-scale [1 1000] [0 300] {:type :log})]
     (is (== 0 (s 1)))
