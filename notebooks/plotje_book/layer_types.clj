@@ -82,7 +82,7 @@
 ;; multiple sub-bars per category. So a colored
 ;; `(pj/lay-bar :species {:color :group})` produces dodged bars
 ;; even though the table shows `:identity` for `:bar`. To force a
-;; different layout, pass `:position` explicitly in the layer opts.
+;; different layout, pass `:position` explicitly in the layer options.
 
 ;; ## Marks
 ;;

@@ -48,7 +48,7 @@
 ;;
 ;; | Key | On | Purpose |
 ;; |:----|:---|:--------|
-;; | `:data` | leaf or any ancestor | dataset (tablecloth) |
+;; | `:data` | leaf or any ancestor | dataset (Tablecloth) |
 ;; | `:mapping` | pose or layer | column-to-aesthetic bindings |
 ;; | `:layers` | pose | per-scope layers |
 ;; | `:poses` | composite only | sub-poses |
@@ -401,7 +401,7 @@ composite-pose
 ;;
 ;; When `pj/pose` receives three arguments where the second is a
 ;; pair sequence (a vector of `[x y]` pairs, typically the output
-;; of `pj/cross`) and the third is an opts map, the call is
+;; of `pj/cross`) and the third is an options map, the call is
 ;; equivalent to two chained calls: the opts mapping is attached to
 ;; the base first (Rule C2 or C4), then the pair sequence is
 ;; processed on top (Rule L5 for rectangular grids, otherwise a

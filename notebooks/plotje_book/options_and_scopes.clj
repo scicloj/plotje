@@ -172,7 +172,7 @@
 ;; - Scale **type** (log, categorical, linear, etc.) is shared
 ;;   across all panels -- if you set `pj/scale :x :log` on a
 ;;   faceted pose, every panel has a log x-axis.
-;; - Scale **domain** (the numeric range actually shown) is
+;; - Scale **domain** (the numeric range shown) is
 ;;   computed per panel by default, so different panels may
 ;;   display different numeric ranges.
 ;;

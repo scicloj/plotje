@@ -243,8 +243,7 @@ hist-plan
 
 ;; The geometry is in `:bars` -- each bin has a lo edge, hi edge, and count:
 
-(let [g (first (:groups hist-layer))]
-  (:bars g))
+(-> hist-layer :groups first :bars)
 
 (kind/test-last [(fn [bars] (and (> (count bars) 3)
                                  (every? #(< (:lo %) (:hi %)) bars)
@@ -548,8 +547,26 @@ final-plan
 
 (kind/test-last [(fn [ps] (every? :x-domain ps))])
 
-;; With shared scales (the default), all panels have the same domains.
-;; With `:scales :free-y`, each panel gets its own y-domain.
+;; With shared scales (the default), all panels have the same
+;; domains. The faceted plan above uses the default, so its panels
+;; share one y-domain:
+
+(mapv :y-domain (:panels faceted-plan))
+
+(kind/test-last [(fn [ds] (apply = ds))])
+
+;; With `:scales :free-y`, each panel gets its own y-domain:
+
+(def free-y-plan
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width {:color :species})
+      (pj/facet :species)
+      (pj/options {:scales :free-y})
+      pj/plan))
+
+(mapv :y-domain (:panels free-y-plan))
+
+(kind/test-last [(fn [ds] (not (apply = ds)))])
 
 ;; The plan also records per-panel pixel dimensions:
 

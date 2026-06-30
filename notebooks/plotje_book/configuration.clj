@@ -554,7 +554,7 @@ precedence-point-radius
 ;;
 ;; When you pass an unknown key to `pj/options`, `pj/lay-*`, or
 ;; `pj/plot`, Plotje by default warns and strips it. The `:strict`
-;; config flag turns the warning into a thrown exception -- useful
+;; configuration flag turns the warning into a thrown exception -- useful
 ;; in tests or pipelines where a typo should fail loudly rather
 ;; than silently render a default plot.
 

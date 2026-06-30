@@ -218,8 +218,8 @@ dashboard
 ;; second set of points from another dataset:
 
 (def overlay-base
-  (tc/dataset {:fitted   [1 2 3]
-               :residual [1 2 3]}))
+  {:fitted   [1 2 3]
+   :residual [1 2 3]})
 
 (def overlay-other
   (tc/dataset {:x [0.5 1.5 2.5]
@@ -248,11 +248,13 @@ dashboard
 ;; ### Separate sub-pose for the new layer
 ;;
 ;; To put the new layer on its own panel, name the layer's
-;; columns directly. A non-matching position triggers LP2
-;; promotion: the original leaf becomes panel-1; a new sub-pose
-;; carrying the new position and the new layer becomes panel-2.
-;; The two render side by side under the default `:matrix`
-;; layout.
+;; columns directly. When the new layer's position does not match
+;; the existing one, the pose splits into two panels: the original
+;; leaf becomes panel-1, and a new sub-pose carrying the new
+;; position and the new layer becomes panel-2. The two render side
+;; by side in a grid (the default `:matrix` layout, which arranges
+;; panels in rows and columns). This promotion is specified as Rule
+;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html) chapter.
 
 (-> overlay-base
     (pj/lay-point :fitted :residual)

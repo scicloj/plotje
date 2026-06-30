@@ -320,7 +320,10 @@
 
 ;; Annotate specific data points with text labels.
 
-(def top5 (-> (rdatasets/datasets-iris) (tc/order-by :sepal-length :desc) (tc/head 5)))
+(def top5
+  (-> (rdatasets/datasets-iris)
+      (tc/order-by :sepal-length :desc)
+      (tc/head 5)))
 
 (-> top5
     (pj/lay-point :sepal-length :sepal-width {:size 5})

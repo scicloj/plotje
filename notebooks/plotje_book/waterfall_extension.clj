@@ -108,7 +108,7 @@
 ;; - `:panel-height`, `:panel-width`, `:margin` -- layout dimensions
 ;;
 ;; For a band (categorical) x-scale, `(sx category true)` returns
-;; band info including `:rstart`, `:rend`, and `:point`.
+;; band information including `:rstart`, `:rend`, and `:point`.
 
 (defmethod mark/layer->membrane :waterfall [layer ctx]
   (let [{:keys [bars style]} layer

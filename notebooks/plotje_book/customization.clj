@@ -262,7 +262,7 @@
 (kind/test-last
  [(fn [v]
     (let [sizes (sort (:sizes (pj/svg-summary v)))]
-      ;; Linear scaling: smallest two radii are within 30% of each
+      ;; Linear scaling: smallest two radii are within 50% of each
       ;; other; the largest radius is at least 3x the smallest.
       (and (= 3 (count sizes))
            (< (/ (second sizes) (first sizes)) 1.5)

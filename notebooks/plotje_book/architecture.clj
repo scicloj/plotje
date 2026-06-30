@@ -424,11 +424,13 @@ trace-pose
 
 ;; ## Where Inference Happens
 ;;
-;; Each step also **infers**: it fills in choices the user
+;; Two of the steps also **infer**: they fill in choices the user
 ;; did not specify. Inference is what lets a dataset alone -- with
-;; no mapping, no layers, no opts -- produce a complete plot. Most
-;; one-line examples in this book rely on inference at one or more
-;; stages.
+;; no mapping, no layers, no options -- produce a complete plot. Most
+;; one-line examples in this book rely on inference at one or both
+;; of these stages. The
+;; [Inference Rules](./plotje_book.inference_rules.html) chapter is
+;; the authoritative reference for what each stage infers.
 
 (pj/pose {:x [1 2 3 4 5]
           :y [2 4 3 5 4]
@@ -525,7 +527,7 @@ composite-pose
 ;; same value `composite-pose` auto-renders to at the top of this
 ;; section, produced explicitly:
 
-(kind/pprint (pj/plot composite-pose))
+(-> composite-pose pj/plot kind/pprint)
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 2 (:panels s))
@@ -601,11 +603,14 @@ graph LR
 ;; This boundary lets one membrane tree be rendered to many output
 ;; formats. The pose, draft, plan, and membrane stages are reused
 ;; unchanged across formats. A new format that consumes the membrane
-;; tree registers a `defmethod membrane->plot :foo` (the dispatch
-;; step that `pj/plot` and `pj/membrane->plot` use). A new format
-;; that goes from a plan directly to bytes (skipping membrane --
-;; e.g., a Plotly-spec target) registers a `defmethod plan->plot
-;; :foo` instead.
+;; tree registers a `defmethod` on the render multimethod
+;; `scicloj.plotje.impl.render/membrane->plot` (the public
+;; `pj/membrane->plot` dispatches through it). A new format that
+;; goes from a plan directly to bytes (skipping membrane -- e.g., a
+;; Plotly-spec target) registers a `defmethod` on
+;; `scicloj.plotje.impl.render/plan->plot` instead. The
+;; [Extensibility](./plotje_book.extensibility.html) chapter shows a
+;; worked backend registration.
 ;;
 ;; The membrane stage of Plotje is built on
 ;; [Membrane](https://github.com/phronmophobic/membrane) -- the

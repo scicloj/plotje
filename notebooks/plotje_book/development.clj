@@ -117,7 +117,7 @@
 ;;
 ;; This produces:
 ;;
-;; - `README.md` at the repo root
+;; - `README.md` at the repository root
 ;; - `readme_files/*.svg` -- rendered plot images referenced by the README
 ;;
 ;; The book's `index.clj` reads `README.md` and copies `readme_files/`

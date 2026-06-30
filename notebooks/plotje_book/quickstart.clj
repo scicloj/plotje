@@ -253,7 +253,7 @@
 
 ;; ## What's Next
 ;;
-;; - [**Datasets**](./plotje_book.datasets.html) -- what kinds of data Plotje accepts (tablecloth datasets, maps of vectors, sequences of row maps)
+;; - [**Datasets**](./plotje_book.datasets.html) -- what kinds of data Plotje accepts (Tablecloth datasets, maps of vectors, sequences of row maps)
 ;; - [**Poses**](./plotje_book.pose_model.html) -- the mental model behind composable plotting
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- data formats, marks, stats, color, grouping, coordinates
 ;; - [**Relationships**](./plotje_book.relationships.html) -- scatter plots, regression, density, and SPLOM

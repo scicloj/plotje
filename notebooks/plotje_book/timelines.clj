@@ -266,7 +266,7 @@
 
 ;; ## Marey train schedule
 ;;
-;; [Étienne-Jules Marey](https://en.wikipedia.org/wiki/%C3%89tienne-Jules_Marey)'s
+;; [Etienne-Jules Marey](https://en.wikipedia.org/wiki/%C3%89tienne-Jules_Marey)'s
 ;; classic 1885 diagram of Paris-Lyon trains
 ;; ([context and image](https://en.wikipedia.org/wiki/Marey_chart),
 ;; popularized in

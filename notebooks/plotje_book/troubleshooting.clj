@@ -245,7 +245,7 @@
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
 ;; `pj/scale` takes the pose, the axis (`:x` or `:y`), and
-;; either a type keyword (`:linear`, `:log`) or a scale spec
+;; either a type keyword (`:linear`, `:log`) or a scale specification
 ;; map with `:type` and an optional `:domain` override.
 ;; See the [Inference Rules](./plotje_book.inference_rules.html)
 ;; chapter for how scale types and domains interact with column
@@ -464,7 +464,6 @@
 (-> [{:category "A" :value 100}
      {:category "B" :value 50}
      {:category "C" :value 25}]
-    (tc/dataset)
     (pj/lay-bar :category :value)
     (pj/coord :flip))
 

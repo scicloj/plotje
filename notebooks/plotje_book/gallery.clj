@@ -512,8 +512,8 @@
 ;; ### Polar value bar
 ;; Source: [ECharts: Polar Bar](https://echarts.apache.org/examples/en/editor.html?c=bar-polar-real-estate)
 
-(-> (tc/dataset {:day ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]
-                 :hours [8 7 6 9 5 3 4]})
+(-> {:day ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]
+     :hours [8 7 6 9 5 3 4]}
     (pj/lay-bar :day :hours)
     (pj/coord :polar)
     (pj/options {:title "Weekly Working Hours (Polar)"}))
@@ -741,8 +741,8 @@
 ;; ### Value bar chart (pre-computed heights)
 ;; Source: [ECharts: Basic Bar](https://echarts.apache.org/examples/en/editor.html?c=bar-simple)
 
-(-> (tc/dataset {:category ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]
-                 :value [120 200 150 80 70 110 130]})
+(-> {:category ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]
+     :value [120 200 150 80 70 110 130]}
     (pj/lay-bar :category :value)
     (pj/options {:title "Weekly Sales"}))
 
@@ -1176,7 +1176,7 @@
 ;; ### Simulated approximately-normal distribution
 ;; Source: [ECharts: Histogram](https://echarts.apache.org/examples/en/editor.html?c=bar-histogram)
 
-(-> (tc/dataset {:value (repeatedly 500 #(+ (* 2.0 (rand)) (* 2.0 (rand)) (* 2.0 (rand)) -3.0))})
+(-> {:value (repeatedly 500 #(+ (* 2.0 (rand)) (* 2.0 (rand)) (* 2.0 (rand)) -3.0))}
     (pj/pose :value)
     (pj/lay-histogram {:bins 30 :normalize :density})
     pj/lay-density
@@ -1372,8 +1372,8 @@
 ;; ### Horizontal value bar chart
 ;; Source: [ECharts: Bar Horizontal](https://echarts.apache.org/examples/en/editor.html?c=bar-y-category)
 
-(-> (tc/dataset {:country ["US" "China" "Japan" "Germany" "UK" "India" "France"]
-                 :gdp [21.4 14.7 5.1 3.8 2.8 2.7 2.6]})
+(-> {:country ["US" "China" "Japan" "Germany" "UK" "India" "France"]
+     :gdp [21.4 14.7 5.1 3.8 2.8 2.7 2.6]}
     (pj/lay-bar :gdp :country)
     (pj/options {:title "GDP by Country (2019)"
                  :x-label "GDP (Trillion $)"
@@ -1386,8 +1386,8 @@
 
 ;; Value bars support negative values, creating a diverging pattern:
 
-(-> (tc/dataset {:metric ["Quality" "Speed" "Usability" "Reliability" "Support" "Price" "Design" "Docs"]
-                 :score [-30 -20 -10 5 15 25 35 45]})
+(-> {:metric ["Quality" "Speed" "Usability" "Reliability" "Support" "Price" "Design" "Docs"]
+     :score [-30 -20 -10 5 15 25 35 45]}
     (pj/lay-bar :score :metric)
     (pj/lay-rule-v {:x-intercept 0})
     (pj/options {:title "Customer Satisfaction Scores"
@@ -1532,9 +1532,9 @@
 ;; ### Numeric tile heatmap
 ;; Source: [ECharts: Heatmap](https://echarts.apache.org/examples/en/editor.html?c=heatmap-cartesian)
 
-(-> (tc/dataset {:row (mapcat #(repeat 6 %) (range 6))
-                 :col (flatten (repeat 6 (range 6)))
-                 :value (map #(Math/sin (* % 0.5)) (range 36))})
+(-> {:row (mapcat #(repeat 6 %) (range 6))
+     :col (flatten (repeat 6 (range 6)))
+     :value (map #(Math/sin (* % 0.5)) (range 36))}
     (pj/pose :col :row {:fill :value})
     pj/lay-tile
     (pj/options {:title "Synthetic Heatmap (sin wave)"

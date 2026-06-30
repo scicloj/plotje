@@ -334,7 +334,8 @@ two-panel
 ;; sharing the same axes.
 ;;
 ;; To place two plots side by side with different columns, use an
-;; explicit `pj/pose` call to add a second panel:
+;; explicit `pj/pose` call with a vector of column-pairs -- each
+;; `[x y]` pair becomes one panel:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose [[:sepal-length :sepal-width] [:petal-length :petal-width]])
@@ -652,7 +653,7 @@ two-panel
           shape-values (set (mapcat :shapes (:groups layer)))]
       (= 3 (count shape-values))))])
 
-;; The `:group` option creates groups without changing colors:
+;; The `:group` aesthetic creates groups without changing colors:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width {:group :species})
