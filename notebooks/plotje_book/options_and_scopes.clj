@@ -272,8 +272,8 @@ demo
 
 ;; ## Coming from ggplot2
 ;;
-;; For readers familiar with ggplot2, the three categories map
-;; roughly as follows:
+;; For readers familiar with [ggplot2](https://ggplot2.tidyverse.org/),
+;; the three categories map roughly as follows:
 ;;
 ;; | ggplot2 construct                            | Plotje category       |
 ;; |:---------------------------------------------|:----------------------------|

@@ -272,6 +272,10 @@ trace-pose
 ;;
 ;; Convert the membrane into the rendered output for a chosen
 ;; format. Dispatches on the format keyword; `:svg` is built in.
+;; This is the only stage whose output is format-native rather than
+;; portable: every earlier stage is the same across backends, while
+;; here the membrane becomes SVG hiccup, a BufferedImage, or another
+;; format's bytes.
 ;; The membrane carries its plan-derived dimensions as record
 ;; fields (read via `(membrane.ui/width m)`/`(height m)`), so
 ;; `pj/membrane->plot` does not need them respelled in opts:
@@ -308,6 +312,28 @@ trace-pose
 ;; - **pj/membrane** -- raw input -> membrane tree.
 ;; - **pj/plot** -- raw input -> rendered figure.
 ;;
+;; Each shortcut starts from raw input and stops at a different
+;; stage along the same chain. The solid line is the stage-to-stage
+;; pipeline; each dashed arrow is one shortcut, running from raw
+;; input up to the stage it produces:
+
+^:kindly/hide-code
+(kind/mermaid "
+graph LR
+  X[\"Raw data\"] --> B[\"Pose\"] --> D[\"Draft\"] --> P[\"Plan\"] --> M[\"Membrane\"] --> F[\"Plot\"]
+  X -.->|pj/pose| B
+  X -.->|pj/draft| D
+  X -.->|pj/plan| P
+  X -.->|pj/membrane| M
+  X -.->|pj/plot| F
+  style X fill:#eee,stroke-dasharray:3 3
+  style B fill:#d1c4e9
+  style D fill:#e8f5e9
+  style P fill:#fff3e0
+  style M fill:#e3f2fd
+  style F fill:#fce4ec
+")
+
 ;; The four stage-after-pose shortcuts (`pj/draft`, `pj/plan`,
 ;; `pj/membrane`, `pj/plot`) are literal compositions of these
 ;; steps. Their source shows the pipeline directly:
@@ -550,7 +576,8 @@ composite-pose
 
 ;; ## The Plan Boundary
 ;;
-;; The plan is the boundary between description and rendering. The
+;; The plan is the first pipeline boundary: the boundary between
+;; description and rendering. The
 ;; pose and draft stages assemble the description. The plan resolves
 ;; it into computed geometry, domains, ticks, and legend -- still as
 ;; inspectable data, before any layout. The membrane and plot stages

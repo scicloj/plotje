@@ -11,7 +11,9 @@
 ;; `pj/options`, `pj/scale`, `pj/coord`, `pj/facet`, and `pj/cross`.
 ;;
 ;; Read [Poses](./plotje_book.pose_model.html) first -- this
-;; chapter is the proof layer, not a teaching chapter.
+;; chapter is the proof layer, not a teaching chapter. On a first
+;; read through the book you can skim or skip it, and return when
+;; you want the precise rule behind a behavior.
 
 (ns plotje-book.pose-rules
   (:require

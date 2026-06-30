@@ -9,9 +9,10 @@
 ;;
 ;; This chapter is a reference: each rule with its default and its
 ;; override. For the conceptual overview, read [Poses](./plotje_book.pose_model.html)
-;; and [Core Concepts](./plotje_book.core_concepts.html) first. The
-;; examples use small inline datasets so the relationships are easy
-;; to read at a glance.
+;; and [Core Concepts](./plotje_book.core_concepts.html) first. On a
+;; first read through the book you can skim or skip it, and return
+;; when you need a specific default. The examples use small inline
+;; datasets so the relationships are easy to read at a glance.
 
 (ns plotje-book.inference-rules
   (:require

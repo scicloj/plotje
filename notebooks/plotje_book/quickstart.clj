@@ -170,8 +170,9 @@
 ;;
 ;; Use `pj/pose` to set column mappings for a pose,
 ;; then add layers with `pj/lay-*`. All layers on this pose
-;; inherit the pose's mappings. Here `(pj/lay-smooth {:stat :linear-model})` adds a linear model
-;; (regression line) per group:
+;; inherit the pose's mappings. Here `(pj/lay-smooth {:stat :linear-model})`
+;; sets the layer's stat (the computation applied before rendering)
+;; to a linear model, adding a regression line per group:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width {:color :species})

@@ -1,7 +1,9 @@
 ;; # Glossary
 ;;
 ;; Key terms used throughout Plotje, with brief definitions
-;; and code examples.
+;; and code examples. This is a reference chapter -- skim or skip it
+;; on a first read through the book, and come back to look up a term
+;; when you meet it.
 
 (ns plotje-book.glossary
   (:require
@@ -21,9 +23,10 @@
 ;; arranged together. Every pose-shaping function in the API
 ;; (`pj/pose`, `pj/lay-*`, `pj/facet`, `pj/arrange`, `pj/options`,
 ;; `pj/scale`, `pj/coord`) takes a pose and returns a pose.
-;; `pj/->pose` is the polymorphic lift -- it accepts raw data or a
-;; pose and returns a pose, so any of the output functions can
-;; start from a dataset directly.
+;; `pj/->pose` is the polymorphic lift (a function that wraps a
+;; value into a richer type) -- it accepts raw data or a pose and
+;; returns a pose, so any of the output functions can start from a
+;; dataset directly.
 ;; Poses auto-render in
 ;; [Kindly](https://scicloj.github.io/kindly-noted/)-compatible
 ;; tools like [Clay](https://scicloj.github.io/clay/).
