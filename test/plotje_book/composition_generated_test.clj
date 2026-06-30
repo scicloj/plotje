@@ -145,7 +145,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__90591#] (-> p1__90591# :plan :panels first))
+       (fn* [p1__96149#] (-> p1__96149# :plan :panels first))
        (:sub-plots (pj/plan marginal)))
       [d-x s-x]
       (mapv :x-domain panels)
@@ -193,9 +193,7 @@
    v26_l182)))
 
 
-(def
- v29_l220
- (def overlay-base (tc/dataset {:fitted [1 2 3], :residual [1 2 3]})))
+(def v29_l220 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
 
 
 (def
@@ -227,7 +225,7 @@
 
 
 (def
- v34_l257
+ v34_l259
  (->
   overlay-base
   (pj/lay-point :fitted :residual)
@@ -235,18 +233,18 @@
 
 
 (deftest
- t35_l261
+ t35_l263
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 6 (:points s)))))
-   v34_l257)))
+   v34_l259)))
 
 
 (def
- v37_l282
+ v37_l284
  (def
   bounded
   (->
@@ -256,22 +254,22 @@
    (pj/scale :y {:type :linear, :domain [0 30]}))))
 
 
-(def v38_l288 (pj/arrange [bounded bounded] {:cols 1}))
+(def v38_l290 (pj/arrange [bounded bounded] {:cols 1}))
 
 
 (deftest
- t39_l290
+ t39_l292
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 2 (:clips s)))))
-   v38_l288)))
+   v38_l290)))
 
 
 (deftest
- t41_l325
+ t41_l327
  (is
   ((fn
     [_]
@@ -298,4 +296,4 @@
      (and
       (= #{:color} (-> all-color pj/plan :chrome :shared-aesthetics))
       (= #{} (-> mixed pj/plan :chrome :shared-aesthetics)))))
-   v38_l288)))
+   v38_l290)))

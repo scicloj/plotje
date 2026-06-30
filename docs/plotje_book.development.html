@@ -511,8 +511,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="regenerating-tests" class="level2">
 <h2 class="anchored" data-anchor-id="regenerating-tests">Regenerating Tests</h2>
 <p>After editing a notebook, you may regenerate its test file by rendering it:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">require</span> '[scicloj.clay.v2.api <span class="at">:as</span> clay])</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>(clay/make! {<span class="at">:source-path</span> <span class="st">"plotje_book/relationships.clj"</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">require</span> '[dev <span class="at">:as</span> dev])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>(dev/make-gfm! <span class="st">"plotje_book/relationships.clj"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This updates <code>test/plotje_book/relationships_generated_test.clj</code>. The generated test files are checked into version control.</p>
 <p>To regenerate all notebooks at once:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">require</span> <span class="at">'dev</span>)</span>
@@ -534,7 +534,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>(dev/make-readme!)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This produces:</p>
 <ul>
-<li><code>README.md</code> at the repo root</li>
+<li><code>README.md</code> at the repository root</li>
 <li><code>readme_files/*.svg</code> – rendered plot images referenced by the README</li>
 </ul>
 <p>The book’s <code>index.clj</code> reads <code>README.md</code> and copies <code>readme_files/</code> into <code>notebooks/</code> so that the book’s front page shows the same images. Run <code>make-readme!</code> before <code>make-book!</code> when the README content changes.</p>

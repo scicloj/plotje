@@ -10,7 +10,7 @@ Plotje is a Clojure library for composable plotting, inspired by
 the Grammar of Graphics.
 
 
-## General info
+## General information
 
 |||
 |-|-|
@@ -59,6 +59,6 @@ Scatter plot matrix (SPLOM) -- all pairwise combinations with color grouping:
 
 ## License
 
-Copyright © 2025-2026 Scicloj
+Copyright (c) 2025-2026 Scicloj
 
 Distributed under the MIT License.

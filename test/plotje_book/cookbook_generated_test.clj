@@ -102,8 +102,8 @@
    :value
    (map
     (fn*
-     [p1__92683#]
-     (+ 100.0 (* 30.0 (Math/sin (* (double p1__92683#) 0.12)))))
+     [p1__98248#]
+     (+ 100.0 (* 30.0 (Math/sin (* (double p1__98248#) 0.12)))))
     (range 52))}))
 
 
@@ -468,7 +468,7 @@
 
 
 (def
- v70_l325
+ v70_l328
  (->
   top5
   (pj/lay-point :sepal-length :sepal-width {:size 5})
@@ -476,7 +476,7 @@
 
 
 (deftest
- t71_l329
+ t71_l332
  (is
   ((fn
     [v]
@@ -485,13 +485,13 @@
      (and
       (pos? (:points s))
       (some
-       (fn* [p1__92684#] (= "virginica" p1__92684#))
+       (fn* [p1__98249#] (= "virginica" p1__98249#))
        (:texts s)))))
-   v70_l325)))
+   v70_l328)))
 
 
 (def
- v73_l340
+ v73_l343
  (def
   species-share
   {:species ["setosa" "versicolor" "virginica"],
@@ -499,7 +499,7 @@
 
 
 (def
- v74_l344
+ v74_l347
  (->
   species-share
   (pj/lay-bar :species :percent {:color "#a6cee3"})
@@ -508,7 +508,7 @@
 
 
 (deftest
- t75_l349
+ t75_l352
  (is
   ((fn
     [fr]
@@ -520,14 +520,14 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__92685#] (= :text (:mark p1__92685#))))
+       (filter (fn* [p1__98250#] (= :text (:mark p1__98250#))))
        first)]
      (= :right (-> text-layer :style :align-x))))
-   v74_l344)))
+   v74_l347)))
 
 
 (def
- v77_l360
+ v77_l363
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -538,18 +538,18 @@
 
 
 (deftest
- t78_l367
+ t78_l370
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:points s)))))
-   v77_l360)))
+   v77_l363)))
 
 
 (def
- v80_l376
+ v80_l379
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -560,23 +560,23 @@
 
 
 (deftest
- t81_l383
+ t81_l386
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (= 3 (:lines s)))))
-   v80_l376)))
+   v80_l379)))
 
 
 (def
- v83_l392
+ v83_l395
  (->
   {:x (range 20),
    :y
-   (map (fn* [p1__92686#] (Math/sin (/ p1__92686# 3.0))) (range 20)),
-   :change (map (fn* [p1__92687#] (- p1__92687# 10)) (range 20))}
+   (map (fn* [p1__98251#] (Math/sin (/ p1__98251# 3.0))) (range 20)),
+   :change (map (fn* [p1__98252#] (- p1__98252# 10)) (range 20))}
   (pj/lay-point :x :y {:color :change})
   (pj/options
    {:color-scale :diverging,
@@ -585,18 +585,18 @@
 
 
 (deftest
- t84_l400
+ t84_l403
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 20 (:points s)))))
-   v83_l392)))
+   v83_l395)))
 
 
 (def
- v86_l408
+ v86_l411
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -606,18 +606,18 @@
 
 
 (deftest
- t87_l414
+ t87_l417
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 3 (:lines s)) (= 3 (:polygons s)))))
-   v86_l408)))
+   v86_l411)))
 
 
 (def
- v89_l423
+ v89_l426
  (def
   iris-sepal
   (->
@@ -627,7 +627,7 @@
 
 
 (def
- v90_l428
+ v90_l431
  (def
   iris-petal
   (->
@@ -637,21 +637,21 @@
 
 
 (def
- v91_l433
+ v91_l436
  (pj/arrange
   [iris-sepal iris-petal]
   {:title "Iris Dashboard", :cols 2}))
 
 
 (deftest
- t92_l436
+ t92_l439
  (is
   ((fn [v] (and (pj/pose? v) (= "Iris Dashboard" (-> v :opts :title))))
-   v91_l433)))
+   v91_l436)))
 
 
 (def
- v94_l443
+ v94_l446
  (def
   top-cities
   {:city ["Tokyo" "Delhi" "Shanghai" "São Paulo" "Mumbai"],
@@ -660,7 +660,7 @@
 
 
 (def
- v95_l448
+ v95_l451
  (->
   top-cities
   (pj/lay-point :area :population)
@@ -669,7 +669,7 @@
 
 
 (deftest
- t96_l453
+ t96_l456
  (is
   ((fn
     [v]
@@ -678,11 +678,11 @@
      (and
       (= 5 (:points s))
       (every? (set (:texts s)) ["Tokyo" "Delhi"]))))
-   v95_l448)))
+   v95_l451)))
 
 
 (def
- v98_l461
+ v98_l464
  (let
   [r
    (rng/rng :jdk 77)
@@ -691,8 +691,8 @@
    ys
    (map
     (fn*
-     [p1__92688#]
-     (+ (* 3 p1__92688#) 5 (* 2 (- (rng/drandom r) 0.5))))
+     [p1__98253#]
+     (+ (* 3 p1__98253#) 5 (* 2 (- (rng/drandom r) 0.5))))
     xs)]
   (->
    {:x xs, :y ys}
@@ -702,7 +702,7 @@
 
 
 (deftest
- t99_l472
+ t99_l475
  (is
   ((fn
     [v]
@@ -712,11 +712,11 @@
       (= 20 (:points s))
       (= 1 (:lines s))
       (some #{"Simulated: y = 3x + 5 + noise"} (:texts s)))))
-   v98_l461)))
+   v98_l464)))
 
 
 (def
- v101_l483
+ v101_l486
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-point :bill-length-mm :bill-depth-mm {:color :species})
@@ -724,18 +724,18 @@
 
 
 (deftest
- t102_l487
+ t102_l490
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 342 (:points s)))))
-   v101_l483)))
+   v101_l486)))
 
 
 (def
- v104_l493
+ v104_l496
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/pose :bill-length-mm :bill-depth-mm {:color :species})
@@ -745,18 +745,18 @@
 
 
 (deftest
- t105_l499
+ t105_l502
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 342 (:points s)) (= 3 (:lines s)))))
-   v104_l493)))
+   v104_l496)))
 
 
 (def
- v107_l506
+ v107_l509
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-point :bill-length-mm :bill-depth-mm {:color :species})
@@ -766,18 +766,18 @@
 
 
 (deftest
- t108_l511
+ t108_l514
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 342 (:points s)) (= 1 (:lines s)))))
-   v107_l506)))
+   v107_l509)))
 
 
 (def
- v110_l517
+ v110_l520
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:color :species})
@@ -785,18 +785,18 @@
 
 
 (deftest
- t111_l521
+ t111_l524
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v110_l517)))
+   v110_l520)))
 
 
 (def
- v113_l527
+ v113_l530
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/pose :flipper-length-mm :body-mass-g {:color :species})
@@ -806,18 +806,18 @@
 
 
 (deftest
- t114_l533
+ t114_l536
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 342 (:points s)) (= 3 (:lines s)))))
-   v113_l527)))
+   v113_l530)))
 
 
 (def
- v116_l539
+ v116_l542
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-histogram :body-mass-g {:color :species})
@@ -825,18 +825,18 @@
 
 
 (deftest
- t117_l543
+ t117_l546
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v116_l539)))
+   v116_l542)))
 
 
 (def
- v119_l551
+ v119_l554
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :total-bill :tip {:color :smoker})
@@ -849,18 +849,18 @@
 
 
 (deftest
- t120_l558
+ t120_l561
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 244 (:points s)) (= 2 (:lines s)))))
-   v119_l551)))
+   v119_l554)))
 
 
 (def
- v122_l564
+ v122_l567
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:color :time})
@@ -868,18 +868,18 @@
 
 
 (deftest
- t123_l568
+ t123_l571
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v122_l564)))
+   v122_l567)))
 
 
 (def
- v125_l574
+ v125_l577
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:position :stack, :color :time})
@@ -887,18 +887,18 @@
 
 
 (deftest
- t126_l578
+ t126_l581
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v125_l574)))
+   v125_l577)))
 
 
 (def
- v128_l584
+ v128_l587
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:color :sex})
@@ -907,18 +907,18 @@
 
 
 (deftest
- t129_l589
+ t129_l592
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v128_l584)))
+   v128_l587)))
 
 
 (def
- v131_l597
+ v131_l600
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy {:color :class})
@@ -928,18 +928,18 @@
 
 
 (deftest
- t132_l603
+ t132_l606
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 234 (:points s)) (pos? (:lines s)))))
-   v131_l597)))
+   v131_l600)))
 
 
 (def
- v134_l609
+ v134_l612
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :cty {:color :drv})
@@ -947,18 +947,18 @@
 
 
 (deftest
- t135_l613
+ t135_l616
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 234 (:points s)))))
-   v134_l609)))
+   v134_l612)))
 
 
 (def
- v137_l619
+ v137_l622
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-bar :drv)
@@ -966,18 +966,18 @@
 
 
 (deftest
- t138_l623
+ t138_l626
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v137_l619)))
+   v137_l622)))
 
 
 (def
- v140_l644
+ v140_l647
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 500)
@@ -986,12 +986,12 @@
 
 
 (deftest
- t141_l649
- (is ((fn [v] (= 500 (:points (pj/svg-summary v)))) v140_l644)))
+ t141_l652
+ (is ((fn [v] (= 500 (:points (pj/svg-summary v)))) v140_l647)))
 
 
 (def
- v143_l656
+ v143_l659
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/lay-point :carat :price {:color :cut, :alpha 0.3})
@@ -1000,14 +1000,14 @@
 
 
 (deftest
- t144_l661
+ t144_l664
  (is
   ((fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))
-   v143_l656)))
+   v143_l659)))
 
 
 (def
- v146_l668
+ v146_l671
  (let
   [path (str (java.io.File/createTempFile "plotje-diamonds" ".png"))]
   (->
@@ -1019,9 +1019,9 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__92689#] (bit-and p1__92689# 255)) (vec bs))))))
+    (mapv (fn* [p1__98254#] (bit-and p1__98254# 255)) (vec bs))))))
 
 
 (deftest
- t147_l678
- (is ((fn [bs] (= [137 80 78 71 13 10 26 10] bs)) v146_l668)))
+ t147_l681
+ (is ((fn [bs] (= [137 80 78 71 13 10 26 10] bs)) v146_l671)))

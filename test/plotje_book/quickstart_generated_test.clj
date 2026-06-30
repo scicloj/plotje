@@ -166,7 +166,7 @@
 
 
 (def
- v42_l176
+ v42_l177
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -175,18 +175,18 @@
 
 
 (deftest
- t43_l181
+ t43_l182
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 3 (:lines s)))))
-   v42_l176)))
+   v42_l177)))
 
 
 (def
- v45_l189
+ v45_l190
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :petal-length :petal-width {:color :species})
@@ -199,7 +199,7 @@
 
 
 (deftest
- t46_l196
+ t46_l197
  (is
   ((fn
     [v]
@@ -209,11 +209,11 @@
       (= 150 (:points s))
       (some #{"Iris Petals"} (:texts s))
       (some #{"Petal Length (cm)"} (:texts s)))))
-   v45_l189)))
+   v45_l190)))
 
 
 (def
- v48_l205
+ v48_l206
  (pj/arrange
   [(pj/lay-point
     (rdatasets/datasets-iris)
@@ -227,11 +227,11 @@
   {:cols 2}))
 
 
-(deftest t49_l209 (is ((fn [v] (pj/pose? v)) v48_l205)))
+(deftest t49_l210 (is ((fn [v] (pj/pose? v)) v48_l206)))
 
 
 (def
- v51_l222
+ v51_l223
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -239,12 +239,12 @@
 
 
 (deftest
- t52_l226
- (is ((fn [v] (and (vector? v) (= :svg (first v)))) v51_l222)))
+ t52_l227
+ (is ((fn [v] (and (vector? v) (= :svg (first v)))) v51_l223)))
 
 
 (def
- v54_l234
+ v54_l235
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -253,12 +253,12 @@
 
 
 (deftest
- t55_l239
- (is ((fn [v] (and (vector? v) (= :svg (first v)))) v54_l234)))
+ t55_l240
+ (is ((fn [v] (and (vector? v) (= :svg (first v)))) v54_l235)))
 
 
 (def
- v57_l245
+ v57_l246
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -266,5 +266,5 @@
 
 
 (deftest
- t58_l249
- (is ((fn [p] (and (string? p) (.endsWith p ".svg"))) v57_l245)))
+ t58_l250
+ (is ((fn [p] (and (string? p) (.endsWith p ".svg"))) v57_l246)))

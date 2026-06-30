@@ -197,7 +197,7 @@
  v30_l149
  (->
   {:product
-   (map (fn* [p1__94623#] (str "Product " p1__94623#)) (range 12)),
+   (map (fn* [p1__99639#] (str "Product " p1__99639#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -218,7 +218,7 @@
  v33_l162
  (->
   {:product
-   (map (fn* [p1__94624#] (str "Product " p1__94624#)) (range 12)),
+   (map (fn* [p1__99640#] (str "Product " p1__99640#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -236,7 +236,7 @@
   {:x (range 1 50),
    :y
    (map
-    (fn* [p1__94625#] (* 2 (Math/pow 1.1 p1__94625#)))
+    (fn* [p1__99641#] (* 2 (Math/pow 1.1 p1__99641#)))
     (range 1 50))}))
 
 
@@ -417,7 +417,7 @@
 (def
  v62_l301
  (->
-  {:bin (map (fn* [p1__94626#] (str "bin-" p1__94626#)) (range 40)),
+  {:bin (map (fn* [p1__99642#] (str "bin-" p1__99642#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -431,7 +431,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__94627#] (.startsWith p1__94627# "bin-"))
+       (fn* [p1__99643#] (.startsWith p1__99643# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v62_l301)))
@@ -575,8 +575,8 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__94628#] (= :text (:mark p1__94628#))))
-      (mapv (fn* [p1__94629#] (-> p1__94629# :style :align-x))))))
+      (filter (fn* [p1__99644#] (= :text (:mark p1__99644#))))
+      (mapv (fn* [p1__99645#] (-> p1__99645# :style :align-x))))))
    v83_l419)))
 
 
@@ -604,7 +604,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__94630#] (= :text (:mark p1__94630#))))
+       (filter (fn* [p1__99646#] (= :text (:mark p1__99646#))))
        first
        :style)]
      (and
@@ -630,12 +630,12 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__94631#] (= mark (:mark p1__94631#))))
+        (filter (fn* [p1__99647#] (= mark (:mark p1__99647#))))
         first
         :style
         ((fn*
-          [p1__94632#]
-          (select-keys p1__94632# [:align-x :align-y])))))]
+          [p1__99648#]
+          (select-keys p1__99648# [:align-x :align-y])))))]
      (and
       (=
        {:align-x :left, :align-y :center}
