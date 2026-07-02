@@ -74,6 +74,16 @@
   (testing "an ordinary line carries no stroke-dasharray"
     (is (empty? (dashed-polylines (pj/plot (-> line-data (pj/lay-line :x :y))))))))
 
+(deftest svg-summary-counts-dashed-lines
+  (testing ":dashed-lines separates a dashed line from a solid one"
+    (is (= 0 (:dashed-lines (pj/svg-summary (-> line-data (pj/lay-line :x :y))))))
+    (is (= 1 (:dashed-lines (pj/svg-summary (-> line-data (pj/lay-line :x :y {:stroke-dash :dashed})))))))
+  (testing ":dash-patterns reports the distinct patterns; presets differ"
+    (is (= #{} (:dash-patterns (pj/svg-summary (-> line-data (pj/lay-line :x :y))))))
+    (is (contains? (:dash-patterns (pj/svg-summary (-> line-data (pj/lay-line :x :y {:stroke-dash :dashed})))) "6.00 4.00"))
+    (is (contains? (:dash-patterns (pj/svg-summary (-> line-data (pj/lay-line :x :y {:stroke-dash :dotted})))) "1.00 3.00"))
+    (is (contains? (:dash-patterns (pj/svg-summary (-> line-data (pj/lay-line :x :y {:stroke-dash [12 4]})))) "12.00 4.00"))))
+
 (deftest dashed-reference-line
   (testing "a rule (reference line) honors :stroke-dash"
     (let [svg (pj/plot (-> line-data

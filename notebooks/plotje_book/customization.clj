@@ -388,15 +388,45 @@
 
 (kind/test-last [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
 
-;; `:stroke-dash` draws a line dashed or dotted, either with a named
-;; preset (`:dashed`, `:dotted`, `:solid`) or a raw `[dash gap]` pixel
-;; pattern. Useful for setting a projected or reference series apart from
-;; measured data.
+;; `:stroke-dash` draws a line dashed or dotted, so a projected or
+;; reference series reads apart from measured data. Pass a named preset
+;; or a raw `[dash gap]` pixel pattern. The `:dash-patterns` set in the
+;; summary reports the exact stroke-dasharray each form produces.
+;;
+;; `:dashed`:
 
 (-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
     (pj/lay-line :x :y {:stroke-dash :dashed}))
 
-(kind/test-last [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:dashed-lines s))
+                                (contains? (:dash-patterns s) "6.00 4.00"))))])
+
+;; `:dotted` -- a shorter dash and gap:
+
+(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+    (pj/lay-line :x :y {:stroke-dash :dotted}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:dashed-lines s))
+                                (contains? (:dash-patterns s) "1.00 3.00"))))])
+
+;; `:solid` is the default -- an unbroken line, so no dash pattern:
+
+(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+    (pj/lay-line :x :y {:stroke-dash :solid}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:lines s))
+                                (= 0 (:dashed-lines s)))))])
+
+;; A raw `[dash gap]` vector sets the pattern directly, in pixels -- here
+;; a long dash and a short gap:
+
+(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+    (pj/lay-line :x :y {:stroke-dash [12 4]}))
+
+(kind/test-last [(fn [v] (contains? (:dash-patterns (pj/svg-summary v)) "12.00 4.00"))])
 
 ;; Alpha works on bars and polygons too.
 
@@ -517,6 +547,18 @@
 ;; `geom_hline(aes(yintercept=...))`) is on the post-alpha roadmap.
 ;; Today, an annotation added once with the same intercept appears
 ;; on every panel of the faceted pose.
+;;
+;; Reference lines accept `:stroke-dash` too, so a threshold or target
+;; line can read as dashed or dotted rather than solid:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/lay-rule-v {:x-intercept 6.0 :color "gray" :stroke-dash :dashed}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 150 (:points s))
+                                (= 1 (:dashed-lines s))
+                                (contains? (:dash-patterns s) "6.00 4.00"))))])
 
 ;; ## Palettes
 ;;

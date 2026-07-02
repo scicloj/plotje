@@ -144,17 +144,22 @@
 ;; By default a density fills the area under the curve in the mapped
 ;; color. To make the curve's shape read more crisply, add an outline
 ;; with `:stroke`. The fill still comes from `:color`, and the outline
-;; traces only the top curve, not the baseline. `:stroke-width` sets its
-;; thickness.
+;; traces only the top curve, not the baseline. `:stroke-width` sets the
+;; outline thickness.
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-density :sepal-length {:color "lightblue" :stroke "black"}))
+    (pj/lay-density :sepal-length {:color "lightblue" :stroke "black" :stroke-width 2}))
+
+;; One filled polygon plus one outline line, and the render carries both
+;; the light-blue fill and the black outline color.
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 1 (:panels s))
                  (= 1 (:polygons s))
-                 (= 1 (:lines s)))))])
+                 (= 1 (:lines s))
+                 (contains? (:colors s) "rgb(173,216,230)")
+                 (contains? (:colors s) "rgb(0,0,0)"))))])
 
 ;; ## Rug
 ;;
