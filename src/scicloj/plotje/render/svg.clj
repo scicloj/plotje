@@ -496,15 +496,18 @@
 (defn svg-summary
   "Extract structural summary from SVG hiccup for testing.
    Returns a map with :width, :height, :panels, :points, :lines,
-   :polygons, :tiles, :visible-tiles, :texts, :colors, :sizes,
-   :alphas, and :shapes — useful for asserting plot structure and
-   that aesthetic mappings (color/size/alpha/shape) took effect.
+   :dashed-lines, :polygons, :tiles, :visible-tiles, :texts, :colors,
+   :sizes, :alphas, :dash-patterns, and :shapes — useful for asserting
+   plot structure and that aesthetic mappings (color/size/alpha/shape)
+   took effect.
    (svg-summary (plot pose))  — summary of rendered SVG
 
    Structure counts:
    :panels  — number of plot panels (large background rectangles)
    :points  — number of data point markers (small rounded rects)
    :lines   — number of non-grid polylines (data lines, annotations, whiskers)
+   :dashed-lines — number of polylines with a stroke-dasharray (dashed/dotted
+                   lines, dashed rules, dashed area outlines)
    :polygons — number of filled polygons (bars, histogram bins, areas, violins)
    :tiles   — number of heatmap tile rectangles (small rects without border-radius)
    :visible-tiles — tiles with positive width and height (excludes degenerate zero-extent tiles)
@@ -516,6 +519,8 @@
    :colors  — sorted set of distinct fill/stroke colors
    :sizes   — sorted set of distinct point :rx values
    :alphas  — sorted set of distinct non-default opacity values
+   :dash-patterns — sorted set of distinct stroke-dasharray strings (the
+                    dash/gap pattern, in pixels; :dashed and :dotted differ)
    :shapes  — sorted set of distinct SVG element types used by data marks
 
    Accepts an optional theme map to detect grid-colored polylines correctly
@@ -580,6 +585,13 @@
                                     tile-rects)
          ;; Lines: filter out grid-colored polylines (theme-derived)
          data-polylines (remove #(= grid-color (get (second %) :stroke)) polylines)
+         ;; Dashed strokes: any polyline carrying a stroke-dasharray
+         ;; (dashed/dotted lines, rules, and area outlines). Grid lines
+         ;; are never dashed, so no theme filtering is needed.
+         dashed-polylines (filter #(:stroke-dasharray (second %)) polylines)
+         dash-patterns (->> dashed-polylines
+                            (map #(:stroke-dasharray (second %)))
+                            (into (sorted-set)))
          ;; Aesthetic coverage: extract user-visible color/size/alpha/
          ;; shape variety across data shapes. Useful for asserting that
          ;; mapping a column to an aesthetic actually took effect (a
@@ -616,6 +628,8 @@
       :panels (count panel-rects)
       :points (count data-rects)
       :lines (count data-polylines)
+      :dashed-lines (count dashed-polylines)
+      :dash-patterns dash-patterns
       :polygons (count polygons)
       :tiles (count tile-rects)
       :visible-tiles (count visible-tile-rects)

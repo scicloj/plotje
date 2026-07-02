@@ -2650,8 +2650,8 @@
 (defn svg-summary
   "Extract structural summary from SVG hiccup for testing.
    Returns a map with `:width`, `:height`, `:panels`, `:points`, `:lines`,
-   `:polygons`, `:tiles`, `:visible-tiles`, and `:texts` -- useful for asserting
-   plot structure.
+   `:dashed-lines`, `:dash-patterns`, `:polygons`, `:tiles`, `:visible-tiles`,
+   and `:texts` -- useful for asserting plot structure.
    Accepts SVG hiccup or a pose (auto-renders to SVG first).
 
    - `(svg-summary (plot fr))` -- summary of rendered SVG.
