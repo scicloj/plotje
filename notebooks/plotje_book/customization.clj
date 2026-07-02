@@ -388,6 +388,16 @@
 
 (kind/test-last [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
 
+;; `:stroke-dash` draws a line dashed or dotted, either with a named
+;; preset (`:dashed`, `:dotted`, `:solid`) or a raw `[dash gap]` pixel
+;; pattern. Useful for setting a projected or reference series apart from
+;; measured data.
+
+(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+    (pj/lay-line :x :y {:stroke-dash :dashed}))
+
+(kind/test-last [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+
 ;; Alpha works on bars and polygons too.
 
 (-> (rdatasets/datasets-iris)

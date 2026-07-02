@@ -6,7 +6,9 @@
             [scicloj.kindly.v4.kind :as kind]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.render.membrane :as membrane]
+            [scicloj.plotje.render.dash]
             [scicloj.plotje.impl.render :as render])
+  (:import [scicloj.plotje.render.dash WithStrokeDash])
   (:import [membrane.ui Translate WithColor WithStyle WithStrokeWidth
             Path RoundedRectangle Rectangle Label Rotate ScissorView]
            [scicloj.plotje.impl.membrane PlotjeMembrane]))
@@ -50,6 +52,11 @@
   "Convert a seq of [x y] pairs to SVG points attribute string."
   [pts]
   (str/join " " (map (fn [[x y]] (str (fmt x) "," (fmt y))) pts)))
+
+(defn- dash->str
+  "Convert a `[dash gap ...]` pattern to an SVG stroke-dasharray string."
+  [dash]
+  (str/join " " (map #(fmt %) dash)))
 
 (defn- apply-style-attrs
   "Generate SVG attributes from drawing context for a shape element."
@@ -126,10 +133,20 @@
       (when (seq children)
         (into [:g] children))))
 
+  WithStrokeDash
+  (-to-svg [elem ctx]
+    (let [{:keys [dash drawables]} elem
+          ctx' (assoc ctx :dash dash)
+          children (keep #(membrane->svg % ctx') drawables)]
+      (when (seq children)
+        (into [:g] children))))
+
   Path
   (-to-svg [elem ctx]
     (let [pts (:points elem)
-          attrs (apply-style-attrs ctx)]
+          dash (:dash ctx)
+          attrs (cond-> (apply-style-attrs ctx)
+                  dash (assoc :stroke-dasharray (dash->str dash)))]
       (if (= :stroke (:style ctx))
         [:polyline (assoc attrs :points (points->str pts))]
         [:polygon (assoc attrs

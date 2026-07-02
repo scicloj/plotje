@@ -1152,7 +1152,7 @@
          ;; against every panel that shares the leaf's x/y.
          annotations (->> layer-annotations
                           (map #(-> %
-                                    (select-keys (into [:mark :color :alpha :x :y] annotation-position-keys))
+                                    (select-keys (into [:mark :color :alpha :stroke-dash :x :y] annotation-position-keys))
                                     clean-aesthetics))
                           distinct
                           vec)

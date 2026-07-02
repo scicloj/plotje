@@ -139,6 +139,23 @@
             (and (= 1 (:panels s))
                  (= 1 (:polygons s)))))])
 
+;; ## Density with Fill and Outline
+;;
+;; By default a density fills the area under the curve in the mapped
+;; color. To make the curve's shape read more crisply, add an outline
+;; with `:stroke`. The fill still comes from `:color`, and the outline
+;; traces only the top curve, not the baseline. `:stroke-width` sets its
+;; thickness.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-density :sepal-length {:color "lightblue" :stroke "black"}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:panels s))
+                 (= 1 (:polygons s))
+                 (= 1 (:lines s)))))])
+
 ;; ## Rug
 ;;
 ;; A rug shows the raw data positions as short tick marks along the

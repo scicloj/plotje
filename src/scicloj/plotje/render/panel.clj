@@ -4,6 +4,7 @@
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
+            [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.render.mark :as mark]))
 
 ;; ---- Grid Lines ----
@@ -216,13 +217,14 @@
                 y-data-scale (if flip? sx sy)
                 x-data-scale (if flip? sy sx)
                 horizontal-y-data? (not flip?)
-                draw-rule (fn [pixel color horizontal?]
-                            (ui/with-color color
-                              (ui/with-stroke-width 1.5
-                                (ui/with-style ::ui/style-stroke
-                                  (if horizontal?
-                                    (ui/path [m pixel] [(- pw m) pixel])
-                                    (ui/path [pixel m] [pixel (- ph m)]))))))
+                draw-rule (fn [pixel color horizontal? dash]
+                            (mark/maybe-dash dash
+                                             (ui/with-color color
+                                               (ui/with-stroke-width 1.5
+                                                 (ui/with-style ::ui/style-stroke
+                                                   (if horizontal?
+                                                     (ui/path [m pixel] [(- pw m) pixel])
+                                                     (ui/path [pixel m] [pixel (- ph m)])))))))
                 draw-band (fn [p1 p2 rgba horizontal?]
                             (ui/with-color rgba
                               (ui/with-style ::ui/style-fill
@@ -241,12 +243,12 @@
                                        (defaults/hex->rgba c)
                                        default-ann-color)
                                pixel (x-data-scale (:x-intercept a))]
-                           (draw-rule pixel color flip?))
+                           (draw-rule pixel color flip? (extract/resolve-dash (:stroke-dash a))))
                  :rule-h (let [color (if-let [c (:color a)]
                                        (defaults/hex->rgba c)
                                        default-ann-color)
                                pixel (y-data-scale (:y-intercept a))]
-                           (draw-rule pixel color horizontal-y-data?))
+                           (draw-rule pixel color horizontal-y-data? (extract/resolve-dash (:stroke-dash a))))
                  :band-v (let [p1 (x-data-scale (:x-min a))
                                p2 (x-data-scale (:x-max a))
                                alpha (or (:alpha a) band-alpha)

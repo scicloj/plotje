@@ -18,6 +18,24 @@
     fixed-color (if (string? fixed-color) (defaults/hex->rgba fixed-color) fixed-color)
     :else (defaults/hex->rgba (:default-color cfg))))
 
+(def dash-presets
+  "Named stroke-dash presets, resolved to a `[dash gap]` pixel pattern.
+   `:solid` means no dash (returns nil)."
+  {:solid  nil
+   :dashed [6 4]
+   :dotted [1 3]})
+
+(defn resolve-dash
+  "Resolve a `:stroke-dash` value to a `[dash gap ...]` vector or nil.
+   Accepts a named preset (`:solid`/`:dashed`/`:dotted`), a raw
+   `[dash gap ...]` vector (passed through), or nil (no dash)."
+  [stroke-dash]
+  (cond
+    (nil? stroke-dash) nil
+    (keyword? stroke-dash) (get dash-presets stroke-dash)
+    (sequential? stroke-dash) (vec stroke-dash)
+    :else nil))
+
 (defn- apply-nudge
   "Apply nudge-x/nudge-y offsets to a layer's groups.
    Nudge shifts data coordinates by a constant amount — orthogonal to
@@ -190,8 +208,10 @@
 
 (defmethod extract-layer :line [draft-layer stat all-colors cfg]
   (-> (cond-> {:mark :line
-               :style {:stroke-width (or (:fixed-size draft-layer) (:line-width cfg))
-                       :opacity (or (:fixed-alpha draft-layer) 1.0)}
+               :style (cond-> {:stroke-width (or (:fixed-size draft-layer) (:line-width cfg))
+                               :opacity (or (:fixed-alpha draft-layer) 1.0)}
+                        (resolve-dash (:stroke-dash draft-layer))
+                        (assoc :dash (resolve-dash (:stroke-dash draft-layer))))
                :groups (vec
                         (concat
                          ;; Regression lines
@@ -218,8 +238,10 @@
 
 (defmethod extract-layer :step [draft-layer stat all-colors cfg]
   {:mark :step
-   :style {:stroke-width (or (:fixed-size draft-layer) (:line-width cfg))
-           :opacity (or (:fixed-alpha draft-layer) 1.0)}
+   :style (cond-> {:stroke-width (or (:fixed-size draft-layer) (:line-width cfg))
+                   :opacity (or (:fixed-alpha draft-layer) 1.0)}
+            (resolve-dash (:stroke-dash draft-layer))
+            (assoc :dash (resolve-dash (:stroke-dash draft-layer))))
    :groups (extract-xy-groups draft-layer stat all-colors cfg)})
 
 (defmethod extract-layer :rect [draft-layer stat all-colors cfg]
@@ -328,10 +350,19 @@
       (apply-nudge draft-layer)))
 
 (defmethod extract-layer :area [draft-layer stat all-colors cfg]
-  (cond-> {:mark :area
-           :style {:opacity (or (:fixed-alpha draft-layer) 0.5)}
-           :groups (extract-xy-groups draft-layer stat all-colors cfg)}
-    (:position draft-layer) (assoc :position (:position draft-layer))))
+  (let [stroke (:stroke draft-layer)
+        dash (resolve-dash (:stroke-dash draft-layer))]
+    (cond-> {:mark :area
+             :style (cond-> {:opacity (or (:fixed-alpha draft-layer) 0.5)}
+                      ;; Optional outline on the top curve (opt-in via :stroke).
+                      stroke (assoc :stroke-color (if (string? stroke)
+                                                    (defaults/hex->rgba stroke)
+                                                    stroke)
+                                    :stroke-width (or (:stroke-width draft-layer)
+                                                      (:line-width cfg)))
+                      dash (assoc :dash dash))
+             :groups (extract-xy-groups draft-layer stat all-colors cfg)}
+      (:position draft-layer) (assoc :position (:position draft-layer)))))
 
 (defmethod extract-layer :errorbar [draft-layer stat all-colors cfg]
   (-> {:mark :errorbar

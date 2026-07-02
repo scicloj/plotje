@@ -1768,7 +1768,8 @@
   "Add `:rule-h` layer -- horizontal reference line at y = y-intercept.
    Position comes from opts (not data columns); `:y-intercept` is required.
    Accepts `:y-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
-   Instant, java.util.Date) and `:color` (literal string).
+   Instant, java.util.Date), `:color` (literal string), and `:stroke-dash`
+   (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector).
    Temporal values are converted internally to match the y-axis scale
    so date-axis annotations work without manual conversion.
    The 4-arity finds or creates a sub-pose with these x/y columns
@@ -1789,7 +1790,8 @@
   "Add `:rule-v` layer -- vertical reference line at x = x-intercept.
    Position comes from opts (not data columns); `:x-intercept` is required.
    Accepts `:x-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
-   Instant, java.util.Date) and `:color` (literal string).
+   Instant, java.util.Date), `:color` (literal string), and `:stroke-dash`
+   (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector).
    Temporal values are converted internally to match the x-axis scale
    so date-axis annotations work without manual conversion.
    The 4-arity finds or creates a sub-pose with these x/y columns
@@ -1851,7 +1853,9 @@
 (defn lay-line
   "Add `:line` layer type -- connected line through data points.
    Requires x (numerical) and y (numerical).
-   Accepts `:color`, `:alpha`, `:size` (stroke width), `:nudge-x`, `:nudge-y`."
+   Accepts `:color`, `:alpha`, `:size` (stroke width), `:stroke-dash`
+   (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector), `:nudge-x`,
+   `:nudge-y`."
   ([pose-or-data] (lay-layer-type :line pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :line pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :line pose-or-data x y-or-opts))
@@ -1859,7 +1863,7 @@
 
 (defn lay-step
   "Add `:step` layer type -- staircase line (horizontal then vertical).
-   Requires x and y (both numerical)."
+   Requires x and y (both numerical). Accepts `:stroke-dash`."
   ([pose-or-data] (lay-layer-type :step pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :step pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :step pose-or-data x y-or-opts))
@@ -1867,7 +1871,9 @@
 
 (defn lay-area
   "Add `:area` layer type -- filled region between y and the baseline.
-   Requires x and y (both numerical). Accepts `:color`, `:alpha`."
+   Requires x and y (both numerical). Accepts `:color` (fill), `:alpha`,
+   and an opt-in outline on the top curve: `:stroke` (outline color),
+   `:stroke-width`, `:stroke-dash`."
   ([pose-or-data] (lay-layer-type :area pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :area pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :area pose-or-data x y-or-opts))
@@ -1915,7 +1921,8 @@
   "Add `:smooth` layer type -- a smoothed trend line.
    Defaults to LOESS (local regression). Pass {`:stat` `:linear-model`} for
    ordinary least squares instead. Requires x and y (both numerical).
-   Accepts {`:confidence-band` true} for a confidence ribbon."
+   Accepts {`:confidence-band` true} for a confidence ribbon, and
+   `:stroke-dash`."
   ([pose-or-data] (lay-layer-type :smooth pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :smooth pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :smooth pose-or-data x y-or-opts))
@@ -1923,7 +1930,10 @@
 
 (defn lay-density
   "Add `:density` layer type -- kernel density estimate curve.
-   X-only: pass one numerical column. Accepts `:color`, `:bandwidth`."
+   X-only: pass one numerical column. Accepts `:color` (fill),
+   `:bandwidth`, and an opt-in outline on the curve: `:stroke` (outline
+   color), `:stroke-width`, `:stroke-dash` (`:dashed`/`:dotted`/`:solid`
+   or a raw `[dash gap]` vector)."
   ([pose-or-data] (lay-layer-type :density pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :density pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :density pose-or-data x y-or-opts))

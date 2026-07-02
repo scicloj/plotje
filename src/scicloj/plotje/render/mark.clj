@@ -1,6 +1,7 @@
 (ns scicloj.plotje.render.mark
   (:require [clojure.string :as str]
             [membrane.ui :as ui]
+            [scicloj.plotje.render.dash :as dash]
             [scicloj.plotje.impl.defaults :as defaults]
             [fastmath.random :as rng]
             [tech.v3.datatype :as dtype]
@@ -8,6 +9,15 @@
             [wadogo.scale :as ws]))
 
 ;; ---- Helpers ----
+
+(defn maybe-dash
+  "Wrap a stroked drawable in a stroke-dash pattern when `dash` is set
+   (a `[dash gap ...]` vector); otherwise return it unchanged. Placed
+   outside the stroke-width wrapper so both backends apply the dash."
+  [dash drawable]
+  (if dash
+    (dash/with-stroke-dash dash drawable)
+    drawable))
 
 (defn orient-scales
   "Extract oriented scales from rendering context.
@@ -343,6 +353,21 @@
 
 ;; ---- Area ----
 
+(defn- area-outline
+  "Optional stroked polyline over an area's top curve (opt-in via :stroke).
+   Strokes only the curve, not the baseline -- like ggplot outline.type
+   \"upper\" and the requested fill+outline look. Returns nil when no
+   :stroke-color is set."
+  [style top-pts]
+  (let [{:keys [stroke-color stroke-width dash]} style]
+    (when (and stroke-color (>= (count top-pts) 2))
+      (let [[sr sg sb sa] stroke-color]
+        (maybe-dash dash
+                    (ui/with-color [sr sg sb (or sa 1.0)]
+                      (ui/with-stroke-width (or stroke-width 2)
+                        (ui/with-style ::ui/style-stroke
+                          (apply ui/path top-pts)))))))))
+
 (defmethod layer->membrane :area [layer ctx]
   (let [{:keys [style groups position]} layer
         {:keys [coord-fn y-domain-min]} ctx
@@ -351,28 +376,36 @@
     (if (and (#{:stack :fill} position) (some :y0s groups))
       ;; Stacked: use pre-computed y0s from position/apply-positions
       (vec
-       (for [{:keys [color xs ys y0s]} groups]
-         (let [top-pts (map (fn [x y] (coord-fn x y)) xs ys)
-               base-pts (reverse (map (fn [x y0] (coord-fn x y0)) xs y0s))
-               all-pts (concat top-pts base-pts)
-               [cr cg cb _] color]
-           (ui/with-color [cr cg cb (or opacity 0.5)]
-             (ui/with-style ::ui/style-fill
-               (apply ui/path all-pts))))))
+       (mapcat
+        (fn [{:keys [color xs ys y0s]}]
+          (let [top-pts (map (fn [x y] (coord-fn x y)) xs ys)
+                base-pts (reverse (map (fn [x y0] (coord-fn x y0)) xs y0s))
+                all-pts (concat top-pts base-pts)
+                [cr cg cb _] color]
+            (keep identity
+                  [(ui/with-color [cr cg cb (or opacity 0.5)]
+                     (ui/with-style ::ui/style-fill
+                       (apply ui/path all-pts)))
+                   (area-outline style top-pts)])))
+        groups))
       ;; Non-stacked: each group has baseline at y-domain-min
       (vec
-       (for [{:keys [color xs ys]} groups
-             :let [sorted (sort-by first (map vector xs ys))
-                   top-pts (map (fn [[x y]] (coord-fn x y)) sorted)
-                   x-first (ffirst sorted)
-                   x-last (first (last sorted))
-                   [bx-right by-right] (coord-fn x-last baseline)
-                   [bx-left by-left] (coord-fn x-first baseline)
-                   all-pts (concat top-pts [[bx-right by-right] [bx-left by-left]])
-                   [cr cg cb _] color]]
-         (ui/with-color [cr cg cb (or opacity 0.5)]
-           (ui/with-style ::ui/style-fill
-             (apply ui/path all-pts))))))))
+       (mapcat
+        (fn [{:keys [color xs ys]}]
+          (let [sorted (sort-by first (map vector xs ys))
+                top-pts (map (fn [[x y]] (coord-fn x y)) sorted)
+                x-first (ffirst sorted)
+                x-last (first (last sorted))
+                [bx-right by-right] (coord-fn x-last baseline)
+                [bx-left by-left] (coord-fn x-first baseline)
+                all-pts (concat top-pts [[bx-right by-right] [bx-left by-left]])
+                [cr cg cb _] color]
+            (keep identity
+                  [(ui/with-color [cr cg cb (or opacity 0.5)]
+                     (ui/with-style ::ui/style-fill
+                       (apply ui/path all-pts)))
+                   (area-outline style top-pts)])))
+        groups)))))
 
 ;; ---- Errorbar ----
 
@@ -814,7 +847,7 @@
 (defmethod layer->membrane :line [layer ctx]
   (let [{:keys [style groups ribbons position]} layer
         {:keys [coord-fn]} ctx
-        {:keys [stroke-width opacity]} style
+        {:keys [stroke-width opacity dash]} style
         op (or opacity 1.0)
         ;; Render ribbons first (behind lines)
         ribbon-elems
@@ -847,17 +880,19 @@
             (let [{:keys [x1 y1 x2 y2]} group
                   [px1 py1] (coord-fn x1 y1)
                   [px2 py2] (coord-fn x2 y2)]
-              (ui/with-color [cr cg cb op]
-                (ui/with-stroke-width (or stroke-width 2)
-                  (ui/with-style ::ui/style-stroke
-                    (ui/path [px1 py1] [px2 py2])))))
+              (maybe-dash dash
+                          (ui/with-color [cr cg cb op]
+                            (ui/with-stroke-width (or stroke-width 2)
+                              (ui/with-style ::ui/style-stroke
+                                (ui/path [px1 py1] [px2 py2]))))))
             ;; Polyline (connected points)
             (let [{:keys [xs ys]} group
                   projected (sort-by first (map coord-fn xs ys))]
-              (ui/with-color [cr cg cb op]
-                (ui/with-stroke-width (or stroke-width 2)
-                  (ui/with-style ::ui/style-stroke
-                    (apply ui/path projected)))))))]
+              (maybe-dash dash
+                          (ui/with-color [cr cg cb op]
+                            (ui/with-stroke-width (or stroke-width 2)
+                              (ui/with-style ::ui/style-stroke
+                                (apply ui/path projected))))))))]
     (vec (concat ribbon-elems stack-fill-elems line-elems))))
 
 ;; ---- Step Line ----
@@ -865,7 +900,7 @@
 (defmethod layer->membrane :step [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [coord-fn]} ctx
-        {:keys [stroke-width opacity]} style
+        {:keys [stroke-width opacity dash]} style
         op (or opacity 1.0)]
     (vec
      (for [{:keys [color xs ys]} groups
@@ -886,10 +921,11 @@
                                     (recur (conj pts [px (second (last pts))] [px py])
                                            (rest remaining)))))))]]
        (when (>= (count step-pts) 2)
-         (ui/with-color [cr cg cb op]
-           (ui/with-stroke-width (or stroke-width 2)
-             (ui/with-style ::ui/style-stroke
-               (apply ui/path step-pts)))))))))
+         (maybe-dash dash
+                     (ui/with-color [cr cg cb op]
+                       (ui/with-stroke-width (or stroke-width 2)
+                         (ui/with-style ::ui/style-stroke
+                           (apply ui/path step-pts))))))))))
 
 ;; ---- Rect (categorical bars / value bars) ----
 

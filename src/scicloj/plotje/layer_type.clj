@@ -93,13 +93,13 @@
 ;; ---- Built-in layer types ----
 
 (register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :text :nudge-x :nudge-y] :doc "Scatter — individual data points."})
-(register! :line {:mark :line :stat :identity :accepts [:size :nudge-x :nudge-y] :doc "Line — connects data points in order."})
-(register! :step {:mark :step :stat :identity :accepts [:size] :doc "Step — horizontal-then-vertical connected points."})
-(register! :area {:mark :area :stat :identity :accepts [] :doc "Area — filled region under a line."})
+(register! :line {:mark :line :stat :identity :accepts [:size :stroke-dash :nudge-x :nudge-y] :doc "Line — connects data points in order."})
+(register! :step {:mark :step :stat :identity :accepts [:size :stroke-dash] :doc "Step — horizontal-then-vertical connected points."})
+(register! :area {:mark :area :stat :identity :accepts [:stroke :stroke-width :stroke-dash] :doc "Area — filled region under a line."})
 (register! :histogram {:mark :bar :stat :bin :x-only true :accepts [:normalize :bins :binwidth] :doc "Histogram — bins numerical data into bars."})
 (register! :bar {:mark :rect :accepts [:bar-width] :doc "Bar — counts categories (x only), or uses y as the bar height when a y column is given."})
-(register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :nudge-x :nudge-y] :doc "Smoothed trend line — defaults to LOESS; pass {:stat :linear-model} for OLS."})
-(register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth] :doc "Density — KDE (kernel density estimation) as filled area."})
+(register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :stroke-dash :nudge-x :nudge-y] :doc "Smoothed trend line — defaults to LOESS; pass {:stat :linear-model} for OLS."})
+(register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth :stroke :stroke-width :stroke-dash] :doc "Density — KDE (kernel density estimation) as filled area."})
 (register! :tile {:mark :tile :stat :bin2d :accepts [:fill :density-2d-grid] :doc "Tile/heatmap — 2D grid binning."})
 (register! :density-2d {:mark :tile :stat :density-2d :accepts [:density-2d-grid] :doc "2D density — kernel density estimation (KDE) smoothed heatmap."})
 (register! :contour {:mark :contour :stat :density-2d :accepts [:levels :size] :doc "Contour — iso-density contour lines."})
@@ -125,8 +125,8 @@
 (def ^:private annotation-rejects
   [:position :group :x-type :y-type :color-type])
 
-(register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept] :rejects annotation-rejects :doc "Horizontal reference line at y = y-intercept."})
-(register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept] :rejects annotation-rejects :doc "Vertical reference line at x = x-intercept."})
+(register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept :stroke-dash] :rejects annotation-rejects :doc "Horizontal reference line at y = y-intercept."})
+(register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept :stroke-dash] :rejects annotation-rejects :doc "Vertical reference line at x = x-intercept."})
 (register! :band-h {:mark :band-h :stat :identity :accepts [:y-min :y-max] :rejects annotation-rejects :doc "Horizontal shaded band between y = y-min and y = y-max."})
 (register! :band-v {:mark :band-v :stat :identity :accepts [:x-min :x-max] :rejects annotation-rejects :doc "Vertical shaded band between x = x-min and x = x-max."})
 
