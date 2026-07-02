@@ -203,9 +203,7 @@
   wave
   {:x (range 30),
    :y
-   (map
-    (fn* [p1__100448#] (Math/sin (* p1__100448# 0.3)))
-    (range 30))}))
+   (map (fn* [p1__89103#] (Math/sin (* p1__89103# 0.3))) (range 30))}))
 
 
 (def v42_l162 (-> wave (pj/lay-line :x :y)))
@@ -389,9 +387,9 @@
     :y
     (mapv
      (fn*
-      [p1__100449#]
+      [p1__89104#]
       (+
-       (Math/sin (* p1__100449# 0.2))
+       (Math/sin (* p1__89104# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1481,7 +1479,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__100450#] (bit-and p1__100450# 255)) (vec bs))))))
+    (mapv (fn* [p1__89105#] (bit-and p1__89105# 255)) (vec bs))))))
 
 
 (deftest
@@ -1502,7 +1500,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__100451#] (bit-and p1__100451# 255)) (vec bs))))))
+    (mapv (fn* [p1__89106#] (bit-and p1__89106# 255)) (vec bs))))))
 
 
 (deftest t347_l1038 (is ((fn [bs] (= [137 80 78 71] bs)) v346_l1029)))
