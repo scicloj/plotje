@@ -227,6 +227,7 @@
                         :width width :height height
                         :viewBox (str "0 0 " width " " height)
                         :role "img"
+                        :class "plotje-plot"
                         :font-family "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"}
                  title (assoc :aria-label title))]
      [:svg attrs body])))
