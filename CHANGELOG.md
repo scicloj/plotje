@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
-- add `plotje-plot` as a class on svg output - thanks, @timothypratley
+- add `plotje-plot` as a class on svg output (PR #28) - thanks, @timothypratley
 
 ## [0.5.0 - 2026-07-03]
 - `pj/lay-density` and `pj/lay-area` accept an opt-in outline on the curve: `:stroke` (outline color) with optional `:stroke-width`. The fill still comes from `:color`, so `(pj/lay-density :x {:color "lightblue" :stroke "black"})` draws a light-blue area with a black outline. The outline strokes only the top curve, not the baseline. Without `:stroke` the appearance is unchanged. (Closes #11) - thanks, @behrica
