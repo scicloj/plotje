@@ -2898,7 +2898,11 @@
                             " return types like :bufimg.")
                        {:caller "pj/save" :format opts-fmt}))))
    (let [path-str (str path)
-         fr (scicloj.plotje.api/pose pose)
+         fr (try (scicloj.plotje.api/pose pose)
+                 (catch Exception ex
+                   (throw (ex-info (str/replace (ex-message ex) "pj/pose" "pj/save")
+                                   {:caller "pj/save"}
+                                   ex))))
          _ (assert-saveable-pose! "pj/save" fr)
          fr (if (seq opts) (options fr opts) fr)
          pose-fmt (:format (:opts fr))
