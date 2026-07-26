@@ -18,10 +18,10 @@
             [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.render.svg :as svg]
             [scicloj.plotje.layer-type :as layer-type]
+            [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.string :as str]
             [tablecloth.api :as tc]
-            [scicloj.kindly.v4.api :as kindly]
             [scicloj.kindly.v4.kind :as kind]))
 
 ;; ---- Type predicates ----
@@ -2925,4 +2925,4 @@
                             (pr-str resolved-fmt) " to a file. Supported: "
                             ":svg, :png.")
                        {:format resolved-fmt :path path-str})))
-     path)))
+     (kind/image (io/file path) {:class "plotje-plot"}))))
