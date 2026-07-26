@@ -12,6 +12,7 @@
             [scicloj.plotje.impl.position :as position]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
+            [scicloj.plotje.impl.file :as pf]
             [scicloj.plotje.render.membrane :as membrane]
             [scicloj.plotje.impl.membrane :as membrane-schema]
             [scicloj.plotje.render.composite]
@@ -2925,4 +2926,4 @@
                             (pr-str resolved-fmt) " to a file. Supported: "
                             ":svg, :png.")
                        {:format resolved-fmt :path path-str})))
-     (kind/image (io/file path) {:class "plotje-plot"}))))
+     (kind/image (pf/imeta-file path) {:class "plotje-plot"}))))
