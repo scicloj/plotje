@@ -2897,7 +2897,7 @@
                             " return types like :bufimg.")
                        {:caller "pj/save" :format opts-fmt}))))
    (let [path-str (str path)
-         fr (->pose pose "pj/save")
+         fr (scicloj.plotje.api/pose pose)
          _ (assert-saveable-pose! "pj/save" fr)
          fr (if (seq opts) (options fr opts) fr)
          pose-fmt (:format (:opts fr))
