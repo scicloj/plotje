@@ -37,12 +37,13 @@
 
 ;; ## Construction
 ;;
-;; `pj/pose` is not a literal composition of the single-step transitions:
-;; where the other four shortcuts (`pj/draft`, `pj/plan`,
-;; `pj/membrane`, `pj/plot`) compose them directly, `pj/pose` adds
-;; mapping inference, positional column-arg parsing, multi-pair
-;; composite construction, and pose extend-or-promote on top of
-;; `pj/->pose`. The examples below walk each shape.
+;; `pj/pose` is not a literal composition of the single-step
+;; transitions. Its 1-arity is `(-> x pj/->pose pj/infer-mapping)` --
+;; the same lift-and-default-map the other shortcuts (`pj/draft`,
+;; `pj/plan`, `pj/membrane`, `pj/plot`, `pj/save`) apply on the way
+;; in -- but its typed arities add positional column-arg parsing,
+;; multi-pair composite construction, and pose extend-or-promote on
+;; top of `pj/->pose`. The examples below walk each shape.
 
 (kind/doc #'pj/pose)
 
@@ -66,6 +67,16 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 150 (:points s))
                                 (= 3 (:lines s)))))])
+
+;; A bare collection of scalars (numbers, strings, or keywords) is
+;; data too -- it becomes a single column named `:value`. With no
+;; chart type, a single numeric column infers a histogram:
+
+(pj/pose [1 4 1 5 6 2 3 3 3 2 4 5 1 2 3 4])
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (pos? (:polygons s)))))])
 
 (kind/doc #'pj/with-data)
 
@@ -628,6 +639,17 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 5 (:points s))))])
 
+;; `pj/plot` (and the other terminal steps `pj/save`, `pj/draft`,
+;; `pj/plan`, `pj/membrane`) also accept raw data directly, giving it
+;; a default mapping first -- no explicit `pj/pose` needed:
+
+(pj/plot {:height [150 160 170 175]
+          :weight [50 60 72 78]})
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 4 (:points s)))))])
+
 (kind/doc #'pj/options)
 
 ;; Set render options on a pose:
@@ -786,10 +808,15 @@ plan1
 
 ;; ## Pipeline
 ;;
-;; The pipeline is a composition of single-step transitions.
-;; The user-facing functions (`pj/draft`, `pj/plan`, `pj/membrane`,
-;; `pj/plot`) are literal compositions of these steps -- each one
-;; runs the chain up through its named stage.
+;; The pipeline is a composition of single-step transitions. The
+;; user-facing functions (`pj/draft`, `pj/plan`, `pj/membrane`,
+;; `pj/plot`, `pj/save`) run the chain up through their stage: each
+;; lifts raw input with `pj/->pose`, applies `pj/infer-mapping` (a
+;; default mapping when the input is a bare dataset, a no-op on a
+;; built pose), then runs the single-step transitions. So each of
+;; them accepts raw data as well as a pose. The
+;; [Architecture](./plotje_book.architecture.html) chapter shows the
+;; full composition.
 ;;
 ;; Each step is independently callable, so you can stop the
 ;; pipeline at any point to inspect the intermediate value.
@@ -824,6 +851,28 @@ plan1
 ;; step of the pipeline.
 
 (pj/pose? (pj/->pose tiny))
+
+(kind/test-last [true?])
+
+(kind/doc #'pj/infer-mapping)
+
+;; The default-mapping step the shortcuts apply right after
+;; `pj/->pose`. On a fresh leaf (data, no mapping) it maps the first
+;; 1-3 columns to `:x`, `:y`, and `:color`:
+
+(-> {:height [150 160 170] :weight [50 60 72]}
+    pj/->pose
+    pj/infer-mapping
+    :mapping)
+
+(kind/test-last [(fn [m] (= {:x :height :y :weight} m))])
+
+;; It is a no-op on a pose that already carries a mapping, so it is
+;; safe anywhere in a pipeline:
+
+(let [built (pj/lay-point tiny :x :y)]
+  (= (:mapping built)
+     (:mapping (pj/infer-mapping built))))
 
 (kind/test-last [true?])
 
