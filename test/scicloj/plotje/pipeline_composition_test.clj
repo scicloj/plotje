@@ -442,3 +442,31 @@
                (pr-str (remove boolean? ks))))
       (is (= #{false true} ks)
           "expected exactly two methods: leaf (false) and composite (true)"))))
+
+;; ============================================================
+;; Raw-data inference at user-facing terminal ops
+;; ============================================================
+;;
+;; The terminal ops (plot/save/draft/plan/membrane) lift raw data
+;; via `->pose` and then run the shared semantic-inference seam, so a
+;; bare dataset renders a sensible default instead of a blank plot.
+;; `->pose` itself stays minimal -- it produces a mapping-less leaf.
+
+(def raw-1d (tc/dataset {:v [1 2 2 3 3 3 4 4 5]}))
+
+(deftest raw-data-renders-through-terminal-ops
+  (testing "->pose stays minimal: no mapping inferred"
+    (is (empty? (:mapping (pj/->pose raw-1d)))))
+  (testing "plot on raw data renders the inferred default (one panel)"
+    (is (= 1 (:panels (pj/svg-summary (pj/plot raw-1d)))))
+    (is (= (pj/svg-summary (pj/plot raw-1d))
+           (pj/svg-summary (pj/plot (pj/pose raw-1d))))
+        "raw data equals the pj/pose-wrapped path"))
+  (testing "draft/plan/membrane on raw data produce a mapped result"
+    (is (pos? (count (pj/draft raw-1d))))
+    (is (pos? (count (:panels (pj/plan raw-1d)))))
+    (is (some? (pj/membrane raw-1d))))
+  (testing "inference is idempotent: a mapped pose is untouched"
+    (let [mapped (pj/lay-point tiny :x :y)]
+      (is (= (pj/svg-summary (pj/plot mapped))
+             (pj/svg-summary (pj/plot (pj/pose mapped))))))))

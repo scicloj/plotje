@@ -557,6 +557,42 @@
          (let [d (coerce-dataset x)]
            (prepare-pose (cond-> {:layers []} d (assoc :data d))))))))
 
+(defn- fresh-data-only-leaf?
+  "True for a lifted leaf pose carrying :data but no mapping, no
+   layers, and no sub-poses -- the exact shape `->pose` produces from
+   raw data. The semantic-inference seam fires only on this shape, so
+   it is idempotent: anything `lay-*`/`pj/pose` already built (a
+   mapping, layers, or sub-poses present) is left untouched."
+  [fr]
+  (and (pose? fr)
+       (some? (:data fr))
+       (nil? (:poses fr))
+       (empty? (:mapping fr))
+       (empty? (:layers fr))))
+
+(defn infer-mapping
+  "Infer and attach a default mapping to a pose that carries data but
+   no mapping yet -- the fresh leaf `pj/->pose` produces from raw
+   input. Position and color are taken from the first 1-3 columns
+   (1 column to `:x`, 2 columns to `:x` and `:y`, 3 columns add
+   `:color`).
+
+   A pose that already has a mapping, has layers, is composite, or
+   has 4+ columns is returned unchanged, so the step is idempotent
+   and safe to include anywhere in a pipeline. This is the step that
+   lets raw data render a sensible default: the user-facing entry
+   points (`pj/pose` 1-arity and the shortcuts `pj/draft`, `pj/plan`,
+   `pj/membrane`, `pj/plot`, `pj/save`) apply it right after
+   `pj/->pose`, while `pj/->pose` itself stays a bare structural lift.
+
+   - `(-> data pj/->pose pj/infer-mapping)` -- lift, then default map
+   - `(pj/infer-mapping built-pose)` -- no-op on an already-mapped pose"
+  [fr]
+  (if-let [m (and (fresh-data-only-leaf? fr)
+                  (try-infer-mapping (:data fr)))]
+    (assoc fr :mapping m)
+    fr))
+
 (defn pose->draft
   "Single-step transition: convert a pose into a draft. Dispatches on
    pose shape -- a leaf pose becomes a `LeafDraft` (a record carrying
@@ -1071,12 +1107,7 @@
    `pj/arrange`'s rule that its elements must be leaves."
   ([] (prepare-pose {:layers []}))
   ([x]
-   (cond
-     (pose? x) (pose-kind x)
-     :else      (do (validate-pose-input! "pj/pose" x)
-                    (let [d (coerce-dataset x)
-                          mapping (or (try-infer-mapping d) {})]
-                      (prepare-pose (pose-from-data x mapping))))))
+   (-> x (->pose "pj/pose") infer-mapping))
   ([x y]
    (when-not (pose? x) (validate-template-data! "pj/pose" x))
    (cond
@@ -2371,6 +2402,10 @@
    the pose with `pj/options` first, mirroring `pj/plan` and `pj/plot`:
    `(-> x ->pose (options opts) draft)`.
 
+   Raw data (a dataset or a bare collection of values) is given a
+   default mapping first, exactly as `pj/pose` would, so `(draft data)`
+   works without an explicit `pj/pose` call.
+
    For a leaf pose, returns a `LeafDraft` record (`:layers` is a
    vector of flat maps, one per applicable layer with merged scope;
    `:opts` carries the pose-level options that flow into the plan
@@ -2394,7 +2429,7 @@
                           "by pj/draft; pass the original pose to "
                           "pj/draft, or call pj/draft->plan on the draft.")
                      {:got :draft})))
-   (-> pose (->pose "pj/draft") pose->draft))
+   (-> pose (->pose "pj/draft") infer-mapping pose->draft))
   ([pose opts]
    (-> pose
        (->pose "pj/draft")
@@ -2514,6 +2549,10 @@
    opts into the pose with `pj/options` first:
    `(-> x ->pose (options opts) plan)`.
 
+   Raw data (a dataset or a bare collection of values) is given a
+   default mapping first, exactly as `pj/pose` would, so `(plan data)`
+   works without an explicit `pj/pose` call.
+
    For a leaf pose, returns a `Plan` record with one panel per facet
    variant. For a composite pose, returns a `CompositePlan` record
    with `:sub-plots` tying each leaf path to its rect and sub-plan,
@@ -2533,7 +2572,7 @@
                           "by pj/draft; pass the original pose to "
                           "pj/plan, or call pj/draft->plan on the draft.")
                      {:got :draft})))
-   (-> pose (->pose "pj/plan") pose->draft draft->plan))
+   (-> pose (->pose "pj/plan") infer-mapping pose->draft draft->plan))
   ([pose opts]
    (-> pose
        (->pose "pj/plan")
@@ -2562,6 +2601,10 @@
    backends Plotje wires in today: any Membrane backend can consume
    the result of `pj/membrane` via the standard Membrane protocols.
 
+   Raw data (a dataset or a bare collection of values) is given a
+   default mapping first, exactly as `pj/pose` would, so
+   `(membrane data)` works without an explicit `pj/pose` call.
+
    - `(membrane pose)`
    - `(membrane pose {:tooltip true})`"
   ([pose]
@@ -2576,7 +2619,7 @@
                           "on the draft, or pass the original pose "
                           "to pj/membrane.")
                      {:got :draft})))
-   (let [fr (->pose pose "pj/membrane")
+   (let [fr (-> pose (->pose "pj/membrane") infer-mapping)
          opts (:opts fr {})]
      (-> fr
          pose->draft
@@ -2615,6 +2658,10 @@
    title rides as `:plotje/title`. `membrane->plot` reads them from
    there.
 
+   Raw data (a dataset or a bare collection of values) is given a
+   default mapping first, exactly as `pj/pose` would, so `(plot data)`
+   renders the inferred default instead of a blank figure.
+
    - `(plot pose)`
    - `(plot pose {:width 800 :title \"My Plot\"})`
    - `(plot pose {:format :bufimg})` -- returns a BufferedImage."
@@ -2631,7 +2678,7 @@
                           "by pj/draft; pass the original pose to "
                           "pj/plot to render it end-to-end.")
                      {:got :draft})))
-   (let [fr (->pose pose "pj/plot")
+   (let [fr (-> pose (->pose "pj/plot") infer-mapping)
          opts (:opts fr {})
          fmt (or (:format opts) :svg)]
      (-> fr
@@ -2871,7 +2918,9 @@
 
    Arguments:
 
-   - `pose` -- a pose.
+   - `pose` -- a pose, or raw data (a dataset or a bare collection of
+     values), which is given a default mapping first, exactly as
+     `pj/pose` would.
    - `path` -- file path (string or `java.io.File`).
    - `opts` -- same options as plot, but `:format` accepts only `:svg`
      or `:png`.
@@ -2897,7 +2946,7 @@
                             " return types like :bufimg.")
                        {:caller "pj/save" :format opts-fmt}))))
    (let [path-str (str path)
-         fr (->pose pose "pj/save")
+         fr (-> pose (->pose "pj/save") infer-mapping)
          _ (assert-saveable-pose! "pj/save" fr)
          fr (if (seq opts) (options fr opts) fr)
          pose-fmt (:format (:opts fr))
