@@ -145,7 +145,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__82386#] (-> p1__82386# :plan :panels first))
+       (fn* [p1__90710#] (-> p1__90710# :plan :panels first))
        (:sub-plots (pj/plan marginal)))
       [d-x s-x]
       (mapv :x-domain panels)

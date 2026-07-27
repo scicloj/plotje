@@ -265,6 +265,4 @@
   (pj/save "/tmp/iris-scatter.svg")))
 
 
-(deftest
- t58_l250
- (is ((fn [p] (.exists p)) v57_l246)))
+(deftest t58_l250 (is ((fn [p] (.exists p)) v57_l246)))
