@@ -247,7 +247,7 @@
     (pj/lay-point :sepal-length :sepal-width)
     (pj/save "/tmp/iris-scatter.svg"))
 
-(kind/test-last [(fn [p] (and (string? p) (.endsWith ^String p ".svg")))])
+(kind/test-last [(fn [p] (.exists p))])
 
 ;; For PNG output, `(pj/save pose "x.png")` writes a raster image via
 ;; the Java2D backend; see the Cookbook for other export paths.

@@ -95,7 +95,7 @@
 
   (testing "save still works on a non-empty pose"
     (let [path "/tmp/_plotje_input_validation_test_ok.svg"]
-      (is (= path (pj/save (pj/lay-point tiny :x :y) path)))
+      (pj/save (pj/lay-point tiny :x :y) path)
       (is (.exists (java.io.File. path)))
       (.delete (java.io.File. path)))))
 

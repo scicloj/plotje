@@ -12,6 +12,7 @@
             [scicloj.plotje.impl.position :as position]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
+            [scicloj.plotje.impl.file :as pf]
             [scicloj.plotje.render.membrane :as membrane]
             [scicloj.plotje.impl.membrane :as membrane-schema]
             [scicloj.plotje.render.composite]
@@ -21,7 +22,6 @@
             [clojure.set :as set]
             [clojure.string :as str]
             [tablecloth.api :as tc]
-            [scicloj.kindly.v4.api :as kindly]
             [scicloj.kindly.v4.kind :as kind]))
 
 ;; ---- Type predicates ----
@@ -2940,7 +2940,12 @@
      or `:png`.
 
    Tooltip and brush interactivity are not included in saved files.
-   Returns the path.
+
+   Returns the written file as a `java.io.File` carrying `:kind/image`
+   metadata, so evaluating a `pj/save` call in a notebook also shows
+   the saved chart. The file prints as its path and compares equal to
+   a plain `java.io.File` on the same path, so `(str (pj/save ...))`
+   still gives the path string.
 
    - `(save my-pose \"plot.svg\")` -- SVG.
    - `(save my-pose \"plot.png\")` -- inferred PNG.
@@ -2988,4 +2993,4 @@
                             (pr-str resolved-fmt) " to a file. Supported: "
                             ":svg, :png.")
                        {:format resolved-fmt :path path-str})))
-     path)))
+     (kind/image (pf/imeta-file path) {:class "plotje-plot"}))))
