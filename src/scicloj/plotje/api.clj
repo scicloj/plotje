@@ -12,16 +12,17 @@
             [scicloj.plotje.impl.position :as position]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
+            [scicloj.plotje.impl.file :as pf]
             [scicloj.plotje.render.membrane :as membrane]
             [scicloj.plotje.impl.membrane :as membrane-schema]
             [scicloj.plotje.render.composite]
             [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.render.svg :as svg]
             [scicloj.plotje.layer-type :as layer-type]
+            [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.string :as str]
             [tablecloth.api :as tc]
-            [scicloj.kindly.v4.api :as kindly]
             [scicloj.kindly.v4.kind :as kind]))
 
 ;; ---- Type predicates ----
@@ -2897,7 +2898,11 @@
                             " return types like :bufimg.")
                        {:caller "pj/save" :format opts-fmt}))))
    (let [path-str (str path)
-         fr (->pose pose "pj/save")
+         fr (try (scicloj.plotje.api/pose pose)
+                 (catch Exception ex
+                   (throw (ex-info (str/replace (ex-message ex) "pj/pose" "pj/save")
+                                   {:caller "pj/save"}
+                                   ex))))
          _ (assert-saveable-pose! "pj/save" fr)
          fr (if (seq opts) (options fr opts) fr)
          pose-fmt (:format (:opts fr))
@@ -2925,4 +2930,4 @@
                             (pr-str resolved-fmt) " to a file. Supported: "
                             ":svg, :png.")
                        {:format resolved-fmt :path path-str})))
-     path)))
+     (kind/image (pf/imeta-file path) {:class "plotje-plot"}))))

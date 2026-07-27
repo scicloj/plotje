@@ -267,4 +267,4 @@
 
 (deftest
  t58_l250
- (is ((fn [p] (and (string? p) (.endsWith p ".svg"))) v57_l246)))
+ (is ((fn [p] (.exists p)) v57_l246)))
