@@ -142,8 +142,11 @@ graph LR
 ;;
 ;; Lift raw data (or a pose) to a pose. Polymorphic on input: a
 ;; dataset becomes a leaf pose with `:data` set; an existing pose
-;; flows through unchanged (idempotent). This is what lets every
-;; downstream function accept either raw data or a pose.
+;; flows through unchanged (idempotent). This is the structural lift
+;; that lets every downstream function accept either raw data or a
+;; pose. It stops there -- it sets no mapping. The default mapping
+;; that makes a bare dataset actually render is added separately by
+;; `pj/infer-mapping` (see "Where Inference Happens" below).
 ;;
 ;; The example traced through every stage is iris petal
 ;; measurements, with a scatter and per-species regression line.
@@ -296,10 +299,12 @@ trace-pose
                                 (= 150 (:points s))
                                 (= 3 (:lines s)))))])
 
-;; ## Pipeline Shortcuts: pj/pose, pj/draft, pj/plan, pj/membrane, pj/plot
+;; ## Pipeline Shortcuts: pj/pose, pj/draft, pj/plan, pj/membrane, pj/plot, pj/save
 ;;
 ;; Each pipeline stage has a user-facing convenience that runs the
-;; chain from raw input up through that stage:
+;; chain from raw input up through that stage; `pj/save` is the
+;; file-output sibling that runs the chain all the way and writes the
+;; result to disk:
 ;;
 ;; - **pj/pose** -- not a literal composition. Beyond `pj/->pose`,
 ;;   it infers mappings from 1-3 column datasets, parses positional
@@ -311,6 +316,7 @@ trace-pose
 ;; - **pj/plan** -- raw input -> plan.
 ;; - **pj/membrane** -- raw input -> membrane tree.
 ;; - **pj/plot** -- raw input -> rendered figure.
+;; - **pj/save** -- raw input -> file on disk (renders, then writes).
 ;;
 ;; Each shortcut starts from raw input and stops at a different
 ;; stage along the same chain. The solid line is the stage-to-stage
@@ -334,16 +340,29 @@ graph LR
   style F fill:#fce4ec
 ")
 
-;; The four stage-after-pose shortcuts (`pj/draft`, `pj/plan`,
-;; `pj/membrane`, `pj/plot`) are literal compositions of these
-;; steps. Their source shows the pipeline directly:
+;; The shortcuts are near-literal compositions of these steps: each
+;; lifts raw input with `pj/->pose`, applies the shared
+;; `pj/infer-mapping` step (which gives a bare dataset a default
+;; mapping and is a no-op once a pose already has one), and runs the
+;; chain up to its stage. Their source shows the pipeline directly.
+;; Two things are simplified below for clarity: the `pj/->pose`
+;; caller-name argument -- which only tunes error messages -- is
+;; elided, and `pj/pose` is shown at its 1-arity (its typed arities
+;; also parse positional column arguments and build composites).
 ;;
 ;; Pseudocode:
 ;; ```clojure
+;; (defn pose         ; 1-arity; typed arities also parse positional
+;;   ([x]             ; column arguments and build composites
+;;    (-> x
+;;        ->pose
+;;        infer-mapping)))
+;;
 ;; (defn draft
 ;;   ([x]
 ;;    (-> x
 ;;        ->pose
+;;        infer-mapping
 ;;        pose->draft))
 ;;   ([x opts]
 ;;    (-> x
@@ -355,6 +374,7 @@ graph LR
 ;;   ([x]
 ;;    (-> x
 ;;        ->pose
+;;        infer-mapping
 ;;        pose->draft
 ;;        draft->plan))
 ;;   ([x opts]
@@ -365,7 +385,9 @@ graph LR
 ;;
 ;; (defn membrane
 ;;   ([x]
-;;    (let [pose (->pose x)
+;;    (let [pose (-> x
+;;                   ->pose
+;;                   infer-mapping)
 ;;          opts (:opts pose {})]
 ;;      (-> pose
 ;;          pose->draft
@@ -379,7 +401,9 @@ graph LR
 ;;
 ;; (defn plot
 ;;   ([x]
-;;    (let [pose (->pose x)
+;;    (let [pose (-> x
+;;                   ->pose
+;;                   infer-mapping)
 ;;          opts (:opts pose {})
 ;;          fmt  (or (:format opts) :svg)]
 ;;      (-> pose
@@ -392,6 +416,18 @@ graph LR
 ;;        ->pose
 ;;        (options opts)
 ;;        plot)))
+;;
+;; (defn save
+;;   ([x path] (save x path nil))
+;;   ([x path opts]
+;;    (let [pose (-> x
+;;                   ->pose
+;;                   infer-mapping)
+;;          pose (if opts (options pose opts) pose)
+;;          fmt  (resolve-format pose path)]  ; :format opt, else path extension
+;;      ;; render the plan to fmt bytes and write them to path
+;;      (write-file path (plan->plot (plan pose) fmt (:opts pose)))
+;;      path)))
 ;; ```
 ;;
 ;; In `plot`, the `let` binds `pose`, `opts`, and `fmt` for use in
@@ -400,6 +436,12 @@ graph LR
 ;; in order. The plan-derived dimensions and title are attached to
 ;; the membrane tree as metadata, so `membrane->plot` can read them
 ;; without the plan.
+;;
+;; `pj/save` is the file-output sibling: it lifts and infers the same
+;; way, resolves the file format (from a `:format` option or the path
+;; extension), renders the plan to those bytes, and writes them to
+;; disk, returning the path. `resolve-format` and `write-file` above
+;; stand in for that format-resolution and file-writing detail.
 ;;
 ;; The 2-arity of each function folds the options map into the pose
 ;; using `pj/options` before recursing into the 1-arity.
@@ -470,11 +512,18 @@ graph LR
 
 ;; Where each kind of inference lives:
 ;;
-;; - **Mapping inference** lives in `pj/pose` (1-arity on raw data)
-;;   and in `pj/lay-*` (1-arity on raw data) -- not in `pj/->pose`,
-;;   which only lifts the data into a bare leaf pose. With 1-3
-;;   columns, position is auto-mapped: 1 column to `:x`, 2 columns
-;;   to `:x` and `:y`, 3 columns add `:color`.
+;; - **Mapping inference** fills in a position/color mapping from the
+;;   first 1-3 columns: 1 column to `:x`, 2 columns to `:x` and `:y`,
+;;   3 columns add `:color`. It runs at the user-facing entry points
+;;   that accept raw data -- `pj/pose` (1-arity) and the shortcuts
+;;   `pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot`, and `pj/save`,
+;;   which all apply the shared public step `pj/infer-mapping` (a
+;;   no-op once a pose has a mapping). `pj/lay-*` (1-arity) infers the
+;;   same way but throws on 4+ columns rather than falling through.
+;;   Inference never lives in `pj/->pose`, which only lifts data into
+;;   a bare mapping-less leaf -- so `pj/infer-mapping` is a public step
+;;   you can drop into a hand-built pipeline, and raw data handed to a
+;;   shortcut renders the same default as `pj/pose` would.
 ;; - **Layer-type inference** lives in `pj/draft->plan`. A pose
 ;;   without an explicit `pj/lay-*` call drafts to a layer with no
 ;;   `:mark` set; the plan stage detects the missing mark, looks
