@@ -518,6 +518,25 @@
   (testing "vectors of row-maps are not flagged as hiccup"
     (is (pj/pose? (pj/pose [{:a 1 :b 2} {:a 3 :b 4}])))))
 
+(deftest bare-scalar-column-input
+  ;; A bare list of scalars becomes a single :value column (D4). The
+  ;; hiccup guard is narrowed so an all-keyword vector reads as data,
+  ;; not as rendered hiccup.
+  (testing "vector of numbers -> single :value column"
+    (is (= [:value] (tc/column-names (:data (pj/pose [1 4 1 5 6]))))))
+
+  (testing "vector of strings -> single :value column"
+    (is (= [:value] (tc/column-names (:data (pj/pose ["a" "b" "a"]))))))
+
+  (testing "vector of keywords -> single :value column (not hiccup)"
+    (is (= [:value] (tc/column-names (:data (pj/pose [:a :b :c :a]))))))
+
+  (testing "keyword-headed vector with non-keyword elements is still hiccup"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"rendered hiccup vector"
+         (pj/pose [:svg {:width 100} [:g]])))))
+
 (deftest empty-collection-data-throws
   (testing "(pj/pose []) throws with empty-collection guidance"
     (is (thrown-with-msg?

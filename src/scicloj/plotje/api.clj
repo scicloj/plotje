@@ -387,14 +387,28 @@
 
 ;; ---- API ----
 
+(defn- value-column-seq?
+  "True for a non-empty sequential whose first element is a bare
+   scalar (not a map, not itself sequential) -- e.g. `[1 4 1 5 6]`,
+   `[\"a\" \"b\"]`, `[:a :b :c]`. Such a collection represents a single
+   column of values, coerced to a one-column dataset named :value.
+   A sequence of row-maps or of pairs stays on the tc/dataset path."
+  [d]
+  (and (sequential? d)
+       (seq d)
+       (not (map? (first d)))
+       (not (sequential? (first d)))))
+
 (defn- coerce-dataset
   "Coerce data to a tablecloth dataset. Returns nil for nil; throws
    on non-collection scalars (numbers, strings, keywords) since
-   tc/dataset would silently wrap them in a 1-row garbage frame."
+   tc/dataset would silently wrap them in a 1-row garbage frame.
+   A bare list of scalars becomes a single :value column."
   [d]
   (cond
     (nil? d)         nil
     (tc/dataset? d)  d
+    (value-column-seq? d) (tc/dataset {:value (vec d)})
     (or (map? d) (sequential? d)) (tc/dataset d)
     :else            (throw (ex-info
                              (str "Cannot use " (pr-str (type d))
@@ -424,7 +438,7 @@
                  " an empty pose.")
             {:caller caller :value nil}))
 
-    (and (vector? x) (keyword? (first x)))
+    (and (vector? x) (keyword? (first x)) (not (every? keyword? x)))
     (throw (ex-info
             (str caller " expects a pose, but got what looks like a "
                  "rendered hiccup vector (head: " (pr-str (first x))
