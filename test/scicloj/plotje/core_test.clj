@@ -1645,7 +1645,18 @@
         (is (= 1 (count (:shapes s-default)))
             "default plot uses a single primitive type")
         (is (> (count (:shapes s-mapped)) 1)
-            "mapping :shape :g (3 categories) must produce multiple primitive types")))))
+            "mapping :shape :g (3 categories) must produce multiple primitive types")))
+
+    (testing "every marker is counted when :shape is mapped"
+      ;; A :square marker draws as a rounded rect of radius 0. Requiring a
+      ;; positive rx to count a point dropped all 20 squares from the
+      ;; summary: they failed that test and the nil-rx test for tiles, so
+      ;; they landed in no bucket and 60 rows summarized as 40 marks.
+      (let [s (pj/svg-summary (-> iris-ds (pj/lay-point :x :y {:shape :g})))]
+        (is (= 60 (+ (:points s) (:polygons s)))
+            "circles and squares count as :points, triangles as :polygons")
+        (is (zero? (:tiles s))
+            "square markers must not be mistaken for heatmap tiles")))))
 
 (deftest alpha-on-marks-test
   ;; persona-16 H4 + H7. Closes P11-R2 F1, F2.

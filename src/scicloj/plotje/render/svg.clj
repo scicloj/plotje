@@ -505,7 +505,10 @@
 
    Structure counts:
    :panels  — number of plot panels (large background rectangles)
-   :points  — number of data point markers (small rounded rects)
+   :points  — number of data point markers drawn as small rounded rects:
+              circle and `:square` shape symbols. The `:triangle` and
+              `:diamond` symbols draw as paths and count under :polygons,
+              so a shape-mapped scatter splits across the two counts
    :lines   — number of non-grid polylines (data lines, annotations, whiskers)
    :dashed-lines — number of polylines with a stroke-dasharray (dashed/dotted
                    lines, dashed rules, dashed area outlines)
@@ -518,7 +521,9 @@
    Aesthetic-coverage sets (extracted across data shapes only;
    theme/legend/axis chrome is excluded):
    :colors  — sorted set of distinct fill/stroke colors
-   :sizes   — sorted set of distinct point :rx values
+   :sizes   — sorted set of distinct positive point :rx values. A `:square`
+              marker draws with an :rx of 0 whatever its size, so squares
+              are counted in :points but contribute nothing here
    :alphas  — sorted set of distinct non-default opacity values
    :dash-patterns — sorted set of distinct stroke-dasharray strings (the
                     dash/gap pattern, in pixels; :dashed and :dotted differ)
@@ -559,7 +564,14 @@
                                      (= bg-color (:fill a))))
                              rects)
          panel-set (set panel-rects)
-         ;; Points: rects with rx > 0, excluding legend swatches (known size)
+         ;; Points: rects carrying an rx, excluding legend swatches (known
+         ;; size). Point markers render as rounded rectangles, which always
+         ;; emit an rx -- a circle's rx is its radius, a :square marker's rx
+         ;; is 0. Tiles and panels render as plain rectangles and carry no
+         ;; rx at all, so the presence of the attribute (not its sign) is
+         ;; what separates a point from a tile. Testing pos? here dropped
+         ;; every square marker from the summary: it failed this filter and
+         ;; the nil? test in tile-rects below, landing in no bucket.
          legend-rects (filter #(let [a (second %)]
                                  (and (= sw (double (or (:width a) 0)))
                                       (= sw (double (or (:height a) 0)))))
@@ -567,9 +579,7 @@
          legend-set (set legend-rects)
          data-rects (filter #(let [a (second %)]
                                (and (not (legend-set %))
-                                    (some? (:rx a))
-                                    (number? (:rx a))
-                                    (pos? (double (:rx a)))))
+                                    (number? (:rx a))))
                             rects)
          ;; Tiles: rects without rx that are not panels or legend swatches
          tile-rects (filter #(let [a (second %)]

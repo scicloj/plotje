@@ -650,8 +650,10 @@ two-panel
 (kind/test-last
  [(fn [v]
     (let [layer (-> v pj/plan :panels first :layers first)
-          shape-values (set (mapcat :shapes (:groups layer)))]
-      (= 3 (count shape-values))))])
+          shape-values (set (mapcat :shapes (:groups layer)))
+          s (pj/svg-summary v)]
+      (and (= 3 (count shape-values))
+           (= 150 (+ (:points s) (:polygons s))))))])
 
 ;; The `:group` aesthetic creates groups without changing colors:
 
