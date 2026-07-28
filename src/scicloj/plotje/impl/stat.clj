@@ -673,25 +673,34 @@
 ;; ---- KDE (kernel density estimation) ----
 
 (defn- fit-kde
-  "Compute KDE for a numeric column across the values it holds, so the
-   curve ends where the data ends. Returns {:xs [...] :ys [...]}.
+  "Compute KDE for a numeric column. Returns {:xs [...] :ys [...]}.
 
    A density estimate is defined everywhere, so drawing one means picking
-   an interval to evaluate it on. Evaluating past the data and letting
-   the panel clip the surplus is not the same thing: the clipped curve
-   reaches the panel edge and so reads as a distribution continuing out
-   of view, and most of its grid points land where nothing is drawn.
-   ggplot2 offers the choice as `trim`; see the backlog entry."
-  [col n-grid bandwidth]
-  (let [xs (double-array col)
-        kd (if bandwidth
-             (kernel/kernel-density :gaussian xs bandwidth)
-             (kernel/kernel-density :gaussian xs))
-        [lo hi] (numeric-extent col)
-        step (if (<= n-grid 1) 0.0 (/ (- (double hi) (double lo)) (double (dec n-grid))))
-        grid-xs (dfn/+ (double lo) (dfn/* step (range n-grid)))
-        grid-ys (dtype/emap kd :float64 grid-xs)]
-    {:xs grid-xs :ys grid-ys}))
+   an interval to evaluate it on. By default that is the column's own
+   extent, so the curve ends where the data ends. Two overrides, both
+   mirroring what `trim` selects in ggplot2:
+
+   - `:interval` evaluates over an explicit `[lo hi]` instead -- a
+     density layer passes the whole layer's range so every group spans
+     the same axis, which is `geom_density`'s default.
+   - `:pad-bandwidths` extends the interval by that many bandwidths on
+     each side, letting the tails fall away -- `geom_violin(trim =
+     FALSE)` uses 3. Padding is expressed in bandwidths, not in a
+     fraction of the data span, because it is the smoothing that decides
+     how far a tail reaches."
+  ([col n-grid bandwidth] (fit-kde col n-grid bandwidth nil))
+  ([col n-grid bandwidth {:keys [interval pad-bandwidths]}]
+   (let [xs (double-array col)
+         info (kernel/kernel-density :gaussian xs bandwidth true)
+         kd (:kde info)
+         pad (* (double (or pad-bandwidths 0)) (double (:h info)))
+         [lo0 hi0] (or interval (numeric-extent col))
+         lo (- (double lo0) pad)
+         hi (+ (double hi0) pad)
+         step (if (<= n-grid 1) 0.0 (/ (- hi lo) (double (dec n-grid))))
+         grid-xs (dfn/+ lo (dfn/* step (range n-grid)))
+         grid-ys (dtype/emap kd :float64 grid-xs)]
+     {:xs grid-xs :ys grid-ys})))
 
 (defmethod compute-stat :density [draft-layer]
   (validate-numeric-column draft-layer :x :kde)
@@ -699,26 +708,37 @@
         clean (tc/drop-missing data [x])
         n (tc/row-count clean)
         n-grid (or (:kde-n-grid (or cfg defaults/defaults)) 100)
-        bandwidth (:kde-bandwidth (or cfg defaults/defaults))]
+        bandwidth (:kde-bandwidth (or cfg defaults/defaults))
+        ;; Untrimmed by default, matching ggplot2's geom_density: every
+        ;; group is estimated across the whole layer's values, so grouped
+        ;; curves share one interval and each falls away to nothing
+        ;; instead of being cut off at its own group's extremes. `:trim
+        ;; true` estimates each group over its own values, which ends the
+        ;; curves abruptly but shows where each group's data lies.
+        trim? (get draft-layer :trim false)]
     (if (or (< n 2)
             (near-constant? (clean x)))
       {:points []
        :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
        :y-domain [0 1]}
-      (let [curves (group-by-columns
+      (let [layer-interval (numeric-extent (clean x))
+            curves (group-by-columns
                     clean (or group [])
                     (fn [ds gv]
                       (when (>= (tc/row-count ds) 2)
-                        (cond-> (fit-kde (ds x) n-grid bandwidth)
+                        (cond-> (fit-kde (ds x) n-grid bandwidth
+                                         (when-not trim? {:interval layer-interval}))
                           (some? gv) (assoc :color gv)))))
             curves (remove nil? curves)
             ys-bufs (seq (map :ys curves))
             y-max (if ys-bufs (dfn/reduce-max (dtype/concat-buffers ys-bufs)) 1)
             xs-bufs (seq (map :xs curves))
             ;; The curve is estimated over exactly the interval the axis
-            ;; reports, so the reported domain is the curve's own extent --
-            ;; the observed range, which is why the curve ends where the
-            ;; data ends instead of running off the panel.
+            ;; reports, so the reported domain is the curve's own extent.
+            ;; Either way that comes to the observed range -- untrimmed
+            ;; every group already spans it, trimmed the per-group extents
+            ;; union to it -- which is why the curve ends where the data
+            ;; ends instead of running off the panel.
             curve-domain (when xs-bufs
                            (let [all-xs (dtype/concat-buffers xs-bufs)]
                              [(dfn/reduce-min all-xs) (dfn/reduce-max all-xs)]))]
@@ -858,16 +878,25 @@
   (let [{:keys [cfg]} draft-layer
         n-grid (or (:kde-n-grid (or cfg defaults/defaults)) 80)
         bandwidth (:kde-bandwidth (or cfg defaults/defaults))
+        ;; Trimmed by default, matching ggplot2's geom_violin: each body
+        ;; ends at its category's values rather than tapering into a long
+        ;; needle past them. `:trim false` lets the tails fall away by
+        ;; three bandwidths on each side, which is what geom_violin does
+        ;; when untrimmed -- note this differs from an untrimmed density,
+        ;; where ggplot2 widens to the whole scale instead.
+        trim? (get draft-layer :trim true)
         result (per-category-stat draft-layer 2
                                   (fn [y-col cat cc]
-                                    (let [kde (fit-kde y-col n-grid bandwidth)]
+                                    (let [kde (fit-kde y-col n-grid bandwidth
+                                                       (when-not trim? {:pad-bandwidths 3}))]
                                       (cond-> {:category cat
                                                :ys (:xs kde) :densities (:ys kde)}
                                         cc (assoc :color cc)))))
-        ;; Cover the estimated curves on the numeric axis. Each category's
-        ;; curve spans that category's own values, so this comes to the
-        ;; overall data range. Which axis is numeric depends on
-        ;; orientation: y for vertical, x for horizontal.
+        ;; Cover the estimated curves on the numeric axis. Trimmed, each
+        ;; category's curve spans that category's own values, so this comes
+        ;; to the overall data range; untrimmed it widens by the padded
+        ;; tails. Which axis is numeric depends on orientation: y for
+        ;; vertical, x for horizontal.
         flipped? (and (= (:y-type draft-layer) :categorical)
                       (not= (:x-type draft-layer) :categorical))
         kde-nums-bufs (seq (map :ys (:items result)))

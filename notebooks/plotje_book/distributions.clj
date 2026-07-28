@@ -133,9 +133,27 @@
     (pj/lay-density :sepal-length {:color :species}))
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                per-group (mapv (fn [g] [(apply min (:xs g)) (apply max (:xs g))])
+                                (-> v pj/plan :panels first :layers first :groups))]
             (and (= 1 (:panels s))
                  (= 3 (:polygons s))
+                 (= [4.12 8.08] (-> v pj/plan :panels first :x-domain))
+                 (= [[4.3 7.9] [4.3 7.9] [4.3 7.9]] per-group))))])
+
+;; Each curve is estimated across every species' values, not just its
+;; own, so all three share one interval and each falls away to nothing at
+;; both ends. Pass `{:trim true}` to estimate each species over its own
+;; values instead. That shows where each group's data actually lies, at
+;; the cost of cutting each curve off at its extremes.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-density :sepal-length {:color :species :trim true}))
+
+(kind/test-last
+ [(fn [v] (let [per-group (mapv (fn [g] [(apply min (:xs g)) (apply max (:xs g))])
+                                (-> v pj/plan :panels first :layers first :groups))]
+            (and (= [[4.3 5.8] [4.9 7.0] [4.9 7.9]] per-group)
                  (= [4.12 8.08] (-> v pj/plan :panels first :x-domain)))))])
 
 ;; ## Density with Custom Bandwidth
@@ -309,9 +327,21 @@
     (pj/lay-violin :day :total-bill))
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                bodies (-> v pj/plan :panels first :layers first :violins)
+                col (:total-bill (rdatasets/reshape2-tips))
+                lo (apply min col)
+                hi (apply max col)]
             (and (= 1 (:panels s))
-                 (= 4 (:polygons s)))))])
+                 (= 4 (:polygons s))
+                 (every? (fn [b] (and (>= (apply min (:ys b)) lo)
+                                      (<= (apply max (:ys b)) hi)))
+                         bodies))))])
+
+;; A violin takes the opposite default to a density: each body is
+;; estimated over its own category's values, so it ends where that day's
+;; bills end rather than tapering past them. Pass `{:trim false}` to let
+;; the tails fall away instead.
 
 ;; ## Grouped Violin
 ;;

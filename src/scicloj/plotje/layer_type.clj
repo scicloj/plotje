@@ -40,6 +40,7 @@
    :confidence-band "true to show a standard-error confidence ribbon around the fitted line"
    :bootstrap-resamples "Number of bootstrap resamples for a LOESS confidence ribbon (default 200)"
    :bandwidth "Smoothing bandwidth for density and LOESS methods"
+   :trim "Whether a density curve is estimated only over its own group's values. Density defaults to false (every group spans the whole layer's range); violin and ridgeline default to true (each body ends at its category's values)"
    :normalize "Histogram normalization — :density (area integrates to 1) or nil"
    :levels "Number of contour iso-levels (default 5)"
    :fill "Column keyword for tile fill values (pre-computed heatmap)"
@@ -99,13 +100,13 @@
 (register! :histogram {:mark :bar :stat :bin :x-only true :accepts [:normalize :bins :binwidth] :doc "Histogram — bins numerical data into bars."})
 (register! :bar {:mark :rect :accepts [:bar-width] :doc "Bar — counts categories (x only), or uses y as the bar height when a y column is given."})
 (register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :stroke-dash :nudge-x :nudge-y] :doc "Smoothed trend line — defaults to LOESS; pass {:stat :linear-model} for OLS."})
-(register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth :stroke :stroke-width :stroke-dash] :doc "Density — KDE (kernel density estimation) as filled area."})
+(register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth :trim :stroke :stroke-width :stroke-dash] :doc "Density — KDE (kernel density estimation) as filled area."})
 (register! :tile {:mark :tile :stat :bin2d :accepts [:fill :density-2d-grid] :doc "Tile/heatmap — 2D grid binning."})
 (register! :density-2d {:mark :tile :stat :density-2d :accepts [:density-2d-grid] :doc "2D density — kernel density estimation (KDE) smoothed heatmap."})
 (register! :contour {:mark :contour :stat :density-2d :accepts [:levels :size] :doc "Contour — iso-density contour lines."})
 (register! :boxplot {:mark :boxplot :stat :boxplot :accepts [:size :box-width] :doc "Boxplot — median, quartiles, whiskers, outliers."})
-(register! :violin {:mark :violin :stat :violin :accepts [:bandwidth :size] :doc "Violin — mirrored density curve per category."})
-(register! :ridgeline {:mark :ridgeline :stat :violin :accepts [:bandwidth] :doc "Ridgeline — stacked density curves per category."})
+(register! :violin {:mark :violin :stat :violin :accepts [:bandwidth :trim :size] :doc "Violin — mirrored density curve per category."})
+(register! :ridgeline {:mark :ridgeline :stat :violin :accepts [:bandwidth :trim] :doc "Ridgeline — stacked density curves per category."})
 (register! :summary {:mark :pointrange :stat :summary :accepts [:size] :doc "Summary — mean ± standard error per category."})
 (register! :errorbar {:mark :errorbar :stat :identity :accepts [:y-min :y-max :size :cap-width :nudge-x :nudge-y] :doc "Errorbar — vertical error bars."})
 (register! :lollipop {:mark :lollipop :stat :identity :accepts [:size] :doc "Lollipop — stem with dot."})
