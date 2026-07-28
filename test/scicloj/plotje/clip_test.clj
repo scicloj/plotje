@@ -75,3 +75,40 @@
       (is (seq red-ys) "the red line should be visible in the bottom panel")
       (is (every? #(>= % half) red-ys)
           "no red pixel may appear in the top panel's region"))))
+
+;; A filled area blends with the panel behind it, so the fill lands well
+;; short of pure red. Match a reddish pixel instead of a saturated one.
+(defn- reddish-pixel? [^java.awt.image.BufferedImage img x y]
+  (let [c (Color. (.getRGB img x y))]
+    (and (> (.getRed c) 200) (< (.getGreen c) 180) (< (.getBlue c) 180))))
+
+(defn- panel-bg-pixel? [^java.awt.image.BufferedImage img x y]
+  (= (Color. 232 232 232) (Color. (.getRGB img x y))))
+
+(deftest density-under-a-narrow-domain-stays-in-the-panel
+  (testing "a density fill does not paint over the y-axis tick labels"
+    ;; Reported as https://github.com/scicloj/plotje/issues/24: with a
+    ;; user :domain the density curve, which is estimated well past the
+    ;; data, ran outside the panel and over the axis labels beside it.
+    ;; The curve must still be drawn (it is only masked, not filtered),
+    ;; but no part of it may sit left of the panel.
+    (let [pose (-> {:v (vec (mapcat (fn [i] (repeat 10 (double i))) (range 1 20)))}
+                   (pj/lay-density :v {:color "red"})
+                   (pj/scale :x {:domain [8 12]}))
+          ^java.awt.image.BufferedImage img (pj/plot pose {:format :bufimg})
+          w (.getWidth img)
+          h (.getHeight img)
+          red-xs (for [x (range w) y (range h)
+                       :when (reddish-pixel? img x y)]
+                   x)
+          panel-left (first (for [x (range w) y (range h)
+                                  :when (panel-bg-pixel? img x y)]
+                              x))]
+      (is (seq red-xs) "the density fill should be visible")
+      (is (some? panel-left) "the panel background should be visible")
+      ;; Both edges are anti-aliased, so the first pixel of pure panel
+      ;; colour sits a column inside the true edge. The regression this
+      ;; guards spilled tens of pixels into the margin, so a one-pixel
+      ;; allowance costs nothing.
+      (is (>= (apply min red-xs) (dec (long panel-left)))
+          "no fill pixel may appear left of the panel"))))
