@@ -71,9 +71,16 @@
     (pj/lay-histogram :sepal-length {:normalize :density :alpha 0.5})
     pj/lay-density)
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               domain #(-> % pj/plan :panels first :x-domain)]
                            (and (= 1 (:panels s))
-                                (pos? (:polygons s)))))])
+                                (= 10 (:polygons s))
+                                (= [4.12 8.08] (domain v))
+                                (= (domain v)
+                                   (domain (-> (rdatasets/datasets-iris)
+                                               (pj/lay-histogram
+                                                :sepal-length
+                                                {:normalize :density :alpha 0.5})))))))])
 
 ;; ## Log-Scale Histogram
 ;;
@@ -111,9 +118,12 @@
     (pj/lay-density :sepal-length))
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                curve-xs (mapcat :xs (-> v pj/plan :panels first :layers first :groups))]
             (and (= 1 (:panels s))
-                 (= 1 (:polygons s)))))])
+                 (= 1 (:polygons s))
+                 (= [4.12 8.08] (-> v pj/plan :panels first :x-domain))
+                 (= [4.3 7.9] [(apply min curve-xs) (apply max curve-xs)]))))])
 
 ;; ## Grouped Density
 ;;
@@ -125,7 +135,8 @@
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 1 (:panels s))
-                 (= 3 (:polygons s)))))])
+                 (= 3 (:polygons s))
+                 (= [4.12 8.08] (-> v pj/plan :panels first :x-domain)))))])
 
 ;; ## Density with Custom Bandwidth
 ;;
@@ -166,16 +177,30 @@
 ;; A rug shows the raw data positions as short tick marks along the
 ;; axis. Layered with a density curve, it shows the smooth shape and
 ;; the underlying observations together.
+;;
+;; The curve and the rug start and stop together. A density estimate is
+;; defined everywhere, not only where the data is, so drawing one means
+;; choosing an interval to estimate it over, and Plotje uses the observed
+;; values. Both therefore stop a little short of the axis ends, which
+;; carry the same padding every numeric axis gets. This matches what
+;; ggplot2's `geom_density()` draws for the same data.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-density :sepal-length)
     pj/lay-rug)
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                domain #(-> % pj/plan :panels first :x-domain)]
             (and (= 1 (:panels s))
                  (= 1 (:polygons s))
-                 (= 150 (:lines s)))))])
+                 (= 150 (:lines s))
+                 (= [4.12 8.08] (domain v))
+                 (= (domain v)
+                    (domain (-> (rdatasets/datasets-iris)
+                                (pj/lay-rug :sepal-length))))
+                 (let [curve-xs (mapcat :xs (-> v pj/plan :panels first :layers first :groups))]
+                   (= [4.3 7.9] [(apply min curve-xs) (apply max curve-xs)])))))])
 
 ;; ## Strip Plot (Jitter)
 ;;

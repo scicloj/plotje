@@ -673,19 +673,23 @@
 ;; ---- KDE (kernel density estimation) ----
 
 (defn- fit-kde
-  "Compute KDE for a numeric column. Returns {:xs [...] :ys [...]}."
+  "Compute KDE for a numeric column across the values it holds, so the
+   curve ends where the data ends. Returns {:xs [...] :ys [...]}.
+
+   A density estimate is defined everywhere, so drawing one means picking
+   an interval to evaluate it on. Evaluating past the data and letting
+   the panel clip the surplus is not the same thing: the clipped curve
+   reaches the panel edge and so reads as a distribution continuing out
+   of view, and most of its grid points land where nothing is drawn.
+   ggplot2 offers the choice as `trim`; see the backlog entry."
   [col n-grid bandwidth]
   (let [xs (double-array col)
         kd (if bandwidth
              (kernel/kernel-density :gaussian xs bandwidth)
              (kernel/kernel-density :gaussian xs))
-        x-min (dfn/reduce-min col)
-        x-max (dfn/reduce-max col)
-        range-w (- (double x-max) (double x-min))
-        lo (- (double x-min) (* 0.5 range-w))
-        hi (+ (double x-max) (* 0.5 range-w))
-        step (if (<= n-grid 1) 0.0 (/ (- hi lo) (double (dec n-grid))))
-        grid-xs (dfn/+ lo (dfn/* step (range n-grid)))
+        [lo hi] (numeric-extent col)
+        step (if (<= n-grid 1) 0.0 (/ (- (double hi) (double lo)) (double (dec n-grid))))
+        grid-xs (dfn/+ (double lo) (dfn/* step (range n-grid)))
         grid-ys (dtype/emap kd :float64 grid-xs)]
     {:xs grid-xs :ys grid-ys}))
 
@@ -711,10 +715,15 @@
             ys-bufs (seq (map :ys curves))
             y-max (if ys-bufs (dfn/reduce-max (dtype/concat-buffers ys-bufs)) 1)
             xs-bufs (seq (map :xs curves))
-            x-lo (dfn/reduce-min (dtype/concat-buffers xs-bufs))
-            x-hi (dfn/reduce-max (dtype/concat-buffers xs-bufs))]
+            ;; The curve is estimated over exactly the interval the axis
+            ;; reports, so the reported domain is the curve's own extent --
+            ;; the observed range, which is why the curve ends where the
+            ;; data ends instead of running off the panel.
+            curve-domain (when xs-bufs
+                           (let [all-xs (dtype/concat-buffers xs-bufs)]
+                             [(dfn/reduce-min all-xs) (dfn/reduce-max all-xs)]))]
         {:points curves
-         :x-domain [x-lo x-hi]
+         :x-domain (or curve-domain (numeric-extent (clean x)))
          :y-domain [0 y-max]}))))
 
 ;; ---- Boxplot ----
@@ -855,8 +864,9 @@
                                       (cond-> {:category cat
                                                :ys (:xs kde) :densities (:ys kde)}
                                         cc (assoc :color cc)))))
-        ;; Expand the numeric-axis domain to cover the full KDE curve
-        ;; (tails beyond raw data). Which axis is numeric depends on
+        ;; Cover the estimated curves on the numeric axis. Each category's
+        ;; curve spans that category's own values, so this comes to the
+        ;; overall data range. Which axis is numeric depends on
         ;; orientation: y for vertical, x for horizontal.
         flipped? (and (= (:y-type draft-layer) :categorical)
                       (not= (:x-type draft-layer) :categorical))
