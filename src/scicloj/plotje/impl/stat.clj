@@ -18,6 +18,19 @@
   [col]
   [(dfn/reduce-min col) (dfn/reduce-max col)])
 
+(defn- quantile-r7
+  "R type 7 quantile (ggplot2/R default). Uses linear interpolation:
+   h = (n-1)*p + 1, Q = x[floor(h)] + (h - floor(h)) * (x[ceil(h)] - x[floor(h)]).
+   This matches R's quantile(x, p, type=7) and ggplot2's boxplot quartiles."
+  [sorted-arr p]
+  (let [n (alength sorted-arr)
+        h (+ (* (dec n) (double p)) 1.0)
+        lo-idx (max 0 (min (dec n) (dec (long (Math/floor h)))))
+        hi-idx (max 0 (min (dec n) (dec (long (Math/ceil h)))))
+        frac (- h (Math/floor h))]
+    (+ (aget sorted-arr lo-idx)
+       (* frac (- (aget sorted-arr hi-idx) (aget sorted-arr lo-idx))))))
+
 (defn- near-constant?
   "True if the span of the column is numerically negligible. Used to detect
    degenerate inputs (single point, or near-identical x values like
@@ -672,6 +685,31 @@
 
 ;; ---- KDE (kernel density estimation) ----
 
+(defn- bw-nrd0
+  "R's `bw.nrd0`, the bandwidth rule `stats::density` and so ggplot2 use:
+   `0.9 * min(sd, IQR/1.34) * n^(-1/5)`, with R type-7 quantiles for the
+   IQR.
+
+   Fastmath offers `:nrd0` too, but its interquartile range comes from a
+   different quantile estimator -- on iris virginica it reads 0.75 where
+   R reads 0.675, which is enough to widen the bandwidth by 11% and
+   visibly flatten that group's peak. The boxplot summary in this file
+   already settled on type-7 for the same reason, so reuse it and the two
+   agree."
+  [col]
+  (let [arr (double-array (sort col))
+        n (alength arr)
+        sd (double (stats/stddev arr))
+        iqr (- (quantile-r7 arr 0.75) (quantile-r7 arr 0.25))
+        lo (min sd (/ iqr 1.34))
+        ;; R falls back through sd, then |x1|, then 1 when the spread
+        ;; degenerates -- e.g. a column where over half the values tie.
+        lo (cond (pos? lo) lo
+                 (pos? sd) sd
+                 (pos? (Math/abs (aget arr 0))) (Math/abs (aget arr 0))
+                 :else 1.0)]
+    (* 0.9 lo (Math/pow n -0.2))))
+
 (defn- fit-kde
   "Compute KDE for a numeric column. Returns {:xs [...] :ys [...]}.
 
@@ -687,11 +725,18 @@
      each side, letting the tails fall away -- `geom_violin(trim =
      FALSE)` uses 3. Padding is expressed in bandwidths, not in a
      fraction of the data span, because it is the smoothing that decides
-     how far a tail reaches."
+     how far a tail reaches.
+
+   Without an explicit bandwidth the smoothing follows `nrd0`, the rule
+   R's `density()` and so ggplot2 use. Fastmath's own default is `nrd`,
+   which scales by 1.06 where `nrd0` scales by 0.9 and therefore smooths
+   about 18% wider -- enough to visibly lower and broaden a peak against
+   the same plot drawn in ggplot2."
   ([col n-grid bandwidth] (fit-kde col n-grid bandwidth nil))
   ([col n-grid bandwidth {:keys [interval pad-bandwidths]}]
    (let [xs (double-array col)
-         info (kernel/kernel-density :gaussian xs bandwidth true)
+         h (or bandwidth (bw-nrd0 col))
+         info (kernel/kernel-density :gaussian xs h true)
          kd (:kde info)
          pad (* (double (or pad-bandwidths 0)) (double (:h info)))
          [lo0 hi0] (or interval (numeric-extent col))
@@ -707,7 +752,11 @@
   (let [{:keys [data x group cfg]} draft-layer
         clean (tc/drop-missing data [x])
         n (tc/row-count clean)
-        n-grid (or (:kde-n-grid (or cfg defaults/defaults)) 100)
+        ;; 512 grid points, matching ggplot2. 100 looked identical at a
+        ;; default 600px plot but drew a visibly faceted peak once the
+        ;; plot was enlarged, since the segments between grid points grow
+        ;; with it.
+        n-grid (or (:kde-n-grid (or cfg defaults/defaults)) 512)
         bandwidth (:kde-bandwidth (or cfg defaults/defaults))
         ;; Untrimmed by default, matching ggplot2's geom_density: every
         ;; group is estimated across the whole layer's values, so grouped
@@ -814,19 +863,6 @@
          :x-domain (if flipped? [num-min num-max] categories)
          :y-domain (if flipped? categories [num-min num-max])}))))
 
-(defn- quantile-r7
-  "R type 7 quantile (ggplot2/R default). Uses linear interpolation:
-   h = (n-1)*p + 1, Q = x[floor(h)] + (h - floor(h)) * (x[ceil(h)] - x[floor(h)]).
-   This matches R's quantile(x, p, type=7) and ggplot2's boxplot quartiles."
-  [sorted-arr p]
-  (let [n (alength sorted-arr)
-        h (+ (* (dec n) (double p)) 1.0)
-        lo-idx (max 0 (min (dec n) (dec (long (Math/floor h)))))
-        hi-idx (max 0 (min (dec n) (dec (long (Math/ceil h)))))
-        frac (- h (Math/floor h))]
-    (+ (aget sorted-arr lo-idx)
-       (* frac (- (aget sorted-arr hi-idx) (aget sorted-arr lo-idx))))))
-
 (defn- five-number-summary
   "Compute boxplot five-number summary for a numeric column.
    Uses R type 7 quantiles (ggplot2/R default) for Q1, median, Q3.
@@ -876,6 +912,10 @@
                    :x :y)]
     (validate-numeric-column draft-layer num-axis :violin))
   (let [{:keys [cfg]} draft-layer
+        ;; 80 rather than the density's 512: a violin compresses the
+        ;; density onto a narrow band, so the same grid buys far less
+        ;; smoothness. Measured at 512 the outline is indistinguishable
+        ;; even enlarged, while the SVG grows fivefold.
         n-grid (or (:kde-n-grid (or cfg defaults/defaults)) 80)
         bandwidth (:kde-bandwidth (or cfg defaults/defaults))
         ;; Trimmed by default, matching ggplot2's geom_violin: each body
