@@ -169,7 +169,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__86606#] (= :text (:mark p1__86606#))))
+      (filter (fn* [p1__94180#] (= :text (:mark p1__94180#))))
       first
       :style
       :align-x)))
