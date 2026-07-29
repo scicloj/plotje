@@ -158,15 +158,24 @@
 
 ;; ## Density with Custom Bandwidth
 ;;
-;; A narrow bandwidth reveals more detail; a wide bandwidth smooths more.
+;; Bandwidth sets how heavily the curve is smoothed. Left alone it
+;; follows the rule R's `density()` uses, which for this column works out
+;; near 0.27. A narrower bandwidth reveals more detail -- the curve below
+;; rises higher and breaks into bumps the default smooths away -- while a
+;; wider one flattens it further.
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-density :sepal-length {:bandwidth 0.3}))
+    (pj/lay-density :sepal-length {:bandwidth 0.1}))
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                peak (fn [pose] (apply max (:ys (first (-> pose pj/plan :panels first
+                                                           :layers first :groups)))))]
             (and (= 1 (:panels s))
-                 (= 1 (:polygons s)))))])
+                 (= 1 (:polygons s))
+                 (> (peak v)
+                    (peak (-> (rdatasets/datasets-iris)
+                              (pj/lay-density :sepal-length)))))))])
 
 ;; ## Density with Fill and Outline
 ;;
