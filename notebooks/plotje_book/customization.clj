@@ -390,8 +390,7 @@
 
 ;; `:stroke-dash` draws a line dashed or dotted, so a projected or
 ;; reference series reads apart from measured data. Pass a named preset
-;; or a raw `[dash gap]` pixel pattern. The `:dash-patterns` set in the
-;; summary reports the exact stroke-dasharray each form produces.
+;; or a raw `[dash gap]` pixel pattern.
 ;;
 ;; `:dashed`:
 
