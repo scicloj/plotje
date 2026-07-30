@@ -333,11 +333,41 @@
                       {:align-y ay})))
     {:align-x ax :align-y ay}))
 
+(def ^:private font-weight-values
+  "Text weight values. Java2D distinguishes bold from not-bold and nothing
+   finer, so the numeric CSS weights are not accepted."
+  #{:normal :bold})
+
+(def ^:private font-style-values
+  "Text slant values. CSS :oblique is not accepted: SVG would slant it but
+   java.awt.Font has no oblique style (only PLAIN, BOLD, ITALIC), so the
+   PNG backend would draw it upright -- the same plot would differ by
+   output format."
+  #{:normal :italic})
+
+(defn- resolve-font
+  "Resolve and validate the weight and slant for a :text/:label draft layer.
+   Both default to :normal, preserving the plain text drawn before font
+   styling existed."
+  [draft-layer]
+  (let [w (or (:font-weight draft-layer) :normal)
+        s (or (:font-style draft-layer) :normal)]
+    (when-not (font-weight-values w)
+      (throw (ex-info (str ":font-weight must be one of " (sort font-weight-values)
+                           ", got: " (pr-str w))
+                      {:font-weight w})))
+    (when-not (font-style-values s)
+      (throw (ex-info (str ":font-style must be one of " (sort font-style-values)
+                           ", got: " (pr-str s))
+                      {:font-style s})))
+    {:font-weight w :font-style s}))
+
 (defmethod extract-layer :text [draft-layer stat all-colors cfg]
   (-> {:mark :text
        :style (merge {:font-size (or (:font-size draft-layer) 10)
                       :opacity (or (:fixed-alpha draft-layer) 1.0)}
-                     (resolve-align draft-layer))
+                     (resolve-align draft-layer)
+                     (resolve-font draft-layer))
        :groups (extract-xy-groups draft-layer stat all-colors cfg :with-labels? true)}
       (apply-nudge draft-layer)))
 
@@ -345,7 +375,8 @@
   (-> {:mark :label
        :style (merge {:font-size (or (:font-size draft-layer) 10)
                       :opacity (or (:fixed-alpha draft-layer) 1.0)}
-                     (resolve-align draft-layer))
+                     (resolve-align draft-layer)
+                     (resolve-font draft-layer))
        :groups (extract-xy-groups draft-layer stat all-colors cfg :with-labels? true)}
       (apply-nudge draft-layer)))
 

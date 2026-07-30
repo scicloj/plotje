@@ -303,12 +303,24 @@
      :center (- (/ (double text-h) 2.0))
      :bottom (- (double text-h)))])
 
+(defn- text-font
+  "Membrane Font for a text or label mark. `ui/font` takes only a name and a
+   size, so weight and slant are assoc'd onto the record it returns: the
+   Java2D backend reads :weight :bold and :slant :italic (see
+   membrane.java2d/get-java-font) and the SVG backend maps them to the
+   font-weight and font-style attributes."
+  [fsize font-weight font-style]
+  (cond-> (ui/font nil fsize)
+    (= :bold font-weight) (assoc :weight :bold)
+    (= :italic font-style) (assoc :slant :italic)))
+
 (defmethod layer->membrane :text [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [coord-fn]} ctx
-        {:keys [font-size opacity align-x align-y]} style
+        {:keys [font-size opacity align-x align-y font-weight font-style]} style
         fsize (or font-size 10)
         op (or opacity 1.0)
+        font (text-font fsize font-weight font-style)
         char-w (* fsize 0.6)]
     (vec
      (for [{:keys [color xs ys labels]} groups
@@ -320,14 +332,15 @@
                  [dx dy] (text-anchor-offset align-x align-y text-w fsize)]]
        (ui/translate (+ (double px) dx) (+ (double py) dy)
                      (ui/with-color [cr cg cb op]
-                       (ui/label label (ui/font nil fsize))))))))
+                       (ui/label label font)))))))
 
 (defmethod layer->membrane :label [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [coord-fn]} ctx
-        {:keys [font-size opacity align-x align-y]} style
+        {:keys [font-size opacity align-x align-y font-weight font-style]} style
         fsize (or font-size 10)
         op (or opacity 1.0)
+        font (text-font fsize font-weight font-style)
         pad-x 3 pad-y 2
         char-w (* fsize 0.6)]
     (vec
@@ -349,7 +362,7 @@
                                     (ui/with-color [0.7 0.7 0.7 (* 0.5 op)]
                                       (ui/rectangle rect-w rect-h)))
                       (ui/with-color [cr cg cb op]
-                        (ui/label label (ui/font nil fsize)))])))))
+                        (ui/label label font))])))))
 
 ;; ---- Area ----
 

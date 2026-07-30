@@ -516,6 +516,54 @@
        (try (text-style pj/lay-text :text {:align-x :middle}) false
             (catch Exception _ true)))))])
 
+;; ## Bold and Italic Text
+;;
+;; A label placed on top of the data has to be read against it. Where
+;; `:align-x` and `:align-y` move the text, two further options change
+;; how it is drawn:
+;;
+;; - `:font-weight` -- `:normal` or `:bold` (default `:normal`)
+;; - `:font-style` -- `:normal` or `:italic` (default `:normal`)
+;;
+;; The two are independent, so a label can be both bold and italic. Both
+;; apply to `pj/lay-text` and `pj/lay-label`, and to both output formats:
+;; the SVG backend writes them as font attributes and the PNG backend
+;; draws with the matching Java font style.
+;;
+;; Bold picks one label out of several. Here the peak is emphasized and
+;; the two ordinary points are left plain:
+
+(-> {:x [1 2 3] :y [2 3 1]}
+    (pj/lay-point :x :y {:size 5 :color "#888888"})
+    (pj/lay-text :x :y {:text :tag :align-x :center :align-y :bottom
+                        :data {:x [1 3] :y [2 1] :tag ["steady" "dip"]}})
+    (pj/lay-text :x :y {:text :tag :align-x :center :align-y :bottom
+                        :font-weight :bold
+                        :data {:x [2] :y [3] :tag ["peak"]}}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      (and (= 1 (:bold-texts s))
+           (= 0 (:italic-texts s))
+           (every? (set (:texts s)) ["steady" "dip" "peak"]))))])
+
+;; Italic reads as an aside -- a remark about the data rather than a
+;; value taken from it. On `pj/lay-label` it sits in the same background
+;; box as any other label text:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species :alpha 0.5})
+    (pj/lay-label {:text :note :font-style :italic
+                   :data {:sepal-length [7.0] :sepal-width [4.2]
+                          :note ["setosa sits apart"]}}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      (and (= 1 (:italic-texts s))
+           (= 0 (:bold-texts s)))))])
+
 ;; ## Annotation Appearance
 ;;
 ;; Reference lines and bands are introduced in

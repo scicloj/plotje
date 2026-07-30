@@ -37,6 +37,9 @@
    :shape "Column keyword for per-point shape"
    :jitter "true or pixel amount — random offset to reduce overplotting"
    :text "Column keyword for label content"
+   :font-size "Text height in pixels for a text or label mark (default 10)"
+   :font-weight "Draws the text bold — :normal (default) or :bold"
+   :font-style "Draws the text italic — :normal (default) or :italic"
    :confidence-band "true to show a standard-error confidence ribbon around the fitted line"
    :bootstrap-resamples "Number of bootstrap resamples for a LOESS confidence ribbon (default 200)"
    :bandwidth "Smoothing bandwidth for density and LOESS methods"
@@ -110,8 +113,8 @@
 (register! :summary {:mark :pointrange :stat :summary :accepts [:size] :doc "Summary — mean ± standard error per category."})
 (register! :errorbar {:mark :errorbar :stat :identity :accepts [:y-min :y-max :size :cap-width :nudge-x :nudge-y] :doc "Errorbar — vertical error bars."})
 (register! :lollipop {:mark :lollipop :stat :identity :accepts [:size] :doc "Lollipop — stem with dot."})
-(register! :text {:mark :text :stat :identity :accepts [:text :font-size :nudge-x :nudge-y :align-x :align-y] :doc "Text — data-driven labels."})
-(register! :label {:mark :label :stat :identity :accepts [:text :font-size :nudge-x :nudge-y :align-x :align-y] :doc "Label — text with background box."})
+(register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :nudge-x :nudge-y :align-x :align-y] :doc "Text — data-driven labels."})
+(register! :label {:mark :label :stat :identity :accepts [:text :font-size :font-weight :font-style :nudge-x :nudge-y :align-x :align-y] :doc "Label — text with background box."})
 (register! :rug {:mark :rug :stat :identity :x-only true :accepts [:side :length] :doc "Rug — axis-margin tick marks."})
 (register! :interval-h {:mark :interval-h :stat :identity :accepts [:x-end :interval-thickness]
                         ;; Dodge/stack/fill don't compose with interval-h yet -- a Gantt

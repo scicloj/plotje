@@ -177,6 +177,10 @@
                       :font-size font-size
                       :dominant-baseline "hanging"}
                font-name (assoc :font-family font-name)
+               ;; Membrane's Font carries weight and slant; only the styled
+               ;; values are emitted so plain text keeps its current attributes.
+               (= :bold (:weight font)) (assoc :font-weight "bold")
+               (= :italic (:slant font)) (assoc :font-style "italic")
                text-anchor (assoc :text-anchor text-anchor))
        text]))
 
@@ -517,6 +521,8 @@
    :visible-tiles — tiles with positive width and height (excludes degenerate zero-extent tiles)
    :clips   — number of clipPath definitions (one per panel per clip region in use: the drawing area for data marks, plus the panel box when a margin mark such as rug is present)
    :texts   — vector of all text content strings
+   :bold-texts — number of texts drawn with :font-weight :bold
+   :italic-texts — number of texts drawn with :font-style :italic
 
    Aesthetic-coverage sets (extracted across data shapes only;
    theme/legend/axis chrome is excluded):
@@ -646,6 +652,8 @@
       :visible-tiles (count visible-tile-rects)
       :clips (count (collect-elements svg :clipPath))
       :texts (mapv last texts)
+      :bold-texts (count (filter #(= "bold" (:font-weight (second %))) texts))
+      :italic-texts (count (filter #(= "italic" (:font-style (second %))) texts))
       :colors data-colors
       :sizes data-sizes
       :alphas data-alphas

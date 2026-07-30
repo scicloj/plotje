@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+- `pj/lay-text` and `pj/lay-label` accept `:font-weight` (`:normal` or `:bold`) and `:font-style` (`:normal` or `:italic`), so one label can be emphasized among several or set apart as an aside. The two are independent and combine. Both render through the SVG path (as the `font-weight` and `font-style` attributes) and the PNG/Java2D path (as the matching `java.awt.Font` style). Any other value, including a numeric CSS weight such as `700` or CSS `:oblique`, is rejected -- Java2D draws neither. (Closes #21) - thanks, @behrica
+- `pj/svg-summary` reports `:bold-texts` and `:italic-texts` (counts of texts carrying each style), for asserting that a label rendered bold or italic.
 
 ## [0.6.0 - 2026-07-29]
 - fix: a density curve is now estimated over the data it describes, instead of over a grid running half the data's span past it on either side. That padded grid was both drawn and reported as the axis range, so `pj/lay-density` on a column spanning 4.3 to 7.9 drew an axis from 2.1 to 10.1 and a `pj/lay-rug` beside it covered only the middle of the plot. The curve now starts and ends with the rug, and the axis matches what ggplot2's `geom_density()` produces for the same data. (Closes #23) - thanks, @behrica
