@@ -189,9 +189,11 @@
 ;; - Theme support is shallow versus ggplot2: today the theme map
 ;;   carries `:bg`, `:grid`, `:font-size`, and a small handful of
 ;;   other keys. Named theme presets (`theme_minimal`, `theme_bw`,
-;;   `theme_classic`), axis text rotation, panel borders, strip
-;;   text styling, and `legend.position` by coordinate are not yet
-;;   exposed.
+;;   `theme_classic`), panel borders, strip text styling, and
+;;   `legend.position` by coordinate are not yet exposed. Rotating
+;;   the x-axis tick labels is available, but as the `:x-tick-angle`
+;;   plot option rather than through the theme -- see
+;;   [Customization](./plotje_book.customization.html).
 ;;
 ;; - Per-layer `data`, `guides()` for per-aesthetic legend control,
 ;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog.
