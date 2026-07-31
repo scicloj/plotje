@@ -441,7 +441,7 @@
       :bar :rect
       :smooth :line
       :text :text
-      :label :label
+      :label :text
       :area :area
       :density :area
       :tile :tile

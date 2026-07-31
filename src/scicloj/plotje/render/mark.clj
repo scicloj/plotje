@@ -163,7 +163,7 @@
 (defmethod layer->membrane [:bar :doc] [_ _] "Filled polygons (histogram bars)")
 (defmethod layer->membrane [:line :doc] [_ _] "Stroked polylines")
 (defmethod layer->membrane [:rect :doc] [_ _] "Filled polygons (categorical/value bars)")
-(defmethod layer->membrane [:text :doc] [_ _] "Translated text labels")
+(defmethod layer->membrane [:text :doc] [_ _] "Translated text labels, on a rounded background box when one is asked for")
 (defmethod layer->membrane [:area :doc] [_ _] "Closed filled polygons with baseline")
 (defmethod layer->membrane [:boxplot :doc] [_ _] "Box + whiskers + median line + outlier points")
 (defmethod layer->membrane [:violin :doc] [_ _] "Mirrored filled density polygon")
@@ -175,7 +175,6 @@
 (defmethod layer->membrane [:interval-h :doc] [_ _] "Filled rectangles spanning x to x-end at categorical y")
 (defmethod layer->membrane [:step :doc] [_ _] "Stroked step polylines")
 (defmethod layer->membrane [:pointrange :doc] [_ _] "Point at mean + vertical SE line")
-(defmethod layer->membrane [:label :doc] [_ _] "Text label with filled background box")
 (defmethod layer->membrane [:contour :doc] [_ _] "Stroked iso-density polylines")
 (defmethod layer->membrane [:default :doc] [_ _] "Generic layer fallback")
 
@@ -314,33 +313,33 @@
     (= :bold font-weight) (assoc :weight :bold)
     (= :italic font-style) (assoc :slant :italic)))
 
+(defn- text-box
+  "The two drawables behind a text mark carrying a `:box`: a white panel and
+   its border. Sized from the text's estimated extent plus padding, and
+   placed relative to the already-anchored text origin."
+  [text-w fsize radius op pad-x pad-y]
+  [(ui/translate (- pad-x) (- pad-y)
+                 (ui/with-color [1.0 1.0 1.0 (* 0.85 op)]
+                   (ui/with-style ::ui/style-fill
+                     (ui/rounded-rectangle (+ text-w (* 2 pad-x))
+                                           (+ fsize (* 2 pad-y)) radius))))
+   ;; The border must say ::ui/style-stroke: a bare ui/rectangle paints
+   ;; filled in both backends, so this rect used to cover the white box in
+   ;; flat grey instead of outlining it.
+   (ui/translate (- pad-x) (- pad-y)
+                 (ui/with-color [0.7 0.7 0.7 (* 0.5 op)]
+                   (ui/with-style ::ui/style-stroke
+                     (ui/rounded-rectangle (+ text-w (* 2 pad-x))
+                                           (+ fsize (* 2 pad-y)) radius))))])
+
 (defmethod layer->membrane :text [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [coord-fn]} ctx
-        {:keys [font-size opacity align-x align-y font-weight font-style]} style
+        {:keys [font-size opacity align-x align-y font-weight font-style box]} style
         fsize (or font-size 10)
         op (or opacity 1.0)
         font (text-font fsize font-weight font-style)
-        char-w (* fsize 0.6)]
-    (vec
-     (for [{:keys [color xs ys labels]} groups
-           i (range (count xs))
-           :let [[px py] (coord-fn (xs i) (ys i))
-                 label (if labels (labels i) "")
-                 [cr cg cb _] color
-                 text-w (* (count label) char-w)
-                 [dx dy] (text-anchor-offset align-x align-y text-w fsize)]]
-       (ui/translate (+ (double px) dx) (+ (double py) dy)
-                     (ui/with-color [cr cg cb op]
-                       (ui/label label font)))))))
-
-(defmethod layer->membrane :label [layer ctx]
-  (let [{:keys [style groups]} layer
-        {:keys [coord-fn]} ctx
-        {:keys [font-size opacity align-x align-y font-weight font-style]} style
-        fsize (or font-size 10)
-        op (or opacity 1.0)
-        font (text-font fsize font-weight font-style)
+        radius (double (or (:corner-radius box) 3.0))
         pad-x 3 pad-y 2
         char-w (* fsize 0.6)]
     (vec
@@ -351,18 +350,11 @@
                  [cr cg cb _] color
                  text-w (* (count label) char-w)
                  [dx dy] (text-anchor-offset align-x align-y text-w fsize)
-                 origin-x (+ (double px) dx)
-                 origin-y (+ (double py) dy)
-                 rect-w (+ text-w (* 2 pad-x))
-                 rect-h (+ fsize (* 2 pad-y))]]
-       (ui/translate origin-x origin-y
-                     [(ui/translate (- pad-x) (- pad-y)
-                                    (ui/filled-rectangle [1.0 1.0 1.0 (* 0.85 op)] rect-w rect-h))
-                      (ui/translate (- pad-x) (- pad-y)
-                                    (ui/with-color [0.7 0.7 0.7 (* 0.5 op)]
-                                      (ui/rectangle rect-w rect-h)))
-                      (ui/with-color [cr cg cb op]
-                        (ui/label label font))])))))
+                 glyphs (ui/with-color [cr cg cb op] (ui/label label font))]]
+       (ui/translate (+ (double px) dx) (+ (double py) dy)
+                     (if box
+                       (conj (text-box text-w fsize radius op pad-x pad-y) glyphs)
+                       glyphs))))))
 
 ;; ---- Area ----
 

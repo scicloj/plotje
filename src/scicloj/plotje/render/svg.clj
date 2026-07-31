@@ -512,7 +512,9 @@
    :points  — number of data point markers drawn as small rounded rects:
               circle and `:square` shape symbols. The `:triangle` and
               `:diamond` symbols draw as paths and count under :polygons,
-              so a shape-mapped scatter splits across the two counts
+              so a shape-mapped scatter splits across the two counts.
+              Every marker sits on a square bounding box, which is what
+              distinguishes one from a label's background box
    :lines   — number of non-grid polylines (data lines, annotations, whiskers)
    :dashed-lines — number of polylines with a stroke-dasharray (dashed/dotted
                    lines, dashed rules, dashed area outlines)
@@ -523,6 +525,8 @@
    :texts   — vector of all text content strings
    :bold-texts — number of texts drawn with :font-weight :bold
    :italic-texts — number of texts drawn with :font-style :italic
+   :label-boxes — number of text background boxes, one per boxed label
+                  (from `pj/lay-label`, or `pj/lay-text` with `:box`)
 
    Aesthetic-coverage sets (extracted across data shapes only;
    theme/legend/axis chrome is excluded):
@@ -583,10 +587,27 @@
                                       (= sw (double (or (:height a) 0)))))
                               rects)
          legend-set (set legend-rects)
+         ;; A point marker is always drawn on a square bounding box
+         ;; (`ui/rounded-rectangle d d r` for every shape symbol), so
+         ;; requiring width = height separates markers from a label's
+         ;; background box, which also carries an rx but is wider than it
+         ;; is tall.
+         square-rect? (fn [a] (and (number? (:width a)) (number? (:height a))
+                                   (== (double (:width a)) (double (:height a)))))
          data-rects (filter #(let [a (second %)]
                                (and (not (legend-set %))
-                                    (number? (:rx a))))
+                                    (number? (:rx a))
+                                    (square-rect? a)))
                             rects)
+         ;; Label boxes: rounded rects that are not square. Each label draws
+         ;; a filled box and a stroked border over it; counting only the
+         ;; filled one reports one box per label.
+         label-box-rects (filter #(let [a (second %)]
+                                    (and (not (legend-set %))
+                                         (number? (:rx a))
+                                         (not (square-rect? a))
+                                         (not= "none" (:fill a))))
+                                 rects)
          ;; Tiles: rects without rx that are not panels or legend swatches
          tile-rects (filter #(let [a (second %)]
                                (and (not (panel-set %))
@@ -654,6 +675,7 @@
       :texts (mapv last texts)
       :bold-texts (count (filter #(= "bold" (:font-weight (second %))) texts))
       :italic-texts (count (filter #(= "italic" (:font-style (second %))) texts))
+      :label-boxes (count label-box-rects)
       :colors data-colors
       :sizes data-sizes
       :alphas data-alphas

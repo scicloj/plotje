@@ -147,7 +147,7 @@ graph LR
        (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
                       "Output" (pj/mark-doc k)})))})
 
-(kind/test-last [(fn [t] (= 18 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 17 (count (:row-maps t))))])
 
 ;; A plan layer looks like this. Starting from a familiar iris
 ;; scatter:
@@ -187,7 +187,7 @@ graph LR
        (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
                       "Membrane output" (pj/membrane-mark-doc k)})))})
 
-(kind/test-last [(fn [t] (= 18 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 17 (count (:row-maps t))))])
 ;;
 ;; ### How to extend: add a new mark type
 ;;

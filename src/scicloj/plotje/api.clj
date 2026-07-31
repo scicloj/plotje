@@ -2069,17 +2069,24 @@
    `:align-x` (`:left`/`:center`/`:right`, default `:left`) and `:align-y`
    (`:top`/`:center`/`:bottom`, default `:center`) set which part of the
    text lands on the data point -- e.g. `:align-x :right` tucks the label
-   inside a bar's end, extending leftward."
+   inside a bar's end, extending leftward.
+   `:box` puts the text on a background box: `true` for the default box,
+   or a map of box properties (`{:corner-radius 8}`). `pj/lay-label` is
+   this layer with the box on."
   ([pose-or-data] (lay-layer-type :text pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :text pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :text pose-or-data x y-or-opts))
   ([pose-or-data x y opts] (lay-layer-type :text pose-or-data x y opts)))
 
 (defn lay-label
-  "Add `:label` layer type -- text labels with background box at data coordinates.
-   Like `:text` but with a rectangular background for readability.
-   Accepts the same `:align-x`/`:align-y` anchors as `lay-text` (defaults
-   `:left`/`:center`); the background box follows the anchored text."
+  "Add `:label` layer type -- text labels on a background box at data
+   coordinates, for readability over dense data.
+
+   `:label` is the `:text` layer type with `{:box true}` preset, so it
+   draws through the same mark and takes the same options, including
+   `:align-x`/`:align-y` (defaults `:left`/`:center`); the box follows the
+   anchored text. Pass `:box` to shape it -- `{:box {:corner-radius 0}}`
+   for square corners, `{:box false}` for bare text."
   ([pose-or-data] (lay-layer-type :label pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :label pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :label pose-or-data x y-or-opts))

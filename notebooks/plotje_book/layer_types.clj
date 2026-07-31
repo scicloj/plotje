@@ -101,7 +101,7 @@
 
 (kind/test-last
  [(fn [t]
-    (= 22 (count (:row-maps t))))])
+    (= 21 (count (:row-maps t))))])
 
 ;; ## Stats
 ;;

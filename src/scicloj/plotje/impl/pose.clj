@@ -649,7 +649,12 @@
 (defn- resolve-layer-type-info
   "Look up layer-type info from a layer's :layer-type key.
    Keyword -> registry lookup (throws on unknown). Map -> pass through.
-   :infer -> sentinel."
+   :infer -> sentinel.
+
+   A layer type's `:defaults` come along as ordinary layer options, which
+   is how two layer types sharing one mark differ -- `:label` is `:text`
+   with `{:box true}`. The caller's own options are merged over this map
+   (see the resolved layer below), so an explicit `{:box false}` wins."
   [layer-type-key]
   (cond
     (= :infer layer-type-key)
@@ -659,6 +664,7 @@
     (let [m (layer-type/lookup layer-type-key)]
       (if m
         (-> (select-keys m [:mark :stat :position :x-only])
+            (merge (:defaults m))
             (assoc :layer-type layer-type-key))
         (let [registered (sort (keys (layer-type/registered)))]
           (throw (ex-info (str "Unknown layer type: " layer-type-key

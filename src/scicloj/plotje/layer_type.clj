@@ -40,6 +40,7 @@
    :font-size "Text height in pixels for a text or label mark (default 10)"
    :font-weight "Draws the text bold — :normal (default) or :bold"
    :font-style "Draws the text italic — :normal (default) or :italic"
+   :box "Background box behind text — true for the default box, false or absent for none, or a map of box properties: {:corner-radius n} in pixels (default 3, 0 for square corners). pj/lay-label is pj/lay-text with the box on"
    :confidence-band "true to show a standard-error confidence ribbon around the fitted line"
    :bootstrap-resamples "Number of bootstrap resamples for a LOESS confidence ribbon (default 200)"
    :bandwidth "Smoothing bandwidth for density and LOESS methods"
@@ -66,7 +67,13 @@
 (defn register!
   "Register a layer type. `k` is a keyword, `entry` is a map with
    :mark, :stat, and optionally :position and :doc.
-   Position defaults to nil (identity) — only :dodge, :stack, :fill are explicit."
+   Position defaults to nil (identity) — only :dodge, :stack, :fill are explicit.
+
+   :defaults is an optional map of layer-option values the layer type
+   presets — how one layer type differs from another that shares its mark
+   by the options it starts with rather than by what it draws. `:label` is
+   `:text` with `{:box true}`. Options passed at the call site win over
+   these; see resolve-layer-type-info in impl/pose.clj."
   [k entry]
   (swap! registry* assoc k (resolve/map->LayerType entry))
   k)
@@ -113,8 +120,8 @@
 (register! :summary {:mark :pointrange :stat :summary :accepts [:size] :doc "Summary — mean ± standard error per category."})
 (register! :errorbar {:mark :errorbar :stat :identity :accepts [:y-min :y-max :size :cap-width :nudge-x :nudge-y] :doc "Errorbar — vertical error bars."})
 (register! :lollipop {:mark :lollipop :stat :identity :accepts [:size] :doc "Lollipop — stem with dot."})
-(register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :nudge-x :nudge-y :align-x :align-y] :doc "Text — data-driven labels."})
-(register! :label {:mark :label :stat :identity :accepts [:text :font-size :font-weight :font-style :nudge-x :nudge-y :align-x :align-y] :doc "Label — text with background box."})
+(register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :box :nudge-x :nudge-y :align-x :align-y] :doc "Text — data-driven labels, optionally on a background box."})
+(register! :label {:mark :text :stat :identity :defaults {:box true} :accepts [:text :font-size :font-weight :font-style :box :nudge-x :nudge-y :align-x :align-y] :doc "Label — text on a background box. The :text mark with :box preset on."})
 (register! :rug {:mark :rug :stat :identity :x-only true :accepts [:side :length] :doc "Rug — axis-margin tick marks."})
 (register! :interval-h {:mark :interval-h :stat :identity :accepts [:x-end :interval-thickness]
                         ;; Dodge/stack/fill don't compose with interval-h yet -- a Gantt

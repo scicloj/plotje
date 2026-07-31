@@ -495,24 +495,24 @@
 (kind/test-last
  [(fn [_]
     (let [text-style
-          (fn [layer-fn mark opts]
+          (fn [layer-fn opts]
             (->> (-> {:x [1] :y [1] :t ["a"]}
                      (layer-fn :x :y (merge {:text :t} opts)))
                  pj/plan :panels first :layers
-                 (filter #(= mark (:mark %)))
+                 (filter #(= :text (:mark %)))
                  first :style
                  (#(select-keys % [:align-x :align-y]))))]
       (and
-       (= {:align-x :left :align-y :center} (text-style pj/lay-text :text {}))
-       (= :left   (:align-x (text-style pj/lay-text :text {:align-x :left})))
-       (= :center (:align-x (text-style pj/lay-text :text {:align-x :center})))
-       (= :right  (:align-x (text-style pj/lay-text :text {:align-x :right})))
-       (= :top    (:align-y (text-style pj/lay-text :text {:align-y :top})))
-       (= :center (:align-y (text-style pj/lay-text :text {:align-y :center})))
-       (= :bottom (:align-y (text-style pj/lay-text :text {:align-y :bottom})))
+       (= {:align-x :left :align-y :center} (text-style pj/lay-text {}))
+       (= :left   (:align-x (text-style pj/lay-text {:align-x :left})))
+       (= :center (:align-x (text-style pj/lay-text {:align-x :center})))
+       (= :right  (:align-x (text-style pj/lay-text {:align-x :right})))
+       (= :top    (:align-y (text-style pj/lay-text {:align-y :top})))
+       (= :center (:align-y (text-style pj/lay-text {:align-y :center})))
+       (= :bottom (:align-y (text-style pj/lay-text {:align-y :bottom})))
        (= {:align-x :right :align-y :top}
-          (text-style pj/lay-label :label {:align-x :right :align-y :top}))
-       (try (text-style pj/lay-text :text {:align-x :middle}) false
+          (text-style pj/lay-label {:align-x :right :align-y :top}))
+       (try (text-style pj/lay-text {:align-x :middle}) false
             (catch Exception _ true)))))])
 
 ;; ## Bold and Italic Text
@@ -562,6 +562,59 @@
     (let [s (pj/svg-summary v)]
       (and (= 1 (:italic-texts s))
            (= 0 (:bold-texts s)))))])
+
+;; ## Text on a Background Box
+;;
+;; Text placed over dense data competes with the marks underneath. A
+;; background box separates the two: `:box` draws the text on a white
+;; panel with rounded corners and a thin border.
+;;
+;; `pj/lay-label` is the same layer type with the box switched on, so
+;; every option in this section applies to both. These two produce the
+;; same plot:
+
+(-> {:x [1] :y [1]}
+    (pj/lay-label :x :y {:text :tag :data {:x [1] :y [1] :tag ["a boxed label"]}}))
+
+(-> {:x [1] :y [1]}
+    (pj/lay-text :x :y {:text :tag :box true
+                        :data {:x [1] :y [1] :tag ["a boxed label"]}}))
+
+(kind/test-last
+ [(fn [v] (= 1 (:label-boxes (pj/svg-summary v))))])
+
+;; Pass a map to shape the box. `:corner-radius` is how round the corners
+;; are, in pixels -- three labels at decreasing radius, the last square.
+;;
+;; A box sits at its data point, so it would cover the very point it
+;; labels. `:nudge-x` shifts each label clear of its point, in data
+;; units -- the same idiom a scatter plot needs when labelling its
+;; marks:
+
+(-> {:x [1 1 1] :y [3 2 1]}
+    (pj/lay-point :x :y {:size 5 :color "#888888"})
+    (pj/lay-label :x :y {:text :tag :box {:corner-radius 8} :nudge-x 0.05
+                         :data {:x [1] :y [3] :tag ["corner-radius 8"]}})
+    (pj/lay-label :x :y {:text :tag :nudge-x 0.05
+                         :data {:x [1] :y [2] :tag ["the default, 3"]}})
+    (pj/lay-label :x :y {:text :tag :box {:corner-radius 0} :nudge-x 0.05
+                         :data {:x [1] :y [1] :tag ["corner-radius 0"]}}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      (and (= 3 (:label-boxes s))
+           (= 3 (:points s)))))])
+
+(kind/test-last
+ [(fn [fr]
+    (= [8.0 3.0 0.0]
+       (->> fr pj/plan :panels first :layers
+            (filter #(= :text (:mark %)))
+            (mapv #(-> % :style :box :corner-radius)))))])
+
+;; `{:box false}` on `pj/lay-label` leaves the text bare, the same as
+;; calling `pj/lay-text`.
 
 ;; ## Annotation Appearance
 ;;

@@ -155,8 +155,7 @@
 (defmethod extract-layer [:pointrange :doc] [_ _ _ _] "Point with error bar")
 (defmethod extract-layer [:errorbar :doc] [_ _ _ _] "Vertical error bar")
 (defmethod extract-layer [:lollipop :doc] [_ _ _ _] "Stem with dot")
-(defmethod extract-layer [:text :doc] [_ _ _ _] "Data-driven label")
-(defmethod extract-layer [:label :doc] [_ _ _ _] "Label with background box")
+(defmethod extract-layer [:text :doc] [_ _ _ _] "Data-driven label, optionally on a background box")
 (defmethod extract-layer [:rug :doc] [_ _ _ _] "Axis-margin tick marks")
 (defmethod extract-layer [:interval-h :doc] [_ _ _ _] "Horizontal bars from x to x-end at categorical y")
 (defmethod extract-layer :point [draft-layer stat all-colors cfg]
@@ -362,18 +361,46 @@
                       {:font-style s})))
     {:font-weight w :font-style s}))
 
+(def ^:private default-box
+  "Properties of the background box behind text, as ggplot2's geom_label
+   draws it: a rounded panel, radius in pixels."
+  {:corner-radius 3.0})
+
+(def ^:private box-properties
+  "Box properties a `:box` map may set. Anything else is a typo -- silently
+   ignoring it would draw the default box and give no hint why."
+  #{:corner-radius})
+
+(defn- resolve-box
+  "Normalize the `:box` option to nil (no box) or a map of box properties.
+   `true` takes the defaults, a map overrides them, and false or absent
+   means no box -- which is what a bare `pj/lay-text` layer gets."
+  [draft-layer]
+  (let [b (:box draft-layer)]
+    (cond
+      (or (nil? b) (false? b)) nil
+      (true? b) default-box
+      (map? b)
+      (let [unknown (remove box-properties (keys b))
+            r (get b :corner-radius (:corner-radius default-box))]
+        (when (seq unknown)
+          (throw (ex-info (str ":box accepts only " (sort box-properties)
+                               ", got: " (pr-str (vec unknown)))
+                          {:unknown-box-properties (vec unknown)})))
+        (when-not (and (number? r) (not (neg? (double r))))
+          (throw (ex-info (str ":box :corner-radius must be a non-negative number, got: "
+                               (pr-str r))
+                          {:corner-radius r})))
+        (assoc default-box :corner-radius (double r)))
+      :else
+      (throw (ex-info (str ":box must be true, false, or a map of box properties, got: "
+                           (pr-str b))
+                      {:box b})))))
+
 (defmethod extract-layer :text [draft-layer stat all-colors cfg]
   (-> {:mark :text
        :style (merge {:font-size (or (:font-size draft-layer) 10)
-                      :opacity (or (:fixed-alpha draft-layer) 1.0)}
-                     (resolve-align draft-layer)
-                     (resolve-font draft-layer))
-       :groups (extract-xy-groups draft-layer stat all-colors cfg :with-labels? true)}
-      (apply-nudge draft-layer)))
-
-(defmethod extract-layer :label [draft-layer stat all-colors cfg]
-  (-> {:mark :label
-       :style (merge {:font-size (or (:font-size draft-layer) 10)
+                      :box (resolve-box draft-layer)
                       :opacity (or (:fixed-alpha draft-layer) 1.0)}
                      (resolve-align draft-layer)
                      (resolve-font draft-layer))

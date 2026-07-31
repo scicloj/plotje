@@ -1,5 +1,5 @@
 (ns scicloj.plotje.text-style-test
-  "Font weight and slant on the :text and :label marks (`:font-weight`,
+  "Font weight and slant on the :text mark (`:font-weight`,
    `:font-style`). The membrane stage carries them on the Font record;
    the SVG backend realizes them as font-weight/font-style attributes and
    the Java2D backend as java.awt.Font BOLD/ITALIC styles.
@@ -37,7 +37,7 @@
          (mapv second))))
 
 (defn- text-style
-  "The :style map of the single text or label layer in a plan."
+  "The :style map of the single text layer in a plan."
   [layer-fn mark opts]
   (->> (-> text-data (layer-fn :x :y (merge {:text :t} opts)))
        pj/plan :panels first :layers
@@ -51,14 +51,14 @@
     (is (= {:font-weight :normal :font-style :normal}
            (select-keys (text-style pj/lay-text :text {}) [:font-weight :font-style])))
     (is (= {:font-weight :normal :font-style :normal}
-           (select-keys (text-style pj/lay-label :label {}) [:font-weight :font-style])))))
+           (select-keys (text-style pj/lay-label :text {}) [:font-weight :font-style])))))
 
 (deftest font-weight-and-style-flow-to-the-plan
-  (testing "both marks accept both options"
+  (testing "both entry points accept both options"
     (is (= :bold (:font-weight (text-style pj/lay-text :text {:font-weight :bold}))))
     (is (= :italic (:font-style (text-style pj/lay-text :text {:font-style :italic}))))
-    (is (= :bold (:font-weight (text-style pj/lay-label :label {:font-weight :bold}))))
-    (is (= :italic (:font-style (text-style pj/lay-label :label {:font-style :italic})))))
+    (is (= :bold (:font-weight (text-style pj/lay-label :text {:font-weight :bold}))))
+    (is (= :italic (:font-style (text-style pj/lay-label :text {:font-style :italic})))))
   (testing "the two compose -- bold italic"
     (is (= {:font-weight :bold :font-style :italic}
            (select-keys (text-style pj/lay-text :text {:font-weight :bold :font-style :italic})
@@ -70,7 +70,7 @@
   (testing "an unknown weight names the accepted values"
     (is (thrown-with-msg? Exception #":font-weight must be one of"
                           (text-style pj/lay-text :text {:font-weight :heavy}))))
-  (testing ":oblique is rejected -- Java2D would draw it as italic"
+  (testing ":oblique is rejected -- SVG would slant it but Java2D draws it upright"
     (is (thrown-with-msg? Exception #":font-style must be one of"
                           (text-style pj/lay-text :text {:font-style :oblique})))))
 
@@ -90,7 +90,7 @@
     (let [attrs (data-text-attrs (pj/plot (-> text-data (pj/lay-text :x :y {:text :t :font-style :italic}))))]
       (is (every? #(= "italic" (:font-style %)) attrs))
       (is (every? #(nil? (:font-weight %)) attrs))))
-  (testing "a label's text is styled the same way as a bare text mark"
+  (testing "a boxed label's text is styled the same way as bare text"
     (let [attrs (data-text-attrs (pj/plot (-> text-data (pj/lay-label :x :y {:text :t
                                                                              :font-weight :bold
                                                                              :font-style :italic}))))]
