@@ -79,11 +79,8 @@
         from (if log? #(Math/exp %) identity)]
     [(from (- a pad)) (from (+ b pad))]))
 
-(defn format-ticks
-  "Format tick values: integers shown without decimals, floats rounded to the
-   precision implied by the tick step size (avoids floating-point noise like
-   0.30000000000000004). Falls back to wadogo formatting only when the step
-   cannot be determined (< 2 ticks)."
+(defn- format-ticks*
+  "Format tick values without any digit grouping. See format-ticks."
   [sx ticks]
   (if (every? #(== (Math/floor %) %) ticks)
     ;; All whole numbers — strip the .0
@@ -113,6 +110,22 @@
                           trimmed))
                       s)))
                 ticks))))))
+
+(defn format-ticks
+  "Format tick values: integers shown without decimals, floats rounded to the
+   precision implied by the tick step size (avoids floating-point noise like
+   0.30000000000000004). Falls back to wadogo formatting only when the step
+   cannot be determined (< 2 ticks).
+
+   The 3-arity groups the digits of each formatted tick with `separator`
+   (the `:thousands-separator` configuration key). Layout measures label
+   widths through this same function, so a grouped axis reserves room for
+   the separators it will draw."
+  ([sx ticks]
+   (format-ticks sx ticks nil))
+  ([sx ticks separator]
+   (mapv #(defaults/group-digits % separator)
+         (format-ticks* sx ticks))))
 
 (defn format-log-ticks
   "Format log scale tick values. Values are always clean 1-2-3-5 multiples

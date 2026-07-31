@@ -50,6 +50,9 @@
 
  ;; Labels and titles
  :label-offset 38 :title-offset 18
+ ;; nil leaves numbers ungrouped; set to a string such as a comma to group
+ ;; three-digit runs in numeric tick labels and data labels
+ :thousands-separator nil
 
  ;; Facet strips
  :strip-height 16

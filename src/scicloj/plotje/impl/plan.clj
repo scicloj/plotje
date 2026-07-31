@@ -212,8 +212,10 @@
    over `:n-ticks` -- when both are given, the exact breaks win and no
    thinning is applied."
   ([domain pixel-range scale-spec spacing]
-   (compute-ticks domain pixel-range scale-spec spacing nil))
+   (compute-ticks domain pixel-range scale-spec spacing nil nil))
   ([domain pixel-range scale-spec spacing temporal-extent]
+   (compute-ticks domain pixel-range scale-spec spacing temporal-extent nil))
+  ([domain pixel-range scale-spec spacing temporal-extent separator]
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
            user-labels (:labels scale-spec)]
@@ -255,7 +257,7 @@
                         (vec (scale/format-log-ticks vs))
                         :else
                         (let [s (scale/make-scale domain pixel-range scale-spec)]
-                          (vec (scale/format-ticks s vs))))]
+                          (vec (scale/format-ticks s vs separator))))]
            {:values vs :labels labels :categorical? false})
 
          temporal-extent
@@ -279,7 +281,7 @@
          ;; Linear: use wadogo
          (let [s (scale/make-scale domain pixel-range scale-spec)
                ticks (ws/ticks s n)
-               labels (scale/format-ticks s ticks)]
+               labels (scale/format-ticks s ticks separator)]
            {:values (vec ticks) :labels (vec labels) :categorical? false}))))))
 
 ;; ---- Per-Panel Resolution ----
@@ -915,8 +917,9 @@
    pw ph m cfg annotations]
   (let [x-px [m (- pw m)]
         y-px [(- ph m) m]
-        x-ticks (when x-dom (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te))
-        y-ticks (when y-dom (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te))]
+        sep (:thousands-separator cfg)
+        x-ticks (when x-dom (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te sep))
+        y-ticks (when y-dom (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te sep))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale

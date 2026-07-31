@@ -304,6 +304,35 @@
     (keyword? v) (name v)
     :else (str v)))
 
+(defn group-digits
+  "Insert `separator` between three-digit groups in the integer part of an
+   already-formatted number string: 462389 with a comma gives 462,389.
+   A leading sign, a fractional part, and any exponent are left alone.
+   Returns `s` unchanged when `separator` is nil or empty, or when `s` does
+   not begin with digits. Only nil and the empty string count as absent: a
+   single space is a valid separator, the convention in much of Europe."
+  [s separator]
+  (if (or (nil? separator) (= "" (str separator)))
+    s
+    (if-let [[_ sign digits tail] (re-matches #"(-?)(\d+)(.*)" (str s))]
+      (str sign
+           (->> digits
+                reverse
+                (partition-all 3)
+                (map (comp str/join reverse))
+                reverse
+                (str/join separator))
+           tail)
+      s)))
+
+(defn fmt-value-label
+  "Format a data value for display as text on a plot, grouping the digits of
+   a number when a `separator` is configured. Non-numeric values format as
+   `fmt-category-label` does."
+  [v separator]
+  (cond-> (fmt-category-label v)
+    (number? v) (group-digits separator)))
+
 ;; ---- Configuration Precedence Chain ----
 ;;
 ;; Resolved with precedence (highest to lowest):
@@ -388,6 +417,7 @@
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
+   :thousands-separator ["Labels" "String inserted between three-digit groups in numeric tick labels and in text/label mark content (a comma gives 462,389). nil (the default) leaves numbers ungrouped"]
    :title-offset ["Labels" "Pixel offset for the title from the top"]
    :strip-height ["Labels" "Height of facet strip label bars"]
    :validate ["Behavior" "When true, validate plans against Malli schema"]

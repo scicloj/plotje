@@ -119,7 +119,14 @@
                     (some? color) (assoc :label (defaults/fmt-category-label color))
                     (and with-range? ymins) (assoc :ymins ymins)
                     (and with-range? ymaxs) (assoc :ymaxs ymaxs)
-                    (and with-labels? labels) (assoc :labels (mapv defaults/fmt-category-label labels)))))]
+                    ;; Text drawn from a data column is the one label kind that
+                    ;; reports a measured quantity, so it honors
+                    ;; :thousands-separator; category names, legend entries and
+                    ;; facet strips stay as they are.
+                    (and with-labels? labels)
+                    (assoc :labels (mapv #(defaults/fmt-value-label
+                                           % (:thousands-separator cfg))
+                                         labels)))))]
     (when (and with-range? (seq groups)
                (not-any? :ymins groups))
       (throw (ex-info (str "errorbar/pointrange requires :y-min and :y-max columns. "

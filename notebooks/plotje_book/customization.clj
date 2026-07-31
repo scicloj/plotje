@@ -172,6 +172,75 @@
 ;; area; see
 ;; [Known Limitations](./plotje_book.known_limitations.html).
 
+;; ## Grouping digits in large numbers
+
+;; A count in the hundreds of thousands is hard to read as a run of
+;; digits: a reader has to count places to tell 462389 from 46238.
+;; `:thousands-separator` inserts a string between each group of three
+;; digits, in numeric tick labels and in the text that
+;; `pj/lay-text` and `pj/lay-label` take from a column.
+;;
+;; It is off by default. Numbers are left as they are unless you ask,
+;; because grouping is wrong for a value that is an identifier rather
+;; than a quantity -- a year axis would read 2,026.
+
+(-> {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
+     :tickets   [462389 181444 163294]}
+    (pj/lay-bar :tickets :violation)
+    (pj/lay-label :tickets :violation {:text :tickets :align-x :right})
+    (pj/options {:thousands-separator ","}))
+
+(kind/test-last
+ [(fn [v]
+    (let [texts (set (:texts (pj/svg-summary v)))]
+      (and (contains? texts "462,389")
+           (contains? texts "100,000"))))])
+
+;; The separator is whatever string you pass, so conventions other than
+;; the comma work too -- a space, or the point used across much of
+;; Europe:
+
+(-> {:violation ["Meter Expired" "Over Time Limit"]
+     :tickets   [462389 181444]}
+    (pj/lay-bar :tickets :violation)
+    (pj/lay-label :tickets :violation {:text :tickets :align-x :right})
+    (pj/options {:thousands-separator "."}))
+
+(kind/test-last
+ [(fn [v] (contains? (set (:texts (pj/svg-summary v))) "462.389"))])
+
+;; Grouping widens the tick labels, and the space reserved for them
+;; grows to match, so a grouped axis does not push its labels into the
+;; panel. Here the same data drawn both ways gives a narrower panel once
+;; the separators appear:
+
+(let [panel-width (fn [opts]
+                    (-> {:x [1 2 3] :y [1000000 2000000 3000000]}
+                        (pj/lay-point :x :y)
+                        (pj/options opts)
+                        pj/plan
+                        :panel-width))]
+  {:ungrouped (panel-width {})
+   :grouped (panel-width {:thousands-separator ","})})
+
+(kind/test-last
+ [(fn [m] (< (:grouped m) (:ungrouped m)))])
+
+;; Only the digits to the left of the decimal point are grouped:
+
+(-> {:x [1] :y [1] :amount [1234.56]}
+    (pj/lay-label :x :y {:text :amount})
+    (pj/options {:thousands-separator ","}))
+
+(kind/test-last
+ [(fn [v] (contains? (set (:texts (pj/svg-summary v))) "1,234.56"))])
+
+;; Two kinds of text are affected: tick labels on a numeric axis, and
+;; label text read from a column. Category names, legend entries, and
+;; facet strip labels are left as they are, for the reason the setting is
+;; off by default -- a category is a name, so a year used as a category
+;; still reads 2026 even with a grouped axis beside it.
+
 ;; ## Scales
 
 ;; Use a log scale for data spanning orders of magnitude.
