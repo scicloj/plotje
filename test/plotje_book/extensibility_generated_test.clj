@@ -77,7 +77,7 @@
        "Output" (pj/mark-doc k)})))}))
 
 
-(deftest t18_l150 (is ((fn [t] (= 18 (count (:row-maps t)))) v17_l139)))
+(deftest t18_l150 (is ((fn [t] (= 17 (count (:row-maps t)))) v17_l139)))
 
 
 (def
@@ -132,7 +132,7 @@
        "Membrane output" (pj/membrane-mark-doc k)})))}))
 
 
-(deftest t27_l190 (is ((fn [t] (= 18 (count (:row-maps t)))) v26_l179)))
+(deftest t27_l190 (is ((fn [t] (= 17 (count (:row-maps t)))) v26_l179)))
 
 
 (def v29_l274 (mark/mark-clip-region :point))
@@ -140,7 +140,7 @@
 
 (deftest
  t30_l276
- (is ((fn* [p1__96822#] (= :drawing-area p1__96822#)) v29_l274)))
+ (is ((fn* [p1__364113#] (= :drawing-area p1__364113#)) v29_l274)))
 
 
 (def v31_l278 (mark/mark-clip-region :rug))
@@ -148,7 +148,7 @@
 
 (deftest
  t32_l280
- (is ((fn* [p1__96823#] (= :panel-box p1__96823#)) v31_l278)))
+ (is ((fn* [p1__364114#] (= :panel-box p1__364114#)) v31_l278)))
 
 
 (def
@@ -161,7 +161,7 @@
 
 (deftest
  t36_l294
- (is ((fn* [p1__96824#] (= :panel-box p1__96824#)) v35_l292)))
+ (is ((fn* [p1__364115#] (= :panel-box p1__364115#)) v35_l292)))
 
 
 (def v38_l298 (remove-method mark/mark-clip-region :margin-glyph))

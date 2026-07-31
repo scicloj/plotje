@@ -68,7 +68,7 @@
      "Used by" (used-by :mark mk)})}))
 
 
-(deftest t10_l102 (is ((fn [t] (= 22 (count (:row-maps t)))) v9_l94)))
+(deftest t10_l102 (is ((fn [t] (= 21 (count (:row-maps t)))) v9_l94)))
 
 
 (def
