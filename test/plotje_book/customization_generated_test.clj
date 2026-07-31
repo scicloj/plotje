@@ -197,7 +197,7 @@
  v30_l149
  (->
   {:product
-   (map (fn* [p1__361908#] (str "Product " p1__361908#)) (range 12)),
+   (map (fn* [p1__74335#] (str "Product " p1__74335#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -218,7 +218,7 @@
  v33_l162
  (->
   {:product
-   (map (fn* [p1__361909#] (str "Product " p1__361909#)) (range 12)),
+   (map (fn* [p1__74336#] (str "Product " p1__74336#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -310,7 +310,7 @@
   {:x (range 1 50),
    :y
    (map
-    (fn* [p1__361910#] (* 2 (Math/pow 1.1 p1__361910#)))
+    (fn* [p1__74337#] (* 2 (Math/pow 1.1 p1__74337#)))
     (range 1 50))}))
 
 
@@ -491,7 +491,7 @@
 (def
  v74_l370
  (->
-  {:bin (map (fn* [p1__361911#] (str "bin-" p1__361911#)) (range 40)),
+  {:bin (map (fn* [p1__74338#] (str "bin-" p1__74338#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -505,7 +505,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__361912#] (.startsWith p1__361912# "bin-"))
+       (fn* [p1__74339#] (.startsWith p1__74339# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v74_l370)))
@@ -723,8 +723,8 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__361913#] (= :text (:mark p1__361913#))))
-      (mapv (fn* [p1__361914#] (-> p1__361914# :style :align-x))))))
+      (filter (fn* [p1__74340#] (= :text (:mark p1__74340#))))
+      (mapv (fn* [p1__74341#] (-> p1__74341# :style :align-x))))))
    v107_l527)))
 
 
@@ -752,7 +752,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__361915#] (= :text (:mark p1__361915#))))
+       (filter (fn* [p1__74342#] (= :text (:mark p1__74342#))))
        first
        :style)]
      (and
@@ -778,12 +778,12 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__361916#] (= :text (:mark p1__361916#))))
+        (filter (fn* [p1__74343#] (= :text (:mark p1__74343#))))
         first
         :style
         ((fn*
-          [p1__361917#]
-          (select-keys p1__361917# [:align-x :align-y])))))]
+          [p1__74344#]
+          (select-keys p1__74344# [:align-x :align-y])))))]
      (and
       (=
        {:align-x :left, :align-y :center}
@@ -952,11 +952,11 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__361918#] (= :text (:mark p1__361918#))))
+      (filter (fn* [p1__74345#] (= :text (:mark p1__74345#))))
       (mapv
        (fn*
-        [p1__361919#]
-        (-> p1__361919# :style :box :corner-radius))))))
+        [p1__74346#]
+        (-> p1__74346# :style :box :corner-radius))))))
    v125_l663)))
 
 
