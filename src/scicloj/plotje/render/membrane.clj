@@ -32,6 +32,7 @@
     (if (= :continuous (:type legend))
       ;; Continuous gradient legend
       (let [{:keys [min max stops color-scale ticks]} legend
+            sep (:thousands-separator cfg)
             ;; If render-time config overrides the color-scale, resolve fresh
             render-cs (:color-scale cfg)
             override? (and render-cs (not= render-cs color-scale))
@@ -67,14 +68,17 @@
                   :let [ty (+ y (* (- 1.0 (double t)) bar-h) -4)]]
               (ui/translate (+ x bar-w 4) ty
                             (ui/with-color title-color
-                              (ui/label (fmt-tick value) (ui/font nil 10)))))
+                              (ui/label (defaults/group-digits (fmt-tick value) sep)
+                                        (ui/font nil 10)))))
             ;; Linear scale: just min/max at the ends.
             [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
                            (ui/with-color title-color
-                             (ui/label (format "%.4g" (double min)) (ui/font nil 10))))
+                             (ui/label (defaults/group-digits (format "%.4g" (double min)) sep)
+                                       (ui/font nil 10))))
              (ui/translate (+ x bar-w 4) (+ y 6)
                            (ui/with-color title-color
-                             (ui/label (format "%.4g" (double max)) (ui/font nil 10))))]))))
+                             (ui/label (defaults/group-digits (format "%.4g" (double max)) sep)
+                                       (ui/font nil 10))))]))))
       ;; Categorical swatch legend
       (let [{:keys [entries]} legend]
         (vec
@@ -132,10 +136,21 @@
                         entries)]
             elems)))))))
 
+(defn- fmt-legend-number
+  "Format a legend's numeric value: an integral value loses its trailing
+   .0, and the digits are grouped per `:thousands-separator`, so a legend
+   reads the same way as the axis ticks beside it."
+  [v cfg]
+  (let [d (double v)
+        s (if (== d (Math/floor d)) (str (long d)) (str v))]
+    (defaults/group-digits s (:thousands-separator cfg))))
+
 (defn render-size-legend
   "Render a size legend -- graduated circles with value labels.
-   Returns a vector of membrane drawables."
-  [size-legend x y]
+   Returns a vector of membrane drawables. `cfg` supplies
+   `:thousands-separator`, so a legend's numbers group the same way the
+   axis ticks beside them do."
+  [size-legend x y cfg]
   (let [{:keys [title entries]} size-legend
         title-color [0.2 0.2 0.2 1.0]
         point-color [0.4 0.4 0.4 1.0]
@@ -161,13 +176,14 @@
                                :legend true)
                         (ui/translate (+ x (* 2 max-r) 6) cy
                                       (ui/with-color title-color
-                                        (ui/label (str value) (ui/font nil 10))))])
+                                        (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
          :legend true))))))
 
 (defn render-alpha-legend
   "Render an alpha legend -- squares with varying opacity and value
-   labels. Returns a vector of membrane drawables."
-  [alpha-legend x y]
+   labels. Returns a vector of membrane drawables. `cfg` supplies
+   `:thousands-separator`, as for the size legend."
+  [alpha-legend x y cfg]
   (let [{:keys [title entries]} alpha-legend
         title-color [0.2 0.2 0.2 1.0]
         sw defaults/legend-swatch-size
@@ -190,7 +206,7 @@
                                :legend true)
                         (ui/translate (+ x sw 6) cy
                                       (ui/with-color title-color
-                                        (ui/label (str value) (ui/font nil 10))))])
+                                        (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
          :legend true))))))
 
 ;; ---- Plan → Membrane ----
@@ -392,12 +408,12 @@
                           ;; Size legend
                           size-y (+ base-y color-h (if legend 10 0))
                           size-elems (when size-legend
-                                       (render-size-legend size-legend legend-x size-y))
+                                       (render-size-legend size-legend legend-x size-y cfg))
                           size-h (if size-legend (+ 16 (* 18 (count (:entries size-legend)))) 0)
                           ;; Alpha legend
                           alpha-y (+ size-y size-h (if size-legend 10 0))
                           alpha-elems (when alpha-legend
-                                        (render-alpha-legend alpha-legend legend-x alpha-y))]
+                                        (render-alpha-legend alpha-legend legend-x alpha-y cfg))]
                       (concat (or color-elems []) (or size-elems []) (or alpha-elems [])))
                     :top
                     (let [plots-start-y title-pad

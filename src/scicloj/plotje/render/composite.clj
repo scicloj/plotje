@@ -124,10 +124,10 @@
                                    l legend-x (+ legend-y-top 18) cfg))
                           legend]
                          [(fn [l] (membrane/render-size-legend
-                                   l legend-x (+ legend-y-top 168)))
+                                   l legend-x (+ legend-y-top 168) cfg))
                           size-legend]
                          [(fn [l] (membrane/render-alpha-legend
-                                   l legend-x (+ legend-y-top 288)))
+                                   l legend-x (+ legend-y-top 288) cfg))
                           alpha-legend]])]
     (vec (apply concat sections))))
 
