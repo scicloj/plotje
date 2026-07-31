@@ -630,11 +630,74 @@
    data override + type-classification overrides)."
   (into defaults/column-keys #{:data :color-type :x-type :y-type}))
 
+(def ^:private plot-text-keys
+  "Keys describing one plot -- title, labels, panel dimensions."
+  (set (keys defaults/plot-option-docs)))
+
+(def ^:private config-keys
+  "Rendering defaults -- settable for one plot via pj/options, or for
+   every plot via pj/set-config!."
+  (set (keys defaults/config-key-docs)))
+
 (def ^:private plot-options-keys
   "Keys accepted by pj/options (top-level only; nested theme/config keys
    are validated separately by deep-merge)."
-  (into (set (keys defaults/plot-option-docs))
-        (keys defaults/config-key-docs)))
+  (into plot-text-keys config-keys))
+
+(def ^:private dedicated-function-keys
+  "Keys no options map accepts because a dedicated function sets the
+   setting instead. Faceting is caught earlier by check-facet-keys,
+   which throws; these only warn, so they need the pointer here."
+  {:scale-x "pj/scale" :scale-y "pj/scale"})
+
+(defn- layer-types-accepting
+  "Registered layer types whose :accepts list contains `k`, sorted.
+   Read from the registry at call time so layer types registered by the
+   user count too."
+  [k]
+  (->> (layer-type/registered)
+       (keep (fn [[layer-type-key entry]]
+               (when (some #{k} (:accepts entry)) layer-type-key)))
+       sort
+       vec))
+
+(defn- option-home
+  "The category `k` belongs to and the function that sets it, as a
+   phrase, given the `caller` that rejected it. Returns nil when `k`
+   matches nothing known -- a typo has no better home to point at."
+  [caller k]
+  (let [lay? (str/starts-with? caller "lay-")
+        elsewhere (layer-types-accepting k)]
+    (cond
+      (dedicated-function-keys k)
+      (str "Set by " (dedicated-function-keys k) ", not by an options map")
+
+      (plot-text-keys k)
+      "Plot options belong in pj/options"
+
+      (config-keys k)
+      (str "Configuration belongs in pj/options for one plot,"
+           " or pj/set-config! for every plot")
+
+      (and (not lay?)
+           (or (contains? (set layer-type/universal-layer-options) k)
+               (seq elsewhere)))
+      "Layer options belong in a pj/lay-* options map"
+
+      (and lay? (seq elsewhere))
+      (str "Layer options of " elsewhere " belong in that layer's options map"))))
+
+(defn- option-home-lines
+  "One line per destination, naming the unknown keys that belong there.
+   Keys with no known home are left out, so a plain typo still gets the
+   accepted-key list and nothing more."
+  [caller unknown]
+  (->> unknown
+       (group-by (partial option-home caller))
+       (keep (fn [[home ks]] (when home (str home ": " (vec ks)))))
+       sort
+       (map (partial str "\n  "))
+       str/join))
 
 (defn- warn-and-strip-unknown-opts
   "Validate `opts` against `accepted`. `caller` is used in the message
@@ -663,20 +726,19 @@
                              " is now an error.")
                         {:value strict-val})))
       (if (seq unknown)
-        (if strict-val
-          (throw (ex-info (str caller " does not recognize option(s): "
-                               (vec unknown)
-                               ". Accepted: " (vec (sort accepted))
-                               ". (Set :strict false in plotje.edn or"
-                               " via with-config to downgrade to a"
-                               " warning.)")
-                          {:caller caller
-                           :unknown (vec unknown)
-                           :accepted (set accepted)}))
-          (do (println (str "Warning: " caller
-                            " does not recognize option(s): " (vec unknown)
-                            ". Accepted: " (vec (sort accepted))))
-              (select-keys opts (filter accepted (keys opts)))))
+        (let [msg (str caller " does not recognize option(s): " (vec unknown) "."
+                       (option-home-lines caller unknown)
+                       "\n  Accepted: " (vec (sort accepted)))]
+          (if strict-val
+            (throw (ex-info (str msg
+                                 "\n  (Set :strict false in plotje.edn or"
+                                 " via with-config to downgrade to a"
+                                 " warning.)")
+                            {:caller caller
+                             :unknown (vec unknown)
+                             :accepted (set accepted)}))
+            (do (println (str "Warning: " msg))
+                (select-keys opts (filter accepted (keys opts))))))
         opts))))
 
 (def ^:private pose-keys
@@ -1674,9 +1736,9 @@
    via DFS-last identity, or appends a new sub-pose on miss).
 
    - `(lay-point fr)` -- bare layer at root.
-   - `(lay-point fr {:color :species})` -- bare layer with aesthetic opts.
+   - `(lay-point fr {:color :species})` -- bare layer with layer options.
    - `(lay-point data :x :y)` -- coerce data to a leaf, then attach.
-   - `(lay-point data :x :y {:color :c})` -- same with aesthetic opts."
+   - `(lay-point data :x :y {:color :c})` -- same with layer options."
   ([pose-or-data] (lay-layer-type :point pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :point pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :point pose-or-data x y-or-opts))
