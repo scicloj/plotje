@@ -58,21 +58,37 @@
 
 ;; ## Layer Types
 ;;
-;; Each row is a registered layer type showing its mark, stat, and position.
+;; Each row is a registered layer type showing its mark, stat, position,
+;; and the layer options it presets. Two layer types can share a mark and
+;; differ only by one of the other three columns: `:histogram` is the
+;; `:bar` mark with a binning stat, and `:label` is the `:text` mark with
+;; a background box preset.
 
 (kind/table
- {:column-names ["Layer type" "Mark" "Stat" "Position"]
+ {:column-names ["Layer type" "Mark" "Stat" "Position" "Presets"]
   :row-maps
   (for [k layer-type/layer-type-order
         :let [m (layer-type/lookup k)]]
     {"Layer type" (kind/code (pr-str k))
      "Mark" (kind/code (pr-str (:mark m)))
      "Stat" (kind/code (pr-str (:stat m)))
-     "Position" (kind/code (pr-str (or (:position m) :identity)))})})
+     "Position" (kind/code (pr-str (or (:position m) :identity)))
+     "Presets" (if-let [d (:defaults m)] (kind/code (pr-str d)) "")})})
 
 (kind/test-last
  [(fn [t]
     (= 25 (count (:row-maps t))))])
+
+;; The "Presets" column is what separates two layer types that would
+;; otherwise look identical here -- `:text` and `:label` share a mark, a
+;; stat, and a position, and differ only in that a label starts with its
+;; box switched on.
+
+(kind/test-last
+ [(fn [_]
+    (let [row (fn [k] (select-keys (layer-type/lookup k) [:mark :stat :defaults]))]
+      (and (= {:mark :text :stat :identity} (row :text))
+           (= {:mark :text :stat :identity :defaults {:box true}} (row :label)))))])
 
 ;; The "Position" column shows each layer-type's registered default.
 ;; A few marks (`:bar`, `:lollipop`, `:boxplot`,
