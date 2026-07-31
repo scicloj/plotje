@@ -30,14 +30,23 @@
    :style :fill
    :stroke-width 1})
 
-;; clipPath ids must be unique within the HTML document, and a notebook
-;; page commonly embeds many independent SVGs. A process-global counter
-;; (defonce so a namespace reload does not reset it mid-document) gives
-;; each clip a distinct id across every render in the JVM.
-(defonce ^:private clip-id-counter (atom 0))
+(defn- clip-id
+  "Id for a clip region, derived from the region's own geometry.
 
-(defn- next-clip-id []
-  (str "plotje-clip-" (swap! clip-id-counter inc)))
+   clipPath ids must be unique within the HTML DOCUMENT, not merely within
+   one plot: a notebook page embeds many independent SVGs and `url(#id)`
+   resolves across the whole page, so an id cannot restart per plot.
+   Geometry satisfies that -- ids differ wherever the regions differ, and
+   coincide only where the regions are identical, in which case sharing a
+   definition clips exactly the same way.
+
+   This replaced a process-global counter, which met the uniqueness
+   requirement but made every render depend on how many plots the JVM had
+   drawn before it: re-rendering the readme rewrote each SVG with a new
+   `plotje-clip-N` and no visual change, so a real rendering change could
+   not be told from counter drift in review."
+  [ox oy w h]
+  (str "plotje-clip-" (Integer/toUnsignedString (hash [ox oy w h]) 36)))
 
 ;; ---- Membrane → SVG conversion ----
 
@@ -191,7 +200,7 @@
           [w h] bounds
           inner (membrane->svg drawable ctx)]
       (when inner
-        (let [id (next-clip-id)]
+        (let [id (clip-id ox oy w h)]
           [:g {}
            [:clipPath {:id id}
             [:rect {:x (fmt ox) :y (fmt oy)

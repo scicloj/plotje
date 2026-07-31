@@ -112,3 +112,34 @@
       ;; allowance costs nothing.
       (is (>= (apply min red-xs) (dec (long panel-left)))
           "no fill pixel may appear left of the panel"))))
+
+;; ---- clip-path ids ----
+
+(defn- clip-ids [pose]
+  (vec (re-seq #"plotje-clip-[a-z0-9]+" (pr-str (pj/plot pose)))))
+
+(def clipped-pose
+  (-> {:x [1 2 3] :y [1 2 3]}
+      (pj/lay-point :x :y)
+      (pj/scale :x {:domain [1.5 2.5]})))
+
+(deftest clip-ids-are-derived-from-the-region-not-a-counter
+  (testing "the same pose renders the same ids every time"
+    ;; They came from a process-global counter, so a file's ids depended on
+    ;; how many plots the JVM had drawn first: re-rendering the readme
+    ;; rewrote every SVG with no visual change, hiding real diffs.
+    (is (= (clip-ids clipped-pose) (clip-ids clipped-pose)))
+    (is (seq (clip-ids clipped-pose))))
+  (testing "rendering other plots first does not shift them"
+    (let [before (clip-ids clipped-pose)]
+      (dotimes [_ 3]
+        (pj/plot (-> {:x [1 2] :y [3 4]} (pj/lay-line :x :y))))
+      (is (= before (clip-ids clipped-pose)))))
+  (testing "a different clip region gets a different id, so two plots on one
+            page cannot borrow each other's clipPath"
+    (is (not= (set (clip-ids clipped-pose))
+              (set (clip-ids (-> clipped-pose (pj/options {:width 700 :height 300}))))))) 
+  (testing "every id is referenced by a clip-path attribute"
+    (let [svg (pr-str (pj/plot clipped-pose))]
+      (doseq [id (distinct (clip-ids clipped-pose))]
+        (is (.contains ^String svg (str "url(#" id ")")))))))
