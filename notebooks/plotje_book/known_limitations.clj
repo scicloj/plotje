@@ -132,15 +132,6 @@
 ;; - Large scatters produce large SVGs (~220 bytes/point). For >10k
 ;;   points, use `:format :bufimg` for raster output.
 ;;
-;; - Saving to PNG (`(pj/save pose "plot.png")`, and the `:bufimg`
-;;   raster path generally) truncates the rotated y-axis label after
-;;   ~6 characters. The
-;;   SVG path (`pj/plot` + Clay GFM, or `rsvg-convert` on the saved
-;;   SVG) renders the full label. Root cause lives in Membrane's
-;;   Java2D backend (the rotated-text bounding box is clipped).
-;;   Workaround: render to SVG and rasterize externally, or pad
-;;   `:y-label` to stay short. Needs an upstream fix in Membrane.
-;;
 ;; - LOESS with confidence bands is O(n^2); subsample above ~5k
 ;;   rows.
 
