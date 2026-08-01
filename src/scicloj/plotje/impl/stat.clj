@@ -352,6 +352,21 @@
 
 ;; ---- Counting ----
 
+(defn- counts->points
+  "The same counts read as points -- one per bar, at (category, count), with
+   the count as its label. This is what makes a computed count available to a
+   text mark: `(pj/lay-label {:stat :count})` labels each bar with its own
+   height without the caller pre-aggregating (issue #14). Derived from the
+   bars rather than counted again, so a label cannot disagree with the bar it
+   names."
+  [bars]
+  (mapv (fn [{:keys [color counts]}]
+          {:color color
+           :xs (mapv :category counts)
+           :ys (mapv :count counts)
+           :labels (mapv :count counts)})
+        bars))
+
 (defmethod compute-stat :count [draft-layer]
   (when-not (= (:x-type draft-layer) :categorical)
     (throw (ex-info (str "lay-bar (counting) requires a categorical column for :x, "
@@ -387,12 +402,14 @@
                 all-counts (for [cat categories, cc color-cats] (count-fn cat cc))
                 max-count (reduce max 1 all-counts)
                 positive-counts (filter pos? all-counts)
-                min-y (if (seq positive-counts) (reduce min positive-counts) 1)]
+                min-y (if (seq positive-counts) (reduce min positive-counts) 1)
+                bars (vec (for [cc color-cats]
+                            {:color cc
+                             :counts (mapv (fn [cat] {:category cat :count (count-fn cat cc)})
+                                           categories)}))]
             {:categories categories
-             :bars (vec (for [cc color-cats]
-                          {:color cc
-                           :counts (mapv (fn [cat] {:category cat :count (count-fn cat cc)})
-                                         categories)}))
+             :bars bars
+             :points (counts->points bars)
              :max-count max-count
              :x-domain categories
              :y-domain [min-y max-count]})
@@ -404,9 +421,11 @@
                 all-counts (map :count counts-by-cat)
                 max-count (reduce max 1 all-counts)
                 positive-counts (filter pos? all-counts)
-                min-y (if (seq positive-counts) (reduce min positive-counts) 1)]
+                min-y (if (seq positive-counts) (reduce min positive-counts) 1)
+                bars [{:counts counts-by-cat}]]
             {:categories categories
-             :bars [{:counts counts-by-cat}]
+             :bars bars
+             :points (counts->points bars)
              :max-count max-count
              :x-domain categories
              :y-domain [min-y max-count]}))))))

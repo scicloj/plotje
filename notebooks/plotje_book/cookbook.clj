@@ -356,6 +356,49 @@
                           first)]
       (= :right (-> text-layer :style :align-x))))])
 
+;; ### Labelling counted bars with their counts
+;;
+;; `pj/lay-bar` with only a category column counts the rows in each
+;; category, and there is no column holding those counts to point a
+;; label at. `{:stat :count}` on the label layer reads the same counted
+;; values the bars are drawn from, so each bar is labelled with its own
+;; height and the two cannot disagree.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-bar :species)
+    (pj/lay-label {:stat :count :align-x :center}))
+
+(kind/test-last
+ [(fn [fr]
+    (= ["50" "50" "50"]
+       (->> fr pj/plan :panels first :layers
+            (filter #(= :text (:mark %)))
+            first :groups first :labels)))])
+
+;; ### Labels on grouped bars
+;;
+;; Bars grouped by color are dodged side by side within each category. A
+;; label layer grouped by that same column is dodged along with them, so
+;; each label sits over the bar it names rather than at the middle of the
+;; category. Group the labels with `:group`, which is the label layer's
+;; way of naming the column the bars use for `:color`.
+
+(-> {:sex ["male" "male" "female" "female"]
+     :species ["cat" "dog" "cat" "dog"]
+     :percent [21 17 9 14]}
+    (pj/pose :sex :percent)
+    (pj/lay-bar {:color :species})
+    (pj/lay-label {:text :percent :group :species :align-x :center}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [layers (->> fr pj/plan :panels first :layers)
+          groups (fn [mark] (->> layers
+                                 (filter #(= mark (:mark %)))
+                                 first :groups
+                                 (mapv (juxt :label :dodge-idx))))]
+      (= (groups :rect) (groups :text))))])
+
 ;; ### Custom palette map
 
 ;; Assign specific colors to each category using a palette map.
@@ -662,6 +705,39 @@
                  :format :bufimg}))
 
 (kind/test-last [(fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))])
+
+;; ### Raster text sits where SVG text sits
+;;
+;; Both paths draw the same plan, so choosing raster changes how the marks
+;; are stored, not where anything lands. That matters most for text, since
+;; a tick label is placed relative to its tick rather than at a coordinate
+;; of its own: a y tick label is right-aligned against the axis, an x tick
+;; label centers on its tick, and `:x-tick-angle` turns each one about its
+;; own origin.
+;;
+;; One pose exercising all three, first as SVG:
+
+(def quarterly-revenue
+  (-> {:quarter ["Q1 2024" "Q2 2024" "Q3 2024" "Q4 2024"]
+       :revenue [1250000 1480000 1310000 1720000]}
+      (pj/lay-bar :quarter :revenue)
+      (pj/options {:x-tick-angle -45
+                   :y-label "revenue in US dollars"
+                   :thousands-separator ","})))
+
+quarterly-revenue
+
+(kind/test-last
+ [(fn [v] (.contains ^String (pr-str (pj/plot v)) "rotate(-45"))])
+
+;; and then the same pose through the raster path -- same slanted tick
+;; labels, same grouped digits right-aligned against the axis, same axis
+;; title turned through a quarter turn and printed in full:
+
+(pj/options quarterly-revenue {:format :bufimg})
+
+(kind/test-last
+ [(fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))])
 
 ;; ### Saving to PNG
 ;;

@@ -341,11 +341,27 @@
         font (text-font fsize font-weight font-style)
         radius (double (or (:corner-radius box) 3.0))
         pad-x 3 pad-y 2
-        char-w (* fsize 0.6)]
+        char-w (* fsize 0.6)
+        ;; A label naming a dodged bar has to sit over that bar rather than at
+        ;; the band centre, so it takes its band-axis position from the same
+        ;; band-position the bar marks use, on the same dodge context. The
+        ;; convention the bar renderers set holds here too: :xs carries the
+        ;; category, :ys the value.
+        {:keys [flipped? band-s]} (orient-scales ctx)
+        {:keys [n-groups]} (:dodge-ctx layer)
+        dodge? (boolean (and n-groups
+                             (try (ws/data band-s :bandwidth)
+                                  (catch Exception _ nil))))]
     (vec
-     (for [{:keys [color xs ys labels]} groups
+     (for [{:keys [color xs ys labels dodge-idx]} groups
            i (range (count xs))
            :let [[px py] (coord-fn (xs i) (ys i))
+                 [px py] (if dodge?
+                           (let [mid (:mid (band-position band-s (xs i)
+                                                          (or dodge-idx 0)
+                                                          n-groups 0.8))]
+                             (if flipped? [px mid] [mid py]))
+                           [px py])
                  label (if labels (labels i) "")
                  [cr cg cb _] color
                  text-w (* (count label) char-w)

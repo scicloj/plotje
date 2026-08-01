@@ -196,6 +196,30 @@
    from group-by's hash-based map when a panel mixes position types."
   [:identity :dodge :stack :fill])
 
+(defn- position-key
+  "Which position cohort a layer is adjusted with. Normally its own
+   `:position`, but a text layer grouped by the same categories a dodged
+   layer is dodged by rides along with that dodge.
+
+   Without this a label over dodged bars is placed at the band centre, where
+   every group's label piles up on the boundary between two bars instead of
+   sitting over its own (issue #13). The cohort is what makes them line up:
+   `apply-position :dodge` derives one `:n-groups` and one label-to-index map
+   for every layer in it, so a label cannot drift from the bar it names.
+
+   Only text is carried in. Marks that read `:dodge-idx` but position other
+   geometry -- errorbar, pointrange -- keep needing an explicit
+   `:position :dodge`, which lands them in the cohort the ordinary way."
+  [dodged-labels layer]
+  (let [position (or (:position layer) :identity)
+        labels (layer-group-labels layer)]
+    (if (and (= :identity position)
+             (= :text (:mark layer))
+             (seq labels)
+             (every? dodged-labels labels))
+      :dodge
+      position)))
+
 (defn apply-positions
   "Apply position adjustments to all layers in a panel.
    Groups layers by position type and applies adjustments per group.
@@ -215,7 +239,10 @@
         ;; arbitrary keys on each layer map and the within-group order,
         ;; so this index survives every position transform.
         indexed (map-indexed (fn [i l] (assoc l :__layer-order i)) layers)
-        by-pos (group-by #(or (:position %) :identity) indexed)
+        dodged-labels (into #{} (comp (filter #(= :dodge (:position %)))
+                                      (mapcat layer-group-labels))
+                            indexed)
+        by-pos (group-by #(position-key dodged-labels %) indexed)
         ;; Iterate known positions in canonical order first, then any
         ;; unknown ones, so the per-group computation is deterministic
         ;; regardless of group-by's hash-based key order.
