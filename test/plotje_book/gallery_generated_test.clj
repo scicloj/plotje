@@ -370,9 +370,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__76062#]
+    [p1__71170#]
     (#{"Australia" "Brazil" "Japan" "Nigeria" "Germany"}
-     (:country p1__76062#))))
+     (:country p1__71170#))))
   (pj/pose :year :life-exp {:color :country})
   pj/lay-line
   pj/lay-point
@@ -741,19 +741,19 @@
   (pj/options
    {:title "Diamond Price by Carat (Log Scale)",
     :x-label "Carat",
-    :y-label "Price",
+    :y-label "Price (US dollars)",
     :format :bufimg})))
 
 
 (deftest
- t110_l587
+ t110_l583
  (is
   ((fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))
    v109_l575)))
 
 
 (def
- v112_l592
+ v112_l588
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-summary :day :total-bill {:color :sex})
@@ -761,16 +761,16 @@
 
 
 (deftest
- t113_l596
+ t113_l592
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (pos? (:points s)))) v112_l592)))
+  ((fn [v] (let [s (pj/svg-summary v)] (pos? (:points s)))) v112_l588)))
 
 
 (def
- v115_l602
+ v115_l598
  (->
   (rdatasets/gapminder-gapminder)
-  (tc/select-rows (fn* [p1__76063#] (= 2007 (:year p1__76063#))))
+  (tc/select-rows (fn* [p1__71171#] (= 2007 (:year p1__71171#))))
   (pj/lay-point :gdp-percap :life-exp {:color :continent, :size :pop})
   (pj/scale :x :log)
   (pj/options
@@ -780,19 +780,19 @@
 
 
 (deftest
- t116_l610
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v115_l602)))
+ t116_l606
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v115_l598)))
 
 
 (def
- v118_l615
+ v118_l611
  (->
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__76064#]
+    [p1__71172#]
     (#{"Brazil" "United States" "Japan" "China" "India"}
-     (:country p1__76064#))))
+     (:country p1__71172#))))
   (pj/lay-line :year :life-exp {:color :country})
   (pj/options
    {:title "Life Expectancy Over Time",
@@ -801,12 +801,12 @@
 
 
 (deftest
- t119_l622
- (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v118_l615)))
+ t119_l618
+ (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v118_l611)))
 
 
 (def
- v121_l627
+ v121_l623
  (->
   (rdatasets/ggplot2-economics)
   (pj/lay-step :date :unemploy)
@@ -817,12 +817,12 @@
 
 
 (deftest
- t122_l633
- (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v121_l627)))
+ t122_l629
+ (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v121_l623)))
 
 
 (def
- v124_l638
+ v124_l634
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length)
@@ -832,12 +832,12 @@
 
 
 (deftest
- t125_l644
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v124_l638)))
+ t125_l640
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v124_l634)))
 
 
 (def
- v127_l649
+ v127_l645
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :total-bill :tip {:color :smoker})
@@ -850,18 +850,18 @@
 
 
 (deftest
- t128_l657
+ t128_l653
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v127_l649)))
+   v127_l645)))
 
 
 (def
- v130_l664
+ v130_l660
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-histogram :hwy {:color :drv})
@@ -870,13 +870,13 @@
 
 
 (deftest
- t131_l669
+ t131_l665
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:panels s)))) v130_l664)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:panels s)))) v130_l660)))
 
 
 (def
- v133_l675
+ v133_l671
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -887,18 +887,18 @@
 
 
 (deftest
- t134_l682
+ t134_l678
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (pos? (:lines s)))))
-   v133_l675)))
+   v133_l671)))
 
 
 (def
- v136_l689
+ v136_l685
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -908,14 +908,14 @@
 
 
 (deftest
- t137_l695
+ t137_l691
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v136_l689)))
+   v136_l685)))
 
 
 (def
- v139_l701
+ v139_l697
  (->
   (rdatasets/datasets-mtcars)
   (pj/lay-lollipop :rownames :mpg)
@@ -924,12 +924,12 @@
 
 
 (deftest
- t140_l706
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v139_l701)))
+ t140_l702
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v139_l697)))
 
 
 (def
- v142_l713
+ v142_l709
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:position :fill, :color :sex})
@@ -937,12 +937,12 @@
 
 
 (deftest
- t143_l717
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v142_l713)))
+ t143_l713
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v142_l709)))
 
 
 (def
- v145_l722
+ v145_l718
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length)
@@ -952,12 +952,12 @@
 
 
 (deftest
- t146_l728
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v145_l722)))
+ t146_l724
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v145_l718)))
 
 
 (def
- v148_l734
+ v148_l730
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -966,12 +966,12 @@
 
 
 (deftest
- t149_l739
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v148_l734)))
+ t149_l735
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v148_l730)))
 
 
 (def
- v151_l744
+ v151_l740
  (->
   {:category ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"],
    :value [120 200 150 80 70 110 130]}
@@ -980,12 +980,12 @@
 
 
 (deftest
- t152_l749
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v151_l744)))
+ t152_l745
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v151_l740)))
 
 
 (def
- v154_l754
+ v154_l750
  (->
   (rdatasets/datasets-iris)
   (pj/lay-density :sepal-length {:color :species})
@@ -994,12 +994,12 @@
 
 
 (deftest
- t155_l759
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v154_l754)))
+ t155_l755
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v154_l750)))
 
 
 (def
- v157_l764
+ v157_l760
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -1009,18 +1009,18 @@
 
 
 (deftest
- t158_l770
+ t158_l766
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 3 (:lines s)))))
-   v157_l764)))
+   v157_l760)))
 
 
 (def
- v160_l777
+ v160_l773
  (->
   (rdatasets/datasets-iris)
   (pj/lay-summary :species :sepal-length)
@@ -1028,12 +1028,12 @@
 
 
 (deftest
- t161_l781
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v160_l777)))
+ t161_l777
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v160_l773)))
 
 
 (def
- v163_l786
+ v163_l782
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -1043,12 +1043,12 @@
 
 
 (deftest
- t164_l792
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v163_l786)))
+ t164_l788
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v163_l782)))
 
 
 (def
- v166_l803
+ v166_l799
  (->
   (rdatasets/ggplot2-economics)
   (as-> econ (tc/select-rows econ (range 0 (tc/row-count econ) 12)))
@@ -1062,18 +1062,18 @@
 
 
 (deftest
- t167_l812
+ t167_l808
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:lines s)) (pos? (:points s)))))
-   v166_l803)))
+   v166_l799)))
 
 
 (def
- v169_l822
+ v169_l818
  (->
   (rdatasets/ggplot2-economics)
   (pj/pose :date :unemploy)
@@ -1086,18 +1086,18 @@
 
 
 (deftest
- t170_l830
+ t170_l826
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:lines s)) (pos? (:polygons s)))))
-   v169_l822)))
+   v169_l818)))
 
 
 (def
- v172_l839
+ v172_l835
  (->
   (rdatasets/ggplot2-economics)
   (pj/pose :date :psavert)
@@ -1110,24 +1110,24 @@
 
 
 (deftest
- t173_l847
+ t173_l843
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (pos? (:lines s)))))
-   v172_l839)))
+   v172_l835)))
 
 
 (def
- v175_l854
+ v175_l850
  (->
   (rdatasets/ggplot2-txhousing)
   (tc/select-rows
    (fn*
-    [p1__76065#]
-    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__76065#))))
+    [p1__71173#]
+    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__71173#))))
   (pj/pose :date :median {:color :city})
   pj/lay-line
   (pj/options
@@ -1137,12 +1137,12 @@
 
 
 (deftest
- t176_l862
- (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v175_l854)))
+ t176_l858
+ (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v175_l850)))
 
 
 (def
- v178_l869
+ v178_l865
  (->
   (rdatasets/lme4-sleepstudy)
   (pj/pose :days :reaction {:color :subject, :color-type :categorical})
@@ -1155,22 +1155,22 @@
 
 
 (deftest
- t179_l877
+ t179_l873
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:lines s)) (= 180 (:points s)))))
-   v178_l869)))
+   v178_l865)))
 
 
 (def
- v181_l884
+ v181_l880
  (->
   (rdatasets/lme4-sleepstudy)
   (tc/select-rows
-   (fn* [p1__76066#] (= "308" (str (:subject p1__76066#)))))
+   (fn* [p1__71174#] (= "308" (str (:subject p1__71174#)))))
   (pj/pose :days :reaction)
   pj/lay-step
   pj/lay-point
@@ -1181,18 +1181,18 @@
 
 
 (deftest
- t182_l893
+ t182_l889
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:lines s)) (pos? (:points s)))))
-   v181_l884)))
+   v181_l880)))
 
 
 (def
- v184_l903
+ v184_l899
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions :waiting)
@@ -1204,12 +1204,12 @@
 
 
 (deftest
- t185_l910
- (is ((fn [v] (= 272 (:points (pj/svg-summary v)))) v184_l903)))
+ t185_l906
+ (is ((fn [v] (= 272 (:points (pj/svg-summary v)))) v184_l899)))
 
 
 (def
- v187_l915
+ v187_l911
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions :waiting)
@@ -1222,37 +1222,37 @@
 
 
 (deftest
- t188_l923
+ t188_l919
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 272 (:points s)) (pos? (:lines s)))))
-   v187_l915)))
+   v187_l911)))
 
 
 (def
- v190_l934
+ v190_l930
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/lay-point :carat :price {:alpha 0.05})
   (pj/options
    {:title "Diamond Price vs Carat (alpha = 0.05)",
     :x-label "Carat",
-    :y-label "Price",
+    :y-label "Price (US dollars)",
     :format :bufimg})))
 
 
 (deftest
- t191_l942
+ t191_l937
  (is
   ((fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))
-   v190_l934)))
+   v190_l930)))
 
 
 (def
- v193_l949
+ v193_l944
  (->
   (rdatasets/datasets-mtcars)
   (pj/lay-point :wt :mpg {:color :hp})
@@ -1263,12 +1263,12 @@
 
 
 (deftest
- t194_l955
- (is ((fn [v] (= 32 (:points (pj/svg-summary v)))) v193_l949)))
+ t194_l950
+ (is ((fn [v] (= 32 (:points (pj/svg-summary v)))) v193_l944)))
 
 
 (def
- v196_l960
+ v196_l955
  (->
   (rdatasets/datasets-mtcars)
   (pj/lay-point :hp :mpg {:color :cyl, :size :disp})
@@ -1279,16 +1279,16 @@
 
 
 (deftest
- t197_l966
- (is ((fn [v] (= 32 (:points (pj/svg-summary v)))) v196_l960)))
+ t197_l961
+ (is ((fn [v] (= 32 (:points (pj/svg-summary v)))) v196_l955)))
 
 
 (def
- v199_l971
+ v199_l966
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__76067#] (= 2007 (:year p1__76067#))))
+   (fn* [p1__71175#] (= 2007 (:year p1__71175#))))
   (pj/lay-point
    :gdp-percap
    :life-exp
@@ -1301,12 +1301,12 @@
 
 
 (deftest
- t200_l978
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v199_l971)))
+ t200_l973
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v199_l966)))
 
 
 (def
- v202_l983
+ v202_l978
  (->
   (rdatasets/ggplot2-midwest)
   (pj/lay-point
@@ -1320,12 +1320,12 @@
 
 
 (deftest
- t203_l989
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v202_l983)))
+ t203_l984
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v202_l978)))
 
 
 (def
- v205_l994
+ v205_l989
  (def
   msleep
   (tc/drop-missing
@@ -1334,7 +1334,7 @@
 
 
 (def
- v206_l997
+ v206_l992
  (->
   msleep
   (pj/lay-point :bodywt :brainwt {:color :vore})
@@ -1347,12 +1347,12 @@
 
 
 (deftest
- t207_l1005
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v206_l997)))
+ t207_l1000
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v206_l992)))
 
 
 (def
- v209_l1010
+ v209_l1005
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :petal-length {:color :species})
@@ -1365,12 +1365,12 @@
 
 
 (deftest
- t210_l1018
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v209_l1010)))
+ t210_l1013
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v209_l1005)))
 
 
 (def
- v212_l1023
+ v212_l1018
  (->
   (rdatasets/datasets-mtcars)
   (tc/order-by [:mpg] :desc)
@@ -1385,18 +1385,18 @@
 
 
 (deftest
- t213_l1033
+ t213_l1028
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 5 (:points s)) (pos? (count (:texts s))))))
-   v212_l1023)))
+   v212_l1018)))
 
 
 (def
- v215_l1040
+ v215_l1035
  (->
   (rdatasets/datasets-iris)
   (pj/pose :petal-length :petal-width {:color :species})
@@ -1409,18 +1409,18 @@
 
 
 (deftest
- t216_l1048
+ t216_l1043
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 3 (:lines s)))))
-   v215_l1040)))
+   v215_l1035)))
 
 
 (def
- v218_l1055
+ v218_l1050
  (->
   (rdatasets/datasets-mtcars)
   (pj/pose :wt :mpg)
@@ -1433,18 +1433,18 @@
 
 
 (deftest
- t219_l1063
+ t219_l1058
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 32 (:points s)) (pos? (:lines s)) (pos? (:polygons s)))))
-   v218_l1055)))
+   v218_l1050)))
 
 
 (def
- v221_l1073
+ v221_l1068
  (->
   (rdatasets/datasets-mtcars)
   (pj/pose :wt :mpg)
@@ -1458,18 +1458,18 @@
 
 
 (deftest
- t222_l1082
+ t222_l1077
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 32 (:points s)) (>= (:lines s) 2))))
-   v221_l1073)))
+   v221_l1068)))
 
 
 (def
- v224_l1092
+ v224_l1087
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions)
@@ -1482,12 +1482,12 @@
 
 
 (deftest
- t225_l1100
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v224_l1092)))
+ t225_l1095
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v224_l1087)))
 
 
 (def
- v227_l1105
+ v227_l1100
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions)
@@ -1500,18 +1500,18 @@
 
 
 (deftest
- t228_l1113
+ t228_l1108
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (pos? (:lines s)))))
-   v227_l1105)))
+   v227_l1100)))
 
 
 (def
- v230_l1120
+ v230_l1115
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/pose :depth)
@@ -1523,12 +1523,12 @@
 
 
 (deftest
- t231_l1127
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v230_l1120)))
+ t231_l1122
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v230_l1115)))
 
 
 (def
- v233_l1132
+ v233_l1127
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/pose :depth)
@@ -1541,12 +1541,12 @@
 
 
 (deftest
- t234_l1140
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v233_l1132)))
+ t234_l1135
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v233_l1127)))
 
 
 (def
- v236_l1145
+ v236_l1140
  (->
   (rdatasets/datasets-iris)
   (pj/lay-density :petal-width {:color :species})
@@ -1557,12 +1557,12 @@
 
 
 (deftest
- t237_l1151
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v236_l1145)))
+ t237_l1146
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v236_l1140)))
 
 
 (def
- v239_l1156
+ v239_l1151
  (->
   msleep
   (pj/lay-density :sleep-total {:color :vore})
@@ -1573,12 +1573,12 @@
 
 
 (deftest
- t240_l1162
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v239_l1156)))
+ t240_l1157
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v239_l1151)))
 
 
 (def
- v242_l1167
+ v242_l1162
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :waiting)
@@ -1590,12 +1590,12 @@
 
 
 (deftest
- t243_l1174
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v242_l1167)))
+ t243_l1169
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v242_l1162)))
 
 
 (def
- v245_l1179
+ v245_l1174
  (->
   {:value
    (repeatedly
@@ -1611,12 +1611,12 @@
 
 
 (deftest
- t246_l1187
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v245_l1179)))
+ t246_l1182
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v245_l1174)))
 
 
 (def
- v248_l1192
+ v248_l1187
  (->
   (rdatasets/datasets-chickwts)
   (pj/pose :feed :weight {:color :feed})
@@ -1628,12 +1628,12 @@
 
 
 (deftest
- t249_l1199
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v248_l1192)))
+ t249_l1194
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v248_l1187)))
 
 
 (def
- v251_l1204
+ v251_l1199
  (->
   (rdatasets/datasets-iris)
   (pj/pose :species :sepal-length {:color :species})
@@ -1646,12 +1646,12 @@
 
 
 (deftest
- t252_l1212
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v251_l1204)))
+ t252_l1207
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v251_l1199)))
 
 
 (def
- v254_l1219
+ v254_l1214
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill {:color :sex})
@@ -1663,12 +1663,12 @@
 
 
 (deftest
- t255_l1226
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v254_l1219)))
+ t255_l1221
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v254_l1214)))
 
 
 (def
- v257_l1231
+ v257_l1226
  (->
   (rdatasets/datasets-iris)
   (pj/pose :species :sepal-width {:color :species})
@@ -1680,12 +1680,12 @@
 
 
 (deftest
- t258_l1238
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v257_l1231)))
+ t258_l1233
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v257_l1226)))
 
 
 (def
- v260_l1243
+ v260_l1238
  (->
   (rdatasets/datasets-iris)
   (pj/pose :species :petal-width {:color :species})
@@ -1698,12 +1698,12 @@
 
 
 (deftest
- t261_l1251
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v260_l1243)))
+ t261_l1246
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v260_l1238)))
 
 
 (def
- v263_l1259
+ v263_l1254
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -1716,18 +1716,18 @@
 
 
 (deftest
- t264_l1267
+ t264_l1262
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (= 244 (:points s)))))
-   v263_l1259)))
+   v263_l1254)))
 
 
 (def
- v266_l1276
+ v266_l1271
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -1741,18 +1741,18 @@
 
 
 (deftest
- t267_l1285
+ t267_l1280
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (pos? (:points s)))))
-   v266_l1276)))
+   v266_l1271)))
 
 
 (def
- v269_l1292
+ v269_l1287
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :smoker :total-bill {:color :smoker})
@@ -1764,12 +1764,12 @@
 
 
 (deftest
- t270_l1299
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v269_l1292)))
+ t270_l1294
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v269_l1287)))
 
 
 (def
- v272_l1304
+ v272_l1299
  (->
   (rdatasets/datasets-iris)
   (pj/pose :species :petal-length)
@@ -1781,12 +1781,12 @@
 
 
 (deftest
- t273_l1311
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v272_l1304)))
+ t273_l1306
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v272_l1299)))
 
 
 (def
- v275_l1316
+ v275_l1311
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/pose :color :price)
@@ -1798,12 +1798,12 @@
 
 
 (deftest
- t276_l1323
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v275_l1316)))
+ t276_l1318
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v275_l1311)))
 
 
 (def
- v278_l1328
+ v278_l1323
  (def
   airquality
   (->
@@ -1815,13 +1815,13 @@
      [ds]
      (map
       (fn*
-       [p1__76068#]
-       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__76068#))
+       [p1__71176#]
+       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__71176#))
       (ds :month)))))))
 
 
 (def
- v279_l1335
+ v279_l1330
  (->
   airquality
   (pj/pose :month-name :ozone {:color :month-name})
@@ -1833,12 +1833,12 @@
 
 
 (deftest
- t280_l1342
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v279_l1335)))
+ t280_l1337
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v279_l1330)))
 
 
 (def
- v282_l1350
+ v282_l1345
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :class)
@@ -1850,12 +1850,12 @@
 
 
 (deftest
- t283_l1357
- (is ((fn [v] (= 7 (:polygons (pj/svg-summary v)))) v282_l1350)))
+ t283_l1352
+ (is ((fn [v] (= 7 (:polygons (pj/svg-summary v)))) v282_l1345)))
 
 
 (def
- v285_l1364
+ v285_l1359
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:color :sex})
@@ -1866,12 +1866,12 @@
 
 
 (deftest
- t286_l1370
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v285_l1364)))
+ t286_l1365
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v285_l1359)))
 
 
 (def
- v288_l1375
+ v288_l1370
  (->
   {:country ["US" "China" "Japan" "Germany" "UK" "India" "France"],
    :gdp [21.4 14.7 5.1 3.8 2.8 2.7 2.6]}
@@ -1883,12 +1883,12 @@
 
 
 (deftest
- t289_l1382
- (is ((fn [v] (= 7 (:polygons (pj/svg-summary v)))) v288_l1375)))
+ t289_l1377
+ (is ((fn [v] (= 7 (:polygons (pj/svg-summary v)))) v288_l1370)))
 
 
 (def
- v291_l1389
+ v291_l1384
  (->
   {:metric
    ["Quality"
@@ -1909,18 +1909,18 @@
 
 
 (deftest
- t292_l1397
+ t292_l1392
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 8 (:polygons s)) (pos? (:lines s)))))
-   v291_l1389)))
+   v291_l1384)))
 
 
 (def
- v294_l1404
+ v294_l1399
  (->
   (rdatasets/datasets-chickwts)
   (tc/group-by [:feed])
@@ -1934,18 +1934,18 @@
 
 
 (deftest
- t295_l1413
+ t295_l1408
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v294_l1404)))
+   v294_l1399)))
 
 
 (def
- v297_l1420
+ v297_l1415
  (->
   (rdatasets/datasets-iris)
   (tc/group-by [:species])
@@ -1959,18 +1959,18 @@
 
 
 (deftest
- t298_l1429
+ t298_l1424
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:points s)) (pos? (:lines s)))))
-   v297_l1420)))
+   v297_l1415)))
 
 
 (def
- v300_l1439
+ v300_l1434
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions :waiting)
@@ -1982,12 +1982,12 @@
 
 
 (deftest
- t301_l1446
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v300_l1439)))
+ t301_l1441
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v300_l1434)))
 
 
 (def
- v303_l1451
+ v303_l1446
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions :waiting)
@@ -2000,18 +2000,18 @@
 
 
 (deftest
- t304_l1459
+ t304_l1454
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 272 (:points s)) (pos? (:visible-tiles s)))))
-   v303_l1451)))
+   v303_l1446)))
 
 
 (def
- v306_l1466
+ v306_l1461
  (->
   (rdatasets/datasets-faithful)
   (pj/pose :eruptions :waiting)
@@ -2024,18 +2024,18 @@
 
 
 (deftest
- t307_l1474
+ t307_l1469
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 272 (:points s)) (pos? (:lines s)))))
-   v306_l1466)))
+   v306_l1461)))
 
 
 (def
- v309_l1481
+ v309_l1476
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :petal-length)
@@ -2047,12 +2047,12 @@
 
 
 (deftest
- t310_l1488
- (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v309_l1481)))
+ t310_l1483
+ (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v309_l1476)))
 
 
 (def
- v312_l1495
+ v312_l1490
  (->
   (rdatasets/ggplot2-faithfuld)
   (pj/pose :eruptions :waiting {:fill :density})
@@ -2064,12 +2064,12 @@
 
 
 (deftest
- t313_l1502
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v312_l1495)))
+ t313_l1497
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v312_l1490)))
 
 
 (def
- v315_l1507
+ v315_l1502
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 3000)
@@ -2083,18 +2083,18 @@
 
 
 (deftest
- t316_l1516
+ t316_l1511
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:visible-tiles s)))))
-   v315_l1507)))
+   v315_l1502)))
 
 
 (def
- v318_l1523
+ v318_l1518
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy)
@@ -2106,17 +2106,17 @@
 
 
 (deftest
- t319_l1530
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v318_l1523)))
+ t319_l1525
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v318_l1518)))
 
 
 (def
- v321_l1535
+ v321_l1530
  (->
-  {:row (mapcat (fn* [p1__76069#] (repeat 6 p1__76069#)) (range 6)),
+  {:row (mapcat (fn* [p1__71177#] (repeat 6 p1__71177#)) (range 6)),
    :col (flatten (repeat 6 (range 6))),
    :value
-   (map (fn* [p1__76070#] (Math/sin (* p1__76070# 0.5))) (range 36))}
+   (map (fn* [p1__71178#] (Math/sin (* p1__71178# 0.5))) (range 36))}
   (pj/pose :col :row {:fill :value})
   pj/lay-tile
   (pj/options
@@ -2126,12 +2126,12 @@
 
 
 (deftest
- t322_l1544
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v321_l1535)))
+ t322_l1539
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v321_l1530)))
 
 
 (def
- v324_l1552
+ v324_l1547
  (->
   (rdatasets/datasets-iris)
   (tc/group-by [:species])
@@ -2158,18 +2158,18 @@
 
 
 (deftest
- t325_l1565
+ t325_l1560
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:points s)) (pos? (:lines s)))))
-   v324_l1552)))
+   v324_l1547)))
 
 
 (def
- v327_l1572
+ v327_l1567
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-summary :day :tip {:color :sex})
@@ -2180,12 +2180,12 @@
 
 
 (deftest
- t328_l1578
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v327_l1572)))
+ t328_l1573
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v327_l1567)))
 
 
 (def
- v330_l1591
+ v330_l1586
  (->
   (rdatasets/ggplot2-economics)
   (pj/pose [[:date :unemploy] [:date :uempmed]])
@@ -2194,12 +2194,12 @@
 
 
 (deftest
- t331_l1596
- (is ((fn [v] (>= (:lines (pj/svg-summary v)) 2)) v330_l1591)))
+ t331_l1591
+ (is ((fn [v] (>= (:lines (pj/svg-summary v)) 2)) v330_l1586)))
 
 
 (def
- v333_l1601
+ v333_l1596
  (->
   (rdatasets/ggplot2-economics)
   (pj/pose [[:date :unemploy] [:date :uempmed] [:date :psavert]])
@@ -2208,12 +2208,12 @@
 
 
 (deftest
- t334_l1606
- (is ((fn [v] (>= (:lines (pj/svg-summary v)) 3)) v333_l1601)))
+ t334_l1601
+ (is ((fn [v] (>= (:lines (pj/svg-summary v)) 3)) v333_l1596)))
 
 
 (def
- v336_l1616
+ v336_l1611
  (pj/arrange
   [(->
     (rdatasets/ggplot2-mpg)
@@ -2226,18 +2226,18 @@
 
 
 (deftest
- t337_l1624
+ t337_l1619
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v336_l1616)))
+   v336_l1611)))
 
 
 (def
- v339_l1634
+ v339_l1629
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -2253,18 +2253,18 @@
 
 
 (deftest
- t340_l1645
+ t340_l1640
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (>= (:lines s) 4))))
-   v339_l1634)))
+   v339_l1629)))
 
 
 (def
- v342_l1652
+ v342_l1647
  (->
   (rdatasets/datasets-mtcars)
   (pj/pose :wt :mpg)
@@ -2278,12 +2278,12 @@
 
 
 (deftest
- t343_l1661
- (is ((fn [v] (= 32 (:points (pj/svg-summary v)))) v342_l1652)))
+ t343_l1656
+ (is ((fn [v] (= 32 (:points (pj/svg-summary v)))) v342_l1647)))
 
 
 (def
- v345_l1666
+ v345_l1661
  (->
   (rdatasets/ggplot2-economics)
   (pj/pose :date :unemploy)
@@ -2296,18 +2296,18 @@
 
 
 (deftest
- t346_l1674
+ t346_l1669
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (pos? (:lines s)))))
-   v345_l1666)))
+   v345_l1661)))
 
 
 (def
- v348_l1681
+ v348_l1676
  (->
   airquality
   (pj/lay-line :rownames :ozone)
@@ -2319,14 +2319,14 @@
 
 
 (deftest
- t349_l1688
+ t349_l1683
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (and (pos? (:lines s)))))
-   v348_l1681)))
+   v348_l1676)))
 
 
 (def
- v351_l1694
+ v351_l1689
  (->
   airquality
   (pj/pose :wind :ozone)
@@ -2339,12 +2339,12 @@
 
 
 (deftest
- t352_l1702
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v351_l1694)))
+ t352_l1697
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v351_l1689)))
 
 
 (def
- v354_l1710
+ v354_l1705
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy)
@@ -2357,12 +2357,12 @@
 
 
 (deftest
- t355_l1718
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v354_l1710)))
+ t355_l1713
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v354_l1705)))
 
 
 (def
- v357_l1723
+ v357_l1718
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy)
@@ -2375,12 +2375,12 @@
 
 
 (deftest
- t358_l1731
- (is ((fn [v] (= 6 (:panels (pj/svg-summary v)))) v357_l1723)))
+ t358_l1726
+ (is ((fn [v] (= 6 (:panels (pj/svg-summary v)))) v357_l1718)))
 
 
 (def
- v360_l1740
+ v360_l1735
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy)
@@ -2393,12 +2393,12 @@
 
 
 (deftest
- t361_l1748
- (is ((fn [v] (pos? (:panels (pj/svg-summary v)))) v360_l1740)))
+ t361_l1743
+ (is ((fn [v] (pos? (:panels (pj/svg-summary v)))) v360_l1735)))
 
 
 (def
- v363_l1753
+ v363_l1748
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy)
@@ -2411,12 +2411,12 @@
 
 
 (deftest
- t364_l1761
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v363_l1753)))
+ t364_l1756
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v363_l1748)))
 
 
 (def
- v366_l1766
+ v366_l1761
  (->
   (rdatasets/datasets-iris)
   (pj/pose :petal-length)
@@ -2429,12 +2429,12 @@
 
 
 (deftest
- t367_l1774
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v366_l1766)))
+ t367_l1769
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v366_l1761)))
 
 
 (def
- v369_l1779
+ v369_l1774
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -2447,18 +2447,18 @@
 
 
 (deftest
- t370_l1787
+ t370_l1782
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (= 2 (:panels s)))))
-   v369_l1779)))
+   v369_l1774)))
 
 
 (def
- v372_l1794
+ v372_l1789
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -2471,18 +2471,18 @@
 
 
 (deftest
- t373_l1802
+ t373_l1797
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (= 2 (:panels s)))))
-   v372_l1794)))
+   v372_l1789)))
 
 
 (def
- v375_l1809
+ v375_l1804
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :class)
@@ -2495,12 +2495,12 @@
 
 
 (deftest
- t376_l1817
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v375_l1809)))
+ t376_l1812
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v375_l1804)))
 
 
 (def
- v378_l1822
+ v378_l1817
  (->
   (rdatasets/datasets-iris)
   (pj/pose :petal-length :petal-width)
@@ -2514,18 +2514,18 @@
 
 
 (deftest
- t379_l1831
+ t379_l1826
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (= 3 (:lines s)) (= 3 (:panels s)))))
-   v378_l1822)))
+   v378_l1817)))
 
 
 (def
- v381_l1839
+ v381_l1834
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -2538,16 +2538,16 @@
 
 
 (deftest
- t382_l1847
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v381_l1839)))
+ t382_l1842
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v381_l1834)))
 
 
 (def
- v384_l1852
+ v384_l1847
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__76071#] (= 2007 (:year p1__76071#))))
+   (fn* [p1__71179#] (= 2007 (:year p1__71179#))))
   (pj/pose :gdp-percap :life-exp)
   pj/lay-point
   (pj/scale :x :log)
@@ -2559,12 +2559,12 @@
 
 
 (deftest
- t385_l1861
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v384_l1852)))
+ t385_l1856
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v384_l1847)))
 
 
 (def
- v387_l1866
+ v387_l1861
  (->
   (rdatasets/lme4-sleepstudy)
   (pj/pose :days :reaction)
@@ -2578,18 +2578,18 @@
 
 
 (deftest
- t388_l1875
+ t388_l1870
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:lines s)) (= 180 (:points s)))))
-   v387_l1866)))
+   v387_l1861)))
 
 
 (def
- v390_l1882
+ v390_l1877
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose :displ :hwy)
@@ -2603,18 +2603,18 @@
 
 
 (deftest
- t391_l1891
+ t391_l1886
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v390_l1882)))
+   v390_l1877)))
 
 
 (def
- v393_l1901
+ v393_l1896
  (->
   (rdatasets/datasets-mtcars)
   (pj/pose (pj/cross [:mpg :hp :wt] [:mpg :hp :wt]))
@@ -2622,12 +2622,12 @@
 
 
 (deftest
- t394_l1905
- (is ((fn [v] (= 9 (:panels (pj/svg-summary v)))) v393_l1901)))
+ t394_l1900
+ (is ((fn [v] (= 9 (:panels (pj/svg-summary v)))) v393_l1896)))
 
 
 (def
- v396_l1910
+ v396_l1905
  (->
   (rdatasets/datasets-mtcars)
   (pj/pose (pj/cross [:mpg :wt] [:mpg :wt]))
@@ -2635,12 +2635,12 @@
 
 
 (deftest
- t397_l1914
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v396_l1910)))
+ t397_l1909
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v396_l1905)))
 
 
 (def
- v399_l1922
+ v399_l1917
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 2000)
@@ -2653,12 +2653,12 @@
 
 
 (deftest
- t400_l1930
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v399_l1922)))
+ t400_l1925
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v399_l1917)))
 
 
 (def
- v402_l1935
+ v402_l1930
  (->
   msleep
   (pj/lay-point :bodywt :sleep-total {:color :vore})
@@ -2670,12 +2670,12 @@
 
 
 (deftest
- t403_l1942
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v402_l1935)))
+ t403_l1937
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v402_l1930)))
 
 
 (def
- v405_l1950
+ v405_l1945
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/pose :cut {:color :color})
@@ -2687,12 +2687,12 @@
 
 
 (deftest
- t406_l1957
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v405_l1950)))
+ t406_l1952
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v405_l1945)))
 
 
 (def
- v408_l1964
+ v408_l1959
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
@@ -2705,18 +2705,18 @@
 
 
 (deftest
- t409_l1972
+ t409_l1967
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:polygons s)) (pos? (:points s)))))
-   v408_l1964)))
+   v408_l1959)))
 
 
 (def
- v411_l1985
+ v411_l1980
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -2728,12 +2728,12 @@
 
 
 (deftest
- t412_l1992
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v411_l1985)))
+ t412_l1987
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v411_l1980)))
 
 
 (def
- v414_l1997
+ v414_l1992
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 1000)
@@ -2747,18 +2747,18 @@
 
 
 (deftest
- t415_l2006
+ t415_l2001
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v414_l1997)))
+   v414_l1992)))
 
 
 (def
- v417_l2018
+ v417_l2013
  (->
   {:task ["Design" "Build" "Integration" "Testing" "Launch"],
    :start
@@ -2779,11 +2779,11 @@
 
 
 (deftest
- t418_l2029
+ t418_l2024
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 5 (:polygons s)))))
-   v417_l2018)))
+   v417_l2013)))

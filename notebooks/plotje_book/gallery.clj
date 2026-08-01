@@ -577,11 +577,7 @@
     (pj/scale :y :log)
     (pj/options {:title "Diamond Price by Carat (Log Scale)"
                  :x-label "Carat"
-                 ;; bufimg truncates rotated y-axis labels after ~6
-                 ;; chars (membrane Java2D limitation, tracked in
-                 ;; CHANGELOG); keep it short so the rendered label
-                 ;; matches the prose.
-                 :y-label "Price"
+                 :y-label "Price (US dollars)"
                  :format :bufimg}))
 
 (kind/test-last [(fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))])
@@ -935,8 +931,7 @@
     (pj/lay-point :carat :price {:alpha 0.05})
     (pj/options {:title "Diamond Price vs Carat (alpha = 0.05)"
                  :x-label "Carat"
-                 ;; bufimg truncates long rotated y-labels; keep short.
-                 :y-label "Price"
+                 :y-label "Price (US dollars)"
                  :format :bufimg}))
 
 (kind/test-last [(fn [v] (instance? java.awt.image.BufferedImage (pj/plot v)))])
