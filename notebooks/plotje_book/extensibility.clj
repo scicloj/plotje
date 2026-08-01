@@ -14,11 +14,17 @@
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
+   ;; Tablecloth and dtype-next -- dataset and buffer operations, for the
+   ;; custom stat below
+   [tablecloth.api :as tc]
+   [tech.v3.datatype :as dtype]
+   [tech.v3.datatype.functional :as dfn]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
    ;; Layer-type registry -- for inspecting layer-type data
    [scicloj.plotje.layer-type :as layer-type]
    ;; Implementation namespaces -- for extension points
+   [scicloj.plotje.impl.resolve :as resolve]
    [scicloj.plotje.impl.stat :as stat]
    [scicloj.plotje.impl.extract :as extract]
    [scicloj.plotje.render.mark :as mark]
@@ -83,56 +89,401 @@ graph LR
 
 (kind/test-last [(fn [t] (= 11 (count (:row-maps t))))])
 
-;; The stat is part of the **layer type** returned by
-;; `layer-type/lookup`. For example, `(layer-type/lookup :histogram)`
-;; returns a layer type with `:stat :bin`:
+;; ### A stat from end to end
+;;
+;; Before any reference material, one complete stat. It computes a running
+;; maximum -- for each group, the largest y seen so far, which is the shape
+;; of a record-to-date line. Everything a stat has to do is here: read the
+;; layer it is handed, return the geometry, and declare what the axes must
+;; cover.
+;;
+;; It is written the way the numeric code in this library is written. The x
+;; column passes through untouched, because a dataset column is already a
+;; buffer the renderer can read. `dfn/cummax` performs the scan as one
+;; vectorized operation instead of a sequence walk. The domains come from
+;; `dfn/reduce-min` and `dfn/reduce-max` over the concatenated buffers. A
+;; stat that copied its columns into Clojure vectors on the way through
+;; would work, and would allocate a second copy of every value for nothing.
+
+(defmethod stat/compute-stat :running-max [{:keys [data x y group]}]
+  (let [subsets (if (seq group)
+                  (vals (tc/group-by data group {:result-type :as-map}))
+                  [data])
+        points (mapv (fn [ds]
+                       (cond-> {:xs (ds x)
+                                :ys (dfn/cummax (ds y))}
+                         ;; A grouped stat names each group by the value it
+                         ;; was split on. extract-layer turns that name into
+                         ;; a colour and a legend entry.
+                         (seq group) (assoc :color (first (ds (first group))))))
+                     subsets)
+        all-xs (dtype/concat-buffers (map :xs points))
+        all-ys (dtype/concat-buffers (map :ys points))]
+    {:points points
+     :x-domain [(dfn/reduce-min all-xs) (dfn/reduce-max all-xs)]
+     :y-domain [(dfn/reduce-min all-ys) (dfn/reduce-max all-ys)]}))
+
+(defmethod stat/compute-stat [:running-max :doc] [_]
+  "Running maximum -- the largest y seen so far")
+
+;; Nothing else is needed -- no mark, no extractor, no renderer.
+;; `pj/lay-line` already knows how to draw a group of `:xs` and `:ys`.
+;;
+;; (These examples end in `pj/plot` rather than leaving a pose to render
+;; itself. A pose renders lazily, and this stat is removed a few forms
+;; below; drawing now, while the method exists, keeps them reproducible.)
+
+(def rainfall
+  {:month [1 2 3 4 5 6 7 8 9 10 11 12]
+   :rain [42 30 55 20 61 48 35 70 25 58 44 66]})
+
+(-> rainfall
+    (pj/lay-point :month :rain {:color "#bbbbbb"})
+    (pj/lay-line :month :rain {:stat :running-max})
+    (pj/options {:title "Rainfall and its running maximum"})
+    pj/plot)
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 12 (:points s))
+                                (= 1 (:lines s)))))])
+
+;; Grouping needs no extra work either. `:group` arrives already worked out,
+;; and one group in gives one line out:
+
+(-> {:month (concat (range 1 13) (range 1 13))
+     :rain [42 30 55 20 61 48 35 70 25 58 44 66
+            10 33 21 40 18 52 29 47 60 22 38 55]
+     :city (concat (repeat 12 "north") (repeat 12 "south"))}
+    (pj/lay-line :month :rain {:stat :running-max :color :city})
+    (pj/options {:title "Running maximum per city"})
+    pj/plot)
+
+(kind/test-last [(fn [v] (= 2 (:lines (pj/svg-summary v))))])
+
+;; Cleanup -- remove the example stat, and confirm it is gone:
+
+(do (remove-method stat/compute-stat :running-max)
+    (remove-method stat/compute-stat [:running-max :doc])
+    (contains? (methods stat/compute-stat) :running-max))
+
+(kind/test-last [false?])
+
+;; ### Where a layer's stat comes from
+;;
+;; `compute-stat` dispatches on a layer's `:stat`, which is settled before
+;; it is called. Three cases decide it, and reading them as one rule
+;; explains a behaviour that otherwise looks arbitrary.
+;;
+;; This helper reports what a pose's first layer resolves to:
+
+(defn mark-and-stat
+  "The mark and stat a pose's first layer resolves to."
+  [pose]
+  (-> pose
+      pj/draft
+      :layers
+      first
+      resolve/resolve-draft-layer
+      (select-keys [:mark :stat])))
+
+;; **The layer type names the stat.** `(layer-type/lookup :histogram)`
+;; carries `:stat :bin`, so a histogram bins whatever it is given:
 
 (layer-type/lookup :histogram)
 
 (kind/test-last [(fn [m] (= :bin (:stat m)))])
 
-;; A layer type may omit `:stat` so the stat is inferred from the data.
-;; `(layer-type/lookup :bar)` carries no `:stat`: with x only it counts,
-;; with a y column it uses the y as the bar height.
+;; **The layer type names a mark but no stat.** `(layer-type/lookup :bar)`
+;; fixes `:mark :rect` and leaves `:stat` empty:
 
 (layer-type/lookup :bar)
 
-(kind/test-last [(fn [m] (nil? (:stat m)))])
+(kind/test-last [(fn [m] (and (= :rect (:mark m)) (nil? (:stat m))))])
 
-;; `(layer-type/lookup :point)` returns a layer type with `:stat :identity`:
+;; The mark is already decided, so the column-type rules below do not run.
+;; A narrower rule fills the gap instead, and it turns on one thing only --
+;; whether a y column was given. Without one, the bar counts its
+;; categories; with one, it takes that y as the bar height:
+
+{"lay-bar with x only" (mark-and-stat (-> (rdatasets/datasets-iris)
+                                          (pj/lay-bar :species)))
+ "lay-bar with x and y" (mark-and-stat (-> {:city ["north" "south"] :rain [42 30]}
+                                           (pj/lay-bar :city :rain)))}
+
+(kind/test-last
+ [(fn [m] (= {"lay-bar with x only" {:mark :rect :stat :count}
+              "lay-bar with x and y" {:mark :rect :stat :identity}}
+             m))])
+
+;; So `pj/lay-bar` is two charts under one name. That is why the shapes
+;; table below lists `:rect` twice: a counting bar reads one shape, a value
+;; bar reads another.
+
+;; **Nothing names a mark at all.** When no `lay-*` function has chosen a
+;; layer type -- a bare `pj/pose`, or raw data handed straight to `pj/plot`
+;; -- both mark and stat are inferred from the column types:
+
+{"categorical x, numerical y" (mark-and-stat (-> (rdatasets/datasets-iris)
+                                                 (pj/pose :species :sepal-width)))
+ "numerical x, numerical y" (mark-and-stat (-> (rdatasets/datasets-iris)
+                                               (pj/pose :sepal-length :sepal-width)))
+ "categorical x only" (mark-and-stat (-> (rdatasets/datasets-iris)
+                                         (pj/pose :species)))
+ "numerical x only" (mark-and-stat (-> (rdatasets/datasets-iris)
+                                       (pj/pose :sepal-length)))}
+
+(kind/test-last
+ [(fn [m] (= {"categorical x, numerical y" {:mark :boxplot :stat :boxplot}
+              "numerical x, numerical y" {:mark :point :stat :identity}
+              "categorical x only" {:mark :rect :stat :count}
+              "numerical x only" {:mark :bar :stat :bin}}
+             m))])
+
+;; An explicit `{:stat ...}` on a layer overrides all three, which is what
+;; makes the cross-pairings later in this section possible.
+;;
+;; #### What `:identity` is
+;;
+;; `:identity` turned up in all three cases above -- named by a layer type,
+;; filled in for a mark that named none, and the value the dispatch
+;; function itself falls back to.
+;;
+;; `:identity` means *the data is already what should be plotted*. It
+;; applies no statistical transform, but it still does the preparation
+;; every layer needs: it drops rows missing an x, a y or a mapped aesthetic
+;; value, computes the domains, and splits the rows into groups. What comes
+;; out is one entry per surviving row, at the values the dataset holds.
+;;
+;; It is what a scatter uses:
 
 (layer-type/lookup :point)
 
 (kind/test-last [(fn [m] (= :identity (:stat m)))])
 
-;; ### How to extend: add a new stat
+;; Choosing it explicitly is how a caller says "do not aggregate this".
+;; That is the case a bar chart of pre-computed totals is in -- and it is
+;; what `pj/lay-bar` resolves to on its own as soon as a y column is
+;; present, which is the rule from a few forms above seen from the other
+;; side.
+
+;; (The other two fields in those lookups belong to the layer type rather
+;; than to the stat: `:x-only` says the layer type works from an x column
+;; alone, and `:accepts` lists the layer options it takes beyond the
+;; universal ones -- both are covered in
+;; [Layer Types](./plotje_book.layer_types.html).)
 ;;
-;; To add a new statistical transform (e.g., `:loess` for local
-;; regression), define a new `defmethod`.
+;; One entry per row is visible in the output: a scatter of the 150-row
+;; iris dataset draws 150 marks.
+
+(def grouped-scatter
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width {:color :species})))
+
+(:points (pj/svg-summary (pj/plot grouped-scatter)))
+
+(kind/test-last [(fn [n] (= 150 n))])
+
+;; ### What a stat receives
 ;;
-;; Pseudocode:
+;; A stat is handed one layer, as a map. It is not the draft layer
+;; `pj/draft` returns: planning first infers the column types, resolves each
+;; aesthetic to either a column name or a fixed value, and works out the
+;; grouping, so that a stat can read those decisions instead of repeating
+;; them. `resolve/resolve-draft-layer` is the step that makes them, and a
+;; stat is never called with anything less -- exercising one by hand means
+;; resolving first.
+
+(def resolved-layer
+  (-> grouped-scatter pj/draft :layers first resolve/resolve-draft-layer))
+
+;; The keys a stat reads, on that layer (`:data` holds the dataset itself
+;; and is left out here so the rest prints readably):
+
+(-> resolved-layer
+    (select-keys [:x :y :x-type :y-type :group :color :size :alpha :fixed-color]))
+
+(kind/test-last
+ [(fn [m] (= {:x :sepal-length :y :sepal-width
+              :x-type :numerical :y-type :numerical
+              :group [:species] :color :species
+              :size nil :alpha nil :fixed-color nil}
+             m))])
+
+;; Reading those:
 ;;
-;; ```clojure
-;; (defmethod stat/compute-stat :loess [draft-layer]
-;;   ;; Compute LOESS smoothing from draft-layer's :data, :x, :y
-;;   ;; Return {:points [...] :x-domain [...] :y-domain [...]}
-;;   ...)
-;; ```
+;; - `:x`, `:y` -- resolved column names
+;; - `:x-type`, `:y-type` -- `:numerical` or `:categorical`
+;; - `:group` -- the columns to split the data by, as a vector; empty when
+;;   the layer is ungrouped. A stat that ignores this produces one group
+;;   where the user asked for several.
+;; - `:color`, `:size`, `:alpha` -- a column name when that aesthetic maps a
+;;   column, `nil` when it does not. A constant lives in `:fixed-color` and
+;;   its siblings instead, and is applied later, so a stat can ignore it.
+;; - `:cfg` -- resolved configuration, where a stat finds its own options,
+;;   such as `:kde-bandwidth` for the density stats
+
+;; ### What a stat returns
 ;;
-;; The return value must always include `:x-domain` and `:y-domain`.
-;; The rest of the shape depends on what the paired `extract-layer`
-;; requires -- the stat and extractor are a matched pair. For
-;; point-like marks, return `:points` (groups of `:xs`, `:ys`).
-;; For other marks, study a similar existing pair as a template:
+;; Two keys are required of every stat, whatever it computes:
 ;;
-;; - `:identity` returns `{:points [...] :x-domain [...] :y-domain [...]}`
-;; - `:bin` returns `{:bins [...] :max-count ... :x-domain [...] :y-domain [...]}`
-;; - `:boxplot` returns `{:boxes [...] :categories [...] :x-domain [...] :y-domain [...]}`
+;; - `:x-domain` -- the extent the x axis must cover: `[lo hi]` for a
+;;   numerical axis, or the sequence of categories for a categorical one
+;; - `:y-domain` -- the same for y
+;;
+;; Alongside them the stat returns at least one **geometry shape**: a key
+;; whose value follows a structure that some `extract-layer` method knows
+;; how to read. The shape, not the stat's name, is what decides which marks
+;; can draw the result.
+
+;; | Shape | Carries | Produced by | Read by |
+;; |:------|:--------|:------------|:--------|
+;; | `:points` | a vector of point groups | `:identity`, `:linear-model`, `:loess`, `:density`, `:summary`, `:count` | the ten point-reading marks: `:point`, `:line`, `:step`, `:area`, `:text`, `:rug`, `:lollipop`, `:errorbar`, `:pointrange`, `:interval-h` |
+;; | `:bins` | histogram bins, per group | `:bin` | `:bar` |
+;; | `:bars` with `:categories` | a count per category, per group | `:count` | `:rect`, when counting |
+;; | `:boxes` with `:categories` | a five-number summary per category | `:boxplot` | `:boxplot` |
+;; | `:violins` with `:categories` | a density profile per category | `:violin` | `:violin`, `:ridgeline` |
+;; | `:tiles` with `:fill-range` | a grid of cells and the range of their fill values | `:bin2d`, `:density-2d` | `:tile`, `:contour` |
+;;
+;; `:rect` and `:tile` each read a second shape as well: both fall back to
+;; `:points` when their own shape is absent. For `:rect` that is not a
+;; special case but the two-stat rule from above -- a counting bar gets
+;; `:count` and so reads `:bars`, while a value bar gets `:identity` and so
+;; reads `:points`.
+;;
+;; A stat may also return more than one shape, when its result means
+;; something to more than one family of marks. Two built-ins do:
+;; `:linear-model` returns `:points` for the fitted line and `:ribbons` for
+;; its confidence band, and `:count` returns `:bars` for the bar marks and
+;; `:points` for the point-reading ones. Some stats return values that are
+;; neither domain nor geometry: `:bin` reports `:max-count`, and
+;; `:density-2d` reports the `:grid` it estimated over.
+;;
+;; The grouped scatter's stat, computed by hand:
+
+(def scatter-stat
+  (-> resolved-layer
+      (assoc :cfg {})
+      stat/compute-stat))
+
+(sort (keys scatter-stat))
+
+(kind/test-last [(fn [ks] (= [:points :x-domain :y-domain] ks))])
+
+;; ### The `:points` shape
+;;
+;; Most stats speak `:points` and most marks read it. It is a **vector of
+;; groups** -- one per combination of the grouping columns, so three
+;; species give three groups -- and each group is a map of parallel
+;; sequences.
+
+(count (:points scatter-stat))
+
+(kind/test-last [(fn [n] (= 3 n))])
+
+;; One group, with its sequences cut to three values so that it prints
+;; readably:
+
+(-> scatter-stat
+    :points
+    first
+    (update :xs #(vec (take 3 %)))
+    (update :ys #(vec (take 3 %)))
+    (update :row-indices #(vec (take 3 %))))
+
+(kind/test-last [(fn [g] (and (= "setosa" (:color g))
+                              (= [5.1 4.9 4.7] (:xs g))))])
+
+;; Every group carries:
+;;
+;; - `:xs`, `:ys` -- parallel sequences of data-space coordinates, one entry
+;;   per row in that group. The two must be the same length as each other;
+;;   groups need not be the same length as one another. Any indexed
+;;   sequence works, but a numeric buffer is what the library uses and what
+;;   a stat should return: dataset columns here, and the result of
+;;   `dfn/cummax` in the running-max stat above. A stat with no y to report,
+;;   such as `:bin` or `:count`, synthesizes one rather than omitting `:ys`.
+;; - `:row-indices` -- where each entry sat in the original dataset, which
+;;   is what lets a tooltip name the row it came from.
+;;
+;; The rest appear only when the group has something to put in them. Most
+;; are per-row aesthetics, attached by the preparation step `:identity`
+;; runs from the columns the layer maps -- which is why
+;; `{:size :petal-length}` means something on a scatter and nothing on a
+;; histogram, since a stat that aggregates its input has no per-row values
+;; left to attach. A stat that computes a value per point may fill one in
+;; itself instead, as `:count` does for `:labels`:
+;;
+;; | Key | Present when | Read by |
+;; |:----|:-------------|:--------|
+;; | `:color` | the layer is grouped | every mark, to choose the group's colour |
+;; | `:labels` | the layer maps `:text`, or the stat computes one per point | `:text` |
+;; | `:ymins`, `:ymaxs` | `:y-min` and `:y-max` map columns | `:errorbar`, `:pointrange` |
+;; | `:sizes` | `:size` maps a column | `:point` |
+;; | `:alphas` | `:alpha` maps a column | `:point` |
+;; | `:shapes` | `:shape` maps a column | `:point` |
+;; | `:color-values` | `:color` maps a numerical column | `:point`, `:interval-h` |
+;; | `:x-ends` | `:x-end` maps a column | `:interval-h` |
+
+;; #### `:color` in a stat result is a category, not a colour
+;;
+;; A group's `:color` holds the **category value** the group was split on
+;; -- the string `"setosa"` -- and not a colour. Nothing is resolved against a palette until
+;; `extract-layer` runs, which is where the same key changes meaning: the
+;; plan layer's `:color` is a resolved colour, and the category moves to
+;; `:label`.
+
+[(-> scatter-stat :points first :color)
+ (-> grouped-scatter pj/plan :panels first :layers first :groups first
+     (select-keys [:color :label]))]
+
+(kind/test-last [(fn [[stat-color plan-group]]
+                   (and (= "setosa" stat-color)
+                        (= "setosa" (:label plan-group))
+                        (vector? (:color plan-group))))])
+
+;; ### Which marks read which shape
+;;
+;; The stat and the extractor are two halves of one contract, but they are
+;; not paired one to one. Most of the mark extractors read `:points`, and
+;; most of those go through one shared reader, `extract-xy-groups`, which
+;; is why they agree about what a group means. So a stat returning
+;; `:points` is readable by any of them, not only by the layer type it was
+;; written for -- and an explicit `{:stat ...}` is how a caller says so.
+;;
+;; A density drawn as a line, rather than as the filled area
+;; `pj/lay-density` would give:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-line :sepal-length {:stat :density}))
+
+(kind/test-last [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+
+;; And a per-category mean drawn as bare points, rather than as the
+;; point-with-error-bar `pj/lay-summary` would give -- three species, three
+;; points:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :species :sepal-width {:stat :summary}))
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
+;; The converse holds too: a mark handed a shape it does not read finds
+;; nothing to draw. Four
+;; extractors guard against this -- `:bar`, `:boxplot`, `:violin` and
+;; `:ridgeline` -- and raise an error naming the key they wanted. The
+;; `:points` readers do not guard, so they produce a layer with no groups,
+;; and the plot comes out missing that layer rather than failing.
+;;
+;; To write a stat in a shape other than `:points`, read the built-in stat
+;; and extractor that already produce and consume it as a matched template:
+;; `:bin` with `:bar`, `:boxplot` with `:boxplot`, `:bin2d` with `:tile`.
 
 ;; ## `extract-layer`
 ;;
 ;; Converts a stat result into a plan layer descriptor -- a plain
-;; map with data-space geometry and resolved colors.
+;; map with data-space geometry and resolved colors. This is the half of
+;; the contract that reads the shapes tabulated above, and where a
+;; category value becomes a colour.
 ;;
 ;; Dispatch function: `(fn [draft-layer stat all-colors cfg] (:mark draft-layer))`
 
