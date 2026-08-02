@@ -295,7 +295,9 @@
 (defn fmt-name
   "Format a keyword as a readable name: :sepal-length -> \"sepal length\"."
   [k]
-  (str/replace (name k) #"[-_]" " "))
+  (if (instance? clojure.lang.Named k)
+    (str/replace (name k) #"[-_]" " ")
+    (str k)))
 
 (defn fmt-category-label
   "Format a category value (keyword, string, number, etc.) for display.
@@ -303,10 +305,7 @@
    Used for axis tick labels, legend entries, facet strip labels, and any
    other user-visible category text."
   [v]
-  (cond
-    (nil? v) ""
-    (keyword? v) (name v)
-    :else (str v)))
+  (fmt-name v))
 
 (defn group-digits
   "Insert `separator` between three-digit groups in the integer part of an
