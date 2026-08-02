@@ -158,6 +158,18 @@
 ;;   a silent empty plot. Workaround: pick one form (keyword or
 ;;   string) and use it consistently within a pose.
 
+;; ## Integer Column Names
+;;
+;; - A dataset built without column names gets integer ones, and
+;;   Plotje reads them: the inferred mapping picks up the first few
+;;   columns and the derived axis titles read as the names. Referring
+;;   to such a column is what is missing -- a column reference in a
+;;   mapping has to be a keyword or a string, so
+;;   `(pj/lay-point ds 0 1)` fails, and with a message about the
+;;   options map rather than about the column. Workaround:
+;;   `(tc/rename-columns ds [:x :y])` before mapping, as shown in
+;;   the [Datasets](./plotje_book.datasets.html) chapter.
+
 ;; ## ggplot2 Features Not Yet Implemented
 ;;
 ;; - The `:fill` aesthetic is currently consumed only by `lay-tile`

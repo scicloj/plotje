@@ -107,6 +107,48 @@
 ;; `"Sepal.Length"` to keywords like `:Sepal.Length`. Without it,
 ;; column names remain strings.)
 
+;; ### Column names
+;;
+;; A column name can be a keyword, a string, or -- for a dataset built
+;; without names -- an integer. Plotje reads all three, and derives an
+;; axis title from the name whenever you do not supply one.
+;;
+;; In a keyword or a string name, hyphens and underscores stand for
+;; word breaks, so the derived title is spaced rather than punctuated:
+
+(-> {"sepal_length" [5.1 4.9 4.7 5.0]
+     "sepal_width"  [3.5 3.0 3.2 3.6]}
+    (pj/lay-point "sepal_length" "sepal_width"))
+
+(kind/test-last [(fn [v] (= ["sepal length" "sepal width"]
+                            ((juxt :x-label :y-label) (pj/plan v))))])
+
+;; Given no `:column-names`, `tc/dataset` names the columns by their
+;; position:
+
+(tc/dataset [[1 2] [3 4] [5 7]])
+
+(kind/test-last [(fn [ds] (= [0 1] (tc/column-names ds)))])
+
+;; Plotje plots such a dataset from its inferred mapping, and titles
+;; the axes with those names:
+
+(-> (tc/dataset [[1 2] [3 4] [5 7]])
+    pj/pose)
+
+(kind/test-last [(fn [v] (= ["0" "1"]
+                            ((juxt :x-label :y-label) (pj/plan v))))])
+
+;; Plotje reads an integer name but you cannot write one in a mapping:
+;; a column reference has to be a keyword or a string. Rename the
+;; columns to map them yourself.
+
+(-> (tc/dataset [[1 2] [3 4] [5 7]])
+    (tc/rename-columns [:x :y])
+    (pj/lay-point :x :y))
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
 ;; ## The RDatasets collection
 ;;
 ;; Many examples in this book use datasets from the
