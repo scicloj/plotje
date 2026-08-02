@@ -489,6 +489,63 @@
   (testing "valid string column refs still work"
     (is (pj/pose? (pj/pose tiny {:x "x" :y "y"})))))
 
+(deftest lay-star-scalar-column-ref-throws
+  ;; The positional x/y of a lay-* call bypass build-layer, so every arity
+  ;; used to answer differently: the 4-arity accepted an integer column name
+  ;; and plotted it, the 3-arity reported "find not supported on type:
+  ;; java.lang.Long" (it had guessed the y slot held an options map), and the
+  ;; x-only arity threw a null NPE. All of them now give pj/pose's message.
+  (testing "4-arity scalar in x-slot throws"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":x must be a column reference"
+         (pj/lay-point tiny 0 :y {}))))
+
+  (testing "4-arity scalar in y-slot throws"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":y must be a column reference"
+         (pj/lay-point tiny :x 1 {}))))
+
+  (testing "3-arity scalar in y-slot throws, naming the column not the opts"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":y must be a column reference"
+         (pj/lay-point tiny :x 1))))
+
+  (testing "x-only arity scalar throws"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":x must be a column reference"
+         (pj/lay-histogram tiny 0))))
+
+  (testing "the message points at the lay-* that was called"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"lay-line :x must be"
+         (pj/lay-line tiny 0 :y))))
+
+  (testing "an integer column name is rejected the same way as any scalar"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":x must be a column reference"
+         (-> (tc/dataset [[1 2] [3 4] [5 7]])
+             (pj/lay-point 0 1 {})))))
+
+  (testing "valid column refs still work in every arity"
+    (is (pj/pose? (pj/lay-point tiny :x :y)))
+    (is (pj/pose? (pj/lay-point tiny :x :y {})))
+    (is (pj/pose? (pj/lay-point tiny "x" "y")))
+    (is (pj/pose? (pj/lay-point tiny {:x :x :y :y})))
+    (is (pj/pose? (pj/lay-point tiny))))
+
+  (testing "a number on an appearance aesthetic is a constant, not a column"
+    ;; Why positions cannot take one either: numbers already name literal
+    ;; values in a mapping, so an integer column reference would be
+    ;; ambiguous on every channel that accepts a constant.
+    (is (= #{1.0} (:sizes (pj/svg-summary (pj/lay-point tiny :x :y {:size 1})))))
+    (is (= #{9.0} (:sizes (pj/svg-summary (pj/lay-point tiny :x :y {:size 9})))))))
+
 (deftest hiccup-vector-input-throws-test
   ;; user-report-3 issue 3: saving the hiccup output of pj/plot
   ;; previously failed with a deep "Tensors must be 2 dimensional" error

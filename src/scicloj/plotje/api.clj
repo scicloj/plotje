@@ -1596,6 +1596,11 @@
    No position (leaf or composite + aesthetic-only): append the
    bare / aesthetic layer to :layers."
   [fr layer-type-key position-mapping opts]
+  ;; The positional x/y of a lay-* call reach the pose's :mapping without
+  ;; passing through build-layer, so they need the same column-reference
+  ;; check pj/pose runs on the map it is handed.
+  (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
+                          position-mapping)
   (let [bare-layer (elide-empty-maps (build-layer layer-type-key opts))
         pose-pos? (or (:x (:mapping fr)) (:y (:mapping fr)))]
     (cond
@@ -1686,14 +1691,17 @@
                   fr)]
          (lay-on-pose fr layer-type-key nil x-or-opts))
 
-       (or (keyword? x-or-opts) (string? x-or-opts))
-       (lay-on-pose fr layer-type-key {:x x-or-opts} nil)
-
        ;; Sequential -> build a multi-panel composite via pj/pose, then
        ;; attach the layer at the root so it flows to every panel via
        ;; resolve-tree.
        (sequential? x-or-opts)
        (lay-on-pose (pose fr x-or-opts) layer-type-key nil nil)
+
+       ;; Anything else in the x slot is a column reference. A value that
+       ;; is not one reaches lay-on-pose and is named there; it used to be
+       ;; dropped here in silence, giving a layer with no x at all.
+       (some? x-or-opts)
+       (lay-on-pose fr layer-type-key {:x x-or-opts} nil)
 
        :else
        (lay-on-pose fr layer-type-key nil nil))))
@@ -1715,14 +1723,18 @@
        (map? y-or-opts)
        (lay-on-pose fr layer-type-key {:x x} y-or-opts)
 
-       (or (keyword? y-or-opts) (string? y-or-opts))
+       ;; Anything else in the y slot is a column reference. A value that
+       ;; is not one reaches lay-on-pose and is named there; it used to be
+       ;; passed on as the options map, so a scalar y failed as
+       ;; "find not supported on type: java.lang.Long".
+       (some? y-or-opts)
        (do (when (x-only? layer-type-key)
              (throw (ex-info (str "lay-" (name layer-type-key) " uses only the x column; do not pass a y column")
                              {:layer-type layer-type-key :x x :y y-or-opts})))
            (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil))
 
        :else
-       (lay-on-pose fr layer-type-key {:x x} y-or-opts))))
+       (lay-on-pose fr layer-type-key {:x x} nil))))
   ([layer-type-key pose-or-data x y opts]
    (when (x-only? layer-type-key)
      (throw (ex-info (str "lay-" (name layer-type-key) " uses only the x column; do not pass a y column")

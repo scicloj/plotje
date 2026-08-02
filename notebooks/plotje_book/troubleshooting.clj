@@ -414,6 +414,32 @@
 
 (kind/test-last [(fn [v] (some #{"mean"} (:texts (pj/svg-summary v))))])
 
+;; **A scalar that is a column name needs a different fix.** A dataset
+;; built without column names is given integer ones, so mapping such a
+;; column reads as a constant position and is refused in the same words:
+
+(try
+  (-> (tc/dataset [[1 2] [3 4] [5 7]])
+      (pj/lay-point 0 1)
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #":x must be a column reference" msg))])
+
+;; Here the one-row dataset above is the wrong remedy -- the values are
+;; already in the data, only the names are unusable. Rename the columns
+;; and map them by name instead:
+
+(-> (tc/dataset [[1 2] [3 4] [5 7]])
+    (tc/rename-columns [:x :y])
+    (pj/lay-point :x :y))
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
+;; The [Datasets](./plotje_book.datasets.html) chapter covers column
+;; names in full.
+
 ;; ## Dataset Missing Columns a Template References
 ;;
 ;; **Symptom**: An error like
