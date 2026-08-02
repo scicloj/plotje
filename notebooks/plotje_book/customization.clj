@@ -74,7 +74,7 @@
                                 (some (fn [t] (.contains ^String t "Sepal dimensions")) (:texts s)))))])
 
 ;; Legend titles default to the column name. Override with
-;; `:color-label`, `:size-label`, or `:alpha-label`:
+;; `:color-label`, `:size-label`, `:alpha-label`, or `:shape-label`:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -103,6 +103,18 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 150 (:points s))
                                 (some #{"Petal length (override)"} (:texts s)))))])
+
+;; `:shape-label` does the same for the shape legend. Naming it also
+;; splits a merged color-and-shape legend back into two, since asking
+;; for a separate name is asking for a separate legend:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species :shape :species})
+    (pj/options {:shape-label "Marker (override)"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 150 (+ (:points s) (:polygons s)))
+                                (some #{"Marker (override)"} (:texts s)))))])
 
 ;; ### Color and fill
 ;;

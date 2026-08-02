@@ -253,6 +253,23 @@
     (is (= {:plus-or-cross 2 :diamond 2} (frequencies (map :kind marks))))
     (is (= {:plus-or-cross 1 :diamond 1} (frequencies (map :kind legend))))))
 
+(deftest an-unknown-symbol-is-rejected
+  ;; draw-shape falls back to a circle for anything it does not know, so an
+  ;; unrecognized :values symbol would draw a circle while the legend named the
+  ;; symbol -- the very disagreement between legend and marks this feature
+  ;; exists to remove.
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo #"does not recognize \[:nonsense\]"
+       (-> tiers
+           (pj/lay-point :model :score {:shape :tier})
+           (pj/scale :shape {:values [:nonsense :square :cross]}))))
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo #":values applies to :shape only"
+       (-> tiers
+           (pj/lay-point :model :score {:size :score})
+           (pj/scale :size {:values [:circle]})))
+      "another channel has no symbols to choose"))
+
 (deftest a-domain-that-omits-a-category-warns-and-still-assigns-it
   (let [[out pairs] (capturing
                      #(legend-pairs (-> {:x [1 2 3] :y [1 2 3] :g ["a" "b" "c"]}

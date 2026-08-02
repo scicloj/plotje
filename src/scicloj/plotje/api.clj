@@ -2467,7 +2467,26 @@
                   (str "pj/scale :breaks and :labels must have the same count, got "
                        (count breaks) " breaks and " (count labels) " labels.")
                   {:caller "pj/scale" :channel channel
-                   :breaks (vec breaks) :labels (vec labels)})))))
+                   :breaks (vec breaks) :labels (vec labels)})))
+        ;; :values names marker symbols, which only :shape draws. An
+        ;; unrecognized symbol would draw as a circle while the legend
+        ;; advertised the name, so reject it here rather than render a
+        ;; legend that disagrees with its own marks.
+        (when-let [values (:values scale-type)]
+          (when (not= channel :shape)
+            (throw (ex-info
+                    (str "pj/scale :values applies to :shape only, got channel "
+                         channel ". It names the marker symbols a shape mapping"
+                         " draws with; other channels have no symbols to choose.")
+                    {:caller "pj/scale" :channel channel :values (vec values)})))
+          (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
+            (throw (ex-info
+                    (str "pj/scale :shape :values does not recognize "
+                         (vec unknown) ". Supported symbols: "
+                         defaults/shape-syms ".")
+                    {:caller "pj/scale" :channel channel
+                     :unknown (vec unknown)
+                     :supported defaults/shape-syms}))))))
     (update-opts pose assoc k (if (map? scale-type)
                                 (merge {:type (if disc-visual? :categorical :linear)}
                                        scale-type)
