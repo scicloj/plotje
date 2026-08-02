@@ -577,6 +577,26 @@
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
+;; Shape symbols on a discrete channel -- `:domain` orders the
+;; categories, `:values` picks the markers:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:shape :species})
+    (pj/scale :shape {:domain ["virginica" "versicolor" "setosa"]
+                      :values [:cross :plus :diamond]}))
+
+(kind/test-last
+ [(fn [v]
+    (= [["virginica" :cross] ["versicolor" :plus] ["setosa" :diamond]]
+       (mapv (juxt :label :shape)
+             (:entries (:shape-legend (pj/plan v))))))])
+
+(kind/doc #'pj/shape-symbols)
+
+pj/shape-symbols
+
+(kind/test-last [(fn [syms] (and (seq syms) (every? keyword? syms)))])
+
 ;; Custom tick labels on a numeric axis -- pair `:breaks` with
 ;; `:labels`:
 
@@ -975,7 +995,7 @@ plan1
 
 (count pj/plot-option-docs)
 
-(kind/test-last [(fn [n] (= 14 n))])
+(kind/test-last [(fn [n] (= 15 n))])
 
 (kind/doc #'pj/layer-option-docs)
 

@@ -567,8 +567,11 @@
          sw (double defaults/legend-swatch-size)
          ;; Collect rects excluding those inside data-legend groups
          rects (collect-elements-excluding-legend svg :rect)
-         polylines (collect-elements svg :polyline)
-         polygons (collect-elements svg :polygon)
+         ;; Polygons and polylines skip legend subtrees for the same
+         ;; reason rects do: a legend key that draws a triangle, diamond,
+         ;; plus or cross emits a polygon, and legend chrome is not data.
+         polylines (collect-elements-excluding-legend svg :polyline)
+         polygons (collect-elements-excluding-legend svg :polygon)
          texts (collect-elements svg :text)
          ;; Panels: rects filled with the theme's background color.
          ;; Under the total-dimensions layout semantics, panel inner

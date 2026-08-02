@@ -641,8 +641,8 @@ two-panel
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; **Shape by category** -- `:shape` mapped to a categorical column
-;; renders each group with a different marker. Useful for monochrome
-;; printing or to reinforce the color encoding:
+;; renders each group with a different marker, and a legend naming
+;; them. Useful for monochrome printing:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:shape :species}))
@@ -653,7 +653,24 @@ two-panel
           shape-values (set (mapcat :shapes (:groups layer)))
           s (pj/svg-summary v)]
       (and (= 3 (count shape-values))
-           (= 150 (+ (:points s) (:polygons s))))))])
+           (= 150 (+ (:points s) (:polygons s)))
+           (every? (set (:texts s)) ["setosa" "versicolor" "virginica"]))))])
+
+;; `:color` and `:shape` can take the same column at once. Each
+;; species then has its own color and its own marker, so a reader who
+;; cannot tell the colors apart can still tell the groups apart. The
+;; legend has one entry per species, and its key shows both:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species
+                                              :shape :species}))
+
+(kind/test-last
+ [(fn [v]
+    (let [plan (pj/plan v)]
+      (and (nil? (:shape-legend plan))
+           (= [:circle :square :triangle]
+              (mapv :shape (:entries (:legend plan)))))))])
 
 ;; The `:group` aesthetic creates groups without changing colors:
 

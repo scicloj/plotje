@@ -437,6 +437,61 @@
 ;; `:hour` column to render as categorical bands), see
 ;; [Inference Rules](./plotje_book.inference_rules.html).
 
+;; ### Shape symbols
+;;
+;; `:shape` is a discrete channel, so its scale controls two things a
+;; continuous channel has no use for: which order the categories are
+;; assigned symbols in, and which symbols those are. Both matter when
+;; a reader compares two plots -- the same category should keep the
+;; same marker across them.
+;;
+;; `pj/shape-symbols` lists the available markers, in the order they
+;; are assigned to categories:
+
+pj/shape-symbols
+
+(kind/test-last [(fn [syms] (= syms (distinct syms)))])
+
+;; A plot with more categories than that repeats a symbol, so two
+;; categories cannot be told apart; it warns when that happens.
+;;
+;; Left alone, the categories take those symbols in the order they
+;; appear in the data:
+
+(-> {:model ["a" "b" "c" "d"] :score [3 1 4 2] :tier ["gold" "silver" "bronze" "gold"]}
+    (pj/lay-point :model :score {:shape :tier}))
+
+(kind/test-last
+ [(fn [v]
+    (= (take 3 pj/shape-symbols)
+       (mapv :shape (:entries (:shape-legend (pj/plan v))))))])
+
+;; `:domain` sets the category order, which is also the legend order:
+
+(-> {:model ["a" "b" "c" "d"] :score [3 1 4 2] :tier ["gold" "silver" "bronze" "gold"]}
+    (pj/lay-point :model :score {:shape :tier})
+    (pj/scale :shape {:domain ["gold" "silver" "bronze"]}))
+
+(kind/test-last
+ [(fn [v]
+    (= (mapv vector ["gold" "silver" "bronze"] pj/shape-symbols)
+       (mapv (juxt :label :shape)
+             (:entries (:shape-legend (pj/plan v))))))])
+
+;; `:values` picks the symbols themselves, paired with the categories
+;; in that same order:
+
+(-> {:model ["a" "b" "c" "d"] :score [3 1 4 2] :tier ["gold" "silver" "bronze" "gold"]}
+    (pj/lay-point :model :score {:shape :tier})
+    (pj/scale :shape {:domain ["gold" "silver" "bronze"]
+                      :values [:diamond :cross :plus]}))
+
+(kind/test-last
+ [(fn [v]
+    (= [["gold" :diamond] ["silver" :cross] ["bronze" :plus]]
+       (mapv (juxt :label :shape)
+             (:entries (:shape-legend (pj/plan v))))))])
+
 ;; ## Mark Styling
 
 ;; Pass `:alpha` and `:size` directly to layer functions.

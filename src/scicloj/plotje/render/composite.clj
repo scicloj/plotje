@@ -112,12 +112,20 @@
 (defn- shared-legend-drawables
   "Build membrane drawables for the shared legend positioned at
    (legend-x, legend-y-top). Takes the representative plan's legend
-   spec and renders color / size / alpha legends stacked vertically.
-   Returns a vector of drawables; empty when the rep plan has no
-   legend data."
+   spec and renders color / size / alpha / shape legends stacked
+   vertically. Returns a vector of drawables; empty when the rep plan
+   has no legend data."
   [rep-plan legend-x legend-y-top]
-  (let [{:keys [legend size-legend alpha-legend]} rep-plan
+  (let [{:keys [legend size-legend alpha-legend shape-legend]} rep-plan
         cfg       (defaults/resolve-config {})
+        ;; Each channel has a rung on a fixed ladder. The shape legend
+        ;; takes the first rung the other three leave free, so a plot
+        ;; whose only legend is a shape legend draws it at the top
+        ;; rather than 400 pixels below the canvas.
+        shape-y   (+ legend-y-top (cond alpha-legend 408
+                                        size-legend  288
+                                        legend       168
+                                        :else        18))
         sections  (keep (fn [[drawer data]]
                           (when data (drawer data)))
                         [[(fn [l] (membrane/render-legend-from-plan
@@ -128,7 +136,10 @@
                           size-legend]
                          [(fn [l] (membrane/render-alpha-legend
                                    l legend-x (+ legend-y-top 288) cfg))
-                          alpha-legend]])]
+                          alpha-legend]
+                         [(fn [l] (membrane/render-shape-legend
+                                   l legend-x shape-y cfg))
+                          shape-legend]])]
     (vec (apply concat sections))))
 
 ;; ---- plan->membrane dispatch for composites ----

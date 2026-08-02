@@ -213,7 +213,10 @@
    [:x-domain {:optional true} [:maybe [:sequential any?]]]
    [:y-domain {:optional true} [:maybe [:sequential any?]]]
    [:size-scale {:optional true} [:maybe any?]]
-   [:alpha-scale {:optional true} [:maybe any?]]])
+   [:alpha-scale {:optional true} [:maybe any?]]
+   ;; Plot-wide category-to-symbol assignment for the :shape aesthetic,
+   ;; decided at plan time so marks and legend agree.
+   [:shape-map {:optional true} [:maybe [:map-of any? keyword?]]]])
 
 ;; ---- Panel ----
 
@@ -239,7 +242,10 @@
 (def LegendEntry
   [:map
    [:label string?]
-   [:color Color]])
+   [:color Color]
+   ;; Present when one column drives both :color and :shape: the key
+   ;; draws this symbol in its own color instead of a square swatch.
+   [:shape {:optional true} keyword?]])
 
 (def GradientStop
   [:map
@@ -294,6 +300,17 @@
    [:max number?]
    [:entries [:vector AlphaLegendEntry]]])
 
+(def ShapeLegendEntry
+  [:map
+   [:label string?]
+   [:shape keyword?]])
+
+(def ShapeLegend
+  [:map
+   [:title [:or keyword? string?]]
+   [:type [:= :shape]]
+   [:entries [:vector ShapeLegendEntry]]])
+
 ;; ---- Layout ----
 
 (def Layout
@@ -334,6 +351,7 @@
    [:legend {:optional true} [:maybe Legend]]
    [:size-legend {:optional true} [:maybe SizeLegend]]
    [:alpha-legend {:optional true} [:maybe AlphaLegend]]
+   [:shape-legend {:optional true} [:maybe ShapeLegend]]
    [:legend-position [:enum :right :bottom :top :none]]
    [:panels [:vector Panel]]
    [:layout Layout]
@@ -372,7 +390,8 @@
     [:maybe [:map
              [:legend {:optional true} [:maybe Legend]]
              [:size-legend {:optional true} [:maybe SizeLegend]]
-             [:alpha-legend {:optional true} [:maybe AlphaLegend]]]]]
+             [:alpha-legend {:optional true} [:maybe AlphaLegend]]
+             [:shape-legend {:optional true} [:maybe ShapeLegend]]]]]
    [:layout [:map-of [:vector int?] Rect]]])
 
 (def CompositePlanSchema

@@ -844,6 +844,7 @@
         alpha-scale  (:alpha-scale opts)
         fill-scale   (:fill-scale opts)
         color-scale  (:color-scale opts)
+        shape-scale  (:shape-scale opts)
         coord-type   (:coord opts)
         layers       (or (:layers leaf) [])
         ;; An entirely empty leaf (no mapping, no layers) has nothing
@@ -881,6 +882,7 @@
               alpha-scale (assoc :alpha-scale alpha-scale)
               fill-scale  (assoc :fill-scale fill-scale)
               color-scale (assoc :color-scale color-scale)
+              shape-scale (assoc :shape-scale shape-scale)
               coord-type  (assoc :coord coord-type)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))
               (:facet-row variant) (assoc :facet-row (:facet-row variant)))

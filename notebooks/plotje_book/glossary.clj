@@ -634,9 +634,12 @@ annotated
 
 ;; ## Legend
 ;;
-;; A **legend** is generated automatically when a color (or shape)
-;; aesthetic maps to a data column. It appears in the plan as a
-;; `:legend` key containing entries with labels and colors.
+;; A **legend** is generated automatically when an aesthetic maps to a
+;; data column. It appears in the plan under the key named for that
+;; aesthetic -- `:legend` for color, holding entries with labels and
+;; colors, and `:size-legend`, `:alpha-legend`, `:shape-legend` for the
+;; others. One column driving both color and shape produces a single
+;; merged legend under `:legend`, whose entries carry a `:shape` too.
 ;; Position is controlled via `{:legend-position :bottom}` in options.
 
 (kind/pprint (:legend my-plan))
@@ -826,7 +829,7 @@ annotated
 
 (kind/test-last
  [(fn [ks]
-    (and (= 14 (count ks))
+    (and (= 15 (count ks))
          (some #{:title :subtitle :caption :x-label :y-label} ks)))])
 
 ;; ## Layer Options

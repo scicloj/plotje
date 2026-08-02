@@ -88,8 +88,39 @@
         hi (+ lo sub-bw)]
     {:lo lo :hi hi :mid (/ (+ lo hi) 2.0) :sub-bw sub-bw}))
 
-(defn- draw-shape
-  "Draw a shape symbol centered at (0,0) with given radius."
+(defn- closed-path
+  "A filled polygon through `pts`, closed by repeating the first point."
+  [pts]
+  (ui/with-style ::ui/style-fill
+    (apply ui/path (conj (vec pts) (first pts)))))
+
+(defn- plus-points
+  "Vertices of a plus sign centered on (cx, cy), with arms reaching
+   `arm` from the center and `t` as the arm's half-thickness."
+  [cx cy arm t]
+  [[(- cx t) (- cy arm)] [(+ cx t) (- cy arm)]
+   [(+ cx t) (- cy t)]   [(+ cx arm) (- cy t)]
+   [(+ cx arm) (+ cy t)] [(+ cx t) (+ cy t)]
+   [(+ cx t) (+ cy arm)] [(- cx t) (+ cy arm)]
+   [(- cx t) (+ cy t)]   [(- cx arm) (+ cy t)]
+   [(- cx arm) (- cy t)] [(- cx t) (- cy t)]])
+
+(defn- rotate-45
+  "Rotate `pts` a half-quarter turn about (cx, cy). Turns a plus into
+   an x."
+  [cx cy pts]
+  (let [k (/ (Math/sqrt 2.0) 2.0)]
+    (mapv (fn [[x y]]
+            (let [dx (- x cx)
+                  dy (- y cy)]
+              [(+ cx (* k (- dx dy)))
+               (+ cy (* k (+ dx dy)))]))
+          pts)))
+
+(defn draw-shape
+  "Draw a shape symbol on a 2r-by-2r box whose top-left corner is the
+   origin. Public so the legend renderer draws the same symbol the
+   marks do. An unknown symbol draws a circle."
   [shape-kw r]
   (let [d (* 2 r)]
     (case shape-kw
@@ -98,8 +129,13 @@
       :triangle (let [h (* r 1.73)] ;; equilateral triangle height
                   (ui/with-style ::ui/style-fill
                     (ui/path [r 0] [(+ r r) h] [(- r r) h] [r 0])))
+      :triangle-down (let [h (* r 1.73)]
+                       (ui/with-style ::ui/style-fill
+                         (ui/path [0 (- d h)] [d (- d h)] [r d] [0 (- d h)])))
       :diamond (ui/with-style ::ui/style-fill
                  (ui/path [r 0] [d r] [r d] [0 r] [r 0]))
+      :plus (closed-path (plus-points r r r (* 0.32 r)))
+      :cross (closed-path (rotate-45 r r (plus-points r r r (* 0.32 r))))
       ;; default: circle
       (ui/with-style ::ui/style-fill
         (ui/rounded-rectangle d d r)))))
@@ -245,10 +281,9 @@
                             (fn [v] (+ 0.2 (* 0.8 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
                           (let [span (max 1e-6 (- (double hi) (double lo)))]
                             (fn [v] (+ 0.2 (* 0.8 (/ (- (double v) (double lo)) span))))))))
-        shape-bufs (keep :shapes groups)
-        shape-map (when (seq shape-bufs)
-                    (let [all-vals (distinct (apply concat shape-bufs))]
-                      (zipmap all-vals (cycle defaults/shape-syms))))]
+        ;; The category-to-symbol assignment is decided at plan time so
+        ;; the legend and the marks show the same symbol for a category.
+        shape-map (:shape-map layer)]
     (vec
      (for [{:keys [color colors xs ys sizes alphas shapes row-indices label dodge-idx] :as group} groups
            :let [;; One seeded RNG per group for deterministic jitter

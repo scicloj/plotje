@@ -10,6 +10,7 @@
   (:require [membrane.ui :as ui]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.membrane :as mem]
+            [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.render.panel :as panel]))
 
 ;; ---- Detection (re-exports from impl/membrane.clj) ----
@@ -19,6 +20,21 @@
 
 ;; ---- Legend ----
 
+(defn- legend-swatch
+  "The colored key beside a categorical legend entry. A plain entry
+   draws the default round swatch; an entry carrying a `:shape` -- one
+   column driving both `:color` and `:shape` -- draws that symbol
+   instead, through the same `draw-shape` the point marks use."
+  [color shape]
+  (let [sw defaults/legend-swatch-size
+        sw-r (/ sw 2.0)
+        [cr cg cb _] color]
+    (ui/with-color [cr cg cb 1.0]
+      (if shape
+        (mark/draw-shape shape sw-r)
+        (ui/with-style ::ui/style-fill
+          (ui/rounded-rectangle sw sw sw-r))))))
+
 (defn render-legend-from-plan
   "Render legend from plan legend data as membrane drawables. Public
    so the compositor can reuse the renderer for composite-level
@@ -26,9 +42,7 @@
   [legend x y cfg]
   (let [{:keys [title]} legend
         fsize 10
-        title-color [0.2 0.2 0.2 1.0]
-        sw defaults/legend-swatch-size
-        sw-r (/ sw 2.0)]
+        title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
       ;; Continuous gradient legend
       (let [{:keys [min max stops color-scale ticks]} legend
@@ -84,19 +98,18 @@
         (vec
          (concat
           (when title
-            [(ui/translate x (- y 18)
-                           (ui/with-color title-color
-                             (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
-          (for [[i {:keys [label color]}] (map-indexed vector entries)
-                :let [[cr cg cb _] color]]
-            (ui/translate x (+ y (* i 16))
-                          [(ui/translate 0 0
-                                         (ui/with-color [cr cg cb 1.0]
-                                           (ui/with-style ::ui/style-fill
-                                             (ui/rounded-rectangle sw sw sw-r))))
-                           (ui/translate 12 0
-                                         (ui/with-color title-color
-                                           (ui/label label (ui/font nil fsize))))]))))))))
+            [(assoc (ui/translate x (- y 18)
+                                  (ui/with-color title-color
+                                    (ui/label (defaults/fmt-name title) (ui/font nil 11))))
+                    :legend true)])
+          (for [[i {:keys [label color shape]}] (map-indexed vector entries)]
+            (assoc
+             (ui/translate x (+ y (* i 16))
+                           [(ui/translate 0 0 (legend-swatch color shape))
+                            (ui/translate 12 0
+                                          (ui/with-color title-color
+                                            (ui/label label (ui/font nil fsize))))])
+             :legend true))))))))
 
 (defn- render-legend-horizontal
   "Render a horizontal legend (for :top or :bottom positioning).
@@ -104,9 +117,7 @@
   [legend x y cfg]
   (let [{:keys [title entries]} legend
         fsize 10
-        title-color [0.2 0.2 0.2 1.0]
-        sw defaults/legend-swatch-size
-        sw-r (/ sw 2.0)]
+        title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
       ;; For continuous legends, fall back to vertical rendering
       (render-legend-from-plan legend x y cfg)
@@ -120,13 +131,11 @@
                            (ui/with-color title-color
                              (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
           (let [{:keys [elems]}
-                (reduce (fn [{:keys [elems cur-x]} {:keys [label color]}]
-                          (let [[cr cg cb _] color
-                                label-w (* (count label) 6)
-                                elem [(ui/translate (+ x cur-x) (- y 1)
-                                                    (ui/with-color [cr cg cb 1.0]
-                                                      (ui/with-style ::ui/style-fill
-                                                        (ui/rounded-rectangle sw sw sw-r))))
+                (reduce (fn [{:keys [elems cur-x]} {:keys [label color shape]}]
+                          (let [label-w (* (count label) 6)
+                                elem [(assoc (ui/translate (+ x cur-x) (- y 1)
+                                                           (legend-swatch color shape))
+                                             :legend true)
                                       (ui/translate (+ x cur-x 10) (- y 1)
                                                     (ui/with-color title-color
                                                       (ui/label label (ui/font nil fsize))))]]
@@ -135,6 +144,17 @@
                         {:elems [] :cur-x start-x}
                         entries)]
             elems)))))))
+
+(defn- shape-legend-as-categorical
+  "A shape legend recast in the categorical-legend shape the horizontal
+   renderer consumes: each entry gains the default mark color, which is
+   what a standalone shape legend draws its symbols in. Lets a
+   shape-only plot put its legend on the top or bottom edge."
+  [shape-legend cfg]
+  (when shape-legend
+    (let [mark-color (defaults/hex->rgba (:default-color cfg))]
+      (update shape-legend :entries
+              (fn [entries] (mapv #(assoc % :color mark-color) entries))))))
 
 (defn- fmt-legend-number
   "Format a legend's numeric value: an integral value loses its trailing
@@ -209,6 +229,36 @@
                                         (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
          :legend true))))))
 
+(defn render-shape-legend
+  "Render a shape legend -- one symbol per category with its label.
+   Returns a vector of membrane drawables. The symbols are drawn in the
+   default mark color, since a standalone shape legend means no column
+   drives the color; when one does, the shape folds into the color
+   legend instead."
+  [shape-legend x y cfg]
+  (let [{:keys [title entries]} shape-legend
+        title-color [0.2 0.2 0.2 1.0]
+        sw defaults/legend-swatch-size
+        mark-color (defaults/hex->rgba (:default-color cfg))
+        row-h 16]
+    (vec
+     (concat
+      (when title
+        [(assoc (ui/translate x (- y 16)
+                              (ui/with-color title-color
+                                (ui/label (defaults/fmt-name title) (ui/font nil 11))))
+                :legend true)])
+      (for [[i {:keys [label shape]}] (map-indexed vector entries)
+            :let [cy (+ y (* i row-h))]]
+        (assoc
+         (ui/translate 0 0
+                       [(assoc (ui/translate x cy (legend-swatch mark-color shape))
+                               :legend true)
+                        (ui/translate (+ x sw 6) cy
+                                      (ui/with-color title-color
+                                        (ui/label label (ui/font nil 10))))])
+         :legend true))))))
+
 ;; ---- Plan → Membrane ----
 
 (defmulti plan->membrane
@@ -245,7 +295,7 @@
         cfg (defaults/resolve-config opts)
         {:keys [margin total-width total-height panel-width panel-height
                 title subtitle caption x-label y-label
-                legend size-legend alpha-legend
+                legend size-legend alpha-legend shape-legend
                 legend-position panels layout grid]} plan
         {:keys [x-label-pad y-label-pad title-pad subtitle-pad caption-pad legend-w legend-h]
          :or   {x-label-pad 0 y-label-pad 0 title-pad 0 subtitle-pad 0
@@ -391,7 +441,7 @@
                                  (assoc (ui/label x-label (ui/font nil fsize))
                                         :text-anchor "middle")))]))
             ;; Legends — stacked vertically on the right (or horizontal for top/bottom)
-            (let [any-legend? (or legend size-legend alpha-legend)]
+            (let [any-legend? (or legend size-legend alpha-legend shape-legend)]
               (when (and any-legend? (not= legend-pos :none))
                 (let [legend-x (+ y-label-pad (* grid-cols pw) strip-w 10)
                       base-y (+ title-pad strip-h 20)]
@@ -413,18 +463,24 @@
                           ;; Alpha legend
                           alpha-y (+ size-y size-h (if size-legend 10 0))
                           alpha-elems (when alpha-legend
-                                        (render-alpha-legend alpha-legend legend-x alpha-y cfg))]
-                      (concat (or color-elems []) (or size-elems []) (or alpha-elems [])))
+                                        (render-alpha-legend alpha-legend legend-x alpha-y cfg))
+                          alpha-h (if alpha-legend (+ 16 (* 16 (count (:entries alpha-legend)))) 0)
+                          ;; Shape legend
+                          shape-y (+ alpha-y alpha-h (if alpha-legend 10 0))
+                          shape-elems (when shape-legend
+                                        (render-shape-legend shape-legend legend-x shape-y cfg))]
+                      (concat (or color-elems []) (or size-elems [])
+                              (or alpha-elems []) (or shape-elems [])))
                     :top
                     (let [plots-start-y title-pad
                           legend-y (- plots-start-y (or legend-h 30) -5)]
-                      (if legend
-                        (render-legend-horizontal legend (+ y-label-pad 10) legend-y cfg)
+                      (if-let [l (or legend (shape-legend-as-categorical shape-legend cfg))]
+                        (render-legend-horizontal l (+ y-label-pad 10) legend-y cfg)
                         []))
                     :bottom
                     (let [bottom-y (- total-height (or legend-h 30) -8)]
-                      (if legend
-                        (render-legend-horizontal legend (+ y-label-pad 10) bottom-y cfg)
+                      (if-let [l (or legend (shape-legend-as-categorical shape-legend cfg))]
+                        (render-legend-horizontal l (+ y-label-pad 10) bottom-y cfg)
                         []))
                     ;; Fallback to right
                     (when legend

@@ -142,7 +142,8 @@
      :x-scale-spec / :y-scale-spec   representative scale specs
      :x-temporal / :y-temporal  temporal extents, if any
      :panel-row-labels / :panel-col-labels  strip labels per panel
-     :legend / :size-legend / :alpha-legend  already-built legends
+     :legend / :size-legend / :alpha-legend / :shape-legend
+                              already-built legends
 
    Output map carries everything compute-padding and compute-dims need."
   [{:keys [layout-type grid-rows grid-cols
@@ -153,7 +154,7 @@
            x-scale-spec y-scale-spec
            x-temporal y-temporal
            panel-row-labels panel-col-labels
-           legend size-legend alpha-legend]}]
+           legend size-legend alpha-legend shape-legend]}]
   (let [multi? (and (= layout-type :multi-variable)
                     (> grid-cols 1) (> grid-rows 1))
         has-col-strips? (or (and (= layout-type :facet-grid) (seq facet-col-vals))
@@ -164,18 +165,23 @@
                             (some some? panel-row-labels))
         max-row-strip-chars (reduce max 0
                                     (keep #(when % (count %)) panel-row-labels))
+        ;; A top/bottom legend renders the color legend, or the shape
+        ;; legend when there is no color legend to render, so the row
+        ;; count reserving its height has to consider both.
         legend-entry-count (cond
                              (:entries legend) (count (:entries legend))
                              (= :continuous (:type legend)) 5
+                             (:entries shape-legend) (count (:entries shape-legend))
                              :else 0)
         ;; Widest label across title + entry labels. Used to extend
         ;; the legend column width when a category name is longer
-        ;; than the fixed default.
-        legend-title-chars (count (str (some-> legend :title name)))
-        legend-entry-max-chars (reduce max 0
-                                       (map #(count (str (:label %)))
-                                            (:entries legend)))
-        legend-max-chars (max legend-title-chars legend-entry-max-chars)]
+        ;; than the fixed default. A standalone shape legend sits in
+        ;; the same column, so its labels count too.
+        title-chars (fn [l] (count (str (some-> l :title name))))
+        entry-max-chars (fn [l] (reduce max 0 (map #(count (str (:label %)))
+                                                   (:entries l))))
+        legend-max-chars (max (title-chars legend) (entry-max-chars legend)
+                              (title-chars shape-legend) (entry-max-chars shape-legend))]
     {:layout-type layout-type
      :multi? multi?
      :grid-rows grid-rows
@@ -195,7 +201,7 @@
      :y-scale-spec y-scale-spec
      :x-temporal x-temporal
      :y-temporal y-temporal
-     :legend-present? (boolean (or legend size-legend alpha-legend))
+     :legend-present? (boolean (or legend size-legend alpha-legend shape-legend))
      :legend-entry-count legend-entry-count
      :legend-max-chars legend-max-chars
      :size-legend-entry-count (count (:entries size-legend))

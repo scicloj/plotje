@@ -405,14 +405,17 @@
 (defn resolve-panel-draft-layers
   "Resolve draft layers and compute stats for a group of draft layers belonging to one panel.
    If pre-resolved draft layers are provided, skips resolve-draft-layer.
+   `:shape-map` is the plot-wide category-to-symbol assignment, carried
+   onto every layer so the marks draw the symbols the legend advertises.
    Returns {:resolved [...] :stat-results [...] :layers [...]}."
-  [panel-draft-layers all-colors cfg & {:keys [resolved]}]
+  [panel-draft-layers all-colors cfg & {:keys [resolved shape-map]}]
   (let [resolved (or resolved (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) panel-draft-layers))
         stat-results (mapv #(stat/compute-stat (assoc % :cfg (merge cfg (:cfg %)))) resolved)
         raw-plan-layers (vec (map (fn [rv sr]
                                     (-> (resolve/map->PlanLayer (extract/extract-layer rv sr all-colors cfg))
                                         (assoc :y-domain (:y-domain sr)
-                                               :x-domain (:x-domain sr))))
+                                               :x-domain (:x-domain sr))
+                                        (cond-> shape-map (assoc :shape-map shape-map))))
                                   resolved stat-results))
         plan-layers (position/apply-positions raw-plan-layers)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
@@ -437,6 +440,74 @@
      :all-colors all-colors
      :color-cols color-cols
      :tagged-draft-layers tagged-draft-layers}))
+
+(defn- order-by-domain
+  "Order `observed` categories by an explicit `domain`. Domain entries
+   come first, in the order given; observed categories the domain omits
+   follow in the order they appear in the data, so nothing silently
+   loses its place. `warn-shape-domain-gap!` reports the omissions."
+  [observed domain]
+  (let [observed-set (set observed)
+        listed (filterv observed-set domain)
+        listed-set (set listed)]
+    (into listed (remove listed-set observed))))
+
+(defn- warn-shape-domain-gap!
+  "Warn when a `pj/scale :shape` :domain leaves out categories the data
+   contains. Those categories still get a symbol -- appended after the
+   listed ones -- but the user asked for an order that does not cover
+   them, which is usually a typo or a stale category list."
+  [observed domain]
+  (when-let [missing (seq (remove (set domain) observed))]
+    (println (str "Warning: pj/scale :shape :domain omits " (vec missing)
+                  ". Those categories keep a symbol, assigned after the "
+                  "listed ones. List every category to control the whole "
+                  "shape legend order."))))
+
+(defn- warn-shape-wrap!
+  "Warn when there are more shape categories than symbols to draw them
+   with, so two categories share a symbol and become indistinguishable."
+  [all-shapes syms]
+  (let [n-cats (count all-shapes)
+        n-syms (count syms)]
+    (when (> n-cats n-syms)
+      (println (str "Warning: " n-cats " shape categories exceeds the "
+                    n-syms " available shape symbols. Symbols will repeat, "
+                    "so some categories cannot be told apart. Reduce the "
+                    "number of categories, or supply your own symbols via "
+                    "(pj/scale pose :shape {:values [...]}).")))))
+
+(defn- collect-shapes
+  "Collect the categories the `:shape` aesthetic takes across all draft
+   layers and decide which symbol each one draws with. Returns nil when
+   no draft layer maps `:shape` to a column.
+
+   Category order follows the data unless `pj/scale :shape` supplied a
+   `:domain`; the symbols are `defaults/shape-syms` unless that scale
+   supplied `:values`. Deciding here rather than at render time is what
+   lets the legend show the symbol the marks actually draw.
+
+   Returns {:all-shapes :shape-cols :shape-map}."
+  [resolved-all]
+  (let [shape-draft-layers (filter #(and (resolve/column-ref? (:shape %))
+                                         (:data %)) resolved-all)]
+    (when (seq shape-draft-layers)
+      (let [scale (some :shape-scale shape-draft-layers)
+            domain (seq (:domain scale))
+            syms (or (seq (:values scale)) defaults/shape-syms)
+            observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
+                                                         shape-draft-layers))))
+            all-shapes (if domain
+                         (order-by-domain observed domain)
+                         observed)]
+        (when (seq all-shapes)
+          (when domain
+            (warn-shape-domain-gap! observed domain))
+          (warn-shape-wrap! all-shapes syms)
+          {:all-shapes all-shapes
+           :shape-cols (distinct (keep #(when (resolve/column-ref? (:shape %)) (:shape %))
+                                       resolved-all))
+           :shape-map (zipmap all-shapes (cycle syms))})))))
 
 (defn- warn-palette-wrap!
   "Warn if:
@@ -703,6 +774,46 @@
              :entries (vec (for [v values]
                              {:value v
                               :alpha (alpha-fn v)}))}))))))
+
+(defn- build-shape-legend
+  "Build the shape legend from the category-to-symbol assignment
+   `collect-shapes` already made. Returns nil when no draft layer maps
+   `:shape` to a column.
+   `opts-title` overrides the inferred column-name title (from a
+   user-supplied `:shape-label` plot option)."
+  [{:keys [all-shapes shape-cols shape-map]} opts-title]
+  (when (seq all-shapes)
+    {:title (or opts-title (first shape-cols))
+     :type :shape
+     :entries (vec (for [cat all-shapes]
+                     {:label (defaults/fmt-category-label cat)
+                      :shape (shape-map cat)}))}))
+
+(defn- merge-shape-into-color-legend
+  "When one column drives both `:color` and `:shape`, the two legends
+   would repeat the same categories under the same title. Fold the
+   symbols into the color legend's entries instead, so each key draws
+   its own symbol in its own color, and drop the separate shape legend.
+   This is what ggplot2 does with matching guides.
+
+   Merges only when both legends carry the same title and the same
+   labels in the same order -- a user who renamed one of them with
+   `:color-label` or `:shape-label` asked for two distinct legends.
+
+   Returns [legend shape-legend], one of which may be nil."
+  [legend shape-legend]
+  (if (and (:entries legend)
+           (:entries shape-legend)
+           (= (:title legend) (:title shape-legend))
+           (= (mapv :label (:entries legend))
+              (mapv :label (:entries shape-legend))))
+    [(update legend :entries
+             (fn [entries]
+               (mapv (fn [entry shape-entry]
+                       (assoc entry :shape (:shape shape-entry)))
+                     entries (:entries shape-legend))))
+     nil]
+    [legend shape-legend]))
 
 ;; ---- Main Entry Point ----
 
@@ -1123,6 +1234,10 @@
          _ (warn-monochrome-numeric-color! resolved-all)
          _ (warn-fill-scale-without-fill! resolved-all opts)
 
+         ;; Shape symbols. Decided here, once per plan, so every panel's
+         ;; marks and the legend agree on which symbol a category draws.
+         shape-info (collect-shapes resolved-all)
+
          ;; Representative scale/coord (first draft layer) for plot-level decisions
          default-x-scale {:type :linear}
          default-y-scale {:type :linear}
@@ -1181,7 +1296,8 @@
                                  pre-resolved (mapv :__resolved panel-tagged)]
                              (if (seq panel-tagged)
                                (merge pg (resolve-panel-draft-layers panel-tagged all-colors cfg
-                                                                     :resolved pre-resolved))
+                                                                     :resolved pre-resolved
+                                                                     :shape-map (:shape-map shape-info)))
                                pg)))))
                      (:panels grid))
 
@@ -1236,7 +1352,8 @@
          ;; by the compositor on sub-plots (e.g. SPLOM cells) so the legend
          ;; doesn't eat the per-cell render rectangle. The per-channel
          ;; flags (:suppress-color-legend, :suppress-size-legend,
-         ;; :suppress-alpha-legend) are set by the aware-chrome path when
+         ;; :suppress-alpha-legend, :suppress-shape-legend) are set by
+         ;; the aware-chrome path when
          ;; only some aesthetics are unanimous across composite cells --
          ;; the per-leaf legend renders for the non-unanimous aesthetics
          ;; while the unanimous ones get one shared legend at composite
@@ -1245,6 +1362,7 @@
          suppress-color? (or suppress-legend? (:suppress-color-legend opts))
          suppress-size? (or suppress-legend? (:suppress-size-legend opts))
          suppress-alpha? (or suppress-legend? (:suppress-alpha-legend opts))
+         suppress-shape? (or suppress-legend? (:suppress-shape-legend opts))
          legend (when-not suppress-color?
                   (build-legend resolved-all numeric-color? all-colors color-cols cfg (:color-label opts)))
          legend (or legend
@@ -1255,6 +1373,9 @@
                        (build-size-legend resolved-all (:size-label opts)))
          alpha-legend (when-not suppress-alpha?
                         (build-alpha-legend resolved-all (:alpha-label opts)))
+         shape-legend (when-not suppress-shape?
+                        (build-shape-legend shape-info (:shape-label opts)))
+         [legend shape-legend] (merge-shape-into-color-legend legend shape-legend)
 
          ;; Scene: everything compute-padding + compute-dims need to
          ;; know about the data and options, all data-derived or
@@ -1281,7 +1402,8 @@
                  :panel-col-labels (mapv :col-label panel-domains)
                  :legend legend
                  :size-legend size-legend
-                 :alpha-legend alpha-legend})
+                 :alpha-legend alpha-legend
+                 :shape-legend shape-legend})
 
          padding (layout/compute-padding scene cfg layout-opts)
 
@@ -1337,6 +1459,7 @@
            :title eff-title :subtitle subtitle :caption caption
            :x-label eff-x-label :y-label eff-y-label
            :legend legend :size-legend size-legend :alpha-legend alpha-legend
+           :shape-legend shape-legend
            :legend-position (:legend-position padding)
            :panels panels
            :tooltip (:tooltip opts)

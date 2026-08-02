@@ -68,7 +68,7 @@
 
 (def ^:private legend-bearing-aesthetics
   "Aesthetics that produce a legend at render time."
-  #{:color :size :alpha})
+  #{:color :size :alpha :shape})
 
 (defn- leaf-aesthetic-values
   "Set of mapping values an aesthetic resolves to inside a single
@@ -103,12 +103,14 @@
 (def ^:private aesthetic->suppress-key
   {:color :suppress-color-legend
    :size :suppress-size-legend
-   :alpha :suppress-alpha-legend})
+   :alpha :suppress-alpha-legend
+   :shape :suppress-shape-legend})
 
 (def ^:private aesthetic->legend-plan-key
   {:color :legend
    :size :size-legend
-   :alpha :alpha-legend})
+   :alpha :alpha-legend
+   :shape :shape-legend})
 
 (def ^:private shared-legend-strip-w
   "Pixel width reserved on the right side of the composite for the

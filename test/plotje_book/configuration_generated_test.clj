@@ -92,7 +92,7 @@
        "Description" desc})))}))
 
 
-(deftest t13_l90 (is ((fn [t] (= 14 (count (:row-maps t)))) v12_l80)))
+(deftest t13_l90 (is ((fn [t] (= 15 (count (:row-maps t)))) v12_l80)))
 
 
 (def v15_l100 (select-keys (pj/config) [:width :height]))

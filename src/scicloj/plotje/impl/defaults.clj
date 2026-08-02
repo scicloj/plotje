@@ -99,8 +99,11 @@
 ;; ---- Shape Symbols ----
 
 (def shape-syms
-  "Available shape symbols for categorical shape mapping."
-  [:circle :square :triangle :diamond])
+  "Shape symbols assigned to categorical shape values, in assignment
+   order. A plot with more categories than symbols reuses them from the
+   start of the list, which makes two categories indistinguishable --
+   plan time warns before that happens."
+  [:circle :square :triangle :diamond :triangle-down :plus :cross])
 
 (def legend-swatch-size
   "Side length of legend color swatches (square, in pixels)."
@@ -444,6 +447,7 @@
    :fill-label ["Content" "Fill legend title (overrides inferred column name; used by tile fills, density-2d, bin2d)"]
    :size-label ["Content" "Size legend title (overrides inferred column name)"]
    :alpha-label ["Content" "Alpha legend title (overrides inferred column name)"]
+   :shape-label ["Content" "Shape legend title (overrides inferred column name)"]
    :panel-width ["Layout" "Pin panel width in pixels (escape hatch; :width becomes derived total)"]
    :panel-height ["Layout" "Pin panel height in pixels (escape hatch; :height becomes derived total)"]
    :scales ["Layout" "Facet scale coordination — :shared (default), :free, :free-x, :free-y"]

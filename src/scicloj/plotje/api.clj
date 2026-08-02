@@ -132,6 +132,14 @@
    Maps each key to a description string."
   layer-type/layer-option-docs)
 
+(def shape-symbols
+  "The marker symbols a categorical `:shape` mapping draws with, in the
+   order they are assigned to categories. A plot with more categories
+   than this repeats a symbol, so two categories cannot be told apart;
+   that warns at plan time. Pass a selection of these as `:values` to
+   `(pj/scale pose :shape {:values [...]})` to choose them yourself."
+  defaults/shape-syms)
+
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
 
@@ -2388,7 +2396,9 @@
      only -- `:linear` and `:log` do not apply to a discrete encoding.
 
    The `:domain` on a discrete scale gives explicit category order for the
-   legend.
+   legend. On `:shape`, `:values` supplies the symbols to draw those
+   categories with, in the same order; `pj/shape-symbols` lists the ones
+   available.
 
    `:labels` requires `:breaks` and must match it in count. Use it to
    render numeric positions with custom text -- for example, days of the
@@ -2413,7 +2423,8 @@
    - `(scale pose :size :log)` -- log-spaced point sizes.
    - `(scale pose :fill :log)` -- log-spaced tile fill.
    - `(scale pose :shape {:type :categorical :domain [...]})` -- shape
-     legend order."
+     legend order.
+   - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols."
   [pose channel scale-type]
   (let [k (or (channel->scale-key channel)
               (throw (ex-info (str "Scale channel must be one of "
