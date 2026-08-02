@@ -293,13 +293,16 @@
 ;; ---- Name Formatting ----
 
 (defn fmt-name
-  "Format a column name as a readable name: :sepal-length -> \"sepal length\".
-   Keywords, symbols and strings have their hyphens and underscores turned
-   into spaces. Any other name -- a dataset built without column names gets
-   integer ones -- formats as its printed form, so auto-labelling does not
-   crash on it."
+  "Format a column name for display: :sepal-length becomes sepal length.
+   Hyphens and underscores turn into spaces in a keyword or a symbol,
+   neither of which can hold a space, so a separator in one stands in for
+   a word break. A string is left as written -- a string can hold a space,
+   so a hyphen in one was chosen rather than substituted, as in
+   Cost-Benefit Ratio. Any other name -- a dataset built without column
+   names gets integer ones -- formats as its printed form, so
+   auto-labelling does not crash on it."
   [k]
-  (if (or (instance? clojure.lang.Named k) (string? k))
+  (if (instance? clojure.lang.Named k)
     (str/replace (name k) #"[-_]" " ")
     (str k)))
 

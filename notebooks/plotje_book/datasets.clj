@@ -113,15 +113,30 @@
 ;; without names -- an integer. Plotje reads all three, and derives an
 ;; axis title from the name whenever you do not supply one.
 ;;
-;; In a keyword or a string name, hyphens and underscores stand for
-;; word breaks, so the derived title is spaced rather than punctuated:
+;; A keyword cannot hold a space, so hyphens and underscores in one
+;; stand for word breaks. The derived title is spaced rather than
+;; punctuated:
 
-(-> {"sepal_length" [5.1 4.9 4.7 5.0]
-     "sepal_width"  [3.5 3.0 3.2 3.6]}
-    (pj/lay-point "sepal_length" "sepal_width"))
+(-> {:sepal-length [5.1 4.9 4.7 5.0]
+     :sepal_width  [3.5 3.0 3.2 3.6]}
+    (pj/lay-point :sepal-length :sepal_width))
 
 (kind/test-last [(fn [v] (= ["sepal length" "sepal width"]
                             ((juxt :x-label :y-label) (pj/plan v))))])
+
+;; A string is left as written. A string can hold a space, so a hyphen
+;; in one was chosen rather than substituted, and replacing it would
+;; corrupt a name that meant it:
+
+(-> {"sepal_length"       [5.1 4.9 4.7 5.0]
+     "Cost-Benefit Ratio" [3.5 3.0 3.2 3.6]}
+    (pj/lay-point "sepal_length" "Cost-Benefit Ratio"))
+
+(kind/test-last [(fn [v] (= ["sepal_length" "Cost-Benefit Ratio"]
+                            ((juxt :x-label :y-label) (pj/plan v))))])
+
+;; Set `:x-label` and `:y-label` through `pj/options` for a title the
+;; column name does not give.
 
 ;; Given no `:column-names`, `tc/dataset` names the columns by their
 ;; position:

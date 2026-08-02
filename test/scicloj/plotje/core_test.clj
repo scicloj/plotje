@@ -105,10 +105,12 @@
     (is (= "sepal length" (defaults/fmt-name :sepal_length)))
     (is (= "sepal length" (defaults/fmt-name :sepal-length)))
     (is (= "x" (defaults/fmt-name :x))))
-  (testing "strings and symbols lose theirs too"
-    (is (= "sepal length" (defaults/fmt-name "sepal_length")))
-    (is (= "sepal length" (defaults/fmt-name "sepal-length")))
-    (is (= "sepal length" (defaults/fmt-name 'sepal-length))))
+  (testing "symbols lose theirs too -- a symbol cannot hold a space either"
+    (is (= "sepal length" (defaults/fmt-name 'sepal-length)))
+    (is (= "sepal length" (defaults/fmt-name 'sepal_length))))
+  (testing "a string is left as written -- a string could have held a space"
+    (is (= "sepal_length" (defaults/fmt-name "sepal_length")))
+    (is (= "Cost-Benefit Ratio" (defaults/fmt-name "Cost-Benefit Ratio"))))
   (testing "a name that is neither formats as its printed form"
     (is (= "0" (defaults/fmt-name 0)))
     (is (= "" (defaults/fmt-name nil)))))
@@ -139,11 +141,13 @@
     (is (= "1" (:y-label pl)))))
 
 (deftest string-column-names-auto-label-test
-  (let [pl (-> (tc/dataset {"sepal_length" [1 2 3] "sepal_width" [4 5 6]})
-               (pj/lay-point "sepal_length" "sepal_width")
+  ;; A string name titles its axis as written. Substituting its separators
+  ;; would corrupt a name that meant them, which keyword names cannot express.
+  (let [pl (-> (tc/dataset {"sepal_length" [1 2 3] "Cost-Benefit Ratio" [4 5 6]})
+               (pj/lay-point "sepal_length" "Cost-Benefit Ratio")
                pj/plan)]
-    (is (= "sepal length" (:x-label pl)))
-    (is (= "sepal width" (:y-label pl)))))
+    (is (= "sepal_length" (:x-label pl)))
+    (is (= "Cost-Benefit Ratio" (:y-label pl)))))
 
 ;; ============================================================
 ;; stat.clj
