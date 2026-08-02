@@ -145,7 +145,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__71058#] (-> p1__71058# :plan :panels first))
+       (fn* [p1__11157#] (-> p1__11157# :plan :panels first))
        (:sub-plots (pj/plan marginal)))
       [d-x s-x]
       (mapv :x-domain panels)
@@ -268,32 +268,38 @@
    v38_l290)))
 
 
+(def
+ v41_l331
+ (pj/arrange
+  [(->
+    (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species}))
+   (->
+    (rdatasets/datasets-iris)
+    (pj/lay-point :petal-length :petal-width {:color :species}))]))
+
+
 (deftest
- t41_l327
+ t42_l337
  (is
   ((fn
-    [_]
-    (let
-     [iris
-      (rdatasets/datasets-iris)
-      all-color
-      (pj/arrange
-       [(->
-         iris
-         (pj/lay-point :sepal-length :sepal-width {:color :species}))
-        (->
-         iris
-         (pj/lay-point :petal-length :petal-width {:color :species}))])
-      mixed
-      (pj/arrange
-       [(-> iris (pj/lay-histogram :sepal-length))
-        (->
-         iris
-         (pj/lay-point
-          :petal-length
-          :petal-width
-          {:color :species}))])]
-     (and
-      (= #{:color} (-> all-color pj/plan :chrome :shared-aesthetics))
-      (= #{} (-> mixed pj/plan :chrome :shared-aesthetics)))))
-   v38_l290)))
+    [v]
+    (and
+     (= #{:color} (-> v pj/plan :chrome :shared-aesthetics))
+     (=
+      #{}
+      (->
+       (pj/arrange
+        [(->
+          (rdatasets/datasets-iris)
+          (pj/lay-histogram :sepal-length))
+         (->
+          (rdatasets/datasets-iris)
+          (pj/lay-point
+           :petal-length
+           :petal-width
+           {:color :species}))])
+       pj/plan
+       :chrome
+       :shared-aesthetics))))
+   v41_l331)))

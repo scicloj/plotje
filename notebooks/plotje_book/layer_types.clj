@@ -82,13 +82,16 @@
 ;; The "Presets" column is what separates two layer types that would
 ;; otherwise look identical here -- `:text` and `:label` share a mark, a
 ;; stat, and a position, and differ only in that a label starts with its
-;; box switched on.
+;; box switched on:
+
+(mapv #(select-keys (layer-type/lookup %) [:mark :stat :defaults])
+      [:text :label])
 
 (kind/test-last
- [(fn [_]
-    (let [row (fn [k] (select-keys (layer-type/lookup k) [:mark :stat :defaults]))]
-      (and (= {:mark :text :stat :identity} (row :text))
-           (= {:mark :text :stat :identity :defaults {:box true}} (row :label)))))])
+ [(fn [rows]
+    (= [{:mark :text :stat :identity}
+        {:mark :text :stat :identity :defaults {:box true}}]
+       rows))])
 
 ;; The "Position" column shows each layer-type's registered default.
 ;; A few marks (`:bar`, `:lollipop`, `:boxplot`,

@@ -182,22 +182,20 @@ multi-layer
        (->> fr pj/plan :panels first :layers (mapv :mark))))])
 
 ;; Swapping the two calls swaps which layer paints on top -- paint
-;; order follows the order layers were added, not the layer type.
+;; order follows the order layers were added, not the layer type. Ask
+;; for the text first and the bars paint over it, washing the labels
+;; out under the fill instead of letting them read crisply on top:
+
+(-> {:species ["setosa" "versicolor" "virginica"]
+     :pct     [33.3 33.3 33.3]}
+    (pj/lay-text :species :pct {:text :pct :align-x :right})
+    (pj/lay-bar :species :pct {:color "#a6cee3"})
+    (pj/coord :flip))
 
 (kind/test-last
- [(fn [_]
-    (let [marks (fn [pose]
-                  (->> pose pj/plan :panels first :layers (mapv :mark)))
-          data {:species ["setosa" "versicolor" "virginica"]
-                :pct     [33.3 33.3 33.3]}]
-      (and (= [:rect :text]
-              (marks (-> data
-                         (pj/lay-bar :species :pct)
-                         (pj/lay-text :species :pct {:text :pct}))))
-           (= [:text :rect]
-              (marks (-> data
-                         (pj/lay-text :species :pct {:text :pct})
-                         (pj/lay-bar :species :pct)))))))])
+ [(fn [fr]
+    (= [:text :rect]
+       (->> fr pj/plan :panels first :layers (mapv :mark))))])
 
 ;; ## Inference fills the gaps
 ;;

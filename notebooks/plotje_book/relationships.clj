@@ -287,18 +287,17 @@
 (-> (rdatasets/datasets-iris)
     (pj/pose (pj/cross cols cols) {:color :species}))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 16 (:panels s))
-                                (= (* 12 150) (:points s))
-                                (pos? (:polygons s)))))])
-
 (kind/test-last
  [(fn [v]
-    (->> (:sub-plots (pj/plan v))
-         (every? (fn [{:keys [path plan]}]
-                   (let [[r c] path
-                         mark (-> plan :panels first :layers first :mark)]
-                     (= mark (if (= r c) :bar :point)))))))])
+    (let [s (pj/svg-summary v)]
+      (and (= 16 (:panels s))
+           (= (* 12 150) (:points s))
+           (pos? (:polygons s))
+           (->> (:sub-plots (pj/plan v))
+                (every? (fn [{:keys [path plan]}]
+                          (let [[r c] path
+                                mark (-> plan :panels first :layers first :mark)]
+                            (= mark (if (= r c) :bar :point)))))))))])
 
 ;; Per-cell inference picks the layer type for each panel: diagonal
 ;; cells (x = y) get histograms; off-diagonal cells get scatter

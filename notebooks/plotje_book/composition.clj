@@ -324,22 +324,26 @@ dashboard
 ;;   Nested composites (a sub-pose that is itself composite) are out
 ;;   of scope today.
 
+;; The legend note is the one to see rather than take on trust. Both
+;; cells below map `:color` to the same column, so the two legends
+;; collapse into a single one drawn for the composite as a whole:
+
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width {:color :species}))
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :petal-length :petal-width {:color :species}))])
+
 (kind/test-last
- [(fn [_]
-    (let [iris (rdatasets/datasets-iris)
-          all-color (pj/arrange
-                     [(-> iris (pj/lay-point :sepal-length :sepal-width
-                                             {:color :species}))
-                      (-> iris (pj/lay-point :petal-length :petal-width
-                                             {:color :species}))])
-          mixed (pj/arrange
-                 [(-> iris (pj/lay-histogram :sepal-length))
-                  (-> iris (pj/lay-point :petal-length :petal-width
-                                         {:color :species}))])]
-      (and ;; All siblings share :color :species -> merged shared legend.
-       (= #{:color} (-> all-color pj/plan :chrome :shared-aesthetics))
-           ;; Histogram sibling lacks :color -> no shared legend; per-leaf.
-       (= #{} (-> mixed pj/plan :chrome :shared-aesthetics)))))])
+ [(fn [v]
+    (and (= #{:color} (-> v pj/plan :chrome :shared-aesthetics))
+         ;; The dashboard above pairs a histogram with a colored
+         ;; scatter, so its siblings do not agree and nothing merges.
+         (= #{} (-> (pj/arrange
+                     [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length))
+                      (-> (rdatasets/datasets-iris)
+                          (pj/lay-point :petal-length :petal-width {:color :species}))])
+                    pj/plan :chrome :shared-aesthetics))))])
 
 ;; ## What's Next
 ;;

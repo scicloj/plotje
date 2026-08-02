@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__72986#]
+      [p1__71440#]
       (+
-       (Math/sin (* p1__72986# 0.2))
+       (Math/sin (* p1__71440# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -429,21 +429,13 @@
      (and
       (= 16 (:panels s))
       (= (* 12 150) (:points s))
-      (pos? (:polygons s)))))
-   v56_l287)))
-
-
-(deftest
- t58_l295
- (is
-  ((fn
-    [v]
-    (->>
-     (:sub-plots (pj/plan v))
-     (every?
-      (fn
-       [{:keys [path plan]}]
-       (let
-        [[r c] path mark (-> plan :panels first :layers first :mark)]
-        (= mark (if (= r c) :bar :point)))))))
+      (pos? (:polygons s))
+      (->>
+       (:sub-plots (pj/plan v))
+       (every?
+        (fn
+         [{:keys [path plan]}]
+         (let
+          [[r c] path mark (-> plan :panels first :layers first :mark)]
+          (= mark (if (= r c) :bar :point)))))))))
    v56_l287)))

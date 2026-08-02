@@ -616,21 +616,16 @@ pj/shape-symbols
     (pj/lay-bar :species :pct {:color "#a6cee3"})
     (pj/lay-text :species :pct {:text :pct :align-x :center :align-y :bottom}))
 
-(kind/test-last
- [(fn [fr]
-    (let [text-style (->> fr pj/plan :panels first :layers
-                          (filter #(= :text (:mark %)))
-                          first :style)]
-      (and (= :center (:align-x text-style))
-           (= :bottom (:align-y text-style)))))])
-
 ;; Every anchor value flows through for both `pj/lay-text` and
 ;; `pj/lay-label`; the defaults reproduce the original placement, and an
 ;; unrecognized value is rejected at plan time.
 
 (kind/test-last
- [(fn [_]
-    (let [text-style
+ [(fn [fr]
+    (let [style-of (->> fr pj/plan :panels first :layers
+                        (filter #(= :text (:mark %)))
+                        first :style)
+          text-style
           (fn [layer-fn opts]
             (->> (-> {:x [1] :y [1] :t ["a"]}
                      (layer-fn :x :y (merge {:text :t} opts)))
@@ -639,6 +634,8 @@ pj/shape-symbols
                  first :style
                  (#(select-keys % [:align-x :align-y]))))]
       (and
+       (= :center (:align-x style-of))
+       (= :bottom (:align-y style-of))
        (= {:align-x :left :align-y :center} (text-style pj/lay-text {}))
        (= :left   (:align-x (text-style pj/lay-text {:align-x :left})))
        (= :center (:align-x (text-style pj/lay-text {:align-x :center})))
@@ -826,14 +823,11 @@ pj/shape-symbols
  [(fn [v]
     (let [s (pj/svg-summary v)]
       (and (= 3 (:label-boxes s))
-           (= 3 (:points s)))))])
-
-(kind/test-last
- [(fn [fr]
-    (= [8.0 3.0 0.0]
-       (->> fr pj/plan :panels first :layers
-            (filter #(= :text (:mark %)))
-            (mapv #(-> % :style :box :corner-radius)))))])
+           (= 3 (:points s))
+           (= [8.0 3.0 0.0]
+              (->> (pj/plan v) :panels first :layers
+                   (filter #(= :text (:mark %)))
+                   (mapv #(-> % :style :box :corner-radius)))))))])
 
 ;; `{:box false}` on `pj/lay-label` leaves the text bare, the same as
 ;; calling `pj/lay-text`.

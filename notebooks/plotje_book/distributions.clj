@@ -258,38 +258,29 @@
 (-> (rdatasets/datasets-iris)
     (pj/lay-boxplot :species :sepal-width))
 
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
-            (and (= 1 (:panels s))
-                 (= 3 (:polygons s))
-                 (pos? (:lines s)))))])
-
 ;; The 1.5-times-IQR claim is structural: each whisker stays within the
 ;; Tukey fence `[Q1 - 1.5*IQR, Q3 + 1.5*IQR]`, and every outlier
 ;; falls outside it.
 
 (kind/test-last
- [(fn [_]
-    (let [plan (-> (rdatasets/datasets-iris)
-                   (pj/lay-boxplot :species :sepal-width)
-                   pj/plan)
-          box-layer (first (filter #(= :boxplot (:mark %))
-                                   (:layers (first (:panels plan)))))
-          results (mapv (fn [{:keys [q1 q3 whisker-lo whisker-hi outliers]}]
-                          (let [iqr (- q3 q1)
-                                lo-fence (- q1 (* 1.5 iqr))
-                                hi-fence (+ q3 (* 1.5 iqr))]
-                            {:whisker-lo-in-fence (>= whisker-lo lo-fence)
-                             :whisker-hi-in-fence (<= whisker-hi hi-fence)
-                             :outliers-outside-fence
-                             (every? (fn [o] (or (< o lo-fence) (> o hi-fence)))
-                                     outliers)}))
-                        (:boxes box-layer))]
-      (and (= 3 (count results))
-           (every? (fn [r] (and (:whisker-lo-in-fence r)
-                                (:whisker-hi-in-fence r)
-                                (:outliers-outside-fence r)))
-                   results))))])
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          boxes (->> (pj/plan v) :panels first :layers
+                     (filter #(= :boxplot (:mark %)))
+                     first :boxes)
+          within-fences? (fn [{:keys [q1 q3 whisker-lo whisker-hi outliers]}]
+                           (let [iqr (- q3 q1)
+                                 lo-fence (- q1 (* 1.5 iqr))
+                                 hi-fence (+ q3 (* 1.5 iqr))]
+                             (and (>= whisker-lo lo-fence)
+                                  (<= whisker-hi hi-fence)
+                                  (every? (fn [o] (or (< o lo-fence) (> o hi-fence)))
+                                          outliers))))]
+      (and (= 1 (:panels s))
+           (= 3 (:polygons s))
+           (pos? (:lines s))
+           (= 3 (count boxes))
+           (every? within-fences? boxes))))])
 
 ;; ## Grouped Boxplot
 ;;
