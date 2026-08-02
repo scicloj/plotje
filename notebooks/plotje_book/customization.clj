@@ -651,6 +651,92 @@ pj/shape-symbols
        (try (text-style pj/lay-text {:align-x :middle}) false
             (catch Exception _ true)))))])
 
+;; ## Room for a label at the edge of the data
+
+;; A bar labelled with its own value is the ordinary way to let a reader
+;; take an exact number off a chart. The label for the longest bar is the
+;; one at risk: a text mark's size is fixed in pixels rather than measured
+;; in data units, so a label anchored at the largest value reaches past
+;; the end of the axis whatever range that axis covers, and the panel cuts
+;; it off there. That is how a count in the hundreds of thousands comes
+;; out reading as its first four digits.
+;;
+;; The axis is widened instead, by however much the text needs. This is on
+;; by default -- a label you asked for should be readable -- and the
+;; widening is driven by the labels themselves, so an axis only grows when
+;; something on it would otherwise be cut:
+
+(def tickets-by-violation
+  {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
+   :tickets   [462389 181444 163294]})
+
+(-> tickets-by-violation
+    (pj/lay-bar :tickets :violation)
+    (pj/lay-label :tickets :violation {:text :tickets}))
+
+;; Setting `:fit-text-domain` to false leaves the axis at the range the
+;; data alone implies. The same chart, with the top label running off the
+;; end of its axis and cut there:
+
+(-> tickets-by-violation
+    (pj/lay-bar :tickets :violation)
+    (pj/lay-label :tickets :violation {:text :tickets})
+    (pj/options {:fit-text-domain false}))
+
+;; The two axes carry that difference. Reading the upper end of each:
+
+(let [top-end (fn [opts]
+                (-> tickets-by-violation
+                    (pj/lay-bar :tickets :violation)
+                    (pj/lay-label :tickets :violation {:text :tickets})
+                    (pj/options opts)
+                    pj/plan
+                    :panels
+                    first
+                    :x-domain
+                    second))]
+  {:fitted (top-end {})
+   :unfitted (top-end {:fit-text-domain false})})
+
+(kind/test-last
+ [(fn [m] (> (:fitted m) (:unfitted m)))])
+
+;; Drop the labels and the two agree again, because an axis only grows for
+;; text that is actually on it:
+
+(let [top-end (fn [opts]
+                (-> tickets-by-violation
+                    (pj/lay-bar :tickets :violation)
+                    (pj/options opts)
+                    pj/plan
+                    :panels
+                    first
+                    :x-domain
+                    second))]
+  {:fitted (top-end {})
+   :unfitted (top-end {:fit-text-domain false})})
+
+(kind/test-last
+ [(fn [m] (= (:fitted m) (:unfitted m)))])
+
+;; A domain you set yourself with `pj/scale` is never widened. Naming a
+;; range is a statement about what the axis should show, and quietly
+;; extending it past the number you wrote would make the setting a
+;; suggestion. Leaving room for the labels becomes yours to do -- the
+;; domain that comes back is the one asked for, to the digit:
+
+(-> tickets-by-violation
+    (pj/lay-bar :tickets :violation)
+    (pj/lay-label :tickets :violation {:text :tickets})
+    (pj/scale :x {:domain [0 500000]})
+    pj/plan
+    :panels
+    first
+    :x-domain)
+
+(kind/test-last
+ [(fn [d] (= [0 500000] d))])
+
 ;; ## Bold and Italic Text
 ;;
 ;; A label placed on top of the data has to be read against it. Where

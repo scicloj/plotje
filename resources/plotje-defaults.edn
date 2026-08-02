@@ -53,6 +53,9 @@
  ;; nil leaves numbers ungrouped; set to a string such as a comma to group
  ;; three-digit runs in numeric tick labels and data labels
  :thousands-separator nil
+ ;; true widens a numeric domain so text and label marks near its edge are
+ ;; drawn in full instead of being cut off at the panel boundary
+ :fit-text-domain true
 
  ;; Facet strips
  :strip-height 16

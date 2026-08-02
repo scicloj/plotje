@@ -60,6 +60,7 @@
    ;; Labels and titles
    :label-font-size 13 :title-font-size 15
    :label-offset 38 :title-offset 18
+   :fit-text-domain true
    ;; Facet strips
    :strip-font-size 10 :strip-height 16
    ;; Fallback
@@ -420,6 +421,7 @@
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
+   :fit-text-domain ["Labels" "When true (the default), a numeric domain is widened so that text and label marks near its edge are drawn in full instead of being cut off at the panel boundary. A domain pinned with pj/scale is never widened"]
    :thousands-separator ["Labels" "String inserted between three-digit groups in numeric tick labels and in text/label mark content (a comma gives 462,389). nil (the default) leaves numbers ungrouped"]
    :title-offset ["Labels" "Pixel offset for the title from the top"]
    :strip-height ["Labels" "Height of facet strip label bars"]

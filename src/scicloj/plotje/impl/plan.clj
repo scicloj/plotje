@@ -17,6 +17,7 @@
             [scicloj.plotje.impl.position :as position]
             [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.impl.layout :as layout]
+            [scicloj.plotje.impl.text :as text]
             [scicloj.plotje.impl.plan-schema :as ss]))
 
 ;; ---- Domain Helpers ----
@@ -970,6 +971,114 @@
               y-agg (assoc :y-dom y-agg)))
           panel-domains)))
 
+;; ---- Fitting text marks into the panel ----
+
+;; A text mark is sized in pixels, not in data units, so a data label
+;; sitting at the largest value runs past the drawing area however wide
+;; the axis is -- the classic cut-off bar label. The fix is to give the
+;; axis a little more data range. Everything below computes how much.
+
+(def ^:private text-fit-slack
+  "Pixels of clearance left between a fitted text mark and the panel
+   edge, so a fitted label is not shaved by antialiasing and so a
+   second fitting pass over an already-fitted domain finds nothing to
+   do."
+  1.0)
+
+(defn- text-fit-items
+  "Room the text marks among `plan-layers` need on one axis.
+
+   Returns a seq of [value low high]: the value the mark is anchored at
+   on this axis, and the pixel offsets from that anchor to the near and
+   far edges of what the mark draws, measured in the direction the axis
+   values increase. `value-key` names the group buffer this axis scales
+   (:xs or :ys, swapped under :coord :flip) and `axis` is :x or :y --
+   screen y grows downward while y data grows upward, so the y offsets
+   are the negated screen ones."
+  [plan-layers value-key axis]
+  (for [layer plan-layers
+        :when (= :text (:mark layer))
+        :let [style (:style layer)]
+        g (:groups layer)
+        :let [labels (:labels g)
+              vs (value-key g)]
+        :when (and labels vs)
+        i (range (min (count labels) (count vs)))
+        :let [v (nth vs i)]
+        :when (number? v)
+        :let [[left right top bottom] (text/extent style (nth labels i))]]
+    (if (= axis :x)
+      [v left right]
+      [v (- bottom) (- top)])))
+
+(defn- fit-domain
+  "Widen the numeric domain [d0 d1] until every item fits inside an axis
+   `w` pixels long. `items` come from text-fit-items.
+
+   Returns the domain unchanged when nothing overflows, and also when a
+   single item is wider than the whole axis -- no amount of widening
+   fits that one, and trying would grow the domain without bound.
+
+   Iterates because widening lowers the pixels-per-data-unit rate, so
+   the room just added is worth slightly less than it was measured at.
+   Each pass only widens and only by the overflow it still measures, so
+   the sequence converges from below."
+  [[d0 d1] items w log?]
+  (let [->space (if log? #(Math/log (double %)) double)
+        <-space (if log? #(Math/exp %) identity)
+        w (double w)
+        items (->> items
+                   (filter (fn [[v _ _]] (or (not log?) (pos? (double v)))))
+                   (mapv (fn [[v low high]]
+                           [(->space v)
+                            (- (double low) text-fit-slack)
+                            (+ (double high) text-fit-slack)])))]
+    (if (or (empty? items)
+            (not (pos? w))
+            (some (fn [[_ low high]] (>= (- high low) w)) items))
+      [d0 d1]
+      (let [a0 (->space d0)
+            b0 (->space d1)]
+        (loop [a a0 b b0 k 0]
+          (let [rate (/ w (- b a))
+                px (fn [v] (* (- v a) rate))
+                low-over (reduce max 0.0 (map (fn [[v low _]] (- (+ (px v) low))) items))
+                high-over (reduce max 0.0 (map (fn [[v _ high]] (- (+ (px v) high) w)) items))]
+            (if (or (>= k 10) (and (< low-over 0.25) (< high-over 0.25)))
+              (if (and (== a a0) (== b b0))
+                [d0 d1]
+                [(<-space a) (<-space b)])
+              (recur (- a (/ low-over rate))
+                     (+ b (/ high-over rate))
+                     (inc k)))))))))
+
+(defn- fit-panel-text
+  "Widen one panel's numeric domains so its text marks are drawn in
+   full. Leaves alone a domain the user pinned with pj/scale, a
+   categorical domain, and any panel under :coord :polar, where the
+   value-to-pixel mapping is not a straight line and this arithmetic
+   would not describe it."
+  [pd pw ph m]
+  (if (= :polar (:coord pd))
+    pd
+    (let [flip? (= :flip (:coord pd))
+          fit (fn [pd dom-key scale-key value-key axis length]
+                (let [dom (dom-key pd)
+                      spec (scale-key pd)]
+                  (if (or (:domain spec)
+                          (not (and (sequential? dom)
+                                    (= 2 (count dom))
+                                    (number? (first dom)))))
+                    pd
+                    (assoc pd dom-key
+                           (fit-domain dom
+                                       (text-fit-items (:layers pd) value-key axis)
+                                       (- (double length) m m)
+                                       (= :log (:type spec)))))))]
+      (-> pd
+          (fit :x-dom :x-scale (if flip? :ys :xs) :x pw)
+          (fit :y-dom :y-scale (if flip? :xs :ys) :y ph)))))
+
 (defn- resolve-panel-domains
   "Given a panel-data map (with :stat-results, :layers, and :draft-layers),
    compute the oriented x/y domains, scale specs, and temporal extents.
@@ -1379,35 +1488,64 @@
 
          ;; Scene: everything compute-padding + compute-dims need to
          ;; know about the data and options, all data-derived or
-         ;; opts-derived. No pixel math yet.
-         scene (layout/compute-scene
-                {:layout-type layout-type
-                 :grid-rows grid-rows-n
-                 :grid-cols grid-cols-n
-                 :eff-title eff-title
-                 :subtitle subtitle
-                 :caption caption
-                 :eff-x-label eff-x-label
-                 :eff-y-label eff-y-label
-                 :facet-row-vals (:facet-row-vals grid)
-                 :facet-col-vals (:facet-col-vals grid)
-                 :coord-type rep-coord
-                 :panel-x-domains (mapv :x-dom panel-domains)
-                 :panel-y-domains (mapv :y-dom panel-domains)
-                 :x-scale-spec rep-x-scale
-                 :y-scale-spec rep-y-scale
-                 :x-temporal (some :x-te panel-domains)
-                 :y-temporal (some :y-te panel-domains)
-                 :panel-row-labels (mapv :row-label panel-domains)
-                 :panel-col-labels (mapv :col-label panel-domains)
-                 :legend legend
-                 :size-legend size-legend
-                 :alpha-legend alpha-legend
-                 :shape-legend shape-legend})
+         ;; opts-derived. No pixel math yet. Taken as a function of the
+         ;; panel domains because the text fit below revises them and
+         ;; then needs the layout those revised domains imply.
+         layout-for
+         (fn [pds]
+           (let [scene (layout/compute-scene
+                        {:layout-type layout-type
+                         :grid-rows grid-rows-n
+                         :grid-cols grid-cols-n
+                         :eff-title eff-title
+                         :subtitle subtitle
+                         :caption caption
+                         :eff-x-label eff-x-label
+                         :eff-y-label eff-y-label
+                         :facet-row-vals (:facet-row-vals grid)
+                         :facet-col-vals (:facet-col-vals grid)
+                         :coord-type rep-coord
+                         :panel-x-domains (mapv :x-dom pds)
+                         :panel-y-domains (mapv :y-dom pds)
+                         :x-scale-spec rep-x-scale
+                         :y-scale-spec rep-y-scale
+                         :x-temporal (some :x-te pds)
+                         :y-temporal (some :y-te pds)
+                         :panel-row-labels (mapv :row-label pds)
+                         :panel-col-labels (mapv :col-label pds)
+                         :legend legend
+                         :size-legend size-legend
+                         :alpha-legend alpha-legend
+                         :shape-legend shape-legend})
+                 padding (layout/compute-padding scene cfg layout-opts)]
+             {:padding padding
+              :dims (layout/compute-dims scene padding cfg layout-opts)}))
 
-         padding (layout/compute-padding scene cfg layout-opts)
+         m (if multi? (:margin-multi cfg) (:margin cfg))
 
-         dims (layout/compute-dims scene padding cfg layout-opts)
+         ;; --- Phase 3b: fit text marks into the panel ---
+         ;; A text mark is sized in pixels, so a data label at the edge of
+         ;; the data is drawn past the edge of the drawing area and cut
+         ;; off there. Widen the domains until the labels fit. A widened
+         ;; domain can print wider tick labels, which moves the panel
+         ;; width the fit was measured against, so layout and fit
+         ;; alternate until the domains settle. Ridgeline panels are
+         ;; skipped: their domains have already been swapped away from
+         ;; the axes their layers were extracted on.
+         fit-text? (and (:fit-text-domain cfg) (not has-ridgeline?))
+         [panel-domains {:keys [padding dims]}]
+         (loop [pds panel-domains k 0]
+           (let [lay (layout-for pds)
+                 fitted (if fit-text?
+                          (cond-> (mapv #(fit-panel-text % (:pw (:dims lay))
+                                                         (:ph (:dims lay)) m)
+                                        pds)
+                            (= layout-type :facet-grid)
+                            (coordinate-facet-domains (:scales opts)))
+                          pds)]
+             (if (or (= fitted pds) (>= k 2))
+               [pds lay]
+               (recur fitted (inc k)))))
          {:keys [pw ph total-w total-h]} dims
 
          ;; --- Phase 4: :coord :fixed aspect adjustment ---
@@ -1434,7 +1572,6 @@
                    total-h)
 
          ;; --- Phase 5: compute ticks at the final panel dimensions ---
-         m (if multi? (:margin-multi cfg) (:margin cfg))
          panels (mapv #(finalize-panel % pw ph m cfg annotations) panel-domains)
          ;; :suppress-x-ticks / :suppress-y-ticks on opts blank the
          ;; tick set for the corresponding axis. Compositor sets these

@@ -5,6 +5,7 @@
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.extract :as extract]
+            [scicloj.plotje.impl.text :as text]
             [scicloj.plotje.render.mark :as mark]))
 
 ;; ---- Grid Lines ----
@@ -67,6 +68,22 @@
 
 ;; ---- Tick Labels ----
 
+(defn- clamp-x-tick-x
+  "Horizontal position for a centered x-tick label, kept inside the panel
+   box. A tick close to either end of the axis centers its label partly
+   outside the panel: on the right that is the edge of the image itself,
+   because layout gives the panel every pixel a legend does not take, so
+   the label is cut in half; on the left it runs under the y-tick labels.
+   Nothing reserves room for this overhang the way y-label-pad reserves
+   it for y-tick labels, so the label moves instead -- by at most half
+   its width, and only for the outermost ticks. A label wider than the
+   whole panel is left where it is, since no position saves it."
+  [px pw fsize label]
+  (let [half (/ (text/text-width fsize label) 2.0)]
+    (if (> (* 2 half) pw)
+      (double px)
+      (-> (double px) (max half) (min (- (double pw) half))))))
+
 (defn render-tick-labels
   "Render tick labels from pre-computed tick info in a plan.
    X-axis labels are emitted with `text-anchor=\"middle\"` so they
@@ -82,17 +99,23 @@
       (vec
        (map (fn [t label]
               (if (= axis :x)
-                (let [px (scale t)]
+                (let [px (scale t)
+                      angle (get cfg :x-tick-angle 0)
+                      ;; A rotated label is anchored at its start or end
+                      ;; rather than its middle and reserves its room
+                      ;; through :x-tick-label-pad, so it is not clamped.
+                      px (if (zero? angle)
+                           (clamp-x-tick-x px pw fsize label)
+                           px)]
                   (ui/translate (double px)
                                 (+ (double ph) 2)
                                 (ui/with-color tick-color
-                                  (let [angle (get cfg :x-tick-angle 0)]
-                                    (if (zero? angle)
-                                      (assoc (ui/label label (ui/font nil fsize))
-                                             :text-anchor "middle")
-                                      (membrane.ui.Rotate. (double angle)
-                                                           (assoc (ui/label label (ui/font nil fsize))
-                                                                  :text-anchor (if (neg? angle) "end" "start"))))))))
+                                  (if (zero? angle)
+                                    (assoc (ui/label label (ui/font nil fsize))
+                                           :text-anchor "middle")
+                                    (membrane.ui.Rotate. (double angle)
+                                                         (assoc (ui/label label (ui/font nil fsize))
+                                                                :text-anchor (if (neg? angle) "end" "start")))))))
                 (let [py (scale t)]
                   (ui/translate (- (double m) 3)
                                 (- (double py) (/ fsize 2.0))
