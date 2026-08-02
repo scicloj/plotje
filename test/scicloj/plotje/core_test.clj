@@ -101,9 +101,49 @@
       (is (== 1.0 (:t (last (:stops legend))))))))
 
 (deftest fmt-name-test
-  (is (= "sepal length" (defaults/fmt-name :sepal_length)))
-  (is (= "sepal length" (defaults/fmt-name :sepal-length)))
-  (is (= "x" (defaults/fmt-name :x))))
+  (testing "keywords lose their separators"
+    (is (= "sepal length" (defaults/fmt-name :sepal_length)))
+    (is (= "sepal length" (defaults/fmt-name :sepal-length)))
+    (is (= "x" (defaults/fmt-name :x))))
+  (testing "strings and symbols lose theirs too"
+    (is (= "sepal length" (defaults/fmt-name "sepal_length")))
+    (is (= "sepal length" (defaults/fmt-name "sepal-length")))
+    (is (= "sepal length" (defaults/fmt-name 'sepal-length))))
+  (testing "a name that is neither formats as its printed form"
+    (is (= "0" (defaults/fmt-name 0)))
+    (is (= "" (defaults/fmt-name nil)))))
+
+(deftest fmt-category-label-test
+  (testing "keywords lose their leading colon but keep their separators"
+    (is (= "setosa" (defaults/fmt-category-label :setosa)))
+    (is (= "not-applicable" (defaults/fmt-category-label :not-applicable)))
+    (is (= "north_east" (defaults/fmt-category-label :north_east))))
+  (testing "other values format as their printed form"
+    (is (= "2026-07-31" (defaults/fmt-category-label "2026-07-31")))
+    (is (= "-5" (defaults/fmt-category-label -5)))
+    (is (= "" (defaults/fmt-category-label nil)))))
+
+(deftest categories-differing-only-by-separator-stay-distinct-test
+  ;; The categorical stats map a column through fmt-category-label, so a
+  ;; lossy formatting there would merge these two into one bar.
+  (let [ds (tc/dataset {:cat [:a-b :a_b :a-b :a_b] :v [1 2 3 4]})
+        ticks (-> ds (pj/lay-bar :cat :v) pj/plan :panels first :x-ticks)]
+    (is (= ["a-b" "a_b"] (:values ticks)))
+    (is (= ["a-b" "a_b"] (:labels ticks)))))
+
+(deftest integer-column-names-auto-label-test
+  ;; A dataset built without column names gets integer ones; auto-labelling
+  ;; used to throw on them (issue reported by Timothy Pratley, PR #32).
+  (let [pl (-> (tc/dataset [[1 2] [3 4]]) pj/plan)]
+    (is (= "0" (:x-label pl)))
+    (is (= "1" (:y-label pl)))))
+
+(deftest string-column-names-auto-label-test
+  (let [pl (-> (tc/dataset {"sepal_length" [1 2 3] "sepal_width" [4 5 6]})
+               (pj/lay-point "sepal_length" "sepal_width")
+               pj/plan)]
+    (is (= "sepal length" (:x-label pl)))
+    (is (= "sepal width" (:y-label pl)))))
 
 ;; ============================================================
 ;; stat.clj

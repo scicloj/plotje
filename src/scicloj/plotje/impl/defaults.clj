@@ -293,9 +293,13 @@
 ;; ---- Name Formatting ----
 
 (defn fmt-name
-  "Format a keyword as a readable name: :sepal-length -> \"sepal length\"."
+  "Format a column name as a readable name: :sepal-length -> \"sepal length\".
+   Keywords, symbols and strings have their hyphens and underscores turned
+   into spaces. Any other name -- a dataset built without column names gets
+   integer ones -- formats as its printed form, so auto-labelling does not
+   crash on it."
   [k]
-  (if (instance? clojure.lang.Named k)
+  (if (or (instance? clojure.lang.Named k) (string? k))
     (str/replace (name k) #"[-_]" " ")
     (str k)))
 
@@ -303,9 +307,17 @@
   "Format a category value (keyword, string, number, etc.) for display.
    Keywords are rendered without their leading colon: :widget -> \"widget\".
    Used for axis tick labels, legend entries, facet strip labels, and any
-   other user-visible category text."
+   other user-visible category text.
+
+   Unlike `fmt-name` this leaves hyphens and underscores alone. A category
+   is data, not an identifier, and the categorical stats map a column
+   through this function, so two values that differ only by separator --
+   :a-b and :a_b -- have to keep formatting to two distinct labels."
   [v]
-  (fmt-name v))
+  (cond
+    (nil? v) ""
+    (keyword? v) (name v)
+    :else (str v)))
 
 (defn group-digits
   "Insert `separator` between three-digit groups in the integer part of an
