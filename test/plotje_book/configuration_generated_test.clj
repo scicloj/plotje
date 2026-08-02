@@ -73,7 +73,7 @@
         "Description" desc}))))}))
 
 
-(deftest t10_l70 (is ((fn [t] (= 40 (count (:row-maps t)))) v9_l57)))
+(deftest t10_l70 (is ((fn [t] (= 41 (count (:row-maps t)))) v9_l57)))
 
 
 (def
