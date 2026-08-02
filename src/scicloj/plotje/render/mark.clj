@@ -3,6 +3,7 @@
             [membrane.ui :as ui]
             [scicloj.plotje.render.dash :as dash]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.text :as text]
             [fastmath.random :as rng]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
@@ -321,22 +322,6 @@
 
 ;; ---- Text ----
 
-(defn- text-anchor-offset
-  "Pixel offset to add to a text origin (top-left) so the anchored part of
-   the text lands on the data point. `text-w`/`text-h` are estimated glyph
-   box dimensions. `align-x` (default :left) is :left/:center/:right;
-   `align-y` (default :center) is :top/:center/:bottom, data-oriented so
-   :top puts the text's top edge at the point (text extends downward)."
-  [align-x align-y text-w text-h]
-  [(case (or align-x :left)
-     :left   0.0
-     :center (- (/ (double text-w) 2.0))
-     :right  (- (double text-w)))
-   (case (or align-y :center)
-     :top    0.0
-     :center (- (/ (double text-h) 2.0))
-     :bottom (- (double text-h)))])
-
 (defn- text-font
   "Membrane Font for a text or label mark. `ui/font` takes only a name and a
    size, so weight and slant are assoc'd onto the record it returns: the
@@ -375,8 +360,8 @@
         op (or opacity 1.0)
         font (text-font fsize font-weight font-style)
         radius (double (or (:corner-radius box) 3.0))
-        pad-x 3 pad-y 2
-        char-w (* fsize 0.6)
+        pad-x text/box-pad-x
+        pad-y text/box-pad-y
         ;; A label naming a dodged bar has to sit over that bar rather than at
         ;; the band centre, so it takes its band-axis position from the same
         ;; band-position the bar marks use, on the same dodge context. The
@@ -399,8 +384,8 @@
                            [px py])
                  label (if labels (labels i) "")
                  [cr cg cb _] color
-                 text-w (* (count label) char-w)
-                 [dx dy] (text-anchor-offset align-x align-y text-w fsize)
+                 text-w (text/text-width fsize label)
+                 [dx dy] (text/anchor-offset align-x align-y text-w fsize)
                  glyphs (ui/with-color [cr cg cb op] (ui/label label font))]]
        (ui/translate (+ (double px) dx) (+ (double py) dy)
                      (if box
