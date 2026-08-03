@@ -247,11 +247,59 @@
 (kind/test-last
  [(fn [v] (contains? (set (:texts (pj/svg-summary v))) "1,234.56"))])
 
-;; Two kinds of text are affected: tick labels on a numeric axis, and
-;; label text read from a column. Category names, legend entries, and
-;; facet strip labels are left as they are, for the reason the setting is
-;; off by default -- a category is a name, so a year used as a category
-;; still reads 2026 even with a grouped axis beside it.
+;; What is grouped is what measures: tick labels on a numeric axis, label
+;; text read from a column, and the values a size or alpha legend prints
+;; beside its keys. What names something is left alone -- category names,
+;; the labels of a colour or shape legend, and facet strip labels -- for
+;; the reason the setting is off by default. A year on a numeric axis is a
+;; quantity and groups; the same year used as a category is a name, and
+;; still reads 2026 with a grouped axis beside it.
+
+;; A year axis, grouped:
+
+(-> (for [y (range 2020 2031)] {:year y :revenue (* 1000 (- y 2019))})
+    (pj/lay-point :year :revenue)
+    (pj/options {:thousands-separator ","})
+    pj/plan
+    :panels
+    first
+    :x-ticks
+    :labels)
+
+(kind/test-last
+ [(fn [labels] (= "2,020" (first labels)))])
+
+;; The same years as categories, left alone:
+
+(-> (for [y (range 2020 2024)] {:year y :revenue (* 1000 (- y 2019))})
+    (pj/lay-bar :year :revenue {:x-type :categorical})
+    (pj/options {:thousands-separator ","})
+    pj/plan
+    :panels
+    first
+    :x-ticks
+    :labels)
+
+(kind/test-last
+ [(fn [labels] (= ["2020" "2021" "2022" "2023"] (vec labels)))])
+
+;; A size legend groups its values, so it reads the same way as the axis
+;; beside it, while the colour legend's category names do not:
+
+(->> (-> (for [i (range 8)] {:xx (double i) :yy (double i)
+                             :volume (* 100000 (inc i)) :region (str "region " i)})
+         (pj/lay-point :xx :yy {:size :volume :color :region})
+         (pj/options {:thousands-separator ","})
+         pj/svg-summary
+         :texts)
+     (filter #(re-find #"," %))
+     distinct
+     sort)
+
+(kind/test-last
+ [(fn [texts] (= ["100,000" "200,000" "300,000" "400,000" "500,000"
+                  "600,000" "700,000" "800,000"]
+                 (vec texts)))])
 
 ;; ## Scales
 
@@ -800,7 +848,16 @@ pj/shape-symbols
                         :data {:x [1] :y [1] :tag ["a boxed label"]}}))
 
 (kind/test-last
- [(fn [v] (= 1 (:label-boxes (pj/svg-summary v))))])
+ [(fn [v]
+    (and (= 1 (:label-boxes (pj/svg-summary v)))
+         ;; "the same plot" is meant literally -- the two render to the
+         ;; same bytes, which is checkable because a clip-path id is
+         ;; derived from its region rather than from a running counter
+         (= (str (pj/plot v))
+            (str (pj/plot (-> {:x [1] :y [1]}
+                              (pj/lay-label :x :y {:text :tag
+                                                   :data {:x [1] :y [1]
+                                                          :tag ["a boxed label"]}})))))))])
 
 ;; Pass a map to shape the box. `:corner-radius` is how round the corners
 ;; are, in pixels -- three labels at decreasing radius, the last square.
@@ -830,7 +887,20 @@ pj/shape-symbols
                    (mapv #(-> % :style :box :corner-radius)))))))])
 
 ;; `{:box false}` on `pj/lay-label` leaves the text bare, the same as
-;; calling `pj/lay-text`.
+;; calling `pj/lay-text`:
+
+(-> {:x [1] :y [1]}
+    (pj/lay-label :x :y {:text :tag :box false
+                         :data {:x [1] :y [1] :tag ["bare text"]}}))
+
+(kind/test-last
+ [(fn [v]
+    (and (zero? (:label-boxes (pj/svg-summary v)))
+         (= (str (pj/plot v))
+            (str (pj/plot (-> {:x [1] :y [1]}
+                              (pj/lay-text :x :y {:text :tag
+                                                  :data {:x [1] :y [1]
+                                                         :tag ["bare text"]}})))))))])
 
 ;; ## Annotation Appearance
 ;;

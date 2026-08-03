@@ -436,7 +436,7 @@
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
    :fit-text-domain ["Labels" "When true (the default), a numeric domain is widened so that text and label marks near its edge are drawn in full instead of being cut off at the panel boundary. A domain pinned with pj/scale is never widened"]
-   :thousands-separator ["Labels" "String inserted between three-digit groups in numeric tick labels and in text/label mark content (a comma gives 462,389). nil (the default) leaves numbers ungrouped"]
+   :thousands-separator ["Labels" "String inserted between three-digit groups of a number that measures (a comma gives 462,389): numeric axis tick labels, text/label mark content, and the values a size or alpha legend prints. A number that names is left alone -- category names, colour and shape legend labels, facet strips, and a categorical axis whose categories happen to be numbers. nil (the default) leaves everything ungrouped"]
    :title-offset ["Labels" "Pixel offset for the title from the top"]
    :strip-height ["Labels" "Height of facet strip label bars"]
    :validate ["Behavior" "When true, validate plans against Malli schema"]
