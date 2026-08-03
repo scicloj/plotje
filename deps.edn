@@ -1,7 +1,7 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         scicloj/tablecloth {:mvn/version "7.067"}
-        org.scicloj/kindly {:mvn/version "4-beta23"}
+        org.scicloj/kindly {:mvn/version "4-beta25"}
         generateme/fastmath {:mvn/version "3.0.0-alpha4"}
         clojure2d/clojure2d {:mvn/version "1.5.0-alpha1"}
         com.phronemophobic/membrane {:mvn/version "0.14.4-beta"}
@@ -10,7 +10,7 @@
 
  :aliases
  {:dev {:extra-paths ["notebooks" "test"]
-        :extra-deps {org.scicloj/clay {:mvn/version "2.0.14"}
+        :extra-deps {org.scicloj/clay {:mvn/version "2.0.20"}
                      org.scicloj/noj {:mvn/version "2-beta24"}
                      org.scicloj/tableplot {:mvn/version "1-beta16"}
                      org.scicloj/zulipdata {:mvn/version "0.1.1"}
@@ -19,7 +19,7 @@
   :test {:extra-paths ["notebooks" "test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}
-                      org.scicloj/clay {:mvn/version "2.0.14"}
+                      org.scicloj/clay {:mvn/version "2.0.20"}
                       org.scicloj/noj {:mvn/version "2-beta24"}
                       org.scicloj/tableplot {:mvn/version "1-beta16"}
                       org.slf4j/slf4j-simple {:mvn/version "2.0.16"}}}
