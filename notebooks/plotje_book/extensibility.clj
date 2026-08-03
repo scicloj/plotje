@@ -279,7 +279,7 @@ graph LR
   (-> (rdatasets/datasets-iris)
       (pj/lay-point :sepal-length :sepal-width {:color :species})))
 
-(:points (pj/svg-summary (pj/plot grouped-scatter)))
+(-> grouped-scatter pj/plot pj/svg-summary :points)
 
 (kind/test-last [(fn [n] (= 150 n))])
 

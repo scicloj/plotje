@@ -497,7 +497,7 @@ my-pose
 ;; -- one per panel for the data marks, plus one per panel that also
 ;; carries a margin mark such as rug.
 
-(:clips (pj/svg-summary (pj/plot my-pose)))
+(-> my-pose pj/plot pj/svg-summary :clips)
 
 (kind/test-last [(fn [n] (= 1 n))])
 

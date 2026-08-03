@@ -185,7 +185,7 @@ trace-pose
 ;; ### Step 2: pj/pose->draft
 ;;
 ;; Flatten a pose into a draft. For a leaf, returns a `LeafDraft`
-;; record carrying the merged layer maps and the pose-level opts.
+;; record carrying the merged layer maps and the pose-level options.
 ;; The pose-level mapping (`:x :petal-length`, `:y :petal-width`,
 ;; `:color :species`) appears inside *each* of the two layer maps,
 ;; alongside layer-specific keys (`:mark`, `:stat`). The layer
@@ -571,8 +571,9 @@ composite-pose
                            (and (= 2 (:panels s))
                                 (= 300 (:points s)))))])
 
-;; `pj/draft` (the composition `->pose ; pose->draft`) returns a
-;; `CompositeDraft` -- wrap in `kind/pprint` to inspect:
+;; `pj/draft` (the composition of `->pose`, `infer-mapping` and
+;; `pose->draft`) returns a `CompositeDraft` -- wrap in `kind/pprint` to
+;; inspect:
 
 (-> composite-pose pj/draft kind/pprint)
 

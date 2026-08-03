@@ -274,7 +274,7 @@
    v48_l469)))
 
 
-(def v51_l500 (:clips (pj/svg-summary (pj/plot my-pose))))
+(def v51_l500 (-> my-pose pj/plot pj/svg-summary :clips))
 
 
 (deftest t52_l502 (is ((fn [n] (= 1 n)) v51_l500)))
