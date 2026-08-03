@@ -3,7 +3,9 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
-- updated deps: Kindly
+
+## [0.7.0 - 2026-08-03]
+- Kindly moves from `4-beta23` to `4-beta25`, and is now a minimum rather than a preference: `pj/plot` asks for `:kind/hiccup2` (see the markup entry below), which `4-beta23` does not define. A project pinning the older version gets `No such var: kind/hiccup2` when it renders a plot.
 - fix: `(pj/options {:legend-position :top})` draws its legend inside the image. Layout reserved a band for it between the title and the panels, but the renderer left the panels at the top and drew the legend a band's height above them -- measured, y = -70 on a 400-pixel image -- so the plot lost the space, the empty band opened up at the bottom, and the legend landed where nothing is visible. Every legend kind was affected; `:right`, `:bottom` and `:none` were always correct.
 - a keyword category reads as words wherever it is shown, so `:not-applicable` labels a tick, a legend entry or a facet strip as `not applicable`. A keyword cannot hold a space, so a hyphen or underscore in one nearly always stands for a word break -- the rule column names already followed, now applied to the data as well. String categories are untouched. `:a-b` and `:a_b` consequently format alike, which combines them into one band on a categorical axis (not under `:color`, where only the legend text repeats); Plotje now warns and names both values and the column when that happens. - thanks, @timothypratley
 - a string column name titles its axis exactly as written, where its hyphens and underscores were previously turned into spaces -- a column named `Cost-Benefit Ratio` titled its axis `Cost Benefit Ratio`. A string can hold a space, so a hyphen in one was chosen rather than substituted. Keyword and symbol names are unchanged, since neither can hold a space, and `:x-label` / `:y-label` still override any derived title. - thanks, @timothypratley

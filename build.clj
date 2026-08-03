@@ -3,7 +3,7 @@
             [deps-deploy.deps-deploy :as dd]))
 
 (def lib 'org.scicloj/plotje)
-(def version "0.6.0")
+(def version "0.7.0")
 (def snapshot (str version "-SNAPSHOT"))
 (def class-dir "target/classes")
 
