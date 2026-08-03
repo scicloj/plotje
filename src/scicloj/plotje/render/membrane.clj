@@ -307,6 +307,13 @@
         strip-w (or (:strip-w layout) 0)
         theme (:theme cfg)
         legend-pos (or legend-position :right)
+        ;; Top of everything the panels own. A `:top` legend takes a band
+        ;; between the title and the panels: layout already shrinks the
+        ;; panels by `legend-h`, so the panels have to start below that
+        ;; band or it opens up at the bottom instead and the legend, drawn
+        ;; relative to the panels, lands off the canvas. This mirrors
+        ;; layout's own `:top-legend-pad`, which the plan does not carry.
+        content-top (+ title-pad (if (= legend-pos :top) legend-h 0))
         grid-rows (:rows grid)
         grid-cols (:cols grid)
         pw panel-width
@@ -343,7 +350,7 @@
                :let [ri (:row p)
                      ci (:col p)
                      x-off (+ y-label-pad (* ci pw))
-                     y-off (+ title-pad strip-h (* ri ph))]]
+                     y-off (+ content-top strip-h (* ri ph))]]
            (ui/translate (+ x-off margin) (+ y-off margin)
                          (ui/with-color theme-bg
                            (ui/with-style ::ui/style-fill
@@ -359,7 +366,7 @@
                      show-x? (= ri (get bottom-row-per-col ci))
                      show-y? (= ci (get leftmost-col-per-row ri))
                      x-off (+ y-label-pad (* ci pw))
-                     y-off (+ title-pad strip-h (* ri ph))]]
+                     y-off (+ content-top strip-h (* ri ph))]]
            (ui/translate x-off y-off
                          (panel/panel->membrane p pw ph margin cfg
                                                 :show-x? show-x?
@@ -386,7 +393,7 @@
                (let [cx (+ y-label-pad (* ci pw) (/ pw 2.0))
                      label (:col-label p)]
                  (ui/translate cx
-                               (+ title-pad 2)
+                               (+ content-top 2)
                                (ui/with-color strip-label-color
                                  (assoc (ui/label label (ui/font nil strip-fsize))
                                         :text-anchor "middle"))))))))
@@ -400,7 +407,7 @@
              (for [ri (range grid-rows)
                    :let [p (first (get by-row ri))]
                    :when p]
-               (let [cy (+ title-pad strip-h (* ri ph) (/ ph 2.0))]
+               (let [cy (+ content-top strip-h (* ri ph) (/ ph 2.0))]
                  (ui/translate (+ y-label-pad (* grid-cols pw) 5)
                                (- cy 5)
                                (ui/with-color strip-label-color
@@ -428,7 +435,7 @@
             ;; Y-axis label
             (when y-label
               (let [fsize label-fsize]
-                [(ui/translate 12 (+ title-pad strip-h (/ (* grid-rows ph) 2.0))
+                [(ui/translate 12 (+ content-top strip-h (/ (* grid-rows ph) 2.0))
                                (membrane.ui.Rotate. -90
                                                     (ui/with-color text-color
                                                       (assoc (ui/label y-label (ui/font nil fsize))
@@ -444,7 +451,7 @@
             (let [any-legend? (or legend size-legend alpha-legend shape-legend)]
               (when (and any-legend? (not= legend-pos :none))
                 (let [legend-x (+ y-label-pad (* grid-cols pw) strip-w 10)
-                      base-y (+ title-pad strip-h 20)]
+                      base-y (+ content-top strip-h 20)]
                   (case legend-pos
                     :right
                     (let [;; Color legend
@@ -472,8 +479,10 @@
                       (concat (or color-elems []) (or size-elems [])
                               (or alpha-elems []) (or shape-elems [])))
                     :top
-                    (let [plots-start-y title-pad
-                          legend-y (- plots-start-y (or legend-h 30) -5)]
+                    ;; The reserved band runs from the title down to the
+                    ;; panels; draw into it at the same inset the bottom
+                    ;; legend takes from the top of its own band.
+                    (let [legend-y (+ title-pad 8)]
                       (if-let [l (or legend (shape-legend-as-categorical shape-legend cfg))]
                         (render-legend-horizontal l (+ y-label-pad 10) legend-y cfg)
                         []))
