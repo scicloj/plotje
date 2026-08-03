@@ -434,6 +434,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#marks" id="toc-marks" class="nav-link" data-scroll-target="#marks">Marks</a></li>
   <li><a href="#options-and-configuration" id="toc-options-and-configuration" class="nav-link" data-scroll-target="#options-and-configuration">Options and Configuration</a></li>
   <li><a href="#mixing-keyword-and-string-column-references" id="toc-mixing-keyword-and-string-column-references" class="nav-link" data-scroll-target="#mixing-keyword-and-string-column-references">Mixing Keyword and String Column References</a></li>
+  <li><a href="#integer-column-names" id="toc-integer-column-names" class="nav-link" data-scroll-target="#integer-column-names">Integer Column Names</a></li>
   <li><a href="#ggplot2-features-not-yet-implemented" id="toc-ggplot2-features-not-yet-implemented" class="nav-link" data-scroll-target="#ggplot2-features-not-yet-implemented">ggplot2 Features Not Yet Implemented</a></li>
   </ul>
 </nav>
@@ -487,6 +488,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>Linear continuous color legends (numeric <code>:color</code> mapping with <code>:linear</code> scale) label only the endpoint tick marks on the gradient bar. Intermediate values are unlabeled, making it hard to map interior colors back to data values. Log-scaled continuous color and fill legends do carry intermediate ticks.</p></li>
 <li><p>SPLOMs with 6+ variables at the default 600x400 have tight panels. Increase <code>:width</code>/<code>:height</code> or pin <code>:panel-width</code>/<code>:panel-height</code>.</p></li>
 <li><p>Horizontal bars from <code>(pj/coord :flip)</code> render the first row of data at the bottom of the chart, so a dataset sorted descending (natural “top N” order) produces the biggest bar at the bottom. The behavior matches ggplot2’s <code>coord_flip()</code>. Workaround: sort the dataset ascending before plotting, e.g. <code>(tc/order-by data [:value] [:asc])</code>. A future opt-in flag such as <code>(pj/coord :flip {:reverse-categorical true})</code> would spare users the sort.</p></li>
+<li><p><code>:fit-text-domain</code> widens a numeric domain so that text and label marks near its edge are drawn in full. Nothing does the same for a mark whose size is in pixels for another reason: a <code>pj/lay-point</code> given a large <code>:size</code> at the extreme of its domain is cut at the panel edge, as is a long rug tick. The 5% domain padding absorbs this at ordinary radii. Workaround: widen the domain with <code>pj/scale</code>.</p></li>
 <li><p>Rotated x-tick labels (<code>:x-tick-angle</code>) reserve extra vertical space below the panel, but not extra horizontal space. A long label rotated to a diagonal extends to the left of its tick, so very long category names on the leftmost tick can run past the left edge of the plotting area. Workaround: shorten the labels, reduce the angle, or widen the plot with <code>:width</code>.</p></li>
 </ul>
 </section>
@@ -519,22 +521,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">every other lay-* (literal <code>:alpha N</code> works on most via <code>:fixed-alpha</code>)</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;"><code>:shape</code></td>
-<td style="text-align: left;"><code>lay-point</code></td>
-<td style="text-align: left;">text, label, lollipop, summary, …</td>
-</tr>
-<tr class="even">
 <td style="text-align: left;">numeric (continuous) <code>:color</code></td>
 <td style="text-align: left;"><code>lay-point</code>, <code>lay-interval-h</code></td>
 <td style="text-align: left;">every other lay-* (a numeric column on a categorical-color path produces banded palette colors instead of a gradient)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">tooltip / row-indices plumbing</td>
 <td style="text-align: left;"><code>lay-point</code>, <code>lay-interval-h</code></td>
 <td style="text-align: left;">every other lay-*</td>
 </tr>
 </tbody>
 </table>
+<p><code>:shape</code> is not in this table: it is drawn only by <code>lay-point</code>, and passing it anywhere else is rejected rather than ignored – every other layer type warns and names <code>lay-point</code> as the one that takes it.</p>
 <p>Workaround: pre-bin or convert the numeric column into a discrete color column where appropriate, or use <code>lay-point</code> for the mark where the aesthetic must vary per row.</p></li>
 <li><p><code>:alpha</code> on <code>pj/lay-rule-h</code>/<code>pj/lay-rule-v</code> is silently dropped at render time (the rendering path reads <code>:color</code> only). Bands honor <code>:alpha</code>. Workaround: use a lighter <code>:color</code> to simulate the visual effect on rules.</p></li>
 <li><p><code>pj/lay-rule-h</code> rendered under <code>(pj/coord :flip)</code> becomes a vertical line; <code>pj/lay-rule-v</code> becomes a horizontal line. The mark name still reflects the unflipped semantics. Add a one-line note in the surrounding prose if the chart’s flipped state is non-obvious.</p></li>
@@ -548,7 +546,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>Stack order in <code>pj/lay-area</code> and <code>pj/lay-bar</code> (with <code>:position :stack</code>) follows the sort order of the <code>:color</code> column. There is no <code>:stack-order</code> / <code>:color-order</code> option yet, so forcing a specific bottom-to-top order requires prefixing category labels with sort-stable ordinal characters (<code>"01: ..."</code>, <code>"02: ..."</code>), which leaks into the legend.</p></li>
 <li><p>Annotations are silently skipped under <code>(pj/coord :polar)</code>. A polar rule would need to render as a circle (fixed radius) or spoke (fixed angle); those shapes are not implemented. Use Cartesian or flip coords for annotated plots.</p></li>
 <li><p>Large scatters produce large SVGs (~220 bytes/point). For &gt;10k points, use <code>:format :bufimg</code> for raster output.</p></li>
-<li><p>Saving to PNG (<code>(pj/save pose "plot.png")</code>, and the <code>:bufimg</code> raster path generally) truncates the rotated y-axis label after ~6 characters. The SVG path (<code>pj/plot</code> + Clay GFM, or <code>rsvg-convert</code> on the saved SVG) renders the full label. Root cause lives in Membrane’s Java2D backend (the rotated-text bounding box is clipped). Workaround: render to SVG and rasterize externally, or pad <code>:y-label</code> to stay short. Needs an upstream fix in Membrane.</p></li>
 <li><p>LOESS with confidence bands is O(n^2); subsample above ~5k rows.</p></li>
 </ul>
 </section>
@@ -566,13 +563,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Mapping the same column with a keyword in one place and a string in another (e.g.&nbsp;<code>(pj/pose ds {:color :group})</code> then <code>(pj/lay-point :x :y {:color "group"})</code>) is not normalized: the scope hierarchy treats them as different keys and the result is a silent empty plot. Workaround: pick one form (keyword or string) and use it consistently within a pose.</li>
 </ul>
 </section>
+<section id="integer-column-names" class="level2">
+<h2 class="anchored" data-anchor-id="integer-column-names">Integer Column Names</h2>
+<ul>
+<li>A dataset built without column names gets integer ones, and Plotje reads them: the inferred mapping picks up the first few columns and the derived axis titles read as the names. Referring to such a column is what is missing – a column reference in a mapping has to be a keyword or a string, so <code>(pj/lay-point ds 0 1)</code> is rejected in the same terms as any other scalar in a position. The reason is that a number in a mapping already names a literal value rather than a column: on the appearance aesthetics it always does, since <code>{:size 1}</code> sets a radius. Workaround: <code>(tc/rename-columns ds [:x :y])</code> before mapping, as shown in the <a href="./plotje_book.datasets.html">Datasets</a> chapter.</li>
+</ul>
+</section>
 <section id="ggplot2-features-not-yet-implemented" class="level2">
 <h2 class="anchored" data-anchor-id="ggplot2-features-not-yet-implemented">ggplot2 Features Not Yet Implemented</h2>
 <ul>
 <li><p>The <code>:fill</code> aesthetic is currently consumed only by <code>lay-tile</code> (and the <code>:bin2d</code> output beneath <code>lay-density-2d</code>). On filled marks like <code>lay-bar</code>, <code>lay-area</code>, and <code>lay-violin</code>, <code>:color</code> paints the interior; there is no separate stroke channel.</p></li>
 <li><p>The <code>:linetype</code> aesthetic (ggplot2’s <code>aes(linetype=...)</code> for solid vs.&nbsp;dashed lines) is not implemented. Workaround: encode the same distinction via <code>:color</code> instead.</p></li>
 <li><p>No <code>after_stat()</code> analog. ggplot2 idioms like <code>geom_bar(aes(label=after_stat(count)))</code> and <code>geom_histogram(aes(y=after_stat(density)))</code> reference computed stat values inside aesthetic mappings; Plotje requires a pre-computed column. Workaround: aggregate the data first via <code>tc/group-by</code> + <code>tc/aggregate</code>, then map the count or density column directly.</p></li>
-<li><p>Theme support is shallow versus ggplot2: today the theme map carries <code>:bg</code>, <code>:grid</code>, <code>:font-size</code>, and a small handful of other keys. Named theme presets (<code>theme_minimal</code>, <code>theme_bw</code>, <code>theme_classic</code>), axis text rotation, panel borders, strip text styling, and <code>legend.position</code> by coordinate are not yet exposed.</p></li>
+<li><p>Theme support is shallow versus ggplot2: today the theme map carries <code>:bg</code>, <code>:grid</code>, <code>:font-size</code>, and a small handful of other keys. Named theme presets (<code>theme_minimal</code>, <code>theme_bw</code>, <code>theme_classic</code>), panel borders, strip text styling, and <code>legend.position</code> by coordinate are not yet exposed. Rotating the x-axis tick labels is available, but as the <code>:x-tick-angle</code> plot option rather than through the theme – see <a href="./plotje_book.customization.html">Customization</a>.</p></li>
 <li><p>Per-layer <code>data</code>, <code>guides()</code> for per-aesthetic legend control, <code>scale_*_sqrt</code>/<code>reverse</code>/<code>date</code>. All tracked in the backlog.</p></li>
 </ul>
 <div style="background-color:grey;height:2px;width:100%;"></div>

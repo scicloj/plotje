@@ -102,8 +102,8 @@
    :value
    (map
     (fn*
-     [p1__73209#]
-     (+ 100.0 (* 30.0 (Math/sin (* (double p1__73209#) 0.12)))))
+     [p1__81991#]
+     (+ 100.0 (* 30.0 (Math/sin (* (double p1__81991#) 0.12)))))
     (range 52))}))
 
 
@@ -485,7 +485,7 @@
      (and
       (pos? (:points s))
       (some
-       (fn* [p1__73210#] (= "virginica" p1__73210#))
+       (fn* [p1__81992#] (= "virginica" p1__81992#))
        (:texts s)))))
    v70_l328)))
 
@@ -520,7 +520,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__73211#] (= :text (:mark p1__73211#))))
+       (filter (fn* [p1__81993#] (= :text (:mark p1__81993#))))
        first)]
      (= :right (-> text-layer :style :align-x))))
    v74_l347)))
@@ -547,7 +547,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__73212#] (= :text (:mark p1__73212#))))
+      (filter (fn* [p1__81994#] (= :text (:mark p1__81994#))))
       first
       :groups
       first
@@ -579,7 +579,7 @@
        [mark]
        (->>
         layers
-        (filter (fn* [p1__73213#] (= mark (:mark p1__73213#))))
+        (filter (fn* [p1__81995#] (= mark (:mark p1__81995#))))
         first
         :groups
         (mapv (juxt :label :dodge-idx))))]
@@ -636,8 +636,8 @@
  (->
   {:x (range 20),
    :y
-   (map (fn* [p1__73214#] (Math/sin (/ p1__73214# 3.0))) (range 20)),
-   :change (map (fn* [p1__73215#] (- p1__73215# 10)) (range 20))}
+   (map (fn* [p1__81996#] (Math/sin (/ p1__81996# 3.0))) (range 20)),
+   :change (map (fn* [p1__81997#] (- p1__81997# 10)) (range 20))}
   (pj/lay-point :x :y {:color :change})
   (pj/options
    {:color-scale :diverging,
@@ -752,8 +752,8 @@
    ys
    (map
     (fn*
-     [p1__73216#]
-     (+ (* 3 p1__73216#) 5 (* 2 (- (rng/drandom r) 0.5))))
+     [p1__81998#]
+     (+ (* 3 p1__81998#) 5 (* 2 (- (rng/drandom r) 0.5))))
     xs)]
   (->
    {:x xs, :y ys}
@@ -1113,7 +1113,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__73217#] (bit-and p1__73217# 255)) (vec bs))))))
+    (mapv (fn* [p1__81999#] (bit-and p1__81999# 255)) (vec bs))))))
 
 
 (deftest
