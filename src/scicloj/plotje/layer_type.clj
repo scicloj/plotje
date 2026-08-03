@@ -22,7 +22,12 @@
 
 (def layer-option-docs
   "Documentation for layer option keys. Maps key to description string."
-  {:color "Column keyword (categorical grouping) or literal color string"
+  {:x "Column keyword or string naming the column drawn along the x axis"
+   :y "Column keyword or string naming the column drawn along the y axis"
+   :data "Dataset or plain data for this layer alone, overriding the pose's"
+   :mark "Override the mark the layer type draws with — the shape on the panel"
+   :stat "Override the statistic the layer type computes — e.g. {:stat :count} on a text layer labels counted bars"
+   :color "Column keyword (categorical grouping) or literal color string"
    :color-type "Override inferred color type — :categorical or :numerical. Use :categorical to treat numeric IDs as groups."
    :x-type "Override inferred x-column type — :categorical, :numerical, or :temporal. Use :categorical on numeric x (hours, years, IDs) when a categorical-axis mark (bar, boxplot) is needed."
    :y-type "Override inferred y-column type — :categorical, :numerical, or :temporal. Mirror of :x-type, used for horizontal layouts."
@@ -58,7 +63,16 @@
    :x-max "Upper x bound of a vertical shaded band"
    :x-end "Column keyword for the right-edge x value of a horizontal interval bar"
    :interval-thickness "Fraction (0.0–1.0) of the categorical band that an interval bar fills (default 0.7)"
-   :bar-width "Width of a bar on a numeric or temporal x axis, in data units. Defaults to 0.9 of the smallest gap between adjacent x positions."})
+   :bar-width "Width of a bar on a numeric or temporal x axis, in data units. Defaults to 0.9 of the smallest gap between adjacent x positions."
+   :bins "Number of histogram bins, overriding the :bin-method estimate"
+   :binwidth "Width of one histogram bin in data units, an alternative to :bins"
+   :box-width "Fraction (0.0-1.0) of the categorical band that a box fills (default 0.6)"
+   :cap-width "Width of an errorbar's end caps in pixels"
+   :length "Length of a rug tick in pixels"
+   :level "Confidence level of a smooth's ribbon (default 0.95)"
+   :stroke "Outline color for an area or density curve — the fill still comes from :color"
+   :stroke-width "Width of that outline in pixels"
+   :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline — :dashed, :dotted, :solid, or a raw [dash gap ...] pixel pattern"})
 
 (def ^:private registry*
   "Atom holding keyword → layer-type entry map."

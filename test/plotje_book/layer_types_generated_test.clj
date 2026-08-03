@@ -61,9 +61,9 @@
  v9_l87
  (mapv
   (fn*
-   [p1__71138#]
+   [p1__71971#]
    (select-keys
-    (layer-type/lookup p1__71138#)
+    (layer-type/lookup p1__71971#)
     [:mark :stat :defaults]))
   [:text :label]))
 
@@ -168,4 +168,20 @@
     {"Option" (kind/code (pr-str k)), "Description" desc})}))
 
 
-(deftest t28_l211 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l204)))
+(deftest
+ t28_l211
+ (is
+  ((fn
+    [t]
+    (let
+     [documented
+      (set (keys layer-type/layer-option-docs))
+      in-use
+      (into
+       (set layer-type/universal-layer-options)
+       (mapcat :accepts (vals (layer-type/registered))))]
+     (and
+      (= (count documented) (count (:row-maps t)))
+      (empty? (remove documented in-use))
+      (empty? (remove in-use documented)))))
+   v27_l204)))

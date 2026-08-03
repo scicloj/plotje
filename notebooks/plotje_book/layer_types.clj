@@ -209,7 +209,13 @@
      "Description" desc})})
 
 (kind/test-last
- [(fn [t] (pos? (count (:row-maps t))))])
+ [(fn [t]
+    (let [documented (set (keys layer-type/layer-option-docs))
+          in-use (into (set layer-type/universal-layer-options)
+                       (mapcat :accepts (vals (layer-type/registered))))]
+      (and (= (count documented) (count (:row-maps t)))
+           (empty? (remove documented in-use))
+           (empty? (remove in-use documented)))))])
 
 ;; ## What's Next
 ;;
