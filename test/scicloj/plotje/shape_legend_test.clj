@@ -268,7 +268,14 @@
        (-> tiers
            (pj/lay-point :model :score {:size :score})
            (pj/scale :size {:values [:circle]})))
-      "another channel has no symbols to choose"))
+      "another channel has no symbols to choose")
+  ;; Saying only what :values is not for leaves a caller who wanted to
+  ;; choose colors with nowhere to go, so the message names the palette.
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo #":palette"
+       (-> tiers
+           (pj/lay-point :model :score {:color :tier})
+           (pj/scale :color {:values ["#e41a1c"]})))))
 
 (deftest a-domain-that-omits-a-category-warns-and-still-assigns-it
   (let [[out pairs] (capturing

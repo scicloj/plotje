@@ -2489,7 +2489,11 @@
             (throw (ex-info
                     (str "pj/scale :values applies to :shape only, got channel "
                          channel ". It names the marker symbols a shape mapping"
-                         " draws with; other channels have no symbols to choose.")
+                         " draws with; other channels have no symbols to choose."
+                         " To choose the colors a categorical :color mapping"
+                         " draws with, pass them as a palette:"
+                         " (pj/options pose {:palette [\"#e41a1c\" ...]}) for one"
+                         " plot, or pj/set-config! for every plot.")
                     {:caller "pj/scale" :channel channel :values (vec values)})))
           (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
             (throw (ex-info
