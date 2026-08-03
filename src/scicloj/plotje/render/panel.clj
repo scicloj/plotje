@@ -68,6 +68,14 @@
 
 ;; ---- Tick Labels ----
 
+(def ^:private tick-label-gap
+  "Pixels of clearance left between a moved x-tick label and the edge it
+   was moved away from. The right edge is the edge of the image, so a
+   label placed flush against it keeps nothing in hand: the width the
+   move is calculated from is an estimate, and a glyph drawn a fraction
+   wider than estimated is cut by exactly that fraction."
+  2.0)
+
 (defn- clamp-x-tick-x
   "Horizontal position for a centered x-tick label, kept inside the panel
    box. A tick close to either end of the axis centers its label partly
@@ -77,12 +85,19 @@
    Nothing reserves room for this overhang the way y-label-pad reserves
    it for y-tick labels, so the label moves instead -- by at most half
    its width, and only for the outermost ticks. A label wider than the
-   whole panel is left where it is, since no position saves it."
+   whole panel is left where it is, since no position saves it.
+
+   The width comes from `text/max-text-width` rather than the average
+   estimate: every other caller draws its own box from the estimate and
+   so stays consistent with it, while this one is measured against
+   glyphs the backend draws with a font of its own choosing."
   [px pw fsize label]
-  (let [half (/ (text/text-width fsize label) 2.0)]
-    (if (> (* 2 half) pw)
+  (let [half (/ (text/max-text-width fsize label) 2.0)
+        lo (+ half tick-label-gap)
+        hi (- (double pw) half tick-label-gap)]
+    (if (> lo hi)
       (double px)
-      (-> (double px) (max half) (min (- (double pw) half))))))
+      (-> (double px) (max lo) (min hi)))))
 
 (defn render-tick-labels
   "Render tick labels from pre-computed tick info in a plan.

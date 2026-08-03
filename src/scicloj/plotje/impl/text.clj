@@ -12,11 +12,26 @@
    Real glyph metrics are backend-specific -- the SVG target has none
    at all -- and a slight over-estimate is the safe direction for both
    callers: the renderer draws a box a shade wide, and the plan leaves
-   a shade more room than the glyphs need.")
+   a shade more room than the glyphs need.
+
+   A third caller cannot use an average at all. Where a label is pushed
+   away from an edge to keep it whole, reading low by a pixel is what
+   cuts the glyph the move was meant to save, so that caller measures
+   with `max-text-width` instead.")
 
 (def char-advance
   "Width of one character as a fraction of the font size."
   0.6)
+
+(def max-char-advance
+  "Upper bound on the width of one character as a fraction of the font
+   size. Which font a backend draws with is not known here: a browser
+   renders the SVG with whatever it resolves the generic sans family
+   to, and Java2D resolves its own logical font through the operating
+   system. Digits are the widest thing a tick label is usually made of
+   and run to 0.636 of the font size in DejaVu Sans and Verdana, well
+   past `char-advance`, so a bound has to sit above that."
+  0.7)
 
 (def box-pad-x
   "Horizontal gap between a text mark and the edge of its box, in pixels."
@@ -30,6 +45,12 @@
   "Estimated pixel width of the string `s` drawn at `font-size`."
   [font-size s]
   (* (count s) (double font-size) char-advance))
+
+(defn max-text-width
+  "Upper bound on the pixel width of the string `s` drawn at `font-size`,
+   for a caller that must not read low whatever font the backend picks."
+  [font-size s]
+  (* (count s) (double font-size) max-char-advance))
 
 (defn anchor-offset
   "Pixel offset to add to a text origin (top-left) so the anchored part of

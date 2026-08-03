@@ -14,8 +14,13 @@
    The assertions read the rendered SVG, because the pose, the draft and
    svg-summary were all correct while the picture was wrong."
   (:require [clojure.test :refer [deftest testing is]]
-            [scicloj.plotje.api :as pj])
-  (:import [java.awt.image BufferedImage]))
+            [membrane.java2d :as java2d]
+            [scicloj.plotje.api :as pj]
+            [scicloj.plotje.impl.text :as text])
+  (:import [java.awt Font RenderingHints]
+           [java.awt.font FontRenderContext]
+           [java.awt.geom AffineTransform]
+           [java.awt.image BufferedImage]))
 
 ;; ---- Reading the rendered SVG ----
 
@@ -178,12 +183,50 @@
       (pj/scale :x {:domain [0 500000]})
       (pj/options {:width 681 :height 408 :fit-text-domain false})))
 
+(defn- ink-at-the-right-edge
+  "Every pixel of the last two columns of `img` that carries ink."
+  [^BufferedImage img]
+  (let [w (.getWidth img)
+        h (.getHeight img)]
+    (for [x (range (- w 2) w)
+          y (range h)
+          :when (ink? img x y)]
+      [x y])))
+
 (deftest the-last-x-tick-label-stays-inside-the-panel
   (testing "no tick-label ink reaches the right edge of the image"
-    (let [^BufferedImage img (pj/plot tick-at-the-axis-end {:format :bufimg})
-          w (.getWidth img)
-          h (.getHeight img)]
-      (is (empty? (for [x (range (- w 2) w)
-                        y (range h)
-                        :when (ink? img x y)]
-                    [x y]))))))
+    (is (empty? (ink-at-the-right-edge
+                 (pj/plot tick-at-the-axis-end {:format :bufimg}))))))
+
+;; Which font a backend draws with is not known where the label is placed:
+;; Java2D resolves its logical font through the operating system, and a
+;; browser resolves the SVG's generic sans family for itself. The machine
+;; this was written on answers with a font 0.572 of the font size per digit
+;; and GitHub's Linux runners answer with DejaVu Sans at 0.636, so the
+;; assertion above passed here while the last label was cut there.
+;; `text/max-char-advance` is the width the clamp is allowed to assume, and
+;; repeating the assertion against a font stretched to exactly that width
+;; asks the question the ambient font cannot: does the clamp hold in the
+;; widest case it claims to handle, whichever font is installed.
+
+(def render-context
+  (FontRenderContext. nil
+                      RenderingHints/VALUE_TEXT_ANTIALIAS_ON
+                      RenderingHints/VALUE_FRACTIONALMETRICS_ON))
+
+(defn- at-the-width-bound
+  "`font` stretched horizontally until one digit takes the full width
+   `text/max-char-advance` bounds a character by."
+  [^Font font]
+  (let [per-char (/ (.getWidth (.getStringBounds font "0" render-context))
+                    (.getSize2D font))]
+    (.deriveFont font (AffineTransform/getScaleInstance
+                       (/ text/max-char-advance per-char)
+                       1.0))))
+
+(deftest the-clamp-holds-at-the-width-it-assumes
+  (testing "no tick-label ink reaches the right edge in the widest font"
+    (let [resolve-font java2d/get-java-font]
+      (with-redefs [java2d/get-java-font (comp at-the-width-bound resolve-font)]
+        (is (empty? (ink-at-the-right-edge
+                     (pj/plot tick-at-the-axis-end {:format :bufimg}))))))))
