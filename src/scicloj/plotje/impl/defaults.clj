@@ -308,19 +308,21 @@
 
 (defn fmt-category-label
   "Format a category value (keyword, string, number, etc.) for display.
-   Keywords are rendered without their leading colon: :widget -> \"widget\".
    Used for axis tick labels, legend entries, facet strip labels, and any
    other user-visible category text.
 
-   Unlike `fmt-name` this leaves hyphens and underscores alone. A category
-   is data, not an identifier, and the categorical stats map a column
-   through this function, so two values that differ only by separator --
-   :a-b and :a_b -- have to keep formatting to two distinct labels."
+   Formats by the same rule as `fmt-name`, so a keyword category reads as
+   words: :not-applicable becomes not applicable. Hyphenated keyword
+   categories are common and are nearly always meant as words, which is
+   what makes the rule worth applying to data as well as to names.
+
+   Two keyword categories differing only by separator -- :a-b and :a_b --
+   therefore format alike. On a categorical axis that combines them, since
+   `impl/stat.clj` maps the column through this function before grouping;
+   `format-category-column` there warns when it happens. Convert such a
+   column to strings to keep the values apart."
   [v]
-  (cond
-    (nil? v) ""
-    (keyword? v) (name v)
-    :else (str v)))
+  (fmt-name v))
 
 (defn group-digits
   "Insert `separator` between three-digit groups in the integer part of an

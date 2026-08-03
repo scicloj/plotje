@@ -116,22 +116,46 @@
     (is (= "" (defaults/fmt-name nil)))))
 
 (deftest fmt-category-label-test
-  (testing "keywords lose their leading colon but keep their separators"
+  (testing "a keyword category reads as words, like a column name does"
     (is (= "setosa" (defaults/fmt-category-label :setosa)))
-    (is (= "not-applicable" (defaults/fmt-category-label :not-applicable)))
-    (is (= "north_east" (defaults/fmt-category-label :north_east))))
-  (testing "other values format as their printed form"
+    (is (= "not applicable" (defaults/fmt-category-label :not-applicable)))
+    (is (= "north east" (defaults/fmt-category-label :north_east))))
+  (testing "a string category is left as written"
     (is (= "2026-07-31" (defaults/fmt-category-label "2026-07-31")))
+    (is (= "Cost-Benefit Ratio" (defaults/fmt-category-label "Cost-Benefit Ratio"))))
+  (testing "other values format as their printed form"
     (is (= "-5" (defaults/fmt-category-label -5)))
     (is (= "" (defaults/fmt-category-label nil)))))
 
-(deftest categories-differing-only-by-separator-stay-distinct-test
-  ;; The categorical stats map a column through fmt-category-label, so a
-  ;; lossy formatting there would merge these two into one bar.
+(deftest categories-differing-only-by-separator-are-combined-with-a-warning-test
+  ;; Two keyword categories that differ only by separator format alike. On a
+  ;; categorical axis that is a data transform, not a relabelling, so they
+  ;; land in one band -- rare enough to be worth a warning rather than a rule.
   (let [ds (tc/dataset {:cat [:a-b :a_b :a-b :a_b] :v [1 2 3 4]})
-        ticks (-> ds (pj/lay-bar :cat :v) pj/plan :panels first :x-ticks)]
-    (is (= ["a-b" "a_b"] (:values ticks)))
-    (is (= ["a-b" "a_b"] (:labels ticks)))))
+        ticks (atom nil)
+        out (with-out-str
+              (reset! ticks
+                      (-> ds (pj/lay-bar :cat :v) pj/plan :panels first :x-ticks)))]
+    (is (= ["a b"] (:values (deref ticks))))
+    (is (= ["a b"] (:labels (deref ticks))))
+    (is (re-find #"Warning: categories" out))
+    (is (re-find #":a-b" out))
+    (is (re-find #":a_b" out))
+    (is (re-find #"Convert column :cat to strings" out)))
+
+  (testing "a category on :color is only relabelled -- the groups survive"
+    ;; The colour path does not map the column, so the two keep their own bars
+    ;; and only the legend text repeats.
+    (let [pl (-> {:x [1 2 3 4] :y [1 2 1 2] :c [:a-b :a_b :a-b :a_b]}
+                 (pj/lay-bar :x :y {:color :c})
+                 pj/plan)]
+      (is (= ["a b" "a b"] (mapv :label (:entries (:legend pl)))))))
+
+  (testing "no warning when the categories are distinguishable"
+    (is (= "" (with-out-str
+                (-> (tc/dataset {:cat [:a-b :c-d] :v [1 2]})
+                    (pj/lay-bar :cat :v)
+                    pj/plan))))))
 
 (deftest integer-column-names-auto-label-test
   ;; A dataset built without column names gets integer ones; auto-labelling

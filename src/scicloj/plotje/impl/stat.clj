@@ -1,5 +1,6 @@
 (ns scicloj.plotje.impl.stat
-  (:require [tablecloth.api :as tc]
+  (:require [clojure.string :as str]
+            [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
             [tech.v3.datatype.argops :as argops]
@@ -12,6 +13,29 @@
             [scicloj.plotje.impl.defaults :as defaults]))
 
 ;; ---- Helpers ----
+
+(defn- format-category-column
+  "Replace a categorical column with its display labels, so the band scale
+   and the tick labels key on the same strings.
+
+   `defaults/fmt-category-label` turns the separators of a keyword into
+   spaces, which is what a reader wants of :not-applicable but which two
+   values differing only by separator survive alike. Here that is a data
+   transform rather than a label, so such a pair is combined into one
+   category and one band. Warn rather than let a bar quietly go missing --
+   the case is rare, so the warning costs nothing until it matters."
+  [ds col]
+  (let [distinct-vals (distinct (ds col))
+        collisions (->> distinct-vals
+                        (group-by defaults/fmt-category-label)
+                        (filter (fn [[_ vs]] (next vs))))]
+    (doseq [[label vs] collisions]
+      (println (str "Warning: categories " (str/join " and " (map pr-str vs))
+                    " both display as " (pr-str label)
+                    " and have been combined into one."
+                    " Convert column " (pr-str col)
+                    " to strings to keep them apart.")))
+    (tc/map-columns ds col [col] defaults/fmt-category-label)))
 
 (defn numeric-extent
   "Min/max pair from a numeric column."
@@ -125,12 +149,12 @@
                          (col-ref? fill)  (conj fill))
         drop-cols (vec (distinct (concat (if x-only? [x] [x y]) aesthetic-cols)))
         clean (cond-> (tc/drop-missing data-idx drop-cols)
-                (= x-type :categorical) (tc/map-columns x [x] defaults/fmt-category-label)
+                (= x-type :categorical) (format-category-column x)
                 ;; Format the categorical axis whichever side it is on, so a
                 ;; horizontal value bar's category labels (on y) match its band
                 ;; scale -- keyword/number categories become display strings.
                 (and (not x-only?) (= y-type :categorical))
-                (tc/map-columns y [y] defaults/fmt-category-label))]
+                (format-category-column y))]
     (if (zero? (tc/row-count clean))
       {:points [] :x-domain [0 1] :y-domain [0 1]}
       (let [xs-col (clean x)
@@ -290,7 +314,7 @@
       (throw (ex-info (str ":binwidth must be a positive number, got: " (pr-str bw))
                       {:binwidth bw}))))
   (let [clean (cond-> (tc/drop-missing data [x])
-                (= x-type :categorical) (tc/map-columns x [x] defaults/fmt-category-label))
+                (= x-type :categorical) (format-category-column x))
         xs-col (clean x)
         user-binwidth (:binwidth draft-layer)
         ;; Compute a shared anchor when :binwidth is supplied, so every
@@ -378,7 +402,7 @@
   (let [{:keys [data x x-type group]} draft-layer
         group-cols (or group [])
         clean (cond-> (tc/drop-missing data [x])
-                (= x-type :categorical) (tc/map-columns x [x] defaults/fmt-category-label))
+                (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)
       {:categories [] :bars [] :max-count 0 :x-domain ["?"] :y-domain [0 1]}
@@ -833,7 +857,7 @@
         cat-col (if flipped? y x)
         num-col (if flipped? x y)
         clean (-> (tc/drop-missing data [x y])
-                  (tc/map-columns cat-col [cat-col] defaults/fmt-category-label))
+                  (format-category-column cat-col))
         categories (distinct (clean cat-col))]
     (if (empty? categories)
       {:items [] :categories [] :color-categories nil
@@ -981,7 +1005,7 @@
 (defmethod compute-stat :summary [{:keys [data x y x-type group] :as draft-layer}]
   (validate-numeric-column draft-layer :y :summary)
   (let [clean (cond-> (tc/drop-missing data [x y])
-                (= x-type :categorical) (tc/map-columns x [x] defaults/fmt-category-label))
+                (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)
       {:points [] :x-domain ["?"] :y-domain [0 1]}
