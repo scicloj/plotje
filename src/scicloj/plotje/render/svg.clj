@@ -359,7 +359,7 @@
             css-parts (cond-> []
                         tooltip (conj tooltip-css)
                         brush (conj brush-css))]
-        (kind/hiccup
+        (kind/hiccup2
          (into [:div {:id div-id
                       :style {:position "relative" :display "inline-block"}}
                 [:style (apply str css-parts)]
@@ -367,7 +367,7 @@
                (cond-> []
                  tooltip (conj (tooltip-script div-id))
                  brush (conj (brush-script div-id))))))
-      (kind/hiccup svg))))
+      (kind/hiccup2 svg))))
 
 (defmethod render/plan->plot :svg [plan _ opts]
   (let [render-opts (select-keys opts [:tooltip :width :height :theme :palette
