@@ -335,13 +335,44 @@ my-pose
 ;; [Interactivity](./plotje_book.interactivity.html) chapter is
 ;; three CSS pixels, not three drawing units.
 ;;
-;; Three frames are named in this book, all measured in drawing
-;; units:
+;; A position in drawing space is measured from the corner of some
+;; rectangle, and this book names three of them: the **canvas**, the
+;; **panel box** and the **drawing area**, each with its own entry
+;; below. `pj/frames` reports all three for every panel of a plot.
+
+;; ## Canvas
+
+;; The **canvas** is the whole output image: the rectangle the plot's
+;; `:width` and `:height` describe, with its top left corner at the
+;; origin of drawing space. Everything else a plot draws -- panels,
+;; axis labels, title, legend -- sits inside it.
 ;;
-;; - the **canvas** -- the whole output image
-;; - the **panel box** -- one panel including its axis margin
-;; - the **drawing area** -- the panel background inside that margin,
-;;   where data marks are clipped
+;; It is the outermost of the three frames, and the only one shared by
+;; every panel. In a composite, each cell's panels report their
+;; rectangles against this same canvas, so all of them can be compared
+;; directly.
+
+;; ## Panel Box
+
+;; The **panel box** is one panel including the axis margin around it:
+;; the rectangle a panel is given in the grid, before anything is
+;; drawn inside it. In a faceted plot the panel boxes tile the grid
+;; edge to edge, one per facet variant, each offset from the last by a
+;; panel's width or height.
+;;
+;; A mark that draws in the margin clips to this box rather than to the
+;; drawing area. A rug tick is one: it sits outside the panel
+;; background. See **Clip**.
+
+;; ## Drawing Area
+
+;; The **drawing area** is the panel background inside the axis
+;; margin: the panel box less that margin on all four sides. Data marks
+;; are drawn here and clipped to it.
+;;
+;; A `:in :drawing-area` layer measures its positions from this
+;; rectangle's top left corner, so a note at drawing-space `[12 12]`
+;; lands 12 units right and 12 units down from that corner.
 
 ;; ## Nudge
 ;;
@@ -651,16 +682,20 @@ my-pose
 
 ;; ## Annotation
 ;;
-;; An **annotation** is a reference mark layered on a plot --
-;; horizontal/vertical lines (rules) or shaded bands. Today,
-;; positions live in the layer's `:mapping` slot
-;; (`:y-intercept` or `:x-intercept` for rules; `:y-min`/`:y-max`
-;; or `:x-min`/`:x-max` for bands) as literal values rather than
-;; column references, and a single annotation draws at exactly
-;; one place. Data-driven annotations (column refs in those slots,
-;; producing one mark per row, like ggplot2's
-;; `geom_hline(aes(yintercept = ...))`) are planned but not yet
-;; implemented.
+;; An **annotation** is a mark layered on a plot to explain it rather
+;; than to show data: a reference line, a shaded region, a note, a
+;; leader line, a caption. Their positions are given as values or
+;; measured on the panel, not read from a column for every row.
+;;
+;; Two ways to place one:
+;;
+;; - **In data space**, so the annotation moves with the axis.
+;;   Reference lines and bands have their own layer types; a note is a
+;;   text layer whose `:x` and `:y` are values.
+;; - **On the panel**, with `:in :drawing-area`, so the annotation is
+;;   positioned in drawing units from the corner of the panel
+;;   background and the axis domains are unaffected. See
+;;   **Drawing Area**.
 ;;
 ;; Annotations are regular layers, so they attach under the same
 ;; three cases as any `lay-*`: bare call sits on the pose, matching
@@ -673,6 +708,21 @@ my-pose
 ;; | `pj/lay-rule-h` | Horizontal line at y = y-intercept |
 ;; | `pj/lay-band-v` | Vertical shaded region from x = x-min to x = x-max |
 ;; | `pj/lay-band-h` | Horizontal shaded region from y = y-min to y = y-max |
+;; | `pj/lay-text`, `pj/lay-label` | A note, at a value or on the panel |
+;;
+;; The four rule and band constructors take their positions in the
+;; layer's `:mapping` slot (`:y-intercept` or `:x-intercept` for rules;
+;; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands) as literal values
+;; rather than column references, and each draws at exactly one place.
+;; Column-mapped intercepts, producing one mark per row like ggplot2's
+;; `geom_hline(aes(yintercept = ...))`, are planned but not yet
+;; implemented.
+;;
+;; Those four are also the only ones the plan keeps apart: a panel
+;; carries them in an `:annotations` slot of its own rather than among
+;; its `:layers`, which matters when walking a plan but not when
+;; writing a pose. A text note is an ordinary layer. See the
+;; [Extensibility](./plotje_book.extensibility.html) chapter.
 
 (def annotated
   (-> (rdatasets/datasets-iris)
@@ -958,6 +1008,9 @@ annotated
 ;; | Tick | Axis mark with label at a domain value | Part of panel |
 ;; | Data space | Values in their original units -- what mappings, stats, domains, and ticks hold | Every stage up to the plan |
 ;; | Drawing space | Positions in drawing units on the output canvas | Membrane and plot stages |
+;; | Canvas | The whole output image, and the origin of drawing space | `:width` / `:height`; `pj/frames` |
+;; | Panel box | One panel including its axis margin | `pj/frames` |
+;; | Drawing area | The panel background inside that margin, where data marks clip | `pj/frames`; `:in :drawing-area` |
 ;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale` |
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |

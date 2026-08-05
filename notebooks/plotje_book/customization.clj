@@ -696,6 +696,86 @@ pj/shape-symbols
        (try (text-style pj/lay-text {:align-x :middle}) false
             (catch Exception _ true)))))])
 
+;; ## Offsetting a label from its mark
+;;
+;; Anchoring places one edge of the label exactly on the point, so a
+;; point with a radius still overlaps it. Clearing the mark takes a
+;; shift of a few units on the page, which is not a data quantity: it
+;; depends on the size the mark is drawn at, not on what the axis
+;; measures.
+;;
+;; `:offset-x` and `:offset-y` shift a layer by a number of drawing
+;; units after the scales have run. Positive `:offset-y` moves down the
+;; page, as drawing coordinates do.
+
+(-> {:height [1 2 3] :weight [2 4 6] :tag ["one" "two" "three"]}
+    (pj/lay-point :height :weight {:size 8})
+    (pj/lay-text :height :weight {:text :tag :offset-x 10 :align-y :center}))
+
+(kind/test-last
+ [(fn [fr]
+    (= [nil 10]
+       (->> fr pj/plan :panels first :layers (mapv :offset-x))))])
+
+;; `:nudge-x` and `:nudge-y` do not serve this purpose. A nudge shifts
+;; the datum before the scales, so the same nudge covers a different
+;; distance on the page under a different domain, and on a categorical
+;; axis there is no numeric value to shift. An offset is a length on the
+;; page, so it applies on any axis:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-bar :team :score)
+    (pj/lay-text {:text :score :align-x :center :offset-y -6}))
+
+(kind/test-last
+ [(fn [fr]
+    (= [nil -6]
+       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
+
+;; ## Placing a mark on the panel rather than in the data
+;;
+;; A note in a corner, a caption beside a peak, or a box around a
+;; region has no row in the dataset. Two features place such marks.
+;;
+;; First, a position may be a value rather than a column. Every
+;; appearance aesthetic has always accepted both -- `{:color :species}`
+;; beside `{:color "red"}` -- and positions now do too. On a layer that
+;; brings no data of its own, a string `:text` is the text itself:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-text {:x 7.5 :y 4.2 :text "outliers up here"}))
+
+(kind/test-last
+ [(fn [fr] (some #{"outliers up here"} (:texts (pj/svg-summary (pj/plot fr)))))])
+
+;; That note is placed *in the data*: 7.5 is a sepal length, and the
+;; axis includes it like any other value. A note placed beyond the data
+;; widens the axis.
+;;
+;; Second, `:in` says which space a layer's positions are in.
+;; `:in :drawing-area` measures in drawing units from the top left of
+;; the panel background, so the position is a place on the panel rather
+;; than a value in the data -- and the axes are left alone:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-text {:in :drawing-area :x 12 :y 12 :text "n = 150"}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [dom (fn [p] (:x-domain (first (:panels (pj/plan p)))))]
+      (= (dom (pj/lay-point (rdatasets/datasets-iris)
+                            :sepal-length :sepal-width))
+         (dom fr))))])
+
+;; Use a data-space position when the note is about a value, and
+;; `:in :drawing-area` when it is about the picture. `pj/frames` reports
+;; where a data value lands on the page, for lining up a hand-placed
+;; mark with a data one or composing your own drawing beside the plot;
+;; it is covered in the
+;; [API Reference](./plotje_book.api_reference.html).
+
 ;; ## Room for a label at the edge of the data
 
 ;; A bar labelled with its own value is the ordinary way to let a reader
@@ -903,7 +983,7 @@ pj/shape-symbols
                                                   :data {:x [1] :y [1]
                                                          :tag ["bare text"]}})))))))])
 
-;; ## Annotation Appearance
+;; ## Reference Line and Band Appearance
 ;;
 ;; Reference lines and bands are introduced in
 ;; [Core Concepts](./plotje_book.core_concepts.html); on temporal

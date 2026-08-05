@@ -922,7 +922,7 @@ s2-tree
     (and (= :species (get-in pose [:opts :facet-col]))
          (= :species (get-in pose [:opts :facet-row]))))])
 
-;; ### Rule O4: `pj/lay-rule-*` and `pj/lay-band-*` are layers (annotations)
+;; ### Rule O4: `pj/lay-rule-*` and `pj/lay-band-*` are layers
 ;;
 ;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v`
 ;; produce layers and scope like any other `lay-*`: bare call

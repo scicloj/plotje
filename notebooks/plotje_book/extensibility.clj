@@ -590,17 +590,22 @@ graph LR
 ;; need a `layer->membrane` defmethod for the SVG renderer. Without one,
 ;; the library throws an error explaining which defmethod to add.
 
-;; ### Annotation marks live on the panel's `:annotations`, not `:layers`
+;; ### Rule and band marks live on the panel's `:annotations`, not `:layers`
 ;;
-;; The four annotation marks -- `:rule-h`, `:rule-v`, `:band-h`,
-;; `:band-v` -- are split out of the per-panel `:layers` list during
-;; planning and rendered from a separate `:annotations` slot on each
-;; panel of the resolved plan. Extension authors building tooling that
-;; walks a plan should expect to find these on panel `:annotations`,
-;; not on panel `:layers`. The split is driven by
-;; `scicloj.plotje.impl.resolve/annotation-marks`, the canonical set of
-;; annotation mark keywords; if you add a custom annotation-style mark
-;; that should follow the same lifecycle, register it there.
+;; Four marks -- `:rule-h`, `:rule-v`, `:band-h`, `:band-v` -- are split
+;; out of the per-panel `:layers` list during planning and rendered from
+;; a separate `:annotations` slot on each panel of the resolved plan.
+;; Extension authors building tooling that walks a plan should expect to
+;; find these on panel `:annotations`, not on panel `:layers`. The split
+;; is driven by `scicloj.plotje.impl.resolve/annotation-marks`, the
+;; canonical set of those mark keywords; if you add a custom mark that
+;; should follow the same lifecycle, register it there.
+;;
+;; The `:annotations` slot holds only these four marks. The
+;; [Glossary](./plotje_book.glossary.html) defines an annotation more
+;; broadly -- any mark that explains a plot rather than showing data,
+;; including notes and leader lines. Those are ordinary text and line
+;; layers, and they stay on `:layers`.
 
 ;; ## `mark-clip-region`
 ;;
