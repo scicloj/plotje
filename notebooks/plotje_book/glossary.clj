@@ -321,12 +321,19 @@ my-pose
 ;;
 ;; A drawing unit is one unit of the plot's `:width` and `:height`.
 ;; In SVG output it is one user unit; in PNG output it is one Java2D
-;; unit. It coincides with a screen pixel only when the plot is shown
-;; at its natural size, which is why this book says drawing unit
-;; rather than pixel. The exception is the browser interaction layer:
-;; a mouse event's coordinates really are CSS pixels, so the
-;; [Interactivity](./plotje_book.interactivity.html) chapter says
-;; pixels and means them.
+;; unit. How much of a screen that covers depends on how the output
+;; is displayed, which is why this book does not call it a pixel.
+;; A browser scales the SVG to whatever box the page gives it, so a
+;; drawing unit becomes one CSS pixel only at the plot's natural
+;; size -- and a CSS pixel is not a screen pixel either, since a
+;; high-resolution display draws two or more screen pixels for each
+;; one, and zoom moves that ratio again.
+;;
+;; The one place this book does say pixel is the browser interaction
+;; layer, because that is the unit a mouse event reports: the drag
+;; threshold in the
+;; [Interactivity](./plotje_book.interactivity.html) chapter is
+;; three CSS pixels, not three drawing units.
 ;;
 ;; Three frames are named in this book, all measured in drawing
 ;; units:

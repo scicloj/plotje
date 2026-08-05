@@ -48,7 +48,8 @@
 ;; `:brush true` enables drag-to-select. While dragging, a shaded
 ;; rectangle follows the cursor; on release, points inside keep
 ;; full opacity and points outside dim to 0.15. A short drag
-;; (less than 3 pixels each side) clears the selection. Selection
+;; (less than 3 CSS pixels each side -- the unit a mouse event
+;; reports, not a drawing unit) clears the selection. Selection
 ;; is keyed by row index, so it tracks the same rows across every
 ;; panel in the pose.
 
