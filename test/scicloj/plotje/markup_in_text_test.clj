@@ -44,10 +44,16 @@
   (testing "pj/plot hands Clay the kind that escapes the strings it renders"
     (is (= :kind/hiccup2 (:kindly/kind (meta (pj/plot (bars {}))))))))
 
-(deftest an-interactive-plot-asks-for-the-same-kind
+(deftest an-interactive-plot-asks-for-the-same-kind-for-its-plot-part
   (testing "the tooltip wrapper carries the kind, not only the bare svg"
-    (is (= :kind/hiccup2
-           (:kindly/kind (meta (pj/plot (bars {:tooltip true}))))))))
+    ;; An interactive plot is a fragment: the plot under :kind/hiccup2,
+    ;; and one :kind/scittle script per interaction beside it. The scripts
+    ;; sit outside the escaping subtree on purpose -- see
+    ;; scicloj.plotje.interactivity-test.
+    (let [parts (pj/plot (bars {:tooltip true}))]
+      (is (= :kind/fragment (:kindly/kind (meta parts))))
+      (is (= [:kind/hiccup2 :kind/scittle]
+             (mapv #(:kindly/kind (meta %)) parts))))))
 
 (deftest the-hiccup-carries-the-text-as-written
   (testing "escaping belongs to whoever renders, so the tree holds the original"

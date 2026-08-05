@@ -359,14 +359,26 @@
             css-parts (cond-> []
                         tooltip (conj tooltip-css)
                         brush (conj brush-css))]
-        (kind/hiccup2
-         (into [:div {:id div-id
-                      :style {:position "relative" :display "inline-block"}}
-                [:style (apply str css-parts)]
-                svg]
+        ;; The scripts are siblings of the plot rather than children of
+        ;; it. `:kind/hiccup2` escapes every string it renders, which is
+        ;; what carries a category named R&D to the page as text -- and a
+        ;; script body is a string like any other, so a script nested in
+        ;; that subtree reaches the browser with `&quot;` where it wrote
+        ;; `"`. A script element's content is raw text in HTML, so nothing
+        ;; decodes those entities back and Scittle never reads the form.
+        ;; A fragment renders each part under its own kind: the plot
+        ;; escapes, the scripts do not. `:kind/scittle` also has to be
+        ;; asked for here, because Clay only recognizes a bare list as
+        ;; script when walking inside hiccup.
+        (kind/fragment
+         (into [(kind/hiccup2
+                 [:div {:id div-id
+                        :style {:position "relative" :display "inline-block"}}
+                  [:style (apply str css-parts)]
+                  svg])]
                (cond-> []
-                 tooltip (conj (tooltip-script div-id))
-                 brush (conj (brush-script div-id))))))
+                 tooltip (conj (kind/scittle (tooltip-script div-id)))
+                 brush (conj (kind/scittle (brush-script div-id)))))))
       (kind/hiccup2 svg))))
 
 (defmethod render/plan->plot :svg [plan _ opts]

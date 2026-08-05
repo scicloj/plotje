@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+- fix: `{:tooltip true}` and `{:brush true}` work in the browser again. Since 0.7.0 the plot asked Clay for `:kind/hiccup2`, which escapes every string it renders -- including the bodies of the Scittle scripts that drive the interactions, so they reached the page with `&quot;` where they wrote `"`. A script element's content is raw text in HTML, so nothing decoded them back and neither interaction ran. An interactive plot is now a `:kind/fragment`: the plot itself under `:kind/hiccup2`, which is what keeps a category named `R&D` reaching the page as text, and one `:kind/scittle` script beside it per interaction.
 - terminology fixes in docstrings
 
 ## [0.7.0 - 2026-08-03]
