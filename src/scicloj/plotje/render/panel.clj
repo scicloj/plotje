@@ -139,6 +139,37 @@
                                          :text-anchor "end"))))))
             values labels)))))
 
+(defn- layer-ctx
+  "The drawing context one layer is rendered with.
+
+   A layer positioned in the data goes through the panel's scales and
+   coord, as every layer always has. A layer positioned in a
+   drawing-space frame does not: its numbers are already drawing units,
+   and all that is left is to measure them from the right corner.
+   `:drawing-area` starts at the panel background's top left, which is
+   the panel's own origin plus its margin."
+  [ctx layer m]
+  (if (= :drawing-area (:in layer))
+    (assoc ctx :coord-fn (fn [x y]
+                           [(+ (double m) (double x))
+                            (+ (double m) (double y))]))
+    ctx))
+
+(defn- offset-drawables
+  "Shift a layer's drawables by its `:offset-x` / `:offset-y`, in drawing
+   units.
+
+   A constant offset over a whole layer is a translation of what that
+   layer drew, so it applies here, once, rather than inside each of the
+   twenty-five marks' renderers. The translation sits inside the clip
+   region, so an offset mark is still clipped to the drawing area."
+  [layer drawables]
+  (let [dx (double (or (:offset-x layer) 0))
+        dy (double (or (:offset-y layer) 0))]
+    (if (and (zero? dx) (zero? dy))
+      drawables
+      [(ui/translate dx dy (vec drawables))])))
+
 ;; ---- Panel Rendering ----
 
 (defn panel->membrane
@@ -235,7 +266,8 @@
         marks-by-region
         (into {} (for [[region region-layers]
                        (group-by #(mark/mark-clip-region (:mark %)) layers)]
-                   [region (vec (mapcat #(mark/layer->membrane % ctx)
+                   [region (vec (mapcat #(offset-drawables
+                                          % (mark/layer->membrane % (layer-ctx ctx % m)))
                                         region-layers))]))
         marks (vec (mapcat val marks-by-region))
 

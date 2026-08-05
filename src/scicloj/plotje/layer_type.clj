@@ -18,7 +18,17 @@
    override the visual mark or statistical transform supplied by its
    layer-type entry; unknown keywords raise a clear error at build time."
   [:x :y :color :color-type :alpha :group :position :data
-   :x-type :y-type :mark :stat])
+   :x-type :y-type :mark :stat :offset-x :offset-y :in])
+
+(def spaces
+  "The coordinate systems a layer's `:x` and `:y` can be given in, named
+   by `:in`. `:data` is the default and is what every layer has always
+   used. `:drawing-area` measures in drawing units from the top left of
+   the panel background, inside the axis margin.
+
+   Not to be confused with `:position`, which is the dodge/stack/fill
+   adjustment a layer type carries."
+  #{:data :drawing-area})
 
 (def layer-option-docs
   "Documentation for layer option keys. Maps key to description string."
@@ -36,6 +46,9 @@
    :position "Position adjustment keyword — how overlapping groups are arranged (see pj/position-doc)"
    :nudge-x "Shift all x-coordinates by this data-space amount"
    :nudge-y "Shift all y-coordinates by this data-space amount"
+   :in "The space this layer's :x and :y are in — :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). A :drawing-area layer is placed on the panel rather than in the data, so it does not move the axis domains"
+   :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :nudge-x this is not a data value, so it works on a categorical axis and does not move the axis domain — use it to clear a label of the mark it labels"
+   :offset-y "Shift the whole layer down by this many drawing units, after the scales. See :offset-x"
    :align-x "Horizontal text anchor — :left, :center, or :right (default :left); which part of the label sits at the x position"
    :align-y "Vertical text anchor — :top, :center, or :bottom (default :center); which part of the label sits at the y position. Data-oriented: :top puts the label's top edge at the point"
    :size "Column keyword or fixed number — point radius or stroke width"

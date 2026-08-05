@@ -207,6 +207,12 @@
    [:ribbons {:optional true} [:vector any?]]
    [:color-categories {:optional true} [:maybe [:vector any?]]]
    [:position {:optional true} keyword?]
+   ;; Drawing-unit shift of the whole layer, applied after the scales.
+   ;; Numbers, not columns: one value shifts everything the layer drew.
+   [:offset-x {:optional true} number?]
+   [:offset-y {:optional true} number?]
+   ;; The space this layer's positions are in. Absent means :data.
+   [:in {:optional true} [:enum :data :drawing-area]]
    [:dodge-ctx {:optional true} any?]
    [:categories {:optional true} [:vector any?]]
    [:side {:optional true} [:enum :x :y :both]]

@@ -57,15 +57,17 @@
   [layer {:keys [nudge-x nudge-y x-type y-type]}]
   (when (and nudge-x (= x-type :categorical))
     (throw (ex-info (str ":nudge-x is a data-space shift and does not apply to a "
-                         "categorical x axis. To place a label on a categorical "
-                         "axis use :align-x; to offset overlapping marks use "
-                         ":jitter or :position :dodge.")
+                         "categorical x axis. To move a mark by a distance on the "
+                         "page use :offset-x, which works on any axis; to place a "
+                         "label relative to its point use :align-x; to spread "
+                         "overlapping marks use :jitter or :position :dodge.")
                     {:nudge-x nudge-x :x-type x-type})))
   (when (and nudge-y (= y-type :categorical))
     (throw (ex-info (str ":nudge-y is a data-space shift and does not apply to a "
-                         "categorical y axis. To place a label on a categorical "
-                         "axis use :align-y; to offset overlapping marks use "
-                         ":jitter or :position :dodge.")
+                         "categorical y axis. To move a mark by a distance on the "
+                         "page use :offset-y, which works on any axis; to place a "
+                         "label relative to its point use :align-y; to spread "
+                         "overlapping marks use :jitter or :position :dodge.")
                     {:nudge-y nudge-y :y-type y-type})))
   (if (or nudge-x nudge-y)
     (let [nx (when nudge-x (double nudge-x))

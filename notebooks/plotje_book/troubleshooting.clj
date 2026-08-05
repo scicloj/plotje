@@ -193,8 +193,21 @@
 (kind/test-last
  [(fn [msg] (re-find #":nudge-x .* categorical x axis" msg))])
 
-;; **Fix**: To place a label on a categorical axis, anchor it with
-;; `:align-x`/`:align-y` instead -- `:align-x :right` tucks the label
+;; **Fix**: To move a mark by a distance on the page, use `:offset-x`
+;; or `:offset-y`. These are drawing units applied after the scales, so
+;; they apply on a categorical axis as on any other:
+
+(-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
+    (pj/lay-bar :species :pct)
+    (pj/lay-text :species :pct {:text :pct :align-x :center :offset-y -6}))
+
+(kind/test-last
+ [(fn [fr]
+    (= [nil -6]
+       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
+
+;; To place a label relative to its own point, anchor it with
+;; `:align-x`/`:align-y` -- `:align-x :right` tucks the label
 ;; inside a bar's end. (To spread overlapping marks on a categorical
 ;; axis, use `:jitter` or `:position :dodge`.)
 
@@ -383,38 +396,34 @@
 
 ;; ## Constant `:x` or `:y` in a Layer's Options
 ;;
-;; **Symptom**: An error like
-;; `"lay-text :y must be a column reference (keyword or string),
-;; but got 3.0"`, typically when adding a text or label layer at a
-;; fixed horizontal or vertical position. (Reference lines use
-;; `pj/lay-rule-h` with `:y-intercept` or `pj/lay-rule-v` with
-;; `:x-intercept` instead.)
+;; **Symptom**: a note is needed at one fixed position, and no column
+;; holds that position.
 ;;
-;; **Cause**: `:x` and `:y` are position **mappings** -- they must
-;; name a column that the stat can index into, not hold a scalar
-;; constant.
-
-(try
-  (-> (rdatasets/datasets-iris)
-      (pj/lay-point :sepal-length :sepal-width)
-      (pj/lay-text {:x :sepal-length :y 3.0 :text :species})
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e)))
-
-(kind/test-last
- [(fn [msg] (re-find #":y must be a column reference" msg))])
-
-;; **Fix**: Provide a small one-row dataset via `:data` whose columns
-;; hold the constant values, then reference those columns:
+;; **This is not an error.** A position may be given as a value, the
+;; same way a color may be `"red"` rather than a column. The layer
+;; below places its text at x 6.5 and y 3.5 with no dataset of its
+;; own, and a string `:text` on such a layer is the text itself
+;; rather than a column name:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
-    (pj/lay-text {:data {:sepal-length [6.5] :species ["mean"] :yy [3.5]}
-                  :x :sepal-length :y :yy :text :species}))
+    (pj/lay-text {:x 6.5 :y 3.5 :text "mean"}))
 
 (kind/test-last [(fn [v] (some #{"mean"} (:texts (pj/svg-summary v))))])
 
-;; **A scalar that is a column name needs a different fix.** A dataset
+;; A literal position is a data value like any other, so it takes part
+;; in the axis domains: a note placed beyond the data widens the axis
+;; to hold it. To place a mark on the panel instead -- in drawing
+;; units from the corner of the panel background, leaving the axes
+;; alone -- give the layer `:in :drawing-area`. The
+;; [Customization](./plotje_book.customization.html) chapter covers
+;; that choice.
+;;
+;; Reference lines remain their own layer types: `pj/lay-rule-h` with
+;; `:y-intercept` and `pj/lay-rule-v` with `:x-intercept` draw a line
+;; across the whole panel, which a single position cannot say.
+
+;; **A scalar that is a column name is still refused.** A dataset
 ;; built without column names is given integer ones, so mapping such a
 ;; column reads as a constant position and is refused in the same words:
 

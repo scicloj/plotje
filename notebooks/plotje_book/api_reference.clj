@@ -454,7 +454,7 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:polygons s))))])
 
-;; ## Annotations
+;; ## Reference Lines and Bands
 
 ;; Reference lines and shaded bands are regular layers. Position comes
 ;; from the options map (`:y-intercept` for `lay-rule-h`, `:x-intercept`
@@ -806,6 +806,41 @@ plan1
 (kind/test-last [(fn [m] (and (= 600 (:width m))
                               (= "x" (:x-label m))))])
 
+(kind/doc #'pj/frames)
+
+;; The whole result for this single-panel plot: the canvas, and one
+;; entry per panel with its position in the grid, its domains and scale
+;; specs, whether it can be mapped back to data, and its three frames.
+
+(-> plan1 pj/frames kind/pprint)
+
+(kind/test-last
+ [(fn [m] (and (= [0.0 0.0 600.0 400.0] (:canvas m))
+               (= 1 (count (:panels m)))
+               (true? (-> m :panels first :invertible?))
+               (= 4 (count (-> m :panels first :frames :drawing-area)))))])
+
+;; The result contains no functions, so it can be printed, compared and
+;; read back from `pr-str`. The two mappings below take a panel entry
+;; as their first argument.
+
+(kind/doc #'pj/to-drawing)
+
+(pj/to-drawing (-> plan1 pj/frames :panels first) 2 5)
+
+(kind/test-last [(fn [v] (= 2 (count v)))])
+
+(kind/doc #'pj/to-data)
+
+;; A position survives the round trip:
+
+(let [panel (-> plan1 pj/frames :panels first)]
+  (->> (pj/to-drawing panel 2 5)
+       (apply pj/to-data panel)
+       (mapv #(Math/round (double %)))))
+
+(kind/test-last [(fn [v] (= [2 5] v))])
+
 (kind/doc #'pj/svg-summary)
 
 (-> (rdatasets/datasets-iris)
@@ -1001,7 +1036,7 @@ plan1
 
 (count pj/layer-option-docs)
 
-(kind/test-last [(fn [n] (= 51 n))])
+(kind/test-last [(fn [n] (= 54 n))])
 
 ;; ## Layer Type Registry
 
