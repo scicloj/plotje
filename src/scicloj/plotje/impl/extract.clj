@@ -11,11 +11,18 @@
 ;; ---- Color Resolution (data-space) ----
 
 (defn resolve-color
-  "Resolve a color value to [r g b a]. Handles column values, fixed colors, and defaults."
+  "Resolve a color value to [r g b a]. Handles column values, fixed colors, and defaults.
+
+   A fixed color wins over a group's palette color. The two cannot
+   conflict: `:color` is one key, so a literal there means there is no
+   color column, and any group color present came from `:group` instead.
+   Grouping by one column while drawing every group in one color is a
+   common case: many pale lines behind a few named ones. It needs the
+   fixed color to survive the grouping."
   [all-colors color-val fixed-color cfg]
   (cond
-    (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
     fixed-color (if (string? fixed-color) (defaults/hex->rgba fixed-color) fixed-color)
+    (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
     :else (defaults/hex->rgba (:default-color cfg))))
 
 (def dash-presets
