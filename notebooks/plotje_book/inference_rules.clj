@@ -316,7 +316,7 @@ colored-pose
 
 ;; The categorical column `:g` splits the data into two groups, each
 ;; with its own color drawn from the palette. A legend appears on the
-;; right (100 pixels wide) and the panel shrinks to make room.
+;; right (100 drawing units wide) and the panel shrinks to make room.
 ;;
 ;; The next section explores why a categorical color column creates
 ;; groups while a numeric color column does not.
@@ -1009,8 +1009,8 @@ full-layout-pose
            (= 100 (get-in full [:layout :legend-w])))))])
 
 ;; The bare plot reserves no space for a title and no legend strip.
-;; The full plot adds padding above for the title and 100 pixels on
-;; the right for the legend.
+;; The full plot adds padding above for the title and 100 drawing
+;; units on the right for the legend.
 
 ;; Layout type is also inferred from the pose structure:
 ;;

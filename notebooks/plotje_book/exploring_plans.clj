@@ -64,7 +64,7 @@ tiny-plan
 
 ;; Notice:
 ;;
-;; - Dimensions are 600x400 with a 10-pixel margin
+;; - Dimensions are 600x400 drawing units, with a margin of 10
 ;; - Labels `"x"` and `"y"` are inferred from column names
 ;; - No legend (we didn't map a column to color)
 ;; - One panel with `:x-domain`, `:y-domain`, ticks, and layers
@@ -250,7 +250,7 @@ hist-plan
                                  (every? #(pos? (:count %)) bars)))])
 
 ;; The renderer will draw a rectangle from `(lo, 0)` to `(hi, count)`
-;; in data space, then map through scales to pixels.
+;; in data space, then map it through the scales into drawing space.
 
 ;; ## Categorical Bars
 ;;
@@ -568,7 +568,8 @@ final-plan
 
 (kind/test-last [(fn [ds] (not (apply = ds)))])
 
-;; The plan also records per-panel pixel dimensions:
+;; The plan also records the panel grid and the overall dimensions,
+;; in drawing units:
 
 (select-keys faceted-plan [:layout-type :grid :total-width :total-height])
 

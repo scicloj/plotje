@@ -103,8 +103,8 @@
 ;; `layer->membrane` turns the plan layer into membrane drawable
 ;; primitives. The rendering context (`ctx`) provides:
 ;;
-;; - `:sx` -- the x scale function mapping data value to pixel x
-;; - `:sy` -- the y scale function mapping data value to pixel y
+;; - `:sx` -- the x scale function, data value to drawing-space x
+;; - `:sy` -- the y scale function, data value to drawing-space y
 ;; - `:panel-height`, `:panel-width`, `:margin` -- layout dimensions
 ;;
 ;; For a band (categorical) x-scale, `(sx category true)` returns

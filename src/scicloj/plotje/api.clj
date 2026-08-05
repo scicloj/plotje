@@ -2275,7 +2275,7 @@
   "Set plot-level options (title, labels, width, height, etc.).
    Nested maps (e.g. `:theme`) are deep-merged.
    `:width` and `:height` are coerced to long (rounded) so the plan carries
-   integer pixel dimensions through to render. On a composite pose
+   integer dimensions through to render. On a composite pose
    the options attach to the root so every descendant leaf inherits
    them at plan time."
   [pose opts]
@@ -2920,8 +2920,8 @@
 
    - `:cols` -- explicit column count (default: min(4, n-plots)).
    - `:title` -- centered title band above the grid.
-   - `:width` -- total composite width in pixels.
-   - `:height` -- total composite height in pixels.
+   - `:width` -- total composite width.
+   - `:height` -- total composite height.
    - `:share-scales` -- subset of `#{:x :y}` shared across cells
      (default: `#{}`).
 

@@ -169,7 +169,7 @@
 ;; Plotje reserves extra vertical space below the panel for the
 ;; angled labels, scaled by the angle. When that automatic estimate
 ;; reserves too much or too little, set `:x-tick-label-pad` (in
-;; pixels) to control the reserved height directly:
+;; drawing units) to control the reserved height directly:
 
 (-> {:product (map #(str "Product " %) (range 12))
      :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
@@ -574,7 +574,7 @@ pj/shape-symbols
 
 ;; `:stroke-dash` draws a line dashed or dotted, so a projected or
 ;; reference series reads apart from measured data. Pass a named preset
-;; or a raw `[dash gap]` pixel pattern.
+;; or a raw `[dash gap]` pattern in drawing units.
 ;;
 ;; `:dashed`:
 
@@ -603,8 +603,8 @@ pj/shape-symbols
                            (and (= 1 (:lines s))
                                 (= 0 (:dashed-lines s)))))])
 
-;; A raw `[dash gap]` vector sets the pattern directly, in pixels -- here
-;; a long dash and a short gap:
+;; A raw `[dash gap]` vector sets the pattern directly, in drawing
+;; units -- here a long dash and a short gap:
 
 (-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
     (pj/lay-line :x :y {:stroke-dash [12 4]}))
@@ -700,8 +700,8 @@ pj/shape-symbols
 
 ;; A bar labelled with its own value is the ordinary way to let a reader
 ;; take an exact number off a chart. The label for the longest bar is the
-;; one at risk: a text mark's size is fixed in pixels rather than measured
-;; in data units, so a label anchored at the largest value reaches past
+;; one at risk: a text mark's size is fixed in drawing units rather than
+;; measured in data units, so a label anchored at the largest value reaches past
 ;; the end of the axis whatever range that axis covers, and the panel cuts
 ;; it off there. That is how a count in the hundreds of thousands comes
 ;; out reading as its first four digits.
@@ -860,7 +860,8 @@ pj/shape-symbols
                                                           :tag ["a boxed label"]}})))))))])
 
 ;; Pass a map to shape the box. `:corner-radius` is how round the corners
-;; are, in pixels -- three labels at decreasing radius, the last square.
+;; are, in drawing units -- three labels at decreasing radius, the last
+;; square.
 ;;
 ;; A box sits at its data point, so it would cover the very point it
 ;; labels. `:nudge-x` shifts each label clear of its point, in data

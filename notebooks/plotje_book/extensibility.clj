@@ -801,7 +801,7 @@ graph LR
 
 ;; ## `make-scale`
 ;;
-;; Builds a wadogo scale from a domain and pixel range.
+;; Builds a wadogo scale from a domain and a drawing-space range.
 ;;
 (kind/table
  {:column-names ["Dispatch value" "Scale type"]
@@ -837,8 +837,8 @@ graph LR
 
 (kind/test-last [(fn [t] (= 4 (count (:row-maps t))))])
 ;;
-;; All four use the same scales -- `:flip` swaps which scale
-;; maps to which pixel axis, and `:polar` maps x to angle and y to radius.
+;; All four use the same scales -- `:flip` swaps which scale maps to
+;; which drawing-space axis, and `:polar` maps x to angle and y to radius.
 
 ;; A flipped bar chart uses `:flip` coordinates:
 

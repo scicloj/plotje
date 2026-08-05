@@ -40,12 +40,12 @@
    :align-y "Vertical text anchor — :top, :center, or :bottom (default :center); which part of the label sits at the y position. Data-oriented: :top puts the label's top edge at the point"
    :size "Column keyword or fixed number — point radius or stroke width"
    :shape "Column keyword for per-point shape"
-   :jitter "true or pixel amount — random offset to reduce overplotting"
+   :jitter "true or an amount in drawing units — random offset to reduce overplotting"
    :text "Column keyword for label content"
-   :font-size "Text height in pixels for a text or label mark (default 10)"
+   :font-size "Text height in drawing units for a text or label mark (default 10)"
    :font-weight "Draws the text bold — :normal (default) or :bold"
    :font-style "Draws the text italic — :normal (default) or :italic"
-   :box "Background box behind text — true for the default box, false or absent for none, or a map of box properties: {:corner-radius n} in pixels (default 3, 0 for square corners). pj/lay-label is pj/lay-text with the box on"
+   :box "Background box behind text — true for the default box, false or absent for none, or a map of box properties: {:corner-radius n} in drawing units (default 3, 0 for square corners). pj/lay-label is pj/lay-text with the box on"
    :confidence-band "true to show a standard-error confidence ribbon around the fitted line"
    :bootstrap-resamples "Number of bootstrap resamples for a LOESS confidence ribbon (default 200)"
    :bandwidth "Smoothing bandwidth for density and LOESS methods"
@@ -67,12 +67,12 @@
    :bins "Number of histogram bins, overriding the :bin-method estimate"
    :binwidth "Width of one histogram bin in data units, an alternative to :bins"
    :box-width "Fraction (0.0-1.0) of the categorical band that a box fills (default 0.6)"
-   :cap-width "Width of an errorbar's end caps in pixels"
-   :length "Length of a rug tick in pixels"
+   :cap-width "Width of an errorbar's end caps in drawing units"
+   :length "Length of a rug tick in drawing units"
    :level "Confidence level of a smooth's ribbon (default 0.95)"
    :stroke "Outline color for an area or density curve — the fill still comes from :color"
-   :stroke-width "Width of that outline in pixels"
-   :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline — :dashed, :dotted, :solid, or a raw [dash gap ...] pixel pattern"})
+   :stroke-width "Width of that outline in drawing units"
+   :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline — :dashed, :dotted, :solid, or a raw [dash gap ...] pattern in drawing units"})
 
 (def ^:private registry*
   "Atom holding keyword → layer-type entry map."

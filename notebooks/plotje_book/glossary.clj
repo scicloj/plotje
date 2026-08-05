@@ -131,11 +131,15 @@ my-pose
 ;; ## Position
 ;;
 ;; A **position** adjustment determines how overlapping marks are
-;; placed in coordinate space: kept at their data values
-;; (`:identity`), dodged side-by-side along a categorical band
-;; (`:dodge`), stacked end-to-end so bar tops sit on the previous
-;; bar's top (`:stack`), or normalized to fill `[0, 1]` proportions
-;; (`:fill`). Position runs between stat computation and rendering.
+;; placed: kept at their data values (`:identity`), dodged
+;; side-by-side along a categorical band (`:dodge`), stacked
+;; end-to-end so bar tops sit on the previous bar's top (`:stack`),
+;; or normalized to fill `[0, 1]` proportions (`:fill`).
+;; Position runs between stat computation and rendering. `:stack`
+;; and `:fill` rewrite values in **data space**, before the scales
+;; see them; `:dodge` leaves values untouched and records which slot
+;; each mark takes in its band, which becomes a position in
+;; **drawing space** when the mark is drawn.
 ;; You can override the default position by passing `:position` in
 ;; the layer options.
 ;; When multiple layers share `:position :dodge`, they are coordinated
@@ -215,7 +219,7 @@ my-pose
 ;;
 ;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:x-min`,
 ;;   `:x-max`, `:y-min`, `:y-max` for marks that need them) place
-;;   marks in coordinate space.
+;;   each mark.
 ;; - **Appearance aesthetics** (`:color`, `:size`, `:alpha`, `:shape`,
 ;;   `:text`, `:fill`) shape how each mark looks.
 ;;
@@ -295,12 +299,57 @@ my-pose
            (= ["setosa" "versicolor" "virginica"]
               (mapv :label groups)))))])
 
+;; ## Data Space
+
+;; **Data space** is values in their original units -- centimeters,
+;; dollars, dates, species names. A pose's mappings, a stat's inputs
+;; and outputs, and a plan's domains and ticks are all in data space.
+;; Every stage up to and including the plan keeps its geometry there,
+;; which is why a plan is readable: the numbers in it are the numbers
+;; from the dataset.
+
+;; ## Drawing Space
+
+;; **Drawing space** is where the rendered output lives: positions
+;; measured in **drawing units** from the top left of the canvas, x
+;; rightward and y downward. A **scale** maps one axis from data
+;; space into drawing space and a **coord** decides how the two axes
+;; land there, so the crossing happens at the membrane stage. The
+;; plan holds its geometry in data space, alongside the layout
+;; dimensions -- panel size, margins, label padding -- which are
+;; already in drawing units.
+;;
+;; A drawing unit is one unit of the plot's `:width` and `:height`.
+;; In SVG output it is one user unit; in PNG output it is one Java2D
+;; unit. It coincides with a screen pixel only when the plot is shown
+;; at its natural size, which is why this book says drawing unit
+;; rather than pixel. The exception is the browser interaction layer:
+;; a mouse event's coordinates really are CSS pixels, so the
+;; [Interactivity](./plotje_book.interactivity.html) chapter says
+;; pixels and means them.
+;;
+;; Three frames are named in this book, all measured in drawing
+;; units:
+;;
+;; - the **canvas** -- the whole output image
+;; - the **panel box** -- one panel including its axis margin
+;; - the **drawing area** -- the panel background inside that margin,
+;;   where data marks are clipped
+
 ;; ## Nudge
 ;;
 ;; A **nudge** shifts data coordinates by a constant offset.
 ;; It is orthogonal to position -- you can nudge within a dodge,
 ;; or nudge at identity. Applied via `:nudge-x` and `:nudge-y`
 ;; keys in the layer options.
+;;
+;; A nudge is applied before the scales, but the axis domain is
+;; computed without it, so a nudge large enough to carry a mark past
+;; the domain leaves it clipped at the panel edge. Widen the domain
+;; with `pj/scale` when that happens. A nudge is therefore a shift in
+;; data units rather than a claim about where the datum belongs;
+;; ggplot2's `nudge_x` and `nudge_y` differ here, expanding the axis
+;; range to keep the nudged mark in view.
 
 (-> {:x [1 2 3] :y [4 5 6]}
     (pj/lay-point :x :y {:nudge-x 0.5}))
@@ -661,7 +710,7 @@ annotated
 ;; |:----|:---------|
 ;; | `:bg` | Panel background color |
 ;; | `:grid` | Gridline color |
-;; | `:font-size` | Base font size in pixels |
+;; | `:font-size` | Base font size in drawing units |
 ;;
 ;; Passed as `{:theme {...}}` via `pj/options`, `pj/with-config`, or
 ;; `pj/set-config!`. Other visual settings (margins, legend width, tick
@@ -900,6 +949,8 @@ annotated
 ;; | Plan layer | Resolved geometry + style for one mark | Inside plan panels |
 ;; | Domain | Data range on an axis | Part of panel |
 ;; | Tick | Axis mark with label at a domain value | Part of panel |
+;; | Data space | Values in their original units -- what mappings, stats, domains, and ticks hold | Every stage up to the plan |
+;; | Drawing space | Positions in drawing units on the output canvas | Membrane and plot stages |
 ;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale` |
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |

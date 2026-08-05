@@ -107,7 +107,7 @@
   [:circle :square :triangle :diamond :triangle-down :plus :cross])
 
 (def legend-swatch-size
-  "Side length of legend color swatches (square, in pixels)."
+  "Side length of legend color swatches (square)."
   8)
 
 ;; ---- Color Helpers ----
@@ -409,10 +409,10 @@
 (def config-key-docs
   "Documentation metadata for configuration keys.
    Each entry maps a key to [category description]."
-  {:width ["Layout" "Plot width in pixels"]
-   :height ["Layout" "Plot height in pixels"]
-   :margin ["Layout" "Margin around single-panel plots (pixels)"]
-   :margin-multi ["Layout" "Margin around multi-panel plots (pixels)"]
+  {:width ["Layout" "Plot width"]
+   :height ["Layout" "Plot height"]
+   :margin ["Layout" "Margin around single-panel plots"]
+   :margin-multi ["Layout" "Margin around multi-panel plots"]
    :panel-size ["Layout" "Default panel size for faceted/multi-variable grids"]
    :legend-width ["Layout" "Width reserved for the legend column"]
    :legend-position ["Layout" "Legend placement — :right, :bottom, :top, or :none"]
@@ -430,10 +430,10 @@
    :annotation-stroke ["Annotations" "Stroke color for annotation marks"]
    :annotation-dash ["Annotations" "Dash pattern [dash gap] for annotation lines"]
    :band-opacity ["Annotations" "Opacity for confidence bands"]
-   :tick-spacing-x ["Ticks" "Minimum pixel spacing between x-axis ticks"]
-   :tick-spacing-y ["Ticks" "Minimum pixel spacing between y-axis ticks"]
+   :tick-spacing-x ["Ticks" "Minimum spacing between x-axis ticks"]
+   :tick-spacing-y ["Ticks" "Minimum spacing between y-axis ticks"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
-   :x-tick-label-pad ["Ticks" "Extra vertical space (px) reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
+   :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
@@ -466,8 +466,8 @@
    :size-label ["Content" "Size legend title (overrides inferred column name)"]
    :alpha-label ["Content" "Alpha legend title (overrides inferred column name)"]
    :shape-label ["Content" "Shape legend title (overrides inferred column name)"]
-   :panel-width ["Layout" "Pin panel width in pixels (escape hatch; :width becomes derived total)"]
-   :panel-height ["Layout" "Pin panel height in pixels (escape hatch; :height becomes derived total)"]
+   :panel-width ["Layout" "Pin panel width (escape hatch; :width becomes derived total)"]
+   :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
    :scales ["Layout" "Facet scale coordination — :shared (default), :free, :free-x, :free-y"]
    :share-scales ["Layout" "Composite scale coordination — set of axes (#{:x}, #{:y}, or #{:x :y}) shared across composite cells"]
    :config ["Config" "Nested config map merged into resolved config"]})

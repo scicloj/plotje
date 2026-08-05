@@ -101,7 +101,8 @@ graph LR
 
 ;; ## Why these stages?
 ;;
-;; A simpler library could go from data to pixels in one function.
+;; A simpler library could go from data to a rendered image in one
+;; function.
 ;; Plotje splits the work into five stages so each stage addresses
 ;; a distinct concern, and each boundary between stages has a
 ;; specific purpose:
