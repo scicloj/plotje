@@ -48,6 +48,13 @@
 (defmethod make-scale :log [domain pixel-range _]
   (ws/scale :log {:domain domain :range pixel-range}))
 
+(defn invert
+  "Read a drawing-space position back as a data value. On a band scale
+   this answers with the category whose band contains the position, and
+   with nil outside every band."
+  [sc v]
+  (ws/inverse sc v))
+
 (defmethod make-scale [:categorical :doc] [_ _ _] "Band scale (one band per category)")
 (defmethod make-scale [:linear :doc] [_ _ _] "Continuous linear mapping")
 (defmethod make-scale [:log :doc] [_ _ _] "Logarithmic mapping")

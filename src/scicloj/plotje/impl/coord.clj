@@ -1,4 +1,5 @@
-(ns scicloj.plotje.impl.coord)
+(ns scicloj.plotje.impl.coord
+  (:require [scicloj.plotje.impl.scale :as scale]))
 
 (defn- polar-project
   "Project pixel-space (px, py) to polar coordinates.
@@ -61,6 +62,42 @@
         y-lo (double m) y-span (double (- ph m m))]
     (fn [px py]
       (polar-project cx cy r-max x-lo x-span y-lo y-span px py))))
+
+;; ---- Inverse: drawing space back to data space ----
+
+(defmulti make-inverse
+  "Build the inverse of `make-coord`: (inverse panel-x panel-y) -> [data-x
+   data-y], where the pixel arguments are relative to the panel box's own
+   origin. Returns nil for a coordinate system with no coordinate-by-
+   coordinate inverse.
+
+   Interaction reads this direction: a brush reporting a data range, a
+   crosshair reading an axis, a hit test."
+  (fn [coord-type sx sy pw ph m] coord-type))
+
+(defmethod make-inverse :default [_ _ _ _ _ _] nil)
+
+(defmethod make-inverse :cartesian [_ sx sy _ _ _]
+  (fn [px py] [(scale/invert sx px) (scale/invert sy py)]))
+
+(defmethod make-inverse :fixed [_ sx sy _ _ _]
+  (fn [px py] [(scale/invert sx px) (scale/invert sy py)]))
+
+(defmethod make-inverse :flip [_ sx sy _ _ _]
+  ;; :flip draws data x through sy and data y through sx, so the inverse
+  ;; reads them back the same way round.
+  (fn [px py] [(scale/invert sy py) (scale/invert sx px)]))
+
+(defn invertible?
+  "Whether `coord-type` has an inverse, i.e. a method of its own rather
+   than the nil-returning default."
+  [coord-type]
+  (not= (get-method make-inverse coord-type)
+        (get-method make-inverse :default)))
+
+;; :polar has no method on purpose. Its projection folds x and y together
+;; through an angle and a radius; inverting it would answer with a point
+;; that is only sometimes the one asked about.
 
 ;; ---- Tick visibility ----
 

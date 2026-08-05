@@ -13,6 +13,7 @@
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.file :as pf]
+            [scicloj.plotje.impl.frames :as frames-impl]
             [scicloj.plotje.render.membrane :as membrane]
             [scicloj.plotje.impl.membrane :as membrane-schema]
             [scicloj.plotje.render.composite]
@@ -2707,6 +2708,73 @@
        (->pose "pj/plan")
        (options opts)
        plan)))
+
+(defn frames
+  "Where a plot's panels sit on the canvas, and how to get between data
+   space and drawing space.
+
+   Takes a plan or a pose; a pose is planned first. Returns a map:
+
+   - `:canvas` -- `[x y width height]` of the whole image, in drawing units
+   - `:panels` -- one entry per panel, each carrying `:row`, `:col`,
+     `:coord`, `:x-domain`, `:y-domain`, `:x-scale`, `:y-scale`,
+     `:invertible?` and `:frames`
+
+   A panel's `:frames` names three rectangles, all `[x y width height]`
+   in canvas coordinates: `:canvas`, `:panel-box` (the panel with its
+   axis margin) and `:drawing-area` (the background inside that margin,
+   where data marks are clipped).
+
+   The result contains no functions, so it can be printed, compared and
+   read back from `pr-str`. To map between the spaces, pass a panel entry
+   to `pj/to-drawing` or `pj/to-data`.
+
+   For a composite, every cell's panels report canvas coordinates, so
+   their rectangles can be compared without further arithmetic.
+
+   This is the same computation the renderer draws with. Use it to place
+   your own annotations beside a plot, to compose a Plotje membrane with
+   hand-built Membrane views, or to read a pointer position back as data.
+
+   - `(frames my-pose)`
+   - `(-> my-plan frames :panels first :frames :drawing-area)`"
+  [plan-or-pose]
+  (let [p (if (plan? plan-or-pose) plan-or-pose (plan plan-or-pose))
+        ;; A leaf plan sizes itself with :total-width/:total-height; a
+        ;; composite with :width/:height.
+        w (or (:total-width p) (:width p))
+        h (or (:total-height p) (:height p))]
+    {:canvas [0.0 0.0 (double w) (double h)]
+     :panels (frames-impl/plan-frames p [0.0 0.0])}))
+
+(defn to-drawing
+  "Where data positions land on the canvas, for one panel of `pj/frames`.
+
+   Takes a panel entry -- an element of `(:panels (frames plot))` -- and
+   either one x and y, or a collection of `[x y]` pairs. The collection
+   arity builds the panel's scales once, so it is the one to reach for
+   when placing many positions.
+
+   - `(to-drawing panel 3.2 21.0)` returns `[x y]` in canvas coordinates
+   - `(to-drawing panel [[3.2 21.0] [4.0 18.5]])` returns a vector of them"
+  ([panel x y] (frames-impl/to-drawing panel x y))
+  ([panel points] (frames-impl/to-drawing panel points)))
+
+(defn to-data
+  "What data positions the canvas coordinates name, for one panel of
+   `pj/frames`. The inverse of `pj/to-drawing`. An interaction reads
+   this direction: which value is under the pointer, which range a
+   selection covers.
+
+   Throws under a coordinate system with no inverse. `:polar` maps x and
+   y together to an angle and a radius, so a canvas position there does
+   not name one pair of data values. A panel entry reports which case it
+   is in `:invertible?`.
+
+   - `(to-data panel 412.0 88.5)` returns `[x y]` in data values
+   - `(to-data panel [[412.0 88.5]])` returns a vector of them"
+  ([panel cx cy] (frames-impl/to-data panel cx cy))
+  ([panel points] (frames-impl/to-data panel points)))
 
 (defn membrane
   "Resolve a pose into a `PlotjeMembrane`. Literal composition of the
