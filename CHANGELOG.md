@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+- terminology fixes in docstrings
 
 ## [0.7.0 - 2026-08-03]
 - Kindly `4-beta23` -> `4-beta25`, brought in by Plotje: `pj/plot` asks for `:kind/hiccup2`, which `4-beta23` does not define.
