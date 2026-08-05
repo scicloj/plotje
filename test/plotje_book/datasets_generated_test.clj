@@ -154,16 +154,16 @@
   (tc/map-columns
    :function
    :var
-   (fn* [p1__79182#] (-> p1__79182# meta :name)))
-  (tc/map-columns :dataset :var (fn* [p1__79183#] (p1__79183#)))
+   (fn* [p1__70654#] (-> p1__70654# meta :name)))
+  (tc/map-columns :dataset :var (fn* [p1__70655#] (p1__70655#)))
   (tc/map-columns :rows :dataset tc/row-count)
   (tc/map-columns
    :description
    :var
    (fn*
-    [p1__79184#]
+    [p1__70656#]
     (->
-     p1__79184#
+     p1__70656#
      meta
      :doc-link
      slurp
@@ -185,7 +185,7 @@
  (->
   (rdatasets/datasets-iris)
   (tc/select-rows
-   (fn* [p1__79185#] (= "setosa" (:species p1__79185#))))))
+   (fn* [p1__70657#] (= "setosa" (:species p1__70657#))))))
 
 
 (deftest t42_l237 (is ((fn [ds] (= 50 (tc/row-count ds))) v41_l234)))
