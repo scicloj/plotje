@@ -2786,14 +2786,25 @@
   "Where data positions land on the canvas, for one panel of `pj/frames`.
 
    Takes a panel entry -- an element of `(:panels (frames plot))` -- and
-   either one x and y, or a collection of `[x y]` pairs. The collection
-   arity builds the panel's scales once, so it is the one to reach for
-   when placing many positions.
+   either one x and y, or a dataset of them with `:x` and `:y` columns.
+   The dataset arity maps whole columns and builds the panel's scales
+   once, so it is the one to reach for when placing many positions.
 
    - `(to-drawing panel 3.2 21.0)` returns `[x y]` in canvas coordinates
-   - `(to-drawing panel [[3.2 21.0] [4.0 18.5]])` returns a vector of them"
+   - `(to-drawing panel {:x [3.2 4.0] :y [21.0 18.5]})` returns a dataset
+     with the same two column names, now in canvas coordinates
+
+   A dataset rather than a collection of pairs because the two
+   coordinates of a point share one index space, which a dataset states
+   and two loose sequences only promise. Anything `tc/dataset` coerces
+   works.
+
+   The result is in canvas coordinates, measured from the top left of the
+   whole image. A `{:in :drawing-area}` layer measures from the drawing
+   area's own corner instead, so drawing these positions back means
+   subtracting that corner first."
   ([panel x y] (frames-impl/to-drawing panel x y))
-  ([panel points] (frames-impl/to-drawing panel points)))
+  ([panel data] (frames-impl/to-drawing panel data)))
 
 (defn to-data
   "What data positions the canvas coordinates name, for one panel of
@@ -2807,9 +2818,14 @@
    is in `:invertible?`.
 
    - `(to-data panel 412.0 88.5)` returns `[x y]` in data values
-   - `(to-data panel [[412.0 88.5]])` returns a vector of them"
+   - `(to-data panel {:x [412.0] :y [88.5]})` returns a dataset with the
+     same two column names, now in data values
+
+   A continuous axis answers with numbers, so its column is `:float64`.
+   A categorical axis answers with the category whose band holds the
+   position, so its column holds those."
   ([panel cx cy] (frames-impl/to-data panel cx cy))
-  ([panel points] (frames-impl/to-data panel points)))
+  ([panel data] (frames-impl/to-data panel data)))
 
 (defn membrane
   "Resolve a pose into a `PlotjeMembrane`. Literal composition of the

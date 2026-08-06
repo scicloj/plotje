@@ -14,7 +14,10 @@
    mapping (`pj/frames`) and the drawn output cannot drift apart:
    `render/membrane.clj` calls `panel-origin`, and `render/panel.clj`
    builds its scales the way `panel-scales` does."
-  (:require [scicloj.plotje.impl.coord :as coord]
+  (:require [tablecloth.api :as tc]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.functional :as dfn]
+            [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.scale :as scale]))
 
 (defn panel-origin
@@ -100,59 +103,119 @@
      :m (- (double dx) (double bx))}))
 
 (defn- panel-scale-pair
-  "The two wadogo scales for a panel entry."
-  [panel]
-  (let [{:keys [pw ph m]} (panel-shape panel)]
-    {:sx (scale/make-scale (:x-domain panel) [m (- pw m)] (:x-scale panel))
-     :sy (scale/make-scale (:y-domain panel) [(- ph m) m] (:y-scale panel))}))
+  "The two wadogo scales for a panel entry, given the shape already read
+   off it. Building a scale is the expensive part of a mapping call --
+   several microseconds against a few nanoseconds for applying one -- so
+   both directions build the pair once and reuse it across every point."
+  [panel {:keys [pw ph m]}]
+  {:sx (scale/make-scale (:x-domain panel) [m (- pw m)] (:x-scale panel))
+   :sy (scale/make-scale (:y-domain panel) [(- ph m) m] (:y-scale panel))})
 
-(defn- check-points
-  "Reject a single pair passed where a collection of pairs is expected.
+(defn- coordinate-columns
+  "The `:x` and `:y` columns of `data`, which may be a dataset or anything
+   `tc/dataset` coerces -- `{:x [1 2] :y [3 4]}`, or a vector of row maps.
 
-   `(to-drawing panel [2 5])` is the natural way to write one point, and
-   it means something else here: two points, each unreadable. Left alone
-   it fails inside the mapping with `nth not supported on this type`,
-   which names neither the argument nor the call."
-  [caller points]
-  (when (and (sequential? points) (number? (first points)))
-    (throw (ex-info (str caller " takes either two coordinates or a collection "
-                         "of [x y] pairs, but got a collection of numbers: "
-                         (pr-str (vec (take 4 points)))
+   A dataset rather than two loose sequences, because the two coordinates
+   of a point share one index: a dataset says that, and a pair of
+   sequences only promises it."
+  [caller data]
+  (when (and (sequential? data) (number? (first data)))
+    (throw (ex-info (str caller " takes either two coordinates or a dataset "
+                         "of them, but got a collection of numbers: "
+                         (pr-str (vec (take 4 data)))
                          ". For one point, pass the coordinates as two "
-                         "arguments; for several, wrap each pair.")
-                    {:points points})))
-  points)
+                         "arguments; for several, pass "
+                         "`{:x [...] :y [...]}`.")
+                    {:data data})))
+  (when (and (sequential? data) (sequential? (first data)))
+    (throw (ex-info (str caller " takes a dataset of coordinates, not a "
+                         "collection of pairs. Pass `{:x [...] :y [...]}`, "
+                         "whose two columns share one index, rather than "
+                         (pr-str (vec (take 2 data))) ".")
+                    {:data data})))
+  (let [ds (if (tc/dataset? data) data (tc/dataset data))
+        columns (set (tc/column-names ds))]
+    (when-not (and (contains? columns :x) (contains? columns :y))
+      (throw (ex-info (str caller " needs :x and :y columns, but its dataset "
+                           "has " (vec (sort-by str (tc/column-names ds)))
+                           ". Rename them, e.g. "
+                           "`(tc/rename-columns ds {:lon :x :lat :y})`.")
+                      {:columns (vec (tc/column-names ds))})))
+    [(ds :x) (ds :y)]))
+
+(defn- axis-answer-type
+  "The datatype an axis answers in when read backwards. A continuous
+   scale inverts to a number; a band scale inverts to the category whose
+   band holds the position, or nil outside every band. Reading a
+   continuous axis back through an object column would box every value
+   and roughly double the cost of building the dataset from it."
+  [domain scale-spec]
+  (if (= :categorical (scale/scale-kind domain scale-spec)) :object :float64))
+
+(defn- to-drawing-fn
+  "A function from one data pair to one canvas pair, with the panel's
+   shape, scales and projection resolved once."
+  [panel]
+  (let [{:keys [x0 y0 pw ph m] :as shape} (panel-shape panel)
+        {:keys [sx sy]} (panel-scale-pair panel shape)
+        coord-fn (coord/make-coord (:coord panel) sx sy pw ph m)]
+    (fn [x y]
+      (let [[px py] (coord-fn x y)]
+        [(+ x0 (double px)) (+ y0 (double py))]))))
+
+(defn- to-data-fn
+  "The inverse of `to-drawing-fn`, or a throw if this projection has none."
+  [panel]
+  (let [{:keys [x0 y0 pw ph m] :as shape} (panel-shape panel)
+        {:keys [sx sy]} (panel-scale-pair panel shape)
+        inverse-fn (coord/make-inverse (:coord panel) sx sy pw ph m)]
+    (when-not inverse-fn
+      (throw (ex-info (str "Coordinate system " (:coord panel) " has no inverse: "
+                           "it folds x and y together, so a canvas position "
+                           "does not name one pair of data values. Check "
+                           ":invertible? on the panel before asking.")
+                      {:coord (:coord panel)})))
+    (fn [cx cy]
+      (inverse-fn (- (double cx) x0) (- (double cy) y0)))))
 
 (defn to-drawing
-  "Map data positions into canvas coordinates for `panel`."
-  ([panel x y] (first (to-drawing panel [[x y]])))
-  ([panel points]
-   (check-points "pj/to-drawing" points)
-   (let [{:keys [x0 y0 pw ph m]} (panel-shape panel)
-         {:keys [sx sy]} (panel-scale-pair panel)
-         coord-fn (coord/make-coord (:coord panel) sx sy pw ph m)]
-     (mapv (fn [[x y]]
-             (let [[px py] (coord-fn x y)]
-               [(+ x0 (double px)) (+ y0 (double py))]))
-           points))))
+  "Map data positions into canvas coordinates for `panel`. Two coordinates
+   give one point back as `[x y]`; a dataset of them gives a dataset back."
+  ([panel x y] ((to-drawing-fn panel) x y))
+  ([panel data]
+   (let [[xs ys] (coordinate-columns "pj/to-drawing" data)
+         {:keys [x0 y0 pw ph m] :as shape} (panel-shape panel)
+         {:keys [sx sy]} (panel-scale-pair panel shape)
+         [pxs pys] ((coord/make-coord-columns (:coord panel) sx sy pw ph m)
+                    xs ys)]
+     ;; Realized once, at the end: a returned column is read more than
+     ;; once, and a lazy noncaching reader would run the scale again on
+     ;; every read.
+     (tc/dataset {:x (dtype/clone (dfn/+ pxs x0))
+                  :y (dtype/clone (dfn/+ pys y0))}))))
 
 (defn to-data
-  "Map canvas coordinates back to data positions for `panel`."
-  ([panel cx cy] (first (to-data panel [[cx cy]])))
-  ([panel points]
-   (check-points "pj/to-data" points)
-   (let [{:keys [x0 y0 pw ph m]} (panel-shape panel)
-         {:keys [sx sy]} (panel-scale-pair panel)
-         inverse-fn (coord/make-inverse (:coord panel) sx sy pw ph m)]
-     (when-not inverse-fn
+  "Map canvas coordinates back to data positions for `panel`. Two
+   coordinates give one point back as `[x y]`; a dataset of them gives a
+   dataset back."
+  ([panel cx cy] ((to-data-fn panel) cx cy))
+  ([panel data]
+   (let [[cxs cys] (coordinate-columns "pj/to-data" data)
+         {:keys [x0 y0 pw ph m] :as shape} (panel-shape panel)
+         {:keys [sx sy]} (panel-scale-pair panel shape)
+         inverse-columns (coord/make-inverse-columns
+                          (:coord panel) sx sy pw ph m
+                          (axis-answer-type (:x-domain panel) (:x-scale panel))
+                          (axis-answer-type (:y-domain panel) (:y-scale panel)))]
+     (when-not inverse-columns
        (throw (ex-info (str "Coordinate system " (:coord panel) " has no inverse: "
                             "it folds x and y together, so a canvas position "
                             "does not name one pair of data values. Check "
                             ":invertible? on the panel before asking.")
                        {:coord (:coord panel)})))
-     (mapv (fn [[cx cy]]
-             (inverse-fn (- (double cx) x0) (- (double cy) y0)))
-           points))))
+     (let [[xs ys] (inverse-columns (dtype/clone (dfn/- cxs x0))
+                                    (dtype/clone (dfn/- cys y0)))]
+       (tc/dataset {:x (dtype/clone xs) :y (dtype/clone ys)})))))
 
 (defn plan-frames
   "Geometry for every panel of `plan`, with `offset` added to each panel

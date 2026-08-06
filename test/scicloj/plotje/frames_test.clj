@@ -8,6 +8,9 @@
    thing it exists for, so the central test here renders a point to a
    raster and looks for ink where `:to-drawing` said it would be."
   (:require [clojure.test :refer [deftest testing is]]
+            [tablecloth.api :as tc]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.functional :as dfn]
             [scicloj.plotje.api :as pj])
   (:import [java.awt.image BufferedImage]))
 
@@ -85,14 +88,34 @@
       (is (= f (read-string (pr-str f))))
       (is (true? (-> f :panels first :invertible?))))))
 
-(deftest the-collection-arity-agrees-with-the-scalar-one
-  (testing "many positions map the same as one at a time, scales built once"
-    (let [p (one-panel lone-point)
-          pts [[1.0 2.0] [3.5 6.25] [9.0 9.0]]]
-      (is (= (mapv (fn [[x y]] (pj/to-drawing p x y)) pts)
-             (pj/to-drawing p pts)))
-      (is (= (mapv (fn [[x y]] (pj/to-data p x y)) pts)
-             (pj/to-data p pts))))))
+(deftest the-dataset-arity-agrees-with-the-scalar-one
+  (testing "a column of positions maps the same as one point at a time"
+    (let [p    (one-panel lone-point)
+          data {:x [1.0 3.5 9.0] :y [2.0 6.25 9.0]}
+          rows (fn [ds] (mapv (juxt :x :y) (tc/rows ds :as-maps)))]
+      (is (= (mapv (fn [x y] (pj/to-drawing p x y)) (:x data) (:y data))
+             (rows (pj/to-drawing p data))))
+      (is (= (mapv (fn [x y] (pj/to-data p x y)) (:x data) (:y data))
+             (rows (pj/to-data p data)))))))
+
+(deftest the-dataset-arity-answers-with-a-dataset
+  (testing "columns keep their names, and numbers stay numbers"
+    (let [p   (one-panel lone-point)
+          out (pj/to-drawing p {:x [1.0 3.5] :y [2.0 6.25]})]
+      (is (tc/dataset? out))
+      (is (= [:x :y] (vec (tc/column-names out))))
+      (is (= 2 (tc/row-count out)))
+      (is (= :float64 (dtype/elemwise-datatype (out :x))))
+      (is (= :float64 (dtype/elemwise-datatype ((pj/to-data p out) :x)))
+          "a continuous axis reads back as numbers, not as boxed objects"))))
+
+(deftest a-dataset-round-trips-through-both-directions
+  (testing "column in, column out, and back to where it started"
+    (let [p    (one-panel lone-point)
+          data (tc/dataset {:x [1.0 3.5 9.0] :y [2.0 6.25 9.0]})
+          back (pj/to-data p (pj/to-drawing p data))]
+      (is (every? #(< (abs %) 1e-9) (dfn/- (back :x) (data :x))))
+      (is (every? #(< (abs %) 1e-9) (dfn/- (back :y) (data :y)))))))
 
 (deftest flip-swaps-the-axes-in-both-directions
   (testing "under :flip the data x runs down the drawing y"
@@ -118,14 +141,19 @@
     (let [p (one-panel lone-point)]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"takes either two coordinates or a collection of \[x y\] pairs"
+           #"takes either two coordinates or a dataset of them"
            (pj/to-drawing p [2 5])))
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"takes either two coordinates or a collection of \[x y\] pairs"
+           #"not a collection of pairs"
+           (pj/to-drawing p [[2 5] [3 6]]))
+          "the older pair-collection shape names the dataset that replaced it")
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"takes either two coordinates or a dataset of them"
            (pj/to-data p [100.0 100.0])))
-      (testing "while the wrapped forms are accepted"
-        (is (= 1 (count (pj/to-drawing p [[2 5]]))))
+      (testing "while the two shapes that mean something are accepted"
+        (is (= 1 (tc/row-count (pj/to-drawing p {:x [2] :y [5]}))))
         (is (= 2 (count (pj/to-drawing p 2 5))))))))
 
 ;; ---- Frames ----
@@ -278,3 +306,28 @@
         (let [gaps (margin-gaps p)]
           (is (apply == gaps)
               (str label ": gaps differ around the drawing area: " gaps)))))))
+
+;; ---- What the two mapping directions cost ----
+
+(deftest a-mapping-call-builds-its-scales-once
+  (testing "the collection arity does not rebuild them per point"
+    ;; Building a wadogo scale takes microseconds; applying one takes
+    ;; nanoseconds. A per-point rebuild would not change a single
+    ;; answer, so nothing else here would catch it -- but mapping ten
+    ;; thousand points would cost a scale build ten thousand times.
+    ;; Ten thousand points against one, per point, with a wide margin
+    ;; for a loaded machine. A ratio, so a slow machine slows both sides.
+    (let [panel (one-panel lone-point)
+          data  (tc/dataset {:x (double-array (map #(* 0.001 %) (range 10000)))
+                             :y (double-array (map #(* 0.0005 %) (range 10000)))})
+          time-of (fn [f]
+                    (dotimes [_ 20] (f))
+                    (let [t0 (System/nanoTime)]
+                      (dotimes [_ 20] (f))
+                      (/ (- (System/nanoTime) t0) 20.0)))
+          per-point (/ (time-of #(pj/to-drawing panel data)) 10000.0)
+          one-call  (time-of #(pj/to-drawing panel 2.0 7.0))]
+      (is (< per-point (/ one-call 10.0))
+          (str "a point inside a dataset costs " (long per-point)
+               " ns against " (long one-call)
+               " ns for a call of its own; the scales look rebuilt per point")))))

@@ -16,6 +16,8 @@
    [scicloj.kindly.v4.kind :as kind]
    ;; Rdatasets -- standard datasets
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
+   ;; Tablecloth -- dataset manipulation
+   [tablecloth.api :as tc]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
    ;; Fastmath -- random number generation
@@ -860,6 +862,14 @@ plan1
 (kind/test-last [(fn [v] (= 2 (count v)))])
 
 (kind/doc #'pj/to-data)
+
+;; Many positions at once go in and come back as a dataset:
+
+(pj/to-drawing (-> plan1 pj/frames :panels first)
+               {:x [2 3] :y [5 6]})
+
+(kind/test-last [(fn [ds] (and (= [:x :y] (vec (tc/column-names ds)))
+                               (= 2 (tc/row-count ds))))])
 
 ;; A position survives the round trip:
 
