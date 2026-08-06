@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+- a literal `:x` requires a literal `:y`, and neither combines with a layer's own `:data`. Both were already true; they now say so, where before they failed further down against the one-row dataset the literal builds -- `{:x 2.0 :y :weight}` reported `:weight` missing from a dataset holding only `:x`, which the caller never wrote.
 - `:offset-x` and `:offset-y` apply to `pj/lay-rule-*` and `pj/lay-band-*` as well, so a reference line or shaded band shifts by a distance on the page like any other layer. They were accepted and then dropped.
 - fix: `pj/lay-rule-*` and `pj/lay-band-*` reject `:in` instead of accepting it and doing nothing. These four marks are carried on a panel's `:annotations` slot, which places them from data values only.
 - `pj/to-drawing` and `pj/to-data` name the mistake when one point is passed as a pair -- `(pj/to-drawing panel [2 5])` reads as two points and used to fail with `nth not supported on this type`.
