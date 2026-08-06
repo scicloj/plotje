@@ -1,7 +1,9 @@
 ;; # Customization
 ;;
 ;; How to adjust the look of a plot: dimensions, labels, scales,
-;; mark styling, palettes, themes, and legend placement.
+;; mark styling, palettes, themes, and legend placement. Where a mark
+;; goes, as opposed to how it looks, is
+;; [Placing Marks](./plotje_book.placing_marks.html).
 ;;
 ;; Other appearance topics live in their natural homes:
 ;; column-to-aesthetic mapping in
@@ -620,248 +622,13 @@ pj/shape-symbols
                            (and (= 3 (:polygons s))
                                 (contains? (:alphas s) 0.4))))])
 
-;; ## Text and Label Placement
+;; ## Text Placement
 ;;
-;; `pj/lay-text` and `pj/lay-label` place a label at a data point. By
-;; default the label starts at the point and reads to the right,
-;; centered on the point vertically. Two options move the label relative
-;; to the point by choosing which part of the text the point pins:
-;;
-;; - `:align-x` -- `:left`, `:center`, or `:right` (default `:left`)
-;; - `:align-y` -- `:top`, `:center`, or `:bottom` (default `:center`)
-;;
-;; The value names the part of the text placed at the point. `:align-x
-;; :right` pins the right edge, so the label extends leftward; `:align-x
-;; :center` straddles the point. `:align-y` reads in data orientation:
-;; `:top` pins the top edge, so the text reads downward from the point,
-;; and `:bottom` pins the bottom edge, so the text floats above it.
-;;
-;; Three labels on a column of points at the same x, one per horizontal
-;; anchor -- the text fans right of, across, and left of the point:
-
-(-> {:x [2 2 2] :y [3 2 1]}
-    (pj/lay-point :x :y {:size 6 :color "#888888"})
-    (pj/lay-text :x :y {:text :tag :align-x :left
-                        :data {:x [2] :y [3] :tag ["align-x :left"]}})
-    (pj/lay-text :x :y {:text :tag :align-x :center
-                        :data {:x [2] :y [2] :tag ["align-x :center"]}})
-    (pj/lay-text :x :y {:text :tag :align-x :right
-                        :data {:x [2] :y [1] :tag ["align-x :right"]}}))
-
-(kind/test-last
- [(fn [fr]
-    (= [:left :center :right]
-       (->> fr pj/plan :panels first :layers
-            (filter #(= :text (:mark %)))
-            (mapv #(-> % :style :align-x)))))])
-
-;; A practical use of `:align-y`: float a value label just above each
-;; bar by pinning the label's bottom edge to the bar top, centered over
-;; the bar.
-
-(-> {:species ["setosa" "versicolor" "virginica"]
-     :pct     [33.3 33.3 33.3]}
-    (pj/lay-bar :species :pct {:color "#a6cee3"})
-    (pj/lay-text :species :pct {:text :pct :align-x :center :align-y :bottom}))
-
-;; Every anchor value flows through for both `pj/lay-text` and
-;; `pj/lay-label`; the defaults reproduce the original placement, and an
-;; unrecognized value is rejected at plan time.
-
-(kind/test-last
- [(fn [fr]
-    (let [style-of (->> fr pj/plan :panels first :layers
-                        (filter #(= :text (:mark %)))
-                        first :style)
-          text-style
-          (fn [layer-fn opts]
-            (->> (-> {:x [1] :y [1] :t ["a"]}
-                     (layer-fn :x :y (merge {:text :t} opts)))
-                 pj/plan :panels first :layers
-                 (filter #(= :text (:mark %)))
-                 first :style
-                 (#(select-keys % [:align-x :align-y]))))]
-      (and
-       (= :center (:align-x style-of))
-       (= :bottom (:align-y style-of))
-       (= {:align-x :left :align-y :center} (text-style pj/lay-text {}))
-       (= :left   (:align-x (text-style pj/lay-text {:align-x :left})))
-       (= :center (:align-x (text-style pj/lay-text {:align-x :center})))
-       (= :right  (:align-x (text-style pj/lay-text {:align-x :right})))
-       (= :top    (:align-y (text-style pj/lay-text {:align-y :top})))
-       (= :center (:align-y (text-style pj/lay-text {:align-y :center})))
-       (= :bottom (:align-y (text-style pj/lay-text {:align-y :bottom})))
-       (= {:align-x :right :align-y :top}
-          (text-style pj/lay-label {:align-x :right :align-y :top}))
-       (try (text-style pj/lay-text {:align-x :middle}) false
-            (catch Exception _ true)))))])
-
-;; ## Offsetting a label from its mark
-;;
-;; Anchoring places one edge of the label exactly on the point, so a
-;; point with a radius still overlaps it. Clearing the mark takes a
-;; shift of a few units on the page, which is not a data quantity: it
-;; depends on the size the mark is drawn at, not on what the axis
-;; measures.
-;;
-;; `:offset-x` and `:offset-y` shift a layer by a number of drawing
-;; units after the scales have run. Positive `:offset-y` moves down the
-;; page, as drawing coordinates do.
-
-(-> {:height [1 2 3] :weight [2 4 6] :tag ["one" "two" "three"]}
-    (pj/lay-point :height :weight {:size 8})
-    (pj/lay-text :height :weight {:text :tag :offset-x 10 :align-y :center}))
-
-(kind/test-last
- [(fn [fr]
-    (= [nil 10]
-       (->> fr pj/plan :panels first :layers (mapv :offset-x))))])
-
-;; `:nudge-x` and `:nudge-y` do not serve this purpose. A nudge shifts
-;; the datum before the scales, so the same nudge covers a different
-;; distance on the page under a different domain, and on a categorical
-;; axis there is no numeric value to shift. An offset is a length on the
-;; page, so it applies on any axis:
-
-(-> {:team ["red" "green" "blue"] :score [3 5 4]}
-    (pj/lay-bar :team :score)
-    (pj/lay-text {:text :score :align-x :center :offset-y -6}))
-
-(kind/test-last
- [(fn [fr]
-    (= [nil -6]
-       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
-
-;; ## Placing a mark on the panel rather than in the data
-;;
-;; A note in a corner, a caption beside a peak, or a box around a
-;; region has no row in the dataset. Two features place such marks.
-;;
-;; First, `:x` and `:y` may be a value rather than a column, as
-;; `:color`, `:size` and `:alpha` have always allowed -- `{:color :species}`
-;; beside `{:color "red"}`. A value beside a column repeats for every row;
-;; a layer that gives both `:x` and `:y` as values draws one mark, and on
-;; such a layer a string `:text` is the text itself:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width)
-    (pj/lay-text {:x 7.5 :y 4.2 :text "outliers up here"}))
-
-(kind/test-last
- [(fn [fr] (some #{"outliers up here"} (:texts (pj/svg-summary (pj/plot fr)))))])
-
-;; That note is placed *in the data*: 7.5 is a sepal length, and the
-;; axis includes it like any other value. A note placed beyond the data
-;; widens the axis.
-;;
-;; Second, `:in` says which space a layer's positions are in.
-;; `:in :drawing-area` measures in drawing units from the top left of
-;; the panel background, so the position is a place on the panel rather
-;; than a value in the data -- and the axes are left alone:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width)
-    (pj/lay-text {:in :drawing-area :x 12 :y 12 :text "n = 150"}))
-
-(kind/test-last
- [(fn [fr]
-    (let [dom (fn [p] (:x-domain (first (:panels (pj/plan p)))))]
-      (= (dom (pj/lay-point (rdatasets/datasets-iris)
-                            :sepal-length :sepal-width))
-         (dom fr))))])
-
-;; Use a data-space position when the note is about a value, and
-;; `:in :drawing-area` when it is about the picture. `pj/frames` reports
-;; where a data value lands on the page, for lining up a hand-placed
-;; mark with a data one or composing your own drawing beside the plot;
-;; it is covered in the
-;; [API Reference](./plotje_book.api_reference.html).
-
-;; ## Room for a label at the edge of the data
-
-;; A bar labelled with its own value is the ordinary way to let a reader
-;; take an exact number off a chart. The label for the longest bar is the
-;; one at risk: a text mark's size is fixed in drawing units rather than
-;; measured in data units, so a label anchored at the largest value reaches past
-;; the end of the axis whatever range that axis covers, and the panel cuts
-;; it off there. That is how a count in the hundreds of thousands comes
-;; out reading as its first four digits.
-;;
-;; The axis is widened instead, by however much the text needs. This is on
-;; by default -- a label you asked for should be readable -- and the
-;; widening is driven by the labels themselves, so an axis only grows when
-;; something on it would otherwise be cut:
-
-(def tickets-by-violation
-  {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
-   :tickets   [462389 181444 163294]})
-
-(-> tickets-by-violation
-    (pj/lay-bar :tickets :violation)
-    (pj/lay-label :tickets :violation {:text :tickets}))
-
-;; Setting `:fit-text-domain` to false leaves the axis at the range the
-;; data alone implies. The same chart, with the top label running off the
-;; end of its axis and cut there:
-
-(-> tickets-by-violation
-    (pj/lay-bar :tickets :violation)
-    (pj/lay-label :tickets :violation {:text :tickets})
-    (pj/options {:fit-text-domain false}))
-
-;; The two axes carry that difference. Reading the upper end of each:
-
-(let [top-end (fn [opts]
-                (-> tickets-by-violation
-                    (pj/lay-bar :tickets :violation)
-                    (pj/lay-label :tickets :violation {:text :tickets})
-                    (pj/options opts)
-                    pj/plan
-                    :panels
-                    first
-                    :x-domain
-                    second))]
-  {:fitted (top-end {})
-   :unfitted (top-end {:fit-text-domain false})})
-
-(kind/test-last
- [(fn [m] (> (:fitted m) (:unfitted m)))])
-
-;; Drop the labels and the two agree again, because an axis only grows for
-;; text that is actually on it:
-
-(let [top-end (fn [opts]
-                (-> tickets-by-violation
-                    (pj/lay-bar :tickets :violation)
-                    (pj/options opts)
-                    pj/plan
-                    :panels
-                    first
-                    :x-domain
-                    second))]
-  {:fitted (top-end {})
-   :unfitted (top-end {:fit-text-domain false})})
-
-(kind/test-last
- [(fn [m] (= (:fitted m) (:unfitted m)))])
-
-;; A domain you set yourself with `pj/scale` is never widened. Naming a
-;; range is a statement about what the axis should show, and quietly
-;; extending it past the number you wrote would make the setting a
-;; suggestion. Leaving room for the labels becomes yours to do -- the
-;; domain that comes back is the one asked for, to the digit:
-
-(-> tickets-by-violation
-    (pj/lay-bar :tickets :violation)
-    (pj/lay-label :tickets :violation {:text :tickets})
-    (pj/scale :x {:domain [0 500000]})
-    pj/plan
-    :panels
-    first
-    :x-domain)
-
-(kind/test-last
- [(fn [d] (= [0 500000] d))])
+;; Where a text mark goes -- anchoring it to its point, shifting it by a
+;; distance on the page, placing it at a value rather than a column, or
+;; on the panel rather than in the data -- is the subject of
+;; [Placing Marks](./plotje_book.placing_marks.html). The rest of this
+;; chapter covers how text looks once it is placed.
 
 ;; ## Bold and Italic Text
 ;;
@@ -1181,9 +948,11 @@ pj/shape-symbols
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping and aesthetic vocabulary used throughout this chapter
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- where layer options, plot options, and configuration live
+;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes: anchoring, offsets, values for `:x` and `:y`, and `pj/frames`
 ;; - [**Interactivity**](./plotje_book.interactivity.html) -- tooltips and brush selection
 
 ;; ## What's Next
 ;;
+;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes, and in what units
 ;; - [**Faceting**](./plotje_book.faceting.html) -- split any chart into panels by one or two variables
 ;; - [**API Reference**](./plotje_book.api_reference.html) -- complete function listing with docstrings

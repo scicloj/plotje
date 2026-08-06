@@ -223,8 +223,8 @@
             (filter #(= :text (:mark %)))
             first :style :align-x)))])
 
-;; Anchoring is covered in the Text and Label Placement section of
-;; [Customization](./plotje_book.customization.html). `:nudge-x` and
+;; Anchoring is covered in
+;; [Placing Marks](./plotje_book.placing_marks.html). `:nudge-x` and
 ;; `:nudge-y` remain available on numeric and temporal axes.
 
 ;; ## Log Scale via `:scale-x` / `:scale-y` Options
@@ -441,8 +441,8 @@
 ;; to hold it. To place a mark on the panel instead -- in drawing
 ;; units from the corner of the panel background, leaving the axes
 ;; alone -- give the layer `:in :drawing-area`. The
-;; [Customization](./plotje_book.customization.html) chapter covers
-;; that choice.
+;; [Placing Marks](./plotje_book.placing_marks.html) chapter covers
+;; that choice, and the two spaces the two readings belong to.
 ;;
 ;; Reference lines remain their own layer types: `pj/lay-rule-h` with
 ;; `:y-intercept` and `pj/lay-rule-v` with `:x-intercept` draw a line

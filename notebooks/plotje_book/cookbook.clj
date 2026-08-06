@@ -490,7 +490,9 @@
 ;;
 ;; These recipes place text and marks that explain a plot: names on the
 ;; lines instead of a legend, a note beside the shape it describes, a
-;; caption in a corner.
+;; caption in a corner. The options they lean on -- offsets, values for
+;; `:x` and `:y`, and `:in :drawing-area` -- are taught in
+;; [Placing Marks](./plotje_book.placing_marks.html).
 ;;
 ;; Two examples to look at first:
 ;;
@@ -990,4 +992,5 @@ quarterly-revenue
 ;; ## What's Next
 ;;
 ;; - [**Configuration**](./plotje_book.configuration.html) -- control dimensions, palettes, and themes at every scope
-;; - [**Customization**](./plotje_book.customization.html) -- annotations, tooltips, and brush selection
+;; - [**Customization**](./plotje_book.customization.html) -- titles, palettes, themes, and mark styling
+;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- the placement options the annotation recipes use

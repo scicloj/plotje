@@ -53,6 +53,25 @@
 ;;   left edge of the plotting area. Workaround: shorten the labels,
 ;;   reduce the angle, or widen the plot with `:width`.
 ;;
+;; - A categorical axis accepts its categories and nothing between
+;;   them. ggplot2 places categories at 1, 2, 3 and lets a mark be
+;;   drawn at 1.5 or 2.2, halfway along the gap; Plotje's categorical
+;;   axis is a band scale, which answers nothing for a value between
+;;   two bands, so a mark asking for one is not drawn. Workaround:
+;;   where the reason for wanting a fractional place was to clear
+;;   another mark, `:offset-x`/`:offset-y` shift by a distance on the
+;;   page and work on any axis. Wanting a place genuinely between two
+;;   categories has no workaround; it needs the categorical axis to
+;;   become a continuous scale carrying a label table, which is
+;;   designed but not implemented.
+;;
+;; - A line has no arrowhead. `pj/lay-line` draws a plain stroke, with
+;;   `:stroke-dash` for dashed and dotted styles, so a leader line
+;;   pointing from a note to the mark it describes ends bluntly.
+;;   Workaround: end the line on a small `pj/lay-point` marker, as the
+;;   callout recipe in the
+;;   [Cookbook](./plotje_book.cookbook.html) does.
+;;
 ;; - Nothing moves a label out of the way of another label. Two text
 ;;   marks at nearby positions are drawn on top of each other, and
 ;;   labelling every point of a dense scatter produces an unreadable
