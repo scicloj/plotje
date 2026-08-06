@@ -32,8 +32,8 @@
 
 (def layer-option-docs
   "Documentation for layer option keys. Maps key to description string."
-  {:x "Column keyword or string naming the column drawn along the x axis"
-   :y "Column keyword or string naming the column drawn along the y axis"
+  {:x "Column keyword or string naming the column drawn along the x axis, or a value to draw at that x. A value beside a column :y broadcasts over the layer's data; values for both :x and :y draw one mark"
+   :y "Column keyword or string naming the column drawn along the y axis, or a value to draw at that y. The same two shapes as :x"
    :data "Dataset or plain data for this layer alone, overriding the pose's"
    :mark "Override the mark the layer type draws with — the shape on the panel"
    :stat "Override the statistic the layer type computes — e.g. {:stat :count} on a text layer labels counted bars"

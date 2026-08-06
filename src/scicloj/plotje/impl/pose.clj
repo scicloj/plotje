@@ -756,6 +756,68 @@
                                 ". Convert it to a single type (number, string, etc.) before plotting.")
                            {:key k :column col :types types}))))))))
 
+(defn- resolve-positional-values
+  "Rewrite an `:x` or `:y` given as a value into data the rest of the
+   pipeline already handles, and return the new `[mapping data]` pair.
+
+   `:color`, `:size` and `:alpha` accept a column or a value --
+   `{:color :species}` beside `{:color \"red\"}`. `:x` and `:y` accept
+   both too, and which of two shapes a value takes is decided here, where
+   the merged mapping and the layer's data are both known:
+
+   - **No positional aesthetic reads the data.** The layer does not
+     describe the data at all -- it is an annotation -- so one row holding
+     those values draws the single mark it asks for. `:text` is handled
+     only here: a string normally names a column, and a layer with no data
+     has no column for it to name, so there the string is the text.
+   - **One of them is a column.** The layer describes the data, and each
+     value broadcasts over it as a constant column, so `{:x 6.5 :y :weight}`
+     labels every row at one x. The column is a `dtype/const-reader`, so a
+     value costs one number however long the data is -- less than the
+     `(tc/add-column data :x (constantly 6.5))` this replaces.
+
+   Either way the synthesized column takes the aesthetic's own name, so a
+   plot made only of values labels its axes \"x\" and \"y\" -- the names raw
+   data without a mapping already gets. Reducing a value to data rather
+   than carrying it as a second kind of coordinate means the stat, the
+   extract, the domains and every mark receive the shape they handle."
+  [resolved d layer-own-data?]
+  (let [col-names (when d (set (tc/column-names d)))
+        ;; A dataset built without column names is given integer ones, so
+        ;; a number here can be either a column name or a value to draw
+        ;; at. The data decides: a number naming a column reads it.
+        column?  (fn [v] (or (resolve/column-ref? v) (contains? col-names v)))
+        value?   (fn [v] (and (resolve/literal-position? v)
+                              (not (contains? col-names v))))
+        literals (into {} (for [k resolve/positional-aesthetics
+                                :let [v (get resolved k)]
+                                :when (value? v)]
+                            [k v]))]
+    (cond
+      (empty? literals)
+      [resolved d]
+
+      (and (not layer-own-data?)
+           (not-any? #(column? (get resolved %))
+                     resolve/positional-aesthetics))
+      (let [text   (:text resolved)
+            values (cond-> literals
+                     (string? text) (assoc :text text))]
+        [(merge resolved (zipmap (keys values) (keys values)))
+         (coerce-dataset (into {} (for [[k v] values] [k [v]])))])
+
+      ;; A column reference with no data anywhere resolves to nothing
+      ;; downstream, as it does without a value beside it.
+      (nil? d)
+      [resolved d]
+
+      :else
+      [(merge resolved (zipmap (keys literals) (keys literals)))
+       (reduce (fn [ds [k v]]
+                 (tc/add-column ds k (dtype/const-reader v (tc/row-count ds))))
+               d
+               literals)])))
+
 (defn- resolve-facet-col
   "Resolve a facet column ref against a dataset; throw with a clear
    message if the column is missing."
@@ -866,7 +928,13 @@
                              layer-mapping
                              layer-structural)
              layer-own-data?  (some? (:data layer))
-             d (coerce-dataset (or (:data layer) (:data variant)))]
+             ;; An :x or :y given as a value becomes data before anything
+             ;; else looks at the mapping, so every check and every later
+             ;; stage sees the ordinary shape: columns named by a mapping.
+             [resolved d] (resolve-positional-values
+                           resolved
+                           (coerce-dataset (or (:data layer) (:data variant)))
+                           layer-own-data?)]
          (validate-columns resolved d
                            {:layer-mapping layer-mapping
                             :layer-type-info layer-type-info

@@ -396,10 +396,10 @@
 
 ;; ## Constant `:x` or `:y` in a Layer's Options
 ;;
-;; **Symptom**: a note is needed at one fixed position, and no column
-;; holds that position.
+;; **Symptom**: a note is needed at one fixed spot, and no column holds
+;; the x and y it belongs at.
 ;;
-;; **This is not an error.** A position may be given as a value, the
+;; **This is not an error.** `:x` and `:y` may be given as a value, the
 ;; same way a color may be `"red"` rather than a column. The layer
 ;; below places its text at x 6.5 and y 3.5 with no dataset of its
 ;; own, and a string `:text` on such a layer is the text itself
@@ -411,8 +411,33 @@
 
 (kind/test-last [(fn [v] (some #{"mean"} (:texts (pj/svg-summary v))))])
 
-;; A literal position is a data value like any other, so it takes part
-;; in the axis domains: a note placed beyond the data widens the axis
+;; The other shape a value takes is beside a column. When `:y` is a
+;; column the layer describes the data, so the value given for `:x`
+;; repeats for every row -- which is how a label at one fixed x is
+;; written. The five team names below line up at x 33 rather than
+;; sitting over their points, each at the revenue of its own row:
+
+(-> {:team ["North" "South" "East" "West" "Central"]
+     :spend [12 19 15 24 31]
+     :revenue [30 45 38 62 74]}
+    (pj/lay-point :spend :revenue)
+    (pj/lay-text {:x 33 :y :revenue :text :team}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 5 (:points s))
+                 (every? (set (:texts s))
+                         ["North" "South" "East" "West" "Central"]))))])
+
+;; `:x` and `:y` alone decide which of the two a value draws. A layer
+;; that gives both as values does not read the data at all, so it draws
+;; once; a value beside a column applies to each row, so it repeats. A
+;; string `:text` splits the same way: it is the text on a layer of
+;; values alone, and a column name once the layer has data to name a
+;; column in.
+
+;; A value given for `:x` or `:y` is a data value like any other, so it
+;; takes part in the axis domains: a note placed beyond the data widens the axis
 ;; to hold it. To place a mark on the panel instead -- in drawing
 ;; units from the corner of the panel background, leaving the axes
 ;; alone -- give the layer `:in :drawing-area`. The
@@ -421,11 +446,11 @@
 ;;
 ;; Reference lines remain their own layer types: `pj/lay-rule-h` with
 ;; `:y-intercept` and `pj/lay-rule-v` with `:x-intercept` draw a line
-;; across the whole panel, which a single position cannot say.
+;; across the whole panel, which one `:x` and one `:y` cannot say.
 
 ;; **A scalar that is a column name is still refused.** A dataset
 ;; built without column names is given integer ones, so mapping such a
-;; column reads as a constant position and is refused in the same words:
+;; column reads as a fixed x and is refused in the same words:
 
 (try
   (-> (tc/dataset [[1 2] [3 4] [5 7]])

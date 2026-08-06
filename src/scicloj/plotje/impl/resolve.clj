@@ -14,6 +14,24 @@
   [v]
   (or (keyword? v) (string? v)))
 
+(def positional-aesthetics
+  "The aesthetics that place a mark, and so may be given as a value.
+   Named for the glossary's sake: `:position` there is the dodge / stack
+   / fill adjustment, which these have nothing to do with."
+  [:x :y :x-end :y-end])
+
+(defn literal-position?
+  "True of a value that places a mark on its own, as `{:x 6.5}` does,
+   rather than naming a column to read one from. Numbers are the whole of
+   it today; a temporal value is coerced by the scale like any other, so
+   it counts too."
+  [v]
+  (or (number? v)
+      (instance? java.time.LocalDate v)
+      (instance? java.time.LocalDateTime v)
+      (instance? java.time.Instant v)
+      (instance? java.util.Date v)))
+
 ;; The fields declared on the records below are a minimal subset for
 ;; ergonomic construction; instances carry more keys, and the
 ;; canonical contract for each record is a Malli schema. See:

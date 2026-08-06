@@ -2,8 +2,9 @@
   "A position is a quantity in a space.
 
    Two things follow, and this namespace pins both. First, a position may
-   be a literal, as every appearance aesthetic has always allowed --
-   `{:color \"red\"}` needed no column, and now neither does `{:x 2.0}`.
+   be a literal value, as `:color`, `:size` and `:alpha` have always
+   allowed -- `{:color \"red\"}` needed no column, and now neither does
+   `{:x 2.0}`. (`:shape` and `:group` still do not: see the backlog.)
    Second, `:in` names the space those numbers are in: `:data` by default,
    or `:drawing-area` for a mark placed on the panel rather than in the
    data.
@@ -14,6 +15,7 @@
    still draw, and would still look plausible, so the domain assertions
    below matter as much as the ink ones."
   (:require [clojure.test :refer [deftest testing is]]
+            [tablecloth.api :as tc]
             [scicloj.plotje.api :as pj])
   (:import [java.awt.image BufferedImage]))
 
@@ -67,29 +69,50 @@
     (let [noted (pj/lay-text scatter {:x 2.0 :y 5.0 :text "R&D"})]
       (is (some #{"R&D"} (:texts (pj/svg-summary (pj/plot noted))))))))
 
-(deftest a-literal-x-requires-a-literal-y
-  (testing "one coordinate given as a value needs the other given the same way"
-    ;; A literal value draws one mark, and the layer gets a one-row
-    ;; dataset holding it. A column beside it would be read against that
-    ;; row; a coordinate left out is inherited from the pose and read
-    ;; there too. Both used to fail downstream against the synthesized
-    ;; dataset, reporting a column missing from something the caller
-    ;; never wrote.
+(defn- n-marks
+  "How many marks the last layer of `pose` draws."
+  [pose]
+  (->> (pj/plan pose) :panels first :layers last :groups
+       (map (comp count :xs)) (reduce +)))
+
+(deftest a-value-beside-a-column-broadcasts
+  (testing "one x for every row, which is how a fixed-x label is written"
+    (let [labelled (pj/lay-text scatter {:x 2.0 :y :weight :text :height})]
+      (is (= 3 (n-marks labelled)))
+      (is (= [2.0] (->> (pj/plan labelled) :panels first :layers last
+                        :groups first :xs distinct vec))
+          "the value repeats; the column varies")))
+  (testing "the coordinate left out is inherited from the pose and broadcasts too"
+    (is (= 3 (n-marks (pj/lay-text scatter {:x 2.0 :text :height})))))
+  (testing "a string :text still names a column once the layer has data"
+    ;; The string is the text only where there is no column for it to
+    ;; name -- the layer of values alone below.
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"literal value for :x and a column for :y"
-         (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})))
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"literal value for :x but no :y"
-         (pj/lay-text scatter {:x 2.0 :text "n"}))))
-  (testing "and a literal value does not combine with the layer's own data"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"carrying its own :data"
-         (pj/lay-text scatter {:x 2.0 :y 5.0 :text :t :data {:t ["n"]}}))))
-  (testing "while both as values still works"
+         #"Column n \(from :text\) not found"
+         (pj/plan (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})))))
+  (testing "and it broadcasts over the layer's own data when it brings some"
+    (is (= 2 (n-marks (pj/lay-text scatter {:x 2.0 :y :w
+                                            :text :t
+                                            :data {:t ["a" "b"] :w [3.0 4.0]}}))))))
+
+(deftest a-layer-of-values-alone-draws-one-mark
+  (testing "neither :x nor :y reads the data, so the data's length is not its length"
+    ;; The distinction that earns the two shapes: with a column for
+    ;; neither, the layer is an annotation, and three identical marks
+    ;; stacked on one point is what broadcasting there would mean.
+    (is (= 1 (n-marks (pj/lay-text scatter {:x 2.0 :y 5.0 :text "n"}))))
     (is (= [:point :text] (marks (pj/lay-text scatter {:x 2.0 :y 5.0 :text "n"}))))))
+
+(deftest an-integer-column-name-is-still-a-column
+  (testing "a number that names a column reads the column, not a value to draw at"
+    ;; A dataset built without column names is given integer ones, so the
+    ;; two readings collide. The data decides.
+    ;; `pj/infer-mapping` gives raw data its default mapping, so `{:x 0}`
+    ;; reaches the merged mapping without passing the API's own check.
+    (let [plan (pj/plan (tc/dataset [[1 2] [3 4] [5 7]]))]
+      (is (= ["0" "1"] ((juxt :x-label :y-label) plan)))
+      (is (= 3 (->> plan :panels first :layers last :groups first :xs count))))))
 
 (deftest a-literal-still-rejects-what-is-neither
   (testing "the helpful error survives for values that are no kind of position"

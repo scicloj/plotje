@@ -1401,25 +1401,38 @@
                 {:mapping position-mapping :layers [layer]})))))
 
 (defn- check-position-mapping
-  "Throw a helpful error if :x or :y in a layer's options is a
-   non-column-reference value (e.g. a scalar number). Positions
-   must be column references (keyword or string); fixed scalars are
-   a common mistake from annotation-style usage and previously
-   produced an opaque ClassCastException deep in the stat pipeline
-   (user-report-2 Issue 3)."
-  [context opts]
-  (doseq [k [:x :y]]
-    (when-let [v (get opts k)]
-      (when-not (or (keyword? v) (string? v))
-        (throw (ex-info (str context " " k " must be a column reference "
-                             "(keyword or string), but got "
-                             (pr-str v) ". For a constant position, add a "
-                             "column to :data with that value, e.g. "
-                             "`(tc/add-column data " k " (constantly "
-                             (pr-str v) "))` and pass "
-                             k " "
-                             (pr-str (keyword (name k))) ".")
-                        {:option k :value v}))))))
+  "Throw a helpful error if :x or :y is a value that names no column and
+   places no mark -- a vector, a boolean, a set.
+
+   Where the `:x` or `:y` is written decides what a number means. In a
+   layer's options map (`:allow-value`) it is a value to draw at, either
+   as one mark or broadcast over the layer's data. In `pj/pose`, or in
+   the `:x`/`:y` arguments of a `lay-*` call, it is a column reference
+   and nothing else, so an integer column name reports the rename it
+   needs rather than silently plotting one mark at that number."
+  ([context opts] (check-position-mapping context opts nil))
+  ([context opts allow-value]
+   (doseq [k [:x :y]]
+     (when-let [v (get opts k)]
+       (when-not (or (keyword? v) (string? v)
+                     (and (= :allow-value allow-value)
+                          (resolve/literal-position? v)))
+         (throw (ex-info (str context " " k " must be a column reference "
+                              "(keyword or string), but got " (pr-str v) "."
+                              (if (resolve/literal-position? v)
+                                (str " To place a mark at that " k ", give it "
+                                     "in a layer's options map, e.g. "
+                                     "`(pj/lay-text pose {" k " " (pr-str v)
+                                     " :y 5.0 :text \"note\"})`. If " (pr-str v)
+                                     " is a column name, rename the column "
+                                     "first, e.g. "
+                                     "`(tc/rename-columns ds [:x :y])`.")
+                                (str " For one fixed " k ", add a column "
+                                     "to :data holding it, e.g. "
+                                     "`(tc/add-column data " k " (constantly "
+                                     (pr-str v) "))` and pass "
+                                     k " " (pr-str (keyword (name k))) ".")))
+                         {:option k :value v})))))))
 
 (defn- check-numeric-aesthetics
   "Throw a helpful error if :alpha or :size in a layer's options is
@@ -1523,109 +1536,6 @@
    layer map; `:mapping` holds only true mappings."
   #{:stat :position :mark})
 
-(def ^:private positional-aesthetics
-  "The aesthetics that place a mark, and so may be given as a value."
-  [:x :y :x-end :y-end])
-
-(defn- literal-position?
-  "An `:x` or `:y` given as a value rather than as a column to read it
-   from. Numbers are the whole of it today; a temporal value is coerced
-   by the scale like any other, so it counts too."
-  [v]
-  (or (number? v)
-      (instance? java.time.LocalDate v)
-      (instance? java.time.LocalDateTime v)
-      (instance? java.time.Instant v)
-      (instance? java.util.Date v)))
-
-(defn- check-literal-mark
-  "Refuse the two shapes `desugar-literal-mark` cannot rewrite, in their
-   own words.
-
-   A literal value draws one mark, and the layer it draws in gets a
-   one-row dataset holding it. So the other coordinates have to be
-   literal values as well -- a column reference beside one would be read
-   against that one row -- and the layer cannot bring data of its own.
-
-   Without this, both shapes failed downstream against the synthesized
-   dataset: `{:x 2.0 :y :weight}` reported `:weight` missing from a
-   dataset holding only `:x`, which the caller never wrote."
-  [context opts]
-  (let [given (filter #(contains? opts %) positional-aesthetics)
-        values (filter #(literal-position? (get opts %)) given)
-        columns (filter #(resolve/column-ref? (get opts %)) given)]
-    (when (seq values)
-      ;; A coordinate the layer leaves out is inherited from the pose,
-      ;; and would then be read against the one row synthesized here.
-      (when-not (and (contains? opts :x) (contains? opts :y))
-        (let [missing (first (remove #(contains? opts %) [:x :y]))]
-          (throw (ex-info (str context " got a literal value for "
-                               (str/join " and " (map str values))
-                               " but no " missing ". A literal value for one "
-                               "requires a literal value for the other.")
-                          {:values (select-keys opts values)
-                           :missing missing}))))
-      (when (seq columns)
-        (throw (ex-info (str context " got a literal value for "
-                             (str/join " and " (map str values))
-                             " and a column for "
-                             (str/join " and " (map str columns))
-                             ". A literal value for one requires a literal "
-                             "value for the others: give them all as values, "
-                             "or map them all to columns.")
-                        {:values (select-keys opts values)
-                         :columns (select-keys opts columns)})))
-      (when (:data opts)
-        (throw (ex-info (str context " got a literal value for "
-                             (str/join " and " (map str values))
-                             " on a layer carrying its own :data. A literal "
-                             "value draws one mark and needs no data. To draw "
-                             "one at that value on every row of this data, add "
-                             "a column holding it, e.g. `(tc/add-column data "
-                             (str (first values)) " (constantly "
-                             (pr-str (get opts (first values))) "))`, and pass "
-                             (str (first values)) " " (str (first values)) ".")
-                        {:values (select-keys opts values)}))))))
-
-(defn- desugar-literal-mark
-  "Rewrite a mark given by value into a one-row dataset the layer carries.
-
-   Every appearance aesthetic already accepts a column or a literal --
-   `{:color :species}` beside `{:color \"red\"}`. Positions were the one
-   family that refused the literal half, so placing a note meant inventing
-   a dataset for it. This is that invention, done by the library instead:
-   `{:x 2.0 :y 5.0 :text \"note\"}` becomes a layer whose data is a single
-   row and whose mapping names its columns.
-
-   The literal is reduced to data rather than carried as a second kind
-   of position, so the stat, the extract, the domains and every mark
-   receive the layer shape they already handle.
-
-   Applies only when the layer brings no data of its own. A literal
-   position on a layer that does have data would have to broadcast to that
-   data's length, which is a different question and not yet answered.
-
-   `:text` is handled here too, and only here. A string normally names a
-   column, so `{:text \"note\"}` is a column reference elsewhere; a layer
-   with no data has no column for it to name, so here the string is the
-   text."
-  [opts]
-  (let [literals (into {} (for [k positional-aesthetics
-                                :let [v (get opts k)]
-                                :when (literal-position? v)]
-                            [k v]))]
-    (if (or (empty? literals) (:data opts))
-      opts
-      (let [text (:text opts)
-            values (cond-> literals
-                     (string? text) (assoc :text text))]
-        (-> opts
-            ;; The synthesized columns take the aesthetic's own name, so a
-            ;; plot made only of literals labels its axes "x" and "y" --
-            ;; the same names raw data without a mapping already gets.
-            (merge (zipmap (keys values) (keys values)))
-            (assoc :data (into {} (for [[k v] values] [k [v]]))))))))
-
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
    Extracts :data if present. Extracts :stat, :position, :mark as
@@ -1634,33 +1544,31 @@
    unknown :mark or :stat keywords (since both are universal layer
    options, a typo would silently fall through the accept-list)."
   [layer-type-key opts]
-  ;; Literals become the layer's own data before anything else looks at
-  ;; the options, so every check and every later stage sees the ordinary
-  ;; shape: columns named by a mapping.
-  (let [_ (when opts (check-literal-mark (str "lay-" (name layer-type-key)) opts))
-        opts (desugar-literal-mark opts)]
-    (when opts
-      (check-facet-keys "layer" opts)
-      (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
-      (check-position-mapping (str "lay-" (name layer-type-key)) opts)
-      (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
-      (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
-    (let [opts (if (and opts (keyword? layer-type-key))
-                 (let [reg (layer-type/lookup layer-type-key)
-                       accepted (-> (set layer-type/universal-layer-options)
-                                    (into (:accepts reg))
-                                    (set/difference (set (:rejects reg))))]
-                   (warn-and-strip-unknown-opts (str "lay-" (name layer-type-key))
-                                                opts accepted))
-                 opts)
-          opts-map (or opts {})
-          d (:data opts-map)
-          structural (select-keys opts-map layer-structural-keys)
-          mapping (apply dissoc opts-map :data layer-structural-keys)]
-      (cond-> (merge {:layer-type layer-type-key
-                      :mapping mapping}
-                     structural)
-        d (assoc :data (coerce-dataset d))))))
+  (when opts
+    (check-facet-keys "layer" opts)
+    (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
+    ;; :x and :y here may be a value as well as a column. Which of the
+    ;; two it draws is decided in `pose/leaf->draft`, where the pose's
+    ;; mapping and the layer's data are both known.
+    (check-position-mapping (str "lay-" (name layer-type-key)) opts :allow-value)
+    (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
+    (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
+  (let [opts (if (and opts (keyword? layer-type-key))
+               (let [reg (layer-type/lookup layer-type-key)
+                     accepted (-> (set layer-type/universal-layer-options)
+                                  (into (:accepts reg))
+                                  (set/difference (set (:rejects reg))))]
+                 (warn-and-strip-unknown-opts (str "lay-" (name layer-type-key))
+                                              opts accepted))
+               opts)
+        opts-map (or opts {})
+        d (:data opts-map)
+        structural (select-keys opts-map layer-structural-keys)
+        mapping (apply dissoc opts-map :data layer-structural-keys)]
+    (cond-> (merge {:layer-type layer-type-key
+                    :mapping mapping}
+                   structural)
+      d (assoc :data (coerce-dataset d)))))
 
 (defn- validate-lay-layer-type-key
   "Reject an unregistered layer-type keyword at the pj/lay gate so

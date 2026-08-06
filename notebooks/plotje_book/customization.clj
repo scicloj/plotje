@@ -737,10 +737,11 @@ pj/shape-symbols
 ;; A note in a corner, a caption beside a peak, or a box around a
 ;; region has no row in the dataset. Two features place such marks.
 ;;
-;; First, a position may be a value rather than a column. Every
-;; appearance aesthetic has always accepted both -- `{:color :species}`
-;; beside `{:color "red"}` -- and positions now do too. On a layer that
-;; brings no data of its own, a string `:text` is the text itself:
+;; First, `:x` and `:y` may be a value rather than a column, as
+;; `:color`, `:size` and `:alpha` have always allowed -- `{:color :species}`
+;; beside `{:color "red"}`. A value beside a column repeats for every row;
+;; a layer that gives both `:x` and `:y` as values draws one mark, and on
+;; such a layer a string `:text` is the text itself:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
