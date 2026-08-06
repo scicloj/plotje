@@ -117,4 +117,4 @@
 ;; ## What's Next
 ;;
 ;; - [**Cookbook**](./plotje_book.cookbook.html) -- recipes for common multi-layer plots
-;; - [**Customization**](./plotje_book.customization.html) -- colors, annotations, and interactive features
+;; - [**Customization**](./plotje_book.customization.html) -- colors, themes, and mark styling
