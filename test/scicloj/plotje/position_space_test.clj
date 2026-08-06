@@ -67,6 +67,30 @@
     (let [noted (pj/lay-text scatter {:x 2.0 :y 5.0 :text "R&D"})]
       (is (some #{"R&D"} (:texts (pj/svg-summary (pj/plot noted))))))))
 
+(deftest a-literal-x-requires-a-literal-y
+  (testing "one coordinate given as a value needs the other given the same way"
+    ;; A literal value draws one mark, and the layer gets a one-row
+    ;; dataset holding it. A column beside it would be read against that
+    ;; row; a coordinate left out is inherited from the pose and read
+    ;; there too. Both used to fail downstream against the synthesized
+    ;; dataset, reporting a column missing from something the caller
+    ;; never wrote.
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"literal value for :x and a column for :y"
+         (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"literal value for :x but no :y"
+         (pj/lay-text scatter {:x 2.0 :text "n"}))))
+  (testing "and a literal value does not combine with the layer's own data"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"carrying its own :data"
+         (pj/lay-text scatter {:x 2.0 :y 5.0 :text :t :data {:t ["n"]}}))))
+  (testing "while both as values still works"
+    (is (= [:point :text] (marks (pj/lay-text scatter {:x 2.0 :y 5.0 :text "n"}))))))
+
 (deftest a-literal-still-rejects-what-is-neither
   (testing "the helpful error survives for values that are no kind of position"
     (is (thrown-with-msg?

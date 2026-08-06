@@ -1524,19 +1524,68 @@
   #{:stat :position :mark})
 
 (def ^:private positional-aesthetics
-  "The aesthetics that place a mark, and so may be given as a literal."
+  "The aesthetics that place a mark, and so may be given as a value."
   [:x :y :x-end :y-end])
 
 (defn- literal-position?
-  "A position given as a value rather than as a column to read it from.
-   Numbers are the whole of it today; a temporal value is coerced by the
-   scale like any other, so it counts too."
+  "An `:x` or `:y` given as a value rather than as a column to read it
+   from. Numbers are the whole of it today; a temporal value is coerced
+   by the scale like any other, so it counts too."
   [v]
   (or (number? v)
       (instance? java.time.LocalDate v)
       (instance? java.time.LocalDateTime v)
       (instance? java.time.Instant v)
       (instance? java.util.Date v)))
+
+(defn- check-literal-mark
+  "Refuse the two shapes `desugar-literal-mark` cannot rewrite, in their
+   own words.
+
+   A literal value draws one mark, and the layer it draws in gets a
+   one-row dataset holding it. So the other coordinates have to be
+   literal values as well -- a column reference beside one would be read
+   against that one row -- and the layer cannot bring data of its own.
+
+   Without this, both shapes failed downstream against the synthesized
+   dataset: `{:x 2.0 :y :weight}` reported `:weight` missing from a
+   dataset holding only `:x`, which the caller never wrote."
+  [context opts]
+  (let [given (filter #(contains? opts %) positional-aesthetics)
+        values (filter #(literal-position? (get opts %)) given)
+        columns (filter #(resolve/column-ref? (get opts %)) given)]
+    (when (seq values)
+      ;; A coordinate the layer leaves out is inherited from the pose,
+      ;; and would then be read against the one row synthesized here.
+      (when-not (and (contains? opts :x) (contains? opts :y))
+        (let [missing (first (remove #(contains? opts %) [:x :y]))]
+          (throw (ex-info (str context " got a literal value for "
+                               (str/join " and " (map str values))
+                               " but no " missing ". A literal value for one "
+                               "requires a literal value for the other.")
+                          {:values (select-keys opts values)
+                           :missing missing}))))
+      (when (seq columns)
+        (throw (ex-info (str context " got a literal value for "
+                             (str/join " and " (map str values))
+                             " and a column for "
+                             (str/join " and " (map str columns))
+                             ". A literal value for one requires a literal "
+                             "value for the others: give them all as values, "
+                             "or map them all to columns.")
+                        {:values (select-keys opts values)
+                         :columns (select-keys opts columns)})))
+      (when (:data opts)
+        (throw (ex-info (str context " got a literal value for "
+                             (str/join " and " (map str values))
+                             " on a layer carrying its own :data. A literal "
+                             "value draws one mark and needs no data. To draw "
+                             "one at that value on every row of this data, add "
+                             "a column holding it, e.g. `(tc/add-column data "
+                             (str (first values)) " (constantly "
+                             (pr-str (get opts (first values))) "))`, and pass "
+                             (str (first values)) " " (str (first values)) ".")
+                        {:values (select-keys opts values)}))))))
 
 (defn- desugar-literal-mark
   "Rewrite a mark given by value into a one-row dataset the layer carries.
@@ -1588,7 +1637,8 @@
   ;; Literals become the layer's own data before anything else looks at
   ;; the options, so every check and every later stage sees the ordinary
   ;; shape: columns named by a mapping.
-  (let [opts (desugar-literal-mark opts)]
+  (let [_ (when opts (check-literal-mark (str "lay-" (name layer-type-key)) opts))
+        opts (desugar-literal-mark opts)]
     (when opts
       (check-facet-keys "layer" opts)
       (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
