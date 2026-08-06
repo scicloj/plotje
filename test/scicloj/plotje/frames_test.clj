@@ -242,3 +242,39 @@
       (is (= (:canvas from-pose) (:canvas from-plan)))
       (is (= (map :frames (:panels from-pose))
              (map :frames (:panels from-plan)))))))
+
+;; ---- The margin the mapping reads back ----
+
+(defn- margin-gaps
+  "The distance from a panel box's edge to its drawing area's, on each
+   of the four sides: left, top, right, bottom."
+  [panel]
+  (let [[bx by bw bh] (-> panel :frames :panel-box)
+        [dx dy dw dh] (-> panel :frames :drawing-area)]
+    [(- dx bx) (- dy by)
+     (- (+ bx bw) (+ dx dw))
+     (- (+ by bh) (+ dy dh))]))
+
+(deftest the-margin-is-the-same-on-all-four-sides
+  (testing "every plot shape leaves an equal gap around its drawing area"
+    ;; `pj/to-drawing` reads the margin back off these two rectangles --
+    ;; it takes the left gap and builds both scale ranges from it, the
+    ;; way the renderer builds them from the plan's single :margin. That
+    ;; is exact only while the four gaps agree. If the layout ever gives
+    ;; a panel an asymmetric margin, this fails and names the assumption
+    ;; rather than leaving every position on the right and bottom wrong.
+    (doseq [[label pose]
+            [["plain" lone-point]
+             ["facet" faceted]
+             ["composite" composed]
+             ["rotated ticks" (-> {:g ["a longish name" "another one"] :v [1 2]}
+                                  (pj/lay-bar :g :v)
+                                  (pj/options {:x-tick-angle -45}))]
+             ["pinned panel size" (-> {:x [1 2] :y [3 4]}
+                                      (pj/lay-point :x :y)
+                                      (pj/options {:panel-width 300
+                                                   :panel-height 200}))]]]
+      (doseq [p (:panels (pj/frames pose))]
+        (let [gaps (margin-gaps p)]
+          (is (apply == gaps)
+              (str label ": gaps differ around the drawing area: " gaps)))))))
