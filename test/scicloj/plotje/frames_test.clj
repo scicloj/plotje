@@ -139,9 +139,16 @@
 
 (deftest the-frames-nest
   (testing "drawing area inside panel box inside canvas"
-    (let [{:keys [frames]} (one-panel lone-point)]
+    ;; The canvas comes from the top of the result, not from the panel.
+    ;; A panel used to repeat it, and the copy was the cell's dimensions
+    ;; on a composite -- so this assertion and the composite one below
+    ;; could each pass while disagreeing about what the canvas was.
+    (let [{:keys [canvas panels]} (pj/frames lone-point)
+          {:keys [frames]} (first panels)]
       (is (inside? (:drawing-area frames) (:panel-box frames)))
-      (is (inside? (:panel-box frames) (:canvas frames))))))
+      (is (inside? (:panel-box frames) canvas))
+      (is (nil? (:canvas frames))
+          "a panel reports the canvas, which belongs to the plot"))))
 
 (deftest the-drawing-area-is-the-panel-box-less-its-margin
   (testing "the margin is what separates them, on all four sides"
@@ -198,6 +205,23 @@
   (pj/arrange [(-> {:height [1 2] :weight [3 4]} (pj/lay-point :height :weight))
                (-> {:height [1 2] :weight [3 4]} (pj/lay-line :height :weight))]
               {:width 700 :height 300}))
+
+(deftest every-frame-of-a-composite-fits-the-whole-image
+  (testing "each cell's rectangles nest inside the image, not inside its cell"
+    ;; The failure this replaces: a panel's own :canvas was built from
+    ;; its sub-plan's dimensions, so on a 700-wide composite every panel
+    ;; called the canvas 350 wide, and the second cell's panel box at
+    ;; x = 392.5 fell outside the rectangle it was nominally inside.
+    (let [{:keys [canvas panels]} (pj/frames composed)
+          [_ _ cw _] canvas]
+      (is (= [0.0 0.0 700.0 300.0] canvas))
+      (is (> (apply max (map #(let [[x _ w _] (-> % :frames :panel-box)] (+ x w))
+                             panels))
+             (/ cw 2.0))
+          "no panel reaches past the midpoint, so nothing tests the far cell")
+      (doseq [p panels]
+        (is (inside? (-> p :frames :panel-box) canvas))
+        (is (inside? (-> p :frames :drawing-area) (-> p :frames :panel-box)))))))
 
 (deftest a-composite-reports-canvas-coordinates
   (testing "cells are offset into one coordinate system, not nested ones"

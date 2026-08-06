@@ -2846,10 +2846,11 @@
      `:coord`, `:x-domain`, `:y-domain`, `:x-scale`, `:y-scale`,
      `:invertible?` and `:frames`
 
-   A panel's `:frames` names three rectangles, all `[x y width height]`
-   in canvas coordinates: `:canvas`, `:panel-box` (the panel with its
-   axis margin) and `:drawing-area` (the background inside that margin,
-   where data marks are clipped).
+   A panel's `:frames` names two rectangles, both `[x y width height]`
+   in canvas coordinates: `:panel-box` (the panel with its axis margin)
+   and `:drawing-area` (the background inside that margin, where data
+   marks are clipped). The canvas is reported once, at the top: it
+   belongs to the plot rather than to any panel.
 
    The result contains no functions, so it can be printed, compared and
    read back from `pr-str`. To map between the spaces, pass a panel entry

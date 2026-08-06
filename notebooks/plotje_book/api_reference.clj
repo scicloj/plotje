@@ -810,7 +810,7 @@ plan1
 
 ;; The whole result for this single-panel plot: the canvas, and one
 ;; entry per panel with its position in the grid, its domains and scale
-;; specs, whether it can be mapped back to data, and its three frames.
+;; specs, whether it can be mapped back to data, and its two frames.
 
 (-> plan1 pj/frames kind/pprint)
 
@@ -819,6 +819,35 @@ plan1
                (= 1 (count (:panels m)))
                (true? (-> m :panels first :invertible?))
                (= 4 (count (-> m :panels first :frames :drawing-area)))))])
+
+;; The canvas is reported once rather than on every panel: it belongs to
+;; the plot. Each panel's rectangles are given in canvas coordinates, so
+;; they nest inside it and can be compared with each other directly.
+;; That holds for a composite too, where the panels come from separate
+;; sub-plans -- here a 700-wide image of two cells, whose panel boxes
+;; start at different x and both end inside the canvas:
+
+(let [f (pj/frames (pj/arrange [(pj/lay-point tiny :x :y)
+                                (pj/lay-line tiny :x :y)]
+                               {:width 700 :height 300}))
+      [_ _ cw ch] (:canvas f)
+      boxes (mapv #(-> % :frames :panel-box) (:panels f))
+      inside? (fn [[x y w h]] (and (>= x 0) (>= y 0)
+                                   (<= (+ x w) cw) (<= (+ y h) ch)))]
+  {:canvas (:canvas f)
+   :panel-boxes boxes
+   :every-box-inside-the-canvas (every? inside? boxes)
+   :panel-rectangle-keys (mapv #(vec (keys (:frames %))) (:panels f))})
+
+(kind/test-last
+ [(fn [m] (and (= [0.0 0.0 700.0 300.0] (:canvas m))
+               (= 2 (count (:panel-boxes m)))
+               ;; the two cells sit side by side, not on top of each other
+               (apply not= (map first (:panel-boxes m)))
+               (true? (:every-box-inside-the-canvas m))
+               ;; and no panel carries a canvas of its own to disagree with
+               (every? #(= [:panel-box :drawing-area] %)
+                       (:panel-rectangle-keys m))))])
 
 ;; The result contains no functions, so it can be printed, compared and
 ;; read back from `pr-str`. The two mappings below take a panel entry

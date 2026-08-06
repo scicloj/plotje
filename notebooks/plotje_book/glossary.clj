@@ -338,7 +338,9 @@ my-pose
 ;; A position in drawing space is measured from the corner of some
 ;; rectangle, and this book names three of them: the **canvas**, the
 ;; **panel box** and the **drawing area**, each with its own entry
-;; below. `pj/frames` reports all three for every panel of a plot.
+;; below. `pj/frames` reports the panel box and the drawing area for
+;; every panel of a plot, and the canvas once -- the canvas belongs to
+;; the plot rather than to any panel.
 
 ;; ## Canvas
 

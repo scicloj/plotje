@@ -35,17 +35,22 @@
      (+ content-top strip-h (* (or (:row panel) 0) (double panel-height)))]))
 
 (defn panel-frames
-  "The three frames of `panel`, each `[x y width height]` in canvas
-   coordinates. `offset` shifts the panel box, for a panel that belongs
-   to a composite cell rather than to the canvas directly."
+  "The two frames a panel owns, each `[x y width height]` in canvas
+   coordinates. `offset` shifts them, for a panel that belongs to a
+   composite cell rather than to the canvas directly.
+
+   The canvas is the third frame and is not among them: it belongs to
+   the plot, not to a panel, and every panel would repeat it. It was
+   reported here once, and was wrong for a composite -- built from the
+   cell's own dimensions, so a 700-wide image with two cells told every
+   panel its canvas was 350 wide."
   [plan panel [ox oy]]
-  (let [{:keys [panel-width panel-height margin total-width total-height]} plan
+  (let [{:keys [panel-width panel-height margin]} plan
         [px py] (panel-origin plan panel)
         x0 (+ (double ox) px)
         y0 (+ (double oy) py)
         m (double margin)]
     (array-map
-     :canvas [0.0 0.0 (double total-width) (double total-height)]
      :panel-box [x0 y0 (double panel-width) (double panel-height)]
      :drawing-area [(+ x0 m) (+ y0 m)
                     (- (double panel-width) m m)
