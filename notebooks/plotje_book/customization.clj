@@ -991,6 +991,22 @@ pj/shape-symbols
 ;; [Timelines](./plotje_book.timelines.html). This section covers
 ;; the appearance defaults you can override.
 ;;
+;; They take `:offset-x` and `:offset-y` like any other layer, so a
+;; rule can sit a fixed distance from the value it marks -- a line
+;; drawn just above a threshold rather than on it. `:in` is the one
+;; layer option they do not take: their positions come from data
+;; values.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:alpha 0.4})
+    (pj/lay-rule-h {:y-intercept 3.0 :color "#cc3311"})
+    (pj/lay-rule-h {:y-intercept 3.0 :color "#4477aa" :offset-y -25}))
+
+(kind/test-last
+ [(fn [fr]
+    (= [nil -25]
+       (mapv :offset-y (:annotations (first (:panels (pj/plan fr)))))))])
+;;
 ;; Shaded bands draw at a default opacity of 0.15:
 
 (:band-opacity (pj/config))
@@ -1014,6 +1030,12 @@ pj/shape-symbols
 ;; `geom_hline(aes(yintercept=...))`) is on the post-alpha roadmap.
 ;; Today, an annotation added once with the same intercept appears
 ;; on every panel of the faceted pose.
+;;
+;; Giving a line layer its own two-point dataset does not stand in for
+;; it: a layer's own `:data` is not split by `pj/facet` either, so each
+;; panel draws every row of it. To vary a reference value across
+;; panels today, build them with `pj/arrange` -- each cell is its own
+;; pose, and takes its own intercept.
 ;;
 ;; Reference lines accept `:stroke-dash` too, so a threshold or target
 ;; line can read as dashed or dotted rather than solid:

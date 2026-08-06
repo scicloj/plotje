@@ -685,7 +685,7 @@ two-panel
 
 ;; Three regression lines but all the same color.
 
-;; ## Plot Options and Annotations
+;; ## Plot Options and Reference Lines
 ;;
 ;; So far you've seen mappings, layers, and data -- all scoped at
 ;; pose or layer level. The functions in this section set

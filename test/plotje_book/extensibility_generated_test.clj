@@ -334,9 +334,9 @@
   scatter-stat
   :points
   first
-  (update :xs (fn* [p1__73435#] (vec (take 3 p1__73435#))))
-  (update :ys (fn* [p1__73436#] (vec (take 3 p1__73436#))))
-  (update :row-indices (fn* [p1__73437#] (vec (take 3 p1__73437#))))))
+  (update :xs (fn* [p1__11193#] (vec (take 3 p1__11193#))))
+  (update :ys (fn* [p1__11194#] (vec (take 3 p1__11194#))))
+  (update :row-indices (fn* [p1__11195#] (vec (take 3 p1__11195#))))))
 
 
 (deftest
@@ -478,7 +478,7 @@
 
 (deftest
  t79_l632
- (is ((fn* [p1__73438#] (= :drawing-area p1__73438#)) v78_l630)))
+ (is ((fn* [p1__11196#] (= :drawing-area p1__11196#)) v78_l630)))
 
 
 (def v80_l634 (mark/mark-clip-region :rug))
@@ -486,7 +486,7 @@
 
 (deftest
  t81_l636
- (is ((fn* [p1__73439#] (= :panel-box p1__73439#)) v80_l634)))
+ (is ((fn* [p1__11197#] (= :panel-box p1__11197#)) v80_l634)))
 
 
 (def
@@ -499,7 +499,7 @@
 
 (deftest
  t85_l650
- (is ((fn* [p1__73440#] (= :panel-box p1__73440#)) v84_l648)))
+ (is ((fn* [p1__11198#] (= :panel-box p1__11198#)) v84_l648)))
 
 
 (def v87_l654 (remove-method mark/mark-clip-region :margin-glyph))
@@ -619,23 +619,39 @@
 
 
 (def
- v117_l850
+ v117_l855
+ (->>
+  (methods scicloj.plotje.impl.coord/make-inverse)
+  keys
+  (filter keyword?)
+  (remove #{:default})
+  sort
+  vec))
+
+
+(deftest
+ t118_l862
+ (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v117_l855)))
+
+
+(def
+ v120_l873
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t118_l854
+ t121_l877
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v117_l850)))
+   v120_l873)))
 
 
 (def
- v120_l870
+ v123_l893
  (defmethod
   stat/compute-stat
   :quantile
@@ -644,7 +660,7 @@
 
 
 (def
- v121_l873
+ v124_l896
  (defmethod
   stat/compute-stat
   [:quantile :doc]
@@ -652,32 +668,32 @@
   "Quantile regression bands"))
 
 
-(def v123_l878 (pj/stat-doc :quantile))
+(def v126_l901 (pj/stat-doc :quantile))
 
 
 (deftest
- t124_l880
- (is ((fn [v] (= "Quantile regression bands" v)) v123_l878)))
+ t127_l903
+ (is ((fn [v] (= "Quantile regression bands" v)) v126_l901)))
 
 
-(def v126_l888 (remove-method stat/compute-stat [:quantile :doc]))
+(def v129_l911 (remove-method stat/compute-stat [:quantile :doc]))
 
 
-(def v127_l890 (pj/stat-doc :quantile))
+(def v130_l913 (pj/stat-doc :quantile))
 
 
-(deftest t128_l892 (is ((fn [v] (= "(no description)" v)) v127_l890)))
+(deftest t131_l915 (is ((fn [v] (= "(no description)" v)) v130_l913)))
 
 
-(def v130_l898 (remove-method stat/compute-stat :quantile))
+(def v133_l921 (remove-method stat/compute-stat :quantile))
 
 
 (def
- v131_l900
+ v134_l923
  (count
   (remove
    #{:default}
    (filter keyword? (keys (methods stat/compute-stat))))))
 
 
-(deftest t132_l902 (is ((fn [v] (= 11 v)) v131_l900)))
+(deftest t135_l925 (is ((fn [v] (= 11 v)) v134_l923)))

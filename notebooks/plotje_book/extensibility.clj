@@ -845,6 +845,29 @@ graph LR
 ;; All four use the same scales -- `:flip` swaps which scale maps to
 ;; which drawing-space axis, and `:polar` maps x to angle and y to radius.
 
+;; ## `make-inverse`
+;;
+;; The other direction: canvas coordinates back to data-space x and y.
+;; `pj/to-data` reads it, and so does anything answering which value
+;; sits under a pointer. A coordinate system needs a method here only
+;; if it can be inverted coordinate by coordinate:
+
+(->> (methods scicloj.plotje.impl.coord/make-inverse)
+     keys
+     (filter keyword?)
+     (remove #{:default})
+     sort
+     vec)
+
+(kind/test-last [(fn [ks] (= [:cartesian :fixed :flip] ks))])
+
+;; `:polar` registers none, so it falls to the default, which returns
+;; nil. A panel under a coordinate system with no inverse reports
+;; `:invertible? false` in `pj/frames`, and `pj/to-data` throws for it
+;; rather than answering with a position that is only sometimes the one
+;; asked about. A custom coord that can be inverted should register a
+;; method; one that cannot needs no action.
+
 ;; A flipped bar chart uses `:flip` coordinates:
 
 (-> (rdatasets/datasets-iris)
