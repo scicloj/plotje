@@ -172,24 +172,32 @@
              [:mark [:= :rule-h]]
              [:y-intercept FiniteNumber]
              [:color {:optional true} string?]
-             [:alpha {:optional true} number?]]]
+             [:alpha {:optional true} number?]
+             [:offset-x {:optional true} number?]
+             [:offset-y {:optional true} number?]]]
    [:rule-v [:map
              [:mark [:= :rule-v]]
              [:x-intercept FiniteNumber]
              [:color {:optional true} string?]
-             [:alpha {:optional true} number?]]]
+             [:alpha {:optional true} number?]
+             [:offset-x {:optional true} number?]
+             [:offset-y {:optional true} number?]]]
    [:band-h [:map
              [:mark [:= :band-h]]
              [:y-min FiniteNumber]
              [:y-max FiniteNumber]
              [:color {:optional true} string?]
-             [:alpha {:optional true} number?]]]
+             [:alpha {:optional true} number?]
+             [:offset-x {:optional true} number?]
+             [:offset-y {:optional true} number?]]]
    [:band-v [:map
              [:mark [:= :band-v]]
              [:x-min FiniteNumber]
              [:x-max FiniteNumber]
              [:color {:optional true} string?]
-             [:alpha {:optional true} number?]]]])
+             [:alpha {:optional true} number?]
+             [:offset-x {:optional true} number?]
+             [:offset-y {:optional true} number?]]]])
 
 (def PlanLayer
   "A plan-layer: a rendered mark with data-space geometry. Canonical

@@ -156,12 +156,18 @@
                         ;; per category and we draw each row's rect at the band centre.
                         :rejects [:position]
                         :doc "Interval — horizontal bars from x to x-end at categorical y. For Gantt-style timelines."})
-;; Annotation methods reject the universal options that have no
+;; Rule and band layer types reject the universal options that have no
 ;; meaning for a single rule/band: there are no groups to dodge or
 ;; stack, no shape/jitter to vary across an aggregated mark, and the
 ;; column-type overrides only matter for stat-based marks.
+;;
+;; `:in` is rejected for a different reason: these four marks are
+;; carried on a panel's `:annotations` slot rather than among its
+;; `:layers`, and that path places them from data values only.
+;; `:offset-x`/`:offset-y` do apply -- the annotation renderer shifts
+;; each drawable by them, as the layer renderer does.
 (def ^:private annotation-rejects
-  [:position :group :x-type :y-type :color-type])
+  [:position :group :x-type :y-type :color-type :in])
 
 (register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept :stroke-dash] :rejects annotation-rejects :doc "Horizontal reference line at y = y-intercept."})
 (register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept :stroke-dash] :rejects annotation-rejects :doc "Vertical reference line at x = x-intercept."})

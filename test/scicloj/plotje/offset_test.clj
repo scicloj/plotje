@@ -163,6 +163,61 @@
 
 ;; ---- Refusals ----
 
+(deftest a-rule-or-band-refuses-a-space-it-cannot-be-placed-in
+  (testing "the four annotation marks reject :in"
+    ;; They are carried on a panel's :annotations slot rather than among
+    ;; its :layers, and that path places them from data values only.
+    (pj/with-config {:strict true}
+      (doseq [[f opts] [[pj/lay-rule-h {:y-intercept 3 :in :drawing-area}]
+                        [pj/lay-band-v {:x-min 1 :x-max 2 :in :drawing-area}]]]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo
+             #"does not recognize option"
+             (f {:height [1 2] :weight [3 4]} opts)))))))
+
+;; ---- Offsets on rules and bands ----
+
+(defn- annotations-of [pose]
+  (:annotations (first (:panels (pj/plan pose)))))
+
+(deftest a-rule-carries-its-offset-to-the-plan
+  (testing "the annotation keeps the offset rather than dropping it"
+    (is (= [20] (mapv :offset-y
+                      (annotations-of (-> {:height [1 2] :weight [3 4]}
+                                          (pj/lay-point :height :weight)
+                                          (pj/lay-rule-h {:y-intercept 3.5
+                                                          :offset-y 20})))))))
+  (testing "and a plan carrying one still validates"
+    (is (pj/valid-plan? (pj/plan (-> {:height [1 2] :weight [3 4]}
+                                     (pj/lay-point :height :weight)
+                                     (pj/lay-band-v {:x-min 1 :x-max 1.5
+                                                     :offset-x 10})))))))
+
+(deftest a-rule-is-drawn-where-its-offset-puts-it
+  (testing "the line moves down the page by the offset"
+    (let [rule (fn [opts]
+                 (-> {:height [1.0 5.0] :weight [1.0 5.0]}
+                     (pj/lay-point :height :weight)
+                     (pj/scale :x {:domain [0 10]})
+                     (pj/scale :y {:domain [0 10]})
+                     (pj/lay-rule-h (merge {:y-intercept 5.0 :color "#cc0000"} opts))
+                     (pj/options {:width 400 :height 300})))
+          ;; A rule spans the panel, so one column of the image is enough
+          ;; to find it. Look down the middle, away from the two points.
+          red-rows (fn [pose]
+                     (let [^BufferedImage img (pj/plot pose {:format :bufimg})
+                           x (int (/ (.getWidth img) 2))]
+                       (for [y (range (.getHeight img))
+                             :let [[r g b] (rgb img x y)]
+                             :when (and (> r 120) (< g 90) (< b 90))]
+                         y)))
+          plain (red-rows (rule {}))
+          moved (red-rows (rule {:offset-y 40}))]
+      (is (seq plain) "no rule found without an offset")
+      (is (seq moved) "no rule found with an offset")
+      (is (= 40 (- (first moved) (first plain)))
+          "the rule did not move by exactly the offset"))))
+
 (deftest an-offset-is-a-number-not-a-column
   (testing "one value shifts the whole layer, so a column has nothing to mean"
     (is (thrown-with-msg?
