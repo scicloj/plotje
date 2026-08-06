@@ -107,6 +107,27 @@
       (is (< (abs (- 2.0 dx)) 1e-9))
       (is (< (abs (- 7.0 dy)) 1e-9)))))
 
+;; ---- The shape of the arguments ----
+
+(deftest one-point-passed-as-a-pair-is-refused
+  (testing "the natural mistake gets an error that names it"
+    ;; (to-drawing panel [2 5]) reads as one point and means two, each of
+    ;; them a bare number. Left to the mapping it failed with "nth not
+    ;; supported on this type: Long", which names neither the argument nor
+    ;; the call.
+    (let [p (one-panel lone-point)]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"takes either two coordinates or a collection of \[x y\] pairs"
+           (pj/to-drawing p [2 5])))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"takes either two coordinates or a collection of \[x y\] pairs"
+           (pj/to-data p [100.0 100.0])))
+      (testing "while the wrapped forms are accepted"
+        (is (= 1 (count (pj/to-drawing p [[2 5]]))))
+        (is (= 2 (count (pj/to-drawing p 2 5))))))))
+
 ;; ---- Frames ----
 
 (defn- inside?

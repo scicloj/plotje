@@ -101,10 +101,28 @@
     {:sx (scale/make-scale (:x-domain panel) [m (- pw m)] (:x-scale panel))
      :sy (scale/make-scale (:y-domain panel) [(- ph m) m] (:y-scale panel))}))
 
+(defn- check-points
+  "Reject a single pair passed where a collection of pairs is expected.
+
+   `(to-drawing panel [2 5])` is the natural way to write one point, and
+   it means something else here: two points, each unreadable. Left alone
+   it fails inside the mapping with `nth not supported on this type`,
+   which names neither the argument nor the call."
+  [caller points]
+  (when (and (sequential? points) (number? (first points)))
+    (throw (ex-info (str caller " takes either two coordinates or a collection "
+                         "of [x y] pairs, but got a collection of numbers: "
+                         (pr-str (vec (take 4 points)))
+                         ". For one point, pass the coordinates as two "
+                         "arguments; for several, wrap each pair.")
+                    {:points points})))
+  points)
+
 (defn to-drawing
   "Map data positions into canvas coordinates for `panel`."
   ([panel x y] (first (to-drawing panel [[x y]])))
   ([panel points]
+   (check-points "pj/to-drawing" points)
    (let [{:keys [x0 y0 pw ph m]} (panel-shape panel)
          {:keys [sx sy]} (panel-scale-pair panel)
          coord-fn (coord/make-coord (:coord panel) sx sy pw ph m)]
@@ -117,6 +135,7 @@
   "Map canvas coordinates back to data positions for `panel`."
   ([panel cx cy] (first (to-data panel [[cx cy]])))
   ([panel points]
+   (check-points "pj/to-data" points)
    (let [{:keys [x0 y0 pw ph m]} (panel-shape panel)
          {:keys [sx sy]} (panel-scale-pair panel)
          inverse-fn (coord/make-inverse (:coord panel) sx sy pw ph m)]
