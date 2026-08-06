@@ -56,6 +56,33 @@
       (is (str/includes? (first bodies) "\"[data-row-idx]\""))
       (is (not (str/includes? (first bodies) "&quot;"))))))
 
+(deftest the-brush-marquee-is-measured-in-one-unit
+  (testing "the drag and the rectangle that shows it agree under CSS scaling"
+    ;; A drag is measured from `clientX` and `getBoundingClientRect`, both
+    ;; of which answer in CSS pixels. An SVG rect's `x`/`y`/`width`/
+    ;; `height` are user units, which equal CSS pixels only while the SVG
+    ;; renders at exactly its viewBox size -- so writing the drag onto an
+    ;; SVG rect drew the marquee at a fraction of the drag under a
+    ;; `max-width: 100%`. The marquee is an HTML overlay instead, sized in
+    ;; CSS pixels like everything else the script measures.
+    (let [body (first (scripts (->html (pj/plot (scatter {:brush true})))))]
+      (is (str/includes? body "(.createElement js/document \"div\")"))
+      (is (not (str/includes? body "createElementNS"))
+          "an SVG rect would read the CSS-pixel drag as user units")
+      (is (not (str/includes? body ".setAttribute sel"))
+          "nothing about the marquee goes through SVG geometry attributes"))))
+
+(deftest the-brush-marquee-does-not-swallow-the-drag
+  (testing "the overlay covers the plot, so it must not be hit-testable"
+    ;; The marquee is a sibling of the SVG, not a child, so a mouse event
+    ;; landing on it would not bubble to the listeners on the SVG and the
+    ;; drag would freeze the moment the pointer entered its own selection.
+    (let [html (->html (pj/plot (scatter {:brush true})))
+          css (second (re-find #"\.nsk-brush-sel \{([^}]*)\}" html))]
+      (is (some? css))
+      (is (str/includes? css "pointer-events:none"))
+      (is (str/includes? css "position:absolute")))))
+
 (deftest both-interactions-give-two-scripts
   (testing "tooltip and brush each contribute their own script"
     (let [bodies (scripts (->html (pj/plot (scatter {:tooltip true :brush true}))))]
