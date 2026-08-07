@@ -550,7 +550,7 @@ graph LR
 </section>
 <section id="the-single-step-transitions" class="level2">
 <h2 class="anchored" data-anchor-id="the-single-step-transitions">The Single-Step Transitions</h2>
-<p>Each transition is its own public function. Walk the example below to see what enters and what leaves at each step. The per-function reference (arities, arguments, return types) lives in the <a href="./plotje_book.api_reference.html">API Reference</a>.</p>
+<p>Each transition is its own public function. Walk the example below to see what enters and what leaves at each step. The per-function reference (arities, arguments, return types) lives in the <a href="./plotje_book.api_reference.html#pipeline">API Reference</a>.</p>
 <section id="step-1-pj-pose" class="level3">
 <h3 class="anchored" data-anchor-id="step-1-pj-pose">Step 1: pj/-&gt;pose</h3>
 <p>Lift raw data (or a pose) to a pose. Polymorphic on input: a dataset becomes a leaf pose with <code>:data</code> set; an existing pose flows through unchanged (idempotent). This is the structural lift that lets every downstream function accept either raw data or a pose. It stops there – it sets no mapping. The default mapping that makes a bare dataset actually render is added separately by <code>pj/infer-mapping</code> (see “Where Inference Happens” below).</p>
@@ -3349,7 +3349,7 @@ graph LR
 <span id="cb16-2486"><a href="#cb16-2486" aria-hidden="true" tabindex="-1"></a> <span class="at">:width</span> <span class="dv">600</span>,</span>
 <span id="cb16-2487"><a href="#cb16-2487" aria-hidden="true" tabindex="-1"></a> <span class="at">:height</span> <span class="dv">400</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The dedicated <a href="./plotje_book.membranes.html">Membranes</a> chapter walks the record’s protocols, the namespaced-attribute convention, and how a <code>PlotjeMembrane</code> composes with hand-built Membrane elements.</p>
+<p>The dedicated <a href="./plotje_book.membranes.html#the-membrane-protocols">Membranes</a> chapter walks the record’s protocols, the namespaced-attribute convention, and how a <code>PlotjeMembrane</code> composes with hand-built Membrane elements.</p>
 </section>
 <section id="step-5-pjmembrane-plot" class="level3">
 <h3 class="anchored" data-anchor-id="step-5-pjmembrane-plot">Step 5: pj/membrane-&gt;plot</h3>
@@ -15511,7 +15511,7 @@ graph LR
 <span id="cb34-4562"><a href="#cb34-4562" aria-hidden="true" tabindex="-1"></a>       <span class="st">"virginica"</span>]]]]]]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The composition holds for both leaf and composite poses – <code>pj/plan</code> is <code>(-&gt; pose pj/-&gt;pose pj/pose-&gt;draft pj/draft-&gt;plan)</code> either way – because each step dispatches on shape at the bottom of its call.</p>
-<p>The composite path also performs cross-leaf work that has no per-leaf analogue. When the composite carries <code>{:share-scales #{:x :y}}</code>, <code>pj/pose-&gt;draft</code> computes domains across all leaves and inserts them into each per-leaf draft before <code>pj/draft-&gt;plan</code> runs, so the resulting panels share axes. Shared-scale resolution belongs to the composite stage rather than per-leaf planning. See the <a href="./plotje_book.composition.html">Composition</a> chapter for worked examples.</p>
+<p>The composite path also performs cross-leaf work that has no per-leaf analogue. When the composite carries <code>{:share-scales #{:x :y}}</code>, <code>pj/pose-&gt;draft</code> computes domains across all leaves and inserts them into each per-leaf draft before <code>pj/draft-&gt;plan</code> runs, so the resulting panels share axes. Shared-scale resolution belongs to the composite stage rather than per-leaf planning. See the <a href="./plotje_book.composition.html#shared-scales">Composition</a> chapter for worked examples.</p>
 </section>
 <section id="the-plan-boundary" class="level2">
 <h2 class="anchored" data-anchor-id="the-plan-boundary">The Plan Boundary</h2>
@@ -15535,7 +15535,7 @@ graph LR
 <section id="the-membrane-stage" class="level2">
 <h2 class="anchored" data-anchor-id="the-membrane-stage">The Membrane Stage</h2>
 <p>The membrane is the second pipeline boundary: it separates data-space geometry from output-format bytes. The plan describes what to draw in data coordinates (e.g.&nbsp;a point at (3.4, 7.1) in the color for species <code>setosa</code>); the membrane describes the same content in drawing coordinates (e.g.&nbsp;a translation to (218, 134) carrying a colored shape). The plan is renderer-agnostic; the membrane is format-agnostic.</p>
-<p>Clipping – keeping each panel’s marks within the panel – is an instance of this same translation. A panel’s domain, resolved at the plan stage, is a data-space fact: the range of values the panel shows. The membrane turns it into a drawing-space clip that hides any geometry reaching past that window, so a mark cannot paint outside its panel, or into a neighbor in a multi-panel layout. The <a href="./plotje_book.membranes.html">Membranes</a> chapter shows the mechanism; the <a href="./plotje_book.glossary.html">Glossary</a> has an entry for <strong>clip</strong>.</p>
+<p>Clipping – keeping each panel’s marks within the panel – is an instance of this same translation. A panel’s domain, resolved at the plan stage, is a data-space fact: the range of values the panel shows. The membrane turns it into a drawing-space clip that hides any geometry reaching past that window, so a mark cannot paint outside its panel, or into a neighbor in a multi-panel layout. The <a href="./plotje_book.membranes.html#clipping-marks-to-the-panel">Membranes</a> chapter shows the mechanism; the <a href="./plotje_book.glossary.html#clip">Glossary</a> has an entry for <strong>clip</strong>.</p>
 <p>This boundary lets one membrane tree be rendered to many output formats. The pose, draft, plan, and membrane stages are reused unchanged across formats. A new format that consumes the membrane tree registers a <code>defmethod</code> on the render multimethod <code>scicloj.plotje.impl.render/membrane-&gt;plot</code> (the public <code>pj/membrane-&gt;plot</code> dispatches through it). A new format that goes from a plan directly to bytes (skipping membrane – e.g., a Plotly-spec target) registers a <code>defmethod</code> on <code>scicloj.plotje.impl.render/plan-&gt;plot</code> instead. The <a href="./plotje_book.extensibility.html">Extensibility</a> chapter shows a worked backend registration.</p>
 <p>The membrane stage of Plotje is built on <a href="https://github.com/phronmophobic/membrane">Membrane</a> – the library that defines the primitive types Plotje uses (<code>Translate</code>, <code>WithColor</code>, <code>Path</code>, <code>Label</code>, <code>RoundedRectangle</code>, …) and provides the rendering backends. Plotje constructs a membrane tree from a plan; Membrane renders it.</p>
 <p>Backends Plotje wires into Membrane today:</p>

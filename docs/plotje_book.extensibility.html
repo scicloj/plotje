@@ -883,7 +883,7 @@ graph LR
 <span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a> <span class="at">:doc</span> <span class="st">"Scatter — individual data points."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Choosing it explicitly is how a caller says “do not aggregate this”. That is the case a bar chart of pre-computed totals is in – and it is what <code>pj/lay-bar</code> resolves to on its own as soon as a y column is present, which is the rule from a few forms above seen from the other side.</p>
-<p>(The other two fields in those lookups belong to the layer type rather than to the stat: <code>:x-only</code> says the layer type works from an x column alone, and <code>:accepts</code> lists the layer options it takes beyond the universal ones – both are covered in <a href="./plotje_book.layer_types.html">Layer Types</a>.)</p>
+<p>(The other two fields in those lookups belong to the layer type rather than to the stat: <code>:x-only</code> says the layer type works from an x column alone, and <code>:accepts</code> lists the layer options it takes beyond the universal ones, tabulated per layer type in <a href="./plotje_book.layer_types.html#layer-type-specific-options">Layer Types</a>.)</p>
 <p>One entry per row is visible in the output: a scatter of the 150-row iris dataset draws 150 marks.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> grouped-scatter</span></span>
@@ -1500,12 +1500,12 @@ graph LR
 <section id="rule-and-band-marks-live-on-the-panels-annotations-not-layers" class="level3">
 <h3 class="anchored" data-anchor-id="rule-and-band-marks-live-on-the-panels-annotations-not-layers">Rule and band marks live on the panel’s <code>:annotations</code>, not <code>:layers</code></h3>
 <p>Four marks – <code>:rule-h</code>, <code>:rule-v</code>, <code>:band-h</code>, <code>:band-v</code> – are split out of the per-panel <code>:layers</code> list during planning and rendered from a separate <code>:annotations</code> slot on each panel of the resolved plan. Extension authors building tooling that walks a plan should expect to find these on panel <code>:annotations</code>, not on panel <code>:layers</code>. The split is driven by <code>scicloj.plotje.impl.resolve/annotation-marks</code>, the canonical set of those mark keywords; if you add a custom mark that should follow the same lifecycle, register it there.</p>
-<p>The <code>:annotations</code> slot holds only these four marks. The <a href="./plotje_book.glossary.html">Glossary</a> defines an annotation more broadly – any mark that explains a plot rather than showing data, including notes and leader lines. Those are ordinary text and line layers, and they stay on <code>:layers</code>.</p>
+<p>The <code>:annotations</code> slot holds only these four marks. The <a href="./plotje_book.glossary.html#annotation">Glossary</a> defines an annotation more broadly – any mark that explains a plot rather than showing data, including notes and leader lines. Those are ordinary text and line layers, and they stay on <code>:layers</code>.</p>
 </section>
 </section>
 <section id="mark-clip-region" class="level2">
 <h2 class="anchored" data-anchor-id="mark-clip-region"><code>mark-clip-region</code></h2>
-<p>Each panel clips its marks so geometry past the domain cannot paint outside the panel. The region a mark clips to is itself an extension point: <code>mark-clip-region</code> (in <code>render/mark.clj</code>, dispatching on the <code>:mark</code> key) names the region, and the panel renderer resolves it to a rectangle and clips the mark to it. (The clip itself is a Membrane scissor; the <a href="./plotje_book.membranes.html">Membranes</a> chapter shows the mechanism.)</p>
+<p>Each panel clips its marks so geometry past the domain cannot paint outside the panel. The region a mark clips to is itself an extension point: <code>mark-clip-region</code> (in <code>render/mark.clj</code>, dispatching on the <code>:mark</code> key) names the region, and the panel renderer resolves it to a rectangle and clips the mark to it. (The clip itself is a Membrane scissor; the <a href="./plotje_book.membranes.html#clipping-marks-to-the-panel">Membranes</a> chapter shows the mechanism.)</p>
 <p>Two regions exist:</p>
 <ul>
 <li><p><code>:drawing-area</code> (the default) – the grey panel background. Data marks clip here, so geometry past the domain is masked at the plotting edge and nothing spills into the axis margin.</p></li>
@@ -1540,7 +1540,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb97"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb97-1"><a href="#cb97-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> mark/mark-clip-region <span class="at">:margin-glyph</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb98"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>#multifn[mark-clip-region <span class="bn">0x5138e414</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb98"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>#multifn[mark-clip-region <span class="bn">0x6ad40ff6</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb99"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">contains?</span> (<span class="kw">methods</span> mark/mark-clip-region) <span class="at">:margin-glyph</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1621,7 +1621,7 @@ graph LR
 </section>
 <section id="membrane-plot" class="level2">
 <h2 class="anchored" data-anchor-id="membrane-plot"><code>membrane-&gt;plot</code></h2>
-<p>Converts a <code>PlotjeMembrane</code> into a plot for a given format. This is the extensibility point for membrane-based output formats – formats that consume the same drawable tree but walk it differently. The <a href="./plotje_book.membranes.html">Membranes</a> chapter walks the <code>PlotjeMembrane</code> record itself and the Membrane UI protocols it implements.</p>
+<p>Converts a <code>PlotjeMembrane</code> into a plot for a given format. This is the extensibility point for membrane-based output formats – formats that consume the same drawable tree but walk it differently. The <a href="./plotje_book.membranes.html#anatomy">Membranes</a> chapter walks the <code>PlotjeMembrane</code> record itself and the Membrane UI protocols it implements.</p>
 <p>Dispatch function: <code>(fn [membrane-tree format opts] format)</code></p>
 <table class="caption-top table">
 <colgroup>
@@ -1870,7 +1870,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb136"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb136-1"><a href="#cb136-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat [<span class="at">:quantile</span> <span class="at">:doc</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb137"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb137-1"><a href="#cb137-1" aria-hidden="true" tabindex="-1"></a>#multifn[compute-stat <span class="bn">0x4017c84e</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb137"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb137-1"><a href="#cb137-1" aria-hidden="true" tabindex="-1"></a>#multifn[compute-stat <span class="bn">0x39bb0f49</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb138"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb138-1"><a href="#cb138-1" aria-hidden="true" tabindex="-1"></a>(pj/stat-doc <span class="at">:quantile</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1886,7 +1886,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb140"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb140-1"><a href="#cb140-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat <span class="at">:quantile</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb141"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb141-1"><a href="#cb141-1" aria-hidden="true" tabindex="-1"></a>#multifn[compute-stat <span class="bn">0x4017c84e</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb141"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb141-1"><a href="#cb141-1" aria-hidden="true" tabindex="-1"></a>#multifn[compute-stat <span class="bn">0x39bb0f49</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb142"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb142-1"><a href="#cb142-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">count</span> (<span class="kw">remove</span> #{<span class="at">:default</span>} (<span class="kw">filter</span> <span class="kw">keyword?</span> (<span class="kw">keys</span> (<span class="kw">methods</span> stat/compute-stat)))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>

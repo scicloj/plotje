@@ -1929,7 +1929,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="pipeline" class="level2">
 <h2 class="anchored" data-anchor-id="pipeline">Pipeline</h2>
-<p>The pipeline is a composition of single-step transitions. The user-facing functions (<code>pj/draft</code>, <code>pj/plan</code>, <code>pj/membrane</code>, <code>pj/plot</code>, <code>pj/save</code>) run the chain up through their stage: each lifts raw input with <code>pj/-&gt;pose</code>, applies <code>pj/infer-mapping</code> (a default mapping when the input is a bare dataset, a no-op on a built pose), then runs the single-step transitions. So each of them accepts raw data as well as a pose. The <a href="./plotje_book.architecture.html">Architecture</a> chapter shows the full composition.</p>
+<p>The pipeline is a composition of single-step transitions. The user-facing functions (<code>pj/draft</code>, <code>pj/plan</code>, <code>pj/membrane</code>, <code>pj/plot</code>, <code>pj/save</code>) run the chain up through their stage: each lifts raw input with <code>pj/-&gt;pose</code>, applies <code>pj/infer-mapping</code> (a default mapping when the input is a bare dataset, a no-op on a built pose), then runs the single-step transitions. So each of them accepts raw data as well as a pose. The <a href="./plotje_book.architecture.html#pipeline-shortcuts-pjpose-pjdraft-pjplan-pjmembrane-pjplot-pjsave">Architecture</a> chapter shows the full composition.</p>
 <p>Each step is independently callable, so you can stop the pipeline at any point to inspect the intermediate value.</p>
 <section id="membrane-1" class="level3">
 <h3 class="anchored" data-anchor-id="membrane-1"><code>membrane</code></h3>
@@ -1943,7 +1943,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>(membrane pose)</code></li>
 <li><code>(membrane pose {:tooltip true})</code></li>
 </ul>
-<p>Resolve a pose into a <code>PlotjeMembrane</code> – a format-agnostic Membrane UI component (a record implementing <code>IOrigin</code>, <code>IBounds</code>, <code>IChildren</code>). Useful for exploring rendering targets beyond the SVG and Java2D backends Plotje wires in today, and for composing Plotje plots into larger Membrane interfaces. The <a href="./plotje_book.membranes.html">Membranes</a> chapter walks the record’s anatomy and the protocols.</p>
+<p>Resolve a pose into a <code>PlotjeMembrane</code> – a format-agnostic Membrane UI component (a record implementing <code>IOrigin</code>, <code>IBounds</code>, <code>IChildren</code>). Useful for exploring rendering targets beyond the SVG and Java2D backends Plotje wires in today, and for composing Plotje plots into larger Membrane interfaces. The <a href="./plotje_book.membranes.html#anatomy">Membranes</a> chapter walks the record’s anatomy and the protocols.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb109"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb109-1"><a href="#cb109-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">let</span> [m (pj/membrane (pj/lay-point tiny <span class="at">:x</span> <span class="at">:y</span>))]</span>
 <span id="cb109-2"><a href="#cb109-2" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:membrane</span>?    (pj/membrane? m)</span>

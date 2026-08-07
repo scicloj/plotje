@@ -798,7 +798,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="interactive-timelines" class="level2">
 <h2 class="anchored" data-anchor-id="interactive-timelines">Interactive timelines</h2>
-<p>Pass <code>:tooltip true</code> to add hover-text on each interval, or <code>:brush true</code> for drag-to-select highlighting (the same built-in mechanisms that work for points). For more interaction patterns – cross-panel linking, save-as-PNG – see the <a href="./plotje_book.interactivity.html">Interactivity</a> chapter.</p>
+<p>Pass <code>:tooltip true</code> to add hover-text on each interval, or <code>:brush true</code> for drag-to-select highlighting (the same built-in mechanisms that work for points). For more interaction patterns – cross-panel linking, save-as-PNG – see the <a href="./plotje_book.interactivity.html#cross-panel-linked-highlighting">Interactivity</a> chapter.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> (rdatasets/ggplot2-presidential)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-interval-h <span class="at">:start</span> <span class="at">:name</span> {<span class="at">:x-end</span> <span class="at">:end</span> <span class="at">:color</span> <span class="at">:party</span>})</span>

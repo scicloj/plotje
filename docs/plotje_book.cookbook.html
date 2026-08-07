@@ -626,7 +626,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="gantt-schedule" class="level3">
 <h3 class="anchored" data-anchor-id="gantt-schedule">Gantt schedule</h3>
-<p>A horizontal interval bar per task, with the bar’s left edge at the start date and the right edge at the end date. The <a href="./plotje_book.timelines.html">Timelines</a> chapter has more variations (color by team, vertical orientation, presidential terms); this is the minimal recipe.</p>
+<p>A horizontal interval bar per task, with the bar’s left edge at the start date and the right edge at the end date. The <a href="./plotje_book.timelines.html#gantt-chart-with-lay-interval-h">Timelines</a> chapter has more variations (color by team, vertical orientation, presidential terms); this is the minimal recipe.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> {<span class="at">:task</span>  [<span class="st">"Design"</span> <span class="st">"Build"</span> <span class="st">"Test"</span> <span class="st">"Ship"</span>]</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">:start</span> [#inst <span class="st">"2024-01-01"</span> #inst <span class="st">"2024-02-01"</span></span>
@@ -938,7 +938,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="annotated-charts" class="level2">
 <h2 class="anchored" data-anchor-id="annotated-charts">Annotated Charts</h2>
-<p>These recipes place text and marks that explain a plot: names on the lines instead of a legend, a note beside the shape it describes, a caption in a corner. The options they lean on – offsets, values for <code>:x</code> and <code>:y</code>, and <code>:in :drawing-area</code> – are taught in <a href="./plotje_book.placing_marks.html">Placing Marks</a>.</p>
+<p>These recipes place text and marks that explain a plot: names on the lines instead of a legend, a note beside the shape it describes, a caption in a corner. The options they lean on – offsets, values for <code>:x</code> and <code>:y</code>, and <code>:in :drawing-area</code> – are taught in <a href="./plotje_book.placing_marks.html#shifting-a-mark-by-a-distance-on-the-page">Placing Marks</a>.</p>
 <p>Two examples to look at first:</p>
 <ul>
 <li><p><a href="https://www.edwardtufte.com/book/seeing-with-fresh-eyes-meaning-space-data-truth/"><em>Seeing With Fresh Eyes</em></a>, Edward Tufte, 2020 – a spread comparing a chart that names its series in a legend with one that names them on the lines</p></li>
