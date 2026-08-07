@@ -285,56 +285,65 @@
            (.addEventListener svg "mousemove" move!))))
 
 (def ^:private brush-css
-  ".nsk-brush-sel { fill: rgba(100,100,255,0.2); stroke: #66f; stroke-width: 1; }")
+  ".nsk-brush-sel { position:absolute; pointer-events:none; box-sizing:border-box; background:rgba(100,100,255,0.2); border:1px solid #66f; z-index:5; }")
 
 (defn- brush-script
   "Scittle script for drag-to-select brush interaction on data points.
    Drag creates a selection rectangle; points inside are highlighted,
    others dimmed. Tiny drag (< 3px) resets all to default opacity.
-   Cross-panel: selection by data-row-idx works across all panels."
+   Cross-panel: selection by data-row-idx works across all panels.
+
+   Every coordinate here is a CSS pixel measured from the container's top
+   left -- the unit a mouse event reports, and the unit
+   `getBoundingClientRect` answers in. The selection rectangle is an
+   absolutely positioned div rather than an SVG rect because an SVG rect's
+   `x`/`y`/`width`/`height` are user units, which equal CSS pixels only
+   while the SVG renders at exactly its viewBox size: under a
+   `max-width: 100%` that scaled the plot to half size, the marquee was
+   drawn at half the drag, in the wrong place."
   [div-id]
-  (list 'let ['svg (list '.querySelector (list '.getElementById 'js/document div-id) "svg")
+  (list 'let ['container (list '.getElementById 'js/document div-id)
+              'svg '(.querySelector container "svg")
               'pts '(.querySelectorAll svg "[data-row-idx]")
-              'state '(atom {:drag false :x0 0 :y0 0 :sel nil})]
+              'state '(atom {:drag false :x0 0 :y0 0 :x1 0 :y1 0 :sel nil})]
         '(.addEventListener svg "mousedown"
                             (fn [e]
-                              (let [r (.getBoundingClientRect svg)
+                              (let [r (.getBoundingClientRect container)
                                     x0 (- (.-clientX e) (.-left r))
                                     y0 (- (.-clientY e) (.-top r))
-                                    sel (.createElementNS js/document "http://www.w3.org/2000/svg" "rect")]
-                                (.setAttribute sel "class" "nsk-brush-sel")
-                                (.appendChild svg sel)
-                                (reset! state {:drag true :x0 x0 :y0 y0 :sel sel}))))
+                                    sel (.createElement js/document "div")]
+                                (set! (.-className sel) "nsk-brush-sel")
+                                (.appendChild container sel)
+                                (reset! state {:drag true :x0 x0 :y0 y0 :x1 x0 :y1 y0 :sel sel}))))
         '(.addEventListener svg "mousemove"
                             (fn [e]
                               (when (:drag @state)
-                                (let [{:keys [x0 y0 sel]} @state
-                                      r (.getBoundingClientRect svg)
+                                (let [r (.getBoundingClientRect container)
                                       x1 (- (.-clientX e) (.-left r))
-                                      y1 (- (.-clientY e) (.-top r))]
-                                  (.setAttribute sel "x" (min x0 x1))
-                                  (.setAttribute sel "y" (min y0 y1))
-                                  (.setAttribute sel "width" (js/Math.abs (- x1 x0)))
-                                  (.setAttribute sel "height" (js/Math.abs (- y1 y0)))))))
+                                      y1 (- (.-clientY e) (.-top r))
+                                      {:keys [x0 y0 sel]} (swap! state assoc :x1 x1 :y1 y1)]
+                                  (set! (.. sel -style -left) (str (min x0 x1) "px"))
+                                  (set! (.. sel -style -top) (str (min y0 y1) "px"))
+                                  (set! (.. sel -style -width) (str (js/Math.abs (- x1 x0)) "px"))
+                                  (set! (.. sel -style -height) (str (js/Math.abs (- y1 y0)) "px"))))))
         '(.addEventListener svg "mouseup"
                             (fn [e]
                               (when (:drag @state)
-                                (let [{:keys [sel]} @state
-                                      _ (swap! state assoc :drag false)
-                                      bx (js/parseFloat (.getAttribute sel "x"))
-                                      by (js/parseFloat (.getAttribute sel "y"))
-                                      bw (js/parseFloat (.getAttribute sel "width"))
-                                      bh (js/parseFloat (.getAttribute sel "height"))]
-                                  (.removeChild svg sel)
+                                (let [{:keys [x0 y0 x1 y1 sel]} (swap! state assoc :drag false)
+                                      bx (min x0 x1)
+                                      by (min y0 y1)
+                                      bw (js/Math.abs (- x1 x0))
+                                      bh (js/Math.abs (- y1 y0))]
+                                  (.removeChild container sel)
                                   (if (and (< bw 3) (< bh 3))
                                     (.forEach pts (fn [p] (.setAttribute p "opacity" "0.7")))
-                                    (let [sr (.getBoundingClientRect svg)
+                                    (let [cr (.getBoundingClientRect container)
                                           selected (atom #{})]
                                       (.forEach pts
                                                 (fn [p]
                                                   (let [pr (.getBoundingClientRect p)
-                                                        cx (- (+ (.-left pr) (/ (.-width pr) 2)) (.-left sr))
-                                                        cy (- (+ (.-top pr) (/ (.-height pr) 2)) (.-top sr))]
+                                                        cx (- (+ (.-left pr) (/ (.-width pr) 2)) (.-left cr))
+                                                        cy (- (+ (.-top pr) (/ (.-height pr) 2)) (.-top cr))]
                                                     (when (and (>= cx bx) (<= cx (+ bx bw))
                                                                (>= cy by) (<= cy (+ by bh)))
                                                       (swap! selected conj (.getAttribute p "data-row-idx"))))))

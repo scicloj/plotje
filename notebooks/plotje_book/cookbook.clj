@@ -103,20 +103,6 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:panels s))))])
 
-;; ### Annotated chart
-;;
-;; Add reference lines and shaded bands to highlight regions of interest.
-;; Pass `{:alpha ...}` to control band opacity.
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/lay-rule-h {:y-intercept 3.0})
-    (pj/lay-band-v {:x-min 5.5 :x-max 6.5 :alpha 0.3}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 150 (:points s))
-                                (= 1 (:lines s)))))])
-
 ;; ### Gantt schedule
 ;;
 ;; A horizontal interval bar per task, with the bar's left edge at
@@ -500,6 +486,220 @@
                            (and (= 5 (:points s))
                                 (every? (set (:texts s)) ["Tokyo" "Delhi"]))))])
 
+;; ## Annotated Charts
+;;
+;; These recipes place text and marks that explain a plot: names on the
+;; lines instead of a legend, a note beside the shape it describes, a
+;; caption in a corner. The options they lean on -- offsets, values for
+;; `:x` and `:y`, and `:in :drawing-area` -- are taught in
+;; [Placing Marks](./plotje_book.placing_marks.html).
+;;
+;; Two examples to look at first:
+;;
+;; - [*Seeing With Fresh Eyes*](https://www.edwardtufte.com/book/seeing-with-fresh-eyes-meaning-space-data-truth/),
+;;   Edward Tufte, 2020 -- a spread comparing a chart that names its
+;;   series in a legend with one that names them on the lines
+;; - [the FT coronavirus trajectory charts](https://ig.ft.com/coronavirus-chart/),
+;;   John Burn-Murdoch, Financial Times -- direct labels, callouts with
+;;   leader lines, a dashed reference slope, and a de-emphasised
+;;   background of series that are shown but not discussed
+;;
+;; The recipes below use different data and reproduce neither graphic.
+;;
+;; The data is free material from [Gapminder](https://www.gapminder.org/),
+;; CC-BY, reached here through `rdatasets`.
+
+;; ### Reference lines and bands
+;;
+;; The simplest annotations have their own layer types. A rule draws a
+;; line across the panel at one value; a band shades the region between
+;; two. Both take their positions as values rather than columns, and
+;; `:alpha` controls a band's opacity.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/lay-rule-h {:y-intercept 3.0})
+    (pj/lay-band-v {:x-min 5.5 :x-max 6.5 :alpha 0.3}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 150 (:points s))
+                                (= 1 (:lines s)))))])
+
+;; ### Labels on the lines instead of a legend
+;;
+;; A legend puts the series names in one corner and the series in
+;; another. A label at the end of each line puts the name beside the
+;; line it names. Five countries, first with a legend:
+
+(def life-tracks
+  (-> (rdatasets/gapminder-gapminder)
+      (tc/select-rows #(#{"Rwanda" "Cambodia" "China" "Japan" "Botswana"}
+                        (:country %)))
+      (tc/select-columns [:country :year :life-exp])))
+
+(-> life-tracks
+    (pj/lay-line :year :life-exp {:color :country})
+    (pj/options {:title "Life expectancy at birth"
+                 :width 620 :height 380}))
+
+(kind/test-last
+ [(fn [v] (= 5 (:lines (pj/svg-summary v))))])
+
+;; Now with the names on the lines. The label layer draws from the last
+;; year alone -- one row per country -- and takes its color from the
+;; same `:country` column, so each name matches its line. `:offset-x`
+;; moves the text clear of the line's end by a few drawing units. A
+;; nudge would not serve here: the gap is a distance on the page, not a
+;; number of years.
+
+(-> life-tracks
+    (pj/lay-line :year :life-exp {:color :country})
+    (pj/lay-text {:data (tc/select-rows life-tracks #(= 2007 (:year %)))
+                  :x :year :y :life-exp :text :country :color :country
+                  :offset-x 8})
+    (pj/options {:title "Life expectancy at birth"
+                 :width 620 :height 380
+                 :legend-position :none}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 5 (:lines s))
+                 (every? (set (:texts s))
+                         ["Rwanda" "Cambodia" "China" "Japan" "Botswana"]))))])
+
+;; The axis grew to the right to hold the labels. A numeric domain is
+;; widened to fit its text marks, and the offset counts toward the width
+;; to fit.
+
+;; ### Callout with a leader line
+;;
+;; One country, with four layers doing the annotating: a marker on the
+;; point being discussed, a dotted leader from the note to the marker,
+;; the note itself at a position given as values rather than columns,
+;; and a caption placed on the panel with `:in :drawing-area`.
+
+(-> (rdatasets/gapminder-gapminder)
+    (tc/select-rows #(= "Rwanda" (:country %)))
+    (pj/lay-line :year :life-exp {:color "#4477aa"})
+    (pj/lay-point {:data {:year [1992] :life-exp [23.599]}
+                   :x :year :y :life-exp :color "#cc3311" :size 6})
+    (pj/lay-line {:data {:year [1972 1990] :life-exp [30 24.5]}
+                  :x :year :y :life-exp
+                  :color "#777777" :stroke-dash :dotted})
+    (pj/lay-text {:x 1971 :y 30 :align-x :right :offset-x -4
+                  :color "#333333"
+                  :text "life expectancy fell to 23.6 years in 1992"})
+    (pj/lay-text {:in :drawing-area :x 10 :y 8 :color "#777777"
+                  :text "Rwanda, 1952-2007"})
+    (pj/options {:width 640 :height 400
+                 :y-label "life expectancy at birth"}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (every? (set (:texts s))
+                         ["life expectancy fell to 23.6 years in 1992"
+                          "Rwanda, 1952-2007"])
+                 (= 1 (:points s)))))])
+
+;; The two text layers are placed in different spaces on purpose. The
+;; callout's position is a year and a life expectancy, so it tracks the
+;; shape it describes when the axis changes. The caption's position is
+;; in drawing units from the corner of the panel background, so it does
+;; not move with the data.
+
+;; ### A few named series over many pale ones
+;;
+;; The two recipes above each showed a handful of series. Every series
+;; can be drawn while only some are named, with the rest in one pale
+;; color. The Financial Times charts do this with the countries that
+;; appear but are not discussed.
+;;
+;; All the pale series are one layer. `pj/lay-line` with a `:group` and
+;; a literal `:color` draws one line per country, every line in that
+;; color.
+;;
+;; Pick the three to name from the data rather than by hand -- the
+;; country that ends highest, the one that gained most,
+;; and the one with the sharpest single fall:
+
+(def life-history
+  (-> (rdatasets/gapminder-gapminder)
+      (tc/select-columns [:country :year :life-exp])))
+
+(def ends-highest
+  (-> life-history
+      (tc/select-rows #(= 2007 (:year %)))
+      (tc/order-by :life-exp :desc)
+      (tc/rows :as-maps)
+      first :country))
+
+(def gained-most
+  (-> life-history
+      (tc/group-by :country)
+      (tc/aggregate {:gain (fn [ds] (- (reduce max (:life-exp ds))
+                                       (reduce min (:life-exp ds))))})
+      (tc/order-by :gain :desc)
+      (tc/rows :as-maps)
+      first :$group-name))
+
+;; The sharpest fall, as a country and as the size of the drop between
+;; two consecutive readings:
+
+(def sharpest-fall
+  (-> life-history
+      (tc/order-by [:country :year])
+      (tc/group-by :country)
+      (tc/aggregate {:fall (fn [ds]
+                             (let [ys (vec (:life-exp ds))]
+                               (reduce min 0 (map - (rest ys) ys))))})
+      (tc/order-by :fall)
+      (tc/rows :as-maps)
+      first))
+
+[ends-highest gained-most sharpest-fall]
+
+(kind/test-last
+ [(fn [[a b c]] (and (= "Japan" a)
+                     (= "Oman" b)
+                     (= "Rwanda" (:$group-name c))
+                     (< -21 (:fall c) -20)))])
+
+;; Now the chart. Every country in pale grey, those three in color with
+;; their names at the line ends, a callout whose wording is built from
+;; the number computed above, and a caption placed on the panel.
+
+(let [named #{ends-highest gained-most (:$group-name sharpest-fall)}
+      chosen (tc/select-rows life-history #(named (:country %)))]
+  (-> life-history
+      (pj/lay-line :year :life-exp {:group :country :color "#d0d0d0"})
+      (pj/lay-line {:data chosen :x :year :y :life-exp :color :country})
+      (pj/lay-text {:data (tc/select-rows chosen #(= 2007 (:year %)))
+                    :x :year :y :life-exp :text :country
+                    :color :country :offset-x 8})
+      (pj/lay-line {:data {:year [1972 1989] :life-exp [31 25]}
+                    :x :year :y :life-exp
+                    :color "#777777" :stroke-dash :dotted})
+      (pj/lay-text {:x 1971 :y 31 :align-x :right :offset-x -4
+                    :color "#333333"
+                    :text (format "%s, 1992: a fall of %.0f years in one step"
+                                  (:$group-name sharpest-fall)
+                                  (- (:fall sharpest-fall)))})
+      (pj/lay-text {:in :drawing-area :x 10 :y 8 :color "#888888"
+                    :text (format "%d countries, 1952-2007"
+                                  (count (distinct (:country life-history))))})
+      (pj/options {:width 760 :height 430 :legend-position :none
+                   :y-label "life expectancy at birth"})))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (every? (set (:texts s)) ["Japan" "Oman" "Rwanda"])
+                 (some #(re-find #"^Rwanda, 1992: a fall of 20 years" %)
+                       (:texts s))
+                 (some #(= "142 countries, 1952-2007" %) (:texts s)))))])
+
+;; Every number in the annotations was computed from the data the chart
+;; draws, so refreshing the data updates the wording with it.
+
 ;; ## Simulated Data
 ;;
 ;; Generate data from a known model and verify the regression recovers it.
@@ -792,4 +992,5 @@ quarterly-revenue
 ;; ## What's Next
 ;;
 ;; - [**Configuration**](./plotje_book.configuration.html) -- control dimensions, palettes, and themes at every scope
-;; - [**Customization**](./plotje_book.customization.html) -- annotations, tooltips, and brush selection
+;; - [**Customization**](./plotje_book.customization.html) -- titles, palettes, themes, and mark styling
+;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- the placement options the annotation recipes use

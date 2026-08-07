@@ -9,6 +9,7 @@
    and are re-exported here for callers already using this namespace."
   (:require [membrane.ui :as ui]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.frames :as frames]
             [scicloj.plotje.impl.membrane :as mem]
             [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.render.panel :as panel]))
@@ -347,10 +348,7 @@
         panel-bgs
         (vec
          (for [p panels
-               :let [ri (:row p)
-                     ci (:col p)
-                     x-off (+ y-label-pad (* ci pw))
-                     y-off (+ content-top strip-h (* ri ph))]]
+               :let [[x-off y-off] (frames/panel-origin plan p)]]
            (ui/translate (+ x-off margin) (+ y-off margin)
                          (ui/with-color theme-bg
                            (ui/with-style ::ui/style-fill
@@ -365,8 +363,7 @@
                      ci (:col p)
                      show-x? (= ri (get bottom-row-per-col ci))
                      show-y? (= ci (get leftmost-col-per-row ri))
-                     x-off (+ y-label-pad (* ci pw))
-                     y-off (+ content-top strip-h (* ri ph))]]
+                     [x-off y-off] (frames/panel-origin plan p)]]
            (ui/translate x-off y-off
                          (panel/panel->membrane p pw ph margin cfg
                                                 :show-x? show-x?

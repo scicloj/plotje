@@ -416,7 +416,14 @@
                                     (-> (resolve/map->PlanLayer (extract/extract-layer rv sr all-colors cfg))
                                         (assoc :y-domain (:y-domain sr)
                                                :x-domain (:x-domain sr))
-                                        (cond-> shape-map (assoc :shape-map shape-map))))
+                                        (cond-> shape-map (assoc :shape-map shape-map))
+                                        ;; A drawing-unit offset is carried whole rather than
+                                        ;; folded into the positions: it is not a data value, so
+                                        ;; it must not reach the domains, and every mark shifts
+                                        ;; by it the same way. The renderer applies it once.
+                                        (cond-> (:offset-x rv) (assoc :offset-x (:offset-x rv))
+                                                (:offset-y rv) (assoc :offset-y (:offset-y rv))
+                                                (:in rv) (assoc :in (:in rv)))))
                                   resolved stat-results))
         plan-layers (position/apply-positions raw-plan-layers)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
@@ -997,8 +1004,19 @@
    are the negated screen ones."
   [plan-layers value-key axis]
   (for [layer plan-layers
-        :when (= :text (:mark layer))
-        :let [style (:style layer)]
+        ;; A drawing-space text mark is placed on the panel, not in the
+        ;; data, so widening the domain would not move it -- and its
+        ;; position is a page measurement that has no business being read
+        ;; as a data value.
+        :when (and (= :text (:mark layer))
+                   (contains? #{nil :data} (:in layer)))
+        :let [style (:style layer)
+              ;; An offset moves the drawn text away from its anchor, so
+              ;; the room it needs moves with it. Screen y grows downward
+              ;; while y data grows upward, which is why the y offset is
+              ;; negated along with the extents.
+              off (double (or (if (= axis :x) (:offset-x layer) (:offset-y layer)) 0))
+              off (if (= axis :x) off (- off))]
         g (:groups layer)
         :let [labels (:labels g)
               vs (value-key g)]
@@ -1006,10 +1024,11 @@
         i (range (min (count labels) (count vs)))
         :let [v (nth vs i)]
         :when (number? v)
-        :let [[left right top bottom] (text/extent style (nth labels i))]]
+        :let [[left right top bottom] (text/extent style (nth labels i))
+              pad text/fit-pad]]
     (if (= axis :x)
-      [v left right]
-      [v (- bottom) (- top)])))
+      [v (- (+ off left) pad) (+ off right pad)]
+      [v (- (+ off (- bottom)) pad) (+ off (- top) pad)])))
 
 (defn- fit-domain
   "Widen the numeric domain [d0 d1] until every item fits inside an axis
@@ -1086,8 +1105,26 @@
    Does NOT compute ticks -- that happens after panel dimensions are
    known."
   [pd default-x-scale default-y-scale default-coord]
-  (let [local-srs (:stat-results pd)
+  (let [;; A layer placed in a drawing-space frame is on the panel, not in
+        ;; the data: its numbers are drawing units, so letting them reach a
+        ;; domain would stretch the axis to a page measurement. It is left
+        ;; out of the domain computation and kept in the panel -- it still
+        ;; has to be drawn. Stat results are index-aligned with the draft
+        ;; layers they came from.
+        data-space? (fn [layer] (contains? #{nil :data} (:in layer)))
         local-plan-layers (:layers pd)
+        ;; An annotation-only panel carries synthesized stat-results with
+        ;; no resolved layer behind them, so the two are only pairable
+        ;; when their counts agree. Where they do not, nothing is in a
+        ;; drawing-space frame either, and every result counts.
+        local-srs (let [rs (:resolved pd)
+                        srs (:stat-results pd)]
+                    (if (= (count rs) (count srs))
+                      (->> (map vector rs srs)
+                           (filter (comp data-space? first))
+                           (mapv second))
+                      srs))
+        domain-layers (filterv data-space? local-plan-layers)
         first-draft-layer (first (:draft-layers pd))
         x-scale-spec (or (:x-scale first-draft-layer) default-x-scale)
         y-scale-spec (or (:y-scale first-draft-layer) default-y-scale)
@@ -1095,10 +1132,10 @@
         x-dom (or (:domain x-scale-spec)
                   (collect-domain local-srs :x-domain x-scale-spec))
         y-dom (or (:domain y-scale-spec)
-                  (compute-global-y-domain local-plan-layers y-scale-spec)
+                  (compute-global-y-domain domain-layers y-scale-spec)
                   ;; Annotation-only panels have no plan layers; their
                   ;; y-domain lives in the synthesized stat-results.
-                  (when (empty? local-plan-layers)
+                  (when (empty? domain-layers)
                     (collect-domain local-srs :y-domain y-scale-spec))
                   [0 1])
         [x-dom' y-dom'] (if (= coord-type :flip)
@@ -1379,7 +1416,8 @@
          ;; against every panel that shares the leaf's x/y.
          annotations (->> layer-annotations
                           (map #(-> %
-                                    (select-keys (into [:mark :color :alpha :stroke-dash :x :y] annotation-position-keys))
+                                    (select-keys (into [:mark :color :alpha :stroke-dash :offset-x :offset-y :x :y]
+                                                       annotation-position-keys))
                                     clean-aesthetics))
                           distinct
                           vec)

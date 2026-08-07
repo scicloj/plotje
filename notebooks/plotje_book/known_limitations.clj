@@ -52,6 +52,47 @@
 ;;   very long category names on the leftmost tick can run past the
 ;;   left edge of the plotting area. Workaround: shorten the labels,
 ;;   reduce the angle, or widen the plot with `:width`.
+;;
+;; - A categorical axis accepts its categories and nothing between
+;;   them. ggplot2 places categories at 1, 2, 3 and lets a mark be
+;;   drawn at 1.5 or 2.2, halfway along the gap; Plotje's categorical
+;;   axis is a band scale, which answers nothing for a value between
+;;   two bands, so a mark asking for one is not drawn. Workaround:
+;;   where the reason for wanting a fractional place was to clear
+;;   another mark, `:offset-x`/`:offset-y` shift by a distance on the
+;;   page and work on any axis. Wanting a place genuinely between two
+;;   categories has no workaround; it needs the categorical axis to
+;;   become a continuous scale carrying a label table, which is
+;;   designed but not implemented.
+;;
+;; - A line has no arrowhead. `pj/lay-line` draws a plain stroke, with
+;;   `:stroke-dash` for dashed and dotted styles, so a leader line
+;;   pointing from a note to the mark it describes ends bluntly.
+;;   Workaround: end the line on a small `pj/lay-point` marker, as the
+;;   callout recipe in the
+;;   [Cookbook](./plotje_book.cookbook.html) does.
+;;
+;; - Nothing moves a label out of the way of another label. Two text
+;;   marks at nearby positions are drawn on top of each other, and
+;;   labelling every point of a dense scatter produces an unreadable
+;;   pile. Workarounds: label a subset, or separate them by hand with
+;;   `:offset-x`/`:offset-y`. Automatic placement, as in R's `ggrepel`,
+;;   is designed but not implemented.
+;;
+;; - A long label at the right edge of a panel costs axis range.
+;;   `:fit-text-domain` makes room for it by widening the domain,
+;;   which is the only lever available -- there is no way to reserve
+;;   drawing-space room for labels outside the drawing area. Several
+;;   sentence-length labels at the line ends can push the axis well
+;;   past the data. Workarounds: shorten the end labels and put the
+;;   sentences in a callout, or turn the widening off with
+;;   `{:fit-text-domain false}` and accept the clipping.
+;;
+;; - `:in` places a layer in the data or on the panel
+;;   (`:in :drawing-area`), and nothing places one on the canvas as a
+;;   whole. A note outside every panel -- beside the legend, or under
+;;   the title -- has no position to be given. Workaround: `:caption`
+;;   and `:subtitle` for text below and above the panels.
 
 ;; ## Marks
 ;;
@@ -194,6 +235,17 @@
 ;; - The `:linetype` aesthetic (ggplot2's `aes(linetype=...)` for
 ;;   solid vs. dashed lines) is not implemented. Workaround: encode
 ;;   the same distinction via `:color` instead.
+;;
+;; - A layer's own `:data` is not split by `pj/facet`. The pose's data
+;;   is divided among the panels, but a layer carrying its own dataset
+;;   is drawn whole in every panel, whether or not that dataset has the
+;;   facet column. ggplot2 divides a layer's data the same way it
+;;   divides the plot's, so `geom_hline(data = means, aes(yintercept =
+;;   m))` puts one line in each panel where Plotje puts all of them in
+;;   each. Nothing errors; the picture simply shows every group's mark
+;;   in every panel. Workaround: build the panels with `pj/arrange`
+;;   rather than `pj/facet`, so each cell is its own pose with its own
+;;   layer data.
 ;;
 ;; - No `after_stat()` analog. ggplot2 idioms like
 ;;   `geom_bar(aes(label=after_stat(count)))` and

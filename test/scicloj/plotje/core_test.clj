@@ -58,6 +58,29 @@
       (is (= 4 (count c)))
       (is (= 4 (count c2))))))
 
+(deftest fixed-color-survives-grouping-test
+  (testing "a literal :color applies to every group made by :group"
+    ;; Grouping fills each group's color slot with the group key. A fixed
+    ;; color has to win over that, or "one line per series, all in one
+    ;; color" cannot be said -- the pale background behind a few named
+    ;; series in the Cookbook's annotation recipes.
+    (let [grey [0.8 0.8 0.8 1.0]
+          colors (fn [pose]
+                   (->> (pj/plan pose) :panels first :layers first :groups
+                        (mapv :color)))]
+      (is (= [grey grey]
+             (colors (pj/lay-line {:g ["a" "a" "b" "b"] :x [1 2 1 2] :y [1 2 2 3]}
+                                  :x :y {:group :g :color "#cccccc"})))
+          "grouping discarded the fixed color")
+      (testing "and one group still gets it"
+        (is (= [grey]
+               (colors (pj/lay-line {:x [1 2] :y [1 2]} :x :y {:color "#cccccc"})))))
+      (testing "while a :color column still drives the palette"
+        (let [cs (colors (pj/lay-line {:g ["a" "a" "b" "b"] :x [1 2 1 2] :y [1 2 2 3]}
+                                      :x :y {:color :g}))]
+          (is (= 2 (count cs)))
+          (is (apply not= cs)))))))
+
 (deftest gradient-color-test
   (testing "t=0.0 (dark blue — low end)"
     (let [[r g b a] (defaults/gradient-color 0.0)]

@@ -958,3 +958,16 @@
 
     (testing "lay-histogram lists its layer-type-specific :bins option"
       (is (re-find #":bins\s|:bins$" (:doc (meta #'pj/lay-histogram)))))))
+
+(deftest the-anchor-options-belong-to-text-alone
+  (testing "a non-text layer warns, names where they belong, and ignores them"
+    ;; The Placing Marks chapter says these two are the only options in it
+    ;; that are text-specific. Nothing else pinned that.
+    (let [out (with-out-str
+                (pj/lay-point {:x [1 2] :y [3 4]} :x :y {:align-x :right}))]
+      (is (re-find #"lay-point does not recognize option\(s\): \[:align-x\]" out))
+      (is (re-find #"\[:label :text\]" out)))
+    (is (nil? (->> (pj/plan (pj/lay-point {:x [1 2] :y [3 4]} :x :y
+                                          {:align-x :right}))
+                   :panels first :layers first :style :align-x))
+        "the option is stripped rather than carried into the plan")))

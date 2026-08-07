@@ -597,5 +597,6 @@ precedence-point-radius
 
 ;; ## What's Next
 ;;
-;; - [**Customization**](./plotje_book.customization.html) -- annotations, color scales, tooltips, and brush selection
+;; - [**Customization**](./plotje_book.customization.html) -- titles, color scales, palettes, and themes
+;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes, and in what units
 ;; - [**Faceting**](./plotje_book.faceting.html) -- split plots into panels by category

@@ -116,7 +116,10 @@ graph LR
 ;; - The **plan** holds geometry in data space -- domains, ticks,
 ;;   computed shapes -- before any drawing. This boundary lets you
 ;;   inspect and validate plot structure with Malli, and it lets
-;;   multiple renderers share the same computed plan.
+;;   multiple renderers share the same computed plan. It also carries
+;;   the dimensions the layout settled on, so where each panel will sit
+;;   on the canvas is decided here: `pj/frames` reports it, and the
+;;   membrane stage draws into it.
 ;; - The **membrane** holds drawing primitives in drawing space.
 ;;   This boundary decouples "what to draw, where" from the output
 ;;   format, so SVG and raster renderers consume the same membrane

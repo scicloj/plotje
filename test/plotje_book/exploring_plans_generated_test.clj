@@ -192,7 +192,7 @@
     [gs]
     (and
      (= 3 (count gs))
-     (every? (fn* [p1__85641#] (= 50 (:n-points p1__85641#))) gs)))
+     (every? (fn* [p1__77870#] (= 50 (:n-points p1__77870#))) gs)))
    v49_l175)))
 
 
@@ -296,9 +296,9 @@
     (and
      (> (count bars) 3)
      (every?
-      (fn* [p1__85642#] (< (:lo p1__85642#) (:hi p1__85642#)))
+      (fn* [p1__77871#] (< (:lo p1__77871#) (:hi p1__77871#)))
       bars)
-     (every? (fn* [p1__85643#] (pos? (:count p1__85643#))) bars)))
+     (every? (fn* [p1__77872#] (pos? (:count p1__77872#))) bars)))
    v74_l246)))
 
 
@@ -484,7 +484,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__85644#] (Math/sin (* p1__85644# 0.3))) (range 30))}))
+   (map (fn* [p1__77873#] (Math/sin (* p1__77873# 0.3))) (range 30))}))
 
 
 (def v111_l381 (-> wave (pj/lay-line :x :y)))
@@ -754,82 +754,82 @@
 
 
 (def
- v171_l573
+ v171_l574
  (select-keys
   faceted-plan
   [:layout-type :grid :total-width :total-height]))
 
 
 (deftest
- t172_l575
- (is ((fn [m] (= :facet-grid (:layout-type m))) v171_l573)))
+ t172_l576
+ (is ((fn [m] (= :facet-grid (:layout-type m))) v171_l574)))
 
 
-(def v174_l579 (pj/valid-plan? faceted-plan))
+(def v174_l580 (pj/valid-plan? faceted-plan))
 
 
-(deftest t175_l581 (is (true? v174_l579)))
+(deftest t175_l582 (is (true? v174_l580)))
 
 
-(def v177_l591 (pj/valid-plan? tiny-plan))
+(def v177_l592 (pj/valid-plan? tiny-plan))
 
 
-(deftest t178_l593 (is (true? v177_l591)))
+(deftest t178_l594 (is (true? v177_l592)))
 
 
-(def v179_l595 (pj/valid-plan? iris-plan))
+(def v179_l596 (pj/valid-plan? iris-plan))
 
 
-(deftest t180_l597 (is (true? v179_l595)))
+(deftest t180_l598 (is (true? v179_l596)))
 
 
-(def v181_l599 (pj/valid-plan? hist-plan))
+(def v181_l600 (pj/valid-plan? hist-plan))
 
 
-(deftest t182_l601 (is (true? v181_l599)))
+(deftest t182_l602 (is (true? v181_l600)))
 
 
-(def v183_l603 (pj/valid-plan? bar-plan))
+(def v183_l604 (pj/valid-plan? bar-plan))
 
 
-(deftest t184_l605 (is (true? v183_l603)))
+(deftest t184_l606 (is (true? v183_l604)))
 
 
-(def v185_l607 (pj/valid-plan? lm-plan))
+(def v185_l608 (pj/valid-plan? lm-plan))
 
 
-(deftest t186_l609 (is (true? v185_l607)))
+(deftest t186_l610 (is (true? v185_l608)))
 
 
-(def v187_l611 (pj/valid-plan? final-plan))
+(def v187_l612 (pj/valid-plan? final-plan))
 
 
-(deftest t188_l613 (is (true? v187_l611)))
+(deftest t188_l614 (is (true? v187_l612)))
 
 
 (def
- v190_l617
+ v190_l618
  (pj/explain-plan (assoc tiny-plan :width "not-a-number")))
 
 
-(deftest t191_l619 (is (some? v190_l617)))
+(deftest t191_l620 (is (some? v190_l618)))
 
 
 (def
- v193_l628
+ v193_l629
  (-> tiny-plan :panels first :layers first :groups first :xs type))
 
 
 (deftest
- t194_l630
- (is ((fn [t] (not= clojure.lang.PersistentVector t)) v193_l628)))
+ t194_l631
+ (is ((fn [t] (not= clojure.lang.PersistentVector t)) v193_l629)))
 
 
 (def
- v196_l634
+ v196_l635
  (-> tiny-plan :panels first :layers first :groups first :xs vec))
 
 
 (deftest
- t197_l636
- (is ((fn [v] (and (vector? v) (number? (first v)))) v196_l634)))
+ t197_l637
+ (is ((fn [v] (and (vector? v) (number? (first v)))) v196_l635)))

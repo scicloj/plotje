@@ -165,9 +165,8 @@ multi-layer
 ;; The same rule lets a value label sit on a bar: add the label after
 ;; the bar so it paints on top, and use `:align-x :right` so the label
 ;; tucks inside the bar's end rather than spilling past it. (Bars and
-;; `pj/coord` are covered later; anchoring is the Text and Label
-;; Placement section of
-;; [Customization](./plotje_book.customization.html), and the
+;; `pj/coord` are covered later; anchoring is in
+;; [Placing Marks](./plotje_book.placing_marks.html), and the
 ;; [Cookbook](./plotje_book.cookbook.html) has a value-labels recipe.)
 
 (-> {:species ["setosa" "versicolor" "virginica"]

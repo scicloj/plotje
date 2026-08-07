@@ -139,6 +139,46 @@
                                          :text-anchor "end"))))))
             values labels)))))
 
+(defn- layer-ctx
+  "The drawing context one layer is rendered with.
+
+   A layer positioned in the data goes through the panel's scales and
+   coord, as every layer always has. A layer positioned in a
+   drawing-space frame does not: its numbers are already drawing units,
+   and all that is left is to measure them from the right corner.
+   `:drawing-area` starts at the panel background's top left, which is
+   the panel's own origin plus its margin."
+  [ctx layer m]
+  (if (= :drawing-area (:in layer))
+    (assoc ctx :coord-fn (fn [x y]
+                           [(+ (double m) (double x))
+                            (+ (double m) (double y))]))
+    ctx))
+
+(defn- offset-drawable
+  "Shift one drawable by `m`'s `:offset-x` / `:offset-y`, in drawing
+   units. `m` is a plan layer or an annotation; both carry the offsets
+   under the same two keys."
+  [m drawable]
+  (let [dx (double (or (:offset-x m) 0))
+        dy (double (or (:offset-y m) 0))]
+    (if (and (zero? dx) (zero? dy))
+      drawable
+      (ui/translate dx dy drawable))))
+
+(defn- offset-drawables
+  "Shift a layer's drawables by its `:offset-x` / `:offset-y`, in drawing
+   units.
+
+   A constant offset over a whole layer is a translation of what that
+   layer drew, so it applies here, once, rather than inside each of the
+   twenty-five marks' renderers. The translation sits inside the clip
+   region, so an offset mark is still clipped to the drawing area."
+  [layer drawables]
+  (if (and (nil? (:offset-x layer)) (nil? (:offset-y layer)))
+    drawables
+    [(offset-drawable layer (vec drawables))]))
+
 ;; ---- Panel Rendering ----
 
 (defn panel->membrane
@@ -235,7 +275,8 @@
         marks-by-region
         (into {} (for [[region region-layers]
                        (group-by #(mark/mark-clip-region (:mark %)) layers)]
-                   [region (vec (mapcat #(mark/layer->membrane % ctx)
+                   [region (vec (mapcat #(offset-drawables
+                                          % (mark/layer->membrane % (layer-ctx ctx % m)))
                                         region-layers))]))
         marks (vec (mapcat val marks-by-region))
 
@@ -276,34 +317,36 @@
             (vec
              (for [a annotations
                    :when (not= coord-type :polar)]
-               (case (:mark a)
-                 :rule-v (let [color (if-let [c (:color a)]
-                                       (defaults/hex->rgba c)
-                                       default-ann-color)
-                               pixel (x-data-scale (:x-intercept a))]
-                           (draw-rule pixel color flip? (extract/resolve-dash (:stroke-dash a))))
-                 :rule-h (let [color (if-let [c (:color a)]
-                                       (defaults/hex->rgba c)
-                                       default-ann-color)
-                               pixel (y-data-scale (:y-intercept a))]
-                           (draw-rule pixel color horizontal-y-data? (extract/resolve-dash (:stroke-dash a))))
-                 :band-v (let [p1 (x-data-scale (:x-min a))
-                               p2 (x-data-scale (:x-max a))
-                               alpha (or (:alpha a) band-alpha)
-                               rgba (if-let [c (:color a)]
-                                      (let [[r g b _] (defaults/hex->rgba c)]
-                                        [r g b alpha])
-                                      [0.5 0.5 0.5 alpha])]
-                           (draw-band p1 p2 rgba flip?))
-                 :band-h (let [p1 (y-data-scale (:y-min a))
-                               p2 (y-data-scale (:y-max a))
-                               alpha (or (:alpha a) band-alpha)
-                               rgba (if-let [c (:color a)]
-                                      (let [[r g b _] (defaults/hex->rgba c)]
-                                        [r g b alpha])
-                                      [0.5 0.5 0.5 alpha])]
-                           (draw-band p1 p2 rgba horizontal-y-data?))
-                 nil)))))
+               (offset-drawable
+                a
+                (case (:mark a)
+                  :rule-v (let [color (if-let [c (:color a)]
+                                        (defaults/hex->rgba c)
+                                        default-ann-color)
+                                pixel (x-data-scale (:x-intercept a))]
+                            (draw-rule pixel color flip? (extract/resolve-dash (:stroke-dash a))))
+                  :rule-h (let [color (if-let [c (:color a)]
+                                        (defaults/hex->rgba c)
+                                        default-ann-color)
+                                pixel (y-data-scale (:y-intercept a))]
+                            (draw-rule pixel color horizontal-y-data? (extract/resolve-dash (:stroke-dash a))))
+                  :band-v (let [p1 (x-data-scale (:x-min a))
+                                p2 (x-data-scale (:x-max a))
+                                alpha (or (:alpha a) band-alpha)
+                                rgba (if-let [c (:color a)]
+                                       (let [[r g b _] (defaults/hex->rgba c)]
+                                         [r g b alpha])
+                                       [0.5 0.5 0.5 alpha])]
+                            (draw-band p1 p2 rgba flip?))
+                  :band-h (let [p1 (y-data-scale (:y-min a))
+                                p2 (y-data-scale (:y-max a))
+                                alpha (or (:alpha a) band-alpha)
+                                rgba (if-let [c (:color a)]
+                                       (let [[r g b _] (defaults/hex->rgba c)]
+                                         [r g b alpha])
+                                       [0.5 0.5 0.5 alpha])]
+                            (draw-band p1 p2 rgba horizontal-y-data?))
+                  nil))))))
 
         ;; "No data" placeholder for cells where every layer
         ;; rendered nothing and there are no annotations --

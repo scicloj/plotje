@@ -16,6 +16,8 @@
    [scicloj.kindly.v4.kind :as kind]
    ;; Rdatasets -- standard datasets
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
+   ;; Tablecloth -- dataset manipulation
+   [tablecloth.api :as tc]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
    ;; Fastmath -- random number generation
@@ -454,7 +456,7 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:polygons s))))])
 
-;; ## Annotations
+;; ## Reference Lines and Bands
 
 ;; Reference lines and shaded bands are regular layers. Position comes
 ;; from the options map (`:y-intercept` for `lay-rule-h`, `:x-intercept`
@@ -806,6 +808,78 @@ plan1
 (kind/test-last [(fn [m] (and (= 600 (:width m))
                               (= "x" (:x-label m))))])
 
+(kind/doc #'pj/frames)
+
+;; The whole result for this single-panel plot: the canvas, and one
+;; entry per panel with its position in the grid, its domains and scale
+;; specs, whether it can be mapped back to data, and its two frames.
+
+(-> plan1 pj/frames kind/pprint)
+
+(kind/test-last
+ [(fn [m] (and (= [0.0 0.0 600.0 400.0] (:canvas m))
+               (= 1 (count (:panels m)))
+               (true? (-> m :panels first :invertible?))
+               (= 4 (count (-> m :panels first :frames :drawing-area)))))])
+
+;; The canvas is reported once rather than on every panel: it belongs to
+;; the plot. Each panel's rectangles are given in canvas coordinates, so
+;; they nest inside it and can be compared with each other directly.
+;; That holds for a composite too, where the panels come from separate
+;; sub-plans -- here a 700-wide image of two cells, whose panel boxes
+;; start at different x and both end inside the canvas:
+
+(let [f (pj/frames (pj/arrange [(pj/lay-point tiny :x :y)
+                                (pj/lay-line tiny :x :y)]
+                               {:width 700 :height 300}))
+      [_ _ cw ch] (:canvas f)
+      boxes (mapv #(-> % :frames :panel-box) (:panels f))
+      inside? (fn [[x y w h]] (and (>= x 0) (>= y 0)
+                                   (<= (+ x w) cw) (<= (+ y h) ch)))]
+  {:canvas (:canvas f)
+   :panel-boxes boxes
+   :every-box-inside-the-canvas (every? inside? boxes)
+   :panel-rectangle-keys (mapv #(vec (keys (:frames %))) (:panels f))})
+
+(kind/test-last
+ [(fn [m] (and (= [0.0 0.0 700.0 300.0] (:canvas m))
+               (= 2 (count (:panel-boxes m)))
+               ;; the two cells sit side by side, not on top of each other
+               (apply not= (map first (:panel-boxes m)))
+               (true? (:every-box-inside-the-canvas m))
+               ;; and no panel carries a canvas of its own to disagree with
+               (every? #(= [:panel-box :drawing-area] %)
+                       (:panel-rectangle-keys m))))])
+
+;; The result contains no functions, so it can be printed, compared and
+;; read back from `pr-str`. The two mappings below take a panel entry
+;; as their first argument.
+
+(kind/doc #'pj/to-drawing)
+
+(pj/to-drawing (-> plan1 pj/frames :panels first) 2 5)
+
+(kind/test-last [(fn [v] (= 2 (count v)))])
+
+(kind/doc #'pj/to-data)
+
+;; Many positions at once go in and come back as a dataset:
+
+(pj/to-drawing (-> plan1 pj/frames :panels first)
+               {:x [2 3] :y [5 6]})
+
+(kind/test-last [(fn [ds] (and (= [:x :y] (vec (tc/column-names ds)))
+                               (= 2 (tc/row-count ds))))])
+
+;; A position survives the round trip:
+
+(let [panel (-> plan1 pj/frames :panels first)]
+  (->> (pj/to-drawing panel 2 5)
+       (apply pj/to-data panel)
+       (mapv #(Math/round (double %)))))
+
+(kind/test-last [(fn [v] (= [2 5] v))])
+
 (kind/doc #'pj/svg-summary)
 
 (-> (rdatasets/datasets-iris)
@@ -1001,7 +1075,7 @@ plan1
 
 (count pj/layer-option-docs)
 
-(kind/test-last [(fn [n] (= 51 n))])
+(kind/test-last [(fn [n] (= 54 n))])
 
 ;; ## Layer Type Registry
 

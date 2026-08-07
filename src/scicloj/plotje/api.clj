@@ -13,6 +13,7 @@
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.file :as pf]
+            [scicloj.plotje.impl.frames :as frames-impl]
             [scicloj.plotje.render.membrane :as membrane]
             [scicloj.plotje.impl.membrane :as membrane-schema]
             [scicloj.plotje.render.composite]
@@ -1400,25 +1401,38 @@
                 {:mapping position-mapping :layers [layer]})))))
 
 (defn- check-position-mapping
-  "Throw a helpful error if :x or :y in a layer's options is a
-   non-column-reference value (e.g. a scalar number). Positions
-   must be column references (keyword or string); fixed scalars are
-   a common mistake from annotation-style usage and previously
-   produced an opaque ClassCastException deep in the stat pipeline
-   (user-report-2 Issue 3)."
-  [context opts]
-  (doseq [k [:x :y]]
-    (when-let [v (get opts k)]
-      (when-not (or (keyword? v) (string? v))
-        (throw (ex-info (str context " " k " must be a column reference "
-                             "(keyword or string), but got "
-                             (pr-str v) ". For a constant position, add a "
-                             "column to :data with that value, e.g. "
-                             "`(tc/add-column data " k " (constantly "
-                             (pr-str v) "))` and pass "
-                             k " "
-                             (pr-str (keyword (name k))) ".")
-                        {:option k :value v}))))))
+  "Throw a helpful error if :x or :y is a value that names no column and
+   places no mark -- a vector, a boolean, a set.
+
+   Where the `:x` or `:y` is written decides what a number means. In a
+   layer's options map (`:allow-value`) it is a value to draw at, either
+   as one mark or broadcast over the layer's data. In `pj/pose`, or in
+   the `:x`/`:y` arguments of a `lay-*` call, it is a column reference
+   and nothing else, so an integer column name reports the rename it
+   needs rather than silently plotting one mark at that number."
+  ([context opts] (check-position-mapping context opts nil))
+  ([context opts allow-value]
+   (doseq [k [:x :y]]
+     (when-let [v (get opts k)]
+       (when-not (or (keyword? v) (string? v)
+                     (and (= :allow-value allow-value)
+                          (resolve/literal-position? v)))
+         (throw (ex-info (str context " " k " must be a column reference "
+                              "(keyword or string), but got " (pr-str v) "."
+                              (if (resolve/literal-position? v)
+                                (str " To place a mark at that " k ", give it "
+                                     "in a layer's options map, e.g. "
+                                     "`(pj/lay-text pose {" k " " (pr-str v)
+                                     " :y 5.0 :text \"note\"})`. If " (pr-str v)
+                                     " is a column name, rename the column "
+                                     "first, e.g. "
+                                     "`(tc/rename-columns ds [:x :y])`.")
+                                (str " For one fixed " k ", add a column "
+                                     "to :data holding it, e.g. "
+                                     "`(tc/add-column data " k " (constantly "
+                                     (pr-str v) "))` and pass "
+                                     k " " (pr-str (keyword (name k))) ".")))
+                         {:option k :value v})))))))
 
 (defn- check-numeric-aesthetics
   "Throw a helpful error if :alpha or :size in a layer's options is
@@ -1436,7 +1450,25 @@
     (when (and (number? v) (not (pos? v)))
       (throw (ex-info (str context " :size must be positive when given "
                            "as a constant, but got " (pr-str v) ".")
-                      {:option :size :value v})))))
+                      {:option :size :value v}))))
+  (when-let [v (get opts :in)]
+    (when-not (contains? layer-type/spaces v)
+      (throw (ex-info (str context " :in must be one of "
+                           (vec (sort layer-type/spaces))
+                           ", but got " (pr-str v) ".")
+                      {:option :in :value v
+                       :supported (vec (sort layer-type/spaces))}))))
+  ;; An offset is a length in drawing units, never a column: it shifts the
+  ;; whole layer by one amount, so a per-row value has nothing to mean.
+  (doseq [k [:offset-x :offset-y]]
+    (when-let [v (get opts k)]
+      (when-not (number? v)
+        (throw (ex-info (str context " " k " must be a number of drawing "
+                             "units, but got " (pr-str v) ". It shifts the "
+                             "whole layer, so it takes one value rather than "
+                             "a column. For a data-space shift use "
+                             (if (= k :offset-x) ":nudge-x" ":nudge-y") ".")
+                        {:option k :value v}))))))
 
 (defn- check-column-ref-types
   "Throw a helpful error if any aesthetic mapping carries a symbol --
@@ -1515,7 +1547,10 @@
   (when opts
     (check-facet-keys "layer" opts)
     (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
-    (check-position-mapping (str "lay-" (name layer-type-key)) opts)
+    ;; :x and :y here may be a value as well as a column. Which of the
+    ;; two it draws is decided in `pose/leaf->draft`, where the pose's
+    ;; mapping and the layer's data are both known.
+    (check-position-mapping (str "lay-" (name layer-type-key)) opts :allow-value)
     (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
     (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
   (let [opts (if (and opts (keyword? layer-type-key))
@@ -2707,6 +2742,90 @@
        (->pose "pj/plan")
        (options opts)
        plan)))
+
+(defn frames
+  "Where a plot's panels sit on the canvas, and how to get between data
+   space and drawing space.
+
+   Takes a plan or a pose; a pose is planned first. Returns a map:
+
+   - `:canvas` -- `[x y width height]` of the whole image, in drawing units
+   - `:panels` -- one entry per panel, each carrying `:row`, `:col`,
+     `:coord`, `:x-domain`, `:y-domain`, `:x-scale`, `:y-scale`,
+     `:invertible?` and `:frames`
+
+   A panel's `:frames` names two rectangles, both `[x y width height]`
+   in canvas coordinates: `:panel-box` (the panel with its axis margin)
+   and `:drawing-area` (the background inside that margin, where data
+   marks are clipped). The canvas is reported once, at the top: it
+   belongs to the plot rather than to any panel.
+
+   The result contains no functions, so it can be printed, compared and
+   read back from `pr-str`. To map between the spaces, pass a panel entry
+   to `pj/to-drawing` or `pj/to-data`.
+
+   For a composite, every cell's panels report canvas coordinates, so
+   their rectangles can be compared without further arithmetic.
+
+   This is the same computation the renderer draws with. Use it to place
+   your own annotations beside a plot, to compose a Plotje membrane with
+   hand-built Membrane views, or to read a pointer position back as data.
+
+   - `(frames my-pose)`
+   - `(-> my-plan frames :panels first :frames :drawing-area)`"
+  [plan-or-pose]
+  (let [p (if (plan? plan-or-pose) plan-or-pose (plan plan-or-pose))
+        ;; A leaf plan sizes itself with :total-width/:total-height; a
+        ;; composite with :width/:height.
+        w (or (:total-width p) (:width p))
+        h (or (:total-height p) (:height p))]
+    {:canvas [0.0 0.0 (double w) (double h)]
+     :panels (frames-impl/plan-frames p [0.0 0.0])}))
+
+(defn to-drawing
+  "Where data positions land on the canvas, for one panel of `pj/frames`.
+
+   Takes a panel entry -- an element of `(:panels (frames plot))` -- and
+   either one x and y, or a dataset of them with `:x` and `:y` columns.
+   The dataset arity maps whole columns and builds the panel's scales
+   once, so it is the one to reach for when placing many positions.
+
+   - `(to-drawing panel 3.2 21.0)` returns `[x y]` in canvas coordinates
+   - `(to-drawing panel {:x [3.2 4.0] :y [21.0 18.5]})` returns a dataset
+     with the same two column names, now in canvas coordinates
+
+   A dataset rather than a collection of pairs because the two
+   coordinates of a point share one index space, which a dataset states
+   and two loose sequences only promise. Anything `tc/dataset` coerces
+   works.
+
+   The result is in canvas coordinates, measured from the top left of the
+   whole image. A `{:in :drawing-area}` layer measures from the drawing
+   area's own corner instead, so drawing these positions back means
+   subtracting that corner first."
+  ([panel x y] (frames-impl/to-drawing panel x y))
+  ([panel data] (frames-impl/to-drawing panel data)))
+
+(defn to-data
+  "What data positions the canvas coordinates name, for one panel of
+   `pj/frames`. The inverse of `pj/to-drawing`. An interaction reads
+   this direction: which value is under the pointer, which range a
+   selection covers.
+
+   Throws under a coordinate system with no inverse. `:polar` maps x and
+   y together to an angle and a radius, so a canvas position there does
+   not name one pair of data values. A panel entry reports which case it
+   is in `:invertible?`.
+
+   - `(to-data panel 412.0 88.5)` returns `[x y]` in data values
+   - `(to-data panel {:x [412.0] :y [88.5]})` returns a dataset with the
+     same two column names, now in data values
+
+   A continuous axis answers with numbers, so its column is `:float64`.
+   A categorical axis answers with the category whose band holds the
+   position, so its column holds those."
+  ([panel cx cy] (frames-impl/to-data panel cx cy))
+  ([panel data] (frames-impl/to-data panel data)))
 
 (defn membrane
   "Resolve a pose into a `PlotjeMembrane`. Literal composition of the

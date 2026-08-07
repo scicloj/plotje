@@ -590,17 +590,22 @@ graph LR
 ;; need a `layer->membrane` defmethod for the SVG renderer. Without one,
 ;; the library throws an error explaining which defmethod to add.
 
-;; ### Annotation marks live on the panel's `:annotations`, not `:layers`
+;; ### Rule and band marks live on the panel's `:annotations`, not `:layers`
 ;;
-;; The four annotation marks -- `:rule-h`, `:rule-v`, `:band-h`,
-;; `:band-v` -- are split out of the per-panel `:layers` list during
-;; planning and rendered from a separate `:annotations` slot on each
-;; panel of the resolved plan. Extension authors building tooling that
-;; walks a plan should expect to find these on panel `:annotations`,
-;; not on panel `:layers`. The split is driven by
-;; `scicloj.plotje.impl.resolve/annotation-marks`, the canonical set of
-;; annotation mark keywords; if you add a custom annotation-style mark
-;; that should follow the same lifecycle, register it there.
+;; Four marks -- `:rule-h`, `:rule-v`, `:band-h`, `:band-v` -- are split
+;; out of the per-panel `:layers` list during planning and rendered from
+;; a separate `:annotations` slot on each panel of the resolved plan.
+;; Extension authors building tooling that walks a plan should expect to
+;; find these on panel `:annotations`, not on panel `:layers`. The split
+;; is driven by `scicloj.plotje.impl.resolve/annotation-marks`, the
+;; canonical set of those mark keywords; if you add a custom mark that
+;; should follow the same lifecycle, register it there.
+;;
+;; The `:annotations` slot holds only these four marks. The
+;; [Glossary](./plotje_book.glossary.html) defines an annotation more
+;; broadly -- any mark that explains a plot rather than showing data,
+;; including notes and leader lines. Those are ordinary text and line
+;; layers, and they stay on `:layers`.
 
 ;; ## `mark-clip-region`
 ;;
@@ -839,6 +844,29 @@ graph LR
 ;;
 ;; All four use the same scales -- `:flip` swaps which scale maps to
 ;; which drawing-space axis, and `:polar` maps x to angle and y to radius.
+
+;; ## `make-inverse`
+;;
+;; The other direction: canvas coordinates back to data-space x and y.
+;; `pj/to-data` reads it, and so does anything answering which value
+;; sits under a pointer. A coordinate system needs a method here only
+;; if it can be inverted coordinate by coordinate:
+
+(->> (methods scicloj.plotje.impl.coord/make-inverse)
+     keys
+     (filter keyword?)
+     (remove #{:default})
+     sort
+     vec)
+
+(kind/test-last [(fn [ks] (= [:cartesian :fixed :flip] ks))])
+
+;; `:polar` registers none, so it falls to the default, which returns
+;; nil. A panel under a coordinate system with no inverse reports
+;; `:invertible? false` in `pj/frames`, and `pj/to-data` throws for it
+;; rather than answering with a position that is only sometimes the one
+;; asked about. A custom coord that can be inverted should register a
+;; method; one that cannot needs no action.
 
 ;; A flipped bar chart uses `:flip` coordinates:
 

@@ -18,12 +18,22 @@
    override the visual mark or statistical transform supplied by its
    layer-type entry; unknown keywords raise a clear error at build time."
   [:x :y :color :color-type :alpha :group :position :data
-   :x-type :y-type :mark :stat])
+   :x-type :y-type :mark :stat :offset-x :offset-y :in])
+
+(def spaces
+  "The coordinate systems a layer's `:x` and `:y` can be given in, named
+   by `:in`. `:data` is the default and is what every layer has always
+   used. `:drawing-area` measures in drawing units from the top left of
+   the panel background, inside the axis margin.
+
+   Not to be confused with `:position`, which is the dodge/stack/fill
+   adjustment a layer type carries."
+  #{:data :drawing-area})
 
 (def layer-option-docs
   "Documentation for layer option keys. Maps key to description string."
-  {:x "Column keyword or string naming the column drawn along the x axis"
-   :y "Column keyword or string naming the column drawn along the y axis"
+  {:x "Column keyword or string naming the column drawn along the x axis, or a value to draw at that x. A value beside a column :y broadcasts over the layer's data; values for both :x and :y draw one mark"
+   :y "Column keyword or string naming the column drawn along the y axis, or a value to draw at that y. The same two shapes as :x"
    :data "Dataset or plain data for this layer alone, overriding the pose's"
    :mark "Override the mark the layer type draws with — the shape on the panel"
    :stat "Override the statistic the layer type computes — e.g. {:stat :count} on a text layer labels counted bars"
@@ -36,6 +46,9 @@
    :position "Position adjustment keyword — how overlapping groups are arranged (see pj/position-doc)"
    :nudge-x "Shift all x-coordinates by this data-space amount"
    :nudge-y "Shift all y-coordinates by this data-space amount"
+   :in "The space this layer's :x and :y are in — :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). A :drawing-area layer is placed on the panel rather than in the data, so it does not move the axis domains"
+   :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :nudge-x this is not a data value, so it works on a categorical axis and does not move the axis domain — use it to clear a label of the mark it labels"
+   :offset-y "Shift the whole layer down by this many drawing units, after the scales. See :offset-x"
    :align-x "Horizontal text anchor — :left, :center, or :right (default :left); which part of the label sits at the x position"
    :align-y "Vertical text anchor — :top, :center, or :bottom (default :center); which part of the label sits at the y position. Data-oriented: :top puts the label's top edge at the point"
    :size "Column keyword or fixed number — point radius or stroke width"
@@ -143,12 +156,18 @@
                         ;; per category and we draw each row's rect at the band centre.
                         :rejects [:position]
                         :doc "Interval — horizontal bars from x to x-end at categorical y. For Gantt-style timelines."})
-;; Annotation methods reject the universal options that have no
+;; Rule and band layer types reject the universal options that have no
 ;; meaning for a single rule/band: there are no groups to dodge or
 ;; stack, no shape/jitter to vary across an aggregated mark, and the
 ;; column-type overrides only matter for stat-based marks.
+;;
+;; `:in` is rejected for a different reason: these four marks are
+;; carried on a panel's `:annotations` slot rather than among its
+;; `:layers`, and that path places them from data values only.
+;; `:offset-x`/`:offset-y` do apply -- the annotation renderer shifts
+;; each drawable by them, as the layer renderer does.
 (def ^:private annotation-rejects
-  [:position :group :x-type :y-type :color-type])
+  [:position :group :x-type :y-type :color-type :in])
 
 (register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept :stroke-dash] :rejects annotation-rejects :doc "Horizontal reference line at y = y-intercept."})
 (register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept :stroke-dash] :rejects annotation-rejects :doc "Vertical reference line at x = x-intercept."})

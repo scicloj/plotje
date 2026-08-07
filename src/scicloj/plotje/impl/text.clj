@@ -33,6 +33,12 @@
    past `char-advance`, so a bound has to sit above that."
   0.7)
 
+(def fit-pad
+  "Gap in drawing units left between a text mark and the edge of the
+   panel when the domain is widened to fit it. Without it the domain is
+   fitted exactly and the last glyph touches the panel edge."
+  4)
+
 (def box-pad-x
   "Horizontal gap between a text mark and the edge of its box, in pixels."
   3)
