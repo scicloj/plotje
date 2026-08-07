@@ -151,9 +151,11 @@
 ;; measures.
 ;;
 ;; `:nudge-x` cannot do this, because it shifts the data value itself,
-;; before the scales run. In the plot below each car is labelled with its
-;; name and nudged along an axis of weights in thousands of pounds, where
-;; a nudge of 0.08 happens to be about the width of a marker:
+;; before the scales run.
+;;
+;; The examples that follow use six cars from `mtcars`, with their
+;; weights in thousands of pounds and their displacements in cubic
+;; inches:
 
 (def cars
   (-> (rdatasets/datasets-mtcars)
@@ -166,6 +168,10 @@ cars
  [(fn [ds] (and (= 6 (tc/row-count ds))
                 (= [1.935 5.424] [(apply min (ds :wt)) (apply max (ds :wt))])
                 (= [79.0 460.0] [(apply min (ds :disp)) (apply max (ds :disp))])))])
+
+;; Here each car is labelled with its name, and the labels are nudged
+;; along the weight axis. A nudge of 0.08 happens to be about the width
+;; of a marker on this axis, so it clears them:
 
 (-> cars
     (pj/lay-point :wt :mpg {:size 5})
@@ -195,9 +201,9 @@ cars
       (< (- (at 79.08) (at 79.0)) 0.2)))])
 
 ;; `:offset-x` and `:offset-y` shift a layer by a number of drawing units
-;; after the scales have run, so one number clears the marker on either
-;; axis. Positive `:offset-y` moves down the page, as drawing coordinates
-;; do:
+;; after the scales have run. Because the number is a distance on the
+;; page, the same one works on any axis. Here `:offset-x 10` clears the
+;; markers on the displacement axis that defeated the nudge:
 
 (-> cars
     (pj/lay-point :disp :mpg {:size 5})
@@ -208,9 +214,12 @@ cars
     (= [nil 10]
        (->> fr pj/plan :panels first :layers (mapv :offset-x))))])
 
-;; Every layer type takes them. On a categorical axis there is no numeric
-;; value to shift at all, so `:nudge-x` throws there and an offset still
-;; works:
+;; Every layer type accepts these two options, and they also work where a
+;; nudge cannot: on a categorical axis there is no numeric value to shift,
+;; and `:nudge-x` throws. The bar chart below has its categories on x, so
+;; a nudge along that axis would be refused. `:offset-y -6` lifts each
+;; value label six drawing units above its bar -- negative, because a
+;; positive `:offset-y` moves down the page, as drawing coordinates do:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score)
@@ -295,9 +304,10 @@ cars
 ;; This is what the two spaces are for. A number in data space is a data
 ;; value, so it widens the domain if it falls outside it. A number in
 ;; drawing space is a measurement of the page, so it must not affect the
-;; domain at all. The same pair of numbers, read in the two spaces, lands
-;; in two different places, and only the data-space reading moves the
-;; axis:
+;; domain at all. The x domains below come from the same plot three
+;; times: without a note, with the note at `{:x 12 :y 12}` in data space,
+;; and with it at the same numbers in drawing space. Only the data-space
+;; note moves the axis:
 
 (let [base       (pj/lay-point (rdatasets/datasets-iris)
                                :sepal-length :sepal-width)
@@ -543,9 +553,9 @@ cars
 
 (-> (rdatasets/datasets-mtcars)
     (pj/lay-point :wt :mpg {:color "#bbbbbb"})
-    (pj/lay-point {:data {:wt [5.25] :mpg [10.4]}
+    (pj/lay-point {:data {:wt [5.424] :mpg [10.4]}
                    :x :wt :y :mpg :color "#cc3311" :size 6})
-    (pj/lay-line {:data {:wt [4.3 5.15] :mpg [13.5 10.8]}
+    (pj/lay-line {:data {:wt [4.3 5.32] :mpg [13.5 10.8]}
                   :x :wt :y :mpg
                   :color "#777777" :stroke-dash :dotted})
     (pj/lay-text {:x 4.25 :y 13.7 :align-x :right :offset-x -4
@@ -553,8 +563,11 @@ cars
                   :text "heaviest car in the set"}))
 
 (kind/test-last
- [(fn [fr] (some #{"heaviest car in the set"}
-                 (:texts (pj/svg-summary (pj/plot fr)))))])
+ [(fn [fr]
+    (and (some #{"heaviest car in the set"}
+               (:texts (pj/svg-summary (pj/plot fr))))
+         ;; The marker is on the heaviest car, not merely near it.
+         (= 5.424 (apply max ((rdatasets/datasets-mtcars) :wt)))))])
 
 ;; The [Cookbook](./plotje_book.cookbook.html) collects more of these
 ;; under Annotated Charts: reference lines and bands, labels on the lines

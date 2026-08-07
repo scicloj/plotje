@@ -47,8 +47,8 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__82792#] (= :text (:mark p1__82792#))))
-      (mapv (fn* [p1__82793#] (-> p1__82793# :style :align-x))))))
+      (filter (fn* [p1__11193#] (= :text (:mark p1__11193#))))
+      (mapv (fn* [p1__11194#] (-> p1__11194# :style :align-x))))))
    v3_l79)))
 
 
@@ -76,7 +76,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__82794#] (= :text (:mark p1__82794#))))
+       (filter (fn* [p1__11195#] (= :text (:mark p1__11195#))))
        first
        :style)
       text-style
@@ -90,12 +90,12 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__82795#] (= :text (:mark p1__82795#))))
+        (filter (fn* [p1__11196#] (= :text (:mark p1__11196#))))
         first
         :style
         ((fn*
-          [p1__82796#]
-          (select-keys p1__82796# [:align-x :align-y])))))]
+          [p1__11197#]
+          (select-keys p1__11197# [:align-x :align-y])))))]
      (and
       (= :center (:align-x style-of))
       (= :bottom (:align-y style-of))
@@ -125,7 +125,7 @@
 
 
 (def
- v10_l158
+ v10_l160
  (def
   cars
   (->
@@ -134,11 +134,11 @@
    (tc/select-columns [:rownames :wt :mpg :disp]))))
 
 
-(def v11_l163 cars)
+(def v11_l165 cars)
 
 
 (deftest
- t12_l165
+ t12_l167
  (is
   ((fn
     [ds]
@@ -146,11 +146,11 @@
      (= 6 (tc/row-count ds))
      (= [1.935 5.424] [(apply min (ds :wt)) (apply max (ds :wt))])
      (= [79.0 460.0] [(apply min (ds :disp)) (apply max (ds :disp))])))
-   v11_l163)))
+   v11_l165)))
 
 
 (def
- v13_l170
+ v14_l176
  (->
   cars
   (pj/lay-point :wt :mpg {:size 5})
@@ -158,7 +158,7 @@
 
 
 (deftest
- t14_l174
+ t15_l180
  (is
   ((fn
     [fr]
@@ -166,13 +166,13 @@
      [panel
       (-> fr pj/frames :panels first)
       at
-      (fn* [p1__82797#] (first (pj/to-drawing panel p1__82797# 20.0)))]
+      (fn* [p1__11198#] (first (pj/to-drawing panel p1__11198# 20.0)))]
      (< 8.0 (- (at 2.08) (at 2.0)) 11.0)))
-   v13_l170)))
+   v14_l176)))
 
 
 (def
- v16_l187
+ v17_l193
  (->
   cars
   (pj/lay-point :disp :mpg {:size 5})
@@ -180,7 +180,7 @@
 
 
 (deftest
- t17_l191
+ t18_l197
  (is
   ((fn
     [fr]
@@ -188,13 +188,13 @@
      [panel
       (-> fr pj/frames :panels first)
       at
-      (fn* [p1__82798#] (first (pj/to-drawing panel p1__82798# 20.0)))]
+      (fn* [p1__11199#] (first (pj/to-drawing panel p1__11199# 20.0)))]
      (< (- (at 79.08) (at 79.0)) 0.2)))
-   v16_l187)))
+   v17_l193)))
 
 
 (def
- v19_l202
+ v20_l208
  (->
   cars
   (pj/lay-point :disp :mpg {:size 5})
@@ -202,18 +202,18 @@
 
 
 (deftest
- t20_l206
+ t21_l212
  (is
   ((fn
     [fr]
     (=
      [nil 10]
      (->> fr pj/plan :panels first :layers (mapv :offset-x))))
-   v19_l202)))
+   v20_l208)))
 
 
 (def
- v22_l215
+ v23_l224
  (->
   {:team ["red" "green" "blue"], :score [3 5 4]}
   (pj/lay-bar :team :score)
@@ -221,18 +221,18 @@
 
 
 (deftest
- t23_l219
+ t24_l228
  (is
   ((fn
     [fr]
     (=
      [nil -6]
      (->> fr pj/plan :panels first :layers (mapv :offset-y))))
-   v22_l215)))
+   v23_l224)))
 
 
 (def
- v25_l248
+ v26_l257
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -240,18 +240,18 @@
 
 
 (deftest
- t26_l252
+ t27_l261
  (is
   ((fn
     [fr]
     (some
      #{"outliers up here"}
      (:texts (pj/svg-summary (pj/plot fr)))))
-   v25_l248)))
+   v26_l257)))
 
 
 (def
- v28_l267
+ v29_l276
  (->
   cars
   (pj/lay-point :wt :mpg)
@@ -259,18 +259,18 @@
 
 
 (deftest
- t29_l271
+ t30_l280
  (is
   ((fn
     [fr]
     (every?
      (set (:texts (pj/svg-summary (pj/plot fr))))
      ["Mazda RX4" "Valiant" "Merc 280C"]))
-   v28_l267)))
+   v29_l276)))
 
 
 (def
- v31_l283
+ v32_l292
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -278,7 +278,7 @@
 
 
 (deftest
- t32_l287
+ t33_l296
  (is
   ((fn
     [fr]
@@ -293,11 +293,11 @@
          :sepal-length
          :sepal-width))
        (dom fr)))))
-   v31_l283)))
+   v32_l292)))
 
 
 (def
- v34_l302
+ v35_l312
  (let
   [base
    (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)
@@ -307,26 +307,26 @@
    (pj/lay-text base {:in :drawing-area, :x 12, :y 12, :text "x"})
    x-domain
    (fn*
-    [p1__82799#]
-    (:x-domain (first (:panels (pj/plan p1__82799#)))))]
+    [p1__11200#]
+    (:x-domain (first (:panels (pj/plan p1__11200#)))))]
   {:no-note (x-domain base),
    :note-in-data (x-domain in-data),
    :note-in-drawing (x-domain in-drawing)}))
 
 
 (deftest
- t35_l311
+ t36_l321
  (is
   ((fn
     [m]
     (and
      (= (:no-note m) (:note-in-drawing m))
      (not= (:no-note m) (:note-in-data m))))
-   v34_l302)))
+   v35_l312)))
 
 
 (def
- v37_l326
+ v38_l336
  (def
   scatter
   (->
@@ -335,11 +335,11 @@
    (pj/options {:width 620, :height 380}))))
 
 
-(def v38_l331 (-> scatter pj/frames kind/pprint))
+(def v39_l341 (-> scatter pj/frames kind/pprint))
 
 
 (def
- v40_l341
+ v41_l351
  (let
   [panel (-> scatter pj/frames :panels first)]
   {:mazda-rx4-at (pj/to-drawing panel 2.62 21.0),
@@ -349,7 +349,7 @@
 
 
 (deftest
- t41_l347
+ t42_l357
  (is
   ((fn
     [m]
@@ -357,27 +357,27 @@
      true?
      (map
       (fn*
-       [p1__82800# p2__82801#]
-       (< (abs (- p1__82800# p2__82801#)) 1.0E-9))
+       [p1__11201# p2__11202#]
+       (< (abs (- p1__11201# p2__11202#)) 1.0E-9))
       (:round-trip m)
       [2.62 21.0])))
-   v40_l341)))
+   v41_l351)))
 
 
 (def
- v43_l363
+ v44_l373
  (pj/to-drawing
   (-> scatter pj/frames :panels first)
   {:x [2.62 3.44 5.25], :y [21.0 18.1 10.4]}))
 
 
 (deftest
- t44_l366
- (is ((fn [ds] (= [:x :y] (vec (tc/column-names ds)))) v43_l363)))
+ t45_l376
+ (is ((fn [ds] (= [:x :y] (vec (tc/column-names ds)))) v44_l373)))
 
 
 (def
- v46_l377
+ v47_l387
  (let
   [shift
    (fn
@@ -388,22 +388,22 @@
       lo
       (apply min (cars column))
       at
-      (fn* [p1__82802#] (first (pj/to-drawing panel p1__82802# 20.0)))]
+      (fn* [p1__11203#] (first (pj/to-drawing panel p1__11203# 20.0)))]
      (- (at (+ lo 0.08)) (at lo))))]
   {:on-weight (shift :wt), :on-displacement (shift :disp)}))
 
 
 (deftest
- t47_l389
+ t48_l399
  (is
   ((fn
     [m]
     (and (< 10.0 (:on-weight m) 13.0) (< (:on-displacement m) 0.2)))
-   v46_l377)))
+   v47_l387)))
 
 
 (def
- v49_l404
+ v50_l414
  (let
   [panel
    (-> scatter pj/frames :panels first)
@@ -422,30 +422,30 @@
 
 
 (deftest
- t50_l413
+ t51_l423
  (is
-  ((fn [fr] (= 8 (:points (pj/svg-summary (pj/plot fr))))) v49_l404)))
+  ((fn [fr] (= 8 (:points (pj/svg-summary (pj/plot fr))))) v50_l414)))
 
 
 (def
- v52_l426
+ v53_l436
  (let
   [drawing-area
    (fn*
-    [p1__82803#]
-    (-> p1__82803# pj/frames :panels first :frames :drawing-area))]
+    [p1__11204#]
+    (-> p1__11204# pj/frames :panels first :frames :drawing-area))]
   {:untitled (drawing-area scatter),
    :titled
    (drawing-area (pj/options scatter {:title "Motor Trend Cars"}))}))
 
 
 (deftest
- t53_l430
- (is ((fn [m] (< (last (:titled m)) (last (:untitled m)))) v52_l426)))
+ t54_l440
+ (is ((fn [m] (< (last (:titled m)) (last (:untitled m)))) v53_l436)))
 
 
 (def
- v55_l439
+ v56_l449
  (let
   [[_ _ _ h]
    (-> scatter pj/frames :panels first :frames :drawing-area)]
@@ -460,24 +460,24 @@
 
 
 (deftest
- t56_l443
+ t57_l453
  (is
   ((fn
     [fr]
     (let
      [drawing-area
       (fn*
-       [p1__82804#]
-       (-> p1__82804# pj/frames :panels first :frames :drawing-area))]
+       [p1__11205#]
+       (-> p1__11205# pj/frames :panels first :frames :drawing-area))]
      (and
       (= 6 (tc/row-count cars))
       (some #{"n = 6"} (:texts (pj/svg-summary (pj/plot fr))))
       (= (drawing-area scatter) (drawing-area fr)))))
-   v55_l439)))
+   v56_l449)))
 
 
 (def
- v58_l466
+ v59_l476
  (def
   tickets-by-violation
   {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"],
@@ -485,7 +485,7 @@
 
 
 (def
- v59_l470
+ v60_l480
  (->
   tickets-by-violation
   (pj/lay-bar :tickets :violation)
@@ -493,7 +493,7 @@
 
 
 (def
- v61_l478
+ v62_l488
  (->
   tickets-by-violation
   (pj/lay-bar :tickets :violation)
@@ -502,7 +502,7 @@
 
 
 (def
- v63_l485
+ v64_l495
  (let
   [top-end
    (fn
@@ -521,12 +521,12 @@
 
 
 (deftest
- t64_l498
- (is ((fn [m] (> (:fitted m) (:unfitted m))) v63_l485)))
+ t65_l508
+ (is ((fn [m] (> (:fitted m) (:unfitted m))) v64_l495)))
 
 
 (def
- v66_l504
+ v67_l514
  (let
   [top-end
    (fn
@@ -544,12 +544,12 @@
 
 
 (deftest
- t67_l516
- (is ((fn [m] (= (:fitted m) (:unfitted m))) v66_l504)))
+ t68_l526
+ (is ((fn [m] (= (:fitted m) (:unfitted m))) v67_l514)))
 
 
 (def
- v69_l524
+ v70_l534
  (->
   tickets-by-violation
   (pj/lay-bar :tickets :violation)
@@ -561,22 +561,22 @@
   :x-domain))
 
 
-(deftest t70_l533 (is ((fn [d] (= [0 500000] d)) v69_l524)))
+(deftest t71_l543 (is ((fn [d] (= [0 500000] d)) v70_l534)))
 
 
 (def
- v72_l544
+ v73_l554
  (->
   (rdatasets/datasets-mtcars)
   (pj/lay-point :wt :mpg {:color "#bbbbbb"})
   (pj/lay-point
-   {:data {:wt [5.25], :mpg [10.4]},
+   {:data {:wt [5.424], :mpg [10.4]},
     :x :wt,
     :y :mpg,
     :color "#cc3311",
     :size 6})
   (pj/lay-line
-   {:data {:wt [4.3 5.15], :mpg [13.5 10.8]},
+   {:data {:wt [4.3 5.32], :mpg [13.5 10.8]},
     :x :wt,
     :y :mpg,
     :color "#777777",
@@ -591,11 +591,13 @@
 
 
 (deftest
- t73_l555
+ t74_l565
  (is
   ((fn
     [fr]
-    (some
-     #{"heaviest car in the set"}
-     (:texts (pj/svg-summary (pj/plot fr)))))
-   v72_l544)))
+    (and
+     (some
+      #{"heaviest car in the set"}
+      (:texts (pj/svg-summary (pj/plot fr))))
+     (= 5.424 (apply max ((rdatasets/datasets-mtcars) :wt)))))
+   v73_l554)))
