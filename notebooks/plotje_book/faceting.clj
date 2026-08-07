@@ -141,7 +141,7 @@
 ;; A related multi-panel layout, the **scatter plot matrix (SPLOM)**,
 ;; uses `pj/cross` rather than `pj/facet` -- the panels show all
 ;; pairs of variables instead of one variable split across panels.
-;; See the [Relationships](./plotje_book.relationships.html) chapter
+;; See the [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom) chapter
 ;; for the canonical SPLOM example.
 
 ;; ## Comparing Multiple Columns

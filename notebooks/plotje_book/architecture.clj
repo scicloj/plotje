@@ -140,7 +140,7 @@ graph LR
 ;; Each transition is its own public function. Walk the example
 ;; below to see what enters and what leaves at each step. The
 ;; per-function reference (arities, arguments, return types) lives
-;; in the [API Reference](./plotje_book.api_reference.html).
+;; in the [API Reference](./plotje_book.api_reference.html#pipeline).
 
 ;; ### Step 1: pj/->pose
 ;;
@@ -270,7 +270,7 @@ trace-pose
                                "membrane.ui.")
                  (:drawables v))))])
 
-;; The dedicated [Membranes](./plotje_book.membranes.html) chapter
+;; The dedicated [Membranes](./plotje_book.membranes.html#the-membrane-protocols) chapter
 ;; walks the record's protocols, the namespaced-attribute convention,
 ;; and how a `PlotjeMembrane` composes with hand-built Membrane
 ;; elements.
@@ -625,7 +625,7 @@ composite-pose
 ;; before `pj/draft->plan` runs, so the resulting panels share
 ;; axes. Shared-scale resolution belongs to the composite stage
 ;; rather than per-leaf planning. See the
-;; [Composition](./plotje_book.composition.html) chapter for worked
+;; [Composition](./plotje_book.composition.html#shared-scales) chapter for worked
 ;; examples.
 
 ;; ## The Plan Boundary
@@ -677,8 +677,8 @@ graph LR
 ;; shows. The membrane turns it into a drawing-space clip that hides
 ;; any geometry reaching past that window, so a mark cannot paint
 ;; outside its panel, or into a neighbor in a multi-panel layout. The
-;; [Membranes](./plotje_book.membranes.html) chapter shows the
-;; mechanism; the [Glossary](./plotje_book.glossary.html) has an entry
+;; [Membranes](./plotje_book.membranes.html#clipping-marks-to-the-panel) chapter shows the
+;; mechanism; the [Glossary](./plotje_book.glossary.html#clip) has an entry
 ;; for **clip**.
 ;;
 ;; This boundary lets one membrane tree be rendered to many output

@@ -457,7 +457,7 @@ precedence-point-radius
 ;;
 ;; The membrane stage has the same pair -- `pj/valid-membrane?` and
 ;; `pj/explain-membrane` -- shown in the
-;; [Membranes](./plotje_book.membranes.html) chapter.
+;; [Membranes](./plotje_book.membranes.html#schema) chapter.
 
 ;; Default behavior (validate = true) -- a valid plan passes silently:
 

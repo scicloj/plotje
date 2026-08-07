@@ -10,7 +10,7 @@
 ;; and axis labels are not yet rendered under `:polar`, but legends
 ;; render as they would on Cartesian coords -- a `:color` mapping
 ;; produces a normal legend that can be repositioned via
-;; `:legend-position` (see [Customization](./plotje_book.customization.html)).
+;; `:legend-position` (see [Customization](./plotje_book.customization.html#legend-position)).
 
 (ns plotje-book.polar
   (:require

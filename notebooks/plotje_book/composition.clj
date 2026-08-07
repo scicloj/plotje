@@ -242,7 +242,7 @@ dashboard
 ;; renders into the same panel. The result is one panel with
 ;; six points -- three from each layer. Overlaid layers paint in
 ;; the order they were added -- see
-;; [Poses](./plotje_book.pose_model.html) -- so add the layer you
+;; [Poses](./plotje_book.pose_model.html#layer-order-is-paint-order) -- so add the layer you
 ;; want on top last.
 ;;
 ;; ### Separate sub-pose for the new layer
@@ -254,7 +254,7 @@ dashboard
 ;; position and the new layer becomes panel-2. The two render side
 ;; by side in a grid (the default `:matrix` layout, which arranges
 ;; panels in rows and columns). This promotion is specified as Rule
-;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html) chapter.
+;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html#rule-lp2-position-carrying-lay--attaches-to-the-dfs-last-matching-leaf) chapter.
 
 (-> overlay-base
     (pj/lay-point :fitted :residual)

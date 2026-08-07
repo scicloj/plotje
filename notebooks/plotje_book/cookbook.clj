@@ -107,7 +107,7 @@
 ;;
 ;; A horizontal interval bar per task, with the bar's left edge at
 ;; the start date and the right edge at the end date. The
-;; [Timelines](./plotje_book.timelines.html) chapter has more
+;; [Timelines](./plotje_book.timelines.html#gantt-chart-with-lay-interval-h) chapter has more
 ;; variations (color by team, vertical orientation, presidential
 ;; terms); this is the minimal recipe.
 
@@ -492,7 +492,7 @@
 ;; lines instead of a legend, a note beside the shape it describes, a
 ;; caption in a corner. The options they lean on -- offsets, values for
 ;; `:x` and `:y`, and `:in :drawing-area` -- are taught in
-;; [Placing Marks](./plotje_book.placing_marks.html).
+;; [Placing Marks](./plotje_book.placing_marks.html#shifting-a-mark-by-a-distance-on-the-page).
 ;;
 ;; Two examples to look at first:
 ;;

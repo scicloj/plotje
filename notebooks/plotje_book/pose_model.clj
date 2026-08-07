@@ -35,7 +35,7 @@
 ;; so plots build up through ordinary `->` threading. When the pose
 ;; is ready, `pj/plot` renders it. (`pj/plot` is one of a few output
 ;; functions that turn a finished pose into a rendered result; the
-;; [Architecture](./plotje_book.architecture.html) chapter walks the
+;; [Architecture](./plotje_book.architecture.html#pipeline-overview) chapter walks the
 ;; full pipeline behind it.)
 ;;
 ;; The simplest pose carries some data and picks columns. With no
@@ -166,8 +166,8 @@ multi-layer
 ;; the bar so it paints on top, and use `:align-x :right` so the label
 ;; tucks inside the bar's end rather than spilling past it. (Bars and
 ;; `pj/coord` are covered later; anchoring is in
-;; [Placing Marks](./plotje_book.placing_marks.html), and the
-;; [Cookbook](./plotje_book.cookbook.html) has a value-labels recipe.)
+;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark), and the
+;; [Cookbook](./plotje_book.cookbook.html#value-labels-inside-bars) has a value-labels recipe.)
 
 (-> {:species ["setosa" "versicolor" "virginica"]
      :pct     [33.3 33.3 33.3]}

@@ -75,7 +75,7 @@
 ;;
 ;; **Cause**: `pj/pose` infers the layer type from column types. The
 ;; defaults fit the most common use case for each column-type pair
-;; (see [Inference Rules](./plotje_book.inference_rules.html)),
+;; (see [Inference Rules](./plotje_book.inference_rules.html#layer-type)),
 ;; but they can be overridden.
 ;;
 ;; **Fix**: Use an explicit `pj/lay-*` function. For example, a
@@ -125,7 +125,7 @@
 
 (kind/test-last [(fn [v] (= 3 (:lines (pj/svg-summary v))))])
 
-;; See [Inference Rules](./plotje_book.inference_rules.html)
+;; See [Inference Rules](./plotje_book.inference_rules.html#overriding-color-type-with-color-type)
 ;; for the full mechanism.
 
 ;; ## Numeric Column Treated as Continuous Instead of Categorical
@@ -167,7 +167,7 @@
 ;; `:hour` as categorical. The same switch works for `:y-type` when
 ;; a numeric column is on the y axis of a horizontal boxplot or
 ;; similar layout. See
-;; [Inference Rules](./plotje_book.inference_rules.html)
+;; [Inference Rules](./plotje_book.inference_rules.html#overriding-inferred-types-with-x-type-y-type)
 ;; for a worked example.
 
 ;; ## Nudge on a Categorical Axis
@@ -224,7 +224,7 @@
             first :style :align-x)))])
 
 ;; Anchoring is covered in
-;; [Placing Marks](./plotje_book.placing_marks.html). `:nudge-x` and
+;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark). `:nudge-x` and
 ;; `:nudge-y` remain available on numeric and temporal axes.
 
 ;; ## Log Scale via `:scale-x` / `:scale-y` Options
@@ -260,7 +260,7 @@
 ;; `pj/scale` takes the pose, the axis (`:x` or `:y`), and
 ;; either a type keyword (`:linear`, `:log`) or a scale specification
 ;; map with `:type` and an optional `:domain` override.
-;; See the [Inference Rules](./plotje_book.inference_rules.html)
+;; See the [Inference Rules](./plotje_book.inference_rules.html#domains)
 ;; chapter for how scale types and domains interact with column
 ;; inference.
 
@@ -441,7 +441,7 @@
 ;; to hold it. To place a mark on the panel instead -- in drawing
 ;; units from the corner of the panel background, leaving the axes
 ;; alone -- give the layer `:in :drawing-area`. The
-;; [Placing Marks](./plotje_book.placing_marks.html) chapter covers
+;; [Placing Marks](./plotje_book.placing_marks.html#placing-a-mark-on-the-panel-instead-of-in-the-data) chapter covers
 ;; that choice, and the two spaces the two readings belong to.
 ;;
 ;; Reference lines remain their own layer types: `pj/lay-rule-h` with
@@ -471,7 +471,7 @@
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
-;; The [Datasets](./plotje_book.datasets.html) chapter covers column
+;; The [Datasets](./plotje_book.datasets.html#column-names) chapter covers column
 ;; names in full.
 
 ;; ## Dataset Missing Columns a Template References

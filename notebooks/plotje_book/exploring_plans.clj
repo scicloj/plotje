@@ -1,6 +1,6 @@
 ;; # Exploring Plans
 ;;
-;; The [Architecture](./plotje_book.architecture.html) chapter
+;; The [Architecture](./plotje_book.architecture.html#pipeline-overview) chapter
 ;; introduced the five-stage pipeline that turns a pose into a
 ;; rendered plot. This notebook zooms into one of those stages --
 ;; the **plan** -- walking through it step by step to build

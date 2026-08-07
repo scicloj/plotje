@@ -262,13 +262,13 @@ two-up-png
 ;; output formats without re-walking the plan. Adding a new format
 ;; means writing a `defmethod` on
 ;; `scicloj.plotje.impl.render/membrane->plot`. The
-;; [Extensibility](./plotje_book.extensibility.html) chapter walks a
+;; [Extensibility](./plotje_book.extensibility.html#how-to-extend-add-a-new-membrane-based-format) chapter walks a
 ;; worked example.
 
 ;; ## Clipping marks to the panel
 ;;
 ;; Clipping -- keeping each panel's marks inside the panel (the
-;; [Glossary](./plotje_book.glossary.html) entry for clip defines the
+;; [Glossary](./plotje_book.glossary.html#clip) entry for clip defines the
 ;; term) -- needs no special machinery in the membrane stage: the clip
 ;; is another node in the tree. The panel's marks are wrapped in a
 ;; `membrane.ui/scissor-view`, a Membrane primitive that masks its
@@ -279,7 +279,7 @@ two-up-png
 ;; area (the grey panel background); rug ticks, which sit in the axis
 ;; margin on purpose, clip to the wider panel box. Which rectangle a
 ;; mark uses is itself an extension point -- the
-;; [Extensibility](./plotje_book.extensibility.html) chapter covers it.
+;; [Extensibility](./plotje_book.extensibility.html#mark-clip-region) chapter covers it.
 ;;
 ;; Build a membrane with one mark of each kind: a line running far past
 ;; a tightened y-domain (a data mark) and a rug (a margin mark).

@@ -24,7 +24,7 @@
 ;;
 ;; Plotje accepts plain Clojure data -- maps, vectors of maps --
 ;; or columnar datasets. No wrapping needed for simple cases.
-;; The [Datasets](./plotje_book.datasets.html) chapter covers
+;; The [Datasets](./plotje_book.datasets.html#creating-datasets) chapter covers
 ;; data formats and loading in detail.
 ;;
 ;; We use the classic iris flower dataset throughout these examples.
@@ -102,12 +102,12 @@
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
 ;; Datasets with four or more columns require explicit column names.
-;; See the [Datasets](./plotje_book.datasets.html) chapter for
+;; See the [Datasets](./plotje_book.datasets.html#from-a-csv-or-url) chapter for
 ;; loading from CSV, URLs, and other file formats.
 
 ;; ## Mappings and Layers
 ;;
-;; The [Poses](./plotje_book.pose_model.html) chapter introduced
+;; The [Poses](./plotje_book.pose_model.html#poses-carry-mappings) chapter introduced
 ;; the mapping-vs-layer split (what vs how). This section is the
 ;; practical follow-up: how the split plays out across multi-layer
 ;; plots and explicit-vs-shorthand calls.
@@ -382,7 +382,7 @@ two-panel
 ;;
 ;; A composite pose adds `:poses` (sub-poses) and optionally
 ;; `:layout` and `:share-scales`; see the
-;; [Composition](./plotje_book.composition.html) chapter for that
+;; [Composition](./plotje_book.composition.html#explicit-composite-poses) chapter for that
 ;; shape.
 
 ;; ## Mark, Stat, and Position
@@ -422,7 +422,7 @@ two-panel
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; See the [Layer Types](./plotje_book.layer_types.html) chapter
+;; See the [Layer Types](./plotje_book.layer_types.html#marks) chapter
 ;; for complete tables of every mark, stat, and position.
 
 ;; ## Inference
@@ -479,7 +479,7 @@ two-panel
 ;; choice can be overridden -- see
 ;; [Inference Rules](./plotje_book.inference_rules.html) for the
 ;; full decision logic and override settings, or
-;; [Architecture](./plotje_book.architecture.html) for where in
+;; [Architecture](./plotje_book.architecture.html#where-inference-happens) for where in
 ;; the pipeline each kind of inference happens.
 
 ;; ## Incremental Building
@@ -691,7 +691,7 @@ two-panel
 ;; pose or layer level. The functions in this section set
 ;; **plot-level options** instead: values that configure the whole
 ;; rendered plot and cannot be scoped down. See
-;; [Options and Scopes](./plotje_book.options_and_scopes.html)
+;; [Options and Scopes](./plotje_book.options_and_scopes.html#plot-options)
 ;; for the full picture.
 ;;
 ;; `pj/options` sets plot-level settings -- title, axis labels, size,
@@ -734,11 +734,11 @@ two-panel
                               (= :band-v (get-in v [:layers 2 :layer-type]))
                               (= 5.0 (get-in v [:layers 2 :mapping :x-min]))))])
 
-;; See the [Customization](./plotje_book.customization.html)
-;; chapter for themes, palettes, and annotation appearance
-;; (default opacity, color overrides). Temporal intercepts
+;; See the [Customization](./plotje_book.customization.html#reference-line-and-band-appearance)
+;; chapter for annotation appearance (default opacity, color
+;; overrides), palettes, and themes. Temporal intercepts
 ;; (`LocalDate`, `Instant`) are covered in
-;; [Timelines](./plotje_book.timelines.html).
+;; [Timelines](./plotje_book.timelines.html#annotated-time-series).
 
 ;; ## Coordinates and Scales
 ;;

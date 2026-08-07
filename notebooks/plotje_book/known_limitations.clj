@@ -70,7 +70,7 @@
 ;;   pointing from a note to the mark it describes ends bluntly.
 ;;   Workaround: end the line on a small `pj/lay-point` marker, as the
 ;;   callout recipe in the
-;;   [Cookbook](./plotje_book.cookbook.html) does.
+;;   [Cookbook](./plotje_book.cookbook.html#callout-with-a-leader-line) does.
 ;;
 ;; - Nothing moves a label out of the way of another label. Two text
 ;;   marks at nearby positions are drawn on top of each other, and
@@ -223,7 +223,7 @@
 ;;   value rather than a column: on the appearance aesthetics it always
 ;;   does, since `{:size 1}` sets a radius. Workaround:
 ;;   `(tc/rename-columns ds [:x :y])` before mapping, as shown in
-;;   the [Datasets](./plotje_book.datasets.html) chapter.
+;;   the [Datasets](./plotje_book.datasets.html#column-names) chapter.
 
 ;; ## ggplot2 Features Not Yet Implemented
 ;;
@@ -262,7 +262,7 @@
 ;;   `legend.position` by coordinate are not yet exposed. Rotating
 ;;   the x-axis tick labels is available, but as the `:x-tick-angle`
 ;;   plot option rather than through the theme -- see
-;;   [Customization](./plotje_book.customization.html).
+;;   [Customization](./plotje_book.customization.html#rotating-tick-labels).
 ;;
 ;; - Per-layer `data`, `guides()` for per-aesthetic legend control,
 ;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog.

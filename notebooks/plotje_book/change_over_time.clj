@@ -32,7 +32,7 @@
 ;; **long form** -- one row per observation, with the series label
 ;; in a column. Use `tc/pivot->longer` to reshape, then map the
 ;; label column to `:color`. See
-;; [Datasets](./plotje_book.datasets.html) for more on the
+;; [Datasets](./plotje_book.datasets.html#from-wide-to-long) for more on the
 ;; wide-to-long reshape.
 
 (def waves-wide
@@ -213,7 +213,7 @@ temp-pose
                            (and (= 1 (:panels s))
                                 (= 1 (:polygons s)))))])
 
-;; See [Inference Rules](./plotje_book.inference_rules.html)
+;; See [Inference Rules](./plotje_book.inference_rules.html#temporal-columns)
 ;; for details on how dates are detected and formatted.
 
 ;; ## Smoothed Time Series

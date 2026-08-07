@@ -453,7 +453,7 @@
 ;; built-in mechanisms that work for points). For more
 ;; interaction patterns -- cross-panel linking, save-as-PNG --
 ;; see the
-;; [Interactivity](./plotje_book.interactivity.html) chapter.
+;; [Interactivity](./plotje_book.interactivity.html#cross-panel-linked-highlighting) chapter.
 
 (-> (rdatasets/ggplot2-presidential)
     (pj/lay-interval-h :start :name {:x-end :end :color :party})

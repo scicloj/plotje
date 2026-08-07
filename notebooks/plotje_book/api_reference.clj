@@ -909,7 +909,7 @@ plan1
 ;; default mapping when the input is a bare dataset, a no-op on a
 ;; built pose), then runs the single-step transitions. So each of
 ;; them accepts raw data as well as a pose. The
-;; [Architecture](./plotje_book.architecture.html) chapter shows the
+;; [Architecture](./plotje_book.architecture.html#pipeline-shortcuts-pjpose-pjdraft-pjplan-pjmembrane-pjplot-pjsave) chapter shows the
 ;; full composition.
 ;;
 ;; Each step is independently callable, so you can stop the
@@ -922,7 +922,7 @@ plan1
 ;; `IChildren`). Useful for exploring rendering targets beyond the
 ;; SVG and Java2D backends Plotje wires in today, and for composing
 ;; Plotje plots into larger Membrane interfaces. The
-;; [Membranes](./plotje_book.membranes.html) chapter walks the
+;; [Membranes](./plotje_book.membranes.html#anatomy) chapter walks the
 ;; record's anatomy and the protocols.
 
 (let [m (pj/membrane (pj/lay-point tiny :x :y))]

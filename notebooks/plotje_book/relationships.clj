@@ -304,8 +304,9 @@
 ;; plots. All panels share the color aesthetic set at the composite
 ;; root.
 ;;
-;; See the [Faceting](./plotje_book.faceting.html) chapter for more
-;; SPLOM variations, and the [Customization](./plotje_book.customization.html)
+;; See the [Gallery](./plotje_book.gallery.html#scatter-plot-matrices)
+;; chapter for more SPLOM variations, and the
+;; [Interactivity](./plotje_book.interactivity.html#brush-selection)
 ;; chapter for brush selection.
 
 ;; ## See Also

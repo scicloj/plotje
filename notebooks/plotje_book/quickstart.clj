@@ -63,7 +63,7 @@
 ;; columns Plotje cannot guess which to plot and asks you to be
 ;; explicit -- pass column names like `(pj/lay-point data :x :y)`.
 
-;; See [**Core Concepts**](./plotje_book.core_concepts.html) for more input formats.
+;; See [**Core Concepts**](./plotje_book.core_concepts.html#input-formats) for more input formats.
 
 ;; String column names also work -- keywords are conventional but not
 ;; required:
@@ -136,7 +136,7 @@
                            (and (= 1 (:panels s))
                                 (pos? (:lines s)))))])
 
-;; See the [**Layer Types**](./plotje_book.layer_types.html) chapter for the full list of chart types.
+;; See the [**Layer Types**](./plotje_book.layer_types.html#layer-types) chapter for the full list of chart types.
 
 ;; ## Inference
 ;;

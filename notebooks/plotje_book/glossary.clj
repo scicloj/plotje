@@ -85,7 +85,7 @@ my-pose
 ;; A **layer type** is the bundle of mark + stat + position that
 ;; determines how data becomes a visual element. It is a context-free
 ;; recipe; placing it on a pose produces a *layer* (next entry).
-;; See the [Layer Types](./plotje_book.layer_types.html) chapter for
+;; See the [Layer Types](./plotje_book.layer_types.html#layer-types) chapter for
 ;; detailed tables of all built-in layer types, marks, stats, and
 ;; positions.
 
@@ -117,7 +117,7 @@ my-pose
 ;; group. Several layer types may share the same mark -- for
 ;; instance, `:line` and `:smooth` both produce lines, and `:area`
 ;; and `:density` both produce filled regions.
-;; See the [Layer Types](./plotje_book.layer_types.html) chapter for
+;; See the [Layer Types](./plotje_book.layer_types.html#marks) chapter for
 ;; a table of all built-in marks.
 
 ;; ## Stat
@@ -125,7 +125,7 @@ my-pose
 ;; A **stat** (statistical transform) processes raw data before
 ;; rendering. Each stat takes data-space inputs and produces the
 ;; geometry that its mark will show.
-;; See the [Layer Types](./plotje_book.layer_types.html) chapter for
+;; See the [Layer Types](./plotje_book.layer_types.html#stats) chapter for
 ;; a table of all built-in stats.
 
 ;; ## Position
@@ -144,7 +144,7 @@ my-pose
 ;; the layer options.
 ;; When multiple layers share `:position :dodge`, they are coordinated
 ;; together -- error bars automatically align with bars.
-;; See the [Layer Types](./plotje_book.layer_types.html) chapter for
+;; See the [Layer Types](./plotje_book.layer_types.html#positions) chapter for
 ;; a table of all built-in positions.
 
 (def tips {:day ["Mon" "Mon" "Tue" "Tue"]
@@ -332,7 +332,7 @@ my-pose
 ;; The one place this book does say pixel is the browser interaction
 ;; layer, because that is the unit a mouse event reports: the drag
 ;; threshold in the
-;; [Interactivity](./plotje_book.interactivity.html) chapter is
+;; [Interactivity](./plotje_book.interactivity.html#brush-selection) chapter is
 ;; three CSS pixels, not three drawing units.
 ;;
 ;; A position in drawing space is measured from the corner of some
@@ -513,7 +513,7 @@ my-pose
 ;; (a `LeafDraft` or `CompositeDraft` record); `pj/plan` resolves
 ;; geometry and layout; the membrane stage turns the plan into
 ;; drawable primitives; the plot is the terminal SVG hiccup or PNG
-;; output. See the [Architecture](./plotje_book.architecture.html)
+;; output. See the [Architecture](./plotje_book.architecture.html#the-single-step-transitions)
 ;; chapter for the per-stage details.
 
 ;; ## Sub-plot
@@ -724,7 +724,7 @@ my-pose
 ;; carries them in an `:annotations` slot of its own rather than among
 ;; its `:layers`, which matters when walking a plan but not when
 ;; writing a pose. A text note is an ordinary layer. See the
-;; [Extensibility](./plotje_book.extensibility.html) chapter.
+;; [Extensibility](./plotje_book.extensibility.html#rule-and-band-marks-live-on-the-panels-annotations-not-layers) chapter.
 
 (def annotated
   (-> (rdatasets/datasets-iris)
@@ -931,7 +931,7 @@ annotated
 ;; a title does not make sense as a global default.
 ;;
 ;; See `pj/plot-option-docs` for the full list, or the
-;; [Configuration](./plotje_book.configuration.html) chapter for usage examples.
+;; [Configuration](./plotje_book.configuration.html#using-plot-options) chapter for usage examples.
 
 (sort (keys pj/plot-option-docs))
 
@@ -951,7 +951,7 @@ annotated
 ;;
 ;; Four keys are universal -- accepted by every layer -- and each
 ;; layer type may accept additional keys. The
-;; [Layer Types](./plotje_book.layer_types.html) chapter lists which
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options) chapter lists which
 ;; options each layer type accepts. See also `pj/layer-option-docs`
 ;; for descriptions, or inspect a specific layer type with
 ;; `pj/layer-type-lookup`.

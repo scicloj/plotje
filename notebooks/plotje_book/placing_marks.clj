@@ -44,7 +44,7 @@
 ;; and `:height`. The scales map the first onto the second.
 ;;
 ;; Three rectangles are named in drawing space, and the
-;; [Glossary](./plotje_book.glossary.html) defines all three. The
+;; [Glossary](./plotje_book.glossary.html#canvas) defines all three. The
 ;; **canvas** is the whole image. A **panel box** is one panel, including
 ;; its axis margin. The **drawing area** is the shaded background inside
 ;; that margin, where the marks are drawn.
@@ -233,14 +233,14 @@ cars
 ;; One more difference between the two: a nudge does not change the axis
 ;; domain, so a nudge large enough to carry a mark past the end of the
 ;; axis leaves it clipped there. ggplot2's `nudge_x` widens the range
-;; instead. The [Glossary](./plotje_book.glossary.html) entry for Nudge
+;; instead. The [Glossary](./plotje_book.glossary.html#nudge) entry for Nudge
 ;; describes that difference.
 ;;
 ;; An offset does not keep labels from overlapping each other. It moves a
 ;; whole layer by one amount, so two labels at nearby values stay as
 ;; close together as they were. Moving them apart individually is not
 ;; something Plotje does yet -- see
-;; [Known Limitations](./plotje_book.known_limitations.html).
+;; [Known Limitations](./plotje_book.known_limitations.html#layout-and-visuals).
 
 ;; ## Giving `:x` and `:y` as values
 ;;
@@ -569,7 +569,7 @@ cars
          ;; The marker is on the heaviest car, not merely near it.
          (= 5.424 (apply max ((rdatasets/datasets-mtcars) :wt)))))])
 
-;; The [Cookbook](./plotje_book.cookbook.html) collects more of these
+;; The [Cookbook](./plotje_book.cookbook.html#annotated-charts) collects more of these
 ;; under Annotated Charts: reference lines and bands, labels on the lines
 ;; in place of a legend, and a few named series over many pale ones.
 
@@ -580,16 +580,16 @@ cars
 ;; example. Those are separated by a **position adjustment**: `:dodge`,
 ;; `:stack`, `:fill`, and the related `:jitter`. A position adjustment
 ;; moves marks relative to each other by a rule, before the scales run,
-;; and the [Layer Types](./plotje_book.layer_types.html) and
-;; [Core Concepts](./plotje_book.core_concepts.html) chapters cover them.
+;; and the [Layer Types](./plotje_book.layer_types.html#positions) and
+;; [Core Concepts](./plotje_book.core_concepts.html#mark-stat-and-position) chapters cover them.
 ;; An offset is different: it moves a whole layer by one fixed distance
 ;; on the page.
 
 ;; ## See Also
 ;;
 ;; - [**Customization**](./plotje_book.customization.html) -- how a mark looks, once it is placed: text weight, background boxes, palettes, themes
-;; - [**Cookbook**](./plotje_book.cookbook.html) -- Annotated Charts, and the label recipes
-;; - [**Glossary**](./plotje_book.glossary.html) -- canvas, panel box, drawing area, data space, drawing space
+;; - [**Cookbook**](./plotje_book.cookbook.html#annotated-charts) -- Annotated Charts, and the label recipes
+;; - [**Glossary**](./plotje_book.glossary.html#data-space) -- canvas, panel box, drawing area, data space, drawing space
 ;; - [**Known Limitations**](./plotje_book.known_limitations.html) -- what placement still cannot do
 
 ;; ## What's Next

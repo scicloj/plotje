@@ -7,13 +7,13 @@
 ;;
 ;; Other appearance topics live in their natural homes:
 ;; column-to-aesthetic mapping in
-;; [Core Concepts](./plotje_book.core_concepts.html), reference
+;; [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers), reference
 ;; lines and bands in
-;; [Core Concepts](./plotje_book.core_concepts.html) (constant
+;; [Core Concepts](./plotje_book.core_concepts.html#plot-options-and-reference-lines) (constant
 ;; positions) and
-;; [Timelines](./plotje_book.timelines.html) (temporal intercepts),
+;; [Timelines](./plotje_book.timelines.html#annotated-time-series) (temporal intercepts),
 ;; and tooltips/brushing in
-;; [Interactivity](./plotje_book.interactivity.html).
+;; [Interactivity](./plotje_book.interactivity.html#tooltips).
 
 (ns plotje-book.customization
   (:require
@@ -184,7 +184,7 @@
 ;; A label rotated this way extends down and to the left of its
 ;; tick. Very long names can run past the left edge of the plotting
 ;; area; see
-;; [Known Limitations](./plotje_book.known_limitations.html).
+;; [Known Limitations](./plotje_book.known_limitations.html#layout-and-visuals).
 
 ;; ## Grouping digits in large numbers
 
@@ -497,7 +497,7 @@
 ;;
 ;; To override the inferred type of a column (e.g. force a numeric
 ;; `:hour` column to render as categorical bands), see
-;; [Inference Rules](./plotje_book.inference_rules.html).
+;; [Inference Rules](./plotje_book.inference_rules.html#overriding-inferred-types-with-x-type-y-type).
 
 ;; ### Shape symbols
 ;;
@@ -627,7 +627,7 @@ pj/shape-symbols
 ;; Where a text mark goes -- anchoring it to its point, shifting it by a
 ;; distance on the page, placing it at a value rather than a column, or
 ;; on the panel rather than in the data -- is the subject of
-;; [Placing Marks](./plotje_book.placing_marks.html). The rest of this
+;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark). The rest of this
 ;; chapter covers how text looks once it is placed.
 
 ;; ## Bold and Italic Text
@@ -754,9 +754,9 @@ pj/shape-symbols
 ;; ## Reference Line and Band Appearance
 ;;
 ;; Reference lines and bands are introduced in
-;; [Core Concepts](./plotje_book.core_concepts.html); on temporal
+;; [Core Concepts](./plotje_book.core_concepts.html#plot-options-and-reference-lines); on temporal
 ;; axes, intercepts can be `LocalDate` / `Instant` values -- see
-;; [Timelines](./plotje_book.timelines.html). This section covers
+;; [Timelines](./plotje_book.timelines.html#annotated-time-series). This section covers
 ;; the appearance defaults you can override.
 ;;
 ;; They take `:offset-x` and `:offset-y` like any other layer, so a
@@ -825,9 +825,12 @@ pj/shape-symbols
 ;; `:tableau-10`, `:category10`, `:pastel1`, `:accent`, `:paired`, and
 ;; many more).
 ;;
-;; For the full list of forms, the project-level / thread-local /
-;; plot-level precedence chain, and the key table, see the
-;; [Configuration](./plotje_book.configuration.html) chapter.
+;; The full list of forms is in
+;; [Palette Configuration](./plotje_book.configuration.html#palette-configuration),
+;; the project-level / thread-local / plot-level precedence chain in
+;; [The Precedence Chain](./plotje_book.configuration.html#the-precedence-chain),
+;; and the key table in
+;; [Configuration Keys](./plotje_book.configuration.html#configuration-keys).
 
 ;; Custom vector:
 

@@ -105,10 +105,10 @@
 ;; Composite poses introduce a third level: an outer pose's
 ;; mapping flows into each of its descendant leaves, where it
 ;; combines with the leaf's own mapping. See
-;; [Composition](./plotje_book.composition.html) for examples.
+;; [Composition](./plotje_book.composition.html#explicit-composite-poses) for examples.
 ;;
 ;; The layer type itself is chosen per layer -- you pick which
-;; `pj/lay-*` to call. [Core Concepts](./plotje_book.core_concepts.html)
+;; `pj/lay-*` to call. [Core Concepts](./plotje_book.core_concepts.html#scope)
 ;; teaches how layer placement interacts with pose mappings, and
 ;; the detailed combination rules for each category of layer option.
 

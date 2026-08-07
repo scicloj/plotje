@@ -269,8 +269,8 @@ graph LR
 ;; (The other two fields in those lookups belong to the layer type rather
 ;; than to the stat: `:x-only` says the layer type works from an x column
 ;; alone, and `:accepts` lists the layer options it takes beyond the
-;; universal ones -- both are covered in
-;; [Layer Types](./plotje_book.layer_types.html).)
+;; universal ones, tabulated per layer type in
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options).)
 ;;
 ;; One entry per row is visible in the output: a scatter of the 150-row
 ;; iris dataset draws 150 marks.
@@ -602,7 +602,7 @@ graph LR
 ;; should follow the same lifecycle, register it there.
 ;;
 ;; The `:annotations` slot holds only these four marks. The
-;; [Glossary](./plotje_book.glossary.html) defines an annotation more
+;; [Glossary](./plotje_book.glossary.html#annotation) defines an annotation more
 ;; broadly -- any mark that explains a plot rather than showing data,
 ;; including notes and leader lines. Those are ordinary text and line
 ;; layers, and they stay on `:layers`.
@@ -614,7 +614,7 @@ graph LR
 ;; point: `mark-clip-region` (in `render/mark.clj`, dispatching on the
 ;; `:mark` key) names the region, and the panel renderer resolves it to
 ;; a rectangle and clips the mark to it. (The clip itself is a Membrane
-;; scissor; the [Membranes](./plotje_book.membranes.html) chapter shows
+;; scissor; the [Membranes](./plotje_book.membranes.html#clipping-marks-to-the-panel) chapter shows
 ;; the mechanism.)
 ;;
 ;; Two regions exist:
@@ -728,7 +728,7 @@ graph LR
 ;; Converts a `PlotjeMembrane` into a plot for a given format. This
 ;; is the extensibility point for membrane-based output formats --
 ;; formats that consume the same drawable tree but walk it
-;; differently. The [Membranes](./plotje_book.membranes.html)
+;; differently. The [Membranes](./plotje_book.membranes.html#anatomy)
 ;; chapter walks the `PlotjeMembrane` record itself and the Membrane
 ;; UI protocols it implements.
 ;;
