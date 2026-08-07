@@ -62,7 +62,7 @@ book:
   - part: 📊 Visualization Goals
     chapters: [plotje_book.distributions.qmd, plotje_book.ranking.qmd, plotje_book.change_over_time.qmd, plotje_book.timelines.qmd, plotje_book.relationships.qmd]
   - part: 🍳 How-to Guides
-    chapters: [plotje_book.cookbook.qmd, plotje_book.configuration.qmd, plotje_book.customization.qmd, plotje_book.faceting.qmd, plotje_book.polar.qmd, plotje_book.interactivity.qmd, plotje_book.troubleshooting.qmd]
+    chapters: [plotje_book.cookbook.qmd, plotje_book.configuration.qmd, plotje_book.customization.qmd, plotje_book.placing_marks.qmd, plotje_book.faceting.qmd, plotje_book.polar.qmd, plotje_book.interactivity.qmd, plotje_book.troubleshooting.qmd]
   - part: 📖 Reference
     chapters: [plotje_book.api_reference.qmd, plotje_book.known_limitations.qmd]
   - part: 🖼 Gallery
