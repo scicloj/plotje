@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+- fix: `pj/to-data` reads a categorical axis, where it threw a `NullPointerException` for every position -- including the one `pj/to-drawing` had just produced for a category, and while the panel reported `:invertible? true`. It now answers with the category whose band holds the position, and with nil outside every band.
+- fix: `pj/to-drawing` refuses a value a categorical axis has no position for -- a category it does not carry, or a fractional place such as 2.5 -- naming the value and the categories it could have been. The two arities disagreed: the scalar one threw a `NullPointerException` and the dataset one wrote nil into the column.
+- fix: under `:coord :flip`, `pj/to-data`'s dataset arity types its columns by the data axis rather than the drawn one, so a categorical x reads back as its categories instead of failing to coerce them to a number. Both functions take and answer in data order under a flip, though a panel entry's `:x-domain` and `:y-domain` describe the drawn axes.
+
 ## [0.8.0 - 2026-08-07]
 This release mostly follows the [label-positioning](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/label.20positioning/) topic thread. Many thanks to @behrica, @timothypratley, @phronmophobic, and @generateme for the fruitful work over that thread.
 See the new [Placing Marks](https://scicloj.github.io/plotje/plotje_book.placing_marks.html) documentation chapter for the main fruits of this release. 

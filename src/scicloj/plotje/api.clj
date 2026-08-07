@@ -2802,7 +2802,15 @@
    The result is in canvas coordinates, measured from the top left of the
    whole image. A `{:in :drawing-area}` layer measures from the drawing
    area's own corner instead, so drawing these positions back means
-   subtracting that corner first."
+   subtracting that corner first.
+
+   A categorical axis is a band scale: it has a position for each of its
+   categories and none between them. Asking it for anything else -- a
+   category the axis does not carry, or a fractional place such as 2.5
+   -- throws, naming the value and the categories it could have been.
+   Under `:coord :flip` the arguments stay in data order, even though a
+   panel entry's `:x-domain` and `:y-domain` describe the drawn axes and
+   the flip has already swapped those."
   ([panel x y] (frames-impl/to-drawing panel x y))
   ([panel data] (frames-impl/to-drawing panel data)))
 

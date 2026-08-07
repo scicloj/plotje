@@ -143,14 +143,58 @@
                       {:columns (vec (tc/column-names ds))})))
     [(ds :x) (ds :y)]))
 
+(defn- data-axis
+  "The domain and scale spec a *data* axis is drawn through, as
+   `[domain scale-spec]`.
+
+   Under `:coord :flip` the data x is drawn up the vertical axis and the
+   data y along the horizontal one, and `resolve-panel-domains` has
+   already swapped `:x-domain` and `:y-domain` so that they describe the
+   drawn axes. `to-drawing` and `to-data` speak in data order either
+   way, so under a flip a question about data x is answered by the
+   panel's y entries."
+  [panel axis]
+  (if (= (= :flip (:coord panel)) (= axis :x))
+    [(:y-domain panel) (:y-scale panel)]
+    [(:x-domain panel) (:x-scale panel)]))
+
+(defn- check-categories
+  "Refuse a value a categorical axis has no position for.
+
+   A band scale answers with a position for each of its categories and
+   with nothing between them, so a value it does not name -- a typo, a
+   category filtered out of the data, or a fractional place such as 2.5
+   -- has no position at all. Left to the scale this surfaced as a
+   NullPointerException naming neither the value nor the axis, and the
+   two arities disagreed about it: the scalar one threw while the
+   dataset one wrote nil into the column."
+  [caller panel axis values]
+  (let [[domain spec] (data-axis panel axis)]
+    (when (= :categorical (scale/scale-kind domain spec))
+      ;; The seq is what says whether there was an offender; the offender
+      ;; itself may be nil, which is one of the values a categorical axis
+      ;; has no position for. Testing it for truth would let exactly that
+      ;; one through.
+      (when-let [offenders (seq (remove (set domain) values))]
+        (let [bad (first offenders)]
+          (throw (ex-info (str caller " got " (pr-str bad) " for " axis ", which is not a "
+                               "category on this axis. Categories: " (vec domain) ". A "
+                               "categorical axis is a band scale: it has a position for "
+                               "each category and none between them. To place a mark clear "
+                               "of another, use :offset-x / :offset-y, which shift by a "
+                               "distance on the page and work on any axis.")
+                          {:caller caller :axis axis :value bad
+                           :categories (vec domain)})))))))
+
 (defn- axis-answer-type
-  "The datatype an axis answers in when read backwards. A continuous
+  "The datatype a data axis answers in when read backwards. A continuous
    scale inverts to a number; a band scale inverts to the category whose
    band holds the position, or nil outside every band. Reading a
    continuous axis back through an object column would box every value
    and roughly double the cost of building the dataset from it."
-  [domain scale-spec]
-  (if (= :categorical (scale/scale-kind domain scale-spec)) :object :float64))
+  [panel axis]
+  (let [[domain spec] (data-axis panel axis)]
+    (if (= :categorical (scale/scale-kind domain spec)) :object :float64)))
 
 (defn- to-drawing-fn
   "A function from one data pair to one canvas pair, with the panel's
@@ -181,9 +225,14 @@
 (defn to-drawing
   "Map data positions into canvas coordinates for `panel`. Two coordinates
    give one point back as `[x y]`; a dataset of them gives a dataset back."
-  ([panel x y] ((to-drawing-fn panel) x y))
+  ([panel x y]
+   (check-categories "pj/to-drawing" panel :x [x])
+   (check-categories "pj/to-drawing" panel :y [y])
+   ((to-drawing-fn panel) x y))
   ([panel data]
    (let [[xs ys] (coordinate-columns "pj/to-drawing" data)
+         _ (check-categories "pj/to-drawing" panel :x xs)
+         _ (check-categories "pj/to-drawing" panel :y ys)
          {:keys [x0 y0 pw ph m] :as shape} (panel-shape panel)
          {:keys [sx sy]} (panel-scale-pair panel shape)
          [pxs pys] ((coord/make-coord-columns (:coord panel) sx sy pw ph m)
@@ -205,8 +254,8 @@
          {:keys [sx sy]} (panel-scale-pair panel shape)
          inverse-columns (coord/make-inverse-columns
                           (:coord panel) sx sy pw ph m
-                          (axis-answer-type (:x-domain panel) (:x-scale panel))
-                          (axis-answer-type (:y-domain panel) (:y-scale panel)))]
+                          (axis-answer-type panel :x)
+                          (axis-answer-type panel :y))]
      (when-not inverse-columns
        (throw (ex-info (str "Coordinate system " (:coord panel) " has no inverse: "
                             "it folds x and y together, so a canvas position "

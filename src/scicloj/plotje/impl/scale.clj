@@ -48,12 +48,37 @@
 (defmethod make-scale :log [domain pixel-range _]
   (ws/scale :log {:domain domain :range pixel-range}))
 
+(defn- band-value
+  "The category whose band contains `v`, or nil when no band does.
+
+   A band's `:rstart` and `:rend` are in range order, which runs
+   downward on a y axis, so the interval is read through min and max
+   rather than assuming rstart is the lower one. Bands are adjacent at
+   the default zero padding, so a position exactly on a shared edge
+   answers with the earlier category."
+  [sc v]
+  (let [v (double v)]
+    (some (fn [{:keys [value rstart rend]}]
+            (let [a (double rstart)
+                  b (double rend)]
+              (when (<= (min a b) v (max a b)) value)))
+          (ws/data sc :bands))))
+
 (defn invert
   "Read a drawing-space position back as a data value. On a band scale
    this answers with the category whose band contains the position, and
-   with nil outside every band."
+   with nil outside every band.
+
+   The band case is computed here rather than through `ws/inverse`.
+   Wadogo's `bands-inverse-fn` destructures `:start` and `:end` from
+   band maps whose keys are `:rstart` and `:rend`, so both locals are
+   nil and its `^double` hint throws a NullPointerException for every
+   input. The band data it needs is on the scale either way. Reported
+   in `dev-notes/wadogo-band-inverse-issue.md`."
   [sc v]
-  (ws/inverse sc v))
+  (if (= :bands (ws/kind sc))
+    (band-value sc v)
+    (ws/inverse sc v)))
 
 (defmethod make-scale [:categorical :doc] [_ _ _] "Band scale (one band per category)")
 (defmethod make-scale [:linear :doc] [_ _ _] "Continuous linear mapping")

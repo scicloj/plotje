@@ -130,6 +130,79 @@
       (is (< (abs (- 2.0 dx)) 1e-9))
       (is (< (abs (- 7.0 dy)) 1e-9)))))
 
+;; ---- Categorical axes ----
+;;
+;; A band scale's inverse was borrowed from wadogo, whose
+;; `bands-inverse-fn` destructures `:start`/`:end` from band maps whose
+;; keys are `:rstart`/`:rend`. Both locals came out nil and its `^double`
+;; hint threw for every input, so `pj/to-data` could not read back the
+;; position `pj/to-drawing` had just produced. Every test above runs on a
+;; continuous panel, which is why nothing caught it.
+
+(def categorical
+  (-> {:species ["a" "a" "b" "b" "c" "c"] :height [1.0 2.0 3.0 4.0 5.0 6.0]}
+      (pj/lay-boxplot :species :height)
+      (pj/options {:width 600 :height 400})))
+
+(deftest a-categorical-axis-reads-back-as-its-category
+  (testing "the position to-drawing gives for a category names it again"
+    (let [p (one-panel categorical)]
+      (doseq [c ["a" "b" "c"]]
+        (is (= [c 3.0] (apply pj/to-data p (pj/to-drawing p c 3.0)))
+            (str "round trip through the band scale for " c)))))
+  (testing "and so does the dataset arity, beside a numeric column"
+    (let [p    (one-panel categorical)
+          back (pj/to-data p (pj/to-drawing p {:x ["a" "c"] :y [1.0 6.0]}))]
+      (is (= ["a" "c"] (vec (back :x))))
+      (is (every? #(< (abs %) 1e-9) (dfn/- (back :y) [1.0 6.0])))
+      (is (= :float64 (dtype/elemwise-datatype (back :y)))
+          "the continuous axis beside it still answers in numbers"))))
+
+(deftest a-position-outside-every-band-names-no-category
+  (testing "nil, as the docstring says, rather than the nearest category"
+    (let [p (one-panel categorical)
+          [ax ay _ _] (-> p :frames :drawing-area)]
+      (is (nil? (first (pj/to-data p (- (double ax) 30.0) (+ (double ay) 10.0)))))
+      (is (= [nil]
+             (vec ((pj/to-data p {:x [(- (double ax) 30.0)]
+                                  :y [(+ (double ay) 10.0)]})
+                   :x)))
+          "and the dataset arity writes that nil into the column"))))
+
+(deftest a-value-a-categorical-axis-has-no-position-for-is-refused
+  (testing "a category that is not on the axis, and a place between two that are"
+    (let [p (one-panel categorical)]
+      (doseq [[label bad] [["an unknown category" "nope"]
+                           ["a fractional place" 2.5]
+                           ["nothing at all" nil]]]
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #"is not a category on this axis"
+                              (pj/to-drawing p bad 3.0))
+            label)
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #"is not a category on this axis"
+                              (pj/to-drawing p {:x [bad] :y [3.0]}))
+            (str label ", dataset arity -- which used to answer nil instead")))))
+  (testing "the message names the value and the categories it could have had"
+    (let [p (one-panel categorical)]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"got \"nope\" for :x.*\[\"a\" \"b\" \"c\"\]"
+                            (pj/to-drawing p "nope" 3.0))))))
+
+(deftest a-flipped-categorical-axis-is-read-in-data-order
+  (testing "under :flip the data x is a category even though :x-domain is not"
+    (let [p (one-panel (-> categorical (pj/coord :flip)))]
+      (is (number? (first (:x-domain p)))
+          "the panel entry describes the drawn axes, which the flip swapped")
+      (is (= ["a" 3.0] (apply pj/to-data p (pj/to-drawing p "a" 3.0))))
+      (let [back (pj/to-data p (pj/to-drawing p {:x ["a" "c"] :y [1.0 6.0]}))]
+        (is (= ["a" "c"] (vec (back :x))))
+        (is (every? #(< (abs %) 1e-9) (dfn/- (back :y) [1.0 6.0]))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"got 2.5 for :x"
+                            (pj/to-drawing p 2.5 3.0))
+          "the guard reads the same axis the scale does"))))
+
 ;; ---- The shape of the arguments ----
 
 (deftest one-point-passed-as-a-pair-is-refused
