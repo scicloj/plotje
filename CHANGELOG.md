@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+This release mostly follows the [label-positioning](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/label.20positioning/) topic thread. Many thanks to @behrica, @timothypratley, @phronmophobic, and @generateme for the fruitful work over that thread.
 - new function `pj/frames` reports where a plot's panels sit on the canvas: per panel, the `:panel-box` and `:drawing-area` rectangles in drawing units, plus the `:canvas` once for the plot. A composite reports every cell in canvas coordinates. Plain data throughout. - thanks, @timothypratley
 - new functions `pj/to-drawing` and `pj/to-data` map between data space and drawing space for one panel of `pj/frames`. Both take a single x and y, or a dataset with `:x` and `:y` columns, and answer in kind. `pj/to-data` throws under `:polar`, which has no inverse; a panel's `:invertible?` says which case it is.
 - new layer options `:offset-x` and `:offset-y` shift a layer by a number of drawing units, after the scales run -- the distance a label needs to clear its point. A nudge cannot: it shifts by a data amount, and throws on a categorical axis. Every layer type takes them, and a numeric domain widens to keep an offset label whole. - thanks, @behrica
