@@ -11,6 +11,7 @@
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.frames :as frames]
             [scicloj.plotje.impl.membrane :as mem]
+            [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.render.panel :as panel]))
 
@@ -54,13 +55,7 @@
             grad-fn (when override?
                       (defaults/resolve-gradient-fn render-cs))
             bar-h 120 bar-w 12
-            n-stops (count stops)
-            fmt-tick (fn [v]
-                       (let [v (double v)]
-                         (cond
-                           (zero? v) "0"
-                           (and (>= v 1.0) (== v (Math/floor v))) (str (long v))
-                           :else (defaults/fmt-root "%.4g" v))))]
+            n-stops (count stops)]
         (vec
          (concat
           (when title
@@ -78,22 +73,24 @@
                             (ui/with-style ::ui/style-fill
                               (ui/rectangle bar-w (/ bar-h n-stops))))))
           (if (seq ticks)
-            ;; Log scale: label every tick value at its t-position.
-            (for [{:keys [value t]} ticks
-                  :let [ty (+ y (* (- 1.0 (double t)) bar-h) -4)]]
-              (ui/translate (+ x bar-w 4) ty
-                            (ui/with-color title-color
-                              (ui/label (defaults/fmt-number (fmt-tick value) seps)
-                                        (ui/font nil 10)))))
-            ;; Linear scale: just min/max at the ends.
-            [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
-                           (ui/with-color title-color
-                             (ui/label (defaults/fmt-number (defaults/fmt-root "%.4g" (double min)) seps)
-                                       (ui/font nil 10))))
-             (ui/translate (+ x bar-w 4) (+ y 6)
-                           (ui/with-color title-color
-                             (ui/label (defaults/fmt-number (defaults/fmt-root "%.4g" (double max)) seps)
-                                       (ui/font nil 10))))]))))
+            ;; Log scale: label every tick value at its t-position,
+            ;; through the same formatter the log axis uses.
+            (map (fn [{:keys [t]} label]
+                   (let [ty (+ y (* (- 1.0 (double t)) bar-h) -4)]
+                     (ui/translate (+ x bar-w 4) ty
+                                   (ui/with-color title-color
+                                     (ui/label (defaults/fmt-number label seps)
+                                               (ui/font nil 10))))))
+                 ticks
+                 (scale/format-log-ticks (map :value ticks)))
+            ;; Linear scale: just the two ends.
+            (let [[lo-label hi-label] (scale/format-range-endpoints min max seps)]
+              [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
+                             (ui/with-color title-color
+                               (ui/label lo-label (ui/font nil 10))))
+               (ui/translate (+ x bar-w 4) (+ y 6)
+                             (ui/with-color title-color
+                               (ui/label hi-label (ui/font nil 10))))])))))
       ;; Categorical swatch legend
       (let [{:keys [entries]} legend]
         (vec

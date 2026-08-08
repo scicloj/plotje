@@ -163,6 +163,54 @@
    (mapv #(defaults/fmt-number % separators)
          (format-ticks* sx ticks))))
 
+(def ^:private endpoint-significant-digits
+  "Significant digits kept in a continuous legend's endpoint labels.
+   Six distinguishes values a plot is likely to show without printing
+   the full width of a double: 123456 and 123999 read apart, while
+   0.10000000000000009 reads 0.1."
+  6)
+
+(defn- plain-significant
+  "`v` to `sig` significant digits, written out in full rather than in
+   scientific notation, with trailing zeros stripped.
+
+   Java's `%g` gives up on plain notation once the exponent reaches the
+   precision, which is what made a legend read 1.235e+05. The decimal
+   count is derived from the value's own magnitude instead, so a large
+   number keeps its digits and a small one keeps its precision."
+  [v sig]
+  (let [v (double v)]
+    (if (zero? v)
+      "0"
+      (let [magnitude (long (Math/floor (Math/log10 (Math/abs v))))
+            decimals (min 12 (max 0 (- (long sig) 1 magnitude)))
+            s (defaults/fmt-root (str "%." decimals "f") v)]
+        (if (str/includes? s ".")
+          (-> s (str/replace #"0+$" "") (str/replace #"\.$" ""))
+          s)))))
+
+(defn format-range-endpoints
+  "The two labels a continuous legend prints at the ends of its bar.
+
+   Each end is written to six significant digits in plain notation, so
+   what a legend reads matches what its axis reads. `%.4g` did neither
+   half of that: four significant digits switch to scientific notation
+   at 10000, so a legend for a count read 1.235e+05 beside an axis
+   reading 100,000, and two ends as far apart as 123456 and 123999 read
+   alike. Below the switch it padded rather than truncated, so a span of
+   0.1 to 2.5 read 0.1000 and 2.500.
+
+   Precision follows each value's own magnitude rather than the span
+   between them: a legend from 0.001 to 1000 has to show its low end as
+   0.001, which a span-derived step would have rounded to 0.
+
+   `separators` is the map `defaults/number-separators` reads off a
+   config, as for `format-ticks`."
+  [lo hi separators]
+  (mapv #(defaults/fmt-number (plain-significant % endpoint-significant-digits)
+                              separators)
+        [lo hi]))
+
 (defn format-log-ticks
   "Format log scale tick values. Values are always clean 1-2-3-5 multiples
    of powers of 10, so formatting is straightforward: integers >= 1 shown

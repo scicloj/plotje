@@ -171,3 +171,67 @@
                                   (pj/options {:thousands-separator ","})))))]
       (is (contains? texts "2024"))
       (is (not (contains? texts "2,024"))))))
+
+;; ---- what a continuous legend prints at the ends of its bar ----
+;;
+;; These two labels were formatted with `%.4g`, four significant digits.
+;; Java's `%g` abandons plain notation once the exponent reaches the
+;; precision, so a legend for a count read 1.235e+05 beside an axis
+;; reading 100,000; below that it padded rather than truncated, so a
+;; span of 0.1 to 2.5 read 0.1000 and 2.500. Six significant digits in
+;; plain notation replace it.
+
+(defn- legend-ends
+  "The two numbers a continuous colour legend draws, low then high."
+  ([lo hi] (legend-ends lo hi {}))
+  ([lo hi opts]
+   (->> (-> {:height [1 2] :weight [1 2] :score [lo hi]}
+            (pj/lay-point :height :weight {:color :score})
+            (pj/options opts)
+            pj/plot
+            pj/svg-summary
+            :texts)
+        (drop 3)
+        (take 2)
+        vec)))
+
+(deftest a-continuous-legend-does-not-fall-back-to-scientific-notation
+  (testing "at and above the exponent %.4g gave up at"
+    (is (= ["1" "10000"] (legend-ends 1 10000)))
+    (is (= ["1" "123456"] (legend-ends 1 123456))))
+  (testing "and it keeps enough digits to tell its two ends apart"
+    (is (= ["123456" "123999"] (legend-ends 123456 123999))
+        "both read 1.235e+05 before")))
+
+(deftest a-continuous-legend-does-not-pad-with-trailing-zeros
+  (is (= ["0.1" "2.5"] (legend-ends 0.1 2.5)) "read 0.1000 and 2.500 before")
+  (is (= ["0" "100"] (legend-ends 0 100)))
+  (testing "floating-point noise does not reach the label"
+    (is (= ["0.1" "2.5"] (legend-ends 0.10000000000000009 2.5)))))
+
+(deftest a-continuous-legend-keeps-a-small-end-of-a-wide-span
+  (testing "precision follows each value, not the distance between them"
+    ;; Deriving it from the span would round the low end to 0 here.
+    (is (= ["0.001" "1000"] (legend-ends 0.001 1000)))
+    (is (= ["0.001" "0.005"] (legend-ends 0.001 0.005)))))
+
+(deftest a-continuous-legend-reads-the-way-the-axis-beside-it-reads
+  (testing "the separators reach both ends"
+    (is (= ["1,000" "100,000"]
+           (legend-ends 1000 100000 {:thousands-separator ","}))
+        "the case the 0.7.0 CHANGELOG claimed and %.4g broke")
+    (is (= ["1.234,5" "9.876,5"]
+           (legend-ends 1234.5 9876.5 {:thousands-separator "."
+                                       :decimal-separator ","}))
+        "%.4g rounded these to 1235 and 9877 before grouping them")))
+
+(deftest a-log-fill-legend-labels-every-tick-cleanly
+  (testing "sub-1 log ticks are not padded to four significant digits"
+    (let [texts (:texts (pj/svg-summary
+                         (pj/plot (-> {:x [1 2 3 1 2 3] :y [1 1 1 2 2 2]
+                                       :z [0.001 0.01 0.1 1 10 1000]}
+                                      (pj/lay-tile :x :y {:fill :z})
+                                      (pj/scale :fill {:type :log})))))]
+      (is (= ["0.001" "0.01" "0.1" "1" "10" "100" "1000"]
+             (vec (take 7 (drop 3 texts))))
+          "0.001 read 0.001000, 0.01 read 0.01000, 0.1 read 0.1000"))))
