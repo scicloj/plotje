@@ -89,10 +89,9 @@
     (java2d/draw-to-image membrane-tree [w h])))
 
 (defmethod render/plan->plot :bufimg [plan _ opts]
-  (let [render-opts (select-keys opts [:width :height :theme :palette
-                                       :color-scale :color-midpoint
-                                       :x-tick-angle :x-tick-label-pad])
-        membrane-tree (membrane/plan->membrane plan render-opts)]
+  ;; The whole opts map, not a select-keys list of it. See the note on
+  ;; the :svg method in render/svg.clj.
+  (let [membrane-tree (membrane/plan->membrane plan opts)]
     (render/membrane->plot membrane-tree :bufimg
                            (assoc opts
                                   :total-width (:total-width plan)

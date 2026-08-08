@@ -31,12 +31,16 @@
 
 (defn- title-drawable
   "Membrane drawable for a centered title band at the top of a
-   composite of width w. Nil when no title."
-  [title w]
+   composite of width w. Nil when no title.
+
+   The size comes from `:title-font-size`, as a leaf title's does in
+   render/membrane.clj. It was the literal 15 that key defaults to, so
+   a composite title stayed at 15 however the option was set."
+  [title w cfg]
   (when title
     (ui/translate (/ (double w) 2.0) 16
                   (ui/with-color composite-text-color
-                    (assoc (ui/label title (ui/font nil 15))
+                    (assoc (ui/label title (ui/font nil (:title-font-size cfg)))
                            :text-anchor "middle")))))
 
 (defn- matrix-col-strip-drawables
@@ -115,9 +119,8 @@
    spec and renders color / size / alpha / shape legends stacked
    vertically. Returns a vector of drawables; empty when the rep plan
    has no legend data."
-  [rep-plan legend-x legend-y-top]
+  [rep-plan legend-x legend-y-top cfg]
   (let [{:keys [legend size-legend alpha-legend shape-legend]} rep-plan
-        cfg       (defaults/resolve-config {})
         ;; Each channel has a rung on a fixed ladder. The shape legend
         ;; takes the first rung the other three leave free, so a plot
         ;; whose only legend is a shape legend draws it at the top
@@ -151,17 +154,28 @@
 ;; top.
 
 (defmethod membrane/plan->membrane true
-  [composite-plan _opts]
-  (let [{:keys [width height sub-plots chrome]} composite-plan
+  [composite-plan opts]
+  (let [;; The chrome resolves the same configuration the cells do. It
+        ;; used to build its own from `{}`, so a shared legend ignored
+        ;; every plot option -- :thousands-separator among them, leaving
+        ;; a legend reading 100000 beside axes reading 100,000.
+        cfg (defaults/resolve-config opts)
+        {:keys [width height sub-plots chrome]} composite-plan
         {:keys [title title-band-h grid-rect strip-h strip-w
                 col-labels row-labels n-cols n-rows matrix?
                 shared-legend layout]} chrome
         strips? (boolean (or (seq col-labels) (seq row-labels)))
+        ;; The composite's own options reach each cell. Passing `{}` here
+        ;; left every panel of a composite resolving its configuration
+        ;; from the global chain alone, so a plot option that moved a
+        ;; leaf -- :thousands-separator, :label-font-size, the grid and
+        ;; annotation strokes -- did nothing once the same pose was
+        ;; arranged. Tooltip stays per cell: it is decided on each
+        ;; sub-plot's own plan, not on the composite.
         leaf-trees (mapv (fn [{:keys [plan rect]}]
-                           (let [tooltip? (:tooltip plan)
-                                 tree (if tooltip?
-                                        (membrane/plan->membrane plan {:tooltip true})
-                                        (membrane/plan->membrane plan {}))
+                           (let [tree (membrane/plan->membrane
+                                       plan
+                                       (assoc opts :tooltip (boolean (:tooltip plan))))
                                  [x y _ _] rect]
                              (ui/translate (double x) (double y) tree)))
                          sub-plots)
@@ -182,11 +196,12 @@
                       (shared-legend-drawables
                        shared-legend
                        (+ (double strip-w) (double grid-w) 20)
-                       (double (+ title-band-h strip-h))))
+                       (double (+ title-band-h strip-h))
+                       cfg))
         composed (cond-> leaf-trees
                    (seq col-strips) (into col-strips)
                    (seq row-strips) (into row-strips)
                    (seq legend-tree) (into legend-tree)
-                   title             (conj (title-drawable title width)))]
+                   title             (conj (title-drawable title width cfg)))]
     (cond-> (mem/->PlotjeMembrane (vec composed) (long width) (long height))
       title (assoc :plotje/title title))))

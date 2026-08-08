@@ -391,10 +391,19 @@
       (kind/hiccup2 svg))))
 
 (defmethod render/plan->plot :svg [plan _ opts]
-  (let [render-opts (select-keys opts [:tooltip :width :height :theme :palette
-                                       :color-scale :color-midpoint
-                                       :x-tick-angle :x-tick-label-pad])
-        membrane-tree (membrane/plan->membrane plan render-opts)]
+  ;; The whole opts map, not a select-keys list of it. The list dates
+  ;; from a `plan->membrane` that took keyword arguments and was applied
+  ;; over `(mapcat identity render-opts)`, where splatting arbitrary keys
+  ;; into a fixed signature would not have worked. That signature became
+  ;; a plain opts map, and `defaults/resolve-config` already forwards
+  ;; only the keys it recognizes -- so the list stopped doing anything
+  ;; but drop configuration nobody had thought to add to it.
+  ;;
+  ;; `pj/save` is the only caller, so what the list omitted was honored
+  ;; on screen and silently missing from the file: `:thousands-separator`
+  ;; grouped an axis and not the legend beside it, and a title asked for
+  ;; at 30 was written at 15.
+  (let [membrane-tree (membrane/plan->membrane plan opts)]
     (render/membrane->plot membrane-tree :svg
                            (assoc opts
                                   :total-width (:total-width plan)
