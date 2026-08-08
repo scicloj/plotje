@@ -43,7 +43,7 @@
    temporal scale. Returns the tick info map with :labels. This mirrors
    `plan/compute-ticks` but operates without pulling in plan.clj, so
    layout.clj stays acyclic (plan.clj will require layout.clj)."
-  [domain scale-spec temporal-extent pixel-budget tick-spacing separator]
+  [domain scale-spec temporal-extent pixel-budget tick-spacing separators]
   (let [n (scale/tick-count (double pixel-budget) tick-spacing)
         log? (= :log (:type scale-spec))
         user-breaks (:breaks scale-spec)
@@ -58,7 +58,7 @@
                      (vec (scale/format-log-ticks vs))
                      :else
                      (let [s (scale/make-scale domain [0.0 (double pixel-budget)] scale-spec)]
-                       (vec (scale/format-ticks s vs separator))))]
+                       (vec (scale/format-ticks s vs separators))))]
         {:values vs :labels labels})
 
       temporal-extent
@@ -77,7 +77,7 @@
       :else
       (let [s (scale/make-scale domain [0.0 (double pixel-budget)] scale-spec)
             ticks (ws/ticks s n)
-            labels (scale/format-ticks s ticks separator)]
+            labels (scale/format-ticks s ticks separators)]
         {:values (vec ticks) :labels (vec labels)}))))
 
 (defn max-label-pixel-width
@@ -94,7 +94,7 @@
    For categorical domains the label set is the domain itself; for
    numeric/log/temporal domains the tick picker produces labels that
    depend on the tick count, which in turn depends on the budget."
-  [domain scale-spec temporal-extent pixel-budget tick-spacing font-size separator]
+  [domain scale-spec temporal-extent pixel-budget tick-spacing font-size separators]
   (cond
     (nil? domain)
     0.0
@@ -105,7 +105,7 @@
 
     :else
     (let [tick-info (ticks-at-budget domain scale-spec temporal-extent
-                                     pixel-budget tick-spacing separator)
+                                     pixel-budget tick-spacing separators)
           max-chars (reduce max 0 (map count (:labels tick-info)))]
       (* (double font-size) 0.5 max-chars))))
 
@@ -115,12 +115,12 @@
    domains but one shared label pad; this reserves enough space for
    the widest panel."
   [panel-domains scale-spec temporal-extent pixel-budget tick-spacing font-size
-   separator]
+   separators]
   (reduce max 0.0
           (for [d panel-domains]
             (max-label-pixel-width d scale-spec temporal-extent
                                    pixel-budget tick-spacing font-size
-                                   separator))))
+                                   separators))))
 
 ;; ---- compute-scene ----
 
@@ -254,7 +254,7 @@
      (double (:height opts))
      (:tick-spacing-y cfg)
      (tick-font-size cfg)
-     (:thousands-separator cfg))))
+     (defaults/number-separators cfg))))
 
 (defn- pad-y-label
   "y-label-pad = label-offset + max(0, tick-text-width − 12) when a
@@ -278,7 +278,7 @@
 
 (defn- pad-strip-w [{:keys [has-row-strips? max-row-strip-chars]} cfg]
   (if has-row-strips?
-    (let [strip-fsize (double (:strip-font-size cfg 10))
+    (let [strip-fsize (double (:strip-font-size cfg 11))
           text-w (* (double max-row-strip-chars) (/ strip-fsize 1.8))]
       (max 40.0 (+ text-w 12.0)))
     0.0))

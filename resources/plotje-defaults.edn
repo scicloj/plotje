@@ -29,7 +29,7 @@
  :theme {:bg "#E8E8E8" :grid "#F5F5F5" :font-size 11}
 
  ;; Typography
- :label-font-size 13 :title-font-size 15 :strip-font-size 10
+ :label-font-size 13 :title-font-size 15 :strip-font-size 11
 
  ;; Points
  :point-radius 3.0 :point-opacity 0.75
@@ -53,6 +53,9 @@
  ;; nil leaves numbers ungrouped; set to a string such as a comma to group
  ;; three-digit runs in numeric tick labels and data labels
  :thousands-separator nil
+ ;; nil draws the decimal point as the point it is formatted with; set to a
+ ;; string such as a comma to write it that way instead
+ :decimal-separator nil
  ;; true widens a numeric domain so text and label marks near its edge are
  ;; drawn in full instead of being cut off at the panel boundary
  :fit-text-domain true

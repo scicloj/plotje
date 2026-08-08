@@ -23,10 +23,6 @@
    darker than leaf titles' rgb(51,51,51)."
   [0.2 0.2 0.2 1.0])
 
-(def ^:private grid-strip-font-size
-  "Font size for column/row strip labels on grid composites."
-  11)
-
 ;; ---- Chrome drawables ----
 
 (defn- title-drawable
@@ -49,7 +45,7 @@
    comes from pose/matrix-axes. Places one centered label above
    each column at strip-top, computing the column center directly
    from the grid rect rather than looking it up via a SPLOM path."
-  [col-labels [grid-x _ grid-w _] n-cols strip-top]
+  [col-labels [grid-x _ grid-w _] n-cols strip-top cfg]
   (vec
    (for [ci (range n-cols)
          :let [label (nth col-labels ci nil)]
@@ -58,14 +54,14 @@
            cx (+ (double grid-x) (* ci cw) (/ cw 2.0))]
        (ui/translate cx (double strip-top)
                      (ui/with-color composite-text-color
-                       (assoc (ui/label label (ui/font nil grid-strip-font-size))
+                       (assoc (ui/label label (ui/font nil (:strip-font-size cfg)))
                               :text-anchor "middle")))))))
 
 (defn- matrix-row-strip-drawables
   "Like row-strip-drawables but for `:direction :matrix` composites.
    Places one centered label to the left of each row, computing the
    row center directly from the grid rect."
-  [row-labels [_ grid-y _ grid-h] n-rows strip-left strip-right]
+  [row-labels [_ grid-y _ grid-h] n-rows strip-left strip-right cfg]
   (let [label-x (+ (double strip-left)
                    (/ (- (double strip-right) (double strip-left)) 2.0))]
     (vec
@@ -76,13 +72,13 @@
              cy (+ (double grid-y) (* ri rh) (/ rh 2.0))]
          (ui/translate label-x cy
                        (ui/with-color composite-text-color
-                         (assoc (ui/label label (ui/font nil grid-strip-font-size))
+                         (assoc (ui/label label (ui/font nil (:strip-font-size cfg)))
                                 :text-anchor "middle"))))))))
 
 (defn- col-strip-drawables
   "Build a vector of membrane drawables: one centered text per column
    label, positioned above its column's top-row rect."
-  [col-labels layout n-cols strip-top]
+  [col-labels layout n-cols strip-top cfg]
   (vec
    (for [ci (range n-cols)
          :let [label (nth col-labels ci nil)
@@ -92,13 +88,13 @@
            cx (+ (double x) (/ (double w) 2.0))]
        (ui/translate cx (double strip-top)
                      (ui/with-color composite-text-color
-                       (assoc (ui/label label (ui/font nil grid-strip-font-size))
+                       (assoc (ui/label label (ui/font nil (:strip-font-size cfg)))
                               :text-anchor "middle")))))))
 
 (defn- row-strip-drawables
   "Build a vector of membrane drawables: one text per row label,
    positioned to the left of its row's leftmost rect."
-  [row-labels layout n-rows strip-left strip-right]
+  [row-labels layout n-rows strip-left strip-right cfg]
   (let [label-x (+ (double strip-left)
                    (/ (- (double strip-right) (double strip-left)) 2.0))]
     (vec
@@ -110,7 +106,7 @@
              cy (+ (double y) (/ (double h) 2.0))]
          (ui/translate label-x cy
                        (ui/with-color composite-text-color
-                         (assoc (ui/label label (ui/font nil grid-strip-font-size))
+                         (assoc (ui/label label (ui/font nil (:strip-font-size cfg)))
                                 :text-anchor "middle"))))))))
 
 (defn- shared-legend-drawables
@@ -182,15 +178,15 @@
         col-strips (when (and strips? (seq col-labels))
                      (if matrix?
                        (matrix-col-strip-drawables col-labels grid-rect n-cols
-                                                   (+ title-band-h 2))
+                                                   (+ title-band-h 2) cfg)
                        (col-strip-drawables col-labels layout n-cols
-                                            (+ title-band-h 2))))
+                                            (+ title-band-h 2) cfg)))
         row-strips (when (and strips? (seq row-labels))
                      (if matrix?
                        (matrix-row-strip-drawables row-labels grid-rect n-rows
-                                                   0 strip-w)
+                                                   0 strip-w cfg)
                        (row-strip-drawables row-labels layout n-rows
-                                            0 strip-w)))
+                                            0 strip-w cfg)))
         [_ _ grid-w _] grid-rect
         legend-tree (when shared-legend
                       (shared-legend-drawables

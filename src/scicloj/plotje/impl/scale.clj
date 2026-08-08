@@ -127,10 +127,10 @@
                          (min 10 (max 0 (long (Math/ceil (- (Math/log10 step))))))
                          1)
               fmt (str "%." decimals "f")
-              neg-zero (format fmt -0.0)
-              zero (format fmt 0.0)]
+              neg-zero (defaults/fmt-root fmt -0.0)
+              zero (defaults/fmt-root fmt 0.0)]
           (mapv (fn [v]
-                  (let [s (format fmt (double v))
+                  (let [s (defaults/fmt-root fmt (double v))
                         ;; Clean up -0.0 → 0.0
                         s (if (= s neg-zero) zero s)]
                     ;; Strip trailing zeros after decimal point, but keep at least one
@@ -149,14 +149,18 @@
    0.30000000000000004). Falls back to wadogo formatting only when the step
    cannot be determined (< 2 ticks).
 
-   The 3-arity groups the digits of each formatted tick with `separator`
-   (the `:thousands-separator` configuration key). Layout measures label
-   widths through this same function, so a grouped axis reserves room for
-   the separators it will draw."
+   Every value is formatted under `Locale/ROOT`, so what a tick reads
+   does not depend on the JVM it renders on.
+
+   The 3-arity writes each formatted tick with `separators`, the
+   `{:thousands ... :decimal ...}` map `defaults/number-separators`
+   reads off a config. Layout measures label widths through this same
+   function, so a grouped axis reserves room for the separators it will
+   draw."
   ([sx ticks]
    (format-ticks sx ticks nil))
-  ([sx ticks separator]
-   (mapv #(defaults/group-digits % separator)
+  ([sx ticks separators]
+   (mapv #(defaults/fmt-number % separators)
          (format-ticks* sx ticks))))
 
 (defn format-log-ticks
@@ -172,7 +176,7 @@
                 (str (long v))
                 (if (< v 1.0)
                   (let [exp (long (Math/ceil (- (Math/log10 v))))]
-                    (format (str "%." exp "f") v))
+                    (defaults/fmt-root (str "%." exp "f") v))
                   (str v))))))
         ticks))
 

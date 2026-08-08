@@ -145,8 +145,8 @@
   "Format a value for tooltip display."
   [v]
   (cond
-    (float? v) (format "%.4g" (double v))
-    (double? v) (format "%.4g" (double v))
+    (float? v) (defaults/fmt-root "%.4g" (double v))
+    (double? v) (defaults/fmt-root "%.4g" (double v))
     :else (str v)))
 
 (defn- make-tooltip

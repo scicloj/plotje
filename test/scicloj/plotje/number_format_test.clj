@@ -51,13 +51,66 @@
     (is (= "Meter Expired" (defaults/group-digits "Meter Expired" ",")))))
 
 (deftest fmt-value-label-groups-only-numbers
-  (is (= "462,389" (defaults/fmt-value-label 462389 ",")))
+  (is (= "462,389" (defaults/fmt-value-label 462389 {:thousands ","})))
   (is (= "462389" (defaults/fmt-value-label 462389 nil)))
   (testing "a string that looks numeric is still a category name"
-    (is (= "462389" (defaults/fmt-value-label "462389" ","))))
+    (is (= "462389" (defaults/fmt-value-label "462389" {:thousands ","}))))
   (testing "keywords and nil are unaffected"
-    (is (= "setosa" (defaults/fmt-value-label :setosa ",")))
-    (is (= "" (defaults/fmt-value-label nil ",")))))
+    (is (= "setosa" (defaults/fmt-value-label :setosa {:thousands ","})))
+    (is (= "" (defaults/fmt-value-label nil {:thousands ","})))))
+
+(deftest fmt-number-writes-both-separators
+  (testing "the decimal point becomes whatever :decimal names"
+    (is (= "1234,5" (defaults/fmt-number "1234.5" {:decimal ","})))
+    (is (= "0,5" (defaults/fmt-number "0.5" {:decimal ","})))
+    (is (= "-1234,56" (defaults/fmt-number "-1234.56" {:decimal ","}))))
+  (testing "the two are chosen independently, so European reads as European"
+    (is (= "1.234,5" (defaults/fmt-number "1234.5" {:thousands "." :decimal ","})))
+    (is (= "1 234,5" (defaults/fmt-number "1234.5" {:thousands " " :decimal ","})))
+    (is (= "1,234.5" (defaults/fmt-number "1234.5" {:thousands "," :decimal "."}))))
+  (testing "an exponent keeps its own point out of it"
+    (is (= "1,0E7" (defaults/fmt-number "1.0E7" {:decimal ","}))))
+  (testing "a whole number has no point to replace"
+    (is (= "1.234" (defaults/fmt-number "1234" {:thousands "." :decimal ","}))))
+  (testing "neither separator leaves the string exactly as it was"
+    (is (= "1234.5" (defaults/fmt-number "1234.5" {})))
+    (is (= "1234.5" (defaults/fmt-number "1234.5" {:thousands nil :decimal ""}))))
+  (testing "a non-numeric string passes through either way"
+    (is (= "Meter Expired"
+           (defaults/fmt-number "Meter Expired" {:thousands "." :decimal ","})))))
+
+(deftest a-decimal-separator-reaches-the-axis
+  (testing "the option a German reader would set, end to end"
+    (let [labels (-> {:height [1.0 1.5 2.0] :weight [1000.5 1500.25 2000.75]}
+                     (pj/lay-point :height :weight)
+                     (pj/options {:thousands-separator "." :decimal-separator ","})
+                     pj/plan :panels first :x-ticks :labels)]
+      (is (every? #(not (re-find #"\." %)) labels)
+          "no point survives on an axis that asked for a comma")
+      (is (some #(re-find #"," %) labels)
+          "and the comma is what it reads instead"))))
+
+;; ---- what a plot draws does not depend on the JVM it draws on ----
+
+(deftest tick-labels-do-not-follow-the-default-locale
+  (testing "a comma-decimal locale does not leak into the label text"
+    ;; clojure.core/format reads Locale/getDefault; every formatting site
+    ;; on the label path is pinned to Locale/ROOT instead, so the glyph a
+    ;; plot draws for the point is chosen with :decimal-separator rather
+    ;; than inherited from the machine.
+    (let [ticks (fn [] (-> {:height [1.0 1.5 2.0 2.5 3.0] :weight [1 2 3 4 5]}
+                           (pj/lay-point :height :weight)
+                           pj/plan :panels first :x-ticks :labels))
+          before (java.util.Locale/getDefault)]
+      (try
+        (java.util.Locale/setDefault (java.util.Locale/forLanguageTag "de-DE"))
+        (let [german (ticks)]
+          (java.util.Locale/setDefault (java.util.Locale/forLanguageTag "en-US"))
+          (is (= (ticks) german)
+              "the same data reads the same on a de-DE and an en-US JVM")
+          (is (every? #(not (re-find #"," %)) german)
+              "and reads with a point, which is what ROOT formats with"))
+        (finally (java.util.Locale/setDefault before))))))
 
 ;; ---- off by default ----
 

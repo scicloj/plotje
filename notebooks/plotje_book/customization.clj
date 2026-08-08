@@ -249,15 +249,14 @@
 (kind/test-last
  [(fn [v] (contains? (set (:texts (pj/svg-summary v))) "1,234.56"))])
 
-;; What is grouped is what measures: tick labels on a numeric axis, label
-;; text read from a column, and the values a size or alpha legend prints
-;; beside its keys. What names something is left alone -- category names,
-;; the labels of a colour or shape legend, and facet strip labels -- for
-;; the reason the setting is off by default. A year on a numeric axis is a
-;; quantity and groups; the same year used as a category is a name, and
-;; still reads 2026 with a grouped axis beside it.
-
-;; A year axis, grouped:
+;; Grouping applies to the numbers that measure something: tick labels on
+;; a numeric axis, the text `pj/lay-text` and `pj/lay-label` take from a
+;; column, and the values a size or alpha legend prints. Category names,
+;; colour and shape legend labels, and facet strip labels are left alone,
+;; because those name a group rather than measure it.
+;;
+;; A year falls on either side of that, depending on how it is used.
+;; Plotted on a numeric axis it is a quantity, so it groups:
 
 (-> (for [y (range 2020 2031)] {:year y :revenue (* 1000 (- y 2019))})
     (pj/lay-point :year :revenue)
@@ -271,7 +270,8 @@
 (kind/test-last
  [(fn [labels] (= "2,020" (first labels)))])
 
-;; The same years as categories, left alone:
+;; Used as categories, the same years name four groups, so they are left
+;; alone -- even with a grouped axis beside them:
 
 (-> (for [y (range 2020 2024)] {:year y :revenue (* 1000 (- y 2019))})
     (pj/lay-bar :year :revenue {:x-type :categorical})
@@ -302,6 +302,31 @@
  [(fn [texts] (= ["100,000" "200,000" "300,000" "400,000" "500,000"
                   "600,000" "700,000" "800,000"]
                  (vec texts)))])
+
+;; ## Writing the decimal point
+
+;; Some cultures write the decimal point as a comma: 1234,5 rather than
+;; 1234.5. `:decimal-separator` names the string to draw in that place,
+;; in the same text `:thousands-separator` groups. It is off by default
+;; too. The two usually go together -- where the point groups the digits,
+;; the comma separates the fraction, giving 1.234,5.
+
+(-> {:region ["North" "South" "East"]
+     :profit [1234.5 1500.25 2680.75]}
+    (pj/lay-bar :profit :region)
+    (pj/lay-label :profit :region {:text :profit :align-x :right})
+    (pj/options {:thousands-separator "." :decimal-separator ","}))
+
+;; Each bar is labelled with its own value, so 1.234,5 shows both
+;; separators in one number. The ticks below land on round hundreds and
+;; have no decimal part to write, so they show only the grouping.
+
+(kind/test-last
+ [(fn [v]
+    (let [texts (set (:texts (pj/svg-summary v)))]
+      (and (contains? texts "1.234,5")
+           (contains? texts "2.680,75")
+           (some (fn [t] (re-matches #"\d\.\d00" t)) texts))))])
 
 ;; ## Scales
 

@@ -62,7 +62,9 @@
    :label-offset 38 :title-offset 18
    :fit-text-domain true
    ;; Facet strips
-   :strip-font-size 10 :strip-height 16
+   :strip-font-size 11 :strip-height 16
+   ;; Number separators
+   :thousands-separator nil :decimal-separator nil
    ;; Fallback
    :default-color "#333"})
 
@@ -324,34 +326,91 @@
   [v]
   (fmt-name v))
 
+(defn fmt-root
+  "`format` pinned to `Locale/ROOT`.
+
+   `clojure.core/format` reads the JVM's default locale, so a tick that
+   read 1.2 here read 1,2 on a German JVM -- and beside a grouped axis
+   the same comma then meant a decimal point on one axis and a thousands
+   separator on the other. `render/svg.clj` pinned its coordinates in
+   0.2.2 (PR #3); the label text is pinned for the same reason. Which
+   glyph a plot draws for the point is chosen with `:decimal-separator`,
+   not inherited from the machine."
+  [fmt v]
+  (String/format java.util.Locale/ROOT fmt (to-array [v])))
+
+(defn- absent?
+  "Only nil and the empty string count as no separator: a single space is
+   a valid one, the convention in much of Europe."
+  [separator]
+  (or (nil? separator) (= "" (str separator))))
+
+(defn- in-threes
+  "Digits of an integer part, joined in groups of three from the right."
+  [digits separator]
+  (->> digits
+       reverse
+       (partition-all 3)
+       (map (comp str/join reverse))
+       reverse
+       (str/join separator)))
+
+;; A formatted number, split into the parts the two separators act on:
+;; sign, integer digits, an optional fractional part, and whatever
+;; follows (an exponent, or nothing). A string that does not start with
+;; digits does not match at all, which is what lets a category name pass
+;; through these functions untouched.
+(def ^:private number-parts-re #"(-?)(\d+)(?:\.(\d+))?(.*)")
+
+(defn number-separators
+  "The two separators a plot writes its numbers with, read off a resolved
+   config as `{:thousands ... :decimal ...}`. Threaded as one value
+   rather than as two scalars, because it passes through six layers of
+   tick layout on its way to the formatter."
+  [cfg]
+  {:thousands (:thousands-separator cfg)
+   :decimal (:decimal-separator cfg)})
+
+(defn fmt-number
+  "Rewrite an already-formatted number string with a plot's separators:
+   `:thousands` between each group of three digits in the integer part,
+   `:decimal` in place of the point.
+
+   Every number reaching here was formatted under `Locale/ROOT`, so its
+   decimal point is always a `.` and the two separators can be chosen
+   independently: `{:thousands \".\" :decimal \",\"}` turns 1234.5 into
+   1.234,5. Either one absent leaves that part as it was, so the default
+   of neither leaves the string alone.
+
+   Returns `s` unchanged when it does not begin with digits, so a
+   category name passes through."
+  [s {:keys [thousands decimal]}]
+  (if (and (absent? thousands) (absent? decimal))
+    s
+    (if-let [[_ sign digits frac tail] (re-matches number-parts-re (str s))]
+      (str sign
+           (if (absent? thousands) digits (in-threes digits thousands))
+           (when frac (str (if (absent? decimal) "." decimal) frac))
+           tail)
+      s)))
+
 (defn group-digits
   "Insert `separator` between three-digit groups in the integer part of an
    already-formatted number string: 462389 with a comma gives 462,389.
    A leading sign, a fractional part, and any exponent are left alone.
-   Returns `s` unchanged when `separator` is nil or empty, or when `s` does
-   not begin with digits. Only nil and the empty string count as absent: a
-   single space is a valid separator, the convention in much of Europe."
+
+   The thousands half of `fmt-number`, for a caller that has only that
+   separator to hand."
   [s separator]
-  (if (or (nil? separator) (= "" (str separator)))
-    s
-    (if-let [[_ sign digits tail] (re-matches #"(-?)(\d+)(.*)" (str s))]
-      (str sign
-           (->> digits
-                reverse
-                (partition-all 3)
-                (map (comp str/join reverse))
-                reverse
-                (str/join separator))
-           tail)
-      s)))
+  (fmt-number s {:thousands separator}))
 
 (defn fmt-value-label
-  "Format a data value for display as text on a plot, grouping the digits of
-   a number when a `separator` is configured. Non-numeric values format as
+  "Format a data value for display as text on a plot, writing a number
+   with the plot's `separators`. Non-numeric values format as
    `fmt-category-label` does."
-  [v separator]
+  [v separators]
   (cond-> (fmt-category-label v)
-    (number? v) (group-digits separator)))
+    (number? v) (fmt-number separators)))
 
 ;; ---- Configuration Precedence Chain ----
 ;;
@@ -438,6 +497,7 @@
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
    :fit-text-domain ["Labels" "When true (the default), a numeric domain is widened so that text and label marks near its edge are drawn in full instead of being cut off at the panel boundary. A domain pinned with pj/scale is never widened"]
+   :decimal-separator ["Labels" "String drawn in place of the decimal point of a number that measures, in the same text :thousands-separator groups (a comma, with a point for the thousands, gives the European 1.234,5). Numbers are formatted under Locale/ROOT, so the two separators are chosen here rather than inherited from the JVM's locale. nil (the default) leaves the point as a point"]
    :thousands-separator ["Labels" "String inserted between three-digit groups of a number that measures (a comma gives 462,389): numeric axis tick labels, text/label mark content, and the values a size or alpha legend prints. A number that names is left alone -- category names, colour and shape legend labels, facet strips, and a categorical axis whose categories happen to be numbers. nil (the default) leaves everything ungrouped"]
    :title-offset ["Labels" "Pixel offset for the title from the top"]
    :strip-height ["Labels" "Height of facet strip label bars"]

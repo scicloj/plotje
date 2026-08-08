@@ -216,7 +216,7 @@
    (compute-ticks domain pixel-range scale-spec spacing nil nil))
   ([domain pixel-range scale-spec spacing temporal-extent]
    (compute-ticks domain pixel-range scale-spec spacing temporal-extent nil))
-  ([domain pixel-range scale-spec spacing temporal-extent separator]
+  ([domain pixel-range scale-spec spacing temporal-extent separators]
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
            user-labels (:labels scale-spec)]
@@ -258,7 +258,7 @@
                         (vec (scale/format-log-ticks vs))
                         :else
                         (let [s (scale/make-scale domain pixel-range scale-spec)]
-                          (vec (scale/format-ticks s vs separator))))]
+                          (vec (scale/format-ticks s vs separators))))]
            {:values vs :labels labels :categorical? false})
 
          temporal-extent
@@ -282,7 +282,7 @@
          ;; Linear: use wadogo
          (let [s (scale/make-scale domain pixel-range scale-spec)
                ticks (ws/ticks s n)
-               labels (scale/format-ticks s ticks separator)]
+               labels (scale/format-ticks s ticks separators)]
            {:values (vec ticks) :labels (vec labels) :categorical? false}))))))
 
 ;; ---- Per-Panel Resolution ----
@@ -1174,9 +1174,9 @@
    pw ph m cfg annotations]
   (let [x-px [m (- pw m)]
         y-px [(- ph m) m]
-        sep (:thousands-separator cfg)
-        x-ticks (when x-dom (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te sep))
-        y-ticks (when y-dom (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te sep))]
+        seps (defaults/number-separators cfg)
+        x-ticks (when x-dom (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te seps))
+        y-ticks (when y-dom (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te seps))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale

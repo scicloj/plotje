@@ -47,7 +47,7 @@
     (if (= :continuous (:type legend))
       ;; Continuous gradient legend
       (let [{:keys [min max stops color-scale ticks]} legend
-            sep (:thousands-separator cfg)
+            seps (defaults/number-separators cfg)
             ;; If render-time config overrides the color-scale, resolve fresh
             render-cs (:color-scale cfg)
             override? (and render-cs (not= render-cs color-scale))
@@ -60,7 +60,7 @@
                          (cond
                            (zero? v) "0"
                            (and (>= v 1.0) (== v (Math/floor v))) (str (long v))
-                           :else (format "%.4g" v))))]
+                           :else (defaults/fmt-root "%.4g" v))))]
         (vec
          (concat
           (when title
@@ -83,16 +83,16 @@
                   :let [ty (+ y (* (- 1.0 (double t)) bar-h) -4)]]
               (ui/translate (+ x bar-w 4) ty
                             (ui/with-color title-color
-                              (ui/label (defaults/group-digits (fmt-tick value) sep)
+                              (ui/label (defaults/fmt-number (fmt-tick value) seps)
                                         (ui/font nil 10)))))
             ;; Linear scale: just min/max at the ends.
             [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
                            (ui/with-color title-color
-                             (ui/label (defaults/group-digits (format "%.4g" (double min)) sep)
+                             (ui/label (defaults/fmt-number (defaults/fmt-root "%.4g" (double min)) seps)
                                        (ui/font nil 10))))
              (ui/translate (+ x bar-w 4) (+ y 6)
                            (ui/with-color title-color
-                             (ui/label (defaults/group-digits (format "%.4g" (double max)) sep)
+                             (ui/label (defaults/fmt-number (defaults/fmt-root "%.4g" (double max)) seps)
                                        (ui/font nil 10))))]))))
       ;; Categorical swatch legend
       (let [{:keys [entries]} legend]
@@ -164,7 +164,7 @@
   [v cfg]
   (let [d (double v)
         s (if (== d (Math/floor d)) (str (long d)) (str v))]
-    (defaults/group-digits s (:thousands-separator cfg))))
+    (defaults/fmt-number s (defaults/number-separators cfg))))
 
 (defn render-size-legend
   "Render a size legend -- graduated circles with value labels.
@@ -323,7 +323,7 @@
         ;; Font sizes from config
         label-fsize (:label-font-size cfg)
         title-fsize (:title-font-size cfg)
-        strip-fsize (:strip-font-size cfg 10)
+        strip-fsize (:strip-font-size cfg 11)
         text-color (if-let [tc (:text-color cfg)]
                      (defaults/hex->rgba tc)
                      [0.2 0.2 0.2 1.0])

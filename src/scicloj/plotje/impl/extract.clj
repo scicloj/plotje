@@ -134,7 +134,7 @@
                     ;; facet strips stay as they are.
                     (and with-labels? labels)
                     (assoc :labels (mapv #(defaults/fmt-value-label
-                                           % (:thousands-separator cfg))
+                                           % (defaults/number-separators cfg))
                                          labels)))))]
     (when (and with-range? (seq groups)
                (not-any? :ymins groups))
