@@ -1276,6 +1276,19 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"not found in dataset"
                             (-> ds (pj/pose "x" "y") pj/lay-point pj/plot)))))
+  (testing "a dataset whose column names are of mixed types still gets the message"
+    ;; The message lists the available names, and listing them sorts
+    ;; them. Sorting a keyword against a string or a number throws a
+    ;; ClassCastException, so the helpful error was replaced by an
+    ;; unhelpful one exactly where a name is most likely to be mistyped.
+    (doseq [[label ds] [["keyword and string names"
+                         (tc/dataset {:x [1 2 3] :y [4 5 6] "blue" ["a" "b" "c"]})]
+                        ["keyword and integer names"
+                         (tc/dataset {:x [1 2 3] :y [4 5 6] 0 ["a" "b" "c"]})]]]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"Column :nope \(from :color\) not found in dataset"
+                            (-> ds (pj/pose :x :y) (pj/lay-point {:color :nope}) pj/plot))
+          label)))
   (testing "string :color falls through to literal CSS when no string column matches"
     ;; :color "#FF0000" is the canonical literal-color case and must
     ;; keep working; it does not name any dataset column.

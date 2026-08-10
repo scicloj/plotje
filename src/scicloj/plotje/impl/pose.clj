@@ -712,14 +712,14 @@
       (str "lay-" layer-name " " k " " (pr-str col)
            ", inherited from the pose's mapping, names a column"
            " absent from this layer's :data. Available columns: "
-           (vec (sort col-names))
+           (vec (sort-by str col-names))
            ". To overlay on the existing panel, rename the column"
            " in :data to " (pr-str col) ". To draw this layer on"
            " a separate sub-pose, set " k " on the layer call"
            " to a column that exists in :data.")
       ;; Default: simple "not found" with the available columns
       (str "Column " col " (from " k ") not found in dataset."
-           " Available: " (sort col-names)))))
+           " Available: " (sort-by str col-names)))))
 
 (defn- validate-columns
   "Validate that every aesthetic column reference in the resolved
@@ -749,7 +749,7 @@
                       {:layer-type-key layer-type-key
                        :layer-own-data? layer-own-data?
                        :source source})
-                     {:key k :column col :available (sort col-names)
+                     {:key k :column col :available (sort-by str col-names)
                       :source source}))))
          (when-let [types (heterogeneous-types (col-lookup col))]
            (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
@@ -825,8 +825,8 @@
   (let [col-names (set (tc/column-names ds))
         fname (resolve/resolve-col-name ds ref)]
     (when-not (contains? col-names fname)
-      (throw (ex-info (str "Facet column " ref " (from " role ") not found in dataset. Available: " (sort col-names))
-                      {:role role :column ref :available (sort col-names)})))
+      (throw (ex-info (str "Facet column " ref " (from " role ") not found in dataset. Available: " (sort-by str col-names))
+                      {:role role :column ref :available (sort-by str col-names)})))
     fname))
 
 (defn- facet-variants
