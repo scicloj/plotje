@@ -154,9 +154,11 @@
 (kind/test-last [(fn [v] (= ["0" "1"]
                             ((juxt :x-label :y-label) (pj/plan v))))])
 
-;; Plotje reads an integer name but you cannot write one in a mapping:
-;; a column reference has to be a keyword or a string. Rename the
-;; columns to map them yourself.
+;; Plotje reads an integer name, and a layer's mapping can refer to one:
+;; `(pj/lay-point ds {:x 0 :y 1})` plots those two columns. The shorter
+;; form, naming the columns before the mapping, cannot --
+;; [Known Limitations](./plotje_book.known_limitations.html#integer-column-names)
+;; has the reason. Renaming the columns makes both forms available:
 
 (-> (tc/dataset [[1 2] [3 4] [5 7]])
     (tc/rename-columns [:x :y])

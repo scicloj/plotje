@@ -215,15 +215,22 @@
 ;;
 ;; - A dataset built without column names gets integer ones, and
 ;;   Plotje reads them: the inferred mapping picks up the first few
-;;   columns and the derived axis titles read as the names. Referring
-;;   to such a column is what is missing -- a column reference in a
-;;   mapping has to be a keyword or a string, so `(pj/lay-point ds 0 1)`
-;;   is rejected in the same terms as any other scalar in a position.
-;;   The reason is that a number in a mapping already names a literal
-;;   value rather than a column: on the appearance aesthetics it always
-;;   does, since `{:size 1}` sets a radius. Workaround:
-;;   `(tc/rename-columns ds [:x :y])` before mapping, as shown in
-;;   the [Datasets](./plotje_book.datasets.html#column-names) chapter.
+;;   columns and the derived axis titles read as the names. A layer's
+;;   mapping can name them too -- `(pj/lay-point ds {:x 0 :y 1})` plots
+;;   those two columns, because the layer's data is at hand and a number
+;;   matching a column name there reads as that column.
+;;
+;;   What is missing is the other two ways of writing it.
+;;   `(pj/lay-point ds 0 1)` and `(pj/pose ds {:x 0 :y 1})` are both
+;;   refused, because the check on those runs before the data is
+;;   available and so cannot tell an integer column name from a value to
+;;   draw a mark at. The error names both readings rather than picking
+;;   one. On the appearance aesthetics the question does not arise: a
+;;   number there is always a literal, since `{:size 1}` sets a radius
+;;   whatever the columns are called. Workaround: write the layer
+;;   mapping form, or rename with `(tc/rename-columns ds [:x :y])` as
+;;   shown in the
+;;   [Datasets](./plotje_book.datasets.html#column-names) chapter.
 
 ;; ## ggplot2 Features Not Yet Implemented
 ;;
