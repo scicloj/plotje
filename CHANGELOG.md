@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.8.1 - 2026-08-12]
 - fix: tick labels, legend endpoints and tooltip numbers are formatted under `Locale/ROOT`, so a plot draws the same numbers whatever machine renders it.
 - new configuration key `:decimal-separator` draws the decimal point as whatever string you name: `(pj/options {:thousands-separator "." :decimal-separator ","})` writes 1.234,5. Off by default.
 - fix: a continuous legend's two end labels are written to six significant digits in plain notation, with trailing zeros dropped: `123456`, `0.1`, `2.5`.

@@ -218,7 +218,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__70938#] (Math/sin (* p1__70938# 0.3))) (range 30))}))
+   (map (fn* [p1__76389#] (Math/sin (* p1__76389# 0.3))) (range 30))}))
 
 
 (def v45_l175 (-> wave (pj/lay-line :x :y)))
@@ -402,9 +402,9 @@
     :y
     (mapv
      (fn*
-      [p1__70939#]
+      [p1__76390#]
       (+
-       (Math/sin (* p1__70939# 0.2))
+       (Math/sin (* p1__76390# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1253,7 +1253,7 @@
    (:canvas f)
    boxes
    (mapv
-    (fn* [p1__70940#] (-> p1__70940# :frames :panel-box))
+    (fn* [p1__76391#] (-> p1__76391# :frames :panel-box))
     (:panels f))
    inside?
    (fn
@@ -1264,7 +1264,7 @@
    :every-box-inside-the-canvas (every? inside? boxes),
    :panel-rectangle-keys
    (mapv
-    (fn* [p1__70941#] (vec (keys (:frames p1__70941#))))
+    (fn* [p1__76392#] (vec (keys (:frames p1__76392#))))
     (:panels f))}))
 
 
@@ -1279,7 +1279,7 @@
      (apply not= (map first (:panel-boxes m)))
      (true? (:every-box-inside-the-canvas m))
      (every?
-      (fn* [p1__70942#] (= [:panel-box :drawing-area] p1__70942#))
+      (fn* [p1__76393#] (= [:panel-box :drawing-area] p1__76393#))
       (:panel-rectangle-keys m))))
    v259_l832)))
 
@@ -1321,7 +1321,7 @@
   (->>
    (pj/to-drawing panel 2 5)
    (apply pj/to-data panel)
-   (mapv (fn* [p1__70943#] (Math/round (double p1__70943#)))))))
+   (mapv (fn* [p1__76394#] (Math/round (double p1__76394#)))))))
 
 
 (deftest t271_l881 (is ((fn [v] (= [2 5] v)) v270_l876)))
@@ -1677,7 +1677,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__70944#] (bit-and p1__70944# 255)) (vec bs))))))
+    (mapv (fn* [p1__76395#] (bit-and p1__76395# 255)) (vec bs))))))
 
 
 (deftest
@@ -1698,7 +1698,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__70945#] (bit-and p1__70945# 255)) (vec bs))))))
+    (mapv (fn* [p1__76396#] (bit-and p1__76396# 255)) (vec bs))))))
 
 
 (deftest t384_l1181 (is ((fn [bs] (= [137 80 78 71] bs)) v383_l1172)))

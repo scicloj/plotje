@@ -61,9 +61,9 @@
  v9_l87
  (mapv
   (fn*
-   [p1__83952#]
+   [p1__72373#]
    (select-keys
-    (layer-type/lookup p1__83952#)
+    (layer-type/lookup p1__72373#)
     [:mark :stat :defaults]))
   [:text :label]))
 
