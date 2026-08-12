@@ -14,6 +14,7 @@
   (:require [clojure.test :refer [deftest testing is]]
             [clojure.string :as str]
             [scicloj.plotje.api :as pj]
+            [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.render.svg :as svg]))
 
 (def data {:height [1 2 3] :weight [1 2 3] :n [1000 25000 100000]})
@@ -94,6 +95,85 @@
       (is (= (plotted-signature (composite {k v}))
              (saved-signature (composite {k v})))
           (str k " renders differently through the two composite paths")))))
+
+;; ---- Coverage that maintains itself ----
+;;
+;; The five options above were chosen by hand, one per membrane-stage
+;; reader. That pins the fix and nothing after it: a configuration key
+;; added later would go unprobed until someone remembered this file.
+;; Below, the probe set is built from the configuration registry, so a
+;; new key is covered the moment it is documented -- or, when no value
+;; can be derived for it, named in a failure until someone chooses one.
+
+(defn- derived-probe
+  "A value unlike `k`'s default, for a key whose default is a number or
+   a boolean. nil when none can be derived."
+  [k]
+  (let [v (get defaults/defaults k)]
+    (cond
+      (boolean? v) (not v)
+      (number? v)  (+ (* 2 v) 3)
+      :else        nil)))
+
+(def hand-probed
+  "Keys whose default is absent, or is a string or a vector, so no
+   value follows from it."
+  {:thousands-separator ","
+   :decimal-separator   "."
+   :annotation-stroke   "#0000ff"
+   :default-color       "#0000ff"
+   :point-stroke        "#00ff00"
+   :annotation-dash     [8 2]
+   :x-tick-angle        45
+   :x-tick-label-pad    8})
+
+(def unprobed
+  "Configuration keys this test does not exercise, and why. Pinned so
+   the set cannot grow in silence: a key added to the registry lands
+   here as a failure until it is either probed or listed with a reason."
+  #{;; not read on the leaf render path at all
+    :bin-method :domain-padding :legend-width :margin-multi
+    :panel-size :validate
+    ;; interaction, tested in interactivity_test
+    :tooltip :brush
+    ;; a map, not a scalar
+    :theme
+    ;; naming a palette or gradient, tested in the color tests
+    :palette :color-scale :color-midpoint
+    ;; chooses which render path runs, so it cannot compare two of them
+    :format
+    ;; where the legend sits, tested in legend_position_test
+    :legend-position
+    ;; turns a warning into a throw; tested in strict_test
+    :strict})
+
+(deftest every-configuration-key-is-probed-or-accounted-for
+  (let [probed  (into (set (keys hand-probed))
+                      ;; `some?`, not truthiness -- a boolean default of
+                      ;; true derives the probe `false`, which a plain
+                      ;; filter would drop as if no probe existed.
+                      (filter #(some? (derived-probe %)))
+                      (keys defaults/config-key-docs))
+        missing (remove (into probed unprobed)
+                        (keys defaults/config-key-docs))]
+    (is (empty? missing)
+        (str "configuration key(s) with no probe value and no entry in "
+             "`unprobed`: " (vec (sort-by str missing))
+             ". Give each a value in `hand-probed`, or list it in "
+             "`unprobed` with the reason it is not exercised here."))))
+
+(deftest plot-and-save-agree-on-every-probed-configuration-key
+  (testing "the two paths draw the same picture, key by key"
+    (doseq [k (sort-by str (keys defaults/config-key-docs))
+            :when (not (unprobed k))
+            :let  [v (get hand-probed k (derived-probe k))]
+            :when (some? v)]
+      (let [[plotted saved]
+            (try [(plotted-signature (leaf {k v})) (saved-signature (leaf {k v}))]
+                 (catch Exception e [::threw (ex-message e)]))]
+        (is (= plotted saved)
+            (str k " " (pr-str v)
+                 " renders differently through pj/plot and pj/save"))))))
 
 (deftest a-tooltip-stays-on-the-cell-that-asked-for-it
   (testing "passing the composite's options down does not spread its tooltip"

@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file. This change
 - fix: `pj/to-drawing` refuses a value a categorical axis has no position for -- a category it does not carry, or a fractional place such as 2.5 -- naming the value and the categories it could have been.
 - fix: under `:coord :flip`, `pj/to-data`'s dataset arity reads a categorical x back as its categories. Both functions take and answer in data order under a flip.
 - fix: a missing column is named, with the available ones listed, on a dataset whose column names are not all of one type.
+- fix: `(pj/lay-point data {:x :height :y :weight})` reads the mapping from its options map on a dataset of four or more columns. A mapping given only partly there, such as `{:y :weight}`, still takes its other axis from the inferred one.
 
 ## [0.8.0 - 2026-08-07]
 This release mostly follows the [label-positioning](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/label.20positioning/) topic thread. Many thanks to @behrica, @timothypratley, @phronmophobic, and @generateme for the fruitful work over that thread.

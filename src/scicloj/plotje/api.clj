@@ -1721,7 +1721,15 @@
      (cond
        (map? x-or-opts)
        (let [d (:data fr)
-             fr (if (and was-raw? d (nil? (:mapping fr)))
+             ;; The options map may carry the position mapping itself.
+             ;; When it carries all of it, inference has nothing left to
+             ;; supply -- and running it anyway throws on 4+ columns,
+             ;; refusing the very mapping the caller passed.
+             mapped? (if (x-only? layer-type-key)
+                       (contains? x-or-opts :x)
+                       (and (contains? x-or-opts :x)
+                            (contains? x-or-opts :y)))
+             fr (if (and was-raw? d (nil? (:mapping fr)) (not mapped?))
                   (assoc fr :mapping (auto-infer-mapping layer-type-key d))
                   fr)]
          (lay-on-pose fr layer-type-key nil x-or-opts))

@@ -971,3 +971,34 @@
                                           {:align-x :right}))
                    :panels first :layers first :style :align-x))
         "the option is stripped rather than carried into the plan")))
+
+(def four-columns
+  "Four columns, so `auto-infer-mapping` refuses to guess."
+  {:t [1 2 3] :a [1.0 2.0 3.0] :b [3.0 2.0 1.0] :g ["p" "q" "p"]})
+
+(defn- axis-labels [pose]
+  ((juxt :x-label :y-label) (pj/plan pose)))
+
+(deftest an-options-map-carrying-the-mapping-skips-inference
+  (testing "a mapping given in the options map is honored on 4+ columns"
+    ;; The guard used to run before the options map was applied, so it
+    ;; refused the mapping it was asking for, on data too wide to guess.
+    (is (= ["t" "a"] (axis-labels (pj/lay-point four-columns {:x :t :y :a}))))
+    (is (= ["a" nil] (axis-labels (pj/lay-histogram four-columns {:x :a})))
+        "an x-only layer type needs only :x to count as mapped"))
+
+  (testing "the guard still fires when the options map supplies no mapping"
+    (doseq [opts [{} {:size 5}]]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"Cannot auto-infer columns from 4 columns"
+           (pj/plan (pj/lay-point four-columns opts)))
+          (str "options " opts " carry no position, so inference must run"))))
+
+  (testing "a partial mapping still infers, so the other axis is filled in"
+    ;; Three columns, where inference succeeds: {:y :a} keeps the inferred
+    ;; :x and overrides :y. Unchanged behavior, pinned because the fix
+    ;; could have skipped inference here too.
+    (is (= ["t" "a"]
+           (axis-labels (pj/lay-point {:t [1 2 3] :a [1.0 2.0 3.0] :b [3.0 2.0 1.0]}
+                                      {:y :a}))))))
