@@ -227,8 +227,17 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (= [nil -6]
-       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
+    (and (= [nil -6]
+            (->> fr pj/plan :panels first :layers (mapv :offset-y)))
+         ;; The same chart with a nudge along its categorical x instead.
+         (try (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                  (pj/lay-bar :team :score)
+                  (pj/lay-text {:text :score :nudge-x 0.2})
+                  pj/plot)
+              false
+              (catch Exception e
+                (boolean (re-find #":nudge-x is a data-space shift"
+                                  (ex-message e)))))))])
 
 ;; One more difference between the two: a nudge does not change the axis
 ;; domain, so a nudge large enough to carry a mark past the end of the
@@ -379,7 +388,7 @@ cars
 ;; because the two coordinates of a point belong to the same row. A
 ;; dataset records that; two separate sequences would leave it to the
 ;; caller to keep them in step.
-;;
+
 ;; These functions can answer the question the nudge section left open:
 ;; how far does a nudge of 0.08 actually move a label on each of those
 ;; two axes? Ask each panel where 0.08 of its own units comes to:
@@ -402,6 +411,63 @@ cars
 
 ;; Both figures are the same `:nudge-x 0.08`, measured on the two axes
 ;; shown earlier.
+
+;; ## Mapping a categorical axis
+;;
+;; A categorical axis is a band scale: it has a place for each of its
+;; categories and none between them. That shows up in both directions.
+;; `pj/to-drawing` maps a category to the middle of its band, and
+;; `pj/to-data` reads back the category whose band holds the coordinate.
+;; Outside every band there is no category to name, so `pj/to-data`
+;; answers nil for that coordinate. In the other direction there is
+;; nothing sensible to answer at all, so `pj/to-drawing` refuses a value
+;; the axis has no place for -- a category it does not carry, or a
+;; fractional place between two bands -- naming the value and the
+;; categories it could have been:
+
+(let [panel (-> {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
+                 :tickets   [462389 181444 163294]}
+                (pj/lay-bar :tickets :violation)
+                pj/frames
+                :panels
+                first)]
+  {:band-middle     (pj/to-drawing panel 200000 "Over Time Limit")
+   :read-back       (->> (pj/to-drawing panel 200000 "Over Time Limit")
+                         (apply pj/to-data panel))
+   :outside-a-band  (pj/to-data panel 325.0 5.0)
+   :not-a-category  (try (pj/to-drawing panel 200000 "Double Parked")
+                         (catch Exception e (ex-message e)))})
+
+(kind/test-last
+ [(fn [m] (and (= [200000.0 "Over Time Limit"] (:read-back m))
+               (nil? (second (:outside-a-band m)))
+               (re-find #"Double Parked" (:not-a-category m))
+               (re-find #"Meter Expired" (:not-a-category m))))])
+
+;; Both functions take and answer in data order, and `(pj/coord :flip)`
+;; does not change that -- the categorical column stays the `:x`
+;; argument even once it is drawn up the side. A panel entry's
+;; `:x-domain` and `:y-domain` describe the drawn axes, so under a flip
+;; those two are the pair that swap:
+
+(let [panel (-> {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
+                 :tickets   [462389 181444 163294]}
+                (pj/lay-bar :violation :tickets)
+                (pj/coord :flip)
+                pj/frames
+                :panels
+                first)]
+  {:x-domain  (:x-domain panel)
+   :y-domain  (:y-domain panel)
+   :read-back (pj/to-data panel (pj/to-drawing panel {:x ["Over Time Limit"]
+                                                      :y [200000]}))})
+
+(kind/test-last
+ [(fn [m] (and (= ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
+                  (:y-domain m))
+               (number? (first (:x-domain m)))
+               (= ["Over Time Limit"] (vec ((:read-back m) :x)))
+               (< (abs (- 200000.0 (first ((:read-back m) :y)))) 1e-6)))])
 
 ;; ## Drawing from a measurement
 ;;
