@@ -616,13 +616,13 @@
   (testing "a scale spec is not a gradient"
     ;; `pj/scale :color` and the `:color-scale` configuration key write
     ;; the same `:opts` key. A scale spec taken as a gradient resolved to
-    ;; three default stops, so asking for a log scale changed the palette
+    ;; three default stops, so asking for a log scale changed the gradient
     ;; as well as the spacing.
     (is (not (defaults/gradient-map? {:type :log})))
     (is (defaults/gradient-map? {:low "#000000" :high "#FFFFFF"}))
     (is (= (mapv (defaults/resolve-gradient-fn nil) [0.0 0.5 1.0])
            (mapv (defaults/resolve-gradient-fn {:type :log}) [0.0 0.5 1.0]))))
-  (testing "a log color scale keeps the default palette"
+  (testing "a log color scale keeps the default gradient"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 1 51)})
           stops (fn [pose] (->> pose pj/plan :legend :stops (mapv :color)))
           base (-> ds (pj/lay-point :x :y {:color :c}))]
@@ -631,7 +631,7 @@
       (is (= {:type :log} (:color-scale (:legend (pj/plan (pj/scale base :color :log)))))
           "and the scale spec still reaches the legend")
       (is (not= (stops base) (stops (pj/options base {:color-scale :inferno})))
-          "a gradient name still changes the palette")))
+          "a gradient name still changes the gradient")))
   (testing "diverging end-to-end"
     (let [ds (tc/dataset {:x (range 10) :y (range 10) :z (map #(- % 5) (range 10))})
           fig (-> ds (pj/pose :x :y)

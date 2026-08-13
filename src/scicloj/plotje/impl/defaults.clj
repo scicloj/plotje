@@ -243,7 +243,7 @@
    it: a scale spec such as `{:type :log}`, and a gradient. Only the
    gradient belongs to `resolve-gradient-fn`, and a scale spec taken as
    one would resolve to three default stops -- which is how asking for a
-   log scale used to change the palette as well as the spacing."
+   log scale used to change the gradient as well as the spacing."
   [m]
   (and (map? m)
        (boolean (some #(contains? m %) [:low :mid :high]))))
