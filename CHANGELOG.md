@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+- fix: `(pj/scale pose :color :log)` on a numeric color column changes the spacing and leaves the palette alone. It used to swap the default blue ramp for red-white-blue, because the scale spec `{:type :log}` was read as a custom gradient and resolved to three default stops. A gradient map is now one naming at least one of `:low`, `:mid`, `:high`.
+- `:size`, `:alpha` and `:fill` name the aesthetic and the column when given a categorical one: `Aesthetic :size needs a numeric column, but :species holds categories`, pointing at `:color` and `:group` for telling categories apart. They used to die on `class java.lang.String cannot be cast to class java.lang.Number`.
+- `:shape`, `:fill` and `:group` refuse a value that names no column, saying what they take. `{:group 4}` used to resolve to zero groups, so the layer drew nothing at all and nothing said why; `{:shape 4}` and `{:fill 4}` were ignored. `nil` still cancels a mapping inherited from an ancestor.
+- `pj/scale` has no `:group` channel. It used to accept one and write a `:group-scale` that nothing read, so the plot was identical with and without it. Grouping splits a layer into one drawn group per value, in data order; to order or restyle what the reader sees, scale `:color` or `:shape`.
+
 ## [0.8.1 - 2026-08-12]
 - fix: tick labels, legend endpoints and tooltip numbers are formatted under `Locale/ROOT`, so a plot draws the same numbers whatever machine renders it.
 - new configuration key `:decimal-separator` draws the decimal point as whatever string you name: `(pj/options {:thousands-separator "." :decimal-separator ","})` writes 1.234,5. Off by default.

@@ -1002,3 +1002,69 @@
     (is (= ["t" "a"]
            (axis-labels (pj/lay-point {:t [1 2 3] :a [1.0 2.0 3.0] :b [3.0 2.0 1.0]}
                                       {:y :a}))))))
+
+;; ---- Aesthetics that used to fail in silence or by cast error ----
+
+(def mixed
+  {:num [1.0 2.0 3.0 4.0] :num2 [2.0 3.0 4.0 5.0] :cat ["p" "q" "p" "q"]})
+
+(deftest a-categorical-column-in-a-continuous-aesthetic-reports-itself
+  (testing ":size, :alpha and :fill name the aesthetic and the column"
+    ;; These used to reach the encoder and die on
+    ;; "class java.lang.String cannot be cast to class java.lang.Number",
+    ;; naming neither.
+    (doseq [[aesthetic pose] {:size  (pj/lay-point mixed :num :num2 {:size :cat})
+                              :alpha (pj/lay-point mixed :num :num2 {:alpha :cat})
+                              :fill  (pj/lay-tile mixed :num :num2 {:fill :cat})}]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"needs a numeric column, but :cat holds categories"
+           (pj/plan pose))
+          (str aesthetic " reports the categorical column"))))
+
+  (testing "a numeric column and a literal still work, and :color takes categories"
+    (is (pj/plan (pj/lay-point mixed :num :num2 {:size :num})))
+    (is (pj/plan (pj/lay-point mixed :num :num2 {:size 4})))
+    (is (pj/plan (pj/lay-point mixed :num :num2 {:color :cat})))))
+
+(deftest a-value-in-a-column-only-aesthetic-is-refused
+  (testing ":group used to empty the layer in silence"
+    ;; Zero groups, so the layer drew nothing at all and nothing said why.
+    (doseq [v [4 true]]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #":group takes one column, or a vector of columns"
+           (pj/plan (pj/lay-line mixed :num :num2 {:group v}))))))
+
+  (testing ":shape and :fill used to be ignored"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":shape takes one column"
+         (pj/plan (pj/lay-point mixed :num :num2 {:shape 4}))))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":fill takes one column"
+         (pj/plan (pj/lay-tile mixed :num :num2 {:fill 4})))))
+
+  (testing "columns, several grouping columns, and nil all still pass"
+    (is (pj/plan (pj/lay-line mixed :num :num2 {:group :cat})))
+    (is (pj/plan (pj/lay-line mixed :num :num2 {:group [:cat]})))
+    (is (pj/plan (pj/lay-point mixed :num :num2 {:shape :cat})))
+    (is (pj/plan (-> (pj/pose mixed {:x :num :y :num2 :group :cat})
+                     (pj/lay-line {:group nil})))
+        "nil cancels a mapping inherited from the pose")))
+
+(deftest scale-has-no-group-channel
+  (testing "pj/scale :group is refused rather than accepted and ignored"
+    ;; It used to write a :group-scale that nothing stamped and nothing
+    ;; read, so the plot was identical with and without it.
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"pj/scale has no :group channel"
+         (pj/scale (pj/lay-line mixed :num :num2 {:group :cat})
+                   :group {:domain ["q" "p"]}))))
+
+  (testing "the channels that draw something are unaffected"
+    (is (pj/plan (pj/scale (pj/lay-point mixed :num :num2 {:shape :cat})
+                           :shape {:domain ["q" "p"]})))
+    (is (pj/plan (pj/scale (pj/lay-point mixed :num :num2) :x :log)))))

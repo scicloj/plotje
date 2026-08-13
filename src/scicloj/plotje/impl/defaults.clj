@@ -234,6 +234,20 @@
   (or (c/gradient (get gradient-aliases k k))
       (c/gradient k)))
 
+(defn gradient-map?
+  "True of a map that describes a custom gradient -- one naming at least
+   one of its three stops.
+
+   The `:color-scale` key carries two unrelated things, because
+   `pj/scale :color` and the `:color-scale` configuration key both write
+   it: a scale spec such as `{:type :log}`, and a gradient. Only the
+   gradient belongs to `resolve-gradient-fn`, and a scale spec taken as
+   one would resolve to three default stops -- which is how asking for a
+   log scale used to change the palette as well as the spacing."
+  [m]
+  (and (map? m)
+       (boolean (some #(contains? m %) [:low :mid :high]))))
+
 (defn resolve-gradient-fn
   "Resolve a :color-scale option to a gradient function t→[r g b a] (0-1 range).
    nil or :sequential → dark blue to light blue (ggplot2 default).
@@ -241,6 +255,8 @@
    keyword → clojure2d gradient name (:inferno, :viridis/plasma, etc.).
    map {:low hex :mid hex :high hex} → custom 3-stop gradient.
    function → used directly.
+   A map naming none of the three stops is a scale spec from `pj/scale`
+   rather than a gradient, and leaves the default gradient in place.
    Throws on unrecognized keyword."
   [color-scale]
   (cond
@@ -255,11 +271,12 @@
                            ". Use a clojure2d gradient name (e.g. :inferno, :viridis, :plasma)"
                            " or :sequential / :diverging.")
                       {:color-scale color-scale})))
-    (map? color-scale)
+    (gradient-map? color-scale)
     (let [{:keys [low mid high]
            :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} color-scale
           g (c/gradient [(c/to-color low) (c/to-color mid) (c/to-color high)])]
       (wrap-gradient g))
+    (map? color-scale) gradient-color
     :else (throw (ex-info (str "Invalid color scale: " (pr-str color-scale)
                                ". Expected nil, keyword, map, or function.")
                           {:color-scale color-scale}))))

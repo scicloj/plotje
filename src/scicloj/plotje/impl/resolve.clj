@@ -293,6 +293,32 @@
      :fixed-alpha fixed-alpha
      :text-col text-col}))
 
+(def continuous-aesthetics
+  "Aesthetics whose column must hold numbers, because what they encode
+   is a magnitude: a radius, an opacity, a place on a gradient. `:color`
+   is not among them -- a categorical color column is a palette, which
+   is the reading these three have no counterpart for."
+  [:size :alpha :fill])
+
+(defn validate-continuous-aesthetics
+  "Throw a clear error when `:size`, `:alpha` or `:fill` names a
+   categorical column. Without it the column reaches the encoder and
+   dies casting a string to a number, naming neither the aesthetic nor
+   the column."
+  [ds v]
+  (let [col-names (set (tc/column-names ds))]
+    (doseq [k continuous-aesthetics
+            :let [col (get v k)]
+            :when (and col (column-ref? col) (contains? col-names col))]
+      (when (= :categorical (column-type ds col))
+        (throw (ex-info (str "Aesthetic " k " needs a numeric column, but "
+                             (pr-str col) " holds categories. " k
+                             " draws a magnitude, so there is nothing for a"
+                             " category to be. To tell categories apart, map"
+                             " the column to :color (a palette) or to :group"
+                             " (one drawn group each).")
+                        {:aesthetic k :column col :column-type :categorical}))))))
+
 (defn infer-grouping
   "Build the grouping vector from explicit :group and categorical color column.
    Explicit groups are passed through; categorical color columns are appended.
@@ -393,6 +419,7 @@
               (assoc :group (resolve-col-name resolved-ds (:group v)))
               (and (:x-end v) (column-ref? (:x-end v)))
               (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))
+          _ (validate-continuous-aesthetics resolved-ds v)
           {:keys [color color-type fixed-color
                   size fixed-size alpha fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
           group (infer-grouping v color-type color)

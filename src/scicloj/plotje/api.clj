@@ -2403,11 +2403,16 @@
   (update-opts pose assoc :facet-col col-col :facet-row row-col))
 
 (def ^:private channel->scale-key
-  "Channel keyword to the opts key holding its scale spec."
+  "Channel keyword to the opts key holding its scale spec.
+
+   `:group` is absent on purpose. It used to map to a `:group-scale`
+   that `pose/leaf->draft` never stamped onto a layer and nothing ever
+   read, so `pj/scale :group` validated its argument and then changed
+   nothing about the plot."
   {:x :x-scale :y :y-scale
    :size :size-scale :alpha :alpha-scale
    :fill :fill-scale :color :color-scale
-   :shape :shape-scale :group :group-scale})
+   :shape :shape-scale})
 
 (def ^:private continuous-visual-channels
   "Continuous visual channels. These accept `:linear` and `:log` only --
@@ -2416,9 +2421,8 @@
 
 (def ^:private discrete-visual-channels
   "Discrete visual channels. These accept :categorical only -- there
-   is no continuous interpretation for a shape symbol or a grouping
-   identity."
-  #{:shape :group})
+   is no continuous interpretation for a shape symbol."
+  #{:shape})
 
 (def ^:private valid-axis-scale-types
   "Scale types accepted on :x / :y. :linear and :log are continuous;
@@ -2430,7 +2434,7 @@
   #{:linear :log})
 
 (def ^:private valid-discrete-visual-scale-types
-  "Scale types accepted on :shape / :group."
+  "Scale types accepted on :shape."
   #{:categorical})
 
 (defn scale
@@ -2447,8 +2451,12 @@
    - Axis channels (`:x`, `:y`) accept `:linear`, `:log`, `:categorical`.
    - Continuous visual channels (`:size`, `:alpha`, `:fill`, `:color`) accept
      `:linear` and `:log` only -- `:categorical` does not apply.
-   - Discrete visual channels (`:shape`, `:group`) accept `:categorical`
-     only -- `:linear` and `:log` do not apply to a discrete encoding.
+   - The discrete visual channel `:shape` accepts `:categorical` only --
+     `:linear` and `:log` do not apply to a discrete encoding.
+
+   `:group` is refused: it draws nothing of its own, so there is no
+   scale to set. It splits a layer into one drawn group per value, and
+   the order of those groups is the order of the data.
 
    The `:domain` on a discrete scale gives explicit category order for the
    legend. On `:shape`, `:values` supplies the symbols to draw those
@@ -2481,6 +2489,15 @@
      legend order.
    - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols."
   [pose channel scale-type]
+  (when (= :group channel)
+    (throw (ex-info (str "pj/scale has no :group channel. Grouping draws"
+                         " nothing of its own -- it splits a layer into one"
+                         " drawn group per value, in the order the data"
+                         " gives them -- so there is no scale to set. To"
+                         " order or restyle what the reader sees, scale the"
+                         " aesthetic that draws it: :color or :shape.")
+                    {:channel channel
+                     :supported (vec (sort (keys channel->scale-key)))})))
   (let [k (or (channel->scale-key channel)
               (throw (ex-info (str "Scale channel must be one of "
                                    (vec (sort (keys channel->scale-key)))
