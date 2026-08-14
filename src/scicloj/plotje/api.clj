@@ -2470,6 +2470,13 @@
    scale to set. It splits a layer into one drawn group per value, and
    the order of those groups is the order of the data.
 
+   To take a channel off its scale for one mapping rather than choose a
+   type for the whole plot, write that mapping out in full:
+   `{:color {:column :hex :scale false}}` draws the column's values as
+   they stand, and `{:size {:value 7 :scale true}}` sends a written
+   value through the scale. See the layer option docs for `:color` and
+   `:size`.
+
    The `:domain` on a discrete scale gives explicit category order for the
    legend. On `:shape`, `:values` supplies the symbols to draw those
    categories with, in the same order; `pj/shape-symbols` lists the ones
