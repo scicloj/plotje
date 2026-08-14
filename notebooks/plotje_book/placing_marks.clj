@@ -259,9 +259,10 @@ cars
 ;; and `:alpha` have always allowed -- `{:color :species}` beside
 ;; `{:color "red"}`.
 ;;
-;; Give both as values and the layer draws a single mark. On such a layer
-;; a string `:text` is the text itself rather than a column name, since
-;; there is no data holding a column for it to name:
+;; Give both as values and the layer draws a single mark. A string
+;; `:text` naming no column is the text itself -- here there is no data
+;; holding a column for it to name, and on a layer that has data it
+;; labels every row with it:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)

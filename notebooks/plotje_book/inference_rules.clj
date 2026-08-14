@@ -92,7 +92,7 @@ scatter-pose
 ;; |:-----------------|:--------|:---------|
 ;; | Column selection | one column fills x; two fill x, y; three fill x, y, color | explicit column args in `pj/pose` or `pj/lay-*` |
 ;; | Column type | dtype inspection | `:x-type`, `:y-type`, `:color-type` in pose or layer options |
-;; | Aesthetic classification | keyword = column, string = color/column | explicit `:color` keyword vs hex string |
+;; | Aesthetic classification | the data decides: a name it carries is a column, anything else is a value | `{:color {:column "red"}}` / `{:color {:value "red"}}` |
 ;; | Grouping | categorical color column | `:group` aesthetic |
 ;; | Layer type (mark + stat) | column types (see Layer Type section) | `pj/lay-point`, `pj/lay-histogram`, etc. |
 ;; | Domain extent | data range + 5% padding | `(pj/scale pose :x {:domain [0 10]})` |
@@ -359,27 +359,35 @@ fixed-color-pose
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
 ;; This raises a question: since `:color` also accepts column names
-;; as strings (like `"species"`), how does the system decide whether
-;; `"red"` means the column `:red` or the color red?
+;; (like `"species"` or `:species`), how does the system decide whether
+;; `"red"` means the column `red` or the color red?
 ;;
-;; The rule is: **check the dataset first**. If the string matches
-;; a column name in the dataset, it is treated as a column reference.
-;; Otherwise, it is treated as a color value -- first trying hex
-;; parsing, then CSS color name lookup.
+;; The rule is: **check the dataset first**. If the value names a
+;; column of the layer's data, it is a column reference. Otherwise it
+;; is asked whether it is a color.
 ;;
-;; Here is the full resolution order for a string `:color` value:
+;; Here is the full resolution order for a `:color` value:
 ;;
-;; 1. If the string matches a dataset column, it is a column reference (grouping)
+;; 1. If it names a dataset column, it is a column reference (grouping)
 ;; 2. If it starts with `#`, it is a hex color (`"#E74C3C"`, `"#F00"`)
-;; 3. If it parses as hex without `#`, it is a hex color (`"00FF00"`)
-;; 4. If it matches a CSS color name, it is a named color (`"red"`, `"steelblue"`)
-;; 5. Otherwise, error with a helpful message
+;; 3. If it is a CSS color name, it is that color -- as a string
+;;    (`"red"`, `"steelblue"`) or as a keyword (`:red`, `:steelblue`)
+;; 4. Otherwise, error naming both readings
+;;
+;; A keyword and a string are asked the same two questions, in the same
+;; order. What differs is only what each can match: matching is strict,
+;; so `:species` finds a keyword-named column and `"species"` finds a
+;; string-named one.
+;;
+;; Hex without its `#` is **not** a color. clojure2d reads a bare `abc`
+;; as `#aabbcc`, which would make `"beef"` and `"fff"` colors -- far
+;; likelier mistyped column names. Write the `#`.
 ;;
 ;; In practice, ambiguity is rare. Column names like `"species"` or
 ;; `"temperature"` are not valid CSS colors, and color names like
-;; `"red"` are unlikely column names. When true ambiguity exists,
-;; use a keyword for the column (`:red`) or a hex string for the
-;; color (`"#FF0000"`).
+;; `"red"` are unlikely column names. When true ambiguity exists, say
+;; which you mean: `{:color {:column "red"}}` reads the column and
+;; `{:color {:value "red"}}` draws the color.
 
 ;; Verify: `"red"` is a fixed color when the dataset has no `red` column:
 

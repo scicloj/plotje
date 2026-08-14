@@ -225,12 +225,15 @@
 ;;   refused, because the check on those runs before the data is
 ;;   available and so cannot tell an integer column name from a value to
 ;;   draw a mark at. The error names both readings rather than picking
-;;   one. On the appearance aesthetics the question does not arise: a
-;;   number there is always a literal, since `{:size 1}` sets a radius
-;;   whatever the columns are called. Workaround: write the layer
-;;   mapping form, or rename with `(tc/rename-columns ds [:x :y])` as
-;;   shown in the
+;;   one. Workarounds: write the mapping out in full, where
+;;   `{:x {:column 0}}` and `{:x {:value 0}}` are each unambiguous; or
+;;   rename with `(tc/rename-columns ds [:x :y])` as shown in the
 ;;   [Datasets](./plotje_book.datasets.html#column-names) chapter.
+;;
+;;   The appearance aesthetics take the same two readings on such a
+;;   dataset. `{:size 1}` reads column 1 where the data has one, and is
+;;   a radius where it does not; `{:size {:value 1}}` insists on the
+;;   radius.
 
 ;; ## ggplot2 Features Not Yet Implemented
 ;;

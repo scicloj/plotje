@@ -588,14 +588,16 @@ two-panel
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; **Coming from ggplot2.** In ggplot2, `colour="blue"` is always a
-;; literal CSS color. In Plotje, a string `{:color "blue"}` is
-;; interpreted as a column reference if **a column with that exact
-;; name exists in the data**, otherwise as a literal CSS color.
-;; Matching is strict: a string only matches a string column name,
-;; and a keyword only matches a keyword column name. Hex codes like
-;; `"#0000ff"` cannot collide with a column name and are unambiguous.
-;; A keyword `{:color :blue}` is always a column reference and throws
-;; if the column is missing.
+;; literal CSS color. In Plotje, `{:color "blue"}` is a column
+;; reference if **a column with that exact name exists in the data**,
+;; otherwise the CSS color. A keyword is asked the same two questions
+;; in the same order, so `{:color :blue}` is the column `:blue` where
+;; there is one and the color blue where there is not. Matching is
+;; strict: a string only matches a string column name, and a keyword
+;; only matches a keyword column name. Hex codes like `"#0000ff"`
+;; cannot collide with a column name and are unambiguous. To settle a
+;; genuine collision, say which you mean: `{:color {:column "blue"}}`
+;; or `{:color {:value "blue"}}`.
 ;;
 ;; The disambiguation matters when the dataset uses string column
 ;; names. With a string column literally named `"blue"`, the column
@@ -628,9 +630,9 @@ two-panel
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; Other visual properties include `:alpha` (transparency), `:size`,
-;; and `:shape`. `:alpha` and `:size` accept a value or a column the
-;; same way `:color` does. `:shape` takes a column only: there is no
-;; one symbol a whole layer can be drawn with yet.
+;; and `:shape`. Each accepts a value or a column the same way
+;; `:color` does -- `{:shape :square}` draws every point square, and
+;; `{:shape :species}` gives each category its own symbol.
 ;;
 ;; **Bubble plot** -- `:size` mapped to a numeric column gives each
 ;; point a radius reflecting the value:

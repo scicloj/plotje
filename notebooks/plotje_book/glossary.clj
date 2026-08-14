@@ -254,9 +254,11 @@ my-pose
 ;; | `:text` | Label content | Any |
 ;; | `:fill` | Tile gradient color | Numerical |
 ;;
-;; When a keyword is passed, it maps to a dataset column.
-;; A literal value (e.g., `"#E74C3C"`, `"red"`, `0.5`) sets a fixed
-;; aesthetic for all points.
+;; The layer's data decides: a value naming one of its columns is a
+;; column reference, and anything else is the value itself -- `"#E74C3C"`,
+;; `"red"`, `:red`, `0.5` -- setting that aesthetic for every mark.
+;; To say which you mean where both readings fit, write the mapping in
+;; full: `{:column "red"}` or `{:value "red"}`.
 ;;
 ;; A single layer can mix all three: positional column refs (`:x`,
 ;; `:y`), an appearance column ref (`:color :species`,
@@ -610,9 +612,16 @@ my-pose
 
 ;; ## Scale
 ;;
-;; A **scale** maps data values to positions in drawing units.
+;; A **scale** maps data values to what is drawn: the axes to
+;; positions in drawing units, and `:color`, `:size`, `:alpha`,
+;; `:fill` and `:shape` to a color, a radius, an opacity or a symbol.
 ;; Built from a domain and an output range using
 ;; [wadogo](https://github.com/scicloj/wadogo).
+;;
+;; A mapping can be taken off its scale one at a time, with
+;; `{:color {:column :hex :scale false}}` -- then the column's values
+;; are drawn as they stand, they inform no domain, and they earn no
+;; legend, since a legend explains a scale.
 ;;
 ;; | Type | Use |
 ;; |:-----|:----|
