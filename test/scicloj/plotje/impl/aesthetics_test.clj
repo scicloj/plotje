@@ -244,6 +244,30 @@
                                 (pj/pose :x :y)
                                 (pj/lay-point {:color {:column "blue"}})))))))
 
+    (testing "the axes take the same form"
+      (let [x-domain #(-> (pj/plan %) :panels first :x-domain)]
+        (is (= (x-domain (-> produce (pj/lay-point :x :y)))
+               (x-domain (-> produce (pj/lay-point {:x {:column :x}
+                                                    :y :y})))))))
+
+    (testing "and it settles a number that is also a column name"
+      ;; The bare form is refused at the pose for exactly this ambiguity,
+      ;; so the explicit one is the only way to say either.
+      (let [ds {0 [1 2 3] 1 [4 5 6]}
+            x-domain #(-> (pj/plan %) :panels first :x-domain)]
+        (is (= [0.9 3.1] (x-domain (-> ds (pj/lay-point {:x {:column 0} :y 1}))))
+            "the column named 0")
+        (is (= [-1.0 1.0] (x-domain (-> ds (pj/lay-point {:x {:value 0} :y 1}))))
+            "the value 0")))
+
+    (testing ":scale false on an axis points at :in instead"
+      ;; An unscaled x is a place on the panel, and a place needs an
+      ;; origin -- which :scale cannot name and the layer's :in does.
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"drawing-area"
+           (pj/plan (-> produce (pj/lay-point {:x {:column :x :scale false}
+                                               :y :y}))))))
+
     (testing "naming both sources, or an unknown key, is reported"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo #"names both :column and :value"

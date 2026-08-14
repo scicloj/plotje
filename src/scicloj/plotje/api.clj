@@ -1409,12 +1409,18 @@
    as one mark or broadcast over the layer's data. In `pj/pose`, or in
    the `:x`/`:y` arguments of a `lay-*` call, it is a column reference
    and nothing else, so an integer column name reports the rename it
-   needs rather than silently plotting one mark at that number."
+   needs rather than silently plotting one mark at that number.
+
+   The explicit form passes everywhere, in both contexts. That
+   restriction exists because a bare number is ambiguous where columns
+   carry integer names, and `{:value 2}` and `{:column 2}` are the two
+   things it could have meant, each said out loud."
   ([context opts] (check-position-mapping context opts nil))
   ([context opts allow-value]
    (doseq [k [:x :y]]
      (when-let [v (get opts k)]
        (when-not (or (keyword? v) (string? v)
+                     (pose/explicit-mapping? v)
                      (and (= :allow-value allow-value)
                           (resolve/literal-position? v)))
          (throw (ex-info (str context " " k " must be a column reference "

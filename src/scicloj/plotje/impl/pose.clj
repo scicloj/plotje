@@ -917,6 +917,20 @@
                            " reads the value from the layer's data,"
                            " :value is the value itself.")
                       {:key k :value v})))
+    ;; `:always` is the positional aesthetics. Drawing space for those
+    ;; is a place on the panel rather than a value, so it needs an
+    ;; origin to measure from -- which is what the layer's `:in` names
+    ;; and `:scale` cannot.
+    (when (and (false? (get v :scale))
+               (= :always (:scale-default (defaults/aesthetic-registry k))))
+      (throw (ex-info (str k " " (pr-str v) " asks for :scale false, but "
+                           k " has no unscaled reading of its own: an "
+                           "unscaled x or y is a place on the panel, and "
+                           "a place needs an origin to measure from. "
+                           "Give the layer {:in :drawing-area} instead, "
+                           "which measures in drawing units from the top "
+                           "left of the panel background.")
+                      {:key k :value v})))
     (if (contains? v :column)
       [(:column v) :column (get v :scale)]
       [(:value v) :value (get v :scale)])))
@@ -941,6 +955,22 @@
                   (some? scale) (assoc-in [:__scale k] scale)))))
           resolved
           (select-keys resolved defaults/column-keys)))
+
+(defn- forget-explicit-source
+  "Drop the recorded `:__source` for aesthetics whose written value has
+   just become a column.
+
+   `{:x {:value 2}}` says the 2 is a value and not the column named 2,
+   and that is true of what the writer wrote. Once the value has been
+   broadcast into a constant column the mapping names that column, so
+   leaving the note in place would have the gate check a column
+   reference against a rule for values and report a column it can see
+   as missing. The choice has been honored; what is left is ordinary."
+  [resolved ks]
+  (let [remaining (apply dissoc (:__source resolved) ks)]
+    (if (seq remaining)
+      (assoc resolved :__source remaining)
+      (dissoc resolved :__source))))
 
 (defn- resolve-positional-values
   "Rewrite an `:x` or `:y` given as a value into data the rest of the
@@ -972,12 +1002,22 @@
         ;; A dataset built without column names is given integer ones, so
         ;; a number here can be either a column name or a value to draw
         ;; at. The data decides: a number naming a column reads it.
-        column?  (fn [v] (or (resolve/column-ref? v) (contains? col-names v)))
-        value?   (fn [v] (and (resolve/literal-position? v)
-                              (not (contains? col-names v))))
+        ;; An explicit `{:column ...}` or `{:value ...}` has already
+        ;; been unwrapped, leaving its choice under `:__source`. That is
+        ;; the only way to settle a number on a dataset whose columns
+        ;; carry integer names, where the shorthand is ambiguous and so
+        ;; refused.
+        said     (fn [k] (get-in resolved [:__source k]))
+        column?  (fn [k v] (if-let [s (said k)]
+                             (= :column s)
+                             (or (resolve/column-ref? v) (contains? col-names v))))
+        value?   (fn [k v] (if-let [s (said k)]
+                             (= :value s)
+                             (and (resolve/literal-position? v)
+                                  (not (contains? col-names v)))))
         literals (into {} (for [k resolve/positional-aesthetics
                                 :let [v (get resolved k)]
-                                :when (value? v)]
+                                :when (value? k v)]
                             [k v]))
         ;; A string on `:text` naming no column is the label itself. It
         ;; broadcasts the same way a value on `:x` does, so every row is
@@ -995,12 +1035,14 @@
       [resolved d]
 
       (and (not layer-own-data?)
-           (not-any? #(column? (get resolved %))
+           (not-any? #(column? % (get resolved %))
                      resolve/positional-aesthetics))
       (let [text   (:text resolved)
             values (cond-> literals
                      (string? text) (assoc :text text))]
-        [(merge resolved (zipmap (keys values) (keys values)))
+        [(-> resolved
+             (merge (zipmap (keys values) (keys values)))
+             (forget-explicit-source (keys values)))
          (coerce-dataset (into {} (for [[k v] values] [k [v]])))])
 
       ;; A column reference with no data anywhere resolves to nothing
@@ -1009,7 +1051,9 @@
       [resolved d]
 
       :else
-      [(merge resolved (zipmap (keys broadcast) (keys broadcast)))
+      [(-> resolved
+           (merge (zipmap (keys broadcast) (keys broadcast)))
+           (forget-explicit-source (keys broadcast)))
        (reduce (fn [ds [k v]]
                  (tc/add-column ds k (dtype/const-reader v (tc/row-count ds))))
                d
