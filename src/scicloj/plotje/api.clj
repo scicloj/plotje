@@ -1539,10 +1539,17 @@
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
    Extracts :data if present. Extracts :stat, :position, :mark as
-   first-class sibling keys -- :mapping holds only column-to-aesthetic
-   bindings. Warns and strips unrecognized option keys. Rejects
-   unknown :mark or :stat keywords (since both are universal layer
-   options, a typo would silently fall through the accept-list)."
+   first-class sibling keys. Warns and strips unrecognized option keys.
+   Rejects unknown :mark or :stat keywords (since both are universal
+   layer options, a typo would silently fall through the accept-list).
+
+   Everything else lands in :mapping -- which therefore holds more than
+   mappings. Of the layer options documented in
+   `layer-type/layer-option-docs`, twelve are aesthetics and the rest
+   are drawing options (:jitter, :in, :font-size), stat parameters
+   (:bandwidth, :bins) and annotation values (:x-intercept). Which of
+   them are aesthetics is answered by `defaults/aesthetic-registry`,
+   not by the map they share."
   [layer-type-key opts]
   (when opts
     (check-facet-keys "layer" opts)
@@ -2403,16 +2410,15 @@
   (update-opts pose assoc :facet-col col-col :facet-row row-col))
 
 (def ^:private channel->scale-key
-  "Channel keyword to the opts key holding its scale spec.
+  "Channel keyword to the opts key holding its scale spec. Derived from
+   `defaults/aesthetic-registry`, so a new scalable aesthetic gets a
+   channel by carrying a `:scale-key` there.
 
-   `:group` is absent on purpose. It used to map to a `:group-scale`
+   `:group` has none on purpose. It used to map to a `:group-scale`
    that `pose/leaf->draft` never stamped onto a layer and nothing ever
    read, so `pj/scale :group` validated its argument and then changed
    nothing about the plot."
-  {:x :x-scale :y :y-scale
-   :size :size-scale :alpha :alpha-scale
-   :fill :fill-scale :color :color-scale
-   :shape :shape-scale})
+  defaults/channel->scale-key)
 
 (def ^:private continuous-visual-channels
   "Continuous visual channels. These accept `:linear` and `:log` only --

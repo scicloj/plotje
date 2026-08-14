@@ -15,10 +15,15 @@
   (or (keyword? v) (string? v)))
 
 (def positional-aesthetics
-  "The aesthetics that place a mark, and so may be given as a value.
-   Named for the glossary's sake: `:position` there is the dodge / stack
-   / fill adjustment, which these have nothing to do with."
-  [:x :y :x-end :y-end])
+  "The aesthetics whose literal value becomes a constant column before
+   anything else reads the mapping. Derived from
+   `defaults/aesthetic-registry`, which is where a new one is added.
+
+   Narrower than the glossary's positional aesthetics: the band bounds
+   place a mark too, but their marks read the value straight from the
+   mapping, so turning it into a column would take it from the only
+   code that wants it."
+  defaults/literal-to-column-aesthetics)
 
 (defn literal-position?
   "True of a value that places a mark on its own, as `{:x 6.5}` does,
@@ -293,13 +298,6 @@
      :fixed-alpha fixed-alpha
      :text-col text-col}))
 
-(def continuous-aesthetics
-  "Aesthetics whose column must hold numbers, because what they encode
-   is a magnitude: a radius, an opacity, a place on a gradient. `:color`
-   is not among them -- a categorical color column is a palette, which
-   is the reading these three have no counterpart for."
-  [:size :alpha :fill])
-
 (defn validate-continuous-aesthetics
   "Throw a clear error when `:size`, `:alpha` or `:fill` names a
    categorical column. Without it the column reaches the encoder and
@@ -307,7 +305,7 @@
    the column."
   [ds v]
   (let [col-names (set (tc/column-names ds))]
-    (doseq [k continuous-aesthetics
+    (doseq [k defaults/continuous-column-aesthetics
             :let [col (get v k)]
             :when (and col (column-ref? col) (contains? col-names col))]
       (when (= :categorical (column-type ds col))

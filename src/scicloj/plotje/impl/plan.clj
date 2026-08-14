@@ -289,11 +289,9 @@
 
 (def ^:private channel->scale-keyword
   "Channel keyword to the resolved-layer key holding its scale spec.
-   Mirrors the public pj/scale surface for axes (:x, :y) and continuous
-   visual channels (:size, :alpha, :fill, :color)."
-  {:x :x-scale :y :y-scale
-   :size :size-scale :alpha :alpha-scale
-   :fill :fill-scale :color :color-scale})
+   The same table `pj/scale` writes through, minus `:shape`, whose
+   scale carries symbols rather than a `:type` this function reads."
+  (dissoc defaults/channel->scale-key :shape))
 
 (defn- log-scaled-cols
   "Return [[channel column-name] ...] for every channel in `rv` whose

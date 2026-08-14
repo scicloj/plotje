@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
+- `defaults/aesthetic-registry` is now the one table describing the aesthetics, and every per-aesthetic set in the library derives from it. There were six such lists in five namespaces and they disagreed: one carried a `:y-end` no mark ever read, another lacked the band bounds the glossary counts as positional. No behavior changes; a new aesthetic is now added in one place, and a half-described one fails the suite.
 - fix: `(pj/scale pose :color :log)` on a numeric color column changes the spacing and leaves the gradient alone. It used to swap the default blue ramp for red-white-blue, because the scale spec `{:type :log}` was read as a custom gradient and resolved to three default stops. A gradient map is now one naming at least one of `:low`, `:mid`, `:high`.
 - `:size`, `:alpha` and `:fill` name the aesthetic and the column when given a categorical one: `Aesthetic :size needs a numeric column, but :species holds categories`, pointing at `:color` and `:group` for telling categories apart. They used to die on `class java.lang.String cannot be cast to class java.lang.Number`.
 - `:shape`, `:fill` and `:group` refuse a value that names no column, saying what they take. `{:group 4}` used to resolve to zero groups, so the layer drew nothing at all and nothing said why; `{:shape 4}` and `{:fill 4}` were ignored. `nil` still cancels a mapping inherited from an ancestor.

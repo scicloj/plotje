@@ -721,35 +721,38 @@
       (str "Column " col " (from " k ") not found in dataset."
            " Available: " (sort-by str col-names)))))
 
-(def ^:private column-only-aesthetics
-  "Aesthetics that read a column and have no reading for anything else.
-   `:group` also takes several columns; the other two take one.
+(def ^:private column-only-accepts
+  "What to tell the user each column-only aesthetic takes. The set
+   itself comes from `defaults/aesthetic-registry` -- these are the
+   aesthetics whose entry has a `:column?` and no `:literal`.
 
-   A value here used to pass every check in silence and then do
-   nothing, because `resolve/resolve-aesthetics` classifies `:color`,
-   `:size`, `:alpha` and `:text` only. `{:shape 4}` drew default
-   circles and `{:group 4}` drew nothing at all -- the layer resolved
-   to zero groups, so a plot came back with a layer missing and no
-   word about it. Whether any of the three should gain a reading for a
-   value is an open design question; until it is answered, saying so
+   A value on one of them used to pass every check in silence and then
+   do nothing, because `resolve/resolve-aesthetics` classifies
+   `:color`, `:size`, `:alpha` and `:text` only. `{:shape 4}` drew
+   default circles and `{:group 4}` drew nothing at all -- the layer
+   resolved to zero groups, so a plot came back with a layer missing
+   and no word about it. Whether any of them should gain a reading for
+   a value is an open design question; until it is answered, saying so
    beats drawing the wrong picture."
-  {:shape "one column"
-   :fill  "one column"
-   :group "one column, or a vector of columns"})
+  {:group "one column, or a vector of columns"})
+
+(defn- column-only-accepts-str [k]
+  (get column-only-accepts k "one column"))
 
 (defn- validate-column-only-aesthetics
   "Throw when `:shape`, `:fill` or `:group` carries a value that names
    no column."
   [resolved d]
   (when d
-    (doseq [[k accepts] column-only-aesthetics
+    (doseq [k defaults/column-only-aesthetics
             :let [v (get resolved k)]
             :when (some? v)]
       (when-not (or (resolve/column-ref? v)
                     (and (= k :group)
                          (sequential? v)
                          (every? resolve/column-ref? v)))
-        (throw (ex-info (str k " takes " accepts ", but got " (pr-str v)
+        (throw (ex-info (str k " takes " (column-only-accepts-str k)
+                             ", but got " (pr-str v)
                              ". A column reference is a keyword or a string"
                              " naming a column of the layer's data;"
                              " " k " has no reading for a value.")

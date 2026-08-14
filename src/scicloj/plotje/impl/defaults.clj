@@ -71,33 +71,108 @@
 ;; ---- Aesthetic Registry ----
 
 (def aesthetic-registry
-  "Per-aesthetic semantic properties. Single source of truth for the set
-   of mapping keys that can reference dataset columns. :numeric? marks
-   aesthetics whose column values, when present, are numeric -- those
-   are the keys eligible for finite-value filtering at plan time."
-  {:x     {:numeric? true}
-   :y     {:numeric? true}
-   :color {:numeric? true}
-   :size  {:numeric? true}
-   :alpha {:numeric? true}
-   :y-min {:numeric? true}
-   :y-max {:numeric? true}
-   :x-end {:numeric? true}
-   :fill  {:numeric? true}
-   :shape {:numeric? false}
-   :group {:numeric? false}
-   :text  {:numeric? false}})
+  "Per-aesthetic properties, and the single table the rest of the
+   library derives its per-aesthetic sets from. One entry per
+   aesthetic, each carrying everything any consumer needs to know about
+   it, so a new aesthetic is added here and nowhere else.
+
+   - `:category` -- `:positional` places a mark, `:appearance` decides
+     how it looks, `:grouping` splits the data and draws nothing of its
+     own. The glossary teaches the same three.
+   - `:column?` -- whether the aesthetic can name a dataset column at
+     all. `:x-min` and the other band bounds cannot: their layer types
+     read a value straight from the mapping.
+   - `:numeric?` -- whether the column it names, when it names one,
+     holds numbers. Those are the keys eligible for finite-value
+     filtering at plan time.
+   - `:literal` -- what a value that names no column means, and in
+     which space. `:datum` is a value in data space, placed by the
+     scale; `:drawn` is the appearance itself, in drawing units. `nil`
+     means the aesthetic has no reading for a value.
+   - `:categorical-column?` -- whether the column it names may hold
+     categories. False for the three that encode a magnitude and have
+     no categorical counterpart.
+   - `:scale-key` -- the `:opts` key `pj/scale` writes for this
+     channel, for the aesthetics that have a scale.
+   - `:legend?` -- whether the aesthetic draws a legend.
+
+   - `:literal->column?` -- whether `impl.pose/resolve-positional-values`
+     turns a literal value here into a constant column before anything
+     else reads the mapping. True of the three the stat and the extract
+     read; the band bounds are read straight from the mapping by their
+     own marks instead, so normalizing them would take the value away
+     from the only code that wants it.
+
+   Two entries record a reading that depends on the layer rather than
+   on the value, which is a wart the table makes visible rather than
+   hides. `:y-min` / `:y-max` are a column on `:errorbar` and a value
+   on `:band-h`. `:text` takes a literal only on a layer with no data;
+   with data, the mark demands a column."
+  {:x     {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum :literal->column? true :scale-key :x-scale}
+   :y     {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum :literal->column? true :scale-key :y-scale}
+   :x-end {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum :literal->column? true}
+   :y-min {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum}
+   :y-max {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum}
+   :x-min {:category :positional :column? false :numeric? true  :categorical-column? false :literal :datum}
+   :x-max {:category :positional :column? false :numeric? true  :categorical-column? false :literal :datum}
+   :color {:category :appearance :column? true  :numeric? true  :categorical-column? true  :literal :drawn :scale-key :color-scale :legend? true}
+   :size  {:category :appearance :column? true  :numeric? true  :categorical-column? false :literal :drawn :scale-key :size-scale  :legend? true}
+   :alpha {:category :appearance :column? true  :numeric? true  :categorical-column? false :literal :drawn :scale-key :alpha-scale :legend? true}
+   :fill  {:category :appearance :column? true  :numeric? true  :categorical-column? false :literal nil   :scale-key :fill-scale}
+   :shape {:category :appearance :column? true  :numeric? false :categorical-column? true  :literal nil   :scale-key :shape-scale :legend? true}
+   :text  {:category :appearance :column? true  :numeric? false :categorical-column? true  :literal :drawn}
+   :group {:category :grouping   :column? true  :numeric? false :categorical-column? true  :literal nil}})
+
+(defn aesthetics-where
+  "The aesthetics whose registry entry satisfies `pred`, in a stable
+   order. Every per-aesthetic set in the library comes from here."
+  [pred]
+  (into [] (comp (filter (comp pred val)) (map key)) (sort aesthetic-registry)))
 
 (def column-keys
   "Set of keywords that can reference dataset columns in mappings."
-  (set (keys aesthetic-registry)))
+  (set (aesthetics-where :column?)))
 
 (def numeric-aesthetic-keys
   "Aesthetics whose column values are numeric -- subject to finite-value
    filtering. Derived from aesthetic-registry."
-  (into []
-        (comp (filter (comp :numeric? val)) (map key))
-        aesthetic-registry))
+  (aesthetics-where #(and (:numeric? %) (:column? %))))
+
+(def positional-aesthetics
+  "The aesthetics that place a mark, and so may be given as a value.
+   Named for the glossary's sake: `:position` there is the dodge /
+   stack / fill adjustment, which these have nothing to do with."
+  (aesthetics-where #(= :positional (:category %))))
+
+(def literal-to-column-aesthetics
+  "The aesthetics whose literal value becomes a constant column in the
+   draft. A subset of `positional-aesthetics` -- see `:literal->column?`."
+  (aesthetics-where :literal->column?))
+
+(def drawn-literal-aesthetics
+  "Aesthetics a value is drawn as, in drawing units, rather than
+   placed in data space."
+  (aesthetics-where #(= :drawn (:literal %))))
+
+(def column-only-aesthetics
+  "Aesthetics that read a column and have no reading for a value."
+  (aesthetics-where #(and (:column? %) (nil? (:literal %)))))
+
+(def continuous-column-aesthetics
+  "Aesthetics whose column must hold numbers, because what they encode
+   is a magnitude. `:color` is not among them: a categorical color
+   column is a palette, which is the reading these three lack."
+  (aesthetics-where #(and (:column? %) (not (:categorical-column? %)))))
+
+(def channel->scale-key
+  "Channel keyword to the `:opts` key holding its scale spec."
+  (into {} (for [[k {:keys [scale-key]}] aesthetic-registry
+                 :when scale-key]
+             [k scale-key])))
+
+(def legend-bearing-aesthetics
+  "Aesthetics that produce a legend at render time."
+  (set (aesthetics-where :legend?)))
 
 ;; ---- Shape Symbols ----
 

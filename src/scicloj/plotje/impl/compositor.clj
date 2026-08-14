@@ -16,6 +16,7 @@
    composite.clj) draws ONE shared legend in the reserved strip."
   (:require [scicloj.plotje.impl.pose :as pose]
             [scicloj.plotje.impl.plan :as plan]
+            [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]))
 
 (def ^:private default-width 600)
@@ -67,8 +68,9 @@
   (update composite :opts #(apply dissoc % composite-chrome-opt-keys)))
 
 (def ^:private legend-bearing-aesthetics
-  "Aesthetics that produce a legend at render time."
-  #{:color :size :alpha :shape})
+  "Aesthetics that produce a legend at render time. Derived from
+   `defaults/aesthetic-registry`."
+  defaults/legend-bearing-aesthetics)
 
 (defn- leaf-aesthetic-values
   "Set of mapping values an aesthetic resolves to inside a single
