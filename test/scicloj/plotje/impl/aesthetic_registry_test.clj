@@ -17,7 +17,7 @@
   "Every entry answers all of these. A new aesthetic that leaves one
    out fails here rather than falling through a derived set in
    silence."
-  [:category :column? :numeric? :categorical-column? :literal])
+  [:category :column? :value? :numeric? :categorical-column? :scale-default])
 
 (deftest every-entry-is-fully-described-test
   (testing "each aesthetic answers every property"
@@ -27,11 +27,25 @@
           (str k " does not say " p))))
 
   (testing "the properties take the values the derived sets read"
-    (doseq [[k {:keys [category literal]}] defaults/aesthetic-registry]
+    (doseq [[k {:keys [category scale-default]}] defaults/aesthetic-registry]
       (is (contains? #{:positional :appearance :grouping} category)
           (str k " has an unknown category"))
-      (is (contains? #{:datum :drawn nil} literal)
-          (str k " has an unknown literal space")))))
+      (is (contains? #{:always :by-source :by-value :never nil} scale-default)
+          (str k " has an unknown scale default"))))
+
+  (testing "every aesthetic accepts a column, a value, or both"
+    ;; An entry that accepts neither could never be written down.
+    (doseq [[k {:keys [column? value?]}] defaults/aesthetic-registry]
+      (is (or column? value?)
+          (str k " accepts neither a column nor a value"))))
+
+  (testing "an aesthetic with no scale takes no scale default"
+    ;; `:group` splits the data and draws nothing, so `pj/scale` refuses
+    ;; it -- there is no scale for a default to describe.
+    (doseq [[k {:keys [scale-key scale-default]}] defaults/aesthetic-registry]
+      (when (nil? scale-default)
+        (is (nil? scale-key)
+            (str k " has a scale but no default for it"))))))
 
 (deftest derived-sets-test
   (testing "the sets other namespaces read are the ones they expect"

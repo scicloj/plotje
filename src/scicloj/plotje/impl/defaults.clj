@@ -85,10 +85,19 @@
    - `:numeric?` -- whether the column it names, when it names one,
      holds numbers. Those are the keys eligible for finite-value
      filtering at plan time.
-   - `:literal` -- what a value that names no column means, and in
-     which space. `:datum` is a value in data space, placed by the
-     scale; `:drawn` is the appearance itself, in drawing units. `nil`
-     means the aesthetic has no reading for a value.
+   - `:value?` -- whether a written value is accepted beside a column
+     reference. `:fill`, `:shape` and `:group` take a column and
+     nothing else today. For the first two that is a gap the aesthetics
+     work closes; for `:group` it is not, since it splits the data and
+     draws nothing of its own, so there is nothing a value could mean.
+   - `:scale-default` -- which side of the scale a value falls on when
+     the mapping does not say. `:always` scales whatever the source
+     was; `:by-source` scales a column and draws a written value;
+     `:by-value` asks the aesthetic's own vocabulary, so `\"red\"` is
+     drawn and `\"setosa\"` is scaled, and for a column every
+     non-missing value must pass; `:never` means the aesthetic has no
+     scale to pass through; `nil` means no scale at all. A `:scale` in
+     the mapping overrides it in either direction.
    - `:categorical-column?` -- whether the column it names may hold
      categories. False for the three that encode a magnitude and have
      no categorical counterpart.
@@ -103,25 +112,31 @@
      own marks instead, so normalizing them would take the value away
      from the only code that wants it.
 
+   `:scale-default` says what a value means once the aesthetic accepts
+   one, so `:fill` and `:shape` carry `:by-value` while `:value?` is
+   still false. Setting `:value?` before the vocabulary reading exists
+   would make a value pass every check and then draw nothing, which is
+   the defect this table is here to prevent.
+
    Two entries record a reading that depends on the layer rather than
    on the value, which is a wart the table makes visible rather than
    hides. `:y-min` / `:y-max` are a column on `:errorbar` and a value
-   on `:band-h`. `:text` takes a literal only on a layer with no data;
+   on `:band-h`. `:text` takes a value only on a layer with no data;
    with data, the mark demands a column."
-  {:x     {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum :literal->column? true :scale-key :x-scale}
-   :y     {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum :literal->column? true :scale-key :y-scale}
-   :x-end {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum :literal->column? true}
-   :y-min {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum}
-   :y-max {:category :positional :column? true  :numeric? true  :categorical-column? true  :literal :datum}
-   :x-min {:category :positional :column? false :numeric? true  :categorical-column? false :literal :datum}
-   :x-max {:category :positional :column? false :numeric? true  :categorical-column? false :literal :datum}
-   :color {:category :appearance :column? true  :numeric? true  :categorical-column? true  :literal :drawn :scale-key :color-scale :legend? true}
-   :size  {:category :appearance :column? true  :numeric? true  :categorical-column? false :literal :drawn :scale-key :size-scale  :legend? true}
-   :alpha {:category :appearance :column? true  :numeric? true  :categorical-column? false :literal :drawn :scale-key :alpha-scale :legend? true}
-   :fill  {:category :appearance :column? true  :numeric? true  :categorical-column? false :literal nil   :scale-key :fill-scale}
-   :shape {:category :appearance :column? true  :numeric? false :categorical-column? true  :literal nil   :scale-key :shape-scale :legend? true}
-   :text  {:category :appearance :column? true  :numeric? false :categorical-column? true  :literal :drawn}
-   :group {:category :grouping   :column? true  :numeric? false :categorical-column? true  :literal nil}})
+  {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always    :literal->column? true :scale-key :x-scale}
+   :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always    :literal->column? true :scale-key :y-scale}
+   :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always    :literal->column? true}
+   :y-min {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always}
+   :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always}
+   :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always}
+   :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always}
+   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-value  :scale-key :color-scale :legend? true}
+   :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :size-scale  :legend? true}
+   :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :alpha-scale :legend? true}
+   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-value  :scale-key :fill-scale}
+   :shape {:category :appearance :column? true  :value? false :numeric? false :categorical-column? true  :scale-default :by-value  :scale-key :shape-scale :legend? true}
+   :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never}
+   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil}})
 
 (defn aesthetics-where
   "The aesthetics whose registry entry satisfies `pred`, in a stable
@@ -149,14 +164,9 @@
    draft. A subset of `positional-aesthetics` -- see `:literal->column?`."
   (aesthetics-where :literal->column?))
 
-(def drawn-literal-aesthetics
-  "Aesthetics a value is drawn as, in drawing units, rather than
-   placed in data space."
-  (aesthetics-where #(= :drawn (:literal %))))
-
 (def column-only-aesthetics
   "Aesthetics that read a column and have no reading for a value."
-  (aesthetics-where #(and (:column? %) (nil? (:literal %)))))
+  (aesthetics-where #(and (:column? %) (not (:value? %)))))
 
 (def continuous-column-aesthetics
   "Aesthetics whose column must hold numbers, because what they encode

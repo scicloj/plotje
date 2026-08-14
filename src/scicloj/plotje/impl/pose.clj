@@ -724,16 +724,20 @@
 (def ^:private column-only-accepts
   "What to tell the user each column-only aesthetic takes. The set
    itself comes from `defaults/aesthetic-registry` -- these are the
-   aesthetics whose entry has a `:column?` and no `:literal`.
+   aesthetics whose entry has a `:column?` and no `:value?`.
 
    A value on one of them used to pass every check in silence and then
    do nothing, because `resolve/resolve-aesthetics` classifies
    `:color`, `:size`, `:alpha` and `:text` only. `{:shape 4}` drew
    default circles and `{:group 4}` drew nothing at all -- the layer
    resolved to zero groups, so a plot came back with a layer missing
-   and no word about it. Whether any of them should gain a reading for
-   a value is an open design question; until it is answered, saying so
-   beats drawing the wrong picture."
+   and no word about it.
+
+   `:shape` and `:fill` are to gain a reading for a value: their
+   registry entries already carry the `:by-value` scale default, and
+   flipping `:value?` is what turns this error into that reading.
+   `:group` keeps it -- it splits the data and draws nothing of its
+   own, so there is nothing a value could mean."
   {:group "one column, or a vector of columns"})
 
 (defn- column-only-accepts-str [k]
