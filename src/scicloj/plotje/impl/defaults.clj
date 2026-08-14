@@ -203,7 +203,12 @@
   "Convert any color representation to [r g b a] in 0-1 range.
    Accepts hex strings (#RGB, #RRGGBB, #RRGGBBAA, or without #),
    named color strings (\"red\", \"steelblue\"), keywords (:red, :darkblue),
-   or any value that clojure2d.color/to-color understands."
+   or any value that clojure2d.color/to-color understands.
+
+   Converting is not deciding. `names-a-color?` answers the narrower
+   question of whether a value was *meant* as a color, and refuses the
+   bare hex this function accepts, because a three-letter string is a
+   mistyped column name more often than it is a shade."
   [color]
   (if (and (string? color) (not (.startsWith ^String color "#")))
     ;; Non-# string: try as hex first, then as named color keyword
@@ -318,6 +323,25 @@
   [k]
   (or (c/gradient (get gradient-aliases k k))
       (c/gradient k)))
+
+(defn names-a-color?
+  "True of a value that unmistakably names a color: a `#`-prefixed hex
+   string, or a CSS color name as a string or a keyword.
+
+   Deliberately narrower than what `hex->rgba` will convert, which also
+   reads a bare `abc` as the hex `#aabbcc`. That extra latitude is fine
+   once something has decided the value is a color, and wrong while
+   deciding: `abc` and `fff` are far likelier to be mistyped column
+   names than colors, and reading them as colors is exactly the silent
+   failure asking the vocabulary was meant to prevent."
+  [v]
+  (boolean
+   (cond
+     (keyword? v) (some? (c/to-color v))
+     (string? v) (if (.startsWith ^String v "#")
+                   (try (some? (c/to-color v)) (catch Throwable _ false))
+                   (some? (c/to-color (keyword v))))
+     :else false)))
 
 (defn gradient-map?
   "True of a map that describes a custom gradient -- one naming at least

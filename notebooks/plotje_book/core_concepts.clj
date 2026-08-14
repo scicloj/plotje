@@ -628,8 +628,9 @@ two-panel
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; Other visual properties include `:alpha` (transparency), `:size`,
-;; and `:shape`. Each accepts a literal value or a column reference,
-;; the same way `:color` does.
+;; and `:shape`. `:alpha` and `:size` accept a value or a column the
+;; same way `:color` does. `:shape` takes a column only: there is no
+;; one symbol a whole layer can be drawn with yet.
 ;;
 ;; **Bubble plot** -- `:size` mapped to a numeric column gives each
 ;; point a radius reflecting the value:
