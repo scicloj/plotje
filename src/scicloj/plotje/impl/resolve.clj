@@ -313,9 +313,22 @@
         size-val (:size v)
         size-is-col? (column? :size size-val)
         fixed-size (when (and size-val (not size-is-col?)) size-val)
+        ;; A column told not to scale holds radii already, the way a
+        ;; color column of hex codes holds colors. ggplot2 spells it
+        ;; `scale_size_identity()`. Only reachable by saying so: no
+        ;; convention could guess it, since every number is a valid
+        ;; radius and a valid measurement alike.
+        size-drawn? (and size-is-col?
+                         (not (aes/scaled? :size {:source :column
+                                                  :value size-val
+                                                  :scale (said-scale :size)})))
         alpha-val (:alpha v)
         alpha-is-col? (column? :alpha alpha-val)
         fixed-alpha (when (and alpha-val (not alpha-is-col?)) alpha-val)
+        alpha-drawn? (and alpha-is-col?
+                          (not (aes/scaled? :alpha {:source :column
+                                                    :value alpha-val
+                                                    :scale (said-scale :alpha)})))
         text-val (:text v)
         text-col (when (and text-val (column-ref? text-val)) text-val)]
     {:color (when color-is-col? color-val)
@@ -325,9 +338,11 @@
      :fixed-color fixed-color
      :size (when size-is-col? size-val)
      :size-is-col? size-is-col?
+     :size-drawn? size-drawn?
      :fixed-size fixed-size
      :alpha (when alpha-is-col? alpha-val)
      :alpha-is-col? alpha-is-col?
+     :alpha-drawn? alpha-drawn?
      :fixed-alpha fixed-alpha
      :text-col text-col}))
 
@@ -460,7 +475,8 @@
               (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))
           _ (validate-continuous-aesthetics resolved-ds v)
           {:keys [color color-type color-drawn? fixed-color
-                  size fixed-size alpha fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
+                  size size-drawn? fixed-size
+                  alpha alpha-drawn? fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
           group (infer-grouping v color-type color)
           {:keys [mark stat]} (infer-layer-type v x-type y-type x-temporal? y-temporal?)
           ;; Validate that category-grouping marks have a categorical axis.
@@ -525,7 +541,9 @@
                                   :color color :fixed-color fixed-color
                                   :color-drawn? color-drawn?
                                   :size size :fixed-size fixed-size
+                                  :size-drawn? size-drawn?
                                   :alpha alpha :fixed-alpha fixed-alpha
+                                  :alpha-drawn? alpha-drawn?
                                   :text-col text-col)
                      x-temporal? (assoc :x-temporal? true)
                      y-temporal? (assoc :y-temporal? true)

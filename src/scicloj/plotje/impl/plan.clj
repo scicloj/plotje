@@ -421,7 +421,13 @@
                                         ;; by it the same way. The renderer applies it once.
                                         (cond-> (:offset-x rv) (assoc :offset-x (:offset-x rv))
                                                 (:offset-y rv) (assoc :offset-y (:offset-y rv))
-                                                (:in rv) (assoc :in (:in rv)))))
+                                                (:in rv) (assoc :in (:in rv))
+                                                ;; Carried for the same reason as :in --
+                                                ;; the renderer measures an unscaled axis
+                                                ;; from the panel corner rather than
+                                                ;; through the scale, one axis at a time.
+                                                (:x-drawn? rv) (assoc :x-drawn? true)
+                                                (:y-drawn? rv) (assoc :y-drawn? true))))
                                   resolved stat-results))
         plan-layers (position/apply-positions raw-plan-layers)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
@@ -748,6 +754,10 @@
   [resolved-all opts-title]
   (let [size-draft-layers (filter #(and (resolve/column-ref? (:size %))
                                         (nil? (:fixed-size %))
+                                        ;; A column drawn as it stands
+                                        ;; passed through no scale, so
+                                        ;; there is no scale to explain.
+                                        (not (:size-drawn? %))
                                         (:data %)) resolved-all)]
     (when (seq size-draft-layers)
       (let [size-col (:size (first size-draft-layers))
@@ -774,6 +784,7 @@
   [resolved-all opts-title]
   (let [alpha-draft-layers (filter #(and (resolve/column-ref? (:alpha %))
                                          (nil? (:fixed-alpha %))
+                                         (not (:alpha-drawn? %))
                                          (:data %)) resolved-all)]
     (when (seq alpha-draft-layers)
       (let [alpha-col (:alpha (first alpha-draft-layers))
@@ -1121,19 +1132,29 @@
         ;; has to be drawn. Stat results are index-aligned with the draft
         ;; layers they came from.
         data-space? (fn [layer] (contains? #{nil :data} (:in layer)))
+        ;; A value that does not go through a scale cannot inform that
+        ;; scale's domain -- it is a distance across the panel, and
+        ;; letting it in would stretch the axis to a page measurement.
+        ;; Asked per axis, because `{:y {:column :b :scale false}}`
+        ;; leaves x scaled and only y out.
+        x-informs? (fn [layer] (and (data-space? layer) (not (:x-drawn? layer))))
+        y-informs? (fn [layer] (and (data-space? layer) (not (:y-drawn? layer))))
         local-plan-layers (:layers pd)
         ;; An annotation-only panel carries synthesized stat-results with
         ;; no resolved layer behind them, so the two are only pairable
         ;; when their counts agree. Where they do not, nothing is in a
         ;; drawing-space frame either, and every result counts.
-        local-srs (let [rs (:resolved pd)
+        srs-for (fn [informs?]
+                  (let [rs (:resolved pd)
                         srs (:stat-results pd)]
                     (if (= (count rs) (count srs))
                       (->> (map vector rs srs)
-                           (filter (comp data-space? first))
+                           (filter (comp informs? first))
                            (mapv second))
-                      srs))
-        domain-layers (filterv data-space? local-plan-layers)
+                      srs)))
+        local-srs (srs-for x-informs?)
+        local-srs-y (srs-for y-informs?)
+        domain-layers (filterv y-informs? local-plan-layers)
         first-draft-layer (first (:draft-layers pd))
         x-scale-spec (or (:x-scale first-draft-layer) default-x-scale)
         y-scale-spec (or (:y-scale first-draft-layer) default-y-scale)
@@ -1145,7 +1166,7 @@
                   ;; Annotation-only panels have no plan layers; their
                   ;; y-domain lives in the synthesized stat-results.
                   (when (empty? domain-layers)
-                    (collect-domain local-srs :y-domain y-scale-spec))
+                    (collect-domain local-srs-y :y-domain y-scale-spec))
                   [0 1])
         [x-dom' y-dom'] (if (= coord-type :flip)
                           [y-dom x-dom]

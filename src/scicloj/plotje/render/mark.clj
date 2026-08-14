@@ -263,26 +263,30 @@
         alpha-log? (= :log (:type (:alpha-scale layer)))
         size-bufs (keep :sizes groups)
         size-scale (when (seq size-bufs)
-                     (let [lo (reduce min (map dfn/reduce-min size-bufs))
-                           hi (reduce max (map dfn/reduce-max size-bufs))]
-                       (if size-log?
-                         (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-                               hi-l (Math/log10 (max 1e-300 (double hi)))
-                               span (max 1e-6 (- hi-l lo-l))]
-                           (fn [v] (+ 2.0 (* 6.0 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
-                         (let [span (max 1e-6 (- (double hi) (double lo)))]
-                           (fn [v] (+ 2.0 (* 6.0 (/ (- (double v) (double lo)) span))))))))
+                     (if (:size-drawn? layer)
+                       identity
+                       (let [lo (reduce min (map dfn/reduce-min size-bufs))
+                             hi (reduce max (map dfn/reduce-max size-bufs))]
+                         (if size-log?
+                           (let [lo-l (Math/log10 (max 1e-300 (double lo)))
+                                 hi-l (Math/log10 (max 1e-300 (double hi)))
+                                 span (max 1e-6 (- hi-l lo-l))]
+                             (fn [v] (+ 2.0 (* 6.0 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
+                           (let [span (max 1e-6 (- (double hi) (double lo)))]
+                             (fn [v] (+ 2.0 (* 6.0 (/ (- (double v) (double lo)) span)))))))))
         alpha-bufs (keep :alphas groups)
         alpha-scale (when (seq alpha-bufs)
-                      (let [lo (reduce min (map dfn/reduce-min alpha-bufs))
-                            hi (reduce max (map dfn/reduce-max alpha-bufs))]
-                        (if alpha-log?
-                          (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-                                hi-l (Math/log10 (max 1e-300 (double hi)))
-                                span (max 1e-6 (- hi-l lo-l))]
-                            (fn [v] (+ 0.2 (* 0.8 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
-                          (let [span (max 1e-6 (- (double hi) (double lo)))]
-                            (fn [v] (+ 0.2 (* 0.8 (/ (- (double v) (double lo)) span))))))))
+                      (if (:alpha-drawn? layer)
+                        identity
+                        (let [lo (reduce min (map dfn/reduce-min alpha-bufs))
+                              hi (reduce max (map dfn/reduce-max alpha-bufs))]
+                          (if alpha-log?
+                            (let [lo-l (Math/log10 (max 1e-300 (double lo)))
+                                  hi-l (Math/log10 (max 1e-300 (double hi)))
+                                  span (max 1e-6 (- hi-l lo-l))]
+                              (fn [v] (+ 0.2 (* 0.8 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
+                            (let [span (max 1e-6 (- (double hi) (double lo)))]
+                              (fn [v] (+ 0.2 (* 0.8 (/ (- (double v) (double lo)) span)))))))))
         ;; The category-to-symbol assignment is decided at plan time so
         ;; the legend and the marks show the same symbol for a category.
         shape-map (:shape-map layer)]

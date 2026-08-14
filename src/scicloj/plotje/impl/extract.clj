@@ -199,6 +199,11 @@
     (-> {:mark :point
          :size-scale (:size-scale draft-layer)
          :alpha-scale (:alpha-scale draft-layer)
+         ;; A column told not to scale holds radii and opacities
+         ;; already, so the renderer reads them straight rather than
+         ;; normalizing them into its output range.
+         :size-drawn? (:size-drawn? draft-layer)
+         :alpha-drawn? (:alpha-drawn? draft-layer)
          :style (cond-> {:opacity (or (:fixed-alpha draft-layer) (:point-opacity cfg))
                          :radius (or (:fixed-size draft-layer) (:point-radius cfg))}
                   ;; One symbol for the whole layer, beside the fixed

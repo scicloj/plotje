@@ -917,20 +917,6 @@
                            " reads the value from the layer's data,"
                            " :value is the value itself.")
                       {:key k :value v})))
-    ;; `:always` is the positional aesthetics. Drawing space for those
-    ;; is a place on the panel rather than a value, so it needs an
-    ;; origin to measure from -- which is what the layer's `:in` names
-    ;; and `:scale` cannot.
-    (when (and (false? (get v :scale))
-               (= :always (:scale-default (defaults/aesthetic-registry k))))
-      (throw (ex-info (str k " " (pr-str v) " asks for :scale false, but "
-                           k " has no unscaled reading of its own: an "
-                           "unscaled x or y is a place on the panel, and "
-                           "a place needs an origin to measure from. "
-                           "Give the layer {:in :drawing-area} instead, "
-                           "which measures in drawing units from the top "
-                           "left of the panel background.")
-                      {:key k :value v})))
     (if (contains? v :column)
       [(:column v) :column (get v :scale)]
       [(:value v) :value (get v :scale)])))
@@ -951,8 +937,14 @@
               acc
               (let [[value source scale] (normalize-explicit-mapping k v)]
                 (cond-> (assoc acc k value)
-                  true       (assoc-in [:__source k] source)
-                  (some? scale) (assoc-in [:__scale k] scale)))))
+                  true          (assoc-in [:__source k] source)
+                  (some? scale) (assoc-in [:__scale k] scale)
+                  ;; An unscaled `:x` or `:y` is a distance across the
+                  ;; panel rather than a value on the axis. The renderer
+                  ;; needs to know per axis, because the two can differ:
+                  ;; x read through its scale while y is a place.
+                  (and (false? scale) (= :x k)) (assoc :x-drawn? true)
+                  (and (false? scale) (= :y k)) (assoc :y-drawn? true)))))
           resolved
           (select-keys resolved defaults/column-keys)))
 
@@ -1028,7 +1020,21 @@
         ;; already handle.
         text-literal (let [t (:text resolved)]
                        (when (and (string? t) (not (contains? col-names t))) t))
-        broadcast (cond-> literals
+        ;; A written value asked to go *through* its scale -- ggplot2's
+        ;; constant inside `aes()`. One value repeated over every row is
+        ;; a column of one distinct value, and a column is what the
+        ;; scales, the domains and the legends already read. So the
+        ;; datum reading needs no machinery of its own: broadcast it and
+        ;; the rest falls out, legend entry included.
+        scaled-values (when d
+                        (into {} (for [k defaults/column-keys
+                                       :let [scale (get-in resolved [:__scale k])
+                                             v (get resolved k)]
+                                       :when (and (some? v)
+                                                  (= :value (get-in resolved [:__source k]))
+                                                  (and (some? scale) (not (false? scale))))]
+                                   [k v])))
+        broadcast (cond-> (merge literals scaled-values)
                     (and text-literal d) (assoc :text text-literal))]
     (cond
       (empty? broadcast)

@@ -260,13 +260,42 @@
         (is (= [-1.0 1.0] (x-domain (-> ds (pj/lay-point {:x {:value 0} :y 1}))))
             "the value 0")))
 
-    (testing ":scale false on an axis points at :in instead"
-      ;; An unscaled x is a place on the panel, and a place needs an
-      ;; origin -- which :scale cannot name and the layer's :in does.
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo #"drawing-area"
-           (pj/plan (-> produce (pj/lay-point {:x {:column :x :scale false}
-                                               :y :y}))))))
+    (testing ":scale false on an axis places in drawing units"
+      ;; An unscaled x or y is a distance across the panel rather than a
+      ;; value on the axis, so it informs no domain -- and the axes are
+      ;; asked separately, so one can be scaled while the other is not.
+      (let [p (pj/plan (-> {:a [0 1 2 3] :b [0 1 2 3]}
+                           (pj/lay-point {:x {:column :a}
+                                          :y {:column :b :scale false}})))
+            panel (-> p :panels first)]
+        (is (= [0 1] (:y-domain panel))
+            "y contributed nothing, so the domain fell back")
+        (is (< (first (:x-domain panel)) 0)
+            "x still went through its scale")
+        (is (true? (-> panel :layers first :y-drawn?)))
+        (is (nil? (-> panel :layers first :x-drawn?)))))
+
+    (testing "a written value asked to scale becomes a datum"
+      ;; ggplot2's constant inside aes(): one value repeated over every
+      ;; row is a column of one distinct value, so the scales and the
+      ;; legend read it as they read any column.
+      (let [p (pj/plan (-> produce (pj/lay-point {:x :x :y :y
+                                                  :color {:value "Model A"
+                                                          :scale true}})))]
+        (is (= ["Model A"] (mapv :label (:entries (:legend p)))))
+        (is (= 1 (count (-> p :panels first :layers first :groups)))))
+      (let [p (pj/plan (-> produce (pj/lay-point {:x :x :y :y
+                                                  :size {:value 7 :scale true}})))]
+        (is (= [7 7 7] (-> p :panels first :layers first :groups first :sizes vec)))
+        (is (some? (:size-legend p)))))
+
+    (testing "a size column told not to scale holds radii already"
+      ;; ggplot2's scale_size_identity(). Unreachable by convention,
+      ;; since every number is a valid radius and a valid measurement.
+      (let [p (pj/plan (-> {:a [1 2 3] :b [1 2 3] :r [4 8 12]}
+                           (pj/lay-point :a :b {:size {:column :r :scale false}})))]
+        (is (true? (-> p :panels first :layers first :size-drawn?)))
+        (is (nil? (:size-legend p)) "no scale, so nothing to explain")))
 
     (testing "naming both sources, or an unknown key, is reported"
       (is (thrown-with-msg?
