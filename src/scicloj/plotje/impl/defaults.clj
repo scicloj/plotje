@@ -98,6 +98,9 @@
      non-missing value must pass; `:never` means the aesthetic has no
      scale to pass through; `nil` means no scale at all. A `:scale` in
      the mapping overrides it in either direction.
+   - `:vocabulary` -- which set of drawn values a `:by-value` aesthetic
+     recognizes, named rather than held here so this table stays plain
+     data. `impl.aesthetics/vocabularies` holds the predicates.
    - `:categorical-column?` -- whether the column it names may hold
      categories. False for the three that encode a magnitude and have
      no categorical counterpart.
@@ -130,11 +133,11 @@
    :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always}
    :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always}
    :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always}
-   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-value  :scale-key :color-scale :legend? true}
+   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-value  :vocabulary :color :scale-key :color-scale :legend? true}
    :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :size-scale  :legend? true}
    :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :alpha-scale :legend? true}
-   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-value  :scale-key :fill-scale}
-   :shape {:category :appearance :column? true  :value? false :numeric? false :categorical-column? true  :scale-default :by-value  :scale-key :shape-scale :legend? true}
+   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-value  :vocabulary :color :scale-key :fill-scale}
+   :shape {:category :appearance :column? true  :value? false :numeric? false :categorical-column? true  :scale-default :by-value  :vocabulary :shape :scale-key :shape-scale :legend? true}
    :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never}
    :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil}})
 
