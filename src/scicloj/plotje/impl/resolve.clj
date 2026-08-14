@@ -285,9 +285,14 @@
    :text-col."
   [ds v]
   (let [col-names (set (tc/column-names ds))
-        column? (fn [x] (and x (= :column (aes/source x col-names))))
+        ;; `:__source` and `:__scale` carry what an explicit mapping
+        ;; said out loud; both are absent where one was written plainly,
+        ;; which is what leaves the conventions in charge there.
+        said-source (fn [k] (get-in v [:__source k]))
+        said-scale  (fn [k] (get-in v [:__scale k]))
+        column? (fn [k x] (and x (= :column (aes/source x col-names (said-source k)))))
         color-val (:color v)
-        color-is-col? (column? color-val)
+        color-is-col? (column? :color color-val)
         ;; A color column whose every value names a color is drawn as it
         ;; stands rather than scaled -- ggplot2 reaches the same cell
         ;; through `scale_colour_identity()`. Decided once, per column,
@@ -296,7 +301,8 @@
         color-drawn? (and color-is-col?
                           (not (aes/scaled? :color {:source :column
                                                     :value color-val
-                                                    :column-values (get ds color-val)})))
+                                                    :column-values (get ds color-val)
+                                                    :scale (said-scale :color)})))
         ;; Still classified, and still grouped by: a drawn color column
         ;; splits the layer into one group per distinct color exactly as
         ;; a category column does. All that changes is where each
@@ -305,10 +311,10 @@
                  (or (:color-type v) (column-type ds color-val)))
         fixed-color (when (and color-val (not color-is-col?)) color-val)
         size-val (:size v)
-        size-is-col? (column? size-val)
+        size-is-col? (column? :size size-val)
         fixed-size (when (and size-val (not size-is-col?)) size-val)
         alpha-val (:alpha v)
-        alpha-is-col? (column? alpha-val)
+        alpha-is-col? (column? :alpha alpha-val)
         fixed-alpha (when (and alpha-val (not alpha-is-col?)) alpha-val)
         text-val (:text v)
         text-col (when (and text-val (column-ref? text-val)) text-val)]

@@ -841,11 +841,32 @@
                           (not (sequential? col))
                           (or (resolve/column-ref? col)
                               (:value? (defaults/aesthetic-registry k))))]
-         (if (= :column (aes/source col col-names))
-           (when-let [types (heterogeneous-types (col-lookup col))]
-             (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
-                                  ". Convert it to a single type (number, string, etc.) before plotting.")
-                             {:key k :column col :types types})))
+         (if (= :column (aes/source col col-names (get-in resolved [:__source k])))
+           (do
+             (when-let [types (heterogeneous-types (col-lookup col))]
+               (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
+                                    ". Convert it to a single type (number, string, etc.) before plotting.")
+                               {:key k :column col :types types})))
+             ;; An explicit `:scale false` on a column asks for its values
+           ;; to be drawn as they stand, so they have to be values the
+           ;; aesthetic can draw. Unchecked, `hex->rgba` reads a bare
+           ;; `a` as `#aaaaaa` and a category column comes out in
+           ;; near-identical greys with nothing said.
+             (when (and (false? (get-in resolved [:__scale k]))
+                        (= :by-value (:scale-default (defaults/aesthetic-registry k))))
+               (when-let [bad (->> (col-lookup col)
+                                   (remove nil?)
+                                   (remove #(aes/drawable? k %))
+                                   seq)]
+                 (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                      " so its values are drawn as they stand,"
+                                      " but " (pr-str (first bad)) " is not one "
+                                      (name k) " can draw."
+                                      (also-not-drawable-sentence k (first bad))
+                                      " Drop the :scale to let the column be"
+                                      " read as categories.")
+                                 {:key k :column col :value (first bad)})))))
+
            (when-not (drawn-at-this-gate? k col)
              (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
                (throw (ex-info
@@ -856,6 +877,70 @@
                          :source source})
                        {:key k :column col :available (sort-by str col-names)
                         :source source}))))))))))
+
+(def explicit-mapping-keys
+  "The keys an explicit mapping map may carry: one source, and
+   optionally the scale to read it through."
+  #{:column :value :scale})
+
+(defn explicit-mapping?
+  "True of a mapping value written in the explicit form -- a map naming
+   its source, as `{:column :species}` or `{:value \"red\" :scale true}`.
+
+   A map is unambiguous here because no aesthetic takes one as a value:
+   a color is a string or a keyword, a size is a number, a shape is a
+   symbol from a fixed list."
+  [v]
+  (and (map? v) (or (contains? v :column) (contains? v :value))))
+
+(defn- normalize-explicit-mapping
+  "Rewrite one explicit mapping into the plain value the rest of the
+   pipeline already reads, and return `[value source scale]`.
+
+   Normalizing rather than carrying the map onward is the same move
+   `:x` makes when a value becomes a constant column: what the stat,
+   the extract and every mark receive is the ordinary shape, and only
+   what cannot be re-derived travels beside it. What cannot be
+   re-derived is exactly the two things the writer said out loud --
+   which source they meant, and which side of the scale."
+  [k v]
+  (let [unknown (remove explicit-mapping-keys (keys v))]
+    (when (seq unknown)
+      (throw (ex-info (str k " " (pr-str v) " has unexpected key(s): "
+                           (vec unknown) ". An explicit mapping names"
+                           " its source with :column or :value, and may"
+                           " add :scale.")
+                      {:key k :value v :unknown (vec unknown)})))
+    (when (and (contains? v :column) (contains? v :value))
+      (throw (ex-info (str k " " (pr-str v) " names both :column and"
+                           " :value. It is one or the other: :column"
+                           " reads the value from the layer's data,"
+                           " :value is the value itself.")
+                      {:key k :value v})))
+    (if (contains? v :column)
+      [(:column v) :column (get v :scale)]
+      [(:value v) :value (get v :scale)])))
+
+(defn- normalize-explicit-mappings
+  "Rewrite every explicit mapping in `resolved` into its plain value,
+   collecting what was said explicitly under two internal keys:
+   `:__source` and `:__scale`, each a map from aesthetic to the choice.
+
+   Both are absent for a mapping written plainly, which is what lets
+   the conventions decide there. Absence and an explicit `nil` cannot
+   be told apart by a lookup, which is why an explicit `:scale nil`
+   means the same as writing no `:scale` at all: the convention
+   decides. `false` is the way to say unscaled."
+  [resolved]
+  (reduce (fn [acc [k v]]
+            (if-not (explicit-mapping? v)
+              acc
+              (let [[value source scale] (normalize-explicit-mapping k v)]
+                (cond-> (assoc acc k value)
+                  true       (assoc-in [:__source k] source)
+                  (some? scale) (assoc-in [:__scale k] scale)))))
+          resolved
+          (select-keys resolved defaults/column-keys)))
 
 (defn- resolve-positional-values
   "Rewrite an `:x` or `:y` given as a value into data the rest of the
@@ -1035,10 +1120,15 @@
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
              layer-mapping    (or (:mapping layer) {})
              layer-structural (select-keys layer [:stat :position :mark])
-             resolved (merge leaf-mapping
-                             layer-type-info
-                             layer-mapping
-                             layer-structural)
+             ;; Explicit mappings are unwrapped before anything reads
+             ;; the merged map, so every check and every later stage
+             ;; sees a plain value with the writer's two choices
+             ;; recorded beside it.
+             resolved (normalize-explicit-mappings
+                       (merge leaf-mapping
+                              layer-type-info
+                              layer-mapping
+                              layer-structural))
              layer-own-data?  (some? (:data layer))
              ;; An :x or :y given as a value becomes data before anything
              ;; else looks at the mapping, so every check and every later

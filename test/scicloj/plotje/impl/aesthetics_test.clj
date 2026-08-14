@@ -200,6 +200,60 @@
         (is (= 2 (count (colors-of p))))
         (is (= 2 (count (:entries (legend-of p)))))))))
 
+(deftest the-explicit-form-overrides-the-convention-end-to-end-test
+  (let [produce {:x [1 2 3] :y [4 5 6] :variety ["olive" "plum" "tomato"]}
+        cols (fn [p] (mapv :color (-> (pj/plan p) :panels first :layers first :groups)))
+        olive [(/ 128.0 255) (/ 128.0 255) 0.0 1.0]]
+
+    (testing "the convention draws a column whose values all name colors"
+      (is (= olive (first (cols (-> produce (pj/pose :x :y)
+                                    (pj/lay-point {:color :variety})))))))
+
+    (testing ":scale true asks for the palette back, and the legend with it"
+      ;; The escape for the one case the convention gets wrong: a
+      ;; category column whose values happen to be color names.
+      (let [p (-> produce (pj/pose :x :y)
+                  (pj/lay-point {:color {:column :variety :scale true}}))]
+        (is (not= olive (first (cols p))))
+        (is (= 3 (count (:entries (:legend (pj/plan p))))))))
+
+    (testing ":scale false draws a column the convention would scale"
+      (is (= [[1.0 0.0 0.0 1.0] [0.0 0.0 1.0 1.0]]
+             (cols (-> {:x [1 2] :y [3 4] :s ["red" "blue"]}
+                       (pj/pose :x :y)
+                       (pj/lay-point {:color {:column :s :scale false}}))))))
+
+    (testing ":scale false on values the aesthetic cannot draw is reported"
+      ;; Unchecked this drew near-identical greys and said nothing,
+      ;; because clojure2d reads a bare `a` as the hex `#aaaaaa`.
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"given :scale false.*is not one color can draw"
+           (pj/plan (-> {:x [1 2] :y [3 4] :s ["a" "b"]}
+                        (pj/pose :x :y)
+                        (pj/lay-point {:color {:column :s :scale false}}))))))
+
+    (testing ":value insists on the value where a column of that name exists"
+      (is (= [[0.0 0.0 1.0 1.0]]
+             (cols (-> {:x [1 2] :y [3 4] "blue" ["p" "q"]}
+                       (pj/pose :x :y)
+                       (pj/lay-point {:color {:value "blue"}}))))))
+
+    (testing ":column insists on the column"
+      (is (= 2 (count (cols (-> {:x [1 2] :y [3 4] "blue" ["p" "q"]}
+                                (pj/pose :x :y)
+                                (pj/lay-point {:color {:column "blue"}})))))))
+
+    (testing "naming both sources, or an unknown key, is reported"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"names both :column and :value"
+           (pj/plan (-> produce (pj/pose :x :y)
+                        (pj/lay-point {:color {:column :variety :value "red"}})))))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"unexpected key"
+           (pj/plan (-> produce (pj/pose :x :y)
+                        (pj/lay-point {:color {:column :variety :in :data}}))))))))
+
 (deftest an-aesthetic-with-no-scale-is-never-scaled-test
   (testing "text has a reading but no scale"
     (is (not (aes/scaled? :text {:source :column :value :label})))

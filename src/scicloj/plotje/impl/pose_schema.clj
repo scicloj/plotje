@@ -96,6 +96,28 @@
   "One of the marker symbols a `:shape` mapping draws with."
   (into [:enum] defaults/shape-syms))
 
+(def ExplicitMapping
+  "A mapping written out in full: which source it takes, and
+   optionally which side of the scale to read it through.
+
+   `{:column :species}` insists on the column even where a value of
+   that name could be drawn; `{:value \"blue\"}` insists on the color
+   even where the data carries a column called blue. `:scale false`
+   draws what the convention would scale, `:scale true` scales what it
+   would draw, and omitting `:scale` -- or writing `nil` -- leaves the
+   convention in charge.
+
+   A map is unambiguous as a mapping value because no aesthetic takes
+   one: a color is a string or a keyword, a size is a number, a shape
+   is a symbol from a fixed list."
+  [:and
+   [:map
+    [:column {:optional true} any?]
+    [:value {:optional true} any?]
+    [:scale {:optional true} any?]]
+   [:fn {:error/message "should name exactly one of :column or :value"}
+    (fn [m] (= 1 (count (filter #(contains? m %) [:column :value]))))]])
+
 (def drawn-value-schemas
   "What each aesthetic accepts as a **written value** -- the half of the
    grammar that is not a column reference.
@@ -193,16 +215,16 @@
    (into {} (for [[k drawn] drawn-value-schemas
                   :when (contains? #{:x :y :x-end :y-min :y-max :color :size :alpha :text}
                                    k)]
-              [k [:or ColumnRef drawn]]))
+              [k [:or ColumnRef drawn ExplicitMapping]]))
    ;; `:shape` and `:fill` have a drawn-value grammar and do not accept
    ;; one yet -- the registry's `:value?` is what says so, and flipping
    ;; it is what turns their entries here into the composed `:or`.
-   {:shape ColumnRef
-    :fill  ColumnRef
+   {:shape [:or ColumnRef Shape ExplicitMapping]
+    :fill  [:or ColumnRef ExplicitMapping]
     ;; `:group` is neither: it draws nothing of its own, it splits a
     ;; layer into one drawn group per value. Several grouping columns
     ;; are allowed beside a single one.
-    :group [:or ColumnRef [:sequential ColumnRef]]}))
+    :group [:or ColumnRef [:sequential ColumnRef] ExplicitMapping]}))
 
 (def ColumnTypeOverride
   "A `:x-type` / `:y-type` / `:color-type` value: the classification

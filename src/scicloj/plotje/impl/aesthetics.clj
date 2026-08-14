@@ -51,9 +51,17 @@
    Whether the aesthetic accepts a written value at all is a separate
    question, answered by the registry's `:value?` and reported where
    the mapping is built. This function says what was written, not
-   whether it was allowed."
-  [v column-names]
-  (if (contains? column-names v) :column :value))
+   whether it was allowed.
+
+   The three-argument arity takes what the writer said explicitly, from
+   an `{:column ...}` or `{:value ...}` mapping, and honors it. That is
+   the only way to reach a value whose name a column also carries --
+   `{:value \"blue\"}` is the color on a dataset with a column called
+   blue, and `{:column \"blue\"}` is the column on one without."
+  ([v column-names] (source v column-names nil))
+  ([v column-names explicit]
+   (or explicit
+       (if (contains? column-names v) :column :value))))
 
 (defn drawable?
   "True when `aesthetic` could draw `v` as it stands -- `\"red\"` or
