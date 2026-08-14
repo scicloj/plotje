@@ -20,8 +20,11 @@
    came to differ per aesthetic without anyone choosing that it should:
    `column-ref?` was `(or (keyword? v) (string? v))`, and a carve-out
    for a string on `:color` was bolted beside it. The rules here are
-   the layer's data, then the aesthetic's own vocabulary, and both are
-   read from `defaults/aesthetic-registry` rather than restated.
+   the layer's data, then what the aesthetic can draw -- the first read
+   from the caller's dataset, the second from
+   `pose-schema/drawn-value-schemas`, with which side of the scale the
+   answer falls on coming from `defaults/aesthetic-registry`. Nothing
+   is restated here.
 
    Two functions, meant to be called in that order -- `source` first,
    because whether a column's values are worth reading depends on the
@@ -30,23 +33,9 @@
        (let [src  (source v col-names)
              vals (when (= :column src) (get ds v))]
          (scaled? k {:source src :value v :column-values vals}))"
-  (:require [scicloj.plotje.impl.defaults :as defaults]))
-
-(def vocabularies
-  "The sets of drawn values the `:by-value` aesthetics recognize, by
-   the name their registry entry gives under `:vocabulary`.
-
-   These live here rather than in the registry so that table stays
-   plain data -- and because both predicates are defined further down
-   `defaults` than the registry is.
-
-   A vocabulary has to be narrow to be useful. `names-a-color?` refuses
-   the bare hex `hex->rgba` accepts, because deciding whether a value
-   was *meant* as a color is a different question from converting one
-   that already is: `abc` and `fff` are mistyped column names far more
-   often than they are shades."
-  {:color defaults/names-a-color?
-   :shape (set defaults/shape-syms)})
+  (:require [malli.core :as m]
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.pose-schema :as pose-schema]))
 
 (defn source
   "Which side of the source axis `v` falls on: `:column` when
@@ -66,17 +55,26 @@
   [v column-names]
   (if (contains? column-names v) :column :value))
 
-(defn drawn-value?
-  "True when `v` belongs to `aesthetic`'s own vocabulary of drawn
-   values -- `\"red\"` on `:color`, `:circle` on `:shape`.
+(defn drawable?
+  "True when `aesthetic` could draw `v` as it stands -- `\"red\"` or
+   `:steelblue` on `:color`, `7` on `:size`, `:circle` on `:shape`.
 
-   False for every aesthetic without a vocabulary, which is most of
-   them: a number is both a valid datum and a valid radius, so no
-   predicate over `:size` values could tell the two apart. Those
-   aesthetics decide by source instead."
+   Reads `pose-schema/drawn-value-schemas`, so the grammar is stated
+   once and this is what keeps it honest. An aesthetic absent from that
+   map draws nothing: `:group` splits the data and has no appearance of
+   its own.
+
+   Answers two questions that happen to coincide. For a `:by-value`
+   aesthetic it decides scaling, because being drawable *is* being in
+   the vocabulary -- `\"red\"` is a color, `\"setosa\"` is not. For every
+   aesthetic it also decides whether a value that names no column can
+   be used at all, which is the third step of the rule: ask the data,
+   ask what the aesthetic can draw, then report that neither fits. The
+   two do not coincide for `:size`, where `7` is drawable and a datum
+   alike -- which is why `:size` decides by source and never asks this."
   [aesthetic v]
-  (if-let [vocab (get vocabularies (:vocabulary (defaults/aesthetic-registry aesthetic)))]
-    (boolean (vocab v))
+  (if-let [schema (get pose-schema/drawn-value-schemas aesthetic)]
+    (m/validate schema v)
     false))
 
 (defn scaled?
@@ -124,5 +122,5 @@
         :by-value  (if (= :column source)
                      (let [present (remove nil? column-values)]
                        (not (and (seq present)
-                                 (every? #(drawn-value? aesthetic %) present))))
-                     (not (drawn-value? aesthetic value)))))))
+                                 (every? #(drawable? aesthetic %) present))))
+                     (not (drawable? aesthetic value)))))))

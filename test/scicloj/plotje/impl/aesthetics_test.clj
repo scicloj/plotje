@@ -8,7 +8,8 @@
    aesthetic that has them."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.impl.aesthetics :as aes]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.pose-schema :as pose-schema]))
 
 (def cols
   "A layer's column names. `\"blue\"` is here on purpose: a string can
@@ -33,36 +34,50 @@
     (is (= :value (aes/source :blue cols)) "keyword does not find the string")
     (is (= :value (aes/source "height" cols)) "string does not find the keyword")))
 
-(deftest vocabularies-cover-every-by-value-aesthetic-test
-  ;; A `:by-value` entry with no vocabulary would silently answer "not
-  ;; drawn" for everything, which is the class of defect that let
-  ;; `:shape :circle` pass every check and draw nothing.
-  (doseq [[k {:keys [scale-default vocabulary]}] defaults/aesthetic-registry]
+(deftest every-by-value-aesthetic-can-say-what-it-draws-test
+  ;; A `:by-value` entry with no drawn-value schema would silently
+  ;; answer "not drawable" for everything and so scale everything --
+  ;; the class of defect that let `:shape :circle` pass every check and
+  ;; draw nothing.
+  (doseq [[k {:keys [scale-default]}] defaults/aesthetic-registry]
     (when (= :by-value scale-default)
-      (is (some? vocabulary) (str k " decides by value but names no vocabulary"))
-      (is (contains? aes/vocabularies vocabulary)
-          (str k " names a vocabulary that does not exist")))))
+      (is (contains? pose-schema/drawn-value-schemas k)
+          (str k " decides by value but says nothing about what it draws")))))
 
-(deftest drawn-value-asks-the-aesthetics-own-vocabulary-test
+(deftest drawable-reads-the-drawn-value-schema-test
   (testing "colors on the two color-valued aesthetics"
     (doseq [k [:color :fill]]
-      (is (aes/drawn-value? k "red") (str k))
-      (is (aes/drawn-value? k "#FF0000") (str k))
-      (is (not (aes/drawn-value? k "setosa")) (str k))
-      (is (not (aes/drawn-value? k "fff")) (str k " -- a likely column typo"))))
+      (is (aes/drawable? k "red") (str k))
+      (is (aes/drawable? k "#FF0000") (str k))
+      (is (aes/drawable? k :steelblue) (str k))
+      (is (not (aes/drawable? k "setosa")) (str k))
+      (is (not (aes/drawable? k "fff")) (str k " -- a likely column typo"))))
 
   (testing "symbols on shape"
-    (is (aes/drawn-value? :shape :circle))
-    (is (aes/drawn-value? :shape :cross))
-    (is (not (aes/drawn-value? :shape :sphere)))
-    (is (not (aes/drawn-value? :shape "circle")) "the symbols are keywords"))
+    (is (aes/drawable? :shape :circle))
+    (is (aes/drawable? :shape :cross))
+    (is (not (aes/drawable? :shape :sphere)))
+    (is (not (aes/drawable? :shape "circle")) "the symbols are keywords"))
 
-  (testing "an aesthetic with no vocabulary recognizes nothing"
-    ;; Not an omission: every number is both a valid datum and a valid
-    ;; radius, so there is nothing for a value predicate to decide.
-    (doseq [k [:size :alpha :x :y :text :group]]
-      (is (not (aes/drawn-value? k 5)) (str k))
-      (is (not (aes/drawn-value? k "red")) (str k)))))
+  (testing "the magnitudes, which are drawable but decide by source"
+    ;; Both of these are drawable and a valid datum alike, which is
+    ;; exactly why no value predicate could decide their scaling.
+    (is (aes/drawable? :size 7))
+    (is (not (aes/drawable? :size -1)) "a radius is positive")
+    (is (aes/drawable? :alpha 0.3))
+    (is (not (aes/drawable? :alpha 1.5)) "an opacity is within 0 and 1"))
+
+  (testing "a mistyped column name is not drawable, which is what reports it"
+    ;; The guard the source rule needs: `:size :wieght` names no column
+    ;; and is no radius either, so neither reading fits and it is an
+    ;; error rather than a bogus drawn value.
+    (is (not (aes/drawable? :size :wieght)))
+    (is (not (aes/drawable? :alpha :opacty)))
+    (is (not (aes/drawable? :x "red"))))
+
+  (testing "an aesthetic that draws nothing of its own draws nothing"
+    (doseq [v [5 "red" :circle]]
+      (is (not (aes/drawable? :group v)) (pr-str v)))))
 
 (deftest x-and-y-are-always-scaled-test
   (testing "both sources, and both shapes of value"

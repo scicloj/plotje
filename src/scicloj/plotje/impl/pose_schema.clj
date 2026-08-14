@@ -34,7 +34,8 @@
    recorded, because what a mapping value should mean is an open
    design question and this schema is a description of the answer
    in force rather than an argument for one."
-  (:require [malli.core :as m]))
+  (:require [malli.core :as m]
+            [scicloj.plotje.impl.defaults :as defaults]))
 
 ;; ---- Sub-schemas ----
 
@@ -82,6 +83,60 @@
    column reference, or a literal value in data space."
   [:or ColumnRef PositionalLiteral])
 
+(def Color
+  "A value that unmistakably names a color: a `#`-prefixed hex string,
+   or a CSS color name as a string or a keyword. Mirrors
+   `impl.defaults/names-a-color?`, which is deliberately narrower than
+   what `hex->rgba` will convert -- a bare `abc` converts, and is a
+   mistyped column name far more often than it is a shade."
+  [:fn {:error/message "should be a CSS color name or a # hex string"}
+   (fn [v] (defaults/names-a-color? v))])
+
+(def Shape
+  "One of the marker symbols a `:shape` mapping draws with."
+  (into [:enum] defaults/shape-syms))
+
+(def drawn-value-schemas
+  "What each aesthetic accepts as a **written value** -- the half of the
+   grammar that is not a column reference.
+
+   Split out from `aesthetic-value-schemas` because one `[:or ColumnRef
+   ...]` cannot answer \"is this drawable\", which is the third step of
+   the rule the draft resolves by: ask the layer's data, then ask what
+   the aesthetic can draw, then report that neither reading fits. Fusing
+   the two halves is the same mistake the registry's old `:literal` key
+   made a level up, and it is corrected the same way -- state each half,
+   compose the whole.
+
+   `impl.aesthetics` is the runtime consumer. That matters: a schema
+   nothing validates drifts from the code, which is how the six
+   disagreeing aesthetic lists came about.
+
+   An aesthetic absent from this map has no reading for a written value
+   at all -- `:group` splits the data and draws nothing of its own, so
+   there is nothing a value could mean. `:shape` and `:fill` are listed
+   because a value on them *means* something; whether one is accepted
+   yet is the registry's `:value?`, and the two are deliberately
+   separate."
+  {:x     PositionalLiteral
+   :y     PositionalLiteral
+   :x-end PositionalLiteral
+   :y-min PositionalLiteral
+   :y-max PositionalLiteral
+   :x-min PositionalLiteral
+   :x-max PositionalLiteral
+   :color Color
+   :fill  Color
+   :shape Shape
+   ;; Every positive number is a valid radius, and every number within
+   ;; 0 and 1 a valid opacity. Neither says whether it was meant as one
+   ;; -- which is why these two decide by source rather than by value.
+   :size  [:and number? [:fn {:error/message "should be positive"} pos?]]
+   :alpha [:and number? [:fn {:error/message "should be within 0 and 1"}
+                         (fn [v] (<= 0 v 1))]]
+   ;; Any string labels a mark; there is nothing to check beyond type.
+   :text  string?})
+
 (def aesthetic-value-schemas
   "Value grammar per aesthetic, as the code behaves today. The key set
    is `impl.defaults/column-keys`; `pose-mapping-value-grammar-test`
@@ -120,36 +175,34 @@
    inherited from an ancestor, and survives into the draft as an
    explicit nil, so each entry is wrapped in `:maybe` by
    `mapping-schema`."
-  {;; Positional aesthetics -- where the mark sits. A literal value
+  (merge
+   ;; Composed, not restated: each aesthetic accepts a column
+   ;; reference, plus whatever `drawn-value-schemas` says it draws. The
+   ;; two halves cannot drift because only one of them is written down.
+   ;;
+   ;; Positional aesthetics -- where the mark sits. A written value
    ;; becomes a constant column in the draft
    ;; (`impl.pose/resolve-positional-values`), so by draft time these
    ;; are column references -- see `impl.draft-schema/DraftLayer` for
-   ;; the one exception.
-   :x     PositionalAesthetic
-   :y     PositionalAesthetic
-   :x-end PositionalAesthetic
-   ;; `:y-min` / `:y-max` place a mark in the same way but are not in
-   ;; `impl.resolve/positional-aesthetics`, so a literal value here is
-   ;; never turned into a column; `:band-h` reads it from the mapping.
-   ;; The glossary counts `:x-min` / `:x-max` among the positional
-   ;; aesthetics too, but they are absent from `defaults/column-keys`,
-   ;; so nothing validates them and they have no entry here.
-   :y-min PositionalAesthetic
-   :y-max PositionalAesthetic
-   ;; Appearance aesthetics -- how the mark looks. A keyword is a
-   ;; column reference and nothing else, so the color vocabulary is
-   ;; reachable only through strings.
-   :color ColumnRef
-   :size  [:or ColumnRef [:and number? [:fn {:error/message "should be positive"} pos?]]]
-   :alpha [:or ColumnRef [:and number? [:fn {:error/message "should be within 0 and 1"}
-                                        (fn [v] (<= 0 v 1))]]]
-   :shape ColumnRef
-   :text  ColumnRef
-   :fill  ColumnRef
-   ;; `:group` is neither: it draws nothing of its own, it splits a
-   ;; layer into one drawn group per value. Several grouping columns
-   ;; are allowed beside a single one.
-   :group [:or ColumnRef [:sequential ColumnRef]]})
+   ;; the one exception. `:y-min` / `:y-max` place a mark the same way
+   ;; but are not in `impl.resolve/positional-aesthetics`, so a value
+   ;; there is never turned into a column; `:band-h` reads it from the
+   ;; mapping. The glossary counts `:x-min` / `:x-max` among the
+   ;; positional aesthetics too, but they are absent from
+   ;; `defaults/column-keys`, so nothing validates them.
+   (into {} (for [[k drawn] drawn-value-schemas
+                  :when (contains? #{:x :y :x-end :y-min :y-max :color :size :alpha :text}
+                                   k)]
+              [k [:or ColumnRef drawn]]))
+   ;; `:shape` and `:fill` have a drawn-value grammar and do not accept
+   ;; one yet -- the registry's `:value?` is what says so, and flipping
+   ;; it is what turns their entries here into the composed `:or`.
+   {:shape ColumnRef
+    :fill  ColumnRef
+    ;; `:group` is neither: it draws nothing of its own, it splits a
+    ;; layer into one drawn group per value. Several grouping columns
+    ;; are allowed beside a single one.
+    :group [:or ColumnRef [:sequential ColumnRef]]}))
 
 (def ColumnTypeOverride
   "A `:x-type` / `:y-type` / `:color-type` value: the classification
