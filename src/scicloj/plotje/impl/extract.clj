@@ -201,6 +201,10 @@
          :alpha-scale (:alpha-scale draft-layer)
          :style (cond-> {:opacity (or (:fixed-alpha draft-layer) (:point-opacity cfg))
                          :radius (or (:fixed-size draft-layer) (:point-radius cfg))}
+                  ;; One symbol for the whole layer, beside the fixed
+                  ;; radius and opacity it sits with. A per-row `:shapes`
+                  ;; buffer still wins where there is one.
+                  (:fixed-shape draft-layer) (assoc :shape (:fixed-shape draft-layer))
                   (:jitter draft-layer) (assoc :jitter (:jitter draft-layer))
                   (and (:point-stroke cfg)
                        (not= (:point-stroke cfg) "none"))

@@ -1036,15 +1036,25 @@
            #":group takes one column, or a vector of columns"
            (pj/plan (pj/lay-line mixed :num :num2 {:group v}))))))
 
-  (testing ":shape and :fill used to be ignored"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":shape takes one column"
-         (pj/plan (pj/lay-point mixed :num :num2 {:shape 4}))))
+  (testing ":fill used to be ignored"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #":fill takes one column"
          (pj/plan (pj/lay-tile mixed :num :num2 {:fill 4})))))
+
+  (testing ":shape takes a symbol now, and still refuses what is neither"
+    ;; It gained a written-value reading, so the message that named its
+    ;; one accepted shape gave way to one naming both readings.
+    (is (= :square (-> (pj/lay-point mixed :num :num2 {:shape :square})
+                       pj/plan :panels first :layers first :style :shape)))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"not found in dataset.*not a symbol either"
+         (pj/plan (pj/lay-point mixed :num :num2 {:shape 4}))))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"not found in dataset.*not a symbol either"
+         (pj/plan (pj/lay-point mixed :num :num2 {:shape :sphere})))))
 
   (testing "columns, several grouping columns, and nil all still pass"
     (is (pj/plan (pj/lay-line mixed :num :num2 {:group :cat})))

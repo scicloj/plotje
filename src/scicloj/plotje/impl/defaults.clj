@@ -113,10 +113,10 @@
      from the only code that wants it.
 
    `:scale-default` says what a value means once the aesthetic accepts
-   one, so `:fill` and `:shape` carry `:by-value` while `:value?` is
-   still false. Setting `:value?` before the vocabulary reading exists
-   would make a value pass every check and then draw nothing, which is
-   the defect this table is here to prevent.
+   one, so `:fill` carries `:by-value` while `:value?` is still false.
+   Setting `:value?` before the reading exists would make a value pass
+   every check and then draw nothing, which is the defect this table is
+   here to prevent.
 
    Two entries record a reading that depends on the layer rather than
    on the value, which is a wart the table makes visible rather than
@@ -134,7 +134,7 @@
    :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :size-scale  :legend? true}
    :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :alpha-scale :legend? true}
    :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-value  :scale-key :fill-scale}
-   :shape {:category :appearance :column? true  :value? false :numeric? false :categorical-column? true  :scale-default :by-value  :scale-key :shape-scale :legend? true}
+   :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-value  :scale-key :shape-scale :legend? true}
    :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never}
    :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil}})
 

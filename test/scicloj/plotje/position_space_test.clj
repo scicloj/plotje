@@ -84,13 +84,20 @@
           "the value repeats; the column varies")))
   (testing "the coordinate left out is inherited from the pose and broadcasts too"
     (is (= 3 (n-marks (pj/lay-text scatter {:x 2.0 :text :height})))))
-  (testing "a string :text still names a column once the layer has data"
-    ;; The string is the text only where there is no column for it to
-    ;; name -- the layer of values alone below.
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"Column n \(from :text\) not found"
-         (pj/plan (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})))))
+  (testing "a string :text naming no column labels every row with it"
+    ;; It used to be an error with data present -- a string was a column
+    ;; reference and nothing else there, so the one reading it could
+    ;; have had was unreachable. The data decides now: a string naming a
+    ;; column reads it, and one naming none is the label itself.
+    (let [labelled (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})]
+      (is (= 3 (n-marks labelled)))
+      (is (= ["n"] (->> (pj/plan labelled) :panels first :layers last
+                        :groups first :labels distinct vec))
+          "one label, repeated over the layer's rows")))
+  (testing "and a string that does name a column still reads it"
+    (let [from-col (pj/lay-text scatter {:x 2.0 :y :weight :text :height})]
+      (is (< 1 (count (->> (pj/plan from-col) :panels first :layers last
+                           :groups first :labels distinct))))))
   (testing "and it broadcasts over the layer's own data when it brings some"
     (is (= 2 (n-marks (pj/lay-text scatter {:x 2.0 :y :w
                                             :text :t

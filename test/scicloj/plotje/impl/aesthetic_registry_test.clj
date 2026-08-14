@@ -55,7 +55,10 @@
            (vec (sort-by str resolve/positional-aesthetics)))
         "only these three have a literal turned into a column")
     (is (= [:alpha :fill :size] defaults/continuous-column-aesthetics))
-    (is (= [:fill :group :shape] defaults/column-only-aesthetics))
+    ;; `:shape` left this set when it gained a written-value reading --
+    ;; one symbol for a whole layer. `:group` will not: it splits the
+    ;; data and draws nothing of its own.
+    (is (= [:fill :group] defaults/column-only-aesthetics))
     (is (= #{:color :size :alpha :shape} defaults/legend-bearing-aesthetics))
     (is (= {:x :x-scale :y :y-scale :size :size-scale :alpha :alpha-scale
             :fill :fill-scale :color :color-scale :shape :shape-scale}

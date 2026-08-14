@@ -244,7 +244,8 @@
 (defmethod layer->membrane :point [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [coord-fn tooltip sx sy]} ctx
-        {:keys [opacity radius jitter stroke stroke-width]} style
+        {:keys [opacity radius jitter stroke stroke-width]
+         layer-shape :shape} style
         stroke-rgba (when stroke (defaults/c2d->rgba stroke))
         stroke-w (when stroke (or stroke-width 1))
         ;; Detect if x-axis is categorical (band scale) for smarter jitter
@@ -306,7 +307,11 @@
                            [px py])
                  pt-r (if sizes (size-scale (sizes i)) radius)
                  pt-alpha (if alphas (alpha-scale (alphas i)) (or opacity 1.0))
-                 pt-shape (if shapes (get shape-map (shapes i) :circle) :circle)
+                 ;; A per-row shape column wins; failing that the
+                 ;; layer's own symbol, which defaults to a circle.
+                 pt-shape (if shapes
+                            (get shape-map (shapes i) :circle)
+                            (or layer-shape :circle))
                  [cr cg cb _] (if colors (colors i) color)]]
        (-> (ui/translate (- (double px) pt-r) (- (double py) pt-r)
                          [(ui/with-color [cr cg cb pt-alpha]

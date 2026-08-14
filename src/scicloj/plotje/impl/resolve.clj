@@ -442,6 +442,14 @@
               (assoc :text (resolve-col-name resolved-ds (:text v)))
               (and (:group v) (column-ref? (:group v)))
               (assoc :group (resolve-col-name resolved-ds (:group v)))
+              ;; A `:shape` naming no column is one symbol for the whole
+              ;; layer, so it moves to `:fixed-shape` and leaves `:shape`
+              ;; empty -- `collect-shapes` reads categories out of a
+              ;; column, and there is no column and no category here.
+              ;; Same shape of move as `:size` 7 becoming `:fixed-size`.
+              (and (:shape v)
+                   (= :value (aes/source (:shape v) (set (tc/column-names resolved-ds)))))
+              (-> (assoc :fixed-shape (:shape v)) (dissoc :shape))
               (and (:x-end v) (column-ref? (:x-end v)))
               (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))
           _ (validate-continuous-aesthetics resolved-ds v)

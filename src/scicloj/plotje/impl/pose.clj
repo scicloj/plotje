@@ -701,18 +701,31 @@
     :else                          :pose))
 
 (defn- also-not-drawable-sentence
-  "Extra guidance for the one case where the failing value was
-   plausibly meant as something to draw rather than a column: a string
-   on `:color`, which is how a hex code missing its `#` arrives.
+  "Extra guidance when the failing value was plausibly meant as
+   something to draw rather than a column, naming what the aesthetic
+   would have accepted.
 
-   A keyword is not that case. Every aesthetic reads a keyword as a
-   column name, and a keyword that names a color is drawn rather than
-   reaching here -- so a keyword at this point is a mistyped column
-   name, and the column message is the whole of the answer."
+   Not offered for a keyword on `:color`. Every aesthetic reads a
+   keyword as a column name, and a keyword that names a color is drawn
+   rather than reaching here -- so a keyword at this point is a
+   mistyped column name, and the column message is the whole of the
+   answer. A string is the case worth catching: it is how a hex code
+   missing its `#` arrives."
   [k col]
-  (when (and (= :color k) (string? col))
+  (cond
+    (and (= :color k) (string? col))
     (str " It is not a color either -- a color is a CSS name, or a hex"
-         " string written with its #.")))
+         " string written with its #.")
+
+    (= :shape k)
+    (str " It is not a symbol either -- one layer's shape is one of "
+         (str/join ", " (map pr-str defaults/shape-syms)) ".")
+
+    (= :size k)
+    " It is not a radius either -- a fixed size is a positive number."
+
+    (= :alpha k)
+    " It is not an opacity either -- a fixed alpha is a number within 0 and 1."))
 
 (defn- column-not-found-message
   "Build a focused error message for a missing column reference.
@@ -779,18 +792,16 @@
                         {:option k :value v}))))))
 
 (defn- drawn-at-this-gate?
-  "Whether a value naming no column is one this gate should let past.
+  "Whether a value naming no column is one this gate should let past:
+   `impl.aesthetics/drawable?` -- ask the layer's data, then ask what
+   the aesthetic can draw.
 
-   The rule is `impl.aesthetics/drawable?` -- ask the layer's data,
-   then ask what the aesthetic can draw -- with one aesthetic held
-   back. `:text` draws a string only on a layer with no data, since
-   with data the string has a column to name and the mark demands one
-   (`resolve-positional-values` is where that reading lives). This gate
-   runs only when the layer *has* data, so `:text`'s value reading is
-   never the one in force here, and letting a string past would trade a
-   clear error for a layer that silently draws no labels."
+   `:text` needs no exception here even though its written value is a
+   label rather than a column. `resolve-positional-values` runs first
+   and has already turned that string into a constant column, so what
+   reaches this gate is an ordinary column reference."
   [k col]
-  (and (not= k :text) (aes/drawable? k col)))
+  (aes/drawable? k col))
 
 (defn- validate-columns
   "Validate that every aesthetic column reference in the resolved
@@ -811,11 +822,13 @@
    answers both: a value that names no column and cannot be drawn is
    the mistake, whatever its type.
 
-   Only values that could plausibly be a column name -- a keyword or a
-   string -- are policed here. A number or a boolean on an aesthetic
-   that takes no value is `validate-column-only-aesthetics`'s business,
-   and it names what that aesthetic takes, which is the more useful
-   message of the two."
+   Two kinds of value are policed. One that could plausibly be a column
+   name -- a keyword or a string -- and one written for an aesthetic
+   that accepts written values, whatever its type: `{:shape 4}` names
+   no column and is no symbol either, and saying so beats drawing a
+   default circle in silence. A value on an aesthetic that takes none
+   is `validate-column-only-aesthetics`'s business, and it names what
+   that aesthetic takes, which is the more useful message of the two."
   ([resolved d] (validate-columns resolved d nil))
   ([resolved d ctx]
    (when d
@@ -824,7 +837,10 @@
            {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx]
        (doseq [k defaults/column-keys
                :let [col (get resolved k)]
-               :when (and col (resolve/column-ref? col))]
+               :when (and col
+                          (not (sequential? col))
+                          (or (resolve/column-ref? col)
+                              (:value? (defaults/aesthetic-registry k))))]
          (if (= :column (aes/source col col-names))
            (when-let [types (heterogeneous-types (col-lookup col))]
              (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
@@ -877,9 +893,20 @@
         literals (into {} (for [k resolve/positional-aesthetics
                                 :let [v (get resolved k)]
                                 :when (value? v)]
-                            [k v]))]
+                            [k v]))
+        ;; A string on `:text` naming no column is the label itself. It
+        ;; broadcasts the same way a value on `:x` does, so every row is
+        ;; labelled with it -- which is what `{:text "n = 150"}` beside a
+        ;; column of x means. Handled here rather than downstream for the
+        ;; same reason the positional values are: once it is a column,
+        ;; the stat, the extract and the mark all receive the shape they
+        ;; already handle.
+        text-literal (let [t (:text resolved)]
+                       (when (and (string? t) (not (contains? col-names t))) t))
+        broadcast (cond-> literals
+                    (and text-literal d) (assoc :text text-literal))]
     (cond
-      (empty? literals)
+      (empty? broadcast)
       [resolved d]
 
       (and (not layer-own-data?)
@@ -897,11 +924,11 @@
       [resolved d]
 
       :else
-      [(merge resolved (zipmap (keys literals) (keys literals)))
+      [(merge resolved (zipmap (keys broadcast) (keys broadcast)))
        (reduce (fn [ds [k v]]
                  (tc/add-column ds k (dtype/const-reader v (tc/row-count ds))))
                d
-               literals)])))
+               broadcast)])))
 
 (defn- resolve-facet-col
   "Resolve a facet column ref against a dataset; throw with a clear
