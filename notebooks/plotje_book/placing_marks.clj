@@ -347,6 +347,8 @@ cars
       (pj/lay-point :wt :mpg)
       (pj/options {:width 620 :height 380})))
 
+scatter
+
 (-> scatter pj/frames kind/pprint)
 
 ;; The `:canvas` is reported once for the whole plot. `:panels` holds one
