@@ -21,7 +21,12 @@
    fixed color to survive the grouping."
   [all-colors color-val fixed-color cfg]
   (cond
-    fixed-color (if (string? fixed-color) (defaults/hex->rgba fixed-color) fixed-color)
+    ;; A drawn color arrives as whatever was written -- `"red"`,
+    ;; `"#FF0000"` or `:steelblue` -- and only an RGBA vector is already
+    ;; in the form the plan carries. The keyword case reaches here now
+    ;; that the data decides which values name columns; before, a
+    ;; keyword was a column reference and nothing else, so it never did.
+    fixed-color (if (vector? fixed-color) fixed-color (defaults/hex->rgba fixed-color))
     (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
     :else (defaults/hex->rgba (:default-color cfg))))
 

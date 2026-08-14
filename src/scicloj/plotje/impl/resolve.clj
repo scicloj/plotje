@@ -4,6 +4,7 @@
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.datetime :as dt-dt]
             [java-time.api :as jt]
+            [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]))
 
 ;; ---- Helpers ----
@@ -261,28 +262,40 @@
 
 (defn resolve-aesthetics
   "Classify each aesthetic channel (:color, :size, :alpha, :text) as either
-   a column reference or a fixed literal value.
-   For :color, a string value is checked against dataset column names
-   (both string and keyword) — if it matches, it's treated as a column ref;
-   otherwise it's a literal color string.
+   a column reference or a fixed value it is drawn as.
+
+   **The data decides**, uniformly: a value is a column reference when
+   the layer's data carries a column of that exact name, and is drawn
+   as it stands otherwise. That one rule replaces three that disagreed
+   -- `:color` looked the value up, `:size` and `:alpha` called anything
+   keyword-or-string a column without checking, and each was written
+   out separately here. `impl.aesthetics/source` is where it now lives,
+   and `impl.pose/validate-columns` reports a value that is neither a
+   column nor something the aesthetic can draw, so nothing arrives here
+   having failed both readings.
+
+   `:text` keeps the older test on purpose. Its drawn reading exists
+   only on a layer with no data -- `impl.pose/resolve-positional-values`
+   holds it -- and this function is only ever called with a dataset, so
+   asking the data here would turn a reported mistake into a layer that
+   draws no labels.
+
    Returns a map with keys :color, :color-is-col?, :color-type, :fixed-color,
    :size, :size-is-col?, :fixed-size, :alpha, :alpha-is-col?, :fixed-alpha,
    :text-col."
   [ds v]
-  (let [color-val (:color v)
-        color-is-col? (and color-val (column-ref? color-val)
-                           ;; A string :color is a column reference only when a
-                           ;; column with that exact name exists; otherwise it
-                           ;; is treated as a literal CSS color.
-                           (contains? (set (tc/column-names ds)) color-val))
+  (let [col-names (set (tc/column-names ds))
+        column? (fn [x] (and x (= :column (aes/source x col-names))))
+        color-val (:color v)
+        color-is-col? (column? color-val)
         c-type (when color-is-col?
                  (or (:color-type v) (column-type ds color-val)))
         fixed-color (when (and color-val (not color-is-col?)) color-val)
         size-val (:size v)
-        size-is-col? (and size-val (column-ref? size-val))
+        size-is-col? (column? size-val)
         fixed-size (when (and size-val (not size-is-col?)) size-val)
         alpha-val (:alpha v)
-        alpha-is-col? (and alpha-val (column-ref? alpha-val))
+        alpha-is-col? (column? alpha-val)
         fixed-alpha (when (and alpha-val (not alpha-is-col?)) alpha-val)
         text-val (:text v)
         text-col (when (and text-val (column-ref? text-val)) text-val)]

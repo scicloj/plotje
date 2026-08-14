@@ -17,6 +17,7 @@
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
+            [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.layer-type :as layer-type]))
@@ -699,6 +700,20 @@
     (contains? layer-type-info k) :layer-type
     :else                          :pose))
 
+(defn- also-not-drawable-sentence
+  "Extra guidance for the one case where the failing value was
+   plausibly meant as something to draw rather than a column: a string
+   on `:color`, which is how a hex code missing its `#` arrives.
+
+   A keyword is not that case. Every aesthetic reads a keyword as a
+   column name, and a keyword that names a color is drawn rather than
+   reaching here -- so a keyword at this point is a mistyped column
+   name, and the column message is the whole of the answer."
+  [k col]
+  (when (and (= :color k) (string? col))
+    (str " It is not a color either -- a color is a CSS name, or a hex"
+         " string written with its #.")))
+
 (defn- column-not-found-message
   "Build a focused error message for a missing column reference.
    When the layer carries its own :data and the failing key was
@@ -719,7 +734,8 @@
            " to a column that exists in :data.")
       ;; Default: simple "not found" with the available columns
       (str "Column " col " (from " k ") not found in dataset."
-           " Available: " (sort-by str col-names)))))
+           " Available: " (sort-by str col-names)
+           (also-not-drawable-sentence k col)))))
 
 (def ^:private column-only-accepts
   "What to tell the user each column-only aesthetic takes. The set
@@ -762,6 +778,20 @@
                              " " k " has no reading for a value.")
                         {:option k :value v}))))))
 
+(defn- drawn-at-this-gate?
+  "Whether a value naming no column is one this gate should let past.
+
+   The rule is `impl.aesthetics/drawable?` -- ask the layer's data,
+   then ask what the aesthetic can draw -- with one aesthetic held
+   back. `:text` draws a string only on a layer with no data, since
+   with data the string has a column to name and the mark demands one
+   (`resolve-positional-values` is where that reading lives). This gate
+   runs only when the layer *has* data, so `:text`'s value reading is
+   never the one in force here, and letting a string past would trade a
+   clear error for a layer that silently draws no labels."
+  [k col]
+  (and (not= k :text) (aes/drawable? k col)))
+
 (defn- validate-columns
   "Validate that every aesthetic column reference in the resolved
    mapping names a real column in the dataset. Rejects heterogeneous
@@ -769,33 +799,47 @@
    strict: a keyword reference does not match a string column name
    and vice versa. The optional `ctx` map carries source-of-mapping
    information so the error can name whether the failing reference
-   came from the pose or from the layer."
+   came from the pose or from the layer.
+
+   The data decides which values are column references, for every
+   aesthetic alike. What used to stand here was a type test plus a
+   carve-out -- `column-ref?` was keyword-or-string, and `:color`
+   strings were exempted so that literal colors survived. That exempted
+   `\"notacolor\"` too, deferring it to a render-time `Unknown color`,
+   and it exempted nothing on the other aesthetics, so `:color :red`
+   was reported as a missing column. Asking what the aesthetic can draw
+   answers both: a value that names no column and cannot be drawn is
+   the mistake, whatever its type.
+
+   Only values that could plausibly be a column name -- a keyword or a
+   string -- are policed here. A number or a boolean on an aesthetic
+   that takes no value is `validate-column-only-aesthetics`'s business,
+   and it names what that aesthetic takes, which is the more useful
+   message of the two."
   ([resolved d] (validate-columns resolved d nil))
   ([resolved d ctx]
    (when d
      (let [col-names (set (tc/column-names d))
-           col-exists? col-names
            col-lookup #(get d %)
            {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx]
        (doseq [k defaults/column-keys
                :let [col (get resolved k)]
-               :when (and col
-                          (resolve/column-ref? col)
-                          (not (and (= k :color) (string? col))))]
-         (when-not (col-exists? col)
-           (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
-             (throw (ex-info
-                     (column-not-found-message
-                      k col col-names
-                      {:layer-type-key layer-type-key
-                       :layer-own-data? layer-own-data?
-                       :source source})
-                     {:key k :column col :available (sort-by str col-names)
-                      :source source}))))
-         (when-let [types (heterogeneous-types (col-lookup col))]
-           (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
-                                ". Convert it to a single type (number, string, etc.) before plotting.")
-                           {:key k :column col :types types}))))))))
+               :when (and col (resolve/column-ref? col))]
+         (if (= :column (aes/source col col-names))
+           (when-let [types (heterogeneous-types (col-lookup col))]
+             (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
+                                  ". Convert it to a single type (number, string, etc.) before plotting.")
+                             {:key k :column col :types types})))
+           (when-not (drawn-at-this-gate? k col)
+             (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
+               (throw (ex-info
+                       (column-not-found-message
+                        k col col-names
+                        {:layer-type-key layer-type-key
+                         :layer-own-data? layer-own-data?
+                         :source source})
+                       {:key k :column col :available (sort-by str col-names)
+                        :source source}))))))))))
 
 (defn- resolve-positional-values
   "Rewrite an `:x` or `:y` given as a value into data the rest of the

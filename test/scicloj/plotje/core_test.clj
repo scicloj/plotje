@@ -1352,13 +1352,34 @@
                  pj/plan)
           c (:color (first (:groups (first (:layers (first (:panels pl)))))))]
       (is (> (nth c 2) 0.5) "steelblue should have high blue channel")))
-  (testing "Unknown color string gives helpful error"
+  (testing "Unknown color string is reported at the pose, naming both readings"
+    ;; It used to reach the renderer and die on "Unknown color", which
+    ;; said nothing about the likelier mistake -- that a column of that
+    ;; name was meant. The data is asked first now, so the message can
+    ;; name what was looked up and what else it could have been.
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Unknown color"
+                          #"not found in dataset.*not a color either"
                           (-> {:x [1 2 3] :y [4 5 6]}
                               (pj/pose :x :y)
                               (pj/lay-point {:color "notacolor"})
-                              pj/plot)))))
+                              pj/plot))))
+  (testing "A keyword naming a color is drawn, not looked up"
+    ;; `:color :red` used to be reported as a missing column, because a
+    ;; keyword was a column reference and nothing else.
+    (let [c (-> {:x [1 2 3] :y [4 5 6]}
+                (pj/pose :x :y)
+                (pj/lay-point {:color :red})
+                pj/plan :panels first :layers first :groups first :color)]
+      (is (= [1.0 0.0 0.0 1.0] c))))
+  (testing "A hex string missing its # is reported, not read as a shade"
+    ;; clojure2d reads a bare `abc` as `#aabbcc`, so this used to draw a
+    ;; color for what is far likelier a mistyped column name.
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"not found in dataset.*not a color either"
+                          (-> {:x [1 2 3] :y [4 5 6]}
+                              (pj/pose :x :y)
+                              (pj/lay-point {:color "fff"})
+                              pj/plan)))))
 
 (deftest schema-all-marks-test
   (testing "Every mark type produces a valid plan"
