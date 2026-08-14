@@ -454,15 +454,30 @@
 ;; ============================================================
 
 (deftest resolve-color-test
+  ;; The third argument is the resolved draft layer, which answers both
+  ;; "is a fixed color set" and "is this layer's color column drawn as
+  ;; it stands" -- the two ways a color can arrive already decided.
   (let [cfg (assoc defaults/defaults :palette nil)]
     (testing "column color"
-      (let [c (extract/resolve-color ["a" "b"] "a" nil cfg)]
+      (let [c (extract/resolve-color ["a" "b"] "a" {} cfg)]
         (is (= 4 (count c)))))
     (testing "fixed hex color"
-      (let [c (extract/resolve-color nil nil "#FF0000" cfg)]
+      (let [c (extract/resolve-color nil nil {:fixed-color "#FF0000"} cfg)]
         (is (== 1.0 (first c)))))
+    (testing "fixed color named by a keyword"
+      ;; Reaches here only since the data decides which values name
+      ;; columns; before, a keyword was a column reference and nothing else.
+      (let [c (extract/resolve-color nil nil {:fixed-color :red} cfg)]
+        (is (= [1.0 0.0 0.0 1.0] c))))
+    (testing "a drawn color column uses its own value, not the palette"
+      (let [c (extract/resolve-color ["#FF0000" "#0000FF"] "#0000FF"
+                                     {:color-drawn? true} cfg)]
+        (is (= [0.0 0.0 1.0 1.0] c))))
+    (testing "the same value scaled, for contrast"
+      (let [c (extract/resolve-color ["#FF0000" "#0000FF"] "#0000FF" {} cfg)]
+        (is (not= [0.0 0.0 1.0 1.0] c) "a palette entry, not the value itself")))
     (testing "nil falls to default"
-      (let [c (extract/resolve-color nil nil nil cfg)]
+      (let [c (extract/resolve-color nil nil {} cfg)]
         (is (= 4 (count c)))))))
 
 (deftest extract-layer-point-test

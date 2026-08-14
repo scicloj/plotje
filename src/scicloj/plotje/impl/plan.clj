@@ -649,11 +649,22 @@
   "Build legend from resolved draft layers and color info. Returns nil when the
    legend would be empty (no data, or all nil/NaN in the color column).
    `opts-title` overrides the inferred column-name title (from a
-   user-supplied `:color-label` plot option)."
+   user-supplied `:color-label` plot option).
+
+   A color column that is drawn as it stands earns no legend, the way
+   ggplot2's `scale_colour_identity()` defaults to none. A legend
+   explains a scale by pairing each category with the color chosen for
+   it; where the value already is the color there is no choice to
+   explain, and rows reading `#FF0000` beside a red swatch tell a
+   reader nothing they cannot see."
   [resolved-all numeric-color? all-colors color-cols cfg opts-title]
   (let [grad-fn (:gradient-fn cfg)
-        title (or opts-title (first color-cols))]
+        title (or opts-title (first color-cols))
+        all-drawn? (let [with-color (filter #(resolve/column-ref? (:color %)) resolved-all)]
+                     (and (seq with-color) (every? :color-drawn? with-color)))]
     (cond
+      all-drawn? nil
+
       numeric-color?
       (let [color-draft-layers (filter #(and (resolve/column-ref? (:color %))
                                              (:data %)) resolved-all)

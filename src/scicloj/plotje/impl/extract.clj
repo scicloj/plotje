@@ -18,17 +18,26 @@
    color column, and any group color present came from `:group` instead.
    Grouping by one column while drawing every group in one color is a
    common case: many pale lines behind a few named ones. It needs the
-   fixed color to survive the grouping."
-  [all-colors color-val fixed-color cfg]
-  (cond
-    ;; A drawn color arrives as whatever was written -- `"red"`,
-    ;; `"#FF0000"` or `:steelblue` -- and only an RGBA vector is already
-    ;; in the form the plan carries. The keyword case reaches here now
-    ;; that the data decides which values name columns; before, a
-    ;; keyword was a column reference and nothing else, so it never did.
-    fixed-color (if (vector? fixed-color) fixed-color (defaults/hex->rgba fixed-color))
-    (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
-    :else (defaults/hex->rgba (:default-color cfg))))
+   fixed color to survive the grouping.
+
+   Takes the resolved draft layer rather than its `:fixed-color`,
+   because the layer answers a second question too: whether its color
+   column is drawn as it stands. `resolve/resolve-aesthetics` decides
+   that once for the column, so what arrives here is a group value that
+   already *is* a color and needs no palette."
+  [all-colors color-val draft-layer cfg]
+  (let [fixed-color (:fixed-color draft-layer)]
+    (cond
+      ;; A drawn color arrives as whatever was written -- `"red"`,
+      ;; `"#FF0000"` or `:steelblue` -- and only an RGBA vector is
+      ;; already in the form the plan carries. The keyword case reaches
+      ;; here now that the data decides which values name columns;
+      ;; before, a keyword was a column reference and nothing else.
+      fixed-color (if (vector? fixed-color) fixed-color (defaults/hex->rgba fixed-color))
+      (and (:color-drawn? draft-layer) (some? color-val))
+      (defaults/hex->rgba color-val)
+      (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
+      :else (defaults/hex->rgba (:default-color cfg)))))
 
 (def dash-presets
   "Named stroke-dash presets, resolved to a `[dash gap]` pixel pattern.
@@ -128,7 +137,7 @@
   [draft-layer stat all-colors cfg & {:keys [with-range? with-labels?]}]
   (let [groups (vec
                 (for [{:keys [color xs ys ymins ymaxs labels]} (:points stat)]
-                  (cond-> {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                  (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                            :xs xs :ys ys}
                     (some? color) (assoc :label (defaults/fmt-category-label color))
                     (and with-range? ymins) (assoc :ymins ymins)
@@ -199,7 +208,7 @@
                          :stroke-width (or (:point-stroke-width cfg) 0)))
          :groups (vec
                   (for [{:keys [color xs ys sizes alphas shapes row-indices color-values]} (:points stat)]
-                    (cond-> {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                    (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                              :xs xs :ys ys}
                       (some? color) (assoc :label (defaults/fmt-category-label color))
                       (and numeric-color? color-values)
@@ -222,7 +231,7 @@
    :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
    :groups (vec
             (for [{:keys [color bin-maps]} (:bins stat)]
-              {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+              {:color (resolve-color all-colors color draft-layer cfg)
                :bars (vec (for [{:keys [min max count]} bin-maps]
                             {:lo min :hi max :count count}))}))})
 
@@ -237,20 +246,20 @@
                          ;; Regression lines
                          (when-let [lines (:lines stat)]
                            (for [{:keys [color x1 y1 x2 y2]} lines]
-                             {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                             {:color (resolve-color all-colors color draft-layer cfg)
                               :label (defaults/fmt-category-label color)
                               :x1 x1 :y1 y1 :x2 x2 :y2 y2}))
                          ;; Polylines
                          (when-let [pts (:points stat)]
                            (for [{:keys [color xs ys]} pts]
-                             {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                             {:color (resolve-color all-colors color draft-layer cfg)
                               :label (defaults/fmt-category-label color)
                               :xs xs :ys ys}))))}
         ;; Confidence ribbons from :lm {:confidence-band true}
         (:ribbons stat)
         (assoc :ribbons (vec
                          (for [{:keys [color xs ymins ymaxs]} (:ribbons stat)]
-                           {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                           {:color (resolve-color all-colors color draft-layer cfg)
                             :xs xs :ymins ymins :ymaxs ymaxs})))
         (:position draft-layer)
         (assoc :position (:position draft-layer)))
@@ -273,7 +282,7 @@
      :categories (vec (:categories stat))
      :groups (vec
               (for [{:keys [color counts]} (:bars stat)]
-                {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                {:color (resolve-color all-colors color draft-layer cfg)
                  :label (defaults/fmt-category-label color)
                  :counts (vec counts)}))}
     ;; Value bars (from :identity stat) -- need a categorical axis for band
@@ -293,7 +302,7 @@
            :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
            :groups (vec
                     (for [{:keys [color xs ys]} (:points stat)]
-                      {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                      {:color (resolve-color all-colors color draft-layer cfg)
                        :bars (mapv (fn [x y]
                                      (let [xd (double x)]
                                        {:lo (- xd half) :hi (+ xd half) :count y}))
@@ -318,7 +327,7 @@
            :position (default-position draft-layer)
            :groups (vec
                     (for [{:keys [color xs ys]} (:points stat)]
-                      {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                      {:color (resolve-color all-colors color draft-layer cfg)
                        :label (defaults/fmt-category-label color)
                        ;; Canonical slots: category on :xs, numeric value on :ys.
                        ;; The renderer bands :xs (on the auto-swapped band scale)
@@ -472,7 +481,7 @@
      :boxes (vec
              (for [b (:boxes stat)]
                (cond-> {:category (:category b)
-                        :color (resolve-color all-colors (:color b) (:fixed-color draft-layer) cfg)
+                        :color (resolve-color all-colors (:color b) draft-layer cfg)
                         :median (:median b) :q1 (:q1 b) :q3 (:q3 b)
                         :whisker-lo (:whisker-lo b) :whisker-hi (:whisker-hi b)}
                  (:color b) (assoc :color-category (:color b))
@@ -489,7 +498,7 @@
      :violins (vec
                (for [v (:violins stat)]
                  (cond-> {:category (:category v)
-                          :color (resolve-color all-colors (:color v) (:fixed-color draft-layer) cfg)
+                          :color (resolve-color all-colors (:color v) draft-layer cfg)
                           :ys (:ys v)
                           :densities (:densities v)}
                    (:color v) (assoc :color-category (:color v)))))}))
@@ -748,7 +757,7 @@
      :style {:opacity (or (:fixed-alpha draft-layer) 0.7)}
      :ridges (vec (for [v violins]
                     (cond-> {:category (:category v)
-                             :color (resolve-color all-colors (:color v) (:fixed-color draft-layer) cfg)
+                             :color (resolve-color all-colors (:color v) draft-layer cfg)
                              :ys (:ys v)
                              :densities (:densities v)}
                       (:color v) (assoc :color-category (:color v)))))
@@ -778,7 +787,7 @@
         c-max (when all-color-buf (dfn/reduce-max all-color-buf))
         groups (vec
                 (for [{:keys [color xs ys x-ends color-values row-indices]} (:points stat)]
-                  (cond-> {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                  (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                            :xs xs :ys ys :x-ends x-ends}
                     row-indices (assoc :row-indices row-indices)
                     (some? color) (assoc :label (defaults/fmt-category-label color))

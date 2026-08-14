@@ -288,6 +288,19 @@
         column? (fn [x] (and x (= :column (aes/source x col-names))))
         color-val (:color v)
         color-is-col? (column? color-val)
+        ;; A color column whose every value names a color is drawn as it
+        ;; stands rather than scaled -- ggplot2 reaches the same cell
+        ;; through `scale_colour_identity()`. Decided once, per column,
+        ;; because a column half of whose values are colors is a
+        ;; category column that happens to contain some.
+        color-drawn? (and color-is-col?
+                          (not (aes/scaled? :color {:source :column
+                                                    :value color-val
+                                                    :column-values (get ds color-val)})))
+        ;; Still classified, and still grouped by: a drawn color column
+        ;; splits the layer into one group per distinct color exactly as
+        ;; a category column does. All that changes is where each
+        ;; group's color comes from.
         c-type (when color-is-col?
                  (or (:color-type v) (column-type ds color-val)))
         fixed-color (when (and color-val (not color-is-col?)) color-val)
@@ -301,6 +314,7 @@
         text-col (when (and text-val (column-ref? text-val)) text-val)]
     {:color (when color-is-col? color-val)
      :color-is-col? color-is-col?
+     :color-drawn? color-drawn?
      :color-type c-type
      :fixed-color fixed-color
      :size (when size-is-col? size-val)
@@ -431,7 +445,7 @@
               (and (:x-end v) (column-ref? (:x-end v)))
               (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))
           _ (validate-continuous-aesthetics resolved-ds v)
-          {:keys [color color-type fixed-color
+          {:keys [color color-type color-drawn? fixed-color
                   size fixed-size alpha fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
           group (infer-grouping v color-type color)
           {:keys [mark stat]} (infer-layer-type v x-type y-type x-temporal? y-temporal?)
@@ -495,6 +509,7 @@
           resolved (cond-> (assoc v :data resolved-ds :x-type x-type :y-type y-type
                                   :color-type color-type :group group :mark mark :stat stat
                                   :color color :fixed-color fixed-color
+                                  :color-drawn? color-drawn?
                                   :size size :fixed-size fixed-size
                                   :alpha alpha :fixed-alpha fixed-alpha
                                   :text-col text-col)

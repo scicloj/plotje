@@ -9,7 +9,8 @@
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]
-            [scicloj.plotje.impl.pose-schema :as pose-schema]))
+            [scicloj.plotje.impl.pose-schema :as pose-schema]
+            [scicloj.plotje.api :as pj]))
 
 (def cols
   "A layer's column names. `\"blue\"` is here on purpose: a string can
@@ -163,6 +164,41 @@
   (testing "absent and nil both leave it to the convention"
     (is (not (aes/scaled? :size {:source :value :value 7})))
     (is (not (aes/scaled? :size {:source :value :value 7 :scale nil})))))
+
+(deftest a-color-column-drawn-end-to-end-test
+  ;; What the decision is for: the plan a pose actually produces.
+  (let [colors-of (fn [pose] (->> (pj/plan pose) :panels first :layers first
+                                  :groups (mapv :color)))
+        legend-of (fn [pose] (:legend (pj/plan pose)))]
+    (testing "a column of hex codes draws itself, with no legend"
+      ;; It used to become three categories and draw palette colors,
+      ;; discarding the ones the column held.
+      (let [p (-> {:x [1 2 3] :y [4 5 6] :c ["#FF0000" "#00FF00" "#0000FF"]}
+                  (pj/pose :x :y)
+                  (pj/lay-point {:color :c}))]
+        (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0]] (colors-of p)))
+        (is (nil? (legend-of p))
+            "a legend explains a choice, and here there was none to make")))
+
+    (testing "CSS names count too"
+      (is (= [[1.0 0.0 0.0 1.0] [0.0 0.0 1.0 1.0]]
+             (colors-of (-> {:x [1 2] :y [3 4] :c ["red" "blue"]}
+                            (pj/pose :x :y)
+                            (pj/lay-point {:color :c}))))))
+
+    (testing "one non-color and the whole column is categorical again"
+      (let [p (-> {:x [1 2 3] :y [4 5 6] :c ["#FF0000" "setosa" "#0000FF"]}
+                  (pj/pose :x :y)
+                  (pj/lay-point {:color :c}))]
+        (is (not= [1.0 0.0 0.0 1.0] (first (colors-of p))))
+        (is (= 3 (count (:entries (legend-of p)))) "and it gets its legend back")))
+
+    (testing "an ordinary category column is untouched"
+      (let [p (-> {:x [1 2 3] :y [4 5 6] :s ["a" "b" "a"]}
+                  (pj/pose :x :y)
+                  (pj/lay-point {:color :s}))]
+        (is (= 2 (count (colors-of p))))
+        (is (= 2 (count (:entries (legend-of p)))))))))
 
 (deftest an-aesthetic-with-no-scale-is-never-scaled-test
   (testing "text has a reading but no scale"
