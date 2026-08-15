@@ -258,7 +258,7 @@
    [:label string?]
    [:color Color]
    ;; Present when one column drives both :color and :shape: the key
-   ;; draws this symbol in its own color instead of a square swatch.
+   ;; draws this symbol in its own color instead of a square.
    [:shape {:optional true} keyword?]])
 
 (def GradientStop

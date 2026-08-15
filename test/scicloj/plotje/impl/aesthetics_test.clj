@@ -494,8 +494,9 @@
                             (pj/lay-point :when :level {:size :flat}))))))
 
     (testing "a column with spread is untouched"
-      ;; The marks and the legend read the same function, so a swatch is
-      ;; the size the mark of that value is drawn at.
+      ;; The marks and the legend read the same function, so the mark
+      ;; drawn beside a value in the legend is the size a mark of that
+      ;; value is drawn at on the panel.
       (let [{:keys [legend]} (radius-of (-> measured (pj/lay-point :when :level
                                                                    {:size :radius})))]
         (is (= [2.0 8.0] [(first legend) (last legend)]))
@@ -692,10 +693,38 @@
     (is (pj/plan (-> measured (pj/lay-point :when :level
                                             {:size {:column :radius :scale false}}))))
     (is (pj/plan (-> measured (pj/lay-point :when :level
-                                            {:y {:column :level :scale false}}))))
-    (testing "including a text column, which is drawn as it stands by nature"
-      (is (pj/plan (-> measured (pj/lay-text :when :level
-                                             {:text {:column :variety :scale false}})))))))
+                                            {:y {:column :level :scale false}}))))))
+
+(deftest an-aesthetic-with-no-scale-refuses-one-test
+  ;; `:group` has no scale at all and `:text` has a reading but none,
+  ;; and the mapping gate refused only the first. So `{:text {:value
+  ;; "hi" :scale true}}` was accepted and the key dropped -- a writer
+  ;; told nothing, having changed nothing, which is the case the
+  ;; refusal exists for. `scaled?` answered `true` for it meanwhile, an
+  ;; internal claim nothing downstream could act on.
+  (let [msg #"has no scale to set"]
+    (testing ":text refuses a scale, by either spelling and either value"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/lay-text measured :when :level
+                                         {:text {:value "hi" :scale true}})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/lay-text measured :when :level
+                                         {:text {:column :variety :scale false}}))))
+    (testing ":group refuses one under the same reasoning"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/lay-point measured :when :level
+                                          {:group {:column :variety :scale true}}))))
+    (testing "the mapping without a :scale is untouched"
+      (is (= ["olive" "plum" "olive" "plum"]
+             (->> (pj/plan (pj/lay-text measured :when :level {:text :variety}))
+                  :panels first :layers first :groups first :labels vec)))
+      (is (= ["hi" "hi" "hi" "hi"]
+             (->> (pj/plan (pj/lay-text measured :when :level {:text "hi"}))
+                  :panels first :layers first :groups first :labels vec))))
+    (testing "and scaled? says so, whatever the mapping asks for"
+      (is (not (aes/scaled? :text {:source :value :scale true})))
+      (is (not (aes/scaled? :text {:source :column :scale true})))
+      (is (not (aes/scaled? :group {:source :column :scale true}))))))
 
 (deftest an-explicit-value-wins-over-a-column-of-that-name-test
   ;; Settling this collision is what the explicit form is for. Every
@@ -730,3 +759,114 @@
     (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0] [1.0 0.0 1.0 1.0]]
            (mapv :color (-> mixed :panels first :layers first :groups)))
         "while the drawn column keeps drawing its own colors")))
+
+(deftest the-form-is-checked-where-it-is-written-test
+  ;; What the map says is decided by the map, so a malformed one is
+  ;; visible at the call. Left to `pj/draft`, the pose was built,
+  ;; threaded and composed before anything said the mapping was wrong,
+  ;; and the same mistake surfaced at two different moments depending
+  ;; on how it was spelled.
+  (let [built (fn [m] (pj/lay-point measured :when :level m))]
+    (testing "a key the form does not have"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unexpected key"
+                            (built {:color {:column :variety :typo 1}})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unexpected key"
+                            (pj/pose measured {:x :when :y :level
+                                               :color {:column :variety :typo 1}}))))
+    (testing "both sources, a scale type, a source named nil"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names both :column and :value"
+                            (built {:color {:column :variety :value "red"}})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A mapping's :scale is"
+                            (built {:size {:column :radius :scale :log}})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names :column nil"
+                            (built {:color {:column nil}}))))
+    (testing "a map naming no source at all"
+      ;; `{:scale false}` is not the form -- it says which side of the
+      ;; scale without saying of what -- so it used to reach the column
+      ;; lookup whole and be reported as a column called `{:scale false}`.
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names no source"
+                            (built {:color {:scale false}})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names no source"
+                            (built {:color {}}))))
+    (testing "a symbol inside the form gets the same help as one outside"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"did you mean :variety"
+                            (built {:color 'variety})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"did you mean :variety"
+                            (built {:color {:column 'variety}}))))
+    (testing "and a well-formed one is still built"
+      (is (some? (pj/plan (built {:color {:column :variety}})))))))
+
+(deftest a-mapping-cannot-be-written-in-a-map-slot-test
+  ;; A mapping written in full names one aesthetic's reading, so it
+  ;; belongs under an aesthetic key. Both map slots hold the aesthetics
+  ;; themselves: a `lay-*` call reads a map in its last positional
+  ;; argument as the options map, whichever axis that argument stands
+  ;; in. So `(pj/lay-point data :a {:column :b})` did not say `:y`: the
+  ;; map was the options, `:column` was warned about and stripped, and
+  ;; a one-dimensional plot came back from a call that reads as a
+  ;; two-dimensional one.
+  (let [two {:when [1 2 3] :level [4 5 6]}
+        msg #"so there is no aesthetic for it to name"]
+    (testing "a lay-* call's last positional argument"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/lay-point two :when {:column :level})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/lay-point two {:column :when})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/lay-text (pj/pose two :when :level) {:value "hi"}))))
+    (testing "and pj/pose's mapping map, at every arity that takes one"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/pose two {:column :when})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/pose two :when {:column :level})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/pose two :when :level {:column :level}))))
+    (testing "the slots that do take it are unaffected"
+      (is (= {:x {:column :when} :y :level}
+             (:mapping (pj/lay-point two {:column :when} :level))))
+      (is (= {:x :when :y {:column :level}}
+             (:mapping (pj/lay-point two :when {:column :level} {:color :when}))))
+      (is (= {:x {:column :when} :y :level}
+             (:mapping (pj/pose two {:x {:column :when} :y :level})))))
+    (testing "and an ordinary options map is untouched"
+      (is (= {:x :when :y :level} (:mapping (pj/lay-point two :when :level {:alpha 0.5}))))
+      (is (= {:color :when :x :when :y :level}
+             (:mapping (pj/pose two :when :level {:color :when})))))))
+
+(deftest a-band-bound-takes-the-written-form-test
+  ;; `:x-min` and `:x-max` carry `:value? true` and `:column? false`, so
+  ;; a written value is the only reading they have -- and it was the one
+  ;; the notation could not reach. `{:value 1.5}` fell through to the
+  ;; finite-number check, which answered that it was not a number.
+  (let [base (pj/lay-point {:when [1 2 3] :level [10 20 30]} :when :level)
+        layers (fn [p] (count (:layers (first (:panels (pj/plan p))))))]
+    (is (= (layers (pj/lay-band-h base {:y-min 12 :y-max 18}))
+           (layers (pj/lay-band-h base {:y-min {:value 12} :y-max {:value 18}}))))
+    (is (= (layers (pj/lay-band-v base {:x-min 1.5 :x-max 2.5}))
+           (layers (pj/lay-band-v base {:x-min {:value 1.5} :x-max {:value 2.5}}))))
+    (is (= (layers (pj/lay-rule-v base {:x-intercept 2}))
+           (layers (pj/lay-rule-v base {:x-intercept {:value 2}}))))
+    (testing "a column, or a scale, is refused by name rather than as a non-number"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no column for \{:column \.\.\.\} to name"
+                            (pj/lay-band-h base {:y-min {:column :lo} :y-max 18})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"no scale for :scale to choose"
+                            (pj/lay-band-h base {:y-min {:value 12 :scale false} :y-max 18}))))
+    (testing "while the same keys on an errorbar still read a column"
+      (is (some? (pj/plan (pj/lay-errorbar {:when [1 2] :level [2 3] :lo [1 2] :hi [3 4]}
+                                           :when :level
+                                           {:y-min {:column :lo} :y-max {:column :hi}})))))))
+
+(deftest with-data-checks-the-explicit-column-test
+  ;; `{:column :typo}` is a column reference written more explicitly
+  ;; than the plain `:typo`, and the attach-time check read only the
+  ;; plain one -- so the template attached and failed later, at
+  ;; `pj/plan`, with a different message.
+  (let [d {:when [1 2 3] :level [4 5 6]}]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot attach data"
+                          (-> (pj/pose) (pj/pose :when :typo) pj/lay-point (pj/with-data d))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot attach data"
+                          (-> (pj/pose) (pj/pose {:x {:column :when} :y {:column :typo}})
+                              pj/lay-point (pj/with-data d))))
+    (testing "a written value names no column, so it is not looked for"
+      (is (some? (-> (pj/pose) (pj/pose {:x {:column :when} :y {:value 5}})
+                     pj/lay-point (pj/with-data d) pj/plan))))))

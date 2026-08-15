@@ -117,8 +117,8 @@
    scale. `scale-type` is `:linear` (the default) or `:log`.
 
    Stated once because the marks and the legend have to agree: the
-   swatch beside a value is the size the mark of that value is drawn
-   at. `impl.plan` builds the legend from this and `render.mark` draws
+   mark drawn beside a value in the legend is the size a mark of that
+   value is drawn at on the panel. `impl.plan` builds the legend from this and `render.mark` draws
    from it, and they held separate copies of the arithmetic until both
    were found to share a defect.
 

@@ -675,8 +675,8 @@
    ggplot2's `scale_colour_identity()` defaults to none. A legend
    explains a scale by pairing each category with the color chosen for
    it; where the value already is the color there is no choice to
-   explain, and rows reading `#FF0000` beside a red swatch tell a
-   reader nothing they cannot see. `collect-colors` has already left
+   explain, and rows reading `#FF0000` beside a red dot tell a reader
+   nothing they cannot see. `collect-colors` has already left
    those layers out of `all-colors` and `color-cols`, so a plot whose
    every color column is drawn arrives here with nothing to list --
    and a plot that mixes the two legends only the scaled half, rather

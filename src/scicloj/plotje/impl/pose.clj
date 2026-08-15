@@ -800,9 +800,14 @@
    `:shape` has since gained that reading, which is what took it off
    this list. `:fill` is to gain one: its registry entry already
    carries the `:by-source` scale default, and flipping `:value?` is
-   what turns this error into that reading. `:group` keeps it -- it
-   splits the data and draws nothing of its own, so there is nothing a
-   value could mean."
+   what would turn this error into that reading -- **necessary and not
+   sufficient.** The tile extractor derives its color through a
+   gradient and has no branch for a value that already is one, which is
+   why `:drawn-column?` is false there too, so flipping the flag alone
+   would put back the silent nothing this gate was added to remove.
+   `dev-notes/backlog.md` lists what else the path needs. `:group`
+   keeps it -- it splits the data and draws nothing of its own, so
+   there is nothing a value could mean."
   {:group "one column, or a vector of columns"})
 
 (defn- column-only-accepts-str [k]
@@ -810,8 +815,9 @@
 
 (defn- validate-column-only-aesthetics
   "Throw when an aesthetic that reads a column and nothing else --
-   `:fill` or `:group`, the registry's `:column-only-aesthetics` --
-   carries a value that names no column."
+   `:fill` or `:group`, which is `defaults/column-only-aesthetics`,
+   derived from the registry's `:column?` and `:value?` -- carries a
+   value that names no column."
   [resolved d]
   (when d
     (doseq [k defaults/column-only-aesthetics
@@ -1019,16 +1025,18 @@
   [v]
   (and (map? v) (or (contains? v :column) (contains? v :value))))
 
-(defn- normalize-explicit-mapping
-  "Rewrite one explicit mapping into the plain value the rest of the
-   pipeline already reads, and return `[value source scale]`.
+(defn check-explicit-mapping!
+  "Throw when an explicit mapping is malformed. Nothing here reads the
+   layer's data, which is what lets `api` run it at the `pj/pose` or
+   `lay-*` call rather than at `pj/draft`: a mistyped key inside the
+   map is a mistake about the form, and the form is fully visible
+   where it is written. The checks that need the data -- whether the
+   column is there, whether the value is one the aesthetic can draw --
+   stay in `validate-columns`.
 
-   Normalizing rather than carrying the map onward is the same move
-   `:x` makes when a value becomes a constant column: what the stat,
-   the extract and every mark receive is the ordinary shape, and only
-   what cannot be re-derived travels beside it. What cannot be
-   re-derived is exactly the two things the writer said out loud --
-   which source they meant, and which side of the scale."
+   Called both from the call site and from
+   `normalize-explicit-mapping`, so a pose built by hand and threaded
+   straight to `pj/draft` is held to the same rules."
   [k v]
   (let [unknown (remove explicit-mapping-keys (keys v))]
     (when (seq unknown)
@@ -1047,14 +1055,27 @@
     ;; `impl.aesthetics/scaled?` defers to. An aesthetic with no scale
     ;; cannot be taken off one, and silently dropping the key would
     ;; leave a writer believing they had changed something.
-    (when (and (contains? v :scale)
-               (nil? (:scale-default (defaults/aesthetic-registry k))))
-      (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
-                           " has no scale to set. It splits a layer into"
-                           " one drawn group per value and draws nothing"
-                           " of its own, so there is no scale for a"
-                           " value to pass through.")
-                      {:key k :value v})))
+    ;;
+    ;; Two aesthetics have none, for different reasons, and both are
+    ;; refused here: `nil` is `:group`, which draws nothing of its own,
+    ;; and `:never` is `:text`, which draws a label as it stands. Only
+    ;; `:group` was refused at first, so `{:text {:value "hi" :scale
+    ;; true}}` was accepted and the key dropped -- the very thing this
+    ;; check exists to prevent, under the same reasoning one entry over.
+    (when (contains? v :scale)
+      (when-let [why (case (:scale-default (defaults/aesthetic-registry k))
+                       nil    (str "It splits a layer into one drawn group per"
+                                   " value and draws nothing of its own, so"
+                                   " there is no scale for a value to pass"
+                                   " through.")
+                       :never (str "A label is drawn as it stands, whether it"
+                                   " comes from a column or is written in the"
+                                   " mapping, so there is no scale for it to"
+                                   " pass through.")
+                       nil)]
+        (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
+                             " has no scale to set. " why)
+                        {:key k :value v}))))
     ;; `:scale` is a boolean today. A scale *type* on a mapping is
     ;; future work, and accepting one meanwhile drew the default scale
     ;; and said nothing: `{:size {:column :w :scale :log}}` gave the
@@ -1079,10 +1100,23 @@
         (throw (ex-info (str k " " (pr-str v) " names " named " nil."
                              " To cancel a mapping inherited from an"
                              " outer scope, write " k " nil on its own.")
-                        {:key k :value v :source named}))))
-    (if (contains? v :column)
-      [(:column v) :column (get v :scale)]
-      [(:value v) :value (get v :scale)])))
+                        {:key k :value v :source named}))))))
+
+(defn- normalize-explicit-mapping
+  "Rewrite one explicit mapping into the plain value the rest of the
+   pipeline already reads, and return `[value source scale]`.
+
+   Normalizing rather than carrying the map onward is the same move
+   `:x` makes when a value becomes a constant column: what the stat,
+   the extract and every mark receive is the ordinary shape, and only
+   what cannot be re-derived travels beside it. What cannot be
+   re-derived is exactly the two things the writer said out loud --
+   which source they meant, and which side of the scale."
+  [k v]
+  (check-explicit-mapping! k v)
+  (if (contains? v :column)
+    [(:column v) :column (get v :scale)]
+    [(:value v) :value (get v :scale)]))
 
 (defn- normalize-explicit-mappings
   "Rewrite every explicit mapping in `resolved` into its plain value,

@@ -104,7 +104,7 @@
 ;;   | Aesthetic | Consumed on | Silently ignored on |
 ;;   |:----------|:------------|:------------------|
 ;;   | `:size` (column ref) | `lay-point` | every other lay-* |
-;;   | `:alpha` (column ref) | `lay-point` | every other lay-* (literal `:alpha N` works on most via `:fixed-alpha`) |
+;;   | `:alpha` (column ref) | `lay-point` | every other lay-* (a written `:alpha N` works on most via `:fixed-alpha`) |
 ;;   | numeric (continuous) `:color` | `lay-point`, `lay-interval-h` | every other lay-* (a numeric column on a categorical-color path produces banded palette colors instead of a gradient) |
 ;;   | tooltip / row-indices plumbing | `lay-point`, `lay-interval-h` | every other lay-* |
 ;;
@@ -207,9 +207,14 @@
 ;; - Mapping the same column with a keyword in one place and a
 ;;   string in another (e.g. `(pj/pose ds {:color :group})` then
 ;;   `(pj/lay-point :x :y {:color "group"})`) is not normalized: the
-;;   scope hierarchy treats them as different keys and the result is
-;;   a silent empty plot. Workaround: pick one form (keyword or
-;;   string) and use it consistently within a pose.
+;;   scope hierarchy treats them as different keys. The mismatch is
+;;   reported rather than drawn -- the spelling that does not match a
+;;   column name is looked up, found missing, and named alongside the
+;;   columns the data does carry. The exception is a string that
+;;   happens to name something the aesthetic can draw: `"red"` on
+;;   `:color` is that color, so the mapping quietly stops grouping
+;;   instead. Workaround: pick one form (keyword or string) and use it
+;;   consistently within a pose.
 
 ;; ## Integer Column Names
 ;;

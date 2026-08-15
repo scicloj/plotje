@@ -615,7 +615,7 @@
 ;; appear but are not discussed.
 ;;
 ;; All the pale series are one layer. `pj/lay-line` with a `:group` and
-;; a literal `:color` draws one line per country, every line in that
+;; a written `:color` draws one line per country, every line in that
 ;; color.
 ;;
 ;; Pick the three to name from the data rather than by hand -- the

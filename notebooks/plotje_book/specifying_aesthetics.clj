@@ -43,7 +43,7 @@ plants
 ;; questions are asked of a keyword and of a string, and matching is
 ;; exact -- `"species"` finds a string-named column, `:species` finds a
 ;; keyword-named one. The
-;; [Inference Rules](./plotje_book.inference_rules.html#color-literal-vs-column-reference)
+;; [Inference Rules](./plotje_book.inference_rules.html#named-colors-and-string-disambiguation)
 ;; chapter works through that resolution in full.
 ;;
 ;; What matters here is the one case it cannot settle: a dataset whose
@@ -264,7 +264,7 @@ integer-named
 ;;
 ;; - [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers)
 ;;   -- what a mapping is, and where one may be written
-;; - [Inference Rules](./plotje_book.inference_rules.html#color-literal-vs-column-reference)
+;; - [Inference Rules](./plotje_book.inference_rules.html#named-colors-and-string-disambiguation)
 ;;   -- the first question in full, and what else Plotje infers
 ;; - [Placing Marks](./plotje_book.placing_marks.html) -- `:x` and `:y`
 ;;   given as values, and `{:in :drawing-area}` for a whole layer

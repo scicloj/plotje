@@ -214,14 +214,23 @@ my-pose
 
 ;; ## Mapping
 ;;
-;; A **mapping** maps a column (or a literal value) to an
-;; aesthetic. Aesthetics come in two groups:
+;; A **mapping** maps a column (or a written value) to an
+;; aesthetic. Aesthetics come in three groups:
 ;;
 ;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:x-min`,
 ;;   `:x-max`, `:y-min`, `:y-max` for marks that need them) place
 ;;   each mark.
 ;; - **Appearance aesthetics** (`:color`, `:size`, `:alpha`, `:shape`,
 ;;   `:text`, `:fill`) shape how each mark looks.
+;; - **Grouping aesthetic** (`:group`) splits the data and draws
+;;   nothing of its own.
+;;
+;; A mapping can be written in full, saying which of its two readings
+;; -- the column or the value -- it means, and which side of the scale
+;; to read it through. `{:column :species}` names the column even where
+;; a value of that name could be drawn, `{:value "red"}` names the
+;; value even where the data carries a column called red, and a
+;; `:scale false` beside either draws it as it stands.
 ;;
 ;; Mappings live on a pose -- where they flow into every layer
 ;; attached to it -- or on a single layer, where they scope to that
@@ -231,7 +240,7 @@ my-pose
 ;; ## Aesthetic
 ;;
 ;; An **aesthetic** is a property of a mark that can be mapped to a
-;; data column or fixed to a literal value. Plotje supports two
+;; data column or fixed to a written value. Plotje supports three
 ;; groups:
 ;;
 ;; **Positional aesthetics** -- where the mark sits:
@@ -240,8 +249,9 @@ my-pose
 ;; |:----|:---------|:------------|
 ;; | `:x` | Horizontal position | Numerical, temporal, or categorical |
 ;; | `:y` | Vertical position | Numerical, temporal, or categorical |
-;; | `:x-end`, `:x-min`, `:x-max` | Range endpoints (interval, band, rule marks) | Same type as `:x` |
-;; | `:y-min`, `:y-max` | Range endpoints (band, ribbon) | Same type as `:y` |
+;; | `:x-end` | Right edge of an interval bar | Same type as `:x` |
+;; | `:x-min`, `:x-max` | Edges of a vertical band | No column -- a written value only |
+;; | `:y-min`, `:y-max` | An errorbar's bounds, or the edges of a horizontal band | Same type as `:y`, or a written value |
 ;;
 ;; **Appearance aesthetics** -- how the mark looks:
 ;;
@@ -254,15 +264,27 @@ my-pose
 ;; | `:text` | Label content | Any |
 ;; | `:fill` | Tile gradient color | Numerical |
 ;;
+;; **Grouping aesthetic** -- which rows are drawn together:
+;;
+;; | Key | Controls | Column type |
+;; |:----|:---------|:------------|
+;; | `:group` | Splits the layer into one drawn group per value | Categorical |
+;;
 ;; The layer's data decides: a value naming one of its columns is a
-;; column reference, and anything else is the value itself -- `"#E74C3C"`,
-;; `"red"`, `:red`, `0.5` -- setting that aesthetic for every mark.
+;; column reference, and anything else is the value itself --
+;; `"#E74C3C"`, `"red"` or `:red` on `:color`, `0.5` on `:alpha` --
+;; setting that aesthetic for every mark. It has to be a value the
+;; aesthetic can draw: `0.5` on `:text` names no column and is no
+;; label either, so it is reported rather than drawn. Two aesthetics
+;; have no reading for a value at all and say so -- `:fill` and
+;; `:group` take a column and nothing else.
+;;
 ;; To say which you mean where both readings fit, write the mapping in
 ;; full: `{:column "red"}` or `{:value "red"}`.
 ;;
-;; A single layer can mix all three: positional column refs (`:x`,
+;; A single layer can mix the readings: positional column refs (`:x`,
 ;; `:y`), an appearance column ref (`:color :species`,
-;; `:size :petal-length`), and a literal appearance (`:alpha 0.7`,
+;; `:size :petal-length`), and a written appearance value (`:alpha 0.7`,
 ;; the same opacity for every point):
 
 (-> (rdatasets/datasets-iris)
@@ -273,8 +295,8 @@ my-pose
  [(fn [v]
     (let [s (pj/svg-summary v)]
       (and (= 150 (:points s))
-           ;; :alpha 0.7 is a literal -- every point gets the same
-           ;; opacity, so the rendered set has a single alpha value.
+           ;; :alpha 0.7 is a written value -- every point gets the
+           ;; same opacity, so the rendered set has a single alpha.
            (= #{0.7} (:alphas s)))))])
 
 ;; ## Group
@@ -723,8 +745,10 @@ my-pose
 ;;
 ;; The four rule and band constructors take their positions in the
 ;; layer's `:mapping` slot (`:y-intercept` or `:x-intercept` for rules;
-;; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands) as literal values
+;; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands) as written values
 ;; rather than column references, and each draws at exactly one place.
+;; `{:value 1.5}` says the same thing at more length; a `{:column ...}`
+;; there is reported, since these read no column.
 ;; Column-mapped intercepts, producing one mark per row like ggplot2's
 ;; `geom_hline(aes(yintercept = ...))`, are planned but not yet
 ;; implemented.
@@ -1027,7 +1051,7 @@ annotated
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |
 ;; | Share scales | Make sibling poses of a composite share data ranges across named axes | `:share-scales` in composite `:opts` |
-;; | Annotation | Reference marks (rules, bands); positions in `:mapping` as literal values today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
+;; | Annotation | Reference marks (rules, bands); positions in `:mapping` as written values today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
 ;; | Layer options | Per-layer aesthetics and layer-type parameters | `pj/lay-*` options map |

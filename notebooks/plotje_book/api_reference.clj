@@ -474,12 +474,15 @@
 ;;
 ;; **Note on `:y-min`/`:y-max`.** The same option keys carry two
 ;; meanings depending on the layer kind. On `lay-band-h`/`-v` they
-;; are literal numeric bounds (the band sits at fixed coordinates,
+;; are written numeric bounds (the band sits at fixed coordinates,
 ;; independent of the data). On `lay-errorbar` (above) they are
 ;; column references -- one row per error bar, with `:y-min` and
 ;; `:y-max` naming columns that supply the lower and upper bounds.
-;; ggplot2 keeps these separate via `aes()` (column) versus literal
-;; arguments; Plotje overloads the keyword and dispatches by mark.
+;; ggplot2 keeps these separate via `aes()` (column) versus a value
+;; written outside it; Plotje overloads the keyword and dispatches by
+;; mark. Writing the mapping in full -- `{:column :lo}` on the
+;; errorbar, `{:value 12}` on the band -- says which reading you mean
+;; without changing which one the mark accepts.
 
 (kind/doc #'pj/lay-rule-v)
 

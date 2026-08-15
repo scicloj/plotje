@@ -155,7 +155,7 @@ two-panel
 
 ;; ## Scope
 ;;
-;; A **mapping** maps a column (or a literal value) to a visual
+;; A **mapping** maps a column (or a written value) to a visual
 ;; property -- like mapping `:species` to color. Where you write a
 ;; mapping determines who sees it. There are two levels:
 ;;
@@ -588,20 +588,21 @@ two-panel
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; **Coming from ggplot2.** In ggplot2, `colour="blue"` is always a
-;; literal CSS color. In Plotje, `{:color "blue"}` is a column
-;; reference if **a column with that exact name exists in the data**,
-;; otherwise the CSS color. A keyword is asked the same two questions
-;; in the same order, so `{:color :blue}` is the column `:blue` where
-;; there is one and the color blue where there is not. Matching is
-;; strict: a string only matches a string column name, and a keyword
-;; only matches a keyword column name. Hex codes like `"#0000ff"`
-;; cannot collide with a column name and are unambiguous. To settle a
-;; genuine collision, say which you mean: `{:color {:column "blue"}}`
-;; or `{:color {:value "blue"}}`.
+;; CSS color. In Plotje, `{:color "blue"}` is a column reference if
+;; **a column with that exact name exists in the data**, otherwise the
+;; CSS color. A keyword is asked the same two questions in the same
+;; order, so `{:color :blue}` is the column `:blue` where there is one
+;; and the color blue where there is not. Matching is strict: a string
+;; only matches a string column name, and a keyword only matches a
+;; keyword column name. Hex codes like `"#0000ff"` are practically
+;; unambiguous -- the dataset is asked first for those too, but no
+;; dataset carries a column called `#0000ff`. To settle a genuine
+;; collision, say which you mean: `{:color {:column "blue"}}` or
+;; `{:color {:value "blue"}}`.
 ;;
 ;; The disambiguation matters when the dataset uses string column
-;; names. With a string column literally named `"blue"`, the column
-;; wins -- three palette colors render, not a single literal blue:
+;; names. With a string column named `"blue"`, the column wins --
+;; three palette colors render, not a single blue:
 
 (-> (tc/dataset {"x" [1 2 3] "y" [1 2 3] "blue" ["a" "b" "c"]})
     (pj/lay-point "x" "y" {:color "blue"}))
@@ -611,7 +612,7 @@ two-panel
                            (= 3 (count colors))))])
 
 ;; Same string `:color`, dataset without a `"blue"` column -- "blue"
-;; parses as a literal CSS color:
+;; parses as a CSS color:
 
 (-> (tc/dataset {"x" [1 2 3] "y" [1 2 3]})
     (pj/lay-point "x" "y" {:color "blue"}))

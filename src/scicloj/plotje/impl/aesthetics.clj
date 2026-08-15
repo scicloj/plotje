@@ -121,9 +121,11 @@
      `\"notacolor\"` -- neither a column nor a color -- is reported.
    - `:never` -- the aesthetic has a reading but no scale. `:text`.
    - `nil` -- no scale at all. `:group` splits the data and draws
-     nothing of its own, which is why `pj/scale` refuses it too. An
-     explicit `:scale` cannot conjure one, so it is ignored here and
-     reported where the mapping is built.
+     nothing of its own, which is why `pj/scale` refuses it too.
+
+   The last two answer `false` whatever the mapping says. An explicit
+   `:scale` cannot conjure a scale that is not there, so it is
+   reported where the mapping is built rather than honored here.
 
    Reading a written value as **data** -- ggplot2's constant inside
    `aes()` -- is reached by saying so: `{:value \"Model A\" :scale
@@ -134,10 +136,16 @@
   [aesthetic {:keys [source scale]}]
   (let [{:keys [scale-default]} (defaults/aesthetic-registry aesthetic)]
     (cond
-      (nil? scale-default)  false
-      (false? scale)        false
-      (some? scale)         true
+      ;; The two aesthetics with no scale answer before `scale` is
+      ;; consulted, because there is nothing for it to select. Both
+      ;; refuse a `:scale` where the mapping is built, so the pipeline
+      ;; never reaches here that way; answering `true` regardless was
+      ;; an internal claim nothing could act on.
+      (nil? scale-default)     false
+      (= :never scale-default) false
+      (false? scale)           false
+      (some? scale)            true
       ;; The source half: a column scales wherever there is a scale to
-      ;; pass through. `:never` marks the aesthetics that have none.
-      (= :column source)    (not= :never scale-default)
-      :else                 (= :always scale-default))))
+      ;; pass through, and the two that have none answered above.
+      (= :column source)       true
+      :else                    (= :always scale-default))))

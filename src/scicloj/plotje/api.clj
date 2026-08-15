@@ -548,6 +548,7 @@
 
 (declare prepare-pose pose-kind validate-pose-shape
          check-position-mapping check-column-ref-types
+         check-explicit-mappings check-mapping-in-map-slot
          check-pose-shape!)
 
 (defn ->pose
@@ -872,11 +873,13 @@
   (when-let [m (:mapping fr)]
     (warn-unknown-mapping-keys m context)
     (check-column-ref-types context m)
+    (check-explicit-mappings context m)
     (check-position-mapping context m))
   (doseq [layer (:layers fr)]
     (when-let [lm (:mapping layer)]
       (warn-unknown-mapping-keys lm (str context " layer"))
       (check-column-ref-types (str context " layer") lm)
+      (check-explicit-mappings (str context " layer") lm)
       (check-position-mapping (str context " layer") lm)))
   (doseq [sub (:poses fr)]
     (validate-pose-shape sub (str context " sub-pose")))
@@ -1222,12 +1225,14 @@
 
      :else
      (if (map? y)
-       (let [opts      (or (warn-and-strip-unknown-opts
+       (let [_         (check-mapping-in-map-slot "pj/pose" y "its mapping map")
+             opts      (or (warn-and-strip-unknown-opts
                             "pj/pose" y pose-mapping-keys)
                            {})
              data-over (:data opts)
              mapping   (dissoc opts :data)]
          (check-column-ref-types "pj/pose" mapping)
+         (check-explicit-mappings "pj/pose" mapping)
          (check-position-mapping "pj/pose" mapping)
          (if (pose? x)
            (cond-> (prepare-pose (extend-or-promote x mapping))
@@ -1235,6 +1240,7 @@
            (prepare-pose (pose-from-data (or data-over x) mapping))))
        (let [mapping {:x y}]
          (check-column-ref-types "pj/pose" mapping)
+         (check-explicit-mappings "pj/pose" mapping)
          (check-position-mapping "pj/pose" mapping)
          (if (pose? x)
            (prepare-pose (extend-or-promote x mapping))
@@ -1250,10 +1256,12 @@
 
      (map? z)
      ;; (pj/pose data x-col opts-map) -- univariate position plus opts
-     (let [opts      (warn-and-strip-unknown-opts "pj/pose" z pose-mapping-keys)
+     (let [_         (check-mapping-in-map-slot "pj/pose" z "its mapping map")
+           opts      (warn-and-strip-unknown-opts "pj/pose" z pose-mapping-keys)
            data-over (:data opts)
            mapping   (-> opts (dissoc :data) (merge {:x y}))]
        (check-column-ref-types "pj/pose" mapping)
+       (check-explicit-mappings "pj/pose" mapping)
        (check-position-mapping "pj/pose" mapping)
        (if (pose? x)
          (cond-> (prepare-pose (extend-or-promote x mapping))
@@ -1263,6 +1271,7 @@
      :else
      (let [mapping {:x y :y z}]
        (check-column-ref-types "pj/pose" mapping)
+       (check-explicit-mappings "pj/pose" mapping)
        (check-position-mapping "pj/pose" mapping)
        (if (pose? x)
          (prepare-pose (extend-or-promote x mapping))
@@ -1276,18 +1285,29 @@
                   (pr-str opts) ". Wrap aesthetic mappings in a map,"
                   " e.g. {:color :species}.")
              {:caller "pj/pose" :value opts})))
+   (check-mapping-in-map-slot "pj/pose" opts "its mapping map")
    (let [opts      (warn-and-strip-unknown-opts "pj/pose" opts pose-mapping-keys)
          data-over (:data opts)
          mapping   (-> opts (dissoc :data) (merge {:x y :y z}))]
      (check-column-ref-types "pj/pose" mapping)
+     (check-explicit-mappings "pj/pose" mapping)
      (check-position-mapping "pj/pose" mapping)
      (if (pose? x)
        (cond-> (prepare-pose (extend-or-promote x mapping))
          data-over (with-data data-over))
        (prepare-pose (pose-from-data (or data-over x) mapping))))))
 
-(defn- column-refs-in-mapping [m]
-  (keep #(let [v (get m %)]
+(defn- column-refs-in-mapping
+  "The keyword column references a mapping makes, in either spelling.
+
+   `{:column :typo}` is a column reference written more explicitly than
+   the plain `:typo`, and reading only the plain one let it past the
+   attach-time check `pj/with-data`'s docstring promises, to fail at
+   `pj/plan` with a different message. A `{:value ...}` names no column
+   and is skipped here on purpose."
+  [m]
+  (keep #(let [v (get m %)
+               v (if (pose/explicit-mapping? v) (:column v) v)]
            (when (keyword? v) v))
         defaults/column-keys))
 
@@ -1438,9 +1458,14 @@
    things it could have meant, each said out loud.
 
    Where it can be written is a separate question, and the answer is
-   `pj/pose` and a layer's options map -- `{:x {:column 0}}`. It cannot
-   go in a `lay-*` call's `:y` argument, because a map in that position
-   is the options map; the arity decides before this check is reached."
+   `pj/pose`, a layer's options map -- `{:x {:column 0}}` -- and any
+   `lay-*` positional argument that is not the last one:
+   `(pj/lay-point data {:column 0} :b)` and
+   `(pj/lay-point data :a {:column :b} {:color :sp})` both read the map
+   as a position. The **last** positional argument is the options map
+   whichever axis it stands in, so the form cannot be spelled there;
+   the arity decides before this check is reached, and
+   `check-mapping-in-map-slot` is what says so."
   ([context opts] (check-position-mapping context opts nil))
   ([context opts allow-value]
    (doseq [k [:x :y]]
@@ -1511,12 +1536,70 @@
    aesthetic-column-validation-test)."
   [context mapping]
   (doseq [[k v] mapping
-          :when (and (contains? defaults/column-keys k) (symbol? v))]
-    (throw (ex-info (str context " " k " is a symbol (" (pr-str v)
+          ;; The same typo written out in full is the same typo, and
+          ;; reading only the plain spelling sent `{:column 'sp}` on to
+          ;; the column lookup, where it got a missing-column message
+          ;; and none of this help.
+          :let [written (if (pose/explicit-mapping? v) (:column v) v)]
+          :when (and (contains? defaults/column-keys k) (symbol? written))]
+    (throw (ex-info (str context " " k " is a symbol (" (pr-str written)
                          "). A column reference must be a keyword or "
-                         "string -- did you mean " (pr-str (keyword (name v)))
+                         "string -- did you mean " (pr-str (keyword (name written)))
                          "?")
                     {:option k :value v}))))
+
+(defn- check-mapping-in-map-slot
+  "Throw when a whole map argument is one mapping written in full.
+
+   A mapping written in full says which reading one aesthetic takes, so
+   it belongs under an aesthetic key. Both of Plotje's map slots hold
+   the aesthetics themselves: `pj/pose`'s map argument is the mapping
+   map, and a map in a `lay-*` call's **last** positional argument is
+   the options map, whichever axis that argument stands in. So
+   `(pj/lay-point data :a {:column :b})` does not say `:y` -- the map
+   is the options, `:column` is not an option, and the layer came back
+   carrying `:x` alone, warned about but drawn: a one-dimensional plot
+   from a call that reads as a two-dimensional one.
+
+   The middle argument of a longer `lay-*` call is a position and does
+   take the form, which is why the trap is about the slot rather than
+   the axis: `(pj/lay-point data :a {:column :b} {:color :sp})` works."
+  [caller opts what]
+  (when (and (map? opts) (pose/explicit-mapping? opts))
+    (throw (ex-info (str caller " was given " (pr-str opts) " where " what
+                         " goes, so there is no aesthetic for it to name."
+                         " A mapping written in full says which reading one"
+                         " aesthetic takes, so write it under one -- {:y "
+                         (pr-str opts) "} or {:x " (pr-str opts) "} -- or"
+                         " name the column on its own.")
+                    {:caller caller :opts opts}))))
+
+(defn- check-explicit-mappings
+  "Run the explicit form's data-independent checks where the mapping is
+   written, rather than at `pj/draft`.
+
+   Which of the two readings a value has, and whether the map naming it
+   is well formed, are decided by the form alone -- so an unknown key
+   inside it is visible at the `pj/pose` or `lay-*` call. Left to the
+   draft, the pose was built, threaded and composed before anything
+   said the mapping was malformed. The checks that need the layer's
+   data -- whether the column is there, whether the value is one the
+   aesthetic can draw -- still wait for it.
+
+   A map that names no source is reported here too. `{:color {:scale
+   false}}` is not the explicit form, so it used to reach the column
+   lookup whole and be reported as a column called `{:scale false}`."
+  [context mapping]
+  (doseq [[k v] mapping
+          :when (and (contains? defaults/column-keys k) (map? v))]
+    (if (pose/explicit-mapping? v)
+      (pose/check-explicit-mapping! k v)
+      (throw (ex-info (str context " " k " " (pr-str v) " names no source."
+                           " A mapping written in full says which of the two"
+                           " readings it means, with :column or :value;"
+                           " :scale says only which side of the scale to read"
+                           " that source through.")
+                      {:option k :value v})))))
 
 (defn- registered-marks []
   (->> (methods extract/extract-layer)
@@ -1577,7 +1660,7 @@
 
    Everything else lands in :mapping -- which therefore holds more than
    mappings. Of the layer options documented in
-   `layer-type/layer-option-docs`, twelve are aesthetics and the rest
+   `layer-type/layer-option-docs`, fourteen are aesthetics and the rest
    are drawing options (:jitter, :in, :font-size), stat parameters
    (:bandwidth, :bins) and annotation values (:x-intercept). Which of
    them are aesthetics is answered by `defaults/aesthetic-registry`,
@@ -1585,7 +1668,9 @@
   [layer-type-key opts]
   (when opts
     (check-facet-keys "layer" opts)
+    (check-mapping-in-map-slot (str "lay-" (name layer-type-key)) opts "its options map")
     (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
+    (check-explicit-mappings (str "lay-" (name layer-type-key)) opts)
     ;; :x and :y here may be a value as well as a column. Which of the
     ;; two it draws is decided in `pose/leaf->draft`, where the pose's
     ;; mapping and the layer's data are both known.
@@ -1759,7 +1844,9 @@
          fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
      (cond
        (map? x-or-opts)
-       (let [d (:data fr)
+       (let [_ (check-mapping-in-map-slot
+                (str "lay-" (name layer-type-key)) x-or-opts "its options map")
+             d (:data fr)
              ;; The options map may carry the position mapping itself.
              ;; When it carries all of it, inference has nothing left to
              ;; supply -- and running it anyway throws on 4+ columns,
@@ -1869,6 +1956,45 @@
   "Per-layer-type required [lo-key hi-key] for pj/lay-band-*."
   {:band-h [:y-min :y-max] :band-v [:x-min :x-max]})
 
+(defn- value-argument
+  "Read an option that takes a written value and nothing else -- the
+   sibling of `column-argument`.
+
+   A band's edge and a rule's intercept are read straight from the
+   mapping by the mark that draws them, so there is no column for
+   `{:column ...}` to name. A writer who has learned `{:value ...}` for
+   mappings will reach for it here all the same, and until this it fell
+   through to the finite-number check below, which answered that their
+   perfectly-formed `{:value 1.5}` was not a number.
+
+   `:x-min` and `:x-max` carry `:value? true` in the registry, so the
+   written value is the only reading they have -- which made them the
+   two aesthetics the notation could not reach."
+  [caller k v]
+  (cond
+    (not (map? v)) v
+    (= (set (keys v)) #{:value}) (:value v)
+    :else
+    (throw (ex-info (str caller " " k " takes a number or a date, and "
+                         (pr-str v) " is not one. Write the value, or"
+                         " {:value ...} on its own -- " k " is read straight"
+                         " from the mapping here, so there is no column for"
+                         " {:column ...} to name and no scale for :scale to"
+                         " choose a side of.")
+                    {:caller caller :option k :value v}))))
+
+(defn- unwrap-written-bounds
+  "Unwrap `{:value v}` on each of `ks` in an opts map, so the checks and
+   the marks below see the number the writer wrote."
+  [caller ks opts]
+  (if-not (map? opts)
+    opts
+    (reduce (fn [o k]
+              (if (contains? o k)
+                (assoc o k (value-argument caller k (get o k)))
+                o))
+            opts ks)))
+
 (defn- temporal-intercept?
   "True if v is a supported temporal value for a rule intercept on a
    temporal axis (LocalDate, LocalDateTime, Instant, java.util.Date)."
@@ -1906,6 +2032,8 @@
   (if-not (map? opts)
     opts
     (let [k (rule-position-key layer-type-key)
+          opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                      [k] opts)
           v (get opts k)]
       (if (temporal-intercept? v)
         (assoc opts k (coerce-intercept v))
@@ -1918,14 +2046,17 @@
   [layer-type-key opts]
   (if-not (map? opts)
     opts
-    (let [[lo-k hi-k] (band-position-keys layer-type-key)]
+    (let [[lo-k hi-k] (band-position-keys layer-type-key)
+          opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                      [lo-k hi-k] opts)]
       (cond-> opts
         (temporal-intercept? (get opts lo-k)) (update lo-k coerce-intercept)
         (temporal-intercept? (get opts hi-k)) (update hi-k coerce-intercept)))))
 
 (defn- assert-rule-opts! [layer-type-key args]
-  (let [opts (last-opts args)
-        k (rule-position-key layer-type-key)
+  (let [k (rule-position-key layer-type-key)
+        opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                    [k] (last-opts args))
         v (get opts k)]
     (when-not (or (and (number? v) (Double/isFinite (double v)))
                   (temporal-intercept? v))
@@ -1938,8 +2069,9 @@
                       {:layer-type layer-type-key :opts opts})))))
 
 (defn- assert-band-opts! [layer-type-key args]
-  (let [opts (last-opts args)
-        [lo-k hi-k] (band-position-keys layer-type-key)
+  (let [[lo-k hi-k] (band-position-keys layer-type-key)
+        opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                    [lo-k hi-k] (last-opts args))
         lo (get opts lo-k) hi (get opts hi-k)
         valid-bound? (fn [v]
                        (or (and (number? v) (Double/isFinite (double v)))

@@ -24,7 +24,7 @@
 
 (defn- legend-swatch
   "The colored key beside a categorical legend entry. A plain entry
-   draws the default round swatch; an entry carrying a `:shape` -- one
+   draws the default round mark; an entry carrying a `:shape` -- one
    column driving both `:color` and `:shape` -- draws that symbol
    instead, through the same `draw-shape` the point marks use."
   [color shape]
@@ -91,7 +91,7 @@
                (ui/translate (+ x bar-w 4) (+ y 6)
                              (ui/with-color title-color
                                (ui/label hi-label (ui/font nil 10))))])))))
-      ;; Categorical swatch legend
+      ;; Categorical legend: a colored key beside each label
       (let [{:keys [entries]} legend]
         (vec
          (concat
@@ -111,7 +111,7 @@
 
 (defn- render-legend-horizontal
   "Render a horizontal legend (for :top or :bottom positioning).
-   Swatches and labels laid out left to right in a single row."
+   Keys and labels laid out left to right in a single row."
   [legend x y cfg]
   (let [{:keys [title entries]} legend
         fsize 10
@@ -119,7 +119,7 @@
     (if (= :continuous (:type legend))
       ;; For continuous legends, fall back to vertical rendering
       (render-legend-from-plan legend x y cfg)
-      ;; Horizontal categorical swatches
+      ;; The same, laid out left to right
       (let [title-w (if title (* (count (defaults/fmt-name title)) 6) 0)
             start-x (if title (+ title-w 8) 0)]
         (vec
@@ -172,7 +172,7 @@
   (let [{:keys [title entries]} size-legend
         title-color [0.2 0.2 0.2 1.0]
         point-color [0.4 0.4 0.4 1.0]
-        ;; A legend with no entries has no widest swatch. `log-ticks`
+        ;; A legend with no entries has no widest mark. `log-ticks`
         ;; returns none for a log domain holding no 1-2-5 tick, which a
         ;; constant size column gives it, so `reduce max` was handed an
         ;; empty sequence and threw an arity error out of the renderer.

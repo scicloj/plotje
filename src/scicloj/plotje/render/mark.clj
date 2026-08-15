@@ -261,7 +261,8 @@
         {:keys [n-groups]} (:dodge-ctx layer)
         dodge? (and n-groups x-bandwidth)
         ;; The same function the size and alpha legends are built from,
-        ;; so a swatch is the size the mark of that value is drawn at.
+        ;; so the mark drawn beside a value in the legend is the size a
+        ;; mark of that value is drawn at on the panel.
         ;; A column told not to scale holds radii and opacities already.
         channel-scale (fn [bufs scale-key drawn-key out-lo out-hi]
                         (when (seq bufs)

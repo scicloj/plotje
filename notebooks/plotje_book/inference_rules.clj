@@ -292,8 +292,8 @@ hour-bar-pose
 ;;
 ;; The `:color` parameter does different things depending on
 ;; what you pass. Each aesthetic channel (`:color`, `:size`,
-;; `:alpha`, `:text`) is classified as either a column reference or
-;; a fixed literal.
+;; `:alpha`, `:shape`, `:text`) is classified as either a column
+;; reference or a written value.
 
 ;; ### Column reference -- colored by palette
 
@@ -344,7 +344,7 @@ fixed-color-pose
                1.0]
               c))))])
 
-;; A literal hex string maps every point to that single color: no
+;; A written hex string maps every point to that single color: no
 ;; grouping, no legend, no legend strip. The hex was parsed into the
 ;; RGBA tuple `[0.906 0.298 0.235 1.0]`.
 
@@ -369,15 +369,20 @@ fixed-color-pose
 ;; Here is the full resolution order for a `:color` value:
 ;;
 ;; 1. If it names a dataset column, it is a column reference (grouping)
-;; 2. If it starts with `#`, it is a hex color (`"#E74C3C"`, `"#F00"`)
+;; 2. If it starts with `#` and parses as hex, it is that color
+;;    (`"#E74C3C"`, `"#F00"`)
 ;; 3. If it is a CSS color name, it is that color -- as a string
 ;;    (`"red"`, `"steelblue"`) or as a keyword (`:red`, `:steelblue`)
-;; 4. Otherwise, error naming both readings
+;; 4. Otherwise, error. A string is reported against both readings,
+;;    since a hex code written without its `#` arrives that way. A
+;;    keyword is reported as a missing column alone: a keyword naming a
+;;    color would have been drawn at step 3, so the only reading left
+;;    to name is the column.
 ;;
 ;; A keyword and a string are asked the same two questions, in the same
-;; order. What differs is only what each can match: matching is strict,
-;; so `:species` finds a keyword-named column and `"species"` finds a
-;; string-named one.
+;; order. What differs is what each can match -- matching is strict, so
+;; `:species` finds a keyword-named column and `"species"` finds a
+;; string-named one -- and how much the error says.
 ;;
 ;; Hex without its `#` is **not** a color. clojure2d reads a bare `abc`
 ;; as `#aabbcc`, which would make `"beef"` and `"fff"` colors -- far

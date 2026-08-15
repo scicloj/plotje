@@ -78,10 +78,13 @@
 
    - `:category` -- `:positional` places a mark, `:appearance` decides
      how it looks, `:grouping` splits the data and draws nothing of its
-     own. The glossary teaches the same three.
+     own. The glossary's Aesthetic entry teaches the same three, under
+     those names.
    - `:column?` -- whether the aesthetic can name a dataset column at
-     all. `:x-min` and the other band bounds cannot: their layer types
-     read a value straight from the mapping.
+     all. `:x-min` and `:x-max` cannot: only `lay-band-v` reads them,
+     and it reads a value straight from the mapping. `:y-min` and
+     `:y-max` can, because `lay-errorbar` reads them as columns -- see
+     the note on layer-dependent readings at the end.
    - `:numeric?` -- whether the column it names, when it names one,
      holds numbers. Those are the keys eligible for finite-value
      filtering at plan time.
@@ -126,11 +129,16 @@
      entry says what a reading would mean and another says whether it
      exists, and a gate needs both.** See `dev-notes/backlog.md`.
    - `:categorical-column?` -- whether the column it names may hold
-     categories. False for the three that encode a magnitude and have
-     no categorical counterpart.
+     categories. False on the three column-bearing aesthetics that
+     encode a magnitude and have no categorical counterpart --
+     `:alpha`, `:fill`, `:size`, which is `continuous-column-aesthetics`
+     -- and on `:x-min` / `:x-max`, which name no column at all.
    - `:scale-key` -- the `:opts` key `pj/scale` writes for this
      channel, for the aesthetics that have a scale.
-   - `:legend?` -- whether the aesthetic draws a legend.
+   - `:legend?` -- whether the compositor may hoist this aesthetic's
+     legend to composite level when every leaf agrees on it. It is not
+     which aesthetics draw a legend: `:fill` draws a continuous one and
+     is not hoisted, so it carries no `:legend?`.
 
    - `:literal->column?` -- whether `impl.pose/resolve-positional-values`
      turns a literal value here into a constant column before anything
@@ -145,11 +153,12 @@
    every check and then draw nothing, which is the defect this table is
    here to prevent.
 
-   Two entries record a reading that depends on the layer rather than
-   on the value, which is a wart the table makes visible rather than
-   hides. `:y-min` / `:y-max` are a column on `:errorbar` and a value
-   on `:band-h`. `:text` takes a value only on a layer with no data;
-   with data, the mark demands a column."
+   One pair records a reading that depends on the layer rather than on
+   the value, which is a wart the table makes visible rather than
+   hides: `:y-min` / `:y-max` are a column on `:errorbar` and a value
+   on `:band-h`. `:text` is not such a pair -- a written label
+   broadcasts over the layer's rows whether or not the layer has
+   data."
   {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
    :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
    :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
@@ -221,7 +230,7 @@
   [:circle :square :triangle :diamond :triangle-down :plus :cross])
 
 (def legend-swatch-size
-  "Side length of legend color swatches (square)."
+  "Side length of the colored key drawn beside a legend entry (square)."
   8)
 
 ;; ---- Color Helpers ----

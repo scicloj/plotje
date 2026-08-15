@@ -816,7 +816,7 @@ pj/shape-symbols
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
-;; Note: intercept and band-edge positions must be literal values
+;; Note: intercept and band-edge positions must be written values
 ;; (numbers, or temporal values on a time axis) in this release. A
 ;; faceted plot with a different reference value per panel
 ;; (column-mapped intercept, ggplot2's
