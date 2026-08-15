@@ -853,16 +853,3 @@ two-panel
 ;; - [**Composition**](./plotje_book.composition.html) -- composite poses, shared scales, and multi-panel patterns
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- where options live and how scope determines what they reach
 ;; - [**Pose Rules**](./plotje_book.pose_rules.html) -- the formal rules, each with tested assertions; reference to return to, not required reading
-
-
-
-
-
-
-
-
-
-
-
-
-

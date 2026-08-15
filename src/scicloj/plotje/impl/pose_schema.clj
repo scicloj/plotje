@@ -212,15 +212,17 @@
    ;; mapping. The glossary counts `:x-min` / `:x-max` among the
    ;; positional aesthetics too, but they are absent from
    ;; `defaults/column-keys`, so nothing validates them.
-   (into {} (for [[k drawn] drawn-value-schemas
-                  :when (contains? #{:x :y :x-end :y-min :y-max :color :size :alpha :text}
-                                   k)]
-              [k [:or ColumnRef drawn ExplicitMapping]]))
-   ;; `:shape` and `:fill` have a drawn-value grammar and do not accept
-   ;; one yet -- the registry's `:value?` is what says so, and flipping
-   ;; it is what turns their entries here into the composed `:or`.
-   {:shape [:or ColumnRef Shape ExplicitMapping]
-    :fill  [:or ColumnRef ExplicitMapping]
+   ;; Which aesthetics take both readings is the registry's answer, not
+   ;; a list kept beside it: `:column?` and `:value?` together. An
+   ;; aesthetic that gains `:value?` without a drawn-value grammar
+   ;; fails here at load rather than passing every check and drawing
+   ;; nothing.
+   (into {} (for [k (defaults/aesthetics-where #(and (:column? %) (:value? %)))]
+              [k [:or ColumnRef (drawn-value-schemas k) ExplicitMapping]]))
+   ;; `:fill` has a drawn-value grammar and does not accept one yet --
+   ;; the registry's `:value?` is what says so, and flipping it is what
+   ;; moves its entry into the composed `:or` above.
+   {:fill  [:or ColumnRef ExplicitMapping]
     ;; `:group` is neither: it draws nothing of its own, it splits a
     ;; layer into one drawn group per value. Several grouping columns
     ;; are allowed beside a single one.

@@ -86,10 +86,11 @@
      holds numbers. Those are the keys eligible for finite-value
      filtering at plan time.
    - `:value?` -- whether a written value is accepted beside a column
-     reference. `:fill`, `:shape` and `:group` take a column and
-     nothing else today. For the first two that is a gap the aesthetics
-     work closes; for `:group` it is not, since it splits the data and
-     draws nothing of its own, so there is nothing a value could mean.
+     reference. `:fill` and `:group` take a column and nothing else
+     today. For `:fill` that is a gap, and `:scale-default` below says
+     what a value there would mean once it is closed; for `:group` it
+     is not, since it splits the data and draws nothing of its own, so
+     there is nothing a value could mean.
    - `:scale-default` -- which side of the scale a value falls on when
      the mapping does not say. `:always` scales whatever the source
      was; `:by-source` scales a column and draws a written value;

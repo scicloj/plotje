@@ -700,6 +700,31 @@
     (contains? layer-type-info k) :layer-type
     :else                          :pose))
 
+(def ^:private drawn-value-nouns
+  "What a written value on each aesthetic is, in one word. Only the
+   aesthetics that accept one appear -- the registry's `:value?` is
+   what says so, and naming a reading an aesthetic does not have would
+   send the reader after a fix that is not there."
+  {:color "a color"
+   :shape "a symbol"
+   :size  "a radius"
+   :alpha "an opacity"
+   :text  "a label"})
+
+(defn- drawn-value-description
+  "What each aesthetic accepts as a written value, spelled out. Stated
+   once, for the two messages that have to name it: the value that
+   names no column, and the value the writer marked `:value` out loud."
+  [k]
+  (case k
+    :color "a color is a CSS name, or a hex string written with its #"
+    :shape (str "one layer's shape is one of "
+                (str/join ", " (map pr-str defaults/shape-syms)))
+    :size  "a fixed size is a positive number"
+    :alpha "a fixed alpha is a number within 0 and 1"
+    :text  "a label is a string"
+    nil))
+
 (defn- also-not-drawable-sentence
   "Extra guidance when the failing value was plausibly meant as
    something to draw rather than a column, naming what the aesthetic
@@ -712,28 +737,37 @@
    answer. A string is the case worth catching: it is how a hex code
    missing its `#` arrives."
   [k col]
-  (cond
-    (and (= :color k) (string? col))
-    (str " It is not a color either -- a color is a CSS name, or a hex"
-         " string written with its #.")
+  (when (and (:value? (defaults/aesthetic-registry k))
+             (or (not= :color k) (string? col)))
+    (when-let [noun (drawn-value-nouns k)]
+      (str " It is not " noun " either -- " (drawn-value-description k) "."))))
 
-    (= :shape k)
-    (str " It is not a symbol either -- one layer's shape is one of "
-         (str/join ", " (map pr-str defaults/shape-syms)) ".")
+(defn- not-drawable-message
+  "The message for a value the writer marked `:value` out loud that the
+   aesthetic cannot draw.
 
-    (= :size k)
-    " It is not a radius either -- a fixed size is a positive number."
-
-    (= :alpha k)
-    " It is not an opacity either -- a fixed alpha is a number within 0 and 1."))
+   It names no columns on purpose. `{:value :sp}` says the value is not
+   a column reference, so listing the columns available answers a
+   question the writer has already declined to ask -- and reads as a
+   contradiction when the dataset does carry a column of that name."
+  [k col]
+  (str k " " (pr-str {:value col}) " is not "
+       (or (drawn-value-nouns k) (str "one " k " can draw"))
+       (when-let [d (drawn-value-description k)] (str " -- " d))
+       "."))
 
 (defn- column-not-found-message
   "Build a focused error message for a missing column reference.
    When the layer carries its own :data and the failing key was
    inherited from the pose, surface that asymmetry and offer two
    fixes (rename to align with pose for overlay, or override on
-   the layer to create a separate sub-pose)."
-  [k col col-names {:keys [layer-type-key layer-own-data? source]}]
+   the layer to create a separate sub-pose).
+
+   `explicit-column?` marks a reference the writer wrote as
+   `{:column ...}`. The drawn-value sentence is dropped there: they
+   have said which reading they meant, so the other one is not the
+   answer."
+  [k col col-names {:keys [layer-type-key layer-own-data? source explicit-column?]}]
   (let [layer-name (if (keyword? layer-type-key) (name layer-type-key) "*")]
     (case (when (and layer-own-data? (= :pose source)) :pose-inherited)
       :pose-inherited
@@ -748,7 +782,8 @@
       ;; Default: simple "not found" with the available columns
       (str "Column " col " (from " k ") not found in dataset."
            " Available: " (sort-by str col-names)
-           (also-not-drawable-sentence k col)))))
+           (when-not explicit-column?
+             (also-not-drawable-sentence k col))))))
 
 (def ^:private column-only-accepts
   "What to tell the user each column-only aesthetic takes. The set
@@ -762,19 +797,21 @@
    resolved to zero groups, so a plot came back with a layer missing
    and no word about it.
 
-   `:shape` and `:fill` are to gain a reading for a value: their
-   registry entries already carry the `:by-value` scale default, and
-   flipping `:value?` is what turns this error into that reading.
-   `:group` keeps it -- it splits the data and draws nothing of its
-   own, so there is nothing a value could mean."
+   `:shape` has since gained that reading, which is what took it off
+   this list. `:fill` is to gain one: its registry entry already
+   carries the `:by-value` scale default, and flipping `:value?` is
+   what turns this error into that reading. `:group` keeps it -- it
+   splits the data and draws nothing of its own, so there is nothing a
+   value could mean."
   {:group "one column, or a vector of columns"})
 
 (defn- column-only-accepts-str [k]
   (get column-only-accepts k "one column"))
 
 (defn- validate-column-only-aesthetics
-  "Throw when `:shape`, `:fill` or `:group` carries a value that names
-   no column."
+  "Throw when an aesthetic that reads a column and nothing else --
+   `:fill` or `:group`, the registry's `:column-only-aesthetics` --
+   carries a value that names no column."
   [resolved d]
   (when d
     (doseq [k defaults/column-only-aesthetics
@@ -828,55 +865,95 @@
    no column and is no symbol either, and saying so beats drawing a
    default circle in silence. A value on an aesthetic that takes none
    is `validate-column-only-aesthetics`'s business, and it names what
-   that aesthetic takes, which is the more useful message of the two."
+   that aesthetic takes, which is the more useful message of the two.
+
+   Honoring `{:column ...}` is not the same as believing it. The
+   writer's choice settles which of the two readings applies; whether
+   the column is there is still asked, and asked here."
   ([resolved d] (validate-columns resolved d nil))
   ([resolved d ctx]
    (when d
      (let [col-names (set (tc/column-names d))
            col-lookup #(get d %)
-           {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx]
+           {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx
+           not-found! (fn [k col explicit-column?]
+                        (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
+                          (throw (ex-info
+                                  (column-not-found-message
+                                   k col col-names
+                                   {:layer-type-key layer-type-key
+                                    :layer-own-data? layer-own-data?
+                                    :source source
+                                    :explicit-column? explicit-column?})
+                                  {:key k :column col :available (sort-by str col-names)
+                                   :source source}))))]
        (doseq [k defaults/column-keys
-               :let [col (get resolved k)]
+               :let [col (get resolved k)
+                     said (get-in resolved [:__source k])]
                :when (and col
                           (not (sequential? col))
                           (or (resolve/column-ref? col)
                               (:value? (defaults/aesthetic-registry k))))]
-         (if (= :column (aes/source col col-names (get-in resolved [:__source k])))
+         (if (= :column (aes/source col col-names said))
            (do
+             ;; A written `{:column :typo}` reaches here as a column
+             ;; reference whatever the data holds, because that is what
+             ;; the writer said it was. Unchecked it is dropped without
+             ;; a word: a mistyped `:color` drew the default grey and a
+             ;; mistyped `:group` resolved to zero groups, so the layer
+             ;; left the plot and nothing said why.
+             (when-not (contains? col-names col)
+               (not-found! k col true))
              (when-let [types (heterogeneous-types (col-lookup col))]
                (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
                                     ". Convert it to a single type (number, string, etc.) before plotting.")
                                {:key k :column col :types types})))
-             ;; An explicit `:scale false` on a column asks for its values
-           ;; to be drawn as they stand, so they have to be values the
-           ;; aesthetic can draw. Unchecked, `hex->rgba` reads a bare
-           ;; `a` as `#aaaaaa` and a category column comes out in
-           ;; near-identical greys with nothing said.
-             (when (and (false? (get-in resolved [:__scale k]))
-                        (= :by-value (:scale-default (defaults/aesthetic-registry k))))
-               (when-let [bad (->> (col-lookup col)
-                                   (remove nil?)
-                                   (remove #(aes/drawable? k %))
-                                   seq)]
-                 (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
-                                      " so its values are drawn as they stand,"
-                                      " but " (pr-str (first bad)) " is not one "
-                                      (name k) " can draw."
-                                      (also-not-drawable-sentence k (first bad))
-                                      " Drop the :scale to let the column be"
-                                      " read as categories.")
-                                 {:key k :column col :value (first bad)})))))
+             ;; What a column told not to scale has to hold, which
+             ;; differs by what the aesthetic draws.
+             (when (false? (get-in resolved [:__scale k]))
+               (case (:scale-default (defaults/aesthetic-registry k))
+                 ;; An axis measures in drawing units from the panel
+                 ;; background's top left, so the column holds numbers.
+                 ;; Unchecked it reached the renderer and died on
+                 ;; `String cannot be cast to Number`, which is the
+                 ;; error this work replaced for `:size` and `:alpha`.
+                 :always
+                 (let [ctype (resolve/column-type d col)]
+                   (when-not (= :numerical ctype)
+                     (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                          " so its values are drawing units measured"
+                                          " from the top left of the panel background,"
+                                          " but " (pr-str col) " holds " (name ctype)
+                                          " values. Drop the :scale to place the column"
+                                          " through the axis instead.")
+                                     {:key k :column col :column-type ctype}))))
+
+                 ;; The values are drawn as they stand, so they have to
+                 ;; be values the aesthetic can draw. Unchecked,
+                 ;; `hex->rgba` reads a bare `a` as `#aaaaaa` and a
+                 ;; category column comes out in near-identical greys
+                 ;; with nothing said.
+                 :by-value
+                 (when-let [bad (->> (col-lookup col)
+                                     (remove nil?)
+                                     (remove #(aes/drawable? k %))
+                                     seq)]
+                   (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                        " so its values are drawn as they stand,"
+                                        " but " (pr-str (first bad)) " is not one "
+                                        k " can draw."
+                                        (also-not-drawable-sentence k (first bad))
+                                        " Drop the :scale to let the column be"
+                                        " read as categories.")
+                                   {:key k :column col :value (first bad)})))
+
+                 nil)))
 
            (when-not (drawn-at-this-gate? k col)
-             (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
-               (throw (ex-info
-                       (column-not-found-message
-                        k col col-names
-                        {:layer-type-key layer-type-key
-                         :layer-own-data? layer-own-data?
-                         :source source})
-                       {:key k :column col :available (sort-by str col-names)
-                        :source source}))))))))))
+             (if (= :value said)
+               (throw (ex-info (not-drawable-message k col)
+                               {:key k :value col}))
+               (not-found! k col false)))))))))
 
 (def explicit-mapping-keys
   "The keys an explicit mapping map may carry: one source, and
@@ -916,6 +993,18 @@
                            " :value. It is one or the other: :column"
                            " reads the value from the layer's data,"
                            " :value is the value itself.")
+                      {:key k :value v})))
+    ;; This is the "reported where the mapping is built" that
+    ;; `impl.aesthetics/scaled?` defers to. An aesthetic with no scale
+    ;; cannot be taken off one, and silently dropping the key would
+    ;; leave a writer believing they had changed something.
+    (when (and (contains? v :scale)
+               (nil? (:scale-default (defaults/aesthetic-registry k))))
+      (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
+                           " has no scale to set. It splits a layer into"
+                           " one drawn group per value and draws nothing"
+                           " of its own, so there is no scale for a"
+                           " value to pass through.")
                       {:key k :value v})))
     (if (contains? v :column)
       [(:column v) :column (get v :scale)]
@@ -1026,14 +1115,14 @@
         ;; scales, the domains and the legends already read. So the
         ;; datum reading needs no machinery of its own: broadcast it and
         ;; the rest falls out, legend entry included.
-        scaled-values (when d
-                        (into {} (for [k defaults/column-keys
-                                       :let [scale (get-in resolved [:__scale k])
-                                             v (get resolved k)]
-                                       :when (and (some? v)
-                                                  (= :value (get-in resolved [:__source k]))
-                                                  (and (some? scale) (not (false? scale))))]
-                                   [k v])))
+        scaled-values (into {} (for [k defaults/column-keys
+                                     :let [scale (get-in resolved [:__scale k])
+                                           v (get resolved k)]
+                                     :when (and (some? v)
+                                                (= :value (get-in resolved [:__source k]))
+                                                (some? scale)
+                                                (not (false? scale)))]
+                                 [k v]))
         broadcast (cond-> (merge literals scaled-values)
                     (and text-literal d) (assoc :text text-literal))]
     (cond
@@ -1043,8 +1132,13 @@
       (and (not layer-own-data?)
            (not-any? #(column? % (get resolved %))
                      resolve/positional-aesthetics))
+      ;; The one-row dataset this branch synthesizes carries the scaled
+      ;; values too. A datum is a column of one distinct value wherever
+      ;; it is written, and leaving it out of the row left
+      ;; `{:x 2 :y 3 :color {:value "Model A" :scale true}}` reporting a
+      ;; column missing from a dataset the writer never wrote.
       (let [text   (:text resolved)
-            values (cond-> literals
+            values (cond-> (merge literals scaled-values)
                      (string? text) (assoc :text text))]
         [(-> resolved
              (merge (zipmap (keys values) (keys values)))

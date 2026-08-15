@@ -1411,10 +1411,15 @@
    and nothing else, so an integer column name reports the rename it
    needs rather than silently plotting one mark at that number.
 
-   The explicit form passes everywhere, in both contexts. That
-   restriction exists because a bare number is ambiguous where columns
+   The explicit form passes this check in both contexts, which is what
+   lifts that restriction: a bare number is ambiguous where columns
    carry integer names, and `{:value 2}` and `{:column 2}` are the two
-   things it could have meant, each said out loud."
+   things it could have meant, each said out loud.
+
+   Where it can be written is a separate question, and the answer is
+   `pj/pose` and a layer's options map -- `{:x {:column 0}}`. It cannot
+   go in a `lay-*` call's `:y` argument, because a map in that position
+   is the options map; the arity decides before this check is reached."
   ([context opts] (check-position-mapping context opts nil))
   ([context opts allow-value]
    (doseq [k [:x :y]]

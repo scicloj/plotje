@@ -468,8 +468,13 @@
               ;; empty -- `collect-shapes` reads categories out of a
               ;; column, and there is no column and no category here.
               ;; Same shape of move as `:size` 7 becoming `:fixed-size`.
+              ;; `:__source` is passed for the same reason every other
+              ;; reading consults it: `{:value :circle}` on data that
+              ;; carries a column called `:circle` is the symbol.
               (and (:shape v)
-                   (= :value (aes/source (:shape v) (set (tc/column-names resolved-ds)))))
+                   (= :value (aes/source (:shape v)
+                                         (set (tc/column-names resolved-ds))
+                                         (get-in v [:__source :shape]))))
               (-> (assoc :fixed-shape (:shape v)) (dissoc :shape))
               (and (:x-end v) (column-ref? (:x-end v)))
               (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))

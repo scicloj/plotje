@@ -228,7 +228,7 @@
       ;; because clojure2d reads a bare `a` as the hex `#aaaaaa`.
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"given :scale false.*is not one color can draw"
+           #"given :scale false.*is not one :color can draw"
            (pj/plan (-> {:x [1 2] :y [3 4] :s ["a" "b"]}
                         (pj/pose :x :y)
                         (pj/lay-point {:color {:column :s :scale false}}))))))
@@ -318,3 +318,175 @@
     ;; here is reported where the mapping is built, not honored.
     (is (not (aes/scaled? :group {:source :column :value :country})))
     (is (not (aes/scaled? :group {:source :column :value :country :scale true})))))
+
+(def measured
+  "A layer's data for the end-to-end checks below. `:hex` holds colors
+   and `:variety` holds categories, so one column is drawn as it stands
+   and the other is scaled."
+  {:when [1 2 3 4]
+   :level [1 4 2 3]
+   :radius [4 8 12 16]
+   :hex ["#FF0000" "#00FF00" "#0000FF" "#FF00FF"]
+   :variety ["olive" "plum" "olive" "plum"]})
+
+(deftest an-explicit-column-is-looked-up-like-any-other-test
+  ;; Honoring `{:column ...}` settles which of the two readings applies.
+  ;; It is not a promise that the column is there, and taking it for one
+  ;; dropped the aesthetic without a word: a mistyped `:color` drew the
+  ;; default grey, and a mistyped `:group` resolved to zero groups, so
+  ;; the layer left the plot with nothing said.
+  (doseq [k [:color :size :alpha :shape :text :group]]
+    (testing (str "a missing column named by " k " is reported")
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"Column :nosuch .* not found in dataset"
+           (pj/plan (-> measured (pj/lay-point :when :level {k {:column :nosuch}})))))))
+
+  (testing "the positional aesthetics too"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"Column :nosuch \(from :x\) not found in dataset"
+         (pj/plan (-> measured (pj/pose {:x {:column :nosuch} :y :level}) pj/lay-point)))))
+
+  (testing "and the drawn reading is not offered as the fix"
+    ;; The writer has said which reading they meant, so \"it is not a
+    ;; color either\" answers a question they did not ask.
+    (is (not (re-find #"not a color either"
+                      (try (pj/plan (-> measured (pj/lay-point :when :level
+                                                               {:color {:column :nosuch}})))
+                           ""
+                           (catch clojure.lang.ExceptionInfo e (.getMessage e)))))))
+
+  (testing "a column that is there still passes"
+    (is (pj/plan (-> measured (pj/lay-point :when :level {:color {:column :variety}}))))))
+
+(deftest an-explicit-value-reports-what-it-is-not-test
+  ;; `{:value :variety}` says the value is not a column reference, so
+  ;; listing the columns available reads as a contradiction -- the
+  ;; message named a column that was right there in the list.
+  (let [msg (try (pj/plan (-> measured (pj/lay-point :when :level
+                                                     {:color {:value :variety}})))
+                 ""
+                 (catch clojure.lang.ExceptionInfo e (.getMessage e)))]
+    (is (re-find #":color \{:value :variety\} is not a color" msg))
+    (is (not (re-find #"Available" msg))
+        "no column list, since the column reading was declined")))
+
+(deftest a-scale-on-an-aesthetic-with-none-is-reported-test
+  ;; `impl.aesthetics/scaled?` defers the report here rather than
+  ;; ignoring the key, which would leave a writer believing they had
+  ;; changed something.
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo
+       #":group .* has no scale to set"
+       (pj/plan (-> measured (pj/lay-point :when :level
+                                           {:group {:column :variety :scale false}})))))
+  (testing "the same mapping without a :scale passes"
+    (is (pj/plan (-> measured (pj/lay-point :when :level
+                                            {:group {:column :variety}}))))))
+
+(defn domains
+  "The panel's two domains, for the layers a pose draws."
+  [pose]
+  (-> pose pj/plan :panels first (select-keys [:x-domain :y-domain])))
+
+(deftest an-unscaled-text-mark-informs-no-domain-test
+  ;; Two places leave a drawing-space layer out of the domains: the
+  ;; collection in `resolve-panel-domains` and the widening that makes
+  ;; room for text. The per-axis form reached only the first, so a label
+  ;; at 50 drawing units stretched the axis to 54 data units while the
+  ;; whole-layer `:in :drawing-area` beside it did not.
+  (let [scatter (-> measured (pj/lay-point :when :level))
+        plain   (domains scatter)]
+    (is (= plain (domains (-> scatter (pj/lay-text {:x 50 :y 20 :text "note"
+                                                    :in :drawing-area}))))
+        "the whole-layer form, for comparison")
+    (is (= plain (domains (-> scatter (pj/lay-text {:x {:value 50 :scale false}
+                                                    :y {:value 20 :scale false}
+                                                    :text "note"})))))
+    (testing "and one axis at a time"
+      ;; x still names a column here, so its domain widens to fit the
+      ;; label as it always has. Only y is out.
+      (let [one-axis (domains (-> scatter (pj/lay-text {:x :when
+                                                        :y {:value 20 :scale false}
+                                                        :text "note"})))]
+        (is (= (:y-domain plain) (:y-domain one-axis)))
+        (is (<= (second (:x-domain plain)) (second (:x-domain one-axis)))))))
+
+  (testing "a text mark in the data still widens the domain to fit"
+    (let [scatter (-> measured (pj/lay-point :when :level))]
+      (is (< (second (:x-domain (domains scatter)))
+             (second (:x-domain (domains (-> scatter (pj/lay-text
+                                                      {:x 4 :y 4
+                                                       :text "a very long label indeed"}))))))))))
+
+(deftest an-unscaled-axis-needs-a-numeric-column-test
+  ;; Drawing units are numbers. A category column told not to scale
+  ;; reached the renderer and died on `String cannot be cast to
+  ;; Number`, which is the error this work replaced for `:size` and
+  ;; `:alpha`.
+  (doseq [k [:x :y]]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"was given :scale false.*holds categorical values"
+         (pj/plan (-> measured (pj/lay-point :when :level
+                                             {k {:column :variety :scale false}}))))))
+  (testing "a numeric column is placed in drawing units as asked"
+    (is (pj/plan (-> measured (pj/lay-point :when :level
+                                            {:y {:column :level :scale false}})))))
+  (testing "and a category column through its scale is untouched"
+    (is (pj/plan (-> measured (pj/lay-point :variety :level))))))
+
+(deftest a-datum-broadcasts-on-a-layer-of-values-too-test
+  ;; A layer whose x and y are both written values gets a one-row
+  ;; dataset synthesized for it. Building that row from the positional
+  ;; values alone left the scaled ones out, so the cell that works
+  ;; beside a column reported a column missing from a dataset the writer
+  ;; never wrote.
+  (let [scatter (-> measured (pj/lay-point :when :level))]
+    (testing "a written color asked to scale earns its legend entry"
+      (let [layer (-> scatter
+                      (pj/lay-text {:x 2 :y 3 :text "here" :color {:value "Model A" :scale true}})
+                      pj/plan :panels first :layers last)]
+        (is (= ["Model A"] (mapv :label (:groups layer))))))
+
+    (testing "a written size asked to scale reaches the size buffer"
+      (let [layer (-> scatter
+                      (pj/lay-point {:x 2 :y 3 :size {:value 7 :scale true}})
+                      pj/plan :panels first :layers last)]
+        (is (= [[7]] (mapv (comp vec :sizes) (:groups layer)))
+            "a column of one distinct value, not a fixed radius")))))
+
+(deftest an-explicit-value-wins-over-a-column-of-that-name-test
+  ;; Settling this collision is what the explicit form is for. Every
+  ;; reading has to consult the writer's choice for that to hold, and
+  ;; `:shape` asked the data alone -- so `{:value :circle}` on data
+  ;; carrying a column called `:circle` drew one symbol per category.
+  (let [collides {:when [1 2 3 4] :level [1 4 2 3] :circle ["p" "q" "p" "q"]}
+        layer (fn [m] (-> collides (pj/lay-point :when :level m)
+                          pj/plan :panels first :layers first))]
+    (is (= :circle (:shape (:style (layer {:shape {:value :circle}}))))
+        "one symbol for the whole layer")
+    (is (nil? (:shape-map (layer {:shape {:value :circle}}))))
+    (is (some? (:shape-map (layer {:shape {:column :circle}})))
+        "and the column reading is still reachable")))
+
+(deftest a-drawn-color-column-takes-no-palette-slot-test
+  ;; A drawn column holds colors, not categories. Counted among the
+  ;; categories it took palette slots from the scaled layer beside it,
+  ;; so that layer drew its groups in the wrong colors, and it earned
+  ;; legend rows pairing a hex code with a palette color that drew
+  ;; nothing.
+  (let [scaled-alone (-> measured (pj/lay-line :when :level {:color :variety}) pj/plan)
+        mixed (-> measured
+                  (pj/lay-point :when :level {:color :hex})
+                  (pj/lay-line {:color :variety})
+                  pj/plan)]
+    (is (= (:legend scaled-alone) (:legend mixed))
+        "the legend explains the scaled column and only it")
+    (is (= (mapv :color (-> scaled-alone :panels first :layers first :groups))
+           (mapv :color (-> mixed :panels first :layers second :groups)))
+        "and the palette it draws from is unshifted")
+    (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0] [1.0 0.0 1.0 1.0]]
+           (mapv :color (-> mixed :panels first :layers first :groups)))
+        "while the drawn column keeps drawing its own colors")))

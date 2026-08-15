@@ -432,6 +432,20 @@
         plan-layers (position/apply-positions raw-plan-layers)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
 
+(defn- scaled-color-column?
+  "True of a resolved draft layer whose `:color` names a column that
+   passes through the color scale.
+
+   A column drawn as it stands holds colors, not categories: it takes
+   no palette entry and explains no scale, so it belongs in neither
+   the category list nor the legend title. Left in, its values took
+   palette slots away from a scaled layer beside it -- so a two-layer
+   plot drew its categories in the wrong colors -- and earned legend
+   rows pairing `#00FF00` with the palette blue that drew nothing."
+  [resolved-layer]
+  (and (resolve/column-ref? (:color resolved-layer))
+       (not (:color-drawn? resolved-layer))))
+
 (defn- collect-colors
   "Resolve draft layers and collect color categories across all draft layers.
    Attaches :__resolved to each draft layer for downstream re-use.
@@ -442,11 +456,11 @@
         tagged-draft-layers (mapv (fn [v rv] (assoc v :__resolved rv)) draft-layers resolved-all)
         numeric-color? (some #(= :numerical (:color-type %)) resolved-all)
         all-colors (when-not numeric-color?
-                     (let [color-draft-layers (filter #(and (resolve/column-ref? (:color %))
+                     (let [color-draft-layers (filter #(and (scaled-color-column? %)
                                                             (:data %)) resolved-all)]
                        (when (seq color-draft-layers)
                          (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color) color-draft-layers)))))))
-        color-cols (distinct (keep #(when (resolve/column-ref? (:color %)) (:color %)) resolved-all))]
+        color-cols (distinct (keep #(when (scaled-color-column? %) (:color %)) resolved-all))]
     {:resolved-all resolved-all
      :numeric-color? numeric-color?
      :all-colors all-colors
@@ -662,17 +676,17 @@
    explains a scale by pairing each category with the color chosen for
    it; where the value already is the color there is no choice to
    explain, and rows reading `#FF0000` beside a red swatch tell a
-   reader nothing they cannot see."
+   reader nothing they cannot see. `collect-colors` has already left
+   those layers out of `all-colors` and `color-cols`, so a plot whose
+   every color column is drawn arrives here with nothing to list --
+   and a plot that mixes the two legends only the scaled half, rather
+   than all of it or none."
   [resolved-all numeric-color? all-colors color-cols cfg opts-title]
   (let [grad-fn (:gradient-fn cfg)
-        title (or opts-title (first color-cols))
-        all-drawn? (let [with-color (filter #(resolve/column-ref? (:color %)) resolved-all)]
-                     (and (seq with-color) (every? :color-drawn? with-color)))]
+        title (or opts-title (first color-cols))]
     (cond
-      all-drawn? nil
-
       numeric-color?
-      (let [color-draft-layers (filter #(and (resolve/column-ref? (:color %))
+      (let [color-draft-layers (filter #(and (scaled-color-column? %)
                                              (:data %)) resolved-all)
             all-bufs (map #(aesthetic-col % :color) color-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
@@ -1027,9 +1041,13 @@
         ;; A drawing-space text mark is placed on the panel, not in the
         ;; data, so widening the domain would not move it -- and its
         ;; position is a page measurement that has no business being read
-        ;; as a data value.
+        ;; as a data value. The same holds one axis at a time, which is
+        ;; why the buffer rather than `axis` decides: `value-key` names
+        ;; the mapping axis this pass measures, and `:coord :flip` has
+        ;; already swapped which panel axis that lands on.
         :when (and (= :text (:mark layer))
-                   (contains? #{nil :data} (:in layer)))
+                   (contains? #{nil :data} (:in layer))
+                   (not (if (= :xs value-key) (:x-drawn? layer) (:y-drawn? layer))))
         :let [style (:style layer)
               ;; An offset moves the drawn text away from its anchor, so
               ;; the room it needs moves with it. Screen y grows downward
