@@ -99,19 +99,25 @@
 ;; - **Aesthetic-gate versus mark-consumer asymmetry.** Several
 ;;   aesthetics are accepted at the universal pose-mapping gate but
 ;;   consumed only by one or two mark extractors. Setting them on
-;;   other marks has no effect and raises no error.
+;;   other marks does not vary the picture.
 ;;
-;;   | Aesthetic | Consumed on | Silently ignored on |
+;;   | Aesthetic | Consumed on | Elsewhere |
 ;;   |:----------|:------------|:------------------|
-;;   | `:size` (column ref) | `lay-point` | every other lay-* |
-;;   | `:alpha` (column ref) | `lay-point` | every other lay-* (a written `:alpha N` works on most via `:fixed-alpha`) |
-;;   | numeric (continuous) `:color` | `lay-point`, `lay-interval-h` | every other lay-* (a numeric column on a categorical-color path produces banded palette colors instead of a gradient) |
+;;   | `:size` (column ref) | `lay-point` | warned, and no legend is drawn for it |
+;;   | `:alpha` (column ref) | `lay-point` | warned, and no legend is drawn for it (a written `:alpha N` works on most via `:fixed-alpha`) |
+;;   | numeric (continuous) `:color` | `lay-point`, `lay-interval-h` | every other lay-* ignores it (a numeric column on a categorical-color path produces banded palette colors instead of a gradient) |
 ;;   | tooltip / row-indices plumbing | `lay-point`, `lay-interval-h` | every other lay-* |
+;;
+;;   Only `lay-point` varies a radius or an opacity from row to row, so
+;;   `{:size {:column :r :scale false}}` -- which asks for the column's
+;;   own values as radii -- is refused elsewhere rather than warned:
+;;   there is no reading for it at all. The warning and the refusal both
+;;   name `lay-point`.
 ;;
 ;;   `:shape` is not in this table: it is drawn only by `lay-point`, and
 ;;   passing it anywhere else is rejected rather than ignored -- every
 ;;   other layer type warns and names `lay-point` as the one that takes
-;;   it.
+;;   it. `:text` is the same, and names `lay-text` and `lay-label`.
 ;;
 ;;   Workaround: pre-bin or convert the numeric column into a
 ;;   discrete color column where appropriate, or use `lay-point` for

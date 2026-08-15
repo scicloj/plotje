@@ -748,6 +748,27 @@
     (vec (scale/log-ticks [d-min d-max] n))
     (nice-legend-values d-min d-max n)))
 
+(def ^:private per-row-channel-marks
+  "Which marks vary an appearance channel from row to row.
+
+   Every other mark draws one value for the whole layer: `:line` takes
+   one stroke width, `:boxplot` one opacity. A column there varies
+   nothing, because the extractor never reads the buffer -- so the
+   request passed every check and changed not one pixel, while the
+   plot still grew a legend explaining the encoding it did not apply.
+
+   Written the same way `drawn-axis-marks` is, and for the same
+   reason: which slot an extractor reads is inside a multimethod body,
+   so it cannot be derived at plan time. The test below renders both
+   sides of each row to keep the table honest."
+  {:size  #{:point}
+   :alpha #{:point}})
+
+(defn- reads-per-row?
+  "Whether `mark` varies `channel` from row to row."
+  [channel mark]
+  (contains? (get per-row-channel-marks channel #{}) mark))
+
 (defn- build-size-legend
   "Build size legend when :size maps to a numerical column. Returns nil
    when all values are nil/NaN (suppressing the legend).
@@ -760,6 +781,12 @@
                                         ;; passed through no scale, so
                                         ;; there is no scale to explain.
                                         (not (:size-drawn? %))
+                                        ;; And a mark that draws one
+                                        ;; radius for the layer never
+                                        ;; read the column, so a legend
+                                        ;; here would pair values with
+                                        ;; radii the panel does not draw.
+                                        (reads-per-row? :size (:mark %))
                                         (:data %)) resolved-all)]
     (when (seq size-draft-layers)
       (let [size-col (:size (first size-draft-layers))
@@ -787,6 +814,9 @@
   (let [alpha-draft-layers (filter #(and (resolve/column-ref? (:alpha %))
                                          (nil? (:fixed-alpha %))
                                          (not (:alpha-drawn? %))
+                                         ;; As with `:size`: no legend for
+                                         ;; a channel the mark never varied.
+                                         (reads-per-row? :alpha (:mark %))
                                          (:data %)) resolved-all)]
     (when (seq alpha-draft-layers)
       (let [alpha-col (:alpha (first alpha-draft-layers))
@@ -907,6 +937,67 @@
                          (str/join ", " (sort drawn-axis-marks)) "."
                          " A " m " layer is placed by its data.")
                     {:mark m :axes axes :in (:in v) :supported drawn-axis-marks}))))
+
+(defn- validate-drawn-channel-marks
+  "Refuse a column told not to scale on a mark that draws one value for
+   the whole layer.
+
+   `{:size {:column :r :scale false}}` asks for the column's own values
+   as radii -- ggplot2's `scale_size_identity()`. A mark that draws one
+   radius has none to give, and answered by drawing exactly what it
+   drew before: `pj/save` of a lollipop with and without the option
+   produced byte-identical PNGs.
+
+   This is the appearance twin of `validate-unscaled-axis-marks`, and
+   is refused rather than warned for the same reason: the spelling is
+   new, so no plot can break, and it asks for something the mark cannot
+   do rather than something it merely ignores."
+  [resolved-draft-layers]
+  (doseq [v resolved-draft-layers
+          channel [:size :alpha]
+          :let [m (:mark v)
+                drawn? (get v (keyword (str (name channel) "-drawn?")))]
+          :when (and m drawn? (not (reads-per-row? channel m)))]
+    (throw (ex-info (str "A :scale false on " channel " draws the column's own"
+                         " values, one per row, and the " m " mark draws one "
+                         (name channel) " for the whole layer, so it cannot read"
+                         " one. The marks that can: "
+                         (str/join ", " (sort (get per-row-channel-marks channel)))
+                         ". For one " (name channel) " over the layer, write the"
+                         " value itself.")
+                    {:mark m :channel channel
+                     :supported (get per-row-channel-marks channel)}))))
+
+(defn- warn-unread-channel-columns
+  "Warn when a channel names a column and no mark in the plot varies it.
+
+   The scaled spelling, unlike the drawn one above, has been accepted
+   since before 0.8.1, so refusing it would break plots that draw --
+   badly, but they draw. What it must not do is stay silent: the layer
+   ignored the column and the plot grew a legend for it, so the picture
+   advertised an encoding it did not contain.
+
+   Asked of the whole plot rather than of each layer, because a column
+   mapped on the pose flows into every layer: a point layer beside a
+   line layer is the case the channel exists for, and warning about the
+   line there would be noise. The legend is suppressed per layer --
+   see `build-size-legend`."
+  [resolved-all]
+  (doseq [channel [:size :alpha]
+          :let [named (filter #(and (resolve/column-ref? (get % channel))
+                                    (:data %))
+                              resolved-all)
+                marks (into #{} (keep :mark named))]
+          :when (and (seq named) (not-any? #(reads-per-row? channel %) marks))]
+    (println (str "Warning: " channel " names the column "
+                  (pr-str (get (first named) channel))
+                  ", and no mark on this plot varies " (name channel)
+                  " from row to row"
+                  (when (seq marks) (str " -- " (str/join ", " (sort marks))))
+                  ". The marks that do: "
+                  (str/join ", " (sort (get per-row-channel-marks channel)))
+                  ". For one " (name channel) " over the layer, write the value"
+                  " itself; the column is ignored and earns no legend."))))
 
 (defn- validate-unscaled-axis-coord
   "Refuse a per-axis `:scale false` under a coord that rearranges the
@@ -1259,9 +1350,27 @@
                   (when (empty? domain-layers)
                     (collect-domain local-srs-y :y-domain y-scale-spec))
                   [0 1])
+        ;; Whether anything on this panel gives the axis a meaning in
+        ;; the data. Where nothing does, the `[0 1]` fallback above is
+        ;; a coordinate function and nothing more -- drawing ticks off
+        ;; it wrote numbers no mark stands for. `{:y {:column :b :scale
+        ;; false}}` on values of 10, 50 and 90 drew a y axis reading
+        ;; 0.0 to 1.0 labelled `b`, beside a real x axis, and nothing
+        ;; about the picture looked wrong. A domain the writer set with
+        ;; `pj/scale` counts as a meaning; so does a panel carrying
+        ;; only annotations, whose extent lives in its stat-results.
+        informed? (fn [informs? spec]
+                    (boolean (or (:domain spec)
+                                 (empty? (:resolved pd))
+                                 (some informs? (:resolved pd)))))
+        x-informed? (informed? x-informs? x-scale-spec)
+        y-informed? (informed? y-informs? y-scale-spec)
         [x-dom' y-dom'] (if (= coord-type :flip)
                           [y-dom x-dom]
                           [x-dom y-dom])
+        [x-informed?' y-informed?'] (if (= coord-type :flip)
+                                      [y-informed? x-informed?]
+                                      [x-informed? y-informed?])
         [x-sspec' y-sspec'] (if (= coord-type :flip)
                               [y-scale-spec x-scale-spec]
                               [x-scale-spec y-scale-spec])
@@ -1273,6 +1382,8 @@
                       [x-temp-ext y-temp-ext])]
     {:x-dom x-dom'
      :y-dom y-dom'
+     :x-informed? x-informed?'
+     :y-informed? y-informed?'
      :x-scale x-sspec'
      :y-scale y-sspec'
      :coord coord-type
@@ -1290,14 +1401,20 @@
   "Given a pre-tick panel domain map and pixel dimensions, compute the
    tick sets for both axes and assemble the final panel map."
   [{:keys [x-dom y-dom x-scale y-scale coord x-te y-te
+           x-informed? y-informed?
            row col row-label col-label var-x var-y]
     plan-layers :layers}
    pw ph m cfg annotations]
   (let [x-px [m (- pw m)]
         y-px [(- ph m) m]
         seps (defaults/number-separators cfg)
-        x-ticks (when x-dom (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te seps))
-        y-ticks (when y-dom (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te seps))]
+        ;; An axis nothing gives a data meaning gets no ticks. The
+        ;; domain stays -- the coordinate function needs one -- but
+        ;; numbers drawn off it would name values no mark carries.
+        x-ticks (when (and x-dom x-informed?)
+                  (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te seps))
+        y-ticks (when (and y-dom y-informed?)
+                  (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te seps))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale
@@ -1515,6 +1632,8 @@
          _ (validate-polar-marks resolved-all rep-coord)
          _ (validate-unscaled-axis-coord resolved-all rep-coord)
          _ (validate-unscaled-axis-marks resolved-all)
+         _ (validate-drawn-channel-marks resolved-all)
+         _ (warn-unread-channel-columns resolved-all)
          _ (warn-conflicting-specs draft-layers)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
@@ -1605,6 +1724,8 @@
                                  (-> d
                                      (assoc :x-dom (:y-dom d) :y-dom (:x-dom d)
                                             :x-scale (:y-scale d) :y-scale (:x-scale d)
+                                            :x-informed? (:y-informed? d)
+                                            :y-informed? (:x-informed? d)
                                             :x-te (:y-te d) :y-te (:x-te d))))
                                panel-domains)
                          panel-domains)
@@ -1635,6 +1756,12 @@
          ;; junk in a SPLOM.
          eff-x-label (if (:suppress-x-label opts) nil eff-x-label)
          eff-y-label (if (:suppress-y-label opts) nil eff-y-label)
+         ;; An axis no panel gives a data meaning carries no ticks (see
+         ;; `finalize-panel`), and naming it after the column would be
+         ;; the same false claim one line lower: the marks are placed by
+         ;; a distance across the panel, not by that column's values.
+         eff-x-label (if (some :x-informed? panel-domains) eff-x-label nil)
+         eff-y-label (if (some :y-informed? panel-domains) eff-y-label nil)
 
          ;; Legends -- depend on resolved draft layers + cfg, not on pixel math.
          ;; :suppress-legend on opts skips ALL legend construction; used

@@ -337,12 +337,22 @@
   ;; dropped the aesthetic without a word: a mistyped `:color` drew the
   ;; default grey, and a mistyped `:group` resolved to zero groups, so
   ;; the layer left the plot with nothing said.
-  (doseq [k [:color :size :alpha :shape :text :group]]
+  (doseq [k [:color :size :alpha :shape :group]]
     (testing (str "a missing column named by " k " is reported")
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"Column :nosuch .* not found in dataset"
            (pj/plan (-> measured (pj/lay-point :when :level {k {:column :nosuch}})))))))
+
+  (testing "and by :text, on a layer type that draws one"
+    ;; Not on `lay-point`: the point mark draws no label, so `:text`
+    ;; is off its accept-list and the option is stripped with a
+    ;; warning naming the layer types that do -- which is the more
+    ;; useful answer than a missing column would be.
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"Column :nosuch .* not found in dataset"
+         (pj/plan (-> measured (pj/lay-text :when :level {:text {:column :nosuch}}))))))
 
   (testing "the positional aesthetics too"
     (is (thrown-with-msg?
@@ -870,3 +880,151 @@
     (testing "a written value names no column, so it is not looked for"
       (is (some? (-> (pj/pose) (pj/pose {:x {:column :when} :y {:value 5}})
                      pj/lay-point (pj/with-data d) pj/plan))))))
+
+(def per-row
+  "A layer's data for the per-row-channel checks. `:rad` holds valid
+   radii and `:op` valid opacities, so nothing below turns on the
+   values being undrawable."
+  {:when [1 2 3 4] :level [1 4 2 3] :rad [3 8 14 20]
+   :op [0.2 0.4 0.6 0.9] :variety ["olive" "plum" "olive" "plum"]})
+
+(deftest a-channel-the-mark-draws-once-refuses-a-drawn-column-test
+  ;; `{:size {:column :r :scale false}}` asks for the column's own
+  ;; values as radii. A mark that draws one radius for the layer has
+  ;; none to give, and answered by drawing exactly what it drew before:
+  ;; `pj/save` of a lollipop with and without the option produced
+  ;; byte-identical PNGs. The appearance twin of the per-axis refusal.
+  (let [msg #"draws one (size|alpha) for the whole layer"]
+    (doseq [[lay-fn nm] [[pj/lay-line "line"] [pj/lay-step "step"]
+                         [pj/lay-boxplot "boxplot"] [pj/lay-violin "violin"]
+                         [pj/lay-lollipop "lollipop"] [pj/lay-summary "summary"]]]
+      (testing (str nm " refuses a drawn :size column")
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                              (pj/plan (lay-fn per-row :variety :level
+                                               {:size {:column :rad :scale false}})))))
+      (testing (str nm " refuses a drawn :alpha column")
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                              (pj/plan (lay-fn per-row :variety :level
+                                               {:alpha {:column :op :scale false}}))))))
+
+    (testing "the message names the mark that can"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"The marks that can: :point"
+                            (pj/plan (pj/lay-line per-row :when :level
+                                                  {:size {:column :rad :scale false}})))))
+
+    (testing "and :point, which reads them, is untouched"
+      (let [layer (-> (pj/lay-point per-row :when :level
+                                    {:size {:column :rad :scale false}
+                                     :alpha {:column :op :scale false}})
+                      pj/plan :panels first :layers first)]
+        (is (true? (:size-drawn? layer)))
+        (is (true? (:alpha-drawn? layer)))
+        (is (= [3 8 14 20] (vec (:sizes (first (:groups layer))))))
+        (is (= [0.2 0.4 0.6 0.9] (vec (:alphas (first (:groups layer))))))))
+
+    (testing "a written value over the whole layer is what those marks take"
+      (is (= 5 (:stroke-width (:style (-> (pj/lay-line per-row :when :level {:size 5})
+                                          pj/plan :panels first :layers first))))))))
+
+(deftest no-legend-for-a-channel-no-mark-varies-test
+  ;; The scaled spelling has been accepted since before 0.8.1, so it is
+  ;; warned rather than refused -- but it must not stay silent: the
+  ;; layer ignored the column and the plot grew a legend for it, so the
+  ;; picture advertised an encoding it did not contain.
+  (testing "a lone line layer earns no size or alpha legend"
+    (is (nil? (:size-legend (pj/plan (pj/lay-line per-row :when :level {:size :rad})))))
+    (is (nil? (:alpha-legend (pj/plan (pj/lay-line per-row :when :level {:alpha :op}))))))
+
+  (testing "a point layer still earns one"
+    (is (some? (:size-legend (pj/plan (pj/lay-point per-row :when :level {:size :rad})))))
+    (is (some? (:alpha-legend (pj/plan (pj/lay-point per-row :when :level {:alpha :op}))))))
+
+  (testing "and a point layer beside a line layer keeps it -- the case the channel exists for"
+    (is (some? (:size-legend (-> (pj/pose per-row :when :level {:size :rad})
+                                 pj/lay-point pj/lay-line pj/plan)))))
+
+  (testing ":text on a point layer is reported by location, as :shape always was"
+    ;; The point mark draws no label, so `:text` is off its accept-list
+    ;; and the universal warning names the layer types that draw one.
+    (is (nil? (:text (:mapping (first (:layers (pj/lay-point per-row :when :level
+                                                             {:text "note"})))))))
+    (is (= ["note" "note" "note" "note"]
+           (vec (:labels (first (:groups (-> (pj/lay-text per-row :when :level {:text "note"})
+                                             pj/plan :panels first :layers first)))))))))
+
+(deftest an-unscaled-channel-refuses-a-scale-option-test
+  ;; A column drawn as it stands passes through no scale, so an option
+  ;; configuring that scale has nothing to configure. Both spellings
+  ;; rendered identically to the option being absent.
+  (let [hexes (assoc per-row :hex ["#FF0000" "#00FF00" "#0000FF" "#FF00FF"])
+        msg #"configures? the scale it just left"]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                          (pj/plan (pj/lay-point hexes :when :level
+                                                 {:color {:column :hex :scale false}
+                                                  :color-type :categorical}))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                          (pj/plan (-> (pj/lay-point hexes :when :level
+                                                     {:color {:column :hex :scale false}})
+                                       (pj/scale :color {:domain ["#FF0000"]})))))
+    (testing "every channel with a scale, not only :color"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/plan (-> (pj/lay-point per-row {:x :when
+                                                                :y {:column :level :scale false}})
+                                         (pj/scale :y {:type :log})))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
+                            (pj/plan (-> (pj/lay-point per-row :when :level
+                                                       {:size {:column :rad :scale false}})
+                                         (pj/scale :size {:domain [0 20]}))))))
+    (testing "the unscaled column on its own is untouched"
+      (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0] [1.0 0.0 1.0 1.0]]
+             (mapv :color (-> (pj/lay-point hexes :when :level
+                                            {:color {:column :hex :scale false}})
+                              pj/plan :panels first :layers first :groups)))))
+    (testing "and so is the scaled reading, which is what the option is for"
+      (is (some? (pj/plan (pj/lay-point hexes :when :level
+                                        {:color {:column :hex :scale true}
+                                         :color-type :categorical})))))))
+
+(deftest an-axis-nothing-informs-draws-no-scale-test
+  ;; The `[0 1]` fallback is a coordinate function, not a meaning.
+  ;; Ticks drawn off it named values no mark carries: y values of 10,
+  ;; 50 and 90 drawing units under an axis reading 0.0 to 1.0 labelled
+  ;; `b`, beside a real x axis, with nothing about the picture looking
+  ;; wrong.
+  (let [d {:a [1 2 3] :b [10 50 90]}
+        ticks (fn [p axis] (count (:labels (get (first (:panels p)) axis))))]
+    (testing "a per-axis drawn y loses its ticks and its label, and x keeps both"
+      (let [p (pj/plan (pj/lay-point d {:x :a :y {:column :b :scale false}}))]
+        (is (zero? (ticks p :y-ticks)))
+        (is (nil? (:y-label p)))
+        (is (pos? (ticks p :x-ticks)))
+        (is (= "a" (:x-label p)))))
+
+    (testing "a whole layer in the drawing area loses both"
+      (let [p (pj/plan (pj/lay-point d :a :b {:in :drawing-area}))]
+        (is (zero? (ticks p :x-ticks)))
+        (is (zero? (ticks p :y-ticks)))
+        (is (nil? (:x-label p)))
+        (is (nil? (:y-label p)))))
+
+    (testing "a layer placed in the data gives the axes their meaning back"
+      ;; The usual shape: a note on the panel beside a scatter.
+      (let [p (-> (pj/lay-point d :a :b)
+                  (pj/lay-text {:x 10 :y 10 :text "n" :in :drawing-area})
+                  pj/plan)]
+        (is (pos? (ticks p :x-ticks)))
+        (is (pos? (ticks p :y-ticks)))
+        (is (= "a" (:x-label p)))))
+
+    (testing "and a domain the writer set counts as a meaning"
+      (let [p (-> (pj/lay-point d :a :b {:in :drawing-area})
+                  (pj/scale :x {:domain [0 100]})
+                  pj/plan)]
+        (is (pos? (ticks p :x-ticks)))
+        (is (= "a" (:x-label p)))))
+
+    (testing "an ordinary plot is untouched"
+      (let [p (pj/plan (pj/lay-point d :a :b))]
+        (is (pos? (ticks p :x-ticks)))
+        (is (pos? (ticks p :y-ticks)))
+        (is (= ["a" "b"] [(:x-label p) (:y-label p)]))))))

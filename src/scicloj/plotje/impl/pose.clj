@@ -834,6 +834,45 @@
                              " " k " has no reading for a value.")
                         {:option k :value v}))))))
 
+(def ^:private channel-type-key
+  "The `-type` override that goes with an aesthetic, where there is
+   one. Not in the registry, because two of the three name an axis
+   rather than an aesthetic's own reading."
+  {:color :color-type :x :x-type :y :y-type})
+
+(defn- validate-unscaled-channel-options
+  "Throw when a channel told not to scale also carries an option that
+   configures the scale it has just left.
+
+   `{:color {:column :hex :scale false} :color-type :categorical}` and
+   `(pj/scale pose :color {:domain [...]})` both rendered identically
+   to the option being absent: a column drawn as it stands passes
+   through no scale, so there is nothing for either to configure. That
+   follows from the convention rather than contradicting it -- but a
+   silently ignored option is the defect this release exists to
+   remove, and the writer has asked for two things that cannot both
+   hold. `:scale true` is the one word that makes both take effect."
+  [resolved opts]
+  (doseq [[k {:keys [scale-key]}] defaults/aesthetic-registry
+          :when (and scale-key (false? (get-in resolved [:__scale k])))
+          :let [type-key (channel-type-key k)
+                named (cond-> []
+                        (get opts scale-key)
+                        (conj (str "(pj/scale pose " k " ...)"))
+                        (and type-key (get resolved type-key))
+                        (conj (str type-key " " (pr-str (get resolved type-key)))))]
+          :when (seq named)]
+    (let [one? (= 1 (count named))]
+      (throw (ex-info (str k " was given :scale false, so it passes through no"
+                           " scale, and " (str/join " and " named)
+                           (if one? " configures" " configure")
+                           " the scale it just left -- nothing reads "
+                           (if one? "it" "them") ". Drop the :scale false to"
+                           " configure the scale, write :scale true to do both,"
+                           " or drop " (if one? "the option" "the options")
+                           " to draw the column as it stands.")
+                      {:key k :options named})))))
+
 (defn- drawn-at-this-gate?
   "Whether a value naming no column is one this gate should let past:
    the aesthetic accepts a written value at all, and the value is one
@@ -1427,6 +1466,7 @@
                             :layer-type-key (:layer-type layer)
                             :layer-own-data? layer-own-data?})
          (validate-column-only-aesthetics resolved d)
+         (validate-unscaled-channel-options resolved opts)
          (-> resolved
              (assoc :data d
                     :__panel-idx variant-idx)

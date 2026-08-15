@@ -130,7 +130,11 @@
 
 ;; ---- Built-in layer types ----
 
-(register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :text :nudge-x :nudge-y] :doc "Scatter — individual data points."})
+;; `:text` is not on `:point`'s accept-list: the point mark draws no
+;; label, so `{:text "note"}` there was taken and dropped in silence.
+;; Off the list, the universal warning names `lay-text` and `lay-label`
+;; as the layer types that draw one.
+(register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :nudge-x :nudge-y] :doc "Scatter — individual data points."})
 (register! :line {:mark :line :stat :identity :accepts [:size :stroke-dash :nudge-x :nudge-y] :doc "Line — connects data points in order."})
 (register! :step {:mark :step :stat :identity :accepts [:size :stroke-dash] :doc "Step — horizontal-then-vertical connected points."})
 (register! :area {:mark :area :stat :identity :accepts [:stroke :stroke-width :stroke-dash] :doc "Area — filled region under a line."})
