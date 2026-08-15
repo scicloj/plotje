@@ -830,15 +830,27 @@
 
 (defn- drawn-at-this-gate?
   "Whether a value naming no column is one this gate should let past:
-   `impl.aesthetics/drawable?` -- ask the layer's data, then ask what
-   the aesthetic can draw.
+   the aesthetic accepts a written value at all, and the value is one
+   it can draw -- ask the layer's data, then ask what the aesthetic can
+   draw.
+
+   **Both questions.** `drawn-value-schemas` states the grammar for
+   every aesthetic that has one, including the ones not accepting a
+   written value yet, so it answers what a value *would* mean and not
+   whether it is allowed. That permission is the registry's `:value?`,
+   and consulting the grammar without it let `{:fill \"red\"}` past:
+   `:fill` has a `Color` grammar and `:value? false`, so the tile drew
+   the default blue in silence, where `main` reported the column it
+   could not find. A value that happens to name a color was the only
+   one affected, which is why nothing noticed.
 
    `:text` needs no exception here even though its written value is a
    label rather than a column. `resolve-positional-values` runs first
    and has already turned that string into a constant column, so what
    reaches this gate is an ordinary column reference."
   [k col]
-  (aes/drawable? k col))
+  (and (:value? (defaults/aesthetic-registry k))
+       (aes/drawable? k col)))
 
 (defn- validate-columns
   "Validate that every aesthetic column reference in the resolved
@@ -929,11 +941,18 @@
                                      {:key k :column col :column-type ctype}))))
 
                  ;; The values are drawn as they stand, so they have to
-                 ;; be values the aesthetic can draw. Unchecked,
-                 ;; `hex->rgba` reads a bare `a` as `#aaaaaa` and a
-                 ;; category column comes out in near-identical greys
-                 ;; with nothing said.
-                 :by-value
+                 ;; be values the aesthetic can draw. Two defaults reach
+                 ;; here and the check is the same for both: `:by-value`
+                 ;; because `hex->rgba` reads a bare `a` as `#aaaaaa`,
+                 ;; so a category column came out in near-identical
+                 ;; greys with nothing said; and `:by-source`, where a
+                 ;; radius column holding a negative simply did not draw
+                 ;; that mark -- the plan counted it, `svg-summary`
+                 ;; counted it, and the picture was two points short.
+                 ;; The written forms `{:size -4}` and
+                 ;; `{:size {:value -4}}` were refused all along, so
+                 ;; only the column skipped the constraint.
+                 (:by-value :by-source)
                  (when-let [bad (->> (col-lookup col)
                                      (remove nil?)
                                      (remove #(aes/drawable? k %))
@@ -944,16 +963,29 @@
                                         k " can draw."
                                         (also-not-drawable-sentence k (first bad))
                                         " Drop the :scale to let the column be"
-                                        " read as categories.")
+                                        " read through " k "'s scale instead.")
                                    {:key k :column col :value (first bad)})))
 
                  nil)))
 
            (when-not (drawn-at-this-gate? k col)
-             (if (= :value said)
+             (cond
+               ;; The writer wrote `:value` out loud on an aesthetic
+               ;; that has no reading for one. Neither the missing
+               ;; column nor the vocabulary is the answer -- what it
+               ;; takes is.
+               (and (= :value said)
+                    (not (:value? (defaults/aesthetic-registry k))))
+               (throw (ex-info (str k " " (pr-str {:value col}) " writes a value, and "
+                                    k " takes " (column-only-accepts-str k)
+                                    " -- it has no reading for a value.")
+                               {:option k :value col}))
+
+               (= :value said)
                (throw (ex-info (not-drawable-message k col)
                                {:key k :value col}))
-               (not-found! k col false)))))))))
+
+               :else (not-found! k col false)))))))))
 
 (def explicit-mapping-keys
   "The keys an explicit mapping map may carry: one source, and
@@ -1006,6 +1038,31 @@
                            " of its own, so there is no scale for a"
                            " value to pass through.")
                       {:key k :value v})))
+    ;; `:scale` is a boolean today. A scale *type* on a mapping is
+    ;; future work, and accepting one meanwhile drew the default scale
+    ;; and said nothing: `{:size {:column :w :scale :log}}` gave the
+    ;; same radii as `:scale true`, while `(pj/scale pose :size :log)`
+    ;; genuinely differs -- which is the reading a writer of the first
+    ;; form expects. `pj/scale` refuses an unknown type for the same
+    ;; reason, and this is the same refusal one level down.
+    (when-not (contains? #{true false nil} (get v :scale))
+      (throw (ex-info (str k " " (pr-str v) " sets :scale to "
+                           (pr-str (:scale v)) ". A mapping's :scale is"
+                           " true or false: whether this value passes"
+                           " through " k "'s scale. To choose the scale's"
+                           " type, use (pj/scale pose " k " ...) for the"
+                           " whole plot.")
+                      {:key k :value v :scale (:scale v)})))
+    ;; A source named as nothing is not a source. Left through, a nil
+    ;; `:value` broadcast a column of nils and drew an empty panel
+    ;; reading "no data", and a nil `:column` reached `pj/plan` and died
+    ;; on a schema error -- both because the checks below skip a nil.
+    (let [named (if (contains? v :column) :column :value)]
+      (when (nil? (get v named))
+        (throw (ex-info (str k " " (pr-str v) " names " named " nil."
+                             " To cancel a mapping inherited from an"
+                             " outer scope, write " k " nil on its own.")
+                        {:key k :value v :source named}))))
     (if (contains? v :column)
       [(:column v) :column (get v :scale)]
       [(:value v) :value (get v :scale)])))
@@ -1052,6 +1109,16 @@
     (if (seq remaining)
       (assoc resolved :__source remaining)
       (dissoc resolved :__source))))
+
+(defn- free-column-name
+  "A name close to `k` that `taken` does not hold, for a synthesized
+   constant column whose natural name the data has already used.
+
+   Keeps the aesthetic's own name recognizable, because it is what the
+   axis and the legend are titled with."
+  [k taken]
+  (let [base (if (keyword? k) (name k) (str k))]
+    (first (remove taken (map #(keyword (str base "-" %)) (iterate inc 1))))))
 
 (defn- resolve-positional-values
   "Rewrite an `:x` or `:y` given as a value into data the rest of the
@@ -1151,13 +1218,25 @@
       [resolved d]
 
       :else
-      [(-> resolved
-           (merge (zipmap (keys broadcast) (keys broadcast)))
-           (forget-explicit-source (keys broadcast)))
-       (reduce (fn [ds [k v]]
-                 (tc/add-column ds k (dtype/const-reader v (tc/row-count ds))))
-               d
-               broadcast)])))
+      ;; The synthesized column takes the aesthetic's own name where
+      ;; that name is free, so a plot made only of values labels its
+      ;; axes "x" and "y". Where the data already carries a column of
+      ;; that name, taking it anyway *replaced* the data:
+      ;; `(pj/lay-point :a :size {:size {:value 7 :scale true}})` drew
+      ;; every mark at y=7 on an axis still labelled `size`. Mapping a
+      ;; coordinate to a column named after an aesthetic is ordinary,
+      ;; so the synthesized name steps aside instead.
+      (let [names (into {} (for [k (keys broadcast)]
+                             [k (if (contains? col-names k)
+                                  (free-column-name k col-names)
+                                  k)]))]
+        [(-> resolved
+             (merge names)
+             (forget-explicit-source (keys broadcast)))
+         (reduce (fn [ds [k v]]
+                   (tc/add-column ds (names k) (dtype/const-reader v (tc/row-count ds))))
+                 d
+                 broadcast)]))))
 
 (defn- resolve-facet-col
   "Resolve a facet column ref against a dataset; throw with a clear

@@ -3,6 +3,7 @@
             [membrane.ui :as ui]
             [scicloj.plotje.render.dash :as dash]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.text :as text]
             [fastmath.random :as rng]
             [tech.v3.datatype :as dtype]
@@ -259,34 +260,22 @@
         ;; Dodge support: when dodge-ctx present and x is categorical band scale
         {:keys [n-groups]} (:dodge-ctx layer)
         dodge? (and n-groups x-bandwidth)
-        size-log? (= :log (:type (:size-scale layer)))
-        alpha-log? (= :log (:type (:alpha-scale layer)))
+        ;; The same function the size and alpha legends are built from,
+        ;; so a swatch is the size the mark of that value is drawn at.
+        ;; A column told not to scale holds radii and opacities already.
+        channel-scale (fn [bufs scale-key drawn-key out-lo out-hi]
+                        (when (seq bufs)
+                          (if (drawn-key layer)
+                            identity
+                            (scale/continuous-channel-mapper
+                             (:type (scale-key layer))
+                             (reduce min (map dfn/reduce-min bufs))
+                             (reduce max (map dfn/reduce-max bufs))
+                             out-lo out-hi))))
         size-bufs (keep :sizes groups)
-        size-scale (when (seq size-bufs)
-                     (if (:size-drawn? layer)
-                       identity
-                       (let [lo (reduce min (map dfn/reduce-min size-bufs))
-                             hi (reduce max (map dfn/reduce-max size-bufs))]
-                         (if size-log?
-                           (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-                                 hi-l (Math/log10 (max 1e-300 (double hi)))
-                                 span (max 1e-6 (- hi-l lo-l))]
-                             (fn [v] (+ 2.0 (* 6.0 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
-                           (let [span (max 1e-6 (- (double hi) (double lo)))]
-                             (fn [v] (+ 2.0 (* 6.0 (/ (- (double v) (double lo)) span)))))))))
+        size-scale (channel-scale size-bufs :size-scale :size-drawn? 2.0 8.0)
         alpha-bufs (keep :alphas groups)
-        alpha-scale (when (seq alpha-bufs)
-                      (if (:alpha-drawn? layer)
-                        identity
-                        (let [lo (reduce min (map dfn/reduce-min alpha-bufs))
-                              hi (reduce max (map dfn/reduce-max alpha-bufs))]
-                          (if alpha-log?
-                            (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-                                  hi-l (Math/log10 (max 1e-300 (double hi)))
-                                  span (max 1e-6 (- hi-l lo-l))]
-                              (fn [v] (+ 0.2 (* 0.8 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
-                            (let [span (max 1e-6 (- (double hi) (double lo)))]
-                              (fn [v] (+ 0.2 (* 0.8 (/ (- (double v) (double lo)) span)))))))))
+        alpha-scale (channel-scale alpha-bufs :alpha-scale :alpha-drawn? 0.2 1.0)
         ;; The category-to-symbol assignment is decided at plan time so
         ;; the legend and the marks show the same symbol for a category.
         shape-map (:shape-map layer)]

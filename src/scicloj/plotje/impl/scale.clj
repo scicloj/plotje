@@ -111,6 +111,37 @@
         from (if log? #(Math/exp %) identity)]
     [(from (- a pad)) (from (+ b pad))]))
 
+(defn continuous-channel-mapper
+  "A function from a data value to a visual property in
+   `[out-lo, out-hi]` -- a radius, an opacity -- on a linear or log
+   scale. `scale-type` is `:linear` (the default) or `:log`.
+
+   Stated once because the marks and the legend have to agree: the
+   swatch beside a value is the size the mark of that value is drawn
+   at. `impl.plan` builds the legend from this and `render.mark` draws
+   from it, and they held separate copies of the arithmetic until both
+   were found to share a defect.
+
+   A domain of one distinct value has no spread to map, so every value
+   takes the middle of the output range. ggplot2's `scales::rescale`
+   answers a zero range the same way, and for the same reason: with
+   nothing to compare a value against, the midpoint is the only
+   unprejudiced answer. Collapsing to `out-lo` instead drew
+   `{:size {:value 7 :scale true}}` at radius 2.0 -- smaller than the
+   default 3.0 -- beside a legend reading 7, and did the same to any
+   size column whose values happen to be equal."
+  [scale-type d-min d-max out-lo out-hi]
+  (let [log?     (= scale-type :log)
+        ->space  (if log? #(Math/log10 (max 1e-300 (double %))) double)
+        lo       (->space d-min)
+        hi       (->space d-max)
+        out-lo   (double out-lo)
+        out-span (- (double out-hi) out-lo)]
+    (if (== lo hi)
+      (constantly (+ out-lo (* 0.5 out-span)))
+      (let [span (max 1e-6 (- hi lo))]
+        (fn [v] (+ out-lo (* out-span (/ (- (->space v) lo) span))))))))
+
 (defn- format-ticks*
   "Format tick values without any digit grouping. See format-ticks."
   [sx ticks]

@@ -437,6 +437,65 @@
   (testing "and a category column through its scale is untouched"
     (is (pj/plan (-> measured (pj/lay-point :variety :level))))))
 
+(deftest an-unscaled-axis-refuses-a-coord-that-moves-it-test
+  ;; An unscaled axis is a distance from the panel background's top
+  ;; left, which names one screen direction. `:flip` swaps which one the
+  ;; mapping's `:y` reaches and `:polar` gives it none, and the renderer
+  ;; drew every mark into one corner rather than saying so. Refusing
+  ;; leaves open what it should mean instead.
+  (doseq [coord [:flip :polar]]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"cannot be combined"
+         (pj/plan (-> measured
+                      (pj/lay-point :when :level {:y {:column :level :scale false}})
+                      (pj/coord coord))))))
+
+  (testing "the coord alone, and an unscaled axis alone, both still pass"
+    (is (pj/plan (-> measured (pj/lay-point :when :level) (pj/coord :flip))))
+    (is (pj/plan (-> measured (pj/lay-point :when :level
+                                            {:y {:column :level :scale false}})))))
+
+  (testing "and the whole-layer form is unaffected by the coord"
+    ;; Both of its coordinates are drawing units from the same corner,
+    ;; so there is no axis to follow through the swap.
+    (is (pj/plan (-> measured
+                     (pj/lay-point :when :level)
+                     (pj/lay-text {:x 50 :y 20 :text "note" :in :drawing-area})
+                     (pj/coord :flip))))))
+
+(deftest a-size-domain-of-one-value-maps-to-the-middle-test
+  ;; With nothing to compare a value against, the midpoint of the output
+  ;; range is the only unprejudiced answer -- ggplot2's
+  ;; `scales::rescale` answers a zero range the same way. Collapsing to
+  ;; the low end drew the datum cell at radius 2.0, smaller than the
+  ;; default 3.0, beside a legend reading 7.
+  (let [radius-of (fn [pose]
+                    (let [p (pj/plan pose)]
+                      {:marks (-> p :panels first :layers first :groups first :sizes vec)
+                       :legend (mapv :radius (:entries (:size-legend p)))}))
+        default-radius (-> (pj/plan (-> measured (pj/lay-point :when :level)))
+                           :panels first :layers first :style :radius)]
+    (testing "a written value sent through the scale"
+      (is (= {:marks [7 7 7 7] :legend [5.0]}
+             (radius-of (-> measured (pj/lay-point :when :level
+                                                   {:size {:value 7 :scale true}})))))
+      (is (< default-radius 5.0)
+          "and larger than the default, not smaller"))
+
+    (testing "a column whose values happen to be equal, for the same reason"
+      (is (= {:marks [5 5 5 5] :legend [5.0]}
+             (radius-of (-> (assoc measured :flat [5 5 5 5])
+                            (pj/lay-point :when :level {:size :flat}))))))
+
+    (testing "a column with spread is untouched"
+      ;; The marks and the legend read the same function, so a swatch is
+      ;; the size the mark of that value is drawn at.
+      (let [{:keys [legend]} (radius-of (-> measured (pj/lay-point :when :level
+                                                                   {:size :radius})))]
+        (is (= [2.0 8.0] [(first legend) (last legend)]))
+        (is (apply < legend))))))
+
 (deftest a-datum-broadcasts-on-a-layer-of-values-too-test
   ;; A layer whose x and y are both written values gets a one-row
   ;; dataset synthesized for it. Building that row from the positional
@@ -456,6 +515,109 @@
                       pj/plan :panels first :layers last)]
         (is (= [[7]] (mapv (comp vec :sizes) (:groups layer)))
             "a column of one distinct value, not a fixed radius")))))
+
+(deftest an-aesthetic-that-takes-no-value-still-takes-none-test
+  ;; `drawn-value-schemas` states what a value on `:fill` *would* mean;
+  ;; the registry's `:value?` says whether one is accepted. Asking only
+  ;; the first let `{:fill "red"}` past, and the tile drew the default
+  ;; blue in silence -- the case the design note said not to open, and
+  ;; reached without anyone flipping `:value?`. Only a value that
+  ;; happens to name a color was affected.
+  (let [tiles {:when [1 2 1 2] :level [1 1 2 2] :heat [1 2 3 4]}]
+    (doseq [v ["red" :red]]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"not found in dataset"
+           (pj/plan (-> tiles (pj/lay-tile :when :level {:fill v}))))
+          (str "a written " (pr-str v) " on :fill")))
+
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":fill .* has no reading for a value"
+         (pj/plan (-> tiles (pj/lay-tile :when :level {:fill {:value "red"}})))))
+
+    (testing "and the column it does take is unaffected"
+      (is (= 4 (count (distinct (map :color (-> (pj/plan (-> tiles (pj/lay-tile :when :level {:fill :heat})))
+                                                :panels first :layers first :tiles)))))))))
+
+(deftest a-drawn-column-holds-what-the-aesthetic-can-draw-test
+  ;; `:size` and `:alpha` decide by source, and the check for what a
+  ;; `:scale false` column may hold covered `:always` and `:by-value`
+  ;; only -- so the cell this release opens skipped it. A radius column
+  ;; holding a negative drew nothing for that row: the plan counted the
+  ;; mark, `svg-summary` counted it, and the picture was short.
+  ;; `{:size -4}` was refused all along.
+  (let [d (assoc measured :negative [-4 8 -12 16] :over [5 10 2 8])]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"was given :scale false.*is not one :size can draw"
+         (pj/plan (-> d (pj/lay-point :when :level {:size {:column :negative :scale false}})))))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"was given :scale false.*is not one :alpha can draw"
+         (pj/plan (-> d (pj/lay-point :when :level {:alpha {:column :over :scale false}})))))
+    (testing "a column it can draw still passes"
+      (is (pj/plan (-> d (pj/lay-point :when :level {:size {:column :radius :scale false}})))))))
+
+(deftest the-scale-key-is-a-boolean-test
+  ;; A scale type on a mapping is future work. Accepted meanwhile, it
+  ;; drew the default scale and said nothing -- `{:scale :log}` gave
+  ;; the same radii as `:scale true`, while `(pj/scale pose :size :log)`
+  ;; genuinely differs. `pj/scale` refuses an unknown type for the same
+  ;; reason.
+  (doseq [v [:log :bogus "false" 0]]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"sets :scale to .*A mapping's :scale is true or false"
+         (pj/plan (-> measured (pj/lay-point :when :level
+                                             {:size {:column :radius :scale v}}))))
+        (str "a :scale of " (pr-str v))))
+
+  (testing "true, false and absent are the vocabulary"
+    (doseq [m [{:size {:column :radius :scale true}}
+               {:size {:column :radius :scale false}}
+               {:size {:column :radius :scale nil}}
+               {:size {:column :radius}}]]
+      (is (pj/plan (-> measured (pj/lay-point :when :level m)))))))
+
+(deftest a-source-named-as-nil-is-refused-test
+  ;; Both slipped past the checks below, which skip a nil: a nil
+  ;; `:value` broadcast a column of nils and drew an empty panel
+  ;; reading "no data", and a nil `:column` reached `pj/plan` and died
+  ;; on a schema error.
+  (doseq [m [{:x {:value nil} :y :level} {:x {:column nil} :y :level}]]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"names :(value|column) nil"
+         (pj/plan (-> measured (pj/lay-point m))))))
+
+  (testing "a bare nil still cancels an inherited mapping"
+    (is (pj/plan (-> measured (pj/pose {:x :when :y :level :color :variety})
+                     (pj/lay-point {:color nil}))))))
+
+(deftest a-datum-does-not-overwrite-a-column-of-its-own-name-test
+  ;; The synthesized constant takes the aesthetic's own name, which is
+  ;; what titles the axis and the legend. Where the data already
+  ;; carries that name it replaced the data:
+  ;; `(pj/lay-point :when :size {:size {:value 7 :scale true}})` drew
+  ;; every mark at y=7 on an axis still labelled `size`. Mapping a
+  ;; coordinate to a column named after an aesthetic is ordinary.
+  (let [collides {:when [1 2 3] :size [9 20 31] :color ["p" "q" "p"]}
+        y-domain (fn [pose] (-> pose pj/plan :panels first :y-domain))]
+    (is (= (y-domain (-> collides (pj/lay-point :when :size)))
+           (y-domain (-> collides (pj/lay-point :when :size
+                                                {:size {:value 7 :scale true}}))))
+        "the data column still decides the y domain")
+    (is (= (y-domain (-> collides (pj/lay-point :when :color)))
+           (y-domain (-> collides (pj/lay-point :when :color
+                                                {:color {:value "Model A" :scale true}}))))))
+
+  (testing "and the datum still reaches its own aesthetic"
+    (is (= ["Model A"]
+           (->> (pj/plan (-> {:when [1 2 3] :color ["p" "q" "p"]}
+                             (pj/lay-point :when :color
+                                           {:color {:value "Model A" :scale true}})))
+                :panels first :layers first :groups (mapv :label))))))
 
 (deftest an-explicit-value-wins-over-a-column-of-that-name-test
   ;; Settling this collision is what the explicit form is for. Every

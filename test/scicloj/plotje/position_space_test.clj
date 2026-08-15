@@ -187,3 +187,47 @@
 (deftest the-space-is-documented
   (testing ":in appears in the public layer option docs"
     (is (contains? pj/layer-option-docs :in))))
+
+;; ---- A panel where nothing informs a domain ----
+
+(deftest a-panel-with-no-data-space-x-still-has-an-x-domain
+  ;; `y-dom` has carried a `[0 1]` fallback all along and `x-dom` had
+  ;; none, so a panel whose every layer is on the panel rather than in
+  ;; the data planned `:x-domain nil`. A nil domain is not a domain:
+  ;; the marks that read it through a band scale died on
+  ;; `Number.doubleValue() because "x" is null`, and the rest drew no x
+  ;; ticks. Reached through `:in :drawing-area`, which is released, as
+  ;; well as through a per-axis `:scale false`.
+  (testing "through the whole-layer form"
+    (is (= [0 1] (-> (pj/lay-bar {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
+                     pj/plan :panels first :x-domain))))
+  (testing "through a per-axis :scale false"
+    (let [panel (-> {:a [1 2 3] :b [1 2 3]}
+                    (pj/lay-point :a :b {:x {:column :a :scale false}
+                                         :y {:column :b :scale false}})
+                    pj/plan :panels first)]
+      (is (= [0 1] (:x-domain panel)))
+      (is (= [0 1] (:y-domain panel)))))
+  (testing "and a bar mark on such a panel plans and draws"
+    (is (instance? BufferedImage
+                   (pj/plot (pj/lay-bar {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
+                            {:format :bufimg})))))
+
+;; ---- Annotation colors ----
+
+(deftest an-annotation-takes-a-color-by-either-spelling
+  ;; The pose gate reads a keyword naming a color as that color now,
+  ;; but the annotation path kept `:color` only when it was a string --
+  ;; so `{:color :red}` was dropped in silence while
+  ;; `{:color :notacolour}` was still reported. The gate and the draw
+  ;; path have to agree about the same value.
+  (let [color-of (fn [v] (-> scatter
+                             (pj/lay-rule-h {:y-intercept 2 :color v})
+                             pj/plan :panels first :annotations first :color))]
+    (is (= (color-of "red") (color-of :red)))
+    (is (some? (color-of :red))))
+
+  (testing "and a value naming no color is still reported"
+    (is (thrown-with-msg?
+         Exception #"not found in dataset"
+         (pj/plan (pj/lay-rule-h scatter {:y-intercept 2 :color :notacolour}))))))

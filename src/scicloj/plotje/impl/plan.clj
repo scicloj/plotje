@@ -733,23 +733,11 @@
                       (/ (Math/round (* v factor)) factor)))
                   (range n))))))))
 
-(defn- continuous-channel-mapper
-  "Build a function that maps a data value to a visual property in
-   [pixel-lo, pixel-hi] using a linear or log scale.
-   `scale-type` is :linear (default) or :log."
-  [scale-type d-min d-max pixel-lo pixel-hi]
-  (let [pixel-span (- (double pixel-hi) (double pixel-lo))]
-    (if (= scale-type :log)
-      (let [lo-l (Math/log10 (max 1e-300 (double d-min)))
-            hi-l (Math/log10 (max 1e-300 (double d-max)))
-            span (max 1e-6 (- hi-l lo-l))]
-        (fn [v] (+ (double pixel-lo)
-                   (* pixel-span
-                      (/ (- (Math/log10 (max 1e-300 (double v))) lo-l)
-                         span)))))
-      (let [span (max 1e-6 (- (double d-max) (double d-min)))]
-        (fn [v] (+ (double pixel-lo)
-                   (* pixel-span (/ (- (double v) (double d-min)) span))))))))
+(def ^:private continuous-channel-mapper
+  "The legend's half of the size and alpha mapping. `render.mark` draws
+   the marks from the same function, which is why it lives in
+   `impl.scale` rather than here."
+  scale/continuous-channel-mapper)
 
 (defn- continuous-channel-ticks
   "Pick `n` tick values across [d-min, d-max] for a continuous channel
@@ -874,6 +862,38 @@
       (throw (ex-info (str "Mark :" (name m) " is not supported with polar coordinates. "
                            "Supported polar marks: " (sort polar-supported-marks))
                       {:mark m :supported polar-supported-marks})))))
+
+(defn- validate-unscaled-axis-coord
+  "Refuse a per-axis `:scale false` under a coord that rearranges the
+   axes.
+
+   An unscaled `:x` or `:y` is a distance measured from the panel
+   background's top left, which names one screen direction. `:coord
+   :flip` swaps which screen direction the mapping's `:y` reaches and
+   `:polar` gives it no straight direction at all, so the distance no
+   longer says where the mark goes -- and the renderer drew every mark
+   into one corner rather than saying so.
+
+   Which screen direction an unscaled axis should mean once the coord
+   has moved it is an open question, not an oversight. Refusing keeps
+   it open. The whole-layer `{:in :drawing-area}` does not face it:
+   both of its coordinates are drawing units from the same corner, so
+   there is no axis to follow through the swap."
+  [resolved-draft-layers coord-type]
+  (when (contains? #{:flip :polar} coord-type)
+    (doseq [v resolved-draft-layers
+            :let [axes (cond-> []
+                         (:x-drawn? v) (conj :x)
+                         (:y-drawn? v) (conj :y))]
+            :when (seq axes)]
+      (throw (ex-info (str "A :scale false on " (str/join " and " axes)
+                           " measures in drawing units from the top left of the"
+                           " panel background, and :coord " coord-type
+                           " moves that axis elsewhere, so the two cannot be"
+                           " combined. Either drop the :coord, or place the whole"
+                           " layer with {:in :drawing-area}, whose two coordinates"
+                           " are drawing units from that corner whatever the coord.")
+                      {:coord coord-type :axes axes})))))
 
 (defn- warn-conflicting-specs
   "Warn when draft layers disagree about scale or coord specs.
@@ -1177,8 +1197,16 @@
         x-scale-spec (or (:x-scale first-draft-layer) default-x-scale)
         y-scale-spec (or (:y-scale first-draft-layer) default-y-scale)
         coord-type (or (:coord first-draft-layer) default-coord)
+        ;; The same `[0 1]` fallback `y-dom` has carried all along. A
+        ;; panel where nothing informs the x domain -- every layer in a
+        ;; drawing-space frame, or on an unscaled x -- left `x-dom` nil,
+        ;; and a nil domain is not a domain: `lay-bar`, `lay-histogram`
+        ;; and `lay-interval-h` died on
+        ;; `Number.doubleValue() because "x" is null`, and the marks
+        ;; that survived drew no x ticks at all.
         x-dom (or (:domain x-scale-spec)
-                  (collect-domain local-srs :x-domain x-scale-spec))
+                  (collect-domain local-srs :x-domain x-scale-spec)
+                  [0 1])
         y-dom (or (:domain y-scale-spec)
                   (compute-global-y-domain domain-layers y-scale-spec)
                   ;; Annotation-only panels have no plan layers; their
@@ -1440,6 +1468,7 @@
          rep-y-scale (or (:y-scale (first draft-layers)) default-y-scale)
          rep-coord (or (:coord (first draft-layers)) default-coord)
          _ (validate-polar-marks resolved-all rep-coord)
+         _ (validate-unscaled-axis-coord resolved-all rep-coord)
          _ (warn-conflicting-specs draft-layers)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
@@ -1453,9 +1482,23 @@
          ;; literal :alpha (number); column-mapped aesthetics are
          ;; silently dropped (annotations don't participate in
          ;; column-mapped scales).
+         ;; An annotation draws one color for itself and takes no part
+         ;; in a scale, so what survives here is a written color and
+         ;; nothing else. The test asks whether the value names a color
+         ;; rather than whether it is a string: the pose gate accepts a
+         ;; keyword naming one now, so `{:color :red}` reached this
+         ;; point and was dropped without a word, while
+         ;; `{:color :notacolour}` was still reported -- the gate and
+         ;; the draw path disagreeing about the same value.
          clean-aesthetics (fn [m]
                             (cond-> m
-                              (not (string? (:color m))) (dissoc :color)
+                              (not (defaults/names-a-color? (:color m))) (dissoc :color)
+                              ;; Annotations carry their color as a
+                              ;; string to the renderer, so a keyword
+                              ;; naming one is spelled out here rather
+                              ;; than widening the plan schema for a
+                              ;; second spelling of the same value.
+                              (keyword? (:color m)) (update :color name)
                               (not (number? (:alpha m))) (dissoc :alpha)))
          annotation-position-keys [:y-intercept :x-intercept :y-min :y-max :x-min :x-max]
          ;; Annotations cross-product when a leaf is expanded by
