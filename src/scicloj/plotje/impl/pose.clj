@@ -799,7 +799,7 @@
 
    `:shape` has since gained that reading, which is what took it off
    this list. `:fill` is to gain one: its registry entry already
-   carries the `:by-value` scale default, and flipping `:value?` is
+   carries the `:by-source` scale default, and flipping `:value?` is
    what turns this error into that reading. `:group` keeps it -- it
    splits the data and draws nothing of its own, so there is nothing a
    value could mean."
@@ -920,6 +920,24 @@
                (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
                                     ". Convert it to a single type (number, string, etc.) before plotting.")
                                {:key k :column col :types types})))
+             ;; Whether a column of this aesthetic can be drawn at all.
+             ;; `:scale-default` says what the reading would mean and
+             ;; `:drawn-column?` says whether it is written; asking
+             ;; only the first let `{:shape {:column c :scale false}}`
+             ;; through to `collect-shapes`, which assigned symbols by
+             ;; category order regardless -- so a column holding
+             ;; `:cross` drew a circle, under a legend labelling that
+             ;; circle "cross".
+             (when (and (false? (get-in resolved [:__scale k]))
+                        (not (:drawn-column? (defaults/aesthetic-registry k))))
+               (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                    " and a " k " column drawn as it stands is"
+                                    " not a reading Plotje has yet -- it would"
+                                    " be ignored, and the column read through "
+                                    k "'s scale as though the :scale were absent."
+                                    " Drop the :scale to ask for that in so many"
+                                    " words.")
+                               {:key k :column col})))
              ;; What a column told not to scale has to hold, which
              ;; differs by what the aesthetic draws.
              (when (false? (get-in resolved [:__scale k]))
@@ -941,18 +959,17 @@
                                      {:key k :column col :column-type ctype}))))
 
                  ;; The values are drawn as they stand, so they have to
-                 ;; be values the aesthetic can draw. Two defaults reach
-                 ;; here and the check is the same for both: `:by-value`
-                 ;; because `hex->rgba` reads a bare `a` as `#aaaaaa`,
-                 ;; so a category column came out in near-identical
-                 ;; greys with nothing said; and `:by-source`, where a
-                 ;; radius column holding a negative simply did not draw
-                 ;; that mark -- the plan counted it, `svg-summary`
-                 ;; counted it, and the picture was two points short.
-                 ;; The written forms `{:size -4}` and
-                 ;; `{:size {:value -4}}` were refused all along, so
-                 ;; only the column skipped the constraint.
-                 (:by-value :by-source)
+                 ;; be values the aesthetic can draw. On `:color`,
+                 ;; `hex->rgba` reads a bare `a` as `#aaaaaa`, so a
+                 ;; category column came out in near-identical greys
+                 ;; with nothing said. On `:size`, a column holding a
+                 ;; negative simply did not draw that mark -- the plan
+                 ;; counted it, `svg-summary` counted it, and the
+                 ;; picture was two points short. The written forms
+                 ;; `{:size -4}` and `{:size {:value -4}}` were refused
+                 ;; all along, so only the column skipped the
+                 ;; constraint.
+                 :by-source
                  (when-let [bad (->> (col-lookup col)
                                      (remove nil?)
                                      (remove #(aes/drawable? k %))
@@ -1182,11 +1199,21 @@
         ;; scales, the domains and the legends already read. So the
         ;; datum reading needs no machinery of its own: broadcast it and
         ;; the rest falls out, legend entry included.
+        ;; Only where the writer said so. The convention never reads a
+        ;; written value as data on an appearance aesthetic: a value
+        ;; that is neither a column nor something the aesthetic can
+        ;; draw is a mistake far more often than a series label, and
+        ;; inferring the datum would turn `{:color :speceis}` into a
+        ;; legend entry rather than the report it should be. The
+        ;; positional aesthetics do scale a value by convention, and
+        ;; `literals` above is that rule -- stated through
+        ;; `literal-position?`, which also refuses a value that could
+        ;; not be data at all.
         scaled-values (into {} (for [k defaults/column-keys
                                      :let [scale (get-in resolved [:__scale k])
                                            v (get resolved k)]
                                      :when (and (some? v)
-                                                (= :value (get-in resolved [:__source k]))
+                                                (= :value (aes/source v col-names (said k)))
                                                 (some? scale)
                                                 (not (false? scale)))]
                                  [k v]))

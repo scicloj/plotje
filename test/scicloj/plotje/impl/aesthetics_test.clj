@@ -98,54 +98,46 @@
     (testing (str k " draws a written value")
       (is (not (aes/scaled? k {:source :value :value 7}))))))
 
-(deftest color-decides-by-value-test
-  (testing "a written color is drawn, a written non-color is a datum"
+(deftest color-decides-by-source-test
+  (testing "a written value is drawn, whatever it is"
+    ;; The vocabulary is not consulted here. It decides at the gate
+    ;; whether the value can be used at all, so `"red"` is drawn and
+    ;; `"Model A"` -- neither a column nor a color -- is reported
+    ;; rather than quietly becoming a one-entry legend.
     (is (not (aes/scaled? :color {:source :value :value "red"})))
     (is (not (aes/scaled? :color {:source :value :value :steelblue})))
-    ;; ggplot2's aes(colour="Model A"): a labelled series, scaled, with
-    ;; a legend entry of its own.
-    (is (aes/scaled? :color {:source :value :value "Model A"})))
+    (is (not (aes/scaled? :color {:source :value :value "Model A"}))))
 
-  (testing "a column of categories is scaled -- the palette"
-    (is (aes/scaled? :color {:source :column :value :species
-                             :column-values ["setosa" "virginica" "setosa"]})))
+  (testing "and reading one as data is asked for, not inferred"
+    (is (aes/scaled? :color {:source :value :value "Model A" :scale true})))
 
-  (testing "a column of colors is drawn -- the identity mapping"
-    ;; The measured surprise, fixed: these used to become three
-    ;; categories and draw palette colors instead of themselves.
-    (is (not (aes/scaled? :color {:source :column :value :hexes
-                                  :column-values ["#FF0000" "#00FF00" "#0000FF"]})))))
+  (testing "a column is scaled whatever it holds"
+    ;; The vocabulary is asked of a value and never of a column. The
+    ;; reading that asked it of a column produced three defects: the
+    ;; same column behaved differently for "red" than for "Red";
+    ;; `:shape` answered "drawn" while `collect-shapes` scaled it
+    ;; anyway; and `:fill` held the same disagreement unnoticed.
+    (is (aes/scaled? :color {:source :column :value :species}))
+    (is (aes/scaled? :color {:source :column :value :hexes}))))
 
-(deftest the-column-scan-needs-every-value-test
-  (testing "one non-color makes the whole column categorical"
-    (is (aes/scaled? :color {:source :column :value :c
-                             :column-values ["#FF0000" "setosa" "#0000FF"]})))
+(deftest a-column-does-not-depend-on-the-rows-it-holds-test
+  ;; What a column means cannot turn on which rows happen to be in it.
+  ;; `scaled?` takes no column values at all now, so there is nothing
+  ;; for the contents to change.
+  (doseq [k [:color :shape :fill :size :alpha :x :y]]
+    (is (aes/scaled? k {:source :column :value :c}) (str k " column scales")))
 
-  (testing "missing values are skipped, not counted against it"
-    (is (not (aes/scaled? :color {:source :column :value :c
-                                  :column-values ["#FF0000" nil "#0000FF"]}))))
+  (testing "including the two that used to escape"
+    ;; A column of colors, and a column of shape symbols.
+    (is (aes/scaled? :color {:source :column :value :hexes}))
+    (is (aes/scaled? :shape {:source :column :value :symbols})))
 
-  (testing "a column with nothing to read is scaled"
-    ;; Vacuous agreement is not evidence.
-    (is (aes/scaled? :color {:source :column :value :c :column-values []}))
-    (is (aes/scaled? :color {:source :column :value :c :column-values [nil nil]})))
+  (testing "except where there is no scale to pass through"
+    (is (not (aes/scaled? :text {:source :column :value :label})))
+    (is (not (aes/scaled? :group {:source :column :value :country}))))
 
-  (testing "the residual risk, pinned rather than reasoned about"
-    ;; A column whose values all happen to name colors stops being
-    ;; categorical. `:scale true` is the escape.
-    (let [produce ["olive" "plum" "tomato"]]
-      (is (not (aes/scaled? :color {:source :column :value :variety
-                                    :column-values produce})))
-      (is (aes/scaled? :color {:source :column :value :variety
-                               :column-values produce :scale true}))))
-
-  (testing "the cases that do not trip it"
-    (doseq [vs [["setosa" "virginica"]
-                ["salmon" "tuna" "cod"]
-                ["brown" "blue" "green" "hazel"]
-                ["cat" "dog" "fox"]]]
-      (is (aes/scaled? :color {:source :column :value :c :column-values vs})
-          (pr-str vs)))))
+  (testing "and `:scale false` is the one way off"
+    (is (not (aes/scaled? :color {:source :column :value :hexes :scale false})))))
 
 (deftest an-explicit-scale-overrides-the-convention-test
   (testing "false draws what the convention would scale"
@@ -170,12 +162,11 @@
   (let [colors-of (fn [pose] (->> (pj/plan pose) :panels first :layers first
                                   :groups (mapv :color)))
         legend-of (fn [pose] (:legend (pj/plan pose)))]
-    (testing "a column of hex codes draws itself, with no legend"
-      ;; It used to become three categories and draw palette colors,
-      ;; discarding the ones the column held.
+    (testing "a column of hex codes draws itself when asked, with no legend"
+      ;; `scale_colour_identity()`, and asking is the only way to it.
       (let [p (-> {:x [1 2 3] :y [4 5 6] :c ["#FF0000" "#00FF00" "#0000FF"]}
                   (pj/pose :x :y)
-                  (pj/lay-point {:color :c}))]
+                  (pj/lay-point {:color {:column :c :scale false}}))]
         (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0]] (colors-of p)))
         (is (nil? (legend-of p))
             "a legend explains a choice, and here there was none to make")))
@@ -184,14 +175,24 @@
       (is (= [[1.0 0.0 0.0 1.0] [0.0 0.0 1.0 1.0]]
              (colors-of (-> {:x [1 2] :y [3 4] :c ["red" "blue"]}
                             (pj/pose :x :y)
-                            (pj/lay-point {:color :c}))))))
+                            (pj/lay-point {:color {:column :c :scale false}}))))))
 
-    (testing "one non-color and the whole column is categorical again"
-      (let [p (-> {:x [1 2 3] :y [4 5 6] :c ["#FF0000" "setosa" "#0000FF"]}
+    (testing "unasked, the same column is three categories"
+      ;; The rows it holds do not decide what it means.
+      (let [p (-> {:x [1 2 3] :y [4 5 6] :c ["#FF0000" "#00FF00" "#0000FF"]}
                   (pj/pose :x :y)
                   (pj/lay-point {:color :c}))]
         (is (not= [1.0 0.0 0.0 1.0] (first (colors-of p))))
-        (is (= 3 (count (:entries (legend-of p)))) "and it gets its legend back")))
+        (is (= 3 (count (:entries (legend-of p)))) "with a legend, as any column has")))
+
+    (testing "and capitalization cannot change the answer"
+      ;; It did: `["red" "green" "blue"]` drew itself while
+      ;; `["Red" "Green" "Blue"]` took the palette.
+      (let [plan-for (fn [vs] (-> {:x [1 2 3] :y [4 5 6] :c vs}
+                                  (pj/pose :x :y)
+                                  (pj/lay-point {:color :c})))]
+        (is (= (colors-of (plan-for ["red" "green" "blue"]))
+               (colors-of (plan-for ["Red" "Green" "Blue"]))))))
 
     (testing "an ordinary category column is untouched"
       (let [p (-> {:x [1 2 3] :y [4 5 6] :s ["a" "b" "a"]}
@@ -205,17 +206,17 @@
         cols (fn [p] (mapv :color (-> (pj/plan p) :panels first :layers first :groups)))
         olive [(/ 128.0 255) (/ 128.0 255) 0.0 1.0]]
 
-    (testing "the convention draws a column whose values all name colors"
-      (is (= olive (first (cols (-> produce (pj/pose :x :y)
-                                    (pj/lay-point {:color :variety})))))))
-
-    (testing ":scale true asks for the palette back, and the legend with it"
-      ;; The escape for the one case the convention gets wrong: a
-      ;; category column whose values happen to be color names.
-      (let [p (-> produce (pj/pose :x :y)
-                  (pj/lay-point {:color {:column :variety :scale true}}))]
+    (testing "the convention scales a column, colour-named values and all"
+      ;; Olive, plum and tomato are varieties here, not colours, and
+      ;; the convention no longer has to guess which.
+      (let [p (-> produce (pj/pose :x :y) (pj/lay-point {:color :variety}))]
         (is (not= olive (first (cols p))))
         (is (= 3 (count (:entries (:legend (pj/plan p))))))))
+
+    (testing ":scale false is what asks for the values themselves"
+      (is (= olive (first (cols (-> produce (pj/pose :x :y)
+                                    (pj/lay-point {:color {:column :variety
+                                                           :scale false}})))))))
 
     (testing ":scale false draws a column the convention would scale"
       (is (= [[1.0 0.0 0.0 1.0] [0.0 0.0 1.0 1.0]]
@@ -361,14 +362,17 @@
     (is (pj/plan (-> measured (pj/lay-point :when :level {:color {:column :variety}}))))))
 
 (deftest an-explicit-value-reports-what-it-is-not-test
-  ;; `{:value :variety}` says the value is not a column reference, so
+  ;; `{:value :sphere}` says the value is not a column reference, so
   ;; listing the columns available reads as a contradiction -- the
-  ;; message named a column that was right there in the list.
+  ;; message named a column that was right there in the list. Shown on
+  ;; `:shape`, whose vocabulary is the seven symbols: a value outside a
+  ;; closed vocabulary is a mistake, where a value outside `:color`'s
+  ;; open one is read as data.
   (let [msg (try (pj/plan (-> measured (pj/lay-point :when :level
-                                                     {:color {:value :variety}})))
+                                                     {:shape {:value :sphere}})))
                  ""
                  (catch clojure.lang.ExceptionInfo e (.getMessage e)))]
-    (is (re-find #":color \{:value :variety\} is not a color" msg))
+    (is (re-find #":shape \{:value :sphere\} is not a symbol" msg))
     (is (not (re-find #"Available" msg))
         "no column list, since the column reading was declined")))
 
@@ -619,6 +623,34 @@
                                            {:color {:value "Model A" :scale true}})))
                 :panels first :layers first :groups (mapv :label))))))
 
+(deftest a-column-drawn-as-it-stands-needs-a-reading-that-exists-test
+  ;; `:scale-default` says what a reading would mean; `:drawn-column?`
+  ;; says whether it is written. `:shape` carries `:by-value` and no
+  ;; reading, so `scaled?` answered `false` for a column of symbols
+  ;; while `collect-shapes` assigned symbols by category order anyway:
+  ;; a column holding `:cross` drew a circle under a legend labelling
+  ;; that circle "cross". Backlogged rather than implemented, so the
+  ;; request is refused meanwhile.
+  (let [symbols {:when [1 2 3] :level [1 2 3] :sym [:cross :square :circle]}]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":shape .* not a reading Plotje has yet"
+         (pj/plan (-> symbols (pj/lay-point :when :level
+                                            {:shape {:column :sym :scale false}})))))
+    (testing "the column still scales, which is what it did all along"
+      (is (pj/plan (-> symbols (pj/lay-point :when :level {:shape :sym}))))))
+
+  (testing "the aesthetics whose reading is written are unaffected"
+    (is (pj/plan (-> (assoc measured :hexes ["#FF0000" "#00FF00" "#0000FF" "#FF00FF"])
+                     (pj/lay-point :when :level {:color {:column :hexes :scale false}}))))
+    (is (pj/plan (-> measured (pj/lay-point :when :level
+                                            {:size {:column :radius :scale false}}))))
+    (is (pj/plan (-> measured (pj/lay-point :when :level
+                                            {:y {:column :level :scale false}}))))
+    (testing "including a text column, which is drawn as it stands by nature"
+      (is (pj/plan (-> measured (pj/lay-text :when :level
+                                             {:text {:column :variety :scale false}})))))))
+
 (deftest an-explicit-value-wins-over-a-column-of-that-name-test
   ;; Settling this collision is what the explicit form is for. Every
   ;; reading has to consult the writer's choice for that to hold, and
@@ -641,7 +673,7 @@
   ;; nothing.
   (let [scaled-alone (-> measured (pj/lay-line :when :level {:color :variety}) pj/plan)
         mixed (-> measured
-                  (pj/lay-point :when :level {:color :hex})
+                  (pj/lay-point :when :level {:color {:column :hex :scale false}})
                   (pj/lay-line {:color :variety})
                   pj/plan)]
     (is (= (:legend scaled-alone) (:legend mixed))

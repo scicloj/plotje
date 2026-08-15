@@ -11,10 +11,19 @@
    Two by two is four cells, and every one of them is a thing someone
    writes. ggplot2 has all four: `aes(size=5)` scales a written value
    and gives it a legend, `geom_point(size=5)` draws it, `aes(size=b)`
-   scales a column, and `scale_*_identity()` draws one. The fourth is
-   the one Plotje has lacked -- a column of hex codes on `:color` became
-   three categories and drew palette colors instead of the colors it
-   held.
+   scales a column, and `scale_*_identity()` draws one.
+
+   **The two decisions are asked of different things.** The source is
+   asked of the layer's data: a name it carries is a column. The scale
+   is asked of the *value*, and only of the value -- a column always
+   passes through the scale, and nothing inspects what it holds. An
+   earlier reading did inspect it, drawing a column whose every value
+   named a color, and three defects came out of that one idea: the
+   same column behaved differently for `\"red\"` and `\"Red\"`, `:shape`
+   answered \"drawn\" while `collect-shapes` scaled it anyway and
+   labelled a circle \"cross\", and `:fill` held the same disagreement
+   unnoticed. Asking the value question of a column is what produced
+   all three.
 
    Nothing here decides by *type*. Deciding by type is how the old rule
    came to differ per aesthetic without anyone choosing that it should:
@@ -26,13 +35,10 @@
    answer falls on coming from `defaults/aesthetic-registry`. Nothing
    is restated here.
 
-   Two functions, meant to be called in that order -- `source` first,
-   because whether a column's values are worth reading depends on the
-   answer:
+   Two functions, meant to be called in that order:
 
-       (let [src  (source v col-names)
-             vals (when (= :column src) (get ds v))]
-         (scaled? k {:source src :value v :column-values vals}))"
+       (let [src (source v col-names)]
+         (scaled? k {:source src :value v}))"
   (:require [malli.core :as m]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.pose-schema :as pose-schema]))
@@ -72,14 +78,12 @@
    map draws nothing: `:group` splits the data and has no appearance of
    its own.
 
-   Answers two questions that happen to coincide. For a `:by-value`
-   aesthetic it decides scaling, because being drawable *is* being in
-   the vocabulary -- `\"red\"` is a color, `\"setosa\"` is not. For every
-   aesthetic it also decides whether a value that names no column can
-   be used at all, which is the third step of the rule: ask the data,
-   ask what the aesthetic can draw, then report that neither fits. The
-   two do not coincide for `:size`, where `7` is drawable and a datum
-   alike -- which is why `:size` decides by source and never asks this."
+   It decides one thing, and `scaled?` no longer asks it: whether a
+   value that names no column can be used at all. That is the third
+   step of the rule -- ask the data, ask what the aesthetic can draw,
+   then report that neither reading fits. A value the aesthetic cannot
+   draw is not quietly read as data instead; `{:value v :scale true}`
+   is how a datum is asked for."
   [aesthetic v]
   (if-let [schema (get pose-schema/drawn-value-schemas aesthetic)]
     (m/validate schema v)
@@ -89,46 +93,51 @@
   "Whether this mapping passes through `aesthetic`'s scale.
 
    `source` and `value` are what `source` above returned and what was
-   written. `column-values` are the named column's values, needed only
-   when a `:by-value` aesthetic was given a column. `scale` is an
-   explicit `:scale` from the mapping, and overrides the convention in
-   either direction -- `false` draws, anything else scales.
+   written. `scale` is an explicit `:scale` from the mapping, and
+   overrides the convention in either direction -- `false` draws,
+   `true` scales.
 
-   The convention comes from the registry's `:scale-default`:
+   **A column passes through the scale, always**, for every aesthetic
+   that has one. Nothing here reads the column's contents. That is the
+   whole of the source half of the convention, and it is what makes a
+   column's meaning independent of the rows that happen to be in it:
+   a color column of `\"red\"`, `\"green\"`, `\"blue\"` is three
+   categories, exactly as `\"Red\"`, `\"Green\"`, `\"Blue\"` is, and
+   `scale_colour_identity()` is spelled `{:scale false}` here.
 
-   - `:always` -- scaled whatever the source. Every `:x` and `:y`.
-   - `:by-source` -- a column is scaled, a written value is drawn.
-     `:size` and `:alpha`, where no value predicate could decide.
-   - `:by-value` -- the vocabulary decides. A written color is drawn; a
-     column is drawn only when **every non-missing value** of it is a
-     color, which is what earns the identity mapping without anyone
-     asking for it.
+   The convention decides only what a **written value** means, from
+   the registry's `:scale-default`, and it splits by category rather
+   than by aesthetic:
+
+   - `:always` -- scaled. Every positional aesthetic. `{:x 6.5}` is a
+     datum on the axis, not 6.5 drawing units, and the vocabulary does
+     not get a say: 6.5 is a perfectly good drawing-unit distance too.
+     Position can afford this because `{:in :drawing-area}` is a
+     second vocabulary for page geometry; appearance has none, so
+     nothing but `{:size 7}` could say a radius of seven.
+   - `:by-source` -- drawn. Every appearance aesthetic. The
+     aesthetic's vocabulary is not consulted here, but the gate
+     refuses a value against it, so `\"red\"` is drawn and
+     `\"notacolor\"` -- neither a column nor a color -- is reported.
    - `:never` -- the aesthetic has a reading but no scale. `:text`.
    - `nil` -- no scale at all. `:group` splits the data and draws
      nothing of its own, which is why `pj/scale` refuses it too. An
      explicit `:scale` cannot conjure one, so it is ignored here and
      reported where the mapping is built.
 
-   Requiring *all* values keeps the column case honest: one `\"setosa\"`
-   among the colors and the column is categorical again. `every?`
-   stops at the first, so the common path costs one check and only a
-   column that really is all colors pays a full scan. Missing values
-   are skipped, matching how a `nil` in a categorical column is already
-   dropped -- but a column with nothing left after skipping them is
-   scaled, since vacuous agreement is not evidence."
-  [aesthetic {:keys [source value column-values scale]}]
+   Reading a written value as **data** -- ggplot2's constant inside
+   `aes()` -- is reached by saying so: `{:value \"Model A\" :scale
+   true}`. It is not inferred, because inferring it would have to turn
+   on the value, and a value that is neither a column nor something the
+   aesthetic can draw is a mistake far more often than it is a series
+   label."
+  [aesthetic {:keys [source scale]}]
   (let [{:keys [scale-default]} (defaults/aesthetic-registry aesthetic)]
     (cond
       (nil? scale-default)  false
       (false? scale)        false
       (some? scale)         true
-      :else
-      (case scale-default
-        :always    true
-        :never     false
-        :by-source (= :column source)
-        :by-value  (if (= :column source)
-                     (let [present (remove nil? column-values)]
-                       (not (and (seq present)
-                                 (every? #(drawable? aesthetic %) present))))
-                     (not (drawable? aesthetic value)))))))
+      ;; The source half: a column scales wherever there is a scale to
+      ;; pass through. `:never` marks the aesthetics that have none.
+      (= :column source)    (not= :never scale-default)
+      :else                 (= :always scale-default))))

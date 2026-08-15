@@ -863,6 +863,43 @@
                            "Supported polar marks: " (sort polar-supported-marks))
                       {:mark m :supported polar-supported-marks})))))
 
+(def ^:private drawn-axis-marks
+  "The marks that place through the panel's `coord-fn`, and so measure
+   an axis told not to scale in drawing units.
+
+   The rest read the oriented scales (`sx` / `sy`) directly, so the
+   request never reaches them: `:bar` drew full-height bars and
+   `:boxplot` drew an empty panel, both in silence. Deriving this from
+   the renderer is not possible at plan time, so it is a list -- a new
+   mark that places through the oriented scales belongs on the other
+   side of it, and the test below renders both sides to keep the list
+   honest."
+  #{:area :contour :errorbar :line :point :pointrange :rug :step :text :tile})
+
+(defn- validate-unscaled-axis-marks
+  "Refuse a per-axis `:scale false` on a mark that cannot honour it.
+
+   The alternative was to leave the request silently unread, which is
+   the defect this work exists to remove. `{:in :drawing-area}` is
+   refused on those marks for the same reason it is offered here: it
+   places the whole layer and every mark honours it."
+  [resolved-draft-layers]
+  (doseq [v resolved-draft-layers
+          :let [axes (cond-> []
+                       (:x-drawn? v) (conj :x)
+                       (:y-drawn? v) (conj :y))
+                m (:mark v)]
+          :when (and (seq axes) m (not (drawn-axis-marks m)))]
+    (throw (ex-info (str "A :scale false on " (str/join " and " axes)
+                         " measures in drawing units from the top left of the"
+                         " panel background, and the " m " mark places through"
+                         " the axis scales instead, so it cannot read one."
+                         " The marks that can: "
+                         (str/join ", " (sort drawn-axis-marks)) "."
+                         " To place a " m " layer on the panel rather than in"
+                         " the data, give the whole layer {:in :drawing-area}.")
+                    {:mark m :axes axes :supported drawn-axis-marks}))))
+
 (defn- validate-unscaled-axis-coord
   "Refuse a per-axis `:scale false` under a coord that rearranges the
    axes.
@@ -1469,6 +1506,7 @@
          rep-coord (or (:coord (first draft-layers)) default-coord)
          _ (validate-polar-marks resolved-all rep-coord)
          _ (validate-unscaled-axis-coord resolved-all rep-coord)
+         _ (validate-unscaled-axis-marks resolved-all)
          _ (warn-conflicting-specs draft-layers)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
@@ -1490,16 +1528,21 @@
          ;; point and was dropped without a word, while
          ;; `{:color :notacolour}` was still reported -- the gate and
          ;; the draw path disagreeing about the same value.
+         ;; Annotations carry their color as a string to the renderer,
+         ;; so a keyword naming one is spelled out here rather than
+         ;; widening the plan schema for a second spelling of the same
+         ;; value. Computed once rather than as two `cond->` branches:
+         ;; the tests there read the original map, so dropping a
+         ;; non-color and then spelling out a keyword both fired on the
+         ;; same value and `name` was handed the nil that the drop had
+         ;; just left behind.
          clean-aesthetics (fn [m]
-                            (cond-> m
-                              (not (defaults/names-a-color? (:color m))) (dissoc :color)
-                              ;; Annotations carry their color as a
-                              ;; string to the renderer, so a keyword
-                              ;; naming one is spelled out here rather
-                              ;; than widening the plan schema for a
-                              ;; second spelling of the same value.
-                              (keyword? (:color m)) (update :color name)
-                              (not (number? (:alpha m))) (dissoc :alpha)))
+                            (let [c (:color m)
+                                  c (when (defaults/names-a-color? c)
+                                      (if (keyword? c) (name c) c))]
+                              (cond-> (dissoc m :color)
+                                c (assoc :color c)
+                                (not (number? (:alpha m))) (dissoc :alpha))))
          annotation-position-keys [:y-intercept :x-intercept :y-min :y-max :x-min :x-max]
          ;; Annotations cross-product when a leaf is expanded by
          ;; pj/facet (one identical copy per facet panel). Dedup by

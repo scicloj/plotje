@@ -213,6 +213,47 @@
                    (pj/plot (pj/lay-bar {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
                             {:format :bufimg})))))
 
+;; ---- Which marks can read an unscaled axis ----
+
+(def spread
+  "Enough rows per category for a boxplot, a violin and a ridgeline."
+  {:k (mapcat #(repeat 8 %) ["a" "b" "c"])
+   :v (map #(+ 30 (mod (* 17 %) 90)) (range 24))})
+
+(deftest a-mark-that-cannot-read-an-unscaled-axis-says-so
+  ;; Only the marks that place through the panel's `coord-fn` measure an
+  ;; axis in drawing units. The rest read the oriented scales directly,
+  ;; so the request never reached them: `:bar` drew full-height bars and
+  ;; `:boxplot` drew an empty panel, both without a word. Rendered and
+  ;; looked at before this test was written.
+  (testing "the marks that place through coord-fn read it"
+    (let [num-d {:a [1 2 3 4] :b [40 80 20 60]}
+          drawn {:y {:column :b :scale false}}]
+      (is (pj/plan (pj/lay-point num-d :a :b drawn)))
+      (is (pj/plan (pj/lay-line num-d :a :b drawn)))
+      (is (pj/plan (pj/lay-area num-d :a :b drawn)))
+      (is (pj/plan (pj/lay-text num-d :a :b (assoc drawn :text "x"))))))
+
+  (testing "the marks that read the oriented scales refuse it by name"
+    (let [cat-d {:k ["a" "b" "c" "d"] :v [40 80 20 60]}
+          drawn {:y {:column :v :scale false}}]
+      (doseq [[label pose] [["bar" (pj/lay-bar cat-d :k :v drawn)]
+                            ["lollipop" (pj/lay-lollipop cat-d :k :v drawn)]
+                            ["boxplot" (pj/lay-boxplot spread :k :v drawn)]
+                            ["violin" (pj/lay-violin spread :k :v drawn)]
+                            ["ridgeline" (pj/lay-ridgeline spread :k :v drawn)]]]
+        (is (thrown-with-msg?
+             Exception #"places through the axis scales instead"
+             (pj/plan pose))
+            label))))
+
+  (testing "and the message offers the whole-layer form, which every mark honours"
+    (is (thrown-with-msg?
+         Exception #"\{:in :drawing-area\}"
+         (pj/plan (pj/lay-bar {:k ["a" "b"] :v [1 2]} :k :v
+                              {:y {:column :v :scale false}}))))
+    (is (pj/plan (pj/lay-bar {:k ["a" "b"] :v [1 2]} :k :v {:in :drawing-area})))))
+
 ;; ---- Annotation colors ----
 
 (deftest an-annotation-takes-a-color-by-either-spelling

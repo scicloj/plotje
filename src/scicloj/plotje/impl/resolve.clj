@@ -293,15 +293,14 @@
         column? (fn [k x] (and x (= :column (aes/source x col-names (said-source k)))))
         color-val (:color v)
         color-is-col? (column? :color color-val)
-        ;; A color column whose every value names a color is drawn as it
-        ;; stands rather than scaled -- ggplot2 reaches the same cell
-        ;; through `scale_colour_identity()`. Decided once, per column,
-        ;; because a column half of whose values are colors is a
-        ;; category column that happens to contain some.
+        ;; A color column drawn as it stands -- ggplot2's
+        ;; `scale_colour_identity()`, spelled `{:scale false}`. Only
+        ;; reachable by saying so: a column passes through its scale by
+        ;; convention whatever it holds, so a column of hex codes is
+        ;; three categories until the writer says otherwise.
         color-drawn? (and color-is-col?
                           (not (aes/scaled? :color {:source :column
                                                     :value color-val
-                                                    :column-values (get ds color-val)
                                                     :scale (said-scale :color)})))
         ;; Still classified, and still grouped by: a drawn color column
         ;; splits the layer into one group per distinct color exactly as
@@ -313,11 +312,9 @@
         size-val (:size v)
         size-is-col? (column? :size size-val)
         fixed-size (when (and size-val (not size-is-col?)) size-val)
-        ;; A column told not to scale holds radii already, the way a
-        ;; color column of hex codes holds colors. ggplot2 spells it
-        ;; `scale_size_identity()`. Only reachable by saying so: no
-        ;; convention could guess it, since every number is a valid
-        ;; radius and a valid measurement alike.
+        ;; A column told not to scale holds radii already --
+        ;; `scale_size_identity()`. Reachable only by saying so, as
+        ;; every identity reading is.
         size-drawn? (and size-is-col?
                          (not (aes/scaled? :size {:source :column
                                                   :value size-val

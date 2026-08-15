@@ -91,14 +91,40 @@
      what a value there would mean once it is closed; for `:group` it
      is not, since it splits the data and draws nothing of its own, so
      there is nothing a value could mean.
-   - `:scale-default` -- which side of the scale a value falls on when
-     the mapping does not say. `:always` scales whatever the source
-     was; `:by-source` scales a column and draws a written value;
-     `:by-value` asks the aesthetic's own vocabulary, so `\"red\"` is
-     drawn and `\"setosa\"` is scaled, and for a column every
-     non-missing value must pass; `:never` means the aesthetic has no
-     scale to pass through; `nil` means no scale at all. A `:scale` in
-     the mapping overrides it in either direction.
+   - `:scale-default` -- which side of the scale a **written value**
+     falls on when the mapping does not say. It has nothing to say
+     about a column: a column passes through the aesthetic's scale
+     wherever there is one, uniformly, and nothing reads its contents.
+     `:by-source` draws it, and the aesthetic's vocabulary is what
+     the gate refuses it against: `\"red\"` is a color and is drawn,
+     `\"notacolor\"` is neither a column nor a color and is reported.
+     `:always` scales it instead -- `{:x 6.5}` is a datum on the axis,
+     not 6.5 drawing units. `:never` means no scale to pass through;
+     `nil` means no scale at all. A `:scale` in the mapping overrides
+     it in either direction, and is the only way to move a column off
+     its scale or to read a written value as data.
+
+     **The split is by category, not by aesthetic.** Every appearance
+     aesthetic is `:by-source` and every positional one is `:always`,
+     which is the same distinction the glossary draws and the
+     `:category` entry above records. The reason the two differ is
+     that position already has a second vocabulary for page geometry
+     and appearance does not: `{:in :drawing-area}` says \"these
+     coordinates are drawing units\", so a bare `{:x 6.5}` is free to
+     mean the data value, while nothing but `{:size 7}` can say a
+     radius of seven. Both readings stay reachable either way --
+     `{:x {:value 6.5 :scale false}}` and
+     `{:size {:value 7 :scale true}}`.
+   - `:drawn-column?` -- whether a column of this aesthetic can be
+     drawn as it stands, which is what `{:scale false}` on a column
+     asks for. It is the only route to an identity scale now that a
+     column never leaves its scale by convention. False where the
+     reading is not written: `:shape` would draw a column of symbols
+     and does not, and `:fill` derives its color through a gradient
+     with no branch for a value that already is one. Kept as a flag
+     rather than a silence for the same reason `:value?` is: **one
+     entry says what a reading would mean and another says whether it
+     exists, and a gate needs both.** See `dev-notes/backlog.md`.
    - `:categorical-column?` -- whether the column it names may hold
      categories. False for the three that encode a magnitude and have
      no categorical counterpart.
@@ -114,7 +140,7 @@
      from the only code that wants it.
 
    `:scale-default` says what a value means once the aesthetic accepts
-   one, so `:fill` carries `:by-value` while `:value?` is still false.
+   one, so `:fill` carries `:by-source` while `:value?` is still false.
    Setting `:value?` before the reading exists would make a value pass
    every check and then draw nothing, which is the defect this table is
    here to prevent.
@@ -124,20 +150,20 @@
    hides. `:y-min` / `:y-max` are a column on `:errorbar` and a value
    on `:band-h`. `:text` takes a value only on a layer with no data;
    with data, the mark demands a column."
-  {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always    :literal->column? true :scale-key :x-scale}
-   :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always    :literal->column? true :scale-key :y-scale}
-   :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always    :literal->column? true}
-   :y-min {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always}
-   :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always}
-   :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always}
-   :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always}
-   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-value  :scale-key :color-scale :legend? true}
-   :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :size-scale  :legend? true}
-   :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :scale-key :alpha-scale :legend? true}
-   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-value  :scale-key :fill-scale}
-   :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-value  :scale-key :shape-scale :legend? true}
-   :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never}
-   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil}})
+  {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
+   :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
+   :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
+   :y-min {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
+   :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
+   :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
+   :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
+   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale :legend? true}
+   :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
+   :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
+   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
+   :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
+   :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
+   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}})
 
 (defn aesthetics-where
   "The aesthetics whose registry entry satisfies `pred`, in a stable
