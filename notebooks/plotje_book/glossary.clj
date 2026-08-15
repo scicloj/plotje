@@ -634,16 +634,31 @@ my-pose
 
 ;; ## Scale
 ;;
-;; A **scale** maps data values to what is drawn: the axes to
-;; positions in drawing units, and `:color`, `:size`, `:alpha`,
-;; `:fill` and `:shape` to a color, a radius, an opacity or a symbol.
-;; Built from a domain and an output range using
-;; [wadogo](https://github.com/scicloj/wadogo).
+;; A **scale** turns data into something visible. The axes turn data
+;; values into places in drawing units; `:color`, `:size`, `:alpha`,
+;; `:fill` and `:shape` turn them into a color, a radius, an opacity or
+;; a symbol. A scale is built from a domain and an output range using
+;; [wadogo](https://github.com/scicloj/wadogo), so it depends on the
+;; whole column it is given and not on any one row.
 ;;
-;; A mapping can be taken off its scale one at a time, with
-;; `{:color {:column :hex :scale false}}` -- then the column's values
-;; are drawn as they stand, they inform no domain, and they earn no
-;; legend, since a legend explains a scale.
+;; Whether a mapping is read through its scale is asked one mapping at
+;; a time, with the `:scale` key:
+;;
+;; - `{:color {:column :hex :scale false}}` draws the column's values
+;;   as they stand. They inform no domain and earn no legend, since a
+;;   legend explains a scale.
+;; - `{:color {:value "Model A" :scale true}}` sends a written value
+;;   through the scale as though it were a column of one distinct
+;;   value, which is how a whole layer is labelled as a named series.
+;;
+;; Omitting `:scale` leaves the choice to the conventions: a column is
+;; read through its scale, and a written value is drawn as it stands on
+;; the appearance aesthetics and read through the scale on `:x` and
+;; `:y`.
+;;
+;; Two aesthetics have no scale at all -- `:text`, which draws a label
+;; as it stands, and `:group`, which draws nothing of its own -- so
+;; both report a `:scale` rather than accepting one.
 ;;
 ;; | Type | Use |
 ;; |:-----|:----|
@@ -775,13 +790,27 @@ annotated
 
 ;; ## Legend
 ;;
-;; A **legend** is generated automatically when an aesthetic maps to a
-;; data column. It appears in the plan under the key named for that
-;; aesthetic -- `:legend` for color, holding entries with labels and
-;; colors, and `:size-legend`, `:alpha-legend`, `:shape-legend` for the
-;; others. One column driving both color and shape produces a single
-;; merged legend under `:legend`, whose entries carry a `:shape` too.
-;; Position is controlled via `{:legend-position :bottom}` in options.
+;; A **legend** is the key drawn beside the plot that explains a
+;; scale: which color stands for which category, which radius for
+;; which number. It is generated automatically, and what it explains
+;; is the scale rather than the mapping -- so a legend appears exactly
+;; where a scale was applied.
+;;
+;; That means a column read through its scale earns one, and a written
+;; value read through its scale earns a one-entry legend naming the
+;; value. A mapping given `{:scale false}` earns none, since its
+;; values were drawn as they stand and nothing was decided that a
+;; reader would need explaining. Neither does a channel the mark
+;; cannot vary from row to row: `:size` on `pj/lay-line` draws one
+;; width for the whole layer, so a legend pairing values with radii
+;; would explain an encoding the panel does not carry.
+;;
+;; A legend appears in the plan under the key named for its aesthetic
+;; -- `:legend` for color, holding entries with labels and colors, and
+;; `:size-legend`, `:alpha-legend`, `:shape-legend` for the others. One
+;; column driving both color and shape produces a single merged legend
+;; under `:legend`, whose entries carry a `:shape` too. Where it sits
+;; is controlled via `{:legend-position :bottom}` in options.
 
 (kind/pprint (:legend my-plan))
 
