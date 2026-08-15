@@ -670,9 +670,16 @@ my-pose
 ;; The plan stores scale *specs* (`:type`, `:domain`).
 ;;
 ;; **Temporal columns** (`LocalDate`, `LocalDateTime`, `Instant`,
-;; `java.util.Date`) are automatically detected and treated as
-;; numerical. Tick labels are calendar-aware -- snapped to year,
-;; month, day, or hour boundaries depending on the time span.
+;; `java.util.Date`) are detected automatically and converted to
+;; epoch-milliseconds -- one number per value -- before any scale is
+;; built. The axis is then an ordinary `:linear` scale over those
+;; numbers, and the domain the plan carries is a pair of
+;; epoch-millisecond numbers. That is all "treated as numerical"
+;; means: it describes the scaling, not the display. The tick labels
+;; are written as dates or times, in a format that follows the span
+;; the axis covers. See
+;; [Inference Rules](./plotje_book.inference_rules.html#temporal-columns)
+;; for the conversion and the tick formats, worked through.
 
 ;; ## Coord
 ;;

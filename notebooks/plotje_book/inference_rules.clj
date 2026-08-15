@@ -236,9 +236,10 @@ bar-pose
 
 ;; ### Temporal columns
 ;;
-;; Dates are detected and converted to epoch-milliseconds internally,
-;; with calendar-aware tick labels.
-;; Clojure's `#inst` reader literal is a convenient way to write dates:
+;; Plotje accepts `java.util.Date` (from Clojure's `#inst` reader
+;; literal), `LocalDate`, `LocalDateTime` and `Instant`. Each is
+;; detected automatically and converted to epoch-milliseconds -- one
+;; number per value -- before any scale is built.
 
 (def temporal-pose
   (-> {:date [#inst "2024-01-01" #inst "2024-06-01" #inst "2024-12-01"]
@@ -254,12 +255,48 @@ temporal-pose
            (= 10 (count (:values (:x-ticks p))))
            (= "Feb-01" (first (:labels (:x-ticks p)))))))])
 
-;; The x-axis carries epoch-millisecond numbers internally, but the
-;; 10 tick labels show human-readable dates like `"Feb-01"`. Plotje
-;; accepts `java.util.Date` (from `#inst`), `LocalDate`,
-;; `LocalDateTime`, and `Instant` -- all are converted to
-;; epoch-milliseconds for plotting, with calendar-aware tick
-;; formatting.
+;; The axis reads as dates. The plan underneath it holds none: the
+;; scale is an ordinary `:linear` one, the domain is a pair of
+;; epoch-millisecond numbers, and only the tick labels are
+;; calendar-aware. This is what the type table above means by
+;; "numerical, with calendar-aware ticks" -- it describes the scaling,
+;; not the display.
+
+(let [panel (first (:panels (pj/plan temporal-pose)))]
+  {:x-scale       (:x-scale panel)
+   :x-domain      (:x-domain panel)
+   :x-tick-labels (:labels (:x-ticks panel))})
+
+(kind/test-last
+ [(fn [m]
+    (and (= {:type :linear} (:x-scale m))
+         (every? number? (:x-domain m))
+         (= 10 (count (:x-tick-labels m)))))])
+
+;; The label format follows the span the axis covers. The same
+;; two-point layer over three spans gives clock time, weekday and
+;; hour, and year and month:
+
+(let [labels (fn [a b]
+               (-> {:when [a b] :level [1 2]}
+                   (pj/lay-point :when :level)
+                   pj/plan :panels first :x-ticks :labels))]
+  {:six-hours  (labels #inst "2024-01-15T00:00" #inst "2024-01-15T06:00")
+   :three-days (labels #inst "2024-01-15" #inst "2024-01-18")
+   :nine-years (labels #inst "2015-01-15" #inst "2024-01-15")})
+
+(kind/test-last
+ [(fn [m]
+    (and (every? #(re-matches #"\d{2}:\d{2}" %) (:six-hours m))
+         (every? #(re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" %) (:three-days m))
+         (every? #(re-matches #"\d{4}-\d{2}" %) (:nine-years m))))])
+
+;; Over the longer spans the tick values are placed on calendar
+;; boundaries as well, rather than at evenly spaced numbers: the
+;; nine-year axis above carries one tick per year, and the twelve-month
+;; axis at the top of this section carries one per month. Below a month
+;; the ticks are evenly spaced and it is the label format alone that is
+;; calendar-aware.
 
 ;; ### Overriding inferred types with `:x-type` / `:y-type`
 ;;
