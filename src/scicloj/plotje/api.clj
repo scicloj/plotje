@@ -1442,54 +1442,49 @@
                 {:mapping position-mapping :layers [layer]})))))
 
 (defn- check-position-mapping
-  "Throw a helpful error if :x or :y is a value that names no column and
-   places no mark -- a vector, a boolean, a set.
+  "Throw a helpful error if `:x` or `:y` is a value that names no column
+   and places no mark -- a vector, a boolean, a set.
 
-   Where the `:x` or `:y` is written decides what a number means. In a
-   layer's options map (`:allow-value`) it is a value to draw at, either
-   as one mark or broadcast over the layer's data. In `pj/pose`, or in
-   the `:x`/`:y` arguments of a `lay-*` call, it is a column reference
-   and nothing else, so an integer column name reports the rename it
-   needs rather than silently plotting one mark at that number.
+   Nothing about *where* the mapping is written enters into it. A
+   number is left to the ordinary convention wherever it appears: the
+   layer's data is asked at draft time, a name it carries is that
+   column, and anything else is a value the axis scales into a datum.
+   So `{:x 0}` reads column 0 on a dataset that has one and places
+   every mark at zero on a dataset that does not, whether it was
+   written in `pj/pose`, in a `lay-*` positional argument, or in a
+   layer's options map.
 
-   The explicit form passes this check in both contexts, which is what
-   lifts that restriction: a bare number is ambiguous where columns
-   carry integer names, and `{:value 2}` and `{:column 2}` are the two
-   things it could have meant, each said out loud.
+   This gate used to refuse a bare number outside a layer's options
+   map, on the reasoning that it runs before the data is available and
+   cannot tell a column name from a place. That reasoning does not
+   hold: the source question is answered at draft time for every other
+   mapping, and answering it here as well is what makes the rule one
+   rule. `{:column 0}` and `{:value 0}` remain the way to say which
+   reading is meant where a reader of the code could not tell.
 
-   Where it can be written is a separate question, and the answer is
-   `pj/pose`, a layer's options map -- `{:x {:column 0}}` -- and any
-   `lay-*` positional argument that is not the last one:
+   Where the explicit form may be written is a separate question, and
+   the answer is `pj/pose`, a layer's options map -- `{:x {:column 0}}`
+   -- and any `lay-*` positional argument that is not the last one:
    `(pj/lay-point data {:column 0} :b)` and
    `(pj/lay-point data :a {:column :b} {:color :sp})` both read the map
    as a position. The **last** positional argument is the options map
    whichever axis it stands in, so the form cannot be spelled there;
    the arity decides before this check is reached, and
    `check-mapping-in-map-slot` is what says so."
-  ([context opts] (check-position-mapping context opts nil))
-  ([context opts allow-value]
-   (doseq [k [:x :y]]
-     (when-let [v (get opts k)]
-       (when-not (or (keyword? v) (string? v)
-                     (pose/explicit-mapping? v)
-                     (and (= :allow-value allow-value)
-                          (resolve/literal-position? v)))
-         (throw (ex-info (str context " " k " must be a column reference "
-                              "(keyword or string), but got " (pr-str v) "."
-                              (if (resolve/literal-position? v)
-                                (str " To place a mark at that " k ", give it "
-                                     "in a layer's options map, e.g. "
-                                     "`(pj/lay-text pose {" k " " (pr-str v)
-                                     " :y 5.0 :text \"note\"})`. If " (pr-str v)
-                                     " is a column name, rename the column "
-                                     "first, e.g. "
-                                     "`(tc/rename-columns ds [:x :y])`.")
-                                (str " For one fixed " k ", add a column "
-                                     "to :data holding it, e.g. "
-                                     "`(tc/add-column data " k " (constantly "
-                                     (pr-str v) "))` and pass "
-                                     k " " (pr-str (keyword (name k))) ".")))
-                         {:option k :value v})))))))
+  [context opts]
+  (doseq [k [:x :y]]
+    (when-let [v (get opts k)]
+      (when-not (or (keyword? v) (string? v)
+                    (pose/explicit-mapping? v)
+                    (resolve/literal-position? v))
+        (throw (ex-info (str context " " k " must be a column reference or a"
+                             " value to place a mark at, but got " (pr-str v)
+                             ", which is neither. For one fixed " k ", add a"
+                             " column to :data holding it, e.g. "
+                             "`(tc/add-column data " k " (constantly "
+                             (pr-str v) "))` and pass "
+                             k " " (pr-str (keyword (name k))) ".")
+                        {:option k :value v}))))))
 
 (defn- check-numeric-aesthetics
   "Throw a helpful error if :alpha or :size in a layer's options is
@@ -1674,7 +1669,7 @@
     ;; :x and :y here may be a value as well as a column. Which of the
     ;; two it draws is decided in `pose/leaf->draft`, where the pose's
     ;; mapping and the layer's data are both known.
-    (check-position-mapping (str "lay-" (name layer-type-key)) opts :allow-value)
+    (check-position-mapping (str "lay-" (name layer-type-key)) opts)
     (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
     (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
   (let [opts (if (and opts (keyword? layer-type-key))

@@ -458,91 +458,62 @@
       (is (= (tc/dataset new) (:data ext))
           "opts :data replaces base's data on extend (consistent across arities)"))))
 
-(deftest pose-scalar-column-ref-throws
-  (testing "(pj/pose data {:x 5}) throws with helpful column-ref message"
+(deftest a-number-position-is-resolved-by-the-data-test
+  ;; A number in an `:x` or `:y` mapping used to be refused everywhere
+  ;; except a layer's options map, on the reasoning that the check runs
+  ;; before the data is available and cannot tell a column name from a
+  ;; place. The source question is answered at draft time for every
+  ;; other mapping, so it is answered there for these too, and the rule
+  ;; is now one rule wherever the mapping is written.
+  (let [ints {0 [1 2 3] 1 [4 5 6]}
+        x-dom #(-> % pj/plan :panels first :x-domain)
+        y-dom #(-> % pj/plan :panels first :y-domain)]
+
+    (testing "an integer column name reads that column, in every arity"
+      (doseq [[label p] [["pose map"        (-> (pj/pose ints {:x 0 :y 1}) pj/lay-point)]
+                         ["pose 3-arity"    (-> (pj/pose ints 0 1) pj/lay-point)]
+                         ["lay-* positional" (pj/lay-point ints 0 1)]
+                         ["lay-* opts map"  (pj/lay-point ints {:x 0 :y 1})]
+                         ["lay-* 4-arity"   (pj/lay-point ints 0 1 {})]
+                         ["x-only arity"    (pj/lay-histogram ints 0)]]]
+        (is (= [0.9 3.1] (x-dom p)) label)))
+
+    (testing "and the axis is labelled with the column's name"
+      (is (= ["0" "1"] ((juxt :x-label :y-label)
+                        (pj/plan (-> (pj/pose ints {:x 0 :y 1}) pj/lay-point))))))
+
+    (testing "a number the data carries no column for is a datum on the axis"
+      (is (= [5.5 7.5] (x-dom (-> (pj/pose tiny {:x 6.5 :y :y}) pj/lay-point))))
+      (is (= [5.5 7.5] (y-dom (-> (pj/pose tiny {:x :x :y 6.5}) pj/lay-point)))))
+
+    (testing "the explicit form still says which reading is meant"
+      (is (= [0.9 3.1] (x-dom (pj/lay-point ints {:x {:column 0} :y 1}))))
+      (is (= [-1.0 1.0] (x-dom (pj/lay-point ints {:x {:value 0} :y 1})))))
+
+    (testing "a template resolves against the data it is later given"
+      (is (= [0.9 3.1] (x-dom (-> (pj/pose) (pj/pose {:x 0 :y 1})
+                                  pj/lay-point (pj/with-data ints))))))
+
+    (testing "valid column refs still work in every arity"
+      (is (pj/pose? (pj/lay-point tiny :x :y)))
+      (is (pj/pose? (pj/lay-point tiny :x :y {})))
+      (is (pj/pose? (pj/lay-point tiny "x" "y")))
+      (is (pj/pose? (pj/lay-point tiny {:x :x :y :y})))
+      (is (pj/pose? (pj/lay-point tiny)))
+      (is (pj/pose? (pj/pose tiny {:x :x :y :y})))
+      (is (pj/pose? (pj/pose tiny {:x "x" :y "y"}))))))
+
+(deftest a-position-that-is-neither-is-refused-test
+  ;; What is left of the gate: a value that names no column and places
+  ;; no mark either.
+  (doseq [v [[1 2] true #{1}]]
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #":x must be a column reference"
-         (pj/pose tiny {:x 5}))))
-
-  (testing "(pj/pose data {:y 3.14}) throws"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":y must be a column reference"
-         (pj/pose tiny {:x :x :y 3.14}))))
-
-  (testing "(pj/pose data 5 :y) 3-arity scalar in x-slot also throws"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":x must be a column reference"
-         (pj/pose tiny 5 :y))))
-
-  (testing "(pj/pose data :x 5) 3-arity scalar in y-slot also throws"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":y must be a column reference"
-         (pj/pose tiny :x 5))))
-
-  (testing "valid keyword column refs still work"
-    (is (pj/pose? (pj/pose tiny {:x :x :y :y}))))
-
-  (testing "valid string column refs still work"
-    (is (pj/pose? (pj/pose tiny {:x "x" :y "y"})))))
-
-(deftest lay-star-scalar-column-ref-throws
-  ;; The positional x/y of a lay-* call bypass build-layer, so every arity
-  ;; used to answer differently: the 4-arity accepted an integer column name
-  ;; and plotted it, the 3-arity reported "find not supported on type:
-  ;; java.lang.Long" (it had guessed the y slot held an options map), and the
-  ;; x-only arity threw a null NPE. All of them now give pj/pose's message.
-  (testing "4-arity scalar in x-slot throws"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":x must be a column reference"
-         (pj/lay-point tiny 0 :y {}))))
-
-  (testing "4-arity scalar in y-slot throws"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":y must be a column reference"
-         (pj/lay-point tiny :x 1 {}))))
-
-  (testing "3-arity scalar in y-slot throws, naming the column not the opts"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":y must be a column reference"
-         (pj/lay-point tiny :x 1))))
-
-  (testing "x-only arity scalar throws"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":x must be a column reference"
-         (pj/lay-histogram tiny 0))))
-
-  (testing "the message points at the lay-* that was called"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"lay-line :x must be"
-         (pj/lay-line tiny 0 :y))))
-
-  (testing "an integer column name is rejected the same way as any scalar"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #":x must be a column reference"
-         (-> (tc/dataset [[1 2] [3 4] [5 7]])
-             (pj/lay-point 0 1 {})))))
-
-  (testing "valid column refs still work in every arity"
-    (is (pj/pose? (pj/lay-point tiny :x :y)))
-    (is (pj/pose? (pj/lay-point tiny :x :y {})))
-    (is (pj/pose? (pj/lay-point tiny "x" "y")))
-    (is (pj/pose? (pj/lay-point tiny {:x :x :y :y})))
-    (is (pj/pose? (pj/lay-point tiny))))
+         #":x must be a column reference or a value to place a mark at"
+         (pj/pose tiny {:x v :y :y}))
+        (pr-str v)))
 
   (testing "a number on an appearance aesthetic is a constant, not a column"
-    ;; Why positions cannot take one either: numbers already name literal
-    ;; values in a mapping, so an integer column reference would be
-    ;; ambiguous on every channel that accepts a constant.
     (is (= #{1.0} (:sizes (pj/svg-summary (pj/lay-point tiny :x :y {:size 1})))))
     (is (= #{9.0} (:sizes (pj/svg-summary (pj/lay-point tiny :x :y {:size 9})))))))
 

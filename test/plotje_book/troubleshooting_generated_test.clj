@@ -191,7 +191,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__76131#] (= :text (:mark p1__76131#))))
+      (filter (fn* [p1__11193#] (= :text (:mark p1__11193#))))
       first
       :style
       :align-x)))
@@ -380,21 +380,16 @@
    v74_l420)))
 
 
-(def
- v77_l455
- (try
-  (-> (tc/dataset [[1 2] [3 4] [5 7]]) (pj/lay-point 0 1) pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+(def v77_l455 (-> (tc/dataset [[1 2] [3 4] [5 7]]) (pj/lay-point 0 1)))
 
 
 (deftest
- t78_l461
- (is
-  ((fn [msg] (re-find #":x must be a column reference" msg)) v77_l455)))
+ t78_l458
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v77_l455)))
 
 
 (def
- v80_l468
+ v80_l467
  (->
   (tc/dataset [[1 2] [3 4] [5 7]])
   (tc/rename-columns [:x :y])
@@ -402,33 +397,33 @@
 
 
 (deftest
- t81_l472
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v80_l468)))
+ t81_l471
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v80_l467)))
 
 
 (def
- v83_l488
+ v83_l487
  (def
   template
   (-> (pj/pose nil {:x :x, :y :y, :color :group}) pj/lay-point)))
 
 
 (def
- v84_l492
+ v84_l491
  (try
   (-> template (pj/with-data {:x [1 2 3], :y [4 5 6]}))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t85_l497
+ t85_l496
  (is
   ((fn [msg] (re-find #"\[:group\] not present in the dataset" msg))
-   v84_l492)))
+   v84_l491)))
 
 
 (def
- v87_l504
+ v87_l503
  (->
   (pj/pose nil {:x :x, :y :y})
   pj/lay-point
@@ -436,12 +431,12 @@
 
 
 (deftest
- t88_l508
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v87_l504)))
+ t88_l507
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v87_l503)))
 
 
 (def
- v90_l524
+ v90_l523
  (->
   [{:category "A", :value 100}
    {:category "B", :value 50}
@@ -451,12 +446,12 @@
 
 
 (deftest
- t91_l530
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v90_l524)))
+ t91_l529
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v90_l523)))
 
 
 (def
- v93_l536
+ v93_l535
  (->
   [{:category "A", :value 100}
    {:category "B", :value 50}
@@ -468,12 +463,12 @@
 
 
 (deftest
- t94_l544
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v93_l536)))
+ t94_l543
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v93_l535)))
 
 
 (def
- v96_l563
+ v96_l562
  (def
   points-data
   {:x [1 1 2 2 3 3],
@@ -482,7 +477,7 @@
 
 
 (def
- v97_l566
+ v97_l565
  (defn
   point-xs
   [pose]
@@ -498,7 +493,7 @@
 
 
 (def
- v98_l570
+ v98_l569
  (=
   (point-xs (-> points-data (pj/lay-point :x :y {:color :group})))
   (point-xs
@@ -507,11 +502,11 @@
     (pj/lay-point :x :y {:color :group, :position :dodge})))))
 
 
-(deftest t99_l573 (is ((fn [v] (true? v)) v98_l570)))
+(deftest t99_l572 (is ((fn [v] (true? v)) v98_l569)))
 
 
 (def
- v101_l582
+ v101_l581
  (->
   {:cat ["A" "A" "B" "B" "C" "C"],
    :y [10 20 30 40 50 60],
@@ -520,12 +515,12 @@
 
 
 (deftest
- t102_l587
- (is ((fn [v] (= 6 (:polygons (pj/svg-summary v)))) v101_l582)))
+ t102_l586
+ (is ((fn [v] (= 6 (:polygons (pj/svg-summary v)))) v101_l581)))
 
 
 (def
- v104_l603
+ v104_l602
  (->
   (rdatasets/datasets-chickwts)
   (pj/pose :feed)
@@ -534,7 +529,7 @@
 
 
 (deftest
- t105_l608
+ t105_l607
  (is
   ((fn
     [v]
@@ -548,16 +543,16 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v104_l603)))
+   v104_l602)))
 
 
 (def
- v107_l617
+ v107_l616
  (-> (rdatasets/datasets-chickwts) (pj/pose :feed) pj/lay-bar))
 
 
 (deftest
- t108_l621
+ t108_l620
  (is
   ((fn
     [v]
@@ -571,11 +566,11 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v107_l617)))
+   v107_l616)))
 
 
 (def
- v110_l636
+ v110_l635
  (try
   (->
    {:x ["a" "b" "c"], :y ["a" "b" "c"], :v [1 2 3]}
@@ -585,14 +580,14 @@
 
 
 (deftest
- t111_l642
+ t111_l641
  (is
   ((fn [msg] (re-find #"String cannot be cast to.*Number" msg))
-   v110_l636)))
+   v110_l635)))
 
 
 (def
- v113_l649
+ v113_l648
  (->
   (for
    [day (range 1 8) hour (range 0 24)]
@@ -608,11 +603,11 @@
 
 
 (deftest
- t114_l657
+ t114_l656
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v113_l649)))
+   v113_l648)))

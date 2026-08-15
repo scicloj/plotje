@@ -918,13 +918,19 @@
       (is (re-find #":colour" (str warnings))))))
 
 (deftest pose-literal-map-position-check-test
-  (testing "non-column-ref :x or :y throws with a helpful message"
+  (testing ":x or :y that names no column and places no mark throws"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #"must be a column reference"
          (pj/pose {:data {:x [1 2] :y [3 4]}
-                   :mapping {:x 5 :y :y}  ; :x is a scalar, not a col ref
-                   :layers [{:layer-type :point}]})))))
+                   :mapping {:x [1 2] :y :y}  ; a vector is neither
+                   :layers [{:layer-type :point}]}))))
+
+  (testing "a number is resolved by the data, as it is anywhere else"
+    ;; No column named 5, so it is a datum on the x axis.
+    (is (pj/pose? (pj/pose {:data {:x [1 2] :y [3 4]}
+                            :mapping {:x 5 :y :y}
+                            :layers [{:layer-type :point}]})))))
 
 (deftest pose-literal-map-validation-via-plot-test
   (testing "calling pj/plot directly on a literal map also validates"

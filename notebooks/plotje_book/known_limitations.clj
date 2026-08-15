@@ -225,26 +225,24 @@
 ;; ## Integer Column Names
 ;;
 ;; - A dataset built without column names gets integer ones, and
-;;   Plotje reads them: the inferred mapping picks up the first few
-;;   columns and the derived axis titles read as the names. A layer's
-;;   mapping can name them too -- `(pj/lay-point ds {:x 0 :y 1})` plots
-;;   those two columns, because the layer's data is at hand and a number
-;;   matching a column name there reads as that column.
+;;   Plotje reads them wherever a mapping is written:
+;;   `(pj/lay-point ds {:x 0 :y 1})`, `(pj/lay-point ds 0 1)` and
+;;   `(pj/pose ds {:x 0 :y 1})` all plot those two columns, and the
+;;   derived axis titles read as the names.
 ;;
-;;   What is missing is the other two ways of writing it.
-;;   `(pj/lay-point ds 0 1)` and `(pj/pose ds {:x 0 :y 1})` are both
-;;   refused, because the check on those runs before the data is
-;;   available and so cannot tell an integer column name from a value to
-;;   draw a mark at. The error names both readings rather than picking
-;;   one. Workarounds: write the mapping out in full, where
-;;   `{:x {:column 0}}` and `{:x {:value 0}}` are each unambiguous; or
-;;   rename with `(tc/rename-columns ds [:x :y])` as shown in the
+;;   What remains is that a number has two possible readings on `:x`
+;;   and `:y`, and the data decides between them: a number the data
+;;   carries as a column name is that column, and any other number is a
+;;   value to place a mark at. So the same code can change meaning on a
+;;   dataset whose column names differ. Where that matters, write the
+;;   mapping out in full -- `{:x {:column 0}}` and `{:x {:value 0}}`
+;;   are each unambiguous -- or rename with
+;;   `(tc/rename-columns ds [:x :y])` as shown in the
 ;;   [Datasets](./plotje_book.datasets.html#column-names) chapter.
 ;;
-;;   The appearance aesthetics take the same two readings on such a
-;;   dataset. `{:size 1}` reads column 1 where the data has one, and is
-;;   a radius where it does not; `{:size {:value 1}}` insists on the
-;;   radius.
+;;   The appearance aesthetics work the same way. `{:size 1}` reads
+;;   column 1 where the data has one, and is a radius where it does
+;;   not; `{:size {:value 1}}` insists on the radius.
 
 ;; ## ggplot2 Features Not Yet Implemented
 ;;

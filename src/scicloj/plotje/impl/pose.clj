@@ -1115,20 +1115,22 @@
         (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
                              " has no scale to set. " why)
                         {:key k :value v}))))
-    ;; `:scale` is a boolean today. A scale *type* on a mapping is
-    ;; future work, and accepting one meanwhile drew the default scale
-    ;; and said nothing: `{:size {:column :w :scale :log}}` gave the
-    ;; same radii as `:scale true`, while `(pj/scale pose :size :log)`
-    ;; genuinely differs -- which is the reading a writer of the first
-    ;; form expects. `pj/scale` refuses an unknown type for the same
-    ;; reason, and this is the same refusal one level down.
+    ;; `:scale` is a boolean today, and a scale *type* here is planned
+    ;; rather than refused on principle: `{:size {:column :w :scale
+    ;; :log}}` is meant to read that one mapping through a log scale,
+    ;; which is the reading a writer of it expects. Accepting it before
+    ;; it is wired drew the default scale and said nothing -- the same
+    ;; radii as `:scale true` -- so it is reported until the reading
+    ;; exists. `pj/scale` refuses an unknown type for the same reason,
+    ;; and this is the same refusal one level down.
     (when-not (contains? #{true false nil} (get v :scale))
       (throw (ex-info (str k " " (pr-str v) " sets :scale to "
                            (pr-str (:scale v)) ". A mapping's :scale is"
-                           " true or false: whether this value passes"
-                           " through " k "'s scale. To choose the scale's"
-                           " type, use (pj/scale pose " k " ...) for the"
-                           " whole plot.")
+                           " true or false today: whether this value passes"
+                           " through " k "'s scale. Naming a scale type here"
+                           " is planned for a later version; for now"
+                           " (pj/scale pose " k " ...) sets the type for the"
+                           " pose it is called on.")
                       {:key k :value v :scale (:scale v)})))
     ;; A source named as nothing is not a source. Left through, a nil
     ;; `:value` broadcast a column of nils and drew an empty panel

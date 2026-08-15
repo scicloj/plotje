@@ -15,8 +15,9 @@
 
    **The two decisions are asked of different things.** The source is
    asked of the layer's data: a name it carries is a column. The scale
-   is asked of the *value*, and only of the value -- a column always
-   passes through the scale, and nothing inspects what it holds. An
+   is asked of the *value*, and only of the value -- the convention
+   sends a column through the scale whatever it holds, and nothing
+   inspects its contents. An
    earlier reading did inspect it, drawing a column whose every value
    named a color, and three defects came out of that one idea: the
    same column behaved differently for `\"red\"` and `\"Red\"`, `:shape`
@@ -97,11 +98,13 @@
    overrides the convention in either direction -- `false` draws,
    `true` scales.
 
-   **A column passes through the scale, always**, for every aesthetic
-   that has one. Nothing here reads the column's contents. That is the
-   whole of the source half of the convention, and it is what makes a
-   column's meaning independent of the rows that happen to be in it:
-   a color column of `\"red\"`, `\"green\"`, `\"blue\"` is three
+   **A column passes through the scale unless the mapping says
+   otherwise**, for every aesthetic that has one, and nothing here
+   reads the column's contents in deciding that. The first half is the
+   convention, and an explicit `:scale false` overrides it -- that
+   branch is above. The second half holds either way, and it is what
+   makes a column's meaning independent of the rows that happen to be
+   in it: a color column of `\"red\"`, `\"green\"`, `\"blue\"` is three
    categories, exactly as `\"Red\"`, `\"Green\"`, `\"Blue\"` is, and
    `scale_colour_identity()` is spelled `{:scale false}` here.
 

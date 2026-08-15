@@ -448,22 +448,21 @@
 ;; `:y-intercept` and `pj/lay-rule-v` with `:x-intercept` draw a line
 ;; across the whole panel, which one `:x` and one `:y` cannot say.
 
-;; **A scalar that is a column name is still refused.** A dataset
-;; built without column names is given integer ones, so mapping such a
-;; column reads as a fixed x and is refused in the same words:
+;; **A number is read against the data.** A dataset built without
+;; column names is given integer ones, and a number in a mapping names
+;; such a column where the data carries it:
 
-(try
-  (-> (tc/dataset [[1 2] [3 4] [5 7]])
-      (pj/lay-point 0 1)
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+(-> (tc/dataset [[1 2] [3 4] [5 7]])
+    (pj/lay-point 0 1))
 
-(kind/test-last
- [(fn [msg] (re-find #":x must be a column reference" msg))])
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
-;; Here the one-row dataset above is the wrong remedy -- the values are
-;; already in the data, only the names are unusable. Rename the columns
-;; and map them by name instead:
+;; Where the data carries no column of that name, the same number is a
+;; value to place a mark at, and the axis stretches to hold it. To say
+;; which reading you mean rather than letting the data decide, write
+;; the mapping in full: `{:x {:column 0}}` reads the column and
+;; `{:x {:value 0}}` places every mark at zero. Renaming the columns is
+;; the other remedy, and usually the clearer one:
 
 (-> (tc/dataset [[1 2] [3 4] [5 7]])
     (tc/rename-columns [:x :y])
