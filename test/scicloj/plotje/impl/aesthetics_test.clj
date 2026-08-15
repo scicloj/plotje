@@ -10,6 +10,7 @@
             [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.pose-schema :as pose-schema]
+            [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.api :as pj]))
 
 (def cols
@@ -499,6 +500,51 @@
                                                                    {:size :radius})))]
         (is (= [2.0 8.0] [(first legend) (last legend)]))
         (is (apply < legend))))))
+
+(deftest a-degenerate-domain-is-decided-relatively-test
+  ;; The midpoint rule needs a relative test, as `scales::zero_range`
+  ;; has. With an absolute `(max 1e-6 span)` floor beneath an exact
+  ;; equality test, a span of 1e-7 fell between the two and drew every
+  ;; mark between radius 2.0 and 2.6 -- below the default 3.0, which is
+  ;; the picture the midpoint rule was added to prevent.
+  (let [radii (fn [span]
+                (let [f (scale/continuous-channel-mapper :linear 5.0 (+ 5.0 span) 2.0 8.0)]
+                  [(double (f 5.0)) (double (f (+ 5.0 span)))]))]
+    (testing "a span too small to be real takes the midpoint"
+      (is (= [5.0 5.0] (radii 0.0)))
+      (is (= [5.0 5.0] (radii 1e-13))))
+
+    (testing "a span that is real takes the whole range, with no band beneath it"
+      (doseq [span [1e-7 1e-6 1e-3 1.0 1000.0]]
+        (is (= [2.0 8.0] (radii span)) (str "span " span))))))
+
+(deftest a-size-legend-with-no-entries-still-renders-test
+  ;; `log-ticks` finds no 1-2-5 tick in a constant log domain and
+  ;; returns none, and the legend renderer reduced `max` over the empty
+  ;; list. Newly reachable: the datum cell puts a constant column where
+  ;; v0.8.1's schema refused one.
+  (is (instance? java.awt.image.BufferedImage
+                 (pj/plot (-> {:a [1 2 3] :b [1 2 3]}
+                              (pj/lay-point :a :b {:size {:value 7 :scale true}})
+                              (pj/scale :size {:type :log}))
+                          {:format :bufimg}))))
+
+(deftest a-column-argument-reads-the-explicit-form-test
+  ;; `pj/facet` names a column and has no second reading, so the form
+  ;; has no work to do there -- but a writer who has learned it for
+  ;; mappings reaches for it, and the map used to be stashed whole:
+  ;; one unfaceted panel, in silence, while a missing column reported
+  ;; correctly.
+  (let [d {:when [1 2 3 4] :level [1 2 3 4] :variety ["p" "q" "p" "q"]}
+        panels (fn [pose] (count (:panels (pj/plan pose))))]
+    (is (= 2 (panels (-> d (pj/lay-point :when :level) (pj/facet :variety)))))
+    (is (= 2 (panels (-> d (pj/lay-point :when :level) (pj/facet {:column :variety})))))
+
+    (testing "and a map with no column reading is reported"
+      (doseq [m [{:value :variety} {:column :variety :scale false}]]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo #"takes a column of the data"
+             (-> d (pj/lay-point :when :level) (pj/facet m))))))))
 
 (deftest a-datum-broadcasts-on-a-layer-of-values-too-test
   ;; A layer whose x and y are both written values gets a one-row

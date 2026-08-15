@@ -199,7 +199,7 @@
   ;; ticks. Reached through `:in :drawing-area`, which is released, as
   ;; well as through a per-axis `:scale false`.
   (testing "through the whole-layer form"
-    (is (= [0 1] (-> (pj/lay-bar {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
+    (is (= [0 1] (-> (pj/lay-point {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
                      pj/plan :panels first :x-domain))))
   (testing "through a per-axis :scale false"
     (let [panel (-> {:a [1 2 3] :b [1 2 3]}
@@ -208,9 +208,9 @@
                     pj/plan :panels first)]
       (is (= [0 1] (:x-domain panel)))
       (is (= [0 1] (:y-domain panel)))))
-  (testing "and a bar mark on such a panel plans and draws"
+  (testing "and such a panel draws"
     (is (instance? BufferedImage
-                   (pj/plot (pj/lay-bar {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
+                   (pj/plot (pj/lay-point {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
                             {:format :bufimg})))))
 
 ;; ---- Which marks can read an unscaled axis ----
@@ -247,12 +247,25 @@
              (pj/plan pose))
             label))))
 
-  (testing "and the message offers the whole-layer form, which every mark honours"
-    (is (thrown-with-msg?
-         Exception #"\{:in :drawing-area\}"
-         (pj/plan (pj/lay-bar {:k ["a" "b"] :v [1 2]} :k :v
-                              {:y {:column :v :scale false}}))))
-    (is (pj/plan (pj/lay-bar {:k ["a" "b"] :v [1 2]} :k :v {:in :drawing-area})))))
+  (testing "and the whole-layer form is refused on the same marks"
+    ;; It asks the same thing of both axes at once, so the same marks
+    ;; cannot read it. Left drawing, it produced the pictures this
+    ;; check exists to prevent -- a bar drew one rectangle across half
+    ;; the panel, a histogram drew nothing -- where before the `[0 1]`
+    ;; x fallback it had died on a null instead.
+    (doseq [[label pose] [["bar" (pj/lay-bar {:k ["a" "b"] :v [1 2]} :k :v
+                                             {:in :drawing-area})]
+                          ["histogram" (pj/lay-histogram {:v [1 2 3 4]} :v
+                                                         {:in :drawing-area})]]]
+      (is (thrown-with-msg?
+           Exception #"places through the axis scales instead"
+           (pj/plan pose))
+          label))
+
+    (testing "while the marks that can read it still do"
+      (is (pj/plan (pj/lay-point {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})))
+      (is (pj/plan (pj/lay-text {:a [1 2] :b [1 2]}
+                                {:x 20 :y 20 :text "n" :in :drawing-area}))))))
 
 ;; ---- Annotation colors ----
 

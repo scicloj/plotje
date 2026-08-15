@@ -172,7 +172,11 @@
   (let [{:keys [title entries]} size-legend
         title-color [0.2 0.2 0.2 1.0]
         point-color [0.4 0.4 0.4 1.0]
-        max-r (reduce max (map :radius entries))
+        ;; A legend with no entries has no widest swatch. `log-ticks`
+        ;; returns none for a log domain holding no 1-2-5 tick, which a
+        ;; constant size column gives it, so `reduce max` was handed an
+        ;; empty sequence and threw an arity error out of the renderer.
+        max-r (reduce max 0.0 (map :radius entries))
         row-h 18]
     (vec
      (concat

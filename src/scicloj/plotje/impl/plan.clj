@@ -877,28 +877,36 @@
   #{:area :contour :errorbar :line :point :pointrange :rug :step :text :tile})
 
 (defn- validate-unscaled-axis-marks
-  "Refuse a per-axis `:scale false` on a mark that cannot honour it.
+  "Refuse a request to measure an axis in drawing units on a mark that
+   cannot honour one, by either route.
 
-   The alternative was to leave the request silently unread, which is
-   the defect this work exists to remove. `{:in :drawing-area}` is
-   refused on those marks for the same reason it is offered here: it
-   places the whole layer and every mark honours it."
+   Both routes reach the same place. `{:in :drawing-area}` says it of
+   the whole layer and a per-axis `{:scale false}` says it of one, and
+   a mark that reads the oriented scales directly ignores either: a
+   bar drew one rectangle across half the panel and a histogram drew
+   an empty panel, both without a word. The whole-layer route used to
+   die on `Number.doubleValue() because \"x\" is null` instead, so
+   refusing it costs no working plot -- and leaving it drawing while
+   refusing the per-axis form would be the same request answered two
+   ways in one release."
   [resolved-draft-layers]
   (doseq [v resolved-draft-layers
-          :let [axes (cond-> []
-                       (:x-drawn? v) (conj :x)
-                       (:y-drawn? v) (conj :y))
+          :let [whole-layer? (= :drawing-area (:in v))
+                axes (cond-> []
+                       (or whole-layer? (:x-drawn? v)) (conj :x)
+                       (or whole-layer? (:y-drawn? v)) (conj :y))
                 m (:mark v)]
           :when (and (seq axes) m (not (drawn-axis-marks m)))]
-    (throw (ex-info (str "A :scale false on " (str/join " and " axes)
-                         " measures in drawing units from the top left of the"
-                         " panel background, and the " m " mark places through"
-                         " the axis scales instead, so it cannot read one."
-                         " The marks that can: "
+    (throw (ex-info (str (if whole-layer?
+                           "{:in :drawing-area} places a whole layer in drawing units"
+                           (str "A :scale false on " (str/join " and " axes)
+                                " measures in drawing units"))
+                         " from the top left of the panel background, and the "
+                         m " mark places through the axis scales instead, so it"
+                         " cannot read one. The marks that can: "
                          (str/join ", " (sort drawn-axis-marks)) "."
-                         " To place a " m " layer on the panel rather than in"
-                         " the data, give the whole layer {:in :drawing-area}.")
-                    {:mark m :axes axes :supported drawn-axis-marks}))))
+                         " A " m " layer is placed by its data.")
+                    {:mark m :axes axes :in (:in v) :supported drawn-axis-marks}))))
 
 (defn- validate-unscaled-axis-coord
   "Refuse a per-axis `:scale false` under a coord that rearranges the

@@ -136,11 +136,21 @@
         lo       (->space d-min)
         hi       (->space d-max)
         out-lo   (double out-lo)
-        out-span (- (double out-hi) out-lo)]
-    (if (== lo hi)
+        out-span (- (double out-hi) out-lo)
+        span     (- hi lo)
+        ;; Relative, as `scales::zero_range` is. An absolute floor
+        ;; leaves a band just above it where the domain is treated as
+        ;; real and the output is squeezed against `out-lo`: with the
+        ;; old `(max 1e-6 span)`, a span of 1e-7 drew every mark
+        ;; between radius 2.0 and 2.6 -- below the default 3.0, which
+        ;; is the very picture the degenerate case was fixed to avoid.
+        ;; Either side of the test is now a whole answer: the midpoint,
+        ;; or the full range.
+        degenerate? (<= (Math/abs span)
+                        (* 1e-12 (max 1.0 (Math/abs lo) (Math/abs hi))))]
+    (if degenerate?
       (constantly (+ out-lo (* 0.5 out-span)))
-      (let [span (max 1e-6 (- hi lo))]
-        (fn [v] (+ out-lo (* out-span (/ (- (->space v) lo) span))))))))
+      (fn [v] (+ out-lo (* out-span (/ (- (->space v) lo) span)))))))
 
 (defn- format-ticks*
   "Format tick values without any digit grouping. See format-ticks."

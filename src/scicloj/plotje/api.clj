@@ -1189,7 +1189,28 @@
    coerced -- the typed shape is preserved verbatim. A flat composite
    (`:poses` of leaf maps) is supported; literal nested composites
    (any sub-pose itself has `:poses`) are rejected, matching
-   `pj/arrange`'s rule that its elements must be leaves."
+   `pj/arrange`'s rule that its elements must be leaves.
+
+   **Writing a mapping out in full.** Any mapping value may be written
+   as a map naming its source, and optionally which side of the scale
+   to read it through:
+
+   - `{:column :species}` -- the column, even where a value of that
+     name could be drawn.
+   - `{:value \"blue\"}` -- the color, even where the data carries a
+     column called blue.
+   - `{:scale false}` -- draw the value as it stands rather than pass
+     it through the aesthetic's scale. On a column this is the only
+     route to an identity scale: `{:color {:column :hex :scale false}}`
+     draws the colors the column holds.
+   - `{:scale true}` -- read it as data. `{:color {:value \"Model A\"
+     :scale true}}` draws one palette color and earns a legend entry.
+
+   The conventions decide when `:scale` is absent: a column passes
+   through the scale, a written value is drawn on the appearance
+   aesthetics and is a data value on `:x` and `:y`. See
+   `pj/layer-option-docs` for what each aesthetic accepts, and
+   `pj/scale` for choosing a scale's type."
   ([] (prepare-pose {:layers []}))
   ([x]
    (-> x (->pose "pj/pose") infer-mapping))
@@ -2385,6 +2406,27 @@
                            :accepted valid-scales-values})))))
     (update-opts fr deep-merge opts)))
 
+(defn- column-argument
+  "Read an argument that names a column and nothing else.
+
+   A mapping value has two readings and `{:column ...}` picks one.
+   Faceting has only the one, so the form has no work to do here -- but
+   a writer who has learned it for mappings will reach for it, and
+   until this it was stashed whole: `(pj/facet pose {:column :g})` drew
+   a single unfaceted panel and said nothing, while `(pj/facet pose
+   :nosuch)` reported the missing column correctly."
+  [caller v]
+  (if-not (map? v)
+    v
+    (if (= (set (keys v)) #{:column})
+      (:column v)
+      (throw (ex-info (str caller " takes a column of the data, and "
+                           (pr-str v) " is not one. Write the column, or"
+                           " {:column ...} on its own -- there is no second"
+                           " reading here for :value or :scale to choose"
+                           " between.")
+                      {:caller caller :value v})))))
+
 (defn- reject-composite-for-facet
   "Throw if the input is a composite pose. Facet on composites would
    cross the facet grid with the composite grid, which is deferred."
@@ -2409,7 +2451,8 @@
                      {:caller "pj/facet"
                       :direction direction
                       :accepted #{:col :row}})))
-   (let [k (case direction :col :facet-col :row :facet-row)]
+   (let [col (column-argument "pj/facet" col)
+         k (case direction :col :facet-col :row :facet-row)]
      (update-opts pose assoc k col))))
 
 (defn facet-grid
@@ -2418,7 +2461,9 @@
    Composite poses are not supported yet."
   [pose col-col row-col]
   (reject-composite-for-facet pose)
-  (update-opts pose assoc :facet-col col-col :facet-row row-col))
+  (update-opts pose assoc
+               :facet-col (column-argument "pj/facet-grid" col-col)
+               :facet-row (column-argument "pj/facet-grid" row-col)))
 
 (def ^:private channel->scale-key
   "Channel keyword to the opts key holding its scale spec. Derived from
