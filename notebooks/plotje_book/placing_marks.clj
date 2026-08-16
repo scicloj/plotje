@@ -186,9 +186,9 @@ cars
       (< 8.0 (- (at 2.08) (at 2.0)) 11.0)))])
 
 ;; The same number does not work on a different axis. Displacement spans
-;; 79 to 460 where weight spans 1.9 to 5.4, so a nudge of 0.08 moves the
-;; text by about a tenth of a drawing unit. The labels are back on top of
-;; their markers:
+;; 79 to 460 where weight spans about 1.9 to 5.4, so a nudge of 0.08
+;; moves the text by about a tenth of a drawing unit. The labels are back
+;; on top of their markers:
 
 (-> cars
     (pj/lay-point :disp :mpg {:size 5})
@@ -198,7 +198,11 @@ cars
  [(fn [fr]
     (let [panel (-> fr pj/frames :panels first)
           at    #(first (pj/to-drawing panel % 20.0))]
-      (< (- (at 79.08) (at 79.0)) 0.2)))])
+      (and (= [79.0 460.0]
+              [(reduce min (cars :disp)) (reduce max (cars :disp))])
+           (= [1.935 5.424]
+              [(reduce min (cars :wt)) (reduce max (cars :wt))])
+           (< (- (at 79.08) (at 79.0)) 0.2))))])
 
 ;; `:offset-x` and `:offset-y` shift a layer by a number of drawing units
 ;; after the scales have run. Because the number is a distance on the

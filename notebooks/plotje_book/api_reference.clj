@@ -463,7 +463,7 @@
 ;; for `lay-rule-v`; `:y-min`/`:y-max` for `lay-band-h`,
 ;; `:x-min`/`:x-max` for `lay-band-v`); `:color` overrides the default
 ;; annotation color, and bands additionally honor `:alpha` to override
-;; the default 0.15 opacity. Without x/y columns they attach at the
+;; the `:band-opacity` configuration default. Without x/y columns they attach at the
 ;; root (every panel); with x/y columns they attach to one matching
 ;; leaf.
 ;;

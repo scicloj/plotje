@@ -26,17 +26,23 @@
    ;; Tablecloth -- dataset manipulation
    [tablecloth.api :as tc]))
 
-;; The examples use one year of the gapminder data. Its columns cover
-;; wide intervals -- income per person runs from about 300 to about
-;; 50,000, and population from about 200,000 to about 1.3 billion --
-;; which is what makes the difference between a linear and a log scale
-;; easy to see.
+;; The examples use one year of the gapminder data.
 
 (def gapminder-2007
   (-> (rdatasets/gapminder-gapminder)
       (tc/select-rows #(= 2007 (:year %)))))
 
 gapminder-2007
+
+;; Two of its columns cover very wide intervals, which is what makes
+;; the difference between a linear and a log scale easy to see:
+
+(kind/table
+ {:column-names ["column" "lowest" "highest"]
+  :row-maps (for [col [:gdp-percap :pop]]
+              {"column" (kind/code (pr-str col))
+               "lowest" (reduce min (gapminder-2007 col))
+               "highest" (reduce max (gapminder-2007 col))})})
 
 ;; ## The parts of a scale
 ;;
@@ -47,7 +53,8 @@ gapminder-2007
 ;;   categorical one. It is taken from the column unless you set it.
 ;; - The **range** is what the mark spans. For an axis it is the panel,
 ;;   whose size follows from the plot dimensions. For `:size` it is a
-;;   radius in drawing units, from 2 to 8 by default.
+;;   radius in drawing units, whose default
+;;   [the section below](#how-a-size-spreads-across-its-range) draws.
 ;; - The **type** is how values are spaced. `:linear` reads
 ;;   differences and `:log` reads ratios; `:categorical` gives each
 ;;   distinct value its own place.
@@ -62,9 +69,19 @@ gapminder-2007
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp {:size :pop :color :continent}))
 
-;; This plot has four scales: `:gdp-percap` and `:life-exp` on the two
-;; axes, `:pop` on size, and `:continent` on color. The two that have
-;; no axis are explained by legends.
+(kind/test-last
+ [(fn [fr]
+    (let [p (pj/plan fr)
+          panel (first (:panels p))]
+      ;; One scale per aesthetic mapped: the two axes, size and color.
+      (and (some? (:x-scale panel))
+           (some? (:y-scale panel))
+           (some? (:size-legend p))
+           (some? (:legend p)))))])
+
+;; This plot has one scale per aesthetic it maps: `:gdp-percap` and
+;; `:life-exp` on the two axes, `:pop` on size, and `:continent` on
+;; color. The two that have no axis are explained by legends.
 
 ;; ## Where a scale is set
 ;;
@@ -421,7 +438,20 @@ gapminder-2007
                  (legend-magnitudes {:by :sqrt}))))])
 
 ;; `:range` sets what the aesthetic spans, in the quantity the mark
-;; draws -- a radius for a point. A wider one draws every mark wider:
+;; draws -- a radius for a point. The smallest and largest value in a
+;; column are drawn at its two ends, so the default range can be read
+;; off the marks themselves. These are the distinct radii a default
+;; size scale draws for `squares`, in drawing units, smallest first:
+
+(-> squares
+    (pj/lay-point :x :y {:size :n})
+    pj/svg-summary
+    :sizes)
+
+(kind/test-last
+ [(fn [radii] (= [2.0 8.0] [(first radii) (last radii)]))])
+
+;; A wider range draws every mark wider:
 
 (-> squares
     (pj/lay-point :x :y {:size :n})

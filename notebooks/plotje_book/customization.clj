@@ -527,7 +527,19 @@
 
 ;; ### How wide the marks get: `:range`, `:by` and `:from-zero`
 ;;
-;; A `:size` scale spans radii from 2 to 8 drawing units by default.
+;; A `:size` scale spans a default interval of radii, in drawing units.
+;; The smallest and largest value in a column are drawn at its two
+;; ends, so the interval can be read off the marks themselves -- these
+;; are the distinct radii drawn, smallest first:
+
+(-> {:city ["A" "B" "C" "D"] :x [1 2 3 4] :y [4 2 3 1] :people [10 40 90 160]}
+    (pj/lay-point :x :y {:size :people})
+    pj/svg-summary
+    :sizes)
+
+(kind/test-last
+ [(fn [radii] (= [2.0 8.0] [(first radii) (last radii)]))])
+
 ;; `:range` sets that span, in the quantity the mark draws -- a radius
 ;; for a point:
 
@@ -568,9 +580,25 @@
                   true))
               ink)))])
 
-;; `:alpha` takes a `:range` too -- opacities rather than radii, 0.1 to
-;; 1.0 by default. It has no `:by`, since an opacity has no shape and
+;; `:alpha` takes a `:range` too -- opacities rather than radii. Its
+;; default is the one written out below, which draws the same plot as
+;; leaving it alone. It has no `:by`, since an opacity has no shape and
 ;; so no area to correct for.
+
+(-> {:city ["A" "B" "C" "D"] :x [1 2 3 4] :y [4 2 3 1] :people [10 40 90 160]}
+    (pj/lay-point :x :y {:alpha :people})
+    (pj/scale :alpha {:range [0.1 1.0]})
+    (pj/options {:title "The default opacity range, written out"}))
+
+(kind/test-last
+ [(fn [fr]
+    ;; Naming the default changes nothing, which is what makes it the
+    ;; default -- and is how this number stays true if it ever moves.
+    (= (->> fr pj/plan :alpha-legend :entries (mapv :alpha))
+       (->> (-> {:city ["A" "B" "C" "D"] :x [1 2 3 4] :y [4 2 3 1]
+                 :people [10 40 90 160]}
+                (pj/lay-point :x :y {:alpha :people}))
+            pj/plan :alpha-legend :entries (mapv :alpha))))])
 ;;
 ;; A `:domain` on a visual aesthetic behaves differently from one on an
 ;; axis. On an axis it sets the view window, and a mark outside it is

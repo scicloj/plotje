@@ -233,8 +233,8 @@ precedence-plot
            ;; since plot options did not specify height).
            (= 500.0 (double (:height s))))))])
 
-;; We can verify point-radius too -- only set-config! touched it,
-;; so it wins over the library default (3.0):
+;; We can verify point-radius too -- only set-config! touched it, so it
+;; wins over the library default shown above:
 
 (def precedence-point-radius
   (pj/with-config {:width 1200 :height 500}

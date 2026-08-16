@@ -549,9 +549,8 @@ integer-named
  [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
 
 ;; A spec is the same map `pj/scale` takes, so a mapping can set the
-;; range an aesthetic spans as well as its type. The default range runs
-;; from a radius of 2 to one of 8; this one is twice that, and every
-;; mark is drawn twice as wide:
+;; range an aesthetic spans as well as its type. The one below is twice
+;; the default at both ends, and every mark is drawn twice as wide:
 
 (-> plants
     (pj/lay-point :height :weight

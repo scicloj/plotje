@@ -416,7 +416,7 @@
 
 
 (def
- v73_l556
+ v73_l555
  (->
   plants
   (pj/lay-point
@@ -426,7 +426,7 @@
 
 
 (deftest
- t74_l560
+ t74_l559
  (is
   ((fn
     [fr]
@@ -437,12 +437,12 @@
       pj/plan
       :size-legend
       :entries
-      (mapv (fn* [p1__71617#] (* 2 (:magnitude p1__71617#)))))))
-   v73_l556)))
+      (mapv (fn* [p1__72298#] (* 2 (:magnitude p1__72298#)))))))
+   v73_l555)))
 
 
 (def
- v76_l591
+ v76_l590
  (->
   plants
   (pj/lay-point
@@ -450,14 +450,14 @@
 
 
 (deftest
- t77_l594
+ t77_l593
  (is
   ((fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))
-   v76_l591)))
+   v76_l590)))
 
 
 (def
- v79_l602
+ v79_l601
  (try
   (->
    plants
@@ -469,14 +469,14 @@
 
 
 (deftest
- t80_l611
+ t80_l610
  (is
   ((fn [m] (re-find #"Layers name different scales for the :x axis" m))
-   v79_l602)))
+   v79_l601)))
 
 
 (def
- v82_l623
+ v82_l622
  (try
   (pj/lay-text
    plants
@@ -487,5 +487,5 @@
 
 
 (deftest
- t83_l628
- (is ((fn [m] (re-find #":text has no scale to set" m)) v82_l623)))
+ t83_l627
+ (is ((fn [m] (re-find #":text has no scale to set" m)) v82_l622)))
