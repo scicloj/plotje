@@ -57,29 +57,6 @@
          (every? (partial names-column? layer)
                  resolve/positional-aesthetics)))])
 
-(def ColorScale
-  "Two unrelated vocabularies share the `:color-scale` key, because
-   `pj/scale :color` and the `:color-scale` configuration key both
-   write it into a leaf's `:opts`, from where `leaf->draft` stamps it
-   onto every layer:
-
-   - a scale spec, `{:type :linear}` or `{:type :log}`, from
-     `pj/scale`;
-   - a gradient, from `pj/options` or `pj/set-config!` -- a gradient
-     name such as `:inferno`, the `:sequential` / `:diverging` presets,
-     a map of `:low` / `:mid` / `:high`, or a function taking 0 to 1
-     and answering an RGBA vector. See
-     `impl.defaults/resolve-gradient-fn`.
-
-   Each reader picks out what it understands -- `impl.extract` reads
-   `:type` and finds none on a gradient name; `resolve-gradient-fn`
-   takes a map only when it names one of the three gradient stops, so a
-   scale spec leaves the gradient alone. What remains is that only one
-   of the two can be stored: whichever is written second wins,
-   silently. The last alternative below is that sharing written down --
-   a map here can be either."
-  [:or ps/ScaleSpec keyword? fn? map?])
-
 (def DraftLayerShape
   "The keys a draft layer carries, as `impl.pose/leaf->draft` emits
    them. Open on purpose: the merged mapping brings along every layer
@@ -122,7 +99,12 @@
    [:size-scale {:optional true} ps/ScaleSpec]
    [:alpha-scale {:optional true} ps/ScaleSpec]
    [:fill-scale {:optional true} ps/ScaleSpec]
-   [:color-scale {:optional true} ColorScale]
+   ;; `:color`'s spec has a key of its own. The configuration's
+   ;; `:color-scale` holds a gradient, and while `pj/scale :color`
+   ;; wrote its spec there too, whichever was written second silently
+   ;; discarded the other. The gradient does not travel on a layer; it
+   ;; is resolved from the configuration at plan time.
+   [:color-scale-spec {:optional true} ps/ScaleSpec]
    [:shape-scale {:optional true} ps/ScaleSpec]
    [:coord {:optional true} keyword?]
    ;; Facet labels, already formatted for display. Their presence is

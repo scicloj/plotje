@@ -166,7 +166,13 @@
    :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
    :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
    :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
-   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale :legend? true}
+   ;; `:color`'s scale spec has a key of its own, unlike every other
+   ;; channel, whose key is `<channel>-scale`. `:color-scale` is a
+   ;; configuration key holding a gradient, and while `pj/scale :color`
+   ;; wrote its spec there too, whichever was written last silently
+   ;; discarded the other: a viridis gradient and a log scale could not
+   ;; be asked for together.
+   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale-spec :legend? true}
    :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
    :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
    :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
@@ -241,11 +247,14 @@
    decides that -- and `:by` asks how a value spreads across a range in
    the mark's own quantity, which an opacity does not have.
 
-   `:breaks`, `:labels` and `:n-ticks` place and word tick marks, so
-   they belong to the two channels drawn as an axis. `:values` names
-   marker symbols, which only `:shape` draws."
-  {:x     #{:breaks :labels :n-ticks}
-   :y     #{:breaks :labels :n-ticks}
+   `:breaks`, `:labels` and `:n-ticks` place and word tick marks, and
+   `:label` titles the axis, so all four belong to the two channels
+   drawn as an axis. (`:label` is the axis title; `:labels` is the tick
+   text. The plot options `:x-label` and `:y-label` say the same as
+   `:label` and win over it.) `:values` names marker symbols, which
+   only `:shape` draws."
+  {:x     #{:breaks :labels :n-ticks :label}
+   :y     #{:breaks :labels :n-ticks :label}
    :color #{}
    :fill  #{}
    :shape #{:values}

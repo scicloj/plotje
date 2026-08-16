@@ -22,8 +22,8 @@
 ;; - Linear continuous color legends (numeric `:color` mapping with
 ;;   `:linear` scale) label only the endpoint tick marks on the
 ;;   gradient bar. Intermediate values are unlabeled, making it hard
-;;   to map interior colors back to data values. Log-scaled
-;;   continuous color and fill legends do carry intermediate ticks.
+;;   to map interior colors back to data values. Log-scaled color and
+;;   fill legends do carry intermediate ticks.
 ;;
 ;; - SPLOMs with 6+ variables at the default 600x400 have tight
 ;;   panels. Increase `:width`/`:height` or pin
@@ -149,7 +149,7 @@
 ;;
 ;; - A `:size` or `:alpha` mark is scaled against its own panel, while
 ;;   the legend is scaled against the whole plot. Under faceting, two
-;;   panels covering different value ranges are then drawn alike: a
+;;   panels whose values cover different intervals are drawn alike: a
 ;;   panel whose values run from 1 to 3 gets the same three radii as
 ;;   one whose values run from 4 to 10, and the legend matches neither.
 ;;   Workaround: set the domain explicitly, as in

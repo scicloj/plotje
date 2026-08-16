@@ -2615,10 +2615,15 @@
 
 (defn scale
   "Set scale on a pose. The scale applies to the pose it is called on
-   and to everything below it: on a leaf that is the whole plot, and on
-   one cell of a composite that cell alone, so two cells can carry
-   different scales. Under faceting every panel comes from one leaf, so
-   the panels share a type; `:scales :free` varies their domains.
+   and to everything below it: called on the pose you are building, it
+   covers the whole plot; called on one cell before the cells are
+   arranged, that cell alone, so two cells can carry different scales.
+   Under faceting every panel comes from one pose, so the panels share
+   a type; `:scales :free` varies their domains.
+
+   A mapping written out in full can name a scale too, for that one
+   mapping: `{:size {:column :weight :scale :log}}`. Where both are
+   written the mapping wins, key by key.
 
    Accepts a type keyword or a scale spec map with `:type`, optional
    `:domain`, optional `:breaks` (explicit tick locations), optional
@@ -2757,7 +2762,8 @@
                     {:caller "pj/scale" :channel channel
                      :unknown (vec unknown)
                      :supported defaults/shape-syms}))))
-        (scale/validate-drawn-range-options! channel scale-type "pj/scale")))
+        (scale/validate-drawn-range-options! channel scale-type "pj/scale")
+        (scale/validate-spec-keys! channel scale-type "pj/scale")))
     (update-opts pose assoc k (if (map? scale-type)
                                 (merge {:type (if disc-visual? :categorical :linear)}
                                        scale-type)

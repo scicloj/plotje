@@ -330,6 +330,20 @@
 ;; scatter and top density; right density uses its own column), and
 ;; mosaic-of-scatters.
 
+(defn- mapping-scale-type
+  "The scale type a mapping value names, or nil where it names none.
+
+   Reads the mapping as written, before normalizing: an explicit
+   mapping's `:scale` can be a type keyword, a spec map holding
+   `:type`, or a boolean, which names no type."
+  [mapping-value]
+  (when (map? mapping-value)
+    (let [s (:scale mapping-value)]
+      (cond
+        (map? s)     (:type s)
+        (keyword? s) s
+        :else        nil))))
+
 (defn- effective-axis-col
   "The column ref this resolved leaf uses for `axis`. Layer-level
    mappings take precedence over the leaf's own :mapping. Layers
@@ -451,7 +465,13 @@
   [leaf axis]
   (let [coord (or (get-in leaf [:opts :coord]) :cartesian)
         scale-key (case axis :x :x-scale :y :y-scale)
-        scale-type (or (get-in leaf [:opts scale-key :type]) :linear)
+        ;; The mapping is asked before the options, because an axis
+        ;; scale can be named in either place and the mapping wins.
+        ;; Reading the options alone judged two cells sharable when
+        ;; one of them had a log axis written in its mapping.
+        scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
+                       (get-in leaf [:opts scale-key :type])
+                       :linear)
         col (effective-axis-col leaf axis)
         ds (:data leaf)
         type-temporal (when (and ds col)
@@ -852,7 +872,12 @@
    follows from the convention rather than contradicting it -- but a
    silently ignored option is the defect this release exists to
    remove, and the writer has asked for two things that cannot both
-   hold. `:scale true` is the one word that makes both take effect."
+   hold. `:scale true` is the one word that makes both take effect.
+
+   `:color` is asked about its gradient as well as its spec. The two
+   live in different `:opts` keys -- `:color-scale` holds the gradient
+   and `:color-scale-spec` the scale -- and a column drawn as it stands
+   passes through neither."
   [resolved opts]
   (doseq [[k {:keys [scale-key]}] defaults/aesthetic-registry
           :when (and scale-key (false? (get-in resolved [:__scale k])))
@@ -860,6 +885,8 @@
                 named (cond-> []
                         (get opts scale-key)
                         (conj (str "(pj/scale pose " k " ...)"))
+                        (and (= :color k) (get opts :color-scale))
+                        (conj ":color-scale")
                         (and type-key (get resolved type-key))
                         (conj (str type-key " " (pr-str (get resolved type-key)))))]
           :when (seq named)]
@@ -1103,19 +1130,38 @@
     ;; true}}` was accepted and the key dropped -- the very thing this
     ;; check exists to prevent, under the same reasoning one entry over.
     (when (contains? v :scale)
-      (when-let [why (case (:scale-default (defaults/aesthetic-registry k))
-                       nil    (str "It splits a layer into one drawn group per"
-                                   " value and draws nothing of its own, so"
-                                   " there is no scale for a value to pass"
-                                   " through.")
-                       :never (str "A label is drawn as it stands, whether it"
-                                   " comes from a column or is written in the"
-                                   " mapping, so there is no scale for it to"
-                                   " pass through.")
-                       nil)]
-        (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
-                             " has no scale to set. " why)
-                        {:key k :value v}))))
+      (let [{:keys [scale-default scale-key]} (defaults/aesthetic-registry k)]
+        (when-let [why (cond
+                         (nil? scale-default)
+                         (str "It splits a layer into one drawn group per"
+                              " value and draws nothing of its own, so"
+                              " there is no scale for a value to pass"
+                              " through.")
+
+                         (= :never scale-default)
+                         (str "A label is drawn as it stands, whether it"
+                              " comes from a column or is written in the"
+                              " mapping, so there is no scale for it to"
+                              " pass through.")
+
+                         ;; The secondary positional aesthetics -- a
+                         ;; band's edges, an errorbar's bounds, an
+                         ;; interval's far end -- are drawn through the
+                         ;; panel's own axis and have no scale of their
+                         ;; own. A `:scale` here was accepted and read
+                         ;; by nothing.
+                         (nil? scale-key)
+                         (let [axis (if (= \x (first (name k))) :x :y)]
+                           (str "It is drawn through the panel's " axis
+                                " axis, which takes its scale from " axis
+                                ". Write the :scale there, or set it for"
+                                " the pose with (pj/scale pose " axis
+                                " ...)."))
+
+                         :else nil)]
+          (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
+                               " has no scale to set. " why)
+                          {:key k :value v})))))
     ;; Beside `true` and `false`, `:scale` takes a scale type or a whole
     ;; spec, and reads *this mapping* through it: `{:size {:column :w
     ;; :scale :log}}` is one log-scaled size mapping, whatever the pose
@@ -1131,36 +1177,13 @@
                                " scale -- or a scale type such as :log, or a"
                                " spec map such as {:type :log :range [2 12]}.")
                           {:key k :value v :scale s})))
-        ;; One panel has one x axis and one y axis, so two layers drawn
-        ;; against different x scales could not be read together. The
-        ;; coherent case -- every layer of a pose on one log axis -- is
-        ;; what `pj/scale` says, so a type here would be a second
-        ;; spelling for it and a first spelling for something
-        ;; unreadable.
-        (when (#{:x :y} k)
-          (throw (ex-info (str k " " (pr-str v) " names a scale, and an axis"
-                               " takes its scale from the pose: one panel has"
-                               " one " (name k) " axis, so its layers cannot"
-                               " each have their own. Write (pj/scale pose "
-                               k " " (pr-str (if (map? s) s (or s :log)))
-                               ") instead. In the mapping, " k "'s :scale says"
-                               " true or false -- whether the value is a datum"
-                               " on the axis or a distance across the panel.")
-                          {:key k :value v :scale s})))
         (let [spec (if (keyword? s) {:type s} s)
-              valid-types (defaults/channel-scale-types k)
-              accepted (into #{:type :domain}
-                             (get defaults/channel-scale-options k #{}))]
+              valid-types (defaults/channel-scale-types k)]
           ;; Before the unknown-key check, so that a drawn-range option
-          ;; written on a channel that has no such quantity is answered
-          ;; with what it means rather than with a list of keys.
+          ;; written on an aesthetic that has no such quantity is
+          ;; answered with what it means rather than with a list of keys.
           (scale/validate-drawn-range-options! k spec "A mapping's :scale on")
-          (when-let [unknown (seq (remove accepted (keys spec)))]
-            (throw (ex-info (str k " " (pr-str v) " sets :scale " (pr-str spec)
-                                 ", which has unexpected key(s): " (vec unknown)
-                                 ". " k "'s scale takes " (vec (sort accepted))
-                                 ".")
-                            {:key k :value v :scale spec :unknown (vec unknown)})))
+          (scale/validate-spec-keys! k spec "A mapping's :scale on")
           (when-let [t (:type spec)]
             (when-not (contains? valid-types t)
               (throw (ex-info (str k " " (pr-str v) " sets :scale type "

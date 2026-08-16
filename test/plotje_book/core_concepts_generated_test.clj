@@ -251,7 +251,7 @@
   setosa
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__11193#] (= "setosa" (:species p1__11193#))))))
+   (fn* [p1__71659#] (= "setosa" (:species p1__71659#))))))
 
 
 (def
@@ -260,7 +260,7 @@
   versicolor
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__11194#] (= "versicolor" (:species p1__11194#))))))
+   (fn* [p1__71660#] (= "versicolor" (:species p1__71660#))))))
 
 
 (def
@@ -737,7 +737,7 @@
 
 
 (def
- v139_l706
+ v139_l707
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -746,14 +746,14 @@
 
 
 (deftest
- t140_l711
+ t140_l712
  (is
   ((fn [v] (some #{"Iris Measurements"} (:texts (pj/svg-summary v))))
-   v139_l706)))
+   v139_l707)))
 
 
 (def
- v142_l720
+ v142_l721
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -762,12 +762,12 @@
 
 
 (deftest
- t143_l725
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v142_l720)))
+ t143_l726
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v142_l721)))
 
 
 (def
- v145_l731
+ v145_l732
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -777,7 +777,7 @@
 
 
 (deftest
- t146_l737
+ t146_l738
  (is
   ((fn
     [v]
@@ -787,11 +787,11 @@
      (= 3.0 (get-in v [:layers 1 :mapping :y-intercept]))
      (= :band-v (get-in v [:layers 2 :layer-type]))
      (= 5.0 (get-in v [:layers 2 :mapping :x-min]))))
-   v145_l731)))
+   v145_l732)))
 
 
 (def
- v148_l753
+ v148_l754
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -799,12 +799,12 @@
 
 
 (deftest
- t149_l757
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v148_l753)))
+ t149_l758
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v148_l754)))
 
 
 (def
- v151_l764
+ v151_l765
  (->
   {:x [-1 1 -1 1], :y [-1 -1 1 1]}
   (pj/lay-point :x :y)
@@ -812,18 +812,18 @@
 
 
 (deftest
- t152_l768
+ t152_l769
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (< (:width s) 600))))
-   v151_l764)))
+   v151_l765)))
 
 
 (def
- v154_l777
+ v154_l778
  (->
   {:population [1000 5000 50000 200000 1000000 5000000],
    :area [2 8 30 120 500 2100]}
@@ -833,12 +833,12 @@
 
 
 (deftest
- t155_l783
- (is ((fn [v] (= 6 (:points (pj/svg-summary v)))) v154_l777)))
+ t155_l784
+ (is ((fn [v] (= 6 (:points (pj/svg-summary v)))) v154_l778)))
 
 
 (def
- v157_l793
+ v157_l794
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -848,18 +848,18 @@
 
 
 (deftest
- t158_l799
+ t158_l800
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (= 150 (:points s)))))
-   v157_l793)))
+   v157_l794)))
 
 
 (def
- v160_l806
+ v160_l807
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -870,24 +870,24 @@
 
 
 (deftest
- t161_l813
- (is ((fn [v] (= :species (get-in v [:opts :facet-col]))) v160_l806)))
+ t161_l814
+ (is ((fn [v] (= :species (get-in v [:opts :facet-col]))) v160_l807)))
 
 
 (def
- v163_l817
+ v163_l818
  (->
   (rdatasets/datasets-iris)
   (pj/lay-histogram [:sepal-length :sepal-width :petal-length])))
 
 
 (deftest
- t164_l820
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v163_l817)))
+ t164_l821
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v163_l818)))
 
 
 (def
- v166_l826
+ v166_l827
  (->
   (rdatasets/datasets-iris)
   (pj/lay-histogram [:sepal-length :sepal-width :petal-length])
@@ -895,7 +895,7 @@
 
 
 (deftest
- t167_l830
+ t167_l831
  (is
   ((fn
     [v]
@@ -904,11 +904,11 @@
      (= :sepal-length (get-in v [:poses 0 :mapping :x]))
      (= :sepal-width (get-in v [:poses 1 :mapping :x]))
      (= :petal-length (get-in v [:poses 2 :mapping :x]))))
-   v166_l826)))
+   v166_l827)))
 
 
 (def
- v169_l837
+ v169_l838
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -919,5 +919,5 @@
 
 
 (deftest
- t170_l843
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v169_l837)))
+ t170_l844
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v169_l838)))

@@ -695,8 +695,9 @@ two-panel
 ;; pose or layer level. The functions in this section set
 ;; **plot-level options** instead: values that describe a plot
 ;; rather than a layer. They are written on a pose and reach
-;; everything beneath it, so on a leaf they describe the whole plot
-;; and on one cell of a composite that cell. See
+;; everything beneath it: written on the pose you are building they
+;; describe the whole plot, and written on one cell of a composite,
+;; that cell. See
 ;; [Options and Scopes](./plotje_book.options_and_scopes.html#plot-options)
 ;; for the full picture.
 ;;

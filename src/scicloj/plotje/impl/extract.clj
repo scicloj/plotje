@@ -222,7 +222,7 @@
                       (some? color) (assoc :label (defaults/fmt-category-label color))
                       (and numeric-color? color-values)
                       (assoc :colors (vec (map (fn [v]
-                                                 (let [scale-type (or (:type (:color-scale draft-layer)) :linear)
+                                                 (let [scale-type (or (:type (:color-scale-spec draft-layer)) :linear)
                                                        t (defaults/normalize-continuous scale-type v (or c-min 0) (or c-max 1) (:color-midpoint cfg))
                                                        grad-fn (:gradient-fn cfg)]
                                                    (grad-fn t)))
@@ -532,10 +532,10 @@
                        (:color draft-layer)))
         grad-fn (:gradient-fn cfg)
         midpoint (:color-midpoint cfg)
-        ;; :fill-scale wins over :color-scale; :color-scale is honored on
-        ;; tiles when the user wrote :color (synonym for :fill).
+        ;; :fill-scale wins over the colour scale spec, which is honored
+        ;; on tiles when the user wrote :color (synonym for :fill).
         fill-scale-type (or (:type (:fill-scale draft-layer))
-                            (:type (:color-scale draft-layer))
+                            (:type (:color-scale-spec draft-layer))
                             :linear)
         ;; Two paths: bin2d/kde2d stat produces :tiles as a dataset;
         ;; identity stat with :fill uses point groups
@@ -592,7 +592,7 @@
     {:mark :tile
      :style {:opacity (or (:fixed-alpha draft-layer) 1.0)}
      :fill-scale (:fill-scale draft-layer)
-     :color-scale (:color-scale draft-layer)
+     :color-scale-spec (:color-scale-spec draft-layer)
      :tiles tiles}))
 
 (defn- marching-squares-segments
@@ -803,7 +803,7 @@
                     (and numeric-color? color-values)
                     (assoc :colors
                            (vec (map (fn [v]
-                                       (let [scale-type (or (:type (:color-scale draft-layer)) :linear)
+                                       (let [scale-type (or (:type (:color-scale-spec draft-layer)) :linear)
                                              t (defaults/normalize-continuous
                                                 scale-type v
                                                 (or c-min 0) (or c-max 1)

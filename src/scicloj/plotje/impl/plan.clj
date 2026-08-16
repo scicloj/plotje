@@ -666,6 +666,25 @@
              "tile/density-2d/bin2d marks; :color paints stroke or"
              "outline (point edge, line).")))
 
+(defn- continuous-legend-ticks
+  "Tick values for a log-scaled gradient bar, each with the fraction of
+   the bar it sits at.
+
+   A linear gradient bar is labelled at its two ends and needs none of
+   this. A log one has to say where the decades fall, or the bar cannot
+   be read back to a value.
+
+   Stated once because both continuous legends need it: the fill legend
+   had it and the colour legend did not, so `pj/scale :color :log`
+   spaced the marks and left the legend describing a linear scale."
+  [lo hi]
+  (let [lo-l (Math/log10 (max 1e-300 (double lo)))
+        hi-l (Math/log10 (max 1e-300 (double hi)))
+        span (max 1e-6 (- hi-l lo-l))]
+    (vec (for [v (scale/log-ticks [lo hi] 5)]
+           {:value v
+            :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))
+
 (defn- build-legend
   "Build legend from resolved draft layers and color info. Returns nil when the
    legend would be empty (no data, or all nil/NaN in the color column).
@@ -693,14 +712,19 @@
         (when-let [all-vals (finite-vals all-bufs)]
           (let [c-min (dfn/reduce-min all-vals)
                 c-max (dfn/reduce-max all-vals)
+                scale-type (or (some #(:type (:color-scale-spec %)) color-draft-layers)
+                               :linear)
                 n-stops 20]
-            {:title title
-             :type :continuous
-             :min c-min :max c-max
-             :color-scale (:color-scale cfg)
-             :stops (vec (for [i (range n-stops)
-                               :let [t (/ (double i) (dec n-stops))]]
-                           {:t t :color (grad-fn t)}))})))
+            (cond-> {:title title
+                     :type :continuous
+                     :min c-min :max c-max
+                     :scale-type scale-type
+                     :color-scale (:color-scale cfg)
+                     :stops (vec (for [i (range n-stops)
+                                       :let [t (/ (double i) (dec n-stops))]]
+                                   {:t t :color (grad-fn t)}))}
+              (= :log scale-type)
+              (assoc :ticks (continuous-legend-ticks c-min c-max))))))
       (seq all-colors)
       {:title title
        :entries (vec (for [cat all-colors]
@@ -1100,6 +1124,38 @@
                            " are drawing units from that corner whatever the coord.")
                       {:coord coord-type :axes axes})))))
 
+(defn- describe-spec
+  "A scale spec as it should read in a message. A layer that names none
+   still reads a scale -- the default one -- and printing `nil` for it
+   said nothing useful."
+  [spec]
+  (if (nil? spec) "the default" (pr-str spec)))
+
+(defn- validate-axis-spec-agreement
+  "Refuse two layers of one panel that name different scales for an
+   axis.
+
+   A panel has one x axis and one y axis, and every layer is drawn
+   against them, so the panel can carry only one spec per axis. A layer
+   that names none is no disagreement -- it is drawn against whichever
+   axis the panel has -- which is where this differs from the
+   appearance channels below, where each layer scales its own values.
+
+   Nothing could reach this before a mapping could name an axis scale:
+   the spec came from the pose's options, so every layer carried the
+   same one."
+  [draft-layers]
+  (doseq [[channel scale-key] [[:x :x-scale] [:y :y-scale]]
+          :let [named (distinct (keep scale-key draft-layers))]
+          :when (> (count named) 1)]
+    (throw (ex-info (str "Layers name different scales for the " channel
+                         " axis: " (pr-str (vec named)) ". A panel has one "
+                         (name channel) " axis, and every layer is drawn"
+                         " against it, so it can carry only one. Set it once"
+                         " with (pj/scale pose " channel " ...), or write the"
+                         " same :scale in each mapping.")
+                    {:channel channel :specs (vec named)}))))
+
 (defn- validate-channel-spec-agreement
   "Refuse two layers that read one appearance channel through different
    scales, or draw it as different quantities.
@@ -1110,6 +1166,10 @@
    circles or strokes, not both. Until a plot can carry two legends for
    one channel, drawing the picture would mean labelling one of the two
    encodings wrongly.
+
+   A layer that names no scale counts as naming the default, unlike on
+   an axis: each layer here scales its own values, so a layer left on
+   the default really is drawn through a different scale.
 
    Only layers that vary the channel are asked. A column mapped on the
    pose flows into every layer, and a mark that draws one size for the
@@ -1126,7 +1186,8 @@
                                         varying))]]
     (when (> (count specs) 1)
       (throw (ex-info (str "Layers read " channel " through different scales: "
-                           (pr-str (vec specs)) ". One legend explains one"
+                           (str/join ", " (map describe-spec specs))
+                           ". One legend explains one"
                            " scale, so the plot cannot say which of the two a"
                            " mark's " (name channel) " means. Set the scale"
                            " once with (pj/scale pose " channel " ...), or"
@@ -1141,19 +1202,13 @@
                       {:channel channel :quantities (vec drawn-as)})))))
 
 (defn- warn-conflicting-specs
-  "Warn when draft layers disagree about scale or coord specs.
-   Only the first draft layer's specs are used -- conflicting specs are silently ignored
-   without this warning."
+  "Warn when draft layers disagree about the coord.
+
+   The axis scales were warned about here too, and using the first
+   layer's; they are refused by `validate-axis-spec-agreement` now that
+   a mapping can name one."
   [draft-layers]
-  (let [x-types (distinct (keep (comp :type :x-scale) draft-layers))
-        y-types (distinct (keep (comp :type :y-scale) draft-layers))
-        coords (distinct (keep :coord draft-layers))]
-    (when (> (count x-types) 1)
-      (println (str "Warning: Layers have conflicting x-scale types " (vec x-types)
-                    ". Using first layer's scale: " (first x-types) ".")))
-    (when (> (count y-types) 1)
-      (println (str "Warning: Layers have conflicting y-scale types " (vec y-types)
-                    ". Using first layer's scale: " (first y-types) ".")))
+  (let [coords (distinct (keep :coord draft-layers))]
     (when (> (count coords) 1)
       (println (str "Warning: Layers have conflicting coord types " (vec coords)
                     ". Using first layer's coord: " (first coords) ".")))))
@@ -1439,8 +1494,17 @@
         local-srs-y (srs-for y-informs?)
         domain-layers (filterv y-informs? local-plan-layers)
         first-draft-layer (first (:draft-layers pd))
-        x-scale-spec (or (:x-scale first-draft-layer) default-x-scale)
-        y-scale-spec (or (:y-scale first-draft-layer) default-y-scale)
+        ;; The first layer that *names* a spec, not the first layer's
+        ;; value. A spec can now come from a mapping, so it may sit on
+        ;; the second layer while the first says nothing; taking the
+        ;; first layer's value dropped it in silence. Two layers naming
+        ;; different specs are refused before this runs.
+        ;;
+        ;; Merged over the default so the spec carries a `:type`
+        ;; whatever was written: a mapping may name `:domain` alone,
+        ;; and `plan-schema/ScaleSpec` requires the type.
+        x-scale-spec (merge default-x-scale (some :x-scale (:draft-layers pd)))
+        y-scale-spec (merge default-y-scale (some :y-scale (:draft-layers pd)))
         coord-type (or (:coord first-draft-layer) default-coord)
         ;; The same `[0 1]` fallback `y-dom` has carried all along. A
         ;; panel where nothing informs the x domain -- every layer in a
@@ -1574,7 +1638,7 @@
                                        resolved-all))
         [f-lo f-hi] (or stat-fill-range draft-layer-fill-range)
         scale-type (or (some #(:type (:fill-scale %)) resolved-all)
-                       (some #(:type (:color-scale %)) resolved-all)
+                       (some #(:type (:color-scale-spec %)) resolved-all)
                        :linear)]
     (when f-lo
       (let [grad-fn (:gradient-fn cfg)
@@ -1595,14 +1659,7 @@
             stops (vec (for [i (range n-stops)
                              :let [t (/ (double i) (dec n-stops))]]
                          {:t t :color (grad-fn t)}))
-            ticks (when log?
-                    (let [tick-vals (scale/log-ticks [f-lo f-hi] 5)
-                          lo-l (Math/log10 (max 1e-300 (double f-lo)))
-                          hi-l (Math/log10 (max 1e-300 (double f-hi)))
-                          span (max 1e-6 (- hi-l lo-l))]
-                      (vec (for [v tick-vals]
-                             {:value v
-                              :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))]
+            ticks (when log? (continuous-legend-ticks f-lo f-hi))]
         (cond-> {:title title
                  :type :continuous
                  :min f-lo :max f-hi
@@ -1735,8 +1792,10 @@
          default-x-scale {:type :linear}
          default-y-scale {:type :linear}
          default-coord :cartesian
-         rep-x-scale (or (:x-scale (first draft-layers)) default-x-scale)
-         rep-y-scale (or (:y-scale (first draft-layers)) default-y-scale)
+         ;; As in `resolve-panel-domains`: the first layer that names a
+         ;; spec, merged over the default so a `:type` is always there.
+         rep-x-scale (merge default-x-scale (some :x-scale draft-layers))
+         rep-y-scale (merge default-y-scale (some :y-scale draft-layers))
          rep-coord (or (:coord (first draft-layers)) default-coord)
          _ (validate-polar-marks resolved-all rep-coord)
          _ (validate-unscaled-axis-coord resolved-all rep-coord)
@@ -1744,6 +1803,7 @@
          _ (validate-drawn-channel-marks resolved-all)
          _ (warn-unread-channel-columns resolved-all)
          _ (warn-conflicting-specs draft-layers)
+         _ (validate-axis-spec-agreement resolved-all)
          _ (validate-channel-spec-agreement resolved-all)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*

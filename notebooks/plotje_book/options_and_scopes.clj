@@ -169,8 +169,8 @@
          (= :flip (get-in m [:opts :coord]))))])
 
 ;; Both the title and the coordinate system landed in `:opts`. On a
-;; leaf pose like this one they describe the whole plot; written on
-;; one cell of a composite they would describe that cell.
+;; single-panel plot like this one they describe the whole plot;
+;; written on one cell of a composite they would describe that cell.
 ;;
 ;; A note on faceted plots: a scale has two parts that behave
 ;; differently across panels.
@@ -184,9 +184,10 @@
 ;;
 ;; A note on the scope of scales and coord: `pj/scale` and `pj/coord`
 ;; write at the pose they are called on and flow down from there, so
-;; on a leaf they cover the whole plot and on one cell of a composite
-;; that cell alone. A mapping written out in full may name its own
-;; scale, and takes precedence for that one mapping. What has no
+;; called on the pose you are building they cover the whole plot, and
+;; called on one cell before the cells are arranged, that cell alone.
+;; A mapping written out in full may name its own scale, and takes
+;; precedence for that one mapping. What has no
 ;; spelling yet is a type that varies across the panels of a facet:
 ;; those panels come from one leaf, so they share it.
 ;;
@@ -274,7 +275,7 @@ demo
 ;; - `:color :species` is inside the layer's mapping -- a layer
 ;;   option at layer scope.
 ;; - `:title` and `:coord` are in `:opts` -- plot options, which on
-;;   this leaf pose describe the whole plot.
+;;   this single-panel plot describe the whole of it.
 ;; - Configuration does not appear in the pose. The renderer
 ;;   will consult `(pj/config)` for theme, default dimensions,
 ;;   and other defaults.

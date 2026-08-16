@@ -234,11 +234,9 @@
 ;; `"does not recognize option(s): [:scale-x]"` -- and the chart
 ;; comes out on a linear axis.
 ;;
-;; **Cause**: `:scale-x` and `:scale-y` are not option keys at all.
-;; An axis takes its scale from `pj/scale`, called on the pose. (An
-;; appearance channel can also take one inside its own mapping --
-;; `{:size {:column :r :scale :log}}` -- but an axis cannot, since a
-;; panel has one of each.)
+;; **Cause**: `:scale-x` and `:scale-y` are not option keys at all. A
+;; scale is set with `pj/scale`, called on the pose, or inside a
+;; mapping written out in full -- `{:x {:column :carat :scale :log}}`.
 ;;
 ;; The wrong form does not throw; it warns and silently falls back
 ;; to a linear axis:

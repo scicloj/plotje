@@ -643,8 +643,10 @@
           base (-> ds (pj/lay-point :x :y {:color :c}))]
       (is (= (stops base) (stops (pj/scale base :color :log)))
           "the spacing is what :log asks for, not the colors")
-      (is (= {:type :log} (:color-scale (:legend (pj/plan (pj/scale base :color :log)))))
-          "and the scale spec still reaches the legend")
+      (is (= :log (:scale-type (:legend (pj/plan (pj/scale base :color :log)))))
+          "and the legend says which scale it explains")
+      (is (seq (:ticks (:legend (pj/plan (pj/scale base :color :log)))))
+          "with ticks, so the gradient bar can be read back to a value")
       (is (not= (stops base) (stops (pj/options base {:color-scale :inferno})))
           "a gradient name still changes the gradient")))
   (testing "diverging end-to-end"

@@ -142,9 +142,9 @@
 ;;
 ;; `:scales` applies to the axes only. A `:size` or `:alpha` column is
 ;; scaled against the panel it is drawn in, while its legend is built
-;; from the whole plot. Two panels covering different value ranges are
-;; therefore drawn with the same radii, and the legend does not match
-;; either of them.
+;; from the whole plot. Two panels whose values cover different
+;; intervals are therefore drawn with the same radii, and the legend
+;; does not match either of them.
 ;;
 ;; Below, the left panel's values run from 1 to 3 and the right panel's
 ;; from 4 to 10, and both panels draw the same three sizes:

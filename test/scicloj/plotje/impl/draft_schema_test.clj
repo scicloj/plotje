@@ -76,13 +76,41 @@
       (is (nil? (:stat layer)))
       (is (ds/layer-valid? layer)))))
 
-(deftest color-scale-carries-two-vocabularies-test
-  (testing "a scale spec and a gradient name reach the same draft key"
+(deftest the-color-scale-spec-has-a-key-of-its-own-test
+  ;; The spec and the gradient shared `:color-scale` until 0.9.0, and
+  ;; whichever was written second silently discarded the other -- so a
+  ;; viridis gradient and a log scale could not be asked for together.
+  (testing "the spec travels on the layer, under its own key"
     (is (= {:type :log}
            (-> (pj/lay-point data :num :num2 {:color :num2})
                (pj/scale :color :log)
-               pj/draft :layers first :color-scale)))
-    (is (= :inferno
-           (-> (pj/lay-point data :num :num2 {:color :num2})
-               (pj/options {:color-scale :inferno})
-               pj/draft :layers first :color-scale)))))
+               pj/draft :layers first :color-scale-spec))))
+
+  (testing "and the gradient does not travel on the layer at all"
+    ;; It is resolved from the configuration at plan time, which is
+    ;; where every reader of it already looked.
+    (let [layer (-> (pj/lay-point data :num :num2 {:color :num2})
+                    (pj/options {:color-scale :inferno})
+                    pj/draft :layers first)]
+      (is (nil? (:color-scale layer)))
+      (is (nil? (:color-scale-spec layer)))
+      (is (ds/layer-valid? layer))))
+
+  (testing "so both can be asked for at once, in either order"
+    (let [stops (fn [pose] (->> pose pj/plan :legend :stops (mapv :color)))
+          colors (fn [pose] (-> pose pj/plan :panels first :layers first
+                                :groups first :colors vec))
+          gradient-then-scale (-> (pj/lay-point data :num :num2 {:color :num2})
+                                  (pj/options {:color-scale :inferno})
+                                  (pj/scale :color :log))
+          scale-then-gradient (-> (pj/lay-point data :num :num2 {:color :num2})
+                                  (pj/scale :color :log)
+                                  (pj/options {:color-scale :inferno}))
+          plain (-> (pj/lay-point data :num :num2 {:color :num2})
+                    (pj/options {:color-scale :inferno}))]
+      (is (= (stops gradient-then-scale) (stops scale-then-gradient))
+          "the order does not decide which survives")
+      (is (= (stops plain) (stops gradient-then-scale))
+          "the gradient is the one asked for")
+      (is (not= (colors plain) (colors gradient-then-scale))
+          "and the log scale still spaces the marks"))))

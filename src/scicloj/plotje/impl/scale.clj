@@ -22,10 +22,24 @@
                       {:domain domain :scale-spec scale-spec}))
       (categorical-domain? domain) :categorical
       (= :log (:type scale-spec)) :log
+      ;; A categorical scale places categories, and this domain holds
+      ;; numbers. The message used to read "Unknown scale type:
+      ;; :categorical. Supported: :linear, :log", which is wrong twice:
+      ;; the type is supported, and the reason it does not apply here
+      ;; is the column, not the type.
+      (= :categorical (:type scale-spec))
+      (throw (ex-info (str "A :categorical scale places categories, and this"
+                           " axis spans numbers: " (pr-str (vec domain)) "."
+                           " To read a numeric column as categories, set"
+                           " :x-type or :y-type to :categorical on the layer"
+                           " -- the scale follows from the column's type."
+                           " A :categorical scale spec supplies the category"
+                           " order for a column that is already categorical.")
+                      {:domain (vec domain) :scale-spec scale-spec}))
       (let [t (:type scale-spec)]
         (and t (not= t :linear)))
       (throw (ex-info (str "Unknown scale type: " (:type scale-spec)
-                           ". Supported: :linear, :log")
+                           ". Supported: :linear, :log, :categorical")
                       {:scale-spec scale-spec}))
       :else :linear)))
 
@@ -141,6 +155,32 @@
    ggplot2's default for a point, adopted here: the perceptual
    correction is on, and the smallest mark stays visible."
   :sqrt)
+
+(defn spec-keys
+  "The keys a scale spec may carry for `aesthetic`. `:type` and
+   `:domain` belong to every scale; the rest are per aesthetic, from
+   `defaults/channel-scale-options`."
+  [aesthetic]
+  (into #{:type :domain} (get defaults/channel-scale-options aesthetic #{})))
+
+(defn validate-spec-keys!
+  "Throw when a scale spec names a key `aesthetic` does not read.
+
+   Called from both places a spec can be written, so `pj/scale` and a
+   mapping's `:scale` refuse the same keys. `pj/scale` used to take any
+   key and read what it understood, so a misspelled `:rnge` set nothing
+   and said nothing."
+  [aesthetic spec where]
+  (let [accepted (spec-keys aesthetic)]
+    (when-let [unknown (seq (remove accepted (keys spec)))]
+      (throw (ex-info (str where " " aesthetic " " (pr-str spec)
+                           " has unexpected key(s): " (vec unknown) ". "
+                           aesthetic "'s scale takes "
+                           (vec (sort accepted)) ".")
+                      {:aesthetic aesthetic :spec spec
+                       :unknown (vec unknown)
+                       :accepted (vec (sort accepted))
+                       :caller where})))))
 
 (defn validate-drawn-range-options!
   "Throw when a scale spec names a drawn-range option the channel does

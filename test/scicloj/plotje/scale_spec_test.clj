@@ -160,14 +160,76 @@
                           (-> measured (pj/lay-point :when :level)
                               (pj/scale :size {:type :log :from-zero true}))))))
 
-(deftest an-axis-takes-its-scale-from-the-pose-test
-  ;; One panel has one x axis, so its layers cannot each have their own.
-  (doseq [k [:x :y]]
+(deftest an-axis-takes-a-scale-in-its-mapping-test
+  ;; `pj/scale` and a mapping's `:scale` speak one language, on every
+  ;; channel that has a scale. The axes were refused a type at first,
+  ;; on the reasoning that a panel has one of each -- but that is an
+  ;; argument about layers disagreeing, not about the form.
+  (let [wide {:when [1 10 100 1000] :level [1 2 3 4]}
+        x-scale #(-> % pj/plan :panels first :x-scale)]
+    (testing "a type in the mapping reaches the axis"
+      (is (= {:type :log}
+             (x-scale (pj/lay-point wide {:x {:column :when :scale :log}
+                                          :y :level})))))
+
+    (testing "and so does a whole spec, from the pose's mapping"
+      (is (= {:type :log}
+             (x-scale (-> wide
+                          (pj/pose {:x {:column :when :scale {:type :log}}
+                                    :y :level})
+                          pj/lay-point)))))
+
+    (testing "a spec naming no type still carries one, as the schema asks"
+      (is (= {:type :linear :domain [1 2000]}
+             (x-scale (pj/lay-point wide {:x {:column :when
+                                              :scale {:domain [1 2000]}}
+                                          :y :level})))))
+
+    (testing "the axis takes the spec from whichever layer names it"
+      ;; Not from the first layer, which may name none.
+      (is (= {:type :log}
+             (x-scale (-> wide
+                          (pj/pose {:x :when :y :level})
+                          pj/lay-point
+                          (pj/lay-line {:x {:column :when :scale :log}}))))))
+
+    (testing "and `:label` titles the axis from either spelling"
+      (is (= "Custom" (-> wide (pj/lay-point :when :level)
+                          (pj/scale :x {:label "Custom"})
+                          pj/plan :x-label)))
+      (is (= "Mapped" (-> wide (pj/lay-point {:x {:column :when
+                                                  :scale {:label "Mapped"}}
+                                              :y :level})
+                          pj/plan :x-label))))))
+
+(deftest layers-that-name-different-axis-scales-are-refused-test
+  ;; A panel has one x axis and every layer is drawn against it, so it
+  ;; can carry one spec. A layer naming none is no disagreement -- that
+  ;; is where axes differ from the appearance channels, where each
+  ;; layer scales its own values.
+  (let [wide {:when [1 10 100 1000] :level [1 2 3 4]}]
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"Layers name different scales for the :x axis"
+         (pj/plan (-> wide
+                      (pj/pose {:x :when :y :level})
+                      (pj/lay-point {:x {:column :when :scale :log}})
+                      (pj/lay-line {:x {:column :when :scale :linear}})))))
+
+    (testing "a layer that names none goes along with the one that does"
+      (is (pj/plan (-> wide
+                       (pj/pose {:x :when :y :level})
+                       pj/lay-point
+                       (pj/lay-line {:x {:column :when :scale :log}})))))))
+
+(deftest the-secondary-positional-aesthetics-have-no-scale-test
+  ;; They are drawn through the panel's own axis. A `:scale` on one was
+  ;; accepted and read by nothing.
+  (doseq [k [:y-min :y-max]]
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"an axis takes its scale from the pose"
-                          (pj/lay-point measured :when :level
-                                        {k {:column :level :scale :log}}))
-        (str "a scale type on " k))))
+                          #"has no scale to set"
+                          (pj/lay-errorbar {:a [1 2] :b [3 4] :lo [1 2]}
+                                           :a :b {k {:column :lo :scale false}}))
+        (str "a :scale on " k))))
 
 (deftest a-key-the-spec-does-not-have-is-refused-test
   (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unexpected key"
@@ -183,6 +245,51 @@
                     (pj/pose :when :level)
                     (pj/lay-point {:size {:column :radius :scale :log}})
                     (pj/lay-point {:size {:column :radius :scale :linear}}))))))
+
+;; ---- A gradient and a scale are separate things ----
+
+(deftest a-gradient-and-a-colour-scale-can-both-be-asked-for-test
+  ;; They shared the `:color-scale` key, so whichever was written
+  ;; second discarded the other in silence.
+  (let [d {:x [1 2 3 4] :y [1 2 3 4] :n [1 10 100 1000]}
+        stops #(->> % pj/plan :legend :stops (mapv :color))
+        colours #(-> % pj/plan :panels first :layers first :groups first :colors vec)
+        plain (-> d (pj/lay-point :x :y {:color :n}))
+        viridis (-> plain (pj/options {:color-scale :viridis}))
+        logged (-> plain (pj/scale :color :log))
+        both (-> plain (pj/options {:color-scale :viridis}) (pj/scale :color :log))
+        both-reversed (-> plain (pj/scale :color :log)
+                          (pj/options {:color-scale :viridis}))]
+    (testing "the order they are written in does not decide which survives"
+      (is (= (stops both) (stops both-reversed)))
+      (is (= (colours both) (colours both-reversed))))
+
+    (testing "the gradient is the one asked for"
+      (is (= (stops viridis) (stops both)))
+      (is (not= (stops plain) (stops both))))
+
+    (testing "and the log scale still spaces the marks"
+      (is (not= (colours viridis) (colours both)))
+      (is (not= (colours plain) (colours logged))))))
+
+(deftest a-log-colour-legend-labels-its-decades-test
+  ;; The marks were log-spaced already; the gradient bar carried only
+  ;; its two end labels, so nothing said the scale was logarithmic.
+  (let [d {:x [1 2 3 4] :y [1 2 3 4] :n [1 10 100 1000]}
+        legend #(-> % pj/plan :legend)]
+    (is (empty? (:ticks (legend (-> d (pj/lay-point :x :y {:color :n}))))))
+    (let [lg (legend (-> d (pj/lay-point :x :y {:color :n}) (pj/scale :color :log)))]
+      (is (= :log (:scale-type lg)))
+      (is (= [1.0 10.0 100.0 1000.0] (mapv :value (:ticks lg)))))))
+
+(deftest a-categorical-scale-on-a-numeric-column-says-what-to-do-test
+  (is (thrown-with-msg?
+       clojure.lang.ExceptionInfo
+       #":categorical scale places categories.*:x-type or :y-type"
+       (-> {:hour [9 9 10 10] :v [1 2 3 4]}
+           (pj/lay-point :hour :v)
+           (pj/scale :x :categorical)
+           pj/plan))))
 
 ;; ---- The registry declaration ----
 

@@ -559,7 +559,9 @@ my-pose
 
 ;; ## Domain
 ;;
-;; A **domain** is the range of data values along an axis.
+;; A **domain** is the extent of data values a scale reads -- along an
+;; axis, or on a visual channel such as `:size`. It is the data side of
+;; a scale; the visible side is its range.
 ;;
 ;; - Numerical: `[min max]`, where `min`/`max` are the raw data
 ;;   extent extended by 5% on each side so points do not sit on
@@ -658,9 +660,10 @@ my-pose
 ;;
 ;; The same key says *which* scale, as a type or a whole spec:
 ;; `{:size {:column :weight :scale :log}}` reads that one mapping
-;; logarithmically, whatever `pj/scale` says on the pose around it. The
-;; axes are the exception -- one panel has one x axis, so `:x` and `:y`
-;; take `true` and `false` only and their type comes from `pj/scale`.
+;; logarithmically, whatever `pj/scale` says on the pose around it.
+;; `pj/scale` and a mapping's `:scale` take the same spec. On `:x` and
+;; `:y` a panel carries one scale per axis, so two layers naming
+;; different ones are refused.
 ;;
 ;; Two aesthetics have no scale at all -- `:text`, which draws a label
 ;; as it stands, and `:group`, which draws nothing of its own -- so

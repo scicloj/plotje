@@ -501,8 +501,9 @@ integer-named
 
 ;; A type written here reads **that one mapping** through it, which is
 ;; what distinguishes it from `pj/scale`. `pj/scale` sets the scale on
-;; the pose it is called on and everything below: on a leaf that is the
-;; whole plot, and on one cell of a composite that cell alone. Where
+;; the pose it is called on and everything below: called on the pose
+;; you are building, it covers the whole plot; called on one cell
+;; before the cells are arranged, that cell alone. Where
 ;; both are written, the mapping is the narrower scope and wins, key by
 ;; key -- so a pose that sets a range and a mapping that names a type
 ;; give a plot with both.
@@ -519,21 +520,32 @@ integer-named
 ;; -- and a key the aesthetic does not read is refused rather than
 ;; dropped. The Scales chapter has each of them.
 ;;
-;; ### The axes take theirs from the pose
+;; ### The axes take one scale per panel
 ;;
-;; `:x` and `:y` accept `true` and `false` in a mapping and nothing
-;; more. One panel has one x axis, so its layers cannot each have their
-;; own; the coherent case is `pj/scale`, and it already has a spelling.
+;; `:x` and `:y` take a type or a spec like any other channel:
+
+(-> plants
+    (pj/lay-point {:x {:column :height :scale {:type :log}} :y :weight}))
+
+(kind/test-last
+ [(fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))])
+
+;; A panel has one x axis and one y axis, and every layer is drawn
+;; against them, so a panel carries one scale per axis. Two layers
+;; naming different ones are refused; a layer naming none is drawn
+;; against whichever the panel has.
 
 (try
   (-> plants
-      (pj/lay-point :height :weight {:x {:column :height :scale :log}})
+      (pj/pose :height :weight)
+      (pj/lay-point {:x {:column :height :scale :log}})
+      (pj/lay-line {:x {:column :height :scale :linear}})
       pj/plan)
   (catch clojure.lang.ExceptionInfo e
     (ex-message e)))
 
 (kind/test-last
- [(fn [m] (re-find #"an axis takes its scale from the pose" m))])
+ [(fn [m] (re-find #"Layers name different scales for the :x axis" m))])
 
 ;; ### Aesthetics with no scale
 ;;

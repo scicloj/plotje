@@ -5,53 +5,81 @@
   [scicloj.plotje.api :as pj]
   [scicloj.plotje.layer-type :as layer-type]
   [scicloj.metamorph.ml.rdatasets :as rdatasets]
+  [tablecloth.api :as tc]
   [clojure.test :refer [deftest is]]))
 
 
 (def
- v3_l42
- (->
-  (rdatasets/ggplot2-mpg)
-  (pj/lay-point :displ :hwy {:size :cyl, :color :class})))
+ v3_l35
+ (def
+  gapminder-2007
+  (->
+   (rdatasets/gapminder-gapminder)
+   (tc/select-rows (fn* [p1__11193#] (= 2007 (:year p1__11193#)))))))
+
+
+(def v4_l39 gapminder-2007)
 
 
 (def
- v5_l56
+ v6_l62
  (->
-  (rdatasets/ggplot2-mpg)
-  (pj/lay-point :displ :hwy)
-  (pj/scale :x :log)))
-
-
-(deftest
- t6_l60
- (is
-  ((fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))
-   v5_l56)))
+  gapminder-2007
+  (pj/lay-point :gdp-percap :life-exp {:size :pop, :color :continent})))
 
 
 (def
- v8_l66
+ v8_l87
+ (->
+  gapminder-2007
+  (pj/lay-point :gdp-percap :life-exp)
+  (pj/scale :x :log)
+  pj/plan
+  :panels
+  first
+  :x-scale))
+
+
+(deftest t9_l93 (is ((fn [spec] (= {:type :log} spec)) v8_l87)))
+
+
+(def
+ v10_l95
+ (->
+  gapminder-2007
+  (pj/lay-point :gdp-percap :life-exp)
+  (pj/scale :x {:type :log})
+  pj/plan
+  :panels
+  first
+  :x-scale))
+
+
+(deftest t11_l101 (is ((fn [spec] (= {:type :log} spec)) v10_l95)))
+
+
+(def
+ v13_l110
  (def
   linear-cell
   (->
-   (rdatasets/ggplot2-mpg)
-   (pj/lay-point :displ :hwy)
+   gapminder-2007
+   (pj/lay-point :gdp-percap :life-exp)
    (pj/options {:title "linear"}))))
 
 
 (def
- v9_l71
+ v14_l115
  (def
   log-cell
   (-> linear-cell (pj/scale :x :log) (pj/options {:title "log"}))))
 
 
-(def v10_l76 (pj/arrange [linear-cell log-cell]))
+(def v15_l120 (pj/arrange [linear-cell log-cell]))
 
 
 (deftest
- t11_l78
+ t16_l122
  (is
   ((fn
     [fr]
@@ -62,49 +90,183 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__11193#]
-        (-> p1__11193# :plan :panels first :x-scale :type))))))
-   v10_l76)))
+        [p1__11194#]
+        (-> p1__11194# :plan :panels first :x-scale :type))))))
+   v15_l120)))
 
 
 (def
- v13_l90
+ v18_l137
  (->
-  (rdatasets/ggplot2-mpg)
-  (pj/lay-point :displ :hwy {:size {:column :cyl, :scale :log}})))
+  gapminder-2007
+  (pj/lay-point
+   :gdp-percap
+   :life-exp
+   {:size {:column :pop, :scale :log}})
+  (pj/scale :x :log)))
 
 
 (deftest
- t14_l93
+ t19_l141
  (is
   ((fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))
-   v13_l90)))
+   v18_l137)))
 
 
 (def
- v16_l120
+ v21_l148
+ (->
+  gapminder-2007
+  (pj/pose :gdp-percap :life-exp {:size {:column :pop, :scale :log}})
+  (pj/lay-point {:size {:column :pop, :scale :linear}})
+  (pj/scale :x :log)))
+
+
+(deftest
+ t22_l153
+ (is
+  ((fn [fr] (= :linear (-> fr pj/plan :size-legend :scale-type)))
+   v21_l148)))
+
+
+(def
+ v24_l165
+ (->
+  gapminder-2007
+  (pj/pose :gdp-percap :life-exp)
+  (pj/lay-point {:size {:column :pop, :scale :log}})
+  (pj/scale :size {:range [3 16]})
+  (pj/scale :x :log)))
+
+
+(deftest
+ t25_l171
+ (is
+  ((fn
+    [fr]
+    (=
+     {:type :log, :range [3 16]}
+     (-> fr pj/plan :panels first :layers first :size-scale)))
+   v24_l165)))
+
+
+(def
+ v27_l185
+ (->
+  gapminder-2007
+  (pj/pose :gdp-percap :life-exp {:size {:column :pop, :scale :log}})
+  pj/lay-point
+  pj/plan
+  :panels
+  first
+  :layers
+  first
+  :size-scale))
+
+
+(deftest t28_l191 (is ((fn [spec] (= {:type :log} spec)) v27_l185)))
+
+
+(def
+ v30_l195
+ (->
+  gapminder-2007
+  (pj/pose :gdp-percap :life-exp {:size :pop})
+  pj/lay-point
+  (pj/scale :size :log)
+  pj/plan
+  :panels
+  first
+  :layers
+  first
+  :size-scale))
+
+
+(deftest
+ t31_l202
+ (is
+  ((fn
+    [spec]
+    (=
+     spec
+     (->
+      gapminder-2007
+      (pj/pose
+       :gdp-percap
+       :life-exp
+       {:size {:column :pop, :scale :log}})
+      pj/lay-point
+      pj/plan
+      :panels
+      first
+      :layers
+      first
+      :size-scale)))
+   v30_l195)))
+
+
+(def
+ v33_l222
+ (->
+  gapminder-2007
+  (pj/lay-point
+   {:x :gdp-percap,
+    :y
+    {:column :life-exp,
+     :scale {:domain [35 85], :breaks [40 60 80]}}})))
+
+
+(deftest
+ t34_l227
+ (is
+  ((fn
+    [fr]
+    (=
+     [40.0 60.0 80.0]
+     (->> fr pj/plan :panels first :y-ticks :values (mapv double))))
+   v33_l222)))
+
+
+(def
+ v36_l241
+ (->
+  gapminder-2007
+  (pj/pose
+   {:x {:column :gdp-percap, :scale {:type :log}}, :y :life-exp})
+  pj/lay-point))
+
+
+(deftest
+ t37_l245
+ (is
+  ((fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))
+   v36_l241)))
+
+
+(def
+ v39_l280
  (try
   (->
-   (rdatasets/ggplot2-mpg)
-   (pj/lay-point :displ :hwy)
+   gapminder-2007
+   (pj/lay-point :gdp-percap :life-exp)
    (pj/scale :x {:range [1 10]}))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t17_l127
- (is ((fn [m] (re-find #":x reads no :range" m)) v16_l120)))
+ t40_l287
+ (is ((fn [m] (re-find #":x reads no :range" m)) v39_l280)))
 
 
 (def
- v19_l153
+ v42_l313
  (def
   squares
   {:x [1 2 3 4 5 6], :y [1 1 1 1 1 1], :n [1 4 9 16 25 36]}))
 
 
 (def
- v20_l156
+ v43_l316
  (->
   (pj/arrange
    [(->
@@ -125,7 +287,7 @@
 
 
 (def
- v22_l170
+ v45_l330
  (defn
   legend-magnitudes
   [spec]
@@ -141,7 +303,7 @@
 
 
 (def
- v23_l180
+ v46_l340
  (kind/table
   {:column-names
    ["by" "smallest labelled" "middle" "largest labelled"],
@@ -161,7 +323,7 @@
 
 
 (deftest
- t24_l190
+ t47_l350
  (is
   ((fn
     [_]
@@ -172,11 +334,11 @@
       (legend-magnitudes {:by :linear})
       (legend-magnitudes {:by :area})
       (legend-magnitudes {:by :sqrt}))))
-   v23_l180)))
+   v46_l340)))
 
 
 (def
- v26_l206
+ v49_l365
  (->
   squares
   (pj/lay-point :x :y {:size :n})
@@ -184,7 +346,7 @@
 
 
 (deftest
- t27_l210
+ t50_l369
  (is
   ((fn
     [fr]
@@ -199,11 +361,11 @@
        (apply max)
        double)]
      (< 8.0 widest 20.0)))
-   v26_l206)))
+   v49_l365)))
 
 
 (def
- v29_l224
+ v52_l383
  (->
   squares
   (pj/lay-point :x :y {:size :n})
@@ -211,7 +373,7 @@
 
 
 (deftest
- t30_l228
+ t53_l387
  (is
   ((fn
     [fr]
@@ -230,50 +392,50 @@
         (< (Math/abs (- (/ a half) 2.0)) 1.0E-6)
         true))
       by-value)))
-   v29_l224)))
+   v52_l383)))
 
 
-(def v32_l253 (:varies (layer-type/lookup :point)))
+(def v55_l412 (:varies (layer-type/lookup :point)))
 
 
 (deftest
- t33_l255
- (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v32_l253)))
+ t56_l414
+ (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v55_l412)))
 
 
 (def
- v35_l278
+ v58_l437
  (try
   (->
-   (rdatasets/ggplot2-mpg)
-   (pj/pose :displ :hwy)
-   (pj/lay-point {:size {:column :cyl, :scale :log}})
-   (pj/lay-point {:size {:column :cyl, :scale :linear}})
+   gapminder-2007
+   (pj/pose :gdp-percap :life-exp)
+   (pj/lay-point {:size {:column :pop, :scale :log}})
+   (pj/lay-point {:size {:column :pop, :scale :linear}})
    pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t36_l287
+ t59_l446
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v35_l278)))
+   v58_l437)))
 
 
 (def
- v38_l296
+ v61_l455
  (->
-  (rdatasets/ggplot2-mpg)
-  (pj/lay-point :displ :hwy)
-  (pj/scale :y {:domain [10 50], :breaks [10 20 30 40 50]})))
+  gapminder-2007
+  (pj/lay-point :gdp-percap :life-exp)
+  (pj/scale :y {:domain [35 85], :breaks [40 50 60 70 80]})))
 
 
 (deftest
- t39_l300
+ t62_l459
  (is
   ((fn
     [fr]
     (=
-     [10.0 20.0 30.0 40.0 50.0]
+     [40.0 50.0 60.0 70.0 80.0]
      (->> fr pj/plan :panels first :y-ticks :values (mapv double))))
-   v38_l296)))
+   v61_l455)))

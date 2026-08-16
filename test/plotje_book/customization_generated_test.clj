@@ -221,7 +221,7 @@
  v33_l163
  (->
   {:product
-   (map (fn* [p1__11193#] (str "Product " p1__11193#)) (range 12)),
+   (map (fn* [p1__71590#] (str "Product " p1__71590#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -242,7 +242,7 @@
  v36_l176
  (->
   {:product
-   (map (fn* [p1__11194#] (str "Product " p1__11194#)) (range 12)),
+   (map (fn* [p1__71591#] (str "Product " p1__71591#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -379,7 +379,7 @@
    (pj/options {:thousands-separator ","})
    pj/svg-summary
    :texts)
-  (filter (fn* [p1__11195#] (re-find #"," p1__11195#)))
+  (filter (fn* [p1__71592#] (re-find #"," p1__71592#)))
   distinct
   sort))
 
@@ -432,7 +432,7 @@
   {:x (range 1 50),
    :y
    (map
-    (fn* [p1__11196#] (* 2 (Math/pow 1.1 p1__11196#)))
+    (fn* [p1__71593#] (* 2 (Math/pow 1.1 p1__71593#)))
     (range 1 50))}))
 
 
@@ -613,7 +613,7 @@
 (def
  v90_l457
  (->
-  {:bin (map (fn* [p1__11197#] (str "bin-" p1__11197#)) (range 40)),
+  {:bin (map (fn* [p1__71594#] (str "bin-" p1__71594#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -627,7 +627,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__11198#] (.startsWith p1__11198# "bin-"))
+       (fn* [p1__71595#] (.startsWith p1__71595# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v90_l457)))
@@ -742,7 +742,7 @@
        (map
         (juxt
          :value
-         (fn* [p1__11199#] (Math/pow (:magnitude p1__11199#) 2)))
+         (fn* [p1__71596#] (Math/pow (:magnitude p1__71596#) 2)))
         entries))]
      (every?
       (fn
@@ -1125,11 +1125,11 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__11200#] (= :text (:mark p1__11200#))))
+        (filter (fn* [p1__71597#] (= :text (:mark p1__71597#))))
         (mapv
          (fn*
-          [p1__11201#]
-          (-> p1__11201# :style :box :corner-radius))))))))
+          [p1__71598#]
+          (-> p1__71598# :style :box :corner-radius))))))))
    v154_l818)))
 
 
