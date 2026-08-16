@@ -1219,16 +1219,27 @@
    they are compared -- otherwise `{:scale :linear}` beside a layer left
    alone was refused for disagreeing with itself.
 
-   Only layers that vary the channel are asked. A column mapped on the
-   pose flows into every layer, and a mark that draws one size for the
-   whole layer has no scale to disagree about."
+   Only layers that read the channel are asked, and what counts as
+   reading it differs. `:size` and `:alpha` are read by the marks that
+   declare they vary them: a column mapped on the pose flows into every
+   layer, and a mark that draws one size for the whole layer has no
+   scale to disagree about. `:color` and `:fill` have no such
+   declaration -- a mark that paints at all paints through the palette
+   or the gradient -- so every layer mapping a scaled column to them is
+   asked instead.
+
+   The two colour aesthetics went unchecked until now, so the first
+   layer's scale silently decided for both and a log scale written on
+   the second changed nothing."
   [draft-layers]
-  (doseq [channel [:size :alpha]
+  (doseq [[channel reads?] [[:size #(and (resolve/column-ref? (:size %))
+                                         (reads-per-row? :size (:mark %)))]
+                            [:alpha #(and (resolve/column-ref? (:alpha %))
+                                          (reads-per-row? :alpha (:mark %)))]
+                            [:color scaled-color-column?]
+                            [:fill #(resolve/column-ref? (:fill %))]]
           :let [scale-key (defaults/channel->scale-key channel)
-                varying (filter #(and (resolve/column-ref? (get % channel))
-                                      (reads-per-row? channel (:mark %))
-                                      (:data %))
-                                draft-layers)
+                varying (filter #(and (reads? %) (:data %)) draft-layers)
                 resolve-spec #(merge {:type (defaults/default-scale-type channel)}
                                      (get % scale-key))
                 specs (distinct (map resolve-spec varying))

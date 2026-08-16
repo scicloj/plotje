@@ -480,28 +480,41 @@
                      (pj/coord :flip))))))
 
 (deftest a-size-domain-of-one-value-maps-to-the-middle-test
-  ;; With nothing to compare a value against, the midpoint of the output
-  ;; range is the only unprejudiced answer -- ggplot2's
-  ;; `scales::rescale` answers a zero range the same way. Collapsing to
-  ;; the low end drew the datum cell at radius 2.0, smaller than the
-  ;; default 3.0, beside a legend reading 7.
-  (let [radius-of (fn [pose]
+  ;; With nothing to compare a value against, halfway across the domain
+  ;; is the only unprejudiced answer. It is read through the scale's own
+  ;; `:by` method rather than taken as the midpoint of the range, so a
+  ;; constant column and a nearly-constant one are drawn by the same
+  ;; arithmetic: at the default range that is 6.243, ggplot2's
+  ;; `area_pal(c(2,8))(0.5)`, where the midpoint of the range was 5.0
+  ;; and jumped. Collapsing to the low end, which came before either,
+  ;; drew the datum cell at radius 2.0 -- smaller than the default 3.0,
+  ;; beside a legend reading 7.
+  (let [halfway 6.242640687119286
+        radius-of (fn [pose]
                     (let [p (pj/plan pose)]
                       {:marks (-> p :panels first :layers first :groups first :sizes vec)
                        :legend (mapv :magnitude (:entries (:size-legend p)))}))
         default-radius (-> (pj/plan (-> measured (pj/lay-point :when :level)))
                            :panels first :layers first :style :radius)]
     (testing "a written value sent through the scale"
-      (is (= {:marks [7 7 7 7] :legend [5.0]}
+      (is (= {:marks [7 7 7 7] :legend [halfway]}
              (radius-of (-> measured (pj/lay-point :when :level
                                                    {:size {:value 7 :scale true}})))))
-      (is (< default-radius 5.0)
+      (is (< default-radius halfway)
           "and larger than the default, not smaller"))
 
     (testing "a column whose values happen to be equal, for the same reason"
-      (is (= {:marks [5 5 5 5] :legend [5.0]}
+      (is (= {:marks [5 5 5 5] :legend [halfway]}
              (radius-of (-> (assoc measured :flat [5 5 5 5])
                             (pj/lay-point :when :level {:size :flat}))))))
+
+    (testing "and a nearly-constant column lands in the same place"
+      ;; The two used to differ by 1.24 drawing units across a boundary
+      ;; no reader could see, because one went through `:by` and the
+      ;; other did not.
+      (is (= [halfway]
+             (distinct (:legend (radius-of (-> (assoc measured :nearly [7.0 7.0 7.0 7.0])
+                                               (pj/lay-point :when :level {:size :nearly}))))))))
 
     (testing "a column with spread is untouched"
       ;; The marks and the legend read the same function, so the mark
@@ -521,9 +534,9 @@
   (let [radii (fn [span]
                 (let [f (scale/channel-mapper {:type :linear} 5.0 (+ 5.0 span) [2.0 8.0] 2)]
                   [(double (f 5.0)) (double (f (+ 5.0 span)))]))]
-    (testing "a span too small to be real takes the midpoint"
-      (is (= [5.0 5.0] (radii 0.0)))
-      (is (= [5.0 5.0] (radii 1e-13))))
+    (testing "a span too small to be real takes the halfway size"
+      (is (= [6.242640687119286 6.242640687119286] (radii 0.0)))
+      (is (= [6.242640687119286 6.242640687119286] (radii 1e-13))))
 
     (testing "a span that is real takes the whole range, with no band beneath it"
       (doseq [span [1e-7 1e-6 1e-3 1.0 1000.0]]

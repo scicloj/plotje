@@ -440,6 +440,14 @@ gapminder-2007
 ;; is then proportional to the value: twice the value is twice the
 ;; area. Together with `:by :area` this matches ggplot2's
 ;; `scale_size_area`.
+;;
+;; Anchored at zero it is the distance from zero that decides the ink,
+;; so a value of -5 draws the size a value of 5 draws and the domain
+;; reaches to whichever value is furthest from zero. A column holding
+;; both signs is drawn by magnitude, which is what proportional area
+;; means when the values run both ways -- see
+;; [Edge Cases](./plotje_book.edge_cases.html) for what that looks
+;; like, and map the sign to `:color` where it matters.
 
 (-> squares
     (pj/lay-point :x :y {:size :n})

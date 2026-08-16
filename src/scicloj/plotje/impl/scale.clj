@@ -332,10 +332,22 @@
    what a size means across plots that would otherwise each scale to
    their own extremes. `:from-zero` anchors the low end at zero, which
    is what turns a spread across a range into a proportion: with the
-   range anchored there too, twice the value is twice the ink."
+   range anchored there too, twice the value is twice the ink.
+
+   Anchored at zero it is the distance from zero that decides the ink,
+   so the domain runs to the value furthest from zero in either
+   direction. Taking the high end alone put every value at or below
+   zero at the bottom of the range: a column of -5, 0 and 10 drew one
+   mark of three and said nothing, and an all-negative column drew
+   every mark at the maximum beside a legend running the other way.
+   ggplot2's `scale_size_area` reads the magnitude here too, though it
+   divides by the maximum rather than by the widest magnitude, which on
+   an all-negative column draws marks larger than the range's own top."
   [spec d-min d-max]
   (let [[lo hi] (or (:domain spec) [d-min d-max])]
-    [(if (:from-zero spec) 0.0 (double lo)) (double hi)]))
+    (if (:from-zero spec)
+      [0.0 (max (Math/abs (double lo)) (Math/abs (double hi)))]
+      [(double lo) (double hi)])))
 
 (defn channel-mapper
   "A function from a data value to the quantity a mark draws it as -- a
@@ -369,7 +381,15 @@
    size column whose values happen to be equal."
   [spec d-min d-max default-range ink-exponent]
   (let [log?     (= :log (:type spec))
-        ->space  (if log? #(Math/log10 (max 1e-300 (double %))) double)
+        ;; Anchored at zero, a value is read by how far it is from
+        ;; zero, which is what makes the ink proportional in both
+        ;; directions. `:from-zero` beside a log scale is refused, so
+        ;; the two transforms never compose.
+        from-zero? (boolean (:from-zero spec))
+        ->space  (cond
+                   log?       #(Math/log10 (max 1e-300 (double %)))
+                   from-zero? #(Math/abs (double %))
+                   :else      double)
         [d-lo d-hi] (channel-domain spec d-min d-max)
         lo       (->space d-lo)
         hi       (->space d-hi)
@@ -402,7 +422,11 @@
                                                   (Math/pow r-lo e))))
                                        (/ 1.0 e))))]
     (if degenerate?
-      (constantly (+ r-lo (* 0.5 (- r-hi r-lo))))
+      ;; Halfway across the domain, through the same method as every
+      ;; other value. Taking the midpoint of the range instead skipped
+      ;; `:by`, so a constant column and a nearly-constant one were
+      ;; drawn by different arithmetic and jumped between them.
+      (constantly (place 0.5))
       (fn [v] (place (min 1.0 (max 0.0 (/ (- (->space v) lo) span))))))))
 
 (defn- format-ticks*

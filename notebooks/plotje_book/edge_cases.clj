@@ -439,16 +439,38 @@
     ;; Three marks are drawn; two of them have a size to be seen at.
     (= 2 (count (:sizes (pj/svg-summary v)))))])
 
+;; ### A size scale anchored at zero, on data holding a negative
+;;
+;; Anchored at zero it is the distance from zero that decides the ink,
+;; so a value of -5 is drawn the size a value of 5 is drawn. The mark
+;; stays on the panel and keeps its place on the axis; only its size
+;; stops distinguishing the two directions. Where the sign matters,
+;; map it to another aesthetic -- `:color` splits the two apart.
+
+(-> {:x [1 2 3] :y [1 2 3] :n [-5 5 10]}
+    (pj/lay-point :x :y {:size :n})
+    (pj/scale :size {:from-zero true}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      ;; Three marks are drawn, at two distinct sizes: -5 and 5 are the
+      ;; same distance from zero, so they are drawn alike.
+      (and (= 3 (:points s))
+           (= [5.656854249492381 8.0] (vec (:sizes s))))))])
+
 ;; ### A size domain with no spread
 ;;
 ;; When every value is equal there is nothing to compare, so every mark
-;; is drawn at the middle of the range rather than at one of its ends.
+;; is drawn halfway across the domain rather than at one of its ends.
+;; Halfway is read through the scale's own spread method, so a constant
+;; column and a nearly-constant one are drawn alike.
 
 (-> {:x [1 2 3] :y [1 2 3] :n [5 5 5]}
     (pj/lay-point :x :y {:size :n}))
 
 (kind/test-last
- [(fn [v] (= [5.0] (vec (:sizes (pj/svg-summary v)))))])
+ [(fn [v] (= [6.242640687119286] (vec (:sizes (pj/svg-summary v)))))])
 
 ;; ### A size range written backwards
 ;;
