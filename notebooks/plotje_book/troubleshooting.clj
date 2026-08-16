@@ -556,11 +556,10 @@
 ;; smallest and largest points looks less dramatic.
 ;;
 ;; **Cause**: A size scale spreads the square root of the value across
-;; the radii, so that the ink a mark covers -- which is what a reader
-;; perceives as its size -- grows with the value rather than with its
-;; square. Earlier releases spread the value itself, which overstates
-;; every difference. The two ends of the range are unchanged; the
-;; values between them moved.
+;; the radii, so the area of a mark grows with the value rather than
+;; with its square. Earlier releases spread the value itself, which
+;; exaggerates the differences. The two ends of the range are
+;; unchanged; the values between them moved.
 
 (-> {:x [1 2 3 4 5 6] :y [1 1 1 1 1 1] :n [1 4 9 16 25 36]}
     (pj/lay-point :x :y {:size :n}))
@@ -570,8 +569,8 @@
     (let [radii #(sort (:sizes (pj/svg-summary %)))
           now (radii fr)
           before (radii (-> fr (pj/scale :size {:by :linear})))]
-      ;; The ends are the same radii as before; every value between
-      ;; them is drawn larger.
+      ;; The two ends are the same radii as before. Every value
+      ;; between them is drawn larger.
       (and (= (first now) (first before))
            (= (last now) (last before))
            (every? (fn [[a b]] (> a b))
@@ -595,11 +594,10 @@
 ;; the channel.
 ;;
 ;; **Cause**: Only marks that draw a size per row can read a size
-;; column -- `pj/lay-point` among the built-in ones. Every other mark
-;; draws one width or one opacity for the whole layer, so the column
-;; has nothing to vary. The channel earns no legend there either: a
-;; legend pairing values with radii would explain an encoding the
-;; panel does not carry.
+;; column. Among the built-in marks that is `pj/lay-point`. Every other
+;; mark draws one width or one opacity for the whole layer, so the
+;; column changes nothing. No legend is drawn for it either, since the
+;; legend would describe an encoding the panel does not show.
 ;;
 ;; **Fix**: Write the value itself for a layer-wide size -- `{:size 2}`
 ;; on a line is a stroke width -- and map the column on a layer whose

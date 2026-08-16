@@ -116,10 +116,10 @@
 ;;
 ;; Plot options describe a plot as a whole: its title, labels,
 ;; axis scales, coordinate system, facets. A single-panel plot has
-;; one of each, and a composite is where they gain a scope: every
-;; cell of a composite is a pose, so each can carry its own title
-;; and its own scales, while the options written on the composite
-;; itself reach every cell that does not.
+;; one of each. A composite has a scope for them: every cell is a
+;; pose, so each cell can have its own title and its own scales, and
+;; the options written on the composite itself apply to every cell
+;; that does not set them.
 ;;
 ;; Four functions write plot options to the pose's `:opts`
 ;; field:

@@ -140,14 +140,14 @@
 
 ;; ## Appearance Channels Across Panels
 ;;
-;; `:scales` governs the axes. An appearance channel is a separate
-;; question, and its answer is one to watch: a `:size` or `:alpha`
-;; column is scaled against the panel it is drawn in, while its legend
-;; is built from the whole plot. Two panels holding different ranges
-;; therefore draw the same radii, and the legend explains neither.
+;; `:scales` applies to the axes only. A `:size` or `:alpha` column is
+;; scaled against the panel it is drawn in, while its legend is built
+;; from the whole plot. Two panels covering different value ranges are
+;; therefore drawn with the same radii, and the legend does not match
+;; either of them.
 ;;
-;; Below, the left panel's values run 1 to 3 and the right panel's 4 to
-;; 10, and the two panels draw the same three sizes:
+;; Below, the left panel's values run from 1 to 3 and the right panel's
+;; from 4 to 10, and both panels draw the same three sizes:
 
 (def per-panel
   {:g ["L" "L" "L" "R" "R" "R"]
@@ -161,12 +161,11 @@
 
 (kind/test-last
  [(fn [v]
-    ;; Six marks, three distinct radii -- each panel spans the full
-    ;; range on its own.
+    ;; Six marks, three distinct radii: each panel uses the full range.
     (= 3 (count (:sizes (pj/svg-summary v)))))])
 
-;; Giving the scale an explicit `:domain` holds every panel to one
-;; reading, so a mark's size means the same thing in both:
+;; Setting an explicit `:domain` on the scale gives every panel the
+;; same one, so a size means the same thing in both:
 
 (-> per-panel
     (pj/lay-point :x :y {:size :n})

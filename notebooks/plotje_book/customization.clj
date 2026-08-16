@@ -540,17 +540,16 @@
  [(fn [v] (= 18.0 (->> v pj/plan :size-legend :entries
                        (map :magnitude) (apply max))))])
 
-;; `:by` says how the values spread across that span. The default,
-;; `:sqrt`, spreads the square root of the value, so the ink a mark
-;; covers -- which is what a reader perceives as its size -- grows with
-;; the value rather than with its square. `:linear` spreads the value
-;; itself, which is ggplot2's `scale_radius`; `:area` spreads the ink,
-;; so equal steps in value are equal steps in area.
+;; `:by` sets how the values spread across that span. The default,
+;; `:sqrt`, spreads the square root of the value, so the area of a mark
+;; grows with the value rather than with its square. `:linear` spreads
+;; the value itself, which is ggplot2's `scale_radius`. `:area` spreads
+;; the area, so equal steps in value give equal steps in area.
 ;;
-;; `:from-zero` anchors both ends at zero, which turns the spread into
-;; a proportion: a mark of twice the value covers twice the ink, so the
-;; reader can compare two marks as a ratio. With `:by :area` beside it,
-;; this is ggplot2's `scale_size_area`:
+;; `:from-zero` starts both the domain and the range at zero. The area
+;; is then proportional to the value: twice the value is twice the
+;; area. Together with `:by :area` this matches ggplot2's
+;; `scale_size_area`:
 
 (-> {:city ["A" "B" "C" "D"] :x [1 2 3 4] :y [4 2 3 1] :people [10 40 90 160]}
     (pj/lay-point :x :y {:size :people})
@@ -561,8 +560,8 @@
  [(fn [v]
     (let [entries (->> v pj/plan :size-legend :entries)
           ink (into {} (map (juxt :value #(Math/pow (:magnitude %) 2)) entries))]
-      ;; Wherever the legend labels a value and its double, the
-      ;; doubled one covers twice the ink.
+      ;; Where the legend labels both a value and its double, the
+      ;; areas are in the same 2-to-1 ratio.
       (every? (fn [[value area]]
                 (if-let [half (ink (/ value 2))]
                   (< (Math/abs (- (/ area half) 2.0)) 1e-6)
@@ -570,22 +569,21 @@
               ink)))])
 
 ;; `:alpha` takes a `:range` too -- opacities rather than radii, 0.1 to
-;; 1.0 by default. It has no `:by`, since an opacity has no shape whose
-;; area could be corrected for.
+;; 1.0 by default. It has no `:by`, since an opacity has no shape and
+;; so no area to correct for.
 ;;
 ;; A `:domain` on a visual channel behaves differently from one on an
-;; axis. An axis domain is a view window, and a mark outside it is
-;; drawn and clipped; a visual channel has nowhere to clip to, so a
-;; value outside its domain is drawn at the nearer end of the range.
-;; This is what makes `:domain` the way to hold two panels to one
-;; reading -- see
-;; [Faceting](./plotje_book.faceting.html).
+;; axis. On an axis it sets the view window, and a mark outside it is
+;; drawn and clipped. A visual channel has nothing to clip against, so
+;; a value outside the domain is drawn at the nearer end of the range.
+;; This is also how to give every panel of a facet the same size scale
+;; -- see [Faceting](./plotje_book.faceting.html).
 
 ;; ### Naming a scale in the mapping
 ;;
-;; A scale set with `pj/scale` covers the pose it is called on. To read
-;; one mapping through its own scale, write that mapping out in full
-;; and give it a `:scale` -- a type, or a spec map like the ones above:
+;; A scale set with `pj/scale` applies to the pose it is called on. To
+;; give one mapping its own scale, write that mapping out in full and
+;; add a `:scale` -- a type, or a spec map like the ones above:
 
 (-> {:x [1 2 3 4] :y [4 2 3 1] :people [10 40 90 160]}
     (pj/lay-point :x :y {:size {:column :people :scale {:type :log :range [3 12]}}}))
@@ -593,11 +591,11 @@
 (kind/test-last
  [(fn [v] (= :log (-> v pj/plan :size-legend :scale-type)))])
 
-;; Where both are written the mapping wins, key by key. Its `true` and
-;; `false` are not opinions about which scale -- they say whether the
-;; value passes through one at all -- so `{:scale true}` under a
-;; `pj/scale :size :log` stays logarithmic. The axes are the exception:
-;; a panel has one x axis, so `:x` and `:y` take their type from
+;; When both are set the mapping wins, key by key. `:scale true` and
+;; `:scale false` do not name a scale -- they say whether the value
+;; passes through one at all -- so `{:scale true}` under a
+;; `pj/scale :size :log` stays logarithmic. `:x` and `:y` are the
+;; exception: a panel has one x axis, so both take their type from
 ;; `pj/scale` alone.
 
 ;; ### Shape symbols

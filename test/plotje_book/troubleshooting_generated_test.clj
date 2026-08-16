@@ -191,7 +191,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__71726#] (= :text (:mark p1__71726#))))
+      (filter (fn* [p1__71871#] (= :text (:mark p1__71871#))))
       first
       :style
       :align-x)))
@@ -468,20 +468,20 @@
 
 
 (def
- v96_l565
+ v96_l564
  (->
   {:x [1 2 3 4 5 6], :y [1 1 1 1 1 1], :n [1 4 9 16 25 36]}
   (pj/lay-point :x :y {:size :n})))
 
 
 (deftest
- t97_l568
+ t97_l567
  (is
   ((fn
     [fr]
     (let
      [radii
-      (fn* [p1__71727#] (sort (:sizes (pj/svg-summary p1__71727#))))
+      (fn* [p1__71872#] (sort (:sizes (pj/svg-summary p1__71872#))))
       now
       (radii fr)
       before
@@ -492,11 +492,11 @@
       (every?
        (fn [[a b]] (> a b))
        (map vector (butlast (rest now)) (butlast (rest before)))))))
-   v96_l565)))
+   v96_l564)))
 
 
 (def
- v99_l584
+ v99_l583
  (->
   {:x [1 2 3 4 5 6], :y [1 1 1 1 1 1], :n [1 4 9 16 25 36]}
   (pj/lay-point :x :y {:size :n})
@@ -504,12 +504,12 @@
 
 
 (deftest
- t100_l588
- (is ((fn [v] (= 6 (:points (pj/svg-summary v)))) v99_l584)))
+ t100_l587
+ (is ((fn [v] (= 6 (:points (pj/svg-summary v)))) v99_l583)))
 
 
 (def
- v102_l608
+ v102_l606
  (->
   {:x [1 2 3], :y [2 4 3], :r [1 2 3]}
   (pj/pose :x :y)
@@ -518,18 +518,18 @@
 
 
 (deftest
- t103_l613
+ t103_l611
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:points s)) (pos? (:lines s)))))
-   v102_l608)))
+   v102_l606)))
 
 
 (def
- v105_l630
+ v105_l628
  (def
   points-data
   {:x [1 1 2 2 3 3],
@@ -538,7 +538,7 @@
 
 
 (def
- v106_l633
+ v106_l631
  (defn
   point-xs
   [pose]
@@ -554,7 +554,7 @@
 
 
 (def
- v107_l637
+ v107_l635
  (=
   (point-xs (-> points-data (pj/lay-point :x :y {:color :group})))
   (point-xs
@@ -563,11 +563,11 @@
     (pj/lay-point :x :y {:color :group, :position :dodge})))))
 
 
-(deftest t108_l640 (is ((fn [v] (true? v)) v107_l637)))
+(deftest t108_l638 (is ((fn [v] (true? v)) v107_l635)))
 
 
 (def
- v110_l649
+ v110_l647
  (->
   {:cat ["A" "A" "B" "B" "C" "C"],
    :y [10 20 30 40 50 60],
@@ -576,12 +576,12 @@
 
 
 (deftest
- t111_l654
- (is ((fn [v] (= 6 (:polygons (pj/svg-summary v)))) v110_l649)))
+ t111_l652
+ (is ((fn [v] (= 6 (:polygons (pj/svg-summary v)))) v110_l647)))
 
 
 (def
- v113_l670
+ v113_l668
  (->
   (rdatasets/datasets-chickwts)
   (pj/pose :feed)
@@ -590,7 +590,7 @@
 
 
 (deftest
- t114_l675
+ t114_l673
  (is
   ((fn
     [v]
@@ -604,16 +604,16 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v113_l670)))
+   v113_l668)))
 
 
 (def
- v116_l684
+ v116_l682
  (-> (rdatasets/datasets-chickwts) (pj/pose :feed) pj/lay-bar))
 
 
 (deftest
- t117_l688
+ t117_l686
  (is
   ((fn
     [v]
@@ -627,11 +627,11 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v116_l684)))
+   v116_l682)))
 
 
 (def
- v119_l703
+ v119_l701
  (try
   (->
    {:x ["a" "b" "c"], :y ["a" "b" "c"], :v [1 2 3]}
@@ -641,14 +641,14 @@
 
 
 (deftest
- t120_l709
+ t120_l707
  (is
   ((fn [msg] (re-find #"String cannot be cast to.*Number" msg))
-   v119_l703)))
+   v119_l701)))
 
 
 (def
- v122_l716
+ v122_l714
  (->
   (for
    [day (range 1 8) hour (range 0 24)]
@@ -664,11 +664,11 @@
 
 
 (deftest
- t123_l724
+ t123_l722
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v122_l716)))
+   v122_l714)))

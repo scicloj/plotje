@@ -66,18 +66,18 @@
 
 
 (def
- v12_l104
+ v12_l105
  (mapv
   (fn*
-   [p1__11193#]
+   [p1__72774#]
    (select-keys
-    (layer-type/lookup p1__11193#)
+    (layer-type/lookup p1__72774#)
     [:mark :stat :defaults]))
   [:text :label]))
 
 
 (deftest
- t13_l107
+ t13_l108
  (is
   ((fn
     [rows]
@@ -85,11 +85,11 @@
      [{:mark :text, :stat :identity}
       {:mark :text, :stat :identity, :defaults {:box true}}]
      rows))
-   v12_l104)))
+   v12_l105)))
 
 
 (def
- v15_l130
+ v15_l131
  (kind/table
   {:column-names ["Mark" "Shape" "Used by"],
    :row-maps
@@ -100,11 +100,11 @@
      "Used by" (used-by :mark mk)})}))
 
 
-(deftest t16_l138 (is ((fn [t] (= 21 (count (:row-maps t)))) v15_l130)))
+(deftest t16_l139 (is ((fn [t] (= 21 (count (:row-maps t)))) v15_l131)))
 
 
 (def
- v18_l148
+ v18_l149
  (kind/table
   {:column-names ["Stat" "What it computes" "Used by"],
    :row-maps
@@ -115,11 +115,11 @@
      "Used by" (used-by :stat st)})}))
 
 
-(deftest t19_l156 (is ((fn [t] (pos? (count (:row-maps t)))) v18_l148)))
+(deftest t19_l157 (is ((fn [t] (pos? (count (:row-maps t)))) v18_l149)))
 
 
 (def
- v21_l165
+ v21_l166
  (kind/table
   {:column-names ["Position" "What it does" "Used by"],
    :row-maps
@@ -130,11 +130,11 @@
      "Used by" (used-by :position pos)})}))
 
 
-(deftest t22_l173 (is ((fn [t] (pos? (count (:row-maps t)))) v21_l165)))
+(deftest t22_l174 (is ((fn [t] (pos? (count (:row-maps t)))) v21_l166)))
 
 
 (def
- v24_l191
+ v24_l192
  (kind/table
   {:column-names ["Option" "Description"],
    :row-maps
@@ -144,11 +144,11 @@
      "Description" (get layer-type/layer-option-docs k)})}))
 
 
-(deftest t25_l198 (is ((fn [t] (pos? (count (:row-maps t)))) v24_l191)))
+(deftest t25_l199 (is ((fn [t] (pos? (count (:row-maps t)))) v24_l192)))
 
 
 (def
- v27_l206
+ v27_l207
  (kind/table
   {:column-names ["Layer type" "Additional options"],
    :row-maps
@@ -163,11 +163,11 @@
      "Additional options" accepts})}))
 
 
-(deftest t28_l216 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l206)))
+(deftest t28_l217 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l207)))
 
 
 (def
- v30_l221
+ v30_l222
  (kind/table
   {:column-names ["Option" "Description"],
    :row-maps
@@ -177,7 +177,7 @@
 
 
 (deftest
- t31_l228
+ t31_l229
  (is
   ((fn
     [t]
@@ -192,4 +192,4 @@
       (= (count documented) (count (:row-maps t)))
       (empty? (remove documented in-use))
       (empty? (remove in-use documented)))))
-   v30_l221)))
+   v30_l222)))

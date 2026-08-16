@@ -424,11 +424,11 @@
 
 ;; ### A size scale anchored at zero, on data holding a zero
 ;;
-;; `:from-zero` makes the ink proportional to the value, so a value of
-;; zero has no ink to draw: that mark takes a radius of zero and does
-;; not appear. The picture is the honest reading of a proportional
-;; scale -- ggplot2's `scale_size_area` answers the same way -- but a
-;; row can go missing without anything being wrong.
+;; `:from-zero` makes the area proportional to the value, so a value of
+;; zero gives a radius of zero and that mark is not visible. This is
+;; the correct result for a proportional scale, and ggplot2's
+;; `scale_size_area` behaves the same way, but a row can disappear
+;; without anything being wrong.
 
 (-> {:x [1 2 3] :y [1 2 3] :n [0 5 10]}
     (pj/lay-point :x :y {:size :n})
@@ -441,8 +441,8 @@
 
 ;; ### A size domain with no spread
 ;;
-;; Every value equal leaves nothing to compare, so every mark takes
-;; the middle of the range rather than one of its ends.
+;; When every value is equal there is nothing to compare, so every mark
+;; is drawn at the middle of the range rather than at one of its ends.
 
 (-> {:x [1 2 3] :y [1 2 3] :n [5 5 5]}
     (pj/lay-point :x :y {:size :n}))
@@ -452,8 +452,8 @@
 
 ;; ### A size range written backwards
 ;;
-;; `[8 2]` runs from large to small, which reverses the encoding
-;; rather than failing: the largest value is drawn smallest.
+;; `[8 2]` runs from large to small. This reverses the encoding rather
+;; than raising an error: the largest value is drawn smallest.
 
 (-> {:x [1 2 3] :y [1 2 3] :n [1 5 10]}
     (pj/lay-point :x :y {:size :n})

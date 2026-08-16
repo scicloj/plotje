@@ -134,27 +134,27 @@
 
 ;; ## Scales
 ;;
-;; - One pose reads a channel through one scale. Two layers that ask
-;;   for different scales on the same channel are refused rather than
-;;   drawn, because one legend can explain only one of them. On `:x`
-;;   and `:y` this is not a gap -- a panel has one of each axis -- but
-;;   on `:size`, `:color` and `:alpha` it is. Workaround: build the
-;;   layers as separate poses with `pj/arrange`, where each cell
-;;   carries its own scales and its own legend.
+;; - One pose reads a channel through one scale. Two layers asking for
+;;   different scales on the same channel are refused rather than
+;;   drawn, since a plot has one legend per channel. For `:x` and `:y`
+;;   this makes no difference, because a panel has one of each axis.
+;;   For `:size`, `:color` and `:alpha` it is a limitation. Workaround:
+;;   put the layers in separate poses with `pj/arrange`, where each
+;;   cell has its own scales and its own legend.
 ;;
-;; - The panels of a facet share their scale *types*. `{:scales :free}`
-;;   lets each panel cover its own domain, and there is no equivalent
-;;   for giving one panel a log axis and another a linear one.
-;;   Workaround: `pj/arrange` again.
+;; - Facet panels share their scale *types*. `{:scales :free}` gives
+;;   each panel its own domain, but there is no equivalent for giving
+;;   one panel a log axis and another a linear one. Workaround:
+;;   `pj/arrange` again.
 ;;
-;; - A `:size` or `:alpha` mark scales against its own panel while its
-;;   legend scales against the whole plot. Under faceting that makes
-;;   two panels holding different ranges draw alike: a panel whose
-;;   values run 1 to 3 draws the same three radii as one whose values
-;;   run 4 to 10, and the legend explains neither. Faceting exists to
-;;   make panels comparable, so this is a real trap. Workaround: set
-;;   the domain explicitly -- `(pj/scale pose :size {:domain [1 10]})`
-;;   -- so every panel reads the same one.
+;; - A `:size` or `:alpha` mark is scaled against its own panel, while
+;;   the legend is scaled against the whole plot. Under faceting, two
+;;   panels covering different value ranges are then drawn alike: a
+;;   panel whose values run from 1 to 3 gets the same three radii as
+;;   one whose values run from 4 to 10, and the legend matches neither.
+;;   Workaround: set the domain explicitly, as in
+;;   `(pj/scale pose :size {:domain [1 10]})`, so every panel uses the
+;;   same one.
 ;;
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The

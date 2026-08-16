@@ -9,7 +9,7 @@
 
 
 (def
- v3_l40
+ v3_l42
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy {:size :cyl, :color :class})))
@@ -97,14 +97,14 @@
 
 
 (def
- v19_l154
+ v19_l153
  (def
   squares
   {:x [1 2 3 4 5 6], :y [1 1 1 1 1 1], :n [1 4 9 16 25 36]}))
 
 
 (def
- v20_l157
+ v20_l156
  (->
   (pj/arrange
    [(->
@@ -125,7 +125,7 @@
 
 
 (def
- v22_l172
+ v22_l170
  (defn
   legend-magnitudes
   [spec]
@@ -141,7 +141,7 @@
 
 
 (def
- v23_l182
+ v23_l180
  (kind/table
   {:column-names
    ["by" "smallest labelled" "middle" "largest labelled"],
@@ -161,7 +161,7 @@
 
 
 (deftest
- t24_l192
+ t24_l190
  (is
   ((fn
     [_]
@@ -172,11 +172,11 @@
       (legend-magnitudes {:by :linear})
       (legend-magnitudes {:by :area})
       (legend-magnitudes {:by :sqrt}))))
-   v23_l182)))
+   v23_l180)))
 
 
 (def
- v26_l208
+ v26_l206
  (->
   squares
   (pj/lay-point :x :y {:size :n})
@@ -184,7 +184,7 @@
 
 
 (deftest
- t27_l212
+ t27_l210
  (is
   ((fn
     [fr]
@@ -199,11 +199,11 @@
        (apply max)
        double)]
      (< 8.0 widest 20.0)))
-   v26_l208)))
+   v26_l206)))
 
 
 (def
- v29_l225
+ v29_l224
  (->
   squares
   (pj/lay-point :x :y {:size :n})
@@ -211,17 +211,17 @@
 
 
 (deftest
- t30_l229
+ t30_l228
  (is
   ((fn
     [fr]
     (let
      [{:keys [entries]}
       (-> fr pj/plan :size-legend)
-      ink
+      area
       (fn [e] (Math/pow (:magnitude e) 2))
       by-value
-      (into {} (map (juxt :value ink) entries))]
+      (into {} (map (juxt :value area) entries))]
      (every?
       (fn
        [[v a]]
@@ -230,19 +230,19 @@
         (< (Math/abs (- (/ a half) 2.0)) 1.0E-6)
         true))
       by-value)))
-   v29_l225)))
+   v29_l224)))
 
 
-(def v32_l255 (:varies (layer-type/lookup :point)))
+(def v32_l253 (:varies (layer-type/lookup :point)))
 
 
 (deftest
- t33_l257
- (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v32_l255)))
+ t33_l255
+ (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v32_l253)))
 
 
 (def
- v35_l279
+ v35_l278
  (try
   (->
    (rdatasets/ggplot2-mpg)
@@ -254,14 +254,14 @@
 
 
 (deftest
- t36_l288
+ t36_l287
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v35_l279)))
+   v35_l278)))
 
 
 (def
- v38_l298
+ v38_l296
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy)
@@ -269,11 +269,11 @@
 
 
 (deftest
- t39_l302
+ t39_l300
  (is
   ((fn
     [fr]
     (=
      [10.0 20.0 30.0 40.0 50.0]
      (->> fr pj/plan :panels first :y-ticks :values (mapv double))))
-   v38_l298)))
+   v38_l296)))
