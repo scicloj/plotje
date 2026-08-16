@@ -78,32 +78,14 @@ gapminder-2007
 ;;
 ;; A scale set this way applies to the pose it is called on and to
 ;; everything below it.
-;;
-;; A scale is written either as a type keyword or as a map. The keyword
-;; is shorthand: `:log` is read as `{:type :log}` where it is written,
-;; and everything after that sees the map. So these two are the same
-;; plot, and the same is true of a `:scale` in a mapping:
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)
-    (pj/scale :x :log)
-    pj/plan
-    :panels first :x-scale)
+    (pj/scale :x :log))
 
-(kind/test-last [(fn [spec] (= {:type :log} spec))])
+(kind/test-last
+ [(fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))])
 
-(-> gapminder-2007
-    (pj/lay-point :gdp-percap :life-exp)
-    (pj/scale :x {:type :log})
-    pj/plan
-    :panels first :x-scale)
-
-(kind/test-last [(fn [spec] (= {:type :log} spec))])
-
-;; A map says more than a type can. Which keys it may carry depends on
-;; the aesthetic, and a key the aesthetic does not read is refused
-;; rather than ignored -- in `pj/scale` and in a mapping alike.
-;;
 ;; Written on one plot of a composite, a scale covers that plot alone,
 ;; so two of them can differ:
 
@@ -176,6 +158,60 @@ gapminder-2007
 ;; aesthetic's scale. It sets no type and no other key, so the scale it
 ;; passes through is whatever `pj/scale` set on the pose, or the
 ;; default where nothing set one.
+
+;; ### A type, or a map
+;;
+;; Both places take the scale in the same two forms: a type keyword, or
+;; a map. The keyword is shorthand -- `:log` is read as `{:type :log}`
+;; where it is written, and everything after that sees the map.
+;;
+;; With `pj/scale`, the two spellings leave the same scale on the axis:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp)
+    (pj/scale :x :log)
+    pj/plan
+    :panels first :x-scale)
+
+(kind/test-last [(fn [spec] (= {:type :log} spec))])
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp)
+    (pj/scale :x {:type :log})
+    pj/plan
+    :panels first :x-scale)
+
+(kind/test-last [(fn [spec] (= {:type :log} spec))])
+
+;; and in a mapping for the same aesthetic they do the same:
+
+(-> gapminder-2007
+    (pj/lay-point {:x {:column :gdp-percap :scale :log} :y :life-exp})
+    pj/plan
+    :panels first :x-scale)
+
+(kind/test-last [(fn [spec] (= {:type :log} spec))])
+
+(-> gapminder-2007
+    (pj/lay-point {:x {:column :gdp-percap :scale {:type :log}} :y :life-exp})
+    pj/plan
+    :panels first :x-scale)
+
+(kind/test-last [(fn [spec] (= {:type :log} spec))])
+
+;; The map is what says more than a type can. Which keys it may carry
+;; depends on the aesthetic, and a key the aesthetic does not read is
+;; refused rather than ignored -- in `pj/scale` and in a mapping alike:
+
+(try
+  (-> gapminder-2007
+      (pj/lay-point :gdp-percap :life-exp)
+      (pj/scale :x {:rnge [1 10]}))
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (re-find #"unexpected key\(s\): \[:rnge\]" m))])
 
 ;; ### `pj/scale` compared with a mapping's `:scale`
 ;;
