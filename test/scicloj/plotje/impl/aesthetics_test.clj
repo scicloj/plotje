@@ -301,7 +301,7 @@
 
     (testing "naming both sources, or an unknown key, is reported"
       (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo #"names both :column and :value"
+           clojure.lang.ExceptionInfo #"names 2 sources"
            (pj/plan (-> produce (pj/pose :x :y)
                         (pj/lay-point {:color {:column :variety :value "red"}})))))
       (is (thrown-with-msg?
@@ -810,7 +810,7 @@
                             (pj/pose measured {:x :when :y :level
                                                :color {:column :variety :typo 1}}))))
     (testing "both sources, a scale type the channel lacks, a source named nil"
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names both :column and :value"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names 2 sources"
                             (built {:color {:column :variety :value "red"}})))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"has no such scale"
                             (built {:size {:column :radius :scale :categorical}})))

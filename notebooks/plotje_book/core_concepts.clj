@@ -250,7 +250,10 @@ two-panel
 ;;
 ;; - **Mappings**: pose and layer mappings merge; the innermost
 ;;   wins on conflict, and an explicit `nil` erases a mapping
-;;   inherited from above.
+;;   inherited from above. The one part that combines rather than
+;;   being replaced is a mapping's `:scale`, whose settings accumulate
+;;   down the chain -- see
+;;   [Customization](./plotje_book.customization.html#naming-a-scale-in-the-mapping).
 ;; - **Layers**: every `pj/lay-*` accumulates a new layer; layers
 ;;   do not override, they pile up.
 ;; - **Data**: the first argument to `pj/pose`/`pj/lay-*` sets the

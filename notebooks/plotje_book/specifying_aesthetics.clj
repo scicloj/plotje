@@ -89,7 +89,10 @@ plants
 ;; - `:value` gives the value itself, written in the mapping. There is
 ;;   one of it, so it is the same for every mark in the layer.
 ;;
-;; A mapping names one or the other, never both.
+;; A mapping names one or the other, never both. A third spelling,
+;; `:from`, leaves the choice to the data -- the section
+;; [Leaving the source to the data](#leaving-the-source-to-the-data)
+;; below covers it.
 ;;
 ;; The second key, `:scale`, says whether that source is read through
 ;; the aesthetic's scale:
@@ -345,6 +348,48 @@ plants
 (kind/test-last
  [(fn [m] (and (= (:column-alone m) (:column-scaled m))
                (= (:value-alone m) (:value-drawn m))))])
+
+;; ### Leaving the source to the data
+;;
+;; The other way round is `:from`. It names the source the way the
+;; plain form does -- ask the data, and take whichever answer it gives
+;; -- while still leaving room for a `:scale`. A plain `:size :weight`
+;; has nowhere to put one.
+;;
+;; So these two draw the same plot, and the second can carry a scale:
+
+(-> plants
+    (pj/lay-point :height :weight {:color :shade}))
+
+(kind/test-last
+ [(fn [fr] (= 4 (:points (pj/svg-summary fr))))])
+
+(-> plants
+    (pj/lay-point :height :weight {:color {:from :shade}}))
+
+(kind/test-last
+ [(fn [fr] (= (pj/svg-summary fr)
+              (-> plants
+                  (pj/lay-point :height :weight {:color :shade})
+                  pj/svg-summary)))])
+
+;; `:from` decides nothing that the plain form would not decide. Here
+;; the data carries a `:shade` column, so both read it as a column. On
+;; data without one, both would read `:shade` as a value -- and a value
+;; that is neither a column nor something the aesthetic can draw is
+;; reported either way.
+;;
+;; This is also how a scale set on a pose reaches a plain mapping
+;; written below it. Combining them rewrites the plain value in the
+;; full form, since that is where the scale can live:
+
+(-> plants
+    (pj/pose :height :weight {:size {:column :weight :scale {:range [3 16]}}})
+    (pj/lay-point {:size :weight})
+    pj/plan
+    :panels first :layers first :size-scale)
+
+(kind/test-last [(fn [spec] (= {:range [3 16]} spec))])
 
 ;; ## The positional aesthetics and `:scale false`
 ;;

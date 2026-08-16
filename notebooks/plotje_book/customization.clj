@@ -591,12 +591,20 @@
 (kind/test-last
  [(fn [v] (= :log (-> v pj/plan :size-legend :scale-type)))])
 
-;; When both are set the mapping wins, key by key. `:scale true` and
-;; `:scale false` do not name a scale -- they say whether the value
-;; passes through one at all -- so `{:scale true}` under a
-;; `pj/scale :size :log` stays logarithmic. `:x` and `:y` take a scale
-;; in a mapping too, with one restriction: a panel has one of each
-;; axis, so two layers naming different scales for it are refused.
+;; Scale settings accumulate wherever they are written -- with
+;; `pj/scale`, in a pose's mapping, in a layer's mapping -- and the
+;; innermost wins for each key it names. A range set on the pose and a
+;; type named on a layer give a plot with both.
+;;
+;; `:scale true` and `:scale false` are not settings to accumulate:
+;; they say whether the value passes through a scale at all. `true`
+;; leaves what was set above standing, so `{:scale true}` under a
+;; `pj/scale :size :log` stays logarithmic; `false` replaces it, since
+;; a value drawn as it stands passes through no scale.
+;;
+;; `:x` and `:y` take a scale in a mapping too, with one restriction: a
+;; panel has one of each axis, so two layers naming different scales
+;; for it are refused.
 
 ;; ### Shape symbols
 ;;

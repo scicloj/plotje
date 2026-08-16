@@ -47,6 +47,64 @@
 
 ;; ---- Tree resolver ----
 
+(defn- as-scale-spec
+  "A scale statement as a spec map, or nil where it states no spec.
+   `true` and `false` say which side of the scale a value passes and
+   name no scale, so neither is one."
+  [s]
+  (cond
+    (map? s)     s
+    (keyword? s) {:type s}
+    :else        nil))
+
+(defn combine-scales
+  "Combine an outer scale statement with an inner one.
+
+   Scale settings accumulate down the scope chain: where both name a
+   spec the two merge key by key, so a pose that sets a range and a
+   layer that names a type give a plot with both. The innermost wins
+   per key.
+
+   `true` and `false` are not specs and do not merge. `false` says the
+   value passes through no scale at all, so it replaces whatever was
+   set above; `true` says it does pass through one without saying
+   which, so it leaves an outer spec standing."
+  [outer inner]
+  (cond
+    (false? inner) false
+    (nil? inner)   outer
+    (true? inner)  (if (some? outer) outer true)
+    :else          (let [o (as-scale-spec outer)
+                         i (as-scale-spec inner)]
+                     (if o (merge o i) i))))
+
+(defn- merge-mapping-value
+  "Combine an outer mapping value with the inner one that overrides it.
+
+   The source is replaced, because a mapping states one source and two
+   cannot combine -- a merged `{:column :n :value 7}` is refused by
+   name. The scale accumulates, because it is a set of independent
+   settings, the same one `pj/scale` writes.
+
+   Where the inner value is written plainly it has no room for a scale,
+   so it is rewritten in the full form under `:from`, which is the
+   plain reading spelled out: ask the data."
+  [outer inner]
+  (let [scale-of #(when (map? %) (:scale %))
+        combined (combine-scales (scale-of outer) (scale-of inner))]
+    (cond
+      (nil? inner)      nil            ; an explicit nil cancels the mapping
+      (nil? combined)   inner
+      (map? inner)      (assoc inner :scale combined)
+      :else             {:from inner :scale combined})))
+
+(defn merge-mappings
+  "Merge an outer mapping into an inner one, the way pose mappings have
+   always merged -- the inner value wins -- except for the scale, which
+   accumulates. See `merge-mapping-value`."
+  [outer inner]
+  (merge-with merge-mapping-value (or outer {}) (or inner {})))
+
 (defn resolve-tree
   "Walk the pose tree top-down, merging parent context into each
    descendant. Returns a vector of resolved leaves; each leaf carries
@@ -55,7 +113,8 @@
 
    Context inheritance rules:
    - :data     -- nearest ancestor wins (child overrides parent).
-   - :mapping  -- merged, with child keys overriding parent keys.
+   - :mapping  -- merged, with child keys overriding parent keys, and
+                  scale settings accumulating (see `merge-mappings`).
    - :layers   -- concatenated (ancestor layers distribute down, then
                   the leaf's own layers append).
    - :opts     -- merged (child overrides on key collision).
@@ -68,7 +127,7 @@
    (resolve-tree pose {} []))
   ([pose parent-ctx path]
    (let [ctx {:data    (or (:data pose) (:data parent-ctx))
-              :mapping (merge {} (:mapping parent-ctx) (:mapping pose))
+              :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
               :layers  (into (vec (:layers parent-ctx))
                              (:layers pose))
               :opts    (merge {} (:opts parent-ctx) (:opts pose))}]
@@ -1077,10 +1136,20 @@
 
                :else (not-found! k col false)))))))))
 
+(def source-keys
+  "The three ways an explicit mapping can name its source.
+
+   `:column` reads the value from the layer's data and `:value` is the
+   value itself; `:from` is the plain reading spelled out -- ask the
+   data, and take whichever answer it gives, exactly as a mapping
+   written plainly does. `:from` is what lets a plain mapping carry a
+   `:scale`, since a bare `:size :weight` has no room for one."
+  #{:column :value :from})
+
 (def explicit-mapping-keys
   "The keys an explicit mapping map may carry: one source, and
    optionally the scale to read it through."
-  #{:column :value :scale})
+  (conj source-keys :scale))
 
 (defn explicit-mapping?
   "True of a mapping value written in the explicit form -- a map naming
@@ -1090,7 +1159,7 @@
    a color is a string or a keyword, a size is a number, a shape is a
    symbol from a fixed list."
   [v]
-  (and (map? v) (or (contains? v :column) (contains? v :value))))
+  (and (map? v) (boolean (some #(contains? v %) source-keys))))
 
 (defn check-explicit-mapping!
   "Throw when an explicit mapping is malformed. Nothing here reads the
@@ -1112,12 +1181,14 @@
                            " its source with :column or :value, and may"
                            " add :scale.")
                       {:key k :value v :unknown (vec unknown)})))
-    (when (and (contains? v :column) (contains? v :value))
-      (throw (ex-info (str k " " (pr-str v) " names both :column and"
-                           " :value. It is one or the other: :column"
-                           " reads the value from the layer's data,"
-                           " :value is the value itself.")
-                      {:key k :value v})))
+    (let [named (filterv #(contains? v %) [:column :value :from])]
+      (when (> (count named) 1)
+        (throw (ex-info (str k " " (pr-str v) " names " (count named)
+                             " sources: " named ". It is one of them:"
+                             " :column reads the value from the layer's"
+                             " data, :value is the value itself, and :from"
+                             " lets the data decide between the two.")
+                        {:key k :value v :named named}))))
     ;; This is the "reported where the mapping is built" that
     ;; `impl.aesthetics/scaled?` defers to. An aesthetic with no scale
     ;; cannot be taken off one, and silently dropping the key would
@@ -1196,8 +1267,8 @@
     ;; `:value` broadcast a column of nils and drew an empty panel
     ;; reading "no data", and a nil `:column` reached `pj/plan` and died
     ;; on a schema error -- both because the checks below skip a nil.
-    (let [named (if (contains? v :column) :column :value)]
-      (when (nil? (get v named))
+    (let [named (first (filter #(contains? v %) [:column :value :from]))]
+      (when (and named (nil? (get v named)))
         (throw (ex-info (str k " " (pr-str v) " names " named " nil."
                              " To cancel a mapping inherited from an"
                              " outer scope, write " k " nil on its own.")
@@ -1212,12 +1283,18 @@
    the extract and every mark receive is the ordinary shape, and only
    what cannot be re-derived travels beside it. What cannot be
    re-derived is exactly the two things the writer said out loud --
-   which source they meant, and which side of the scale."
+   which source they meant, and which side of the scale.
+
+   `:from` names no source of its own: it says to ask the data, which
+   is what happens where no source was said at all. So it normalizes
+   to a source of `nil` and the conventions decide, exactly as they do
+   for a mapping written plainly."
   [k v]
   (check-explicit-mapping! k v)
-  (if (contains? v :column)
-    [(:column v) :column (get v :scale)]
-    [(:value v) :value (get v :scale)]))
+  (cond
+    (contains? v :column) [(:column v) :column (get v :scale)]
+    (contains? v :value)  [(:value v) :value (get v :scale)]
+    :else                 [(:from v) nil (get v :scale)]))
 
 (defn- normalize-explicit-mappings
   "Rewrite every explicit mapping in `resolved` into its plain value,
@@ -1228,15 +1305,20 @@
    the conventions decide there. Absence and an explicit `nil` cannot
    be told apart by a lookup, which is why an explicit `:scale nil`
    means the same as writing no `:scale` at all: the convention
-   decides. `false` is the way to say unscaled."
+   decides. `false` is the way to say unscaled.
+
+   A `:from` mapping names no source, so it records none and the
+   conventions decide, as they do for a mapping written plainly. What
+   it does carry is the accumulated scale -- `merge-mappings` rewrites
+   a plain value that way when an outer scope set one."
   [resolved]
   (reduce (fn [acc [k v]]
             (if-not (explicit-mapping? v)
               acc
               (let [[value source scale] (normalize-explicit-mapping k v)]
                 (cond-> (assoc acc k value)
-                  true          (assoc-in [:__source k] source)
-                  (some? scale) (assoc-in [:__scale k] scale)
+                  (some? source) (assoc-in [:__source k] source)
+                  (some? scale)  (assoc-in [:__scale k] scale)
                   ;; An unscaled `:x` or `:y` is a distance across the
                   ;; panel rather than a value on the axis. The renderer
                   ;; needs to know per axis, because the two can differ:
@@ -1559,10 +1641,10 @@
              ;; sees a plain value with the writer's two choices
              ;; recorded beside it.
              resolved (normalize-explicit-mappings
-                       (merge leaf-mapping
-                              layer-type-info
-                              layer-mapping
-                              layer-structural))
+                       (-> leaf-mapping
+                           (merge-mappings layer-type-info)
+                           (merge-mappings layer-mapping)
+                           (merge-mappings layer-structural)))
              layer-own-data?  (some? (:data layer))
              ;; An :x or :y given as a value becomes data before anything
              ;; else looks at the mapping, so every check and every later

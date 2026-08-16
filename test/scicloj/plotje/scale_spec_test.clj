@@ -246,6 +246,87 @@
                     (pj/lay-point {:size {:column :radius :scale :log}})
                     (pj/lay-point {:size {:column :radius :scale :linear}}))))))
 
+;; ---- Scale settings accumulate down the scope chain ----
+
+(deftest scales-accumulate-wherever-they-are-written-test
+  ;; A mapping states one source, and two sources cannot combine, so a
+  ;; mapping is replaced by the one below it. Its `:scale` is a set of
+  ;; independent settings -- the same one `pj/scale` writes -- so it
+  ;; accumulates instead. Before this, a range set on the pose was lost
+  ;; the moment a layer named a type.
+  (let [d {:x [1 2 3] :y [1 2 3] :n [1 5 9]}
+        spec #(-> % pj/plan :panels first :layers first :size-scale)]
+    (testing "a pose's mapping and a layer's mapping"
+      (is (= {:range [3 16] :type :log}
+             (spec (-> d
+                       (pj/pose :x :y {:size {:column :n :scale {:range [3 16]}}})
+                       (pj/lay-point {:size {:column :n :scale :log}}))))))
+
+    (testing "a pose's mapping and a layer that names no scale"
+      (is (= {:range [3 16]}
+             (spec (-> d
+                       (pj/pose :x :y {:size {:column :n :scale {:range [3 16]}}})
+                       pj/lay-point)))))
+
+    (testing "`pj/scale` and a mapping, in either order"
+      (is (= {:type :log :range [3 16]}
+             (spec (-> d (pj/pose :x :y)
+                       (pj/lay-point {:size {:column :n :scale :log}})
+                       (pj/scale :size {:range [3 16]})))))
+      (is (= {:type :log :range [3 16]}
+             (spec (-> d (pj/pose :x :y)
+                       (pj/scale :size {:range [3 16]})
+                       (pj/lay-point {:size {:column :n :scale :log}}))))))
+
+    (testing "an outer pose of a composite and the cell inside it"
+      (is (= {:range [3 16] :type :linear}
+             (-> (pj/arrange [(-> d
+                                  (pj/pose :x :y {:size {:column :n :scale :linear}})
+                                  pj/lay-point)])
+                 (pj/pose {:size {:column :n :scale {:range [3 16]}}})
+                 pj/plan
+                 :sub-plots first :plan :panels first :layers first :size-scale))))
+
+    (testing "the innermost wins for each key it names"
+      (is (= {:range [1 4] :type :log}
+             (spec (-> d
+                       (pj/pose :x :y {:size {:column :n :scale {:range [3 16]
+                                                                 :type :log}}})
+                       (pj/lay-point {:size {:column :n :scale {:range [1 4]}}}))))))
+
+    (testing "and `:scale false` replaces rather than accumulating"
+      ;; It says the value passes through no scale at all, so there is
+      ;; nothing for an outer setting to add to.
+      (is (nil? (spec (-> d
+                          (pj/pose :x :y {:size {:column :n
+                                                 :scale {:range [3 16]}}})
+                          (pj/lay-point {:size {:column :n :scale false}}))))))))
+
+(deftest from-names-the-source-the-way-the-plain-form-does-test
+  ;; `:from` is what lets a mapping that leaves the source to the data
+  ;; still carry a scale. A plain `:size :weight` has nowhere to put
+  ;; one, which is why combining a pose's scale with a plain layer
+  ;; mapping rewrites it in the full form.
+  (let [d {:x [1 2 3] :y [1 2 3] :n [1 5 9]}]
+    (testing "it reads a column where the data has one"
+      (is (= (-> d (pj/lay-point :x :y {:size :n}) pj/plan
+                 :panels first :layers first :groups first :sizes vec)
+             (-> d (pj/lay-point :x :y {:size {:from :n}}) pj/plan
+                 :panels first :layers first :groups first :sizes vec))))
+
+    (testing "and a written value where it does not"
+      (is (= [1.0 0.0 0.0 1.0]
+             (-> d (pj/lay-point :x :y {:color {:from "red"}}) pj/plan
+                 :panels first :layers first :groups first :color))))
+
+    (testing "unlike :column and :value, it names no source of its own"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names 2 sources"
+                            (pj/lay-point d :x :y {:size {:column :n :from :n}}))))
+
+    (testing "a map naming only a scale is still no mapping"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names no source"
+                            (pj/lay-point d :x :y {:size {:scale :log}}))))))
+
 ;; ---- A gradient and a scale are separate things ----
 
 (deftest a-gradient-and-a-colour-scale-can-both-be-asked-for-test

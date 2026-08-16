@@ -102,10 +102,15 @@
 
    `{:column :species}` insists on the column even where a value of
    that name could be drawn; `{:value \"blue\"}` insists on the color
-   even where the data carries a column called blue. `:scale false`
-   draws what the convention would scale, `:scale true` scales what it
-   would draw, and omitting `:scale` -- or writing `nil` -- leaves the
-   convention in charge.
+   even where the data carries a column called blue; `{:from :species}`
+   is the plain reading spelled out -- ask the data, and take whichever
+   answer it gives. `:from` is what lets a mapping that leaves the
+   source to the data still carry a `:scale`.
+
+   `:scale false` draws what the convention would scale, `:scale true`
+   scales what it would draw, and omitting `:scale` -- or writing
+   `nil` -- leaves the convention in charge. A scale type or a spec map
+   there names which scale.
 
    A map is unambiguous as a mapping value because no aesthetic takes
    one: a color is a string or a keyword, a size is a number, a shape
@@ -114,9 +119,10 @@
    [:map
     [:column {:optional true} any?]
     [:value {:optional true} any?]
+    [:from {:optional true} any?]
     [:scale {:optional true} any?]]
-   [:fn {:error/message "should name exactly one of :column or :value"}
-    (fn [m] (= 1 (count (filter #(contains? m %) [:column :value]))))]])
+   [:fn {:error/message "should name exactly one of :column, :value or :from"}
+    (fn [m] (= 1 (count (filter #(contains? m %) [:column :value :from]))))]])
 
 (def drawn-value-schemas
   "What each aesthetic accepts as a **written value** -- the half of the

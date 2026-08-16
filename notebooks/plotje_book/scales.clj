@@ -123,36 +123,54 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
 
-;; A mapping can be written on the pose as well as on a layer, and its
-;; `:scale` follows the ordinary scope rules. Here the pose maps
-;; `:size` through a log scale and the layer overrides it:
+;; ### Scales accumulate
+;;
+;; Wherever a scale is set -- with `pj/scale`, in a pose's mapping, in
+;; a layer's mapping -- the settings accumulate down the scope chain,
+;; and the innermost wins for each key it names. So a range set once on
+;; the pose and a type named on a layer give a plot with both:
 
 (-> gapminder-2007
-    (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale :log}})
-    (pj/lay-point {:size {:column :pop :scale :linear}})
-    (pj/scale :x :log))
+    (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale {:range [3 16]}}})
+    (pj/lay-point {:size {:column :pop :scale :log}})
+    (pj/scale :x :log)
+    pj/plan
+    :panels first :layers first :size-scale)
 
 (kind/test-last
- [(fn [fr] (= :linear (-> fr pj/plan :size-legend :scale-type)))])
+ [(fn [spec] (= {:range [3 16] :type :log} spec))])
 
-;; The layer's mapping replaces the pose's for that aesthetic, so its
-;; `:scale` replaces the pose's rather than merging into it. A `:range`
-;; set in the pose's mapping is lost this way.
-;;
-;; `pj/scale` behaves differently, because it writes to the pose's
-;; options rather than to a mapping. A mapping's `:scale` then
-;; overrides it key by key. Here the range comes from `pj/scale` and
-;; the type from the mapping:
+;; The same holds when the range comes from `pj/scale` rather than from
+;; the pose's mapping:
 
 (-> gapminder-2007
     (pj/pose :gdp-percap :life-exp)
     (pj/lay-point {:size {:column :pop :scale :log}})
     (pj/scale :size {:range [3 16]})
-    (pj/scale :x :log))
+    (pj/scale :x :log)
+    pj/plan
+    :panels first :layers first :size-scale)
 
 (kind/test-last
- [(fn [fr] (= {:type :log :range [3 16]}
-              (-> fr pj/plan :panels first :layers first :size-scale)))])
+ [(fn [spec] (= {:type :log :range [3 16]} spec))])
+
+;; This is only true of the scale. The rest of a mapping is replaced by
+;; the mapping below it, because a mapping states one source and two
+;; sources cannot combine -- `{:column :n :value 7}` is refused by
+;; name. A scale is a set of independent settings, so it accumulates.
+;;
+;; `:scale false` is not a setting to accumulate. It says the value
+;; passes through no scale at all, so it replaces whatever was set
+;; above:
+
+(-> gapminder-2007
+    (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale {:range [3 16]}}})
+    (pj/lay-point {:size {:column :pop :scale false}})
+    (pj/scale :x :log)
+    pj/plan
+    :panels first :layers first :size-scale)
+
+(kind/test-last [(fn [spec] (nil? spec))])
 
 ;; `:scale true` says only that the value passes through the
 ;; aesthetic's scale. It sets no type and no other key, so the scale it
