@@ -590,3 +590,59 @@
           plain (-> tiles (pj/lay-tile :x :y {:fill :v}))]
       (is (not= (tile-colors plain)
                 (tile-colors (-> plain (pj/scale :fill {:domain [0 40]}))))))))
+
+;; ---- The published table and the validators agree ----
+
+(deftest aesthetic-scales-matches-what-pj-scale-accepts-test
+  ;; `pj/aesthetic-scales` is what the book's reference table is built
+  ;; from. It is derived from the same tables the validators read, so it
+  ;; cannot drift from them -- but that says nothing about whether those
+  ;; tables describe the API. These assertions cross that gap.
+  (let [d {:x [1 2 3] :y [1 2 3]}
+        accepts? (fn [aesthetic spec]
+                   (try
+                     (pj/scale (pj/lay-point d :x :y) aesthetic spec)
+                     true
+                     (catch clojure.lang.ExceptionInfo _ false)))
+        sample {:range [1 2] :by :linear :from-zero true
+                :breaks [1 2] :labels ["a" "b"] :n-ticks 3
+                :label "t" :values [(first pj/shape-symbols)]}
+        ;; Two keys carry a constraint the capability table does not
+        ;; describe, and a value has to respect it to test acceptance
+        ;; at all: `:labels` is meaningless without the `:breaks` it
+        ;; pairs with, and an opacity range has to lie inside 0 to 1.
+        spec-for (fn [aesthetic a-type k]
+                   (merge {:type a-type}
+                          (cond
+                            (= k :labels) {:breaks [1 2] :labels ["a" "b"]}
+                            (and (= k :range) (= aesthetic :alpha)) {:range [0.1 1.0]}
+                            :else {k (get sample k)})))]
+
+    (testing "every type listed is accepted, and one left out is refused"
+      (doseq [entry pj/aesthetic-scales
+              :let [aesthetic (:aesthetic entry)
+                    types (:types entry)
+                    absent (first (remove (set types) [:linear :log :categorical]))]]
+        (doseq [t types]
+          (is (accepts? aesthetic t) (str aesthetic " should accept " t)))
+        (when absent
+          (is (not (accepts? aesthetic absent))
+              (str aesthetic " should refuse " absent)))))
+
+    (testing "every spec key listed is accepted"
+      (doseq [entry pj/aesthetic-scales
+              :let [aesthetic (:aesthetic entry)
+                    a-type (first (:types entry))]
+              k (:keys entry)]
+        (is (accepts? aesthetic (spec-for aesthetic a-type k))
+            (str aesthetic " should accept " k))))
+
+    (testing "a drawn-range key an aesthetic does not read is refused"
+      (doseq [entry pj/aesthetic-scales
+              :let [aesthetic (:aesthetic entry)
+                    a-type (first (:types entry))
+                    absent (first (remove (set (:keys entry))
+                                          [:range :by :from-zero]))]
+              :when absent]
+        (is (not (accepts? aesthetic (spec-for aesthetic a-type absent)))
+            (str aesthetic " should refuse " absent))))))

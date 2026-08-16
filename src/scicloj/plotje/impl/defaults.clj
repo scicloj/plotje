@@ -279,6 +279,58 @@
    :size  #{:range :by :from-zero}
    :alpha #{:range}})
 
+;; ---- What a scale takes, as one ordered table ----
+;;
+;; `channel-scale-types` and `channel-scale-options` are sets, so
+;; neither carries an order to show a reader. These three vectors
+;; supply one, and `aesthetic-scales` below joins the three tables into
+;; the shape a reference table wants. The book builds its own table
+;; from it rather than restating it by hand, which is how the two stay
+;; agreed.
+
+(def scale-type-order
+  "Display order for scale types: the continuous readings, then the
+   categorical one."
+  [:linear :log :categorical])
+
+(def scale-spec-key-order
+  "Display order for the per-aesthetic scale spec keys: what an
+   aesthetic spans and how a value spreads across it, then the keys
+   that place and word tick marks, then the axis title, then the
+   symbols only `:shape` draws."
+  [:range :by :from-zero :breaks :labels :n-ticks :label :values])
+
+(def scale-bearing-aesthetic-order
+  "Display order for the aesthetics that have a scale: the two drawn as
+   an axis first, then the appearance aesthetics. Aesthetics sharing a
+   set of capabilities are adjacent, so a table can group them."
+  [:x :y :size :alpha :color :fill :shape])
+
+(defn- in-canonical-order
+  "Sort `items` by their place in `order`. Anything `order` does not
+   list follows, by name, so a newly added entry shows up at the end
+   rather than disappearing."
+  [order items]
+  (let [rank (zipmap order (range))]
+    (vec (sort-by (juxt #(get rank % (count order)) str) items))))
+
+(def aesthetic-scales
+  "What each aesthetic's scale accepts, one entry per aesthetic that
+   has a scale, in display order.
+
+   Each entry carries `:aesthetic`, the `:types` it can be read
+   through, and the spec `:keys` it reads beside `:type` and `:domain`,
+   which belong to every scale. Both are ordered vectors.
+
+   Derived from `channel-scale-types` and `channel-scale-options` so
+   that documentation cannot drift from what the validators enforce."
+  (vec (for [a (in-canonical-order scale-bearing-aesthetic-order
+                                   (keys channel-scale-types))]
+         {:aesthetic a
+          :types (in-canonical-order scale-type-order (get channel-scale-types a))
+          :keys  (in-canonical-order scale-spec-key-order
+                                     (get channel-scale-options a #{}))})))
+
 (def drawn-range-options
   "The scale-spec keys that describe how a value spreads across what a
    mark draws it as. Only some channels read them; see

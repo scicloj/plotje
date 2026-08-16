@@ -15,6 +15,8 @@
 
 (ns plotje-book.scales
   (:require
+   ;; Clojure -- string joining, for the generated table below
+   [clojure.string :as str]
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje -- composable plotting
@@ -343,14 +345,29 @@ gapminder-2007
 
 ;; ## What each aesthetic's scale takes
 ;;
-;; | Aesthetic | Types | Beside `:type` and `:domain` |
-;; |:--------|:------|:-----------------------------|
-;; | `:x`, `:y` | `:linear`, `:log`, `:categorical` | `:breaks`, `:labels`, `:n-ticks`, `:label` |
-;; | `:size` | `:linear`, `:log` | `:range`, `:by`, `:from-zero` |
-;; | `:alpha` | `:linear`, `:log` | `:range` |
-;; | `:color`, `:fill` | `:linear`, `:log` | -- |
-;; | `:shape` | `:categorical` | `:values` |
-;;
+;; `pj/aesthetic-scales` is the table `pj/scale` and a mapping's
+;; `:scale` are both checked against, so the one below is read out of
+;; Plotje rather than written down beside it. Aesthetics that accept
+;; the same things share a row.
+
+(kind/table
+ {:column-names ["Aesthetic" "Types" "Beside :type and :domain"]
+  :row-maps (for [group (partition-by (juxt :types :keys) pj/aesthetic-scales)]
+              (let [names (fn [ks] (str/join ", " (map pr-str ks)))]
+                {"Aesthetic" (kind/code (names (map :aesthetic group)))
+                 "Types" (kind/code (names (:types (first group))))
+                 "Beside :type and :domain"
+                 (if-let [ks (seq (:keys (first group)))]
+                   (kind/code (names ks))
+                   "--")}))})
+
+(kind/test-last
+ [(fn [_]
+    ;; Every aesthetic `pj/scale` accepts appears, and none that has no
+    ;; scale does.
+    (= #{:x :y :size :alpha :color :fill :shape}
+       (set (map :aesthetic pj/aesthetic-scales))))])
+
 ;; An option an aesthetic does not read is refused where it is written,
 ;; rather than accepted and ignored. An axis has no range to set,
 ;; because the panel size determines it:

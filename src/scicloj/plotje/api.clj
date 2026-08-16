@@ -133,6 +133,21 @@
    Maps each key to a description string."
   layer-type/layer-option-docs)
 
+(def aesthetic-scales
+  "What each aesthetic's scale accepts, one entry per aesthetic that
+   has a scale, in display order.
+
+   Each entry carries `:aesthetic`, the `:types` that aesthetic can be
+   read through, and the spec `:keys` it reads beside `:type` and
+   `:domain`, which belong to every scale. Both are ordered vectors,
+   and aesthetics with the same capabilities are adjacent so a table
+   can group them.
+
+   The same tables `pj/scale` and a mapping's `:scale` validate
+   against, so a reference table built from this cannot drift from what
+   they enforce. Use it as `pj/config-key-docs` is used."
+  defaults/aesthetic-scales)
+
 (def shape-symbols
   "The marker symbols a categorical `:shape` mapping draws with, in the
    order they are assigned to categories. A plot with more categories
