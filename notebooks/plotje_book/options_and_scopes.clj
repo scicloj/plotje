@@ -176,10 +176,13 @@
 ;;   computed per panel by default, so different panels may
 ;;   display different numeric ranges.
 ;;
-;; A note on scope of scales and coord: whether `pj/scale` and
-;; `pj/coord` should support scope variation is an open design
-;; question; the underlying plan structure allows per-panel
-;; scales, but the current API treats them as plot-level.
+;; A note on the scope of scales and coord: `pj/scale` and `pj/coord`
+;; write at the pose they are called on and flow down from there, so
+;; on a leaf they cover the whole plot and on one cell of a composite
+;; that cell alone. A mapping written out in full may name its own
+;; scale, and takes precedence for that one mapping. What has no
+;; spelling yet is a type that varies across the panels of a facet:
+;; those panels come from one leaf, so they share it.
 ;;
 ;; A note on terminology: other chapters call these values
 ;; *plot-level options*. Be aware that *plot-level* here names a

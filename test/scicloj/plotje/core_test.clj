@@ -2020,10 +2020,22 @@
                      pj/plan)
             sl (:size-legend plan)]
         (is (= :log (:scale-type sl)))
-        ;; log10(10), log10(100), log10(1000) = 1, 2, 3 are evenly spaced,
-        ;; so the radii should be too (2.0, 5.0, 8.0 for [2.0, 8.0] range).
+        ;; log10(10), log10(100), log10(1000) = 1, 2, 3 are evenly
+        ;; spaced, so the middle value sits halfway across the domain.
+        ;; Where it lands between the radii is the scale's `:by`, which
+        ;; defaults to :sqrt: 2 + 6*sqrt(0.5).
         (is (= [10.0 100.0 1000.0] (mapv :value (:entries sl))))
-        (is (= [2.0 5.0 8.0] (mapv :radius (:entries sl))))))
+        (is (= [2.0 6.243 8.0]
+               (mapv #(-> (:magnitude %) (* 1000) Math/round (/ 1000.0))
+                     (:entries sl))))))
+
+    (testing "and :by :linear spreads the same values evenly across the radii"
+      (let [sl (-> d
+                   (pj/lay-point :user :n {:size :n :x-type :categorical})
+                   (pj/scale :size {:type :log :by :linear})
+                   pj/plan
+                   :size-legend)]
+        (is (= [2.0 5.0 8.0] (mapv :magnitude (:entries sl))))))
 
     (testing "pj/scale :alpha :log produces a log-spaced alpha legend"
       (let [plan (-> d

@@ -473,41 +473,63 @@ integer-named
 
 ;; ## What `:scale` accepts
 ;;
-;; `true` and `false` today. The key says which side of the scale a
-;; mapping is read through. It does not yet say which scale.
+;; `true` and `false` say which side of the scale a mapping is read
+;; through. `:scale` also accepts a scale **type** -- linear or
+;; logarithmic, for instance -- and a whole scale **spec**, and then it
+;; says which scale as well:
+
+(-> plants
+    (pj/lay-point :height :weight {:size {:column :weight :scale :log}}))
+
+(kind/test-last
+ [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
+
+;; A spec is the same map `pj/scale` takes, so a mapping can set the
+;; range a channel spans as well as its type. The default range runs
+;; from a radius of 2 to one of 8; this one is twice that, and every
+;; mark is drawn twice as wide:
+
+(-> plants
+    (pj/lay-point :height :weight
+                  {:size {:column :weight :scale {:range [4 16]}}}))
+
+(kind/test-last
+ [(fn [fr]
+    (= (->> fr pj/plan :size-legend :entries (mapv :magnitude))
+       (->> (-> plants (pj/lay-point :height :weight {:size :weight}))
+            pj/plan :size-legend :entries (mapv #(* 2 (:magnitude %))))))])
+
+;; A type written here reads **that one mapping** through it, which is
+;; what distinguishes it from `pj/scale`. `pj/scale` sets the scale on
+;; the pose it is called on and everything below: on a leaf that is the
+;; whole plot, and on one cell of a composite that cell alone. Where
+;; both are written, the mapping is the narrower scope and wins, key by
+;; key -- so a pose that sets a range and a mapping that names a type
+;; give a plot with both.
 ;;
-;; A scale also has a **type** -- linear or logarithmic, for instance.
-;; The type is chosen with `pj/scale`, which sets it on the pose it is
-;; called on, so every layer of that pose reads the same one. Naming a
-;; type in the mapping is reported rather than read as `true`:
+;; `true` is not an opinion about which scale. It says the value passes
+;; through whatever scale the aesthetic has, so a `pj/scale` above it
+;; still decides the type.
+;;
+;; Each aesthetic gets its own: `(pj/scale pose :x :log)` and
+;; `(pj/scale pose :size :log)` are separate decisions, and either can
+;; be made without the other.
+;;
+;; ### The axes take theirs from the pose
+;;
+;; `:x` and `:y` accept `true` and `false` in a mapping and nothing
+;; more. One panel has one x axis, so its layers cannot each have their
+;; own; the coherent case is `pj/scale`, and it already has a spelling.
 
 (try
   (-> plants
-      (pj/lay-point :height :weight {:size {:column :weight :scale :log}})
+      (pj/lay-point :height :weight {:x {:column :height :scale :log}})
       pj/plan)
   (catch clojure.lang.ExceptionInfo e
     (ex-message e)))
 
 (kind/test-last
- [(fn [m] (re-find #"A mapping's :scale is true or false" m))])
-
-;; Each aesthetic gets its own type: `(pj/scale pose :x :log)` and
-;; `(pj/scale pose :size :log)` are separate decisions, and either can
-;; be made without the other. In a composite, each cell is a pose and
-;; carries its own.
-;;
-;; What one pose cannot do is give two of its layers different types
-;; for the same aesthetic. On `:x` and `:y` that is not a gap: one
-;; panel has one x axis, and two layers drawn against different x
-;; scales could not be read together. On `:size`, `:color` and
-;; `:alpha` it is a real one.
-;;
-;; **Planned.** `:scale` is to gain the scale types as further values
-;; beside `true` and `false`, so that `{:size {:column :weight :scale
-;; :log}}` reads that one mapping through a log scale. `true` will
-;; continue to mean the aesthetic's default type. Until then the value
-;; is reported rather than accepted, so that no mapping asks for a
-;; scale it does not get.
+ [(fn [m] (re-find #"an axis takes its scale from the pose" m))])
 
 ;; ### Aesthetics with no scale
 ;;

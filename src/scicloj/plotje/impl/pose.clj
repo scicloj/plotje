@@ -20,6 +20,7 @@
             [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
+            [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.layer-type :as layer-type]))
 
 ;; ---- Structural predicates ----
@@ -1115,23 +1116,59 @@
         (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
                              " has no scale to set. " why)
                         {:key k :value v}))))
-    ;; `:scale` is a boolean today, and a scale *type* here is planned
-    ;; rather than refused on principle: `{:size {:column :w :scale
-    ;; :log}}` is meant to read that one mapping through a log scale,
-    ;; which is the reading a writer of it expects. Accepting it before
-    ;; it is wired drew the default scale and said nothing -- the same
-    ;; radii as `:scale true` -- so it is reported until the reading
-    ;; exists. `pj/scale` refuses an unknown type for the same reason,
-    ;; and this is the same refusal one level down.
-    (when-not (contains? #{true false nil} (get v :scale))
-      (throw (ex-info (str k " " (pr-str v) " sets :scale to "
-                           (pr-str (:scale v)) ". A mapping's :scale is"
-                           " true or false today: whether this value passes"
-                           " through " k "'s scale. Naming a scale type here"
-                           " is planned for a later version; for now"
-                           " (pj/scale pose " k " ...) sets the type for the"
-                           " pose it is called on.")
-                      {:key k :value v :scale (:scale v)})))
+    ;; Beside `true` and `false`, `:scale` takes a scale type or a whole
+    ;; spec, and reads *this mapping* through it: `{:size {:column :w
+    ;; :scale :log}}` is one log-scaled size mapping, whatever the pose
+    ;; says. `true` keeps meaning the aesthetic's default type -- it is
+    ;; not an opinion about the scale, only about which side of it the
+    ;; value passes.
+    (let [s (:scale v)]
+      (when-not (contains? #{true false nil} s)
+        (when-not (or (keyword? s) (map? s))
+          (throw (ex-info (str k " " (pr-str v) " sets :scale to " (pr-str s)
+                               ". A mapping's :scale is true or false --"
+                               " whether this value passes through " k "'s"
+                               " scale -- or a scale type such as :log, or a"
+                               " spec map such as {:type :log :range [2 12]}.")
+                          {:key k :value v :scale s})))
+        ;; One panel has one x axis and one y axis, so two layers drawn
+        ;; against different x scales could not be read together. The
+        ;; coherent case -- every layer of a pose on one log axis -- is
+        ;; what `pj/scale` says, so a type here would be a second
+        ;; spelling for it and a first spelling for something
+        ;; unreadable.
+        (when (#{:x :y} k)
+          (throw (ex-info (str k " " (pr-str v) " names a scale, and an axis"
+                               " takes its scale from the pose: one panel has"
+                               " one " (name k) " axis, so its layers cannot"
+                               " each have their own. Write (pj/scale pose "
+                               k " " (pr-str (if (map? s) s (or s :log)))
+                               ") instead. In the mapping, " k "'s :scale says"
+                               " true or false -- whether the value is a datum"
+                               " on the axis or a distance across the panel.")
+                          {:key k :value v :scale s})))
+        (let [spec (if (keyword? s) {:type s} s)
+              valid-types (defaults/channel-scale-types k)
+              accepted (into #{:type :domain}
+                             (get defaults/channel-scale-options k #{}))]
+          ;; Before the unknown-key check, so that a drawn-range option
+          ;; written on a channel that has no such quantity is answered
+          ;; with what it means rather than with a list of keys.
+          (scale/validate-drawn-range-options! k spec "A mapping's :scale on")
+          (when-let [unknown (seq (remove accepted (keys spec)))]
+            (throw (ex-info (str k " " (pr-str v) " sets :scale " (pr-str spec)
+                                 ", which has unexpected key(s): " (vec unknown)
+                                 ". " k "'s scale takes " (vec (sort accepted))
+                                 ".")
+                            {:key k :value v :scale spec :unknown (vec unknown)})))
+          (when-let [t (:type spec)]
+            (when-not (contains? valid-types t)
+              (throw (ex-info (str k " " (pr-str v) " sets :scale type "
+                                   (pr-str t) ", and " k " has no such scale."
+                                   " Supported for " k ": "
+                                   (vec (sort valid-types)) ".")
+                              {:key k :value v :scale-type t
+                               :supported (vec (sort valid-types))})))))))
     ;; A source named as nothing is not a source. Left through, a nil
     ;; `:value` broadcast a column of nils and drew an empty panel
     ;; reading "no data", and a nil `:column` reached `pj/plan` and died
@@ -1395,6 +1432,62 @@
            {:data (tc/select-rows ds (fn [r] (= (r frow) rv)))
             :facet-row (defaults/fmt-category-label rv)}))))))
 
+(defn- mapping-scale-spec
+  "The scale spec a mapping states, or nil where it states none.
+
+   `true` and `false` are not opinions about the scale: they say which
+   side of it a value passes, which is a different question from which
+   scale it is. So `(pj/scale pose :size :log)` beside
+   `{:size {:column :w :scale true}}` stays logarithmic, while
+   `{:scale :linear}` there overrides it for that one mapping."
+  [scale]
+  (cond
+    (map? scale)     scale
+    (keyword? scale) {:type scale}
+    :else            nil))
+
+(defn- layer-scale-specs
+  "The scale spec each channel is drawn through on this layer, keyed by
+   the `:opts` key the plan reads it from.
+
+   Two writers can name one channel's scale: `pj/scale` on the pose,
+   which flows down the tree, and the mapping itself. The mapping is
+   the narrower scope, so it wins -- key by key, so that
+   `(pj/scale pose :size {:range [1 10]})` beside
+   `{:size {:column :w :scale :log}}` keeps the range and takes the
+   type.
+
+   `:color-scale` is the one key that can hold something other than a
+   scale spec: the configuration writes a gradient there, by name or as
+   `{:low ... :high ...}`. A gradient named as a keyword has no keys to
+   merge a spec into, so the two are refused together rather than one
+   of them dropped."
+  [resolved opts]
+  (into {} (for [[k scale-key] defaults/channel->scale-key
+                 :let [pose-spec (get opts scale-key)
+                       mapping-spec (mapping-scale-spec
+                                     (get-in resolved [:__scale k]))
+                       spec (cond
+                              (nil? mapping-spec) pose-spec
+                              (or (nil? pose-spec) (map? pose-spec))
+                              (merge pose-spec mapping-spec)
+                              :else
+                              (throw (ex-info
+                                      (str k " names a scale in its mapping, "
+                                           (pr-str mapping-spec) ", and "
+                                           scale-key " is set to "
+                                           (pr-str pose-spec) ", which is a"
+                                           " gradient rather than a scale."
+                                           " One of the two has to go: name"
+                                           " the gradient in " scale-key
+                                           " as a map of :low/:high, or drop"
+                                           " the :scale from the mapping.")
+                                      {:key k :scale-key scale-key
+                                       :option pose-spec
+                                       :mapping mapping-spec})))]
+                 :when (some? spec)]
+             [scale-key spec])))
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -1422,13 +1515,6 @@
   (let [leaf-mapping (or (:mapping leaf) {})
         leaf-data    (:data leaf)
         opts         (or (:opts leaf) {})
-        x-scale      (:x-scale opts)
-        y-scale      (:y-scale opts)
-        size-scale   (:size-scale opts)
-        alpha-scale  (:alpha-scale opts)
-        fill-scale   (:fill-scale opts)
-        color-scale  (:color-scale opts)
-        shape-scale  (:shape-scale opts)
         coord-type   (:coord opts)
         layers       (or (:layers leaf) [])
         ;; An entirely empty leaf (no mapping, no layers) has nothing
@@ -1472,14 +1558,8 @@
          (-> resolved
              (assoc :data d
                     :__panel-idx variant-idx)
+             (merge (layer-scale-specs resolved opts))
              (cond->
-              x-scale     (assoc :x-scale x-scale)
-              y-scale     (assoc :y-scale y-scale)
-              size-scale  (assoc :size-scale size-scale)
-              alpha-scale (assoc :alpha-scale alpha-scale)
-              fill-scale  (assoc :fill-scale fill-scale)
-              color-scale (assoc :color-scale color-scale)
-              shape-scale (assoc :shape-scale shape-scale)
               coord-type  (assoc :coord coord-type)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))
               (:facet-row variant) (assoc :facet-row (:facet-row variant)))

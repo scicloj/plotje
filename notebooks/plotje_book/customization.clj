@@ -474,38 +474,39 @@
 ;; continuous encoding -- visual channels accept `:linear` (the
 ;; default) and `:log` only.
 
-;; Point sizes from a column whose values jump by factors of ten.
-;; Without `:scale :size :log`, the default linear mapping puts the
-;; n=10 and n=100 points at nearly the same radius -- only n=1000
-;; stands out. Linear scaling reflects absolute distance, which is
-;; dominated by the largest value:
+;; Point sizes from a column whose values jump by factors of ten. On a
+;; linear scale the step from 10 to 100 is a small part of the way to
+;; 1000, so those two points sit close together at the bottom of the
+;; size range while n=1000 stands apart -- a linear scale reads
+;; absolute distance, which the largest value dominates:
 
 (-> {:user [:a :b :c] :n [10 100 1000]}
     (pj/lay-point :user :n {:size :n :x-type :categorical}))
 
 (kind/test-last
  [(fn [v]
-    (let [sizes (sort (:sizes (pj/svg-summary v)))]
-      ;; Linear scaling: smallest two radii are within 50% of each
-      ;; other; the largest radius is at least 3x the smallest.
-      (and (= 3 (count sizes))
-           (< (/ (second sizes) (first sizes)) 1.5)
-           (> (/ (last sizes) (first sizes)) 3.0))))])
+    (let [[small mid large] (sort (:sizes (pj/svg-summary v)))]
+      ;; The middle radius is nearer the smallest than the largest.
+      (< (- mid small) (- large mid))))])
 
-;; With `pj/scale :size :log`, each factor-of-10 step reflects the
-;; same proportional jump in radius, so the n=10 and n=100 points
-;; are now visibly distinct:
+;; With `pj/scale :size :log`, each factor-of-ten step covers the same
+;; part of the domain, so the n=10 and n=100 points are no longer
+;; crowded together at the bottom -- the gap between them is now the
+;; wider of the two:
 
 (-> {:user [:a :b :c] :n [10 100 1000]}
     (pj/lay-point :user :n {:size :n :x-type :categorical})
     (pj/scale :size :log))
 
-(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v]
+    (let [[small mid large] (sort (:sizes (pj/svg-summary v)))]
+      (and (= 3 (:points (pj/svg-summary v)))
+           (> (- mid small) (- large mid)))))])
 
-;; The size legend's tick values are the original numbers (10,
-;; 100, 1000), but the dot radii grow in log-space -- each step
-;; reflects the same factor, matching what you see at the same data
-;; values in the plot.
+;; The size legend's tick values are the original numbers (10, 100,
+;; 1000), and its dots are drawn from the same scale as the panel's,
+;; so the dot beside 100 is the size an n=100 point is drawn at.
 
 ;; Tile heatmap with log-scaled fill:
 

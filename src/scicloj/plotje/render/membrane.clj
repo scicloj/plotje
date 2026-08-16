@@ -10,6 +10,7 @@
   (:require [membrane.ui :as ui]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.frames :as frames]
+            [scicloj.plotje.impl.layout :as layout]
             [scicloj.plotje.impl.membrane :as mem]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.render.mark :as mark]
@@ -163,21 +164,42 @@
         s (if (== d (Math/floor d)) (str (long d)) (str v))]
     (defaults/fmt-number s (defaults/number-separators cfg))))
 
+(defn- size-swatch-box
+  "The box one swatch occupies for a magnitude, as `[width height]`.
+
+   A circle spans twice its radius each way; a square its side; a
+   segment its fixed length by its thickness."
+  [swatch magnitude]
+  (case swatch
+    :circle  [(* 2 magnitude) (* 2 magnitude)]
+    :square  [magnitude magnitude]
+    :segment [layout/size-legend-swatch-length magnitude]))
+
 (defn render-size-legend
-  "Render a size legend -- graduated circles with value labels.
+  "Render a size legend -- graduated swatches with value labels.
    Returns a vector of membrane drawables. `cfg` supplies
    `:thousands-separator`, so a legend's numbers group the same way the
-   axis ticks beside them do."
+   axis ticks beside them do.
+
+   The swatch follows the quantity the layer's mark draws the channel
+   as, which the plan carries on the legend: circles for a radius,
+   squares for a side, strokes of varying thickness for a width.
+   Graduated circles beside a width encoding would have the reader
+   comparing diameters while the panel shows thicknesses."
   [size-legend x y cfg]
   (let [{:keys [title entries]} size-legend
+        swatch (or (:swatch size-legend) :circle)
         title-color [0.2 0.2 0.2 1.0]
         point-color [0.4 0.4 0.4 1.0]
         ;; A legend with no entries has no widest mark. `log-ticks`
         ;; returns none for a log domain holding no 1-2-5 tick, which a
         ;; constant size column gives it, so `reduce max` was handed an
         ;; empty sequence and threw an arity error out of the renderer.
-        max-r (reduce max 0.0 (map :radius entries))
-        row-h 18]
+        column-w (layout/size-legend-swatch-w size-legend)
+        ;; Tall enough for the widest swatch. A range the writer widens
+        ;; -- `{:range [3 20]}` -- draws circles taller than the 18 a
+        ;; row used to be, and they overlapped down the column.
+        row-h (layout/size-legend-row-h size-legend cfg)]
     (vec
      (concat
       (when title
@@ -185,18 +207,23 @@
                               (ui/with-color title-color
                                 (ui/label (defaults/fmt-name title) (ui/font nil 11))))
                 :legend true)])
-      (for [[i {:keys [value radius]}] (map-indexed vector entries)
+      (for [[i {:keys [value magnitude]}] (map-indexed vector entries)
             :let [cy (+ y (* i row-h))
-                  ;; Center circles horizontally on the max radius
-                  cx (+ x max-r)]]
+                  ;; Center each swatch on the widest one's column
+                  cx (+ x (* 0.5 column-w))
+                  [w h] (size-swatch-box swatch magnitude)]]
         (assoc
          (ui/translate 0 0
-                       [(assoc (ui/translate (- cx radius) (- cy radius)
+                       [(assoc (ui/translate (- cx (* 0.5 w)) (- cy (* 0.5 h))
                                              (ui/with-color point-color
                                                (ui/with-style ::ui/style-fill
-                                                 (ui/rounded-rectangle (* 2 radius) (* 2 radius) radius))))
+                                                 (ui/rounded-rectangle
+                                                  w h (case swatch
+                                                        :circle  (* 0.5 h)
+                                                        :square  0.0
+                                                        :segment (* 0.5 h))))))
                                :legend true)
-                        (ui/translate (+ x (* 2 max-r) 6) cy
+                        (ui/translate (+ x column-w 6) cy
                                       (ui/with-color title-color
                                         (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
          :legend true))))))
@@ -464,7 +491,10 @@
                           size-y (+ base-y color-h (if legend 10 0))
                           size-elems (when size-legend
                                        (render-size-legend size-legend legend-x size-y cfg))
-                          size-h (if size-legend (+ 16 (* 18 (count (:entries size-legend)))) 0)
+                          size-h (if size-legend
+                                   (+ 16 (* (layout/size-legend-row-h size-legend cfg)
+                                            (count (:entries size-legend))))
+                                   0)
                           ;; Alpha legend
                           alpha-y (+ size-y size-h (if size-legend 10 0))
                           alpha-elems (when alpha-legend

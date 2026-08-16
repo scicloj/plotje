@@ -862,16 +862,18 @@ s2-tree
     (and (= "Two" (get-in pose [:opts :title]))
          (= "Sub" (get-in pose [:opts :subtitle]))))])
 
-;; ### Rule O2: `pj/scale` and `pj/coord` are plot-level options
+;; ### Rule O2: `pj/scale` and `pj/coord` write options at the pose
 ;;
 ;; `pj/scale` writes into `:opts` under one of `:x-scale`,
 ;; `:y-scale`, `:size-scale`, `:alpha-scale`, `:fill-scale`, or
 ;; `:color-scale` -- one key per channel. Axis channels (`:x`,
 ;; `:y`) accept `:linear`, `:log`, `:categorical`; visual channels
 ;; (`:size`, `:alpha`, `:fill`, `:color`) accept `:linear` and
-;; `:log`. `pj/coord` writes `:coord`. They apply to every leaf in
-;; the tree uniformly. (Per-panel scale variation is an open
-;; design question; today all are plot-wide.)
+;; `:log`. `pj/coord` writes `:coord`. Both flow down to every leaf
+;; beneath the pose they are called on, which on a leaf is the whole
+;; plot and on one cell of a composite is that cell. A mapping written
+;; out in full may name its own scale, which takes precedence over the
+;; pose's for that one mapping.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)

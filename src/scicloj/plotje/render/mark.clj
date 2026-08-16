@@ -5,6 +5,7 @@
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.text :as text]
+            [scicloj.plotje.layer-type :as layer-type]
             [fastmath.random :as rng]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
@@ -264,19 +265,20 @@
         ;; so the mark drawn beside a value in the legend is the size a
         ;; mark of that value is drawn at on the panel.
         ;; A column told not to scale holds radii and opacities already.
-        channel-scale (fn [bufs scale-key drawn-key out-lo out-hi]
+        channel-scale (fn [bufs scale-key drawn-key channel]
                         (when (seq bufs)
                           (if (drawn-key layer)
                             identity
-                            (scale/continuous-channel-mapper
-                             (:type (scale-key layer))
+                            (scale/channel-mapper
+                             (scale-key layer)
                              (reduce min (map dfn/reduce-min bufs))
                              (reduce max (map dfn/reduce-max bufs))
-                             out-lo out-hi))))
+                             (channel defaults/channel-ranges)
+                             (layer-type/ink-exponent (:mark layer) channel)))))
         size-bufs (keep :sizes groups)
-        size-scale (channel-scale size-bufs :size-scale :size-drawn? 2.0 8.0)
+        size-scale (channel-scale size-bufs :size-scale :size-drawn? :size)
         alpha-bufs (keep :alphas groups)
-        alpha-scale (channel-scale alpha-bufs :alpha-scale :alpha-drawn? 0.2 1.0)
+        alpha-scale (channel-scale alpha-bufs :alpha-scale :alpha-drawn? :alpha)
         ;; The category-to-symbol assignment is decided at plan time so
         ;; the legend and the marks show the same symbol for a category.
         shape-map (:shape-map layer)]

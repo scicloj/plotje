@@ -43,8 +43,9 @@
 ;;   mark whose size is in drawing units for another reason: a `pj/lay-point`
 ;;   given a large `:size` at the extreme of its domain is cut at the
 ;;   panel edge, as is a long rug tick. The 5% domain padding absorbs
-;;   this at ordinary radii. Workaround: widen the domain with
-;;   `pj/scale`.
+;;   this at ordinary radii, and a scale given a wide `:range` -- say
+;;   `(pj/scale pose :size {:range [3 20]})` -- reaches past it.
+;;   Workaround: widen the domain with `pj/scale`.
 ;;
 ;; - Rotated x-tick labels (`:x-tick-angle`) reserve extra vertical
 ;;   space below the panel, but not extra horizontal space. A long
@@ -112,7 +113,10 @@
 ;;   `{:size {:column :r :scale false}}` -- which asks for the column's
 ;;   own values as radii -- is refused elsewhere rather than warned:
 ;;   there is no reading for it at all. The warning and the refusal both
-;;   name `lay-point`.
+;;   name `lay-point`. Which marks those are is read from the registry,
+;;   where each layer type declares what its mark varies under
+;;   `:varies`, so an extension that draws a per-row size says so and is
+;;   named alongside `lay-point`.
 ;;
 ;;   `:shape` is not in this table: it is drawn only by `lay-point`, and
 ;;   passing it anywhere else is rejected rather than ignored -- every

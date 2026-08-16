@@ -330,27 +330,67 @@
 
 
 (def
- v61_l484
+ v61_l481
+ (->
+  plants
+  (pj/lay-point
+   :height
+   :weight
+   {:size {:column :weight, :scale :log}})))
+
+
+(deftest
+ t62_l484
+ (is
+  ((fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))
+   v61_l481)))
+
+
+(def
+ v64_l492
+ (->
+  plants
+  (pj/lay-point
+   :height
+   :weight
+   {:size {:column :weight, :scale {:range [4 16]}}})))
+
+
+(deftest
+ t65_l496
+ (is
+  ((fn
+    [fr]
+    (=
+     (->> fr pj/plan :size-legend :entries (mapv :magnitude))
+     (->>
+      (-> plants (pj/lay-point :height :weight {:size :weight}))
+      pj/plan
+      :size-legend
+      :entries
+      (mapv (fn* [p1__11193#] (* 2 (:magnitude p1__11193#)))))))
+   v64_l492)))
+
+
+(def
+ v67_l524
  (try
   (->
    plants
-   (pj/lay-point
-    :height
-    :weight
-    {:size {:column :weight, :scale :log}})
+   (pj/lay-point :height :weight {:x {:column :height, :scale :log}})
    pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t62_l491
+ t68_l531
  (is
-  ((fn [m] (re-find #"A mapping's :scale is true or false" m))
-   v61_l484)))
+  ((fn [m] (re-find #"an axis takes its scale from the pose" m))
+   v67_l524)))
 
 
 (def
- v64_l521
+ v70_l543
  (try
   (pj/lay-text
    plants
@@ -361,5 +401,5 @@
 
 
 (deftest
- t65_l526
- (is ((fn [m] (re-find #":text has no scale to set" m)) v64_l521)))
+ t71_l548
+ (is ((fn [m] (re-find #":text has no scale to set" m)) v70_l543)))

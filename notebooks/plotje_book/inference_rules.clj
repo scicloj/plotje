@@ -981,8 +981,9 @@ continuous-color-pose
 ;; ### Size Legend
 ;;
 ;; When `:size` maps to a numerical column, a size legend shows
-;; five graduated circles spanning the data range, with radii
-;; proportional to the values they represent.
+;; graduated circles spanning the data range. Each circle is drawn
+;; from the same scale as the marks, so the one beside a value is the
+;; size a mark of that value is drawn at.
 
 (def size-legend-pose
   (-> {:x [1 2 3 4 5] :y [1 2 3 4 5] :s [10 20 30 40 50]}

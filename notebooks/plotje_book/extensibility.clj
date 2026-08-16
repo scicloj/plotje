@@ -266,11 +266,17 @@ graph LR
 ;; present, which is the rule from a few forms above seen from the other
 ;; side.
 
-;; (The other two fields in those lookups belong to the layer type rather
+;; (The other fields in those lookups belong to the layer type rather
 ;; than to the stat: `:x-only` says the layer type works from an x column
-;; alone, and `:accepts` lists the layer options it takes beyond the
+;; alone, `:accepts` lists the layer options it takes beyond the
 ;; universal ones, tabulated per layer type in
-;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options).)
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options),
+;; and `:varies` names the appearance channels its mark varies from row
+;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. A
+;; channel left out of `:varies` is one the mark draws once for the
+;; whole layer, so a column mapped to it varies nothing, and the plan
+;; says so rather than drawing a legend for an encoding the panel does
+;; not carry.)
 ;;
 ;; One entry per row is visible in the output: a scatter of the 150-row
 ;; iris dataset draws 150 marks.

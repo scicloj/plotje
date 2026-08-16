@@ -291,7 +291,10 @@
 (def SizeLegendEntry
   [:map
    [:value number?]
-   [:radius number?]])
+   ;; The quantity the mark draws this value as -- a radius, a stroke's
+   ;; width. Named for the quantity rather than for one shape, because
+   ;; the swatch below decides which shape carries it.
+   [:magnitude number?]])
 
 (def SizeLegend
   [:map
@@ -299,6 +302,8 @@
    [:type [:= :size]]
    [:min number?]
    [:max number?]
+   [:quantity keyword?]
+   [:swatch keyword?]
    [:entries [:vector SizeLegendEntry]]])
 
 (def AlphaLegendEntry

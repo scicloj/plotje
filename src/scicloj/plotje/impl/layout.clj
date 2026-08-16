@@ -205,6 +205,10 @@
      :legend-entry-count legend-entry-count
      :legend-max-chars legend-max-chars
      :size-legend-entry-count (count (:entries size-legend))
+     ;; Carried rather than derived from the count, because the writer
+     ;; sets the range a size spans and the widest swatch decides both
+     ;; how wide the column is and how tall a row has to be.
+     :size-legend size-legend
      :alpha-legend-entry-count (count (:entries alpha-legend))}))
 
 ;; ---- compute-padding: one helper per output key ----
@@ -294,6 +298,38 @@
       :none
       raw)))
 
+(def size-legend-swatch-length
+  "How long a segment swatch is drawn, in drawing units. A width
+   encoding varies the thickness of a fixed-length stroke, so the
+   length stays constant down the column."
+  20.0)
+
+(defn size-legend-swatch-w
+  "How wide the widest swatch in a size legend is.
+
+   The range a size scale spans is the writer's to set, so a legend
+   column is no longer the 16 drawing units the fixed 2-to-8 range
+   always gave it: `{:range [3 20]}` draws a 40-wide circle, which
+   overran both the row beneath it and the space the layout reserved."
+  [size-legend]
+  (let [max-mag (reduce max 0.0 (map :magnitude (:entries size-legend)))]
+    (case (or (:swatch size-legend) :circle)
+      :circle  (* 2 max-mag)
+      :square  max-mag
+      :segment size-legend-swatch-length)))
+
+(defn size-legend-row-h
+  "How tall one row of a size legend is: the entry height, or the
+   widest swatch where that is taller. Asked by the layout, which
+   reserves the room, and by the renderer, which places the rows."
+  [size-legend cfg]
+  (let [row-h (double (:legend-entry-height cfg 18))
+        max-mag (reduce max 0.0 (map :magnitude (:entries size-legend)))]
+    (max row-h (+ 2.0 (case (or (:swatch size-legend) :circle)
+                        :circle (* 2 max-mag)
+                        :square max-mag
+                        :segment max-mag)))))
+
 (defn- pad-legend-w
   "Width reserved for a left- or right-positioned legend column.
    The base width from config (default 100) is extended when the
@@ -304,10 +340,16 @@
   (if (#{:left :right} legend-pos)
     (let [base (:legend-width cfg 100)
           ;; Swatch + gap takes ~24px; estimate label font advance as
-          ;; ~7px per char; leave ~8px right margin.
+          ;; ~7px per char; leave ~8px right margin. A size legend's
+          ;; swatch column is as wide as its widest mark, which the
+          ;; scale's range decides, so it is measured rather than
+          ;; assumed.
           char-px 7
           chrome  32
-          estimated (+ chrome (* char-px (:legend-max-chars scene 0)))]
+          swatch  (if-let [sl (:size-legend scene)]
+                    (max 0.0 (- (size-legend-swatch-w sl) 16.0))
+                    0.0)
+          estimated (+ chrome swatch (* char-px (:legend-max-chars scene 0)))]
       (max base estimated))
     0))
 
@@ -317,13 +359,14 @@
    (default 18) replace the old magic numbers."
   [legend-pos scene cfg]
   (if (#{:top :bottom} legend-pos)
-    (let [{:keys [legend-entry-count size-legend-entry-count
+    (let [{:keys [legend-entry-count size-legend size-legend-entry-count
                   alpha-legend-entry-count]} scene
           header (double (:legend-header-pad cfg 20))
-          row-h  (double (:legend-entry-height cfg 18))]
+          row-h  (double (:legend-entry-height cfg 18))
+          size-row-h (if size-legend (size-legend-row-h size-legend cfg) row-h)]
       (+ header
          (* row-h (max 1 legend-entry-count))
-         (* row-h size-legend-entry-count)
+         (* size-row-h size-legend-entry-count)
          (* row-h alpha-legend-entry-count)))
     0.0))
 

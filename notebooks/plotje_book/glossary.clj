@@ -656,6 +656,12 @@ my-pose
 ;; the appearance aesthetics and read through the scale on `:x` and
 ;; `:y`.
 ;;
+;; The same key says *which* scale, as a type or a whole spec:
+;; `{:size {:column :weight :scale :log}}` reads that one mapping
+;; logarithmically, whatever `pj/scale` says on the pose around it. The
+;; axes are the exception -- one panel has one x axis, so `:x` and `:y`
+;; take `true` and `false` only and their type comes from `pj/scale`.
+;;
 ;; Two aesthetics have no scale at all -- `:text`, which draws a label
 ;; as it stands, and `:group`, which draws nothing of its own -- so
 ;; both report a `:scale` rather than accepting one.
@@ -667,7 +673,9 @@ my-pose
 ;; | `:categorical` | Distinct categories (band scale) |
 ;;
 ;; Scales are created at render time, not stored in the plan.
-;; The plan stores scale *specs* (`:type`, `:domain`).
+;; The plan stores scale *specs* (`:type`, `:domain`, and on `:size`
+;; and `:alpha` the `:range` a value spreads across, plus `:by` and
+;; `:from-zero`, which say how).
 ;;
 ;; **Temporal columns** (`LocalDate`, `LocalDateTime`, `Instant`,
 ;; `java.util.Date`) are detected automatically and converted to

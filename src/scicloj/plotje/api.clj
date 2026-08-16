@@ -2613,27 +2613,24 @@
    is no continuous interpretation for a shape symbol."
   #{:shape})
 
-(def ^:private valid-axis-scale-types
-  "Scale types accepted on :x / :y. :linear and :log are continuous;
-   :categorical lets users supply an explicit ordering via :domain."
-  #{:linear :log :categorical})
-
-(def ^:private valid-continuous-visual-scale-types
-  "Scale types accepted on :size / :alpha / :fill / :color."
-  #{:linear :log})
-
-(def ^:private valid-discrete-visual-scale-types
-  "Scale types accepted on :shape."
-  #{:categorical})
-
 (defn scale
-  "Set scale on a pose. Scale is plot-level -- it applies across every
-   panel. Accepts a type keyword or a scale spec map with `:type`, optional
+  "Set scale on a pose. The scale applies to the pose it is called on
+   and to everything below it: on a leaf that is the whole plot, and on
+   one cell of a composite that cell alone, so two cells can carry
+   different scales. Under faceting every panel comes from one leaf, so
+   the panels share a type; `:scales :free` varies their domains.
+
+   Accepts a type keyword or a scale spec map with `:type`, optional
    `:domain`, optional `:breaks` (explicit tick locations), optional
    `:labels` (custom tick text paired with `:breaks`), and optional
-   `:n-ticks` (thin a categorical axis to about this many ticks). On a
-   composite pose the scale attaches to the root so every descendant leaf
-   inherits it at plan time.
+   `:n-ticks` (thin a categorical axis to about this many ticks).
+
+   `:size` and `:alpha` also take `:range` -- what the channel spans,
+   in the quantity the mark draws it as, so `[2 8]` on `:size` is a
+   radius in drawing units. `:size` further takes `:by`, how a value
+   spreads across that range (`:sqrt` by default, or `:linear` or
+   `:area`), and `:from-zero`, which anchors both the domain and the
+   range at zero so that twice the value is twice the ink.
 
    Channels and accepted scale types:
 
@@ -2680,6 +2677,10 @@
    - `(scale pose :y {:type :log :domain [1 1000]})` -- log scale with
      explicit range.
    - `(scale pose :size :log)` -- log-spaced point sizes.
+   - `(scale pose :size {:range [3 14]})` -- wider points than the
+     default 2 to 8.
+   - `(scale pose :size {:by :area :from-zero true})` -- a point of
+     twice the value covers twice the ink.
    - `(scale pose :fill :log)` -- log-spaced tile fill.
    - `(scale pose :shape {:type :categorical :domain [...]})` -- shape
      legend order.
@@ -2701,10 +2702,7 @@
                               {:channel channel})))
         cont-visual? (continuous-visual-channels channel)
         disc-visual? (discrete-visual-channels channel)
-        valid-types (cond
-                      cont-visual? valid-continuous-visual-scale-types
-                      disc-visual? valid-discrete-visual-scale-types
-                      :else        valid-axis-scale-types)
+        valid-types (defaults/channel-scale-types channel)
         type-kw (if (map? scale-type) (:type scale-type) scale-type)]
     (when-not (or (nil? type-kw) (valid-types type-kw))
       (throw (ex-info
@@ -2758,7 +2756,8 @@
                          defaults/shape-syms ".")
                     {:caller "pj/scale" :channel channel
                      :unknown (vec unknown)
-                     :supported defaults/shape-syms}))))))
+                     :supported defaults/shape-syms}))))
+        (scale/validate-drawn-range-options! channel scale-type "pj/scale")))
     (update-opts pose assoc k (if (map? scale-type)
                                 (merge {:type (if disc-visual? :categorical :linear)}
                                        scale-type)

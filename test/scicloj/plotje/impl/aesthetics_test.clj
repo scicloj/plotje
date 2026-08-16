@@ -488,7 +488,7 @@
   (let [radius-of (fn [pose]
                     (let [p (pj/plan pose)]
                       {:marks (-> p :panels first :layers first :groups first :sizes vec)
-                       :legend (mapv :radius (:entries (:size-legend p)))}))
+                       :legend (mapv :magnitude (:entries (:size-legend p)))}))
         default-radius (-> (pj/plan (-> measured (pj/lay-point :when :level)))
                            :panels first :layers first :style :radius)]
     (testing "a written value sent through the scale"
@@ -519,7 +519,7 @@
   ;; mark between radius 2.0 and 2.6 -- below the default 3.0, which is
   ;; the picture the midpoint rule was added to prevent.
   (let [radii (fn [span]
-                (let [f (scale/continuous-channel-mapper :linear 5.0 (+ 5.0 span) 2.0 8.0)]
+                (let [f (scale/channel-mapper {:type :linear} 5.0 (+ 5.0 span) [2.0 8.0] 2)]
                   [(double (f 5.0)) (double (f (+ 5.0 span)))]))]
     (testing "a span too small to be real takes the midpoint"
       (is (= [5.0 5.0] (radii 0.0)))
@@ -620,26 +620,52 @@
     (testing "a column it can draw still passes"
       (is (pj/plan (-> d (pj/lay-point :when :level {:size {:column :radius :scale false}})))))))
 
-(deftest the-scale-key-is-a-boolean-test
-  ;; A scale type on a mapping is future work. Accepted meanwhile, it
-  ;; drew the default scale and said nothing -- `{:scale :log}` gave
-  ;; the same radii as `:scale true`, while `(pj/scale pose :size :log)`
-  ;; genuinely differs. `pj/scale` refuses an unknown type for the same
-  ;; reason.
-  (doseq [v [:log :bogus "false" 0]]
+(deftest the-scale-key-names-a-scale-test
+  ;; `:scale` says which side of the scale a value passes -- true or
+  ;; false -- and may say which scale, as a type or a whole spec.
+  (testing "a value that is neither is refused"
+    (doseq [v ["false" 0]]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"sets :scale to .*A mapping's :scale is true or false"
+           (pj/plan (-> measured (pj/lay-point :when :level
+                                               {:size {:column :radius :scale v}}))))
+          (str "a :scale of " (pr-str v)))))
+
+  (testing "and so is a type the channel has no scale for"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"sets :scale to .*A mapping's :scale is true or false"
+         #"sets :scale type :bogus, and :size has no such scale"
          (pj/plan (-> measured (pj/lay-point :when :level
-                                             {:size {:column :radius :scale v}}))))
-        (str "a :scale of " (pr-str v))))
+                                             {:size {:column :radius :scale :bogus}}))))))
 
-  (testing "true, false and absent are the vocabulary"
+  (testing "true, false, absent, a type and a spec are the vocabulary"
     (doseq [m [{:size {:column :radius :scale true}}
                {:size {:column :radius :scale false}}
                {:size {:column :radius :scale nil}}
+               {:size {:column :radius :scale :log}}
+               {:size {:column :radius :scale {:type :log :range [1 12]}}}
                {:size {:column :radius}}]]
-      (is (pj/plan (-> measured (pj/lay-point :when :level m)))))))
+      (is (pj/plan (-> measured (pj/lay-point :when :level m))))))
+
+  (testing "a type in the mapping reads that one mapping through it"
+    ;; The reading the writer of it expects, and the one that used to be
+    ;; refused because nothing carried it out.
+    (let [radii (fn [m] (->> (pj/plan (-> measured (pj/lay-point :when :level m)))
+                             :size-legend :entries (mapv :magnitude)))]
+      (is (not= (radii {:size {:column :radius :scale :log}})
+                (radii {:size {:column :radius :scale :linear}})))))
+
+  (testing "and a mapping's :scale true is not an opinion about which scale"
+    ;; It says which side of the scale the value passes, which is a
+    ;; different question. So the pose's type still decides.
+    (let [radii (fn [pose] (->> (pj/plan pose) :size-legend :entries (mapv :magnitude)))]
+      (is (= (radii (-> measured
+                        (pj/lay-point :when :level {:size {:column :radius :scale true}})
+                        (pj/scale :size :log)))
+             (radii (-> measured
+                        (pj/lay-point :when :level {:size :radius})
+                        (pj/scale :size :log))))))))
 
 (deftest a-source-named-as-nil-is-refused-test
   ;; Both slipped past the checks below, which skip a nil: a nil
@@ -783,11 +809,11 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unexpected key"
                             (pj/pose measured {:x :when :y :level
                                                :color {:column :variety :typo 1}}))))
-    (testing "both sources, a scale type, a source named nil"
+    (testing "both sources, a scale type the channel lacks, a source named nil"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names both :column and :value"
                             (built {:color {:column :variety :value "red"}})))
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A mapping's :scale is"
-                            (built {:size {:column :radius :scale :log}})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"has no such scale"
+                            (built {:size {:column :radius :scale :categorical}})))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names :column nil"
                             (built {:color {:column nil}}))))
     (testing "a map naming no source at all"

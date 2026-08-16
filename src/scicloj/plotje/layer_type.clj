@@ -87,6 +87,29 @@
    :stroke-width "Width of that outline in drawing units"
    :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline — :dashed, :dotted, :solid, or a raw [dash gap ...] pattern in drawing units"})
 
+(def quantities
+  "The quantities a mark can draw an appearance channel as, and what
+   each one implies. A mark names one of these per channel it varies
+   from row to row, under `:varies`.
+
+   - `:ink-exponent` — how the ink a mark covers grows with the
+     quantity. A circle's radius and a square's side both square it; a
+     stroke's width does not. It is what makes `{:by :area}` mean the
+     same thing on every mark: area is the quantity raised to this
+     power, so the scale can spread ink evenly without knowing which
+     shape draws it.
+   - `:swatch` — what the legend draws to explain the channel. A width
+     encoding explained by graduated circles has the reader comparing
+     diameters while the panel shows thicknesses.
+
+   `:opacity` is the odd one: it is not a geometry, so nothing about
+   area applies to it, and its exponent is 1 only in the sense that it
+   has no shape to grow."
+  {:radius  {:ink-exponent 2 :swatch :circle}
+   :side    {:ink-exponent 2 :swatch :square}
+   :width   {:ink-exponent 1 :swatch :segment}
+   :opacity {:ink-exponent 1 :swatch :square}})
+
 (def ^:private registry*
   "Atom holding keyword → layer-type entry map."
   (atom {}))
@@ -100,8 +123,45 @@
    presets — how one layer type differs from another that shares its mark
    by the options it starts with rather than by what it draws. `:label` is
    `:text` with `{:box true}`. Options passed at the call site win over
-   these; see resolve-layer-type-info in impl/pose.clj."
+   these; see resolve-layer-type-info in impl/pose.clj.
+
+   :varies is an optional map from appearance channel to the quantity
+   the mark draws it as, from `quantities` — `:point` declares
+   `{:size :radius :alpha :opacity}`. A channel absent from the map is
+   one the mark draws once for the whole layer, so a column mapped to
+   it varies nothing: `:line` takes one stroke width whatever the
+   column holds.
+
+   Two things read the declaration, and both were closed tables before
+   it existed. The plan asks it whether a column mapped to a channel is
+   drawn at all — a mark it had never heard of answered no, so an
+   extension that varied size per row was warned about and denied its
+   legend while drawing correctly. The scale asks it which quantity to
+   compute, so `{:by :area}` lands as an area whether the mark draws a
+   radius or a width."
   [k entry]
+  (doseq [[channel quantity] (:varies entry)]
+    (when-not (quantities quantity)
+      (throw (ex-info (str "Layer type " k " declares :varies " channel " "
+                           quantity ", which is not a quantity Plotje draws."
+                           " Supported: " (vec (sort (keys quantities))) ".")
+                      {:layer-type k :channel channel :quantity quantity
+                       :supported (vec (sort (keys quantities)))})))
+    ;; Two layer types sharing a mark describe the same drawing, so
+    ;; they cannot disagree about what it varies. Caught here because
+    ;; the lookup below answers per mark: left to run, a disagreement
+    ;; would be settled by whichever entry the map happened to yield.
+    (doseq [[other-k other] @registry*
+            :when (and (= (:mark other) (:mark entry))
+                       (get-in other [:varies channel])
+                       (not= (get-in other [:varies channel]) quantity))]
+      (throw (ex-info (str "Layer type " k " declares :varies " channel " "
+                           quantity ", and " other-k " draws the same mark ("
+                           (:mark entry) ") as "
+                           (get-in other [:varies channel])
+                           ". A mark draws one quantity per channel.")
+                      {:layer-type k :other other-k :mark (:mark entry)
+                       :channel channel :quantity quantity}))))
   (swap! registry* assoc k (resolve/map->LayerType entry))
   k)
 
@@ -115,6 +175,48 @@
   "Return all registered layer types as a map of keyword → entry."
   []
   @registry*)
+
+(defn mark-varies
+  "The quantity `mark` draws `channel` as from row to row, or nil where
+   it draws one value for the whole layer.
+
+   Asked of the mark rather than of the layer type, because a layer can
+   name its own `:mark` and because two layer types sharing a mark draw
+   the same thing — `:label` is `:text` with a box preset on. Derived by
+   looking through the registry rather than stored beside it, so one
+   `register!` call is still the whole of the extension contract.
+   `register!` refuses a disagreement, so the first entry found answers
+   for the mark."
+  [mark channel]
+  (some (fn [[_ entry]]
+          (when (= mark (:mark entry))
+            (get-in entry [:varies channel])))
+        @registry*))
+
+(defn marks-varying
+  "Every mark that varies `channel` from row to row, as a set. What the
+   plan's messages name when a column is mapped to a channel no mark on
+   the plot draws."
+  [channel]
+  (into #{} (for [[_ entry] @registry*
+                  :when (get-in entry [:varies channel])]
+              (:mark entry))))
+
+(def default-quantities
+  "What a channel is taken to be drawn as where the mark declares
+   nothing. Reached only for a mark that draws the channel without
+   saying so -- which the plan warns about -- and set to what the
+   built-in marks do."
+  {:size :radius :alpha :opacity})
+
+(defn ink-exponent
+  "How the ink a mark covers grows with the quantity it draws `channel`
+   as. What lets a scale's `:by` mean one thing across marks that draw
+   different shapes."
+  [mark channel]
+  (-> (or (mark-varies mark channel) (default-quantities channel))
+      quantities
+      :ink-exponent))
 
 (def layer-type-order
   "Canonical display order for built-in layer types."
@@ -134,7 +236,11 @@
 ;; label, so `{:text "note"}` there was taken and dropped in silence.
 ;; Off the list, the universal warning names `lay-text` and `lay-label`
 ;; as the layer types that draw one.
-(register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :nudge-x :nudge-y] :doc "Scatter — individual data points."})
+;; The only built-in mark that varies an appearance channel from row to
+;; row. Every other mark draws one value for the whole layer -- `:line`
+;; takes one stroke width, `:boxplot` one opacity -- so a column mapped
+;; there varies nothing.
+(register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :nudge-x :nudge-y] :varies {:size :radius :alpha :opacity} :doc "Scatter — individual data points."})
 (register! :line {:mark :line :stat :identity :accepts [:size :stroke-dash :nudge-x :nudge-y] :doc "Line — connects data points in order."})
 (register! :step {:mark :step :stat :identity :accepts [:size :stroke-dash] :doc "Step — horizontal-then-vertical connected points."})
 (register! :area {:mark :area :stat :identity :accepts [:stroke :stroke-width :stroke-dash] :doc "Area — filled region under a line."})

@@ -216,6 +216,59 @@
                  :when scale-key]
              [k scale-key])))
 
+(def channel-scale-types
+  "The scale types each channel accepts.
+
+   `:categorical` places a value by which category it is, which the two
+   channels drawn as an axis can do and `:shape` can only do. The
+   continuous visual channels have no categorical reading: a size or an
+   opacity is a magnitude, and a symbol is not."
+  {:x     #{:linear :log :categorical}
+   :y     #{:linear :log :categorical}
+   :color #{:linear :log}
+   :fill  #{:linear :log}
+   :size  #{:linear :log}
+   :alpha #{:linear :log}
+   :shape #{:categorical}})
+
+(def channel-scale-options
+  "The scale-spec keys each channel reads, beside `:type` and
+   `:domain`, which every scale that has a type has.
+
+   A key a channel does not read is refused where it is written rather
+   than dropped in silence. The three drawn-range options are the ones
+   this most matters for: an axis has no range to set -- the panel
+   decides that -- and `:by` asks how a value spreads across a range in
+   the mark's own quantity, which an opacity does not have.
+
+   `:breaks`, `:labels` and `:n-ticks` place and word tick marks, so
+   they belong to the two channels drawn as an axis. `:values` names
+   marker symbols, which only `:shape` draws."
+  {:x     #{:breaks :labels :n-ticks}
+   :y     #{:breaks :labels :n-ticks}
+   :color #{}
+   :fill  #{}
+   :shape #{:values}
+   :size  #{:range :by :from-zero}
+   :alpha #{:range}})
+
+(def drawn-range-options
+  "The scale-spec keys that describe how a value spreads across what a
+   mark draws it as. Only some channels read them; see
+   `channel-scale-options`."
+  #{:range :by :from-zero})
+
+(def channel-ranges
+  "What a continuous appearance channel spans when its scale names no
+   `:range`, in the quantity the mark draws it as: `:size` in drawing
+   units of radius, `:alpha` in opacity.
+
+   Stated here because the marks and the legend both need it and each
+   held its own copy -- the same defect the shared mapper exists to
+   prevent, one level up. The alpha range is ggplot2's."
+  {:size  [2.0 8.0]
+   :alpha [0.1 1.0]})
+
 (def legend-bearing-aesthetics
   "Aesthetics that produce a legend at render time."
   (set (aesthetics-where :legend?)))

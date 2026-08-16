@@ -18,7 +18,8 @@
             [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.impl.layout :as layout]
             [scicloj.plotje.impl.text :as text]
-            [scicloj.plotje.impl.plan-schema :as ss]))
+            [scicloj.plotje.impl.plan-schema :as ss]
+            [scicloj.plotje.layer-type :as layer-type]))
 
 ;; ---- Domain Helpers ----
 
@@ -733,11 +734,11 @@
                       (/ (Math/round (* v factor)) factor)))
                   (range n))))))))
 
-(def ^:private continuous-channel-mapper
+(def ^:private channel-mapper
   "The legend's half of the size and alpha mapping. `render.mark` draws
    the marks from the same function, which is why it lives in
    `impl.scale` rather than here."
-  scale/continuous-channel-mapper)
+  scale/channel-mapper)
 
 (defn- continuous-channel-ticks
   "Pick `n` tick values across [d-min, d-max] for a continuous channel
@@ -748,33 +749,73 @@
     (vec (scale/log-ticks [d-min d-max] n))
     (nice-legend-values d-min d-max n)))
 
-(def ^:private per-row-channel-marks
-  "Which marks vary an appearance channel from row to row.
-
-   Every other mark draws one value for the whole layer: `:line` takes
-   one stroke width, `:boxplot` one opacity. A column there varies
-   nothing, because the extractor never reads the buffer -- so the
-   request passed every check and changed not one pixel, while the
-   plot still grew a legend explaining the encoding it did not apply.
-
-   Written the same way `drawn-axis-marks` is, and for the same
-   reason: which slot an extractor reads is inside a multimethod body,
-   so it cannot be derived at plan time. The test below renders both
-   sides of each row to keep the table honest."
-  {:size  #{:point}
-   :alpha #{:point}})
+(defn- channel-quantity
+  "The quantity a draft layer's mark draws `channel` as, and how ink
+   grows with it, as `[quantity ink-exponent]`."
+  [draft-layer channel]
+  [(or (layer-type/mark-varies (:mark draft-layer) channel)
+       (layer-type/default-quantities channel))
+   (layer-type/ink-exponent (:mark draft-layer) channel)])
 
 (defn- reads-per-row?
-  "Whether `mark` varies `channel` from row to row."
+  "Whether `mark` varies `channel` from row to row -- the registry's
+   `:varies` declaration, asked per mark.
+
+   Every mark that does not declare the channel draws one value for the
+   whole layer: `:line` takes one stroke width, `:boxplot` one opacity.
+   A column there varies nothing, because the extractor never reads the
+   buffer -- so the request passed every check and changed not one
+   pixel, while the plot still grew a legend explaining the encoding it
+   did not apply.
+
+   This was a closed table here until the marks declared it, and a mark
+   the table had never heard of answered no. An extension that varied
+   size per row was warned about and denied its legend while drawing
+   correctly, with no way to say otherwise."
   [channel mark]
-  (contains? (get per-row-channel-marks channel #{}) mark))
+  (some? (layer-type/mark-varies mark channel)))
+
+(defn- thin-to
+  "At most `k` of `vs`, evenly spaced, keeping the first and the last.
+
+   The tick generators answer with nicely-rounded values rather than
+   with exactly the count they are asked for -- wadogo reads `n` as a
+   target and returns whatever the 1-2-5 step gives -- so a hard limit
+   has to be applied after the fact."
+  [vs k]
+  (let [n (count vs)]
+    (if (or (<= n k) (< k 2))
+      (vec vs)
+      (mapv #(nth vs %)
+            (distinct (map #(long (Math/round (* (/ (double %) (dec k))
+                                                 (dec n))))
+                           (range k)))))))
+
+(defn- size-legend-rows-that-fit
+  "How many rows of swatches the canvas has room for at this range.
+
+   While the range was fixed at 2 to 8 every row was eighteen tall and
+   the question never arose -- the tick generator's seven rows fit any
+   plot worth drawing. A range the writer widens makes each row as
+   tall as the mark it draws, and seven rows of forty-two ran off the
+   bottom of the canvas. The tick generator is still asked for the
+   same five; this only takes rows away when they would not fit."
+  [height range-hi]
+  (let [row-h (max 18.0 (+ 2.0 (* 2.0 (double range-hi))))
+        ;; What is left of the canvas under the title, the axis and the
+        ;; legends above this one -- measured against the standard
+        ;; chrome rather than the layout, which has not run yet.
+        room (- (double height) 120.0)]
+    (max 2 (long (Math/floor (/ room row-h))))))
 
 (defn- build-size-legend
   "Build size legend when :size maps to a numerical column. Returns nil
    when all values are nil/NaN (suppressing the legend).
    `opts-title` overrides the inferred column-name title (from a
-   user-supplied `:size-label` plot option)."
-  [resolved-all opts-title]
+   user-supplied `:size-label` plot option). `height` is the plot's, so
+   that a wide range takes fewer rows rather than more room than there
+   is."
+  [resolved-all opts-title height]
   (let [size-draft-layers (filter #(and (resolve/column-ref? (:size %))
                                         (nil? (:fixed-size %))
                                         ;; A column drawn as it stands
@@ -790,20 +831,43 @@
                                         (:data %)) resolved-all)]
     (when (seq size-draft-layers)
       (let [size-col (:size (first size-draft-layers))
-            scale-type (or (:type (:size-scale (first size-draft-layers))) :linear)
+            spec (:size-scale (first size-draft-layers))
+            scale-type (or (:type spec) :linear)
+            [quantity ink-exponent] (channel-quantity (first size-draft-layers) :size)
             all-bufs (map #(aesthetic-col % :size) size-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
           (let [s-min (dfn/reduce-min all-vals)
                 s-max (dfn/reduce-max all-vals)
-                values (continuous-channel-ticks scale-type s-min s-max 5)
-                radius-fn (continuous-channel-mapper scale-type s-min s-max 2.0 8.0)]
+                ;; The values the legend labels span the scale's own
+                ;; domain, not the data's, so a `:domain` that widens
+                ;; what a size means is what the reader is told.
+                [dom-lo dom-hi] (scale/channel-domain spec s-min s-max)
+                [_ range-hi] (or (:range spec) (:size defaults/channel-ranges))
+                values (thin-to (continuous-channel-ticks
+                                 scale-type dom-lo dom-hi 5)
+                                (size-legend-rows-that-fit height range-hi))
+                magnitude-fn (channel-mapper spec s-min s-max
+                                             (:size defaults/channel-ranges)
+                                             ink-exponent)]
             {:title (or opts-title size-col)
              :type :size
              :min s-min :max s-max
              :scale-type scale-type
-             :entries (vec (for [v values]
+             ;; What the mark draws the channel as, so the swatch beside
+             ;; a value is the shape the panel varies. Graduated circles
+             ;; beside a width encoding have the reader comparing
+             ;; diameters while the panel shows thicknesses.
+             :quantity quantity
+             :swatch (:swatch (layer-type/quantities quantity))
+             ;; A row whose swatch has no size explains nothing, and
+             ;; `:from-zero` puts one there: the domain starts at zero
+             ;; and zero draws nothing, so the legend read "0" beside
+             ;; an empty space.
+             :entries (vec (for [v values
+                                 :let [magnitude (magnitude-fn v)]
+                                 :when (> magnitude 0.001)]
                              {:value v
-                              :radius (radius-fn v)}))}))))))
+                              :magnitude magnitude}))}))))))
 
 (defn- build-alpha-legend
   "Build alpha legend when :alpha maps to a numerical column. Returns nil
@@ -820,13 +884,18 @@
                                          (:data %)) resolved-all)]
     (when (seq alpha-draft-layers)
       (let [alpha-col (:alpha (first alpha-draft-layers))
-            scale-type (or (:type (:alpha-scale (first alpha-draft-layers))) :linear)
+            spec (:alpha-scale (first alpha-draft-layers))
+            scale-type (or (:type spec) :linear)
+            [_ ink-exponent] (channel-quantity (first alpha-draft-layers) :alpha)
             all-bufs (map #(aesthetic-col % :alpha) alpha-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
           (let [a-min (dfn/reduce-min all-vals)
                 a-max (dfn/reduce-max all-vals)
-                values (continuous-channel-ticks scale-type a-min a-max 5)
-                alpha-fn (continuous-channel-mapper scale-type a-min a-max 0.2 1.0)]
+                [dom-lo dom-hi] (scale/channel-domain spec a-min a-max)
+                values (continuous-channel-ticks scale-type dom-lo dom-hi 5)
+                alpha-fn (channel-mapper spec a-min a-max
+                                         (:alpha defaults/channel-ranges)
+                                         ink-exponent)]
             {:title (or opts-title alpha-col)
              :type :alpha
              :min a-min :max a-max
@@ -962,11 +1031,11 @@
                          " values, one per row, and the " m " mark draws one "
                          (name channel) " for the whole layer, so it cannot read"
                          " one. The marks that can: "
-                         (str/join ", " (sort (get per-row-channel-marks channel)))
+                         (str/join ", " (sort (layer-type/marks-varying channel)))
                          ". For one " (name channel) " over the layer, write the"
                          " value itself.")
                     {:mark m :channel channel
-                     :supported (get per-row-channel-marks channel)}))))
+                     :supported (layer-type/marks-varying channel)}))))
 
 (defn- warn-unread-channel-columns
   "Warn when a channel names a column and no mark in the plot varies it.
@@ -995,7 +1064,7 @@
                   " from row to row"
                   (when (seq marks) (str " -- " (str/join ", " (sort marks))))
                   ". The marks that do: "
-                  (str/join ", " (sort (get per-row-channel-marks channel)))
+                  (str/join ", " (sort (layer-type/marks-varying channel)))
                   ". For one " (name channel) " over the layer, write the value"
                   " itself; the column is ignored and earns no legend."))))
 
@@ -1030,6 +1099,46 @@
                            " layer with {:in :drawing-area}, whose two coordinates"
                            " are drawing units from that corner whatever the coord.")
                       {:coord coord-type :axes axes})))))
+
+(defn- validate-channel-spec-agreement
+  "Refuse two layers that read one appearance channel through different
+   scales, or draw it as different quantities.
+
+   One legend explains one scale. Two layers whose sizes run through a
+   log scale and a linear one need two, and so do a point layer and a
+   width-varying layer sharing a size column -- the legend can draw
+   circles or strokes, not both. Until a plot can carry two legends for
+   one channel, drawing the picture would mean labelling one of the two
+   encodings wrongly.
+
+   Only layers that vary the channel are asked. A column mapped on the
+   pose flows into every layer, and a mark that draws one size for the
+   whole layer has no scale to disagree about."
+  [draft-layers]
+  (doseq [channel [:size :alpha]
+          :let [scale-key (defaults/channel->scale-key channel)
+                varying (filter #(and (resolve/column-ref? (get % channel))
+                                      (reads-per-row? channel (:mark %))
+                                      (:data %))
+                                draft-layers)
+                specs (distinct (map #(get % scale-key) varying))
+                drawn-as (distinct (map #(layer-type/mark-varies (:mark %) channel)
+                                        varying))]]
+    (when (> (count specs) 1)
+      (throw (ex-info (str "Layers read " channel " through different scales: "
+                           (pr-str (vec specs)) ". One legend explains one"
+                           " scale, so the plot cannot say which of the two a"
+                           " mark's " (name channel) " means. Set the scale"
+                           " once with (pj/scale pose " channel " ...), or"
+                           " write the same :scale in each mapping.")
+                      {:channel channel :specs (vec specs)})))
+    (when (> (count drawn-as) 1)
+      (throw (ex-info (str "Layers draw " channel " as different quantities: "
+                           (pr-str (vec drawn-as)) ", so one legend cannot"
+                           " explain both -- a swatch is a circle or a stroke,"
+                           " not both at once. Map " channel " on the layer"
+                           " that should carry it rather than on the pose.")
+                      {:channel channel :quantities (vec drawn-as)})))))
 
 (defn- warn-conflicting-specs
   "Warn when draft layers disagree about scale or coord specs.
@@ -1635,6 +1744,7 @@
          _ (validate-drawn-channel-marks resolved-all)
          _ (warn-unread-channel-columns resolved-all)
          _ (warn-conflicting-specs draft-layers)
+         _ (validate-channel-spec-agreement resolved-all)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
          ;; layers extracted above. Root-scope annotations (carried
@@ -1786,7 +1896,7 @@
                       (build-fill-fallback-legend panel-data resolved-all cfg
                                                   (:fill-label opts))))
          size-legend (when-not suppress-size?
-                       (build-size-legend resolved-all (:size-label opts)))
+                       (build-size-legend resolved-all (:size-label opts) height))
          alpha-legend (when-not suppress-alpha?
                         (build-alpha-legend resolved-all (:alpha-label opts)))
          shape-legend (when-not suppress-shape?
