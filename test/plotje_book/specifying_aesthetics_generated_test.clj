@@ -417,7 +417,7 @@
       pj/plan
       :size-legend
       :entries
-      (mapv (fn* [p1__11193#] (* 2 (:magnitude p1__11193#)))))))
+      (mapv (fn* [p1__80460#] (* 2 (:magnitude p1__80460#)))))))
    v72_l537)))
 
 

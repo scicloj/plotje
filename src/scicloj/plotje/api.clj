@@ -1756,7 +1756,11 @@
   (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
                           position-mapping)
   (let [bare-layer (elide-empty-maps (build-layer layer-type-key opts))
-        pose-pos? (or (:x (:mapping fr)) (:y (:mapping fr)))]
+        ;; What the mapping *names*, not how it is written: a scale
+        ;; written by `pj/scale` puts a map under `:x` that names no
+        ;; position, and a position written in full names one.
+        pose-pos? (or (pose/mapping-source (:x (:mapping fr)))
+                      (pose/mapping-source (:y (:mapping fr))))]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
       (add-leaf-layer-to-composite fr position-mapping bare-layer)
@@ -1769,8 +1773,10 @@
       (seq position-mapping)
       (let [leaf-mapping (:mapping fr)
             disagreements (for [k [:x :y]
-                                :let [pos-v (get position-mapping k)
-                                      leaf-v (get leaf-mapping k)]
+                                :let [pos-v (pose/mapping-source
+                                             (get position-mapping k))
+                                      leaf-v (pose/mapping-source
+                                              (get leaf-mapping k))]
                                 :when (and pos-v leaf-v
                                            (not= pos-v leaf-v))]
                             [k pos-v leaf-v])]
@@ -2764,10 +2770,12 @@
                      :supported defaults/shape-syms}))))
         (scale/validate-drawn-range-options! channel scale-type "pj/scale")
         (scale/validate-spec-keys! channel scale-type "pj/scale")))
-    (update-opts pose assoc k (if (map? scale-type)
-                                (merge {:type (if disc-visual? :categorical :linear)}
-                                       scale-type)
-                                {:type scale-type}))))
+    (let [spec (if (map? scale-type)
+                 (merge {:type (if disc-visual? :categorical :linear)}
+                        scale-type)
+                 {:type scale-type})]
+      (update (->pose pose "pj/scale") :mapping
+              pose/put-scale channel spec))))
 
 (defn coord
   "Set coordinate transform on a pose. Coord is plot-level -- it

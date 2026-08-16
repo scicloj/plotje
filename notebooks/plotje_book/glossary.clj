@@ -1093,7 +1093,7 @@ annotated
 ;; | Canvas | The whole output image, and the origin of drawing space | `:width` / `:height`; `pj/frames` |
 ;; | Panel box | One panel including its axis margin | `pj/frames` |
 ;; | Drawing area | The panel background inside that margin, where data marks clip | `pj/frames`; `:in :drawing-area` |
-;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale` |
+;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale`, or `:scale` in a mapping |
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |

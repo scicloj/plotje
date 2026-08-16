@@ -816,14 +816,16 @@
                             (built {:size {:column :radius :scale :categorical}})))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names :column nil"
                             (built {:color {:column nil}}))))
-    (testing "a map naming no source at all"
-      ;; `{:scale false}` is not the form -- it says which side of the
-      ;; scale without saying of what -- so it used to reach the column
-      ;; lookup whole and be reported as a column called `{:scale false}`.
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names no source"
-                            (built {:color {:scale false}})))
+    (testing "a map naming neither a source nor a scale"
+      ;; It used to reach the column lookup whole and be reported as a
+      ;; column called `{}`.
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names no source"
                             (built {:color {}}))))
+
+    (testing "a map naming only a scale is the form `pj/scale` writes"
+      ;; It says how to read whatever source is named elsewhere. Where
+      ;; none is, nothing is drawn and the scale is inert.
+      (is (some? (built {:color {:scale false}}))))
     (testing "a symbol inside the form gets the same help as one outside"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"did you mean :variety"
                             (built {:color 'variety})))
@@ -988,19 +990,24 @@
                           (pj/plan (pj/lay-point hexes :when :level
                                                  {:color {:column :hex :scale false}
                                                   :color-type :categorical}))))
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
-                          (pj/plan (-> (pj/lay-point hexes :when :level
-                                                     {:color {:column :hex :scale false}})
-                                       (pj/scale :color {:domain ["#FF0000"]})))))
-    (testing "every channel with a scale, not only :color"
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
-                            (pj/plan (-> (pj/lay-point per-row {:x :when
-                                                                :y {:column :level :scale false}})
-                                         (pj/scale :y {:type :log})))))
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
-                            (pj/plan (-> (pj/lay-point per-row :when :level
-                                                       {:size {:column :rad :scale false}})
-                                         (pj/scale :size {:domain [0 20]}))))))
+    (testing "a scale set further out is replaced by the nearer :scale false"
+      ;; `pj/scale` writes the pose's mapping and the layer's is
+      ;; nearer, so the ordinary rule applies -- the narrower setting
+      ;; wins. It leaves the outer scale doing nothing, which is worth
+      ;; a word rather than a refusal.
+      (let [out (java.io.StringWriter.)
+            plan (binding [*out* out]
+                   (pj/plan (-> (pj/lay-point hexes :when :level
+                                              {:color {:column :hex :scale false}})
+                                (pj/scale :color {:domain ["#FF0000"]}))))]
+        (is (some? plan))
+        (is (re-find #"drawn as it stands here" (str out)))))
+
+    (testing "and on the same pose the two are refused, not ordered"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"passes through\s+no scale"
+           (-> (pj/pose hexes :when :level {:color {:column :hex :scale false}})
+               (pj/scale :color {:domain ["#FF0000"]})))))
     (testing "the unscaled column on its own is untouched"
       (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0] [1.0 0.0 1.0 1.0]]
              (mapv :color (-> (pj/lay-point hexes :when :level

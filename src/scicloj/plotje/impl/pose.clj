@@ -47,6 +47,24 @@
 
 ;; ---- Tree resolver ----
 
+(defn mapping-source
+  "What a mapping value names, with the full form unwrapped: the
+   `:column`, the `:value` or the `:from`. A mapping that names only a
+   scale names no source, and answers nil.
+
+   Identity is decided on this rather than on the written value, so
+   that `{:x {:from :a :scale ...}}` and a plain `{:x :a}` are the same
+   position -- which they are, since `pj/scale` produces the first from
+   the second."
+  [v]
+  (if (map? v)
+    (cond
+      (contains? v :column) (:column v)
+      (contains? v :value)  (:value v)
+      (contains? v :from)   (:from v)
+      :else                 nil)
+    v))
+
 (defn- as-scale-spec
   "A scale statement as a spec map, or nil where it states no spec.
    `true` and `false` say which side of the scale a value passes and
@@ -79,7 +97,8 @@
                      (if o (merge o i) i))))
 
 (defn- merge-mapping-value
-  "Combine an outer mapping value with the inner one that overrides it.
+  "Combine an outer mapping value for `k` with the inner one that
+   overrides it.
 
    The source is replaced, because a mapping states one source and two
    cannot combine -- a merged `{:column :n :value 7}` is refused by
@@ -89,9 +108,19 @@
    Where the inner value is written plainly it has no room for a scale,
    so it is rewritten in the full form under `:from`, which is the
    plain reading spelled out: ask the data."
-  [outer inner]
+  [k outer inner]
   (let [scale-of #(when (map? %) (:scale %))
-        combined (combine-scales (scale-of outer) (scale-of inner))]
+        outer-scale (scale-of outer)
+        inner-scale (scale-of inner)
+        combined (combine-scales outer-scale inner-scale)]
+    ;; A narrower `:scale false` wins, as a narrower anything does --
+    ;; but it leaves the scale set above it doing nothing, and that is
+    ;; worth a word.
+    (when (and (false? inner-scale) (map? (as-scale-spec outer-scale)))
+      (println (str "Warning: " k " is drawn as it stands here (:scale false),"
+                    " and a scale is set for it further out: "
+                    (pr-str (as-scale-spec outer-scale))
+                    ". The nearer setting wins, so nothing reads the scale.")))
     (cond
       (nil? inner)      nil            ; an explicit nil cancels the mapping
       (nil? combined)   inner
@@ -103,7 +132,47 @@
    always merged -- the inner value wins -- except for the scale, which
    accumulates. See `merge-mapping-value`."
   [outer inner]
-  (merge-with merge-mapping-value (or outer {}) (or inner {})))
+  (reduce (fn [acc [k v]]
+            (assoc acc k (if (contains? acc k)
+                           (merge-mapping-value k (get acc k) v)
+                           v)))
+          (or outer {})
+          (or inner {})))
+
+(defn put-scale
+  "Write a scale spec into `mapping` for `aesthetic` -- what `pj/scale`
+   does.
+
+   A scale lives with the mapping it reads, so this is an update of the
+   mapping rather than of the pose's options. Where the aesthetic is
+   mapped plainly there is no room for a scale, so the value is
+   rewritten in the full form under `:from`, which says the same thing:
+   ask the data. Where it is not mapped here at all, the scale is
+   written on its own and applies to whatever source is named below.
+
+   A mapping cancelled with `nil` stays cancelled: an aesthetic that
+   draws nothing has nothing to scale. A mapping that says `:scale
+   false` on this same pose is refused rather than overridden: one pose
+   cannot both draw a value as it stands and read it through a scale."
+  [mapping aesthetic spec]
+  (let [mapping (or mapping {})
+        existing (get mapping aesthetic)]
+    (when (and (map? existing) (false? (:scale existing)))
+      (throw (ex-info (str "pj/scale " aesthetic " " (pr-str spec) " sets a"
+                           " scale, and " aesthetic " is mapped on this pose"
+                           " as " (pr-str existing) ", which passes through"
+                           " no scale. Drop the :scale false to scale the"
+                           " mapping, or drop the pj/scale call to draw it as"
+                           " it stands.")
+                      {:aesthetic aesthetic :mapping existing :spec spec})))
+    (cond
+      (and (contains? mapping aesthetic) (nil? existing)) mapping
+      (map? existing) (assoc mapping aesthetic
+                             (assoc existing :scale
+                                    (combine-scales (:scale existing) spec)))
+      (contains? mapping aesthetic) (assoc mapping aesthetic
+                                           {:from existing :scale spec})
+      :else (assoc mapping aesthetic {:scale spec}))))
 
 (defn resolve-tree
   "Walk the pose tree top-down, merging parent context into each
@@ -361,14 +430,19 @@
    `nil` value matches a leaf whose effective mapping has no entry
    for that axis. Matching is against resolved positional mappings
    only -- a bare leaf (no `:x`/`:y`) matches a bare position
-   mapping."
+   mapping.
+
+   What a mapping names decides the match, not how it is written: a
+   position carrying a scale names the same position as the plain
+   form, and a mapping that names only a scale names no position at
+   all."
   [pose position-mapping]
-  (let [px (:x position-mapping)
-        py (:y position-mapping)]
+  (let [px (mapping-source (:x position-mapping))
+        py (mapping-source (:y position-mapping))]
     (->> (resolve-tree pose)
          (keep (fn [leaf]
-                 (when (and (= (get-in leaf [:mapping :x]) px)
-                            (= (get-in leaf [:mapping :y]) py))
+                 (when (and (= (mapping-source (get-in leaf [:mapping :x])) px)
+                            (= (mapping-source (get-in leaf [:mapping :y])) py))
                    (:path leaf))))
          last)))
 
@@ -412,9 +486,9 @@
    on a separate sub-pose), so by the time this function runs, all
    layer mappings either match the leaf's column or are absent."
   [leaf axis]
-  (or (some (fn [layer] (get-in layer [:mapping axis]))
+  (or (some (fn [layer] (mapping-source (get-in layer [:mapping axis])))
             (:layers leaf))
-      (get-in leaf [:mapping axis])))
+      (mapping-source (get-in leaf [:mapping axis]))))
 
 (def ^:private stat-driven-y-stats
   "Stats whose y-axis output is a count or density rather than a
@@ -523,13 +597,9 @@
    for those leaves, so they are also exempt here."
   [leaf axis]
   (let [coord (or (get-in leaf [:opts :coord]) :cartesian)
-        scale-key (case axis :x :x-scale :y :y-scale)
-        ;; The mapping is asked before the options, because an axis
-        ;; scale can be named in either place and the mapping wins.
-        ;; Reading the options alone judged two cells sharable when
-        ;; one of them had a log axis written in its mapping.
+        ;; The mapping is where a scale lives, whether it was written
+        ;; there or set with `pj/scale`.
         scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
-                       (get-in leaf [:opts scale-key :type])
                        :linear)
         col (effective-axis-col leaf axis)
         ds (:data leaf)
@@ -771,9 +841,12 @@
       (when (> (count types) 1)
         (sort (map #(.getSimpleName ^Class %) types))))))
 
-(defn- mapping-source
+(defn- mapping-origin
   "Return :layer, :layer-type, or :pose to indicate where the
-   effective value of `k` in the resolved mapping originated."
+   effective value of `k` in the resolved mapping originated.
+
+   Not to be confused with `mapping-source`, which answers what a
+   mapping names rather than where it was written."
   [k layer-mapping layer-type-info]
   (cond
     (contains? layer-mapping k)   :layer
@@ -933,17 +1006,16 @@
    remove, and the writer has asked for two things that cannot both
    hold. `:scale true` is the one word that makes both take effect.
 
-   `:color` is asked about its gradient as well as its spec. The two
-   live in different `:opts` keys -- `:color-scale` holds the gradient
-   and `:color-scale-spec` the scale -- and a column drawn as it stands
-   passes through neither."
+   The scale itself is no longer among the options: a `:scale false`
+   written below a scale replaces it, which is the ordinary rule for a
+   setting written in a narrower scope. What is left here are the
+   settings that do not accumulate -- the column-type overrides, and
+   the gradient `:color-scale` holds."
   [resolved opts]
   (doseq [[k {:keys [scale-key]}] defaults/aesthetic-registry
           :when (and scale-key (false? (get-in resolved [:__scale k])))
           :let [type-key (channel-type-key k)
                 named (cond-> []
-                        (get opts scale-key)
-                        (conj (str "(pj/scale pose " k " ...)"))
                         (and (= :color k) (get opts :color-scale))
                         (conj ":color-scale")
                         (and type-key (get resolved type-key))
@@ -1021,7 +1093,7 @@
            col-lookup #(get d %)
            {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx
            not-found! (fn [k col explicit-column?]
-                        (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
+                        (let [source (mapping-origin k (or layer-mapping {}) (or layer-type-info {}))]
                           (throw (ex-info
                                   (column-not-found-message
                                    k col col-names
@@ -1153,13 +1225,25 @@
 
 (defn explicit-mapping?
   "True of a mapping value written in the explicit form -- a map naming
-   its source, as `{:column :species}` or `{:value \"red\" :scale true}`.
+   its source, as `{:column :species}` or `{:value \"red\" :scale true}`,
+   or naming only a scale, as `pj/scale` writes.
 
    A map is unambiguous here because no aesthetic takes one as a value:
    a color is a string or a keyword, a size is a number, a shape is a
    symbol from a fixed list."
   [v]
-  (and (map? v) (boolean (some #(contains? v %) source-keys))))
+  (and (map? v)
+       (boolean (some #(contains? v %) (conj source-keys :scale)))))
+
+(defn scale-only-mapping?
+  "True of a mapping value that names a scale and no source -- what
+   `pj/scale` writes for an aesthetic this pose does not map. It says
+   how to read whatever source is named elsewhere, and where none is,
+   nothing is drawn and the scale is inert."
+  [v]
+  (and (map? v)
+       (contains? v :scale)
+       (not-any? #(contains? v %) source-keys)))
 
 (defn check-explicit-mapping!
   "Throw when an explicit mapping is malformed. Nothing here reads the
@@ -1267,6 +1351,12 @@
     ;; `:value` broadcast a column of nils and drew an empty panel
     ;; reading "no data", and a nil `:column` reached `pj/plan` and died
     ;; on a schema error -- both because the checks below skip a nil.
+    (when (empty? (select-keys v (conj source-keys :scale)))
+      (throw (ex-info (str k " " (pr-str v) " names no source and no scale."
+                           " A mapping written in full says which reading it"
+                           " means, with :column, :value or :from; :scale says"
+                           " which scale to read that source through.")
+                      {:key k :value v})))
     (let [named (first (filter #(contains? v %) [:column :value :from]))]
       (when (and named (nil? (get v named)))
         (throw (ex-info (str k " " (pr-str v) " names " named " nil."
@@ -1316,7 +1406,12 @@
             (if-not (explicit-mapping? v)
               acc
               (let [[value source scale] (normalize-explicit-mapping k v)]
-                (cond-> (assoc acc k value)
+                (cond-> (if (scale-only-mapping? v)
+                          ;; It names how to read a source, not one to
+                          ;; read. Leaving a nil value here would cancel
+                          ;; the aesthetic rather than leave it unmapped.
+                          (dissoc acc k)
+                          (assoc acc k value))
                   (some? source) (assoc-in [:__source k] source)
                   (some? scale)  (assoc-in [:__scale k] scale)
                   ;; An unscaled `:x` or `:y` is a distance across the
@@ -1553,43 +1648,14 @@
 
 (defn- layer-scale-specs
   "The scale spec each channel is drawn through on this layer, keyed by
-   the `:opts` key the plan reads it from.
+   the key the plan reads it from.
 
-   Two writers can name one channel's scale: `pj/scale` on the pose,
-   which flows down the tree, and the mapping itself. The mapping is
-   the narrower scope, so it wins -- key by key, so that
-   `(pj/scale pose :size {:range [1 10]})` beside
-   `{:size {:column :w :scale :log}}` keeps the range and takes the
-   type.
-
-   `:color-scale` is the one key that can hold something other than a
-   scale spec: the configuration writes a gradient there, by name or as
-   `{:low ... :high ...}`. A gradient named as a keyword has no keys to
-   merge a spec into, so the two are refused together rather than one
-   of them dropped."
-  [resolved opts]
+   Every scale comes from the mapping now -- `pj/scale` writes one
+   there too -- so what arrives here has already accumulated down the
+   scope chain, and there is nothing left to combine."
+  [resolved]
   (into {} (for [[k scale-key] defaults/channel->scale-key
-                 :let [pose-spec (get opts scale-key)
-                       mapping-spec (mapping-scale-spec
-                                     (get-in resolved [:__scale k]))
-                       spec (cond
-                              (nil? mapping-spec) pose-spec
-                              (or (nil? pose-spec) (map? pose-spec))
-                              (merge pose-spec mapping-spec)
-                              :else
-                              (throw (ex-info
-                                      (str k " names a scale in its mapping, "
-                                           (pr-str mapping-spec) ", and "
-                                           scale-key " is set to "
-                                           (pr-str pose-spec) ", which is a"
-                                           " gradient rather than a scale."
-                                           " One of the two has to go: name"
-                                           " the gradient in " scale-key
-                                           " as a map of :low/:high, or drop"
-                                           " the :scale from the mapping.")
-                                      {:key k :scale-key scale-key
-                                       :option pose-spec
-                                       :mapping mapping-spec})))]
+                 :let [spec (mapping-scale-spec (get-in resolved [:__scale k]))]
                  :when (some? spec)]
              [scale-key spec])))
 
@@ -1663,7 +1729,7 @@
          (-> resolved
              (assoc :data d
                     :__panel-idx variant-idx)
-             (merge (layer-scale-specs resolved opts))
+             (merge (layer-scale-specs resolved))
              (cond->
               coord-type  (assoc :coord coord-type)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))

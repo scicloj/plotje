@@ -68,13 +68,15 @@ gapminder-2007
 
 ;; ## Where a scale is set
 ;;
-;; There are two places.
+;; A scale belongs to the aesthetic it reads, so it is set in that
+;; aesthetic's mapping. There are two ways to write it, and both end
+;; up in the same place.
 ;;
-;; `pj/scale` sets a scale on a pose. Its second argument is the
-;; aesthetic, which can be either axis or any visual aesthetic: `:x`, `:y`,
-;; `:color`, `:size`, `:alpha`, `:fill` or `:shape`. The examples in
-;; this section use `:x`, but the same call works for the others, and
-;; each aesthetic is a separate setting.
+;; `pj/scale` is the first. Its second argument is the aesthetic,
+;; which can be either axis or any visual one: `:x`, `:y`, `:color`,
+;; `:size`, `:alpha`, `:fill` or `:shape`. The examples in this section
+;; use `:x`, but the same call works for the others, and each
+;; aesthetic is a separate setting.
 ;;
 ;; A scale set this way applies to the pose it is called on and to
 ;; everything below it.
@@ -110,8 +112,8 @@ gapminder-2007
 ;; few rich ones stretch the axis. The log plot spreads them out, since
 ;; equal distances there mean equal ratios.
 
-;; The second place is the mapping. A mapping written out in full takes
-;; a `:scale` key, which sets the scale for that mapping alone. Here
+;; The second way is to write the mapping out in full and give it a
+;; `:scale` key, which sets the scale for that mapping alone. Here
 ;; `:size` reads population through a log scale, so that the smaller
 ;; countries are still distinguishable; the x axis is log-scaled
 ;; separately, by `pj/scale`:
@@ -179,7 +181,7 @@ gapminder-2007
 
 ;; ### A type, or a map
 ;;
-;; Both places take the scale in the same two forms: a type keyword, or
+;; Both ways take the scale in the same two forms: a type keyword, or
 ;; a map. The keyword is shorthand -- `:log` is read as `{:type :log}`
 ;; where it is written, and everything after that sees the map.
 ;;
@@ -233,8 +235,9 @@ gapminder-2007
 
 ;; ### `pj/scale` compared with a mapping's `:scale`
 ;;
-;; For an aesthetic mapped on the pose, the two produce the same plot.
-;; The scale the size mapping is read through, written in the mapping:
+;; They write the same thing in the same place, so for an aesthetic
+;; mapped on the pose they produce the same plot. The scale the size
+;; mapping is read through, written in the mapping:
 
 (-> gapminder-2007
     (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale :log}})
@@ -262,13 +265,11 @@ gapminder-2007
            pj/plan
            :panels first :layers first :size-scale)))])
 
-;; They differ in two ways:
-;;
-;; - `pj/scale` sets an aesthetic's scale on its own. A mapping's
-;;   `:scale` comes with a mapping, so it also says which column or
-;;   value the aesthetic reads. That is the practical difference: to
-;;   set a scale without touching the mapping, use `pj/scale`.
-;; - Where both are written, the mapping wins.
+;; What differs is only what else they say. A mapping's `:scale` comes
+;; with a mapping, so it also names the column or value the aesthetic
+;; reads; `pj/scale` sets the scale on its own, leaving the source to
+;; be named wherever it already is -- including on a layer, below the
+;; pose the call was made on.
 ;;
 ;; Everything a spec can carry is available in both. A mapping can set
 ;; an axis type, its `:domain`, and its tick options:

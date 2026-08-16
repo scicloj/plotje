@@ -32,17 +32,28 @@
 
 (defn- apply-shared-scale-domains
   "If :x-scale-domain / :y-scale-domain were stamped on the leaf by
-   inject-shared-scales, translate them into the :x-scale / :y-scale
-   map shape the downstream plan pipeline consumes."
+   inject-shared-scales, write them as a `:domain` on the axis's scale,
+   where the plan reads it.
+
+   A scale lives with the mapping it reads, so a shared domain is set
+   the same way `pj/scale` sets one. An axis mapped with `:scale false`
+   is left alone: it measures in drawing units and has no domain to
+   share."
   [leaf]
   (let [opts (or (:opts leaf) {})
         x-dom (:x-scale-domain opts)
-        y-dom (:y-scale-domain opts)]
+        y-dom (:y-scale-domain opts)
+        unscaled? (fn [axis]
+                    (false? (:scale (get-in leaf [:mapping axis]))))
+        put (fn [mapping axis dom]
+              (if (or (nil? dom) (unscaled? axis))
+                mapping
+                (pose/put-scale mapping axis {:domain dom})))]
     (if (or x-dom y-dom)
-      (assoc leaf :opts
-             (cond-> (dissoc opts :x-scale-domain :y-scale-domain)
-               x-dom (update :x-scale domain->scale-entry x-dom)
-               y-dom (update :y-scale domain->scale-entry y-dom)))
+      (-> leaf
+          (assoc :opts (dissoc opts :x-scale-domain :y-scale-domain))
+          (update :mapping put :x x-dom)
+          (update :mapping put :y y-dom))
       leaf)))
 
 (defn- outer-dimensions

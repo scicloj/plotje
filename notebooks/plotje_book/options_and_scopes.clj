@@ -121,25 +121,27 @@
 ;; the options written on the composite itself apply to every cell
 ;; that does not set them.
 ;;
-;; Four functions write plot options to the pose's `:opts`
+;; Three functions write plot options to the pose's `:opts`
 ;; field:
 ;;
 ;; - `pj/options` -- plot text (title, subtitle, caption, axis
 ;;   and legend labels) and panel dimensions. It also accepts
 ;;   configuration keys as per-plot overrides (see Configuration
 ;;   below).
-;; - `pj/scale` -- scale on an axis (`:x`, `:y`) or a visual channel.
-;;   Axis scales accept `:linear`, `:log`, `:categorical`. Continuous
-;;   visual channels (`:size`, `:alpha`, `:fill`, `:color`) accept
-;;   `:linear` and `:log`; the discrete visual channel `:shape`
-;;   accepts `:categorical`. `:group` has no scale to set -- it
-;;   splits a layer into one drawn group per value and draws nothing
-;;   of its own -- and is refused.
 ;; - `pj/coord` -- coordinate system (cartesian, flipped, polar,
 ;;   fixed).
 ;; - `pj/facet` and `pj/facet-grid` -- split the plot into panels
 ;;   by a column.
 ;;
+;; `pj/scale` is the one that does not: a scale belongs to the
+;; aesthetic it reads, so it is written into that aesthetic's mapping
+;; rather than into `:opts`. It takes an axis (`:x`, `:y`) or a visual
+;; aesthetic. Axis scales accept `:linear`, `:log`, `:categorical`; the
+;; continuous visual ones (`:size`, `:alpha`, `:fill`, `:color`) accept
+;; `:linear` and `:log`; `:shape` accepts `:categorical`. `:group` has
+;; no scale to set -- it splits a layer into one drawn group per value
+;; and draws nothing of its own -- and is refused.
+
 ;; Reference lines and shaded bands -- `pj/lay-rule-h`,
 ;; `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v` -- are layers,
 ;; not plot options. They scope like any other `lay-*`: bare calls
@@ -186,10 +188,10 @@
 ;; write at the pose they are called on and flow down from there, so
 ;; called on the pose you are building they cover the whole plot, and
 ;; called on one cell before the cells are arranged, that cell alone.
-;; A mapping written out in full may name its own scale, and takes
-;; precedence for that one mapping. What has no
-;; spelling yet is a type that varies across the panels of a facet:
-;; those panels come from one leaf, so they share it.
+;; A scale written in a mapping is the same setting written closer to
+;; the layer, and the two accumulate. What has no spelling yet is a
+;; type that varies across the panels of a facet: those panels come
+;; from one pose, so they share it.
 ;;
 ;; A note on terminology: other chapters call these values
 ;; *plot-level options*. Be aware that *plot-level* here names a

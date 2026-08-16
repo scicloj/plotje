@@ -379,9 +379,9 @@ two-panel
 ;; | Field | Contains | Set by |
 ;; |:------|:---------|:-------|
 ;; | `:data` | the dataset | `pj/pose`, `pj/lay-*`, or `pj/with-data` |
-;; | `:mapping` | pose-level mappings | `pj/pose` |
+;; | `:mapping` | pose-level mappings, and their scales | `pj/pose`, `pj/scale` |
 ;; | `:layers` | layers attached to the pose | `pj/lay-*` |
-;; | `:opts` | title, width, theme, scale, coord | `pj/options`, `pj/scale`, `pj/coord` |
+;; | `:opts` | title, width, theme, coord, facets | `pj/options`, `pj/coord`, `pj/facet` |
 ;;
 ;; A composite pose adds `:poses` (sub-poses) and optionally
 ;; `:layout` and `:share-scales`; see the

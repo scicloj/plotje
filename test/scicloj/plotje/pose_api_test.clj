@@ -749,19 +749,20 @@
       (is (= 501 (get-in result [:opts :width])))
       (is (= 299 (get-in result [:opts :height]))))))
 
-(deftest composite-scale-writes-root-opts-test
-  (testing "pj/scale on a composite writes :x-scale at the root"
+(deftest composite-scale-writes-the-root-mapping-test
+  (testing "pj/scale on a composite writes the root's mapping"
+    ;; From there it flows into every cell, as any outer mapping does.
     (let [fr {:poses [{:layers [] :mapping {:x :a :y :b}}]}
           result (pj/scale fr :x :log)]
       (is (pj/pose? result))
-      (is (= {:type :log} (get-in result [:opts :x-scale]))))))
+      (is (= {:scale {:type :log}} (get-in result [:mapping :x]))))))
 
 (deftest composite-scale-accepts-map-spec-test
   (testing "pj/scale with a map scale-type fills in :linear as default :type"
     (let [fr {:poses [{:layers []}]}
           result (pj/scale fr :y {:breaks [0 5 10]})]
       (is (= {:type :linear :breaks [0 5 10]}
-             (get-in result [:opts :y-scale]))))))
+             (get-in result [:mapping :y :scale]))))))
 
 (deftest composite-coord-writes-root-opts-test
   (testing "pj/coord on a composite writes :coord at the root"
@@ -791,7 +792,8 @@
                      (pj/lay-point :a :b))]
       (is (pj/pose? result))
       (is (= "chart" (get-in result [:opts :title])))
-      (is (= {:type :log} (get-in result [:opts :x-scale])))
+      (is (= {:type :log} (get-in result [:mapping :x :scale]))
+          "pj/scale writes the mapping, where the scale is read")
       (is (= :polar (get-in result [:opts :coord])))
       (is (= 1 (count (get-in result [:poses 0 :layers])))
           "lay-* still landed on the one matching leaf"))))

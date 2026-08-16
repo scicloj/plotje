@@ -323,9 +323,14 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names 2 sources"
                             (pj/lay-point d :x :y {:size {:column :n :from :n}}))))
 
-    (testing "a map naming only a scale is still no mapping"
+    (testing "a map naming only a scale names how to read, not what"
+      ;; It is the form `pj/scale` writes. With no source named
+      ;; anywhere, nothing is drawn for the aesthetic and the scale is
+      ;; inert -- the same as setting a scale for an unmapped one.
+      (is (nil? (-> d (pj/lay-point :x :y {:size {:scale :log}})
+                    pj/plan :panels first :layers first :size)))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names no source"
-                            (pj/lay-point d :x :y {:size {:scale :log}}))))))
+                            (pj/lay-point d :x :y {:size {}}))))))
 
 ;; ---- A gradient and a scale are separate things ----
 
