@@ -79,6 +79,23 @@
  [(fn [t]
     (= 25 (count (:row-maps t))))])
 
+;; A layer type carries one more field the table leaves out, because
+;; only one built-in layer type has it: `:varies` names the appearance
+;; channels its mark varies from row to row, and the quantity it draws
+;; each as. `:point` is the one that does -- a size is a radius there,
+;; an opacity an opacity -- and the plan reads the declaration to decide
+;; whether a column mapped to a channel is drawn at all:
+
+(:varies (layer-type/lookup :point))
+
+(kind/test-last
+ [(fn [m] (= {:size :radius :alpha :opacity} m))])
+
+;; Every other mark draws one size and one opacity for the whole layer,
+;; so a column mapped there varies nothing and the plot says so. See
+;; [Extensibility](./plotje_book.extensibility.html#compute-stat)
+;; for declaring it on a layer type of your own.
+
 ;; The "Presets" column is what separates two layer types that would
 ;; otherwise look identical here -- `:text` and `:label` share a mark, a
 ;; stat, and a position, and differ only in that a label starts with its

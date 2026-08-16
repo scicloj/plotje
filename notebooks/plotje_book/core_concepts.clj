@@ -693,8 +693,10 @@ two-panel
 ;;
 ;; So far you've seen mappings, layers, and data -- all scoped at
 ;; pose or layer level. The functions in this section set
-;; **plot-level options** instead: values that configure the whole
-;; rendered plot and cannot be scoped down. See
+;; **plot-level options** instead: values that describe a plot
+;; rather than a layer. They are written on a pose and reach
+;; everything beneath it, so on a leaf they describe the whole plot
+;; and on one cell of a composite that cell. See
 ;; [Options and Scopes](./plotje_book.options_and_scopes.html#plot-options)
 ;; for the full picture.
 ;;
@@ -780,7 +782,9 @@ two-panel
 
 (kind/test-last [(fn [v] (= 6 (:points (pj/svg-summary v))))])
 
-;; Both are plot-level -- they apply uniformly across the whole pose.
+;; Both are written on the pose and reach every layer and panel
+;; beneath it. A mapping written out in full can name its own scale
+;; for one aesthetic, which takes precedence there.
 
 ;; ## Faceting and Multi-Panel Layouts
 ;;

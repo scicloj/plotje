@@ -131,6 +131,30 @@
 ;;   at render time (the rendering path reads `:color` only). Bands
 ;;   honor `:alpha`. Workaround: use a lighter `:color` to simulate
 ;;   the visual effect on rules.
+
+;; ## Scales
+;;
+;; - One pose reads a channel through one scale. Two layers that ask
+;;   for different scales on the same channel are refused rather than
+;;   drawn, because one legend can explain only one of them. On `:x`
+;;   and `:y` this is not a gap -- a panel has one of each axis -- but
+;;   on `:size`, `:color` and `:alpha` it is. Workaround: build the
+;;   layers as separate poses with `pj/arrange`, where each cell
+;;   carries its own scales and its own legend.
+;;
+;; - The panels of a facet share their scale *types*. `{:scales :free}`
+;;   lets each panel cover its own domain, and there is no equivalent
+;;   for giving one panel a log axis and another a linear one.
+;;   Workaround: `pj/arrange` again.
+;;
+;; - A `:size` or `:alpha` mark scales against its own panel while its
+;;   legend scales against the whole plot. Under faceting that makes
+;;   two panels holding different ranges draw alike: a panel whose
+;;   values run 1 to 3 draws the same three radii as one whose values
+;;   run 4 to 10, and the legend explains neither. Faceting exists to
+;;   make panels comparable, so this is a real trap. Workaround: set
+;;   the domain explicitly -- `(pj/scale pose :size {:domain [1 10]})`
+;;   -- so every panel reads the same one.
 ;;
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The
@@ -288,4 +312,8 @@
 ;;   [Customization](./plotje_book.customization.html#rotating-tick-labels).
 ;;
 ;; - Per-layer `data`, `guides()` for per-aesthetic legend control,
-;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog.
+;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog. The
+;;   axis types are `:linear`, `:log` and `:categorical`; a square-root
+;;   axis is not among them. (`pj/scale :size {:by :sqrt}` is a
+;;   different setting -- it says how a size spreads across the radii,
+;;   not how an axis is transformed.)

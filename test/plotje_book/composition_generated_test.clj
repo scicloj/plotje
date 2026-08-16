@@ -145,7 +145,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__71486#] (-> p1__71486# :plan :panels first))
+       (fn* [p1__74534#] (-> p1__74534# :plan :panels first))
        (:sub-plots (pj/plan marginal)))
       [d-x s-x]
       (mapv :x-domain panels)
@@ -269,7 +269,7 @@
 
 
 (def
- v41_l331
+ v41_l338
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -280,7 +280,7 @@
 
 
 (deftest
- t42_l337
+ t42_l344
  (is
   ((fn
     [v]
@@ -302,4 +302,4 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v41_l331)))
+   v41_l338)))

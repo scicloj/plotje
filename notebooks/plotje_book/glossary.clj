@@ -258,7 +258,7 @@ my-pose
 ;; | Key | Controls | Column type |
 ;; |:----|:---------|:------------|
 ;; | `:color` | Fill/stroke color | Categorical or numerical |
-;; | `:size` | Point radius | Numerical |
+;; | `:size` | How large a mark is drawn -- a point's radius | Numerical |
 ;; | `:alpha` | Opacity | Numerical |
 ;; | `:shape` | Point shape | Categorical |
 ;; | `:text` | Label content | Any |

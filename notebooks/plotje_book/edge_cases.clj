@@ -422,6 +422,50 @@
           panel (first (:panels plan))]
       (= [0 6] (:y-domain panel))))])
 
+;; ### A size scale anchored at zero, on data holding a zero
+;;
+;; `:from-zero` makes the ink proportional to the value, so a value of
+;; zero has no ink to draw: that mark takes a radius of zero and does
+;; not appear. The picture is the honest reading of a proportional
+;; scale -- ggplot2's `scale_size_area` answers the same way -- but a
+;; row can go missing without anything being wrong.
+
+(-> {:x [1 2 3] :y [1 2 3] :n [0 5 10]}
+    (pj/lay-point :x :y {:size :n})
+    (pj/scale :size {:from-zero true}))
+
+(kind/test-last
+ [(fn [v]
+    ;; Three marks are drawn; two of them have a size to be seen at.
+    (= 2 (count (:sizes (pj/svg-summary v)))))])
+
+;; ### A size domain with no spread
+;;
+;; Every value equal leaves nothing to compare, so every mark takes
+;; the middle of the range rather than one of its ends.
+
+(-> {:x [1 2 3] :y [1 2 3] :n [5 5 5]}
+    (pj/lay-point :x :y {:size :n}))
+
+(kind/test-last
+ [(fn [v] (= [5.0] (vec (:sizes (pj/svg-summary v)))))])
+
+;; ### A size range written backwards
+;;
+;; `[8 2]` runs from large to small, which reverses the encoding
+;; rather than failing: the largest value is drawn smallest.
+
+(-> {:x [1 2 3] :y [1 2 3] :n [1 5 10]}
+    (pj/lay-point :x :y {:size :n})
+    (pj/scale :size {:range [8 2]}))
+
+(kind/test-last
+ [(fn [v]
+    (let [ms (->> v pj/plan :size-legend :entries (mapv :magnitude))]
+      ;; The legend runs from small values to large, and its swatches
+      ;; shrink as it goes.
+      (and (= 2.0 (last ms)) (apply > ms))))])
+
 ;; ### Fixed aspect ratio with extreme domain ratio
 
 (-> {:x (range 100) :y (range 0 10 0.1)}

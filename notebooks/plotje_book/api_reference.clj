@@ -582,6 +582,18 @@
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
+;; What a size spans, and how the values spread across it -- `:range`
+;; in the quantity the mark draws (a radius here), `:by` the method,
+;; and `:from-zero` to make the ink proportional to the value:
+
+(-> {:user [:a :b :c] :n [10 100 1000]}
+    (pj/lay-point :user :n {:size :n :x-type :categorical})
+    (pj/scale :size {:range [3 16] :by :area :from-zero true}))
+
+(kind/test-last
+ [(fn [v] (= 16.0 (->> v pj/plan :size-legend :entries
+                       (map :magnitude) (apply max))))])
+
 ;; Shape symbols on a discrete channel -- `:domain` orders the
 ;; categories, `:values` picks the markers:
 

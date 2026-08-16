@@ -310,6 +310,13 @@ dashboard
 ;;   since each leaf reserves its own padding for axes and labels --
 ;;   two sub-poses with different label lengths can produce visibly
 ;;   different panel widths.
+;; - **Each cell carries its own plot options.** A cell is a pose, so
+;;   `pj/options`, `pj/scale` and `pj/coord` written on it describe
+;;   that cell -- one cell can be log-scaled and its neighbour linear,
+;;   and each can have its own title. Written on the composite itself
+;;   they reach every cell that does not say otherwise. This is also
+;;   the way around a limit inside one pose: two layers cannot read one
+;;   channel through different scales, but two cells can.
 ;; - **Legends merge when sibling sub-poses agree on an aesthetic.**
 ;;   If every leaf maps the same aesthetic identically (e.g.,
 ;;   `:color :species` in all cells), the compositor renders a

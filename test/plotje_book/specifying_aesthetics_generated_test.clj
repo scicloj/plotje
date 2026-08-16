@@ -368,12 +368,12 @@
       pj/plan
       :size-legend
       :entries
-      (mapv (fn* [p1__11193#] (* 2 (:magnitude p1__11193#)))))))
+      (mapv (fn* [p1__74869#] (* 2 (:magnitude p1__74869#)))))))
    v64_l492)))
 
 
 (def
- v67_l524
+ v67_l528
  (try
   (->
    plants
@@ -383,14 +383,14 @@
 
 
 (deftest
- t68_l531
+ t68_l535
  (is
   ((fn [m] (re-find #"an axis takes its scale from the pose" m))
-   v67_l524)))
+   v67_l528)))
 
 
 (def
- v70_l543
+ v70_l547
  (try
   (pj/lay-text
    plants
@@ -401,5 +401,5 @@
 
 
 (deftest
- t71_l548
- (is ((fn [m] (re-find #":text has no scale to set" m)) v70_l543)))
+ t71_l552
+ (is ((fn [m] (re-find #":text has no scale to set" m)) v70_l547)))

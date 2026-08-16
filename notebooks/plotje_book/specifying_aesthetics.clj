@@ -513,7 +513,11 @@ integer-named
 ;;
 ;; Each aesthetic gets its own: `(pj/scale pose :x :log)` and
 ;; `(pj/scale pose :size :log)` are separate decisions, and either can
-;; be made without the other.
+;; be made without the other. Which keys a spec may carry depends on
+;; the aesthetic -- `:size` reads `:range`, `:by` and `:from-zero`
+;; beside `:type` and `:domain`, an axis reads `:breaks` and `:labels`
+;; -- and a key the aesthetic does not read is refused rather than
+;; dropped. The Scales chapter has each of them.
 ;;
 ;; ### The axes take theirs from the pose
 ;;

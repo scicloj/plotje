@@ -234,9 +234,11 @@
 ;; `"does not recognize option(s): [:scale-x]"` -- and the chart
 ;; comes out on a linear axis.
 ;;
-;; **Cause**: Scales are plot-level, not layer-level or option-map
-;; keys. They are set by the `pj/scale` function, not by a
-;; `:scale-*` key.
+;; **Cause**: `:scale-x` and `:scale-y` are not option keys at all.
+;; An axis takes its scale from `pj/scale`, called on the pose. (An
+;; appearance channel can also take one inside its own mapping --
+;; `{:size {:column :r :scale :log}}` -- but an axis cannot, since a
+;; panel has one of each.)
 ;;
 ;; The wrong form does not throw; it warns and silently falls back
 ;; to a linear axis:
@@ -257,7 +259,8 @@
 
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
-;; `pj/scale` takes the pose, the axis (`:x` or `:y`), and
+;; `pj/scale` takes the pose, a channel -- an axis (`:x`, `:y`) or a
+;; visual one (`:size`, `:alpha`, `:color`, `:fill`, `:shape`) -- and
 ;; either a type keyword (`:linear`, `:log`) or a scale specification
 ;; map with `:type` and an optional `:domain` override.
 ;; See the [Inference Rules](./plotje_book.inference_rules.html#domains)
@@ -545,6 +548,71 @@
 ;; A future opt-in option (e.g. `(pj/coord :flip
 ;; {:reverse-categorical true})`) would remove the need to pre-sort.
 ;; Tracked in `CHANGELOG.md` Known limitations.
+
+;; ## Point Sizes Changed From an Earlier Release
+;;
+;; **Symptom**: A plot with `{:size :some-column}` draws its middle
+;; values larger than it used to, and the difference between the
+;; smallest and largest points looks less dramatic.
+;;
+;; **Cause**: A size scale spreads the square root of the value across
+;; the radii, so that the ink a mark covers -- which is what a reader
+;; perceives as its size -- grows with the value rather than with its
+;; square. Earlier releases spread the value itself, which overstates
+;; every difference. The two ends of the range are unchanged; the
+;; values between them moved.
+
+(-> {:x [1 2 3 4 5 6] :y [1 1 1 1 1 1] :n [1 4 9 16 25 36]}
+    (pj/lay-point :x :y {:size :n}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [radii #(sort (:sizes (pj/svg-summary %)))
+          now (radii fr)
+          before (radii (-> fr (pj/scale :size {:by :linear})))]
+      ;; The ends are the same radii as before; every value between
+      ;; them is drawn larger.
+      (and (= (first now) (first before))
+           (= (last now) (last before))
+           (every? (fn [[a b]] (> a b))
+                   (map vector (butlast (rest now)) (butlast (rest before)))))))])
+
+;; **Fix**: `{:by :linear}` restores the earlier reading, and
+;; `{:by :area}` gives the strict one, where equal steps in value are
+;; equal steps in ink:
+
+(-> {:x [1 2 3 4 5 6] :y [1 1 1 1 1 1] :n [1 4 9 16 25 36]}
+    (pj/lay-point :x :y {:size :n})
+    (pj/scale :size {:by :linear}))
+
+(kind/test-last
+ [(fn [v] (= 6 (:points (pj/svg-summary v))))])
+
+;; ## A `:size` or `:alpha` Column That Changes Nothing
+;;
+;; **Symptom**: `{:size :some-column}` on a line, boxplot or lollipop
+;; draws marks of one size, and a warning names the marks that vary
+;; the channel.
+;;
+;; **Cause**: Only marks that draw a size per row can read a size
+;; column -- `pj/lay-point` among the built-in ones. Every other mark
+;; draws one width or one opacity for the whole layer, so the column
+;; has nothing to vary. The channel earns no legend there either: a
+;; legend pairing values with radii would explain an encoding the
+;; panel does not carry.
+;;
+;; **Fix**: Write the value itself for a layer-wide size -- `{:size 2}`
+;; on a line is a stroke width -- and map the column on a layer whose
+;; mark varies it.
+
+(-> {:x [1 2 3] :y [2 4 3] :r [1 2 3]}
+    (pj/pose :x :y)
+    (pj/lay-line {:size 2})
+    (pj/lay-point {:size :r}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 3 (:points s)) (pos? (:lines s)))))])
 
 ;; ## Dodge Has No Effect on Point Layers
 

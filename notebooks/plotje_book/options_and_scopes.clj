@@ -114,9 +114,12 @@
 
 ;; ## Plot Options
 ;;
-;; Plot options describe the plot as a whole: its title, labels,
-;; axis scales, coordinate system, facets. A plot has one of each
-;; -- there is no scope here, because there is nothing to vary over.
+;; Plot options describe a plot as a whole: its title, labels,
+;; axis scales, coordinate system, facets. A single-panel plot has
+;; one of each, and a composite is where they gain a scope: every
+;; cell of a composite is a pose, so each can carry its own title
+;; and its own scales, while the options written on the composite
+;; itself reach every cell that does not.
 ;;
 ;; Four functions write plot options to the pose's `:opts`
 ;; field:
@@ -128,8 +131,10 @@
 ;; - `pj/scale` -- scale on an axis (`:x`, `:y`) or a visual channel.
 ;;   Axis scales accept `:linear`, `:log`, `:categorical`. Continuous
 ;;   visual channels (`:size`, `:alpha`, `:fill`, `:color`) accept
-;;   `:linear` and `:log`; discrete visual channels (`:shape`,
-;;   `:group`) accept `:categorical`.
+;;   `:linear` and `:log`; the discrete visual channel `:shape`
+;;   accepts `:categorical`. `:group` has no scale to set -- it
+;;   splits a layer into one drawn group per value and draws nothing
+;;   of its own -- and is refused.
 ;; - `pj/coord` -- coordinate system (cartesian, flipped, polar,
 ;;   fixed).
 ;; - `pj/facet` and `pj/facet-grid` -- split the plot into panels
@@ -163,8 +168,9 @@
     (and (= "Iris" (get-in m [:opts :title]))
          (= :flip (get-in m [:opts :coord]))))])
 
-;; Both the title and the coordinate system landed in `:opts`.
-;; Neither is at a scope; they belong to the plot as a whole.
+;; Both the title and the coordinate system landed in `:opts`. On a
+;; leaf pose like this one they describe the whole plot; written on
+;; one cell of a composite they would describe that cell.
 ;;
 ;; A note on faceted plots: a scale has two parts that behave
 ;; differently across panels.
@@ -267,8 +273,8 @@ demo
 ;;
 ;; - `:color :species` is inside the layer's mapping -- a layer
 ;;   option at layer scope.
-;; - `:title` and `:coord` are in `:opts` -- plot options, no
-;;   scope.
+;; - `:title` and `:coord` are in `:opts` -- plot options, which on
+;;   this leaf pose describe the whole plot.
 ;; - Configuration does not appear in the pose. The renderer
 ;;   will consult `(pj/config)` for theme, default dimensions,
 ;;   and other defaults.
