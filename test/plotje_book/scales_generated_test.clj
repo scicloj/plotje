@@ -15,7 +15,7 @@
   gapminder-2007
   (->
    (rdatasets/gapminder-gapminder)
-   (tc/select-rows (fn* [p1__11199#] (= 2007 (:year p1__11199#)))))))
+   (tc/select-rows (fn* [p1__11193#] (= 2007 (:year p1__11193#)))))))
 
 
 (def v4_l39 gapminder-2007)
@@ -75,8 +75,8 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__11200#]
-        (-> p1__11200# :plan :panels first :x-scale :type))))))
+        [p1__11194#]
+        (-> p1__11194# :plan :panels first :x-scale :type))))))
    v13_l104)))
 
 
@@ -588,7 +588,23 @@
  (is
   ((fn
     [fr]
-    (not=
+    (=
      ["Oceania" "Europe" "Asia" "Americas" "Africa"]
      (mapv :label (:entries (:legend (pj/plan fr))))))
    v85_l560)))
+
+
+(def
+ v88_l579
+ (->
+  gapminder-2007
+  (pj/lay-point :gdp-percap :life-exp {:color :pop})
+  (pj/scale :color {:domain [0 5.0E7]})
+  (pj/scale :x :log)))
+
+
+(deftest
+ t89_l584
+ (is
+  ((fn [fr] (= [0.0 5.0E7] ((juxt :min :max) (:legend (pj/plan fr)))))
+   v88_l579)))

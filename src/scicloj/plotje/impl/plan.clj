@@ -447,10 +447,55 @@
   (and (resolve/column-ref? (:color resolved-layer))
        (not (:color-drawn? resolved-layer))))
 
+(defn- categorical-domain
+  "The `:domain` on a scale spec, when it names categories rather than a
+   numeric range.
+
+   One key carries both readings, because one aesthetic can be drawn
+   either way: `:color` on a numeric column reads `[lo hi]` as the ends
+   of a gradient, and on a categorical one reads a list of names as the
+   order to place them in. A two-number domain is the numeric reading,
+   and `numeric-color-domain` has it."
+  [spec]
+  (let [d (:domain spec)]
+    (when (and (sequential? d)
+               (seq d)
+               (not (and (= 2 (count d)) (every? number? d))))
+      d)))
+
+(defn- order-by-domain
+  "Order `observed` categories by an explicit `domain`. Domain entries
+   come first, in the order given; observed categories the domain omits
+   follow in the order they appear in the data, so nothing silently
+   loses its place. `warn-category-domain-gap!` reports the omissions."
+  [observed domain]
+  (let [observed-set (set observed)
+        listed (filterv observed-set domain)
+        listed-set (set listed)]
+    (into listed (remove listed-set observed))))
+
+(defn- warn-category-domain-gap!
+  "Warn when a `pj/scale` `:domain` leaves out categories the data
+   contains. Those categories still get drawn -- appended after the
+   listed ones -- but the user asked for an order that does not cover
+   them, which is usually a typo or a stale category list."
+  [aesthetic observed domain]
+  (when-let [missing (seq (remove (set domain) observed))]
+    (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
+                  ". Those categories are still drawn, ordered after the "
+                  "listed ones. List every category to control the whole "
+                  "legend order."))))
+
 (defn- collect-colors
   "Resolve draft layers and collect color categories across all draft layers.
    Attaches :__resolved to each draft layer for downstream re-use.
    Filters infinite values and non-positive values on log-scaled axes.
+
+   Category order follows the data unless a `:domain` on the colour
+   scale supplied one, as `collect-shapes` does for `:shape`. The
+   palette is assigned in this order, so the domain reorders the legend
+   and the colours together.
+
    Returns {:resolved-all :numeric-color? :all-colors :color-cols :tagged-draft-layers}."
   [draft-layers]
   (let [resolved-all (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) draft-layers)
@@ -460,36 +505,21 @@
                      (let [color-draft-layers (filter #(and (scaled-color-column? %)
                                                             (:data %)) resolved-all)]
                        (when (seq color-draft-layers)
-                         (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color) color-draft-layers)))))))
+                         (let [observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color)
+                                                                            color-draft-layers))))
+                               domain (seq (categorical-domain
+                                            (some :color-scale-spec color-draft-layers)))]
+                           (when (and domain (seq observed))
+                             (warn-category-domain-gap! :color observed domain))
+                           (if domain
+                             (order-by-domain observed domain)
+                             observed)))))
         color-cols (distinct (keep #(when (scaled-color-column? %) (:color %)) resolved-all))]
     {:resolved-all resolved-all
      :numeric-color? numeric-color?
      :all-colors all-colors
      :color-cols color-cols
      :tagged-draft-layers tagged-draft-layers}))
-
-(defn- order-by-domain
-  "Order `observed` categories by an explicit `domain`. Domain entries
-   come first, in the order given; observed categories the domain omits
-   follow in the order they appear in the data, so nothing silently
-   loses its place. `warn-shape-domain-gap!` reports the omissions."
-  [observed domain]
-  (let [observed-set (set observed)
-        listed (filterv observed-set domain)
-        listed-set (set listed)]
-    (into listed (remove listed-set observed))))
-
-(defn- warn-shape-domain-gap!
-  "Warn when a `pj/scale :shape` :domain leaves out categories the data
-   contains. Those categories still get a symbol -- appended after the
-   listed ones -- but the user asked for an order that does not cover
-   them, which is usually a typo or a stale category list."
-  [observed domain]
-  (when-let [missing (seq (remove (set domain) observed))]
-    (println (str "Warning: pj/scale :shape :domain omits " (vec missing)
-                  ". Those categories keep a symbol, assigned after the "
-                  "listed ones. List every category to control the whole "
-                  "shape legend order."))))
 
 (defn- warn-shape-wrap!
   "Warn when there are more shape categories than symbols to draw them
@@ -520,7 +550,7 @@
                                          (:data %)) resolved-all)]
     (when (seq shape-draft-layers)
       (let [scale (some :shape-scale shape-draft-layers)
-            domain (seq (:domain scale))
+            domain (seq (categorical-domain scale))
             syms (or (seq (:values scale)) defaults/shape-syms)
             observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
                                                          shape-draft-layers))))
@@ -529,7 +559,7 @@
                          observed)]
         (when (seq all-shapes)
           (when domain
-            (warn-shape-domain-gap! observed domain))
+            (warn-category-domain-gap! :shape observed domain))
           (warn-shape-wrap! all-shapes syms)
           {:all-shapes all-shapes
            :shape-cols (distinct (keep #(when (resolve/column-ref? (:shape %)) (:shape %))
@@ -716,8 +746,14 @@
                                              (:data %)) resolved-all)
             all-bufs (map #(aesthetic-col % :color) color-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
-          (let [c-min (dfn/reduce-min all-vals)
-                c-max (dfn/reduce-max all-vals)
+          (let [spec (some :color-scale-spec color-draft-layers)
+                ;; Through the same function the marks read, so the bar
+                ;; a reader matches a colour against spans what the
+                ;; marks were drawn against.
+                [c-min c-max] (scale/numeric-color-domain
+                               spec
+                               (dfn/reduce-min all-vals)
+                               (dfn/reduce-max all-vals))
                 scale-type (or (some #(:type (:color-scale-spec %)) color-draft-layers)
                                :linear)
                 n-stops 20]

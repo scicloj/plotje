@@ -211,13 +211,6 @@
 ;;   `pj/arrange`, where each cell has its own scales and its own
 ;;   legend.
 ;;
-;; - `:domain` on `:color` and `:fill` is accepted and read by
-;;   nothing. On a categorical column it does not order the legend --
-;;   `:shape` with the same call does -- and on a numeric one it does
-;;   not fix the gradient's ends. Workaround: order categories by
-;;   ordering the column's values in the data, and narrow a numeric
-;;   colour range by filtering the data.
-;;
 ;; - Facet panels share their scale *types*. `{:scales :free}` gives
 ;;   each panel its own domain, but there is no equivalent for giving
 ;;   one panel a log axis and another a linear one. Workaround:
@@ -230,8 +223,7 @@
 ;;   one whose values run from 4 to 10, and the legend matches neither.
 ;;   Workaround: set the domain explicitly, as in
 ;;   `(pj/scale pose :size {:domain [1 10]})`, so every panel uses the
-;;   same one. A numeric `:color` has no such workaround, since it
-;;   reads no `:domain`.
+;;   same one. `:alpha` and a numeric `:color` take the same workaround.
 
 ;; ## Options and Configuration
 ;;

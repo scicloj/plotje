@@ -4,6 +4,7 @@
    style, and groups of data-space coordinates."
   (:require [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
+            [scicloj.plotje.impl.scale :as scale]
             [tech.v3.datatype.functional :as dfn]
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]))
@@ -194,8 +195,11 @@
         all-color-buf (when numeric-color?
                         (let [bufs (keep :color-values (:points stat))]
                           (when (seq bufs) (dtype/concat-buffers bufs))))
-        c-min (when all-color-buf (dfn/reduce-min all-color-buf))
-        c-max (when all-color-buf (dfn/reduce-max all-color-buf))]
+        ;; A `:domain` on the scale spec replaces what the data covers.
+        [c-min c-max] (scale/numeric-color-domain
+                       (:color-scale-spec draft-layer)
+                       (when all-color-buf (dfn/reduce-min all-color-buf))
+                       (when all-color-buf (dfn/reduce-max all-color-buf)))]
     (-> {:mark :point
          :size-scale (:size-scale draft-layer)
          :alpha-scale (:alpha-scale draft-layer)
@@ -534,9 +538,9 @@
         midpoint (:color-midpoint cfg)
         ;; :fill-scale wins over the colour scale spec, which is honored
         ;; on tiles when the user wrote :color (synonym for :fill).
-        fill-scale-type (or (:type (:fill-scale draft-layer))
-                            (:type (:color-scale-spec draft-layer))
-                            :linear)
+        fill-spec (or (:fill-scale draft-layer)
+                      (:color-scale-spec draft-layer))
+        fill-scale-type (or (:type fill-spec) :linear)
         ;; Two paths: bin2d/kde2d stat produces :tiles as a dataset;
         ;; identity stat with :fill uses point groups
         tiles (if (and (:tiles stat)
@@ -544,7 +548,9 @@
                            (and (not (tc/dataset? (:tiles stat))) (seq (:tiles stat)))))
                 ;; bin2d/kde2d path — :tiles is a dataset with :x-lo :x-hi :y-lo :y-hi :fill
                 (let [tile-ds (:tiles stat)
-                      [f-lo f-hi] (:fill-range stat)
+                      [f-lo f-hi] (let [[lo hi] (:fill-range stat)]
+                                    (or (scale/numeric-color-domain fill-spec lo hi)
+                                        [lo hi]))
                       ;; Derive :color column from :fill using gradient function
                       with-color (tc/add-column tile-ds :color
                                                 (fn [ds]
@@ -559,8 +565,10 @@
                 ;; identity path — derive tile bounds from point coordinates
                 (let [data (:data draft-layer)
                       fill-vals (when fill-col (data fill-col))
-                      f-lo (when (seq fill-vals) (dfn/reduce-min fill-vals))
-                      f-hi (when (seq fill-vals) (dfn/reduce-max fill-vals))
+                      [f-lo f-hi] (scale/numeric-color-domain
+                                   fill-spec
+                                   (when (seq fill-vals) (dfn/reduce-min fill-vals))
+                                   (when (seq fill-vals) (dfn/reduce-max fill-vals)))
                       all-xs (mapcat :xs (:points stat))
                       all-ys (mapcat :ys (:points stat))
                       x-half (/ (min-step all-xs) 2.0)
@@ -792,8 +800,10 @@
         all-color-buf (when numeric-color?
                         (let [bufs (keep :color-values (:points stat))]
                           (when (seq bufs) (dtype/concat-buffers bufs))))
-        c-min (when all-color-buf (dfn/reduce-min all-color-buf))
-        c-max (when all-color-buf (dfn/reduce-max all-color-buf))
+        [c-min c-max] (scale/numeric-color-domain
+                       (:color-scale-spec draft-layer)
+                       (when all-color-buf (dfn/reduce-min all-color-buf))
+                       (when all-color-buf (dfn/reduce-max all-color-buf)))
         groups (vec
                 (for [{:keys [color xs ys x-ends color-values row-indices]} (:points stat)]
                   (cond-> {:color (resolve-color all-colors color draft-layer cfg)

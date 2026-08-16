@@ -2685,16 +2685,20 @@
    value through the scale. See the layer option docs for `:color` and
    `:size`.
 
-   On `:shape`, a `:domain` gives explicit category order for the
-   legend, and `:values` supplies the symbols to draw those categories
-   with, in the same order; `pj/shape-symbols` lists the ones
-   available.
+   A `:domain` has two readings, and the domain itself decides which:
+   two numbers are a range, and anything else is a list of categories.
 
-   On `:color` and `:fill` a `:domain` is currently read by nothing --
-   it neither orders a categorical legend nor fixes the ends of a
-   numeric gradient. It is accepted for now rather than refused, since
-   which of the two it should do is not yet settled. Order categories
-   by ordering the column's values in the data.
+   On a categorical `:color`, `:fill` or `:shape` column it gives the
+   order the categories are placed in, which the legend and the palette
+   both follow. A category the list leaves out is still drawn, ordered
+   after the ones listed, with a warning. On `:shape`, `:values`
+   supplies the symbols to draw those categories with in that same
+   order; `pj/shape-symbols` lists the ones available.
+
+   On a numeric `:color` or `:fill` column it gives the two ends of the
+   gradient, as it gives the ends of the drawn range on `:size` and
+   `:alpha`. That is how every panel of a facet can be given one scale
+   to share.
 
    `:labels` requires `:breaks` and must match it in count. Use it to
    render numeric positions with custom text -- for example, days of the

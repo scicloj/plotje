@@ -508,3 +508,85 @@
     ;; marks all draw a radius. The renderer is asked directly, because
     ;; what is under test is the swatch it chooses.
     (is (= :segment (:swatch (layer-type/quantities :width))))))
+
+;; ---- `:domain` on a colour or a fill ----
+;;
+;; The key carries two readings and the domain decides which: two
+;; numbers are a range, anything else is a list of categories. Both
+;; used to validate and change nothing.
+
+(deftest color-domain-orders-categories-test
+  (let [d [{:g "z" :v 1} {:g "y" :v 2} {:g "x" :v 3}]
+        labels (fn [fr] (->> fr pj/plan :legend :entries (mapv :label)))
+        swatches (fn [fr] (->> fr pj/plan :legend :entries (mapv :color)))
+        plain (-> d (pj/lay-point :v :v {:color :g}))
+        ordered (-> plain (pj/scale :color {:domain ["x" "y" "z"]}))]
+
+    (testing "the data decides the order when no domain says otherwise"
+      (is (= ["z" "y" "x"] (labels plain))))
+
+    (testing "a categorical domain reorders the legend"
+      (is (= ["x" "y" "z"] (labels ordered))))
+
+    (testing "and the palette follows it, so which color a category gets changes"
+      ;; The palette is handed out in order either way, so the sequence
+      ;; of swatches is the same; what moves is which category each one
+      ;; belongs to. "x" is last in the data and first in the domain, so
+      ;; it goes from the palette's last color to its first.
+      (is (= (swatches plain) (swatches ordered)))
+      (let [paired (fn [fr] (->> fr pj/plan :legend :entries
+                                 (map (juxt :label :color)) (into {})))]
+        (is (= (get (paired plain) "z") (get (paired ordered) "x")))
+        (is (= (get (paired plain) "x") (get (paired ordered) "z")))))
+
+    (testing "and the marks are drawn in the color their legend row shows"
+      ;; The drawn groups keep the data's order -- that is drawing
+      ;; order, not legend order -- but each carries its new color.
+      (let [group-colors (fn [fr] (->> fr pj/plan :panels first :layers first
+                                       :groups (map (juxt :label :color)) (into {})))
+            legend-colors (fn [fr] (->> fr pj/plan :legend :entries
+                                        (map (juxt :label :color)) (into {})))]
+        (is (= (group-colors ordered) (legend-colors ordered)))
+        (is (not= (group-colors plain) (group-colors ordered)))))
+
+    (testing "a category the domain omits is still drawn, after the listed ones"
+      (let [partial-domain (-> plain (pj/scale :color {:domain ["x"]}))]
+        (is (= ["x" "z" "y"] (labels partial-domain)))
+        (is (re-find #":domain omits"
+                     (with-out-str (pj/plan partial-domain))))))))
+
+(deftest color-domain-sets-gradient-ends-test
+  (let [d (mapv (fn [i] {:a i :b i :n (* 10 i)}) (range 1 10))
+        plain (-> d (pj/lay-point :a :b {:color :n}))
+        bounds (fn [fr] ((juxt :min :max) (:legend (pj/plan fr))))
+        mark-colors (fn [fr] (->> fr pj/plan :panels first :layers first
+                                  :groups first :colors vec))]
+
+    (testing "the data decides the ends when no domain says otherwise"
+      (is (= [10.0 90.0] (bounds plain))))
+
+    (testing "a numeric domain replaces them, in the legend"
+      (is (= [0.0 200.0] (bounds (-> plain (pj/scale :color {:domain [0 200]}))))))
+
+    (testing "and in the marks, which is what the legend explains"
+      (is (not= (mark-colors plain)
+                (mark-colors (-> plain (pj/scale :color {:domain [0 200]}))))))
+
+    (testing "a value outside the domain is drawn at the nearer end, not dropped"
+      (let [narrow (-> plain (pj/scale :color {:domain [40 60]}))
+            cs (mark-colors narrow)]
+        ;; every row still draws
+        (is (= 9 (count cs)))
+        ;; 10, 20, 30 and 40 all clamp to the low end; 60 upward to the high
+        (is (apply = (take 4 cs)))
+        (is (apply = (drop 5 cs)))
+        (is (not= (first cs) (last cs)))))))
+
+(deftest fill-domain-sets-gradient-ends-test
+  (testing "a fill reads its domain as a colour does"
+    (let [tiles (vec (for [x (range 1 5) y (range 1 5)] {:x x :y y :v (* x y)}))
+          tile-colors (fn [fr] (->> fr pj/plan :panels first :layers first
+                                    :tiles (mapv :color)))
+          plain (-> tiles (pj/lay-tile :x :y {:fill :v}))]
+      (is (not= (tile-colors plain)
+                (tile-colors (-> plain (pj/scale :fill {:domain [0 40]}))))))))

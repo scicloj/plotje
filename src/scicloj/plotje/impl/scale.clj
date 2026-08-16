@@ -301,6 +301,29 @@
   (when (contains? channel-bounds channel)
     (validate-bounds-pair! channel spec :domain where)))
 
+(defn numeric-color-domain
+  "The `[lo hi]` a numeric colour or fill column is read against.
+
+   `:domain` on the spec replaces the range the data covers, so a
+   gradient can mean the same thing across plots and across the panels
+   of a facet. A value outside it is drawn at the nearer end of the
+   gradient rather than dropped, which is what `normalize-continuous`
+   clamps for, and matches what `:size` and `:alpha` answer.
+
+   Answers nil where the data gave no range, so a caller that had
+   nothing to normalize against still has nothing. A categorical
+   `:domain` -- a list of category names -- is not a numeric range and
+   is ignored here; `order-by-domain` in `impl.plan` reads that one.
+
+   Stated once because four places normalize a colour and a fifth
+   builds the legend, and each held its own min and max."
+  [spec d-min d-max]
+  (when (and (some? d-min) (some? d-max))
+    (let [[lo hi] (:domain spec)]
+      (if (and (number? lo) (number? hi))
+        [(double lo) (double hi)]
+        [(double d-min) (double d-max)]))))
+
 (defn channel-domain
   "The `[lo hi]` a channel's values are read against, given its scale
    spec and the range the data covers.

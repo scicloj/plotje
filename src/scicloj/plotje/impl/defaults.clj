@@ -524,15 +524,24 @@
 (defn normalize-continuous
   "Remap a value v from [vmin, vmax] to [0,1] using a scale-type aware
    transform. :linear (default) uses normalize-midpoint with the optional
-   midpoint. :log uses log10 endpoints; midpoint is ignored under :log."
+   midpoint. :log uses log10 endpoints; midpoint is ignored under :log.
+
+   The result is clamped to [0,1], which is the whole gradient. Every
+   caller reads it as a place along one, and the endpoints used to come
+   from the data itself, so nothing could fall outside. A `:domain`
+   narrower than the data can, and a value beyond it is drawn at the
+   nearer end of the gradient -- the same answer `:size` and `:alpha`
+   give a value outside their domain."
   [scale-type v vmin vmax midpoint]
-  (if (= scale-type :log)
-    (let [vl   (Math/log10 (max 1e-300 (double v)))
-          minl (Math/log10 (max 1e-300 (double vmin)))
-          maxl (Math/log10 (max 1e-300 (double vmax)))
-          span (- maxl minl)]
-      (if (<= span 0) 0.5 (/ (- vl minl) span)))
-    (normalize-midpoint v vmin vmax midpoint)))
+  (-> (if (= scale-type :log)
+        (let [vl   (Math/log10 (max 1e-300 (double v)))
+              minl (Math/log10 (max 1e-300 (double vmin)))
+              maxl (Math/log10 (max 1e-300 (double vmax)))
+              span (- maxl minl)]
+          (if (<= span 0) 0.5 (/ (- vl minl) span)))
+        (normalize-midpoint v vmin vmax midpoint))
+      (max 0.0)
+      (min 1.0)))
 
 ;; ---- Name Formatting ----
 

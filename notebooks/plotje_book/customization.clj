@@ -572,17 +572,19 @@
 ;; 1.0 by default. It has no `:by`, since an opacity has no shape and
 ;; so no area to correct for.
 ;;
-;; A `:domain` on `:size` or `:alpha` behaves differently from one on
-;; an axis. On an axis it sets the view window, and a mark outside it
-;; is drawn and clipped. A size or an opacity has nothing to clip
+;; A `:domain` on a visual aesthetic behaves differently from one on an
+;; axis. On an axis it sets the view window, and a mark outside it is
+;; drawn and clipped. A size, an opacity or a color has nothing to clip
 ;; against, so a value outside the domain is drawn at the nearer end of
-;; the range. This is also how to give every panel of a facet the same
-;; size scale -- see [Faceting](./plotje_book.faceting.html).
+;; the range -- the smallest radius, the faintest opacity, the end of
+;; the gradient. This is also how to give every panel of a facet the
+;; same size or color scale -- see
+;; [Faceting](./plotje_book.faceting.html).
 ;;
-;; `:color` and `:fill` accept a `:domain` and read it for nothing at
-;; all, whether the column holds numbers or categories. It is a known
-;; gap rather than a design -- see
-;; [Known Limitations](./plotje_book.known_limitations.html#scales).
+;; On a categorical `:color`, `:fill` or `:shape` column the same key
+;; means the other thing a domain can mean: the order the categories
+;; are placed in, which the legend and the palette both follow. Two
+;; numbers are a range; anything else is a list of categories.
 
 ;; ### Naming a scale in the mapping
 ;;

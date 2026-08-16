@@ -552,10 +552,10 @@ gapminder-2007
  [(fn [fr] (= ["Africa" "Americas" "Asia" "Europe" "Oceania"]
               (mapv :label (:entries (:shape-legend (pj/plan fr))))))])
 
-;; `:color` and `:fill` do not order their legend this way. They accept
-;; a `:domain` and read it for nothing, on a categorical column and a
-;; numeric one alike, so the legend below keeps the order the data
-;; gives it rather than the order asked for:
+;; `:color` and `:fill` read a categorical `:domain` the same way. The
+;; palette is assigned in the order given, so the domain moves the
+;; legend rows and the colors together -- the first category listed
+;; takes the palette's first color wherever it sits in the data:
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -563,13 +563,38 @@ gapminder-2007
     (pj/scale :x :log))
 
 (kind/test-last
- [(fn [fr] (not= ["Oceania" "Europe" "Asia" "Americas" "Africa"]
-                 (mapv :label (:entries (:legend (pj/plan fr))))))])
+ [(fn [fr] (= ["Oceania" "Europe" "Asia" "Americas" "Africa"]
+              (mapv :label (:entries (:legend (pj/plan fr))))))])
 
-;; That is a gap rather than a design, recorded in
-;; [Known Limitations](./plotje_book.known_limitations.html#scales).
-;; Until it closes, order the categories by ordering the column's
-;; values in the data.
+;; A category the domain leaves out is still drawn, ordered after the
+;; ones listed, and Plotje says so -- an incomplete list is usually a
+;; typo or a stale set of names rather than a request.
+;;
+;; On a numeric column the same key means the other thing a domain can
+;; mean: the two ends of the gradient. Population runs to well over a
+;; billion, and a handful of countries at that end leave everywhere
+;; else crowded into the dark. Ending the gradient at fifty million
+;; spreads the countries most of the data holds:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :pop})
+    (pj/scale :color {:domain [0 5.0E7]})
+    (pj/scale :x :log))
+
+(kind/test-last
+ [(fn [fr] (= [0.0 5.0E7]
+              ((juxt :min :max) (:legend (pj/plan fr)))))])
+
+;; The countries above fifty million are drawn at the light end rather
+;; than dropped -- a value outside a numeric domain takes the nearer
+;; end of the gradient, as it takes the nearest radius on `:size`. A
+;; domain says what the reader should compare, and a dropped row would
+;; leave no trace on the panel to say so.
+;;
+;; Which of the two readings applies is decided by the domain itself:
+;; two numbers are a range, and anything else is a list of categories.
+;; Fixing the domain is also how every panel of a facet is given one
+;; gradient to share.
 
 ;; ## Not supported yet
 ;;
