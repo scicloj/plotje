@@ -654,12 +654,18 @@
                     ":color-type :categorical to split into multiple lines.")))))
 
 (defn- warn-fill-scale-without-fill!
-  "Warn once when `:fill-scale` is set but no draft layer maps to
+  "Warn once when a fill scale is set but no draft layer maps to
    `:fill`. Most marks paint with `:color`, not `:fill`; this catches
    the common slip of writing `(pj/scale :fill ...)` when `:color`
-   was meant."
-  [resolved-all opts]
-  (when (and (:fill-scale opts)
+   was meant.
+
+   Read off the draft layers rather than off `:opts`: `pj/scale` writes
+   the mapping now, so the `:fill-scale` key this looked for stopped
+   being written and the warning stopped firing. The generic
+   orphan-mapping warning still caught the case, but without the
+   fill-versus-colour guidance that is the whole point of this one."
+  [resolved-all _opts]
+  (when (and (some (defaults/channel->scale-key :fill) resolved-all)
              (not-any? :fill resolved-all))
     (println "Warning: pj/scale :fill set but no descendant layer uses"
              ":fill -- did you mean :color? :fill paints interior of"
@@ -1171,6 +1177,12 @@
    an axis: each layer here scales its own values, so a layer left on
    the default really is drawn through a different scale.
 
+   Counting as the default means being compared as it, though. A layer
+   that writes the type the default already has agrees with a layer
+   that writes nothing, so the two are resolved to the same spec before
+   they are compared -- otherwise `{:scale :linear}` beside a layer left
+   alone was refused for disagreeing with itself.
+
    Only layers that vary the channel are asked. A column mapped on the
    pose flows into every layer, and a mark that draws one size for the
    whole layer has no scale to disagree about."
@@ -1181,7 +1193,9 @@
                                       (reads-per-row? channel (:mark %))
                                       (:data %))
                                 draft-layers)
-                specs (distinct (map #(get % scale-key) varying))
+                resolve-spec #(merge {:type (defaults/default-scale-type channel)}
+                                     (get % scale-key))
+                specs (distinct (map resolve-spec varying))
                 drawn-as (distinct (map #(layer-type/mark-varies (:mark %) channel)
                                         varying))]]
     (when (> (count specs) 1)

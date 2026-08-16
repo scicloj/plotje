@@ -263,7 +263,9 @@
                        (pj/lay-point {:size {:column :n :scale :log}}))))))
 
     (testing "a pose's mapping and a layer that names no scale"
-      (is (= {:range [3 16]}
+      ;; The type is the fallback, filled in once the scopes have
+      ;; accumulated -- the mapping itself named none.
+      (is (= {:range [3 16] :type :linear}
              (spec (-> d
                        (pj/pose :x :y {:size {:column :n :scale {:range [3 16]}}})
                        pj/lay-point)))))
@@ -277,6 +279,17 @@
              (spec (-> d (pj/pose :x :y)
                        (pj/scale :size {:range [3 16]})
                        (pj/lay-point {:size {:column :n :scale :log}}))))))
+
+    (testing "`pj/scale` before a `lay-*` that names its positions"
+      ;; Both arms above pass only an options map, so the position
+      ;; mapping is nil and the branch that folds one in is never
+      ;; reached. That branch merged the position over the mapping
+      ;; wholesale, discarding a scale already written there.
+      (let [x-scale #(-> % pj/plan :panels first :x-scale)]
+        (is (= {:type :log}
+               (x-scale (-> d (pj/scale :x :log) (pj/lay-point :x :y)))))
+        (is (= {:type :log}
+               (x-scale (-> d (pj/lay-point :x :y) (pj/scale :x :log)))))))
 
     (testing "an outer pose of a composite and the cell inside it"
       (is (= {:range [3 16] :type :linear}

@@ -573,7 +573,7 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
-;; Log scale on a visual channel (`:size`, `:alpha`, `:fill`, or
+;; Log scale on a visual aesthetic (`:size`, `:alpha`, `:fill`, or
 ;; `:color`):
 
 (-> {:user [:a :b :c] :n [10 100 1000]}
@@ -594,7 +594,7 @@
  [(fn [v] (= 16.0 (->> v pj/plan :size-legend :entries
                        (map :magnitude) (apply max))))])
 
-;; Shape symbols on a discrete channel -- `:domain` orders the
+;; Shape symbols on a discrete aesthetic -- `:domain` orders the
 ;; categories, `:values` picks the markers:
 
 (-> (rdatasets/datasets-iris)

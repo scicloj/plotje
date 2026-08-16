@@ -1303,11 +1303,14 @@
    `{:column :typo}` is a column reference written more explicitly than
    the plain `:typo`, and reading only the plain one let it past the
    attach-time check `pj/with-data`'s docstring promises, to fail at
-   `pj/plan` with a different message. A `{:value ...}` names no column
-   and is skipped here on purpose."
+   `pj/plan` with a different message. `{:from :typo}` is the same
+   reference again, spelled the third way, and had the same hole.
+   A `{:value ...}` names no column and is skipped here on purpose."
   [m]
   (keep #(let [v (get m %)
-               v (if (pose/explicit-mapping? v) (:column v) v)]
+               v (if (and (map? v) (contains? v :value))
+                   nil
+                   (pose/mapping-source v))]
            (when (keyword? v) v))
         defaults/column-keys))
 
@@ -1531,11 +1534,12 @@
    aesthetic-column-validation-test)."
   [context mapping]
   (doseq [[k v] mapping
-          ;; The same typo written out in full is the same typo, and
-          ;; reading only the plain spelling sent `{:column 'sp}` on to
-          ;; the column lookup, where it got a missing-column message
-          ;; and none of this help.
-          :let [written (if (pose/explicit-mapping? v) (:column v) v)]
+          ;; The same typo written out in full is the same typo, in any
+          ;; of the three spellings, and reading only the plain one sent
+          ;; `{:column 'sp}` and `{:from 'sp}` on to the column lookup,
+          ;; where they got a missing-column message and none of this
+          ;; help.
+          :let [written (pose/mapping-source v)]
           :when (and (contains? defaults/column-keys k) (symbol? written))]
     (throw (ex-info (str context " " k " is a symbol (" (pr-str written)
                          "). A column reference must be a keyword or "
@@ -1767,7 +1771,13 @@
 
       (and (seq position-mapping) (not pose-pos?))
       (-> fr
-          (update :mapping (fnil merge {}) position-mapping)
+          ;; Through merge-mappings, not merge: the pose may already
+          ;; carry a scale for this axis with no source under it --
+          ;; what `pj/scale` writes -- and a plain merge replaces that
+          ;; whole value with the column name, dropping the scale in
+          ;; silence. The position names the source; the scale set
+          ;; further out still says how to read it.
+          (update :mapping #(pose/merge-mappings (or % {}) position-mapping))
           (update :layers (fnil conj []) bare-layer))
 
       (seq position-mapping)
@@ -2628,20 +2638,33 @@
    a type; `:scales :free` varies their domains.
 
    A mapping written out in full can name a scale too, for that one
-   mapping: `{:size {:column :weight :scale :log}}`. Where both are
-   written the mapping wins, key by key.
+   mapping: `{:size {:column :weight :scale :log}}`. Where a scale is
+   set at more than one scope the settings accumulate and the inner
+   scope wins, key by key. Written on the same pose, this call is the
+   inner one; written on a layer, the layer's mapping is.
 
-   Accepts a type keyword or a scale spec map with `:type`, optional
-   `:domain`, optional `:breaks` (explicit tick locations), optional
-   `:labels` (custom tick text paired with `:breaks`), and optional
-   `:n-ticks` (thin a categorical axis to about this many ticks).
+   Accepts a type keyword or a scale spec map. `:type` and `:domain`
+   belong to every scale. The rest are per aesthetic, and a key an
+   aesthetic does not read is refused where it is written rather than
+   dropped in silence:
 
-   `:size` and `:alpha` also take `:range` -- what the channel spans,
-   in the quantity the mark draws it as, so `[2 8]` on `:size` is a
-   radius in drawing units. `:size` further takes `:by`, how a value
-   spreads across that range (`:sqrt` by default, or `:linear` or
-   `:area`), and `:from-zero`, which anchors both the domain and the
-   range at zero so that twice the value is twice the ink.
+   - `:x` and `:y` take `:breaks` (explicit tick locations), `:labels`
+     (custom tick text paired with `:breaks`), `:n-ticks` (thin a
+     categorical axis to about this many ticks) and `:label` (the axis
+     title, which the `:x-label` / `:y-label` plot options override).
+   - `:size` and `:alpha` take `:range` -- what the aesthetic spans, in
+     the quantity the mark draws it as, so `[2 8]` on `:size` is a
+     radius in drawing units.
+   - `:size` further takes `:by`, how a value spreads across that range
+     (`:sqrt` by default, or `:linear` or `:area`), and `:from-zero`,
+     which anchors both the domain and the range at zero so that twice
+     the value is twice the ink.
+   - `:shape` takes `:values`, the marker symbols to draw with.
+   - `:color` and `:fill` take neither `:range` nor any tick key.
+
+   A value outside `:domain` is drawn at the nearer end rather than
+   dropped, so a narrower domain says what the reader should compare
+   without leaving rows off the panel.
 
    Channels and accepted scale types:
 
@@ -2662,10 +2685,16 @@
    value through the scale. See the layer option docs for `:color` and
    `:size`.
 
-   The `:domain` on a discrete scale gives explicit category order for the
-   legend. On `:shape`, `:values` supplies the symbols to draw those
-   categories with, in the same order; `pj/shape-symbols` lists the ones
+   On `:shape`, a `:domain` gives explicit category order for the
+   legend, and `:values` supplies the symbols to draw those categories
+   with, in the same order; `pj/shape-symbols` lists the ones
    available.
+
+   On `:color` and `:fill` a `:domain` is currently read by nothing --
+   it neither orders a categorical legend nor fixes the ends of a
+   numeric gradient. It is accepted for now rather than refused, since
+   which of the two it should do is not yet settled. Order categories
+   by ordering the column's values in the data.
 
    `:labels` requires `:breaks` and must match it in count. Use it to
    render numeric positions with custom text -- for example, days of the
@@ -2770,17 +2799,25 @@
                      :supported defaults/shape-syms}))))
         (scale/validate-drawn-range-options! channel scale-type "pj/scale")
         (scale/validate-spec-keys! channel scale-type "pj/scale")))
+    ;; The spec is written as the caller stated it. A map that names no
+    ;; :type does not mean the scale is linear -- it means this call had
+    ;; no opinion about the type -- so filling one in here would make
+    ;; (pj/scale :x {:breaks ...}) silently undo an earlier
+    ;; (pj/scale :x :log). The default is applied once, after every
+    ;; scope has accumulated, in pose/layer-scale-specs.
     (let [spec (if (map? scale-type)
-                 (merge {:type (if disc-visual? :categorical :linear)}
-                        scale-type)
+                 scale-type
                  {:type scale-type})]
       (update (->pose pose "pj/scale") :mapping
               pose/put-scale channel spec))))
 
 (defn coord
-  "Set coordinate transform on a pose. Coord is plot-level -- it
-   applies across every panel. On a composite pose the coord attaches
-   to the root so every descendant leaf inherits it at plan time.
+  "Set coordinate transform on a pose. The coord applies to the pose it
+   is called on and to everything below it, as a scale does: called on
+   the pose you are building it covers every panel, and called on one
+   cell before the cells are arranged, that cell alone. On a composite
+   pose it attaches to the root, so every descendant leaf inherits it
+   at plan time.
 
    Supported coord-types:
 

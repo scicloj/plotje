@@ -271,9 +271,9 @@ graph LR
 ;; alone, `:accepts` lists the layer options it takes beyond the
 ;; universal ones, tabulated per layer type in
 ;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options),
-;; and `:varies` names the appearance channels its mark varies from row
+;; and `:varies` names the appearance aesthetics its mark varies from row
 ;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. A
-;; channel left out of `:varies` is one the mark draws once for the
+;; aesthetic left out of `:varies` is one the mark draws once for the
 ;; whole layer, so a column mapped to it varies nothing, and the plan
 ;; says so rather than drawing a legend for an encoding the panel does
 ;; not carry.)

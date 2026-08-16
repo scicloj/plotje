@@ -221,7 +221,7 @@
  v33_l163
  (->
   {:product
-   (map (fn* [p1__11193#] (str "Product " p1__11193#)) (range 12)),
+   (map (fn* [p1__71862#] (str "Product " p1__71862#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -242,7 +242,7 @@
  v36_l176
  (->
   {:product
-   (map (fn* [p1__11194#] (str "Product " p1__11194#)) (range 12)),
+   (map (fn* [p1__71863#] (str "Product " p1__71863#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -379,7 +379,7 @@
    (pj/options {:thousands-separator ","})
    pj/svg-summary
    :texts)
-  (filter (fn* [p1__11195#] (re-find #"," p1__11195#)))
+  (filter (fn* [p1__71864#] (re-find #"," p1__71864#)))
   distinct
   sort))
 
@@ -432,7 +432,7 @@
   {:x (range 1 50),
    :y
    (map
-    (fn* [p1__11196#] (* 2 (Math/pow 1.1 p1__11196#)))
+    (fn* [p1__71865#] (* 2 (Math/pow 1.1 p1__71865#)))
     (range 1 50))}))
 
 
@@ -613,7 +613,7 @@
 (def
  v90_l457
  (->
-  {:bin (map (fn* [p1__11197#] (str "bin-" p1__11197#)) (range 40)),
+  {:bin (map (fn* [p1__71866#] (str "bin-" p1__71866#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -627,7 +627,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__11198#] (.startsWith p1__11198# "bin-"))
+       (fn* [p1__71867#] (.startsWith p1__71867# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v90_l457)))
@@ -742,7 +742,7 @@
        (map
         (juxt
          :value
-         (fn* [p1__11199#] (Math/pow (:magnitude p1__11199#) 2)))
+         (fn* [p1__71868#] (Math/pow (:magnitude p1__71868#) 2)))
         entries))]
      (every?
       (fn
@@ -756,7 +756,7 @@
 
 
 (def
- v108_l588
+ v108_l593
  (->
   {:x [1 2 3 4], :y [4 2 3 1], :people [10 40 90 160]}
   (pj/lay-point
@@ -766,22 +766,22 @@
 
 
 (deftest
- t109_l591
+ t109_l596
  (is
   ((fn [v] (= :log (-> v pj/plan :size-legend :scale-type)))
-   v108_l588)))
+   v108_l593)))
 
 
-(def v111_l620 pj/shape-symbols)
+(def v111_l625 pj/shape-symbols)
 
 
 (deftest
- t112_l622
- (is ((fn [syms] (= syms (distinct syms))) v111_l620)))
+ t112_l627
+ (is ((fn [syms] (= syms (distinct syms))) v111_l625)))
 
 
 (def
- v114_l630
+ v114_l635
  (->
   {:model ["a" "b" "c" "d"],
    :score [3 1 4 2],
@@ -790,18 +790,18 @@
 
 
 (deftest
- t115_l633
+ t115_l638
  (is
   ((fn
     [v]
     (=
      (take 3 pj/shape-symbols)
      (mapv :shape (:entries (:shape-legend (pj/plan v))))))
-   v114_l630)))
+   v114_l635)))
 
 
 (def
- v117_l640
+ v117_l645
  (->
   {:model ["a" "b" "c" "d"],
    :score [3 1 4 2],
@@ -811,7 +811,7 @@
 
 
 (deftest
- t118_l644
+ t118_l649
  (is
   ((fn
     [v]
@@ -820,11 +820,11 @@
      (mapv
       (juxt :label :shape)
       (:entries (:shape-legend (pj/plan v))))))
-   v117_l640)))
+   v117_l645)))
 
 
 (def
- v120_l653
+ v120_l658
  (->
   {:model ["a" "b" "c" "d"],
    :score [3 1 4 2],
@@ -837,7 +837,7 @@
 
 
 (deftest
- t121_l658
+ t121_l663
  (is
   ((fn
     [v]
@@ -846,11 +846,11 @@
      (mapv
       (juxt :label :shape)
       (:entries (:shape-legend (pj/plan v))))))
-   v120_l653)))
+   v120_l658)))
 
 
 (def
- v123_l668
+ v123_l673
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point
@@ -860,7 +860,7 @@
 
 
 (deftest
- t124_l671
+ t124_l676
  (is
   ((fn
     [v]
@@ -871,28 +871,28 @@
       (= 150 (:points s))
       (contains? (:alphas s) 0.5)
       (contains? (:sizes s) 5.0))))
-   v123_l668)))
+   v123_l673)))
 
 
 (def
- v126_l679
+ v126_l684
  (-> {:x [1 2 3 4 5], :y [2 4 3 5 4]} (pj/lay-line :x :y {:size 3})))
 
 
 (deftest
- t127_l682
- (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v126_l679)))
+ t127_l687
+ (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v126_l684)))
 
 
 (def
- v129_l690
+ v129_l695
  (->
   {:x [1 2 3 4 5], :y [2 4 3 5 4]}
   (pj/lay-line :x :y {:stroke-dash :dashed})))
 
 
 (deftest
- t130_l693
+ t130_l698
  (is
   ((fn
     [v]
@@ -901,18 +901,18 @@
      (and
       (= 1 (:dashed-lines s))
       (contains? (:dash-patterns s) "6.00 4.00"))))
-   v129_l690)))
+   v129_l695)))
 
 
 (def
- v132_l699
+ v132_l704
  (->
   {:x [1 2 3 4 5], :y [2 4 3 5 4]}
   (pj/lay-line :x :y {:stroke-dash :dotted})))
 
 
 (deftest
- t133_l702
+ t133_l707
  (is
   ((fn
     [v]
@@ -921,61 +921,61 @@
      (and
       (= 1 (:dashed-lines s))
       (contains? (:dash-patterns s) "1.00 3.00"))))
-   v132_l699)))
+   v132_l704)))
 
 
 (def
- v135_l708
+ v135_l713
  (->
   {:x [1 2 3 4 5], :y [2 4 3 5 4]}
   (pj/lay-line :x :y {:stroke-dash :solid})))
 
 
 (deftest
- t136_l711
+ t136_l716
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:lines s)) (= 0 (:dashed-lines s)))))
-   v135_l708)))
+   v135_l713)))
 
 
 (def
- v138_l718
+ v138_l723
  (->
   {:x [1 2 3 4 5], :y [2 4 3 5 4]}
   (pj/lay-line :x :y {:stroke-dash [12 4]})))
 
 
 (deftest
- t139_l721
+ t139_l726
  (is
   ((fn
     [v]
     (contains? (:dash-patterns (pj/svg-summary v)) "12.00 4.00"))
-   v138_l718)))
+   v138_l723)))
 
 
 (def
- v141_l725
+ v141_l730
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species {:alpha 0.4})))
 
 
 (deftest
- t142_l728
+ t142_l733
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:polygons s)) (contains? (:alphas s) 0.4))))
-   v141_l725)))
+   v141_l730)))
 
 
 (def
- v144_l757
+ v144_l762
  (->
   {:x [1 2 3], :y [2 3 1]}
   (pj/lay-point :x :y {:size 5, :color "#888888"})
@@ -997,7 +997,7 @@
 
 
 (deftest
- t145_l765
+ t145_l770
  (is
   ((fn
     [v]
@@ -1007,11 +1007,11 @@
       (= 1 (:bold-texts s))
       (= 0 (:italic-texts s))
       (every? (set (:texts s)) ["steady" "dip" "peak"]))))
-   v144_l757)))
+   v144_l762)))
 
 
 (def
- v147_l776
+ v147_l781
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point
@@ -1028,18 +1028,18 @@
 
 
 (deftest
- t148_l782
+ t148_l787
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:italic-texts s)) (= 0 (:bold-texts s)))))
-   v147_l776)))
+   v147_l781)))
 
 
 (def
- v150_l798
+ v150_l803
  (->
   {:x [1], :y [1]}
   (pj/lay-label
@@ -1049,7 +1049,7 @@
 
 
 (def
- v151_l801
+ v151_l806
  (->
   {:x [1], :y [1]}
   (pj/lay-text
@@ -1061,7 +1061,7 @@
 
 
 (deftest
- t152_l805
+ t152_l810
  (is
   ((fn
     [v]
@@ -1078,11 +1078,11 @@
           :y
           {:text :tag,
            :data {:x [1], :y [1], :tag ["a boxed label"]}})))))))
-   v151_l801)))
+   v151_l806)))
 
 
 (def
- v154_l826
+ v154_l831
  (->
   {:x [1 1 1], :y [3 2 1]}
   (pj/lay-point :x :y {:size 5, :color "#888888"})
@@ -1109,7 +1109,7 @@
 
 
 (deftest
- t155_l835
+ t155_l840
  (is
   ((fn
     [v]
@@ -1125,16 +1125,16 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__11200#] (= :text (:mark p1__11200#))))
+        (filter (fn* [p1__71869#] (= :text (:mark p1__71869#))))
         (mapv
          (fn*
-          [p1__11201#]
-          (-> p1__11201# :style :box :corner-radius))))))))
-   v154_l826)))
+          [p1__71870#]
+          (-> p1__71870# :style :box :corner-radius))))))))
+   v154_l831)))
 
 
 (def
- v157_l848
+ v157_l853
  (->
   {:x [1], :y [1]}
   (pj/lay-label
@@ -1146,7 +1146,7 @@
 
 
 (deftest
- t158_l852
+ t158_l857
  (is
   ((fn
     [v]
@@ -1163,11 +1163,11 @@
           :y
           {:text :tag,
            :data {:x [1], :y [1], :tag ["bare text"]}})))))))
-   v157_l848)))
+   v157_l853)))
 
 
 (def
- v160_l875
+ v160_l880
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:alpha 0.4})
@@ -1176,24 +1176,24 @@
 
 
 (deftest
- t161_l880
+ t161_l885
  (is
   ((fn
     [fr]
     (=
      [nil -25]
      (mapv :offset-y (:annotations (first (:panels (pj/plan fr)))))))
-   v160_l875)))
+   v160_l880)))
 
 
-(def v163_l887 (:band-opacity (pj/config)))
+(def v163_l892 (:band-opacity (pj/config)))
 
 
-(deftest t164_l889 (is ((fn [v] (= 0.15 v)) v163_l887)))
+(deftest t164_l894 (is ((fn [v] (= 0.15 v)) v163_l892)))
 
 
 (def
- v166_l893
+ v166_l898
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1202,14 +1202,14 @@
 
 
 (deftest
- t167_l898
+ t167_l903
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s))))
-   v166_l893)))
+   v166_l898)))
 
 
 (def
- v169_l918
+ v169_l923
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1218,7 +1218,7 @@
 
 
 (deftest
- t170_l922
+ t170_l927
  (is
   ((fn
     [v]
@@ -1228,11 +1228,11 @@
       (= 150 (:points s))
       (= 1 (:dashed-lines s))
       (contains? (:dash-patterns s) "6.00 4.00"))))
-   v169_l918)))
+   v169_l923)))
 
 
 (def
- v172_l944
+ v172_l949
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1240,12 +1240,12 @@
 
 
 (deftest
- t173_l948
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v172_l944)))
+ t173_l953
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v172_l949)))
 
 
 (def
- v175_l952
+ v175_l957
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1253,48 +1253,48 @@
 
 
 (deftest
- t176_l956
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v175_l952)))
+ t176_l961
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v175_l957)))
 
 
-(def v178_l968 (c2d/find-palette #"budapest"))
+(def v178_l973 (c2d/find-palette #"budapest"))
 
 
 (deftest
- t179_l970
+ t179_l975
  (is
   ((fn [v] (and (sequential? v) (some #{:grand-budapest-1} v)))
-   v178_l968)))
+   v178_l973)))
 
 
-(def v181_l974 (c2d/find-palette #"^:set"))
-
-
-(deftest
- t182_l976
- (is ((fn [v] (and (sequential? v) (some #{:set1} v))) v181_l974)))
-
-
-(def v184_l980 (c2d/find-gradient #"viridis"))
+(def v181_l979 (c2d/find-palette #"^:set"))
 
 
 (deftest
- t185_l982
+ t182_l981
+ (is ((fn [v] (and (sequential? v) (some #{:set1} v))) v181_l979)))
+
+
+(def v184_l985 (c2d/find-gradient #"viridis"))
+
+
+(deftest
+ t185_l987
  (is
   ((fn [v] (and (sequential? v) (some #{:viridis/viridis} v)))
-   v184_l980)))
+   v184_l985)))
 
 
-(def v187_l987 (c2d/palette :grand-budapest-1))
+(def v187_l992 (c2d/palette :grand-budapest-1))
 
 
 (deftest
- t188_l989
- (is ((fn [v] (and (sequential? v) (pos? (count v)))) v187_l987)))
+ t188_l994
+ (is ((fn [v] (and (sequential? v) (pos? (count v)))) v187_l992)))
 
 
 (def
- v190_l1001
+ v190_l1006
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1302,12 +1302,12 @@
 
 
 (deftest
- t191_l1005
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v190_l1001)))
+ t191_l1010
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v190_l1006)))
 
 
 (def
- v193_l1011
+ v193_l1016
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1317,14 +1317,14 @@
 
 
 (deftest
- t194_l1016
+ t194_l1021
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s))))
-   v193_l1011)))
+   v193_l1016)))
 
 
 (def
- v196_l1024
+ v196_l1029
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1332,18 +1332,18 @@
 
 
 (deftest
- t197_l1028
+ t197_l1033
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (< (:width s) 700))))
-   v196_l1024)))
+   v196_l1029)))
 
 
 (def
- v199_l1034
+ v199_l1039
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1351,12 +1351,12 @@
 
 
 (deftest
- t200_l1038
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v199_l1034)))
+ t200_l1043
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v199_l1039)))
 
 
 (def
- v202_l1044
+ v202_l1049
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1364,7 +1364,7 @@
 
 
 (deftest
- t203_l1048
+ t203_l1053
  (is
   ((fn
     [v]
@@ -1380,4 +1380,4 @@
      (and
       (= 150 (:points s))
       (zero? (get-in plan [:layout :legend-w])))))
-   v202_l1044)))
+   v202_l1049)))

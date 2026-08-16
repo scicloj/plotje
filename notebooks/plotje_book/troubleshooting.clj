@@ -257,7 +257,7 @@
 
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
-;; `pj/scale` takes the pose, a channel -- an axis (`:x`, `:y`) or a
+;; `pj/scale` takes the pose, an aesthetic -- an axis (`:x`, `:y`) or a
 ;; visual one (`:size`, `:alpha`, `:color`, `:fill`, `:shape`) -- and
 ;; either a type keyword (`:linear`, `:log`) or a scale specification
 ;; map with `:type` and an optional `:domain` override.
@@ -589,7 +589,7 @@
 ;;
 ;; **Symptom**: `{:size :some-column}` on a line, boxplot or lollipop
 ;; draws marks of one size, and a warning names the marks that vary
-;; the channel.
+;; the aesthetic.
 ;;
 ;; **Cause**: Only marks that draw a size per row can read a size
 ;; column. Among the built-in marks that is `pj/lay-point`. Every other

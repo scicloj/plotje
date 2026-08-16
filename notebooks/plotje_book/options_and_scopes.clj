@@ -196,11 +196,17 @@
 ;; A note on terminology: other chapters call these values
 ;; *plot-level options*. Be aware that *plot-level* here names a
 ;; category, while *pose-level* (used for layer options) names a
-;; position in a scope hierarchy -- the shared word "level"
+;; place in a scope hierarchy -- the shared word "level"
 ;; refers to different things. Putting a plot option inside a
-;; `pj/lay-*` options map -- for example `{:x-scale {:type :log}}`
+;; `pj/lay-*` options map -- for example `{:title "Growth"}`
 ;; -- is a category mistake: plot options belong in `:opts` via
 ;; their dedicated functions above.
+;;
+;; A scale is not a plot option at all. `pj/scale` writes the
+;; mapping the scale reads, so neither `{:x-scale {:type :log}}`
+;; nor any other `*-scale` key belongs in an options map, at
+;; either level. Write `(pj/scale pose :x :log)`, or say it in the
+;; mapping as `{:x {:column :year :scale :log}}`.
 
 ;; ## Configuration
 ;;

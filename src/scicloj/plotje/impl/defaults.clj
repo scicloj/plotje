@@ -133,8 +133,10 @@
      encode a magnitude and have no categorical counterpart --
      `:alpha`, `:fill`, `:size`, which is `continuous-column-aesthetics`
      -- and on `:x-min` / `:x-max`, which name no column at all.
-   - `:scale-key` -- the `:opts` key `pj/scale` writes for this
-     channel, for the aesthetics that have a scale.
+   - `:scale-key` -- the key a draft layer carries this channel's
+     resolved scale spec under, for the aesthetics that have a scale.
+     `pj/scale` writes the mapping rather than `:opts`, so this names
+     where the spec arrives, not where it is written.
    - `:legend?` -- whether the compositor may hoist this aesthetic's
      legend to composite level when every leaf agrees on it. It is not
      which aesthetics draw a legend: `:fill` draws a continuous one and
@@ -217,7 +219,7 @@
   (aesthetics-where #(and (:column? %) (not (:categorical-column? %)))))
 
 (def channel->scale-key
-  "Channel keyword to the `:opts` key holding its scale spec."
+  "Channel keyword to the key a draft layer holds its scale spec under."
   (into {} (for [[k {:keys [scale-key]}] aesthetic-registry
                  :when scale-key]
              [k scale-key])))
@@ -236,6 +238,22 @@
    :size  #{:linear :log}
    :alpha #{:linear :log}
    :shape #{:categorical}})
+
+(defn default-scale-type
+  "The scale type an aesthetic falls back on when no scope named one.
+
+   Derived from `channel-scale-types` rather than listed again: an
+   aesthetic with no continuous reading is placed by category, and
+   every other one is linear.
+
+   A spec that names no type is not an opinion that the scale is
+   linear, so the fallback is applied once, after every scope has
+   accumulated, rather than where a scale is written."
+  [aesthetic]
+  (let [accepted (get channel-scale-types aesthetic)]
+    (if (and accepted (not (contains? accepted :linear)))
+      :categorical
+      :linear)))
 
 (def channel-scale-options
   "The scale-spec keys each channel reads, beside `:type` and
@@ -635,6 +653,20 @@
   [v separators]
   (cond-> (fmt-category-label v)
     (number? v) (fmt-number separators)))
+
+(defn fmt-legend-number
+  "Format a legend's numeric value: an integral value loses its trailing
+   .0, and the digits are grouped per `:thousands-separator`, so a legend
+   reads the same way as the axis ticks beside it.
+
+   Here rather than beside the renderer because the layout has to
+   measure the same string the renderer will draw. A size legend's
+   entries carry a value and no label, so measuring the label read
+   nothing and the column was sized as if the numbers were not there."
+  [v cfg]
+  (let [d (double v)
+        s (if (== d (Math/floor d)) (str (long d)) (str v))]
+    (fmt-number s (number-separators cfg))))
 
 ;; ---- Configuration Precedence Chain ----
 ;;

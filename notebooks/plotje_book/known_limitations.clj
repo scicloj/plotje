@@ -132,30 +132,6 @@
 ;;   honor `:alpha`. Workaround: use a lighter `:color` to simulate
 ;;   the visual effect on rules.
 
-;; ## Scales
-;;
-;; - One pose reads a channel through one scale. Two layers asking for
-;;   different scales on the same channel are refused rather than
-;;   drawn, since a plot has one legend per channel. For `:x` and `:y`
-;;   this makes no difference, because a panel has one of each axis.
-;;   For `:size`, `:color` and `:alpha` it is a limitation. Workaround:
-;;   put the layers in separate poses with `pj/arrange`, where each
-;;   cell has its own scales and its own legend.
-;;
-;; - Facet panels share their scale *types*. `{:scales :free}` gives
-;;   each panel its own domain, but there is no equivalent for giving
-;;   one panel a log axis and another a linear one. Workaround:
-;;   `pj/arrange` again.
-;;
-;; - A `:size` or `:alpha` mark is scaled against its own panel, while
-;;   the legend is scaled against the whole plot. Under faceting, two
-;;   panels whose values cover different intervals are drawn alike: a
-;;   panel whose values run from 1 to 3 gets the same three radii as
-;;   one whose values run from 4 to 10, and the legend matches neither.
-;;   Workaround: set the domain explicitly, as in
-;;   `(pj/scale pose :size {:domain [1 10]})`, so every panel uses the
-;;   same one.
-;;
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The
 ;;   mark name still reflects the unflipped semantics. Add a
@@ -222,6 +198,41 @@
 ;; - LOESS with confidence bands is O(n^2); subsample above ~5k
 ;;   rows.
 
+;; ## Scales
+;;
+;; - One pose reads an aesthetic through one scale. Two layers asking
+;;   for different scales on `:size` or `:alpha` are refused rather
+;;   than drawn, since a plot has one legend per aesthetic. For `:x`
+;;   and `:y` the question does not arise, because a panel has one of
+;;   each axis. `:color` and `:fill` are neither refused nor drawn
+;;   twice: the first layer's scale silently decides for both, so a
+;;   log scale written on the second layer changes nothing. Workaround
+;;   in every case: put the layers in separate poses with
+;;   `pj/arrange`, where each cell has its own scales and its own
+;;   legend.
+;;
+;; - `:domain` on `:color` and `:fill` is accepted and read by
+;;   nothing. On a categorical column it does not order the legend --
+;;   `:shape` with the same call does -- and on a numeric one it does
+;;   not fix the gradient's ends. Workaround: order categories by
+;;   ordering the column's values in the data, and narrow a numeric
+;;   colour range by filtering the data.
+;;
+;; - Facet panels share their scale *types*. `{:scales :free}` gives
+;;   each panel its own domain, but there is no equivalent for giving
+;;   one panel a log axis and another a linear one. Workaround:
+;;   `pj/arrange` again.
+;;
+;; - A `:size` or `:alpha` mark is scaled against its own panel, while
+;;   the legend is scaled against the whole plot. Under faceting, two
+;;   panels whose values cover different intervals are drawn alike: a
+;;   panel whose values run from 1 to 3 gets the same three radii as
+;;   one whose values run from 4 to 10, and the legend matches neither.
+;;   Workaround: set the domain explicitly, as in
+;;   `(pj/scale pose :size {:domain [1 10]})`, so every panel uses the
+;;   same one. A numeric `:color` has no such workaround, since it
+;;   reads no `:domain`.
+
 ;; ## Options and Configuration
 ;;
 ;; - `:panel-size` is a legacy configuration key from the
@@ -277,7 +288,7 @@
 ;; - The `:fill` aesthetic is currently consumed only by `lay-tile`
 ;;   (and the `:bin2d` output beneath `lay-density-2d`). On filled
 ;;   marks like `lay-bar`, `lay-area`, and `lay-violin`, `:color`
-;;   paints the interior; there is no separate stroke channel.
+;;   paints the interior; there is no separate stroke aesthetic.
 ;;
 ;; - The `:linetype` aesthetic (ggplot2's `aes(linetype=...)` for
 ;;   solid vs. dashed lines) is not implemented. Workaround: encode

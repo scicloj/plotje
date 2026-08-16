@@ -328,7 +328,7 @@ hour-bar-pose
 ;; ## Aesthetic Resolution
 ;;
 ;; The `:color` parameter does different things depending on
-;; what you pass. Each aesthetic channel (`:color`, `:size`,
+;; what you pass. Each aesthetic (`:color`, `:size`,
 ;; `:alpha`, `:shape`, `:text`) is classified as either a column
 ;; reference or a written value.
 

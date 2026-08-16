@@ -180,8 +180,11 @@
         title-chars (fn [l] (count (str (some-> l :title name))))
         entry-max-chars (fn [l] (reduce max 0 (map #(count (str (:label %)))
                                                    (:entries l))))
-        legend-max-chars (max (title-chars legend) (entry-max-chars legend)
-                              (title-chars shape-legend) (entry-max-chars shape-legend))]
+        widest-text (fn [& ls]
+                      (reduce max 0 (mapcat (fn [l] [(title-chars l)
+                                                     (entry-max-chars l)])
+                                            ls)))
+        legend-max-chars (widest-text legend shape-legend)]
     {:layout-type layout-type
      :multi? multi?
      :grid-rows grid-rows
@@ -209,6 +212,19 @@
      ;; sets the range a size spans and the widest swatch decides both
      ;; how wide the column is and how tall a row has to be.
      :size-legend size-legend
+     ;; The size and alpha legends share the legend column, and their
+     ;; labels sit to the right of their own swatch column rather than
+     ;; the colour legend's, so each needs its own text measurement.
+     ;; Measuring only the colour and shape legends left a size
+     ;; legend's numbers and title to clip at the canvas edge, worse
+     ;; the wider the size range.
+     ;; Carried whole so pad-legend-w can format each entry's value the
+     ;; way the renderer will. These entries hold a value and no label,
+     ;; so there is nothing to measure until it is formatted, and that
+     ;; needs the plot's separators.
+     :alpha-legend alpha-legend
+     :size-legend-title-chars (title-chars size-legend)
+     :alpha-legend-title-chars (title-chars alpha-legend)
      :alpha-legend-entry-count (count (:entries alpha-legend))}))
 
 ;; ---- compute-padding: one helper per output key ----
@@ -340,17 +356,39 @@
   (if (#{:left :right} legend-pos)
     (let [base (:legend-width cfg 100)
           ;; Swatch + gap takes ~24px; estimate label font advance as
-          ;; ~7px per char; leave ~8px right margin. A size legend's
-          ;; swatch column is as wide as its widest mark, which the
-          ;; scale's range decides, so it is measured rather than
-          ;; assumed.
+          ;; ~7px per char; leave ~8px right margin.
           char-px 7
           chrome  32
-          swatch  (if-let [sl (:size-legend scene)]
-                    (max 0.0 (- (size-legend-swatch-w sl) 16.0))
-                    0.0)
-          estimated (+ chrome swatch (* char-px (:legend-max-chars scene 0)))]
-      (max base estimated))
+          margin  8
+          ;; The legend column itself starts this far past the panels
+          ;; (`legend-x` in render/membrane.clj), so the reserved width
+          ;; has to carry the gap as well as the content.
+          gap     10
+          ;; Each legend in the column is measured against its own
+          ;; swatch, because each places its labels to the right of
+          ;; that swatch rather than of a shared one. The size
+          ;; legend's swatch column is as wide as its widest mark,
+          ;; which the scale's range decides, so a wide range pushes
+          ;; its numbers further right than any colour label goes.
+          colour-need (+ chrome (* char-px (:legend-max-chars scene 0)))
+          ;; These entries carry a value and no label, so the number is
+          ;; formatted here exactly as the renderer formats it.
+          value-chars (fn [l]
+                        (reduce max 0 (map #(count (defaults/fmt-legend-number
+                                                    (:value %) cfg))
+                                           (:entries l))))
+          text-need (fn [l swatch-w title-n]
+                      (max (+ gap margin (* char-px title-n))
+                           (+ gap swatch-w 6 margin (* char-px (value-chars l)))))
+          size-need (if-let [sl (:size-legend scene)]
+                      (text-need sl (size-legend-swatch-w sl)
+                                 (:size-legend-title-chars scene 0))
+                      0)
+          alpha-need (if-let [al (:alpha-legend scene)]
+                       (text-need al defaults/legend-swatch-size
+                                  (:alpha-legend-title-chars scene 0))
+                       0)]
+      (max base colour-need size-need alpha-need))
     0))
 
 (defn- pad-legend-h

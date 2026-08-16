@@ -120,10 +120,10 @@
 
 ;; ### Color and fill
 ;;
-;; Most marks expose `:color` as the encoding channel -- scatter
+;; Most marks expose `:color` as the encoding aesthetic -- scatter
 ;; dots, lines, bar interiors, area fills, violins, lollipops -- all
 ;; styled with `:color` and named via `:color-label` in the legend.
-;; The separate `:fill` channel is currently reserved for the heatmap
+;; The separate `:fill` aesthetic is currently reserved for the heatmap
 ;; family: `lay-tile` (and the `:bin2d` output beneath
 ;; `lay-density-2d`) reads the encoded value as a continuous fill,
 ;; with its own legend title override `:fill-label`:
@@ -139,7 +139,7 @@
 ;; **Coming from ggplot2.** ggplot's `colour=` (stroke) and `fill=`
 ;; (interior) split is partial in Plotje today. On filled marks like
 ;; `lay-bar`, `lay-area`, and `lay-violin`, the `:color` aesthetic
-;; paints the interior; there is no separate stroke channel, and
+;; paints the interior; there is no separate stroke aesthetic, and
 ;; `:fill` is not accepted. A `lay-bar` styled with `{:color :species}`
 ;; produces one filled polygon per category:
 
@@ -463,15 +463,15 @@
                                               (:texts (pj/svg-summary v)))]
                            (= 8 (count labels))))])
 
-;; ### Log scale on visual channels
+;; ### Log scale on visual aesthetics
 ;;
-;; `pj/scale` works on continuous visual channels too -- `:size`,
+;; `pj/scale` works on continuous visual aesthetics too -- `:size`,
 ;; `:alpha`, `:fill`, and `:color`. When the encoded column spans
 ;; many orders of magnitude, a log scale spaces the legend ticks
 ;; logarithmically and maps the visual property (radius, alpha,
 ;; gradient color) in log-space, so each tick step represents the
 ;; same multiplicative ratio. `:categorical` does not apply to a
-;; continuous encoding -- visual channels accept `:linear` (the
+;; continuous encoding -- visual aesthetics accept `:linear` (the
 ;; default) and `:log` only.
 
 ;; Point sizes from a column whose values jump by factors of ten. On a
@@ -572,12 +572,17 @@
 ;; 1.0 by default. It has no `:by`, since an opacity has no shape and
 ;; so no area to correct for.
 ;;
-;; A `:domain` on a visual channel behaves differently from one on an
-;; axis. On an axis it sets the view window, and a mark outside it is
-;; drawn and clipped. A visual channel has nothing to clip against, so
-;; a value outside the domain is drawn at the nearer end of the range.
-;; This is also how to give every panel of a facet the same size scale
-;; -- see [Faceting](./plotje_book.faceting.html).
+;; A `:domain` on `:size` or `:alpha` behaves differently from one on
+;; an axis. On an axis it sets the view window, and a mark outside it
+;; is drawn and clipped. A size or an opacity has nothing to clip
+;; against, so a value outside the domain is drawn at the nearer end of
+;; the range. This is also how to give every panel of a facet the same
+;; size scale -- see [Faceting](./plotje_book.faceting.html).
+;;
+;; `:color` and `:fill` accept a `:domain` and read it for nothing at
+;; all, whether the column holds numbers or categories. It is a known
+;; gap rather than a design -- see
+;; [Known Limitations](./plotje_book.known_limitations.html#scales).
 
 ;; ### Naming a scale in the mapping
 ;;
@@ -608,8 +613,8 @@
 
 ;; ### Shape symbols
 ;;
-;; `:shape` is a discrete channel, so its scale controls two things a
-;; continuous channel has no use for: which order the categories are
+;; `:shape` is a discrete aesthetic, so its scale controls two things a
+;; continuous aesthetic has no use for: which order the categories are
 ;; assigned symbols in, and which symbols those are. Both matter when
 ;; a reader compares two plots -- the same category should keep the
 ;; same marker across them.

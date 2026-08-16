@@ -560,7 +560,7 @@ my-pose
 ;; ## Domain
 ;;
 ;; A **domain** is the extent of data values a scale reads -- along an
-;; axis, or on a visual channel such as `:size`. It is the data side of
+;; axis, or on a visual aesthetic such as `:size`. It is the data side of
 ;; a scale; the visible side is its range.
 ;;
 ;; - Numerical: `[min max]`, where `min`/`max` are the raw data
@@ -818,7 +818,7 @@ annotated
 ;; value read through its scale earns a one-entry legend naming the
 ;; value. A mapping given `{:scale false}` earns none, since its
 ;; values were drawn as they stand and nothing was decided that a
-;; reader would need explaining. Neither does a channel the mark
+;; reader would need explaining. Neither does an aesthetic the mark
 ;; cannot vary from row to row: `:size` on `pj/lay-line` draws one
 ;; width for the whole layer, so a legend pairing values with radii
 ;; would explain an encoding the panel does not carry.

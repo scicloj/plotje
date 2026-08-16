@@ -104,11 +104,25 @@
 
    `:opacity` is the odd one: it is not a geometry, so nothing about
    area applies to it, and its exponent is 1 only in the sense that it
-   has no shape to grow."
-  {:radius  {:ink-exponent 2 :swatch :circle}
-   :side    {:ink-exponent 2 :swatch :square}
-   :width   {:ink-exponent 1 :swatch :segment}
-   :opacity {:ink-exponent 1 :swatch :square}})
+   has no shape to grow. `:geometry?` records that difference, which is
+   what lets `register!` refuse a channel drawn as a quantity of the
+   wrong kind -- an opacity declared as a radius is not inert, it
+   squares the opacity curve."
+  {:radius  {:ink-exponent 2 :swatch :circle  :geometry? true}
+   :side    {:ink-exponent 2 :swatch :square  :geometry? true}
+   :width   {:ink-exponent 1 :swatch :segment :geometry? true}
+   :opacity {:ink-exponent 1 :swatch :square  :geometry? false}})
+
+(def default-quantities
+  "What a channel is taken to be drawn as where the mark declares
+   nothing. Reached only for a mark that draws the channel without
+   saying so -- which the plan warns about -- and set to what the
+   built-in marks do.
+
+   Its keys are also the channels a mark may declare it varies: these
+   are the two the plan and the scale ask about, so a `:varies` naming
+   any other channel would be read by nothing."
+  {:size :radius :alpha :opacity})
 
 (def ^:private registry*
   "Atom holding keyword → layer-type entry map."
@@ -140,19 +154,58 @@
    compute, so `{:by :area}` lands as an area whether the mark draws a
    radius or a width."
   [k entry]
+  (when-let [v (:varies entry)]
+    (when-not (map? v)
+      (throw (ex-info (str "Layer type " k " declares :varies " (pr-str v)
+                           ", which is not a map. It maps each appearance"
+                           " channel the mark varies from row to row to the"
+                           " quantity it draws it as, as "
+                           (pr-str {:size :radius}) ".")
+                      {:layer-type k :varies v}))))
   (doseq [[channel quantity] (:varies entry)]
+    (when-not (contains? default-quantities channel)
+      (throw (ex-info (str "Layer type " k " declares :varies for " channel
+                           ", which is not a channel Plotje varies from row"
+                           " to row. Supported: "
+                           (vec (sort (keys default-quantities)))
+                           ". A declaration for any other channel is read by"
+                           " nothing.")
+                      {:layer-type k :channel channel
+                       :supported (vec (sort (keys default-quantities)))})))
     (when-not (quantities quantity)
       (throw (ex-info (str "Layer type " k " declares :varies " channel " "
                            quantity ", which is not a quantity Plotje draws."
                            " Supported: " (vec (sort (keys quantities))) ".")
                       {:layer-type k :channel channel :quantity quantity
                        :supported (vec (sort (keys quantities)))})))
+    ;; A geometry and an opacity are not interchangeable: declaring
+    ;; `{:alpha :radius}` is not inert, it squares the opacity curve,
+    ;; because the exponent that spreads ink is applied to whatever the
+    ;; channel is drawn as.
+    (let [wanted (get-in quantities [(default-quantities channel) :geometry?])
+          got (get-in quantities [quantity :geometry?])]
+      (when (not= wanted got)
+        (throw (ex-info (str "Layer type " k " declares :varies " channel " "
+                             quantity ", and " channel " is "
+                             (if wanted "a geometry" "not a geometry")
+                             " while " quantity " is "
+                             (if got "a geometry" "not one")
+                             ". Supported for " channel ": "
+                             (vec (sort (keep (fn [[q info]]
+                                                (when (= wanted (:geometry? info)) q))
+                                              quantities)))
+                             ".")
+                        {:layer-type k :channel channel :quantity quantity}))))
     ;; Two layer types sharing a mark describe the same drawing, so
     ;; they cannot disagree about what it varies. Caught here because
     ;; the lookup below answers per mark: left to run, a disagreement
     ;; would be settled by whichever entry the map happened to yield.
+    ;; The entry being replaced is not a second opinion about its own
+    ;; mark, so re-registering a layer type to correct its own :varies
+    ;; is not a conflict with itself.
     (doseq [[other-k other] @registry*
-            :when (and (= (:mark other) (:mark entry))
+            :when (and (not= other-k k)
+                       (= (:mark other) (:mark entry))
                        (get-in other [:varies channel])
                        (not= (get-in other [:varies channel]) quantity))]
       (throw (ex-info (str "Layer type " k " declares :varies " channel " "
@@ -201,13 +254,6 @@
   (into #{} (for [[_ entry] @registry*
                   :when (get-in entry [:varies channel])]
               (:mark entry))))
-
-(def default-quantities
-  "What a channel is taken to be drawn as where the mark declares
-   nothing. Reached only for a mark that draws the channel without
-   saying so -- which the plan warns about -- and set to what the
-   built-in marks do."
-  {:size :radius :alpha :opacity})
 
 (defn ink-exponent
   "How the ink a mark covers grows with the quantity it draws `channel`

@@ -47,6 +47,16 @@
 
 ;; ---- Tree resolver ----
 
+(def source-keys
+  "The three ways an explicit mapping can name its source.
+
+   `:column` reads the value from the layer's data and `:value` is the
+   value itself; `:from` is the plain reading spelled out -- ask the
+   data, and take whichever answer it gives, exactly as a mapping
+   written plainly does. `:from` is what lets a plain mapping carry a
+   `:scale`, since a bare `:size :weight` has no room for one."
+  #{:column :value :from})
+
 (defn mapping-source
   "What a mapping value names, with the full form unwrapped: the
    `:column`, the `:value` or the `:from`. A mapping that names only a
@@ -107,12 +117,22 @@
 
    Where the inner value is written plainly it has no room for a scale,
    so it is rewritten in the full form under `:from`, which is the
-   plain reading spelled out: ask the data."
+   plain reading spelled out: ask the data.
+
+   An inner value that names only a scale replaces no source, because
+   it names none: it says how to read whatever is named further out,
+   so the outer source is carried through. This is the shape
+   `pj/scale` writes, so a scale set on a layer or a composite cell
+   would otherwise delete the mapping its own pose made."
   [k outer inner]
   (let [scale-of #(when (map? %) (:scale %))
         outer-scale (scale-of outer)
         inner-scale (scale-of inner)
-        combined (combine-scales outer-scale inner-scale)]
+        combined (combine-scales outer-scale inner-scale)
+        inner-source-key (when (map? inner)
+                           (some #(when (contains? inner %) %) source-keys))
+        outer-source-key (when (map? outer)
+                           (some #(when (contains? outer %) %) source-keys))]
     ;; A narrower `:scale false` wins, as a narrower anything does --
     ;; but it leaves the scale set above it doing nothing, and that is
     ;; worth a word.
@@ -123,6 +143,25 @@
                     ". The nearer setting wins, so nothing reads the scale.")))
     (cond
       (nil? inner)      nil            ; an explicit nil cancels the mapping
+
+      ;; The inner names a scale and no source. Keep the source from
+      ;; further out, in the spelling it was written in, and let the
+      ;; scale accumulate onto it.
+      ;;
+      ;; `:scale` has to be present for this to be a mapping written in
+      ;; full at all: this function merges every key of a mapping map,
+      ;; option keys included, and a plain option map such as a label's
+      ;; `{:corner-radius 8}` is also a map naming no source.
+      (and (map? inner) (contains? inner :scale)
+           (nil? inner-source-key) (some? outer-source-key))
+      (cond-> (assoc inner outer-source-key (get outer outer-source-key))
+        (some? combined) (assoc :scale combined))
+
+      (and (map? inner) (contains? inner :scale)
+           (nil? inner-source-key) (some? outer) (not (map? outer)))
+      (cond-> (assoc inner :from outer)
+        (some? combined) (assoc :scale combined))
+
       (nil? combined)   inner
       (map? inner)      (assoc inner :scale combined)
       :else             {:from inner :scale combined})))
@@ -1208,16 +1247,6 @@
 
                :else (not-found! k col false)))))))))
 
-(def source-keys
-  "The three ways an explicit mapping can name its source.
-
-   `:column` reads the value from the layer's data and `:value` is the
-   value itself; `:from` is the plain reading spelled out -- ask the
-   data, and take whichever answer it gives, exactly as a mapping
-   written plainly does. `:from` is what lets a plain mapping carry a
-   `:scale`, since a bare `:size :weight` has no room for one."
-  #{:column :value :from})
-
 (def explicit-mapping-keys
   "The keys an explicit mapping map may carry: one source, and
    optionally the scale to read it through."
@@ -1652,19 +1681,29 @@
 
    Every scale comes from the mapping now -- `pj/scale` writes one
    there too -- so what arrives here has already accumulated down the
-   scope chain, and there is nothing left to combine."
+   scope chain, and there is nothing left to combine.
+
+   The type is defaulted here rather than where a scale is written,
+   because a spec that names no type is not an opinion that the scale
+   is linear. Filling one in at the call would make the second of two
+   `pj/scale` calls silently undo the type the first one set, and would
+   leave a scale written as a mapping without a type at all."
   [resolved]
   (into {} (for [[k scale-key] defaults/channel->scale-key
                  :let [spec (mapping-scale-spec (get-in resolved [:__scale k]))]
                  :when (some? spec)]
-             [scale-key spec])))
+             [scale-key (if (some? (:type spec))
+                          spec
+                          (assoc spec :type (defaults/default-scale-type k)))])))
 
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
    aesthetic mapping (pose < layer-type-info < layer), the layer's
-   :stat/:position/:mark as first-class siblings, and plot-level
-   :x-scale/:y-scale/:coord stamped from :opts.
+   :stat/:position/:mark as first-class siblings, each aesthetic's
+   resolved scale spec under its own key, and plot-level :coord
+   stamped from :opts. The scales come from the mapping, which is
+   where `pj/scale` writes them; only :coord is still an option.
 
    If the leaf's :opts carry :facet-col or :facet-row, the draft is
    multiplied over distinct facet values. Each variant carries a

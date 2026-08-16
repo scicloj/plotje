@@ -182,6 +182,54 @@
                        :accepted (vec (sort accepted))
                        :caller where})))))
 
+(def channel-bounds
+  "What a channel's `:range` may span, where the quantity it is drawn
+   as has limits of its own.
+
+   An opacity outside 0 to 1 is not a fainter or a stronger colour --
+   it is not a colour at all, and the PNG path throws from inside AWT
+   where the SVG path silently emits an out-of-range attribute. A
+   negative radius is not a smaller mark; it emits a negative width and
+   draws nothing. Both used to pass every check."
+  {:alpha {:lo 0.0 :hi 1.0 :what "an opacity"}
+   :size  {:lo 0.0 :what "a size in drawing units"}})
+
+(defn- validate-bounds-pair!
+  "Throw when a spec's `:range` or `:domain` is not a pair of two finite
+   numbers, or falls outside what the channel can draw.
+
+   A malformed pair used to reach the arithmetic and die there on a
+   bare `NullPointerException` naming neither the key nor the channel;
+   an out-of-range one drew nothing, or threw from inside the rendering
+   library one output format later."
+  [channel spec k where]
+  (when (contains? spec k)
+    (let [v (get spec k)
+          numbers? (and (sequential? v)
+                        (= 2 (count v))
+                        (every? #(and (number? %)
+                                      (Double/isFinite (double %)))
+                                v))]
+      (when-not numbers?
+        (throw (ex-info (str where " " channel " " k " " (pr-str v)
+                             " is not a pair of two finite numbers, as "
+                             (pr-str [0 1]) " is."
+                             (when (and (sequential? v) (not= 2 (count v)))
+                               (str " It has " (count v) ".")))
+                        {:channel channel :option k :value v :caller where})))
+      (when-let [{:keys [lo hi what]} (and (= k :range) (channel-bounds channel))]
+        (when-let [bad (seq (remove #(and (or (nil? lo) (>= (double %) lo))
+                                          (or (nil? hi) (<= (double %) hi)))
+                                    v))]
+          (throw (ex-info (str where " " channel " :range " (pr-str v)
+                               " reaches " (pr-str (vec bad)) ", which "
+                               channel " cannot draw: it is " what
+                               ", so its range lies between "
+                               (if hi (str lo " and " hi) (str lo " and up"))
+                               ".")
+                          {:channel channel :option k :value v
+                           :out-of-bounds (vec bad) :caller where})))))))
+
 (defn validate-drawn-range-options!
   "Throw when a scale spec names a drawn-range option the channel does
    not read, or names one Plotje cannot carry out.
@@ -237,7 +285,21 @@
                          " it. Take one of the two off: :from-zero for a"
                          " proportional size, or the log scale for a"
                          " multiplicative one.")
-                    {:channel channel :spec spec :caller where}))))
+                    {:channel channel :spec spec :caller where})))
+  (when (contains? spec :from-zero)
+    (let [v (:from-zero spec)]
+      (when-not (or (true? v) (false? v))
+        (throw (ex-info (str where " " channel " :from-zero " (pr-str v)
+                             " is not true or false. It says whether the"
+                             " domain and the range are anchored at zero.")
+                        {:channel channel :from-zero v :caller where})))))
+  (validate-bounds-pair! channel spec :range where)
+  ;; Only where a domain can only be numeric. An axis, a shape and a
+  ;; colour all take a domain of categories -- which is what orders
+  ;; their legend -- so a pair of numbers is not the shape to demand
+  ;; there.
+  (when (contains? channel-bounds channel)
+    (validate-bounds-pair! channel spec :domain where)))
 
 (defn channel-domain
   "The `[lo hi]` a channel's values are read against, given its scale

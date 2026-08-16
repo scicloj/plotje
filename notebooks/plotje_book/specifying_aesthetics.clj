@@ -66,7 +66,10 @@
   {:height  [12 25 18 31]
    :weight  [1.4 3.9 2.2 4.6]
    :species ["fern" "moss" "fern" "ivy"]
-   :shade   ["#CC3311" "#0077BB" "#CC3311" "#009988"]})
+   ;; Deliberately nothing like the palette's first three colors, so
+   ;; that a plot which scales this column and a plot which draws it
+   ;; as it stands cannot be mistaken for each other.
+   :shade   ["#EE7733" "#AA3377" "#EE7733" "#000000"]})
 
 plants
 
@@ -144,11 +147,11 @@ plants
  [(fn [fr]
     (let [p (pj/plan fr)]
       (and (nil? (:legend p))
-           (= [(/ 204.0 255) (/ 51.0 255) (/ 17.0 255) 1.0]
+           (= [(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
               (-> p :panels first :layers first :groups first :color)))))])
 
-;; The first plant's `:shade` is `"#CC3311"`, and the first group is
-;; drawn in exactly that color: 204, 51 and 17 out of 255.
+;; The first plant's `:shade` is `"#EE7733"`, and the first group is
+;; drawn in exactly that color: 238, 119 and 51 out of 255.
 
 ;; ## A written value, drawn as it stands
 ;;
@@ -378,9 +381,9 @@ plants
 
 (kind/test-last
  [(fn [fr]
-    (= [[0.8 0.2 (/ 17.0 255) 1.0]
-        [0.0 (/ 119.0 255) (/ 187.0 255) 1.0]
-        [0.0 0.6 (/ 136.0 255) 1.0]]
+    (= [[(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
+        [(/ 170.0 255) (/ 51.0 255) (/ 119.0 255) 1.0]
+        [0.0 0.0 0.0 1.0]]
        (->> fr pj/plan :panels first :layers first :groups (mapv :color))))])
 
 ;; `{:column :shade :scale false}` would draw the same plot here, and
@@ -546,7 +549,7 @@ integer-named
  [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
 
 ;; A spec is the same map `pj/scale` takes, so a mapping can set the
-;; range a channel spans as well as its type. The default range runs
+;; range an aesthetic spans as well as its type. The default range runs
 ;; from a radius of 2 to one of 8; this one is twice that, and every
 ;; mark is drawn twice as wide:
 
@@ -583,7 +586,7 @@ integer-named
 ;;
 ;; ### The axes take one scale per panel
 ;;
-;; `:x` and `:y` take a type or a spec like any other channel:
+;; `:x` and `:y` take a type or a spec like any other aesthetic:
 
 (-> plants
     (pj/lay-point {:x {:column :height :scale {:type :log}} :y :weight}))

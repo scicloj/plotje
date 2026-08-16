@@ -135,12 +135,11 @@ gapminder-2007
 (-> gapminder-2007
     (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale {:range [3 16]}}})
     (pj/lay-point {:size {:column :pop :scale :log}})
-    (pj/scale :x :log)
-    pj/plan
-    :panels first :layers first :size-scale)
+    (pj/scale :x :log))
 
 (kind/test-last
- [(fn [spec] (= {:range [3 16] :type :log} spec))])
+ [(fn [fr] (= {:range [3 16] :type :log}
+              (-> fr pj/plan :panels first :layers first :size-scale)))])
 
 ;; The same holds when the range comes from `pj/scale` rather than from
 ;; the pose's mapping:
@@ -149,12 +148,11 @@ gapminder-2007
     (pj/pose :gdp-percap :life-exp)
     (pj/lay-point {:size {:column :pop :scale :log}})
     (pj/scale :size {:range [3 16]})
-    (pj/scale :x :log)
-    pj/plan
-    :panels first :layers first :size-scale)
+    (pj/scale :x :log))
 
 (kind/test-last
- [(fn [spec] (= {:type :log :range [3 16]} spec))])
+ [(fn [fr] (= {:type :log :range [3 16]}
+              (-> fr pj/plan :panels first :layers first :size-scale)))])
 
 ;; This is only true of the scale. The rest of a mapping is replaced by
 ;; the mapping below it, because a mapping states one source and two
@@ -163,16 +161,24 @@ gapminder-2007
 ;;
 ;; `:scale false` is not a setting to accumulate. It says the value
 ;; passes through no scale at all, so it replaces whatever was set
-;; above:
+;; above.
+;;
+;; A column read this way has to hold what the aesthetic draws. For
+;; `:size` that is a radius in drawing units, so the column below
+;; holds 4, 8 and 12 -- not a population count, which would ask for
+;; circles millions of units across:
 
-(-> gapminder-2007
-    (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale {:range [3 16]}}})
-    (pj/lay-point {:size {:column :pop :scale false}})
-    (pj/scale :x :log)
-    pj/plan
-    :panels first :layers first :size-scale)
+(def measured-radii
+  [{:reading 1 :level 2 :spread 4}
+   {:reading 2 :level 5 :spread 8}
+   {:reading 3 :level 3 :spread 12}])
 
-(kind/test-last [(fn [spec] (nil? spec))])
+(-> measured-radii
+    (pj/pose :reading :level {:size {:column :spread :scale {:range [3 16]}}})
+    (pj/lay-point {:size {:column :spread :scale false}}))
+
+(kind/test-last
+ [(fn [fr] (nil? (-> fr pj/plan :panels first :layers first :size-scale)))])
 
 ;; `:scale true` says only that the value passes through the
 ;; aesthetic's scale. It sets no type and no other key, so the scale it
@@ -322,7 +328,7 @@ gapminder-2007
 ;;
 ;; | Aesthetic | Types | Beside `:type` and `:domain` |
 ;; |:--------|:------|:-----------------------------|
-;; | `:x`, `:y` | `:linear`, `:log`, `:categorical` | `:breaks`, `:labels`, `:n-ticks` |
+;; | `:x`, `:y` | `:linear`, `:log`, `:categorical` | `:breaks`, `:labels`, `:n-ticks`, `:label` |
 ;; | `:size` | `:linear`, `:log` | `:range`, `:by`, `:from-zero` |
 ;; | `:alpha` | `:linear`, `:log` | `:range` |
 ;; | `:color`, `:fill` | `:linear`, `:log` | -- |
@@ -523,20 +529,57 @@ gapminder-2007
 ;;
 ;; A numeric `:color` or `:fill` column is drawn through a gradient.
 ;; The scale type spaces that gradient: with `:log`, each factor covers
-;; the same part of it. A categorical column uses a palette instead,
-;; and `:domain` sets the category order that the legend follows.
-;;
+;; the same part of it. A categorical column uses a palette instead.
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :pop})
+    (pj/scale :color :log)
+    (pj/scale :x :log))
+
+(kind/test-last
+ [(fn [fr] (= :log (-> fr pj/plan :legend :scale-type)))])
+
 ;; `:shape` is categorical only, since symbols have no continuous
-;; ordering. Its `:values` sets which symbols to use, in the same order
-;; as `:domain`.
+;; ordering. A `:domain` sets the category order the legend follows,
+;; and `:values` sets which symbols to use, in that same order.
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:shape :continent})
+    (pj/scale :shape {:domain ["Africa" "Americas" "Asia" "Europe" "Oceania"]})
+    (pj/scale :x :log))
+
+(kind/test-last
+ [(fn [fr] (= ["Africa" "Americas" "Asia" "Europe" "Oceania"]
+              (mapv :label (:entries (:shape-legend (pj/plan fr))))))])
+
+;; `:color` and `:fill` do not order their legend this way. They accept
+;; a `:domain` and read it for nothing, on a categorical column and a
+;; numeric one alike, so the legend below keeps the order the data
+;; gives it rather than the order asked for:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :continent})
+    (pj/scale :color {:domain ["Oceania" "Europe" "Asia" "Americas" "Africa"]})
+    (pj/scale :x :log))
+
+(kind/test-last
+ [(fn [fr] (not= ["Oceania" "Europe" "Asia" "Americas" "Africa"]
+                 (mapv :label (:entries (:legend (pj/plan fr))))))])
+
+;; That is a gap rather than a design, recorded in
+;; [Known Limitations](./plotje_book.known_limitations.html#scales).
+;; Until it closes, order the categories by ordering the column's
+;; values in the data.
 
 ;; ## Not supported yet
 ;;
 ;; - Two layers of one pose cannot read an aesthetic through different
 ;;   scales. For `:x` and `:y` this makes no difference, since a panel
-;;   has one of each axis. For `:size`, `:color` and `:alpha` it is a
-;;   limitation, and lifting it requires a plot to carry two legends
-;;   for one aesthetic.
+;;   has one of each axis. For `:size` and `:alpha` it is a limitation,
+;;   and the two layers are refused rather than drawn; lifting it
+;;   requires a plot to carry two legends for one aesthetic. `:color`
+;;   and `:fill` are not checked at all, so the first layer's scale
+;;   silently decides for both.
 ;; - Facet panels share their scale types. Their domains can already
 ;;   differ: `{:scales :free}` gives each panel its own.
 ;; - A `:size` mark is scaled against its own panel, while the legend

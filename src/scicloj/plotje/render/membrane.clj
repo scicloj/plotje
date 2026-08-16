@@ -155,14 +155,9 @@
       (update shape-legend :entries
               (fn [entries] (mapv #(assoc % :color mark-color) entries))))))
 
-(defn- fmt-legend-number
-  "Format a legend's numeric value: an integral value loses its trailing
-   .0, and the digits are grouped per `:thousands-separator`, so a legend
-   reads the same way as the axis ticks beside it."
-  [v cfg]
-  (let [d (double v)
-        s (if (== d (Math/floor d)) (str (long d)) (str v))]
-    (defaults/fmt-number s (defaults/number-separators cfg))))
+;; Moved to impl.defaults so the layout can measure the same string
+;; this draws -- see defaults/fmt-legend-number.
+(def ^:private fmt-legend-number defaults/fmt-legend-number)
 
 (defn- size-swatch-box
   "The box one swatch occupies for a magnitude, as `[width height]`.

@@ -757,12 +757,34 @@
       (is (pj/pose? result))
       (is (= {:scale {:type :log}} (get-in result [:mapping :x]))))))
 
-(deftest composite-scale-accepts-map-spec-test
-  (testing "pj/scale with a map scale-type fills in :linear as default :type"
+(deftest composite-scale-writes-the-spec-as-written-test
+  (testing "pj/scale with a map scale-type writes what the caller stated"
+    ;; No :type is filled in here. A spec that names none is not an
+    ;; opinion that the scale is linear, and fabricating one made the
+    ;; second of two pj/scale calls silently undo the first one's type.
+    ;; The default is applied once, after every scope has accumulated;
+    ;; scale_spec_test covers what the plan then reads.
     (let [fr {:poses [{:layers []}]}
           result (pj/scale fr :y {:breaks [0 5 10]})]
-      (is (= {:type :linear :breaks [0 5 10]}
+      (is (= {:breaks [0 5 10]}
              (get-in result [:mapping :y :scale]))))))
+
+(deftest scale-twice-keeps-the-type-set-first-test
+  (testing "a second pj/scale call does not reset the type the first set"
+    (let [d {:x [1 10 100] :y [1 2 3]}
+          x-scale #(-> % pj/plan :panels first :x-scale)]
+      (is (= {:type :log}
+             (x-scale (-> d (pj/lay-point :x :y) (pj/scale :x :log)))))
+      (is (= {:type :log :breaks [1 10 100]}
+             (x-scale (-> d
+                          (pj/lay-point :x :y)
+                          (pj/scale :x :log)
+                          (pj/scale :x {:breaks [1 10 100]})))))
+      ;; and the fallback still lands where nothing named a type
+      (is (= {:type :linear :breaks [1 2 3]}
+             (x-scale (-> d
+                          (pj/lay-point :x :y)
+                          (pj/scale :x {:breaks [1 2 3]}))))))))
 
 (deftest composite-coord-writes-root-opts-test
   (testing "pj/coord on a composite writes :coord at the root"

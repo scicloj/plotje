@@ -316,7 +316,7 @@ dashboard
 ;;   and each can have its own title. Written on the composite itself,
 ;;   they apply to every cell that does not set them. This is also the
 ;;   way around a limitation within one pose -- two layers cannot read
-;;   one channel through different scales, but two cells can.
+;;   one aesthetic through different scales, but two cells can.
 ;; - **Legends merge when sibling sub-poses agree on an aesthetic.**
 ;;   If every leaf maps the same aesthetic identically (e.g.,
 ;;   `:color :species` in all cells), the compositor renders a
