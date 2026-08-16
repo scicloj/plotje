@@ -351,18 +351,13 @@ plants
 
 ;; ### Leaving the source to the data
 ;;
-;; The other way round is `:from`. It names the source the way the
+;; The third source key is `:from`. It names the source the way the
 ;; plain form does -- ask the data, and take whichever answer it gives
-;; -- while still leaving room for a `:scale`. A plain `:size :weight`
-;; has nowhere to put one.
+;; -- while leaving room for a `:scale`, which a plain mapping has
+;; nowhere to put.
 ;;
-;; So these two draw the same plot, and the second can carry a scale:
-
-(-> plants
-    (pj/lay-point :height :weight {:color :shade}))
-
-(kind/test-last
- [(fn [fr] (= 4 (:points (pj/svg-summary fr))))])
+;; `{:color {:from :shade}}` and the plain `{:color :shade}` say the
+;; same thing, and draw the same plot:
 
 (-> plants
     (pj/lay-point :height :weight {:color {:from :shade}}))
@@ -373,23 +368,44 @@ plants
                   (pj/lay-point :height :weight {:color :shade})
                   pj/svg-summary)))])
 
-;; `:from` decides nothing that the plain form would not decide. Here
-;; the data carries a `:shade` column, so both read it as a column. On
-;; data without one, both would read `:shade` as a value -- and a value
-;; that is neither a column nor something the aesthetic can draw is
-;; reported either way.
-;;
-;; This is also how a scale set on a pose reaches a plain mapping
-;; written below it. Combining them rewrites the plain value in the
-;; full form, since that is where the scale can live:
+;; The point of writing it that way is what can be added. `:shade`
+;; holds colors, and the palette is drawn over them because a column
+;; passes through the color scale. `:scale false` draws them as they
+;; stand -- and the plain form cannot say it:
 
 (-> plants
-    (pj/pose :height :weight {:size {:column :weight :scale {:range [3 16]}}})
-    (pj/lay-point {:size :weight})
-    pj/plan
-    :panels first :layers first :size-scale)
+    (pj/lay-point :height :weight {:color {:from :shade :scale false}}))
 
-(kind/test-last [(fn [spec] (= {:range [3 16]} spec))])
+(kind/test-last
+ [(fn [fr]
+    (= [[0.8 0.2 (/ 17.0 255) 1.0]
+        [0.0 (/ 119.0 255) (/ 187.0 255) 1.0]
+        [0.0 0.6 (/ 136.0 255) 1.0]]
+       (->> fr pj/plan :panels first :layers first :groups (mapv :color))))])
+
+;; `{:column :shade :scale false}` would draw the same plot here, and
+;; the two differ on data that carries no `:shade` column: `:column`
+;; insists on a column and reports it missing, while `:from` reads
+;; `:shade` as a value, exactly as the plain form does.
+;;
+;; `:from` is also what `pj/scale` writes when the aesthetic is already
+;; mapped plainly. The scale has to live somewhere, and a plain value
+;; has no room for it, so the mapping is rewritten in the full form.
+;; Here is the pose's mapping after both calls:
+
+(-> plants
+    (pj/pose :height :weight {:color :weight})
+    (pj/scale :color :log)
+    :mapping)
+
+(kind/test-last
+ [(fn [m] (= {:x :height
+              :y :weight
+              :color {:from :weight :scale {:type :log}}}
+             m))])
+
+;; The mapping still names `:weight` the way it did, and now carries
+;; the scale beside it.
 
 ;; ## The positional aesthetics and `:scale false`
 ;;
