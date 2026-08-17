@@ -87,7 +87,8 @@ gapminder-2007
            (some? (:size-legend p))
            (some? (:legend p)))))])
 
-;; This plot has one scale per aesthetic it maps: `:gdp-percap` and
+;; The pose maps four aesthetics, and the plot has one scale for each:
+;; `:gdp-percap` and
 ;; `:life-exp` on the two axes, `:pop` on size, and `:continent` on
 ;; color. The two that have no axis are explained by legends.
 
@@ -113,7 +114,7 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))])
 
-;; Written on one plot of a composite, a scale covers that plot alone,
+;; Written on one pose of a composite, a scale covers that pose alone,
 ;; so two of them can differ:
 
 (def linear-cell
@@ -513,7 +514,7 @@ gapminder-2007
 ;;
 ;; The domain is the data the scale reads. Left alone it is taken from
 ;; the column: its lowest and highest value, or its distinct
-;; categories. Writing one says what the plot should read instead --
+;; categories. Writing one says what the scale should read instead --
 ;; which is a different statement on an axis than on a visual
 ;; aesthetic, and a different statement again on a categorical column
 ;; than on a continuous one.
@@ -983,8 +984,8 @@ pj/shape-symbols
 ;; ## Not supported yet
 ;;
 ;; - Two layers of one pose cannot read an aesthetic through different
-;;   scales, as just shown. `:color` and `:fill` are not checked at
-;;   all, so the first layer's scale silently decides for both.
+;;   scales, as just shown. Lifting this would need a plot to carry two
+;;   legends for one aesthetic.
 ;; - Facet panels share their scale types. Their domains can already
 ;;   differ: `{:scales :free}` gives each panel its own.
 ;; - A `:size` mark is scaled against its own panel, while the legend

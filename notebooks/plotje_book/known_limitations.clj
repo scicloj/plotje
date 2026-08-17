@@ -201,13 +201,11 @@
 ;; ## Scales
 ;;
 ;; - One pose reads an aesthetic through one scale. Two layers asking
-;;   for different scales on `:size` or `:alpha` are refused rather
-;;   than drawn, since a plot has one legend per aesthetic. For `:x`
-;;   and `:y` the question does not arise, because a panel has one of
-;;   each axis. `:color` and `:fill` are neither refused nor drawn
-;;   twice: the first layer's scale silently decides for both, so a
-;;   log scale written on the second layer changes nothing. Workaround
-;;   in every case: put the layers in separate poses with
+;;   for different scales on `:size`, `:alpha`, `:color` or `:fill`
+;;   are refused rather than drawn, since a plot has one legend per
+;;   aesthetic. Two layers naming different scales for `:x` or `:y`
+;;   are refused as well, because a panel has one of each axis.
+;;   Workaround in every case: put the layers in separate poses with
 ;;   `pj/arrange`, where each cell has its own scales and its own
 ;;   legend.
 ;;
