@@ -539,8 +539,9 @@ integer-named
 ;;
 ;; `true` and `false` say which side of the scale a mapping is read
 ;; through. `:scale` also accepts a scale **type** -- linear or
-;; logarithmic, for instance -- and a whole scale **spec**, and then it
-;; says which scale as well:
+;; logarithmic, for instance -- and a whole scale **spec**, the map
+;; that says which scale and how, and then it says which scale as
+;; well:
 
 (-> plants
     (pj/lay-point :height :weight {:size {:column :weight :scale :log}}))
@@ -581,7 +582,8 @@ integer-named
 ;; the aesthetic -- `:size` reads `:range`, `:by` and `:from-zero`
 ;; beside `:type` and `:domain`, an axis reads `:breaks` and `:labels`
 ;; -- and a key the aesthetic does not read is refused rather than
-;; dropped. The Scales chapter has each of them.
+;; dropped. [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
+;; has each of them.
 ;;
 ;; ### The axes take one scale per panel
 ;;
