@@ -1727,16 +1727,39 @@
                        :layer-type layer-type-key
                        :registered registered})))))
 
+(defn- lay-layer-type-key
+  "The registry key for a `pj/lay` layer-type argument.
+
+   Two spellings reach here: the keyword a layer type is registered
+   under, and the entry `pj/layer-type-lookup` answers with, which is
+   what the extensibility chapters pass. An entry carries no key of its
+   own, so it is matched back to one by identity.
+
+   Everything downstream reads the keyword -- the option messages name
+   it, and the accepted-option list is looked up by it -- so an entry
+   that arrived unresolved lost the unknown-option check and named
+   itself in any warning it did print."
+  [layer-type-key]
+  (if (or (keyword? layer-type-key) (nil? layer-type-key))
+    layer-type-key
+    (or (some (fn [[k entry]] (when (= entry layer-type-key) k))
+              (layer-type/registered))
+        layer-type-key)))
+
 (defn lay
   "Add a root-scope layer. The layer attaches to `:layers` and flows to
    every descendant leaf at plan time (composite) or renders on the
-   single panel (leaf)."
+   single panel (leaf).
+
+   The layer type is named either by its keyword or by the entry
+   `pj/layer-type-lookup` answers with; both behave the same."
   ([pose-or-data layer-type-key]
    (lay pose-or-data layer-type-key nil))
   ([pose-or-data layer-type-key opts]
-   (validate-lay-layer-type-key layer-type-key)
-   (let [layer (build-layer layer-type-key opts)]
-     (update (->pose pose-or-data "pj/lay") :layers (fnil conj []) layer))))
+   (let [layer-type-key (lay-layer-type-key layer-type-key)]
+     (validate-lay-layer-type-key layer-type-key)
+     (let [layer (build-layer layer-type-key opts)]
+       (update (->pose pose-or-data "pj/lay") :layers (fnil conj []) layer)))))
 
 (defn- x-only?
   "True if layer-type-key is registered as x-only (rejects :y column)."

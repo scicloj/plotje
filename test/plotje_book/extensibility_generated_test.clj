@@ -334,9 +334,9 @@
   scatter-stat
   :points
   first
-  (update :xs (fn* [p1__74675#] (vec (take 3 p1__74675#))))
-  (update :ys (fn* [p1__74676#] (vec (take 3 p1__74676#))))
-  (update :row-indices (fn* [p1__74677#] (vec (take 3 p1__74677#))))))
+  (update :xs (fn* [p1__11193#] (vec (take 3 p1__11193#))))
+  (update :ys (fn* [p1__11194#] (vec (take 3 p1__11194#))))
+  (update :row-indices (fn* [p1__11195#] (vec (take 3 p1__11195#))))))
 
 
 (deftest
@@ -473,46 +473,79 @@
 (deftest t76_l547 (is ((fn [t] (= 17 (count (:row-maps t)))) v75_l536)))
 
 
-(def v78_l636 (mark/mark-clip-region :point))
-
-
-(deftest
- t79_l638
- (is ((fn* [p1__74678#] (= :drawing-area p1__74678#)) v78_l636)))
-
-
-(def v80_l640 (mark/mark-clip-region :rug))
-
-
-(deftest
- t81_l642
- (is ((fn* [p1__74679#] (= :panel-box p1__74679#)) v80_l640)))
+(def
+ v78_l562
+ (def
+  bubble-layer
+  (->
+   {:x [1 2 3], :y [1 2 3], :n [1 4 9]}
+   (pj/lay-point :x :y {:size :n})
+   pj/plan
+   :panels
+   first
+   :layers
+   first)))
 
 
 (def
- v83_l652
+ v79_l568
+ (let
+  [groups
+   (:groups bubble-layer)
+   radius-of
+   (layer-type/channel-magnitude-fn
+    bubble-layer
+    :size
+    (keep :sizes groups))]
+  (mapv radius-of [1 4 9])))
+
+
+(deftest
+ t80_l573
+ (is
+  ((fn [radii] (= [2.0 8.0] [(first radii) (last radii)])) v79_l568)))
+
+
+(def v82_l672 (mark/mark-clip-region :point))
+
+
+(deftest
+ t83_l674
+ (is ((fn* [p1__11196#] (= :drawing-area p1__11196#)) v82_l672)))
+
+
+(def v84_l676 (mark/mark-clip-region :rug))
+
+
+(deftest
+ t85_l678
+ (is ((fn* [p1__11197#] (= :panel-box p1__11197#)) v84_l676)))
+
+
+(def
+ v87_l688
  (defmethod mark/mark-clip-region :margin-glyph [_] :panel-box))
 
 
-(def v84_l654 (mark/mark-clip-region :margin-glyph))
+(def v88_l690 (mark/mark-clip-region :margin-glyph))
 
 
 (deftest
- t85_l656
- (is ((fn* [p1__74680#] (= :panel-box p1__74680#)) v84_l654)))
+ t89_l692
+ (is ((fn* [p1__11198#] (= :panel-box p1__11198#)) v88_l690)))
 
 
-(def v87_l660 (remove-method mark/mark-clip-region :margin-glyph))
+(def v91_l696 (remove-method mark/mark-clip-region :margin-glyph))
 
 
-(def v88_l662 (contains? (methods mark/mark-clip-region) :margin-glyph))
+(def v92_l698 (contains? (methods mark/mark-clip-region) :margin-glyph))
 
 
-(deftest t89_l664 (is (false? v88_l662)))
+(deftest t93_l700 (is (false? v92_l698)))
 
 
 (def
- v91_l688
+ v95_l724
  (def
   my-plan
   (->
@@ -521,44 +554,44 @@
    pj/plan)))
 
 
-(def v92_l693 (first (pj/plan->plot my-plan :svg {})))
+(def v96_l729 (first (pj/plan->plot my-plan :svg {})))
 
 
-(deftest t93_l695 (is ((fn [v] (= :svg v)) v92_l693)))
+(deftest t97_l731 (is ((fn [v] (= :svg v)) v96_l729)))
 
 
-(def v95_l699 (def my-figure (pj/plan->plot my-plan :svg {})))
+(def v99_l735 (def my-figure (pj/plan->plot my-plan :svg {})))
 
 
-(def v96_l701 (vector? my-figure))
+(def v100_l737 (vector? my-figure))
 
 
-(deftest t97_l703 (is ((fn [v] (true? v)) v96_l701)))
+(deftest t101_l739 (is ((fn [v] (true? v)) v100_l737)))
 
 
-(def v99_l753 (def my-membrane (pj/plan->membrane my-plan)))
+(def v103_l789 (def my-membrane (pj/plan->membrane my-plan)))
 
 
-(def v100_l755 (pj/membrane? my-membrane))
+(def v104_l791 (pj/membrane? my-membrane))
 
 
-(deftest t101_l757 (is ((fn [v] (true? v)) v100_l755)))
+(deftest t105_l793 (is ((fn [v] (true? v)) v104_l791)))
 
 
-(def v102_l759 (membrane.ui/width my-membrane))
+(def v106_l795 (membrane.ui/width my-membrane))
 
 
-(deftest t103_l761 (is ((fn [v] (number? v)) v102_l759)))
+(deftest t107_l797 (is ((fn [v] (number? v)) v106_l795)))
 
 
-(def v104_l763 (first (pj/membrane->plot my-membrane :svg {})))
+(def v108_l799 (first (pj/membrane->plot my-membrane :svg {})))
 
 
-(deftest t105_l765 (is ((fn [v] (= :svg v)) v104_l763)))
+(deftest t109_l801 (is ((fn [v] (= :svg v)) v108_l799)))
 
 
 (def
- v107_l771
+ v111_l807
  (def
   shortcut-membrane
   (pj/membrane
@@ -567,14 +600,14 @@
     (pj/lay-point :sepal-length :sepal-width {:color :species})))))
 
 
-(def v108_l776 (pj/membrane? shortcut-membrane))
+(def v112_l812 (pj/membrane? shortcut-membrane))
 
 
-(deftest t109_l778 (is ((fn [v] (true? v)) v108_l776)))
+(deftest t113_l814 (is ((fn [v] (true? v)) v112_l812)))
 
 
 (def
- v111_l817
+ v115_l853
  (kind/table
   {:column-names ["Dispatch value" "Scale type"],
    :row-maps
@@ -591,12 +624,12 @@
 
 
 (deftest
- t112_l827
- (is ((fn [t] (= 3 (count (:row-maps t)))) v111_l817)))
+ t116_l863
+ (is ((fn [t] (= 3 (count (:row-maps t)))) v115_l853)))
 
 
 (def
- v114_l838
+ v118_l874
  (kind/table
   {:column-names ["Dispatch value" "Behavior"],
    :row-maps
@@ -614,12 +647,12 @@
 
 
 (deftest
- t115_l849
- (is ((fn [t] (= 4 (count (:row-maps t)))) v114_l838)))
+ t119_l885
+ (is ((fn [t] (= 4 (count (:row-maps t)))) v118_l874)))
 
 
 (def
- v117_l861
+ v121_l897
  (->>
   (methods scicloj.plotje.impl.coord/make-inverse)
   keys
@@ -630,28 +663,28 @@
 
 
 (deftest
- t118_l868
- (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v117_l861)))
+ t122_l904
+ (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v121_l897)))
 
 
 (def
- v120_l879
+ v124_l915
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t121_l883
+ t125_l919
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v120_l879)))
+   v124_l915)))
 
 
 (def
- v123_l899
+ v127_l935
  (defmethod
   stat/compute-stat
   :quantile
@@ -660,7 +693,7 @@
 
 
 (def
- v124_l902
+ v128_l938
  (defmethod
   stat/compute-stat
   [:quantile :doc]
@@ -668,32 +701,32 @@
   "Quantile regression bands"))
 
 
-(def v126_l907 (pj/stat-doc :quantile))
+(def v130_l943 (pj/stat-doc :quantile))
 
 
 (deftest
- t127_l909
- (is ((fn [v] (= "Quantile regression bands" v)) v126_l907)))
+ t131_l945
+ (is ((fn [v] (= "Quantile regression bands" v)) v130_l943)))
 
 
-(def v129_l917 (remove-method stat/compute-stat [:quantile :doc]))
+(def v133_l953 (remove-method stat/compute-stat [:quantile :doc]))
 
 
-(def v130_l919 (pj/stat-doc :quantile))
+(def v134_l955 (pj/stat-doc :quantile))
 
 
-(deftest t131_l921 (is ((fn [v] (= "(no description)" v)) v130_l919)))
+(deftest t135_l957 (is ((fn [v] (= "(no description)" v)) v134_l955)))
 
 
-(def v133_l927 (remove-method stat/compute-stat :quantile))
+(def v137_l963 (remove-method stat/compute-stat :quantile))
 
 
 (def
- v134_l929
+ v138_l965
  (count
   (remove
    #{:default}
    (filter keyword? (keys (methods stat/compute-stat))))))
 
 
-(deftest t135_l931 (is ((fn [v] (= 11 v)) v134_l929)))
+(deftest t139_l967 (is ((fn [v] (= 11 v)) v138_l965)))

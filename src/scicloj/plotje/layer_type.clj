@@ -3,7 +3,9 @@
    Layer types are plain data maps. The registry makes them discoverable
    and extensible. Use `lookup` to get a layer type by keyword, `registered`
    to enumerate all layer types, and `register!` to add new ones."
-  (:require [scicloj.plotje.impl.resolve :as resolve]))
+  (:require [scicloj.plotje.impl.resolve :as resolve]
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.scale :as scale]))
 
 ;; ---- Registry ----
 
@@ -276,6 +278,36 @@
   (-> (or (mark-varies mark channel) (default-quantities channel))
       quantities
       :ink-exponent))
+
+(defn channel-magnitude-fn
+  "A function from a value in `bufs` to the quantity a mark draws it as
+   -- a radius, a width, an opacity -- for `channel` on plan `layer`.
+
+   This is the drawing half of a layer type's `:varies` declaration.
+   Declaring a channel earns the layer a legend, and the legend's
+   swatches are built from this same function: a mark that applies it
+   to its own per-row buffers draws what its legend explains, and one
+   that scales the values itself does not.
+
+   `layer` is the plan layer a renderer is handed, and `bufs` are the
+   per-row buffers it will draw from -- their extremes are what the
+   scale reads the values against. Answers `identity` where the channel
+   is drawn as it stands (a mapping's `:scale false`), so a renderer
+   can apply the result either way, and nil where there is nothing to
+   draw.
+
+       (let [f (layer-type/channel-magnitude-fn layer :size (keep :sizes groups))]
+         (if sizes (f (sizes i)) default-radius))"
+  [layer channel bufs]
+  (when (seq bufs)
+    (if (get layer (keyword (str (name channel) "-drawn?")))
+      identity
+      (scale/channel-mapper
+       (get layer (defaults/channel->scale-key channel))
+       (reduce min (map #(reduce min %) bufs))
+       (reduce max (map #(reduce max %) bufs))
+       (get defaults/channel-ranges channel)
+       (ink-exponent (:mark layer) channel)))))
 
 (def layer-type-order
   "Canonical display order for built-in layer types."

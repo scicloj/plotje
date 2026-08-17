@@ -265,20 +265,12 @@
         ;; so the mark drawn beside a value in the legend is the size a
         ;; mark of that value is drawn at on the panel.
         ;; A column told not to scale holds radii and opacities already.
-        channel-scale (fn [bufs scale-key drawn-key channel]
-                        (when (seq bufs)
-                          (if (drawn-key layer)
-                            identity
-                            (scale/channel-mapper
-                             (scale-key layer)
-                             (reduce min (map dfn/reduce-min bufs))
-                             (reduce max (map dfn/reduce-max bufs))
-                             (channel defaults/channel-ranges)
-                             (layer-type/ink-exponent (:mark layer) channel)))))
-        size-bufs (keep :sizes groups)
-        size-scale (channel-scale size-bufs :size-scale :size-drawn? :size)
-        alpha-bufs (keep :alphas groups)
-        alpha-scale (channel-scale alpha-bufs :alpha-scale :alpha-drawn? :alpha)
+        ;; The public function an extension mark calls for the same
+        ;; purpose, so the built-in point mark and an extension read one
+        ;; implementation and cannot drift from the legend or from each
+        ;; other.
+        size-scale (layer-type/channel-magnitude-fn layer :size (keep :sizes groups))
+        alpha-scale (layer-type/channel-magnitude-fn layer :alpha (keep :alphas groups))
         ;; The category-to-symbol assignment is decided at plan time so
         ;; the legend and the marks show the same symbol for a category.
         shape-map (:shape-map layer)]

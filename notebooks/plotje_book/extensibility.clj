@@ -546,6 +546,42 @@ graph LR
 
 (kind/test-last [(fn [t] (= 17 (count (:row-maps t))))])
 ;;
+;; ### Drawing an aesthetic the layer type declares it varies
+;;
+;; A layer type says which appearance aesthetics its mark varies from
+;; row to row under `:varies`, and that declaration earns the layer a
+;; legend. Drawing them is the renderer's half, and it has to agree
+;; with the legend: both read the column's values through the same
+;; scale, and a mark that spreads the values itself instead will draw
+;; sizes its own legend does not explain.
+;;
+;; `layer-type/channel-magnitude-fn` is that shared function. It turns
+;; a value from the layer's per-row buffers into the quantity the mark
+;; draws -- a radius, a width, an opacity:
+
+(def bubble-layer
+  (-> {:x [1 2 3] :y [1 2 3] :n [1 4 9]}
+      (pj/lay-point :x :y {:size :n})
+      pj/plan
+      :panels first :layers first))
+
+(let [groups (:groups bubble-layer)
+      radius-of (layer-type/channel-magnitude-fn bubble-layer :size
+                                                 (keep :sizes groups))]
+  (mapv radius-of [1 4 9]))
+
+(kind/test-last
+ [(fn [radii]
+    ;; The ends of the size range, which is what the legend explains.
+    (= [2.0 8.0] [(first radii) (last radii)]))])
+
+;; It answers `identity` where the mapping asked for the column's
+;; values as they stand (`{:scale false}`), so a renderer applies the
+;; result either way, and nil where the layer carries nothing to draw.
+;;
+;; A mark that declares an aesthetic and then draws no per-row values
+;; for it is reported at `pj/plan`, naming the mark and the aesthetic.
+
 ;; ### How to extend: add a new mark type
 ;;
 ;; Adding a new mark (e.g., `:area` for area charts) requires methods
