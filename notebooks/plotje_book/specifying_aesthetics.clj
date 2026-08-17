@@ -10,10 +10,9 @@
 ;;
 ;; Most of the time you do not write the full form. Plotje has
 ;; conventions that supply the two answers from a shorter notation, and
-;; the shorter notation is what the rest of the book uses. The
-;; conventions are worth learning as conventions -- as a shorthand for
-;; something you could have written out -- rather than as rules of their
-;; own.
+;; the shorter notation is what the rest of the book uses. Each
+;; convention is a shorthand for something you could have written out,
+;; not a rule of its own.
 ;;
 ;; So this chapter goes in that order. First the full form, and the
 ;; combinations of the two answers it can express. Then the
@@ -183,8 +182,7 @@ plants
 ;; color, and a legend appears with one entry reading `"Model A"`.
 ;;
 ;; This is how a whole layer is labelled as a named series. The value
-;; is not a color and does not have to be one -- it is data, and the
-;; scale supplies the color.
+;; is not a color -- it is data, and the scale supplies the color.
 
 (-> plants
     (pj/lay-point :height :weight {:color {:value "Model A" :scale true}
@@ -216,10 +214,9 @@ plants
       (and (= ["fern" "moss" "ivy"] (mapv :label (:entries (:legend p))))
            (= ivy (-> p :panels first :layers second :groups first :color)))))])
 
-;; This is what makes the fourth combination worth having: it is how a
-;; layer with no column of its own is drawn in the color the scale
-;; already gives a category. A value the column does not hold is a new
-;; category instead, and takes a color and a legend row of its own:
+;; So a layer with no column of its own can be drawn in the color the
+;; scale already gives a category. A value the column does not hold is a
+;; new category instead, and takes a color and a legend row of its own:
 
 (-> plants
     (pj/pose :height :weight)

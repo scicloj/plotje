@@ -40,8 +40,8 @@
 
 gapminder-2007
 
-;; Two of its columns cover very wide intervals, which is what makes
-;; the difference between a linear and a log scale easy to see:
+;; Two of its columns cover very wide intervals, where a log scale and
+;; a linear one differ most:
 
 (-> gapminder-2007
     (tc/aggregate-columns [:gdp-percap :pop]
@@ -192,9 +192,9 @@ gapminder-2007
 
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
-;; The map is what says more than a type can. Which keys it may carry
-;; depends on the aesthetic, and a key the aesthetic does not read is
-;; refused rather than ignored -- in `pj/scale` and in a mapping alike:
+;; Which keys the map may carry depends on the aesthetic, and a key the
+;; aesthetic does not read is refused rather than ignored -- in
+;; `pj/scale` and in a mapping alike:
 
 (try
   (-> gapminder-2007
@@ -235,14 +235,13 @@ gapminder-2007
  [(fn [fr] (= {:type :log :range [3 16]}
               (-> fr pj/plan :panels first :layers first :size-scale)))])
 
-;; This is only true of the scale. The rest of a mapping is replaced by
-;; the mapping below it, because a mapping states one source and two
-;; sources cannot combine -- `{:column :n :value 7}` is refused by
-;; name. A scale is a set of independent settings, so it accumulates.
+;; The rest of a mapping is replaced by the mapping below it, because a
+;; mapping states one source and two sources cannot combine --
+;; `{:column :n :value 7}` is refused by name. A scale is a set of
+;; independent settings, so it accumulates.
 ;;
-;; `:scale false` is not a setting to accumulate. It says the value
-;; passes through no scale at all, so it replaces whatever was set
-;; above.
+;; `:scale false` does not accumulate: it says the value passes through
+;; no scale at all, so it replaces whatever was set above.
 ;;
 ;; A column read this way has to hold what the aesthetic draws. For
 ;; `:size` that is a radius in drawing units, so the column below
@@ -261,13 +260,12 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (nil? (-> fr pj/plan :panels first :layers first :size-scale)))])
 
-;; On `:x` and `:y`, `:scale false` says something stronger. It does
-;; not select another scale: it says the value is not a data value at
-;; all, but a distance in drawing units from the top left of the panel
-;; background, so the mark is placed on the panel rather than in the
-;; data. That is a per-layer question -- one layer can be placed on the
-;; panel while another is placed in the data -- and `{:in
-;; :drawing-area}` says the same for both axes of a layer at once. See
+;; On `:x` and `:y`, `:scale false` means the value is a distance in
+;; drawing units from the top left of the panel background rather than
+;; a data value, so the mark is placed on the panel rather than in the
+;; data. One layer can be placed on the panel while another is placed
+;; in the data, and `{:in :drawing-area}` says the same for both axes
+;; of a layer at once. See
 ;; [Placing Marks](./plotje_book.placing_marks.html).
 ;;
 ;; `:scale true` says only that the value passes through the
@@ -307,12 +305,11 @@ gapminder-2007
            pj/plan
            :panels first :layers first :size-scale)))])
 
-;; What differs is only what else they say. A mapping's `:scale` comes
-;; with a mapping, so it also names the column or value the aesthetic
-;; reads; `pj/scale` sets the scale on its own, leaving the source to
-;; be named wherever it already is -- including on a layer, below the
-;; pose the call was made on. Everything a spec can carry is available
-;; in both.
+;; A mapping's `:scale` comes with a mapping, so it also names the
+;; column or value the aesthetic reads; `pj/scale` sets the scale on its
+;; own, leaving the source to be named wherever it already is --
+;; including on a layer, below the pose the call was made on.
+;; Everything a spec can carry is available in both.
 
 ;; ## What each aesthetic's scale takes
 ;;
@@ -880,8 +877,7 @@ gapminder-2007
 ;; declares what it draws each aesthetic as. A point draws `:size` as a
 ;; radius and `:alpha` as an opacity. A mark drawing a stroke would
 ;; declare a width. The declaration also fixes how the area grows with
-;; the quantity: as the square for a radius, linearly for a width. The
-;; scale uses that, so it does not need to know the shape.
+;; the quantity: as the square for a radius, linearly for a width.
 
 (:varies (layer-type/lookup :point))
 
