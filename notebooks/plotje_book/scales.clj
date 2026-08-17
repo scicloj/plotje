@@ -544,8 +544,30 @@ gapminder-2007
 ;;
 ;; A size legend's swatches are computed from the same function as the
 ;; marks, so the swatch next to a value is the size a mark of that
-;; value is drawn at. The swatch shape follows the quantity: circles
-;; for a radius, strokes for a width.
+;; value is drawn at.
+;;
+;; A swatch is also drawn in the shape of the quantity it explains. One
+;; column mapped to both `:size` and `:alpha` earns two legends over
+;; the same values, and they look nothing alike: a radius is explained
+;; by graduated circles, an opacity by squares of one size at graduated
+;; opacities.
+
+(-> squares
+    (pj/lay-point :x :y {:size :n :alpha :n})
+    (pj/options {:width 620}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [p (pj/plan fr)]
+      (and (= :radius (:quantity (:size-legend p)))
+           (= :circle (:swatch (:size-legend p)))
+           (= :square (:swatch (layer-type/quantities :opacity))))))])
+
+;; A mark that draws a size as the width of a stroke rather than the
+;; radius of a circle is explained by strokes of that thickness. No
+;; built-in mark draws one, so seeing that swatch means registering a
+;; layer type that declares `{:size :width}` -- see
+;; [Extensibility](./plotje_book.extensibility.html).
 ;;
 ;; A plot has one legend per aesthetic, so two layers cannot read one
 ;; aesthetic through different scales. That is refused:
@@ -564,9 +586,10 @@ gapminder-2007
 
 ;; ## Axes
 ;;
-;; An axis scale takes `:type` and `:domain` like any other scale, plus
-;; the options that control ticks. `:domain` sets what the panel shows.
-;; It does not remove rows.
+;; The scale of an `:x` or `:y` mapping -- an axis scale -- takes
+;; `:type` and `:domain` like any other, plus the options that place
+;; and word tick marks. `:domain` sets what the panel shows. It does
+;; not remove rows.
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)
@@ -579,6 +602,65 @@ gapminder-2007
 ;; `:labels` pairs custom text with `:breaks`, and `:n-ticks` reduces
 ;; the number of labels on a crowded categorical axis. Both are covered
 ;; in [Customization](./plotje_book.customization.html#scales).
+
+;; ### Categorical axes
+;;
+;; `:linear` and `:log` both read a number. `:categorical` reads which
+;; category a value is, and gives each one a band of its own. A column
+;; of names is read that way without being asked:
+
+(-> gapminder-2007
+    (pj/lay-bar :continent))
+
+(kind/test-last
+ [(fn [fr] (= ["Asia" "Europe" "Africa" "Americas" "Oceania"]
+              (->> fr pj/plan :panels first :x-domain vec)))])
+
+;; The bands are in the order the data gives them. A `:domain` on a
+;; categorical scale supplies a different one:
+
+(-> gapminder-2007
+    (pj/lay-bar :continent)
+    (pj/scale :x {:type :categorical
+                  :domain ["Oceania" "Africa" "Asia" "Americas" "Europe"]}))
+
+(kind/test-last
+ [(fn [fr] (= ["Oceania" "Africa" "Asia" "Americas" "Europe"]
+              (->> fr pj/plan :panels first :x-domain vec)))])
+
+;; Asking for `:categorical` on an axis that holds numbers is refused,
+;; and the message says what to reach for instead. The scale follows
+;; from the column's type, so it is the column's type that has to
+;; change. The refusal comes at `pj/plan`, since it takes reading the
+;; column to know that the two disagree:
+
+(try
+  (-> (rdatasets/ggplot2-mpg)
+      (pj/lay-point :cyl :hwy)
+      (pj/scale :x :categorical)
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (re-find #"set :x-type or :y-type to :categorical" m))])
+
+;; `:cyl` counts cylinders -- 4, 5, 6 and 8 -- and the numbers stand
+;; for kinds of engine rather than for a quantity to measure along.
+;; `:x-type :categorical` says so, and each count gets its own band:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :cyl :hwy {:x-type :categorical}))
+
+(kind/test-last
+ [(fn [fr] (= ["4" "6" "8" "5"] (->> fr pj/plan :panels first :x-domain vec)))])
+
+;; Reading them as categories is all `:x-type` does: the bands are in
+;; the order the rows happen to arrive in, which puts the five-cylinder
+;; cars last. A `:domain` orders them, as it did for the continents
+;; above -- written as the text the bands are labelled with,
+;; `["4" "5" "6" "8"]`, since the column's numbers became categories on
+;; the way here.
 
 ;; ## Color, fill and shape
 ;;
@@ -593,6 +675,41 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= :log (-> fr pj/plan :legend :scale-type)))])
+
+;; Which of the two applies follows from the column's type, exactly as
+;; it does on an axis, and it is settled the same way. `:cyl` holds
+;; numbers, so by default it is drawn through a gradient:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy {:color :cyl}))
+
+(kind/test-last
+ [(fn [fr] (= :continuous (-> fr pj/plan :legend :type)))])
+
+;; Four counts of cylinders read as a continuous quantity, which is
+;; not what they are. `:color-type :categorical` reads them as
+;; categories instead, and a palette with one entry per count replaces
+;; the gradient:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy {:color :cyl :color-type :categorical}))
+
+(kind/test-last
+ [(fn [fr] (= ["4" "6" "8" "5"]
+              (->> fr pj/plan :legend :entries (mapv :label))))])
+
+;; The legend follows the data's order, which for a column of numbers
+;; is rarely the order a reader expects. A `:domain` puts it right --
+;; the next section is about exactly that. It is written with the
+;; column's own values, which the legend then labels as text:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy {:color :cyl :color-type :categorical})
+    (pj/scale :color {:domain [4 5 6 8]}))
+
+(kind/test-last
+ [(fn [fr] (= ["4" "5" "6" "8"]
+              (->> fr pj/plan :legend :entries (mapv :label))))])
 
 ;; `:shape` is categorical only, since symbols have no continuous
 ;; ordering. A `:domain` sets the category order the legend follows,
