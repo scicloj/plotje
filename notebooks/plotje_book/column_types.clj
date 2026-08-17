@@ -1,4 +1,4 @@
-;; # What a Column's Type Decides
+;; # Column Types
 ;;
 ;; Every column Plotje reads has a type, taken from the values it
 ;; holds. That type decides the shape of the axis the column is drawn
@@ -40,7 +40,7 @@
        (java.time.LocalDate/parse "2026-04-15")]
    :v [10 20 30 40]})
 
-;; ## What it decides about the axis
+;; ## What the type decides about the axis
 
 ;; A numerical column gives an axis that runs continuously between the
 ;; smallest and largest value, with padding at each end so the outermost
@@ -79,7 +79,7 @@
                  (some (fn [l] (re-find #"^[A-Z][a-z]{2}-\d\d$" l))
                        (:labels ticks)))))])
 
-;; ## What it decides about a colour mapping
+;; ## What the type decides about colour
 
 ;; The same three columns, mapped to `:color` instead of to a position.
 ;; A categorical column draws one palette colour per distinct value:
@@ -106,7 +106,7 @@
 ;; [Inference Rules](./plotje_book.inference_rules.html#categorical-color-implies-grouping)
 ;; works through that difference.
 
-;; ## What it decides about which layer types apply
+;; ## Which layer types accept the column
 
 ;; Some layer types need a categorical axis. `pj/lay-boxplot` draws one
 ;; box per category, so on a numerical column it reports the mismatch

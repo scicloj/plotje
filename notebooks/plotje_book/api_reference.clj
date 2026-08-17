@@ -154,7 +154,7 @@
 ;; `pj/lay-point`. The intended use of `pj/lay` is with a layer
 ;; type that isn't a built-in convenience: a registered custom
 ;; layer type from an extension, or a raw layer-type map. See
-;; the [Waterfall Extension](./plotje_book.waterfall_extension.html)
+;; the [Extension Example](./plotje_book.waterfall_extension.html)
 ;; chapter for the full pattern -- registering a `:waterfall`
 ;; layer type and calling `(pj/lay pose (layer-type/lookup :waterfall))`
 ;; or wrapping it in a `pj/lay-waterfall` convenience function.

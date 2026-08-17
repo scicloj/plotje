@@ -16,7 +16,7 @@
   gapminder-2007
   (->
    (rdatasets/gapminder-gapminder)
-   (tc/select-rows (fn* [p1__69278#] (= 2007 (:year p1__69278#)))))))
+   (tc/select-rows (fn* [p1__69413#] (= 2007 (:year p1__69413#)))))))
 
 
 (def v4_l39 gapminder-2007)
@@ -100,8 +100,8 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__69279#]
-        (-> p1__69279# :plan :panels first :x-scale :type))))))
+        [p1__69414#]
+        (-> p1__69414# :plan :panels first :x-scale :type))))))
    v16_l138)))
 
 
@@ -548,7 +548,7 @@
 (def
  v91_l580
  (->
-  {:bin (map (fn* [p1__69280#] (str "bin-" p1__69280#)) (range 40)),
+  {:bin (map (fn* [p1__69415#] (str "bin-" p1__69415#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -562,7 +562,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__69281#] (.startsWith p1__69281# "bin-"))
+       (fn* [p1__69416#] (.startsWith p1__69416# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v91_l580)))

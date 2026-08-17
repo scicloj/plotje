@@ -449,7 +449,7 @@ gapminder-2007
 ;; `:log` for the numbers. Writing `:categorical` as a scale type cannot
 ;; make a column categorical -- on a numeric column it is refused, and
 ;; on a categorical one the scale's `:type` is not read at all.
-;; [What a Column's Type Decides](./plotje_book.column_types.html#the-columns-type-and-the-scales-type)
+;; [Column Types](./plotje_book.column_types.html#the-columns-type-and-the-scales-type)
 ;; sets the two side by side.
 ;;
 ;; On an axis the column's type is the difference between a measured

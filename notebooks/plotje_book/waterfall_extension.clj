@@ -1,4 +1,4 @@
-;; # Extension Example: Waterfall Chart
+;; # Extension Example
 ;;
 ;; This notebook walks through building a custom chart type from
 ;; scratch -- a **[waterfall chart](https://en.wikipedia.org/wiki/Waterfall_chart)** that shows running totals as

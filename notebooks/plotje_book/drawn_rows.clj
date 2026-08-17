@@ -1,4 +1,4 @@
-;; # Which Rows Get Drawn
+;; # Drawn Rows
 ;;
 ;; A scatter of a hundred rows usually has a hundred marks, and when it
 ;; does not, the reason is worth knowing. Rows leave a plot in two quite

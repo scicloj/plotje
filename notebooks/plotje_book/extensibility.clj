@@ -984,5 +984,5 @@ graph LR
 
 ;; ## What's Next
 ;;
-;; - [**Waterfall Extension**](./plotje_book.waterfall_extension.html) -- a worked example that uses the extension points above to add a new chart type
+;; - [**Extension Example**](./plotje_book.waterfall_extension.html) -- a worked example that uses the extension points above to add a waterfall chart
 ;; - [**Edge Cases**](./plotje_book.edge_cases.html) -- how the library handles unusual inputs

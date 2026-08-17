@@ -1,4 +1,4 @@
-;; # Where Panels Come From
+;; # Panels
 ;;
 ;; A plot can be one set of axes or a grid of them, and which you get is
 ;; never chosen directly. It follows from two things:
