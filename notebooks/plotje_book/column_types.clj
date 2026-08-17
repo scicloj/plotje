@@ -15,9 +15,8 @@
 ;; | dates and timestamps | temporal |
 ;;
 ;; This chapter follows that decision through to each of its
-;; consequences. [Specifying
-;; Aesthetics](./plotje_book.specifying_aesthetics.html#what-kind-of-column-is-it)
-;; asks the same question of one aesthetic; this is the general answer.
+;; consequences, and ends on the setting it is most often confused
+;; with: the type of a scale.
 
 (ns plotje-book.column-types
   (:require
@@ -105,8 +104,7 @@
 ;; The consequence that matters is not the colours but the splitting: a
 ;; categorical mapping divides the rows into groups and every layer
 ;; computes itself once per group, and a numerical one does not.
-;; [Specifying
-;; Aesthetics](./plotje_book.specifying_aesthetics.html#what-kind-of-column-is-it)
+;; [Inference Rules](./plotje_book.inference_rules.html#categorical-color-implies-grouping)
 ;; works through that difference.
 
 ;; ## What it decides about which layer types apply
@@ -152,10 +150,85 @@
 ;; column would split rather than shade, and the layer types that need a
 ;; categorical axis start accepting it.
 
+;; ## The column's type and the scale's type
+;;
+;; Two settings are written with the word `:categorical`, and they are
+;; not the same setting.
+;;
+;; | Setting | Written as | Values | Says |
+;; |:--|:--|:--|:--|
+;; | Column type | `:x-type`, `:y-type`, `:color-type`, in the mapping | `:categorical`, `:numerical`, `:temporal` | what kind of data the column holds |
+;; | Scale type | `:type` in a scale spec, or the bare keyword given to `pj/scale` | `:linear`, `:log`, `:categorical` | how a numeric domain is spaced |
+;;
+;; They meet at the domain. The column's type decides what the domain
+;; is -- a list of distinct categories, or an interval of numbers -- and
+;; a domain of categories gives a scale that places categories. The
+;; scale's own `:type` chooses between `:linear` and `:log`, which is a
+;; choice only an interval of numbers offers.
+;;
+;; So the column's type decides whether the scale places categories, and
+;; the scale's type decides how a numeric scale is spaced. Naming
+;; `:categorical` as a scale type cannot make a column categorical.
+;;
+;; On a numeric column the scale's type is what `:linear` and `:log`
+;; are for. The four values of `:k` are spaced by ratio here:
+
+(-> numerical
+    (pj/lay-point :k :v)
+    (pj/scale :x :log))
+
+(kind/test-last
+ [(fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))])
+
+;; Asking that same column for a `:categorical` scale is refused, and
+;; the message names the setting that would do it instead:
+
+(try
+  (-> numerical
+      (pj/lay-point :k :v)
+      (pj/scale :x :categorical)
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (re-find #"set :x-type or :y-type to :categorical" m))])
+
+;; The refusal runs the other way too. A categorical column has nothing
+;; to take a logarithm of, so `:log` is refused on one:
+
+(try
+  (-> categorical
+      (pj/lay-point :k :v)
+      (pj/scale :x :log)
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (re-find #"requires numeric data" m))])
+
+;; The fourth combination is the quiet one. A `:linear` written on a
+;; categorical column is not read at all: the scale places categories
+;; because the domain holds categories, so this draws exactly what the
+;; same call without the scale draws.
+
+(-> categorical
+    (pj/lay-point :k :v)
+    (pj/scale :x :linear))
+
+(kind/test-last
+ [(fn [v] (= (pj/svg-summary v)
+             (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))])
+
+;; A temporal column is spaced linearly, over the instants underneath
+;; its dates, and its ticks are labelled as calendar dates -- the axis
+;; section above draws one.
+
 ;; ## See Also
 ;;
-;; - [Specifying Aesthetics](./plotje_book.specifying_aesthetics.html) --
-;;   what a mapping's value means, of which the column's type is half
+;; - [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers)
+;;   -- what a mapping is, and how a column reaches an aesthetic
 ;; - [Inference Rules](./plotje_book.inference_rules.html#column-types) --
 ;;   the dtype-by-dtype table behind the three types
 ;; - [Layer Types](./plotje_book.layer_types.html) -- which layer types

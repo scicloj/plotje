@@ -5,6 +5,7 @@
                    "composition"
                    "options_and_scopes"
                    "pose_rules"
+                   "column_types"
                    "inference_rules"
                    "layer_types"
                    "glossary"]

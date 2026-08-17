@@ -443,10 +443,18 @@ gapminder-2007
 ;; ### What settles continuous or categorical
 ;;
 ;; Nothing above asked for a continuous scale or a categorical one. The
-;; column's type decides: a column of numbers is read as a quantity,
-;; and a column of anything else as a set of categories. On an axis
-;; that is the difference between a measured line and a row of bands,
-;; and a column of names takes the bands without being asked:
+;; column's type decides, and the scale's type does not: a column of
+;; numbers is read as a quantity, a column of anything else as a set of
+;; categories, and a scale's `:type` then chooses between `:linear` and
+;; `:log` for the numbers. Writing `:categorical` as a scale type cannot
+;; make a column categorical -- on a numeric column it is refused, and
+;; on a categorical one the scale's `:type` is not read at all.
+;; [What a Column's Type Decides](./plotje_book.column_types.html#the-columns-type-and-the-scales-type)
+;; sets the two side by side.
+;;
+;; On an axis the column's type is the difference between a measured
+;; line and a row of bands, and a column of names takes the bands
+;; without being asked:
 
 (-> gapminder-2007
     (pj/lay-bar :continent))
@@ -456,26 +464,10 @@ gapminder-2007
               (->> fr pj/plan :panels first :x-domain vec)))])
 
 ;; Where the column's type is not what the values mean, `:x-type`,
-;; `:y-type` and `:color-type` say so in the mapping. Asking for
-;; `:categorical` on an axis holding numbers is refused instead, and
-;; the message says which key to reach for. The refusal comes at
-;; `pj/plan`, since it takes reading the column to know that the two
-;; disagree:
-
-(try
-  (-> (rdatasets/ggplot2-mpg)
-      (pj/lay-point :cyl :hwy)
-      (pj/scale :x :categorical)
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e
-    (ex-message e)))
-
-(kind/test-last
- [(fn [m] (re-find #"set :x-type or :y-type to :categorical" m))])
-
-;; `:cyl` counts cylinders -- 4, 5, 6 and 8 -- and the numbers stand
-;; for kinds of engine rather than for a quantity to measure along.
-;; `:x-type :categorical` says so, and each count gets its own band:
+;; `:y-type` and `:color-type` say so in the mapping. `:cyl` counts
+;; cylinders -- 4, 5, 6 and 8 -- and the numbers stand for kinds of
+;; engine rather than for a quantity to measure along. `:x-type
+;; :categorical` says so, and each count gets its own band:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/lay-point :cyl :hwy {:x-type :categorical}))
