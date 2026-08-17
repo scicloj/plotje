@@ -261,9 +261,20 @@
 
    A key a channel does not read is refused where it is written rather
    than dropped in silence. The three drawn-range options are the ones
-   this most matters for: an axis has no range to set -- the panel
-   decides that -- and `:by` asks how a value spreads across a range in
-   the mark's own quantity, which an opacity does not have.
+   this most matters for. An axis has no range to set -- the panel
+   decides that.
+
+   `:by` asks how a value spreads across a range in the quantity the
+   mark draws it as, correcting for the way ink grows with that
+   quantity. An opacity has no shape and so no area to correct for,
+   which leaves the three methods one function: `:size` reads `:by`
+   and `:alpha` does not.
+
+   `:from-zero` asks a different question -- whether the drawn quantity
+   is proportional to the value -- and an opacity can answer it, since
+   zero opacity is absence the way zero area is. `:color` cannot: the
+   low end of a gradient is a color rather than an absence, so there is
+   no quantity there to be proportional to anything.
 
    `:breaks`, `:labels` and `:n-ticks` place and word tick marks, and
    `:label` titles the axis, so all four belong to the two channels
@@ -277,7 +288,7 @@
    :fill  #{}
    :shape #{:values}
    :size  #{:range :by :from-zero}
-   :alpha #{:range}})
+   :alpha #{:range :from-zero}})
 
 ;; ---- What a scale takes, as one ordered table ----
 ;;

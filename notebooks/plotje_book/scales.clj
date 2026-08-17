@@ -535,6 +535,31 @@ gapminder-2007
 ;; make. That is why `:alpha` takes `:range` but not `:by`: an opacity
 ;; has no shape.
 ;;
+;; It does take `:from-zero`, which asks a different question -- not
+;; how a value spreads, but whether the drawn quantity is proportional
+;; to it. An opacity can answer that, since zero opacity is absence the
+;; way zero area is:
+
+(-> squares
+    (pj/lay-point :x :y {:alpha :n})
+    (pj/scale :alpha {:from-zero true}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [entries (->> fr pj/plan :alpha-legend :entries)
+          by-value (into {} (map (juxt :value :alpha) entries))]
+      ;; Where the legend labels both a value and its half, the
+      ;; opacities are in the same 2-to-1 ratio.
+      (every? (fn [[v a]]
+                (if-let [half (by-value (/ v 2))]
+                  (< (Math/abs (- (/ a half) 2.0)) 1e-6)
+                  true))
+              by-value)))])
+
+;; `:color` cannot answer it, and does not take the key: the low end of
+;; a gradient is a color rather than an absence, so there is no
+;; quantity there for a value to be proportional to.
+;;
 ;; The declaration also decides which aesthetics get a legend. A mark
 ;; that does not declare an aesthetic draws one value for the whole layer,
 ;; so a column mapped to that aesthetic changes nothing. Plotje warns in

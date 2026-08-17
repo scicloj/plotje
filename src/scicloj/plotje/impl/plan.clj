@@ -1049,9 +1049,14 @@
              :type :alpha
              :min a-min :max a-max
              :scale-type scale-type
-             :entries (vec (for [v values]
+             ;; A row drawn at no opacity explains nothing, as a row
+             ;; with no size does not: `:from-zero` anchors the domain
+             ;; at zero, and a value of zero is drawn invisible.
+             :entries (vec (for [v values
+                                 :let [alpha (alpha-fn v)]
+                                 :when (> alpha 0.001)]
                              {:value v
-                              :alpha (alpha-fn v)}))}))))))
+                              :alpha alpha}))}))))))
 
 (defn- build-shape-legend
   "Build the shape legend from the category-to-symbol assignment

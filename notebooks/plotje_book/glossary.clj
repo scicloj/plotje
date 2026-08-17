@@ -677,8 +677,9 @@ my-pose
 ;;
 ;; Scales are created at render time, not stored in the plan.
 ;; The plan stores scale *specs* (`:type`, `:domain`, and on `:size`
-;; and `:alpha` the `:range` a value spreads across, plus `:by` and
-;; `:from-zero`, which say how).
+;; and `:alpha` the `:range` a value spreads across, plus `:from-zero`,
+;; which anchors both at zero; `:by`, which says how a value spreads
+;; across the range, belongs to `:size` alone).
 ;;
 ;; **Temporal columns** (`LocalDate`, `LocalDateTime`, `Instant`,
 ;; `java.util.Date`) are detected automatically and converted to

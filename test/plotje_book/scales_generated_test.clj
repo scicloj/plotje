@@ -16,7 +16,7 @@
   gapminder-2007
   (->
    (rdatasets/gapminder-gapminder)
-   (tc/select-rows (fn* [p1__11193#] (= 2007 (:year p1__11193#)))))))
+   (tc/select-rows (fn* [p1__11199#] (= 2007 (:year p1__11199#)))))))
 
 
 (def v4_l37 gapminder-2007)
@@ -103,8 +103,8 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__11194#]
-        (-> p1__11194# :plan :panels first :x-scale :type))))))
+        [p1__11200#]
+        (-> p1__11200# :plan :panels first :x-scale :type))))))
    v16_l123)))
 
 
@@ -567,7 +567,36 @@
 
 
 (def
- v82_l555
+ v82_l543
+ (->
+  squares
+  (pj/lay-point :x :y {:alpha :n})
+  (pj/scale :alpha {:from-zero true})))
+
+
+(deftest
+ t83_l547
+ (is
+  ((fn
+    [fr]
+    (let
+     [entries
+      (->> fr pj/plan :alpha-legend :entries)
+      by-value
+      (into {} (map (juxt :value :alpha) entries))]
+     (every?
+      (fn
+       [[v a]]
+       (if-let
+        [half (by-value (/ v 2))]
+        (< (Math/abs (- (/ a half) 2.0)) 1.0E-6)
+        true))
+      by-value)))
+   v82_l543)))
+
+
+(def
+ v85_l580
  (->
   squares
   (pj/lay-point :x :y {:size :n, :alpha :n})
@@ -575,7 +604,7 @@
 
 
 (deftest
- t83_l559
+ t86_l584
  (is
   ((fn
     [fr]
@@ -585,11 +614,11 @@
       (= :radius (:quantity (:size-legend p)))
       (= :circle (:swatch (:size-legend p)))
       (= :square (:swatch (layer-type/quantities :opacity))))))
-   v82_l555)))
+   v85_l580)))
 
 
 (def
- v85_l575
+ v88_l600
  (try
   (->
    gapminder-2007
@@ -601,14 +630,14 @@
 
 
 (deftest
- t86_l584
+ t89_l609
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v85_l575)))
+   v88_l600)))
 
 
 (def
- v88_l594
+ v91_l619
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp)
@@ -616,32 +645,32 @@
 
 
 (deftest
- t89_l598
+ t92_l623
  (is
   ((fn
     [fr]
     (=
      [40.0 50.0 60.0 70.0 80.0]
      (->> fr pj/plan :panels first :y-ticks :values (mapv double))))
-   v88_l594)))
+   v91_l619)))
 
 
-(def v91_l612 (-> gapminder-2007 (pj/lay-bar :continent)))
+(def v94_l637 (-> gapminder-2007 (pj/lay-bar :continent)))
 
 
 (deftest
- t92_l615
+ t95_l640
  (is
   ((fn
     [fr]
     (=
      ["Asia" "Europe" "Africa" "Americas" "Oceania"]
      (->> fr pj/plan :panels first :x-domain vec)))
-   v91_l612)))
+   v94_l637)))
 
 
 (def
- v94_l622
+ v97_l647
  (->
   gapminder-2007
   (pj/lay-bar :continent)
@@ -652,18 +681,18 @@
 
 
 (deftest
- t95_l627
+ t98_l652
  (is
   ((fn
     [fr]
     (=
      ["Oceania" "Africa" "Asia" "Americas" "Europe"]
      (->> fr pj/plan :panels first :x-domain vec)))
-   v94_l622)))
+   v97_l647)))
 
 
 (def
- v97_l637
+ v100_l662
  (try
   (->
    (rdatasets/ggplot2-mpg)
@@ -674,30 +703,30 @@
 
 
 (deftest
- t98_l645
+ t101_l670
  (is
   ((fn [m] (re-find #"set :x-type or :y-type to :categorical" m))
-   v97_l637)))
+   v100_l662)))
 
 
 (def
- v100_l652
+ v103_l677
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :cyl :hwy {:x-type :categorical})))
 
 
 (deftest
- t101_l655
+ t104_l680
  (is
   ((fn
     [fr]
     (= ["4" "6" "8" "5"] (->> fr pj/plan :panels first :x-domain vec)))
-   v100_l652)))
+   v103_l677)))
 
 
 (def
- v103_l664
+ v106_l689
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :cyl :hwy {:x-type :categorical})
@@ -705,16 +734,16 @@
 
 
 (deftest
- t104_l668
+ t107_l693
  (is
   ((fn
     [fr]
     (= ["4" "5" "6" "8"] (->> fr pj/plan :panels first :x-domain vec)))
-   v103_l664)))
+   v106_l689)))
 
 
 (def
- v106_l677
+ v109_l702
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :pop})
@@ -723,42 +752,42 @@
 
 
 (deftest
- t107_l682
+ t110_l707
  (is
-  ((fn [fr] (= :log (-> fr pj/plan :legend :scale-type))) v106_l677)))
+  ((fn [fr] (= :log (-> fr pj/plan :legend :scale-type))) v109_l702)))
 
 
 (def
- v109_l689
+ v112_l714
  (-> (rdatasets/ggplot2-mpg) (pj/lay-point :displ :hwy {:color :cyl})))
 
 
 (deftest
- t110_l692
+ t113_l717
  (is
-  ((fn [fr] (= :continuous (-> fr pj/plan :legend :type))) v109_l689)))
+  ((fn [fr] (= :continuous (-> fr pj/plan :legend :type))) v112_l714)))
 
 
 (def
- v112_l700
+ v115_l725
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy {:color :cyl, :color-type :categorical})))
 
 
 (deftest
- t113_l703
+ t116_l728
  (is
   ((fn
     [fr]
     (=
      ["4" "6" "8" "5"]
      (->> fr pj/plan :legend :entries (mapv :label))))
-   v112_l700)))
+   v115_l725)))
 
 
 (def
- v115_l712
+ v118_l737
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy {:color :cyl, :color-type :categorical})
@@ -766,18 +795,18 @@
 
 
 (deftest
- t116_l716
+ t119_l741
  (is
   ((fn
     [fr]
     (=
      ["4" "5" "6" "8"]
      (->> fr pj/plan :legend :entries (mapv :label))))
-   v115_l712)))
+   v118_l737)))
 
 
 (def
- v118_l724
+ v121_l749
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:shape :continent})
@@ -788,18 +817,18 @@
 
 
 (deftest
- t119_l729
+ t122_l754
  (is
   ((fn
     [fr]
     (=
      ["Africa" "Americas" "Asia" "Europe" "Oceania"]
      (mapv :label (:entries (:shape-legend (pj/plan fr))))))
-   v118_l724)))
+   v121_l749)))
 
 
 (def
- v121_l738
+ v124_l763
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -810,18 +839,18 @@
 
 
 (deftest
- t122_l743
+ t125_l768
  (is
   ((fn
     [fr]
     (=
      ["Oceania" "Europe" "Asia" "Americas" "Africa"]
      (mapv :label (:entries (:legend (pj/plan fr))))))
-   v121_l738)))
+   v124_l763)))
 
 
 (def
- v124_l757
+ v127_l782
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :pop})
@@ -830,7 +859,7 @@
 
 
 (deftest
- t125_l762
+ t128_l787
  (is
   ((fn [fr] (= [0.0 5.0E7] ((juxt :min :max) (:legend (pj/plan fr)))))
-   v124_l757)))
+   v127_l782)))
