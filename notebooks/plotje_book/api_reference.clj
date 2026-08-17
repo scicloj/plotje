@@ -573,7 +573,7 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
-;; Log scale on a visual aesthetic (`:size`, `:alpha`, `:fill`, or
+;; Log scale on an appearance aesthetic (`:size`, `:alpha`, `:fill`, or
 ;; `:color`):
 
 (-> {:user [:a :b :c] :n [10 100 1000]}

@@ -560,7 +560,7 @@ my-pose
 ;; ## Domain
 ;;
 ;; A **domain** is the extent of data values a scale reads -- along an
-;; axis, or on a visual aesthetic such as `:size`. It is the data side of
+;; axis, or on an appearance aesthetic such as `:size`. It is the data side of
 ;; a scale; the visible side is its range.
 ;;
 ;; - Numerical: `[min max]`, where `min`/`max` are the raw data

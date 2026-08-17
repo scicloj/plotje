@@ -50,18 +50,23 @@ gapminder-2007
 ;; ## The parts of a scale
 ;;
 ;; Three parts come up in most of what follows, and this chapter has a
-;; section for each:
+;; section for each. The domain is the data side of a scale, the range
+;; is the visible side, and the type is the relation between them.
 ;;
-;; - The **type** is how values are spaced. `:linear` reads
-;;   differences and `:log` reads ratios; `:categorical` gives each
-;;   distinct value its own place.
-;; - The **domain** is the data the scale reads: the lowest and highest
-;;   values for a continuous scale, or the list of categories for a
-;;   categorical one. It is taken from the column unless you set it.
-;; - The **range** is what the mark spans. For an axis it is the panel,
-;;   whose size follows from the plot dimensions. For `:size` it is an
-;;   interval of radii in drawing units; for `:shape` it is a list of
-;;   symbols.
+;; - The **type** decides how a data value becomes a drawn one. A
+;;   `:linear` type maps equal differences in the data to equal
+;;   differences in what is drawn, a `:log` type does the same for equal
+;;   ratios, and a `:categorical` type gives each distinct value a place
+;;   of its own.
+;; - The **domain** is the extent of data values the scale reads: the
+;;   lowest and highest value for a continuous scale, or the list of
+;;   distinct categories for a categorical one. Plotje takes it from the
+;;   column the aesthetic is mapped to unless the scale spec sets it.
+;; - The **range** is the extent of drawn values the scale produces. For
+;;   `:x` and `:y` it is the panel, measured in drawing units, whose
+;;   size follows from the plot's `:width` and `:height`. For `:size` it
+;;   is an interval of radii in drawing units, for `:alpha` an interval
+;;   of opacities, and for `:shape` a list of symbols.
 ;;
 ;; Written down, these go in a scale **spec** -- the map that says
 ;; which scale, and how. Two of the three are written the same way
@@ -70,7 +75,7 @@ gapminder-2007
 ;; `:shape` names its symbols with `:values`, a color scale draws from a
 ;; palette set as a plot option, and an axis has no range to set,
 ;; because the panel decides it. A spec can also carry keys that are
-;; none of the three parts, such as `:by` on `:size` or the tick options
+;; none of the three parts, such as `:by` on `:size` or the tick keys
 ;; on an axis. So the table further down lists `:type` and `:domain`
 ;; once, and then what each aesthetic reads beside them.
 ;;
@@ -102,7 +107,7 @@ gapminder-2007
 ;; up in the same place.
 ;;
 ;; `pj/scale` is the first. Its second argument is the aesthetic,
-;; which can be either axis or any visual one: `:x`, `:y`, `:color`,
+;; which can be either axis or any appearance one: `:x`, `:y`, `:color`,
 ;; `:size`, `:alpha`, `:fill` or `:shape`. The examples in this section
 ;; use `:x`, but the same call works for the others, and each
 ;; aesthetic is a separate setting.
@@ -330,8 +335,8 @@ gapminder-2007
     (= #{:x :y :size :alpha :color :fill :shape}
        (set (map :aesthetic pj/aesthetic-scales))))])
 
-;; An option an aesthetic does not read is refused where it is written,
-;; rather than accepted and ignored. An axis has no range to set,
+;; A spec key an aesthetic does not read is refused where it is
+;; written, rather than accepted and ignored. An axis has no range to set,
 ;; because the panel size determines it:
 
 (try
@@ -354,20 +359,24 @@ gapminder-2007
 
 ;; ## Type
 ;;
-;; The type is how values are spaced.
+;; The type decides how a data value becomes a drawn one.
 ;;
-;; - `:linear` reads differences. Equal distances, radii or gradient
-;;   steps stand for equal differences in value.
-;; - `:log` reads ratios. Equal steps stand for equal factors, which is
-;;   what makes a column spanning orders of magnitude readable.
-;; - `:categorical` reads which category a value is, and gives each one
-;;   a band, a swatch or a symbol of its own.
+;; - A `:linear` type maps equal differences in the data to equal
+;;   differences in what is drawn, so a difference of ten covers the
+;;   same part of the range wherever in the domain it falls.
+;; - A `:log` type maps equal ratios in the data to equal differences in
+;;   what is drawn, so each factor of ten covers the same part of the
+;;   range. This is what makes a column spanning orders of magnitude
+;;   readable.
+;; - A `:categorical` type has no arithmetic to preserve. It gives each
+;;   distinct value in the domain a place of its own: a band on an axis,
+;;   one color from a palette, or one symbol.
 ;;
 ;; The table above says which types each aesthetic accepts: the axes
 ;; take all three, `:size`, `:alpha`, `:color` and `:fill` take
 ;; `:linear` and `:log`, and `:shape` takes `:categorical` alone.
-;; Asking a continuous aesthetic for `:categorical` is refused, and the
-;; message lists what it does take:
+;; Asking an aesthetic for a type it does not accept is refused, and
+;; the message lists the ones it does:
 
 (try
   (-> gapminder-2007
@@ -385,7 +394,7 @@ gapminder-2007
 ;; without any type being named. Which of the two happens is settled
 ;; below.
 
-;; ### A log scale on a visual aesthetic
+;; ### A log scale on an appearance aesthetic
 ;;
 ;; `:log` is not only for axes. Values that jump by factors of ten
 ;; crowd together at the bottom of a size range under the default
@@ -503,15 +512,13 @@ gapminder-2007
 
 ;; ## Domain
 ;;
-;; The domain is the data the scale reads. Left alone it is taken from
-;; the column: its lowest and highest value, or its distinct
-;; categories. Writing one says what the scale should read instead --
-;; which is a different statement on an axis than on a visual
-;; aesthetic, and a different statement again on a categorical column
-;; than on a continuous one.
+;; The domain is the extent of data values the scale reads. Plotje takes
+;; it from the column the aesthetic is mapped to -- its lowest and
+;; highest value, or its distinct categories -- and a `:domain` in the
+;; scale spec replaces that.
 ;;
-;; The column's type decides which reading applies, not the shape of
-;; the domain written. Against a continuous column a `:domain`
+;; The column's type decides how a written `:domain` is read, not the
+;; shape of the domain written. Against a continuous column a `:domain`
 ;; replaces the interval; against a categorical one it supplies the
 ;; order of the categories, however many are listed.
 
@@ -538,8 +545,7 @@ gapminder-2007
 
 ;; ### Where the ticks go
 ;;
-;; An axis scale carries the options that place and word its tick
-;; marks. `:breaks` pins the values that get a tick, which is
+;; An axis scale carries the keys that place and word its tick marks. `:breaks` pins the values that get a tick, which is
 ;; ggplot2's `scale_*_continuous(breaks=)`:
 
 (-> gapminder-2007
@@ -646,7 +652,7 @@ gapminder-2007
 ;; ones listed, and Plotje says so -- an incomplete list is usually a
 ;; typo or a stale set of names rather than a request.
 
-;; ### On a visual aesthetic
+;; ### On an appearance aesthetic
 ;;
 ;; A size, an opacity or a color has no panel to clip against, so a
 ;; numeric `:domain` there is not a view window. A value outside it is
@@ -677,9 +683,10 @@ gapminder-2007
 
 ;; ## Range
 ;;
-;; The range is what the mark spans: the interval of radii a `:size`
-;; column is drawn across, the opacities an `:alpha` column is drawn
-;; across. Only those two aesthetics take a `:range` key.
+;; The range is the extent of drawn values the scale produces: an
+;; interval of radii for a `:size` column, an interval of opacities for
+;; an `:alpha` column. Those two aesthetics are the ones that take a
+;; `:range` key.
 ;;
 ;; An axis has none to set, since the panel size determines it -- the
 ;; refusal is [above](#what-each-aesthetics-scale-takes). `:color` and
@@ -890,8 +897,9 @@ gapminder-2007
 
 ;; ### The symbols `:shape` spans
 ;;
-;; `:shape` is discrete, so what it spans is a list rather than an
-;; interval, and two things about that list can be set: which order the
+;; `:shape` takes only a `:categorical` type, so what it spans is a
+;; list rather than an interval, and two things about that list can be
+;; set: which order the
 ;; categories are assigned symbols in, and which symbols those are.
 ;; Both matter when a reader compares two plots: one category should
 ;; keep one marker across both.
@@ -952,7 +960,7 @@ pj/shape-symbols
 ;;
 ;; One legend per aesthetic is also the reason an aesthetic has one
 ;; scale. A panel has one of each axis, so two layers naming different
-;; scales for `:x` are refused; a plot has one legend per visual
+;; scales for `:x` are refused; a plot has one legend per appearance
 ;; aesthetic, so two layers reading `:size` through different scales
 ;; are refused in the same way. A layer naming no scale is no
 ;; disagreement -- it is drawn against whichever scale the plot has.
