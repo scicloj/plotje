@@ -1,10 +1,9 @@
 ;; # What a Column's Type Decides
 ;;
-;; Plotje never asks you what kind of axis to draw. It reads the values
-;; in the column and decides, and that one decision then settles a
-;; surprising amount: the shape of the axis, how ticks are labelled,
-;; whether a colour mapping splits the data, and which layer types will
-;; accept the column at all.
+;; Every column Plotje reads has a type, taken from the values it
+;; holds. That type decides the shape of the axis the column is drawn
+;; against, how the ticks are labelled, whether a colour mapping splits
+;; the data into groups, and which layer types accept the column.
 ;;
 ;; There are three types, and a column has exactly one:
 ;;
@@ -14,9 +13,9 @@
 ;; | anything else that is not a date -- strings, keywords, booleans | categorical |
 ;; | dates and timestamps | temporal |
 ;;
-;; This chapter follows that decision through to each of its
-;; consequences, and ends on the setting it is most often confused
-;; with: the type of a scale.
+;; The sections below take each of those in turn. The last one sets the
+;; column's type beside a scale's type, a separate setting that shares
+;; the word `:categorical`.
 
 (ns plotje-book.column-types
   (:require
@@ -26,7 +25,7 @@
    [scicloj.plotje.api :as pj]))
 
 ;; The three datasets below differ only in what their `:k` column
-;; holds. Everything that follows is a consequence of that.
+;; holds.
 
 (def numerical
   {:k [1 2 3 4] :v [10 20 30 40]})
@@ -44,8 +43,8 @@
 ;; ## What it decides about the axis
 
 ;; A numerical column gives an axis that runs continuously between the
-;; smallest and largest value, with a little padding at each end so the
-;; outermost marks are not on the edge:
+;; smallest and largest value, with padding at each end so the outermost
+;; marks are not drawn on the panel edge:
 
 (-> numerical
     (pj/lay-point :k :v))
@@ -101,17 +100,17 @@
 (kind/test-last
  [(fn [v] (< 4 (count (disj (:colors (pj/svg-summary v)) "none"))))])
 
-;; The consequence that matters is not the colours but the splitting: a
-;; categorical mapping divides the rows into groups and every layer
-;; computes itself once per group, and a numerical one does not.
+;; Beyond the colours themselves, a categorical mapping divides the rows
+;; into groups, and every layer computes itself once per group. A
+;; numerical mapping does not.
 ;; [Inference Rules](./plotje_book.inference_rules.html#categorical-color-implies-grouping)
 ;; works through that difference.
 
 ;; ## What it decides about which layer types apply
 
-;; Some layer types need a categorical axis to have anything to do.
-;; `pj/lay-boxplot` draws one box per category, so it says so rather
-;; than drawing nothing:
+;; Some layer types need a categorical axis. `pj/lay-boxplot` draws one
+;; box per category, so on a numerical column it reports the mismatch
+;; rather than drawing nothing:
 
 (try
   (-> numerical
@@ -122,15 +121,15 @@
 (kind/test-last
  [(fn [m] (re-find #"requires a categorical column" m))])
 
-;; The same call on the categorical column draws four boxes. Others
-;; work the other way round: `pj/lay-histogram` bins numbers and has
+;; The same call on the categorical column draws four boxes. Other layer
+;; types need the opposite: `pj/lay-histogram` bins numbers, and has
 ;; nothing to bin on a categorical column. [Layer
 ;; Types](./plotje_book.layer_types.html) lists what each one needs.
 
-;; ## Saying which you meant
+;; ## Overriding the inferred type
 
-;; The reading is inferred from the values, and the values do not always
-;; say what they mean. A year, a postcode and a region code are numbers
+;; The type is read from the values, and the values do not always match
+;; what they stand for. A year, a postcode and a region code are numbers
 ;; that name something rather than measure it. `:x-type`, `:y-type` and
 ;; `:color-type` override the inference for one axis or one mapping:
 
@@ -170,8 +169,8 @@
 ;; the scale's type decides how a numeric scale is spaced. Naming
 ;; `:categorical` as a scale type cannot make a column categorical.
 ;;
-;; On a numeric column the scale's type is what `:linear` and `:log`
-;; are for. The four values of `:k` are spaced by ratio here:
+;; On a numeric column the scale's type chooses between `:linear` and
+;; `:log`. The four values of `:k` are spaced by ratio here:
 
 (-> numerical
     (pj/lay-point :k :v)
@@ -194,8 +193,8 @@
 (kind/test-last
  [(fn [m] (re-find #"set :x-type or :y-type to :categorical" m))])
 
-;; The refusal runs the other way too. A categorical column has nothing
-;; to take a logarithm of, so `:log` is refused on one:
+;; A categorical column is refused in the other direction: it has
+;; nothing to take a logarithm of, so `:log` is refused on one:
 
 (try
   (-> categorical
@@ -208,10 +207,10 @@
 (kind/test-last
  [(fn [m] (re-find #"requires numeric data" m))])
 
-;; The fourth combination is the quiet one. A `:linear` written on a
-;; categorical column is not read at all: the scale places categories
-;; because the domain holds categories, so this draws exactly what the
-;; same call without the scale draws.
+;; A `:linear` written on a categorical column is not read at all. The
+;; scale places categories because the domain holds categories, so the
+;; call below draws exactly what the same call without the scale
+;; draws.
 
 (-> categorical
     (pj/lay-point :k :v)
