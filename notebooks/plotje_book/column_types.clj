@@ -22,7 +22,9 @@
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje -- composable plotting
-   [scicloj.plotje.api :as pj]))
+   [scicloj.plotje.api :as pj]
+   ;; Tablecloth -- dataset manipulation
+   [tablecloth.api :as tc]))
 
 ;; The three datasets below differ only in what their `:k` column
 ;; holds.
@@ -105,6 +107,74 @@
 ;; numerical mapping does not.
 ;; [Inference Rules](./plotje_book.inference_rules.html#categorical-color-implies-grouping)
 ;; works through that difference.
+
+;; ## What the type decides about the layer type
+;;
+;; A pose with no `pj/lay-*` call still draws something. The column
+;; types choose the layer type, which is a mark together with the
+;; statistic computed before that mark is drawn. Every combination of
+;; the three types is settled by the same rules, and the three datasets
+;; above cover them:
+
+(defn inferred-mark
+  "The mark a pose is drawn with when no layer type is named."
+  [pose]
+  (-> pose pj/plan :panels first :layers first :mark))
+
+(tc/dataset
+ [{:x-column "numerical"   :y-column "none"        :mark (inferred-mark (pj/pose numerical :k))}
+  {:x-column "temporal"    :y-column "none"        :mark (inferred-mark (pj/pose temporal :k))}
+  {:x-column "categorical" :y-column "none"        :mark (inferred-mark (pj/pose categorical :k))}
+  {:x-column "temporal"    :y-column "numerical"   :mark (inferred-mark (pj/pose temporal :k :v))}
+  {:x-column "categorical" :y-column "numerical"   :mark (inferred-mark (pj/pose categorical :k :v))}
+  {:x-column "numerical"   :y-column "categorical" :mark (inferred-mark (pj/pose categorical :v :k))}
+  {:x-column "numerical"   :y-column "numerical"   :mark (inferred-mark (pj/pose numerical :k :v))}])
+
+(kind/test-last
+ [(fn [ds] (= [:bar :bar :rect :line :boxplot :boxplot :point]
+              (vec (:mark ds))))])
+
+;; With one column, a categorical one is counted and anything else is
+;; binned. A temporal column is binned like a numerical one, since it is
+;; not categorical.
+;;
+;; With two, a temporal x against a numerical y is a time series, drawn
+;; as a line:
+
+(pj/pose temporal :k :v)
+
+(kind/test-last
+ [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+
+;; A categorical column against a numerical one is summarised as a
+;; boxplot, whichever of the two axes the categories are on. The
+;; datasets above hold one row per category, which makes a box with
+;; nothing in it, so this section uses one with repeats:
+
+(def readings
+  {:batch   ["a" "a" "a" "a" "b" "b" "b" "c" "c"]
+   :reading [3 5 4 6 8 9 7 2 6]})
+
+(pj/pose readings :batch :reading)
+
+(kind/test-last
+ [(fn [v] (= :boxplot (inferred-mark v)))])
+
+;; The same column alone is counted instead, one bar per batch, as tall
+;; as the number of rows that batch holds -- four, three and two:
+
+(pj/pose readings :batch)
+
+(kind/test-last
+ [(fn [v] (and (= :rect (inferred-mark v))
+               (= 3 (:polygons (pj/svg-summary v)))))])
+
+;; Two numerical columns are a scatter, which is the case every
+;; combination not listed above falls back to.
+;;
+;; Naming a layer type with `pj/lay-*` settles the question instead, and
+;; the column types then decide only what that layer type does with the
+;; column.
 
 ;; ## Which layer types accept the column
 
