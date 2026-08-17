@@ -28,7 +28,9 @@
    ;; Rdatasets -- standard datasets
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Tablecloth -- dataset manipulation
-   [tablecloth.api :as tc]))
+   [tablecloth.api :as tc]
+   ;; Tablecloth -- column-level operations
+   [tablecloth.column.api :as tcc]))
 
 ;; The examples use one year of the gapminder data.
 
@@ -41,12 +43,11 @@ gapminder-2007
 ;; Two of its columns cover very wide intervals, which is what makes
 ;; the difference between a linear and a log scale easy to see:
 
-(kind/table
- {:column-names ["column" "lowest" "highest"]
-  :row-maps (for [col [:gdp-percap :pop]]
-              {"column" (kind/code (pr-str col))
-               "lowest" (reduce min (gapminder-2007 col))
-               "highest" (reduce max (gapminder-2007 col))})})
+(-> gapminder-2007
+    (tc/aggregate-columns [:gdp-percap :pop]
+                          (fn [xs]
+                            {:min (tcc/reduce-min xs)
+                             :max (tcc/reduce-max xs)})))
 
 ;; ## The parts of a scale
 ;;
