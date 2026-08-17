@@ -1,6 +1,7 @@
 ;; # Specifying Aesthetics
 ;;
-;; This chapter explains how to say what a mapping means.
+;; This chapter explains how to say what a
+;; [mapping](./plotje_book.glossary.html#mapping) means.
 ;;
 ;; A mapping can always be written out in full. The full form answers
 ;; two questions: where the values come from, and whether they are read
@@ -39,11 +40,11 @@
 ;;
 ;; A **mapping** says where one aesthetic gets its values.
 ;; `{:color :species}` is a mapping. What it supplies may differ from
-;; row to row, or be a single value for the whole layer, and telling
-;; those two apart is much of what this chapter is about. A mapping is
-;; written either on a pose, where every layer of that pose sees it, or
-;; in a single layer's options map, where only that layer does. See
-;; [Mapping](./plotje_book.glossary.html#mapping).
+;; row to row, or be a single value for the whole layer. A mapping is
+;; written either on a [pose](./plotje_book.glossary.html#pose), where
+;; every layer of that pose sees it, or in the options map of a single
+;; [layer](./plotje_book.glossary.html#layer), where only that layer
+;; does. See [Mapping](./plotje_book.glossary.html#mapping).
 ;;
 ;; A **scale** turns data into something visible. The color scale turns
 ;; categories into colors; the size scale turns numbers into radii; the
@@ -78,7 +79,8 @@ plants
 
 ;; ## A mapping written in full
 ;;
-;; The full form is a map with two keys. It replaces the plain value:
+;; The full form is a map with two keys, written where the shorter
+;; notation would otherwise go:
 ;;
 ;; ```clojure
 ;; {:color {:column :species :scale true}}
@@ -192,6 +194,47 @@ plants
  [(fn [fr] (= ["Model A"]
               (mapv :label (:entries (:legend (pj/plan fr))))))])
 
+;; The layers of a plot share one color scale, so a value read through
+;; it joins the categories the other layers supply. The points below
+;; take their color from the `:species` column, and the line is written
+;; as `"ivy"`, which that column already holds. The line comes out in
+;; the color `"ivy"` was assigned, and the legend still has one row per
+;; species:
+
+(-> plants
+    (pj/pose :height :weight)
+    (pj/lay-point {:color {:column :species :scale true} :size 9})
+    (pj/lay-line {:color {:value "ivy" :scale true}}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [p (pj/plan fr)
+          ivy (->> p :legend :entries
+                   (filter (fn [e] (= "ivy" (:label e))))
+                   first :color)]
+      ;; The line is the second layer, and it draws a single group.
+      (and (= ["fern" "moss" "ivy"] (mapv :label (:entries (:legend p))))
+           (= ivy (-> p :panels first :layers second :groups first :color)))))])
+
+;; This is what makes the fourth combination worth having: it is how a
+;; layer with no column of its own is drawn in the color the scale
+;; already gives a category. A value the column does not hold is a new
+;; category instead, and takes a color and a legend row of its own:
+
+(-> plants
+    (pj/pose :height :weight)
+    (pj/lay-point {:color {:column :species :scale true} :size 9})
+    (pj/lay-line {:color {:value "predicted" :scale true}}))
+
+(kind/test-last
+ [(fn [fr] (= ["fern" "moss" "ivy" "predicted"]
+              (mapv :label (:entries (:legend (pj/plan fr))))))])
+
+;; One scale per aesthetic is a plot-wide rule, not a rule about
+;; values; [Scales](./plotje_book.scales.html#one-legend-per-aesthetic)
+;; states it and shows what happens when two layers ask for different
+;; ones.
+
 ;; ## The four combinations
 ;;
 ;; | Source | `:scale` | What you supply | What is drawn |
@@ -199,18 +242,17 @@ plants
 ;; | `:column` | `true` | a column of data | one color per distinct value, from the palette, with a legend |
 ;; | `:column` | `false` | a column of colors | each row's own color, no legend |
 ;; | `:value` | `false` | one color | that color for every mark, no legend |
-;; | `:value` | `true` | one data value | one color from the palette, with a one-entry legend |
+;; | `:value` | `true` | one data value | one color from the palette, with a legend entry for that value |
 ;;
 ;; The same four exist for `:size`, where the scale turns numbers into
-;; radii, and for `:alpha`, where it turns numbers into opacities. On
-;; the positional aesthetics the four are the same but what they draw
-;; differs, described further down.
+;; radii, and for `:alpha`, where it turns numbers into opacities.
 
 ;; ## The short form
 ;;
 ;; Writing every mapping in full would be tiring, and most mappings are
 ;; one of the four for an obvious reason. So a mapping may be written
-;; as a plain value, and Plotje supplies the two answers.
+;; short -- a bare column name, or the bare thing to be drawn -- and
+;; Plotje supplies the two answers.
 
 ;; ### How the source is decided
 ;;
@@ -224,20 +266,18 @@ plants
 ;; [Inference Rules](./plotje_book.inference_rules.html#named-colors-and-string-disambiguation)
 ;; chapter works through this in full.
 ;;
-;; So `{:color :species}` has the source of `{:column :species}`, and
-;; `{:color "#0077BB"}` has the source of `{:value "#0077BB"}`.
+;; So, on the plants data above, `{:color :species}` has the source of
+;; `{:column :species}`, because the data carries a `:species` column;
+;; and `{:color "#0077BB"}` has the source of `{:value "#0077BB"}`,
+;; because no column is named that.
 
 ;; ### How the scale is decided
 ;;
 ;; **A column is read through the scale.** That is the default, and
-;; `:scale false` overrides it.
-;;
-;; **The column's contents are not consulted.** This one has no
-;; exceptions, and it is worth stating plainly, because a column of
-;; colors invites the opposite guess. `:shade` holds nothing but
-;; colors, and the short form `{:color :shade}` still sends it through
-;; the color scale: three distinct values become three palette colors,
-;; and the hex codes the column holds are not drawn.
+;; `:scale false` overrides it. What the column holds makes no
+;; difference -- `:shade` holds colors, and the short form
+;; `{:color :shade}` still sends it through the color scale, so three
+;; distinct values become three palette colors:
 
 (-> plants
     (pj/lay-point :height :weight {:color :shade}))
@@ -245,16 +285,6 @@ plants
 (kind/test-last
  [(fn [fr] (= 3 (count (:entries (:legend (pj/plan fr))))))])
 
-;; The alternative would be unstable. A convention that read the
-;; contents would make the meaning of a mapping depend on which rows
-;; are in the data, so the same plotting code would behave differently
-;; on a different day's data. It would also have no answer for a column
-;; of plant varieties called olive, plum and tomato, whose values name
-;; colors by coincidence.
-;;
-;; To draw a column as it stands, say so. That is the second
-;; combination above, and `:scale false` is the only way to reach it.
-;;
 ;; **A written value is decided by what the aesthetic is for.** The
 ;; aesthetics fall into two groups here, and the two groups answer
 ;; differently.
@@ -293,8 +323,8 @@ plants
 ;; Each convention takes the common case, and `:scale` says the other
 ;; one where it is meant.
 ;;
-;; A whole layer can also be placed in drawing units at once, with
-;; `{:in :drawing-area}`, described in
+;; A layer's `:x` and `:y` can both be given in drawing units at once,
+;; rather than one at a time, with `{:in :drawing-area}`, described in
 ;; [Placing Marks](./plotje_book.placing_marks.html#placing-a-mark-on-the-panel-instead-of-in-the-data).
 
 ;; ### What the short forms come out as
@@ -390,27 +420,8 @@ plants
 ;; the two differ on data that carries no `:shade` column: `:column`
 ;; insists on a column and reports it missing, while `:from` reads
 ;; `:shade` as a value, exactly as the plain form does.
-;;
-;; `:from` is also what `pj/scale` writes when the aesthetic is already
-;; mapped plainly. The scale has to live somewhere, and a plain value
-;; has no room for it, so the mapping is rewritten in the full form.
-;; Here is the pose's mapping after both calls:
 
-(-> plants
-    (pj/pose :height :weight {:color :weight})
-    (pj/scale :color :log)
-    :mapping)
-
-(kind/test-last
- [(fn [m] (= {:x :height
-              :y :weight
-              :color {:from :weight :scale {:type :log}}}
-             m))])
-
-;; The mapping still names `:weight` the way it did, and now carries
-;; the scale beside it.
-
-;; ## The positional aesthetics and `:scale false`
+;; ## The positional aesthetics (`:x`, `:y`) and `:scale false`
 ;;
 ;; On `:x` and `:y`, `:scale false` means the value is a distance in
 ;; **drawing units** measured from the top left of the panel background,
@@ -656,10 +667,11 @@ integer-named
 ;; | `{:size {:value 7 :scale false}}` | `geom_point(size = 7)` |
 ;; | `{:size {:value 7 :scale true}}` | `aes(size = 7)` |
 ;;
-;; Measured on ggplot2 4.0.0, and the correspondence is in which of the
-;; four each form produces, not in the numbers: the two libraries spread
-;; a scaled column across different output ranges, so the same data
-;; gives different radii.
+;; The table was checked by running each ggplot2 form on version 4.0.0
+;; and comparing what it produced. What matches is which of the four
+;; combinations each form gives, not the sizes drawn: the two libraries
+;; spread a scaled column across different intervals of radii, so the
+;; same data draws different circles.
 ;;
 ;; The difference is where the choice is written. In ggplot2 it is
 ;; spread across three places -- inside `aes()`, outside it, and in a
