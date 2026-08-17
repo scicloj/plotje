@@ -658,9 +658,15 @@ gapminder-2007
 ;; Reading them as categories is all `:x-type` does: the bands are in
 ;; the order the rows happen to arrive in, which puts the five-cylinder
 ;; cars last. A `:domain` orders them, as it did for the continents
-;; above -- written as the text the bands are labelled with,
-;; `["4" "5" "6" "8"]`, since the column's numbers became categories on
-;; the way here.
+;; above. The categories are matched by the text they are drawn with,
+;; so a column of numbers can be ordered by those numbers:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :cyl :hwy {:x-type :categorical})
+    (pj/scale :x {:domain [4 5 6 8]}))
+
+(kind/test-last
+ [(fn [fr] (= ["4" "5" "6" "8"] (->> fr pj/plan :panels first :x-domain vec)))])
 
 ;; ## Color, fill and shape
 ;;

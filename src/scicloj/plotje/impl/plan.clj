@@ -463,14 +463,29 @@
                (not (and (= 2 (count d)) (every? number? d))))
       d)))
 
+(defn- category-label
+  "How a category is matched against an entry of a written `:domain`.
+
+   By the text the category is drawn with, so a column of numbers read
+   as categories can be ordered by those numbers as well as by the text
+   they become: an axis holds `\"4\"` where the column held `4`, and
+   both should name the same band."
+  [v]
+  (defaults/fmt-category-label v))
+
 (defn- order-by-domain
   "Order `observed` categories by an explicit `domain`. Domain entries
    come first, in the order given; observed categories the domain omits
    follow in the order they appear in the data, so nothing silently
-   loses its place. `warn-category-domain-gap!` reports the omissions."
+   loses its place. `warn-category-domain-gap!` reports the omissions.
+
+   The values answered are always the observed ones. The marks carry
+   the column's own representation and are placed against these, so
+   answering the written domain's would leave a scale whose categories
+   no mark matches."
   [observed domain]
-  (let [observed-set (set observed)
-        listed (filterv observed-set domain)
+  (let [by-label (into {} (map (juxt category-label identity) (reverse observed)))
+        listed (vec (distinct (keep (comp by-label category-label) domain)))
         listed-set (set listed)]
     (into listed (remove listed-set observed))))
 
@@ -480,11 +495,38 @@
    listed ones -- but the user asked for an order that does not cover
    them, which is usually a typo or a stale category list."
   [aesthetic observed domain]
-  (when-let [missing (seq (remove (set domain) observed))]
-    (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
-                  ". Those categories are still drawn, ordered after the "
-                  "listed ones. List every category to control the whole "
-                  "legend order."))))
+  (let [listed (set (map category-label domain))]
+    (when-let [missing (seq (remove (comp listed category-label) observed))]
+      (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
+                    ". Those categories are still drawn, ordered after the "
+                    "listed ones. List every category to control the whole "
+                    "legend order.")))))
+
+(defn- axis-domain
+  "The domain an axis is drawn against, given its scale spec and what
+   the data covers.
+
+   The column's type decides how a written `:domain` is read, not the
+   written domain's own shape. Against a categorical column it supplies
+   the order of the categories, as it does for `:color` and `:shape`;
+   against a continuous one it replaces the range outright, which is
+   how a view window is set.
+
+   Reading the shape instead made `{:domain [4 5 6 8]}` on a
+   categorical axis look like a numeric range: the axis was built as a
+   linear scale, and every mark -- text by the time it got there --
+   died casting inside it. A temporal axis is unaffected either way,
+   since its domain reaches here as epoch numbers."
+  [aesthetic spec data-domain]
+  (let [written (:domain spec)]
+    (cond
+      (nil? written) data-domain
+
+      (and (some? data-domain) (scale/categorical-domain? data-domain))
+      (do (warn-category-domain-gap! aesthetic data-domain written)
+          (order-by-domain data-domain written))
+
+      :else written)))
 
 (defn- collect-colors
   "Resolve draft layers and collect color categories across all draft layers.
@@ -1574,15 +1616,16 @@
         ;; and `lay-interval-h` died on
         ;; `Number.doubleValue() because "x" is null`, and the marks
         ;; that survived drew no x ticks at all.
-        x-dom (or (:domain x-scale-spec)
-                  (collect-domain local-srs :x-domain x-scale-spec)
+        x-dom (or (axis-domain :x x-scale-spec
+                               (collect-domain local-srs :x-domain x-scale-spec))
                   [0 1])
-        y-dom (or (:domain y-scale-spec)
-                  (compute-global-y-domain domain-layers y-scale-spec)
-                  ;; Annotation-only panels have no plan layers; their
-                  ;; y-domain lives in the synthesized stat-results.
-                  (when (empty? domain-layers)
-                    (collect-domain local-srs-y :y-domain y-scale-spec))
+        y-dom (or (axis-domain :y y-scale-spec
+                               (or (compute-global-y-domain domain-layers y-scale-spec)
+                                   ;; Annotation-only panels have no plan
+                                   ;; layers; their y-domain lives in the
+                                   ;; synthesized stat-results.
+                                   (when (empty? domain-layers)
+                                     (collect-domain local-srs-y :y-domain y-scale-spec))))
                   [0 1])
         ;; Whether anything on this panel gives the axis a meaning in
         ;; the data. Where nothing does, the `[0 1]` fallback above is

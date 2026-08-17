@@ -697,7 +697,24 @@
 
 
 (def
- v103_l671
+ v103_l664
+ (->
+  (rdatasets/ggplot2-mpg)
+  (pj/lay-point :cyl :hwy {:x-type :categorical})
+  (pj/scale :x {:domain [4 5 6 8]})))
+
+
+(deftest
+ t104_l668
+ (is
+  ((fn
+    [fr]
+    (= ["4" "5" "6" "8"] (->> fr pj/plan :panels first :x-domain vec)))
+   v103_l664)))
+
+
+(def
+ v106_l677
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :pop})
@@ -706,42 +723,42 @@
 
 
 (deftest
- t104_l676
+ t107_l682
  (is
-  ((fn [fr] (= :log (-> fr pj/plan :legend :scale-type))) v103_l671)))
+  ((fn [fr] (= :log (-> fr pj/plan :legend :scale-type))) v106_l677)))
 
 
 (def
- v106_l683
+ v109_l689
  (-> (rdatasets/ggplot2-mpg) (pj/lay-point :displ :hwy {:color :cyl})))
 
 
 (deftest
- t107_l686
+ t110_l692
  (is
-  ((fn [fr] (= :continuous (-> fr pj/plan :legend :type))) v106_l683)))
+  ((fn [fr] (= :continuous (-> fr pj/plan :legend :type))) v109_l689)))
 
 
 (def
- v109_l694
+ v112_l700
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy {:color :cyl, :color-type :categorical})))
 
 
 (deftest
- t110_l697
+ t113_l703
  (is
   ((fn
     [fr]
     (=
      ["4" "6" "8" "5"]
      (->> fr pj/plan :legend :entries (mapv :label))))
-   v109_l694)))
+   v112_l700)))
 
 
 (def
- v112_l706
+ v115_l712
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy {:color :cyl, :color-type :categorical})
@@ -749,18 +766,18 @@
 
 
 (deftest
- t113_l710
+ t116_l716
  (is
   ((fn
     [fr]
     (=
      ["4" "5" "6" "8"]
      (->> fr pj/plan :legend :entries (mapv :label))))
-   v112_l706)))
+   v115_l712)))
 
 
 (def
- v115_l718
+ v118_l724
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:shape :continent})
@@ -771,18 +788,18 @@
 
 
 (deftest
- t116_l723
+ t119_l729
  (is
   ((fn
     [fr]
     (=
      ["Africa" "Americas" "Asia" "Europe" "Oceania"]
      (mapv :label (:entries (:shape-legend (pj/plan fr))))))
-   v115_l718)))
+   v118_l724)))
 
 
 (def
- v118_l732
+ v121_l738
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -793,18 +810,18 @@
 
 
 (deftest
- t119_l737
+ t122_l743
  (is
   ((fn
     [fr]
     (=
      ["Oceania" "Europe" "Asia" "Americas" "Africa"]
      (mapv :label (:entries (:legend (pj/plan fr))))))
-   v118_l732)))
+   v121_l738)))
 
 
 (def
- v121_l751
+ v124_l757
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :pop})
@@ -813,7 +830,7 @@
 
 
 (deftest
- t122_l756
+ t125_l762
  (is
   ((fn [fr] (= [0.0 5.0E7] ((juxt :min :max) (:legend (pj/plan fr)))))
-   v121_l751)))
+   v124_l757)))
