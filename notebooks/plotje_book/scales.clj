@@ -17,8 +17,6 @@
 
 (ns plotje-book.scales
   (:require
-   ;; Clojure -- string joining, for the generated table below
-   [clojure.string :as str]
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje -- composable plotting
@@ -66,10 +64,15 @@ gapminder-2007
 ;;   symbols.
 ;;
 ;; Written down, these go in a scale **spec** -- the map that says
-;; which scale, and how. A spec can carry more than the three parts:
-;; `:by` and `:from-zero` on `:size`, tick options on an axis, symbols
-;; on `:shape`. Which keys each aesthetic reads is in a table further
-;; down.
+;; which scale, and how. Two of the three are written the same way
+;; throughout: `:type` and `:domain` are keys on every aesthetic that
+;; has a scale. The range is not. `:size` and `:alpha` take a `:range`,
+;; `:shape` names its symbols with `:values`, a color scale draws from a
+;; palette set as a plot option, and an axis has no range to set,
+;; because the panel decides it. A spec can also carry keys that are
+;; none of the three parts, such as `:by` on `:size` or the tick options
+;; on an axis. So the table further down lists `:type` and `:domain`
+;; once, and then what each aesthetic reads beside them.
 ;;
 ;; A plot usually has several scales at once, and each one is set
 ;; separately.
@@ -305,29 +308,20 @@ gapminder-2007
            pj/plan
            :panels first :layers first :size-scale)))])
 
-;; A mapping's `:scale` comes with a mapping, so it also names the
-;; column or value the aesthetic reads; `pj/scale` sets the scale on its
-;; own, leaving the source to be named wherever it already is --
-;; including on a layer, below the pose the call was made on.
-;; Everything a spec can carry is available in both.
+;; `:scale` is written where the mapping is, so the source can be named
+;; beside it. `pj/scale` names no source, so it can set the scale for an
+;; aesthetic that is mapped further in -- on a layer below the pose the
+;; call was made on. Everything a spec can carry is available in both.
 
 ;; ## What each aesthetic's scale takes
 ;;
 ;; `pj/aesthetic-scales` is the table `pj/scale` and a mapping's
 ;; `:scale` are both checked against, so the one below is read out of
-;; Plotje rather than written down beside it. Aesthetics that accept
-;; the same things share a row.
+;; Plotje rather than written down beside it. `:types` are the types the
+;; aesthetic can be read through, and `:keys` are the spec keys it reads
+;; beside `:type` and `:domain`.
 
-(kind/table
- {:column-names ["Aesthetic" "Types" "Beside :type and :domain"]
-  :row-maps (for [group (partition-by (juxt :types :keys) pj/aesthetic-scales)]
-              (let [names (fn [ks] (str/join ", " (map pr-str ks)))]
-                {"Aesthetic" (kind/code (names (map :aesthetic group)))
-                 "Types" (kind/code (names (:types (first group))))
-                 "Beside :type and :domain"
-                 (if-let [ks (seq (:keys (first group)))]
-                   (kind/code (names ks))
-                   "--")}))})
+(tc/dataset pj/aesthetic-scales)
 
 (kind/test-last
  [(fn [_]
@@ -789,22 +783,20 @@ gapminder-2007
            :entries)
        (mapv :magnitude)))
 
-(kind/table
- {:column-names ["by" "smallest labelled" "middle" "largest labelled"]
-  :row-maps (for [by [:linear :area :sqrt]
-                  :let [ms (legend-magnitudes {:by by})
-                        mid (nth ms (quot (count ms) 2))]]
-              {"by" (kind/code (pr-str by))
-               "smallest labelled" (format "%.2f" (first ms))
-               "middle" (format "%.2f" mid)
-               "largest labelled" (format "%.2f" (last ms))})})
+(-> (for [by [:linear :area :sqrt]
+          :let [ms (legend-magnitudes {:by by})]]
+      {:by by
+       :smallest-labelled (first ms)
+       :middle (nth ms (quot (count ms) 2))
+       :largest-labelled (last ms)})
+    tc/dataset)
 
 (kind/test-last
  [(fn [_]
     ;; For every value the legend labels, `:linear` gives the smallest
     ;; radius and `:sqrt` the largest, with `:area` between them. The
     ;; labelled values stop short of the ends of the domain, which is
-    ;; why no column shows 2.00 or 8.00.
+    ;; why no column reaches the 2.0 and 8.0 of the default range.
     (every? (fn [[l a s]] (< l a s))
             (map vector
                  (legend-magnitudes {:by :linear})
