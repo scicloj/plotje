@@ -415,11 +415,23 @@
     (try
       (layer-type/register! ::widths {:mark ::shared :stat :identity
                                       :varies {:size :width}})
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A mark draws one quantity"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"has to agree about what that mark varies"
                             (layer-type/register! ::radii {:mark ::shared :stat :identity
                                                            :varies {:size :radius}})))
       (finally
-        (swap! @(resolve 'scicloj.plotje.layer-type/registry*) dissoc ::widths ::radii)))))
+        (swap! @(resolve 'scicloj.plotje.layer-type/registry*) dissoc ::widths ::radii))))
+
+  (testing "and a mark whose other layer types vary nothing cannot be claimed"
+    ;; Saying nothing is saying \"one value for the whole layer\", so a
+    ;; declaration against a silent sibling would earn every layer type
+    ;; drawing that mark a legend its renderer does not honour. `:line`
+    ;; is drawn by `lay-line` and `lay-smooth`, neither of which varies
+    ;; a size.
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"without varying :size at all"
+                          (layer-type/register! ::hijack {:mark :line :stat :identity
+                                                          :varies {:size :width}})))
+    (is (nil? (layer-type/mark-varies :line :size))
+        "and the built-in mark is left as it was")))
 
 (deftest an-extension-that-varies-size-earns-its-legend-test
   ;; The capability was a closed table in `impl.plan` until the marks

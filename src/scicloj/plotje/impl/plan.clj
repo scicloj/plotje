@@ -865,6 +865,47 @@
        (layer-type/default-quantities channel))
    (layer-type/ink-exponent (:mark draft-layer) channel)])
 
+(def ^:private per-row-buffer-keys
+  "Where a plan layer carries the per-row values for an appearance
+   channel, keyed by channel. What `warn-undrawn-varies!` looks for to
+   tell a declaration that is drawn from one that is only made."
+  {:size :sizes :alpha :alphas})
+
+(defn- warn-undrawn-varies!
+  "Warn when a mark declares that it varies a channel from row to row,
+   a column is mapped to that channel, and the layer carries no per-row
+   values for it.
+
+   The declaration is what earns the legend and silences the
+   nothing-on-this-plot-varies warning, so a mark that declares one and
+   draws a single value for the whole layer produces a plot advertising
+   an encoding it does not apply. `register!` checks that the layer
+   types sharing a mark agree with each other; only the extracted layer
+   can say whether the mark carries the values through to the renderer.
+
+   Reported once per mark and channel, however many panels drew it."
+  [panel-data]
+  (let [drawn? (fn [layer buffer-key]
+                 (some (fn [g] (let [b (get g buffer-key)]
+                                 (and (some? b) (pos? (count b)))))
+                       (:groups layer)))
+        offenders (for [pd panel-data
+                        [rv layer] (map vector (:resolved pd) (:layers pd))
+                        [channel buffer-key] per-row-buffer-keys
+                        :when (and (resolve/column-ref? (get rv channel))
+                                   (:data rv)
+                                   (seq (:groups layer))
+                                   (layer-type/mark-varies (:mark rv) channel)
+                                   (not (drawn? layer buffer-key)))]
+                    [(:mark rv) channel])]
+    (doseq [[mark channel] (distinct offenders)]
+      (println (str "Warning: the " mark " mark declares that it varies "
+                    channel " from row to row, and drew no per-row "
+                    (name channel) " values. Its legend explains an encoding"
+                    " the panel does not show. Either draw " channel
+                    " per row in the mark's extractor, or take " channel
+                    " out of the layer type's :varies.")))))
+
 (defn- reads-per-row?
   "Whether `mark` varies `channel` from row to row -- the registry's
    `:varies` declaration, asked per mark.
@@ -1982,6 +2023,8 @@
                                                                      :shape-map (:shape-map shape-info)))
                                pg)))))
                      (:panels grid))
+
+         _ (warn-undrawn-varies! panel-data)
 
          ;; --- Phase 2: per-panel domains (still no pixel math) ---
          panel-domains (vec

@@ -197,24 +197,37 @@
                              ".")
                         {:layer-type k :channel channel :quantity quantity}))))
     ;; Two layer types sharing a mark describe the same drawing, so
-    ;; they cannot disagree about what it varies. Caught here because
-    ;; the lookup below answers per mark: left to run, a disagreement
-    ;; would be settled by whichever entry the map happened to yield.
+    ;; every one of them has to say the same thing about it. The lookup
+    ;; below answers per mark, so a declaration made here reaches every
+    ;; layer type drawing that mark -- including ones registered
+    ;; elsewhere, whose renderer knows nothing of it.
+    ;;
+    ;; Saying nothing counts as saying "one value for the whole layer",
+    ;; which is why a silent sibling is a disagreement and not an
+    ;; absence of one. Declaring a quantity for a mark whose other
+    ;; layer types draw it uniformly would earn all of them a legend
+    ;; explaining an encoding they do not apply.
+    ;;
     ;; The entry being replaced is not a second opinion about its own
     ;; mark, so re-registering a layer type to correct its own :varies
     ;; is not a conflict with itself.
     (doseq [[other-k other] @registry*
             :when (and (not= other-k k)
                        (= (:mark other) (:mark entry))
-                       (get-in other [:varies channel])
-                       (not= (get-in other [:varies channel]) quantity))]
+                       (not= (get-in other [:varies channel]) quantity))
+            :let [theirs (get-in other [:varies channel])]]
       (throw (ex-info (str "Layer type " k " declares :varies " channel " "
                            quantity ", and " other-k " draws the same mark ("
-                           (:mark entry) ") as "
-                           (get-in other [:varies channel])
-                           ". A mark draws one quantity per channel.")
+                           (:mark entry) ") "
+                           (if theirs
+                             (str "as " theirs)
+                             (str "without varying " channel " at all"))
+                           ". Every layer type drawing one mark has to agree"
+                           " about what that mark varies, because the mark is"
+                           " what draws it. To vary " channel " per row, give"
+                           " the layer type a mark of its own.")
                       {:layer-type k :other other-k :mark (:mark entry)
-                       :channel channel :quantity quantity}))))
+                       :channel channel :quantity quantity :theirs theirs}))))
   (swap! registry* assoc k (resolve/map->LayerType entry))
   k)
 
