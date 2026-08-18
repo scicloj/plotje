@@ -884,7 +884,30 @@
 
 
 (def
- v137_l915
+ v137_l917
+ (->
+  {:district ["a" "b" "c" "d" "e" "f"],
+   :share [10 20 30 40 50 60],
+   :party ["rep" "dem" "dem" "ind" "rep" "ind"]}
+  (pj/lay-point :district :share {:color :party})
+  (pj/options {:palette {"rep" "red", "dem" "blue", "ind" "green"}})))
+
+
+(deftest
+ t138_l923
+ (is
+  ((fn
+    [v]
+    (=
+     [["rep" [1.0 0.0 0.0 1.0]]
+      ["dem" [0.0 0.0 1.0 1.0]]
+      ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
+     (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))
+   v137_l917)))
+
+
+(def
+ v140_l933
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
@@ -893,18 +916,18 @@
 
 
 (deftest
- t138_l919
+ t141_l937
  (is
   ((fn
     [v]
     (=
      {:low "#2166AC", :mid "#F7F7F7", :high "#B2182B"}
      (-> v pj/plan :legend :color-scale)))
-   v137_l915)))
+   v140_l933)))
 
 
 (def
- v140_l928
+ v143_l946
  (->
   {:x (range 40),
    :y (range 40),
@@ -918,7 +941,7 @@
 
 
 (deftest
- t141_l935
+ t144_l953
  (is
   ((fn
     [v]
@@ -927,19 +950,19 @@
      (and
       (= :log (:scale-type legend))
       (= :viridis (:color-scale legend)))))
-   v140_l928)))
+   v143_l946)))
 
 
-(def v143_l956 pj/shape-symbols)
+(def v146_l974 pj/shape-symbols)
 
 
 (deftest
- t144_l958
- (is ((fn [syms] (= syms (distinct syms))) v143_l956)))
+ t147_l976
+ (is ((fn [syms] (= syms (distinct syms))) v146_l974)))
 
 
 (def
- v146_l967
+ v149_l985
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:shape :continent})
@@ -951,7 +974,7 @@
 
 
 (deftest
- t147_l973
+ t150_l991
  (is
   ((fn
     [fr]
@@ -964,11 +987,11 @@
      (mapv
       (juxt :label :shape)
       (:entries (:shape-legend (pj/plan fr))))))
-   v146_l967)))
+   v149_l985)))
 
 
 (def
- v149_l992
+ v152_l1010
  (->
   squares
   (pj/lay-point :x :y {:size :n, :alpha :n})
@@ -976,7 +999,7 @@
 
 
 (deftest
- t150_l996
+ t153_l1014
  (is
   ((fn
     [fr]
@@ -986,11 +1009,11 @@
       (= :radius (:quantity (:size-legend p)))
       (= :circle (:swatch (:size-legend p)))
       (= :square (:swatch (layer-type/quantities :opacity))))))
-   v149_l992)))
+   v152_l1010)))
 
 
 (def
- v152_l1015
+ v155_l1033
  (try
   (->
    gapminder-2007
@@ -1002,7 +1025,7 @@
 
 
 (deftest
- t153_l1024
+ t156_l1042
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v152_l1015)))
+   v155_l1033)))

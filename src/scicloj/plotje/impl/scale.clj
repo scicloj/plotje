@@ -104,26 +104,32 @@
    For log scales, callers must supply positive lo and hi -- the
    responsibility for excluding non-positive values lives upstream
    (filter-log-nonpositive for raw data, the scale-aware branch of
-   compute-global-y-domain for stat-derived ranges)."
-  [[lo hi] scale-spec]
-  (let [log? (= :log (:type scale-spec))
-        padding (:domain-padding defaults/defaults)
-        _ (when (and log? (or (not (pos? (double lo))) (not (pos? (double hi)))))
-            (throw (ex-info (str "A log scale cannot include zero or negative values, but this "
-                                 "axis spans [" lo ", " hi "]. Bar and area marks draw from a "
-                                 "zero baseline, so they cannot sit on a log-scaled value axis -- "
-                                 "use a linear scale for those, or a mark without a baseline "
-                                 "(lay-point, lay-line, lay-lollipop). If the data itself has "
-                                 "non-positive values, a log scale does not apply to this axis.")
-                            {:lo lo :hi hi :scale-spec scale-spec})))
-        [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
-        span (- b a)
-        pad (if (<= span 0.0)
-              ;; Constant data: use ±max(1, 5% of |value|)
-              (max 1.0 (* padding (Math/abs (double a))))
-              (* padding span))
-        from (if log? #(Math/exp %) identity)]
-    [(from (- a pad)) (from (+ b pad))]))
+   compute-global-y-domain for stat-derived ranges).
+
+   `padding` is the resolved `:domain-padding`. The 2-arity falls back
+   to the library default, for a caller with no configuration in hand;
+   every caller inside `draft->plan` passes the resolved value, which is
+   how `pj/options` and `pj/with-config` reach this."
+  ([domain scale-spec]
+   (pad-domain domain scale-spec (:domain-padding defaults/defaults)))
+  ([[lo hi] scale-spec padding]
+   (let [log? (= :log (:type scale-spec))
+         _ (when (and log? (or (not (pos? (double lo))) (not (pos? (double hi)))))
+             (throw (ex-info (str "A log scale cannot include zero or negative values, but this "
+                                  "axis spans [" lo ", " hi "]. Bar and area marks draw from a "
+                                  "zero baseline, so they cannot sit on a log-scaled value axis -- "
+                                  "use a linear scale for those, or a mark without a baseline "
+                                  "(lay-point, lay-line, lay-lollipop). If the data itself has "
+                                  "non-positive values, a log scale does not apply to this axis.")
+                             {:lo lo :hi hi :scale-spec scale-spec})))
+         [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
+         span (- b a)
+         pad (if (<= span 0.0)
+               ;; Constant data: use ±max(1, 5% of |value|)
+               (max 1.0 (* padding (Math/abs (double a))))
+               (* padding span))
+         from (if log? #(Math/exp %) identity)]
+     [(from (- a pad)) (from (+ b pad))])))
 
 (def by-methods
   "How a value spreads across the range a channel is drawn over.

@@ -429,6 +429,20 @@
     (is (== 0 (s 1)))
     (is (== 300 (s 1000)))))
 
+(deftest domain-padding-config-test
+  (testing ":domain-padding is read through the config chain, not the defaults map"
+    (let [pose (-> (rdatasets/datasets-iris)
+                   (pj/lay-point :sepal-length :sepal-width))
+          dom  (fn [p] (-> p pj/plan :panels first :x-domain))]
+      ;; The data runs 4.3 to 7.9; the default 5% pads it to [4.12 8.08].
+      (is (= [4.12 8.08] (mapv #(-> % (* 100) Math/round (/ 100.0)) (dom pose))))
+      ;; No padding leaves the raw extent.
+      (is (= [4.3 7.9] (dom (pj/options pose {:domain-padding 0.0}))))
+      ;; A plot option and a thread-local binding both reach it.
+      (is (= (dom (pj/options pose {:domain-padding 0.5}))
+             (pj/with-config {:domain-padding 0.5} (dom pose))))
+      (is (< (first (dom (pj/options pose {:domain-padding 0.5}))) 4.12)))))
+
 (deftest pad-domain-test
   (testing "numeric padding"
     (let [[lo hi] (scale/pad-domain [0.0 10.0] {})]

@@ -27,8 +27,10 @@
   "Collect and merge domains from stat results along axis-key.
    Throws if some stat results contribute numeric domains and others
    contribute categorical domains -- mixing the two on one axis is
-   ambiguous."
-  [stat-results axis-key scale-spec]
+   ambiguous.
+
+   `padding` is the resolved `:domain-padding`."
+  [stat-results axis-key scale-spec padding]
   (let [parsed (keep (fn [sr]
                        (when-let [d (axis-key sr)]
                          {:vals (if (and (= 2 (count d)) (number? (first d)))
@@ -45,7 +47,7 @@
                          :domains (mapv :vals parsed)})))
       (let [vals (mapcat :vals parsed)]
         (if (number? (first vals))
-          (scale/pad-domain [(reduce min vals) (reduce max vals)] scale-spec)
+          (scale/pad-domain [(reduce min vals) (reduce max vals)] scale-spec padding)
           (distinct vals))))))
 
 (defn compute-global-y-domain
@@ -54,8 +56,10 @@
    include 0 for marks that draw from a zero baseline (bar, area,
    lollipop) on linear scales. On log scales, baseline
    extension is skipped -- the lower bound is the smallest positive
-   value the layers report -- because log scales have no zero."
-  [plan-layers scale-spec]
+   value the layers report -- because log scales have no zero.
+
+   `padding` is the resolved `:domain-padding`."
+  [plan-layers scale-spec padding]
   (let [fill-layers (filter #(= :fill (:position %)) plan-layers)
         stack-layers (filter #(= :stack (:position %)) plan-layers)
         log? (= :log (:type scale-spec))
@@ -103,7 +107,7 @@
           (let [lo (double (reduce min all-vals))
                 hi (double (reduce max all-vals))]
             (if (< lo hi)
-              (scale/pad-domain [lo hi] scale-spec)
+              (scale/pad-domain [lo hi] scale-spec padding)
               [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
           [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
 
@@ -122,10 +126,10 @@
                 ;; Baseline marks: include zero, only pad away from zero.
                 (let [lo (min 0.0 raw-lo)
                       hi (max 0.0 raw-hi)
-                      [plo phi] (scale/pad-domain [lo hi] scale-spec)]
+                      [plo phi] (scale/pad-domain [lo hi] scale-spec padding)]
                   [(if (>= raw-lo 0.0) 0.0 plo)
                    (if (<= raw-hi 0.0) 0.0 phi)])
-                (scale/pad-domain [raw-lo raw-hi] scale-spec)))
+                (scale/pad-domain [raw-lo raw-hi] scale-spec padding)))
             (distinct vals)))))))
 
 ;; ---- Tick Computation ----
@@ -1611,7 +1615,7 @@
    Applies the :coord :flip swap so downstream code doesn't have to.
    Does NOT compute ticks -- that happens after panel dimensions are
    known."
-  [pd default-x-scale default-y-scale default-coord]
+  [pd default-x-scale default-y-scale default-coord padding]
   (let [;; A layer placed in a drawing-space frame is on the panel, not in
         ;; the data: its numbers are drawing units, so letting them reach a
         ;; domain would stretch the axis to a page measurement. It is left
@@ -1663,15 +1667,15 @@
         ;; `Number.doubleValue() because "x" is null`, and the marks
         ;; that survived drew no x ticks at all.
         x-dom (or (axis-domain :x x-scale-spec
-                               (collect-domain local-srs :x-domain x-scale-spec))
+                               (collect-domain local-srs :x-domain x-scale-spec padding))
                   [0 1])
         y-dom (or (axis-domain :y y-scale-spec
-                               (or (compute-global-y-domain domain-layers y-scale-spec)
+                               (or (compute-global-y-domain domain-layers y-scale-spec padding)
                                    ;; Annotation-only panels have no plan
                                    ;; layers; their y-domain lives in the
                                    ;; synthesized stat-results.
                                    (when (empty? domain-layers)
-                                     (collect-domain local-srs-y :y-domain y-scale-spec))))
+                                     (collect-domain local-srs-y :y-domain y-scale-spec padding))))
                   [0 1])
         ;; Whether anything on this panel gives the axis a meaning in
         ;; the data. Where nothing does, the `[0 1]` fallback above is
@@ -2035,7 +2039,8 @@
          panel-domains (vec
                         (for [pd panel-data
                               :when (seq (:draft-layers pd))]
-                          (resolve-panel-domains pd default-x-scale default-y-scale default-coord)))
+                          (resolve-panel-domains pd default-x-scale default-y-scale default-coord
+                                                 (:domain-padding cfg))))
 
          ;; Ridgeline swap: categories go on y, density on x. Swap
          ;; per-panel domains/scales/temporal extents before anything

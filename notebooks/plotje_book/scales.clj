@@ -909,6 +909,24 @@ gapminder-2007
  [(fn [v] (= #{"rgb(231,76,60)" "rgb(52,152,219)" "rgb(46,204,113)"}
              (disj (:colors (pj/svg-summary v)) "none")))])
 
+;; Written as a map, a palette names the colour for each category, so
+;; the pairing does not depend on the order the categories arrive in.
+;; The column still supplies the domain, so the legend is drawn from it
+;; as it always is:
+
+(-> {:district ["a" "b" "c" "d" "e" "f"]
+     :share [10 20 30 40 50 60]
+     :party ["rep" "dem" "dem" "ind" "rep" "ind"]}
+    (pj/lay-point :district :share {:color :party})
+    (pj/options {:palette {"rep" "red" "dem" "blue" "ind" "green"}}))
+
+(kind/test-last
+ [(fn [v]
+    (= [["rep" [1.0 0.0 0.0 1.0]]
+        ["dem" [0.0 0.0 1.0 1.0]]
+        ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
+       (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))])
+
 ;; A gradient is named, or written as a map of stops: `:low`, `:mid` and
 ;; `:high` build one of three, and `:mid` may be left out for two.
 
