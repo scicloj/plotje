@@ -268,7 +268,7 @@
                                              " twice the value is twice the ink,"
                                              " and " channel " draws no ink to"
                                              " double."))
-                           " The channels that read " k ": "
+                           " The aesthetics that read " k ": "
                            (vec (sort (for [[c ks] defaults/channel-scale-options
                                             :when (contains? ks k)]
                                         c)))

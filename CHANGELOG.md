@@ -61,6 +61,7 @@ A setting belonging to one aesthetic's scale is a spec key. The plot option of t
 
 ### Reported rather than passed over
 
+- The messages Plotje prints say *aesthetic* where they said *channel*, which is the word the book teaches and `pj/scale` takes. "Channel" remains the name of the internal vocabulary and does not reach a reader.
 - A mapping written in full is checked where it is written, so an unknown key, both sources at once, a source named `nil`, and a map naming no source are reported at the `pj/pose` or `lay-*` call rather than at `pj/draft`. It cannot stand where a whole map of mappings goes: `(pj/lay-point data :a {:column :b})` reads that map as the options map, so a full mapping goes under an aesthetic key, `{:y {:column :b}}`.
 - An aesthetic told not to scale refuses an option that configures the scale it just left, such as `:color-type` or a `pj/scale` call beside `{:scale false}`. A per-axis `:scale false` is refused on the marks that cannot read one, and under `:coord :flip` and `:coord :polar`, which move the axis it measures along; `{:in :drawing-area}` is refused on those same marks.
 - `:size`, `:alpha` and `:fill` name the aesthetic and the column when given a categorical one, and `:fill` and `:group` refuse a value that names no column. A hex colour written without its `#` is refused on the four annotation constructors as well as on layers. `(pj/scale pose :x :categorical)` on a numeric column points at `:x-type`/`:y-type`. `pj/with-data` checks a column named in full at attach time, where its docstring promises the check.

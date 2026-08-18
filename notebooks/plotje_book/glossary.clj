@@ -675,11 +675,12 @@ my-pose
 ;; | `:log` | Orders-of-magnitude data |
 ;; | `:categorical` | Distinct categories (band scale) |
 ;;
-;; Scales are created at render time, not stored in the plan.
-;; The plan stores scale *specs* (`:type`, `:domain`, and on `:size`
-;; and `:alpha` the `:range` a value spreads across, plus `:from-zero`,
-;; which anchors both at zero; `:by`, which says how a value spreads
-;; across the range, belongs to `:size` alone).
+;; Scales are created at render time, not stored in the plan. The plan
+;; stores scale *specs*: `:type` and `:domain`, which every scale has,
+;; and the keys each aesthetic reads beside them. `pj/aesthetic-scales`
+;; publishes which those are, aesthetic by aesthetic, and
+;; [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
+;; prints the table.
 ;;
 ;; **Temporal columns** (`LocalDate`, `LocalDateTime`, `Instant`,
 ;; `java.util.Date`) are detected automatically and converted to

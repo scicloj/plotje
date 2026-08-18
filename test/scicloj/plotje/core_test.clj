@@ -1502,8 +1502,8 @@
                           (-> {:x [1 2 3] :y [10 20 30]}
                               (pj/lay-text :x :y) pj/plan))))
 
-  (testing "scale channel validation"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Scale channel"
+  (testing "scale aesthetic validation"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"takes one of the aesthetics"
                           (pj/scale [] :z :log))))
 
   (testing "coord validation"
@@ -2107,10 +2107,10 @@
 
     (testing ":categorical rejected on continuous visual channels"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Visual channel :size is continuous"
+                            #"The aesthetic :size is continuous"
                             (pj/scale (pj/pose d) :size :categorical)))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Visual channel :fill is continuous"
+                            #"The aesthetic :fill is continuous"
                             (pj/scale (pj/pose d) :fill :categorical)))))
 
   (testing ":fill :log on a tile heatmap plans cleanly with log scale-type"

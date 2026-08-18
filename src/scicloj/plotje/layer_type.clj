@@ -160,17 +160,17 @@
     (when-not (map? v)
       (throw (ex-info (str "Layer type " k " declares :varies " (pr-str v)
                            ", which is not a map. It maps each appearance"
-                           " channel the mark varies from row to row to the"
+                           " aesthetic the mark varies from row to row to the"
                            " quantity it draws it as, as "
                            (pr-str {:size :radius}) ".")
                       {:layer-type k :varies v}))))
   (doseq [[channel quantity] (:varies entry)]
     (when-not (contains? default-quantities channel)
       (throw (ex-info (str "Layer type " k " declares :varies for " channel
-                           ", which is not a channel Plotje varies from row"
+                           ", which is not an aesthetic Plotje varies from row"
                            " to row. Supported: "
                            (vec (sort (keys default-quantities)))
-                           ". A declaration for any other channel is read by"
+                           ". A declaration for any other aesthetic is read by"
                            " nothing.")
                       {:layer-type k :channel channel
                        :supported (vec (sort (keys default-quantities)))})))

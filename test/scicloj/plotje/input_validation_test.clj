@@ -1052,7 +1052,7 @@
     ;; read, so the plot was identical with and without it.
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"pj/scale has no :group channel"
+         #"pj/scale has no :group aesthetic"
          (pj/scale (pj/lay-line mixed :num :num2 {:group :cat})
                    :group {:domain ["q" "p"]}))))
 

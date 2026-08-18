@@ -2783,7 +2783,7 @@
    - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols."
   [pose channel scale-type]
   (when (= :group channel)
-    (throw (ex-info (str "pj/scale has no :group channel. Grouping draws"
+    (throw (ex-info (str "pj/scale has no :group aesthetic. Grouping draws"
                          " nothing of its own -- it splits a layer into one"
                          " drawn group per value, in the order the data"
                          " gives them -- so there is no scale to set. To"
@@ -2792,7 +2792,7 @@
                     {:channel channel
                      :supported (vec (sort (keys channel->scale-key)))})))
   (let [k (or (channel->scale-key channel)
-              (throw (ex-info (str "Scale channel must be one of "
+              (throw (ex-info (str "pj/scale takes one of the aesthetics "
                                    (vec (sort (keys channel->scale-key)))
                                    ", got: " channel)
                               {:channel channel})))
@@ -2804,12 +2804,12 @@
       (throw (ex-info
               (cond
                 (and cont-visual? (= type-kw :categorical))
-                (str "Visual channel " channel " is continuous and does not"
-                     " support :categorical scale. Supported: "
+                (str "The aesthetic " channel " is continuous and does not"
+                     " support a :categorical scale. Supported: "
                      (vec (sort valid-types)) ".")
                 (and disc-visual? (#{:linear :log} type-kw))
-                (str "Visual channel " channel " is discrete and does not"
-                     " support continuous scale (" type-kw "). Supported: "
+                (str "The aesthetic " channel " is discrete and does not"
+                     " support a continuous scale (" type-kw "). Supported: "
                      (vec (sort valid-types)) ".")
                 :else
                 (str "Unknown scale type: " type-kw ". Supported for "

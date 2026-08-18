@@ -388,7 +388,7 @@ gapminder-2007
     (ex-message e)))
 
 (kind/test-last
- [(fn [m] (re-find #"does not support :categorical scale" m))])
+ [(fn [m] (re-find #"does not support a :categorical scale" m))])
 
 ;; That refusal is about the scale type, not about the column: a
 ;; categorical column mapped to `:color` is drawn from a palette

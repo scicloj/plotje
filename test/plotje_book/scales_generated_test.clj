@@ -368,7 +368,7 @@
 (deftest
  t58_l390
  (is
-  ((fn [m] (re-find #"does not support :categorical scale" m))
+  ((fn [m] (re-find #"does not support a :categorical scale" m))
    v57_l382)))
 
 
