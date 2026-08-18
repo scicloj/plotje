@@ -46,7 +46,7 @@
    :width 600 :height 400
    :margin 10 :margin-multi 10 :panel-size 200 :legend-width 100
    ;; Ticks
-   :tick-spacing-x 60 :tick-spacing-y 40
+   :x-tick-spacing 60 :y-tick-spacing 40
    ;; Points
    :point-radius 3.0 :point-opacity 0.75
    :point-stroke "none" :point-stroke-width 0
@@ -71,33 +71,340 @@
 ;; ---- Aesthetic Registry ----
 
 (def aesthetic-registry
-  "Per-aesthetic semantic properties. Single source of truth for the set
-   of mapping keys that can reference dataset columns. :numeric? marks
-   aesthetics whose column values, when present, are numeric -- those
-   are the keys eligible for finite-value filtering at plan time."
-  {:x     {:numeric? true}
-   :y     {:numeric? true}
-   :color {:numeric? true}
-   :size  {:numeric? true}
-   :alpha {:numeric? true}
-   :y-min {:numeric? true}
-   :y-max {:numeric? true}
-   :x-end {:numeric? true}
-   :fill  {:numeric? true}
-   :shape {:numeric? false}
-   :group {:numeric? false}
-   :text  {:numeric? false}})
+  "Per-aesthetic properties, and the single table the rest of the
+   library derives its per-aesthetic sets from. One entry per
+   aesthetic, each carrying everything any consumer needs to know about
+   it, so a new aesthetic is added here and nowhere else.
+
+   - `:category` -- `:positional` places a mark, `:appearance` decides
+     how it looks, `:grouping` splits the data and draws nothing of its
+     own. The glossary's Aesthetic entry teaches the same three, under
+     those names.
+   - `:column?` -- whether the aesthetic can name a dataset column at
+     all. `:x-min` and `:x-max` cannot: only `lay-band-v` reads them,
+     and it reads a value straight from the mapping. `:y-min` and
+     `:y-max` can, because `lay-errorbar` reads them as columns -- see
+     the note on layer-dependent readings at the end.
+   - `:numeric?` -- whether the column it names, when it names one,
+     holds numbers. Those are the keys eligible for finite-value
+     filtering at plan time.
+   - `:value?` -- whether a written value is accepted beside a column
+     reference. `:fill` and `:group` take a column and nothing else
+     today. For `:fill` that is a gap, and `:scale-default` below says
+     what a value there would mean once it is closed; for `:group` it
+     is not, since it splits the data and draws nothing of its own, so
+     there is nothing a value could mean.
+   - `:scale-default` -- which side of the scale a **written value**
+     falls on when the mapping does not say. It has nothing to say
+     about a column: a column passes through the aesthetic's scale
+     wherever there is one, uniformly, and nothing reads its contents.
+     `:by-source` draws it, and the aesthetic's vocabulary is what
+     the gate refuses it against: `\"red\"` is a color and is drawn,
+     `\"notacolor\"` is neither a column nor a color and is reported.
+     `:always` scales it instead -- `{:x 6.5}` is a datum on the axis,
+     not 6.5 drawing units. `:never` means no scale to pass through;
+     `nil` means no scale at all. A `:scale` in the mapping overrides
+     it in either direction, and is the only way to move a column off
+     its scale or to read a written value as data.
+
+     **The split is by category, not by aesthetic.** Every appearance
+     aesthetic is `:by-source` and every positional one is `:always`,
+     which is the same distinction the glossary draws and the
+     `:category` entry above records. The reason the two differ is
+     that position already has a second vocabulary for page geometry
+     and appearance does not: `{:in :drawing-area}` says \"these
+     coordinates are drawing units\", so a bare `{:x 6.5}` is free to
+     mean the data value, while nothing but `{:size 7}` can say a
+     radius of seven. Both readings stay reachable either way --
+     `{:x {:value 6.5 :scale false}}` and
+     `{:size {:value 7 :scale true}}`.
+   - `:drawn-column?` -- whether a column of this aesthetic can be
+     drawn as it stands, which is what `{:scale false}` on a column
+     asks for. It is the only route to an identity scale now that a
+     column never leaves its scale by convention. False where the
+     reading is not written: `:shape` would draw a column of symbols
+     and does not, and `:fill` derives its color through a gradient
+     with no branch for a value that already is one. Kept as a flag
+     rather than a silence for the same reason `:value?` is: **one
+     entry says what a reading would mean and another says whether it
+     exists, and a gate needs both.** See `dev-notes/backlog.md`.
+   - `:categorical-column?` -- whether the column it names may hold
+     categories. False on the three column-bearing aesthetics that
+     encode a magnitude and have no categorical counterpart --
+     `:alpha`, `:fill`, `:size`, which is `continuous-column-aesthetics`
+     -- and on `:x-min` / `:x-max`, which name no column at all.
+   - `:scale-key` -- the key a draft layer carries this channel's
+     resolved scale spec under, for the aesthetics that have a scale.
+     `pj/scale` writes the mapping rather than `:opts`, so this names
+     where the spec arrives, not where it is written.
+   - `:legend?` -- whether the compositor may hoist this aesthetic's
+     legend to composite level when every leaf agrees on it. It is not
+     which aesthetics draw a legend: `:fill` draws a continuous one and
+     is not hoisted, so it carries no `:legend?`.
+
+   - `:literal->column?` -- whether `impl.pose/resolve-positional-values`
+     turns a literal value here into a constant column before anything
+     else reads the mapping. True of the three the stat and the extract
+     read; the band bounds are read straight from the mapping by their
+     own marks instead, so normalizing them would take the value away
+     from the only code that wants it.
+
+   `:scale-default` says what a value means once the aesthetic accepts
+   one, so `:fill` carries `:by-source` while `:value?` is still false.
+   Setting `:value?` before the reading exists would make a value pass
+   every check and then draw nothing, which is the defect this table is
+   here to prevent.
+
+   One pair records a reading that depends on the layer rather than on
+   the value, which is a wart the table makes visible rather than
+   hides: `:y-min` / `:y-max` are a column on `:errorbar` and a value
+   on `:band-h`. `:text` is not such a pair -- a written label
+   broadcasts over the layer's rows whether or not the layer has
+   data."
+  {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
+   :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
+   :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
+   :y-min {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
+   :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
+   :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
+   :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
+   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale :legend? true}
+   :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
+   :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
+   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
+   :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
+   :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
+   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}})
+
+(defn aesthetics-where
+  "The aesthetics whose registry entry satisfies `pred`, in a stable
+   order. Every per-aesthetic set in the library comes from here."
+  [pred]
+  (into [] (comp (filter (comp pred val)) (map key)) (sort aesthetic-registry)))
 
 (def column-keys
   "Set of keywords that can reference dataset columns in mappings."
-  (set (keys aesthetic-registry)))
+  (set (aesthetics-where :column?)))
 
 (def numeric-aesthetic-keys
   "Aesthetics whose column values are numeric -- subject to finite-value
    filtering. Derived from aesthetic-registry."
-  (into []
-        (comp (filter (comp :numeric? val)) (map key))
-        aesthetic-registry))
+  (aesthetics-where #(and (:numeric? %) (:column? %))))
+
+(def positional-aesthetics
+  "The aesthetics that place a mark, and so may be given as a value.
+   Named for the glossary's sake: `:position` there is the dodge /
+   stack / fill adjustment, which these have nothing to do with."
+  (aesthetics-where #(= :positional (:category %))))
+
+(def literal-to-column-aesthetics
+  "The aesthetics whose literal value becomes a constant column in the
+   draft. A subset of `positional-aesthetics` -- see `:literal->column?`."
+  (aesthetics-where :literal->column?))
+
+(def column-only-aesthetics
+  "Aesthetics that read a column and have no reading for a value."
+  (aesthetics-where #(and (:column? %) (not (:value? %)))))
+
+(def continuous-column-aesthetics
+  "Aesthetics whose column must hold numbers, because what they encode
+   is a magnitude. `:color` is not among them: a categorical color
+   column is a palette, which is the reading these three lack."
+  (aesthetics-where #(and (:column? %) (not (:categorical-column? %)))))
+
+(def channel->scale-key
+  "Channel keyword to the key a draft layer holds its scale spec under."
+  (into {} (for [[k {:keys [scale-key]}] aesthetic-registry
+                 :when scale-key]
+             [k scale-key])))
+
+(def channel-scale-types
+  "The scale types each channel accepts.
+
+   `:categorical` places a value by which category it is, which the two
+   channels drawn as an axis can do and `:shape` can only do. The
+   continuous visual channels have no categorical reading: a size or an
+   opacity is a magnitude, and a symbol is not."
+  {:x     #{:linear :log :categorical}
+   :y     #{:linear :log :categorical}
+   :color #{:linear :log}
+   :fill  #{:linear :log}
+   :size  #{:linear :log}
+   :alpha #{:linear :log}
+   :shape #{:categorical}})
+
+(defn default-scale-type
+  "The scale type an aesthetic falls back on when no scope named one.
+
+   Derived from `channel-scale-types` rather than listed again: an
+   aesthetic with no continuous reading is placed by category, and
+   every other one is linear.
+
+   A spec that names no type is not an opinion that the scale is
+   linear, so the fallback is applied once, after every scope has
+   accumulated, rather than where a scale is written."
+  [aesthetic]
+  (let [accepted (get channel-scale-types aesthetic)]
+    (if (and accepted (not (contains? accepted :linear)))
+      :categorical
+      :linear)))
+
+(def channel-scale-options
+  "The scale-spec keys each channel reads, beside `:type` and
+   `:domain`, which every scale that has a type has.
+
+   A key a channel does not read is refused where it is written rather
+   than dropped in silence.
+
+   `:range` and `:values` are the two shapes the output set takes.
+   `:range` is spanned between two ends: an interval of radii for
+   `:size`, an interval of opacities for `:alpha`, a gradient for the
+   two colour channels. `:values` is enumerated and assigned by index:
+   the marker symbols `:shape` draws, the colours a categorical
+   `:color` column is drawn in. `:color` reads both, because a colour
+   column may be of either type, and its type decides which is read;
+   `:fill` takes only numbers, so it reads `:range` alone. An axis
+   reads neither -- the panel decides what it spans.
+
+   `:by` asks how a value spreads across a range in the quantity the
+   mark draws it as, correcting for the way ink grows with that
+   quantity. An opacity has no shape and so no area to correct for,
+   which leaves the three methods one function: `:size` reads `:by`
+   and `:alpha` does not.
+
+   `:from-zero` asks a different question -- whether the drawn quantity
+   is proportional to the value -- and an opacity can answer it, since
+   zero opacity is absence the way zero area is. A colour cannot: the
+   low end of a gradient is a colour rather than an absence, so there
+   is no quantity there to be proportional to anything. `:midpoint` is
+   what the two colour channels anchor with instead. It names the value
+   the middle of the range is drawn at, which is what centres a
+   diverging gradient on zero rather than halfway along the data.
+
+   `:breaks`, `:tick-labels`, `:n-ticks` and `:tick-spacing` place and
+   word tick marks, so all four belong to the two channels drawn as an
+   axis. `:n-ticks` asks for about that many ticks and `:tick-spacing`
+   for about that much room each; a numeric axis reads whichever is
+   named, and a categorical one is ticked at its categories, which
+   `:n-ticks` thins.
+
+   `:label` titles what explains the scale to a reader: the axis for
+   `:x` and `:y`, the legend for the rest. Every channel with a scale
+   reads it. (`:label` is that title; `:tick-labels` is the text drawn
+   at the ticks of an axis.)"
+  {:x     #{:breaks :tick-labels :n-ticks :tick-spacing :label}
+   :y     #{:breaks :tick-labels :n-ticks :tick-spacing :label}
+   :color #{:range :values :midpoint :label}
+   :fill  #{:range :midpoint :label}
+   :shape #{:values :label}
+   :size  #{:range :by :from-zero :label}
+   :alpha #{:range :from-zero :label}})
+
+;; ---- What a scale takes, as one ordered table ----
+;;
+;; `channel-scale-types` and `channel-scale-options` are sets, so
+;; neither carries an order to show a reader. These three vectors
+;; supply one, and `aesthetic-scales` below joins the three tables into
+;; the shape a reference table wants. The book builds its own table
+;; from it rather than restating it by hand, which is how the two stay
+;; agreed.
+
+(def scale-type-order
+  "Display order for scale types: the continuous readings, then the
+   categorical one."
+  [:linear :log :categorical])
+
+(def scale-spec-key-order
+  "Display order for the per-aesthetic scale spec keys: the output set
+   an aesthetic is drawn from, then how a value spreads across it and
+   where it is anchored, then the keys that place and word tick marks,
+   then the axis title."
+  [:range :values :by :from-zero :midpoint
+   :breaks :tick-labels :n-ticks :tick-spacing :label])
+
+(def scale-bearing-aesthetic-order
+  "Display order for the aesthetics that have a scale: the two drawn as
+   an axis first, then the appearance aesthetics. Aesthetics sharing a
+   set of capabilities are adjacent, so a table can group them."
+  [:x :y :size :alpha :color :fill :shape])
+
+(defn- in-canonical-order
+  "Sort `items` by their place in `order`. Anything `order` does not
+   list follows, by name, so a newly added entry shows up at the end
+   rather than disappearing."
+  [order items]
+  (let [rank (zipmap order (range))]
+    (vec (sort-by (juxt #(get rank % (count order)) str) items))))
+
+(def aesthetic-scales
+  "What each aesthetic's scale accepts, one entry per aesthetic that
+   has a scale, in display order.
+
+   Each entry carries `:aesthetic`, the `:types` it can be read
+   through, and the spec `:keys` it reads beside `:type` and `:domain`,
+   which belong to every scale. Both are ordered vectors.
+
+   Derived from `channel-scale-types` and `channel-scale-options` so
+   that documentation cannot drift from what the validators enforce."
+  (vec (for [a (in-canonical-order scale-bearing-aesthetic-order
+                                   (keys channel-scale-types))]
+         {:aesthetic a
+          :types (in-canonical-order scale-type-order (get channel-scale-types a))
+          :keys  (in-canonical-order scale-spec-key-order
+                                     (get channel-scale-options a #{}))})))
+
+(defn scale-option-key
+  "The plot option that is the outer scope of scale spec key `k` on
+   `aesthetic`: the two names joined by a hyphen. `:label` on `:x` is
+   `:x-label`, `:values` on `:color` is `:color-values`, `:midpoint` on
+   `:fill` is `:fill-midpoint`.
+
+   Computed rather than listed, so an option and the spec key it is the
+   outer scope of cannot drift apart, and so a new spec key gets its
+   option spelling by being named."
+  [aesthetic k]
+  (keyword (str (name aesthetic) "-" (name k))))
+
+(defn scale-setting
+  "The effective value of scale setting `k` for `aesthetic`: what the
+   scale spec says, and failing that what the plot option of the same
+   name says.
+
+   A setting belonging to one aesthetic is written in two places: in a
+   scale spec, and as the plot option `scale-option-key` names. The
+   spec is written further in, so it wins, and it wins by naming the
+   key at all -- a spec giving the key the value nil means nil, and
+   does not fall back to the option.
+
+   `spec` is the resolved scale spec, nil where none was written.
+   `options` is the map the plot option is looked up in: the resolved
+   configuration for a setting that has a configuration level, and a
+   pose's own options for one that is per-plot, such as a title."
+  [aesthetic k spec options]
+  (if (contains? spec k)
+    (get spec k)
+    (get options (scale-option-key aesthetic k))))
+
+(def drawn-range-options
+  "The scale-spec keys that describe how a value spreads across what a
+   mark draws it as. Only some channels read them; see
+   `channel-scale-options`."
+  #{:range :by :from-zero})
+
+(def channel-ranges
+  "What a continuous appearance channel spans when its scale names no
+   `:range`, in the quantity the mark draws it as: `:size` in drawing
+   units of radius, `:alpha` in opacity.
+
+   Stated here because the marks and the legend both need it and each
+   held its own copy -- the same defect the shared mapper exists to
+   prevent, one level up. The alpha range is ggplot2's."
+  {:size  [2.0 8.0]
+   :alpha [0.1 1.0]})
+
+(def legend-bearing-aesthetics
+  "Aesthetics that produce a legend at render time."
+  (set (aesthetics-where :legend?)))
 
 ;; ---- Shape Symbols ----
 
@@ -109,7 +416,7 @@
   [:circle :square :triangle :diamond :triangle-down :plus :cross])
 
 (def legend-swatch-size
-  "Side length of legend color swatches (square)."
+  "Side length of the colored key drawn beside a legend entry (square)."
   8)
 
 ;; ---- Color Helpers ----
@@ -118,7 +425,12 @@
   "Convert any color representation to [r g b a] in 0-1 range.
    Accepts hex strings (#RGB, #RRGGBB, #RRGGBBAA, or without #),
    named color strings (\"red\", \"steelblue\"), keywords (:red, :darkblue),
-   or any value that clojure2d.color/to-color understands."
+   or any value that clojure2d.color/to-color understands.
+
+   Converting is not deciding. `names-a-color?` answers the narrower
+   question of whether a value was *meant* as a color, and refuses the
+   bare hex this function accepts, because a three-letter string is a
+   mistyped column name more often than it is a shade."
   [color]
   (if (and (string? color) (not (.startsWith ^String color "#")))
     ;; Non-# string: try as hex first, then as named color keyword
@@ -141,7 +453,8 @@
    instead of the first n entries.
 
    Currently unused by `color-for` — the canonical path for continuous
-   color is `:color-scale`, not `:palette` with a gradient name. This
+   color is a colour scale's `:range`, not its `:values` with a
+   gradient name. This
    helper stays as a dormant utility in case we later expose a
    `:palette-sampling :spread` escape hatch."
   [^long i ^long n ^long p]
@@ -165,9 +478,9 @@
    palette entry (wrapping modulo the palette size). This preserves
    the authorial ordering of designed-categorical palettes like
    :set1, :dark2, :tableau-10. If you want a continuous color ramp
-   (viridis, inferno, etc.) for a numeric column, use the dedicated
-   `:color-scale` option instead -- that's the canonical gradient
-   path and interpolates the full color range smoothly."
+   (viridis, inferno, etc.) for a numeric column, use the colour
+   scale's `:range` instead -- that's the canonical gradient path and
+   interpolates the full color range smoothly."
   ([categories val]
    (color-for categories val nil))
   ([categories val palette]
@@ -223,9 +536,10 @@
 
 (def gradient-palette-keywords
   "Set of keywords that resolve to a continuous gradient rather than a
-   categorical palette. Users who pass these to `:palette` almost always
-   meant `:color-scale` with a numeric color column. `plan/warn-palette-wrap!`
-   fires a warning when it sees one of these on the `:palette` slot."
+   categorical palette. Users who pass one as a colour scale's
+   `:values` almost always meant its `:range` with a numeric color
+   column. `plan/warn-palette-wrap!` fires a warning when it sees one
+   of these among the values."
   (set (keys gradient-aliases)))
 
 (defn- resolve-gradient-name
@@ -234,52 +548,89 @@
   (or (c/gradient (get gradient-aliases k k))
       (c/gradient k)))
 
+(defn names-a-color?
+  "True of a value that unmistakably names a color: a `#`-prefixed hex
+   string, or a CSS color name as a string or a keyword.
+
+   Deliberately narrower than what `hex->rgba` will convert, which also
+   reads a bare `abc` as the hex `#aabbcc`. That extra latitude is fine
+   once something has decided the value is a color, and wrong while
+   deciding: `abc` and `fff` are far likelier to be mistyped column
+   names than colors, and reading them as colors is exactly the silent
+   failure asking the vocabulary was meant to prevent."
+  [v]
+  (boolean
+   (cond
+     (keyword? v) (some? (c/to-color v))
+     (string? v) (if (.startsWith ^String v "#")
+                   (try (some? (c/to-color v)) (catch Throwable _ false))
+                   (some? (c/to-color (keyword v))))
+     :else false)))
+
 (defn gradient-map?
   "True of a map that describes a custom gradient -- one naming at least
-   one of its three stops.
+   one of `:low`, `:mid` and `:high`.
 
-   The `:color-scale` key carries two unrelated things, because
-   `pj/scale :color` and the `:color-scale` configuration key both write
-   it: a scale spec such as `{:type :log}`, and a gradient. Only the
-   gradient belongs to `resolve-gradient-fn`, and a scale spec taken as
-   one would resolve to three default stops -- which is how asking for a
-   log scale used to change the palette as well as the spacing."
+   A gradient reaches `resolve-gradient-fn` as the `:range` of a colour
+   scale, which holds a gradient and nothing else. The check remains
+   because a map is also how a whole scale spec is written, and a spec
+   read as a gradient would resolve to three default stops: a plot
+   asking for a log colour scale would silently change its colours as
+   well as its spacing."
   [m]
   (and (map? m)
        (boolean (some #(contains? m %) [:low :mid :high]))))
 
 (defn resolve-gradient-fn
-  "Resolve a :color-scale option to a gradient function t→[r g b a] (0-1 range).
+  "Resolve a colour scale's `:range` to a gradient function
+   t→[r g b a] (0-1 range).
    nil or :sequential → dark blue to light blue (ggplot2 default).
    :diverging → RdBu.
    keyword → clojure2d gradient name (:inferno, :viridis/plasma, etc.).
    map {:low hex :mid hex :high hex} → custom 3-stop gradient.
    function → used directly.
-   A map naming none of the three stops is a scale spec from `pj/scale`
-   rather than a gradient, and leaves the default gradient in place.
-   Throws on unrecognized keyword."
-  [color-scale]
+   Throws on an unrecognized keyword, and on a map naming none of the
+   three stops -- that map is a whole scale spec written where a
+   gradient belongs, and drawing it as three default stops would change
+   a plot's colours without saying so."
+  [gradient]
   (cond
-    (nil? color-scale) gradient-color
-    (= :sequential color-scale) gradient-color
-    (= :diverging color-scale) diverging-color
-    (fn? color-scale) color-scale
-    (keyword? color-scale)
-    (if-let [g (resolve-gradient-name color-scale)]
+    (nil? gradient) gradient-color
+    (= :sequential gradient) gradient-color
+    (= :diverging gradient) diverging-color
+    (fn? gradient) gradient
+    (keyword? gradient)
+    (if-let [g (resolve-gradient-name gradient)]
       (wrap-gradient g)
-      (throw (ex-info (str "Unknown color scale: " color-scale
+      (throw (ex-info (str "Unknown colour :range " gradient
                            ". Use a clojure2d gradient name (e.g. :inferno, :viridis, :plasma)"
                            " or :sequential / :diverging.")
-                      {:color-scale color-scale})))
-    (gradient-map? color-scale)
+                      {:range gradient})))
+    (gradient-map? gradient)
     (let [{:keys [low mid high]
-           :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} color-scale
+           :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} gradient
           g (c/gradient [(c/to-color low) (c/to-color mid) (c/to-color high)])]
       (wrap-gradient g))
-    (map? color-scale) gradient-color
-    :else (throw (ex-info (str "Invalid color scale: " (pr-str color-scale)
-                               ". Expected nil, keyword, map, or function.")
-                          {:color-scale color-scale}))))
+    (map? gradient)
+    (throw (ex-info (str "A colour :range map names at least one of :low,"
+                         " :mid and :high, and " (pr-str gradient)
+                         " names none. A whole scale spec goes under"
+                         " :scale, not under its own :range.")
+                    {:range gradient}))
+    :else (throw (ex-info (str "Invalid colour :range: " (pr-str gradient)
+                               ". Expected nil, a keyword, a {:low :mid :high}"
+                               " map, or a function.")
+                          {:range gradient}))))
+
+(defn scale-gradient-fn
+  "The gradient function `aesthetic` reads a numeric column through.
+
+   One resolution, used by the marks and by the legend alike, so the
+   bar a reader matches a colour against is drawn from the same
+   function the marks were. Takes the `:range` the scale spec names,
+   and failing that the `:color-range` or `:fill-range` plot option."
+  [aesthetic spec cfg]
+  (resolve-gradient-fn (scale-setting aesthetic :range spec cfg)))
 
 (defn normalize-midpoint
   "Remap a value v from [vmin, vmax] to [0,1] with optional midpoint.
@@ -299,15 +650,24 @@
 (defn normalize-continuous
   "Remap a value v from [vmin, vmax] to [0,1] using a scale-type aware
    transform. :linear (default) uses normalize-midpoint with the optional
-   midpoint. :log uses log10 endpoints; midpoint is ignored under :log."
+   midpoint. :log uses log10 endpoints; midpoint is ignored under :log.
+
+   The result is clamped to [0,1], which is the whole gradient. Every
+   caller reads it as a place along one, and the endpoints used to come
+   from the data itself, so nothing could fall outside. A `:domain`
+   narrower than the data can, and a value beyond it is drawn at the
+   nearer end of the gradient -- the same answer `:size` and `:alpha`
+   give a value outside their domain."
   [scale-type v vmin vmax midpoint]
-  (if (= scale-type :log)
-    (let [vl   (Math/log10 (max 1e-300 (double v)))
-          minl (Math/log10 (max 1e-300 (double vmin)))
-          maxl (Math/log10 (max 1e-300 (double vmax)))
-          span (- maxl minl)]
-      (if (<= span 0) 0.5 (/ (- vl minl) span)))
-    (normalize-midpoint v vmin vmax midpoint)))
+  (-> (if (= scale-type :log)
+        (let [vl   (Math/log10 (max 1e-300 (double v)))
+              minl (Math/log10 (max 1e-300 (double vmin)))
+              maxl (Math/log10 (max 1e-300 (double vmax)))
+              span (- maxl minl)]
+          (if (<= span 0) 0.5 (/ (- vl minl) span)))
+        (normalize-midpoint v vmin vmax midpoint))
+      (max 0.0)
+      (min 1.0)))
 
 ;; ---- Name Formatting ----
 
@@ -429,6 +789,20 @@
   (cond-> (fmt-category-label v)
     (number? v) (fmt-number separators)))
 
+(defn fmt-legend-number
+  "Format a legend's numeric value: an integral value loses its trailing
+   .0, and the digits are grouped per `:thousands-separator`, so a legend
+   reads the same way as the axis ticks beside it.
+
+   Here rather than beside the renderer because the layout has to
+   measure the same string the renderer will draw. A size legend's
+   entries carry a value and no label, so measuring the label read
+   nothing and the column was sized as if the numbers were not there."
+  [v cfg]
+  (let [d (double v)
+        s (if (== d (Math/floor d)) (str (long d)) (str v))]
+    (fmt-number s (number-separators cfg))))
+
 ;; ---- Configuration Precedence Chain ----
 ;;
 ;; Resolved with precedence (highest to lowest):
@@ -457,7 +831,7 @@
 
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
-   (set-config! {:palette :dark2 :theme {:bg \"#FFFFFF\"}})
+   (set-config! {:color-values :dark2 :theme {:bg \"#FFFFFF\"}})
    (set-config! nil)  — reset to defaults"
   [m]
   (reset! config-atom m))
@@ -506,8 +880,8 @@
    :annotation-stroke ["Annotations" "Stroke color for annotation marks"]
    :annotation-dash ["Annotations" "Dash pattern [dash gap] for annotation lines"]
    :band-opacity ["Annotations" "Opacity for confidence bands"]
-   :tick-spacing-x ["Ticks" "Minimum spacing between x-axis ticks"]
-   :tick-spacing-y ["Ticks" "Minimum spacing between y-axis ticks"]
+   :x-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the x axis"]
+   :y-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the y axis"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
    :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
@@ -521,9 +895,11 @@
    :validate ["Behavior" "When true, validate plans against Malli schema"]
    :strict ["Behavior" "When true, throw on unknown option keys instead of warning and stripping"]
    :default-color ["Behavior" "Fallback color when no color mapping is set"]
-   :palette ["Color" "Categorical palette — keyword, vector, or map"]
-   :color-scale ["Color" "Continuous color scale — :sequential, :diverging, or keyword"]
-   :color-midpoint ["Color" "Center value for diverging color scales"]
+   :color-values ["Color" "The colours a categorical :color column is drawn in, as a palette name, a vector of colours, or a map from category to colour. The outermost scope of :values in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-range ["Color" "The gradient a numeric :color column is read through — :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function. The outermost scope of :range in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-midpoint ["Color" "The value the middle of the :color gradient is drawn at, which centres a diverging gradient there rather than halfway along the data. The outermost scope of :midpoint in a :color scale spec"]
+   :fill-range ["Color" "The gradient a numeric :fill column is read through, in the same forms as :color-range. The outermost scope of :range in a :fill scale spec"]
+   :fill-midpoint ["Color" "The value the middle of the :fill gradient is drawn at. The outermost scope of :midpoint in a :fill scale spec"]
    :tooltip ["Interaction" "Enable hover tooltips (truthy value)"]
    :brush ["Interaction" "Enable drag-to-select brush (truthy value)"]
    :format ["Output" "Render format — :svg (default)"]})
@@ -536,13 +912,13 @@
   {:title ["Content" "Plot title string"]
    :subtitle ["Content" "Plot subtitle string"]
    :caption ["Content" "Plot caption string (bottom)"]
-   :x-label ["Content" "X-axis label (overrides inferred)"]
-   :y-label ["Content" "Y-axis label (overrides inferred)"]
-   :color-label ["Content" "Color legend title (overrides inferred column name)"]
-   :fill-label ["Content" "Fill legend title (overrides inferred column name; used by tile fills, density-2d, bin2d)"]
-   :size-label ["Content" "Size legend title (overrides inferred column name)"]
-   :alpha-label ["Content" "Alpha legend title (overrides inferred column name)"]
-   :shape-label ["Content" "Shape legend title (overrides inferred column name)"]
+   :x-label ["Content" "X-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in an `:x` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :y-label ["Content" "Y-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:y` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-label ["Content" "Color legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:color` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :fill-label ["Content" "Fill legend title, overriding the inferred column name; used by tile fills, density-2d and bin2d. The outermost scope of the same setting `:label` names in a `:fill` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :size-label ["Content" "Size legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:size` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :alpha-label ["Content" "Alpha legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in an `:alpha` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :shape-label ["Content" "Shape legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:shape` scale spec, so a spec written on a mapping or a layer wins over it"]
    :panel-width ["Layout" "Pin panel width (escape hatch; :width becomes derived total)"]
    :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
    :scales ["Layout" "Facet scale coordination — :shared (default), :free, :free-x, :free-y"]

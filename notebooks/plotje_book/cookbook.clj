@@ -391,7 +391,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette {:setosa "#E91E63"
+    (pj/options {:color-values {:setosa "#E91E63"
                            :versicolor "#4CAF50"
                            :virginica "#2196F3"}
                  :title "Custom Palette Map"}))
@@ -418,14 +418,14 @@
 
 ;; ### Diverging color scale
 ;;
-;; Use `:color-scale :diverging` with `:color-midpoint` to center
+;; Use a `:diverging` color range with a `:midpoint` to center
 ;; a red-white-blue gradient on a meaningful value (e.g., zero).
 
 (-> {:x (range 20)
      :y (map #(Math/sin (/ % 3.0)) (range 20))
      :change (map #(- % 10) (range 20))}
     (pj/lay-point :x :y {:color :change})
-    (pj/options {:color-scale :diverging
+    (pj/options {:color-range :diverging
                  :color-midpoint 0
                  :title "Diverging Color Scale"}))
 
@@ -615,7 +615,7 @@
 ;; appear but are not discussed.
 ;;
 ;; All the pale series are one layer. `pj/lay-line` with a `:group` and
-;; a literal `:color` draws one line per country, every line in that
+;; a written `:color` draws one line per country, every line in that
 ;; color.
 ;;
 ;; Pick the three to name from the data rather than by hand -- the

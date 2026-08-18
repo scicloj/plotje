@@ -92,14 +92,14 @@ scatter-pose
 ;; |:-----------------|:--------|:---------|
 ;; | Column selection | one column fills x; two fill x, y; three fill x, y, color | explicit column args in `pj/pose` or `pj/lay-*` |
 ;; | Column type | dtype inspection | `:x-type`, `:y-type`, `:color-type` in pose or layer options |
-;; | Aesthetic classification | keyword = column, string = color/column | explicit `:color` keyword vs hex string |
+;; | Aesthetic classification | the data decides: a name it carries is a column, anything else is a value | `{:color {:column "red"}}` / `{:color {:value "red"}}` |
 ;; | Grouping | categorical color column | `:group` aesthetic |
 ;; | Layer type (mark + stat) | column types (see Layer Type section) | `pj/lay-point`, `pj/lay-histogram`, etc. |
 ;; | Domain extent | data range + 5% padding | `(pj/scale pose :x {:domain [0 10]})` |
 ;; | Domain zero-anchor | bar/stacked charts include zero | `(pj/scale pose :y {:domain [5 20]})` |
 ;; | Fill domain | `[0.0, 1.0]` for fill position | `(pj/scale pose :y {:domain [0 2]})` |
 ;; | Tick values | round intervals (linear), powers of 10 (log) | `(pj/scale pose :x {:breaks [1 2 3]})` |
-;; | Tick labels | number formatting, calendar formatting | `(pj/scale pose :x {:breaks [...] :labels [...]})` |
+;; | Tick labels | number formatting, calendar formatting | `(pj/scale pose :x {:breaks [...] :tick-labels [...]})` |
 ;; | Axis labels | column name, with underscores replaced by spaces | `(pj/options {:x-label "Custom"})` |
 ;; | Color legend | categorical = discrete, numerical = continuous, none = no legend | `:color` mapping controls presence |
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
@@ -236,9 +236,10 @@ bar-pose
 
 ;; ### Temporal columns
 ;;
-;; Dates are detected and converted to epoch-milliseconds internally,
-;; with calendar-aware tick labels.
-;; Clojure's `#inst` reader literal is a convenient way to write dates:
+;; Plotje accepts `java.util.Date` (from Clojure's `#inst` reader
+;; literal), `LocalDate`, `LocalDateTime` and `Instant`. Each is
+;; detected automatically and converted to epoch-milliseconds -- one
+;; number per value -- before any scale is built.
 
 (def temporal-pose
   (-> {:date [#inst "2024-01-01" #inst "2024-06-01" #inst "2024-12-01"]
@@ -254,12 +255,48 @@ temporal-pose
            (= 10 (count (:values (:x-ticks p))))
            (= "Feb-01" (first (:labels (:x-ticks p)))))))])
 
-;; The x-axis carries epoch-millisecond numbers internally, but the
-;; 10 tick labels show human-readable dates like `"Feb-01"`. Plotje
-;; accepts `java.util.Date` (from `#inst`), `LocalDate`,
-;; `LocalDateTime`, and `Instant` -- all are converted to
-;; epoch-milliseconds for plotting, with calendar-aware tick
-;; formatting.
+;; The axis reads as dates. The plan underneath it holds none: the
+;; scale is an ordinary `:linear` one, the domain is a pair of
+;; epoch-millisecond numbers, and only the tick labels are
+;; calendar-aware. This is what the type table above means by
+;; "numerical, with calendar-aware ticks" -- it describes the scaling,
+;; not the display.
+
+(let [panel (first (:panels (pj/plan temporal-pose)))]
+  {:x-scale       (:x-scale panel)
+   :x-domain      (:x-domain panel)
+   :x-tick-labels (:labels (:x-ticks panel))})
+
+(kind/test-last
+ [(fn [m]
+    (and (= {:type :linear} (:x-scale m))
+         (every? number? (:x-domain m))
+         (= 10 (count (:x-tick-labels m)))))])
+
+;; The label format follows the span the axis covers. The same
+;; two-point layer over three spans gives clock time, weekday and
+;; hour, and year and month:
+
+(let [labels (fn [a b]
+               (-> {:when [a b] :level [1 2]}
+                   (pj/lay-point :when :level)
+                   pj/plan :panels first :x-ticks :labels))]
+  {:six-hours  (labels #inst "2024-01-15T00:00" #inst "2024-01-15T06:00")
+   :three-days (labels #inst "2024-01-15" #inst "2024-01-18")
+   :nine-years (labels #inst "2015-01-15" #inst "2024-01-15")})
+
+(kind/test-last
+ [(fn [m]
+    (and (every? #(re-matches #"\d{2}:\d{2}" %) (:six-hours m))
+         (every? #(re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" %) (:three-days m))
+         (every? #(re-matches #"\d{4}-\d{2}" %) (:nine-years m))))])
+
+;; Over the longer spans the tick values are placed on calendar
+;; boundaries as well, rather than at evenly spaced numbers: the
+;; nine-year axis above carries one tick per year, and the twelve-month
+;; axis at the top of this section carries one per month. Below a month
+;; the ticks are evenly spaced and it is the label format alone that is
+;; calendar-aware.
 
 ;; ### Overriding inferred types with `:x-type` / `:y-type`
 ;;
@@ -291,9 +328,9 @@ hour-bar-pose
 ;; ## Aesthetic Resolution
 ;;
 ;; The `:color` parameter does different things depending on
-;; what you pass. Each aesthetic channel (`:color`, `:size`,
-;; `:alpha`, `:text`) is classified as either a column reference or
-;; a fixed literal.
+;; what you pass. Each aesthetic (`:color`, `:size`,
+;; `:alpha`, `:shape`, `:text`) is classified as either a column
+;; reference or a written value.
 
 ;; ### Column reference -- colored by palette
 
@@ -344,7 +381,7 @@ fixed-color-pose
                1.0]
               c))))])
 
-;; A literal hex string maps every point to that single color: no
+;; A written hex string maps every point to that single color: no
 ;; grouping, no legend, no legend strip. The hex was parsed into the
 ;; RGBA tuple `[0.906 0.298 0.235 1.0]`.
 
@@ -359,27 +396,40 @@ fixed-color-pose
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
 ;; This raises a question: since `:color` also accepts column names
-;; as strings (like `"species"`), how does the system decide whether
-;; `"red"` means the column `:red` or the color red?
+;; (like `"species"` or `:species`), how does the system decide whether
+;; `"red"` means the column `red` or the color red?
 ;;
-;; The rule is: **check the dataset first**. If the string matches
-;; a column name in the dataset, it is treated as a column reference.
-;; Otherwise, it is treated as a color value -- first trying hex
-;; parsing, then CSS color name lookup.
+;; The rule is: **check the dataset first**. If the value names a
+;; column of the layer's data, it is a column reference. Otherwise it
+;; is asked whether it is a color.
 ;;
-;; Here is the full resolution order for a string `:color` value:
+;; Here is the full resolution order for a `:color` value:
 ;;
-;; 1. If the string matches a dataset column, it is a column reference (grouping)
-;; 2. If it starts with `#`, it is a hex color (`"#E74C3C"`, `"#F00"`)
-;; 3. If it parses as hex without `#`, it is a hex color (`"00FF00"`)
-;; 4. If it matches a CSS color name, it is a named color (`"red"`, `"steelblue"`)
-;; 5. Otherwise, error with a helpful message
+;; 1. If it names a dataset column, it is a column reference (grouping)
+;; 2. If it starts with `#` and parses as hex, it is that color
+;;    (`"#E74C3C"`, `"#F00"`)
+;; 3. If it is a CSS color name, it is that color -- as a string
+;;    (`"red"`, `"steelblue"`) or as a keyword (`:red`, `:steelblue`)
+;; 4. Otherwise, error. A string is reported against both readings,
+;;    since a hex code written without its `#` arrives that way. A
+;;    keyword is reported as a missing column alone: a keyword naming a
+;;    color would have been drawn at step 3, so the only reading left
+;;    to name is the column.
+;;
+;; A keyword and a string are asked the same two questions, in the same
+;; order. What differs is what each can match -- matching is strict, so
+;; `:species` finds a keyword-named column and `"species"` finds a
+;; string-named one -- and how much the error says.
+;;
+;; Hex without its `#` is **not** a color. clojure2d reads a bare `abc`
+;; as `#aabbcc`, which would make `"beef"` and `"fff"` colors -- far
+;; likelier mistyped column names. Write the `#`.
 ;;
 ;; In practice, ambiguity is rare. Column names like `"species"` or
 ;; `"temperature"` are not valid CSS colors, and color names like
-;; `"red"` are unlikely column names. When true ambiguity exists,
-;; use a keyword for the column (`:red`) or a hex string for the
-;; color (`"#FF0000"`).
+;; `"red"` are unlikely column names. When true ambiguity exists, say
+;; which you mean: `{:color {:column "red"}}` reads the column and
+;; `{:color {:value "red"}}` draws the color.
 
 ;; Verify: `"red"` is a fixed color when the dataset has no `red` column:
 
@@ -931,8 +981,9 @@ continuous-color-pose
 ;; ### Size Legend
 ;;
 ;; When `:size` maps to a numerical column, a size legend shows
-;; five graduated circles spanning the data range, with radii
-;; proportional to the values they represent.
+;; graduated circles spanning the data range. Each circle is drawn
+;; from the same scale as the marks, so the one beside a value is the
+;; size a mark of that value is drawn at.
 
 (def size-legend-pose
   (-> {:x [1 2 3 4 5] :y [1 2 3 4 5] :s [10 20 30 40 50]}

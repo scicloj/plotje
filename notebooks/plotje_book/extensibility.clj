@@ -114,7 +114,7 @@ graph LR
                                 :ys (dfn/cummax (ds y))}
                          ;; A grouped stat names each group by the value it
                          ;; was split on. extract-layer turns that name into
-                         ;; a colour and a legend entry.
+                         ;; a color and a legend entry.
                          (seq group) (assoc :color (first (ds (first group))))))
                      subsets)
         all-xs (dtype/concat-buffers (map :xs points))
@@ -266,11 +266,17 @@ graph LR
 ;; present, which is the rule from a few forms above seen from the other
 ;; side.
 
-;; (The other two fields in those lookups belong to the layer type rather
+;; (The other fields in those lookups belong to the layer type rather
 ;; than to the stat: `:x-only` says the layer type works from an x column
-;; alone, and `:accepts` lists the layer options it takes beyond the
+;; alone, `:accepts` lists the layer options it takes beyond the
 ;; universal ones, tabulated per layer type in
-;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options).)
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options),
+;; and `:varies` names the appearance aesthetics its mark varies from row
+;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. A
+;; aesthetic left out of `:varies` is one the mark draws once for the
+;; whole layer, so a column mapped to it varies nothing, and the plan
+;; says so rather than drawing a legend for an encoding the panel does
+;; not carry.)
 ;;
 ;; One entry per row is visible in the output: a scatter of the 150-row
 ;; iris dataset draws 150 marks.
@@ -415,7 +421,7 @@ graph LR
 ;;
 ;; | Key | Present when | Read by |
 ;; |:----|:-------------|:--------|
-;; | `:color` | the layer is grouped | every mark, to choose the group's colour |
+;; | `:color` | the layer is grouped | every mark, to choose the group's color |
 ;; | `:labels` | the layer maps `:text`, or the stat computes one per point | `:text` |
 ;; | `:ymins`, `:ymaxs` | `:y-min` and `:y-max` map columns | `:errorbar`, `:pointrange` |
 ;; | `:sizes` | `:size` maps a column | `:point` |
@@ -424,12 +430,12 @@ graph LR
 ;; | `:color-values` | `:color` maps a numerical column | `:point`, `:interval-h` |
 ;; | `:x-ends` | `:x-end` maps a column | `:interval-h` |
 
-;; #### `:color` in a stat result is a category, not a colour
+;; #### `:color` in a stat result is a category, not a color
 ;;
 ;; A group's `:color` holds the **category value** the group was split on
-;; -- the string `"setosa"` -- and not a colour. Nothing is resolved against a palette until
+;; -- the string `"setosa"` -- and not a color. Nothing is resolved against a palette until
 ;; `extract-layer` runs, which is where the same key changes meaning: the
-;; plan layer's `:color` is a resolved colour, and the category moves to
+;; plan layer's `:color` is a resolved color, and the category moves to
 ;; `:label`.
 
 [(-> scatter-stat :points first :color)
@@ -483,7 +489,7 @@ graph LR
 ;; Converts a stat result into a plan layer descriptor -- a plain
 ;; map with data-space geometry and resolved colors. This is the half of
 ;; the contract that reads the shapes tabulated above, and where a
-;; category value becomes a colour.
+;; category value becomes a color.
 ;;
 ;; Dispatch function: `(fn [draft-layer stat all-colors cfg] (:mark draft-layer))`
 
@@ -540,6 +546,42 @@ graph LR
 
 (kind/test-last [(fn [t] (= 17 (count (:row-maps t))))])
 ;;
+;; ### Drawing an aesthetic the layer type declares it varies
+;;
+;; A layer type says which appearance aesthetics its mark varies from
+;; row to row under `:varies`, and that declaration earns the layer a
+;; legend. Drawing them is the renderer's half, and it has to agree
+;; with the legend: both read the column's values through the same
+;; scale, and a mark that spreads the values itself instead will draw
+;; sizes its own legend does not explain.
+;;
+;; `layer-type/channel-magnitude-fn` is that shared function. It turns
+;; a value from the layer's per-row buffers into the quantity the mark
+;; draws -- a radius, a width, an opacity:
+
+(def bubble-layer
+  (-> {:x [1 2 3] :y [1 2 3] :n [1 4 9]}
+      (pj/lay-point :x :y {:size :n})
+      pj/plan
+      :panels first :layers first))
+
+(let [groups (:groups bubble-layer)
+      radius-of (layer-type/channel-magnitude-fn bubble-layer :size
+                                                 (keep :sizes groups))]
+  (mapv radius-of [1 4 9]))
+
+(kind/test-last
+ [(fn [radii]
+    ;; The ends of the size range, which is what the legend explains.
+    (= [2.0 8.0] [(first radii) (last radii)]))])
+
+;; It answers `identity` where the mapping asked for the column's
+;; values as they stand (`{:scale false}`), so a renderer applies the
+;; result either way, and nil where the layer carries nothing to draw.
+;;
+;; A mark that declares an aesthetic and then draws no per-row values
+;; for it is reported at `pj/plan`, naming the mark and the aesthetic.
+
 ;; ### How to extend: add a new mark type
 ;;
 ;; Adding a new mark (e.g., `:area` for area charts) requires methods
@@ -942,5 +984,5 @@ graph LR
 
 ;; ## What's Next
 ;;
-;; - [**Waterfall Extension**](./plotje_book.waterfall_extension.html) -- a worked example that uses the extension points above to add a new chart type
+;; - [**Extension Example**](./plotje_book.waterfall_extension.html) -- a worked example that uses the extension points above to add a waterfall chart
 ;; - [**Edge Cases**](./plotje_book.edge_cases.html) -- how the library handles unusual inputs

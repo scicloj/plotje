@@ -73,7 +73,7 @@
         "Description" desc}))))}))
 
 
-(deftest t10_l70 (is ((fn [t] (= 42 (count (:row-maps t)))) v9_l57)))
+(deftest t10_l70 (is ((fn [t] (= 44 (count (:row-maps t)))) v9_l57)))
 
 
 (def
@@ -125,7 +125,7 @@
  (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v20_l116)))
 
 
-(def v23_l125 (-> (base-plot) (pj/options {:palette :dark2})))
+(def v23_l125 (-> (base-plot) (pj/options {:color-values :dark2})))
 
 
 (deftest
@@ -329,86 +329,86 @@
    v70_l331)))
 
 
-(def v73_l366 (-> (base-plot) (pj/options {:palette :tableau-10})))
+(def v73_l369 (-> (base-plot) (pj/options {:color-values :tableau-10})))
 
 
 (deftest
- t74_l369
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v73_l366)))
+ t74_l372
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v73_l369)))
 
 
 (def
- v76_l374
+ v76_l377
  (->
   (base-plot)
-  (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]})))
+  (pj/options {:color-values ["#E74C3C" "#3498DB" "#2ECC71"]})))
 
 
 (deftest
- t77_l377
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v76_l374)))
+ t77_l380
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v76_l377)))
 
 
 (def
- v79_l382
+ v79_l385
  (->
   (base-plot)
   (pj/options
-   {:palette
+   {:color-values
     {"setosa" "#FF6B6B",
      "versicolor" "#4ECDC4",
      "virginica" "#45B7D1"}})))
 
 
 (deftest
- t80_l387
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v79_l382)))
+ t80_l390
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v79_l385)))
 
 
-(def v82_l392 (pj/set-config! {:palette :pastel1}))
+(def v82_l395 (pj/set-config! {:color-values :pastel1}))
 
 
-(def v83_l394 (-> (base-plot)))
-
-
-(deftest
- t84_l396
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v83_l394)))
-
-
-(def v85_l399 (pj/set-config! nil))
-
-
-(def v87_l403 (pj/with-config {:palette :accent} (-> (base-plot))))
+(def v83_l397 (-> (base-plot)))
 
 
 (deftest
- t88_l406
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v87_l403)))
+ t84_l399
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v83_l397)))
+
+
+(def v85_l402 (pj/set-config! nil))
+
+
+(def v87_l406 (pj/with-config {:color-values :accent} (-> (base-plot))))
+
+
+(deftest
+ t88_l409
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v87_l406)))
 
 
 (def
- v90_l417
+ v90_l421
  (->
   {:x (range 50), :y (range 50), :c (range 50)}
   (pj/lay-point :x :y {:color :c})))
 
 
 (deftest
- t91_l420
- (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v90_l417)))
+ t91_l424
+ (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v90_l421)))
 
 
 (def
- v93_l426
+ v93_l430
  (->
   {:x (range 50), :y (range 50), :c (range 50)}
   (pj/lay-point :x :y {:color :c})
-  (pj/options {:color-scale :inferno})))
+  (pj/options {:color-range :inferno})))
 
 
 (deftest
- t94_l430
+ t94_l434
  (is
   ((fn
     [v]
@@ -419,64 +419,64 @@
         (->
          {:x (range 50), :y (range 50), :c (range 50)}
          (pj/lay-point :x :y {:color :c})
-         (pj/options {:color-scale :inferno}))))]
+         (pj/options {:color-range :inferno}))))]
      (and
       (= 50 (:points (pj/svg-summary v)))
-      (= :inferno (:color-scale leg))
+      (= :inferno (:color-range leg))
       (= :continuous (:type leg)))))
-   v93_l426)))
+   v93_l430)))
 
 
 (def
- v96_l441
+ v96_l445
  (pj/with-config
-  {:color-scale :plasma}
+  {:color-range :plasma}
   (->
    {:x (range 50), :y (range 50), :c (range 50)}
    (pj/lay-point :x :y {:color :c}))))
 
 
 (deftest
- t97_l445
- (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v96_l441)))
+ t97_l449
+ (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v96_l445)))
 
 
-(def v99_l464 (pj/plan (base-plot)))
-
-
-(deftest
- t100_l466
- (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v99_l464)))
-
-
-(def v102_l473 (-> (base-plot)))
+(def v99_l468 (pj/plan (base-plot)))
 
 
 (deftest
- t103_l475
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v102_l473)))
+ t100_l470
+ (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v99_l468)))
 
 
-(def v105_l484 (def good-plan (pj/plan (base-plot) {:validate false})))
+(def v102_l477 (-> (base-plot)))
 
 
-(def v106_l486 (pj/valid-plan? good-plan))
+(deftest
+ t103_l479
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v102_l477)))
 
 
-(deftest t107_l488 (is ((fn [v] (true? v)) v106_l486)))
+(def v105_l488 (def good-plan (pj/plan (base-plot) {:validate false})))
 
 
-(def v109_l493 (def bad-plan (assoc good-plan :width "not-a-number")))
+(def v106_l490 (pj/valid-plan? good-plan))
 
 
-(def v110_l495 (pj/valid-plan? bad-plan))
+(deftest t107_l492 (is ((fn [v] (true? v)) v106_l490)))
 
 
-(deftest t111_l497 (is ((fn [v] (false? v)) v110_l495)))
+(def v109_l497 (def bad-plan (assoc good-plan :width "not-a-number")))
+
+
+(def v110_l499 (pj/valid-plan? bad-plan))
+
+
+(deftest t111_l501 (is ((fn [v] (false? v)) v110_l499)))
 
 
 (def
- v113_l504
+ v113_l508
  (->
   (pj/explain-plan bad-plan)
   :errors
@@ -485,14 +485,14 @@
 
 
 (deftest
- t114_l509
+ t114_l513
  (is
   ((fn [m] (and (= [:width] (:in m)) (= "not-a-number" (:value m))))
-   v113_l504)))
+   v113_l508)))
 
 
 (def
- v116_l518
+ v116_l522
  (try
   (let
    [plan
@@ -510,26 +510,26 @@
 
 
 (deftest
- t117_l529
+ t117_l533
  (is
   ((fn
     [m]
     (and
      (:caught m)
      (= "Plan does not conform to schema" (:message m))))
-   v116_l518)))
+   v116_l522)))
 
 
-(def v119_l538 (pj/plan (base-plot) {:validate false}))
+(def v119_l542 (pj/plan (base-plot) {:validate false}))
 
 
 (deftest
- t120_l540
- (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v119_l538)))
+ t120_l544
+ (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v119_l542)))
 
 
 (def
- v122_l564
+ v122_l568
  (pj/with-config
   {:strict false}
   (->
@@ -539,12 +539,12 @@
 
 
 (deftest
- t123_l569
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v122_l564)))
+ t123_l573
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v122_l568)))
 
 
 (def
- v125_l573
+ v125_l577
  (pj/with-config
   {:strict true}
   (try
@@ -557,7 +557,7 @@
 
 
 (deftest
- t126_l581
+ t126_l585
  (is
   ((fn [msg] (and (string? msg) (re-find #"does not recognize" msg)))
-   v125_l573)))
+   v125_l577)))

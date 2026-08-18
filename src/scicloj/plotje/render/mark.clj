@@ -3,7 +3,9 @@
             [membrane.ui :as ui]
             [scicloj.plotje.render.dash :as dash]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.text :as text]
+            [scicloj.plotje.layer-type :as layer-type]
             [fastmath.random :as rng]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
@@ -244,7 +246,8 @@
 (defmethod layer->membrane :point [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [coord-fn tooltip sx sy]} ctx
-        {:keys [opacity radius jitter stroke stroke-width]} style
+        {:keys [opacity radius jitter stroke stroke-width]
+         layer-shape :shape} style
         stroke-rgba (when stroke (defaults/c2d->rgba stroke))
         stroke-w (when stroke (or stroke-width 1))
         ;; Detect if x-axis is categorical (band scale) for smarter jitter
@@ -258,30 +261,16 @@
         ;; Dodge support: when dodge-ctx present and x is categorical band scale
         {:keys [n-groups]} (:dodge-ctx layer)
         dodge? (and n-groups x-bandwidth)
-        size-log? (= :log (:type (:size-scale layer)))
-        alpha-log? (= :log (:type (:alpha-scale layer)))
-        size-bufs (keep :sizes groups)
-        size-scale (when (seq size-bufs)
-                     (let [lo (reduce min (map dfn/reduce-min size-bufs))
-                           hi (reduce max (map dfn/reduce-max size-bufs))]
-                       (if size-log?
-                         (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-                               hi-l (Math/log10 (max 1e-300 (double hi)))
-                               span (max 1e-6 (- hi-l lo-l))]
-                           (fn [v] (+ 2.0 (* 6.0 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
-                         (let [span (max 1e-6 (- (double hi) (double lo)))]
-                           (fn [v] (+ 2.0 (* 6.0 (/ (- (double v) (double lo)) span))))))))
-        alpha-bufs (keep :alphas groups)
-        alpha-scale (when (seq alpha-bufs)
-                      (let [lo (reduce min (map dfn/reduce-min alpha-bufs))
-                            hi (reduce max (map dfn/reduce-max alpha-bufs))]
-                        (if alpha-log?
-                          (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-                                hi-l (Math/log10 (max 1e-300 (double hi)))
-                                span (max 1e-6 (- hi-l lo-l))]
-                            (fn [v] (+ 0.2 (* 0.8 (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)))))
-                          (let [span (max 1e-6 (- (double hi) (double lo)))]
-                            (fn [v] (+ 0.2 (* 0.8 (/ (- (double v) (double lo)) span))))))))
+        ;; The same function the size and alpha legends are built from,
+        ;; so the mark drawn beside a value in the legend is the size a
+        ;; mark of that value is drawn at on the panel.
+        ;; A column told not to scale holds radii and opacities already.
+        ;; The public function an extension mark calls for the same
+        ;; purpose, so the built-in point mark and an extension read one
+        ;; implementation and cannot drift from the legend or from each
+        ;; other.
+        size-scale (layer-type/channel-magnitude-fn layer :size (keep :sizes groups))
+        alpha-scale (layer-type/channel-magnitude-fn layer :alpha (keep :alphas groups))
         ;; The category-to-symbol assignment is decided at plan time so
         ;; the legend and the marks show the same symbol for a category.
         shape-map (:shape-map layer)]
@@ -306,7 +295,11 @@
                            [px py])
                  pt-r (if sizes (size-scale (sizes i)) radius)
                  pt-alpha (if alphas (alpha-scale (alphas i)) (or opacity 1.0))
-                 pt-shape (if shapes (get shape-map (shapes i) :circle) :circle)
+                 ;; A per-row shape column wins; failing that the
+                 ;; layer's own symbol, which defaults to a circle.
+                 pt-shape (if shapes
+                            (get shape-map (shapes i) :circle)
+                            (or layer-shape :circle))
                  [cr cg cb _] (if colors (colors i) color)]]
        (-> (ui/translate (- (double px) pt-r) (- (double py) pt-r)
                          [(ui/with-color [cr cg cb pt-alpha]

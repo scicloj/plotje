@@ -862,16 +862,19 @@ s2-tree
     (and (= "Two" (get-in pose [:opts :title]))
          (= "Sub" (get-in pose [:opts :subtitle]))))])
 
-;; ### Rule O2: `pj/scale` and `pj/coord` are plot-level options
+;; ### Rule O2: `pj/scale` writes the mapping, `pj/coord` writes options
 ;;
-;; `pj/scale` writes into `:opts` under one of `:x-scale`,
-;; `:y-scale`, `:size-scale`, `:alpha-scale`, `:fill-scale`, or
-;; `:color-scale` -- one key per channel. Axis channels (`:x`,
-;; `:y`) accept `:linear`, `:log`, `:categorical`; visual channels
-;; (`:size`, `:alpha`, `:fill`, `:color`) accept `:linear` and
-;; `:log`. `pj/coord` writes `:coord`. They apply to every leaf in
-;; the tree uniformly. (Per-panel scale variation is an open
-;; design question; today all are plot-wide.)
+;; A scale belongs to the aesthetic it reads, so `pj/scale` writes it
+;; into the pose's `:mapping`, under that aesthetic's `:scale`. It is
+;; the same key a mapping written out in full uses, so the two are one
+;; setting written two ways. `pj/coord` writes `:coord` into `:opts`,
+;; which has no aesthetic to belong to.
+;;
+;; Axis aesthetics (`:x`, `:y`) accept `:linear`, `:log`,
+;; `:categorical`; the visual ones (`:size`, `:alpha`, `:fill`,
+;; `:color`) accept `:linear` and `:log`; `:shape` accepts
+;; `:categorical`. Both `pj/scale` and `pj/coord` flow down to every
+;; leaf beneath the pose they are called on.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -881,10 +884,13 @@ s2-tree
 
 (kind/test-last
  [(fn [pose]
-    (and (= {:type :log} (get-in pose [:opts :x-scale]))
+    (and (= {:type :log} (get-in pose [:mapping :x :scale]))
          (= :flip (get-in pose [:opts :coord]))))])
 
-;; A visual channel routes to its own opts key:
+;; Where the aesthetic is already mapped, the scale joins that mapping.
+;; A mapping written plainly has no room for one, so it is rewritten in
+;; the full form under `:from` -- the plain reading spelled out, which
+;; leaves what the mapping names unchanged:
 
 (-> iris
     (pj/pose :sepal-length :sepal-width {:size :petal-length})
@@ -893,7 +899,22 @@ s2-tree
 
 (kind/test-last
  [(fn [pose]
-    (= {:type :log} (get-in pose [:opts :size-scale])))])
+    (= {:from :petal-length :scale {:type :log}}
+       (get-in pose [:mapping :size])))])
+
+;; Where it is not mapped at that pose, the scale is written on its
+;; own and applies to whatever names the aesthetic below:
+
+(-> iris
+    (pj/pose :sepal-length :sepal-width)
+    (pj/lay-point {:size :petal-length})
+    (pj/scale :size :log))
+
+(kind/test-last
+ [(fn [pose]
+    (and (= {:scale {:type :log}} (get-in pose [:mapping :size]))
+         (= {:type :log} (-> pose pj/plan :panels first :layers first
+                             :size-scale))))])
 
 ;; ### Rule O3: `pj/facet` writes the faceting column to `:opts`
 ;;

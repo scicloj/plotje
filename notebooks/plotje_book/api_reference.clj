@@ -154,7 +154,7 @@
 ;; `pj/lay-point`. The intended use of `pj/lay` is with a layer
 ;; type that isn't a built-in convenience: a registered custom
 ;; layer type from an extension, or a raw layer-type map. See
-;; the [Waterfall Extension](./plotje_book.waterfall_extension.html)
+;; the [Extension Example](./plotje_book.waterfall_extension.html)
 ;; chapter for the full pattern -- registering a `:waterfall`
 ;; layer type and calling `(pj/lay pose (layer-type/lookup :waterfall))`
 ;; or wrapping it in a `pj/lay-waterfall` convenience function.
@@ -463,7 +463,7 @@
 ;; for `lay-rule-v`; `:y-min`/`:y-max` for `lay-band-h`,
 ;; `:x-min`/`:x-max` for `lay-band-v`); `:color` overrides the default
 ;; annotation color, and bands additionally honor `:alpha` to override
-;; the default 0.15 opacity. Without x/y columns they attach at the
+;; the `:band-opacity` configuration default. Without x/y columns they attach at the
 ;; root (every panel); with x/y columns they attach to one matching
 ;; leaf.
 ;;
@@ -474,12 +474,15 @@
 ;;
 ;; **Note on `:y-min`/`:y-max`.** The same option keys carry two
 ;; meanings depending on the layer kind. On `lay-band-h`/`-v` they
-;; are literal numeric bounds (the band sits at fixed coordinates,
+;; are written numeric bounds (the band sits at fixed coordinates,
 ;; independent of the data). On `lay-errorbar` (above) they are
 ;; column references -- one row per error bar, with `:y-min` and
 ;; `:y-max` naming columns that supply the lower and upper bounds.
-;; ggplot2 keeps these separate via `aes()` (column) versus literal
-;; arguments; Plotje overloads the keyword and dispatches by mark.
+;; ggplot2 keeps these separate via `aes()` (column) versus a value
+;; written outside it; Plotje overloads the keyword and dispatches by
+;; mark. Writing the mapping in full -- `{:column :lo}` on the
+;; errorbar, `{:value 12}` on the band -- says which reading you mean
+;; without changing which one the mark accepts.
 
 (kind/doc #'pj/lay-rule-v)
 
@@ -570,7 +573,7 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
-;; Log scale on a visual channel (`:size`, `:alpha`, `:fill`, or
+;; Log scale on an appearance aesthetic (`:size`, `:alpha`, `:fill`, or
 ;; `:color`):
 
 (-> {:user [:a :b :c] :n [10 100 1000]}
@@ -579,7 +582,19 @@
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
-;; Shape symbols on a discrete channel -- `:domain` orders the
+;; What a size spans, and how the values spread across it -- `:range`
+;; in the quantity the mark draws (a radius here), `:by` the method,
+;; and `:from-zero` to make the ink proportional to the value:
+
+(-> {:user [:a :b :c] :n [10 100 1000]}
+    (pj/lay-point :user :n {:size :n :x-type :categorical})
+    (pj/scale :size {:range [3 16] :by :area :from-zero true}))
+
+(kind/test-last
+ [(fn [v] (= 16.0 (->> v pj/plan :size-legend :entries
+                       (map :magnitude) (apply max))))])
+
+;; Shape symbols on a discrete aesthetic -- `:domain` orders the
 ;; categories, `:values` picks the markers:
 
 (-> (rdatasets/datasets-iris)
@@ -600,13 +615,13 @@ pj/shape-symbols
 (kind/test-last [(fn [syms] (and (seq syms) (every? keyword? syms)))])
 
 ;; Custom tick labels on a numeric axis -- pair `:breaks` with
-;; `:labels`:
+;; `:tick-labels`:
 
 (-> (for [d (range 1 8)] {:day d :v (mod d 3)})
     (pj/lay-point :day :v)
     (pj/scale :x {:type :linear
                   :breaks [1 2 3 4 5 6 7]
-                  :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
+                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
@@ -1050,8 +1065,8 @@ plan1
 
 (kind/doc #'pj/with-config)
 
-(pj/with-config {:palette :pastel1}
-  (:palette (pj/config)))
+(pj/with-config {:color-values :pastel1}
+  (:color-values (pj/config)))
 
 (kind/test-last [(fn [p] (= :pastel1 p))])
 
@@ -1063,7 +1078,7 @@ plan1
 
 (count pj/config-key-docs)
 
-(kind/test-last [(fn [n] (= 42 n))])
+(kind/test-last [(fn [n] (= 44 n))])
 
 (kind/doc #'pj/plot-option-docs)
 

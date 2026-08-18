@@ -133,6 +133,21 @@
    Maps each key to a description string."
   layer-type/layer-option-docs)
 
+(def aesthetic-scales
+  "What each aesthetic's scale accepts, one entry per aesthetic that
+   has a scale, in display order.
+
+   Each entry carries `:aesthetic`, the `:types` that aesthetic can be
+   read through, and the spec `:keys` it reads beside `:type` and
+   `:domain`, which belong to every scale. Both are ordered vectors,
+   and aesthetics with the same capabilities are adjacent so a table
+   can group them.
+
+   The same tables `pj/scale` and a mapping's `:scale` validate
+   against, so a reference table built from this cannot drift from what
+   they enforce. Use it as `pj/config-key-docs` is used."
+  defaults/aesthetic-scales)
+
 (def shape-symbols
   "The marker symbols a categorical `:shape` mapping draws with, in the
    order they are assigned to categories. A plot with more categories
@@ -144,8 +159,8 @@
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
 
-   - `(set-config! {:palette :dark2 :theme {:bg \"#FFFFFF\"}})` -- override
-     palette and background.
+   - `(set-config! {:color-values :dark2 :theme {:bg \"#FFFFFF\"}})` --
+     override the categorical colours and the background.
    - `(set-config! nil)` -- reset to defaults."
   [m]
   (defaults/set-config! m))
@@ -286,7 +301,7 @@
    for `plan->membrane` (e.g. `{:tooltip true}`).
 
    Render-stage options set on the original pose via `pj/options`
-   (`:theme`, `:palette`, ...) ride on the draft's `:opts` and form
+   (`:theme`, `:color-values`, ...) ride on the draft's `:opts` and form
    the base; any opts passed here override them per key. This keeps
    the explicit pipeline consistent with `pj/plot`, which feeds the
    pose's opts into the membrane stage.
@@ -302,7 +317,7 @@
   "Compose draft -> plan -> plot for the given format.
 
    Render-stage options set on the original pose via `pj/options`
-   (`:theme`, `:palette`, ...) ride on the draft's `:opts` and form
+   (`:theme`, `:color-values`, ...) ride on the draft's `:opts` and form
    the base; the passed opts override them per key.
 
    - `(draft->plot (draft pose) :svg {})`
@@ -318,7 +333,7 @@
    and the plot title.
 
    The 1-arity uses no rendering options. The 2-arity takes an
-   opts map with optional `:tooltip`, `:theme`, `:palette`, etc.
+   opts map with optional `:tooltip`, `:theme`, `:color-values`, etc.
 
    The result implements `membrane.ui` `IOrigin`, `IBounds`, and
    `IChildren`, so width and height are accessible via
@@ -548,6 +563,7 @@
 
 (declare prepare-pose pose-kind validate-pose-shape
          check-position-mapping check-column-ref-types
+         check-explicit-mappings check-mapping-in-map-slot
          check-pose-shape!)
 
 (defn ->pose
@@ -872,11 +888,13 @@
   (when-let [m (:mapping fr)]
     (warn-unknown-mapping-keys m context)
     (check-column-ref-types context m)
+    (check-explicit-mappings context m)
     (check-position-mapping context m))
   (doseq [layer (:layers fr)]
     (when-let [lm (:mapping layer)]
       (warn-unknown-mapping-keys lm (str context " layer"))
       (check-column-ref-types (str context " layer") lm)
+      (check-explicit-mappings (str context " layer") lm)
       (check-position-mapping (str context " layer") lm)))
   (doseq [sub (:poses fr)]
     (validate-pose-shape sub (str context " sub-pose")))
@@ -1189,7 +1207,28 @@
    coerced -- the typed shape is preserved verbatim. A flat composite
    (`:poses` of leaf maps) is supported; literal nested composites
    (any sub-pose itself has `:poses`) are rejected, matching
-   `pj/arrange`'s rule that its elements must be leaves."
+   `pj/arrange`'s rule that its elements must be leaves.
+
+   **Writing a mapping out in full.** Any mapping value may be written
+   as a map naming its source, and optionally which side of the scale
+   to read it through:
+
+   - `{:column :species}` -- the column, even where a value of that
+     name could be drawn.
+   - `{:value \"blue\"}` -- the color, even where the data carries a
+     column called blue.
+   - `{:scale false}` -- draw the value as it stands rather than pass
+     it through the aesthetic's scale. On a column this is the only
+     route to an identity scale: `{:color {:column :hex :scale false}}`
+     draws the colors the column holds.
+   - `{:scale true}` -- read it as data. `{:color {:value \"Model A\"
+     :scale true}}` draws one palette color and earns a legend entry.
+
+   The conventions decide when `:scale` is absent: a column passes
+   through the scale, a written value is drawn on the appearance
+   aesthetics and is a data value on `:x` and `:y`. See
+   `pj/layer-option-docs` for what each aesthetic accepts, and
+   `pj/scale` for choosing a scale's type."
   ([] (prepare-pose {:layers []}))
   ([x]
    (-> x (->pose "pj/pose") infer-mapping))
@@ -1201,12 +1240,14 @@
 
      :else
      (if (map? y)
-       (let [opts      (or (warn-and-strip-unknown-opts
+       (let [_         (check-mapping-in-map-slot "pj/pose" y "its mapping map")
+             opts      (or (warn-and-strip-unknown-opts
                             "pj/pose" y pose-mapping-keys)
                            {})
              data-over (:data opts)
              mapping   (dissoc opts :data)]
          (check-column-ref-types "pj/pose" mapping)
+         (check-explicit-mappings "pj/pose" mapping)
          (check-position-mapping "pj/pose" mapping)
          (if (pose? x)
            (cond-> (prepare-pose (extend-or-promote x mapping))
@@ -1214,6 +1255,7 @@
            (prepare-pose (pose-from-data (or data-over x) mapping))))
        (let [mapping {:x y}]
          (check-column-ref-types "pj/pose" mapping)
+         (check-explicit-mappings "pj/pose" mapping)
          (check-position-mapping "pj/pose" mapping)
          (if (pose? x)
            (prepare-pose (extend-or-promote x mapping))
@@ -1229,10 +1271,12 @@
 
      (map? z)
      ;; (pj/pose data x-col opts-map) -- univariate position plus opts
-     (let [opts      (warn-and-strip-unknown-opts "pj/pose" z pose-mapping-keys)
+     (let [_         (check-mapping-in-map-slot "pj/pose" z "its mapping map")
+           opts      (warn-and-strip-unknown-opts "pj/pose" z pose-mapping-keys)
            data-over (:data opts)
            mapping   (-> opts (dissoc :data) (merge {:x y}))]
        (check-column-ref-types "pj/pose" mapping)
+       (check-explicit-mappings "pj/pose" mapping)
        (check-position-mapping "pj/pose" mapping)
        (if (pose? x)
          (cond-> (prepare-pose (extend-or-promote x mapping))
@@ -1242,6 +1286,7 @@
      :else
      (let [mapping {:x y :y z}]
        (check-column-ref-types "pj/pose" mapping)
+       (check-explicit-mappings "pj/pose" mapping)
        (check-position-mapping "pj/pose" mapping)
        (if (pose? x)
          (prepare-pose (extend-or-promote x mapping))
@@ -1255,18 +1300,32 @@
                   (pr-str opts) ". Wrap aesthetic mappings in a map,"
                   " e.g. {:color :species}.")
              {:caller "pj/pose" :value opts})))
+   (check-mapping-in-map-slot "pj/pose" opts "its mapping map")
    (let [opts      (warn-and-strip-unknown-opts "pj/pose" opts pose-mapping-keys)
          data-over (:data opts)
          mapping   (-> opts (dissoc :data) (merge {:x y :y z}))]
      (check-column-ref-types "pj/pose" mapping)
+     (check-explicit-mappings "pj/pose" mapping)
      (check-position-mapping "pj/pose" mapping)
      (if (pose? x)
        (cond-> (prepare-pose (extend-or-promote x mapping))
          data-over (with-data data-over))
        (prepare-pose (pose-from-data (or data-over x) mapping))))))
 
-(defn- column-refs-in-mapping [m]
-  (keep #(let [v (get m %)]
+(defn- column-refs-in-mapping
+  "The keyword column references a mapping makes, in either spelling.
+
+   `{:column :typo}` is a column reference written more explicitly than
+   the plain `:typo`, and reading only the plain one let it past the
+   attach-time check `pj/with-data`'s docstring promises, to fail at
+   `pj/plan` with a different message. `{:from :typo}` is the same
+   reference again, spelled the third way, and had the same hole.
+   A `{:value ...}` names no column and is skipped here on purpose."
+  [m]
+  (keep #(let [v (get m %)
+               v (if (and (map? v) (contains? v :value))
+                   nil
+                   (pose/mapping-source v))]
            (when (keyword? v) v))
         defaults/column-keys))
 
@@ -1401,38 +1460,49 @@
                 {:mapping position-mapping :layers [layer]})))))
 
 (defn- check-position-mapping
-  "Throw a helpful error if :x or :y is a value that names no column and
-   places no mark -- a vector, a boolean, a set.
+  "Throw a helpful error if `:x` or `:y` is a value that names no column
+   and places no mark -- a vector, a boolean, a set.
 
-   Where the `:x` or `:y` is written decides what a number means. In a
-   layer's options map (`:allow-value`) it is a value to draw at, either
-   as one mark or broadcast over the layer's data. In `pj/pose`, or in
-   the `:x`/`:y` arguments of a `lay-*` call, it is a column reference
-   and nothing else, so an integer column name reports the rename it
-   needs rather than silently plotting one mark at that number."
-  ([context opts] (check-position-mapping context opts nil))
-  ([context opts allow-value]
-   (doseq [k [:x :y]]
-     (when-let [v (get opts k)]
-       (when-not (or (keyword? v) (string? v)
-                     (and (= :allow-value allow-value)
-                          (resolve/literal-position? v)))
-         (throw (ex-info (str context " " k " must be a column reference "
-                              "(keyword or string), but got " (pr-str v) "."
-                              (if (resolve/literal-position? v)
-                                (str " To place a mark at that " k ", give it "
-                                     "in a layer's options map, e.g. "
-                                     "`(pj/lay-text pose {" k " " (pr-str v)
-                                     " :y 5.0 :text \"note\"})`. If " (pr-str v)
-                                     " is a column name, rename the column "
-                                     "first, e.g. "
-                                     "`(tc/rename-columns ds [:x :y])`.")
-                                (str " For one fixed " k ", add a column "
-                                     "to :data holding it, e.g. "
-                                     "`(tc/add-column data " k " (constantly "
-                                     (pr-str v) "))` and pass "
-                                     k " " (pr-str (keyword (name k))) ".")))
-                         {:option k :value v})))))))
+   Nothing about *where* the mapping is written enters into it. A
+   number is left to the ordinary convention wherever it appears: the
+   layer's data is asked at draft time, a name it carries is that
+   column, and anything else is a value the axis scales into a datum.
+   So `{:x 0}` reads column 0 on a dataset that has one and places
+   every mark at zero on a dataset that does not, whether it was
+   written in `pj/pose`, in a `lay-*` positional argument, or in a
+   layer's options map.
+
+   This gate used to refuse a bare number outside a layer's options
+   map, on the reasoning that it runs before the data is available and
+   cannot tell a column name from a place. That reasoning does not
+   hold: the source question is answered at draft time for every other
+   mapping, and answering it here as well is what makes the rule one
+   rule. `{:column 0}` and `{:value 0}` remain the way to say which
+   reading is meant where a reader of the code could not tell.
+
+   Where the explicit form may be written is a separate question, and
+   the answer is `pj/pose`, a layer's options map -- `{:x {:column 0}}`
+   -- and any `lay-*` positional argument that is not the last one:
+   `(pj/lay-point data {:column 0} :b)` and
+   `(pj/lay-point data :a {:column :b} {:color :sp})` both read the map
+   as a position. The **last** positional argument is the options map
+   whichever axis it stands in, so the form cannot be spelled there;
+   the arity decides before this check is reached, and
+   `check-mapping-in-map-slot` is what says so."
+  [context opts]
+  (doseq [k [:x :y]]
+    (when-let [v (get opts k)]
+      (when-not (or (keyword? v) (string? v)
+                    (pose/explicit-mapping? v)
+                    (resolve/literal-position? v))
+        (throw (ex-info (str context " " k " must be a column reference or a"
+                             " value to place a mark at, but got " (pr-str v)
+                             ", which is neither. For one fixed " k ", add a"
+                             " column to :data holding it, e.g. "
+                             "`(tc/add-column data " k " (constantly "
+                             (pr-str v) "))` and pass "
+                             k " " (pr-str (keyword (name k))) ".")
+                        {:option k :value v}))))))
 
 (defn- check-numeric-aesthetics
   "Throw a helpful error if :alpha or :size in a layer's options is
@@ -1479,12 +1549,71 @@
    aesthetic-column-validation-test)."
   [context mapping]
   (doseq [[k v] mapping
-          :when (and (contains? defaults/column-keys k) (symbol? v))]
-    (throw (ex-info (str context " " k " is a symbol (" (pr-str v)
+          ;; The same typo written out in full is the same typo, in any
+          ;; of the three spellings, and reading only the plain one sent
+          ;; `{:column 'sp}` and `{:from 'sp}` on to the column lookup,
+          ;; where they got a missing-column message and none of this
+          ;; help.
+          :let [written (pose/mapping-source v)]
+          :when (and (contains? defaults/column-keys k) (symbol? written))]
+    (throw (ex-info (str context " " k " is a symbol (" (pr-str written)
                          "). A column reference must be a keyword or "
-                         "string -- did you mean " (pr-str (keyword (name v)))
+                         "string -- did you mean " (pr-str (keyword (name written)))
                          "?")
                     {:option k :value v}))))
+
+(defn- check-mapping-in-map-slot
+  "Throw when a whole map argument is one mapping written in full.
+
+   A mapping written in full says which reading one aesthetic takes, so
+   it belongs under an aesthetic key. Both of Plotje's map slots hold
+   the aesthetics themselves: `pj/pose`'s map argument is the mapping
+   map, and a map in a `lay-*` call's **last** positional argument is
+   the options map, whichever axis that argument stands in. So
+   `(pj/lay-point data :a {:column :b})` does not say `:y` -- the map
+   is the options, `:column` is not an option, and the layer came back
+   carrying `:x` alone, warned about but drawn: a one-dimensional plot
+   from a call that reads as a two-dimensional one.
+
+   The middle argument of a longer `lay-*` call is a position and does
+   take the form, which is why the trap is about the slot rather than
+   the axis: `(pj/lay-point data :a {:column :b} {:color :sp})` works."
+  [caller opts what]
+  (when (and (map? opts) (pose/explicit-mapping? opts))
+    (throw (ex-info (str caller " was given " (pr-str opts) " where " what
+                         " goes, so there is no aesthetic for it to name."
+                         " A mapping written in full says which reading one"
+                         " aesthetic takes, so write it under one -- {:y "
+                         (pr-str opts) "} or {:x " (pr-str opts) "} -- or"
+                         " name the column on its own.")
+                    {:caller caller :opts opts}))))
+
+(defn- check-explicit-mappings
+  "Run the explicit form's data-independent checks where the mapping is
+   written, rather than at `pj/draft`.
+
+   Which of the two readings a value has, and whether the map naming it
+   is well formed, are decided by the form alone -- so an unknown key
+   inside it is visible at the `pj/pose` or `lay-*` call. Left to the
+   draft, the pose was built, threaded and composed before anything
+   said the mapping was malformed. The checks that need the layer's
+   data -- whether the column is there, whether the value is one the
+   aesthetic can draw -- still wait for it.
+
+   A map that names no source is reported here too. `{:color {:scale
+   false}}` is not the explicit form, so it used to reach the column
+   lookup whole and be reported as a column called `{:scale false}`."
+  [context mapping]
+  (doseq [[k v] mapping
+          :when (and (contains? defaults/column-keys k) (map? v))]
+    (if (pose/explicit-mapping? v)
+      (pose/check-explicit-mapping! k v)
+      (throw (ex-info (str context " " k " " (pr-str v) " names no source."
+                           " A mapping written in full says which of the two"
+                           " readings it means, with :column or :value;"
+                           " :scale says only which side of the scale to read"
+                           " that source through.")
+                      {:option k :value v})))))
 
 (defn- registered-marks []
   (->> (methods extract/extract-layer)
@@ -1539,18 +1668,27 @@
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
    Extracts :data if present. Extracts :stat, :position, :mark as
-   first-class sibling keys -- :mapping holds only column-to-aesthetic
-   bindings. Warns and strips unrecognized option keys. Rejects
-   unknown :mark or :stat keywords (since both are universal layer
-   options, a typo would silently fall through the accept-list)."
+   first-class sibling keys. Warns and strips unrecognized option keys.
+   Rejects unknown :mark or :stat keywords (since both are universal
+   layer options, a typo would silently fall through the accept-list).
+
+   Everything else lands in :mapping -- which therefore holds more than
+   mappings. Of the layer options documented in
+   `layer-type/layer-option-docs`, fourteen are aesthetics and the rest
+   are drawing options (:jitter, :in, :font-size), stat parameters
+   (:bandwidth, :bins) and annotation values (:x-intercept). Which of
+   them are aesthetics is answered by `defaults/aesthetic-registry`,
+   not by the map they share."
   [layer-type-key opts]
   (when opts
     (check-facet-keys "layer" opts)
+    (check-mapping-in-map-slot (str "lay-" (name layer-type-key)) opts "its options map")
     (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
+    (check-explicit-mappings (str "lay-" (name layer-type-key)) opts)
     ;; :x and :y here may be a value as well as a column. Which of the
     ;; two it draws is decided in `pose/leaf->draft`, where the pose's
     ;; mapping and the layer's data are both known.
-    (check-position-mapping (str "lay-" (name layer-type-key)) opts :allow-value)
+    (check-position-mapping (str "lay-" (name layer-type-key)) opts)
     (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
     (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
   (let [opts (if (and opts (keyword? layer-type-key))
@@ -1589,16 +1727,39 @@
                        :layer-type layer-type-key
                        :registered registered})))))
 
+(defn- lay-layer-type-key
+  "The registry key for a `pj/lay` layer-type argument.
+
+   Two spellings reach here: the keyword a layer type is registered
+   under, and the entry `pj/layer-type-lookup` answers with, which is
+   what the extensibility chapters pass. An entry carries no key of its
+   own, so it is matched back to one by identity.
+
+   Everything downstream reads the keyword -- the option messages name
+   it, and the accepted-option list is looked up by it -- so an entry
+   that arrived unresolved lost the unknown-option check and named
+   itself in any warning it did print."
+  [layer-type-key]
+  (if (or (keyword? layer-type-key) (nil? layer-type-key))
+    layer-type-key
+    (or (some (fn [[k entry]] (when (= entry layer-type-key) k))
+              (layer-type/registered))
+        layer-type-key)))
+
 (defn lay
   "Add a root-scope layer. The layer attaches to `:layers` and flows to
    every descendant leaf at plan time (composite) or renders on the
-   single panel (leaf)."
+   single panel (leaf).
+
+   The layer type is named either by its keyword or by the entry
+   `pj/layer-type-lookup` answers with; both behave the same."
   ([pose-or-data layer-type-key]
    (lay pose-or-data layer-type-key nil))
   ([pose-or-data layer-type-key opts]
-   (validate-lay-layer-type-key layer-type-key)
-   (let [layer (build-layer layer-type-key opts)]
-     (update (->pose pose-or-data "pj/lay") :layers (fnil conj []) layer))))
+   (let [layer-type-key (lay-layer-type-key layer-type-key)]
+     (validate-lay-layer-type-key layer-type-key)
+     (let [layer (build-layer layer-type-key opts)]
+       (update (->pose pose-or-data "pj/lay") :layers (fnil conj []) layer)))))
 
 (defn- x-only?
   "True if layer-type-key is registered as x-only (rejects :y column)."
@@ -1637,21 +1798,33 @@
   (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
                           position-mapping)
   (let [bare-layer (elide-empty-maps (build-layer layer-type-key opts))
-        pose-pos? (or (:x (:mapping fr)) (:y (:mapping fr)))]
+        ;; What the mapping *names*, not how it is written: a scale
+        ;; written by `pj/scale` puts a map under `:x` that names no
+        ;; position, and a position written in full names one.
+        pose-pos? (or (pose/mapping-source (:x (:mapping fr)))
+                      (pose/mapping-source (:y (:mapping fr))))]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
       (add-leaf-layer-to-composite fr position-mapping bare-layer)
 
       (and (seq position-mapping) (not pose-pos?))
       (-> fr
-          (update :mapping (fnil merge {}) position-mapping)
+          ;; Through merge-mappings, not merge: the pose may already
+          ;; carry a scale for this axis with no source under it --
+          ;; what `pj/scale` writes -- and a plain merge replaces that
+          ;; whole value with the column name, dropping the scale in
+          ;; silence. The position names the source; the scale set
+          ;; further out still says how to read it.
+          (update :mapping #(pose/merge-mappings (or % {}) position-mapping))
           (update :layers (fnil conj []) bare-layer))
 
       (seq position-mapping)
       (let [leaf-mapping (:mapping fr)
             disagreements (for [k [:x :y]
-                                :let [pos-v (get position-mapping k)
-                                      leaf-v (get leaf-mapping k)]
+                                :let [pos-v (pose/mapping-source
+                                             (get position-mapping k))
+                                      leaf-v (pose/mapping-source
+                                              (get leaf-mapping k))]
                                 :when (and pos-v leaf-v
                                            (not= pos-v leaf-v))]
                             [k pos-v leaf-v])]
@@ -1720,7 +1893,9 @@
          fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
      (cond
        (map? x-or-opts)
-       (let [d (:data fr)
+       (let [_ (check-mapping-in-map-slot
+                (str "lay-" (name layer-type-key)) x-or-opts "its options map")
+             d (:data fr)
              ;; The options map may carry the position mapping itself.
              ;; When it carries all of it, inference has nothing left to
              ;; supply -- and running it anyway throws on 4+ columns,
@@ -1830,6 +2005,45 @@
   "Per-layer-type required [lo-key hi-key] for pj/lay-band-*."
   {:band-h [:y-min :y-max] :band-v [:x-min :x-max]})
 
+(defn- value-argument
+  "Read an option that takes a written value and nothing else -- the
+   sibling of `column-argument`.
+
+   A band's edge and a rule's intercept are read straight from the
+   mapping by the mark that draws them, so there is no column for
+   `{:column ...}` to name. A writer who has learned `{:value ...}` for
+   mappings will reach for it here all the same, and until this it fell
+   through to the finite-number check below, which answered that their
+   perfectly-formed `{:value 1.5}` was not a number.
+
+   `:x-min` and `:x-max` carry `:value? true` in the registry, so the
+   written value is the only reading they have -- which made them the
+   two aesthetics the notation could not reach."
+  [caller k v]
+  (cond
+    (not (map? v)) v
+    (= (set (keys v)) #{:value}) (:value v)
+    :else
+    (throw (ex-info (str caller " " k " takes a number or a date, and "
+                         (pr-str v) " is not one. Write the value, or"
+                         " {:value ...} on its own -- " k " is read straight"
+                         " from the mapping here, so there is no column for"
+                         " {:column ...} to name and no scale for :scale to"
+                         " choose a side of.")
+                    {:caller caller :option k :value v}))))
+
+(defn- unwrap-written-bounds
+  "Unwrap `{:value v}` on each of `ks` in an opts map, so the checks and
+   the marks below see the number the writer wrote."
+  [caller ks opts]
+  (if-not (map? opts)
+    opts
+    (reduce (fn [o k]
+              (if (contains? o k)
+                (assoc o k (value-argument caller k (get o k)))
+                o))
+            opts ks)))
+
 (defn- temporal-intercept?
   "True if v is a supported temporal value for a rule intercept on a
    temporal axis (LocalDate, LocalDateTime, Instant, java.util.Date)."
@@ -1867,6 +2081,8 @@
   (if-not (map? opts)
     opts
     (let [k (rule-position-key layer-type-key)
+          opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                      [k] opts)
           v (get opts k)]
       (if (temporal-intercept? v)
         (assoc opts k (coerce-intercept v))
@@ -1879,14 +2095,17 @@
   [layer-type-key opts]
   (if-not (map? opts)
     opts
-    (let [[lo-k hi-k] (band-position-keys layer-type-key)]
+    (let [[lo-k hi-k] (band-position-keys layer-type-key)
+          opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                      [lo-k hi-k] opts)]
       (cond-> opts
         (temporal-intercept? (get opts lo-k)) (update lo-k coerce-intercept)
         (temporal-intercept? (get opts hi-k)) (update hi-k coerce-intercept)))))
 
 (defn- assert-rule-opts! [layer-type-key args]
-  (let [opts (last-opts args)
-        k (rule-position-key layer-type-key)
+  (let [k (rule-position-key layer-type-key)
+        opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                    [k] (last-opts args))
         v (get opts k)]
     (when-not (or (and (number? v) (Double/isFinite (double v)))
                   (temporal-intercept? v))
@@ -1899,8 +2118,9 @@
                       {:layer-type layer-type-key :opts opts})))))
 
 (defn- assert-band-opts! [layer-type-key args]
-  (let [opts (last-opts args)
-        [lo-k hi-k] (band-position-keys layer-type-key)
+  (let [[lo-k hi-k] (band-position-keys layer-type-key)
+        opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+                                    [lo-k hi-k] (last-opts args))
         lo (get opts lo-k) hi (get opts hi-k)
         valid-bound? (fn [v]
                        (or (and (number? v) (Double/isFinite (double v)))
@@ -2367,6 +2587,27 @@
                            :accepted valid-scales-values})))))
     (update-opts fr deep-merge opts)))
 
+(defn- column-argument
+  "Read an argument that names a column and nothing else.
+
+   A mapping value has two readings and `{:column ...}` picks one.
+   Faceting has only the one, so the form has no work to do here -- but
+   a writer who has learned it for mappings will reach for it, and
+   until this it was stashed whole: `(pj/facet pose {:column :g})` drew
+   a single unfaceted panel and said nothing, while `(pj/facet pose
+   :nosuch)` reported the missing column correctly."
+  [caller v]
+  (if-not (map? v)
+    v
+    (if (= (set (keys v)) #{:column})
+      (:column v)
+      (throw (ex-info (str caller " takes a column of the data, and "
+                           (pr-str v) " is not one. Write the column, or"
+                           " {:column ...} on its own -- there is no second"
+                           " reading here for :value or :scale to choose"
+                           " between.")
+                      {:caller caller :value v})))))
+
 (defn- reject-composite-for-facet
   "Throw if the input is a composite pose. Facet on composites would
    cross the facet grid with the composite grid, which is deferred."
@@ -2391,7 +2632,8 @@
                      {:caller "pj/facet"
                       :direction direction
                       :accepted #{:col :row}})))
-   (let [k (case direction :col :facet-col :row :facet-row)]
+   (let [col (column-argument "pj/facet" col)
+         k (case direction :col :facet-col :row :facet-row)]
      (update-opts pose assoc k col))))
 
 (defn facet-grid
@@ -2400,19 +2642,20 @@
    Composite poses are not supported yet."
   [pose col-col row-col]
   (reject-composite-for-facet pose)
-  (update-opts pose assoc :facet-col col-col :facet-row row-col))
+  (update-opts pose assoc
+               :facet-col (column-argument "pj/facet-grid" col-col)
+               :facet-row (column-argument "pj/facet-grid" row-col)))
 
 (def ^:private channel->scale-key
-  "Channel keyword to the opts key holding its scale spec.
+  "Channel keyword to the opts key holding its scale spec. Derived from
+   `defaults/aesthetic-registry`, so a new scalable aesthetic gets a
+   channel by carrying a `:scale-key` there.
 
-   `:group` is absent on purpose. It used to map to a `:group-scale`
+   `:group` has none on purpose. It used to map to a `:group-scale`
    that `pose/leaf->draft` never stamped onto a layer and nothing ever
    read, so `pj/scale :group` validated its argument and then changed
    nothing about the plot."
-  {:x :x-scale :y :y-scale
-   :size :size-scale :alpha :alpha-scale
-   :fill :fill-scale :color :color-scale
-   :shape :shape-scale})
+  defaults/channel->scale-key)
 
 (def ^:private continuous-visual-channels
   "Continuous visual channels. These accept `:linear` and `:log` only --
@@ -2424,27 +2667,52 @@
    is no continuous interpretation for a shape symbol."
   #{:shape})
 
-(def ^:private valid-axis-scale-types
-  "Scale types accepted on :x / :y. :linear and :log are continuous;
-   :categorical lets users supply an explicit ordering via :domain."
-  #{:linear :log :categorical})
-
-(def ^:private valid-continuous-visual-scale-types
-  "Scale types accepted on :size / :alpha / :fill / :color."
-  #{:linear :log})
-
-(def ^:private valid-discrete-visual-scale-types
-  "Scale types accepted on :shape."
-  #{:categorical})
-
 (defn scale
-  "Set scale on a pose. Scale is plot-level -- it applies across every
-   panel. Accepts a type keyword or a scale spec map with `:type`, optional
-   `:domain`, optional `:breaks` (explicit tick locations), optional
-   `:labels` (custom tick text paired with `:breaks`), and optional
-   `:n-ticks` (thin a categorical axis to about this many ticks). On a
-   composite pose the scale attaches to the root so every descendant leaf
-   inherits it at plan time.
+  "Set scale on a pose. The scale applies to the pose it is called on
+   and to everything below it: called on the pose you are building, it
+   covers the whole plot; called on one cell before the cells are
+   arranged, that cell alone, so two cells can carry different scales.
+   Under faceting every panel comes from one pose, so the panels share
+   a type; `:scales :free` varies their domains.
+
+   A mapping written out in full can name a scale too, for that one
+   mapping: `{:size {:column :weight :scale :log}}`. Where a scale is
+   set at more than one scope the settings accumulate and the inner
+   scope wins, key by key. Written on the same pose, this call is the
+   inner one; written on a layer, the layer's mapping is.
+
+   Accepts a type keyword or a scale spec map. `:type` and `:domain`
+   belong to every scale. The rest are per aesthetic, and a key an
+   aesthetic does not read is refused where it is written rather than
+   dropped in silence:
+
+   - Every aesthetic takes `:label`, the title of whatever explains its
+     scale to a reader: the axis for `:x` and `:y`, the legend for the
+     rest. It wins over the `<aesthetic>-label` plot option -- `:x-label`,
+     `:color-label` and their siblings -- which names the same thing one
+     scope further out.
+   - `:x` and `:y` take `:breaks` (explicit tick locations),
+     `:tick-labels` (custom tick text paired with `:breaks`),
+     `:n-ticks` (about this many ticks) and `:tick-spacing` (about
+     this much room in drawing units per tick). A numeric axis reads
+     whichever of the last two is named; a categorical one is ticked at
+     its categories, which `:n-ticks` thins.
+   - `:size` and `:alpha` take `:range` -- what the aesthetic spans, in
+     the quantity the mark draws it as, so `[2 8]` on `:size` is a
+     radius in drawing units.
+   - `:size` further takes `:by`, how a value spreads across that range
+     (`:sqrt` by default, or `:linear` or `:area`), and `:from-zero`,
+     which anchors both the domain and the range at zero so that twice
+     the value is twice the ink.
+   - `:shape` takes `:values`, the marker symbols to draw with.
+   - `:color` and `:fill` take `:range`, the gradient a numeric column
+     is read through; `:color` also takes `:values`, the colours a
+     categorical column is drawn in. Both take `:midpoint`, the value
+     the middle of the gradient is drawn at.
+
+   A value outside `:domain` is drawn at the nearer end rather than
+   dropped, so a narrower domain says what the reader should compare
+   without leaving rows off the panel.
 
    Channels and accepted scale types:
 
@@ -2458,39 +2726,66 @@
    scale to set. It splits a layer into one drawn group per value, and
    the order of those groups is the order of the data.
 
-   The `:domain` on a discrete scale gives explicit category order for the
-   legend. On `:shape`, `:values` supplies the symbols to draw those
-   categories with, in the same order; `pj/shape-symbols` lists the ones
-   available.
+   To take a channel off its scale for one mapping rather than choose a
+   type for the whole plot, write that mapping out in full:
+   `{:color {:column :hex :scale false}}` draws the column's values as
+   they stand, and `{:size {:value 7 :scale true}}` sends a written
+   value through the scale. See the layer option docs for `:color` and
+   `:size`.
 
-   `:labels` requires `:breaks` and must match it in count. Use it to
-   render numeric positions with custom text -- for example, days of the
-   week on a tile heatmap.
+   A `:domain` has two readings, and the domain itself decides which:
+   two numbers are a range, and anything else is a list of categories.
 
-   `:n-ticks` thins a crowded categorical axis to about that many
-   evenly-spaced tick labels (a categorical axis otherwise labels every
-   category). It applies to discrete axes; numeric axes control tick
-   density through the `:tick-spacing-x` / `:tick-spacing-y` options.
+   On a categorical `:color`, `:fill` or `:shape` column it gives the
+   order the categories are placed in, which the legend and the palette
+   both follow. A category the list leaves out is still drawn, ordered
+   after the ones listed, with a warning. On `:shape`, `:values`
+   supplies the symbols to draw those categories with in that same
+   order; `pj/shape-symbols` lists the ones available.
+
+   On a numeric `:color` or `:fill` column it gives the two ends of the
+   gradient, as it gives the ends of the drawn range on `:size` and
+   `:alpha`. That is how every panel of a facet can be given one scale
+   to share.
+
+   `:tick-labels` requires `:breaks` and must match it in count. Use it
+   to draw numeric breaks with text of your own -- for example, days of
+   the week on a tile heatmap.
+
+   `:n-ticks` asks for about that many ticks. On a categorical axis it
+   thins a crowded one, which otherwise labels every category; on a
+   numeric axis it replaces the count that `:tick-spacing` would give.
+   `:tick-spacing` asks for about that much room, in drawing units,
+   per tick, and the count follows from how many fit. It is a target
+   in the way `:n-ticks` is: the ticks are still rounded to values a
+   reader can read off, so the room each one ends up with can come out
+   under the number asked for. It steers the choice of numeric ticks
+   and does nothing on a categorical axis, which says so. The `:x-tick-spacing` / `:y-tick-spacing` plot options name the
+   same setting one scope further out.
 
    - `(scale pose :x :log)` -- log scale on x-axis.
    - `(scale pose :x {:type :categorical :domain [...]})` -- explicit
      category order.
-   - `(scale pose :x {:n-ticks 8})` -- thin a crowded categorical axis to
-     about eight evenly-spaced tick labels.
+   - `(scale pose :x {:n-ticks 8})` -- about eight ticks, which on a
+     crowded categorical axis thins it to eight of its categories.
    - `(scale pose :y {:type :linear :breaks [0 5 10]})` -- pin tick locations.
    - `(scale pose :x {:type :linear :breaks [1 2 3 4 5 6 7]
-                      :labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`
+                      :tick-labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`
      -- numeric positions with custom tick text.
    - `(scale pose :y {:type :log :domain [1 1000]})` -- log scale with
      explicit range.
    - `(scale pose :size :log)` -- log-spaced point sizes.
+   - `(scale pose :size {:range [3 14]})` -- wider points than the
+     default 2 to 8.
+   - `(scale pose :size {:by :area :from-zero true})` -- a point of
+     twice the value covers twice the ink.
    - `(scale pose :fill :log)` -- log-spaced tile fill.
    - `(scale pose :shape {:type :categorical :domain [...]})` -- shape
      legend order.
    - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols."
   [pose channel scale-type]
   (when (= :group channel)
-    (throw (ex-info (str "pj/scale has no :group channel. Grouping draws"
+    (throw (ex-info (str "pj/scale has no :group aesthetic. Grouping draws"
                          " nothing of its own -- it splits a layer into one"
                          " drawn group per value, in the order the data"
                          " gives them -- so there is no scale to set. To"
@@ -2499,27 +2794,24 @@
                     {:channel channel
                      :supported (vec (sort (keys channel->scale-key)))})))
   (let [k (or (channel->scale-key channel)
-              (throw (ex-info (str "Scale channel must be one of "
+              (throw (ex-info (str "pj/scale takes one of the aesthetics "
                                    (vec (sort (keys channel->scale-key)))
                                    ", got: " channel)
                               {:channel channel})))
         cont-visual? (continuous-visual-channels channel)
         disc-visual? (discrete-visual-channels channel)
-        valid-types (cond
-                      cont-visual? valid-continuous-visual-scale-types
-                      disc-visual? valid-discrete-visual-scale-types
-                      :else        valid-axis-scale-types)
+        valid-types (defaults/channel-scale-types channel)
         type-kw (if (map? scale-type) (:type scale-type) scale-type)]
     (when-not (or (nil? type-kw) (valid-types type-kw))
       (throw (ex-info
               (cond
                 (and cont-visual? (= type-kw :categorical))
-                (str "Visual channel " channel " is continuous and does not"
-                     " support :categorical scale. Supported: "
+                (str "The aesthetic " channel " is continuous and does not"
+                     " support a :categorical scale. Supported: "
                      (vec (sort valid-types)) ".")
                 (and disc-visual? (#{:linear :log} type-kw))
-                (str "Visual channel " channel " is discrete and does not"
-                     " support continuous scale (" type-kw "). Supported: "
+                (str "The aesthetic " channel " is discrete and does not"
+                     " support a continuous scale (" type-kw "). Supported: "
                      (vec (sort valid-types)) ".")
                 :else
                 (str "Unknown scale type: " type-kw ". Supported for "
@@ -2527,51 +2819,30 @@
               {:channel channel :scale-type type-kw
                :supported (vec (sort valid-types))})))
     (when (map? scale-type)
-      (let [breaks (:breaks scale-type)
-            labels (:labels scale-type)]
-        (when (and labels (not breaks))
-          (throw (ex-info
-                  (str "pj/scale :labels requires :breaks. Pass both, or"
-                       " drop :labels to keep auto-formatted tick text.")
-                  {:caller "pj/scale" :channel channel :labels labels})))
-        (when (and breaks labels (not= (count breaks) (count labels)))
-          (throw (ex-info
-                  (str "pj/scale :breaks and :labels must have the same count, got "
-                       (count breaks) " breaks and " (count labels) " labels.")
-                  {:caller "pj/scale" :channel channel
-                   :breaks (vec breaks) :labels (vec labels)})))
-        ;; :values names marker symbols, which only :shape draws. An
-        ;; unrecognized symbol would draw as a circle while the legend
-        ;; advertised the name, so reject it here rather than render a
-        ;; legend that disagrees with its own marks.
-        (when-let [values (:values scale-type)]
-          (when (not= channel :shape)
-            (throw (ex-info
-                    (str "pj/scale :values applies to :shape only, got channel "
-                         channel ". It names the marker symbols a shape mapping"
-                         " draws with; other channels have no symbols to choose."
-                         " To choose the colors a categorical :color mapping"
-                         " draws with, pass them as a palette:"
-                         " (pj/options pose {:palette [\"#e41a1c\" ...]}) for one"
-                         " plot, or pj/set-config! for every plot.")
-                    {:caller "pj/scale" :channel channel :values (vec values)})))
-          (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
-            (throw (ex-info
-                    (str "pj/scale :shape :values does not recognize "
-                         (vec unknown) ". Supported symbols: "
-                         defaults/shape-syms ".")
-                    {:caller "pj/scale" :channel channel
-                     :unknown (vec unknown)
-                     :supported defaults/shape-syms}))))))
-    (update-opts pose assoc k (if (map? scale-type)
-                                (merge {:type (if disc-visual? :categorical :linear)}
-                                       scale-type)
-                                {:type scale-type}))))
+      ;; The same three calls a mapping's `:scale` makes, in the same
+      ;; order, so a spec means one thing wherever it is written.
+      (scale/validate-spec-values! channel scale-type "pj/scale")
+      (scale/validate-drawn-range-options! channel scale-type "pj/scale")
+      (scale/validate-spec-keys! channel scale-type "pj/scale"))
+    ;; The spec is written as the caller stated it. A map that names no
+    ;; :type does not mean the scale is linear -- it means this call had
+    ;; no opinion about the type -- so filling one in here would make
+    ;; (pj/scale :x {:breaks ...}) silently undo an earlier
+    ;; (pj/scale :x :log). The default is applied once, after every
+    ;; scope has accumulated, in pose/layer-scale-specs.
+    (let [spec (if (map? scale-type)
+                 scale-type
+                 {:type scale-type})]
+      (update (->pose pose "pj/scale") :mapping
+              pose/put-scale channel spec))))
 
 (defn coord
-  "Set coordinate transform on a pose. Coord is plot-level -- it
-   applies across every panel. On a composite pose the coord attaches
-   to the root so every descendant leaf inherits it at plan time.
+  "Set coordinate transform on a pose. The coord applies to the pose it
+   is called on and to everything below it, as a scale does: called on
+   the pose you are building it covers every panel, and called on one
+   cell before the cells are arranged, that cell alone. On a composite
+   pose it attaches to the root, so every descendant leaf inherits it
+   at plan time.
 
    Supported coord-types:
 
@@ -2875,7 +3146,7 @@
    `IOrigin`, `IBounds`, `IChildren`) carrying the rendered drawables
    plus plan-derived width and height; the title, when set, rides as
    `:plotje/title`. Render-time options (`:tooltip`, `:theme`,
-   `:palette`, `:color-scale`, `:color-midpoint`) ride along on the
+   `:color-values`, `:color-range`, `:color-midpoint`) ride along on the
    pose's `:opts` and reach `plan->membrane` through this call.
 
    Useful for exploring rendering targets beyond the SVG and Java2D

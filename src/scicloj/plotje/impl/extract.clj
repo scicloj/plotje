@@ -4,6 +4,7 @@
    style, and groups of data-space coordinates."
   (:require [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
+            [scicloj.plotje.impl.scale :as scale]
             [tech.v3.datatype.functional :as dfn]
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]))
@@ -18,12 +19,44 @@
    color column, and any group color present came from `:group` instead.
    Grouping by one column while drawing every group in one color is a
    common case: many pale lines behind a few named ones. It needs the
-   fixed color to survive the grouping."
-  [all-colors color-val fixed-color cfg]
-  (cond
-    fixed-color (if (string? fixed-color) (defaults/hex->rgba fixed-color) fixed-color)
-    (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
-    :else (defaults/hex->rgba (:default-color cfg))))
+   fixed color to survive the grouping.
+
+   Takes the resolved draft layer rather than its `:fixed-color`,
+   because the layer answers a second question too: whether its color
+   column is drawn as it stands. `resolve/resolve-aesthetics` decides
+   that once for the column, so what arrives here is a group value that
+   already *is* a color and needs no palette."
+  [all-colors color-val draft-layer cfg]
+  (let [fixed-color (:fixed-color draft-layer)]
+    (cond
+      ;; A drawn color arrives as whatever was written -- `"red"`,
+      ;; `"#FF0000"` or `:steelblue` -- and only an RGBA vector is
+      ;; already in the form the plan carries. The keyword case reaches
+      ;; here now that the data decides which values name columns;
+      ;; before, a keyword was a column reference and nothing else.
+      fixed-color (if (vector? fixed-color) fixed-color (defaults/hex->rgba fixed-color))
+      (and (:color-drawn? draft-layer) (some? color-val))
+      (defaults/hex->rgba color-val)
+      (some? color-val) (defaults/color-for
+                         all-colors color-val
+                         (defaults/scale-setting
+                          :color :values (:color-scale draft-layer) cfg))
+      :else (defaults/hex->rgba (:default-color cfg)))))
+
+(defn fill-setting
+  "A scale setting for a mark drawn in a fill: what a `:fill` scale spec
+   or the matching plot option says, and failing that what the `:color`
+   ones say.
+
+   A tile reads `:color` as a synonym for `:fill`, so a gradient or a
+   midpoint written either way has to reach it. The spec side already
+   falls back this way; this keeps the option side in step rather than
+   letting the two disagree."
+  [k draft-layer cfg]
+  (let [v (defaults/scale-setting :fill k (:fill-scale draft-layer) cfg)]
+    (if (some? v)
+      v
+      (defaults/scale-setting :color k (:color-scale draft-layer) cfg))))
 
 (def dash-presets
   "Named stroke-dash presets, resolved to a `[dash gap]` pixel pattern.
@@ -123,7 +156,7 @@
   [draft-layer stat all-colors cfg & {:keys [with-range? with-labels?]}]
   (let [groups (vec
                 (for [{:keys [color xs ys ymins ymaxs labels]} (:points stat)]
-                  (cond-> {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                  (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                            :xs xs :ys ys}
                     (some? color) (assoc :label (defaults/fmt-category-label color))
                     (and with-range? ymins) (assoc :ymins ymins)
@@ -180,13 +213,25 @@
         all-color-buf (when numeric-color?
                         (let [bufs (keep :color-values (:points stat))]
                           (when (seq bufs) (dtype/concat-buffers bufs))))
-        c-min (when all-color-buf (dfn/reduce-min all-color-buf))
-        c-max (when all-color-buf (dfn/reduce-max all-color-buf))]
+        ;; A `:domain` on the scale spec replaces what the data covers.
+        [c-min c-max] (scale/numeric-color-domain
+                       (:color-scale draft-layer)
+                       (when all-color-buf (dfn/reduce-min all-color-buf))
+                       (when all-color-buf (dfn/reduce-max all-color-buf)))]
     (-> {:mark :point
          :size-scale (:size-scale draft-layer)
          :alpha-scale (:alpha-scale draft-layer)
+         ;; A column told not to scale holds radii and opacities
+         ;; already, so the renderer reads them straight rather than
+         ;; normalizing them into its output range.
+         :size-drawn? (:size-drawn? draft-layer)
+         :alpha-drawn? (:alpha-drawn? draft-layer)
          :style (cond-> {:opacity (or (:fixed-alpha draft-layer) (:point-opacity cfg))
                          :radius (or (:fixed-size draft-layer) (:point-radius cfg))}
+                  ;; One symbol for the whole layer, beside the fixed
+                  ;; radius and opacity it sits with. A per-row `:shapes`
+                  ;; buffer still wins where there is one.
+                  (:fixed-shape draft-layer) (assoc :shape (:fixed-shape draft-layer))
                   (:jitter draft-layer) (assoc :jitter (:jitter draft-layer))
                   (and (:point-stroke cfg)
                        (not= (:point-stroke cfg) "none"))
@@ -194,14 +239,17 @@
                          :stroke-width (or (:point-stroke-width cfg) 0)))
          :groups (vec
                   (for [{:keys [color xs ys sizes alphas shapes row-indices color-values]} (:points stat)]
-                    (cond-> {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                    (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                              :xs xs :ys ys}
                       (some? color) (assoc :label (defaults/fmt-category-label color))
                       (and numeric-color? color-values)
                       (assoc :colors (vec (map (fn [v]
-                                                 (let [scale-type (or (:type (:color-scale draft-layer)) :linear)
-                                                       t (defaults/normalize-continuous scale-type v (or c-min 0) (or c-max 1) (:color-midpoint cfg))
-                                                       grad-fn (:gradient-fn cfg)]
+                                                 (let [spec (:color-scale draft-layer)
+                                                       scale-type (or (:type spec) :linear)
+                                                       t (defaults/normalize-continuous
+                                                          scale-type v (or c-min 0) (or c-max 1)
+                                                          (defaults/scale-setting :color :midpoint spec cfg))
+                                                       grad-fn (defaults/scale-gradient-fn :color spec cfg)]
                                                    (grad-fn t)))
                                                color-values)))
                       sizes (assoc :sizes sizes)
@@ -217,7 +265,7 @@
    :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
    :groups (vec
             (for [{:keys [color bin-maps]} (:bins stat)]
-              {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+              {:color (resolve-color all-colors color draft-layer cfg)
                :bars (vec (for [{:keys [min max count]} bin-maps]
                             {:lo min :hi max :count count}))}))})
 
@@ -232,20 +280,20 @@
                          ;; Regression lines
                          (when-let [lines (:lines stat)]
                            (for [{:keys [color x1 y1 x2 y2]} lines]
-                             {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                             {:color (resolve-color all-colors color draft-layer cfg)
                               :label (defaults/fmt-category-label color)
                               :x1 x1 :y1 y1 :x2 x2 :y2 y2}))
                          ;; Polylines
                          (when-let [pts (:points stat)]
                            (for [{:keys [color xs ys]} pts]
-                             {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                             {:color (resolve-color all-colors color draft-layer cfg)
                               :label (defaults/fmt-category-label color)
                               :xs xs :ys ys}))))}
         ;; Confidence ribbons from :lm {:confidence-band true}
         (:ribbons stat)
         (assoc :ribbons (vec
                          (for [{:keys [color xs ymins ymaxs]} (:ribbons stat)]
-                           {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                           {:color (resolve-color all-colors color draft-layer cfg)
                             :xs xs :ymins ymins :ymaxs ymaxs})))
         (:position draft-layer)
         (assoc :position (:position draft-layer)))
@@ -268,7 +316,7 @@
      :categories (vec (:categories stat))
      :groups (vec
               (for [{:keys [color counts]} (:bars stat)]
-                {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                {:color (resolve-color all-colors color draft-layer cfg)
                  :label (defaults/fmt-category-label color)
                  :counts (vec counts)}))}
     ;; Value bars (from :identity stat) -- need a categorical axis for band
@@ -288,7 +336,7 @@
            :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
            :groups (vec
                     (for [{:keys [color xs ys]} (:points stat)]
-                      {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                      {:color (resolve-color all-colors color draft-layer cfg)
                        :bars (mapv (fn [x y]
                                      (let [xd (double x)]
                                        {:lo (- xd half) :hi (+ xd half) :count y}))
@@ -313,7 +361,7 @@
            :position (default-position draft-layer)
            :groups (vec
                     (for [{:keys [color xs ys]} (:points stat)]
-                      {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                      {:color (resolve-color all-colors color draft-layer cfg)
                        :label (defaults/fmt-category-label color)
                        ;; Canonical slots: category on :xs, numeric value on :ys.
                        ;; The renderer bands :xs (on the auto-swapped band scale)
@@ -467,7 +515,7 @@
      :boxes (vec
              (for [b (:boxes stat)]
                (cond-> {:category (:category b)
-                        :color (resolve-color all-colors (:color b) (:fixed-color draft-layer) cfg)
+                        :color (resolve-color all-colors (:color b) draft-layer cfg)
                         :median (:median b) :q1 (:q1 b) :q3 (:q3 b)
                         :whisker-lo (:whisker-lo b) :whisker-hi (:whisker-hi b)}
                  (:color b) (assoc :color-category (:color b))
@@ -484,7 +532,7 @@
      :violins (vec
                (for [v (:violins stat)]
                  (cond-> {:category (:category v)
-                          :color (resolve-color all-colors (:color v) (:fixed-color draft-layer) cfg)
+                          :color (resolve-color all-colors (:color v) draft-layer cfg)
                           :ys (:ys v)
                           :densities (:densities v)}
                    (:color v) (assoc :color-category (:color v)))))}))
@@ -507,13 +555,13 @@
         fill-col (or (:fill draft-layer)
                      (when (let [c (:color draft-layer)] (and c (or (keyword? c) (string? c))))
                        (:color draft-layer)))
-        grad-fn (:gradient-fn cfg)
-        midpoint (:color-midpoint cfg)
-        ;; :fill-scale wins over :color-scale; :color-scale is honored on
-        ;; tiles when the user wrote :color (synonym for :fill).
-        fill-scale-type (or (:type (:fill-scale draft-layer))
-                            (:type (:color-scale draft-layer))
-                            :linear)
+        grad-fn (defaults/resolve-gradient-fn (fill-setting :range draft-layer cfg))
+        midpoint (fill-setting :midpoint draft-layer cfg)
+        ;; :fill-scale wins over the colour scale spec, which is honored
+        ;; on tiles when the user wrote :color (synonym for :fill).
+        fill-spec (or (:fill-scale draft-layer)
+                      (:color-scale draft-layer))
+        fill-scale-type (or (:type fill-spec) :linear)
         ;; Two paths: bin2d/kde2d stat produces :tiles as a dataset;
         ;; identity stat with :fill uses point groups
         tiles (if (and (:tiles stat)
@@ -521,7 +569,9 @@
                            (and (not (tc/dataset? (:tiles stat))) (seq (:tiles stat)))))
                 ;; bin2d/kde2d path — :tiles is a dataset with :x-lo :x-hi :y-lo :y-hi :fill
                 (let [tile-ds (:tiles stat)
-                      [f-lo f-hi] (:fill-range stat)
+                      [f-lo f-hi] (let [[lo hi] (:fill-range stat)]
+                                    (or (scale/numeric-color-domain fill-spec lo hi)
+                                        [lo hi]))
                       ;; Derive :color column from :fill using gradient function
                       with-color (tc/add-column tile-ds :color
                                                 (fn [ds]
@@ -536,8 +586,10 @@
                 ;; identity path — derive tile bounds from point coordinates
                 (let [data (:data draft-layer)
                       fill-vals (when fill-col (data fill-col))
-                      f-lo (when (seq fill-vals) (dfn/reduce-min fill-vals))
-                      f-hi (when (seq fill-vals) (dfn/reduce-max fill-vals))
+                      [f-lo f-hi] (scale/numeric-color-domain
+                                   fill-spec
+                                   (when (seq fill-vals) (dfn/reduce-min fill-vals))
+                                   (when (seq fill-vals) (dfn/reduce-max fill-vals)))
                       all-xs (mapcat :xs (:points stat))
                       all-ys (mapcat :ys (:points stat))
                       x-half (/ (min-step all-xs) 2.0)
@@ -726,7 +778,9 @@
                               :when (seq polylines)]
                           {:threshold threshold
                            :t t
-                           :color ((:gradient-fn cfg) t)
+                           :color ((defaults/scale-gradient-fn
+                                    :color (:color-scale draft-layer) cfg)
+                                   t)
                            :polylines (vec polylines)}))]
         {:mark :contour
          :levels levels
@@ -743,7 +797,7 @@
      :style {:opacity (or (:fixed-alpha draft-layer) 0.7)}
      :ridges (vec (for [v violins]
                     (cond-> {:category (:category v)
-                             :color (resolve-color all-colors (:color v) (:fixed-color draft-layer) cfg)
+                             :color (resolve-color all-colors (:color v) draft-layer cfg)
                              :ys (:ys v)
                              :densities (:densities v)}
                       (:color v) (assoc :color-category (:color v)))))
@@ -769,23 +823,26 @@
         all-color-buf (when numeric-color?
                         (let [bufs (keep :color-values (:points stat))]
                           (when (seq bufs) (dtype/concat-buffers bufs))))
-        c-min (when all-color-buf (dfn/reduce-min all-color-buf))
-        c-max (when all-color-buf (dfn/reduce-max all-color-buf))
+        [c-min c-max] (scale/numeric-color-domain
+                       (:color-scale draft-layer)
+                       (when all-color-buf (dfn/reduce-min all-color-buf))
+                       (when all-color-buf (dfn/reduce-max all-color-buf)))
         groups (vec
                 (for [{:keys [color xs ys x-ends color-values row-indices]} (:points stat)]
-                  (cond-> {:color (resolve-color all-colors color (:fixed-color draft-layer) cfg)
+                  (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                            :xs xs :ys ys :x-ends x-ends}
                     row-indices (assoc :row-indices row-indices)
                     (some? color) (assoc :label (defaults/fmt-category-label color))
                     (and numeric-color? color-values)
                     (assoc :colors
                            (vec (map (fn [v]
-                                       (let [scale-type (or (:type (:color-scale draft-layer)) :linear)
+                                       (let [spec (:color-scale draft-layer)
+                                             scale-type (or (:type spec) :linear)
                                              t (defaults/normalize-continuous
                                                 scale-type v
                                                 (or c-min 0) (or c-max 1)
-                                                (:color-midpoint cfg))
-                                             grad-fn (:gradient-fn cfg)]
+                                                (defaults/scale-setting :color :midpoint spec cfg))
+                                             grad-fn (defaults/scale-gradient-fn :color spec cfg)]
                                          (grad-fn t)))
                                      color-values))))))]
     (when (and (seq groups) (not-any? :x-ends groups))

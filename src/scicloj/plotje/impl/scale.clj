@@ -22,10 +22,24 @@
                       {:domain domain :scale-spec scale-spec}))
       (categorical-domain? domain) :categorical
       (= :log (:type scale-spec)) :log
+      ;; A categorical scale places categories, and this domain holds
+      ;; numbers. The message used to read "Unknown scale type:
+      ;; :categorical. Supported: :linear, :log", which is wrong twice:
+      ;; the type is supported, and the reason it does not apply here
+      ;; is the column, not the type.
+      (= :categorical (:type scale-spec))
+      (throw (ex-info (str "A :categorical scale places categories, and this"
+                           " axis spans numbers: " (pr-str (vec domain)) "."
+                           " To read a numeric column as categories, set"
+                           " :x-type or :y-type to :categorical on the layer"
+                           " -- the scale follows from the column's type."
+                           " A :categorical scale spec supplies the category"
+                           " order for a column that is already categorical.")
+                      {:domain (vec domain) :scale-spec scale-spec}))
       (let [t (:type scale-spec)]
         (and t (not= t :linear)))
       (throw (ex-info (str "Unknown scale type: " (:type scale-spec)
-                           ". Supported: :linear, :log")
+                           ". Supported: :linear, :log, :categorical")
                       {:scale-spec scale-spec}))
       :else :linear)))
 
@@ -33,14 +47,8 @@
   "Create a wadogo scale mapping domain values to a pixel range."
   (fn [domain pixel-range scale-spec] (scale-kind domain scale-spec)))
 
-(defmethod make-scale :categorical [domain pixel-range scale-spec]
-  (let [ticks-option
-        (if (some? (:n-ticks scale-spec))
-          {:ticks (:n-ticks scale-spec)}
-          {})]
-    (ws/scale :bands (merge {:domain domain
-                             :range pixel-range}
-                            ticks-option))))
+(defmethod make-scale :categorical [domain pixel-range _]
+  (ws/scale :bands {:domain domain :range pixel-range}))
 
 (defmethod make-scale :linear [domain pixel-range _]
   (ws/scale :linear {:domain domain :range pixel-range}))
@@ -90,26 +98,400 @@
    For log scales, callers must supply positive lo and hi -- the
    responsibility for excluding non-positive values lives upstream
    (filter-log-nonpositive for raw data, the scale-aware branch of
-   compute-global-y-domain for stat-derived ranges)."
-  [[lo hi] scale-spec]
-  (let [log? (= :log (:type scale-spec))
-        padding (:domain-padding defaults/defaults)
-        _ (when (and log? (or (not (pos? (double lo))) (not (pos? (double hi)))))
-            (throw (ex-info (str "A log scale cannot include zero or negative values, but this "
-                                 "axis spans [" lo ", " hi "]. Bar and area marks draw from a "
-                                 "zero baseline, so they cannot sit on a log-scaled value axis -- "
-                                 "use a linear scale for those, or a mark without a baseline "
-                                 "(lay-point, lay-line, lay-lollipop). If the data itself has "
-                                 "non-positive values, a log scale does not apply to this axis.")
-                            {:lo lo :hi hi :scale-spec scale-spec})))
-        [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
-        span (- b a)
-        pad (if (<= span 0.0)
-              ;; Constant data: use ±max(1, 5% of |value|)
-              (max 1.0 (* padding (Math/abs (double a))))
-              (* padding span))
-        from (if log? #(Math/exp %) identity)]
-    [(from (- a pad)) (from (+ b pad))]))
+   compute-global-y-domain for stat-derived ranges).
+
+   `padding` is the resolved `:domain-padding`. The 2-arity falls back
+   to the library default, for a caller with no configuration in hand;
+   every caller inside `draft->plan` passes the resolved value, which is
+   how `pj/options` and `pj/with-config` reach this."
+  ([domain scale-spec]
+   (pad-domain domain scale-spec (:domain-padding defaults/defaults)))
+  ([[lo hi] scale-spec padding]
+   (let [log? (= :log (:type scale-spec))
+         _ (when (and log? (or (not (pos? (double lo))) (not (pos? (double hi)))))
+             (throw (ex-info (str "A log scale cannot include zero or negative values, but this "
+                                  "axis spans [" lo ", " hi "]. Bar and area marks draw from a "
+                                  "zero baseline, so they cannot sit on a log-scaled value axis -- "
+                                  "use a linear scale for those, or a mark without a baseline "
+                                  "(lay-point, lay-line, lay-lollipop). If the data itself has "
+                                  "non-positive values, a log scale does not apply to this axis.")
+                             {:lo lo :hi hi :scale-spec scale-spec})))
+         [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
+         span (- b a)
+         pad (if (<= span 0.0)
+               ;; Constant data: use ±max(1, 5% of |value|)
+               (max 1.0 (* padding (Math/abs (double a))))
+               (* padding span))
+         from (if log? #(Math/exp %) identity)]
+     [(from (- a pad)) (from (+ b pad))])))
+
+(def by-methods
+  "How a value spreads across the range a channel is drawn over.
+
+   Each names what is spread evenly as the value runs from the low end
+   of the domain to the high end, and each is read in the mark's own
+   quantity -- a circle's radius, a stroke's width:
+
+   - `:linear` -- the quantity itself. A value twice another is drawn
+     twice as wide, which on a circle is four times the ink. ggplot2
+     spells this `scale_radius`.
+   - `:sqrt` -- the quantity against the root of the value, the root
+     being the quantity's ink exponent. The default, and what ggplot2's
+     `scale_size` does. The smallest value still draws at the low end
+     of the range rather than vanishing, and growth is compressed the
+     way area demands; it is exactly area-proportional when the range
+     starts at zero.
+   - `:area` -- the ink. Equal steps in value are equal steps in area,
+     which is the strict reading of what a size encoding claims.
+
+   On a quantity whose ink grows linearly -- a stroke's width, an
+   opacity -- all three are one function, because there is no area to
+   correct for."
+  #{:linear :sqrt :area})
+
+(def default-by
+  "The method a channel spreads by when its scale does not say.
+
+   ggplot2's default for a point, adopted here: the perceptual
+   correction is on, and the smallest mark stays visible."
+  :sqrt)
+
+(defn spec-keys
+  "The keys a scale spec may carry for `aesthetic`. `:type` and
+   `:domain` belong to every scale; the rest are per aesthetic, from
+   `defaults/channel-scale-options`."
+  [aesthetic]
+  (into #{:type :domain} (get defaults/channel-scale-options aesthetic #{})))
+
+(defn validate-spec-keys!
+  "Throw when a scale spec names a key `aesthetic` does not read.
+
+   Called from both places a spec can be written, so `pj/scale` and a
+   mapping's `:scale` refuse the same keys. `pj/scale` used to take any
+   key and read what it understood, so a misspelled `:rnge` set nothing
+   and said nothing."
+  [aesthetic spec where]
+  (let [accepted (spec-keys aesthetic)]
+    (when-let [unknown (seq (remove accepted (keys spec)))]
+      (throw (ex-info (str where " " aesthetic " " (pr-str spec)
+                           " has unexpected key(s): " (vec unknown) ". "
+                           aesthetic "'s scale takes "
+                           (vec (sort accepted)) ".")
+                      {:aesthetic aesthetic :spec spec
+                       :unknown (vec unknown)
+                       :accepted (vec (sort accepted))
+                       :caller where})))))
+
+(def channel-bounds
+  "What a channel's `:range` may span, where the quantity it is drawn
+   as has limits of its own.
+
+   An opacity outside 0 to 1 is not a fainter or a stronger colour --
+   it is not a colour at all, and the PNG path throws from inside AWT
+   where the SVG path silently emits an out-of-range attribute. A
+   negative radius is not a smaller mark; it emits a negative width and
+   draws nothing. Both used to pass every check."
+  {:alpha {:lo 0.0 :hi 1.0 :what "an opacity"}
+   :size  {:lo 0.0 :what "a size in drawing units"}})
+
+(def ^:private gradient-range-channels
+  "The channels whose `:range` is a gradient rather than a pair of
+   numbers. A colour is picked from a ramp, not measured along one, so
+   the range names the ramp."
+  #{:color :fill})
+
+(defn- validate-bounds-pair!
+  "Throw when a spec's `:range` or `:domain` is not a pair of two finite
+   numbers, or falls outside what the channel can draw.
+
+   A malformed pair used to reach the arithmetic and die there on a
+   bare `NullPointerException` naming neither the key nor the channel;
+   an out-of-range one drew nothing, or threw from inside the rendering
+   library one output format later."
+  [channel spec k where]
+  (when (contains? spec k)
+    (let [v (get spec k)
+          numbers? (and (sequential? v)
+                        (= 2 (count v))
+                        (every? #(and (number? %)
+                                      (Double/isFinite (double %)))
+                                v))]
+      (when-not numbers?
+        (throw (ex-info (str where " " channel " " k " " (pr-str v)
+                             " is not a pair of two finite numbers, as "
+                             (pr-str [0 1]) " is."
+                             (when (and (sequential? v) (not= 2 (count v)))
+                               (str " It has " (count v) ".")))
+                        {:channel channel :option k :value v :caller where})))
+      (when-let [{:keys [lo hi what]} (and (= k :range) (channel-bounds channel))]
+        (when-let [bad (seq (remove #(and (or (nil? lo) (>= (double %) lo))
+                                          (or (nil? hi) (<= (double %) hi)))
+                                    v))]
+          (throw (ex-info (str where " " channel " :range " (pr-str v)
+                               " reaches " (pr-str (vec bad)) ", which "
+                               channel " cannot draw: it is " what
+                               ", so its range lies between "
+                               (if hi (str lo " and " hi) (str lo " and up"))
+                               ".")
+                          {:channel channel :option k :value v
+                           :out-of-bounds (vec bad) :caller where})))))))
+
+(defn validate-drawn-range-options!
+  "Throw when a scale spec names a drawn-range option the channel does
+   not read, or names one Plotje cannot carry out.
+
+   Called from both places a spec can be written -- `pj/scale` and a
+   mapping's `:scale` -- because either can name a key the channel has
+   no use for, and a key that is read by nothing is the defect this
+   release exists to remove. `where` names the caller for the message.
+
+   Only the drawn-range options are policed here. The rest of the spec
+   is checked where it is written."
+  [channel spec where]
+  (let [read-here (get defaults/channel-scale-options channel #{})]
+    (doseq [k defaults/drawn-range-options
+            :when (and (contains? spec k) (not (contains? read-here k)))]
+      (throw (ex-info (str where " " channel " " k " " (pr-str (get spec k))
+                           ", and " channel " reads no " k ". "
+                           (case k
+                             :range (str "A range is what a mark spans as the"
+                                         " value runs across the domain, and "
+                                         channel
+                                         (if (#{:x :y} channel)
+                                           " spans the panel, which the plot's size decides."
+                                           " draws no such quantity."))
+                             :by (str "It asks how a value spreads across that"
+                                      " range in the quantity a mark draws --"
+                                      " a radius, a width. " channel
+                                      " has no such quantity to spread across.")
+                             :from-zero (str "It anchors a range at zero so that"
+                                             " twice the value is twice the ink,"
+                                             " and " channel " draws no ink to"
+                                             " double."))
+                           " The aesthetics that read " k ": "
+                           (vec (sort (for [[c ks] defaults/channel-scale-options
+                                            :when (contains? ks k)]
+                                        c)))
+                           ".")
+                      {:channel channel :option k :value (get spec k)
+                       :caller where}))))
+  (when-let [by (:by spec)]
+    (when-not (contains? by-methods by)
+      (throw (ex-info (str where " " channel " :by " (pr-str by)
+                           " is not a method a value can spread by."
+                           " Supported: " (vec (sort by-methods)) ".")
+                      {:channel channel :by by
+                       :supported (vec (sort by-methods))
+                       :caller where}))))
+  (when (and (:from-zero spec) (= :log (:type spec)))
+    (throw (ex-info (str where " " channel " sets :from-zero beside a log"
+                         " scale. Anchoring at zero asks the scale to read a"
+                         " value of zero, and a log scale has no reading for"
+                         " it. Take one of the two off: :from-zero for a"
+                         " proportional size, or the log scale for a"
+                         " multiplicative one.")
+                    {:channel channel :spec spec :caller where})))
+  (when (contains? spec :from-zero)
+    (let [v (:from-zero spec)]
+      (when-not (or (true? v) (false? v))
+        (throw (ex-info (str where " " channel " :from-zero " (pr-str v)
+                             " is not true or false. It says whether the"
+                             " domain and the range are anchored at zero.")
+                        {:channel channel :from-zero v :caller where})))))
+  ;; A range is a pair of numbers where the channel measures along it,
+  ;; and a gradient where the channel picks a colour from it. One key,
+  ;; two shapes, so the check follows the channel.
+  (if (contains? gradient-range-channels channel)
+    (when (contains? spec :range)
+      (try
+        (defaults/resolve-gradient-fn (:range spec))
+        (catch clojure.lang.ExceptionInfo e
+          (throw (ex-info (str where " " channel " :range -- " (ex-message e))
+                          (assoc (ex-data e) :channel channel :caller where))))))
+    (validate-bounds-pair! channel spec :range where))
+  ;; Only where a domain can only be numeric. An axis, a shape and a
+  ;; colour all take a domain of categories -- which is what orders
+  ;; their legend -- so a pair of numbers is not the shape to demand
+  ;; there.
+  (when (contains? channel-bounds channel)
+    (validate-bounds-pair! channel spec :domain where)))
+
+(defn validate-spec-values!
+  "Throw when a scale spec's `:breaks`, `:tick-labels` or `:values`
+   holds something the channel cannot carry out.
+
+   Called from both places a spec can be written -- `pj/scale` and a
+   mapping's `:scale` -- because a spec means the same thing wherever
+   it is written. These four checks lived only in `pj/scale`, so
+   `{:shape {:column :c :scale {:values [:blob :thing :whatsit]}}}`
+   planned without a word: every mark drew the fallback symbol while
+   the legend advertised three symbols that do not exist.
+
+   `where` names the caller for the message. Which channels read these
+   keys at all is settled by `validate-spec-keys!`, off the published
+   table, so this checks only what a key holds."
+  [channel spec where]
+  (let [breaks (:breaks spec)
+        labels (:tick-labels spec)]
+    (when (and (some? labels) (not (sequential? labels)))
+      (throw (ex-info (str where " " channel " :tick-labels " (pr-str labels) " is not a"
+                           " sequence of tick texts. It draws one text per"
+                           " break, so it takes as many as :breaks names."
+                           " To title the axis itself, use :label.")
+                      {:caller where :channel channel :tick-labels labels})))
+    (when (and labels (not breaks))
+      (throw (ex-info (str where " " channel " :tick-labels requires :breaks. Pass both,"
+                           " or drop :tick-labels to keep auto-formatted tick"
+                           " text.")
+                      {:caller where :channel channel :tick-labels labels})))
+    (when (and breaks labels (not= (count breaks) (count labels)))
+      (throw (ex-info (str where " " channel " :breaks and :tick-labels must have the same"
+                           " count, got " (count breaks) " breaks and "
+                           (count labels) " tick labels.")
+                      {:caller where :channel channel
+                       :breaks (vec breaks) :tick-labels (vec labels)}))))
+  ;; `:values` is the enumerated output set, and what belongs in it
+  ;; depends on the channel: marker symbols on `:shape`, colours on
+  ;; `:color`. An unrecognized symbol draws as the fallback while the
+  ;; legend advertises the name, so refuse it here rather than render a
+  ;; legend that disagrees with its own marks.
+  (when-let [values (:values spec)]
+    (when (= channel :shape)
+      (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
+        (throw (ex-info (str where " " channel " :values does not recognize "
+                             (vec unknown) ". Supported symbols: "
+                             defaults/shape-syms ".")
+                        {:caller where :channel channel
+                         :unknown (vec unknown)
+                         :supported defaults/shape-syms}))))))
+
+(defn numeric-color-domain
+  "The `[lo hi]` a numeric colour or fill column is read against.
+
+   `:domain` on the spec replaces the range the data covers, so a
+   gradient can mean the same thing across plots and across the panels
+   of a facet. A value outside it is drawn at the nearer end of the
+   gradient rather than dropped, which is what `normalize-continuous`
+   clamps for, and matches what `:size` and `:alpha` answer.
+
+   Answers nil where the data gave no range, so a caller that had
+   nothing to normalize against still has nothing. A categorical
+   `:domain` -- a list of category names -- is not a numeric range and
+   is ignored here; `order-by-domain` in `impl.plan` reads that one.
+
+   Stated once because four places normalize a colour and a fifth
+   builds the legend, and each held its own min and max."
+  [spec d-min d-max]
+  (when (and (some? d-min) (some? d-max))
+    (let [[lo hi] (:domain spec)]
+      (if (and (number? lo) (number? hi))
+        [(double lo) (double hi)]
+        [(double d-min) (double d-max)]))))
+
+(defn channel-domain
+  "The `[lo hi]` a channel's values are read against, given its scale
+   spec and the range the data covers.
+
+   `:domain` on the spec replaces the data's own range -- a way to fix
+   what a size means across plots that would otherwise each scale to
+   their own extremes. `:from-zero` anchors the low end at zero, which
+   is what turns a spread across a range into a proportion: with the
+   range anchored there too, twice the value is twice the ink.
+
+   Anchored at zero it is the distance from zero that decides the ink,
+   so the domain runs to the value furthest from zero in either
+   direction. Taking the high end alone put every value at or below
+   zero at the bottom of the range: a column of -5, 0 and 10 drew one
+   mark of three and said nothing, and an all-negative column drew
+   every mark at the maximum beside a legend running the other way.
+   ggplot2's `scale_size_area` reads the magnitude here too, though it
+   divides by the maximum rather than by the widest magnitude, which on
+   an all-negative column draws marks larger than the range's own top."
+  [spec d-min d-max]
+  (let [[lo hi] (or (:domain spec) [d-min d-max])]
+    (if (:from-zero spec)
+      [0.0 (max (Math/abs (double lo)) (Math/abs (double hi)))]
+      [(double lo) (double hi)])))
+
+(defn channel-mapper
+  "A function from a data value to the quantity a mark draws it as -- a
+   radius, a width, an opacity.
+
+   `spec` is the channel's scale spec: `:type` (`:linear` or `:log`),
+   `:domain`, `:range`, `:by` and `:from-zero`, each optional.
+   `default-range` is what the channel spans where the spec names no
+   `:range`. `ink-exponent` comes from the mark's declared quantity --
+   2 for a radius or a side, 1 for a width -- and is what lets `:by`
+   mean the same thing whatever shape draws it.
+
+   Stated once because the marks and the legend have to agree: the mark
+   drawn beside a value in the legend is the size a mark of that value
+   is drawn at on the panel. `impl.plan` builds the legend from this and
+   `render.mark` draws from it, and they held separate copies of the
+   arithmetic until both were found to share a defect.
+
+   A value outside the domain is clamped to its nearer end rather than
+   drawn outside the range. A `:domain` narrower than the data is a
+   statement about what the reader should compare, not an instruction
+   to drop rows -- and a dropped row leaves no trace on the panel.
+
+   A domain of one distinct value has no spread to map, so every value
+   takes the middle of the range. ggplot2's `scales::rescale` answers a
+   zero range the same way, and for the same reason: with nothing to
+   compare a value against, the midpoint is the only unprejudiced
+   answer. Collapsing to the low end instead drew
+   `{:size {:value 7 :scale true}}` at radius 2.0 -- smaller than the
+   default 3.0 -- beside a legend reading 7, and did the same to any
+   size column whose values happen to be equal."
+  [spec d-min d-max default-range ink-exponent]
+  (let [log?     (= :log (:type spec))
+        ;; Anchored at zero, a value is read by how far it is from
+        ;; zero, which is what makes the ink proportional in both
+        ;; directions. `:from-zero` beside a log scale is refused, so
+        ;; the two transforms never compose.
+        from-zero? (boolean (:from-zero spec))
+        ->space  (cond
+                   log?       #(Math/log10 (max 1e-300 (double %)))
+                   from-zero? #(Math/abs (double %))
+                   :else      double)
+        [d-lo d-hi] (channel-domain spec d-min d-max)
+        lo       (->space d-lo)
+        hi       (->space d-hi)
+        [dr-lo dr-hi] default-range
+        [r-lo r-hi]   (or (:range spec) [dr-lo dr-hi])
+        r-lo     (if (:from-zero spec) 0.0 (double r-lo))
+        r-hi     (double r-hi)
+        e        (double ink-exponent)
+        by       (or (:by spec) default-by)
+        span     (- hi lo)
+        ;; Relative, as `scales::zero_range` is. An absolute floor
+        ;; leaves a band just above it where the domain is treated as
+        ;; real and the output is squeezed against the low end: with
+        ;; the old `(max 1e-6 span)`, a span of 1e-7 drew every mark
+        ;; between radius 2.0 and 2.6 -- below the default 3.0, which
+        ;; is the very picture the degenerate case was fixed to avoid.
+        ;; Either side of the test is now a whole answer: the midpoint,
+        ;; or the full range.
+        degenerate? (<= (Math/abs span)
+                        (* 1e-12 (max 1.0 (Math/abs lo) (Math/abs hi))))
+        ;; `t` is the fraction of the domain a value has reached. Each
+        ;; method spreads a different function of it evenly across the
+        ;; range; on an ink exponent of 1 the three collapse into one.
+        place    (fn [t]
+                   (case by
+                     :linear (+ r-lo (* (- r-hi r-lo) t))
+                     :sqrt   (+ r-lo (* (- r-hi r-lo) (Math/pow t (/ 1.0 e))))
+                     :area   (Math/pow (+ (Math/pow r-lo e)
+                                          (* t (- (Math/pow r-hi e)
+                                                  (Math/pow r-lo e))))
+                                       (/ 1.0 e))))]
+    (if degenerate?
+      ;; Halfway across the domain, through the same method as every
+      ;; other value. Taking the midpoint of the range instead skipped
+      ;; `:by`, so a constant column and a nearly-constant one were
+      ;; drawn by different arithmetic and jumped between them.
+      (constantly (place 0.5))
+      (fn [v] (place (min 1.0 (max 0.0 (/ (- (->space v) lo) span))))))))
 
 (defn- format-ticks*
   "Format tick values without any digit grouping. See format-ticks."
@@ -287,6 +669,16 @@
         (:breaks best)))))
 
 (defn tick-count
-  "Suggested tick count based on available pixel range."
-  [pixel-range spacing]
-  (max 2 (int (/ pixel-range spacing))))
+  "How many ticks an axis asks for across `pixel-range` drawing units.
+
+   `:n-ticks` on the spec names the count outright. Failing that,
+   `spacing` names about how much room a tick should have and the count
+   is how many fit, never fewer than two. The count is then rounded to
+   a step a reader can read off, which is why the room each tick ends
+   up with can come out under `spacing`. One answer for both column
+   types -- each key used to be read on one of them and ignored on the
+   other."
+  [pixel-range scale-spec spacing]
+  (if-let [n (:n-ticks scale-spec)]
+    n
+    (max 2 (int (/ pixel-range spacing)))))

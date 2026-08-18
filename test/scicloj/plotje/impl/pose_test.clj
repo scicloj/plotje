@@ -380,7 +380,7 @@
                 :poses [{:data (tc/dataset {:x [1.0 2.0 3.0] :y [10.0 20.0 30.0]})
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}
                         {:data (tc/dataset {:x [4.0 5.0 6.0] :y [40.0 50.0 60.0]})
-                         :opts {:x-scale {:type :log}}
+                         :mapping {:x {:from :x :scale {:type :log}}}
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo

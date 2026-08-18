@@ -1,9 +1,11 @@
 ;; # Customization
 ;;
-;; How to adjust the look of a plot: dimensions, labels, scales,
-;; mark styling, palettes, themes, and legend placement. Where a mark
+;; How to adjust the look of a plot: dimensions, labels, tick text,
+;; mark styling, themes, and legend placement. Where a mark
 ;; goes, as opposed to how it looks, is
-;; [Placing Marks](./plotje_book.placing_marks.html).
+;; [Placing Marks](./plotje_book.placing_marks.html). What a scale is
+;; and what each aesthetic's scale takes is
+;; [Scales](./plotje_book.scales.html).
 ;;
 ;; Other appearance topics live in their natural homes:
 ;; column-to-aesthetic mapping in
@@ -76,7 +78,11 @@
                                 (some (fn [t] (.contains ^String t "Sepal dimensions")) (:texts s)))))])
 
 ;; Legend titles default to the column name. Override with
-;; `:color-label`, `:size-label`, `:alpha-label`, or `:shape-label`:
+;; `:color-label`, `:size-label`, `:alpha-label`, or `:shape-label`.
+;; Each is the outermost scope of the aesthetic's own `:label`, which
+;; titles one mapping or one layer and wins where both are written --
+;; [Scales](./plotje_book.scales.html#titling-a-scale) has that
+;; spelling:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -120,10 +126,10 @@
 
 ;; ### Color and fill
 ;;
-;; Most marks expose `:color` as the encoding channel -- scatter
+;; Most marks expose `:color` as the encoding aesthetic -- scatter
 ;; dots, lines, bar interiors, area fills, violins, lollipops -- all
 ;; styled with `:color` and named via `:color-label` in the legend.
-;; The separate `:fill` channel is currently reserved for the heatmap
+;; The separate `:fill` aesthetic is currently reserved for the heatmap
 ;; family: `lay-tile` (and the `:bin2d` output beneath
 ;; `lay-density-2d`) reads the encoded value as a continuous fill,
 ;; with its own legend title override `:fill-label`:
@@ -139,7 +145,7 @@
 ;; **Coming from ggplot2.** ggplot's `colour=` (stroke) and `fill=`
 ;; (interior) split is partial in Plotje today. On filled marks like
 ;; `lay-bar`, `lay-area`, and `lay-violin`, the `:color` aesthetic
-;; paints the interior; there is no separate stroke channel, and
+;; paints the interior; there is no separate stroke aesthetic, and
 ;; `:fill` is not accepted. A `lay-bar` styled with `{:color :species}`
 ;; produces one filled polygon per category:
 
@@ -252,7 +258,7 @@
 ;; Grouping applies to the numbers that measure something: tick labels on
 ;; a numeric axis, the text `pj/lay-text` and `pj/lay-label` take from a
 ;; column, and the values a size or alpha legend prints. Category names,
-;; colour and shape legend labels, and facet strip labels are left alone,
+;; color and shape legend labels, and facet strip labels are left alone,
 ;; because those name a group rather than measure it.
 ;;
 ;; A year falls on either side of that, depending on how it is used.
@@ -286,7 +292,7 @@
  [(fn [labels] (= ["2020" "2021" "2022" "2023"] (vec labels)))])
 
 ;; A size legend groups its values, so it reads the same way as the axis
-;; beside it, while the colour legend's category names do not:
+;; beside it, while the color legend's category names do not:
 
 (->> (-> (for [i (range 8)] {:xx (double i) :yy (double i)
                              :volume (* 100000 (inc i)) :region (str "region " i)})
@@ -328,256 +334,36 @@
            (contains? texts "2.680,75")
            (some (fn [t] (re-matches #"\d\.\d00" t)) texts))))])
 
-;; ## Scales
-
-;; Use a log scale for data spanning orders of magnitude.
-
-(def exponential-data
-  {:x (range 1 50)
-   :y (map #(* 2 (Math/pow 1.1 %)) (range 1 50))})
-
-;; Linear scale -- hard to see the structure.
-
-(-> exponential-data
-    (pj/lay-point :x :y)
-    (pj/options {:title "Linear Scale"}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 49 (:points s)))))])
-
-;; Log y-scale -- reveals the exponential trend.
-
-(-> exponential-data
-    (pj/lay-point :x :y)
-    (pj/scale :y :log)
-    (pj/options {:title "Log Y Scale"}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 49 (:points s)))))])
-
-;; Lock the y-axis to a specific range.
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/scale :y {:type :linear :domain [0 6]})
-    (pj/options {:title "Fixed Y Domain [0, 6]"}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 150 (:points s)))))])
-
-;; A domain narrower than the data turns the axis into a view window:
-;; marks falling outside it are clipped to the panel, and the
-;; underlying data is kept. This matches ggplot2's `coord_cartesian`,
-;; which zooms the view, rather than scale limits, which drop rows.
-;; Here the sepal-width domain is tightened to [3.0, 3.5], so points
-;; above and below that band are clipped at the panel edge. All 150
-;; observations are still rendered -- the marks sit behind a clip
-;; region, one per panel.
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/scale :y {:type :linear :domain [3.0 3.5]})
-    (pj/options {:title "Tight Y Domain [3.0, 3.5]"}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 150 (:points s))
-                                (= 1 (:clips s)))))])
-
-;; Pin exact tick locations with `:breaks` (ggplot2's
-;; `scale_*_continuous(breaks=...)`).
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/scale :y {:type :linear :breaks [2.0 3.0 4.0]}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 150 (:points s))
-                                (every? (set (:texts s)) ["2" "3" "4"]))))])
-
-;; Pair `:breaks` with `:labels` to render numeric positions with
-;; custom tick text. The two vectors must match in count -- each
-;; label is shown at its corresponding break. This is the path for
-;; cases like a tile heatmap where the axis is numerically indexed
-;; (1-7) but the natural labels are categorical (days of the week).
+;; ## Tick placement and text
+;;
+;; An axis scale carries the options that place and word its tick
+;; marks. What each of those keys means, and everything else a scale
+;; does, is in [Scales](./plotje_book.scales.html). The recipe here is
+;; the case where the axis is indexed by number and the labels should
+;; be words.
+;;
+;; `:breaks` pins the values that get a tick, and `:tick-labels` gives each
+;; one its text -- one label per break. This tile heatmap is indexed by
+;; day number, 1 to 7, and its ticks read as days:
 
 (-> (for [day (range 1 8) hour (range 0 24)]
       {:day day :hour hour :load (+ (* 0.3 (Math/sin (* 0.5 hour)))
                                     (* 0.2 (mod day 3)))})
     (pj/lay-tile :day :hour {:fill :load})
-    (pj/scale :x {:type :linear
-                  :breaks [1 2 3 4 5 6 7]
-                  :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})
+    (pj/scale :x {:breaks [1 2 3 4 5 6 7]
+                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})
     (pj/options {:title "Weekly Load by Hour"}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
             (every? texts ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"])))])
 
-;; Order a categorical axis explicitly with `:type :categorical`
-;; and a `:domain` vector. Without this, categories appear in their
-;; order of first occurrence in the data.
-
-(-> {:size ["medium" "small" "large"]
-     :count [12 30 7]}
-    (pj/lay-bar :size :count)
-    (pj/scale :x {:type :categorical :domain ["large" "medium" "small"]}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
-                               labels (filter #{"large" "medium" "small"} (:texts s))]
-                           (= ["large" "medium" "small"] (vec labels))))])
-
-;; On a categorical axis, `:breaks` selects which categories get a
-;; tick, and `:labels` relabels them -- the discrete counterpart to
-;; numeric `:breaks` above. Each break is matched to a category by its
-;; displayed label; a break that names no category is dropped with a
-;; warning. Here only two of the four quarters are ticked, with custom
-;; text:
-
-(-> {:quarter ["Q1" "Q2" "Q3" "Q4"]
-     :revenue [120 150 90 200]}
-    (pj/lay-bar :quarter :revenue)
-    (pj/scale :x {:breaks ["Q1" "Q4"] :labels ["First" "Fourth"]}))
-
-(kind/test-last [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
-                           (and (contains? texts "First")
-                                (contains? texts "Fourth")
-                                (not (contains? texts "Q2")))))])
-
-;; Thin a crowded categorical axis with `:n-ticks`. A categorical
-;; axis labels every category by default, so with many categories
-;; the labels overlap. `:n-ticks` keeps roughly that many
-;; evenly-spaced tick labels instead. (When both are given, explicit
-;; `:breaks` win over `:n-ticks`. Rotating the labels with
-;; `:x-tick-angle` is the other way to handle crowding -- see
-;; Rotating tick labels above.)
-
-(-> {:bin (map #(str "bin-" %) (range 40))
-     :count (range 40)}
-    (pj/lay-bar :bin :count)
-    (pj/scale :x {:n-ticks 8}))
-
-(kind/test-last [(fn [v] (let [labels (filter #(.startsWith ^String % "bin-")
-                                              (:texts (pj/svg-summary v)))]
-                           (= 8 (count labels))))])
-
-;; ### Log scale on visual channels
-;;
-;; `pj/scale` works on continuous visual channels too -- `:size`,
-;; `:alpha`, `:fill`, and `:color`. When the encoded column spans
-;; many orders of magnitude, a log scale spaces the legend ticks
-;; logarithmically and maps the visual property (radius, alpha,
-;; gradient color) in log-space, so each tick step represents the
-;; same multiplicative ratio. `:categorical` does not apply to a
-;; continuous encoding -- visual channels accept `:linear` (the
-;; default) and `:log` only.
-
-;; Point sizes from a column whose values jump by factors of ten.
-;; Without `:scale :size :log`, the default linear mapping puts the
-;; n=10 and n=100 points at nearly the same radius -- only n=1000
-;; stands out. Linear scaling reflects absolute distance, which is
-;; dominated by the largest value:
-
-(-> {:user [:a :b :c] :n [10 100 1000]}
-    (pj/lay-point :user :n {:size :n :x-type :categorical}))
-
-(kind/test-last
- [(fn [v]
-    (let [sizes (sort (:sizes (pj/svg-summary v)))]
-      ;; Linear scaling: smallest two radii are within 50% of each
-      ;; other; the largest radius is at least 3x the smallest.
-      (and (= 3 (count sizes))
-           (< (/ (second sizes) (first sizes)) 1.5)
-           (> (/ (last sizes) (first sizes)) 3.0))))])
-
-;; With `pj/scale :size :log`, each factor-of-10 step reflects the
-;; same proportional jump in radius, so the n=10 and n=100 points
-;; are now visibly distinct:
-
-(-> {:user [:a :b :c] :n [10 100 1000]}
-    (pj/lay-point :user :n {:size :n :x-type :categorical})
-    (pj/scale :size :log))
-
-(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
-
-;; The size legend's tick values are the original numbers (10,
-;; 100, 1000), but the dot radii grow in log-space -- each step
-;; reflects the same factor, matching what you see at the same data
-;; values in the plot.
-
-;; Tile heatmap with log-scaled fill:
-
-(-> (for [r (range 5) c (range 5)]
-      {:r r :c c :v (Math/pow 10.0 (/ (+ r c) 2.0))})
-    (pj/lay-tile :r :c {:fill :v})
-    (pj/scale :fill :log))
-
-(kind/test-last [(fn [v] (>= (:visible-tiles (pj/svg-summary v)) 25))])
-
-;; The continuous fill legend draws log-spaced tick labels along
-;; the gradient bar so a tile's color reads as its log-space
-;; position between the data minimum and maximum.
-;;
-;; To override the inferred type of a column (e.g. force a numeric
-;; `:hour` column to render as categorical bands), see
-;; [Inference Rules](./plotje_book.inference_rules.html#overriding-inferred-types-with-x-type-y-type).
-
-;; ### Shape symbols
-;;
-;; `:shape` is a discrete channel, so its scale controls two things a
-;; continuous channel has no use for: which order the categories are
-;; assigned symbols in, and which symbols those are. Both matter when
-;; a reader compares two plots -- the same category should keep the
-;; same marker across them.
-;;
-;; `pj/shape-symbols` lists the available markers, in the order they
-;; are assigned to categories:
-
-pj/shape-symbols
-
-(kind/test-last [(fn [syms] (= syms (distinct syms)))])
-
-;; A plot with more categories than that repeats a symbol, so two
-;; categories cannot be told apart; it warns when that happens.
-;;
-;; Left alone, the categories take those symbols in the order they
-;; appear in the data:
-
-(-> {:model ["a" "b" "c" "d"] :score [3 1 4 2] :tier ["gold" "silver" "bronze" "gold"]}
-    (pj/lay-point :model :score {:shape :tier}))
-
-(kind/test-last
- [(fn [v]
-    (= (take 3 pj/shape-symbols)
-       (mapv :shape (:entries (:shape-legend (pj/plan v))))))])
-
-;; `:domain` sets the category order, which is also the legend order:
-
-(-> {:model ["a" "b" "c" "d"] :score [3 1 4 2] :tier ["gold" "silver" "bronze" "gold"]}
-    (pj/lay-point :model :score {:shape :tier})
-    (pj/scale :shape {:domain ["gold" "silver" "bronze"]}))
-
-(kind/test-last
- [(fn [v]
-    (= (mapv vector ["gold" "silver" "bronze"] pj/shape-symbols)
-       (mapv (juxt :label :shape)
-             (:entries (:shape-legend (pj/plan v))))))])
-
-;; `:values` picks the symbols themselves, paired with the categories
-;; in that same order:
-
-(-> {:model ["a" "b" "c" "d"] :score [3 1 4 2] :tier ["gold" "silver" "bronze" "gold"]}
-    (pj/lay-point :model :score {:shape :tier})
-    (pj/scale :shape {:domain ["gold" "silver" "bronze"]
-                      :values [:diamond :cross :plus]}))
-
-(kind/test-last
- [(fn [v]
-    (= [["gold" :diamond] ["silver" :cross] ["bronze" :plus]]
-       (mapv (juxt :label :shape)
-             (:entries (:shape-legend (pj/plan v))))))])
+;; Crowded tick labels have two other answers: rotate them, which the
+;; Rotating tick labels section above covers, or thin them to a chosen
+;; count with `:n-ticks`, which
+;; [Scales](./plotje_book.scales.html#where-the-ticks-go) covers. How
+;; the digits within a tick label are written is set separately, in the
+;; two sections on grouping digits and on the decimal point above.
 
 ;; ## Mark Styling
 
@@ -816,7 +602,7 @@ pj/shape-symbols
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
-;; Note: intercept and band-edge positions must be literal values
+;; Note: intercept and band-edge positions must be written values
 ;; (numbers, or temporal values on a time axis) in this release. A
 ;; faceted plot with a different reference value per panel
 ;; (column-mapped intercept, ggplot2's
@@ -842,42 +628,16 @@ pj/shape-symbols
                                 (= 1 (:dashed-lines s))
                                 (contains? (:dash-patterns s) "6.00 4.00"))))])
 
-;; ## Palettes
-;;
-;; Pass `:palette` to override the default color cycle. It accepts a
-;; vector of hex strings, a map from category to hex, or a keyword
-;; naming one of the built-in palettes (`:set1`, `:set2`, `:dark2`,
-;; `:tableau-10`, `:category10`, `:pastel1`, `:accent`, `:paired`, and
-;; many more).
-;;
-;; The full list of forms is in
-;; [Palette Configuration](./plotje_book.configuration.html#palette-configuration),
-;; the project-level / thread-local / plot-level precedence chain in
-;; [The Precedence Chain](./plotje_book.configuration.html#the-precedence-chain),
-;; and the key table in
-;; [Configuration Keys](./plotje_book.configuration.html#configuration-keys).
-
-;; Custom vector:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]}))
-
-(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
-
-;; Named preset -- here `:dark2` for a high-contrast qualitative palette:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette :dark2}))
-
-(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
-
 ;; ## Discovering Palettes and Gradients
+;;
+;; A `:color` or `:fill` scale spans a palette or a gradient, named with
+;; the `:color-values` and `:color-range` plot options --
+;; [Scales](./plotje_book.scales.html#the-colors-a-scale-spans) covers
+;; what they do. This section is the catalogue of what there is to name.
 ;;
 ;; Plotje delegates color to the
 ;; [clojure2d](https://github.com/Clojure2D/clojure2d) library, which
-;; bundles thousands of named palettes and gradients.  Use
+;; bundles thousands of named palettes and gradients. Use
 ;; `clojure2d.color/find-palette` and `clojure2d.color/find-gradient`
 ;; to search by regex pattern.
 
@@ -918,7 +678,7 @@ pj/shape-symbols
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette :khroma/okabeito}))
+    (pj/options {:color-values :khroma/okabeito}))
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
@@ -975,6 +735,7 @@ pj/shape-symbols
 ;; ## See Also
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping and aesthetic vocabulary used throughout this chapter
+;; - [**Scales**](./plotje_book.scales.html) -- types, domains, ranges, and the scale spec each aesthetic reads
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- where layer options, plot options, and configuration live
 ;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes: anchoring, offsets, values for `:x` and `:y`, and `pj/frames`
 ;; - [**Interactivity**](./plotje_book.interactivity.html) -- tooltips and brush selection

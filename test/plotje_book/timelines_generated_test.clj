@@ -99,9 +99,9 @@
    (rdatasets/ggplot2-economics)
    (tc/select-rows
     (fn*
-     [p1__73272#]
+     [p1__75047#]
      (let
-      [d (:date p1__73272#)]
+      [d (:date p1__75047#)]
       (and (>= (.getYear d) 2000) (<= (.getYear d) 2014))))))))
 
 
@@ -187,7 +187,7 @@
     :y-label "",
     :x-label "year",
     :height 420,
-    :palette ["#3498db" "#e74c3c"]})))
+    :color-values ["#3498db" "#e74c3c"]})))
 
 
 (deftest
@@ -585,7 +585,7 @@
    {:title "Hover for term details",
     :tooltip true,
     :height 420,
-    :palette ["#3498db" "#e74c3c"]})))
+    :color-values ["#3498db" "#e74c3c"]})))
 
 
 (deftest

@@ -17,8 +17,10 @@
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
+            [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
+            [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.layer-type :as layer-type]))
 
 ;; ---- Structural predicates ----
@@ -45,6 +47,172 @@
 
 ;; ---- Tree resolver ----
 
+(def source-keys
+  "The three ways an explicit mapping can name its source.
+
+   `:column` reads the value from the layer's data and `:value` is the
+   value itself; `:from` is the plain reading spelled out -- ask the
+   data, and take whichever answer it gives, exactly as a mapping
+   written plainly does. `:from` is what lets a plain mapping carry a
+   `:scale`, since a bare `:size :weight` has no room for one."
+  #{:column :value :from})
+
+(defn mapping-source
+  "What a mapping value names, with the full form unwrapped: the
+   `:column`, the `:value` or the `:from`. A mapping that names only a
+   scale names no source, and answers nil.
+
+   Identity is decided on this rather than on the written value, so
+   that `{:x {:from :a :scale ...}}` and a plain `{:x :a}` are the same
+   position -- which they are, since `pj/scale` produces the first from
+   the second."
+  [v]
+  (if (map? v)
+    (cond
+      (contains? v :column) (:column v)
+      (contains? v :value)  (:value v)
+      (contains? v :from)   (:from v)
+      :else                 nil)
+    v))
+
+(defn- as-scale-spec
+  "A scale statement as a spec map, or nil where it states no spec.
+   `true` and `false` say which side of the scale a value passes and
+   name no scale, so neither is one."
+  [s]
+  (cond
+    (map? s)     s
+    (keyword? s) {:type s}
+    :else        nil))
+
+(defn combine-scales
+  "Combine an outer scale statement with an inner one.
+
+   Scale settings accumulate down the scope chain: where both name a
+   spec the two merge key by key, so a pose that sets a range and a
+   layer that names a type give a plot with both. The innermost wins
+   per key.
+
+   `true` and `false` are not specs and do not merge. `false` says the
+   value passes through no scale at all, so it replaces whatever was
+   set above; `true` says it does pass through one without saying
+   which, so it leaves an outer spec standing."
+  [outer inner]
+  (cond
+    (false? inner) false
+    (nil? inner)   outer
+    (true? inner)  (if (some? outer) outer true)
+    :else          (let [o (as-scale-spec outer)
+                         i (as-scale-spec inner)]
+                     (if o (merge o i) i))))
+
+(defn- merge-mapping-value
+  "Combine an outer mapping value for `k` with the inner one that
+   overrides it.
+
+   The source is replaced, because a mapping states one source and two
+   cannot combine -- a merged `{:column :n :value 7}` is refused by
+   name. The scale accumulates, because it is a set of independent
+   settings, the same one `pj/scale` writes.
+
+   Where the inner value is written plainly it has no room for a scale,
+   so it is rewritten in the full form under `:from`, which is the
+   plain reading spelled out: ask the data.
+
+   An inner value that names only a scale replaces no source, because
+   it names none: it says how to read whatever is named further out,
+   so the outer source is carried through. This is the shape
+   `pj/scale` writes, so a scale set on a layer or a composite cell
+   would otherwise delete the mapping its own pose made."
+  [k outer inner]
+  (let [scale-of #(when (map? %) (:scale %))
+        outer-scale (scale-of outer)
+        inner-scale (scale-of inner)
+        combined (combine-scales outer-scale inner-scale)
+        inner-source-key (when (map? inner)
+                           (some #(when (contains? inner %) %) source-keys))
+        outer-source-key (when (map? outer)
+                           (some #(when (contains? outer %) %) source-keys))]
+    ;; A narrower `:scale false` wins, as a narrower anything does --
+    ;; but it leaves the scale set above it doing nothing, and that is
+    ;; worth a word.
+    (when (and (false? inner-scale) (map? (as-scale-spec outer-scale)))
+      (println (str "Warning: " k " is drawn as it stands here (:scale false),"
+                    " and a scale is set for it further out: "
+                    (pr-str (as-scale-spec outer-scale))
+                    ". The nearer setting wins, so nothing reads the scale.")))
+    (cond
+      (nil? inner)      nil            ; an explicit nil cancels the mapping
+
+      ;; The inner names a scale and no source. Keep the source from
+      ;; further out, in the spelling it was written in, and let the
+      ;; scale accumulate onto it.
+      ;;
+      ;; `:scale` has to be present for this to be a mapping written in
+      ;; full at all: this function merges every key of a mapping map,
+      ;; option keys included, and a plain option map such as a label's
+      ;; `{:corner-radius 8}` is also a map naming no source.
+      (and (map? inner) (contains? inner :scale)
+           (nil? inner-source-key) (some? outer-source-key))
+      (cond-> (assoc inner outer-source-key (get outer outer-source-key))
+        (some? combined) (assoc :scale combined))
+
+      (and (map? inner) (contains? inner :scale)
+           (nil? inner-source-key) (some? outer) (not (map? outer)))
+      (cond-> (assoc inner :from outer)
+        (some? combined) (assoc :scale combined))
+
+      (nil? combined)   inner
+      (map? inner)      (assoc inner :scale combined)
+      :else             {:from inner :scale combined})))
+
+(defn merge-mappings
+  "Merge an outer mapping into an inner one, the way pose mappings have
+   always merged -- the inner value wins -- except for the scale, which
+   accumulates. See `merge-mapping-value`."
+  [outer inner]
+  (reduce (fn [acc [k v]]
+            (assoc acc k (if (contains? acc k)
+                           (merge-mapping-value k (get acc k) v)
+                           v)))
+          (or outer {})
+          (or inner {})))
+
+(defn put-scale
+  "Write a scale spec into `mapping` for `aesthetic` -- what `pj/scale`
+   does.
+
+   A scale lives with the mapping it reads, so this is an update of the
+   mapping rather than of the pose's options. Where the aesthetic is
+   mapped plainly there is no room for a scale, so the value is
+   rewritten in the full form under `:from`, which says the same thing:
+   ask the data. Where it is not mapped here at all, the scale is
+   written on its own and applies to whatever source is named below.
+
+   A mapping cancelled with `nil` stays cancelled: an aesthetic that
+   draws nothing has nothing to scale. A mapping that says `:scale
+   false` on this same pose is refused rather than overridden: one pose
+   cannot both draw a value as it stands and read it through a scale."
+  [mapping aesthetic spec]
+  (let [mapping (or mapping {})
+        existing (get mapping aesthetic)]
+    (when (and (map? existing) (false? (:scale existing)))
+      (throw (ex-info (str "pj/scale " aesthetic " " (pr-str spec) " sets a"
+                           " scale, and " aesthetic " is mapped on this pose"
+                           " as " (pr-str existing) ", which passes through"
+                           " no scale. Drop the :scale false to scale the"
+                           " mapping, or drop the pj/scale call to draw it as"
+                           " it stands.")
+                      {:aesthetic aesthetic :mapping existing :spec spec})))
+    (cond
+      (and (contains? mapping aesthetic) (nil? existing)) mapping
+      (map? existing) (assoc mapping aesthetic
+                             (assoc existing :scale
+                                    (combine-scales (:scale existing) spec)))
+      (contains? mapping aesthetic) (assoc mapping aesthetic
+                                           {:from existing :scale spec})
+      :else (assoc mapping aesthetic {:scale spec}))))
+
 (defn resolve-tree
   "Walk the pose tree top-down, merging parent context into each
    descendant. Returns a vector of resolved leaves; each leaf carries
@@ -53,7 +221,8 @@
 
    Context inheritance rules:
    - :data     -- nearest ancestor wins (child overrides parent).
-   - :mapping  -- merged, with child keys overriding parent keys.
+   - :mapping  -- merged, with child keys overriding parent keys, and
+                  scale settings accumulating (see `merge-mappings`).
    - :layers   -- concatenated (ancestor layers distribute down, then
                   the leaf's own layers append).
    - :opts     -- merged (child overrides on key collision).
@@ -66,7 +235,7 @@
    (resolve-tree pose {} []))
   ([pose parent-ctx path]
    (let [ctx {:data    (or (:data pose) (:data parent-ctx))
-              :mapping (merge {} (:mapping parent-ctx) (:mapping pose))
+              :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
               :layers  (into (vec (:layers parent-ctx))
                              (:layers pose))
               :opts    (merge {} (:opts parent-ctx) (:opts pose))}]
@@ -300,14 +469,19 @@
    `nil` value matches a leaf whose effective mapping has no entry
    for that axis. Matching is against resolved positional mappings
    only -- a bare leaf (no `:x`/`:y`) matches a bare position
-   mapping."
+   mapping.
+
+   What a mapping names decides the match, not how it is written: a
+   position carrying a scale names the same position as the plain
+   form, and a mapping that names only a scale names no position at
+   all."
   [pose position-mapping]
-  (let [px (:x position-mapping)
-        py (:y position-mapping)]
+  (let [px (mapping-source (:x position-mapping))
+        py (mapping-source (:y position-mapping))]
     (->> (resolve-tree pose)
          (keep (fn [leaf]
-                 (when (and (= (get-in leaf [:mapping :x]) px)
-                            (= (get-in leaf [:mapping :y]) py))
+                 (when (and (= (mapping-source (get-in leaf [:mapping :x])) px)
+                            (= (mapping-source (get-in leaf [:mapping :y])) py))
                    (:path leaf))))
          last)))
 
@@ -328,6 +502,20 @@
 ;; scatter and top density; right density uses its own column), and
 ;; mosaic-of-scatters.
 
+(defn- mapping-scale-type
+  "The scale type a mapping value names, or nil where it names none.
+
+   Reads the mapping as written, before normalizing: an explicit
+   mapping's `:scale` can be a type keyword, a spec map holding
+   `:type`, or a boolean, which names no type."
+  [mapping-value]
+  (when (map? mapping-value)
+    (let [s (:scale mapping-value)]
+      (cond
+        (map? s)     (:type s)
+        (keyword? s) s
+        :else        nil))))
+
 (defn- effective-axis-col
   "The column ref this resolved leaf uses for `axis`. Layer-level
    mappings take precedence over the leaf's own :mapping. Layers
@@ -337,9 +525,9 @@
    on a separate sub-pose), so by the time this function runs, all
    layer mappings either match the leaf's column or are absent."
   [leaf axis]
-  (or (some (fn [layer] (get-in layer [:mapping axis]))
+  (or (some (fn [layer] (mapping-source (get-in layer [:mapping axis])))
             (:layers leaf))
-      (get-in leaf [:mapping axis])))
+      (mapping-source (get-in leaf [:mapping axis]))))
 
 (def ^:private stat-driven-y-stats
   "Stats whose y-axis output is a count or density rather than a
@@ -448,8 +636,10 @@
    for those leaves, so they are also exempt here."
   [leaf axis]
   (let [coord (or (get-in leaf [:opts :coord]) :cartesian)
-        scale-key (case axis :x :x-scale :y :y-scale)
-        scale-type (or (get-in leaf [:opts scale-key :type]) :linear)
+        ;; The mapping is where a scale lives, whether it was written
+        ;; there or set with `pj/scale`.
+        scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
+                       :linear)
         col (effective-axis-col leaf axis)
         ds (:data leaf)
         type-temporal (when (and ds col)
@@ -690,22 +880,86 @@
       (when (> (count types) 1)
         (sort (map #(.getSimpleName ^Class %) types))))))
 
-(defn- mapping-source
+(defn- mapping-origin
   "Return :layer, :layer-type, or :pose to indicate where the
-   effective value of `k` in the resolved mapping originated."
+   effective value of `k` in the resolved mapping originated.
+
+   Not to be confused with `mapping-source`, which answers what a
+   mapping names rather than where it was written."
   [k layer-mapping layer-type-info]
   (cond
     (contains? layer-mapping k)   :layer
     (contains? layer-type-info k) :layer-type
     :else                          :pose))
 
+(def ^:private drawn-value-nouns
+  "What a written value on each aesthetic is, in one word. Only the
+   aesthetics that accept one appear -- the registry's `:value?` is
+   what says so, and naming a reading an aesthetic does not have would
+   send the reader after a fix that is not there."
+  {:color "a color"
+   :shape "a symbol"
+   :size  "a radius"
+   :alpha "an opacity"
+   :text  "a label"})
+
+(defn- drawn-value-description
+  "What each aesthetic accepts as a written value, spelled out. Stated
+   once, for the two messages that have to name it: the value that
+   names no column, and the value the writer marked `:value` out loud."
+  [k]
+  (case k
+    :color "a color is a CSS name, or a hex string written with its #"
+    :shape (str "one layer's shape is one of "
+                (str/join ", " (map pr-str defaults/shape-syms)))
+    :size  "a fixed size is a positive number"
+    :alpha "a fixed alpha is a number within 0 and 1"
+    :text  "a label is a string"
+    nil))
+
+(defn- also-not-drawable-sentence
+  "Extra guidance when the failing value was plausibly meant as
+   something to draw rather than a column, naming what the aesthetic
+   would have accepted.
+
+   Not offered for a keyword on `:color`. Every aesthetic reads a
+   keyword as a column name, and a keyword that names a color is drawn
+   rather than reaching here -- so a keyword at this point is a
+   mistyped column name, and the column message is the whole of the
+   answer. A string is the case worth catching: it is how a hex code
+   missing its `#` arrives."
+  [k col]
+  (when (and (:value? (defaults/aesthetic-registry k))
+             (or (not= :color k) (string? col)))
+    (when-let [noun (drawn-value-nouns k)]
+      (str " It is not " noun " either -- " (drawn-value-description k) "."))))
+
+(defn- not-drawable-message
+  "The message for a value the writer marked `:value` out loud that the
+   aesthetic cannot draw.
+
+   It names no columns on purpose. `{:value :sp}` says the value is not
+   a column reference, so listing the columns available answers a
+   question the writer has already declined to ask -- and reads as a
+   contradiction when the dataset does carry a column of that name."
+  [k col]
+  (str k " " (pr-str {:value col}) " is not "
+       (or (drawn-value-nouns k) (str "one " k " can draw"))
+       (when-let [d (drawn-value-description k)] (str " -- " d))
+       "."))
+
 (defn- column-not-found-message
   "Build a focused error message for a missing column reference.
    When the layer carries its own :data and the failing key was
    inherited from the pose, surface that asymmetry and offer two
    fixes (rename to align with pose for overlay, or override on
-   the layer to create a separate sub-pose)."
-  [k col col-names {:keys [layer-type-key layer-own-data? source]}]
+   the layer to create a separate sub-pose).
+
+   `explicit-column?` marks a reference the writer wrote as
+   `{:column ...}`. The drawn-value sentence is dropped there: they
+   have said which reading they meant, so the other one is not the
+   answer."
+  [k col col-names {:keys [layer-type-key layer-own-data? source explicit-column?]}]
   (let [layer-name (if (keyword? layer-type-key) (name layer-type-key) "*")]
     (case (when (and layer-own-data? (= :pose source)) :pose-inherited)
       :pose-inherited
@@ -719,41 +973,138 @@
            " to a column that exists in :data.")
       ;; Default: simple "not found" with the available columns
       (str "Column " col " (from " k ") not found in dataset."
-           " Available: " (sort-by str col-names)))))
+           " Available: " (sort-by str col-names)
+           (when-not explicit-column?
+             (also-not-drawable-sentence k col))))))
 
-(def ^:private column-only-aesthetics
-  "Aesthetics that read a column and have no reading for anything else.
-   `:group` also takes several columns; the other two take one.
+(def ^:private column-only-accepts
+  "What to tell the user each column-only aesthetic takes. The set
+   itself comes from `defaults/aesthetic-registry` -- these are the
+   aesthetics whose entry has a `:column?` and no `:value?`.
 
-   A value here used to pass every check in silence and then do
-   nothing, because `resolve/resolve-aesthetics` classifies `:color`,
-   `:size`, `:alpha` and `:text` only. `{:shape 4}` drew default
-   circles and `{:group 4}` drew nothing at all -- the layer resolved
-   to zero groups, so a plot came back with a layer missing and no
-   word about it. Whether any of the three should gain a reading for a
-   value is an open design question; until it is answered, saying so
-   beats drawing the wrong picture."
-  {:shape "one column"
-   :fill  "one column"
-   :group "one column, or a vector of columns"})
+   A value on one of them used to pass every check in silence and then
+   do nothing, because `resolve/resolve-aesthetics` classifies
+   `:color`, `:size`, `:alpha` and `:text` only. `{:shape 4}` drew
+   default circles and `{:group 4}` drew nothing at all -- the layer
+   resolved to zero groups, so a plot came back with a layer missing
+   and no word about it.
+
+   `:shape` has since gained that reading, which is what took it off
+   this list. `:fill` is to gain one: its registry entry already
+   carries the `:by-source` scale default, and flipping `:value?` is
+   what would turn this error into that reading -- **necessary and not
+   sufficient.** The tile extractor derives its color through a
+   gradient and has no branch for a value that already is one, which is
+   why `:drawn-column?` is false there too, so flipping the flag alone
+   would put back the silent nothing this gate was added to remove.
+   `dev-notes/backlog.md` lists what else the path needs. `:group`
+   keeps it -- it splits the data and draws nothing of its own, so
+   there is nothing a value could mean."
+  {:group "one column, or a vector of columns"})
+
+(defn- column-only-accepts-str [k]
+  (get column-only-accepts k "one column"))
 
 (defn- validate-column-only-aesthetics
-  "Throw when `:shape`, `:fill` or `:group` carries a value that names
-   no column."
+  "Throw when an aesthetic that reads a column and nothing else --
+   `:fill` or `:group`, which is `defaults/column-only-aesthetics`,
+   derived from the registry's `:column?` and `:value?` -- carries a
+   value that names no column."
   [resolved d]
   (when d
-    (doseq [[k accepts] column-only-aesthetics
+    (doseq [k defaults/column-only-aesthetics
             :let [v (get resolved k)]
             :when (some? v)]
       (when-not (or (resolve/column-ref? v)
                     (and (= k :group)
                          (sequential? v)
                          (every? resolve/column-ref? v)))
-        (throw (ex-info (str k " takes " accepts ", but got " (pr-str v)
+        (throw (ex-info (str k " takes " (column-only-accepts-str k)
+                             ", but got " (pr-str v)
                              ". A column reference is a keyword or a string"
                              " naming a column of the layer's data;"
                              " " k " has no reading for a value.")
                         {:option k :value v}))))))
+
+(def ^:private channel-type-key
+  "The `-type` override that goes with an aesthetic, where there is
+   one. Not in the registry, because two of the three name an axis
+   rather than an aesthetic's own reading."
+  {:color :color-type :x :x-type :y :y-type})
+
+(def ^:private scale-reading-keys
+  "The scale spec keys that say how a value is read through the scale,
+   as opposed to how the result is worded. A `:scale false` contradicts
+   these -- the aesthetic passes through no scale for them to
+   configure. It does not contradict an axis title or its tick text,
+   which are drawn either way."
+  #{:range :values :by :from-zero :midpoint})
+
+(defn- validate-unscaled-channel-options
+  "Throw when a channel told not to scale also carries an option that
+   configures the scale it has just left.
+
+   `{:color {:column :hex :scale false} :color-type :categorical}` and
+   `(pj/scale pose :color {:domain [...]})` both rendered identically
+   to the option being absent: a column drawn as it stands passes
+   through no scale, so there is nothing for either to configure. That
+   follows from the convention rather than contradicting it -- but a
+   silently ignored option is the defect this release exists to
+   remove, and the writer has asked for two things that cannot both
+   hold. `:scale true` is the one word that makes both take effect.
+
+   The scale itself is no longer among the options: a `:scale false`
+   written below a scale replaces it, which is the ordinary rule for a
+   setting written in a narrower scope. What is left here are the
+   settings that do not accumulate -- the column-type overrides, and
+   the plot options that are the outer scope of a scale setting, such
+   as `:color-range`."
+  [resolved opts]
+  (doseq [[k {:keys [scale-key]}] defaults/aesthetic-registry
+          :when (and scale-key (false? (get-in resolved [:__scale k])))
+          :let [type-key (channel-type-key k)
+                named (cond-> (vec (for [sk (sort (get defaults/channel-scale-options k #{}))
+                                         :when (contains? scale-reading-keys sk)
+                                         :let [option (defaults/scale-option-key k sk)]
+                                         :when (contains? opts option)]
+                                     (str option)))
+                        (and type-key (get resolved type-key))
+                        (conj (str type-key " " (pr-str (get resolved type-key)))))]
+          :when (seq named)]
+    (let [one? (= 1 (count named))]
+      (throw (ex-info (str k " was given :scale false, so it passes through no"
+                           " scale, and " (str/join " and " named)
+                           (if one? " configures" " configure")
+                           " the scale it just left -- nothing reads "
+                           (if one? "it" "them") ". Drop the :scale false to"
+                           " configure the scale, write :scale true to do both,"
+                           " or drop " (if one? "the option" "the options")
+                           " to draw the column as it stands.")
+                      {:key k :options named})))))
+
+(defn- drawn-at-this-gate?
+  "Whether a value naming no column is one this gate should let past:
+   the aesthetic accepts a written value at all, and the value is one
+   it can draw -- ask the layer's data, then ask what the aesthetic can
+   draw.
+
+   **Both questions.** `drawn-value-schemas` states the grammar for
+   every aesthetic that has one, including the ones not accepting a
+   written value yet, so it answers what a value *would* mean and not
+   whether it is allowed. That permission is the registry's `:value?`,
+   and consulting the grammar without it let `{:fill \"red\"}` past:
+   `:fill` has a `Color` grammar and `:value? false`, so the tile drew
+   the default blue in silence, where `main` reported the column it
+   could not find. A value that happens to name a color was the only
+   one affected, which is why nothing noticed.
+
+   `:text` needs no exception here even though its written value is a
+   label rather than a column. `resolve-positional-values` runs first
+   and has already turned that string into a constant column, so what
+   reaches this gate is an ordinary column reference."
+  [k col]
+  (and (:value? (defaults/aesthetic-registry k))
+       (aes/drawable? k col)))
 
 (defn- validate-columns
   "Validate that every aesthetic column reference in the resolved
@@ -762,33 +1113,382 @@
    strict: a keyword reference does not match a string column name
    and vice versa. The optional `ctx` map carries source-of-mapping
    information so the error can name whether the failing reference
-   came from the pose or from the layer."
+   came from the pose or from the layer.
+
+   The data decides which values are column references, for every
+   aesthetic alike. What used to stand here was a type test plus a
+   carve-out -- `column-ref?` was keyword-or-string, and `:color`
+   strings were exempted so that literal colors survived. That exempted
+   `\"notacolor\"` too, deferring it to a render-time `Unknown color`,
+   and it exempted nothing on the other aesthetics, so `:color :red`
+   was reported as a missing column. Asking what the aesthetic can draw
+   answers both: a value that names no column and cannot be drawn is
+   the mistake, whatever its type.
+
+   Two kinds of value are policed. One that could plausibly be a column
+   name -- a keyword or a string -- and one written for an aesthetic
+   that accepts written values, whatever its type: `{:shape 4}` names
+   no column and is no symbol either, and saying so beats drawing a
+   default circle in silence. A value on an aesthetic that takes none
+   is `validate-column-only-aesthetics`'s business, and it names what
+   that aesthetic takes, which is the more useful message of the two.
+
+   Honoring `{:column ...}` is not the same as believing it. The
+   writer's choice settles which of the two readings applies; whether
+   the column is there is still asked, and asked here."
   ([resolved d] (validate-columns resolved d nil))
   ([resolved d ctx]
    (when d
      (let [col-names (set (tc/column-names d))
-           col-exists? col-names
            col-lookup #(get d %)
-           {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx]
+           {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx
+           not-found! (fn [k col explicit-column?]
+                        (let [source (mapping-origin k (or layer-mapping {}) (or layer-type-info {}))]
+                          (throw (ex-info
+                                  (column-not-found-message
+                                   k col col-names
+                                   {:layer-type-key layer-type-key
+                                    :layer-own-data? layer-own-data?
+                                    :source source
+                                    :explicit-column? explicit-column?})
+                                  {:key k :column col :available (sort-by str col-names)
+                                   :source source}))))]
        (doseq [k defaults/column-keys
-               :let [col (get resolved k)]
+               :let [col (get resolved k)
+                     said (get-in resolved [:__source k])]
                :when (and col
-                          (resolve/column-ref? col)
-                          (not (and (= k :color) (string? col))))]
-         (when-not (col-exists? col)
-           (let [source (mapping-source k (or layer-mapping {}) (or layer-type-info {}))]
-             (throw (ex-info
-                     (column-not-found-message
-                      k col col-names
-                      {:layer-type-key layer-type-key
-                       :layer-own-data? layer-own-data?
-                       :source source})
-                     {:key k :column col :available (sort-by str col-names)
-                      :source source}))))
-         (when-let [types (heterogeneous-types (col-lookup col))]
-           (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
-                                ". Convert it to a single type (number, string, etc.) before plotting.")
-                           {:key k :column col :types types}))))))))
+                          (not (sequential? col))
+                          (or (resolve/column-ref? col)
+                              (:value? (defaults/aesthetic-registry k))))]
+         (if (= :column (aes/source col col-names said))
+           (do
+             ;; A written `{:column :typo}` reaches here as a column
+             ;; reference whatever the data holds, because that is what
+             ;; the writer said it was. Unchecked it is dropped without
+             ;; a word: a mistyped `:color` drew the default grey and a
+             ;; mistyped `:group` resolved to zero groups, so the layer
+             ;; left the plot and nothing said why.
+             (when-not (contains? col-names col)
+               (not-found! k col true))
+             (when-let [types (heterogeneous-types (col-lookup col))]
+               (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
+                                    ". Convert it to a single type (number, string, etc.) before plotting.")
+                               {:key k :column col :types types})))
+             ;; Whether a column of this aesthetic can be drawn at all.
+             ;; `:scale-default` says what the reading would mean and
+             ;; `:drawn-column?` says whether it is written; asking
+             ;; only the first let `{:shape {:column c :scale false}}`
+             ;; through to `collect-shapes`, which assigned symbols by
+             ;; category order regardless -- so a column holding
+             ;; `:cross` drew a circle, under a legend labelling that
+             ;; circle "cross".
+             (when (and (false? (get-in resolved [:__scale k]))
+                        (not (:drawn-column? (defaults/aesthetic-registry k))))
+               (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                    " and a " k " column drawn as it stands is"
+                                    " not a reading Plotje has yet -- it would"
+                                    " be ignored, and the column read through "
+                                    k "'s scale as though the :scale were absent."
+                                    " Drop the :scale to ask for that in so many"
+                                    " words.")
+                               {:key k :column col})))
+             ;; What a column told not to scale has to hold, which
+             ;; differs by what the aesthetic draws.
+             (when (false? (get-in resolved [:__scale k]))
+               (case (:scale-default (defaults/aesthetic-registry k))
+                 ;; An axis measures in drawing units from the panel
+                 ;; background's top left, so the column holds numbers.
+                 ;; Unchecked it reached the renderer and died on
+                 ;; `String cannot be cast to Number`, which is the
+                 ;; error this work replaced for `:size` and `:alpha`.
+                 :always
+                 (let [ctype (resolve/column-type d col)]
+                   (when-not (= :numerical ctype)
+                     (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                          " so its values are drawing units measured"
+                                          " from the top left of the panel background,"
+                                          " but " (pr-str col) " holds " (name ctype)
+                                          " values. Drop the :scale to place the column"
+                                          " through the axis instead.")
+                                     {:key k :column col :column-type ctype}))))
+
+                 ;; The values are drawn as they stand, so they have to
+                 ;; be values the aesthetic can draw. On `:color`,
+                 ;; `hex->rgba` reads a bare `a` as `#aaaaaa`, so a
+                 ;; category column came out in near-identical greys
+                 ;; with nothing said. On `:size`, a column holding a
+                 ;; negative simply did not draw that mark -- the plan
+                 ;; counted it, `svg-summary` counted it, and the
+                 ;; picture was two points short. The written forms
+                 ;; `{:size -4}` and `{:size {:value -4}}` were refused
+                 ;; all along, so only the column skipped the
+                 ;; constraint.
+                 :by-source
+                 (when-let [bad (->> (col-lookup col)
+                                     (remove nil?)
+                                     (remove #(aes/drawable? k %))
+                                     seq)]
+                   (throw (ex-info (str k " " (pr-str col) " was given :scale false,"
+                                        " so its values are drawn as they stand,"
+                                        " but " (pr-str (first bad)) " is not one "
+                                        k " can draw."
+                                        (also-not-drawable-sentence k (first bad))
+                                        " Drop the :scale to let the column be"
+                                        " read through " k "'s scale instead.")
+                                   {:key k :column col :value (first bad)})))
+
+                 nil)))
+
+           (when-not (drawn-at-this-gate? k col)
+             (cond
+               ;; The writer wrote `:value` out loud on an aesthetic
+               ;; that has no reading for one. Neither the missing
+               ;; column nor the vocabulary is the answer -- what it
+               ;; takes is.
+               (and (= :value said)
+                    (not (:value? (defaults/aesthetic-registry k))))
+               (throw (ex-info (str k " " (pr-str {:value col}) " writes a value, and "
+                                    k " takes " (column-only-accepts-str k)
+                                    " -- it has no reading for a value.")
+                               {:option k :value col}))
+
+               (= :value said)
+               (throw (ex-info (not-drawable-message k col)
+                               {:key k :value col}))
+
+               :else (not-found! k col false)))))))))
+
+(def explicit-mapping-keys
+  "The keys an explicit mapping map may carry: one source, and
+   optionally the scale to read it through."
+  (conj source-keys :scale))
+
+(defn explicit-mapping?
+  "True of a mapping value written in the explicit form -- a map naming
+   its source, as `{:column :species}` or `{:value \"red\" :scale true}`,
+   or naming only a scale, as `pj/scale` writes.
+
+   A map is unambiguous here because no aesthetic takes one as a value:
+   a color is a string or a keyword, a size is a number, a shape is a
+   symbol from a fixed list."
+  [v]
+  (and (map? v)
+       (boolean (some #(contains? v %) (conj source-keys :scale)))))
+
+(defn scale-only-mapping?
+  "True of a mapping value that names a scale and no source -- what
+   `pj/scale` writes for an aesthetic this pose does not map. It says
+   how to read whatever source is named elsewhere, and where none is,
+   nothing is drawn and the scale is inert."
+  [v]
+  (and (map? v)
+       (contains? v :scale)
+       (not-any? #(contains? v %) source-keys)))
+
+(defn check-explicit-mapping!
+  "Throw when an explicit mapping is malformed. Nothing here reads the
+   layer's data, which is what lets `api` run it at the `pj/pose` or
+   `lay-*` call rather than at `pj/draft`: a mistyped key inside the
+   map is a mistake about the form, and the form is fully visible
+   where it is written. The checks that need the data -- whether the
+   column is there, whether the value is one the aesthetic can draw --
+   stay in `validate-columns`.
+
+   Called both from the call site and from
+   `normalize-explicit-mapping`, so a pose built by hand and threaded
+   straight to `pj/draft` is held to the same rules."
+  [k v]
+  (let [unknown (remove explicit-mapping-keys (keys v))]
+    (when (seq unknown)
+      (throw (ex-info (str k " " (pr-str v) " has unexpected key(s): "
+                           (vec unknown) ". An explicit mapping names"
+                           " its source with :column or :value, and may"
+                           " add :scale.")
+                      {:key k :value v :unknown (vec unknown)})))
+    (let [named (filterv #(contains? v %) [:column :value :from])]
+      (when (> (count named) 1)
+        (throw (ex-info (str k " " (pr-str v) " names " (count named)
+                             " sources: " named ". It is one of them:"
+                             " :column reads the value from the layer's"
+                             " data, :value is the value itself, and :from"
+                             " lets the data decide between the two.")
+                        {:key k :value v :named named}))))
+    ;; This is the "reported where the mapping is built" that
+    ;; `impl.aesthetics/scaled?` defers to. An aesthetic with no scale
+    ;; cannot be taken off one, and silently dropping the key would
+    ;; leave a writer believing they had changed something.
+    ;;
+    ;; Two aesthetics have none, for different reasons, and both are
+    ;; refused here: `nil` is `:group`, which draws nothing of its own,
+    ;; and `:never` is `:text`, which draws a label as it stands. Only
+    ;; `:group` was refused at first, so `{:text {:value "hi" :scale
+    ;; true}}` was accepted and the key dropped -- the very thing this
+    ;; check exists to prevent, under the same reasoning one entry over.
+    (when (contains? v :scale)
+      (let [{:keys [scale-default scale-key]} (defaults/aesthetic-registry k)]
+        (when-let [why (cond
+                         (nil? scale-default)
+                         (str "It splits a layer into one drawn group per"
+                              " value and draws nothing of its own, so"
+                              " there is no scale for a value to pass"
+                              " through.")
+
+                         (= :never scale-default)
+                         (str "A label is drawn as it stands, whether it"
+                              " comes from a column or is written in the"
+                              " mapping, so there is no scale for it to"
+                              " pass through.")
+
+                         ;; The secondary positional aesthetics -- a
+                         ;; band's edges, an errorbar's bounds, an
+                         ;; interval's far end -- are drawn through the
+                         ;; panel's own axis and have no scale of their
+                         ;; own. A `:scale` here was accepted and read
+                         ;; by nothing.
+                         (nil? scale-key)
+                         (let [axis (if (= \x (first (name k))) :x :y)]
+                           (str "It is drawn through the panel's " axis
+                                " axis, which takes its scale from " axis
+                                ". Write the :scale there, or set it for"
+                                " the pose with (pj/scale pose " axis
+                                " ...)."))
+
+                         :else nil)]
+          (throw (ex-info (str k " " (pr-str v) " sets :scale, and " k
+                               " has no scale to set. " why)
+                          {:key k :value v})))))
+    ;; Beside `true` and `false`, `:scale` takes a scale type or a whole
+    ;; spec, and reads *this mapping* through it: `{:size {:column :w
+    ;; :scale :log}}` is one log-scaled size mapping, whatever the pose
+    ;; says. `true` keeps meaning the aesthetic's default type -- it is
+    ;; not an opinion about the scale, only about which side of it the
+    ;; value passes.
+    (let [s (:scale v)]
+      (when-not (contains? #{true false nil} s)
+        (when-not (or (keyword? s) (map? s))
+          (throw (ex-info (str k " " (pr-str v) " sets :scale to " (pr-str s)
+                               ". A mapping's :scale is true or false --"
+                               " whether this value passes through " k "'s"
+                               " scale -- or a scale type such as :log, or a"
+                               " spec map such as {:type :log :range [2 12]}.")
+                          {:key k :value v :scale s})))
+        (let [spec (if (keyword? s) {:type s} s)
+              valid-types (defaults/channel-scale-types k)]
+          ;; Before the unknown-key check, so that a drawn-range option
+          ;; written on an aesthetic that has no such quantity is
+          ;; answered with what it means rather than with a list of keys.
+          (scale/validate-spec-values! k spec "A mapping's :scale on")
+          (scale/validate-drawn-range-options! k spec "A mapping's :scale on")
+          (scale/validate-spec-keys! k spec "A mapping's :scale on")
+          (when-let [t (:type spec)]
+            (when-not (contains? valid-types t)
+              (throw (ex-info (str k " " (pr-str v) " sets :scale type "
+                                   (pr-str t) ", and " k " has no such scale."
+                                   " Supported for " k ": "
+                                   (vec (sort valid-types)) ".")
+                              {:key k :value v :scale-type t
+                               :supported (vec (sort valid-types))})))))))
+    ;; A source named as nothing is not a source. Left through, a nil
+    ;; `:value` broadcast a column of nils and drew an empty panel
+    ;; reading "no data", and a nil `:column` reached `pj/plan` and died
+    ;; on a schema error -- both because the checks below skip a nil.
+    (when (empty? (select-keys v (conj source-keys :scale)))
+      (throw (ex-info (str k " " (pr-str v) " names no source and no scale."
+                           " A mapping written in full says which reading it"
+                           " means, with :column, :value or :from; :scale says"
+                           " which scale to read that source through.")
+                      {:key k :value v})))
+    (let [named (first (filter #(contains? v %) [:column :value :from]))]
+      (when (and named (nil? (get v named)))
+        (throw (ex-info (str k " " (pr-str v) " names " named " nil."
+                             " To cancel a mapping inherited from an"
+                             " outer scope, write " k " nil on its own.")
+                        {:key k :value v :source named}))))))
+
+(defn- normalize-explicit-mapping
+  "Rewrite one explicit mapping into the plain value the rest of the
+   pipeline already reads, and return `[value source scale]`.
+
+   Normalizing rather than carrying the map onward is the same move
+   `:x` makes when a value becomes a constant column: what the stat,
+   the extract and every mark receive is the ordinary shape, and only
+   what cannot be re-derived travels beside it. What cannot be
+   re-derived is exactly the two things the writer said out loud --
+   which source they meant, and which side of the scale.
+
+   `:from` names no source of its own: it says to ask the data, which
+   is what happens where no source was said at all. So it normalizes
+   to a source of `nil` and the conventions decide, exactly as they do
+   for a mapping written plainly."
+  [k v]
+  (check-explicit-mapping! k v)
+  (cond
+    (contains? v :column) [(:column v) :column (get v :scale)]
+    (contains? v :value)  [(:value v) :value (get v :scale)]
+    :else                 [(:from v) nil (get v :scale)]))
+
+(defn- normalize-explicit-mappings
+  "Rewrite every explicit mapping in `resolved` into its plain value,
+   collecting what was said explicitly under two internal keys:
+   `:__source` and `:__scale`, each a map from aesthetic to the choice.
+
+   Both are absent for a mapping written plainly, which is what lets
+   the conventions decide there. Absence and an explicit `nil` cannot
+   be told apart by a lookup, which is why an explicit `:scale nil`
+   means the same as writing no `:scale` at all: the convention
+   decides. `false` is the way to say unscaled.
+
+   A `:from` mapping names no source, so it records none and the
+   conventions decide, as they do for a mapping written plainly. What
+   it does carry is the accumulated scale -- `merge-mappings` rewrites
+   a plain value that way when an outer scope set one."
+  [resolved]
+  (reduce (fn [acc [k v]]
+            (if-not (explicit-mapping? v)
+              acc
+              (let [[value source scale] (normalize-explicit-mapping k v)]
+                (cond-> (if (scale-only-mapping? v)
+                          ;; It names how to read a source, not one to
+                          ;; read. Leaving a nil value here would cancel
+                          ;; the aesthetic rather than leave it unmapped.
+                          (dissoc acc k)
+                          (assoc acc k value))
+                  (some? source) (assoc-in [:__source k] source)
+                  (some? scale)  (assoc-in [:__scale k] scale)
+                  ;; An unscaled `:x` or `:y` is a distance across the
+                  ;; panel rather than a value on the axis. The renderer
+                  ;; needs to know per axis, because the two can differ:
+                  ;; x read through its scale while y is a place.
+                  (and (false? scale) (= :x k)) (assoc :x-drawn? true)
+                  (and (false? scale) (= :y k)) (assoc :y-drawn? true)))))
+          resolved
+          (select-keys resolved defaults/column-keys)))
+
+(defn- forget-explicit-source
+  "Drop the recorded `:__source` for aesthetics whose written value has
+   just become a column.
+
+   `{:x {:value 2}}` says the 2 is a value and not the column named 2,
+   and that is true of what the writer wrote. Once the value has been
+   broadcast into a constant column the mapping names that column, so
+   leaving the note in place would have the gate check a column
+   reference against a rule for values and report a column it can see
+   as missing. The choice has been honored; what is left is ordinary."
+  [resolved ks]
+  (let [remaining (apply dissoc (:__source resolved) ks)]
+    (if (seq remaining)
+      (assoc resolved :__source remaining)
+      (dissoc resolved :__source))))
+
+(defn- free-column-name
+  "A name close to `k` that `taken` does not hold, for a synthesized
+   constant column whose natural name the data has already used.
+
+   Keeps the aesthetic's own name recognizable, because it is what the
+   axis and the legend are titled with."
+  [k taken]
+  (let [base (if (keyword? k) (name k) (str k))]
+    (first (remove taken (map #(keyword (str base "-" %)) (iterate inc 1))))))
 
 (defn- resolve-positional-values
   "Rewrite an `:x` or `:y` given as a value into data the rest of the
@@ -820,24 +1520,76 @@
         ;; A dataset built without column names is given integer ones, so
         ;; a number here can be either a column name or a value to draw
         ;; at. The data decides: a number naming a column reads it.
-        column?  (fn [v] (or (resolve/column-ref? v) (contains? col-names v)))
-        value?   (fn [v] (and (resolve/literal-position? v)
-                              (not (contains? col-names v))))
+        ;; An explicit `{:column ...}` or `{:value ...}` has already
+        ;; been unwrapped, leaving its choice under `:__source`. That is
+        ;; the only way to settle a number on a dataset whose columns
+        ;; carry integer names, where the shorthand is ambiguous and so
+        ;; refused.
+        said     (fn [k] (get-in resolved [:__source k]))
+        column?  (fn [k v] (if-let [s (said k)]
+                             (= :column s)
+                             (or (resolve/column-ref? v) (contains? col-names v))))
+        value?   (fn [k v] (if-let [s (said k)]
+                             (= :value s)
+                             (and (resolve/literal-position? v)
+                                  (not (contains? col-names v)))))
         literals (into {} (for [k resolve/positional-aesthetics
                                 :let [v (get resolved k)]
-                                :when (value? v)]
-                            [k v]))]
+                                :when (value? k v)]
+                            [k v]))
+        ;; A string on `:text` naming no column is the label itself. It
+        ;; broadcasts the same way a value on `:x` does, so every row is
+        ;; labelled with it -- which is what `{:text "n = 150"}` beside a
+        ;; column of x means. Handled here rather than downstream for the
+        ;; same reason the positional values are: once it is a column,
+        ;; the stat, the extract and the mark all receive the shape they
+        ;; already handle.
+        text-literal (let [t (:text resolved)]
+                       (when (and (string? t) (not (contains? col-names t))) t))
+        ;; A written value asked to go *through* its scale -- ggplot2's
+        ;; constant inside `aes()`. One value repeated over every row is
+        ;; a column of one distinct value, and a column is what the
+        ;; scales, the domains and the legends already read. So the
+        ;; datum reading needs no machinery of its own: broadcast it and
+        ;; the rest falls out, legend entry included.
+        ;; Only where the writer said so. The convention never reads a
+        ;; written value as data on an appearance aesthetic: a value
+        ;; that is neither a column nor something the aesthetic can
+        ;; draw is a mistake far more often than a series label, and
+        ;; inferring the datum would turn `{:color :speceis}` into a
+        ;; legend entry rather than the report it should be. The
+        ;; positional aesthetics do scale a value by convention, and
+        ;; `literals` above is that rule -- stated through
+        ;; `literal-position?`, which also refuses a value that could
+        ;; not be data at all.
+        scaled-values (into {} (for [k defaults/column-keys
+                                     :let [scale (get-in resolved [:__scale k])
+                                           v (get resolved k)]
+                                     :when (and (some? v)
+                                                (= :value (aes/source v col-names (said k)))
+                                                (some? scale)
+                                                (not (false? scale)))]
+                                 [k v]))
+        broadcast (cond-> (merge literals scaled-values)
+                    (and text-literal d) (assoc :text text-literal))]
     (cond
-      (empty? literals)
+      (empty? broadcast)
       [resolved d]
 
       (and (not layer-own-data?)
-           (not-any? #(column? (get resolved %))
+           (not-any? #(column? % (get resolved %))
                      resolve/positional-aesthetics))
+      ;; The one-row dataset this branch synthesizes carries the scaled
+      ;; values too. A datum is a column of one distinct value wherever
+      ;; it is written, and leaving it out of the row left
+      ;; `{:x 2 :y 3 :color {:value "Model A" :scale true}}` reporting a
+      ;; column missing from a dataset the writer never wrote.
       (let [text   (:text resolved)
-            values (cond-> literals
+            values (cond-> (merge literals scaled-values)
                      (string? text) (assoc :text text))]
-        [(merge resolved (zipmap (keys values) (keys values)))
+        [(-> resolved
+             (merge (zipmap (keys values) (keys values)))
+             (forget-explicit-source (keys values)))
          (coerce-dataset (into {} (for [[k v] values] [k [v]])))])
 
       ;; A column reference with no data anywhere resolves to nothing
@@ -846,11 +1598,25 @@
       [resolved d]
 
       :else
-      [(merge resolved (zipmap (keys literals) (keys literals)))
-       (reduce (fn [ds [k v]]
-                 (tc/add-column ds k (dtype/const-reader v (tc/row-count ds))))
-               d
-               literals)])))
+      ;; The synthesized column takes the aesthetic's own name where
+      ;; that name is free, so a plot made only of values labels its
+      ;; axes "x" and "y". Where the data already carries a column of
+      ;; that name, taking it anyway *replaced* the data:
+      ;; `(pj/lay-point :a :size {:size {:value 7 :scale true}})` drew
+      ;; every mark at y=7 on an axis still labelled `size`. Mapping a
+      ;; coordinate to a column named after an aesthetic is ordinary,
+      ;; so the synthesized name steps aside instead.
+      (let [names (into {} (for [k (keys broadcast)]
+                             [k (if (contains? col-names k)
+                                  (free-column-name k col-names)
+                                  k)]))]
+        [(-> resolved
+             (merge names)
+             (forget-explicit-source (keys broadcast)))
+         (reduce (fn [ds [k v]]
+                   (tc/add-column ds (names k) (dtype/const-reader v (tc/row-count ds))))
+                 d
+                 broadcast)]))))
 
 (defn- resolve-facet-col
   "Resolve a facet column ref against a dataset; throw with a clear
@@ -907,12 +1673,49 @@
            {:data (tc/select-rows ds (fn [r] (= (r frow) rv)))
             :facet-row (defaults/fmt-category-label rv)}))))))
 
+(defn- mapping-scale-spec
+  "The scale spec a mapping states, or nil where it states none.
+
+   `true` and `false` are not opinions about the scale: they say which
+   side of it a value passes, which is a different question from which
+   scale it is. So `(pj/scale pose :size :log)` beside
+   `{:size {:column :w :scale true}}` stays logarithmic, while
+   `{:scale :linear}` there overrides it for that one mapping."
+  [scale]
+  (cond
+    (map? scale)     scale
+    (keyword? scale) {:type scale}
+    :else            nil))
+
+(defn- layer-scale-specs
+  "The scale spec each channel is drawn through on this layer, keyed by
+   the key the plan reads it from.
+
+   Every scale comes from the mapping now -- `pj/scale` writes one
+   there too -- so what arrives here has already accumulated down the
+   scope chain, and there is nothing left to combine.
+
+   The type is defaulted here rather than where a scale is written,
+   because a spec that names no type is not an opinion that the scale
+   is linear. Filling one in at the call would make the second of two
+   `pj/scale` calls silently undo the type the first one set, and would
+   leave a scale written as a mapping without a type at all."
+  [resolved]
+  (into {} (for [[k scale-key] defaults/channel->scale-key
+                 :let [spec (mapping-scale-spec (get-in resolved [:__scale k]))]
+                 :when (some? spec)]
+             [scale-key (if (some? (:type spec))
+                          spec
+                          (assoc spec :type (defaults/default-scale-type k)))])))
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
    aesthetic mapping (pose < layer-type-info < layer), the layer's
-   :stat/:position/:mark as first-class siblings, and plot-level
-   :x-scale/:y-scale/:coord stamped from :opts.
+   :stat/:position/:mark as first-class siblings, each aesthetic's
+   resolved scale spec under its own key, and plot-level :coord
+   stamped from :opts. The scales come from the mapping, which is
+   where `pj/scale` writes them; only :coord is still an option.
 
    If the leaf's :opts carry :facet-col or :facet-row, the draft is
    multiplied over distinct facet values. Each variant carries a
@@ -934,13 +1737,6 @@
   (let [leaf-mapping (or (:mapping leaf) {})
         leaf-data    (:data leaf)
         opts         (or (:opts leaf) {})
-        x-scale      (:x-scale opts)
-        y-scale      (:y-scale opts)
-        size-scale   (:size-scale opts)
-        alpha-scale  (:alpha-scale opts)
-        fill-scale   (:fill-scale opts)
-        color-scale  (:color-scale opts)
-        shape-scale  (:shape-scale opts)
         coord-type   (:coord opts)
         layers       (or (:layers leaf) [])
         ;; An entirely empty leaf (no mapping, no layers) has nothing
@@ -957,10 +1753,15 @@
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
              layer-mapping    (or (:mapping layer) {})
              layer-structural (select-keys layer [:stat :position :mark])
-             resolved (merge leaf-mapping
-                             layer-type-info
-                             layer-mapping
-                             layer-structural)
+             ;; Explicit mappings are unwrapped before anything reads
+             ;; the merged map, so every check and every later stage
+             ;; sees a plain value with the writer's two choices
+             ;; recorded beside it.
+             resolved (normalize-explicit-mappings
+                       (-> leaf-mapping
+                           (merge-mappings layer-type-info)
+                           (merge-mappings layer-mapping)
+                           (merge-mappings layer-structural)))
              layer-own-data?  (some? (:data layer))
              ;; An :x or :y given as a value becomes data before anything
              ;; else looks at the mapping, so every check and every later
@@ -975,17 +1776,12 @@
                             :layer-type-key (:layer-type layer)
                             :layer-own-data? layer-own-data?})
          (validate-column-only-aesthetics resolved d)
+         (validate-unscaled-channel-options resolved opts)
          (-> resolved
              (assoc :data d
                     :__panel-idx variant-idx)
+             (merge (layer-scale-specs resolved))
              (cond->
-              x-scale     (assoc :x-scale x-scale)
-              y-scale     (assoc :y-scale y-scale)
-              size-scale  (assoc :size-scale size-scale)
-              alpha-scale (assoc :alpha-scale alpha-scale)
-              fill-scale  (assoc :fill-scale fill-scale)
-              color-scale (assoc :color-scale color-scale)
-              shape-scale (assoc :shape-scale shape-scale)
               coord-type  (assoc :coord coord-type)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))
               (:facet-row variant) (assoc :facet-row (:facet-row variant)))

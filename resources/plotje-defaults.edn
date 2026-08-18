@@ -42,7 +42,7 @@
  :annotation-stroke "#333" :annotation-dash [4 3] :band-opacity 0.15
 
  ;; Ticks
- :tick-spacing-x 60 :tick-spacing-y 40
+ :x-tick-spacing 60 :y-tick-spacing 40
 
  ;; Statistics
  :bin-method :sturges

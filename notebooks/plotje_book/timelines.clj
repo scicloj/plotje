@@ -182,7 +182,7 @@
                  :y-label ""
                  :x-label "year"
                  :height 420
-                 :palette ["#3498db" "#e74c3c"]}))
+                 :color-values ["#3498db" "#e74c3c"]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
@@ -460,7 +460,7 @@
     (pj/options {:title "Hover for term details"
                  :tooltip true
                  :height 420
-                 :palette ["#3498db" "#e74c3c"]}))
+                 :color-values ["#3498db" "#e74c3c"]}))
 
 (kind/test-last [(fn [pose] (let [s (str (pj/plot pose))]
                               (and (re-find #":data-tooltip" s)

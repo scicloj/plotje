@@ -143,17 +143,31 @@
   "The drawing context one layer is rendered with.
 
    A layer positioned in the data goes through the panel's scales and
-   coord, as every layer always has. A layer positioned in a
-   drawing-space frame does not: its numbers are already drawing units,
-   and all that is left is to measure them from the right corner.
-   `:drawing-area` starts at the panel background's top left, which is
-   the panel's own origin plus its margin."
+   coord, as every layer always has. A value that does not go through a
+   scale is already a drawing unit, and all that is left is to measure
+   it from the right corner -- the panel background's top left, which
+   is the panel's own origin plus its margin.
+
+   Either axis may be the unscaled one. `{:in :drawing-area}` says it
+   of both at once; `{:y {:column :b :scale false}}` says it of one, and
+   then x is still read through its scale while y is a distance down
+   the panel. The two are asked separately here so a layer can mix
+   them."
   [ctx layer m]
-  (if (= :drawing-area (:in layer))
-    (assoc ctx :coord-fn (fn [x y]
-                           [(+ (double m) (double x))
-                            (+ (double m) (double y))]))
-    ctx))
+  (let [both?      (= :drawing-area (:in layer))
+        x-drawn?   (or both? (:x-drawn? layer))
+        y-drawn?   (or both? (:y-drawn? layer))]
+    (if-not (or x-drawn? y-drawn?)
+      ctx
+      (let [base (:coord-fn ctx)
+            md   (double m)]
+        (assoc ctx :coord-fn
+               (fn [x y]
+                 (let [[bx by] (if (and x-drawn? y-drawn?)
+                                 [nil nil]
+                                 (base x y))]
+                   [(if x-drawn? (+ md (double x)) bx)
+                    (if y-drawn? (+ md (double y)) by)])))))))
 
 (defn- offset-drawable
   "Shift one drawable by `m`'s `:offset-x` / `:offset-y`, in drawing

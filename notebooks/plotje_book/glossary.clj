@@ -214,14 +214,23 @@ my-pose
 
 ;; ## Mapping
 ;;
-;; A **mapping** maps a column (or a literal value) to an
-;; aesthetic. Aesthetics come in two groups:
+;; A **mapping** maps a column (or a written value) to an
+;; aesthetic. Aesthetics come in three groups:
 ;;
 ;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:x-min`,
 ;;   `:x-max`, `:y-min`, `:y-max` for marks that need them) place
 ;;   each mark.
 ;; - **Appearance aesthetics** (`:color`, `:size`, `:alpha`, `:shape`,
 ;;   `:text`, `:fill`) shape how each mark looks.
+;; - **Grouping aesthetic** (`:group`) splits the data and draws
+;;   nothing of its own.
+;;
+;; A mapping can be written in full, saying which of its two readings
+;; -- the column or the value -- it means, and which side of the scale
+;; to read it through. `{:column :species}` names the column even where
+;; a value of that name could be drawn, `{:value "red"}` names the
+;; value even where the data carries a column called red, and a
+;; `:scale false` beside either draws it as it stands.
 ;;
 ;; Mappings live on a pose -- where they flow into every layer
 ;; attached to it -- or on a single layer, where they scope to that
@@ -231,7 +240,7 @@ my-pose
 ;; ## Aesthetic
 ;;
 ;; An **aesthetic** is a property of a mark that can be mapped to a
-;; data column or fixed to a literal value. Plotje supports two
+;; data column or fixed to a written value. Plotje supports three
 ;; groups:
 ;;
 ;; **Positional aesthetics** -- where the mark sits:
@@ -240,27 +249,42 @@ my-pose
 ;; |:----|:---------|:------------|
 ;; | `:x` | Horizontal position | Numerical, temporal, or categorical |
 ;; | `:y` | Vertical position | Numerical, temporal, or categorical |
-;; | `:x-end`, `:x-min`, `:x-max` | Range endpoints (interval, band, rule marks) | Same type as `:x` |
-;; | `:y-min`, `:y-max` | Range endpoints (band, ribbon) | Same type as `:y` |
+;; | `:x-end` | Right edge of an interval bar | Same type as `:x` |
+;; | `:x-min`, `:x-max` | Edges of a vertical band | No column -- a written value only |
+;; | `:y-min`, `:y-max` | An errorbar's bounds, or the edges of a horizontal band | Same type as `:y`, or a written value |
 ;;
 ;; **Appearance aesthetics** -- how the mark looks:
 ;;
 ;; | Key | Controls | Column type |
 ;; |:----|:---------|:------------|
 ;; | `:color` | Fill/stroke color | Categorical or numerical |
-;; | `:size` | Point radius | Numerical |
+;; | `:size` | How large a mark is drawn -- a point's radius | Numerical |
 ;; | `:alpha` | Opacity | Numerical |
 ;; | `:shape` | Point shape | Categorical |
 ;; | `:text` | Label content | Any |
 ;; | `:fill` | Tile gradient color | Numerical |
 ;;
-;; When a keyword is passed, it maps to a dataset column.
-;; A literal value (e.g., `"#E74C3C"`, `"red"`, `0.5`) sets a fixed
-;; aesthetic for all points.
+;; **Grouping aesthetic** -- which rows are drawn together:
 ;;
-;; A single layer can mix all three: positional column refs (`:x`,
+;; | Key | Controls | Column type |
+;; |:----|:---------|:------------|
+;; | `:group` | Splits the layer into one drawn group per value | Categorical |
+;;
+;; The layer's data decides: a value naming one of its columns is a
+;; column reference, and anything else is the value itself --
+;; `"#E74C3C"`, `"red"` or `:red` on `:color`, `0.5` on `:alpha` --
+;; setting that aesthetic for every mark. It has to be a value the
+;; aesthetic can draw: `0.5` on `:text` names no column and is no
+;; label either, so it is reported rather than drawn. Two aesthetics
+;; have no reading for a value at all and say so -- `:fill` and
+;; `:group` take a column and nothing else.
+;;
+;; To say which you mean where both readings fit, write the mapping in
+;; full: `{:column "red"}` or `{:value "red"}`.
+;;
+;; A single layer can mix the readings: positional column refs (`:x`,
 ;; `:y`), an appearance column ref (`:color :species`,
-;; `:size :petal-length`), and a literal appearance (`:alpha 0.7`,
+;; `:size :petal-length`), and a written appearance value (`:alpha 0.7`,
 ;; the same opacity for every point):
 
 (-> (rdatasets/datasets-iris)
@@ -271,8 +295,8 @@ my-pose
  [(fn [v]
     (let [s (pj/svg-summary v)]
       (and (= 150 (:points s))
-           ;; :alpha 0.7 is a literal -- every point gets the same
-           ;; opacity, so the rendered set has a single alpha value.
+           ;; :alpha 0.7 is a written value -- every point gets the
+           ;; same opacity, so the rendered set has a single alpha.
            (= #{0.7} (:alphas s)))))])
 
 ;; ## Group
@@ -535,7 +559,9 @@ my-pose
 
 ;; ## Domain
 ;;
-;; A **domain** is the range of data values along an axis.
+;; A **domain** is the extent of data values a scale reads -- along an
+;; axis, or on an appearance aesthetic such as `:size`. It is the data side of
+;; a scale; the visible side is its range.
 ;;
 ;; - Numerical: `[min max]`, where `min`/`max` are the raw data
 ;;   extent extended by 5% on each side so points do not sit on
@@ -594,7 +620,7 @@ my-pose
 ;;
 ;; A **tick** is an axis mark with a label at a domain value. Ticks
 ;; are chosen at layout time to fit the axis length in drawing
-;; units -- label widths, minimum spacing, and calendar boundaries
+;; units -- label widths, the spacing asked for, and calendar boundaries
 ;; (for temporal axes) all feed into the selection. Each panel in
 ;; the plan carries its own `:x-ticks` and `:y-ticks` maps with
 ;; parallel `:values` and `:labels` vectors.
@@ -610,9 +636,38 @@ my-pose
 
 ;; ## Scale
 ;;
-;; A **scale** maps data values to positions in drawing units.
-;; Built from a domain and an output range using
-;; [wadogo](https://github.com/scicloj/wadogo).
+;; A **scale** turns data into something visible. The axes turn data
+;; values into places in drawing units; `:color`, `:size`, `:alpha`,
+;; `:fill` and `:shape` turn them into a color, a radius, an opacity or
+;; a symbol. A scale is built from a domain and an output range using
+;; [wadogo](https://github.com/scicloj/wadogo), so it depends on the
+;; whole column it is given and not on any one row.
+;;
+;; Whether a mapping is read through its scale is asked one mapping at
+;; a time, with the `:scale` key:
+;;
+;; - `{:color {:column :hex :scale false}}` draws the column's values
+;;   as they stand. They inform no domain and earn no legend, since a
+;;   legend explains a scale.
+;; - `{:color {:value "Model A" :scale true}}` sends a written value
+;;   through the scale as though it were a column of one distinct
+;;   value, which is how a whole layer is labelled as a named series.
+;;
+;; Omitting `:scale` leaves the choice to the conventions: a column is
+;; read through its scale, and a written value is drawn as it stands on
+;; the appearance aesthetics and read through the scale on `:x` and
+;; `:y`.
+;;
+;; The same key says *which* scale, as a type or a whole spec:
+;; `{:size {:column :weight :scale :log}}` reads that one mapping
+;; logarithmically, whatever `pj/scale` says on the pose around it.
+;; `pj/scale` and a mapping's `:scale` take the same spec. On `:x` and
+;; `:y` a panel carries one scale per axis, so two layers naming
+;; different ones are refused.
+;;
+;; Two aesthetics have no scale at all -- `:text`, which draws a label
+;; as it stands, and `:group`, which draws nothing of its own -- so
+;; both report a `:scale` rather than accepting one.
 ;;
 ;; | Type | Use |
 ;; |:-----|:----|
@@ -620,13 +675,24 @@ my-pose
 ;; | `:log` | Orders-of-magnitude data |
 ;; | `:categorical` | Distinct categories (band scale) |
 ;;
-;; Scales are created at render time, not stored in the plan.
-;; The plan stores scale *specs* (`:type`, `:domain`).
+;; Scales are created at render time, not stored in the plan. The plan
+;; stores scale *specs*: `:type` and `:domain`, which every scale has,
+;; and the keys each aesthetic reads beside them. `pj/aesthetic-scales`
+;; publishes which those are, aesthetic by aesthetic, and
+;; [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
+;; prints the table.
 ;;
 ;; **Temporal columns** (`LocalDate`, `LocalDateTime`, `Instant`,
-;; `java.util.Date`) are automatically detected and treated as
-;; numerical. Tick labels are calendar-aware -- snapped to year,
-;; month, day, or hour boundaries depending on the time span.
+;; `java.util.Date`) are detected automatically and converted to
+;; epoch-milliseconds -- one number per value -- before any scale is
+;; built. The axis is then an ordinary `:linear` scale over those
+;; numbers, and the domain the plan carries is a pair of
+;; epoch-millisecond numbers. That is all "treated as numerical"
+;; means: it describes the scaling, not the display. The tick labels
+;; are written as dates or times, in a format that follows the span
+;; the axis covers. See
+;; [Inference Rules](./plotje_book.inference_rules.html#temporal-columns)
+;; for the conversion and the tick formats, worked through.
 
 ;; ## Coord
 ;;
@@ -714,8 +780,10 @@ my-pose
 ;;
 ;; The four rule and band constructors take their positions in the
 ;; layer's `:mapping` slot (`:y-intercept` or `:x-intercept` for rules;
-;; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands) as literal values
+;; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands) as written values
 ;; rather than column references, and each draws at exactly one place.
+;; `{:value 1.5}` says the same thing at more length; a `{:column ...}`
+;; there is reported, since these read no column.
 ;; Column-mapped intercepts, producing one mark per row like ggplot2's
 ;; `geom_hline(aes(yintercept = ...))`, are planned but not yet
 ;; implemented.
@@ -742,13 +810,27 @@ annotated
 
 ;; ## Legend
 ;;
-;; A **legend** is generated automatically when an aesthetic maps to a
-;; data column. It appears in the plan under the key named for that
-;; aesthetic -- `:legend` for color, holding entries with labels and
-;; colors, and `:size-legend`, `:alpha-legend`, `:shape-legend` for the
-;; others. One column driving both color and shape produces a single
-;; merged legend under `:legend`, whose entries carry a `:shape` too.
-;; Position is controlled via `{:legend-position :bottom}` in options.
+;; A **legend** is the key drawn beside the plot that explains a
+;; scale: which color stands for which category, which radius for
+;; which number. It is generated automatically, and what it explains
+;; is the scale rather than the mapping -- so a legend appears exactly
+;; where a scale was applied.
+;;
+;; That means a column read through its scale earns one, and a written
+;; value read through its scale earns a one-entry legend naming the
+;; value. A mapping given `{:scale false}` earns none, since its
+;; values were drawn as they stand and nothing was decided that a
+;; reader would need explaining. Neither does an aesthetic the mark
+;; cannot vary from row to row: `:size` on `pj/lay-line` draws one
+;; width for the whole layer, so a legend pairing values with radii
+;; would explain an encoding the panel does not carry.
+;;
+;; A legend appears in the plan under the key named for its aesthetic
+;; -- `:legend` for color, holding entries with labels and colors, and
+;; `:size-legend`, `:alpha-legend`, `:shape-legend` for the others. One
+;; column driving both color and shape produces a single merged legend
+;; under `:legend`, whose entries carry a `:shape` too. Where it sits
+;; is controlled via `{:legend-position :bottom}` in options.
 
 (kind/pprint (:legend my-plan))
 
@@ -858,11 +940,12 @@ annotated
 ;; are assigned from the active palette in order.
 ;;
 ;; Plotje uses [clojure2d](https://github.com/Clojure2D/clojure2d)
-;; for palettes. Set via `{:palette :set2}` in options:
+;; for palettes. Set with `:values` in a `:color` scale spec, or with
+;; the `:color-values` option one scope further out:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette :set2}))
+    (pj/scale :color {:values :set2}))
 
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])
@@ -881,22 +964,23 @@ annotated
 ;; column.
 ;;
 ;; Common gradients: `:viridis`, `:inferno`, `:plasma`,
-;; `:magma`. Diverging gradients center on a midpoint value.
-;; Set via `{:color-scale :inferno}` in options:
+;; `:magma`. Diverging gradients center on a `:midpoint` value.
+;; Set with `:range` in a `:color` scale spec, or with the
+;; `:color-range` option one scope further out:
 
 (-> {:x (range 50) :y (range 50) :c (range 50)}
     (pj/lay-point :x :y {:color :c})
-    (pj/options {:color-scale :inferno}))
+    (pj/scale :color {:range :inferno}))
 
 (kind/test-last
  [(fn [v]
     (and (= 50 (:points (pj/svg-summary v)))
          (= :inferno
-            (:color-scale
+            (:color-range
              (:legend (pj/plan
                        (-> {:x (range 50) :y (range 50) :c (range 50)}
                            (pj/lay-point :x :y {:color :c})
-                           (pj/options {:color-scale :inferno}))))))))])
+                           (pj/scale :color {:range :inferno}))))))))])
 
 ;; ## Configuration
 ;;
@@ -914,7 +998,7 @@ annotated
 ;; See the Configuration chapter for details. The active configuration
 ;; is itself a Clojure map -- `pj/config` returns a snapshot:
 
-(select-keys (pj/config) [:width :height :theme :palette :color-scale])
+(select-keys (pj/config) [:width :height :theme :color-values :color-range])
 
 (kind/test-last
  [(fn [m]
@@ -1013,18 +1097,18 @@ annotated
 ;; | Canvas | The whole output image, and the origin of drawing space | `:width` / `:height`; `pj/frames` |
 ;; | Panel box | One panel including its axis margin | `pj/frames` |
 ;; | Drawing area | The panel background inside that margin, where data marks clip | `pj/frames`; `:in :drawing-area` |
-;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale` |
+;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale`, or `:scale` in a mapping |
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |
 ;; | Share scales | Make sibling poses of a composite share data ranges across named axes | `:share-scales` in composite `:opts` |
-;; | Annotation | Reference marks (rules, bands); positions in `:mapping` as literal values today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
+;; | Annotation | Reference marks (rules, bands); positions in `:mapping` as written values today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
 ;; | Layer options | Per-layer aesthetics and layer-type parameters | `pj/lay-*` options map |
 ;; | Theme | Visual styling: background, grid, fonts | `:theme` in `pj/options` |
-;; | Palette | Ordered color set for categorical aesthetics | `:palette` in `pj/options` |
-;; | Gradient | Continuous color ramp for numerical mappings | `:color-scale` in `pj/options` |
+;; | Palette | Ordered color set for categorical aesthetics | `:values` in a `:color` scale spec |
+;; | Gradient | Continuous color ramp for numerical mappings | `:range` in a `:color` scale spec |
 ;; | Configuration | Global rendering defaults | `pj/config`, `pj/set-config!`, `pj/with-config` |
 ;; | Membrane | `PlotjeMembrane` record -- a Membrane UI component carrying the drawable tree, plan-derived dimensions, and `:plotje/title` | `pj/membrane`, `pj/plan->membrane` |
 ;; | Plot | Final output (SVG hiccup) | `pj/plot`, `pj/save` |

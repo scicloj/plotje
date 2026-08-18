@@ -114,27 +114,34 @@
 
 ;; ## Plot Options
 ;;
-;; Plot options describe the plot as a whole: its title, labels,
-;; axis scales, coordinate system, facets. A plot has one of each
-;; -- there is no scope here, because there is nothing to vary over.
+;; Plot options describe a plot as a whole: its title, labels,
+;; axis scales, coordinate system, facets. A single-panel plot has
+;; one of each. A composite has a scope for them: every cell is a
+;; pose, so each cell can have its own title and its own scales, and
+;; the options written on the composite itself apply to every cell
+;; that does not set them.
 ;;
-;; Four functions write plot options to the pose's `:opts`
+;; Three functions write plot options to the pose's `:opts`
 ;; field:
 ;;
 ;; - `pj/options` -- plot text (title, subtitle, caption, axis
 ;;   and legend labels) and panel dimensions. It also accepts
 ;;   configuration keys as per-plot overrides (see Configuration
 ;;   below).
-;; - `pj/scale` -- scale on an axis (`:x`, `:y`) or a visual channel.
-;;   Axis scales accept `:linear`, `:log`, `:categorical`. Continuous
-;;   visual channels (`:size`, `:alpha`, `:fill`, `:color`) accept
-;;   `:linear` and `:log`; discrete visual channels (`:shape`,
-;;   `:group`) accept `:categorical`.
 ;; - `pj/coord` -- coordinate system (cartesian, flipped, polar,
 ;;   fixed).
 ;; - `pj/facet` and `pj/facet-grid` -- split the plot into panels
 ;;   by a column.
 ;;
+;; `pj/scale` is the one that does not: a scale belongs to the
+;; aesthetic it reads, so it is written into that aesthetic's mapping
+;; rather than into `:opts`. It takes an axis (`:x`, `:y`) or a visual
+;; aesthetic. Axis scales accept `:linear`, `:log`, `:categorical`; the
+;; continuous visual ones (`:size`, `:alpha`, `:fill`, `:color`) accept
+;; `:linear` and `:log`; `:shape` accepts `:categorical`. `:group` has
+;; no scale to set -- it splits a layer into one drawn group per value
+;; and draws nothing of its own -- and is refused.
+
 ;; Reference lines and shaded bands -- `pj/lay-rule-h`,
 ;; `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v` -- are layers,
 ;; not plot options. They scope like any other `lay-*`: bare calls
@@ -163,8 +170,9 @@
     (and (= "Iris" (get-in m [:opts :title]))
          (= :flip (get-in m [:opts :coord]))))])
 
-;; Both the title and the coordinate system landed in `:opts`.
-;; Neither is at a scope; they belong to the plot as a whole.
+;; Both the title and the coordinate system landed in `:opts`. On a
+;; single-panel plot like this one they describe the whole plot;
+;; written on one cell of a composite they would describe that cell.
 ;;
 ;; A note on faceted plots: a scale has two parts that behave
 ;; differently across panels.
@@ -176,19 +184,29 @@
 ;;   computed per panel by default, so different panels may
 ;;   display different numeric ranges.
 ;;
-;; A note on scope of scales and coord: whether `pj/scale` and
-;; `pj/coord` should support scope variation is an open design
-;; question; the underlying plan structure allows per-panel
-;; scales, but the current API treats them as plot-level.
+;; A note on the scope of scales and coord: `pj/scale` and `pj/coord`
+;; write at the pose they are called on and flow down from there, so
+;; called on the pose you are building they cover the whole plot, and
+;; called on one cell before the cells are arranged, that cell alone.
+;; A scale written in a mapping is the same setting written closer to
+;; the layer, and the two accumulate. What has no spelling yet is a
+;; type that varies across the panels of a facet: those panels come
+;; from one pose, so they share it.
 ;;
 ;; A note on terminology: other chapters call these values
 ;; *plot-level options*. Be aware that *plot-level* here names a
 ;; category, while *pose-level* (used for layer options) names a
-;; position in a scope hierarchy -- the shared word "level"
+;; place in a scope hierarchy -- the shared word "level"
 ;; refers to different things. Putting a plot option inside a
-;; `pj/lay-*` options map -- for example `{:x-scale {:type :log}}`
+;; `pj/lay-*` options map -- for example `{:title "Growth"}`
 ;; -- is a category mistake: plot options belong in `:opts` via
 ;; their dedicated functions above.
+;;
+;; A scale is not a plot option at all. `pj/scale` writes the
+;; mapping the scale reads, so neither `{:x-scale {:type :log}}`
+;; nor any other `*-scale` key belongs in an options map, at
+;; either level. Write `(pj/scale pose :x :log)`, or say it in the
+;; mapping as `{:x {:column :year :scale :log}}`.
 
 ;; ## Configuration
 ;;
@@ -208,7 +226,7 @@
 ;; Sources 2-5 sit outside any specific pose and carry across
 ;; every plot you render. Source 1 is how a specific pose dips
 ;; into the chain to override a configuration key for itself --
-;; `(pj/options {:palette :dark2})` sets `:palette` on one
+;; `(pj/options {:color-values :dark2})` sets `:color-values` on one
 ;; pose, and at render time wins over any palette set through
 ;; the other four sources.
 ;;
@@ -264,8 +282,8 @@ demo
 ;;
 ;; - `:color :species` is inside the layer's mapping -- a layer
 ;;   option at layer scope.
-;; - `:title` and `:coord` are in `:opts` -- plot options, no
-;;   scope.
+;; - `:title` and `:coord` are in `:opts` -- plot options, which on
+;;   this single-panel plot describe the whole of it.
 ;; - Configuration does not appear in the pose. The renderer
 ;;   will consult `(pj/config)` for theme, default dimensions,
 ;;   and other defaults.

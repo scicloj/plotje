@@ -138,6 +138,43 @@
 ;; Other values: `:free-x` (x per-panel, y shared), `:free`
 ;; (both axes per-panel).
 
+;; ## Appearance Channels Across Panels
+;;
+;; `:scales` applies to the axes only. A `:size` or `:alpha` column is
+;; scaled against the panel it is drawn in, while its legend is built
+;; from the whole plot. Two panels whose values cover different
+;; intervals are therefore drawn with the same radii, and the legend
+;; does not match either of them.
+;;
+;; Below, the left panel's values run from 1 to 3 and the right panel's
+;; from 4 to 10, and both panels draw the same three sizes:
+
+(def per-panel
+  {:g ["L" "L" "L" "R" "R" "R"]
+   :x [1 2 3 1 2 3]
+   :y [1 1 1 1 1 1]
+   :n [1 2 3 4 7 10]})
+
+(-> per-panel
+    (pj/lay-point :x :y {:size :n})
+    (pj/facet :g))
+
+(kind/test-last
+ [(fn [v]
+    ;; Six marks, three distinct radii: each panel uses the full range.
+    (= 3 (count (:sizes (pj/svg-summary v)))))])
+
+;; Setting an explicit `:domain` on the scale gives every panel the
+;; same one, so a size means the same thing in both:
+
+(-> per-panel
+    (pj/lay-point :x :y {:size :n})
+    (pj/facet :g)
+    (pj/scale :size {:domain [1 10]}))
+
+(kind/test-last
+ [(fn [v] (= 5 (count (:sizes (pj/svg-summary v)))))])
+
 ;; A related multi-panel layout, the **scatter plot matrix (SPLOM)**,
 ;; uses `pj/cross` rather than `pj/facet` -- the panels show all
 ;; pairs of variables instead of one variable split across panels.

@@ -155,7 +155,7 @@ two-panel
 
 ;; ## Scope
 ;;
-;; A **mapping** maps a column (or a literal value) to a visual
+;; A **mapping** maps a column (or a written value) to a visual
 ;; property -- like mapping `:species` to color. Where you write a
 ;; mapping determines who sees it. There are two levels:
 ;;
@@ -250,7 +250,10 @@ two-panel
 ;;
 ;; - **Mappings**: pose and layer mappings merge; the innermost
 ;;   wins on conflict, and an explicit `nil` erases a mapping
-;;   inherited from above.
+;;   inherited from above. The one part that combines rather than
+;;   being replaced is a mapping's `:scale`, whose settings accumulate
+;;   down the chain -- see
+;;   [Scales](./plotje_book.scales.html#scales-accumulate).
 ;; - **Layers**: every `pj/lay-*` accumulates a new layer; layers
 ;;   do not override, they pile up.
 ;; - **Data**: the first argument to `pj/pose`/`pj/lay-*` sets the
@@ -376,9 +379,9 @@ two-panel
 ;; | Field | Contains | Set by |
 ;; |:------|:---------|:-------|
 ;; | `:data` | the dataset | `pj/pose`, `pj/lay-*`, or `pj/with-data` |
-;; | `:mapping` | pose-level mappings | `pj/pose` |
+;; | `:mapping` | pose-level mappings, and their scales | `pj/pose`, `pj/scale` |
 ;; | `:layers` | layers attached to the pose | `pj/lay-*` |
-;; | `:opts` | title, width, theme, scale, coord | `pj/options`, `pj/scale`, `pj/coord` |
+;; | `:opts` | title, width, theme, coord, facets | `pj/options`, `pj/coord`, `pj/facet` |
 ;;
 ;; A composite pose adds `:poses` (sub-poses) and optionally
 ;; `:layout` and `:share-scales`; see the
@@ -588,18 +591,21 @@ two-panel
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; **Coming from ggplot2.** In ggplot2, `colour="blue"` is always a
-;; literal CSS color. In Plotje, a string `{:color "blue"}` is
-;; interpreted as a column reference if **a column with that exact
-;; name exists in the data**, otherwise as a literal CSS color.
-;; Matching is strict: a string only matches a string column name,
-;; and a keyword only matches a keyword column name. Hex codes like
-;; `"#0000ff"` cannot collide with a column name and are unambiguous.
-;; A keyword `{:color :blue}` is always a column reference and throws
-;; if the column is missing.
+;; CSS color. In Plotje, `{:color "blue"}` is a column reference if
+;; **a column with that exact name exists in the data**, otherwise the
+;; CSS color. A keyword is asked the same two questions in the same
+;; order, so `{:color :blue}` is the column `:blue` where there is one
+;; and the color blue where there is not. Matching is strict: a string
+;; only matches a string column name, and a keyword only matches a
+;; keyword column name. Hex codes like `"#0000ff"` are practically
+;; unambiguous -- the dataset is asked first for those too, but no
+;; dataset carries a column called `#0000ff`. To settle a genuine
+;; collision, say which you mean: `{:color {:column "blue"}}` or
+;; `{:color {:value "blue"}}`.
 ;;
 ;; The disambiguation matters when the dataset uses string column
-;; names. With a string column literally named `"blue"`, the column
-;; wins -- three palette colors render, not a single literal blue:
+;; names. With a string column named `"blue"`, the column wins --
+;; three palette colors render, not a single blue:
 
 (-> (tc/dataset {"x" [1 2 3] "y" [1 2 3] "blue" ["a" "b" "c"]})
     (pj/lay-point "x" "y" {:color "blue"}))
@@ -609,7 +615,7 @@ two-panel
                            (= 3 (count colors))))])
 
 ;; Same string `:color`, dataset without a `"blue"` column -- "blue"
-;; parses as a literal CSS color:
+;; parses as a CSS color:
 
 (-> (tc/dataset {"x" [1 2 3] "y" [1 2 3]})
     (pj/lay-point "x" "y" {:color "blue"}))
@@ -628,8 +634,9 @@ two-panel
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; Other visual properties include `:alpha` (transparency), `:size`,
-;; and `:shape`. Each accepts a literal value or a column reference,
-;; the same way `:color` does.
+;; and `:shape`. Each accepts a value or a column the same way
+;; `:color` does -- `{:shape :square}` draws every point square, and
+;; `{:shape :species}` gives each category its own symbol.
 ;;
 ;; **Bubble plot** -- `:size` mapped to a numeric column gives each
 ;; point a radius reflecting the value:
@@ -689,8 +696,11 @@ two-panel
 ;;
 ;; So far you've seen mappings, layers, and data -- all scoped at
 ;; pose or layer level. The functions in this section set
-;; **plot-level options** instead: values that configure the whole
-;; rendered plot and cannot be scoped down. See
+;; **plot-level options** instead: values that describe a plot
+;; rather than a layer. They are written on a pose and reach
+;; everything beneath it: written on the pose you are building they
+;; describe the whole plot, and written on one cell of a composite,
+;; that cell. See
 ;; [Options and Scopes](./plotje_book.options_and_scopes.html#plot-options)
 ;; for the full picture.
 ;;
@@ -700,7 +710,7 @@ two-panel
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/options {:title "Iris Measurements"
-                 :width 500 :palette :dark2}))
+                 :width 500 :color-values :dark2}))
 
 (kind/test-last [(fn [v] (some #{"Iris Measurements"} (:texts (pj/svg-summary v))))])
 
@@ -776,7 +786,9 @@ two-panel
 
 (kind/test-last [(fn [v] (= 6 (:points (pj/svg-summary v))))])
 
-;; Both are plot-level -- they apply uniformly across the whole pose.
+;; Both are written on the pose and reach every layer and panel
+;; beneath it. A mapping written out in full can name its own scale
+;; for one aesthetic, which takes precedence there.
 
 ;; ## Faceting and Multi-Panel Layouts
 ;;

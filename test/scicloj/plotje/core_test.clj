@@ -101,20 +101,30 @@
     (is (= (defaults/gradient-color 2.0) (defaults/gradient-color 1.0)))))
 
 (deftest legend-serializable-test
-  (testing "continuous legend has :color-scale keyword, no :gradient-fn"
+  (testing "continuous legend has :color-range keyword, no :gradient-fn"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
           pl (pj/plan (-> ds (pj/lay-point :x :y {:color :c})))
           legend (:legend pl)]
       (is (= :continuous (:type legend)))
-      (is (contains? legend :color-scale))
+      (is (contains? legend :color-range))
       (is (not (contains? legend :gradient-fn)))
-      (is (nil? (:color-scale legend)) "default color-scale is nil")))
-  (testing "explicit :color-scale is stored as keyword"
+      (is (nil? (:color-range legend)) "default color range is nil")))
+  (testing "explicit :color-range is stored as keyword"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
           pl (pj/plan (-> ds (pj/lay-point :x :y {:color :c}))
-                      {:color-scale :inferno})
+                      {:color-range :inferno})
           legend (:legend pl)]
-      (is (= :inferno (:color-scale legend)))))
+      (is (= :inferno (:color-range legend)))
+      (is (false? (:range-from-spec? legend)))))
+  (testing "a range from a scale spec is marked as such, so render-time"
+    ;; configuration does not repaint a legend the spec decided.
+    (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
+          legend (-> ds
+                     (pj/lay-point :x :y {:color :c})
+                     (pj/scale :color {:range :inferno})
+                     pj/plan :legend)]
+      (is (= :inferno (:color-range legend)))
+      (is (true? (:range-from-spec? legend)))))
   (testing "legend has 20 pre-computed stops"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
           pl (pj/plan (-> ds (pj/lay-point :x :y {:color :c})))
@@ -381,11 +391,17 @@
 
 (deftest make-scale-categorical-n-ticks-test
   (testing ":n-ticks thins a categorical band scale to roughly n evenly-spaced ticks"
-    (let [dom (mapv str (range 50))
-          all (scale/make-scale dom [0 300] {})
-          ten (scale/make-scale dom [0 300] {:n-ticks 10})]
-      (is (= 50 (count (wadogo.scale/ticks all))))
-      (is (= 10 (count (wadogo.scale/ticks ten))))))
+    ;; The count is asked for at the tick call rather than built into
+    ;; the scale, so one band scale answers both questions and the
+    ;; numeric and categorical axes read `:n-ticks` the same way.
+    (let [s (scale/make-scale (mapv str (range 50)) [0 300] {})]
+      (is (= 50 (count (wadogo.scale/ticks s))))
+      (is (= 10 (count (wadogo.scale/ticks s 10))))))
+
+  (testing "and a tick count is what :n-ticks names, on either column type"
+    (is (= 10 (scale/tick-count 600.0 {:n-ticks 10} 60)))
+    (is (= 10 (scale/tick-count 600.0 {} 60)) "or how many fit at that spacing")
+    (is (= 2 (scale/tick-count 10.0 {} 60)) "never fewer than two"))
   (testing ":n-ticks flows end-to-end through pj/scale onto a categorical x-axis"
     (let [d (tc/dataset {:x (mapv str (range 50)) :y (range 50)})
           labels (fn [pose] (-> pose pj/plan :panels first :x-ticks :labels))]
@@ -401,10 +417,10 @@
 
 (deftest categorical-breaks-labels-test
   (let [xticks (fn [pose] (-> pose pj/plan :panels first :x-ticks))]
-    (testing ":breaks selects a category subset and :labels relabels it"
+    (testing ":breaks selects a category subset and :tick-labels relabels it"
       (let [t (xticks (-> (tc/dataset {:x ["a" "m" "q" "z"] :y [1 2 3 4]})
                           (pj/lay-point :x :y)
-                          (pj/scale :x {:breaks ["a" "z"] :labels ["A" "Z"]})))]
+                          (pj/scale :x {:breaks ["a" "z"] :tick-labels ["A" "Z"]})))]
         (is (= ["a" "z"] (vec (:values t))))
         (is (= ["A" "Z"] (vec (:labels t))))))
     (testing "a break naming no category is dropped (matched categories remain)"
@@ -428,6 +444,20 @@
   (let [s (scale/make-scale [1 1000] [0 300] {:type :log})]
     (is (== 0 (s 1)))
     (is (== 300 (s 1000)))))
+
+(deftest domain-padding-config-test
+  (testing ":domain-padding is read through the config chain, not the defaults map"
+    (let [pose (-> (rdatasets/datasets-iris)
+                   (pj/lay-point :sepal-length :sepal-width))
+          dom  (fn [p] (-> p pj/plan :panels first :x-domain))]
+      ;; The data runs 4.3 to 7.9; the default 5% pads it to [4.12 8.08].
+      (is (= [4.12 8.08] (mapv #(-> % (* 100) Math/round (/ 100.0)) (dom pose))))
+      ;; No padding leaves the raw extent.
+      (is (= [4.3 7.9] (dom (pj/options pose {:domain-padding 0.0}))))
+      ;; A plot option and a thread-local binding both reach it.
+      (is (= (dom (pj/options pose {:domain-padding 0.5}))
+             (pj/with-config {:domain-padding 0.5} (dom pose))))
+      (is (< (first (dom (pj/options pose {:domain-padding 0.5}))) 4.12)))))
 
 (deftest pad-domain-test
   (testing "numeric padding"
@@ -454,15 +484,30 @@
 ;; ============================================================
 
 (deftest resolve-color-test
-  (let [cfg (assoc defaults/defaults :palette nil)]
+  ;; The third argument is the resolved draft layer, which answers both
+  ;; "is a fixed color set" and "is this layer's color column drawn as
+  ;; it stands" -- the two ways a color can arrive already decided.
+  (let [cfg (assoc defaults/defaults :color-values nil)]
     (testing "column color"
-      (let [c (extract/resolve-color ["a" "b"] "a" nil cfg)]
+      (let [c (extract/resolve-color ["a" "b"] "a" {} cfg)]
         (is (= 4 (count c)))))
     (testing "fixed hex color"
-      (let [c (extract/resolve-color nil nil "#FF0000" cfg)]
+      (let [c (extract/resolve-color nil nil {:fixed-color "#FF0000"} cfg)]
         (is (== 1.0 (first c)))))
+    (testing "fixed color named by a keyword"
+      ;; Reaches here only since the data decides which values name
+      ;; columns; before, a keyword was a column reference and nothing else.
+      (let [c (extract/resolve-color nil nil {:fixed-color :red} cfg)]
+        (is (= [1.0 0.0 0.0 1.0] c))))
+    (testing "a drawn color column uses its own value, not the palette"
+      (let [c (extract/resolve-color ["#FF0000" "#0000FF"] "#0000FF"
+                                     {:color-drawn? true} cfg)]
+        (is (= [0.0 0.0 1.0 1.0] c))))
+    (testing "the same value scaled, for contrast"
+      (let [c (extract/resolve-color ["#FF0000" "#0000FF"] "#0000FF" {} cfg)]
+        (is (not= [0.0 0.0 1.0 1.0] c) "a palette entry, not the value itself")))
     (testing "nil falls to default"
-      (let [c (extract/resolve-color nil nil nil cfg)]
+      (let [c (extract/resolve-color nil nil {} cfg)]
         (is (= 4 (count c)))))))
 
 (deftest extract-layer-point-test
@@ -614,29 +659,39 @@
     (is (fn? (defaults/resolve-gradient-fn :inferno)))
     (is (fn? (defaults/resolve-gradient-fn {:low "#FF0000" :mid "#FFFFFF" :high "#0000FF"}))))
   (testing "a scale spec is not a gradient"
-    ;; `pj/scale :color` and the `:color-scale` configuration key write
-    ;; the same `:opts` key. A scale spec taken as a gradient resolved to
-    ;; three default stops, so asking for a log scale changed the palette
-    ;; as well as the spacing.
+    ;; A colour scale's `:range` holds a gradient and nothing else. A
+    ;; whole spec written there is a mistake, and drawing it as three
+    ;; default stops would change a plot's colours without saying so.
     (is (not (defaults/gradient-map? {:type :log})))
     (is (defaults/gradient-map? {:low "#000000" :high "#FFFFFF"}))
-    (is (= (mapv (defaults/resolve-gradient-fn nil) [0.0 0.5 1.0])
-           (mapv (defaults/resolve-gradient-fn {:type :log}) [0.0 0.5 1.0]))))
-  (testing "a log color scale keeps the default palette"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"names at least one of :low"
+                          (defaults/resolve-gradient-fn {:type :log})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"names at least one of :low"
+                          (-> (tc/dataset {:x [1 2] :y [1 2] :c [1.0 2.0]})
+                              (pj/lay-point :x :y {:color :c})
+                              (pj/scale :color {:range {:type :log}})))))
+  (testing "a log color scale keeps the default gradient"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 1 51)})
           stops (fn [pose] (->> pose pj/plan :legend :stops (mapv :color)))
           base (-> ds (pj/lay-point :x :y {:color :c}))]
       (is (= (stops base) (stops (pj/scale base :color :log)))
           "the spacing is what :log asks for, not the colors")
-      (is (= {:type :log} (:color-scale (:legend (pj/plan (pj/scale base :color :log)))))
-          "and the scale spec still reaches the legend")
-      (is (not= (stops base) (stops (pj/options base {:color-scale :inferno})))
-          "a gradient name still changes the palette")))
+      (is (= :log (:scale-type (:legend (pj/plan (pj/scale base :color :log)))))
+          "and the legend says which scale it explains")
+      (is (seq (:ticks (:legend (pj/plan (pj/scale base :color :log)))))
+          "with ticks, so the gradient bar can be read back to a value")
+      (is (not= (stops base) (stops (pj/options base {:color-range :inferno})))
+          "a gradient name still changes the gradient")
+      (is (= (stops (pj/options base {:color-range :inferno}))
+             (stops (pj/scale base :color {:range :inferno})))
+          "and the spec spelling gives the same gradient as the option")))
   (testing "diverging end-to-end"
     (let [ds (tc/dataset {:x (range 10) :y (range 10) :z (map #(- % 5) (range 10))})
           fig (-> ds (pj/pose :x :y)
                   (pj/lay-point {:color :z})
-                  (pj/plot {:color-scale :diverging :color-midpoint 0}))
+                  (pj/plot {:color-range :diverging :color-midpoint 0}))
           s (pj/svg-summary fig)]
       (is (= 10 (:points s))))))
 
@@ -718,8 +773,8 @@
       (is (= 0.6 (:grid-stroke-width cfg)))
       (is (string? (:annotation-stroke cfg)))
       (is (= 0.15 (:band-opacity cfg)))
-      (is (= 60 (:tick-spacing-x cfg)))
-      (is (= 40 (:tick-spacing-y cfg)))
+      (is (= 60 (:x-tick-spacing cfg)))
+      (is (= 40 (:y-tick-spacing cfg)))
       (is (= :sturges (:bin-method cfg)))
       (is (= 0.05 (:domain-padding cfg)))
       (is (= 13 (:label-font-size cfg)))
@@ -830,11 +885,11 @@
       (is (= "#F5F5F5" (get-in cfg [:theme :grid])))
       (is (= 11 (get-in cfg [:theme :font-size])))))
   (testing "per-call palette"
-    (let [cfg (defaults/resolve-config {:palette :dark2})]
-      (is (= :dark2 (:palette cfg)))))
+    (let [cfg (defaults/resolve-config {:color-values :dark2})]
+      (is (= :dark2 (:color-values cfg)))))
   (testing "per-call color-scale"
-    (let [cfg (defaults/resolve-config {:color-scale :diverging})]
-      (is (= :diverging (:color-scale cfg)))))
+    (let [cfg (defaults/resolve-config {:color-range :diverging})]
+      (is (= :diverging (:color-range cfg)))))
   (testing "per-call validate false"
     (let [cfg (defaults/resolve-config {:validate false})]
       (is (false? (:validate cfg))))))
@@ -951,16 +1006,20 @@
       (let [colors (group-colors-from-plan (pj/plan views))]
         (is (= 2 (count colors))
             "two categories, two colors")))
-    (testing "per-call :palette :dark2 produces colors that differ from default"
+    (testing "per-call :color-values :dark2 produces colors that differ from default"
       (let [default-colors (group-colors-from-plan (pj/plan views))
-            dark2-colors (group-colors-from-plan (pj/plan views {:palette :dark2}))]
+            dark2-colors (group-colors-from-plan (pj/plan views {:color-values :dark2}))]
         (is (= 2 (count dark2-colors)))
         (is (not= default-colors dark2-colors)
-            "palette change must actually change the rendered colors")))
+            "palette change must actually change the rendered colors")
+        (is (= dark2-colors
+               (group-colors-from-plan
+                (pj/plan (pj/scale views :color {:values :dark2}))))
+            "and the spec spelling gives the same colours as the option")))
     (testing "set-config! palette flows through"
       (try
         (let [default-colors (group-colors-from-plan (pj/plan views))]
-          (pj/set-config! {:palette :set2})
+          (pj/set-config! {:color-values :set2})
           (let [set2-colors (group-colors-from-plan (pj/plan views))]
             (is (= 2 (count set2-colors)))
             (is (not= default-colors set2-colors)
@@ -1352,13 +1411,34 @@
                  pj/plan)
           c (:color (first (:groups (first (:layers (first (:panels pl)))))))]
       (is (> (nth c 2) 0.5) "steelblue should have high blue channel")))
-  (testing "Unknown color string gives helpful error"
+  (testing "Unknown color string is reported at the pose, naming both readings"
+    ;; It used to reach the renderer and die on "Unknown color", which
+    ;; said nothing about the likelier mistake -- that a column of that
+    ;; name was meant. The data is asked first now, so the message can
+    ;; name what was looked up and what else it could have been.
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Unknown color"
+                          #"not found in dataset.*not a color either"
                           (-> {:x [1 2 3] :y [4 5 6]}
                               (pj/pose :x :y)
                               (pj/lay-point {:color "notacolor"})
-                              pj/plot)))))
+                              pj/plot))))
+  (testing "A keyword naming a color is drawn, not looked up"
+    ;; `:color :red` used to be reported as a missing column, because a
+    ;; keyword was a column reference and nothing else.
+    (let [c (-> {:x [1 2 3] :y [4 5 6]}
+                (pj/pose :x :y)
+                (pj/lay-point {:color :red})
+                pj/plan :panels first :layers first :groups first :color)]
+      (is (= [1.0 0.0 0.0 1.0] c))))
+  (testing "A hex string missing its # is reported, not read as a shade"
+    ;; clojure2d reads a bare `abc` as `#aabbcc`, so this used to draw a
+    ;; color for what is far likelier a mistyped column name.
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"not found in dataset.*not a color either"
+                          (-> {:x [1 2 3] :y [4 5 6]}
+                              (pj/pose :x :y)
+                              (pj/lay-point {:color "fff"})
+                              pj/plan)))))
 
 (deftest schema-all-marks-test
   (testing "Every mark type produces a valid plan"
@@ -1422,8 +1502,8 @@
                           (-> {:x [1 2 3] :y [10 20 30]}
                               (pj/lay-text :x :y) pj/plan))))
 
-  (testing "scale channel validation"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Scale channel"
+  (testing "scale aesthetic validation"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"takes one of the aesthetics"
                           (pj/scale [] :z :log))))
 
   (testing "coord validation"
@@ -1984,10 +2064,22 @@
                      pj/plan)
             sl (:size-legend plan)]
         (is (= :log (:scale-type sl)))
-        ;; log10(10), log10(100), log10(1000) = 1, 2, 3 are evenly spaced,
-        ;; so the radii should be too (2.0, 5.0, 8.0 for [2.0, 8.0] range).
+        ;; log10(10), log10(100), log10(1000) = 1, 2, 3 are evenly
+        ;; spaced, so the middle value sits halfway across the domain.
+        ;; Where it lands between the radii is the scale's `:by`, which
+        ;; defaults to :sqrt: 2 + 6*sqrt(0.5).
         (is (= [10.0 100.0 1000.0] (mapv :value (:entries sl))))
-        (is (= [2.0 5.0 8.0] (mapv :radius (:entries sl))))))
+        (is (= [2.0 6.243 8.0]
+               (mapv #(-> (:magnitude %) (* 1000) Math/round (/ 1000.0))
+                     (:entries sl))))))
+
+    (testing "and :by :linear spreads the same values evenly across the radii"
+      (let [sl (-> d
+                   (pj/lay-point :user :n {:size :n :x-type :categorical})
+                   (pj/scale :size {:type :log :by :linear})
+                   pj/plan
+                   :size-legend)]
+        (is (= [2.0 5.0 8.0] (mapv :magnitude (:entries sl))))))
 
     (testing "pj/scale :alpha :log produces a log-spaced alpha legend"
       (let [plan (-> d
@@ -2015,10 +2107,10 @@
 
     (testing ":categorical rejected on continuous visual channels"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Visual channel :size is continuous"
+                            #"The aesthetic :size is continuous"
                             (pj/scale (pj/pose d) :size :categorical)))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Visual channel :fill is continuous"
+                            #"The aesthetic :fill is continuous"
                             (pj/scale (pj/pose d) :fill :categorical)))))
 
   (testing ":fill :log on a tile heatmap plans cleanly with log scale-type"

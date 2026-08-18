@@ -22,8 +22,8 @@
 ;; - Linear continuous color legends (numeric `:color` mapping with
 ;;   `:linear` scale) label only the endpoint tick marks on the
 ;;   gradient bar. Intermediate values are unlabeled, making it hard
-;;   to map interior colors back to data values. Log-scaled
-;;   continuous color and fill legends do carry intermediate ticks.
+;;   to map interior colors back to data values. Log-scaled color and
+;;   fill legends do carry intermediate ticks.
 ;;
 ;; - SPLOMs with 6+ variables at the default 600x400 have tight
 ;;   panels. Increase `:width`/`:height` or pin
@@ -43,8 +43,9 @@
 ;;   mark whose size is in drawing units for another reason: a `pj/lay-point`
 ;;   given a large `:size` at the extreme of its domain is cut at the
 ;;   panel edge, as is a long rug tick. The 5% domain padding absorbs
-;;   this at ordinary radii. Workaround: widen the domain with
-;;   `pj/scale`.
+;;   this at ordinary radii, and a scale given a wide `:range` -- say
+;;   `(pj/scale pose :size {:range [3 20]})` -- reaches past it.
+;;   Workaround: widen the domain with `pj/scale`.
 ;;
 ;; - Rotated x-tick labels (`:x-tick-angle`) reserve extra vertical
 ;;   space below the panel, but not extra horizontal space. A long
@@ -99,19 +100,28 @@
 ;; - **Aesthetic-gate versus mark-consumer asymmetry.** Several
 ;;   aesthetics are accepted at the universal pose-mapping gate but
 ;;   consumed only by one or two mark extractors. Setting them on
-;;   other marks has no effect and raises no error.
+;;   other marks does not vary the picture.
 ;;
-;;   | Aesthetic | Consumed on | Silently ignored on |
+;;   | Aesthetic | Consumed on | Elsewhere |
 ;;   |:----------|:------------|:------------------|
-;;   | `:size` (column ref) | `lay-point` | every other lay-* |
-;;   | `:alpha` (column ref) | `lay-point` | every other lay-* (literal `:alpha N` works on most via `:fixed-alpha`) |
-;;   | numeric (continuous) `:color` | `lay-point`, `lay-interval-h` | every other lay-* (a numeric column on a categorical-color path produces banded palette colors instead of a gradient) |
+;;   | `:size` (column ref) | `lay-point` | warned, and no legend is drawn for it |
+;;   | `:alpha` (column ref) | `lay-point` | warned, and no legend is drawn for it (a written `:alpha N` works on most via `:fixed-alpha`) |
+;;   | numeric (continuous) `:color` | `lay-point`, `lay-interval-h` | every other lay-* ignores it (a numeric column on a categorical-color path produces banded palette colors instead of a gradient) |
 ;;   | tooltip / row-indices plumbing | `lay-point`, `lay-interval-h` | every other lay-* |
+;;
+;;   Only `lay-point` varies a radius or an opacity from row to row, so
+;;   `{:size {:column :r :scale false}}` -- which asks for the column's
+;;   own values as radii -- is refused elsewhere rather than warned:
+;;   there is no reading for it at all. The warning and the refusal both
+;;   name `lay-point`. Which marks those are is read from the registry,
+;;   where each layer type declares what its mark varies under
+;;   `:varies`, so an extension that draws a per-row size says so and is
+;;   named alongside `lay-point`.
 ;;
 ;;   `:shape` is not in this table: it is drawn only by `lay-point`, and
 ;;   passing it anywhere else is rejected rather than ignored -- every
 ;;   other layer type warns and names `lay-point` as the one that takes
-;;   it.
+;;   it. `:text` is the same, and names `lay-text` and `lay-label`.
 ;;
 ;;   Workaround: pre-bin or convert the numeric column into a
 ;;   discrete color column where appropriate, or use `lay-point` for
@@ -121,7 +131,7 @@
 ;;   at render time (the rendering path reads `:color` only). Bands
 ;;   honor `:alpha`. Workaround: use a lighter `:color` to simulate
 ;;   the visual effect on rules.
-;;
+
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The
 ;;   mark name still reflects the unflipped semantics. Add a
@@ -147,7 +157,7 @@
 ;;   clear "Stat :bin2d requires a numeric column" error at plan
 ;;   time. The recommended workaround is to render a numeric-indexed
 ;;   grid (1-N integers in place of the categorical column) and
-;;   pair `:breaks` with `:labels` on the axis -- see Customization
+;;   pair `:breaks` with `:tick-labels` on the axis -- see Customization
 ;;   and Troubleshooting for a worked example. For a true categorical
 ;;   axis (binning over labels rather than numeric intervals),
 ;;   `pj/lay-bar` with a `y` column and `{:color :value}` gives a
@@ -188,6 +198,31 @@
 ;; - LOESS with confidence bands is O(n^2); subsample above ~5k
 ;;   rows.
 
+;; ## Scales
+;;
+;; - One pose reads an aesthetic through one scale. Two layers asking
+;;   for different scales on `:size`, `:alpha`, `:color` or `:fill`
+;;   are refused rather than drawn, since a plot has one legend per
+;;   aesthetic. Two layers naming different scales for `:x` or `:y`
+;;   are refused as well, because a panel has one of each axis.
+;;   Workaround in every case: put the layers in separate poses with
+;;   `pj/arrange`, where each cell has its own scales and its own
+;;   legend.
+;;
+;; - Facet panels share their scale *types*. `{:scales :free}` gives
+;;   each panel its own domain, but there is no equivalent for giving
+;;   one panel a log axis and another a linear one. Workaround:
+;;   `pj/arrange` again.
+;;
+;; - A `:size` or `:alpha` mark is scaled against its own panel, while
+;;   the legend is scaled against the whole plot. Under faceting, two
+;;   panels whose values cover different intervals are drawn alike: a
+;;   panel whose values run from 1 to 3 gets the same three radii as
+;;   one whose values run from 4 to 10, and the legend matches neither.
+;;   Workaround: set the domain explicitly, as in
+;;   `(pj/scale pose :size {:domain [1 10]})`, so every panel uses the
+;;   same one. `:alpha` and a numeric `:color` take the same workaround.
+
 ;; ## Options and Configuration
 ;;
 ;; - `:panel-size` is a legacy configuration key from the
@@ -207,37 +242,43 @@
 ;; - Mapping the same column with a keyword in one place and a
 ;;   string in another (e.g. `(pj/pose ds {:color :group})` then
 ;;   `(pj/lay-point :x :y {:color "group"})`) is not normalized: the
-;;   scope hierarchy treats them as different keys and the result is
-;;   a silent empty plot. Workaround: pick one form (keyword or
-;;   string) and use it consistently within a pose.
+;;   scope hierarchy treats them as different keys. The mismatch is
+;;   reported rather than drawn -- the spelling that does not match a
+;;   column name is looked up, found missing, and named alongside the
+;;   columns the data does carry. The exception is a string that
+;;   happens to name something the aesthetic can draw: `"red"` on
+;;   `:color` is that color, so the mapping quietly stops grouping
+;;   instead. Workaround: pick one form (keyword or string) and use it
+;;   consistently within a pose.
 
 ;; ## Integer Column Names
 ;;
 ;; - A dataset built without column names gets integer ones, and
-;;   Plotje reads them: the inferred mapping picks up the first few
-;;   columns and the derived axis titles read as the names. A layer's
-;;   mapping can name them too -- `(pj/lay-point ds {:x 0 :y 1})` plots
-;;   those two columns, because the layer's data is at hand and a number
-;;   matching a column name there reads as that column.
+;;   Plotje reads them wherever a mapping is written:
+;;   `(pj/lay-point ds {:x 0 :y 1})`, `(pj/lay-point ds 0 1)` and
+;;   `(pj/pose ds {:x 0 :y 1})` all plot those two columns, and the
+;;   derived axis titles read as the names.
 ;;
-;;   What is missing is the other two ways of writing it.
-;;   `(pj/lay-point ds 0 1)` and `(pj/pose ds {:x 0 :y 1})` are both
-;;   refused, because the check on those runs before the data is
-;;   available and so cannot tell an integer column name from a value to
-;;   draw a mark at. The error names both readings rather than picking
-;;   one. On the appearance aesthetics the question does not arise: a
-;;   number there is always a literal, since `{:size 1}` sets a radius
-;;   whatever the columns are called. Workaround: write the layer
-;;   mapping form, or rename with `(tc/rename-columns ds [:x :y])` as
-;;   shown in the
+;;   What remains is that a number has two possible readings on `:x`
+;;   and `:y`, and the data decides between them: a number the data
+;;   carries as a column name is that column, and any other number is a
+;;   value to place a mark at. So the same code can change meaning on a
+;;   dataset whose column names differ. Where that matters, write the
+;;   mapping out in full -- `{:x {:column 0}}` and `{:x {:value 0}}`
+;;   are each unambiguous -- or rename with
+;;   `(tc/rename-columns ds [:x :y])` as shown in the
 ;;   [Datasets](./plotje_book.datasets.html#column-names) chapter.
+;;
+;;   The appearance aesthetics work the same way. `{:size 1}` reads
+;;   column 1 where the data has one, and is a radius where it does
+;;   not; `{:size {:value 1}}` insists on the radius.
 
 ;; ## ggplot2 Features Not Yet Implemented
 ;;
 ;; - The `:fill` aesthetic is currently consumed only by `lay-tile`
 ;;   (and the `:bin2d` output beneath `lay-density-2d`). On filled
 ;;   marks like `lay-bar`, `lay-area`, and `lay-violin`, `:color`
-;;   paints the interior; there is no separate stroke channel.
+;;   paints the interior; there is no separate stroke aesthetic.
 ;;
 ;; - The `:linetype` aesthetic (ggplot2's `aes(linetype=...)` for
 ;;   solid vs. dashed lines) is not implemented. Workaround: encode
@@ -272,4 +313,8 @@
 ;;   [Customization](./plotje_book.customization.html#rotating-tick-labels).
 ;;
 ;; - Per-layer `data`, `guides()` for per-aesthetic legend control,
-;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog.
+;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog. The
+;;   axis types are `:linear`, `:log` and `:categorical`; a square-root
+;;   axis is not among them. (`pj/scale :size {:by :sqrt}` is a
+;;   different setting -- it says how a size spreads across the radii,
+;;   not how an axis is transformed.)

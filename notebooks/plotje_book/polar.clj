@@ -36,9 +36,12 @@
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/coord :polar))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               lengths ((rdatasets/datasets-iris) :sepal-length)]
                            (and (= 1 (:panels s))
-                                (= 150 (:points s)))))])
+                                (= 150 (:points s))
+                                (= [4.3 7.9]
+                                   [(reduce min lengths) (reduce max lengths)]))))])
 
 ;; ## Rose Chart (Coxcomb Diagram)
 ;;

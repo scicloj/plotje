@@ -84,13 +84,20 @@
           "the value repeats; the column varies")))
   (testing "the coordinate left out is inherited from the pose and broadcasts too"
     (is (= 3 (n-marks (pj/lay-text scatter {:x 2.0 :text :height})))))
-  (testing "a string :text still names a column once the layer has data"
-    ;; The string is the text only where there is no column for it to
-    ;; name -- the layer of values alone below.
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"Column n \(from :text\) not found"
-         (pj/plan (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})))))
+  (testing "a string :text naming no column labels every row with it"
+    ;; It used to be an error with data present -- a string was a column
+    ;; reference and nothing else there, so the one reading it could
+    ;; have had was unreachable. The data decides now: a string naming a
+    ;; column reads it, and one naming none is the label itself.
+    (let [labelled (pj/lay-text scatter {:x 2.0 :y :weight :text "n"})]
+      (is (= 3 (n-marks labelled)))
+      (is (= ["n"] (->> (pj/plan labelled) :panels first :layers last
+                        :groups first :labels distinct vec))
+          "one label, repeated over the layer's rows")))
+  (testing "and a string that does name a column still reads it"
+    (let [from-col (pj/lay-text scatter {:x 2.0 :y :weight :text :height})]
+      (is (< 1 (count (->> (pj/plan from-col) :panels first :layers last
+                           :groups first :labels distinct))))))
   (testing "and it broadcasts over the layer's own data when it brings some"
     (is (= 2 (n-marks (pj/lay-text scatter {:x 2.0 :y :w
                                             :text :t
@@ -180,3 +187,101 @@
 (deftest the-space-is-documented
   (testing ":in appears in the public layer option docs"
     (is (contains? pj/layer-option-docs :in))))
+
+;; ---- A panel where nothing informs a domain ----
+
+(deftest a-panel-with-no-data-space-x-still-has-an-x-domain
+  ;; `y-dom` has carried a `[0 1]` fallback all along and `x-dom` had
+  ;; none, so a panel whose every layer is on the panel rather than in
+  ;; the data planned `:x-domain nil`. A nil domain is not a domain:
+  ;; the marks that read it through a band scale died on
+  ;; `Number.doubleValue() because "x" is null`, and the rest drew no x
+  ;; ticks. Reached through `:in :drawing-area`, which is released, as
+  ;; well as through a per-axis `:scale false`.
+  (testing "through the whole-layer form"
+    (is (= [0 1] (-> (pj/lay-point {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
+                     pj/plan :panels first :x-domain))))
+  (testing "through a per-axis :scale false"
+    (let [panel (-> {:a [1 2 3] :b [1 2 3]}
+                    (pj/lay-point :a :b {:x {:column :a :scale false}
+                                         :y {:column :b :scale false}})
+                    pj/plan :panels first)]
+      (is (= [0 1] (:x-domain panel)))
+      (is (= [0 1] (:y-domain panel)))))
+  (testing "and such a panel draws"
+    (is (instance? BufferedImage
+                   (pj/plot (pj/lay-point {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})
+                            {:format :bufimg})))))
+
+;; ---- Which marks can read an unscaled axis ----
+
+(def spread
+  "Enough rows per category for a boxplot, a violin and a ridgeline."
+  {:k (mapcat #(repeat 8 %) ["a" "b" "c"])
+   :v (map #(+ 30 (mod (* 17 %) 90)) (range 24))})
+
+(deftest a-mark-that-cannot-read-an-unscaled-axis-says-so
+  ;; Only the marks that place through the panel's `coord-fn` measure an
+  ;; axis in drawing units. The rest read the oriented scales directly,
+  ;; so the request never reached them: `:bar` drew full-height bars and
+  ;; `:boxplot` drew an empty panel, both without a word. Rendered and
+  ;; looked at before this test was written.
+  (testing "the marks that place through coord-fn read it"
+    (let [num-d {:a [1 2 3 4] :b [40 80 20 60]}
+          drawn {:y {:column :b :scale false}}]
+      (is (pj/plan (pj/lay-point num-d :a :b drawn)))
+      (is (pj/plan (pj/lay-line num-d :a :b drawn)))
+      (is (pj/plan (pj/lay-area num-d :a :b drawn)))
+      (is (pj/plan (pj/lay-text num-d :a :b (assoc drawn :text "x"))))))
+
+  (testing "the marks that read the oriented scales refuse it by name"
+    (let [cat-d {:k ["a" "b" "c" "d"] :v [40 80 20 60]}
+          drawn {:y {:column :v :scale false}}]
+      (doseq [[label pose] [["bar" (pj/lay-bar cat-d :k :v drawn)]
+                            ["lollipop" (pj/lay-lollipop cat-d :k :v drawn)]
+                            ["boxplot" (pj/lay-boxplot spread :k :v drawn)]
+                            ["violin" (pj/lay-violin spread :k :v drawn)]
+                            ["ridgeline" (pj/lay-ridgeline spread :k :v drawn)]]]
+        (is (thrown-with-msg?
+             Exception #"places through the axis scales instead"
+             (pj/plan pose))
+            label))))
+
+  (testing "and the whole-layer form is refused on the same marks"
+    ;; It asks the same thing of both axes at once, so the same marks
+    ;; cannot read it. Left drawing, it produced the pictures this
+    ;; check exists to prevent -- a bar drew one rectangle across half
+    ;; the panel, a histogram drew nothing -- where before the `[0 1]`
+    ;; x fallback it had died on a null instead.
+    (doseq [[label pose] [["bar" (pj/lay-bar {:k ["a" "b"] :v [1 2]} :k :v
+                                             {:in :drawing-area})]
+                          ["histogram" (pj/lay-histogram {:v [1 2 3 4]} :v
+                                                         {:in :drawing-area})]]]
+      (is (thrown-with-msg?
+           Exception #"places through the axis scales instead"
+           (pj/plan pose))
+          label))
+
+    (testing "while the marks that can read it still do"
+      (is (pj/plan (pj/lay-point {:a [1 2] :b [1 2]} :a :b {:in :drawing-area})))
+      (is (pj/plan (pj/lay-text {:a [1 2] :b [1 2]}
+                                {:x 20 :y 20 :text "n" :in :drawing-area}))))))
+
+;; ---- Annotation colors ----
+
+(deftest an-annotation-takes-a-color-by-either-spelling
+  ;; The pose gate reads a keyword naming a color as that color now,
+  ;; but the annotation path kept `:color` only when it was a string --
+  ;; so `{:color :red}` was dropped in silence while
+  ;; `{:color :notacolour}` was still reported. The gate and the draw
+  ;; path have to agree about the same value.
+  (let [color-of (fn [v] (-> scatter
+                             (pj/lay-rule-h {:y-intercept 2 :color v})
+                             pj/plan :panels first :annotations first :color))]
+    (is (= (color-of "red") (color-of :red)))
+    (is (some? (color-of :red))))
+
+  (testing "and a value naming no color is still reported"
+    (is (thrown-with-msg?
+         Exception #"not found in dataset"
+         (pj/plan (pj/lay-rule-h scatter {:y-intercept 2 :color :notacolour}))))))

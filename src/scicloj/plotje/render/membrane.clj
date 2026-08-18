@@ -10,6 +10,7 @@
   (:require [membrane.ui :as ui]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.frames :as frames]
+            [scicloj.plotje.impl.layout :as layout]
             [scicloj.plotje.impl.membrane :as mem]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.render.mark :as mark]
@@ -24,7 +25,7 @@
 
 (defn- legend-swatch
   "The colored key beside a categorical legend entry. A plain entry
-   draws the default round swatch; an entry carrying a `:shape` -- one
+   draws the default round mark; an entry carrying a `:shape` -- one
    column driving both `:color` and `:shape` -- draws that symbol
    instead, through the same `draw-shape` the point marks use."
   [color shape]
@@ -47,13 +48,18 @@
         title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
       ;; Continuous gradient legend
-      (let [{:keys [min max stops color-scale ticks]} legend
+      (let [{:keys [min max stops color-range range-from-spec? ticks]} legend
             seps (defaults/number-separators cfg)
-            ;; If render-time config overrides the color-scale, resolve fresh
-            render-cs (:color-scale cfg)
-            override? (and render-cs (not= render-cs color-scale))
+            ;; Render-time configuration is the outermost scope of the
+            ;; range, so it repaints a legend built from an option but
+            ;; not one built from a scale spec, which is written
+            ;; further in and wins.
+            render-range (:color-range cfg)
+            override? (and render-range
+                           (not range-from-spec?)
+                           (not= render-range color-range))
             grad-fn (when override?
-                      (defaults/resolve-gradient-fn render-cs))
+                      (defaults/resolve-gradient-fn render-range))
             bar-h 120 bar-w 12
             n-stops (count stops)]
         (vec
@@ -91,7 +97,7 @@
                (ui/translate (+ x bar-w 4) (+ y 6)
                              (ui/with-color title-color
                                (ui/label hi-label (ui/font nil 10))))])))))
-      ;; Categorical swatch legend
+      ;; Categorical legend: a colored key beside each label
       (let [{:keys [entries]} legend]
         (vec
          (concat
@@ -111,7 +117,7 @@
 
 (defn- render-legend-horizontal
   "Render a horizontal legend (for :top or :bottom positioning).
-   Swatches and labels laid out left to right in a single row."
+   Keys and labels laid out left to right in a single row."
   [legend x y cfg]
   (let [{:keys [title entries]} legend
         fsize 10
@@ -119,7 +125,7 @@
     (if (= :continuous (:type legend))
       ;; For continuous legends, fall back to vertical rendering
       (render-legend-from-plan legend x y cfg)
-      ;; Horizontal categorical swatches
+      ;; The same, laid out left to right
       (let [title-w (if title (* (count (defaults/fmt-name title)) 6) 0)
             start-x (if title (+ title-w 8) 0)]
         (vec
@@ -154,26 +160,46 @@
       (update shape-legend :entries
               (fn [entries] (mapv #(assoc % :color mark-color) entries))))))
 
-(defn- fmt-legend-number
-  "Format a legend's numeric value: an integral value loses its trailing
-   .0, and the digits are grouped per `:thousands-separator`, so a legend
-   reads the same way as the axis ticks beside it."
-  [v cfg]
-  (let [d (double v)
-        s (if (== d (Math/floor d)) (str (long d)) (str v))]
-    (defaults/fmt-number s (defaults/number-separators cfg))))
+;; Moved to impl.defaults so the layout can measure the same string
+;; this draws -- see defaults/fmt-legend-number.
+(def ^:private fmt-legend-number defaults/fmt-legend-number)
+
+(defn- size-swatch-box
+  "The box one swatch occupies for a magnitude, as `[width height]`.
+
+   A circle spans twice its radius each way; a square its side; a
+   segment its fixed length by its thickness."
+  [swatch magnitude]
+  (case swatch
+    :circle  [(* 2 magnitude) (* 2 magnitude)]
+    :square  [magnitude magnitude]
+    :segment [layout/size-legend-swatch-length magnitude]))
 
 (defn render-size-legend
-  "Render a size legend -- graduated circles with value labels.
+  "Render a size legend -- graduated swatches with value labels.
    Returns a vector of membrane drawables. `cfg` supplies
    `:thousands-separator`, so a legend's numbers group the same way the
-   axis ticks beside them do."
+   axis ticks beside them do.
+
+   The swatch follows the quantity the layer's mark draws the channel
+   as, which the plan carries on the legend: circles for a radius,
+   squares for a side, strokes of varying thickness for a width.
+   Graduated circles beside a width encoding would have the reader
+   comparing diameters while the panel shows thicknesses."
   [size-legend x y cfg]
   (let [{:keys [title entries]} size-legend
+        swatch (or (:swatch size-legend) :circle)
         title-color [0.2 0.2 0.2 1.0]
         point-color [0.4 0.4 0.4 1.0]
-        max-r (reduce max (map :radius entries))
-        row-h 18]
+        ;; A legend with no entries has no widest mark. `log-ticks`
+        ;; returns none for a log domain holding no 1-2-5 tick, which a
+        ;; constant size column gives it, so `reduce max` was handed an
+        ;; empty sequence and threw an arity error out of the renderer.
+        column-w (layout/size-legend-swatch-w size-legend)
+        ;; Tall enough for the widest swatch. A range the writer widens
+        ;; -- `{:range [3 20]}` -- draws circles taller than the 18 a
+        ;; row used to be, and they overlapped down the column.
+        row-h (layout/size-legend-row-h size-legend cfg)]
     (vec
      (concat
       (when title
@@ -181,18 +207,23 @@
                               (ui/with-color title-color
                                 (ui/label (defaults/fmt-name title) (ui/font nil 11))))
                 :legend true)])
-      (for [[i {:keys [value radius]}] (map-indexed vector entries)
+      (for [[i {:keys [value magnitude]}] (map-indexed vector entries)
             :let [cy (+ y (* i row-h))
-                  ;; Center circles horizontally on the max radius
-                  cx (+ x max-r)]]
+                  ;; Center each swatch on the widest one's column
+                  cx (+ x (* 0.5 column-w))
+                  [w h] (size-swatch-box swatch magnitude)]]
         (assoc
          (ui/translate 0 0
-                       [(assoc (ui/translate (- cx radius) (- cy radius)
+                       [(assoc (ui/translate (- cx (* 0.5 w)) (- cy (* 0.5 h))
                                              (ui/with-color point-color
                                                (ui/with-style ::ui/style-fill
-                                                 (ui/rounded-rectangle (* 2 radius) (* 2 radius) radius))))
+                                                 (ui/rounded-rectangle
+                                                  w h (case swatch
+                                                        :circle  (* 0.5 h)
+                                                        :square  0.0
+                                                        :segment (* 0.5 h))))))
                                :legend true)
-                        (ui/translate (+ x (* 2 max-r) 6) cy
+                        (ui/translate (+ x column-w 6) cy
                                       (ui/with-color title-color
                                         (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
          :legend true))))))
@@ -460,7 +491,10 @@
                           size-y (+ base-y color-h (if legend 10 0))
                           size-elems (when size-legend
                                        (render-size-legend size-legend legend-x size-y cfg))
-                          size-h (if size-legend (+ 16 (* 18 (count (:entries size-legend)))) 0)
+                          size-h (if size-legend
+                                   (+ 16 (* (layout/size-legend-row-h size-legend cfg)
+                                            (count (:entries size-legend))))
+                                   0)
                           ;; Alpha legend
                           alpha-y (+ size-y size-h (if size-legend 10 0))
                           alpha-elems (when alpha-legend

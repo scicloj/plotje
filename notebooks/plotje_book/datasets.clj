@@ -154,11 +154,22 @@
 (kind/test-last [(fn [v] (= ["0" "1"]
                             ((juxt :x-label :y-label) (pj/plan v))))])
 
-;; Plotje reads an integer name, and a layer's mapping can refer to one:
-;; `(pj/lay-point ds {:x 0 :y 1})` plots those two columns. The shorter
-;; form, naming the columns before the mapping, cannot --
+;; Plotje reads an integer name wherever a mapping is written, so
+;; `(pj/lay-point ds 0 1)` and `(pj/lay-point ds {:x 0 :y 1})` both
+;; plot those two columns:
+
+(-> (tc/dataset [[1 2] [3 4] [5 7]])
+    (pj/lay-point 0 1))
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
+;; What the data decides is which of two readings a number takes: a
+;; number the data carries as a column name is that column, and any
+;; other number is a value to place a mark at. So the same code can
+;; mean different things on differently named data --
 ;; [Known Limitations](./plotje_book.known_limitations.html#integer-column-names)
-;; has the reason. Renaming the columns makes both forms available:
+;; has the detail, and `{:x {:column 0}}` or `{:x {:value 0}}` settles
+;; it in place. Renaming the columns is the other remedy:
 
 (-> (tc/dataset [[1 2] [3 4] [5 7]])
     (tc/rename-columns [:x :y])

@@ -2,9 +2,11 @@
  "🧱 Foundations" ["datasets"
                    "pose_model"
                    "core_concepts"
+                   "specifying_aesthetics"
                    "composition"
                    "options_and_scopes"
                    "pose_rules"
+                   "column_types"
                    "inference_rules"
                    "layer_types"
                    "glossary"]
@@ -15,6 +17,7 @@
                            "relationships"]
  "🍳 How-to Guides" ["cookbook"
                      "configuration"
+                     "scales"
                      "customization"
                      "placing_marks"
                      "faceting"

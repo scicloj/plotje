@@ -4,6 +4,7 @@
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.datetime :as dt-dt]
             [java-time.api :as jt]
+            [scicloj.plotje.impl.aesthetics :as aes]
             [scicloj.plotje.impl.defaults :as defaults]))
 
 ;; ---- Helpers ----
@@ -15,10 +16,15 @@
   (or (keyword? v) (string? v)))
 
 (def positional-aesthetics
-  "The aesthetics that place a mark, and so may be given as a value.
-   Named for the glossary's sake: `:position` there is the dodge / stack
-   / fill adjustment, which these have nothing to do with."
-  [:x :y :x-end :y-end])
+  "The aesthetics whose literal value becomes a constant column before
+   anything else reads the mapping. Derived from
+   `defaults/aesthetic-registry`, which is where a new one is added.
+
+   Narrower than the glossary's positional aesthetics: the band bounds
+   place a mark too, but their marks read the value straight from the
+   mapping, so turning it into a column would take it from the only
+   code that wants it."
+  defaults/literal-to-column-aesthetics)
 
 (defn literal-position?
   "True of a value that places a mark on its own, as `{:x 6.5}` does,
@@ -256,49 +262,86 @@
 
 (defn resolve-aesthetics
   "Classify each aesthetic channel (:color, :size, :alpha, :text) as either
-   a column reference or a fixed literal value.
-   For :color, a string value is checked against dataset column names
-   (both string and keyword) — if it matches, it's treated as a column ref;
-   otherwise it's a literal color string.
+   a column reference or a fixed value it is drawn as.
+
+   **The data decides**, uniformly: a value is a column reference when
+   the layer's data carries a column of that exact name, and is drawn
+   as it stands otherwise. That one rule replaces three that disagreed
+   -- `:color` looked the value up, `:size` and `:alpha` called anything
+   keyword-or-string a column without checking, and each was written
+   out separately here. `impl.aesthetics/source` is where it now lives,
+   and `impl.pose/validate-columns` reports a value that is neither a
+   column nor something the aesthetic can draw, so nothing arrives here
+   having failed both readings.
+
+   `:text` keeps the older test on purpose. Its drawn reading exists
+   only on a layer with no data -- `impl.pose/resolve-positional-values`
+   holds it -- and this function is only ever called with a dataset, so
+   asking the data here would turn a reported mistake into a layer that
+   draws no labels.
+
    Returns a map with keys :color, :color-is-col?, :color-type, :fixed-color,
    :size, :size-is-col?, :fixed-size, :alpha, :alpha-is-col?, :fixed-alpha,
    :text-col."
   [ds v]
-  (let [color-val (:color v)
-        color-is-col? (and color-val (column-ref? color-val)
-                           ;; A string :color is a column reference only when a
-                           ;; column with that exact name exists; otherwise it
-                           ;; is treated as a literal CSS color.
-                           (contains? (set (tc/column-names ds)) color-val))
+  (let [col-names (set (tc/column-names ds))
+        ;; `:__source` and `:__scale` carry what an explicit mapping
+        ;; said out loud; both are absent where one was written plainly,
+        ;; which is what leaves the conventions in charge there.
+        said-source (fn [k] (get-in v [:__source k]))
+        said-scale  (fn [k] (get-in v [:__scale k]))
+        column? (fn [k x] (and x (= :column (aes/source x col-names (said-source k)))))
+        color-val (:color v)
+        color-is-col? (column? :color color-val)
+        ;; A color column drawn as it stands -- ggplot2's
+        ;; `scale_colour_identity()`, spelled `{:scale false}`. Only
+        ;; reachable by saying so: a column passes through its scale by
+        ;; convention whatever it holds, so a column of hex codes is
+        ;; three categories until the writer says otherwise.
+        color-drawn? (and color-is-col?
+                          (not (aes/scaled? :color {:source :column
+                                                    :value color-val
+                                                    :scale (said-scale :color)})))
+        ;; Still classified, and still grouped by: a drawn color column
+        ;; splits the layer into one group per distinct color exactly as
+        ;; a category column does. All that changes is where each
+        ;; group's color comes from.
         c-type (when color-is-col?
                  (or (:color-type v) (column-type ds color-val)))
         fixed-color (when (and color-val (not color-is-col?)) color-val)
         size-val (:size v)
-        size-is-col? (and size-val (column-ref? size-val))
+        size-is-col? (column? :size size-val)
         fixed-size (when (and size-val (not size-is-col?)) size-val)
+        ;; A column told not to scale holds radii already --
+        ;; `scale_size_identity()`. Reachable only by saying so, as
+        ;; every identity reading is.
+        size-drawn? (and size-is-col?
+                         (not (aes/scaled? :size {:source :column
+                                                  :value size-val
+                                                  :scale (said-scale :size)})))
         alpha-val (:alpha v)
-        alpha-is-col? (and alpha-val (column-ref? alpha-val))
+        alpha-is-col? (column? :alpha alpha-val)
         fixed-alpha (when (and alpha-val (not alpha-is-col?)) alpha-val)
+        alpha-drawn? (and alpha-is-col?
+                          (not (aes/scaled? :alpha {:source :column
+                                                    :value alpha-val
+                                                    :scale (said-scale :alpha)})))
         text-val (:text v)
         text-col (when (and text-val (column-ref? text-val)) text-val)]
     {:color (when color-is-col? color-val)
      :color-is-col? color-is-col?
+     :color-drawn? color-drawn?
      :color-type c-type
      :fixed-color fixed-color
      :size (when size-is-col? size-val)
      :size-is-col? size-is-col?
+     :size-drawn? size-drawn?
      :fixed-size fixed-size
      :alpha (when alpha-is-col? alpha-val)
      :alpha-is-col? alpha-is-col?
+     :alpha-drawn? alpha-drawn?
      :fixed-alpha fixed-alpha
      :text-col text-col}))
-
-(def continuous-aesthetics
-  "Aesthetics whose column must hold numbers, because what they encode
-   is a magnitude: a radius, an opacity, a place on a gradient. `:color`
-   is not among them -- a categorical color column is a palette, which
-   is the reading these three have no counterpart for."
-  [:size :alpha :fill])
 
 (defn validate-continuous-aesthetics
   "Throw a clear error when `:size`, `:alpha` or `:fill` names a
@@ -307,7 +350,7 @@
    the column."
   [ds v]
   (let [col-names (set (tc/column-names ds))]
-    (doseq [k continuous-aesthetics
+    (doseq [k defaults/continuous-column-aesthetics
             :let [col (get v k)]
             :when (and col (column-ref? col) (contains? col-names col))]
       (when (= :categorical (column-type ds col))
@@ -417,11 +460,25 @@
               (assoc :text (resolve-col-name resolved-ds (:text v)))
               (and (:group v) (column-ref? (:group v)))
               (assoc :group (resolve-col-name resolved-ds (:group v)))
+              ;; A `:shape` naming no column is one symbol for the whole
+              ;; layer, so it moves to `:fixed-shape` and leaves `:shape`
+              ;; empty -- `collect-shapes` reads categories out of a
+              ;; column, and there is no column and no category here.
+              ;; Same shape of move as `:size` 7 becoming `:fixed-size`.
+              ;; `:__source` is passed for the same reason every other
+              ;; reading consults it: `{:value :circle}` on data that
+              ;; carries a column called `:circle` is the symbol.
+              (and (:shape v)
+                   (= :value (aes/source (:shape v)
+                                         (set (tc/column-names resolved-ds))
+                                         (get-in v [:__source :shape]))))
+              (-> (assoc :fixed-shape (:shape v)) (dissoc :shape))
               (and (:x-end v) (column-ref? (:x-end v)))
               (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))
           _ (validate-continuous-aesthetics resolved-ds v)
-          {:keys [color color-type fixed-color
-                  size fixed-size alpha fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
+          {:keys [color color-type color-drawn? fixed-color
+                  size size-drawn? fixed-size
+                  alpha alpha-drawn? fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
           group (infer-grouping v color-type color)
           {:keys [mark stat]} (infer-layer-type v x-type y-type x-temporal? y-temporal?)
           ;; Validate that category-grouping marks have a categorical axis.
@@ -484,8 +541,11 @@
           resolved (cond-> (assoc v :data resolved-ds :x-type x-type :y-type y-type
                                   :color-type color-type :group group :mark mark :stat stat
                                   :color color :fixed-color fixed-color
+                                  :color-drawn? color-drawn?
                                   :size size :fixed-size fixed-size
+                                  :size-drawn? size-drawn?
                                   :alpha alpha :fixed-alpha fixed-alpha
+                                  :alpha-drawn? alpha-drawn?
                                   :text-col text-col)
                      x-temporal? (assoc :x-temporal? true)
                      y-temporal? (assoc :y-temporal? true)

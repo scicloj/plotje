@@ -749,19 +749,42 @@
       (is (= 501 (get-in result [:opts :width])))
       (is (= 299 (get-in result [:opts :height]))))))
 
-(deftest composite-scale-writes-root-opts-test
-  (testing "pj/scale on a composite writes :x-scale at the root"
+(deftest composite-scale-writes-the-root-mapping-test
+  (testing "pj/scale on a composite writes the root's mapping"
+    ;; From there it flows into every cell, as any outer mapping does.
     (let [fr {:poses [{:layers [] :mapping {:x :a :y :b}}]}
           result (pj/scale fr :x :log)]
       (is (pj/pose? result))
-      (is (= {:type :log} (get-in result [:opts :x-scale]))))))
+      (is (= {:scale {:type :log}} (get-in result [:mapping :x]))))))
 
-(deftest composite-scale-accepts-map-spec-test
-  (testing "pj/scale with a map scale-type fills in :linear as default :type"
+(deftest composite-scale-writes-the-spec-as-written-test
+  (testing "pj/scale with a map scale-type writes what the caller stated"
+    ;; No :type is filled in here. A spec that names none is not an
+    ;; opinion that the scale is linear, and fabricating one made the
+    ;; second of two pj/scale calls silently undo the first one's type.
+    ;; The default is applied once, after every scope has accumulated;
+    ;; scale_spec_test covers what the plan then reads.
     (let [fr {:poses [{:layers []}]}
           result (pj/scale fr :y {:breaks [0 5 10]})]
-      (is (= {:type :linear :breaks [0 5 10]}
-             (get-in result [:opts :y-scale]))))))
+      (is (= {:breaks [0 5 10]}
+             (get-in result [:mapping :y :scale]))))))
+
+(deftest scale-twice-keeps-the-type-set-first-test
+  (testing "a second pj/scale call does not reset the type the first set"
+    (let [d {:x [1 10 100] :y [1 2 3]}
+          x-scale #(-> % pj/plan :panels first :x-scale)]
+      (is (= {:type :log}
+             (x-scale (-> d (pj/lay-point :x :y) (pj/scale :x :log)))))
+      (is (= {:type :log :breaks [1 10 100]}
+             (x-scale (-> d
+                          (pj/lay-point :x :y)
+                          (pj/scale :x :log)
+                          (pj/scale :x {:breaks [1 10 100]})))))
+      ;; and the fallback still lands where nothing named a type
+      (is (= {:type :linear :breaks [1 2 3]}
+             (x-scale (-> d
+                          (pj/lay-point :x :y)
+                          (pj/scale :x {:breaks [1 2 3]}))))))))
 
 (deftest composite-coord-writes-root-opts-test
   (testing "pj/coord on a composite writes :coord at the root"
@@ -791,7 +814,8 @@
                      (pj/lay-point :a :b))]
       (is (pj/pose? result))
       (is (= "chart" (get-in result [:opts :title])))
-      (is (= {:type :log} (get-in result [:opts :x-scale])))
+      (is (= {:type :log} (get-in result [:mapping :x :scale]))
+          "pj/scale writes the mapping, where the scale is read")
       (is (= :polar (get-in result [:opts :coord])))
       (is (= 1 (count (get-in result [:poses 0 :layers])))
           "lay-* still landed on the one matching leaf"))))
@@ -918,13 +942,19 @@
       (is (re-find #":colour" (str warnings))))))
 
 (deftest pose-literal-map-position-check-test
-  (testing "non-column-ref :x or :y throws with a helpful message"
+  (testing ":x or :y that names no column and places no mark throws"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #"must be a column reference"
          (pj/pose {:data {:x [1 2] :y [3 4]}
-                   :mapping {:x 5 :y :y}  ; :x is a scalar, not a col ref
-                   :layers [{:layer-type :point}]})))))
+                   :mapping {:x [1 2] :y :y}  ; a vector is neither
+                   :layers [{:layer-type :point}]}))))
+
+  (testing "a number is resolved by the data, as it is anywhere else"
+    ;; No column named 5, so it is a datum on the x axis.
+    (is (pj/pose? (pj/pose {:data {:x [1 2] :y [3 4]}
+                            :mapping {:x 5 :y :y}
+                            :layers [{:layer-type :point}]})))))
 
 (deftest pose-literal-map-validation-via-plot-test
   (testing "calling pj/plot directly on a literal map also validates"

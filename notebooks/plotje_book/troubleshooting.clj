@@ -234,9 +234,9 @@
 ;; `"does not recognize option(s): [:scale-x]"` -- and the chart
 ;; comes out on a linear axis.
 ;;
-;; **Cause**: Scales are plot-level, not layer-level or option-map
-;; keys. They are set by the `pj/scale` function, not by a
-;; `:scale-*` key.
+;; **Cause**: `:scale-x` and `:scale-y` are not option keys at all. A
+;; scale is set with `pj/scale`, called on the pose, or inside a
+;; mapping written out in full -- `{:x {:column :carat :scale :log}}`.
 ;;
 ;; The wrong form does not throw; it warns and silently falls back
 ;; to a linear axis:
@@ -257,7 +257,8 @@
 
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
-;; `pj/scale` takes the pose, the axis (`:x` or `:y`), and
+;; `pj/scale` takes the pose, an aesthetic -- an axis (`:x`, `:y`) or a
+;; visual one (`:size`, `:alpha`, `:color`, `:fill`, `:shape`) -- and
 ;; either a type keyword (`:linear`, `:log`) or a scale specification
 ;; map with `:type` and an optional `:domain` override.
 ;; See the [Inference Rules](./plotje_book.inference_rules.html#domains)
@@ -448,22 +449,21 @@
 ;; `:y-intercept` and `pj/lay-rule-v` with `:x-intercept` draw a line
 ;; across the whole panel, which one `:x` and one `:y` cannot say.
 
-;; **A scalar that is a column name is still refused.** A dataset
-;; built without column names is given integer ones, so mapping such a
-;; column reads as a fixed x and is refused in the same words:
+;; **A number is read against the data.** A dataset built without
+;; column names is given integer ones, and a number in a mapping names
+;; such a column where the data carries it:
 
-(try
-  (-> (tc/dataset [[1 2] [3 4] [5 7]])
-      (pj/lay-point 0 1)
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+(-> (tc/dataset [[1 2] [3 4] [5 7]])
+    (pj/lay-point 0 1))
 
-(kind/test-last
- [(fn [msg] (re-find #":x must be a column reference" msg))])
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
-;; Here the one-row dataset above is the wrong remedy -- the values are
-;; already in the data, only the names are unusable. Rename the columns
-;; and map them by name instead:
+;; Where the data carries no column of that name, the same number is a
+;; value to place a mark at, and the axis stretches to hold it. To say
+;; which reading you mean rather than letting the data decide, write
+;; the mapping in full: `{:x {:column 0}}` reads the column and
+;; `{:x {:value 0}}` places every mark at zero. Renaming the columns is
+;; the other remedy, and usually the clearer one:
 
 (-> (tc/dataset [[1 2] [3 4] [5 7]])
     (tc/rename-columns [:x :y])
@@ -546,6 +546,69 @@
 ;; A future opt-in option (e.g. `(pj/coord :flip
 ;; {:reverse-categorical true})`) would remove the need to pre-sort.
 ;; Tracked in `CHANGELOG.md` Known limitations.
+
+;; ## Point Sizes Changed From an Earlier Release
+;;
+;; **Symptom**: A plot with `{:size :some-column}` draws its middle
+;; values larger than it used to, and the difference between the
+;; smallest and largest points looks less dramatic.
+;;
+;; **Cause**: A size scale spreads the square root of the value across
+;; the radii, so the area of a mark grows with the value rather than
+;; with its square. Earlier releases spread the value itself, which
+;; exaggerates the differences. The two ends of the range are
+;; unchanged; the values between them moved.
+
+(-> {:x [1 2 3 4 5 6] :y [1 1 1 1 1 1] :n [1 4 9 16 25 36]}
+    (pj/lay-point :x :y {:size :n}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [radii #(sort (:sizes (pj/svg-summary %)))
+          now (radii fr)
+          before (radii (-> fr (pj/scale :size {:by :linear})))]
+      ;; The two ends are the same radii as before. Every value
+      ;; between them is drawn larger.
+      (and (= (first now) (first before))
+           (= (last now) (last before))
+           (every? (fn [[a b]] (> a b))
+                   (map vector (butlast (rest now)) (butlast (rest before)))))))])
+
+;; **Fix**: `{:by :linear}` restores the earlier reading, and
+;; `{:by :area}` gives the strict one, where equal steps in value are
+;; equal steps in ink:
+
+(-> {:x [1 2 3 4 5 6] :y [1 1 1 1 1 1] :n [1 4 9 16 25 36]}
+    (pj/lay-point :x :y {:size :n})
+    (pj/scale :size {:by :linear}))
+
+(kind/test-last
+ [(fn [v] (= 6 (:points (pj/svg-summary v))))])
+
+;; ## A `:size` or `:alpha` Column That Changes Nothing
+;;
+;; **Symptom**: `{:size :some-column}` on a line, boxplot or lollipop
+;; draws marks of one size, and a warning names the marks that vary
+;; the aesthetic.
+;;
+;; **Cause**: Only marks that draw a size per row can read a size
+;; column. Among the built-in marks that is `pj/lay-point`. Every other
+;; mark draws one width or one opacity for the whole layer, so the
+;; column changes nothing. No legend is drawn for it either, since the
+;; legend would describe an encoding the panel does not show.
+;;
+;; **Fix**: Write the value itself for a layer-wide size -- `{:size 2}`
+;; on a line is a stroke width -- and map the column on a layer whose
+;; mark varies it.
+
+(-> {:x [1 2 3] :y [2 4 3] :r [1 2 3]}
+    (pj/pose :x :y)
+    (pj/lay-line {:size 2})
+    (pj/lay-point {:size :r}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 3 (:points s)) (pos? (:lines s)))))])
 
 ;; ## Dodge Has No Effect on Point Layers
 
@@ -643,7 +706,7 @@
  [(fn [msg] (re-find #"String cannot be cast to.*Number" msg))])
 
 ;; **Fix**: render a numeric-indexed grid (1-N integers in place of
-;; the categorical column) and pair `:breaks` with `:labels` on the
+;; the categorical column) and pair `:breaks` with `:tick-labels` on the
 ;; axis so the tick text shows the original category names:
 
 (-> (for [day (range 1 8) hour (range 0 24)]
@@ -652,7 +715,7 @@
     (pj/lay-tile :day :hour {:fill :v})
     (pj/scale :x {:type :linear
                   :breaks [1 2 3 4 5 6 7]
-                  :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
+                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
@@ -660,7 +723,7 @@
 
 ;; If a true categorical *axis* (with binning over labels rather
 ;; than numeric intervals) is what you need, that is tracked in
-;; `CHANGELOG.md` Known limitations. The integer-plus-`:labels`
+;; `CHANGELOG.md` Known limitations. The integer-plus-`:tick-labels`
 ;; pattern above covers most heatmap-with-categorical-axis cases.
 
 ;; ## See Also

@@ -18,7 +18,8 @@
             [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.impl.layout :as layout]
             [scicloj.plotje.impl.text :as text]
-            [scicloj.plotje.impl.plan-schema :as ss]))
+            [scicloj.plotje.impl.plan-schema :as ss]
+            [scicloj.plotje.layer-type :as layer-type]))
 
 ;; ---- Domain Helpers ----
 
@@ -26,8 +27,10 @@
   "Collect and merge domains from stat results along axis-key.
    Throws if some stat results contribute numeric domains and others
    contribute categorical domains -- mixing the two on one axis is
-   ambiguous."
-  [stat-results axis-key scale-spec]
+   ambiguous.
+
+   `padding` is the resolved `:domain-padding`."
+  [stat-results axis-key scale-spec padding]
   (let [parsed (keep (fn [sr]
                        (when-let [d (axis-key sr)]
                          {:vals (if (and (= 2 (count d)) (number? (first d)))
@@ -44,7 +47,7 @@
                          :domains (mapv :vals parsed)})))
       (let [vals (mapcat :vals parsed)]
         (if (number? (first vals))
-          (scale/pad-domain [(reduce min vals) (reduce max vals)] scale-spec)
+          (scale/pad-domain [(reduce min vals) (reduce max vals)] scale-spec padding)
           (distinct vals))))))
 
 (defn compute-global-y-domain
@@ -53,8 +56,10 @@
    include 0 for marks that draw from a zero baseline (bar, area,
    lollipop) on linear scales. On log scales, baseline
    extension is skipped -- the lower bound is the smallest positive
-   value the layers report -- because log scales have no zero."
-  [plan-layers scale-spec]
+   value the layers report -- because log scales have no zero.
+
+   `padding` is the resolved `:domain-padding`."
+  [plan-layers scale-spec padding]
   (let [fill-layers (filter #(= :fill (:position %)) plan-layers)
         stack-layers (filter #(= :stack (:position %)) plan-layers)
         log? (= :log (:type scale-spec))
@@ -102,7 +107,7 @@
           (let [lo (double (reduce min all-vals))
                 hi (double (reduce max all-vals))]
             (if (< lo hi)
-              (scale/pad-domain [lo hi] scale-spec)
+              (scale/pad-domain [lo hi] scale-spec padding)
               [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
           [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
 
@@ -121,10 +126,10 @@
                 ;; Baseline marks: include zero, only pad away from zero.
                 (let [lo (min 0.0 raw-lo)
                       hi (max 0.0 raw-hi)
-                      [plo phi] (scale/pad-domain [lo hi] scale-spec)]
+                      [plo phi] (scale/pad-domain [lo hi] scale-spec padding)]
                   [(if (>= raw-lo 0.0) 0.0 plo)
                    (if (<= raw-hi 0.0) 0.0 phi)])
-                (scale/pad-domain [raw-lo raw-hi] scale-spec)))
+                (scale/pad-domain [raw-lo raw-hi] scale-spec padding)))
             (distinct vals)))))))
 
 ;; ---- Tick Computation ----
@@ -195,6 +200,24 @@
                          :categories (vec domain)}))
         (println (str "Warning: " msg))))))
 
+(defn- warn-categorical-tick-spacing!
+  "Warn when a scale spec asks a categorical axis for a tick spacing.
+
+   A numeric axis chooses its ticks, and a spacing tells that choice
+   about how much room a tick should have. A categorical axis has no such
+   choice to steer -- its ticks are its categories -- so `:n-ticks` is
+   what thins them. Written in a spec the key would otherwise do
+   nothing, which is the reading this release exists to remove; the
+   plot option of the same name is left alone, since it steers
+   whichever axes on the plot are numeric."
+  [scale-spec]
+  (when (contains? scale-spec :tick-spacing)
+    (println (str "Warning: :tick-spacing " (pr-str (:tick-spacing scale-spec))
+                  " on a categorical axis places no ticks. The ticks of a"
+                  " categorical axis are its categories; :n-ticks thins"
+                  " them to about that many, and :breaks names the ones"
+                  " to keep."))))
+
 (defn compute-ticks
   "Compute tick values and labels for a domain+pixel range, using wadogo transiently.
    When temporal-extent is provided (a [min max] pair of temporal objects),
@@ -202,14 +225,14 @@
    When `scale-spec` contains `:breaks` (a vector of numbers), those
    exact values are used as ticks instead of the auto-computed ones
    -- ggplot2's `scale_*_continuous(breaks = ...)` equivalent. When
-   `scale-spec` also contains `:labels` (a vector of strings), those
+   `scale-spec` also contains `:tick-labels` (a vector of strings), those
    replace the auto-formatted labels at the corresponding break
    positions.
 
    On a categorical axis, `:breaks` selects which categories get a tick
    (ggplot2's discrete `breaks`): each break is matched to a category by
    its displayed label, unmatched breaks are dropped with a warning, and
-   `:labels` relabels the kept ticks. Explicit `:breaks` take precedence
+   `:tick-labels` relabels the kept ticks. Explicit `:breaks` take precedence
    over `:n-ticks` -- when both are given, the exact breaks win and no
    thinning is applied."
   ([domain pixel-range scale-spec spacing]
@@ -219,11 +242,11 @@
   ([domain pixel-range scale-spec spacing temporal-extent separators]
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
-           user-labels (:labels scale-spec)]
+           user-labels (:tick-labels scale-spec)]
        (if (and user-breaks (sequential? user-breaks) (seq user-breaks))
          ;; Explicit category subset -- :breaks wins over :n-ticks. Match
          ;; each break to a category by displayed label, keep them in the
-         ;; user's order, and relabel with :labels when given.
+         ;; user's order, and relabel with :tick-labels when given.
          (let [display->cat (into {} (map (juxt defaults/fmt-category-label identity)
                                           domain))
                break-labels (if (and user-labels (sequential? user-labels))
@@ -236,17 +259,26 @@
              {:values (mapv (fn [[b _]] (display->cat (defaults/fmt-category-label b))) kept)
               :labels (mapv second kept)
               :categorical? true}))
-         (let [s (scale/make-scale domain pixel-range scale-spec)]
-           {:values (vec (ws/ticks s))
-            :labels (mapv defaults/fmt-category-label (ws/ticks s))
+         (let [s (scale/make-scale domain pixel-range scale-spec)
+               ;; The ticks of a categorical axis are its categories,
+               ;; and `:n-ticks` thins them. A tick spacing steers the
+               ;; algorithm that picks numeric ticks, and there is no
+               ;; such algorithm here -- see `warn-categorical-tick-spacing!`.
+               ticks (if-let [n (:n-ticks scale-spec)]
+                       (ws/ticks s n)
+                       (ws/ticks s))]
+           (warn-categorical-tick-spacing! scale-spec)
+           {:values (vec ticks)
+            :labels (mapv defaults/fmt-category-label ticks)
             :categorical? true})))
-     (let [n (scale/tick-count (Math/abs (double (- (second pixel-range) (first pixel-range)))) spacing)
+     (let [n (scale/tick-count (Math/abs (double (- (second pixel-range) (first pixel-range))))
+                               scale-spec spacing)
            log? (= :log (:type scale-spec))
            user-breaks (:breaks scale-spec)
-           user-labels (:labels scale-spec)]
+           user-labels (:tick-labels scale-spec)]
        (cond
          ;; User-supplied breaks override everything — use the exact values
-         ;; they asked for. Labels come from user-supplied :labels when
+         ;; they asked for. Labels come from user-supplied :tick-labels when
          ;; provided, otherwise from the same format the scale uses.
          (and user-breaks (sequential? user-breaks) (seq user-breaks))
          (let [vs (vec user-breaks)
@@ -289,11 +321,9 @@
 
 (def ^:private channel->scale-keyword
   "Channel keyword to the resolved-layer key holding its scale spec.
-   Mirrors the public pj/scale surface for axes (:x, :y) and continuous
-   visual channels (:size, :alpha, :fill, :color)."
-  {:x :x-scale :y :y-scale
-   :size :size-scale :alpha :alpha-scale
-   :fill :fill-scale :color :color-scale})
+   The same table `pj/scale` writes through, minus `:shape`, whose
+   scale carries symbols rather than a `:type` this function reads."
+  (dissoc defaults/channel->scale-key :shape))
 
 (defn- log-scaled-cols
   "Return [[channel column-name] ...] for every channel in `rv` whose
@@ -423,54 +453,155 @@
                                         ;; by it the same way. The renderer applies it once.
                                         (cond-> (:offset-x rv) (assoc :offset-x (:offset-x rv))
                                                 (:offset-y rv) (assoc :offset-y (:offset-y rv))
-                                                (:in rv) (assoc :in (:in rv)))))
+                                                (:in rv) (assoc :in (:in rv))
+                                                ;; Carried for the same reason as :in --
+                                                ;; the renderer measures an unscaled axis
+                                                ;; from the panel corner rather than
+                                                ;; through the scale, one axis at a time.
+                                                (:x-drawn? rv) (assoc :x-drawn? true)
+                                                (:y-drawn? rv) (assoc :y-drawn? true))))
                                   resolved stat-results))
         plan-layers (position/apply-positions raw-plan-layers)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
+
+(defn- scaled-color-column?
+  "True of a resolved draft layer whose `:color` names a column that
+   passes through the color scale.
+
+   A column drawn as it stands holds colors, not categories: it takes
+   no palette entry and explains no scale, so it belongs in neither
+   the category list nor the legend title. Left in, its values took
+   palette slots away from a scaled layer beside it -- so a two-layer
+   plot drew its categories in the wrong colors -- and earned legend
+   rows pairing `#00FF00` with the palette blue that drew nothing."
+  [resolved-layer]
+  (and (resolve/column-ref? (:color resolved-layer))
+       (not (:color-drawn? resolved-layer))))
+
+(defn- categorical-domain
+  "The order a `:domain` on a scale spec supplies for a categorical
+   aesthetic.
+
+   Reached only where the column's type has already settled that the
+   aesthetic is categorical: `collect-colors` calls it inside its
+   `when-not numeric-color?` branch, and `:shape` accepts no other
+   type. So the column's type decides how a written `:domain` is read
+   and the domain's own shape decides nothing -- the same rule
+   `axis-domain` states and follows.
+
+   One key carries both readings, because `:color` can be drawn either
+   way: on a numeric column it reads `[lo hi]` as the ends of a
+   gradient, which is `scale/numeric-color-domain`, reached from the
+   other branch of that same `numeric-color?` test.
+
+   Testing the domain's shape here instead was a second rule for one
+   question. It discarded `{:domain [2 1]}` on a column of exactly two
+   numeric categories, without a message, while `:x` honoured the same
+   domain on the same column."
+  [spec]
+  (let [d (:domain spec)]
+    (when (and (sequential? d) (seq d))
+      d)))
+
+(defn- category-label
+  "How a category is matched against an entry of a written `:domain`.
+
+   By the text the category is drawn with, so a column of numbers read
+   as categories can be ordered by those numbers as well as by the text
+   they become: an axis holds `\"4\"` where the column held `4`, and
+   both should name the same band."
+  [v]
+  (defaults/fmt-category-label v))
+
+(defn- order-by-domain
+  "Order `observed` categories by an explicit `domain`. Domain entries
+   come first, in the order given; observed categories the domain omits
+   follow in the order they appear in the data, so nothing silently
+   loses its place. `warn-category-domain-gap!` reports the omissions.
+
+   The values answered are always the observed ones. The marks carry
+   the column's own representation and are placed against these, so
+   answering the written domain's would leave a scale whose categories
+   no mark matches."
+  [observed domain]
+  (let [by-label (into {} (map (juxt category-label identity) (reverse observed)))
+        listed (vec (distinct (keep (comp by-label category-label) domain)))
+        listed-set (set listed)]
+    (into listed (remove listed-set observed))))
+
+(defn- warn-category-domain-gap!
+  "Warn when a `pj/scale` `:domain` leaves out categories the data
+   contains. Those categories still get drawn -- appended after the
+   listed ones -- but the user asked for an order that does not cover
+   them, which is usually a typo or a stale category list."
+  [aesthetic observed domain]
+  (let [listed (set (map category-label domain))]
+    (when-let [missing (seq (remove (comp listed category-label) observed))]
+      (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
+                    ". Those categories are still drawn, ordered after the "
+                    "listed ones. List every category to control the whole "
+                    "legend order.")))))
+
+(defn- axis-domain
+  "The domain an axis is drawn against, given its scale spec and what
+   the data covers.
+
+   The column's type decides how a written `:domain` is read, not the
+   written domain's own shape. Against a categorical column it supplies
+   the order of the categories, as it does for `:color` and `:shape`;
+   against a continuous one it replaces the range outright, which is
+   how a view window is set.
+
+   Reading the shape instead made `{:domain [4 5 6 8]}` on a
+   categorical axis look like a numeric range: the axis was built as a
+   linear scale, and every mark -- text by the time it got there --
+   died casting inside it. A temporal axis is unaffected either way,
+   since its domain reaches here as epoch numbers."
+  [aesthetic spec data-domain]
+  (let [written (:domain spec)]
+    (cond
+      (nil? written) data-domain
+
+      (and (some? data-domain) (scale/categorical-domain? data-domain))
+      (do (warn-category-domain-gap! aesthetic data-domain written)
+          (order-by-domain data-domain written))
+
+      :else written)))
 
 (defn- collect-colors
   "Resolve draft layers and collect color categories across all draft layers.
    Attaches :__resolved to each draft layer for downstream re-use.
    Filters infinite values and non-positive values on log-scaled axes.
+
+   Category order follows the data unless a `:domain` on the colour
+   scale supplied one, as `collect-shapes` does for `:shape`. The
+   palette is assigned in this order, so the domain reorders the legend
+   and the colours together.
+
    Returns {:resolved-all :numeric-color? :all-colors :color-cols :tagged-draft-layers}."
   [draft-layers]
   (let [resolved-all (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) draft-layers)
         tagged-draft-layers (mapv (fn [v rv] (assoc v :__resolved rv)) draft-layers resolved-all)
         numeric-color? (some #(= :numerical (:color-type %)) resolved-all)
         all-colors (when-not numeric-color?
-                     (let [color-draft-layers (filter #(and (resolve/column-ref? (:color %))
+                     (let [color-draft-layers (filter #(and (scaled-color-column? %)
                                                             (:data %)) resolved-all)]
                        (when (seq color-draft-layers)
-                         (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color) color-draft-layers)))))))
-        color-cols (distinct (keep #(when (resolve/column-ref? (:color %)) (:color %)) resolved-all))]
+                         (let [observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color)
+                                                                            color-draft-layers))))
+                               domain (seq (categorical-domain
+                                            (some :color-scale color-draft-layers)))]
+                           (when (and domain (seq observed))
+                             (warn-category-domain-gap! :color observed domain))
+                           (if domain
+                             (order-by-domain observed domain)
+                             observed)))))
+        color-cols (distinct (keep #(when (scaled-color-column? %) (:color %)) resolved-all))]
     {:resolved-all resolved-all
      :numeric-color? numeric-color?
      :all-colors all-colors
      :color-cols color-cols
      :tagged-draft-layers tagged-draft-layers}))
-
-(defn- order-by-domain
-  "Order `observed` categories by an explicit `domain`. Domain entries
-   come first, in the order given; observed categories the domain omits
-   follow in the order they appear in the data, so nothing silently
-   loses its place. `warn-shape-domain-gap!` reports the omissions."
-  [observed domain]
-  (let [observed-set (set observed)
-        listed (filterv observed-set domain)
-        listed-set (set listed)]
-    (into listed (remove listed-set observed))))
-
-(defn- warn-shape-domain-gap!
-  "Warn when a `pj/scale :shape` :domain leaves out categories the data
-   contains. Those categories still get a symbol -- appended after the
-   listed ones -- but the user asked for an order that does not cover
-   them, which is usually a typo or a stale category list."
-  [observed domain]
-  (when-let [missing (seq (remove (set domain) observed))]
-    (println (str "Warning: pj/scale :shape :domain omits " (vec missing)
-                  ". Those categories keep a symbol, assigned after the "
-                  "listed ones. List every category to control the whole "
-                  "shape legend order."))))
 
 (defn- warn-shape-wrap!
   "Warn when there are more shape categories than symbols to draw them
@@ -501,7 +632,7 @@
                                          (:data %)) resolved-all)]
     (when (seq shape-draft-layers)
       (let [scale (some :shape-scale shape-draft-layers)
-            domain (seq (:domain scale))
+            domain (seq (categorical-domain scale))
             syms (or (seq (:values scale)) defaults/shape-syms)
             observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
                                                          shape-draft-layers))))
@@ -510,7 +641,7 @@
                          observed)]
         (when (seq all-shapes)
           (when domain
-            (warn-shape-domain-gap! observed domain))
+            (warn-category-domain-gap! :shape observed domain))
           (warn-shape-wrap! all-shapes syms)
           {:all-shapes all-shapes
            :shape-cols (distinct (keep #(when (resolve/column-ref? (:shape %)) (:shape %))
@@ -523,17 +654,19 @@
          size, so colors will visibly repeat;
      (2) the user passed a gradient-family palette name (`:viridis`,
          `:plasma`, `:inferno`, `:magma`, `:turbo`, `:rocket`, `:mako`,
-         `:cividis`, `:RdBu`, `:RdYlBu`, `:BrBG`, `:coolwarm`) to
-         `:palette`. These are continuous gradients, not categorical
-         palettes -- the user probably wanted `:color-scale` with a
-         numeric color column; or
+         `:cividis`, `:RdBu`, `:RdYlBu`, `:BrBG`, `:coolwarm`) as the
+         colours themselves. These are continuous gradients, not
+         categorical palettes -- the user probably wanted a `:range`
+         with a numeric color column; or
      (3) the user passed an explicit palette keyword that resolves
          to nothing (typo or unknown name). `resolve-palette` silently
-         falls back to the default; we warn here so the user knows."
-  [all-colors cfg]
+         falls back to the default; we warn here so the user knows.
+
+   Takes the resolved palette rather than the configuration, so it
+   warns about the colours the marks are actually drawn in."
+  [all-colors palette]
   (when (seq all-colors)
-    (let [palette (:palette cfg)
-          n-cats (count all-colors)
+    (let [n-cats (count all-colors)
           resolved (when (keyword? palette) (defaults/resolve-palette palette))
           pal-size (cond
                      (map? palette) nil ;; explicit mapping — no wrap possible
@@ -549,16 +682,16 @@
       (when (and pal-size (> n-cats pal-size))
         (println (str "Warning: " n-cats " color categories exceeds palette size "
                       pal-size ". Colors will repeat. Use a larger palette via "
-                      ":palette, or reduce the number of categories.")))
+                      ":color-values, or reduce the number of categories.")))
       (when gradient?
-        (println (str "Warning: :palette " palette " is a continuous gradient, "
+        (println (str "Warning: :color :values " palette " is a continuous gradient, "
                       "not a categorical palette, so the first " n-cats " colors "
                       "will look nearly identical. For continuous color mapping "
-                      "use a numeric :color column with :color-scale "
+                      "use a numeric :color column with :range "
                       palette " instead. For a discrete palette, try "
                       ":set1, :dark2, or :tableau-10.")))
       (when unknown?
-        (println (str "Warning: :palette " palette " is not a known categorical "
+        (println (str "Warning: :color :values " palette " is not a known categorical "
                       "palette; using default (" defaults/default-palette-name
                       "). Try :set1, :dark2, :tableau-10, or pass an explicit "
                       "vector of hex colors."))))))
@@ -579,25 +712,24 @@
 
 (defn- resolve-labels
   "Resolve effective title and axis labels.
-   Title comes from opts only; axis labels fall back to draft-layer-level :x-label/:y-label
-   (set via pj/options), then scale :label, then auto-inferred column name."
-  [draft-layers x-vars y-vars x-scale-spec y-scale-spec
+   Title comes from opts only. An axis label is one setting written at
+   two scopes: `:label` in a scale spec on a mapping or a layer, and
+   the `:x-label` / `:y-label` plot options on a pose. The innermost
+   wins, as it does for every other scale setting, so a spec beats an
+   option; with neither, the column name is inferred."
+  [x-vars y-vars x-scale-spec y-scale-spec
    title x-label y-label auto-label?]
-  (let [draft-layer-x-label (:x-label (first draft-layers))
-        draft-layer-y-label (:y-label (first draft-layers))]
-    {:eff-title title
-     :eff-x-label (or x-label
-                      draft-layer-x-label
-                      (:label x-scale-spec)
-                      (when auto-label?
-                        (when-let [x (first x-vars)] (defaults/fmt-name x))))
-     :eff-y-label (or y-label
-                      draft-layer-y-label
-                      (:label y-scale-spec)
-                      (when auto-label?
-                        (when-let [y (first y-vars)]
-                          (when (not= y (first x-vars))
-                            (defaults/fmt-name y)))))}))
+  {:eff-title title
+   :eff-x-label (or (:label x-scale-spec)
+                    x-label
+                    (when auto-label?
+                      (when-let [x (first x-vars)] (defaults/fmt-name x))))
+   :eff-y-label (or (:label y-scale-spec)
+                    y-label
+                    (when auto-label?
+                      (when-let [y (first y-vars)]
+                        (when (not= y (first x-vars))
+                          (defaults/fmt-name y)))))})
 
 (defn- finite-vals
   "Concatenate a seq of column buffers into a single Clojure vector with
@@ -635,47 +767,99 @@
                     ":color-type :categorical to split into multiple lines.")))))
 
 (defn- warn-fill-scale-without-fill!
-  "Warn once when `:fill-scale` is set but no draft layer maps to
+  "Warn once when a fill scale is set but no draft layer maps to
    `:fill`. Most marks paint with `:color`, not `:fill`; this catches
    the common slip of writing `(pj/scale :fill ...)` when `:color`
-   was meant."
-  [resolved-all opts]
-  (when (and (:fill-scale opts)
+   was meant.
+
+   Read off the draft layers rather than off `:opts`: `pj/scale` writes
+   the mapping now, so the `:fill-scale` key this looked for stopped
+   being written and the warning stopped firing. The generic
+   orphan-mapping warning still caught the case, but without the
+   fill-versus-colour guidance that is the whole point of this one."
+  [resolved-all _opts]
+  (when (and (some (defaults/channel->scale-key :fill) resolved-all)
              (not-any? :fill resolved-all))
     (println "Warning: pj/scale :fill set but no descendant layer uses"
              ":fill -- did you mean :color? :fill paints interior of"
              "tile/density-2d/bin2d marks; :color paints stroke or"
              "outline (point edge, line).")))
 
+(defn- continuous-legend-ticks
+  "Tick values for a log-scaled gradient bar, each with the fraction of
+   the bar it sits at.
+
+   A linear gradient bar is labelled at its two ends and needs none of
+   this. A log one has to say where the decades fall, or the bar cannot
+   be read back to a value.
+
+   Stated once because both continuous legends need it: the fill legend
+   had it and the colour legend did not, so `pj/scale :color :log`
+   spaced the marks and left the legend describing a linear scale."
+  [lo hi]
+  (let [lo-l (Math/log10 (max 1e-300 (double lo)))
+        hi-l (Math/log10 (max 1e-300 (double hi)))
+        span (max 1e-6 (- hi-l lo-l))]
+    (vec (for [v (scale/log-ticks [lo hi] 5)]
+           {:value v
+            :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))
+
 (defn- build-legend
   "Build legend from resolved draft layers and color info. Returns nil when the
    legend would be empty (no data, or all nil/NaN in the color column).
    `opts-title` overrides the inferred column-name title (from a
-   user-supplied `:color-label` plot option)."
+   user-supplied `:color-label` plot option).
+
+   A color column that is drawn as it stands earns no legend, the way
+   ggplot2's `scale_colour_identity()` defaults to none. A legend
+   explains a scale by pairing each category with the color chosen for
+   it; where the value already is the color there is no choice to
+   explain, and rows reading `#FF0000` beside a red dot tell a reader
+   nothing they cannot see. `collect-colors` has already left
+   those layers out of `all-colors` and `color-cols`, so a plot whose
+   every color column is drawn arrives here with nothing to list --
+   and a plot that mixes the two legends only the scaled half, rather
+   than all of it or none."
   [resolved-all numeric-color? all-colors color-cols cfg opts-title]
-  (let [grad-fn (:gradient-fn cfg)
-        title (or opts-title (first color-cols))]
+  (let [title (or opts-title (first color-cols))]
     (cond
       numeric-color?
-      (let [color-draft-layers (filter #(and (resolve/column-ref? (:color %))
+      (let [color-draft-layers (filter #(and (scaled-color-column? %)
                                              (:data %)) resolved-all)
             all-bufs (map #(aesthetic-col % :color) color-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
-          (let [c-min (dfn/reduce-min all-vals)
-                c-max (dfn/reduce-max all-vals)
+          (let [spec (some :color-scale color-draft-layers)
+                ;; Through the same function the marks read, so the bar
+                ;; a reader matches a colour against spans what the
+                ;; marks were drawn against.
+                grad-fn (defaults/scale-gradient-fn :color spec cfg)
+                [c-min c-max] (scale/numeric-color-domain
+                               spec
+                               (dfn/reduce-min all-vals)
+                               (dfn/reduce-max all-vals))
+                scale-type (or (some #(:type (:color-scale %)) color-draft-layers)
+                               :linear)
                 n-stops 20]
-            {:title title
-             :type :continuous
-             :min c-min :max c-max
-             :color-scale (:color-scale cfg)
-             :stops (vec (for [i (range n-stops)
-                               :let [t (/ (double i) (dec n-stops))]]
-                           {:t t :color (grad-fn t)}))})))
+            (cond-> {:title title
+                     :type :continuous
+                     :min c-min :max c-max
+                     :scale-type scale-type
+                     :color-range (defaults/scale-setting :color :range spec cfg)
+                     :range-from-spec? (contains? spec :range)
+                     :stops (vec (for [i (range n-stops)
+                                       :let [t (/ (double i) (dec n-stops))]]
+                                   {:t t :color (grad-fn t)}))}
+              (= :log scale-type)
+              (assoc :ticks (continuous-legend-ticks c-min c-max))))))
       (seq all-colors)
       {:title title
        :entries (vec (for [cat all-colors]
                        {:label (defaults/fmt-category-label cat)
-                        :color (defaults/color-for all-colors cat (:palette cfg))}))})))
+                        :color (defaults/color-for
+                                all-colors cat
+                                (defaults/scale-setting
+                                 :color :values
+                                 (some :color-scale resolved-all) cfg))}))})))
 
 (defn- nice-legend-values
   "Generate ~n nicely-rounded tick-like values spanning [lo, hi].
@@ -704,23 +888,11 @@
                       (/ (Math/round (* v factor)) factor)))
                   (range n))))))))
 
-(defn- continuous-channel-mapper
-  "Build a function that maps a data value to a visual property in
-   [pixel-lo, pixel-hi] using a linear or log scale.
-   `scale-type` is :linear (default) or :log."
-  [scale-type d-min d-max pixel-lo pixel-hi]
-  (let [pixel-span (- (double pixel-hi) (double pixel-lo))]
-    (if (= scale-type :log)
-      (let [lo-l (Math/log10 (max 1e-300 (double d-min)))
-            hi-l (Math/log10 (max 1e-300 (double d-max)))
-            span (max 1e-6 (- hi-l lo-l))]
-        (fn [v] (+ (double pixel-lo)
-                   (* pixel-span
-                      (/ (- (Math/log10 (max 1e-300 (double v))) lo-l)
-                         span)))))
-      (let [span (max 1e-6 (- (double d-max) (double d-min)))]
-        (fn [v] (+ (double pixel-lo)
-                   (* pixel-span (/ (- (double v) (double d-min)) span))))))))
+(def ^:private channel-mapper
+  "The legend's half of the size and alpha mapping. `render.mark` draws
+   the marks from the same function, which is why it lives in
+   `impl.scale` rather than here."
+  scale/channel-mapper)
 
 (defn- continuous-channel-ticks
   "Pick `n` tick values across [d-min, d-max] for a continuous channel
@@ -731,31 +903,166 @@
     (vec (scale/log-ticks [d-min d-max] n))
     (nice-legend-values d-min d-max n)))
 
+(defn- channel-quantity
+  "The quantity a draft layer's mark draws `channel` as, and how ink
+   grows with it, as `[quantity ink-exponent]`."
+  [draft-layer channel]
+  [(or (layer-type/mark-varies (:mark draft-layer) channel)
+       (layer-type/default-quantities channel))
+   (layer-type/ink-exponent (:mark draft-layer) channel)])
+
+(def ^:private per-row-buffer-keys
+  "Where a plan layer carries the per-row values for an appearance
+   channel, keyed by channel. What `warn-undrawn-varies!` looks for to
+   tell a declaration that is drawn from one that is only made."
+  {:size :sizes :alpha :alphas})
+
+(defn- warn-undrawn-varies!
+  "Warn when a mark declares that it varies a channel from row to row,
+   a column is mapped to that channel, and the layer carries no per-row
+   values for it.
+
+   The declaration is what earns the legend and silences the
+   nothing-on-this-plot-varies warning, so a mark that declares one and
+   draws a single value for the whole layer produces a plot advertising
+   an encoding it does not apply. `register!` checks that the layer
+   types sharing a mark agree with each other; only the extracted layer
+   can say whether the mark carries the values through to the renderer.
+
+   Reported once per mark and channel, however many panels drew it."
+  [panel-data]
+  (let [drawn? (fn [layer buffer-key]
+                 (some (fn [g] (let [b (get g buffer-key)]
+                                 (and (some? b) (pos? (count b)))))
+                       (:groups layer)))
+        offenders (for [pd panel-data
+                        [rv layer] (map vector (:resolved pd) (:layers pd))
+                        [channel buffer-key] per-row-buffer-keys
+                        :when (and (resolve/column-ref? (get rv channel))
+                                   (:data rv)
+                                   (seq (:groups layer))
+                                   (layer-type/mark-varies (:mark rv) channel)
+                                   (not (drawn? layer buffer-key)))]
+                    [(:mark rv) channel])]
+    (doseq [[mark channel] (distinct offenders)]
+      (println (str "Warning: the " mark " mark declares that it varies "
+                    channel " from row to row, and drew no per-row "
+                    (name channel) " values. Its legend explains an encoding"
+                    " the panel does not show. Either draw " channel
+                    " per row in the mark's extractor, or take " channel
+                    " out of the layer type's :varies.")))))
+
+(defn- reads-per-row?
+  "Whether `mark` varies `channel` from row to row -- the registry's
+   `:varies` declaration, asked per mark.
+
+   Every mark that does not declare the channel draws one value for the
+   whole layer: `:line` takes one stroke width, `:boxplot` one opacity.
+   A column there varies nothing, because the extractor never reads the
+   buffer -- so the request passed every check and changed not one
+   pixel, while the plot still grew a legend explaining the encoding it
+   did not apply.
+
+   This was a closed table here until the marks declared it, and a mark
+   the table had never heard of answered no. An extension that varied
+   size per row was warned about and denied its legend while drawing
+   correctly, with no way to say otherwise."
+  [channel mark]
+  (some? (layer-type/mark-varies mark channel)))
+
+(defn- thin-to
+  "At most `k` of `vs`, evenly spaced, keeping the first and the last.
+
+   The tick generators answer with nicely-rounded values rather than
+   with exactly the count they are asked for -- wadogo reads `n` as a
+   target and returns whatever the 1-2-5 step gives -- so a hard limit
+   has to be applied after the fact."
+  [vs k]
+  (let [n (count vs)]
+    (if (or (<= n k) (< k 2))
+      (vec vs)
+      (mapv #(nth vs %)
+            (distinct (map #(long (Math/round (* (/ (double %) (dec k))
+                                                 (dec n))))
+                           (range k)))))))
+
+(defn- size-legend-rows-that-fit
+  "How many rows of swatches the canvas has room for at this range.
+
+   While the range was fixed at 2 to 8 every row was eighteen tall and
+   the question never arose -- the tick generator's seven rows fit any
+   plot worth drawing. A range the writer widens makes each row as
+   tall as the mark it draws, and seven rows of forty-two ran off the
+   bottom of the canvas. The tick generator is still asked for the
+   same five; this only takes rows away when they would not fit."
+  [height range-hi]
+  (let [row-h (max 18.0 (+ 2.0 (* 2.0 (double range-hi))))
+        ;; What is left of the canvas under the title, the axis and the
+        ;; legends above this one -- measured against the standard
+        ;; chrome rather than the layout, which has not run yet.
+        room (- (double height) 120.0)]
+    (max 2 (long (Math/floor (/ room row-h))))))
+
 (defn- build-size-legend
   "Build size legend when :size maps to a numerical column. Returns nil
    when all values are nil/NaN (suppressing the legend).
    `opts-title` overrides the inferred column-name title (from a
-   user-supplied `:size-label` plot option)."
-  [resolved-all opts-title]
+   user-supplied `:size-label` plot option). `height` is the plot's, so
+   that a wide range takes fewer rows rather than more room than there
+   is."
+  [resolved-all opts-title height]
   (let [size-draft-layers (filter #(and (resolve/column-ref? (:size %))
                                         (nil? (:fixed-size %))
+                                        ;; A column drawn as it stands
+                                        ;; passed through no scale, so
+                                        ;; there is no scale to explain.
+                                        (not (:size-drawn? %))
+                                        ;; And a mark that draws one
+                                        ;; radius for the layer never
+                                        ;; read the column, so a legend
+                                        ;; here would pair values with
+                                        ;; radii the panel does not draw.
+                                        (reads-per-row? :size (:mark %))
                                         (:data %)) resolved-all)]
     (when (seq size-draft-layers)
       (let [size-col (:size (first size-draft-layers))
-            scale-type (or (:type (:size-scale (first size-draft-layers))) :linear)
+            spec (:size-scale (first size-draft-layers))
+            scale-type (or (:type spec) :linear)
+            [quantity ink-exponent] (channel-quantity (first size-draft-layers) :size)
             all-bufs (map #(aesthetic-col % :size) size-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
           (let [s-min (dfn/reduce-min all-vals)
                 s-max (dfn/reduce-max all-vals)
-                values (continuous-channel-ticks scale-type s-min s-max 5)
-                radius-fn (continuous-channel-mapper scale-type s-min s-max 2.0 8.0)]
+                ;; The values the legend labels span the scale's own
+                ;; domain, not the data's, so a `:domain` that widens
+                ;; what a size means is what the reader is told.
+                [dom-lo dom-hi] (scale/channel-domain spec s-min s-max)
+                [_ range-hi] (or (:range spec) (:size defaults/channel-ranges))
+                values (thin-to (continuous-channel-ticks
+                                 scale-type dom-lo dom-hi 5)
+                                (size-legend-rows-that-fit height range-hi))
+                magnitude-fn (channel-mapper spec s-min s-max
+                                             (:size defaults/channel-ranges)
+                                             ink-exponent)]
             {:title (or opts-title size-col)
              :type :size
              :min s-min :max s-max
              :scale-type scale-type
-             :entries (vec (for [v values]
+             ;; What the mark draws the channel as, so the swatch beside
+             ;; a value is the shape the panel varies. Graduated circles
+             ;; beside a width encoding have the reader comparing
+             ;; diameters while the panel shows thicknesses.
+             :quantity quantity
+             :swatch (:swatch (layer-type/quantities quantity))
+             ;; A row whose swatch has no size explains nothing, and
+             ;; `:from-zero` puts one there: the domain starts at zero
+             ;; and zero draws nothing, so the legend read "0" beside
+             ;; an empty space.
+             :entries (vec (for [v values
+                                 :let [magnitude (magnitude-fn v)]
+                                 :when (> magnitude 0.001)]
                              {:value v
-                              :radius (radius-fn v)}))}))))))
+                              :magnitude magnitude}))}))))))
 
 (defn- build-alpha-legend
   "Build alpha legend when :alpha maps to a numerical column. Returns nil
@@ -765,23 +1072,37 @@
   [resolved-all opts-title]
   (let [alpha-draft-layers (filter #(and (resolve/column-ref? (:alpha %))
                                          (nil? (:fixed-alpha %))
+                                         (not (:alpha-drawn? %))
+                                         ;; As with `:size`: no legend for
+                                         ;; a channel the mark never varied.
+                                         (reads-per-row? :alpha (:mark %))
                                          (:data %)) resolved-all)]
     (when (seq alpha-draft-layers)
       (let [alpha-col (:alpha (first alpha-draft-layers))
-            scale-type (or (:type (:alpha-scale (first alpha-draft-layers))) :linear)
+            spec (:alpha-scale (first alpha-draft-layers))
+            scale-type (or (:type spec) :linear)
+            [_ ink-exponent] (channel-quantity (first alpha-draft-layers) :alpha)
             all-bufs (map #(aesthetic-col % :alpha) alpha-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
           (let [a-min (dfn/reduce-min all-vals)
                 a-max (dfn/reduce-max all-vals)
-                values (continuous-channel-ticks scale-type a-min a-max 5)
-                alpha-fn (continuous-channel-mapper scale-type a-min a-max 0.2 1.0)]
+                [dom-lo dom-hi] (scale/channel-domain spec a-min a-max)
+                values (continuous-channel-ticks scale-type dom-lo dom-hi 5)
+                alpha-fn (channel-mapper spec a-min a-max
+                                         (:alpha defaults/channel-ranges)
+                                         ink-exponent)]
             {:title (or opts-title alpha-col)
              :type :alpha
              :min a-min :max a-max
              :scale-type scale-type
-             :entries (vec (for [v values]
+             ;; A row drawn at no opacity explains nothing, as a row
+             ;; with no size does not: `:from-zero` anchors the domain
+             ;; at zero, and a value of zero is drawn invisible.
+             :entries (vec (for [v values
+                                 :let [alpha (alpha-fn v)]
+                                 :when (> alpha 0.001)]
                              {:value v
-                              :alpha (alpha-fn v)}))}))))))
+                              :alpha alpha}))}))))))
 
 (defn- build-shape-legend
   "Build the shape legend from the category-to-symbol assignment
@@ -805,8 +1126,8 @@
    This is what ggplot2 does with matching guides.
 
    Merges only when both legends carry the same title and the same
-   labels in the same order -- a user who renamed one of them with
-   `:color-label` or `:shape-label` asked for two distinct legends.
+   labels in the same order -- a user who titled one of them with a
+   `:label` of its own asked for two distinct legends.
 
    Returns [legend shape-legend], one of which may be nil."
   [legend shape-legend]
@@ -841,20 +1162,248 @@
                            "Supported polar marks: " (sort polar-supported-marks))
                       {:mark m :supported polar-supported-marks})))))
 
-(defn- warn-conflicting-specs
-  "Warn when draft layers disagree about scale or coord specs.
-   Only the first draft layer's specs are used -- conflicting specs are silently ignored
-   without this warning."
+(def ^:private drawn-axis-marks
+  "The marks that place through the panel's `coord-fn`, and so measure
+   an axis told not to scale in drawing units.
+
+   The rest read the oriented scales (`sx` / `sy`) directly, so the
+   request never reaches them: `:bar` drew full-height bars and
+   `:boxplot` drew an empty panel, both in silence. Deriving this from
+   the renderer is not possible at plan time, so it is a list -- a new
+   mark that places through the oriented scales belongs on the other
+   side of it, and the test below renders both sides to keep the list
+   honest."
+  #{:area :contour :errorbar :line :point :pointrange :rug :step :text :tile})
+
+(defn- validate-unscaled-axis-marks
+  "Refuse a request to measure an axis in drawing units on a mark that
+   cannot honour one, by either route.
+
+   Both routes reach the same place. `{:in :drawing-area}` says it of
+   the whole layer and a per-axis `{:scale false}` says it of one, and
+   a mark that reads the oriented scales directly ignores either: a
+   bar drew one rectangle across half the panel and a histogram drew
+   an empty panel, both without a word. The whole-layer route used to
+   die on `Number.doubleValue() because \"x\" is null` instead, so
+   refusing it costs no working plot -- and leaving it drawing while
+   refusing the per-axis form would be the same request answered two
+   ways in one release."
+  [resolved-draft-layers]
+  (doseq [v resolved-draft-layers
+          :let [whole-layer? (= :drawing-area (:in v))
+                axes (cond-> []
+                       (or whole-layer? (:x-drawn? v)) (conj :x)
+                       (or whole-layer? (:y-drawn? v)) (conj :y))
+                m (:mark v)]
+          :when (and (seq axes) m (not (drawn-axis-marks m)))]
+    (throw (ex-info (str (if whole-layer?
+                           "{:in :drawing-area} places a whole layer in drawing units"
+                           (str "A :scale false on " (str/join " and " axes)
+                                " measures in drawing units"))
+                         " from the top left of the panel background, and the "
+                         m " mark places through the axis scales instead, so it"
+                         " cannot read one. The marks that can: "
+                         (str/join ", " (sort drawn-axis-marks)) "."
+                         " A " m " layer is placed by its data.")
+                    {:mark m :axes axes :in (:in v) :supported drawn-axis-marks}))))
+
+(defn- validate-drawn-channel-marks
+  "Refuse a column told not to scale on a mark that draws one value for
+   the whole layer.
+
+   `{:size {:column :r :scale false}}` asks for the column's own values
+   as radii -- ggplot2's `scale_size_identity()`. A mark that draws one
+   radius has none to give, and answered by drawing exactly what it
+   drew before: `pj/save` of a lollipop with and without the option
+   produced byte-identical PNGs.
+
+   This is the appearance twin of `validate-unscaled-axis-marks`, and
+   is refused rather than warned for the same reason: the spelling is
+   new, so no plot can break, and it asks for something the mark cannot
+   do rather than something it merely ignores."
+  [resolved-draft-layers]
+  (doseq [v resolved-draft-layers
+          channel [:size :alpha]
+          :let [m (:mark v)
+                drawn? (get v (keyword (str (name channel) "-drawn?")))]
+          :when (and m drawn? (not (reads-per-row? channel m)))]
+    (throw (ex-info (str "A :scale false on " channel " draws the column's own"
+                         " values, one per row, and the " m " mark draws one "
+                         (name channel) " for the whole layer, so it cannot read"
+                         " one. The marks that can: "
+                         (str/join ", " (sort (layer-type/marks-varying channel)))
+                         ". For one " (name channel) " over the layer, write the"
+                         " value itself.")
+                    {:mark m :channel channel
+                     :supported (layer-type/marks-varying channel)}))))
+
+(defn- warn-unread-channel-columns
+  "Warn when a channel names a column and no mark in the plot varies it.
+
+   The scaled spelling, unlike the drawn one above, has been accepted
+   since before 0.8.1, so refusing it would break plots that draw --
+   badly, but they draw. What it must not do is stay silent: the layer
+   ignored the column and the plot grew a legend for it, so the picture
+   advertised an encoding it did not contain.
+
+   Asked of the whole plot rather than of each layer, because a column
+   mapped on the pose flows into every layer: a point layer beside a
+   line layer is the case the channel exists for, and warning about the
+   line there would be noise. The legend is suppressed per layer --
+   see `build-size-legend`."
+  [resolved-all]
+  (doseq [channel [:size :alpha]
+          :let [named (filter #(and (resolve/column-ref? (get % channel))
+                                    (:data %))
+                              resolved-all)
+                marks (into #{} (keep :mark named))]
+          :when (and (seq named) (not-any? #(reads-per-row? channel %) marks))]
+    (println (str "Warning: " channel " names the column "
+                  (pr-str (get (first named) channel))
+                  ", and no mark on this plot varies " (name channel)
+                  " from row to row"
+                  (when (seq marks) (str " -- " (str/join ", " (sort marks))))
+                  ". The marks that do: "
+                  (str/join ", " (sort (layer-type/marks-varying channel)))
+                  ". For one " (name channel) " over the layer, write the value"
+                  " itself; the column is ignored and earns no legend."))))
+
+(defn- validate-unscaled-axis-coord
+  "Refuse a per-axis `:scale false` under a coord that rearranges the
+   axes.
+
+   An unscaled `:x` or `:y` is a distance measured from the panel
+   background's top left, which names one screen direction. `:coord
+   :flip` swaps which screen direction the mapping's `:y` reaches and
+   `:polar` gives it no straight direction at all, so the distance no
+   longer says where the mark goes -- and the renderer drew every mark
+   into one corner rather than saying so.
+
+   Which screen direction an unscaled axis should mean once the coord
+   has moved it is an open question, not an oversight. Refusing keeps
+   it open. The whole-layer `{:in :drawing-area}` does not face it:
+   both of its coordinates are drawing units from the same corner, so
+   there is no axis to follow through the swap."
+  [resolved-draft-layers coord-type]
+  (when (contains? #{:flip :polar} coord-type)
+    (doseq [v resolved-draft-layers
+            :let [axes (cond-> []
+                         (:x-drawn? v) (conj :x)
+                         (:y-drawn? v) (conj :y))]
+            :when (seq axes)]
+      (throw (ex-info (str "A :scale false on " (str/join " and " axes)
+                           " measures in drawing units from the top left of the"
+                           " panel background, and :coord " coord-type
+                           " moves that axis elsewhere, so the two cannot be"
+                           " combined. Either drop the :coord, or place the whole"
+                           " layer with {:in :drawing-area}, whose two coordinates"
+                           " are drawing units from that corner whatever the coord.")
+                      {:coord coord-type :axes axes})))))
+
+(defn- describe-spec
+  "A scale spec as it should read in a message. A layer that names none
+   still reads a scale -- the default one -- and printing `nil` for it
+   said nothing useful."
+  [spec]
+  (if (nil? spec) "the default" (pr-str spec)))
+
+(defn- validate-axis-spec-agreement
+  "Refuse two layers of one panel that name different scales for an
+   axis.
+
+   A panel has one x axis and one y axis, and every layer is drawn
+   against them, so the panel can carry only one spec per axis. A layer
+   that names none is no disagreement -- it is drawn against whichever
+   axis the panel has -- which is where this differs from the
+   appearance channels below, where each layer scales its own values.
+
+   Nothing could reach this before a mapping could name an axis scale:
+   the spec came from the pose's options, so every layer carried the
+   same one."
   [draft-layers]
-  (let [x-types (distinct (keep (comp :type :x-scale) draft-layers))
-        y-types (distinct (keep (comp :type :y-scale) draft-layers))
-        coords (distinct (keep :coord draft-layers))]
-    (when (> (count x-types) 1)
-      (println (str "Warning: Layers have conflicting x-scale types " (vec x-types)
-                    ". Using first layer's scale: " (first x-types) ".")))
-    (when (> (count y-types) 1)
-      (println (str "Warning: Layers have conflicting y-scale types " (vec y-types)
-                    ". Using first layer's scale: " (first y-types) ".")))
+  (doseq [[channel scale-key] [[:x :x-scale] [:y :y-scale]]
+          :let [named (distinct (keep scale-key draft-layers))]
+          :when (> (count named) 1)]
+    (throw (ex-info (str "Layers name different scales for the " channel
+                         " axis: " (pr-str (vec named)) ". A panel has one "
+                         (name channel) " axis, and every layer is drawn"
+                         " against it, so it can carry only one. Set it once"
+                         " with (pj/scale pose " channel " ...), or write the"
+                         " same :scale in each mapping.")
+                    {:channel channel :specs (vec named)}))))
+
+(defn- validate-channel-spec-agreement
+  "Refuse two layers that read one appearance channel through different
+   scales, or draw it as different quantities.
+
+   One legend explains one scale. Two layers whose sizes run through a
+   log scale and a linear one need two, and so do a point layer and a
+   width-varying layer sharing a size column -- the legend can draw
+   circles or strokes, not both. Until a plot can carry two legends for
+   one channel, drawing the picture would mean labelling one of the two
+   encodings wrongly.
+
+   A layer that names no scale counts as naming the default, unlike on
+   an axis: each layer here scales its own values, so a layer left on
+   the default really is drawn through a different scale.
+
+   Counting as the default means being compared as it, though. A layer
+   that writes the type the default already has agrees with a layer
+   that writes nothing, so the two are resolved to the same spec before
+   they are compared -- otherwise `{:scale :linear}` beside a layer left
+   alone was refused for disagreeing with itself.
+
+   Only layers that read the channel are asked, and what counts as
+   reading it differs. `:size` and `:alpha` are read by the marks that
+   declare they vary them: a column mapped on the pose flows into every
+   layer, and a mark that draws one size for the whole layer has no
+   scale to disagree about. `:color` and `:fill` have no such
+   declaration -- a mark that paints at all paints through the palette
+   or the gradient -- so every layer mapping a scaled column to them is
+   asked instead.
+
+   The two colour aesthetics went unchecked until now, so the first
+   layer's scale silently decided for both and a log scale written on
+   the second changed nothing."
+  [draft-layers]
+  (doseq [[channel reads?] [[:size #(and (resolve/column-ref? (:size %))
+                                         (reads-per-row? :size (:mark %)))]
+                            [:alpha #(and (resolve/column-ref? (:alpha %))
+                                          (reads-per-row? :alpha (:mark %)))]
+                            [:color scaled-color-column?]
+                            [:fill #(resolve/column-ref? (:fill %))]]
+          :let [scale-key (defaults/channel->scale-key channel)
+                varying (filter #(and (reads? %) (:data %)) draft-layers)
+                resolve-spec #(merge {:type (defaults/default-scale-type channel)}
+                                     (get % scale-key))
+                specs (distinct (map resolve-spec varying))
+                drawn-as (distinct (map #(layer-type/mark-varies (:mark %) channel)
+                                        varying))]]
+    (when (> (count specs) 1)
+      (throw (ex-info (str "Layers read " channel " through different scales: "
+                           (str/join ", " (map describe-spec specs))
+                           ". One legend explains one"
+                           " scale, so the plot cannot say which of the two a"
+                           " mark's " (name channel) " means. Set the scale"
+                           " once with (pj/scale pose " channel " ...), or"
+                           " write the same :scale in each mapping.")
+                      {:channel channel :specs (vec specs)})))
+    (when (> (count drawn-as) 1)
+      (throw (ex-info (str "Layers draw " channel " as different quantities: "
+                           (pr-str (vec drawn-as)) ", so one legend cannot"
+                           " explain both -- a swatch is a circle or a stroke,"
+                           " not both at once. Map " channel " on the layer"
+                           " that should carry it rather than on the pose.")
+                      {:channel channel :quantities (vec drawn-as)})))))
+
+(defn- warn-conflicting-specs
+  "Warn when draft layers disagree about the coord.
+
+   The axis scales were warned about here too, and using the first
+   layer's; they are refused by `validate-axis-spec-agreement` now that
+   a mapping can name one."
+  [draft-layers]
+  (let [coords (distinct (keep :coord draft-layers))]
     (when (> (count coords) 1)
       (println (str "Warning: Layers have conflicting coord types " (vec coords)
                     ". Using first layer's coord: " (first coords) ".")))))
@@ -1007,9 +1556,13 @@
         ;; A drawing-space text mark is placed on the panel, not in the
         ;; data, so widening the domain would not move it -- and its
         ;; position is a page measurement that has no business being read
-        ;; as a data value.
+        ;; as a data value. The same holds one axis at a time, which is
+        ;; why the buffer rather than `axis` decides: `value-key` names
+        ;; the mapping axis this pass measures, and `:coord :flip` has
+        ;; already swapped which panel axis that lands on.
         :when (and (= :text (:mark layer))
-                   (contains? #{nil :data} (:in layer)))
+                   (contains? #{nil :data} (:in layer))
+                   (not (if (= :xs value-key) (:x-drawn? layer) (:y-drawn? layer))))
         :let [style (:style layer)
               ;; An offset moves the drawn text away from its anchor, so
               ;; the room it needs moves with it. Screen y grows downward
@@ -1104,7 +1657,7 @@
    Applies the :coord :flip swap so downstream code doesn't have to.
    Does NOT compute ticks -- that happens after panel dimensions are
    known."
-  [pd default-x-scale default-y-scale default-coord]
+  [pd default-x-scale default-y-scale default-coord padding]
   (let [;; A layer placed in a drawing-space frame is on the panel, not in
         ;; the data: its numbers are drawing units, so letting them reach a
         ;; domain would stretch the axis to a page measurement. It is left
@@ -1112,35 +1665,81 @@
         ;; has to be drawn. Stat results are index-aligned with the draft
         ;; layers they came from.
         data-space? (fn [layer] (contains? #{nil :data} (:in layer)))
+        ;; A value that does not go through a scale cannot inform that
+        ;; scale's domain -- it is a distance across the panel, and
+        ;; letting it in would stretch the axis to a page measurement.
+        ;; Asked per axis, because `{:y {:column :b :scale false}}`
+        ;; leaves x scaled and only y out.
+        x-informs? (fn [layer] (and (data-space? layer) (not (:x-drawn? layer))))
+        y-informs? (fn [layer] (and (data-space? layer) (not (:y-drawn? layer))))
         local-plan-layers (:layers pd)
         ;; An annotation-only panel carries synthesized stat-results with
         ;; no resolved layer behind them, so the two are only pairable
         ;; when their counts agree. Where they do not, nothing is in a
         ;; drawing-space frame either, and every result counts.
-        local-srs (let [rs (:resolved pd)
+        srs-for (fn [informs?]
+                  (let [rs (:resolved pd)
                         srs (:stat-results pd)]
                     (if (= (count rs) (count srs))
                       (->> (map vector rs srs)
-                           (filter (comp data-space? first))
+                           (filter (comp informs? first))
                            (mapv second))
-                      srs))
-        domain-layers (filterv data-space? local-plan-layers)
+                      srs)))
+        local-srs (srs-for x-informs?)
+        local-srs-y (srs-for y-informs?)
+        domain-layers (filterv y-informs? local-plan-layers)
         first-draft-layer (first (:draft-layers pd))
-        x-scale-spec (or (:x-scale first-draft-layer) default-x-scale)
-        y-scale-spec (or (:y-scale first-draft-layer) default-y-scale)
+        ;; The first layer that *names* a spec, not the first layer's
+        ;; value. A spec can now come from a mapping, so it may sit on
+        ;; the second layer while the first says nothing; taking the
+        ;; first layer's value dropped it in silence. Two layers naming
+        ;; different specs are refused before this runs.
+        ;;
+        ;; Merged over the default so the spec carries a `:type`
+        ;; whatever was written: a mapping may name `:domain` alone,
+        ;; and `plan-schema/ScaleSpec` requires the type.
+        x-scale-spec (merge default-x-scale (some :x-scale (:draft-layers pd)))
+        y-scale-spec (merge default-y-scale (some :y-scale (:draft-layers pd)))
         coord-type (or (:coord first-draft-layer) default-coord)
-        x-dom (or (:domain x-scale-spec)
-                  (collect-domain local-srs :x-domain x-scale-spec))
-        y-dom (or (:domain y-scale-spec)
-                  (compute-global-y-domain domain-layers y-scale-spec)
-                  ;; Annotation-only panels have no plan layers; their
-                  ;; y-domain lives in the synthesized stat-results.
-                  (when (empty? domain-layers)
-                    (collect-domain local-srs :y-domain y-scale-spec))
+        ;; The same `[0 1]` fallback `y-dom` has carried all along. A
+        ;; panel where nothing informs the x domain -- every layer in a
+        ;; drawing-space frame, or on an unscaled x -- left `x-dom` nil,
+        ;; and a nil domain is not a domain: `lay-bar`, `lay-histogram`
+        ;; and `lay-interval-h` died on
+        ;; `Number.doubleValue() because "x" is null`, and the marks
+        ;; that survived drew no x ticks at all.
+        x-dom (or (axis-domain :x x-scale-spec
+                               (collect-domain local-srs :x-domain x-scale-spec padding))
                   [0 1])
+        y-dom (or (axis-domain :y y-scale-spec
+                               (or (compute-global-y-domain domain-layers y-scale-spec padding)
+                                   ;; Annotation-only panels have no plan
+                                   ;; layers; their y-domain lives in the
+                                   ;; synthesized stat-results.
+                                   (when (empty? domain-layers)
+                                     (collect-domain local-srs-y :y-domain y-scale-spec padding))))
+                  [0 1])
+        ;; Whether anything on this panel gives the axis a meaning in
+        ;; the data. Where nothing does, the `[0 1]` fallback above is
+        ;; a coordinate function and nothing more -- drawing ticks off
+        ;; it wrote numbers no mark stands for. `{:y {:column :b :scale
+        ;; false}}` on values of 10, 50 and 90 drew a y axis reading
+        ;; 0.0 to 1.0 labelled `b`, beside a real x axis, and nothing
+        ;; about the picture looked wrong. A domain the writer set with
+        ;; `pj/scale` counts as a meaning; so does a panel carrying
+        ;; only annotations, whose extent lives in its stat-results.
+        informed? (fn [informs? spec]
+                    (boolean (or (:domain spec)
+                                 (empty? (:resolved pd))
+                                 (some informs? (:resolved pd)))))
+        x-informed? (informed? x-informs? x-scale-spec)
+        y-informed? (informed? y-informs? y-scale-spec)
         [x-dom' y-dom'] (if (= coord-type :flip)
                           [y-dom x-dom]
                           [x-dom y-dom])
+        [x-informed?' y-informed?'] (if (= coord-type :flip)
+                                      [y-informed? x-informed?]
+                                      [x-informed? y-informed?])
         [x-sspec' y-sspec'] (if (= coord-type :flip)
                               [y-scale-spec x-scale-spec]
                               [x-scale-spec y-scale-spec])
@@ -1152,6 +1751,8 @@
                       [x-temp-ext y-temp-ext])]
     {:x-dom x-dom'
      :y-dom y-dom'
+     :x-informed? x-informed?'
+     :y-informed? y-informed?'
      :x-scale x-sspec'
      :y-scale y-sspec'
      :coord coord-type
@@ -1169,14 +1770,27 @@
   "Given a pre-tick panel domain map and pixel dimensions, compute the
    tick sets for both axes and assemble the final panel map."
   [{:keys [x-dom y-dom x-scale y-scale coord x-te y-te
+           x-informed? y-informed?
            row col row-label col-label var-x var-y]
     plan-layers :layers}
    pw ph m cfg annotations]
   (let [x-px [m (- pw m)]
         y-px [(- ph m) m]
         seps (defaults/number-separators cfg)
-        x-ticks (when x-dom (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te seps))
-        y-ticks (when y-dom (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te seps))]
+        ;; An axis nothing gives a data meaning gets no ticks. The
+        ;; domain stays -- the coordinate function needs one -- but
+        ;; numbers drawn off it would name values no mark carries.
+        ;; The spec names a tick spacing where the writer set one, and
+        ;; the `:x-tick-spacing` / `:y-tick-spacing` plot option names
+        ;; it one scope further out.
+        x-ticks (when (and x-dom x-informed?)
+                  (compute-ticks x-dom x-px x-scale
+                                 (defaults/scale-setting :x :tick-spacing x-scale cfg)
+                                 x-te seps))
+        y-ticks (when (and y-dom y-informed?)
+                  (compute-ticks y-dom y-px y-scale
+                                 (defaults/scale-setting :y :tick-spacing y-scale cfg)
+                                 y-te seps))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale
@@ -1228,9 +1842,17 @@
         [f-lo f-hi] (or stat-fill-range draft-layer-fill-range)
         scale-type (or (some #(:type (:fill-scale %)) resolved-all)
                        (some #(:type (:color-scale %)) resolved-all)
-                       :linear)]
+                       :linear)
+        ;; The gradient comes from whichever layer names a fill scale,
+        ;; through the same function the tiles were drawn with -- and
+        ;; through the same :color fallback, since a tile reads :color
+        ;; as a synonym for :fill.
+        fill-draft-layer (or (some #(when (:fill-scale %) %) resolved-all)
+                             (some #(when (:color-scale %) %) resolved-all)
+                             {})]
     (when f-lo
-      (let [grad-fn (:gradient-fn cfg)
+      (let [grad-fn (defaults/resolve-gradient-fn
+                     (extract/fill-setting :range fill-draft-layer cfg))
             title (or opts-title
                       (cond
                         (= stat-kind :bin2d) :count
@@ -1248,19 +1870,13 @@
             stops (vec (for [i (range n-stops)
                              :let [t (/ (double i) (dec n-stops))]]
                          {:t t :color (grad-fn t)}))
-            ticks (when log?
-                    (let [tick-vals (scale/log-ticks [f-lo f-hi] 5)
-                          lo-l (Math/log10 (max 1e-300 (double f-lo)))
-                          hi-l (Math/log10 (max 1e-300 (double f-hi)))
-                          span (max 1e-6 (- hi-l lo-l))]
-                      (vec (for [v tick-vals]
-                             {:value v
-                              :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))]
+            ticks (when log? (continuous-legend-ticks f-lo f-hi))]
         (cond-> {:title title
                  :type :continuous
                  :min f-lo :max f-hi
                  :scale-type scale-type
-                 :color-scale (:color-scale cfg)
+                 :color-range (extract/fill-setting :range fill-draft-layer cfg)
+                 :range-from-spec? (contains? (:fill-scale fill-draft-layer) :range)
                  :stops stops}
           ticks (assoc :ticks ticks))))))
 
@@ -1325,7 +1941,6 @@
   ([draft {:keys [x-label y-label title subtitle caption
                   scales legend-position grid-cols grid-rows] :as opts}]
    (let [cfg (defaults/resolve-config opts)
-         cfg (assoc cfg :gradient-fn (defaults/resolve-gradient-fn (:color-scale cfg)))
          validate? (:validate cfg true)
          ;; Effective width/height: user opts override cfg. These are
          ;; total SVG dimensions under the new semantics.
@@ -1376,7 +1991,10 @@
          ;; Colors + warnings
          {:keys [resolved-all numeric-color? all-colors color-cols tagged-draft-layers]}
          (collect-colors draft-layers)
-         _ (warn-palette-wrap! all-colors cfg)
+         _ (warn-palette-wrap! all-colors
+                               (defaults/scale-setting
+                                :color :values
+                                (some :color-scale resolved-all) cfg))
          _ (warn-monochrome-numeric-color! resolved-all)
          _ (warn-fill-scale-without-fill! resolved-all opts)
 
@@ -1388,11 +2006,19 @@
          default-x-scale {:type :linear}
          default-y-scale {:type :linear}
          default-coord :cartesian
-         rep-x-scale (or (:x-scale (first draft-layers)) default-x-scale)
-         rep-y-scale (or (:y-scale (first draft-layers)) default-y-scale)
+         ;; As in `resolve-panel-domains`: the first layer that names a
+         ;; spec, merged over the default so a `:type` is always there.
+         rep-x-scale (merge default-x-scale (some :x-scale draft-layers))
+         rep-y-scale (merge default-y-scale (some :y-scale draft-layers))
          rep-coord (or (:coord (first draft-layers)) default-coord)
          _ (validate-polar-marks resolved-all rep-coord)
+         _ (validate-unscaled-axis-coord resolved-all rep-coord)
+         _ (validate-unscaled-axis-marks resolved-all)
+         _ (validate-drawn-channel-marks resolved-all)
+         _ (warn-unread-channel-columns resolved-all)
          _ (warn-conflicting-specs draft-layers)
+         _ (validate-axis-spec-agreement resolved-all)
+         _ (validate-channel-spec-agreement resolved-all)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
          ;; layers extracted above. Root-scope annotations (carried
@@ -1405,10 +2031,29 @@
          ;; literal :alpha (number); column-mapped aesthetics are
          ;; silently dropped (annotations don't participate in
          ;; column-mapped scales).
+         ;; An annotation draws one color for itself and takes no part
+         ;; in a scale, so what survives here is a written color and
+         ;; nothing else. The test asks whether the value names a color
+         ;; rather than whether it is a string: the pose gate accepts a
+         ;; keyword naming one now, so `{:color :red}` reached this
+         ;; point and was dropped without a word, while
+         ;; `{:color :notacolour}` was still reported -- the gate and
+         ;; the draw path disagreeing about the same value.
+         ;; Annotations carry their color as a string to the renderer,
+         ;; so a keyword naming one is spelled out here rather than
+         ;; widening the plan schema for a second spelling of the same
+         ;; value. Computed once rather than as two `cond->` branches:
+         ;; the tests there read the original map, so dropping a
+         ;; non-color and then spelling out a keyword both fired on the
+         ;; same value and `name` was handed the nil that the drop had
+         ;; just left behind.
          clean-aesthetics (fn [m]
-                            (cond-> m
-                              (not (string? (:color m))) (dissoc :color)
-                              (not (number? (:alpha m))) (dissoc :alpha)))
+                            (let [c (:color m)
+                                  c (when (defaults/names-a-color? c)
+                                      (if (keyword? c) (name c) c))]
+                              (cond-> (dissoc m :color)
+                                c (assoc :color c)
+                                (not (number? (:alpha m))) (dissoc :alpha))))
          annotation-position-keys [:y-intercept :x-intercept :y-min :y-max :x-min :x-max]
          ;; Annotations cross-product when a leaf is expanded by
          ;; pj/facet (one identical copy per facet panel). Dedup by
@@ -1448,11 +2093,14 @@
                                pg)))))
                      (:panels grid))
 
+         _ (warn-undrawn-varies! panel-data)
+
          ;; --- Phase 2: per-panel domains (still no pixel math) ---
          panel-domains (vec
                         (for [pd panel-data
                               :when (seq (:draft-layers pd))]
-                          (resolve-panel-domains pd default-x-scale default-y-scale default-coord)))
+                          (resolve-panel-domains pd default-x-scale default-y-scale default-coord
+                                                 (:domain-padding cfg))))
 
          ;; Ridgeline swap: categories go on y, density on x. Swap
          ;; per-panel domains/scales/temporal extents before anything
@@ -1463,6 +2111,8 @@
                                  (-> d
                                      (assoc :x-dom (:y-dom d) :y-dom (:x-dom d)
                                             :x-scale (:y-scale d) :y-scale (:x-scale d)
+                                            :x-informed? (:y-informed? d)
+                                            :y-informed? (:x-informed? d)
                                             :x-te (:y-te d) :y-te (:x-te d))))
                                panel-domains)
                          panel-domains)
@@ -1481,7 +2131,7 @@
          multi? (and (= layout-type :multi-variable) (> grid-cols-n 1) (> grid-rows-n 1))
          auto-label? (and (not multi?) (coord/show-ticks? rep-coord))
          {:keys [eff-title eff-x-label eff-y-label]}
-         (resolve-labels draft-layers x-vars y-vars rep-x-scale rep-y-scale
+         (resolve-labels x-vars y-vars rep-x-scale rep-y-scale
                          title x-label y-label auto-label?)
          swap-labels? (or (= rep-coord :flip) has-ridgeline?)
          [eff-x-label eff-y-label] (if swap-labels?
@@ -1493,6 +2143,12 @@
          ;; junk in a SPLOM.
          eff-x-label (if (:suppress-x-label opts) nil eff-x-label)
          eff-y-label (if (:suppress-y-label opts) nil eff-y-label)
+         ;; An axis no panel gives a data meaning carries no ticks (see
+         ;; `finalize-panel`), and naming it after the column would be
+         ;; the same false claim one line lower: the marks are placed by
+         ;; a distance across the panel, not by that column's values.
+         eff-x-label (if (some :x-informed? panel-domains) eff-x-label nil)
+         eff-y-label (if (some :y-informed? panel-domains) eff-y-label nil)
 
          ;; Legends -- depend on resolved draft layers + cfg, not on pixel math.
          ;; :suppress-legend on opts skips ALL legend construction; used
@@ -1510,18 +2166,28 @@
          suppress-size? (or suppress-legend? (:suppress-size-legend opts))
          suppress-alpha? (or suppress-legend? (:suppress-alpha-legend opts))
          suppress-shape? (or suppress-legend? (:suppress-shape-legend opts))
+         ;; A legend title is one setting at two scopes, as an axis
+         ;; title is: `:label` in the aesthetic's scale spec, and the
+         ;; `<aesthetic>-label` plot option one scope out. The spec is
+         ;; written further in, so it wins.
+         legend-title (fn [aesthetic]
+                        (defaults/scale-setting
+                         aesthetic :label
+                         (some (defaults/channel->scale-key aesthetic) resolved-all)
+                         opts))
          legend (when-not suppress-color?
-                  (build-legend resolved-all numeric-color? all-colors color-cols cfg (:color-label opts)))
+                  (build-legend resolved-all numeric-color? all-colors color-cols cfg
+                                (legend-title :color)))
          legend (or legend
                     (when-not suppress-color?
                       (build-fill-fallback-legend panel-data resolved-all cfg
-                                                  (:fill-label opts))))
+                                                  (legend-title :fill))))
          size-legend (when-not suppress-size?
-                       (build-size-legend resolved-all (:size-label opts)))
+                       (build-size-legend resolved-all (legend-title :size) height))
          alpha-legend (when-not suppress-alpha?
-                        (build-alpha-legend resolved-all (:alpha-label opts)))
+                        (build-alpha-legend resolved-all (legend-title :alpha)))
          shape-legend (when-not suppress-shape?
-                        (build-shape-legend shape-info (:shape-label opts)))
+                        (build-shape-legend shape-info (legend-title :shape)))
          [legend shape-legend] (merge-shape-into-color-legend legend shape-legend)
 
          ;; Scene: everything compute-padding + compute-dims need to

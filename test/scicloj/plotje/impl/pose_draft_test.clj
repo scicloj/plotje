@@ -88,14 +88,15 @@
         "nothing to infer from -- let plan produce a minimal placeholder.")))
 
 (deftest plot-level-opts-stamped-on-every-entry-test
-  (testing ":x-scale/:y-scale/:coord on leaf opts stamp on each draft entry"
+  (testing "the mapping's scales and the leaf's :coord stamp on each draft entry"
+    ;; A scale lives with the mapping it reads -- `pj/scale` writes one
+    ;; there too -- while `:coord` is still a leaf option.
     (let [[e] (pose/leaf->draft
                {:data iris
-                :mapping {:x :a :y :b}
+                :mapping {:x {:from :a :scale {:type :log}}
+                          :y {:from :b :scale {:type :linear}}}
                 :layers [{:layer-type :point :mapping {}}]
-                :opts   {:x-scale {:type :log}
-                         :y-scale {:type :linear}
-                         :coord   :flip}})]
+                :opts   {:coord :flip}})]
       (is (= {:type :log} (:x-scale e)))
       (is (= {:type :linear} (:y-scale e)))
       (is (= :flip (:coord e))))))
