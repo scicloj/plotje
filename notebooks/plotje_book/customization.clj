@@ -258,7 +258,7 @@
 ;; Grouping applies to the numbers that measure something: tick labels on
 ;; a numeric axis, the text `pj/lay-text` and `pj/lay-label` take from a
 ;; column, and the values a size or alpha legend prints. Category names,
-;; colour and shape legend labels, and facet strip labels are left alone,
+;; color and shape legend labels, and facet strip labels are left alone,
 ;; because those name a group rather than measure it.
 ;;
 ;; A year falls on either side of that, depending on how it is used.
@@ -292,7 +292,7 @@
  [(fn [labels] (= ["2020" "2021" "2022" "2023"] (vec labels)))])
 
 ;; A size legend groups its values, so it reads the same way as the axis
-;; beside it, while the colour legend's category names do not:
+;; beside it, while the color legend's category names do not:
 
 (->> (-> (for [i (range 8)] {:xx (double i) :yy (double i)
                              :volume (* 100000 (inc i)) :region (str "region " i)})
@@ -632,7 +632,7 @@
 ;;
 ;; A `:color` or `:fill` scale spans a palette or a gradient, named with
 ;; the `:color-values` and `:color-range` plot options --
-;; [Scales](./plotje_book.scales.html#the-colours-a-scale-spans) covers
+;; [Scales](./plotje_book.scales.html#the-colors-a-scale-spans) covers
 ;; what they do. This section is the catalogue of what there is to name.
 ;;
 ;; Plotje delegates color to the

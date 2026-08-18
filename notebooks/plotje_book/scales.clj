@@ -66,16 +66,16 @@ gapminder-2007
 ;;   `:x` and `:y` it is the panel, measured in drawing units, whose
 ;;   size follows from the plot's `:width` and `:height`. For `:size` it
 ;;   is an interval of radii in drawing units, for `:alpha` an interval
-;;   of opacities, for `:color` and `:fill` a palette or a gradient, and
-;;   for `:shape` a list of symbols.
+;;   of opacities, for `:color` a palette or a gradient, for `:fill` a
+;;   gradient, and for `:shape` a list of symbols.
 ;;
 ;; Written down, these go in a scale **spec** -- the map that says
 ;; which scale, and how. Two of the three are written the same way
 ;; throughout: `:type` and `:domain` are keys on every aesthetic that
 ;; has a scale. The range is not. `:size` and `:alpha` take a `:range`,
-;; `:shape` names its symbols with `:values`, a color scale draws from a
-;; palette set as a plot option, and an axis has no range to set,
-;; because the panel decides it. A spec can also carry keys that are
+;; `:shape` names its symbols with `:values`, `:color` names a palette
+;; with `:values` and a gradient with `:range`, and an axis has no
+;; range to set, because the panel decides it. A spec can also carry keys that are
 ;; none of the three parts, such as `:by` on `:size` or the tick keys
 ;; on an axis. So the table further down lists `:type` and `:domain`
 ;; once, and then what each aesthetic reads beside them.
@@ -164,8 +164,8 @@ gapminder-2007
 ;;
 ;; Both ways take the scale in the same two forms: a type keyword, or
 ;; a spec map. The keyword is shorthand -- `:log` is read as
-;; `{:type :log}` where it is written, and everything after that sees
-;; the map.
+;; `{:type :log}` where it is written, and every stage after that
+;; reads the map.
 ;;
 ;; With `pj/scale`, the two spellings leave the same scale on the axis:
 
@@ -601,9 +601,12 @@ gapminder-2007
  [(fn [v] (= [0.0 5.0 10.0 15.0]
              (->> v pj/plan :panels first :x-ticks :values (mapv double))))])
 
-;; `:tick-spacing` asks the same question the other way round: the
-;; least room, in drawing units, that a tick may have. The count is
-;; then how many fit.
+;; `:tick-spacing` asks the same question the other way round: about
+;; how much room, in drawing units, each tick should have. The count
+;; is then how many fit. It is a target in the way `:n-ticks` is, and
+;; for the same reason -- the chooser still rounds to values a reader
+;; can read off, so the room each tick ends up with can come out under
+;; the number asked for.
 
 (-> {:hour (range 20) :load (range 20)}
     (pj/lay-point :hour :load)
@@ -662,6 +665,40 @@ gapminder-2007
  [(fn [fr] (= ["Oceania" "Europe" "Asia" "Americas" "Africa"]
               (mapv :label (:entries (:legend (pj/plan fr))))))])
 
+;; The number of categories listed changes nothing. A column holding
+;; exactly two numeric categories is ordered by the same `:domain` on
+;; whichever aesthetic reads it:
+
+(def two-grades
+  {:grade [1 2 1 2]
+   :hours [3 9 2 11]
+   :score [72 88 64 91]})
+
+(-> two-grades
+    (pj/lay-point :hours :score {:color :grade :color-type :categorical})
+    (pj/scale :color {:domain [2 1]}))
+
+(kind/test-last
+ [(fn [fr]
+    ;; The same two-element numeric domain, read by the column's type
+    ;; on each of the three aesthetics that take one. Read by the
+    ;; domain's own shape instead, a pair of numbers looked like an
+    ;; interval, and :color and :shape dropped it without a message
+    ;; while :x honoured it.
+    (let [on-axis (-> two-grades
+                      (pj/lay-point :grade :score {:x-type :categorical})
+                      (pj/scale :x {:domain [2 1]})
+                      pj/plan
+                      :panels first :x-domain vec)
+          on-shape (-> two-grades
+                       (pj/lay-point :hours :score {:shape :grade})
+                       (pj/scale :shape {:domain [2 1]})
+                       pj/plan
+                       :shape-legend :entries
+                       (->> (mapv :label)))
+          on-color (-> fr pj/plan :legend :entries (->> (mapv :label)))]
+      (= ["2" "1"] on-axis on-color on-shape)))])
+
 ;; A category the domain leaves out is still drawn, ordered after the
 ;; ones listed, and Plotje says so -- an incomplete list is usually a
 ;; typo or a stale set of names rather than a request.
@@ -684,8 +721,11 @@ gapminder-2007
     (pj/scale :x :log))
 
 (kind/test-last
- [(fn [fr] (= [0.0 5.0E7]
-              ((juxt :min :max) (:legend (pj/plan fr)))))])
+ [(fn [fr]
+    (and (= [0.0 5.0E7] ((juxt :min :max) (:legend (pj/plan fr))))
+         ;; Every row still drawn, the ones above the domain included.
+         (= (tc/row-count gapminder-2007)
+            (:points (pj/svg-summary fr)))))])
 
 ;; The countries above fifty million are drawn at the light end rather
 ;; than dropped. A domain says what the reader should compare, and a
@@ -699,16 +739,17 @@ gapminder-2007
 ;;
 ;; The range is the extent of drawn values the scale produces: an
 ;; interval of radii for a `:size` column, an interval of opacities for
-;; an `:alpha` column. Those two aesthetics are the ones that take a
-;; `:range` key.
+;; an `:alpha` column, a gradient for a numeric `:color` or `:fill`
+;; one. Those four aesthetics write it under a `:range` key -- two
+;; numbers for the first pair, a gradient for the second.
 ;;
 ;; An axis has none to set, since the panel size determines it -- the
 ;; refusal is [above](#what-each-aesthetics-scale-takes). `:shape` spans
 ;; a list of symbols, written with `:values` rather than `:range`,
 ;; because symbols are named one by one rather than spanned between two
-;; ends. `:color` and `:fill` span a palette or a gradient, set as a
-;; plot option; [the section below](#the-colours-a-scale-spans) draws
-;; both.
+;; ends; a categorical `:color` spans a palette, written the same way.
+;; [The section below](#the-colors-a-scale-spans) draws the color
+;; cases.
 ;;
 ;; The smallest and largest value in a column are drawn at the two ends
 ;; of the range, so the default can be read off the marks themselves.
@@ -716,10 +757,10 @@ gapminder-2007
 ;; units, smallest first:
 
 (def squares
-  {:x [1 2 3 4 5 6] :y [1 1 1 1 1 1] :n [1 4 9 16 25 36]})
+  {:step [1 2 3 4 5 6] :row [1 1 1 1 1 1] :n [1 4 9 16 25 36]})
 
 (-> squares
-    (pj/lay-point :x :y {:size :n})
+    (pj/lay-point :step :row {:size :n})
     pj/svg-summary
     :sizes)
 
@@ -729,17 +770,21 @@ gapminder-2007
 ;; A wider range draws every mark wider:
 
 (-> squares
-    (pj/lay-point :x :y {:size :n})
+    (pj/lay-point :step :row {:size :n})
     (pj/scale :size {:range [3 20]}))
 
 (kind/test-last
  [(fn [fr]
-    (let [widest (->> fr pj/plan :size-legend :entries
-                      (map :magnitude) (apply max) double)]
-      ;; Wider than the default 8, and within the 20 that was set. It
-      ;; does not reach 20 because the largest labelled value is below
-      ;; the largest value in the data.
-      (< 8.0 widest 20.0)))])
+    (let [radii (sort (:sizes (pj/svg-summary fr)))
+          default (sort (:sizes (pj/svg-summary
+                                 (-> squares
+                                     (pj/lay-point :step :row {:size :n})))))]
+      ;; The marks themselves, since the prose is about the marks. The
+      ;; two ends are the two the range names, and every mark in
+      ;; between is wider than the same mark under the default range.
+      (and (= [3.0 20.0] [(first radii) (last radii)])
+           (= (count default) (count radii))
+           (every? true? (map < default radii)))))])
 
 ;; `:alpha` takes a range of opacities in the same way. The one written
 ;; out below is the default, so it draws the same plot as leaving it
@@ -766,25 +811,32 @@ gapminder-2007
 ;; compare the area, so the way values spread across the radii changes
 ;; what the plot appears to say.
 ;;
-;; `:by` sets that spreading:
+;; `:by` sets that spreading. All three read a value as how far along
+;; the domain it falls -- at the smallest value in the column, at the
+;; largest, or some way between -- and differ in what they spread
+;; evenly across the range:
 ;;
-;; - `:sqrt` (the default) spreads the square root of the value across
-;;   the radii, which is what ggplot2's `scale_size` does. The smallest
-;;   value is drawn at the low end of the range rather than at zero.
-;; - `:linear` spreads the value itself across the radii, as ggplot2's
-;;   `scale_radius` does. Differences in area then exaggerate
+;; - `:sqrt` (the default) spreads the square root of that distance
+;;   across the radii, which is what ggplot2's `scale_size` does. The
+;;   smallest value is drawn at the low end of the range rather than at
+;;   zero.
+;; - `:linear` spreads the distance itself across the radii, as
+;;   ggplot2's `scale_radius` does. Differences in area then exaggerate
 ;;   differences in value.
 ;; - `:area` spreads the area, so equal steps in value give equal steps
 ;;   in area.
 ;;
+;; It is the distance along the domain, not the value, so a column and
+;; the same column scaled up draw the same circles.
+;;
 ;; The same six values under all three:
 
 (-> (pj/arrange
-     [(-> squares (pj/lay-point :x :y {:size :n})
+     [(-> squares (pj/lay-point :step :row {:size :n})
           (pj/options {:title ":sqrt (default)"}))
-      (-> squares (pj/lay-point :x :y {:size :n}) (pj/scale :size {:by :linear})
+      (-> squares (pj/lay-point :step :row {:size :n}) (pj/scale :size {:by :linear})
           (pj/options {:title ":linear"}))
-      (-> squares (pj/lay-point :x :y {:size :n}) (pj/scale :size {:by :area})
+      (-> squares (pj/lay-point :step :row {:size :n}) (pj/scale :size {:by :area})
           (pj/options {:title ":area"}))])
     (pj/options {:width 900 :height 340}))
 
@@ -795,13 +847,13 @@ gapminder-2007
 
 (defn legend-magnitudes
   [spec]
-  (->> (-> squares
-           (pj/lay-point :x :y {:size :n})
-           (pj/scale :size spec)
-           pj/plan
-           :size-legend
-           :entries)
-       (mapv :magnitude)))
+  (mapv :magnitude
+        (-> squares
+            (pj/lay-point :step :row {:size :n})
+            (pj/scale :size spec)
+            pj/plan
+            :size-legend
+            :entries)))
 
 (-> (for [by [:linear :area :sqrt]
           :let [ms (legend-magnitudes {:by by})]]
@@ -817,11 +869,22 @@ gapminder-2007
     ;; radius and `:sqrt` the largest, with `:area` between them. The
     ;; labelled values stop short of the ends of the domain, which is
     ;; why no column reaches the 2.0 and 8.0 of the default range.
-    (every? (fn [[l a s]] (< l a s))
-            (map vector
-                 (legend-magnitudes {:by :linear})
-                 (legend-magnitudes {:by :area})
-                 (legend-magnitudes {:by :sqrt}))))])
+    (and (every? (fn [[l a s]] (< l a s))
+                 (map vector
+                      (legend-magnitudes {:by :linear})
+                      (legend-magnitudes {:by :area})
+                      (legend-magnitudes {:by :sqrt})))
+         ;; What is spread is the distance along the domain, not the
+         ;; value. Multiplying every value by a hundred moves the
+         ;; domain and leaves every radius where it was; taking the
+         ;; root of the value itself would not.
+         (= (legend-magnitudes {})
+            (mapv :magnitude
+                  (-> (update squares :n (fn [ns] (mapv #(* 100 %) ns)))
+                      (pj/lay-point :step :row {:size :n})
+                      pj/plan
+                      :size-legend
+                      :entries)))))])
 
 ;; ### Anchoring at zero
 ;;
@@ -839,7 +902,7 @@ gapminder-2007
 ;; like, and map the sign to `:color` where it matters.
 
 (-> squares
-    (pj/lay-point :x :y {:size :n})
+    (pj/lay-point :step :row {:size :n})
     (pj/scale :size {:by :area :from-zero true}))
 
 (kind/test-last
@@ -861,7 +924,7 @@ gapminder-2007
 ;; is absence the way zero area is:
 
 (-> squares
-    (pj/lay-point :x :y {:alpha :n})
+    (pj/lay-point :step :row {:alpha :n})
     (pj/scale :alpha {:from-zero true}))
 
 (kind/test-last
@@ -885,11 +948,13 @@ gapminder-2007
 
 ;; ### Which quantity a mark draws
 ;;
-;; `:by :area` works the same way on every mark, because each mark
-;; declares what it draws each aesthetic as. A point draws `:size` as a
-;; radius and `:alpha` as an opacity. A mark drawing a stroke would
-;; declare a width. The declaration also fixes how the area grows with
-;; the quantity: as the square for a radius, linearly for a width.
+;; `:by :area` works the same way on every mark, because the quantity
+;; each mark draws an aesthetic as is known before any value is
+;; scaled. `:point` is the one built-in layer type that says so
+;; itself, under `:varies`: it draws `:size` as a radius and `:alpha`
+;; as an opacity. A registered mark drawing a stroke would say it
+;; draws a width. The quantity also fixes how the area grows with it:
+;; as the square for a radius, linearly for a width.
 
 (:varies (layer-type/lookup :point))
 
@@ -904,25 +969,40 @@ gapminder-2007
 ;; The declaration also decides which aesthetics get a legend. A mark
 ;; that does not declare an aesthetic draws one value for the whole
 ;; layer, so a column mapped to that aesthetic changes nothing. Plotje
-;; warns in that case and draws no legend for it. Registering a mark
+;; warns and draws no legend for it, and the warning names the marks
+;; that do vary it. A mark that does not take the aesthetic as a layer
+;; option at all -- `:bar` and `:area` do not take `:size` -- reports
+;; it as an option it does not recognize instead. Registering a mark
 ;; that declares its own is covered in
 ;; [Extensibility](./plotje_book.extensibility.html).
 
-;; ### The colours a scale spans
+;; ### The colors a scale spans
 ;;
-;; A `:color` or `:fill` scale draws from a palette where the column is
+;; A `:color` scale draws from a palette where the column is
 ;; categorical, and from a gradient where it is numeric. The column's
 ;; type decides which, and each has its own spec key: `:values` for the
-;; palette, `:range` for the gradient.
+;; palette, `:range` for the gradient. A `:range` is spanned between
+;; two ends, as an interval of radii is for `:size`; a `:values` is
+;; enumerated and assigned by index, as the marker symbols are for
+;; `:shape`.
 ;;
-;; The two names carry the distinction the book draws everywhere else.
-;; A `:range` is spanned between two ends, as an interval of radii is
-;; for `:size`; a `:values` is enumerated and assigned by index, as the
-;; marker symbols are for `:shape`.
-;;
-;; A palette is a vector of colours, a map from category to colour, or
+;; `:fill` takes only the gradient half. It draws a magnitude, so it
+;; needs a numeric column and reads no `:values`; a categorical column
+;; belongs on `:color`, and the message says so:
+
+(try
+  (-> {:hour [1 2 3] :day [1 2 3] :shift ["early" "late" "early"]}
+      (pj/lay-tile :hour :day {:fill :shift})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (re-find #":fill needs a numeric column" m))])
+
+;; A palette is a vector of colors, a map from category to color, or
 ;; the name of a built-in one. It is assigned in domain order, so
-;; [a `:domain`](#ordering-categories) moves the colours together with
+;; [a `:domain`](#ordering-categories) moves the colors together with
 ;; the legend rows:
 
 (-> (rdatasets/datasets-iris)
@@ -933,7 +1013,7 @@ gapminder-2007
  [(fn [v] (= #{"rgb(231,76,60)" "rgb(52,152,219)" "rgb(46,204,113)"}
              (disj (:colors (pj/svg-summary v)) "none")))])
 
-;; Written as a map, a palette names the colour for each category, so
+;; Written as a map, a palette names the color for each category, so
 ;; the pairing does not depend on the order the categories arrive in.
 ;; The column still supplies the domain, so the legend is drawn from it
 ;; as it always is:
@@ -951,8 +1031,13 @@ gapminder-2007
         ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
        (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))])
 
-;; A gradient is named, or written as a map of stops: `:low`, `:mid` and
-;; `:high` build one of three, and `:mid` may be left out for two.
+;; A gradient is named -- `:viridis` and the rest of the catalogue, or
+;; the family names `:sequential` and `:diverging` -- or written as a
+;; map of stops, where `:low`, `:mid` and `:high` build one of three
+;; and `:mid` may be left out for two. The third form is a function,
+;; taking a number from zero at the low end of the domain to one at
+;; the high end and answering with `[r g b a]`, each from zero to one.
+;; It is the way to a gradient the other two forms cannot write.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
@@ -962,15 +1047,30 @@ gapminder-2007
  [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
              (-> v pj/plan :legend :color-range)))])
 
+;; The same gradient written as a function, opaque throughout and
+;; running blue to red:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
+    (pj/scale :color {:range (fn [t] [t 0.0 (- 1.0 t) 1.0])}))
+
+(kind/test-last
+ [(fn [v]
+    (let [stops (-> v pj/plan :legend :stops)]
+      ;; The bar is built from the function that colors the marks, so
+      ;; its ends are the two the function answers with.
+      (and (= [0.0 0.0 1.0 1.0] (:color (first stops)))
+           (= 0.0 (second (:color (last stops)))))))])
+
 ;; The range and the type are separate settings, and a plot may name
 ;; both. The column below spans four orders of magnitude, so the
-;; gradient says which colours and the scale's type says how the values
+;; gradient says which colors and the scale's type says how the values
 ;; are spaced along them; the legend labels the decades:
 
-(-> {:x (range 40)
-     :y (range 40)
+(-> {:step (range 40)
+     :row (range 40)
      :n (map #(Math/pow 10 (/ % 10.0)) (range 40))}
-    (pj/lay-point :x :y {:color :n})
+    (pj/lay-point :step :row {:color :n})
     (pj/scale :color {:type :log :range :viridis}))
 
 (kind/test-last
@@ -994,19 +1094,19 @@ gapminder-2007
  [(fn [v]
     ;; The centre of the gradient sits at zero rather than at 10, the
     ;; middle of -40 to 60, so every mark but the extremes is drawn a
-    ;; different colour than it would be without the midpoint.
-    (let [colours (fn [p] (-> p pj/plan :panels first :layers first
-                              :groups first :colors vec))]
-      (not= (colours v)
-            (colours (-> {:region ["n" "s" "e" "w" "c"]
-                          :year [1 2 3 4 5]
-                          :change [-40 -10 5 30 60]}
-                         (pj/lay-point :year :change {:color :change})
-                         (pj/scale :color {:range :diverging}))))))])
+    ;; different color than it would be without the midpoint.
+    (let [colors (fn [p] (-> p pj/plan :panels first :layers first
+                             :groups first :colors vec))]
+      (not= (colors v)
+            (colors (-> {:region ["n" "s" "e" "w" "c"]
+                         :year [1 2 3 4 5]
+                         :change [-40 -10 5 30 60]}
+                        (pj/lay-point :year :change {:color :change})
+                        (pj/scale :color {:range :diverging}))))))])
 
 ;; Each of the three has a plot option of the same name, one scope
 ;; further out: `:color-values`, `:color-range` and `:color-midpoint`,
-;; and `:fill-range` and `:fill-midpoint` for the other colour
+;; and `:fill-range` and `:fill-midpoint` for the other color
 ;; aesthetic. They set the whole plot where a spec sets one mapping or
 ;; one layer, and the spec wins where both are written.
 
@@ -1096,8 +1196,10 @@ pj/shape-symbols
 ;; ## One legend per aesthetic
 ;;
 ;; A size legend's swatches are computed from the same function as the
-;; marks, so the swatch next to a value is the size a mark of that
-;; value is drawn at.
+;; marks, so on a single panel the swatch next to a value is the size
+;; a mark of that value is drawn at. Across the panels of a facet it
+;; is not, for the reason given under
+;; [Not supported yet](#not-supported-yet) below.
 ;;
 ;; A swatch is also drawn in the shape of the quantity it explains. One
 ;; column mapped to both `:size` and `:alpha` earns two legends over
@@ -1106,7 +1208,7 @@ pj/shape-symbols
 ;; opacities.
 
 (-> squares
-    (pj/lay-point :x :y {:size :n :alpha :n})
+    (pj/lay-point :step :row {:size :n :alpha :n})
     (pj/options {:width 620}))
 
 (kind/test-last
@@ -1125,8 +1227,14 @@ pj/shape-symbols
 ;; scale. A panel has one of each axis, so two layers naming different
 ;; scales for `:x` are refused; a plot has one legend per appearance
 ;; aesthetic, so two layers reading `:size` through different scales
-;; are refused in the same way. A layer naming no scale is no
-;; disagreement -- it is drawn against whichever scale the plot has.
+;; are refused in the same way.
+;;
+;; On an axis, a layer naming no scale is no disagreement -- it is
+;; drawn against whichever scale the panel has. On an appearance
+;; aesthetic the default counts as a scale, so a layer that names none
+;; brings `:linear` to the comparison and disagrees with a layer that
+;; names `:log`. Name the same scale in each mapping, or set it once
+;; with `pj/scale`, which is what the message says.
 
 (try
   (-> gapminder-2007
@@ -1139,6 +1247,31 @@ pj/shape-symbols
 
 (kind/test-last
  [(fn [m] (re-find #"read :size through different scales" m))])
+
+;; The same two layers with the second naming nothing, which is the
+;; case the two aesthetics answer differently:
+
+(try
+  (-> gapminder-2007
+      (pj/pose :gdp-percap :life-exp {:size :pop})
+      (pj/lay-point {:size {:column :pop :scale :log}})
+      (pj/lay-point {})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m]
+    (and (re-find #"\{:type :log\}, \{:type :linear\}" m)
+         ;; The same shape on :x is drawn, not refused: the second
+         ;; layer brings no scale to disagree with.
+         (= {:type :log}
+            (-> gapminder-2007
+                (pj/pose :gdp-percap :life-exp)
+                (pj/lay-point {:x {:column :gdp-percap :scale :log}})
+                (pj/lay-point {})
+                pj/plan
+                :panels first :x-scale))))])
 
 ;; ## Not supported yet
 ;;

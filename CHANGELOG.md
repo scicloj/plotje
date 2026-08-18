@@ -42,9 +42,9 @@ The names below no longer work. `pj/options` and `pj/scale` report an error when
 
 - `pj/scale` and a mapping's `:scale` take the same forms: `true`, `false`, a scale type, or a whole spec map. A scale set higher up carries down, key by key, and the setting closest to the layer wins -- so a pose that sets a range and a layer that sets a type give a plot with both.
 - `pj/scale :size` takes `:range`, `:by` and `:from-zero`; `:alpha` takes `:range` and `:from-zero`. `:range` is what the aesthetic spans: on `:size` that is a radius in drawing units, `[2 8]` by default.
-- `:domain` now works on `:size`, `:alpha`, `:color` and `:fill` (issue #39). A value outside a numeric domain is drawn at the nearer end instead of being dropped. On an axis, the column's type decides how the domain is read. A category left out of the domain is drawn last, with a warning.
+- `:domain` now works on `:size`, `:alpha`, `:color` and `:fill` (issue #39). A value outside a numeric domain is drawn at the nearer end instead of being dropped. The column's type decides how the domain is read, on every aesthetic that takes one: against a continuous column it replaces the interval, and against a categorical one it supplies the order of the categories, however many are listed. A category left out of the domain is drawn last, with a warning.
 - An aesthetic has a single scale, so two layers cannot read it through different ones. The error suggests `pj/arrange`, where each cell has its own scales and legend.
-- Giving a scale a key it does not use is an error, both in `pj/scale` and in a mapping. `:x-end`, `:x-min`, `:x-max`, `:y-min`, `:y-max` and `:text` take no scale at all, like `:group`.
+- Giving a scale a key it does not use is an error, both in `pj/scale` and in a mapping, and so is giving one a value it cannot carry out -- a marker symbol that does not exist, `:tick-labels` without `:breaks`. `:x-end`, `:x-min`, `:x-max`, `:y-min`, `:y-max` and `:text` take no scale at all, like `:group`.
 - `pj/aesthetic-scales` lists what each aesthetic's scale accepts, alongside `pj/config-key-docs`, `pj/plot-option-docs` and `pj/layer-option-docs`.
 
 ### One setting, one name

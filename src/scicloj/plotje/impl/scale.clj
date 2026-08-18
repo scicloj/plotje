@@ -316,6 +316,55 @@
   (when (contains? channel-bounds channel)
     (validate-bounds-pair! channel spec :domain where)))
 
+(defn validate-spec-values!
+  "Throw when a scale spec's `:breaks`, `:tick-labels` or `:values`
+   holds something the channel cannot carry out.
+
+   Called from both places a spec can be written -- `pj/scale` and a
+   mapping's `:scale` -- because a spec means the same thing wherever
+   it is written. These four checks lived only in `pj/scale`, so
+   `{:shape {:column :c :scale {:values [:blob :thing :whatsit]}}}`
+   planned without a word: every mark drew the fallback symbol while
+   the legend advertised three symbols that do not exist.
+
+   `where` names the caller for the message. Which channels read these
+   keys at all is settled by `validate-spec-keys!`, off the published
+   table, so this checks only what a key holds."
+  [channel spec where]
+  (let [breaks (:breaks spec)
+        labels (:tick-labels spec)]
+    (when (and (some? labels) (not (sequential? labels)))
+      (throw (ex-info (str where " " channel " :tick-labels " (pr-str labels) " is not a"
+                           " sequence of tick texts. It draws one text per"
+                           " break, so it takes as many as :breaks names."
+                           " To title the axis itself, use :label.")
+                      {:caller where :channel channel :tick-labels labels})))
+    (when (and labels (not breaks))
+      (throw (ex-info (str where " " channel " :tick-labels requires :breaks. Pass both,"
+                           " or drop :tick-labels to keep auto-formatted tick"
+                           " text.")
+                      {:caller where :channel channel :tick-labels labels})))
+    (when (and breaks labels (not= (count breaks) (count labels)))
+      (throw (ex-info (str where " " channel " :breaks and :tick-labels must have the same"
+                           " count, got " (count breaks) " breaks and "
+                           (count labels) " tick labels.")
+                      {:caller where :channel channel
+                       :breaks (vec breaks) :tick-labels (vec labels)}))))
+  ;; `:values` is the enumerated output set, and what belongs in it
+  ;; depends on the channel: marker symbols on `:shape`, colours on
+  ;; `:color`. An unrecognized symbol draws as the fallback while the
+  ;; legend advertises the name, so refuse it here rather than render a
+  ;; legend that disagrees with its own marks.
+  (when-let [values (:values spec)]
+    (when (= channel :shape)
+      (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
+        (throw (ex-info (str where " " channel " :values does not recognize "
+                             (vec unknown) ". Supported symbols: "
+                             defaults/shape-syms ".")
+                        {:caller where :channel channel
+                         :unknown (vec unknown)
+                         :supported defaults/shape-syms}))))))
+
 (defn numeric-color-domain
   "The `[lo hi]` a numeric colour or fill column is read against.
 
@@ -623,9 +672,12 @@
   "How many ticks an axis asks for across `pixel-range` drawing units.
 
    `:n-ticks` on the spec names the count outright. Failing that,
-   `spacing` names the least room a tick may have and the count is how
-   many fit, never fewer than two. One answer for both column types --
-   each key used to be read on one of them and ignored on the other."
+   `spacing` names about how much room a tick should have and the count
+   is how many fit, never fewer than two. The count is then rounded to
+   a step a reader can read off, which is why the room each tick ends
+   up with can come out under `spacing`. One answer for both column
+   types -- each key used to be read on one of them and ignored on the
+   other."
   [pixel-range scale-spec spacing]
   (if-let [n (:n-ticks scale-spec)]
     n

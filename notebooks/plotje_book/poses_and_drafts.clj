@@ -26,7 +26,7 @@
 ;; ## A pose is a map, and every key is optional
 
 ;; One pose runs through the whole chapter: iris petal measurements
-;; coloured by species, with a scatter and a per-species regression
+;; colored by species, with a scatter and a per-species regression
 ;; line.
 
 (def iris-pose
@@ -302,7 +302,7 @@ annotated
 ;; A written value asked to scale takes the same route. `{:color
 ;; {:value "Model A" :scale true}}` becomes a constant column named
 ;; `:color`, and because it is a column like any other it pools into
-;; the colour scale and earns a legend entry. That is the whole of the
+;; the color scale and earns a legend entry. That is the whole of the
 ;; feature: no stage after the draft learns a new vocabulary.
 ;;
 ;; The exception is a layer with no data anywhere. There is no dataset

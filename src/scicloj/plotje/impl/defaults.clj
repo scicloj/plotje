@@ -284,7 +284,7 @@
    `:breaks`, `:tick-labels`, `:n-ticks` and `:tick-spacing` place and
    word tick marks, so all four belong to the two channels drawn as an
    axis. `:n-ticks` asks for about that many ticks and `:tick-spacing`
-   for the least room each may have; a numeric axis reads whichever is
+   for about that much room each; a numeric axis reads whichever is
    named, and a categorical one is ticked at its categories, which
    `:n-ticks` thins.
 
@@ -880,8 +880,8 @@
    :annotation-stroke ["Annotations" "Stroke color for annotation marks"]
    :annotation-dash ["Annotations" "Dash pattern [dash gap] for annotation lines"]
    :band-opacity ["Annotations" "Opacity for confidence bands"]
-   :x-tick-spacing ["Ticks" "Minimum spacing, in drawing units, between ticks on the x axis"]
-   :y-tick-spacing ["Ticks" "Minimum spacing, in drawing units, between ticks on the y axis"]
+   :x-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the x axis"]
+   :y-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the y axis"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
    :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]

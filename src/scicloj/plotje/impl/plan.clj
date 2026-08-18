@@ -204,7 +204,7 @@
   "Warn when a scale spec asks a categorical axis for a tick spacing.
 
    A numeric axis chooses its ticks, and a spacing tells that choice
-   the least room a tick may have. A categorical axis has no such
+   about how much room a tick should have. A categorical axis has no such
    choice to steer -- its ticks are its categories -- so `:n-ticks` is
    what thins them. Written in a spec the key would otherwise do
    nothing, which is the reading this release exists to remove; the
@@ -479,19 +479,28 @@
        (not (:color-drawn? resolved-layer))))
 
 (defn- categorical-domain
-  "The `:domain` on a scale spec, when it names categories rather than a
-   numeric range.
+  "The order a `:domain` on a scale spec supplies for a categorical
+   aesthetic.
 
-   One key carries both readings, because one aesthetic can be drawn
-   either way: `:color` on a numeric column reads `[lo hi]` as the ends
-   of a gradient, and on a categorical one reads a list of names as the
-   order to place them in. A two-number domain is the numeric reading,
-   and `numeric-color-domain` has it."
+   Reached only where the column's type has already settled that the
+   aesthetic is categorical: `collect-colors` calls it inside its
+   `when-not numeric-color?` branch, and `:shape` accepts no other
+   type. So the column's type decides how a written `:domain` is read
+   and the domain's own shape decides nothing -- the same rule
+   `axis-domain` states and follows.
+
+   One key carries both readings, because `:color` can be drawn either
+   way: on a numeric column it reads `[lo hi]` as the ends of a
+   gradient, which is `scale/numeric-color-domain`, reached from the
+   other branch of that same `numeric-color?` test.
+
+   Testing the domain's shape here instead was a second rule for one
+   question. It discarded `{:domain [2 1]}` on a column of exactly two
+   numeric categories, without a message, while `:x` honoured the same
+   domain on the same column."
   [spec]
   (let [d (:domain spec)]
-    (when (and (sequential? d)
-               (seq d)
-               (not (and (= 2 (count d)) (every? number? d))))
+    (when (and (sequential? d) (seq d))
       d)))
 
 (defn- category-label

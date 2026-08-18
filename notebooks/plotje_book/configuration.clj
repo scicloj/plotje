@@ -349,7 +349,7 @@ precedence-point-radius
 ;; The `:color-values` key controls the color cycle for categorical
 ;; color mappings. It is the outermost scope of `:values` in a `:color`
 ;; scale spec, so a spec written on a mapping or a layer wins over it;
-;; [Scales](./plotje_book.scales.html#the-colours-a-scale-spans) has the
+;; [Scales](./plotje_book.scales.html#the-colors-a-scale-spans) has the
 ;; spec spelling. It accepts:
 ;;
 ;; - a keyword -- any palette name from the

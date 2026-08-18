@@ -620,7 +620,7 @@ my-pose
 ;;
 ;; A **tick** is an axis mark with a label at a domain value. Ticks
 ;; are chosen at layout time to fit the axis length in drawing
-;; units -- label widths, minimum spacing, and calendar boundaries
+;; units -- label widths, the spacing asked for, and calendar boundaries
 ;; (for temporal axes) all feed into the selection. Each panel in
 ;; the plan carries its own `:x-ticks` and `:y-ticks` maps with
 ;; parallel `:values` and `:labels` vectors.

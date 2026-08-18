@@ -241,6 +241,19 @@ plants
 ;; | `:value` | `false` | one color | that color for every mark, no legend |
 ;; | `:value` | `true` | one data value | one color from the palette, with a legend entry for that value |
 ;;
+;; The rows naming a palette are the rows for a column of categories,
+;; which `:species` is. A column of numbers is read as a quantity
+;; instead and drawn through a gradient, with a bar in place of the
+;; per-value legend rows -- `:weight` and `:height` on this data are
+;; both of those. What decides is the column's type, in
+;; [Column Types](./plotje_book.column_types.html#what-the-type-decides-about-color).
+
+(-> plants
+    (pj/lay-point :height :weight {:color :weight}))
+
+(kind/test-last
+ [(fn [fr] (= :continuous (-> fr pj/plan :legend :type)))])
+
 ;; The same four exist for `:size`, where the scale turns numbers into
 ;; radii, and for `:alpha`, where it turns numbers into opacities.
 
@@ -382,9 +395,9 @@ plants
 ;; ### Leaving the source to the data
 ;;
 ;; The third source key is `:from`. It names the source the way the
-;; plain form does -- ask the data, and take whichever answer it gives
-;; -- while leaving room for a `:scale`, which a plain mapping has
-;; nowhere to put.
+;; plain form does -- read the data, and take whichever reading it
+;; supports -- while leaving room for a `:scale`, which a plain
+;; mapping has nowhere to put.
 ;;
 ;; `{:color {:from :shade}}` and the plain `{:color :shade}` say the
 ;; same thing, and draw the same plot:
@@ -398,10 +411,10 @@ plants
                   (pj/lay-point :height :weight {:color :shade})
                   pj/svg-summary)))])
 
-;; The point of writing it that way is what can be added. `:shade`
-;; holds colors, and the palette is drawn over them because a column
-;; passes through the color scale. `:scale false` draws them as they
-;; stand -- and the plain form cannot say it:
+;; Writing it that way leaves room for a `:scale`. `:shade` holds
+;; colors, and the palette is drawn over them because a column passes
+;; through the color scale. `:scale false` draws them as they stand --
+;; and the plain form cannot say it:
 
 (-> plants
     (pj/lay-point :height :weight {:color {:from :shade :scale false}}))
@@ -413,10 +426,30 @@ plants
         [0.0 0.0 0.0 1.0]]
        (->> fr pj/plan :panels first :layers first :groups (mapv :color))))])
 
-;; `{:column :shade :scale false}` would draw the same plot here, and
-;; the two differ on data that carries no `:shade` column: `:column`
-;; insists on a column and reports it missing, while `:from` reads
-;; `:shade` as a value, exactly as the plain form does.
+;; `{:column :shade :scale false}` draws the same plot here, and the
+;; two differ on data that carries no such column. `:column` requires
+;; a column and reports it missing either way. `:from` falls back to
+;; reading the name as a value, exactly as the plain form does -- so
+;; where the name is one a color can be made of, it draws that color:
+
+(-> plants
+    (pj/lay-point :height :weight {:color {:from :red} :size 9}))
+
+(kind/test-last
+ [(fn [fr]
+    (and (= [[1.0 0.0 0.0 1.0]]
+            (->> fr pj/plan :panels first :layers first :groups (mapv :color)))
+         ;; The same name under :column, on the same data, is refused.
+         (re-find #"Column :red \(from :color\) not found"
+                  (try (-> plants
+                           (pj/lay-point :height :weight {:color {:column :red}})
+                           pj/plan)
+                       "no error"
+                       (catch clojure.lang.ExceptionInfo e (ex-message e))))))])
+
+;; Where the name is not a color either -- `:shade` on data without a
+;; `:shade` column -- both report the column missing, since there is
+;; nothing else the name could be.
 
 ;; ## The positional aesthetics (`:x`, `:y`) and `:scale false`
 ;;
@@ -450,9 +483,9 @@ plants
 
 ;; ## When the conventions cannot decide
 ;;
-;; The source rule asks the data one question: does this value name a
-;; column? Two situations make that question the wrong one, and in both
-;; you write the full form.
+;; The source rule turns on one question: does this value name a
+;; column of the data? Two situations make that question the wrong
+;; one, and in both you write the full form.
 
 ;; ### A column named after a color
 ;;
@@ -460,16 +493,16 @@ plants
 ;; names that column, and the color blue is out of reach through the
 ;; short form.
 
-(def named-after-a-colour
+(def named-after-a-color
   {:height [12 25]
    :weight [1.4 3.9]
    "blue"  ["p" "q"]})
 
-named-after-a-colour
+named-after-a-color
 
 ;; `{:value "blue"}` is the color. One group, drawn blue, no legend.
 
-(-> named-after-a-colour
+(-> named-after-a-color
     (pj/lay-point :height :weight {:color {:value "blue"} :size 9}))
 
 (kind/test-last
@@ -482,7 +515,7 @@ named-after-a-colour
 ;; `{:column "blue"}` is the column. Two groups, two palette colors, and
 ;; a legend reading the column's two values.
 
-(-> named-after-a-colour
+(-> named-after-a-color
     (pj/lay-point :height :weight {:color {:column "blue"} :size 9}))
 
 (kind/test-last
@@ -493,7 +526,7 @@ named-after-a-colour
 ;; A dataset built without column names gets integer ones. A number on
 ;; `:x` or `:y` then has both readings available -- it could be a
 ;; column name or a value to place a mark at -- and the source rule
-;; decides between them the way it decides everywhere: by asking the
+;; decides between them the way it decides everywhere: by reading the
 ;; data.
 
 (def integer-named
@@ -557,9 +590,10 @@ integer-named
 (kind/test-last
  [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
 
-;; A spec is the same map `pj/scale` takes, so a mapping can set the
-;; range an aesthetic spans as well as its type. The one below is twice
-;; the default at both ends, and every mark is drawn twice as wide:
+;; A spec is the same map `pj/scale` takes -- the same keys, checked
+;; the same way -- so a mapping can set the range an aesthetic spans
+;; as well as its type. The one below is twice the default at both
+;; ends, and every mark is drawn twice as wide:
 
 (-> plants
     (pj/lay-point :height :weight
@@ -567,9 +601,29 @@ integer-named
 
 (kind/test-last
  [(fn [fr]
-    (= (->> fr pj/plan :size-legend :entries (mapv :magnitude))
-       (->> (-> plants (pj/lay-point :height :weight {:size :weight}))
-            pj/plan :size-legend :entries (mapv #(* 2 (:magnitude %))))))])
+    (let [refusal (fn [build]
+                    ;; Each is checked where it is written -- the
+                    ;; mapping at lay-point, pj/scale at its own call --
+                    ;; so the building goes inside the try, not just
+                    ;; the planning.
+                    (try (pj/plan (build)) "no error"
+                         (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+      (and (= (->> fr pj/plan :size-legend :entries (mapv :magnitude))
+              (->> (-> plants (pj/lay-point :height :weight {:size :weight}))
+                   pj/plan :size-legend :entries (mapv #(* 2 (:magnitude %)))))
+           ;; "Checked the same way": a value neither can carry out is
+           ;; refused from a mapping as it is from pj/scale. The
+           ;; mapping used to accept this one and draw every mark with
+           ;; the fallback symbol under a legend naming three that do
+           ;; not exist.
+           (every? #(re-find #":values does not recognize" (refusal %))
+                   [#(-> plants
+                         (pj/lay-point :height :weight
+                                       {:shape {:column :species
+                                                :scale {:values [:blob]}}}))
+                    #(-> plants
+                         (pj/lay-point :height :weight {:shape :species})
+                         (pj/scale :shape {:values [:blob]}))]))))])
 
 ;; A type written here reads **that one mapping** through it, which is
 ;; what distinguishes it from `pj/scale`. `pj/scale` sets the scale on

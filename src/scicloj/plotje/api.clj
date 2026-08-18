@@ -2693,8 +2693,8 @@
      scope further out.
    - `:x` and `:y` take `:breaks` (explicit tick locations),
      `:tick-labels` (custom tick text paired with `:breaks`),
-     `:n-ticks` (about this many ticks) and `:tick-spacing` (the least
-     room in drawing units a tick may have). A numeric axis reads
+     `:n-ticks` (about this many ticks) and `:tick-spacing` (about
+     this much room in drawing units per tick). A numeric axis reads
      whichever of the last two is named; a categorical one is ticked at
      its categories, which `:n-ticks` thins.
    - `:size` and `:alpha` take `:range` -- what the aesthetic spans, in
@@ -2755,10 +2755,12 @@
    `:n-ticks` asks for about that many ticks. On a categorical axis it
    thins a crowded one, which otherwise labels every category; on a
    numeric axis it replaces the count that `:tick-spacing` would give.
-   `:tick-spacing` is the least room, in drawing units, a tick may
-   have, and the count follows from how many fit. It steers the choice
-   of numeric ticks and does nothing on a categorical axis, which says
-   so. The `:x-tick-spacing` / `:y-tick-spacing` plot options name the
+   `:tick-spacing` asks for about that much room, in drawing units,
+   per tick, and the count follows from how many fit. It is a target
+   in the way `:n-ticks` is: the ticks are still rounded to values a
+   reader can read off, so the room each one ends up with can come out
+   under the number asked for. It steers the choice of numeric ticks
+   and does nothing on a categorical axis, which says so. The `:x-tick-spacing` / `:y-tick-spacing` plot options name the
    same setting one scope further out.
 
    - `(scale pose :x :log)` -- log scale on x-axis.
@@ -2817,47 +2819,11 @@
               {:channel channel :scale-type type-kw
                :supported (vec (sort valid-types))})))
     (when (map? scale-type)
-      (let [breaks (:breaks scale-type)
-            labels (:tick-labels scale-type)]
-        (when (and (some? labels) (not (sequential? labels)))
-          (throw (ex-info
-                  (str "pj/scale :tick-labels " (pr-str labels) " is not a"
-                       " sequence of tick texts. It draws one text per"
-                       " break, so it takes as many as :breaks names."
-                       " To title the axis itself, use :label.")
-                  {:caller "pj/scale" :channel channel :tick-labels labels})))
-        (when (and labels (not breaks))
-          (throw (ex-info
-                  (str "pj/scale :tick-labels requires :breaks. Pass both,"
-                       " or drop :tick-labels to keep auto-formatted tick"
-                       " text.")
-                  {:caller "pj/scale" :channel channel :tick-labels labels})))
-        (when (and breaks labels (not= (count breaks) (count labels)))
-          (throw (ex-info
-                  (str "pj/scale :breaks and :tick-labels must have the same"
-                       " count, got " (count breaks) " breaks and "
-                       (count labels) " tick labels.")
-                  {:caller "pj/scale" :channel channel
-                   :breaks (vec breaks) :tick-labels (vec labels)})))
-        ;; :values is the enumerated output set, and what belongs in it
-        ;; depends on the channel: marker symbols on :shape, colours on
-        ;; :color. An unrecognized symbol would draw as a circle while
-        ;; the legend advertised the name, so reject it here rather
-        ;; than render a legend that disagrees with its own marks.
-        ;; Which channels read :values at all is settled by
-        ;; validate-spec-keys! below, off the published table.
-        (when-let [values (:values scale-type)]
-          (when (= channel :shape)
-            (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
-              (throw (ex-info
-                      (str "pj/scale :shape :values does not recognize "
-                           (vec unknown) ". Supported symbols: "
-                           defaults/shape-syms ".")
-                      {:caller "pj/scale" :channel channel
-                       :unknown (vec unknown)
-                       :supported defaults/shape-syms})))))
-        (scale/validate-drawn-range-options! channel scale-type "pj/scale")
-        (scale/validate-spec-keys! channel scale-type "pj/scale")))
+      ;; The same three calls a mapping's `:scale` makes, in the same
+      ;; order, so a spec means one thing wherever it is written.
+      (scale/validate-spec-values! channel scale-type "pj/scale")
+      (scale/validate-drawn-range-options! channel scale-type "pj/scale")
+      (scale/validate-spec-keys! channel scale-type "pj/scale"))
     ;; The spec is written as the caller stated it. A map that names no
     ;; :type does not mean the scale is linear -- it means this call had
     ;; no opinion about the type -- so filling one in here would make

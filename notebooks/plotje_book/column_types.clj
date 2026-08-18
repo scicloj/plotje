@@ -2,7 +2,7 @@
 ;;
 ;; Every column Plotje reads has a type, taken from the values it
 ;; holds. That type decides the shape of the axis the column is drawn
-;; against, how the ticks are labelled, whether a colour mapping splits
+;; against, how the ticks are labelled, whether a color mapping splits
 ;; the data into groups, and which layer types accept the column.
 ;;
 ;; There are three types, and a column has exactly one:
@@ -81,10 +81,10 @@
                  (some (fn [l] (re-find #"^[A-Z][a-z]{2}-\d\d$" l))
                        (:labels ticks)))))])
 
-;; ## What the type decides about colour
+;; ## What the type decides about color
 
 ;; The same three columns, mapped to `:color` instead of to a position.
-;; A categorical column draws one palette colour per distinct value:
+;; A categorical column draws one palette color per distinct value:
 
 (-> categorical
     (pj/lay-point :v :v {:color :k}))
@@ -93,7 +93,7 @@
  [(fn [v] (= 4 (count (disj (:colors (pj/svg-summary v)) "none"))))])
 
 ;; A numerical column shades each row from a gradient, so the plot
-;; carries many more colours than it has rows -- the gradient bar in the
+;; carries many more colors than it has rows -- the gradient bar in the
 ;; legend is drawn from a stack of them:
 
 (-> numerical
@@ -102,7 +102,7 @@
 (kind/test-last
  [(fn [v] (< 4 (count (disj (:colors (pj/svg-summary v)) "none"))))])
 
-;; Beyond the colours themselves, a categorical mapping divides the rows
+;; Beyond the colors themselves, a categorical mapping divides the rows
 ;; into groups, and every layer computes itself once per group. A
 ;; numerical mapping does not.
 ;; [Inference Rules](./plotje_book.inference_rules.html#categorical-color-implies-grouping)
@@ -167,7 +167,9 @@
 
 (kind/test-last
  [(fn [v] (and (= :rect (inferred-mark v))
-               (= 3 (:polygons (pj/svg-summary v)))))])
+               (= 3 (:polygons (pj/svg-summary v)))
+               (= [4 3 2] (->> (pj/plan v) :panels first :layers first
+                               :groups first :counts (mapv :count)))))])
 
 ;; Two numerical columns are a scatter, which is the case every
 ;; combination not listed above falls back to.
@@ -191,9 +193,18 @@
 (kind/test-last
  [(fn [m] (re-find #"requires a categorical column" m))])
 
-;; The same call on the categorical column draws four boxes. Other layer
-;; types need the opposite: `pj/lay-histogram` bins numbers, and has
-;; nothing to bin on a categorical column. [Layer
+;; On a categorical column it draws one box per category. The
+;; `readings` data above has several rows per batch, so the boxes have
+;; something in them:
+
+(-> readings
+    (pj/lay-boxplot :batch :reading))
+
+(kind/test-last
+ [(fn [v] (= 3 (:polygons (pj/svg-summary v))))])
+
+;; Other layer types need the opposite: `pj/lay-histogram` bins
+;; numbers, and has nothing to bin on a categorical column. [Layer
 ;; Types](./plotje_book.layer_types.html) lists what each one needs.
 
 ;; ## Overriding the inferred type
@@ -211,12 +222,31 @@
             (and (true? (:categorical? ticks))
                  (= ["2020" "2021" "2022" "2023"] (vec (:labels ticks))))))])
 
-;; Without the override the same call reads `:year` as a quantity, and
-;; draws bars along a continuous axis instead of one per year.
-;;
+;; Without the override the same call reads `:year` as a quantity and
+;; draws bars along a continuous axis, ticked at the round numbers a
+;; numerical axis is ticked at rather than at one per year:
+
+(-> {:year [2020 2021 2022 2023] :revenue [10 20 30 40]}
+    (pj/lay-bar :year :revenue))
+
+(kind/test-last
+ [(fn [v]
+    (let [ticks (-> v pj/plan :panels first :x-ticks)
+          groups (fn [mapping]
+                   (-> {:year [2020 2021 2022 2023] :revenue [10 20 30 40]}
+                       (pj/lay-point :year :revenue mapping)
+                       pj/plan
+                       :panels first :layers first :groups count))]
+      (and (false? (:categorical? ticks))
+           (contains? (set (:labels ticks)) "2020.5")
+           ;; The same override on :color: one group shaded from a
+           ;; gradient without it, one group per year with it.
+           (= 1 (groups {:color :year}))
+           (= 4 (groups {:color :year :color-type :categorical})))))])
+
 ;; The override changes the type, and so changes everything the type
-;; decides -- the axis becomes bands, a colour mapping on the same
-;; column would split rather than shade, and the layer types that need a
+;; decides -- the axis becomes bands, a color mapping on the same
+;; column splits rather than shades, and the layer types that need a
 ;; categorical axis start accepting it.
 
 ;; ## The column's type and the scale's type

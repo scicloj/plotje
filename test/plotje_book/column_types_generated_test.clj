@@ -175,31 +175,51 @@
     [v]
     (and
      (= :rect (inferred-mark v))
-     (= 3 (:polygons (pj/svg-summary v)))))
+     (= 3 (:polygons (pj/svg-summary v)))
+     (=
+      [4 3 2]
+      (->>
+       (pj/plan v)
+       :panels
+       first
+       :layers
+       first
+       :groups
+       first
+       :counts
+       (mapv :count)))))
    v33_l166)))
 
 
 (def
- v36_l185
+ v36_l187
  (try
   (-> numerical (pj/lay-boxplot :k :v) pj/plot)
   (catch Exception e (ex-message e))))
 
 
 (deftest
- t37_l191
- (is ((fn [m] (re-find #"requires a categorical column" m)) v36_l185)))
+ t37_l193
+ (is ((fn [m] (re-find #"requires a categorical column" m)) v36_l187)))
+
+
+(def v39_l200 (-> readings (pj/lay-boxplot :batch :reading)))
+
+
+(deftest
+ t40_l203
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v39_l200)))
 
 
 (def
- v39_l206
+ v42_l217
  (->
   {:year [2020 2021 2022 2023], :revenue [10 20 30 40]}
   (pj/lay-bar :year :revenue {:x-type :categorical})))
 
 
 (deftest
- t40_l209
+ t43_l220
  (is
   ((fn
     [v]
@@ -208,21 +228,57 @@
      (and
       (true? (:categorical? ticks))
       (= ["2020" "2021" "2022" "2023"] (vec (:labels ticks))))))
-   v39_l206)))
-
-
-(def v42_l245 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
-
-
-(deftest
- t43_l249
- (is
-  ((fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))
-   v42_l245)))
+   v42_l217)))
 
 
 (def
- v45_l255
+ v45_l229
+ (->
+  {:year [2020 2021 2022 2023], :revenue [10 20 30 40]}
+  (pj/lay-bar :year :revenue)))
+
+
+(deftest
+ t46_l232
+ (is
+  ((fn
+    [v]
+    (let
+     [ticks
+      (-> v pj/plan :panels first :x-ticks)
+      groups
+      (fn
+       [mapping]
+       (->
+        {:year [2020 2021 2022 2023], :revenue [10 20 30 40]}
+        (pj/lay-point :year :revenue mapping)
+        pj/plan
+        :panels
+        first
+        :layers
+        first
+        :groups
+        count))]
+     (and
+      (false? (:categorical? ticks))
+      (contains? (set (:labels ticks)) "2020.5")
+      (= 1 (groups {:color :year}))
+      (= 4 (groups {:color :year, :color-type :categorical})))))
+   v45_l229)))
+
+
+(def v48_l275 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
+
+
+(deftest
+ t49_l279
+ (is
+  ((fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))
+   v48_l275)))
+
+
+(def
+ v51_l285
  (try
   (->
    numerical
@@ -233,35 +289,35 @@
 
 
 (deftest
- t46_l263
+ t52_l293
  (is
   ((fn [m] (re-find #"set :x-type or :y-type to :categorical" m))
-   v45_l255)))
+   v51_l285)))
 
 
 (def
- v48_l269
+ v54_l299
  (try
   (-> categorical (pj/lay-point :k :v) (pj/scale :x :log) pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t49_l277
- (is ((fn [m] (re-find #"requires numeric data" m)) v48_l269)))
+ t55_l307
+ (is ((fn [m] (re-find #"requires numeric data" m)) v54_l299)))
 
 
 (def
- v51_l285
+ v57_l315
  (-> categorical (pj/lay-point :k :v) (pj/scale :x :linear)))
 
 
 (deftest
- t52_l289
+ t58_l319
  (is
   ((fn
     [v]
     (=
      (pj/svg-summary v)
      (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))
-   v51_l285)))
+   v57_l315)))

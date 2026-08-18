@@ -1377,6 +1377,7 @@
           ;; Before the unknown-key check, so that a drawn-range option
           ;; written on an aesthetic that has no such quantity is
           ;; answered with what it means rather than with a list of keys.
+          (scale/validate-spec-values! k spec "A mapping's :scale on")
           (scale/validate-drawn-range-options! k spec "A mapping's :scale on")
           (scale/validate-spec-keys! k spec "A mapping's :scale on")
           (when-let [t (:type spec)]

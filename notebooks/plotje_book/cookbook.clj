@@ -418,7 +418,7 @@
 
 ;; ### Diverging color scale
 ;;
-;; Use a `:diverging` colour range with a `:midpoint` to center
+;; Use a `:diverging` color range with a `:midpoint` to center
 ;; a red-white-blue gradient on a meaningful value (e.g., zero).
 
 (-> {:x (range 20)

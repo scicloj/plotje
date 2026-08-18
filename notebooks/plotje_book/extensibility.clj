@@ -114,7 +114,7 @@ graph LR
                                 :ys (dfn/cummax (ds y))}
                          ;; A grouped stat names each group by the value it
                          ;; was split on. extract-layer turns that name into
-                         ;; a colour and a legend entry.
+                         ;; a color and a legend entry.
                          (seq group) (assoc :color (first (ds (first group))))))
                      subsets)
         all-xs (dtype/concat-buffers (map :xs points))
@@ -421,7 +421,7 @@ graph LR
 ;;
 ;; | Key | Present when | Read by |
 ;; |:----|:-------------|:--------|
-;; | `:color` | the layer is grouped | every mark, to choose the group's colour |
+;; | `:color` | the layer is grouped | every mark, to choose the group's color |
 ;; | `:labels` | the layer maps `:text`, or the stat computes one per point | `:text` |
 ;; | `:ymins`, `:ymaxs` | `:y-min` and `:y-max` map columns | `:errorbar`, `:pointrange` |
 ;; | `:sizes` | `:size` maps a column | `:point` |
@@ -430,12 +430,12 @@ graph LR
 ;; | `:color-values` | `:color` maps a numerical column | `:point`, `:interval-h` |
 ;; | `:x-ends` | `:x-end` maps a column | `:interval-h` |
 
-;; #### `:color` in a stat result is a category, not a colour
+;; #### `:color` in a stat result is a category, not a color
 ;;
 ;; A group's `:color` holds the **category value** the group was split on
-;; -- the string `"setosa"` -- and not a colour. Nothing is resolved against a palette until
+;; -- the string `"setosa"` -- and not a color. Nothing is resolved against a palette until
 ;; `extract-layer` runs, which is where the same key changes meaning: the
-;; plan layer's `:color` is a resolved colour, and the category moves to
+;; plan layer's `:color` is a resolved color, and the category moves to
 ;; `:label`.
 
 [(-> scatter-stat :points first :color)
@@ -489,7 +489,7 @@ graph LR
 ;; Converts a stat result into a plan layer descriptor -- a plain
 ;; map with data-space geometry and resolved colors. This is the half of
 ;; the contract that reads the shapes tabulated above, and where a
-;; category value becomes a colour.
+;; category value becomes a color.
 ;;
 ;; Dispatch function: `(fn [draft-layer stat all-colors cfg] (:mark draft-layer))`
 
