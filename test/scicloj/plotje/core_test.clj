@@ -391,11 +391,17 @@
 
 (deftest make-scale-categorical-n-ticks-test
   (testing ":n-ticks thins a categorical band scale to roughly n evenly-spaced ticks"
-    (let [dom (mapv str (range 50))
-          all (scale/make-scale dom [0 300] {})
-          ten (scale/make-scale dom [0 300] {:n-ticks 10})]
-      (is (= 50 (count (wadogo.scale/ticks all))))
-      (is (= 10 (count (wadogo.scale/ticks ten))))))
+    ;; The count is asked for at the tick call rather than built into
+    ;; the scale, so one band scale answers both questions and the
+    ;; numeric and categorical axes read `:n-ticks` the same way.
+    (let [s (scale/make-scale (mapv str (range 50)) [0 300] {})]
+      (is (= 50 (count (wadogo.scale/ticks s))))
+      (is (= 10 (count (wadogo.scale/ticks s 10))))))
+
+  (testing "and a tick count is what :n-ticks names, on either column type"
+    (is (= 10 (scale/tick-count 600.0 {:n-ticks 10} 60)))
+    (is (= 10 (scale/tick-count 600.0 {} 60)) "or how many fit at that spacing")
+    (is (= 2 (scale/tick-count 10.0 {} 60)) "never fewer than two"))
   (testing ":n-ticks flows end-to-end through pj/scale onto a categorical x-axis"
     (let [d (tc/dataset {:x (mapv str (range 50)) :y (range 50)})
           labels (fn [pose] (-> pose pj/plan :panels first :x-ticks :labels))]

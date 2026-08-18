@@ -44,7 +44,7 @@
    `plan/compute-ticks` but operates without pulling in plan.clj, so
    layout.clj stays acyclic (plan.clj will require layout.clj)."
   [domain scale-spec temporal-extent pixel-budget tick-spacing separators]
-  (let [n (scale/tick-count (double pixel-budget) tick-spacing)
+  (let [n (scale/tick-count (double pixel-budget) scale-spec tick-spacing)
         log? (= :log (:type scale-spec))
         user-breaks (:breaks scale-spec)
         user-labels (:tick-labels scale-spec)]

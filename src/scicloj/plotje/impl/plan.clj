@@ -200,6 +200,24 @@
                          :categories (vec domain)}))
         (println (str "Warning: " msg))))))
 
+(defn- warn-categorical-tick-spacing!
+  "Warn when a scale spec asks a categorical axis for a tick spacing.
+
+   A numeric axis chooses its ticks, and a spacing tells that choice
+   the least room a tick may have. A categorical axis has no such
+   choice to steer -- its ticks are its categories -- so `:n-ticks` is
+   what thins them. Written in a spec the key would otherwise do
+   nothing, which is the reading this release exists to remove; the
+   plot option of the same name is left alone, since it steers
+   whichever axes on the plot are numeric."
+  [scale-spec]
+  (when (contains? scale-spec :tick-spacing)
+    (println (str "Warning: :tick-spacing " (pr-str (:tick-spacing scale-spec))
+                  " on a categorical axis places no ticks. The ticks of a"
+                  " categorical axis are its categories; :n-ticks thins"
+                  " them to about that many, and :breaks names the ones"
+                  " to keep."))))
+
 (defn compute-ticks
   "Compute tick values and labels for a domain+pixel range, using wadogo transiently.
    When temporal-extent is provided (a [min max] pair of temporal objects),
@@ -241,11 +259,20 @@
              {:values (mapv (fn [[b _]] (display->cat (defaults/fmt-category-label b))) kept)
               :labels (mapv second kept)
               :categorical? true}))
-         (let [s (scale/make-scale domain pixel-range scale-spec)]
-           {:values (vec (ws/ticks s))
-            :labels (mapv defaults/fmt-category-label (ws/ticks s))
+         (let [s (scale/make-scale domain pixel-range scale-spec)
+               ;; The ticks of a categorical axis are its categories,
+               ;; and `:n-ticks` thins them. A tick spacing steers the
+               ;; algorithm that picks numeric ticks, and there is no
+               ;; such algorithm here -- see `warn-categorical-tick-spacing!`.
+               ticks (if-let [n (:n-ticks scale-spec)]
+                       (ws/ticks s n)
+                       (ws/ticks s))]
+           (warn-categorical-tick-spacing! scale-spec)
+           {:values (vec ticks)
+            :labels (mapv defaults/fmt-category-label ticks)
             :categorical? true})))
-     (let [n (scale/tick-count (Math/abs (double (- (second pixel-range) (first pixel-range)))) spacing)
+     (let [n (scale/tick-count (Math/abs (double (- (second pixel-range) (first pixel-range))))
+                               scale-spec spacing)
            log? (= :log (:type scale-spec))
            user-breaks (:breaks scale-spec)
            user-labels (:tick-labels scale-spec)]
@@ -1744,10 +1771,17 @@
         ;; An axis nothing gives a data meaning gets no ticks. The
         ;; domain stays -- the coordinate function needs one -- but
         ;; numbers drawn off it would name values no mark carries.
+        ;; The spec names a tick spacing where the writer set one, and
+        ;; the `:x-tick-spacing` / `:y-tick-spacing` plot option names
+        ;; it one scope further out.
         x-ticks (when (and x-dom x-informed?)
-                  (compute-ticks x-dom x-px x-scale (:x-tick-spacing cfg) x-te seps))
+                  (compute-ticks x-dom x-px x-scale
+                                 (defaults/scale-setting :x :tick-spacing x-scale cfg)
+                                 x-te seps))
         y-ticks (when (and y-dom y-informed?)
-                  (compute-ticks y-dom y-px y-scale (:y-tick-spacing cfg) y-te seps))]
+                  (compute-ticks y-dom y-px y-scale
+                                 (defaults/scale-setting :y :tick-spacing y-scale cfg)
+                                 y-te seps))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale

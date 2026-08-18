@@ -281,15 +281,19 @@
    the middle of the range is drawn at, which is what centres a
    diverging gradient on zero rather than halfway along the data.
 
-   `:breaks`, `:tick-labels` and `:n-ticks` place and word tick marks,
-   so all three belong to the two channels drawn as an axis.
+   `:breaks`, `:tick-labels`, `:n-ticks` and `:tick-spacing` place and
+   word tick marks, so all four belong to the two channels drawn as an
+   axis. `:n-ticks` asks for about that many ticks and `:tick-spacing`
+   for the least room each may have; a numeric axis reads whichever is
+   named, and a categorical one is ticked at its categories, which
+   `:n-ticks` thins.
 
    `:label` titles what explains the scale to a reader: the axis for
    `:x` and `:y`, the legend for the rest. Every channel with a scale
    reads it. (`:label` is that title; `:tick-labels` is the text drawn
    at the ticks of an axis.)"
-  {:x     #{:breaks :tick-labels :n-ticks :label}
-   :y     #{:breaks :tick-labels :n-ticks :label}
+  {:x     #{:breaks :tick-labels :n-ticks :tick-spacing :label}
+   :y     #{:breaks :tick-labels :n-ticks :tick-spacing :label}
    :color #{:range :values :midpoint :label}
    :fill  #{:range :midpoint :label}
    :shape #{:values :label}
@@ -316,7 +320,7 @@
    where it is anchored, then the keys that place and word tick marks,
    then the axis title."
   [:range :values :by :from-zero :midpoint
-   :breaks :tick-labels :n-ticks :label])
+   :breaks :tick-labels :n-ticks :tick-spacing :label])
 
 (def scale-bearing-aesthetic-order
   "Display order for the aesthetics that have a scale: the two drawn as

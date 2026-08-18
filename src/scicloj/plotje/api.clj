@@ -2692,8 +2692,11 @@
      `:color-label` and their siblings -- which names the same thing one
      scope further out.
    - `:x` and `:y` take `:breaks` (explicit tick locations),
-     `:tick-labels` (custom tick text paired with `:breaks`) and
-     `:n-ticks` (thin a categorical axis to about this many ticks).
+     `:tick-labels` (custom tick text paired with `:breaks`),
+     `:n-ticks` (about this many ticks) and `:tick-spacing` (the least
+     room in drawing units a tick may have). A numeric axis reads
+     whichever of the last two is named; a categorical one is ticked at
+     its categories, which `:n-ticks` thins.
    - `:size` and `:alpha` take `:range` -- what the aesthetic spans, in
      the quantity the mark draws it as, so `[2 8]` on `:size` is a
      radius in drawing units.
@@ -2749,16 +2752,20 @@
    to draw numeric breaks with text of your own -- for example, days of
    the week on a tile heatmap.
 
-   `:n-ticks` thins a crowded categorical axis to about that many
-   evenly-spaced tick labels (a categorical axis otherwise labels every
-   category). It applies to discrete axes; numeric axes control tick
-   density through the `:x-tick-spacing` / `:y-tick-spacing` options.
+   `:n-ticks` asks for about that many ticks. On a categorical axis it
+   thins a crowded one, which otherwise labels every category; on a
+   numeric axis it replaces the count that `:tick-spacing` would give.
+   `:tick-spacing` is the least room, in drawing units, a tick may
+   have, and the count follows from how many fit. It steers the choice
+   of numeric ticks and does nothing on a categorical axis, which says
+   so. The `:x-tick-spacing` / `:y-tick-spacing` plot options name the
+   same setting one scope further out.
 
    - `(scale pose :x :log)` -- log scale on x-axis.
    - `(scale pose :x {:type :categorical :domain [...]})` -- explicit
      category order.
-   - `(scale pose :x {:n-ticks 8})` -- thin a crowded categorical axis to
-     about eight evenly-spaced tick labels.
+   - `(scale pose :x {:n-ticks 8})` -- about eight ticks, which on a
+     crowded categorical axis thins it to eight of its categories.
    - `(scale pose :y {:type :linear :breaks [0 5 10]})` -- pin tick locations.
    - `(scale pose :x {:type :linear :breaks [1 2 3 4 5 6 7]
                       :tick-labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`

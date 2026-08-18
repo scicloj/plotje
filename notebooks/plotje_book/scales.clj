@@ -588,6 +588,36 @@ gapminder-2007
                                (:texts (pj/svg-summary v)))]
             (= 8 (count labels))))])
 
+;; A numeric axis reads `:n-ticks` too. Its ticks are chosen rather
+;; than listed, so the count is a target: the chooser rounds to values
+;; a reader can read off, and may land near the number asked for rather
+;; than on it.
+
+(-> {:hour (range 20) :load (range 20)}
+    (pj/lay-point :hour :load)
+    (pj/scale :x {:n-ticks 3}))
+
+(kind/test-last
+ [(fn [v] (= [0.0 5.0 10.0 15.0]
+             (->> v pj/plan :panels first :x-ticks :values (mapv double))))])
+
+;; `:tick-spacing` asks the same question the other way round: the
+;; least room, in drawing units, that a tick may have. The count is
+;; then how many fit.
+
+(-> {:hour (range 20) :load (range 20)}
+    (pj/lay-point :hour :load)
+    (pj/scale :x {:tick-spacing 200}))
+
+(kind/test-last
+ [(fn [v] (= 2 (->> v pj/plan :panels first :x-ticks :values count)))])
+
+;; `:x-tick-spacing` and `:y-tick-spacing` in `pj/options` name that
+;; setting one scope further out, and a spec wins over them. There is
+;; nothing for a spacing to steer on a categorical axis, whose ticks
+;; are its categories, so one written in a spec there says so and
+;; leaves the categories alone.
+
 ;; The axis title is a separate key, `:label`, which every aesthetic
 ;; reads -- see [Titling a scale](#titling-a-scale).
 

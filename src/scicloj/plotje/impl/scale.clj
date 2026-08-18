@@ -47,14 +47,8 @@
   "Create a wadogo scale mapping domain values to a pixel range."
   (fn [domain pixel-range scale-spec] (scale-kind domain scale-spec)))
 
-(defmethod make-scale :categorical [domain pixel-range scale-spec]
-  (let [ticks-option
-        (if (some? (:n-ticks scale-spec))
-          {:ticks (:n-ticks scale-spec)}
-          {})]
-    (ws/scale :bands (merge {:domain domain
-                             :range pixel-range}
-                            ticks-option))))
+(defmethod make-scale :categorical [domain pixel-range _]
+  (ws/scale :bands {:domain domain :range pixel-range}))
 
 (defmethod make-scale :linear [domain pixel-range _]
   (ws/scale :linear {:domain domain :range pixel-range}))
@@ -626,6 +620,13 @@
         (:breaks best)))))
 
 (defn tick-count
-  "Suggested tick count based on available pixel range."
-  [pixel-range spacing]
-  (max 2 (int (/ pixel-range spacing))))
+  "How many ticks an axis asks for across `pixel-range` drawing units.
+
+   `:n-ticks` on the spec names the count outright. Failing that,
+   `spacing` names the least room a tick may have and the count is how
+   many fit, never fewer than two. One answer for both column types --
+   each key used to be read on one of them and ignored on the other."
+  [pixel-range scale-spec spacing]
+  (if-let [n (:n-ticks scale-spec)]
+    n
+    (max 2 (int (/ pixel-range spacing)))))
