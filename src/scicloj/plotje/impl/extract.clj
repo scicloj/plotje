@@ -40,7 +40,7 @@
       (some? color-val) (defaults/color-for
                          all-colors color-val
                          (defaults/scale-setting
-                          :color :values (:color-scale-spec draft-layer) cfg))
+                          :color :values (:color-scale draft-layer) cfg))
       :else (defaults/hex->rgba (:default-color cfg)))))
 
 (defn fill-setting
@@ -56,7 +56,7 @@
   (let [v (defaults/scale-setting :fill k (:fill-scale draft-layer) cfg)]
     (if (some? v)
       v
-      (defaults/scale-setting :color k (:color-scale-spec draft-layer) cfg))))
+      (defaults/scale-setting :color k (:color-scale draft-layer) cfg))))
 
 (def dash-presets
   "Named stroke-dash presets, resolved to a `[dash gap]` pixel pattern.
@@ -215,7 +215,7 @@
                           (when (seq bufs) (dtype/concat-buffers bufs))))
         ;; A `:domain` on the scale spec replaces what the data covers.
         [c-min c-max] (scale/numeric-color-domain
-                       (:color-scale-spec draft-layer)
+                       (:color-scale draft-layer)
                        (when all-color-buf (dfn/reduce-min all-color-buf))
                        (when all-color-buf (dfn/reduce-max all-color-buf)))]
     (-> {:mark :point
@@ -244,7 +244,7 @@
                       (some? color) (assoc :label (defaults/fmt-category-label color))
                       (and numeric-color? color-values)
                       (assoc :colors (vec (map (fn [v]
-                                                 (let [spec (:color-scale-spec draft-layer)
+                                                 (let [spec (:color-scale draft-layer)
                                                        scale-type (or (:type spec) :linear)
                                                        t (defaults/normalize-continuous
                                                           scale-type v (or c-min 0) (or c-max 1)
@@ -560,7 +560,7 @@
         ;; :fill-scale wins over the colour scale spec, which is honored
         ;; on tiles when the user wrote :color (synonym for :fill).
         fill-spec (or (:fill-scale draft-layer)
-                      (:color-scale-spec draft-layer))
+                      (:color-scale draft-layer))
         fill-scale-type (or (:type fill-spec) :linear)
         ;; Two paths: bin2d/kde2d stat produces :tiles as a dataset;
         ;; identity stat with :fill uses point groups
@@ -621,7 +621,7 @@
     {:mark :tile
      :style {:opacity (or (:fixed-alpha draft-layer) 1.0)}
      :fill-scale (:fill-scale draft-layer)
-     :color-scale-spec (:color-scale-spec draft-layer)
+     :color-scale (:color-scale draft-layer)
      :tiles tiles}))
 
 (defn- marching-squares-segments
@@ -779,7 +779,7 @@
                           {:threshold threshold
                            :t t
                            :color ((defaults/scale-gradient-fn
-                                    :color (:color-scale-spec draft-layer) cfg)
+                                    :color (:color-scale draft-layer) cfg)
                                    t)
                            :polylines (vec polylines)}))]
         {:mark :contour
@@ -824,7 +824,7 @@
                         (let [bufs (keep :color-values (:points stat))]
                           (when (seq bufs) (dtype/concat-buffers bufs))))
         [c-min c-max] (scale/numeric-color-domain
-                       (:color-scale-spec draft-layer)
+                       (:color-scale draft-layer)
                        (when all-color-buf (dfn/reduce-min all-color-buf))
                        (when all-color-buf (dfn/reduce-max all-color-buf)))
         groups (vec
@@ -836,7 +836,7 @@
                     (and numeric-color? color-values)
                     (assoc :colors
                            (vec (map (fn [v]
-                                       (let [spec (:color-scale-spec draft-layer)
+                                       (let [spec (:color-scale draft-layer)
                                              scale-type (or (:type spec) :linear)
                                              t (defaults/normalize-continuous
                                                 scale-type v

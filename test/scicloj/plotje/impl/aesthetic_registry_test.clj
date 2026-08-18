@@ -60,11 +60,11 @@
     ;; data and draws nothing of its own.
     (is (= [:fill :group] defaults/column-only-aesthetics))
     (is (= #{:color :size :alpha :shape} defaults/legend-bearing-aesthetics))
-    ;; `:color`'s key is not `:color-scale`, which the configuration
-    ;; uses for the gradient. The two shared it until 0.9.0, and
-    ;; whichever was written second discarded the other.
+    ;; Every aesthetic with a scale holds it under `<channel>-scale`.
+    ;; `:color` was the exception until 0.9.0, when the configuration
+    ;; key that had taken the name became the scale's own `:range`.
     (is (= {:x :x-scale :y :y-scale :size :size-scale :alpha :alpha-scale
-            :fill :fill-scale :color :color-scale-spec :shape :shape-scale}
+            :fill :fill-scale :color :color-scale :shape :shape-scale}
            defaults/channel->scale-key))))
 
 (deftest the-narrower-sets-are-subsets-test

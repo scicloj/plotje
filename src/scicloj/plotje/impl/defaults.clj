@@ -168,12 +168,7 @@
    :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
    :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
    :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
-   ;; `:color`'s scale spec has a key of its own, unlike every other
-   ;; channel, whose key is `<channel>-scale`. The name dates from a
-   ;; `:color-scale` configuration key that held a gradient, which the
-   ;; colour scale's own `:range` has replaced; the draft slot keeps
-   ;; the longer name for now.
-   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale-spec :legend? true}
+   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale :legend? true}
    :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
    :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
    :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
@@ -287,16 +282,19 @@
    diverging gradient on zero rather than halfway along the data.
 
    `:breaks`, `:tick-labels` and `:n-ticks` place and word tick marks,
-   and `:label` titles the axis, so all four belong to the two channels
-   drawn as an axis. `:label` is the axis title; `:tick-labels` is the
-   text drawn at the ticks."
+   so all three belong to the two channels drawn as an axis.
+
+   `:label` titles what explains the scale to a reader: the axis for
+   `:x` and `:y`, the legend for the rest. Every channel with a scale
+   reads it. (`:label` is that title; `:tick-labels` is the text drawn
+   at the ticks of an axis.)"
   {:x     #{:breaks :tick-labels :n-ticks :label}
    :y     #{:breaks :tick-labels :n-ticks :label}
-   :color #{:range :values :midpoint}
-   :fill  #{:range :midpoint}
-   :shape #{:values}
-   :size  #{:range :by :from-zero}
-   :alpha #{:range :from-zero}})
+   :color #{:range :values :midpoint :label}
+   :fill  #{:range :midpoint :label}
+   :shape #{:values :label}
+   :size  #{:range :by :from-zero :label}
+   :alpha #{:range :from-zero :label}})
 
 ;; ---- What a scale takes, as one ordered table ----
 ;;
@@ -374,12 +372,14 @@
    key at all -- a spec giving the key the value nil means nil, and
    does not fall back to the option.
 
-   `spec` is the resolved scale spec, nil where none was written;
-   `cfg` the resolved configuration."
-  [aesthetic k spec cfg]
+   `spec` is the resolved scale spec, nil where none was written.
+   `options` is the map the plot option is looked up in: the resolved
+   configuration for a setting that has a configuration level, and a
+   pose's own options for one that is per-plot, such as a title."
+  [aesthetic k spec options]
   (if (contains? spec k)
     (get spec k)
-    (get cfg (scale-option-key aesthetic k))))
+    (get options (scale-option-key aesthetic k))))
 
 (def drawn-range-options
   "The scale-spec keys that describe how a value spreads across what a
@@ -589,34 +589,34 @@
    three stops -- that map is a whole scale spec written where a
    gradient belongs, and drawing it as three default stops would change
    a plot's colours without saying so."
-  [color-scale]
+  [gradient]
   (cond
-    (nil? color-scale) gradient-color
-    (= :sequential color-scale) gradient-color
-    (= :diverging color-scale) diverging-color
-    (fn? color-scale) color-scale
-    (keyword? color-scale)
-    (if-let [g (resolve-gradient-name color-scale)]
+    (nil? gradient) gradient-color
+    (= :sequential gradient) gradient-color
+    (= :diverging gradient) diverging-color
+    (fn? gradient) gradient
+    (keyword? gradient)
+    (if-let [g (resolve-gradient-name gradient)]
       (wrap-gradient g)
-      (throw (ex-info (str "Unknown color scale: " color-scale
+      (throw (ex-info (str "Unknown colour :range " gradient
                            ". Use a clojure2d gradient name (e.g. :inferno, :viridis, :plasma)"
                            " or :sequential / :diverging.")
-                      {:range color-scale})))
-    (gradient-map? color-scale)
+                      {:range gradient})))
+    (gradient-map? gradient)
     (let [{:keys [low mid high]
-           :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} color-scale
+           :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} gradient
           g (c/gradient [(c/to-color low) (c/to-color mid) (c/to-color high)])]
       (wrap-gradient g))
-    (map? color-scale)
+    (map? gradient)
     (throw (ex-info (str "A colour :range map names at least one of :low,"
-                         " :mid and :high, and " (pr-str color-scale)
+                         " :mid and :high, and " (pr-str gradient)
                          " names none. A whole scale spec goes under"
                          " :scale, not under its own :range.")
-                    {:range color-scale}))
-    :else (throw (ex-info (str "Invalid colour :range: " (pr-str color-scale)
+                    {:range gradient}))
+    :else (throw (ex-info (str "Invalid colour :range: " (pr-str gradient)
                                ". Expected nil, a keyword, a {:low :mid :high}"
                                " map, or a function.")
-                          {:range color-scale}))))
+                          {:range gradient}))))
 
 (defn scale-gradient-fn
   "The gradient function `aesthetic` reads a numeric column through.
@@ -908,13 +908,13 @@
   {:title ["Content" "Plot title string"]
    :subtitle ["Content" "Plot subtitle string"]
    :caption ["Content" "Plot caption string (bottom)"]
-   :x-label ["Content" "X-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a scale spec, so a spec written on a mapping or a layer wins over it"]
-   :y-label ["Content" "Y-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a scale spec, so a spec written on a mapping or a layer wins over it"]
-   :color-label ["Content" "Color legend title (overrides inferred column name)"]
-   :fill-label ["Content" "Fill legend title (overrides inferred column name; used by tile fills, density-2d, bin2d)"]
-   :size-label ["Content" "Size legend title (overrides inferred column name)"]
-   :alpha-label ["Content" "Alpha legend title (overrides inferred column name)"]
-   :shape-label ["Content" "Shape legend title (overrides inferred column name)"]
+   :x-label ["Content" "X-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in an `:x` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :y-label ["Content" "Y-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:y` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-label ["Content" "Color legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:color` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :fill-label ["Content" "Fill legend title, overriding the inferred column name; used by tile fills, density-2d and bin2d. The outermost scope of the same setting `:label` names in a `:fill` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :size-label ["Content" "Size legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:size` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :alpha-label ["Content" "Alpha legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in an `:alpha` scale spec, so a spec written on a mapping or a layer wins over it"]
+   :shape-label ["Content" "Shape legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:shape` scale spec, so a spec written on a mapping or a layer wins over it"]
    :panel-width ["Layout" "Pin panel width (escape hatch; :width becomes derived total)"]
    :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
    :scales ["Layout" "Facet scale coordination — :shared (default), :free, :free-x, :free-y"]

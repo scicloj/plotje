@@ -588,17 +588,8 @@ gapminder-2007
                                (:texts (pj/svg-summary v)))]
             (= 8 (count labels))))])
 
-;; `:label` is an axis key too, and it words the axis itself rather
-;; than a tick. `:x-label` and `:y-label` in `pj/options` are the same
-;; setting written further out, so a `:label` in a spec wins over
-;; them; where neither is written, the column's name is drawn.
-
-(-> gapminder-2007
-    (pj/lay-point :gdp-percap :life-exp)
-    (pj/scale :x {:type :log :label "GDP per capita, log scale"}))
-
-(kind/test-last
- [(fn [fr] (= "GDP per capita, log scale" (-> fr pj/plan :x-label)))])
+;; The axis title is a separate key, `:label`, which every aesthetic
+;; reads -- see [Titling a scale](#titling-a-scale).
 
 ;; ### Ordering categories
 ;;
@@ -1041,6 +1032,36 @@ pj/shape-symbols
         ["Europe" :diamond] ["Oceania" :cross]]
        (mapv (juxt :label :shape)
              (:entries (:shape-legend (pj/plan fr))))))])
+
+;; ## Titling a scale
+;;
+;; A scale is explained to the reader by something drawn beside the
+;; marks: an axis for `:x` and `:y`, a legend for the rest. `:label`
+;; titles that thing, and every aesthetic with a scale reads it. Where
+;; none is written, the column's name is drawn.
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :continent})
+    (pj/scale :x {:type :log :label "GDP per capita, log scale"})
+    (pj/scale :color {:label "Continent"}))
+
+(kind/test-last
+ [(fn [fr] (= ["GDP per capita, log scale" "Continent"]
+              (-> fr pj/plan ((juxt :x-label (comp :title :legend))))))])
+
+;; Each has a plot option of the same name one scope further out:
+;; `:x-label` and `:y-label` for the axes, and `:color-label`,
+;; `:fill-label`, `:size-label`, `:alpha-label` and `:shape-label` for
+;; the legends. They title the whole plot where a spec titles one
+;; mapping or one layer, and the spec wins where both are written.
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :continent})
+    (pj/options {:color-label "From the options"})
+    (pj/scale :color {:label "From the spec"}))
+
+(kind/test-last
+ [(fn [fr] (= "From the spec" (-> fr pj/plan :legend :title)))])
 
 ;; ## One legend per aesthetic
 ;;

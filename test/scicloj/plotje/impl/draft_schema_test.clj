@@ -76,16 +76,16 @@
       (is (nil? (:stat layer)))
       (is (ds/layer-valid? layer)))))
 
-(deftest the-color-scale-spec-has-a-key-of-its-own-test
+(deftest a-colour-scale-and-a-gradient-are-two-settings-test
   ;; The spec and the gradient shared one key until 0.9.0, and
   ;; whichever was written second silently discarded the other -- so a
   ;; viridis gradient and a log scale could not be asked for together.
   ;; The gradient is now the colour scale's own `:range`.
-  (testing "the spec travels on the layer, under its own key"
+  (testing "the spec travels on the layer, under `:color-scale`"
     (is (= {:type :log}
            (-> (pj/lay-point data :num :num2 {:color :num2})
                (pj/scale :color :log)
-               pj/draft :layers first :color-scale-spec))))
+               pj/draft :layers first :color-scale))))
 
   (testing "a gradient written as a plot option does not travel on the layer"
     ;; It is the outer scope of the same setting, resolved from the
@@ -93,14 +93,14 @@
     (let [layer (-> (pj/lay-point data :num :num2 {:color :num2})
                     (pj/options {:color-range :inferno})
                     pj/draft :layers first)]
-      (is (nil? (:color-scale-spec layer)))
+      (is (nil? (:color-scale layer)))
       (is (ds/layer-valid? layer))))
 
   (testing "and written as a spec key it travels with the rest of the spec"
     (let [layer (-> (pj/lay-point data :num :num2 {:color :num2})
                     (pj/scale :color {:type :log :range :inferno})
                     pj/draft :layers first)]
-      (is (= {:type :log :range :inferno} (:color-scale-spec layer)))
+      (is (= {:type :log :range :inferno} (:color-scale layer)))
       (is (ds/layer-valid? layer))))
 
   (testing "so both can be asked for at once, in either order"

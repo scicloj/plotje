@@ -23,6 +23,7 @@ Three new chapters cover it in full: [Specifying Aesthetics](https://scicloj.git
 - `pj/scale` writes the mapping rather than the pose's options. `:opts` no longer holds `:x-scale`, `:y-scale`, `:size-scale` and the rest; `pj/coord` and `pj/facet` still write `:opts`, having no aesthetic to belong to.
 - A size-legend entry carries `:magnitude` where it carried `:radius`, and the legend carries `:quantity` and `:swatch`. A swatch follows the quantity the mark draws: circles for a radius, strokes of that thickness for a width.
 - `pj/scale` has no `:group` aesthetic. To order or restyle what the reader sees, scale `:color` or `:shape`.
+- A draft layer holds every aesthetic's scale spec under `<aesthetic>-scale`, `:color` included. It was the one exception, under `:color-scale-spec`, because a configuration key had taken the shorter name; that key is now the scale's own `:range`.
 
 ### A mapping written in full
 
@@ -49,6 +50,7 @@ A setting belonging to one aesthetic's scale is a spec key. The plot option of t
 - `:color` and `:fill` read their colours from their own scale spec. `:values` is the palette a categorical colour column is drawn from, `:range` the gradient a numeric one is read through, and `:midpoint` the value the middle of that gradient is drawn at. Each has a plot option one scope out -- `:color-values`, `:color-range`, `:color-midpoint`, `:fill-range`, `:fill-midpoint` -- replacing `:palette`, `:color-scale` and the plot-wide `:color-midpoint`, and a spec wins over the option. `pj/aesthetic-scales` lists keys for the two colour aesthetics, where it listed none.
 - A colour written per mapping keeps its legend: `{:color {:column :party :scale {:values {"rep" "red" "dem" "blue"}}}}` draws each party in its colour, with the column still supplying the domain the legend is built from. A colour column drawn as it stands (`:scale false`) still earns no legend, since there is no assignment to explain.
 - A colour `:range` naming a map that names none of `:low`, `:mid` and `:high` is refused. That map is a whole scale spec written where a gradient belongs, and it used to resolve to three default stops, changing a plot's colours without saying so.
+- `:label` titles whatever explains a scale to the reader -- the axis for `:x` and `:y`, the legend for `:color`, `:fill`, `:size`, `:alpha` and `:shape` -- and every aesthetic with a scale reads it. `:color-label` and its four siblings are the outermost scope of the same setting, beside `:x-label` and `:y-label`, and a spec written on a mapping or a layer wins over them.
 
 ### What a layer type varies
 

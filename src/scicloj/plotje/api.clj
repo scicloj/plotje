@@ -2686,12 +2686,14 @@
    aesthetic does not read is refused where it is written rather than
    dropped in silence:
 
+   - Every aesthetic takes `:label`, the title of whatever explains its
+     scale to a reader: the axis for `:x` and `:y`, the legend for the
+     rest. It wins over the `<aesthetic>-label` plot option -- `:x-label`,
+     `:color-label` and their siblings -- which names the same thing one
+     scope further out.
    - `:x` and `:y` take `:breaks` (explicit tick locations),
-     `:tick-labels` (custom tick text paired with `:breaks`),
-     `:n-ticks` (thin a
-     categorical axis to about this many ticks) and `:label` (the axis
-     title, which wins over the `:x-label` / `:y-label` plot options
-     naming the same thing further out).
+     `:tick-labels` (custom tick text paired with `:breaks`) and
+     `:n-ticks` (thin a categorical axis to about this many ticks).
    - `:size` and `:alpha` take `:range` -- what the aesthetic spans, in
      the quantity the mark draws it as, so `[2 8]` on `:size` is a
      radius in drawing units.
@@ -2700,7 +2702,10 @@
      which anchors both the domain and the range at zero so that twice
      the value is twice the ink.
    - `:shape` takes `:values`, the marker symbols to draw with.
-   - `:color` and `:fill` take neither `:range` nor any tick key.
+   - `:color` and `:fill` take `:range`, the gradient a numeric column
+     is read through; `:color` also takes `:values`, the colours a
+     categorical column is drawn in. Both take `:midpoint`, the value
+     the middle of the gradient is drawn at.
 
    A value outside `:domain` is drawn at the nearer end rather than
    dropped, so a narrower domain says what the reader should compare

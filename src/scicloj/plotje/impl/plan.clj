@@ -313,7 +313,7 @@
 (defn- filter-log-nonpositive
   "Filter rows with non-positive values on log-scaled channels.
    When any of :x-scale / :y-scale / :size-scale / :alpha-scale /
-   :fill-scale / :color-scale-spec is {:type :log}, removes rows where the
+   :fill-scale / :color-scale is {:type :log}, removes rows where the
    corresponding column has values <= 0 and prints a warning. Throws a
    clear error if log scale is applied to non-numeric data.
    Returns the resolved draft layer with filtered :data."
@@ -554,7 +554,7 @@
                          (let [observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color)
                                                                             color-draft-layers))))
                                domain (seq (categorical-domain
-                                            (some :color-scale-spec color-draft-layers)))]
+                                            (some :color-scale color-draft-layers)))]
                            (when (and domain (seq observed))
                              (warn-category-domain-gap! :color observed domain))
                            (if domain
@@ -792,7 +792,7 @@
                                              (:data %)) resolved-all)
             all-bufs (map #(aesthetic-col % :color) color-draft-layers)]
         (when-let [all-vals (finite-vals all-bufs)]
-          (let [spec (some :color-scale-spec color-draft-layers)
+          (let [spec (some :color-scale color-draft-layers)
                 ;; Through the same function the marks read, so the bar
                 ;; a reader matches a colour against spans what the
                 ;; marks were drawn against.
@@ -801,7 +801,7 @@
                                spec
                                (dfn/reduce-min all-vals)
                                (dfn/reduce-max all-vals))
-                scale-type (or (some #(:type (:color-scale-spec %)) color-draft-layers)
+                scale-type (or (some #(:type (:color-scale %)) color-draft-layers)
                                :linear)
                 n-stops 20]
             (cond-> {:title title
@@ -823,7 +823,7 @@
                                 all-colors cat
                                 (defaults/scale-setting
                                  :color :values
-                                 (some :color-scale-spec resolved-all) cfg))}))})))
+                                 (some :color-scale resolved-all) cfg))}))})))
 
 (defn- nice-legend-values
   "Generate ~n nicely-rounded tick-like values spanning [lo, hi].
@@ -1090,8 +1090,8 @@
    This is what ggplot2 does with matching guides.
 
    Merges only when both legends carry the same title and the same
-   labels in the same order -- a user who renamed one of them with
-   `:color-label` or `:shape-label` asked for two distinct legends.
+   labels in the same order -- a user who titled one of them with a
+   `:label` of its own asked for two distinct legends.
 
    Returns [legend shape-legend], one of which may be nil."
   [legend shape-legend]
@@ -1774,7 +1774,7 @@
   "If no color legend was built (no :color column), check for tile
    layers with computed fill ranges (:bin2d, :density-2d, or identity tiles
    with :fill). Returns a continuous legend map or nil.
-   When :fill-scale or :color-scale-spec is {:type :log}, the gradient
+   When :fill-scale or :color-scale is {:type :log}, the gradient
    stops sample colors in log-space and the legend carries log-spaced
    ticks for the renderer to label.
    `opts-title` (from a user-supplied `:fill-label` plot option)
@@ -1798,14 +1798,14 @@
                                        resolved-all))
         [f-lo f-hi] (or stat-fill-range draft-layer-fill-range)
         scale-type (or (some #(:type (:fill-scale %)) resolved-all)
-                       (some #(:type (:color-scale-spec %)) resolved-all)
+                       (some #(:type (:color-scale %)) resolved-all)
                        :linear)
         ;; The gradient comes from whichever layer names a fill scale,
         ;; through the same function the tiles were drawn with -- and
         ;; through the same :color fallback, since a tile reads :color
         ;; as a synonym for :fill.
         fill-draft-layer (or (some #(when (:fill-scale %) %) resolved-all)
-                             (some #(when (:color-scale-spec %) %) resolved-all)
+                             (some #(when (:color-scale %) %) resolved-all)
                              {})]
     (when f-lo
       (let [grad-fn (defaults/resolve-gradient-fn
@@ -1951,7 +1951,7 @@
          _ (warn-palette-wrap! all-colors
                                (defaults/scale-setting
                                 :color :values
-                                (some :color-scale-spec resolved-all) cfg))
+                                (some :color-scale resolved-all) cfg))
          _ (warn-monochrome-numeric-color! resolved-all)
          _ (warn-fill-scale-without-fill! resolved-all opts)
 
@@ -2123,18 +2123,28 @@
          suppress-size? (or suppress-legend? (:suppress-size-legend opts))
          suppress-alpha? (or suppress-legend? (:suppress-alpha-legend opts))
          suppress-shape? (or suppress-legend? (:suppress-shape-legend opts))
+         ;; A legend title is one setting at two scopes, as an axis
+         ;; title is: `:label` in the aesthetic's scale spec, and the
+         ;; `<aesthetic>-label` plot option one scope out. The spec is
+         ;; written further in, so it wins.
+         legend-title (fn [aesthetic]
+                        (defaults/scale-setting
+                         aesthetic :label
+                         (some (defaults/channel->scale-key aesthetic) resolved-all)
+                         opts))
          legend (when-not suppress-color?
-                  (build-legend resolved-all numeric-color? all-colors color-cols cfg (:color-label opts)))
+                  (build-legend resolved-all numeric-color? all-colors color-cols cfg
+                                (legend-title :color)))
          legend (or legend
                     (when-not suppress-color?
                       (build-fill-fallback-legend panel-data resolved-all cfg
-                                                  (:fill-label opts))))
+                                                  (legend-title :fill))))
          size-legend (when-not suppress-size?
-                       (build-size-legend resolved-all (:size-label opts) height))
+                       (build-size-legend resolved-all (legend-title :size) height))
          alpha-legend (when-not suppress-alpha?
-                        (build-alpha-legend resolved-all (:alpha-label opts)))
+                        (build-alpha-legend resolved-all (legend-title :alpha)))
          shape-legend (when-not suppress-shape?
-                        (build-shape-legend shape-info (:shape-label opts)))
+                        (build-shape-legend shape-info (legend-title :shape)))
          [legend shape-legend] (merge-shape-into-color-legend legend shape-legend)
 
          ;; Scene: everything compute-padding + compute-dims need to

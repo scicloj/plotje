@@ -78,7 +78,11 @@
                                 (some (fn [t] (.contains ^String t "Sepal dimensions")) (:texts s)))))])
 
 ;; Legend titles default to the column name. Override with
-;; `:color-label`, `:size-label`, `:alpha-label`, or `:shape-label`:
+;; `:color-label`, `:size-label`, `:alpha-label`, or `:shape-label`.
+;; Each is the outermost scope of the aesthetic's own `:label`, which
+;; titles one mapping or one layer and wins where both are written --
+;; [Scales](./plotje_book.scales.html#titling-a-scale) has that
+;; spelling:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
