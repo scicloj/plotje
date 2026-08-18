@@ -4,96 +4,88 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-Every aesthetic can now be specified explicitly. A mapping may be written out in full, saying which source it takes and whether to read it through a scale; a scale is written in the mapping it belongs to, and accumulates down the scope chain; and a layer type declares which aesthetics its mark varies from row to row. Almost everything below follows from one of those three.
+A mapping may now be written out in full, saying which column or value it takes and whether to read it through a scale -- `{:size {:column :weight :scale :log}}`. A scale is written in the mapping it belongs to, and a scale set higher up carries down to the layers below it. Settings such as an axis title, a palette or a tick spacing can be written either in a scale or as a plot option of the same name, and the one written closest to the layer wins.
 
-Three new chapters cover it in full: [Specifying Aesthetics](https://scicloj.github.io/plotje/plotje_book.specifying_aesthetics.html), [Column Types](https://scicloj.github.io/plotje/plotje_book.column_types.html) and [Scales](https://scicloj.github.io/plotje/plotje_book.scales.html).
+Three chapters are new to the book: [Specifying Aesthetics](https://scicloj.github.io/plotje/plotje_book.specifying_aesthetics.html), [Column Types](https://scicloj.github.io/plotje/plotje_book.column_types.html) and [Scales](https://scicloj.github.io/plotje/plotje_book.scales.html).
 
 ### Removed and renamed
 
-`pj/options` and `pj/scale` refuse a retired name where it is written.
+The names below no longer work. `pj/options` and `pj/scale` report an error when given one. `pj/with-config`, `set-config!` and `plotje.edn` do not check yet, so an old name there is ignored with no message.
 
 | Gone | Write instead |
 |:--|:--|
-| `:palette` | `:color-values`, or `:values` in a `:color` scale spec |
-| `:color-scale` | `:color-range`, or `:range` in a `:color` or `:fill` spec |
-| `:tick-spacing-x`, `:tick-spacing-y` | `:x-tick-spacing`, `:y-tick-spacing`, or `:tick-spacing` in an axis spec |
-| `:labels` in a scale spec | `:tick-labels` |
-| `:x-scale`, `:y-scale`, `:size-scale` and their siblings in a pose's `:opts` | `pj/scale`, which now writes the mapping |
-| `pj/scale` on `:group` | scale `:color` or `:shape` |
-
-A name written through `pj/with-config`, `set-config!` or `plotje.edn` is not yet checked, so it is dropped there in silence.
-
-`:color-midpoint` is unchanged and is now joined by `:fill-midpoint`. The draft layer's `:color-scale-spec` slot is `:color-scale`, uniform with every other aesthetic.
+| `:palette` | `:color-values`, or `:values` in a `:color` scale |
+| `:color-scale` | `:color-range`, or `:range` in a `:color` or `:fill` scale |
+| `:tick-spacing-x`, `:tick-spacing-y` | `:x-tick-spacing`, `:y-tick-spacing`, or `:tick-spacing` in an axis scale |
+| `:labels` in a scale | `:tick-labels` |
+| `:x-scale`, `:y-scale`, `:size-scale` and the rest in a pose's `:opts` | `pj/scale`, which now writes the mapping |
+| `pj/scale` on `:group` | scale `:color` or `:shape` instead |
 
 ### Plots that look different after upgrading
 
-- **Every plot with a `:size` column.** A size scale spreads the square root of a value's place in the domain across the radii, which is ggplot2's `scale_size`. `(pj/scale pose :size {:by :linear})` gives ggplot2's `scale_radius` instead, and `{:by :area}` makes the drawn area proportional to the value, which with `:from-zero` is `scale_size_area`.
-- **Every plot with an `:alpha` column.** The default range is 0.1 to 1.0, which is ggplot2's. `(pj/scale pose :alpha {:range [0.2 1.0]})` restores the previous one.
-- **Every plot pairing a numeric `:color` column with `pj/scale`.** A spec changes what it names and leaves the gradient alone; a gradient map is one naming at least one of `:low`, `:mid`, `:high`.
-- **A `:size` or `:alpha` column whose values are all equal.** Every mark is drawn halfway across the domain, read through the scale's own `:by` method: 6.243 at the default range.
-- **`:from-zero` on a column holding zero or negative values.** A value's distance from zero is what the scale reads, so -5 draws the size 5 draws, and the domain reaches whichever value is furthest from zero in either direction.
-- **A categorical `:color` or `:fill` given a `:domain`.** The list orders the categories and the palette is assigned in that order, so the legend rows and the colours move together.
-- **A plot writing both a scale spec's `:label` and the matching `:x-label` or `:y-label`.** An axis title is one setting written at two scopes, and the innermost wins as every other scale setting does, so the spec titles the axis however far out the option sits. Where only one is written, it titles the axis.
+- **Every plot with a `:size` column.** A value's place in its domain is square-rooted before it becomes a radius, matching ggplot2's `scale_size`. `{:by :linear}` gives the previous behaviour, ggplot2's `scale_radius`, and `{:by :area}` with `:from-zero` gives `scale_size_area`.
+- **Every plot with an `:alpha` column.** The default range is 0.1 to 1.0, matching ggplot2. `{:range [0.2 1.0]}` restores the previous one.
+- **Every plot pairing a numeric `:color` column with `pj/scale`.** A scale spec changes only what it names and leaves the gradient alone. The gradient is set with `:range`; a map there has to name at least one of `:low`, `:mid` or `:high`.
+- **A `:size` or `:alpha` column whose values are all equal.** Every mark is drawn at the middle of the domain, read through the scale: radius 6.243 by default.
+- **`:from-zero` on a column holding zero or negative values.** Distance from zero is what counts, so -5 and 5 draw the same size.
+- **A categorical `:color` or `:fill` given a `:domain`.** The list sets the order of the categories, and the legend and the colours follow it.
+- **A plot setting both a scale's `:label` and the matching `:x-label` or `:y-label`.** The `:label` in the scale wins.
 
 ### A mapping written in full
 
-- A mapping may say which source it takes and which side of the scale to read it through: `{:color {:column :variety :scale true}}`, `{:color {:column :hex :scale false}}`, `{:color {:value "blue" :scale false}}`, `{:color {:value "Model A" :scale true}}`. `:value` and `:column` settle a name the data could read either way; `:from` leaves that to the data while still carrying a `:scale`; omitting `:scale` leaves the convention in charge.
-- The two identity readings are new. `{:size {:column :r :scale false}}` draws the column's own radii, ggplot2's `scale_size_identity()`, and `{:color {:column :hex :scale false}}` its own colours, `scale_colour_identity()`. Neither earns a legend. In the other direction a written value asked to scale becomes a datum, as a constant inside ggplot2's `aes()` does, which is how a layer is labelled as a named series.
-- `:x` and `:y` take the full form too, which pins a number to one reading on a dataset with integer column names: `{:x {:column 0}}` reads column 0 and `{:x {:value 0}}` places every mark at zero. Otherwise a number is read against the layer's data wherever it is written. `:scale false` on an axis measures in drawing units from the top left of the panel background, is asked per axis, and informs no domain.
-- A column passes through its aesthetic's scale whatever it holds. The layer's data decides which mapping values name a column, for every aesthetic alike, so `{:color :red}` draws red; `:shape` takes one symbol for a whole layer; and `:text` given a string that names no column labels every row with it.
+- A mapping may say which column or value it takes and whether to read it through a scale: `{:color {:column :variety :scale true}}`, `{:color {:column :hex :scale false}}`, `{:color {:value "blue" :scale false}}`, `{:color {:value "Model A" :scale true}}`.
+- A column can be drawn just as it is, with no scale. `{:size {:column :r :scale false}}` uses the column's numbers as radii and `{:color {:column :hex :scale false}}` uses its strings as colours -- ggplot2's `scale_size_identity()` and `scale_colour_identity()`. Neither gets a legend. A single value can go the other way: `{:color {:value "Model A" :scale true}}` treats it as data, which is how a layer is labelled as a named series.
+- `:x` and `:y` take the full form too: `{:x {:column 0}}` reads column 0, and `{:x {:value 0}}` places every mark at zero. `:scale false` on an axis places marks by drawing units from the top left of the panel background instead of by data value.
+- Whether a mapping value names a column or is a value to draw depends on the data, and works the same way for every aesthetic: `{:color :red}` reads a `:red` column if the data has one, and otherwise draws red.
 
 ### The scale spec
 
-- `pj/scale` and a mapping's `:scale` speak one language on every aesthetic that has a scale. Beside `true` and `false`, `:scale` takes a type or a whole spec. Settings accumulate down the scope chain and the innermost wins key by key, so a pose that sets a range and a layer that names a type give a plot with both. The source still replaces, since a mapping states one source and two cannot combine, and `:scale false` replaces too.
-- `pj/scale :size` takes `:range`, `:by` and `:from-zero`; `pj/scale :alpha` takes `:range` and `:from-zero`. `:range` is what the aesthetic spans in the quantity the mark draws it as -- `[2 8]` on `:size` is a radius in drawing units, and the default. `:from-zero` anchors the domain and the range at zero; with `:by :area` that is ggplot2's `scale_size_area`.
-- `:domain` is honoured on `:size`, `:alpha`, `:color` and `:fill` (issue #39), and a value outside a numeric one is drawn at the nearer end rather than dropped. On an axis it is read according to the column's type: the order of the categories on a categorical column, the range the panel shows on a continuous one. Categories are matched by the text they are labelled with, so `{:domain [4 5 6 8]}` and `{:domain ["4" "5" "6" "8"]}` order the same bands, and a category the domain omits is drawn last, with a warning.
-- One aesthetic has one scale. Two layers reading `:size`, `:alpha`, `:color` or `:fill` through different scales, or drawing one as different quantities, are refused, since one legend explains one scale. A panel has one x axis and one y axis, so two layers naming different scales for an axis are refused as well. The refusal points at `pj/arrange`, where each cell carries its own scales and legend.
-- A key the aesthetic does not read is refused where it is written, in `pj/scale` and in a mapping alike. `pj/scale` checks the values as well.
-- `:x-end`, `:x-min`, `:x-max`, `:y-min`, `:y-max` and `:text` refuse a `:scale` outright, as `:group` does.
-- `pj/aesthetic-scales` publishes what each aesthetic's scale accepts -- the types, and the spec keys beside `:type` and `:domain`. It is the table `pj/scale` and a mapping's `:scale` are both validated against, and sits with `pj/config-key-docs`, `pj/plot-option-docs` and `pj/layer-option-docs`.
+- `pj/scale` and a mapping's `:scale` take the same forms: `true`, `false`, a scale type, or a whole spec map. A scale set higher up carries down, key by key, and the setting closest to the layer wins -- so a pose that sets a range and a layer that sets a type give a plot with both.
+- `pj/scale :size` takes `:range`, `:by` and `:from-zero`; `:alpha` takes `:range` and `:from-zero`. `:range` is what the aesthetic spans: on `:size` that is a radius in drawing units, `[2 8]` by default.
+- `:domain` now works on `:size`, `:alpha`, `:color` and `:fill` (issue #39). A value outside a numeric domain is drawn at the nearer end instead of being dropped. On an axis, the column's type decides how the domain is read. A category left out of the domain is drawn last, with a warning.
+- An aesthetic has a single scale, so two layers cannot read it through different ones. The error suggests `pj/arrange`, where each cell has its own scales and legend.
+- Giving a scale a key it does not use is an error, both in `pj/scale` and in a mapping. `:x-end`, `:x-min`, `:x-max`, `:y-min`, `:y-max` and `:text` take no scale at all, like `:group`.
+- `pj/aesthetic-scales` lists what each aesthetic's scale accepts, alongside `pj/config-key-docs`, `pj/plot-option-docs` and `pj/layer-option-docs`.
 
 ### One setting, one name
 
-A setting belonging to one aesthetic's scale is a spec key. Where that setting also has a plot option, the option is the outermost scope of it and the innermost wins: a spec written on a layer beats one written on a pose's mapping, which beats the option. Such an option is named for the aesthetic it belongs to and the spec key it carries, joined by a hyphen. The rule fixes what an option is called where one exists; it does not give every spec key one.
+Many scale settings can be written in two places: in the scale itself, or as a plot option that applies to the whole plot. The plot option is named after the aesthetic and the setting, joined by a hyphen -- `:label` on `:x` is `:x-label`, `:values` on `:color` is `:color-values` -- and the setting written closest to the layer wins. Not every setting has a plot option, but where one exists this is its name.
 
-- An axis draws its tick text from `:tick-labels`, paired with `:breaks`, one text per break; `:label` titles the axis itself. Each is refused by name where it is written.
-- The minimum spacing between ticks is `:x-tick-spacing` and `:y-tick-spacing`, matching `:x-label`, `:x-tick-angle` and the other options named for an axis. `:tick-spacing` is the spec key they are the outer scope of, so an axis can be given one on a mapping or a layer.
-- `:n-ticks` and `:tick-spacing` both ask how many ticks an axis draws, and a numeric axis reads whichever is named: `:n-ticks` gives the count, `:tick-spacing` the room each tick is allowed. A categorical axis is ticked at its categories, which `:n-ticks` thins; a `:tick-spacing` written in a spec there has nothing to steer and says so.
-- `:color` and `:fill` read their colours from their own scale spec. `:values` is the palette a categorical colour column is drawn from, `:range` the gradient a numeric one is read through, and `:midpoint` the value the middle of that gradient is drawn at. Each has a plot option one scope out -- `:color-values`, `:color-range`, `:color-midpoint`, `:fill-range`, `:fill-midpoint` -- and a spec wins over the option.
-- A colour written per mapping keeps its legend: `{:color {:column :party :scale {:values {"rep" "red" "dem" "blue"}}}}` draws each party in its colour, with the column still supplying the domain the legend is built from. A colour column drawn as it stands (`:scale false`) still earns no legend, since there is no assignment to explain.
-- A colour `:range` naming a map that names none of `:low`, `:mid` and `:high` is refused. That map is a whole scale spec written where a gradient belongs.
-- `:label` titles whatever explains a scale to the reader -- the axis for `:x` and `:y`, the legend for `:color`, `:fill`, `:size`, `:alpha` and `:shape` -- and every aesthetic with a scale reads it. `:color-label` and its siblings are the outermost scope of the same setting, beside `:x-label` and `:y-label`.
+- An axis takes its tick text from `:tick-labels`, paired with `:breaks`; `:label` sets the axis title. Using one where the other belongs is now an error.
+- `:n-ticks` and `:tick-spacing` both control how many ticks a numeric axis draws, and it uses whichever you set. A categorical axis draws a tick per category, and `:n-ticks` thins them.
+- `:color` and `:fill` take their colours from their own scale: `:values` is the palette for a categorical column, `:range` the gradient for a numeric one, and `:midpoint` the value drawn at the middle of that gradient. Each has a matching plot option.
+- A colour set inside a mapping still gets a legend: `{:color {:column :party :scale {:values {"rep" "red" "dem" "blue"}}}}`.
+- `:label` sets the title of whatever explains a scale -- the axis for `:x` and `:y`, the legend for the rest -- and every aesthetic with a scale takes it.
 
-### What a layer type varies
+### Extending a layer type
 
-- A layer type declares which appearance aesthetics its mark varies from row to row, and as what: `(layer-type/register! :bubble {:mark :bubble :varies {:size :radius} ...})`. The declared quantity also decides how the drawn area grows with it -- a radius and a side square it, a stroke's width does not -- which is what lets `:by :area` mean the same thing on a mark drawing a radius and one drawing a width. The declaration is checked at registration and again at plan time.
-- `layer-type/channel-magnitude-fn` gives a mark's renderer the function its legend is built from: a value from the layer's per-row buffers in, the quantity the mark draws it as out. The built-in point mark reads the same function, so an extension and a built-in cannot differ. `layer-type/quantities` publishes the quantities a mark may declare and what each implies.
-- A `:size` or `:alpha` column earns no legend where no mark on the plot varies that aesthetic, and says so. `{:size {:column :r :scale false}}` is refused on the marks that draw one value for the whole layer.
+- A layer type says which appearance aesthetics its mark varies per row, and what it draws them as: `(layer-type/register! :bubble {:mark :bubble :varies {:size :radius} ...})`. What it draws them as also decides how the area grows, so `:by :area` means the same thing on a mark drawing a radius and one drawing a width. Of the built-in layer types only `:point` varies an aesthetic, so this mainly matters when writing an extension.
+- `layer-type/channel-magnitude-fn` gives a mark's renderer the function its legend is built from, and `layer-type/quantities` lists what a mark can draw an aesthetic as.
+- A `:size` or `:alpha` column gets no legend when no mark on the plot varies it, and Plotje says so.
 
 ### Pose and plan shape
 
-- `pj/scale` writes the mapping rather than the pose's options. `pj/coord` and `pj/facet` still write `:opts`, having no aesthetic to belong to.
-- A size-legend entry carries `:magnitude` rather than `:radius`, and the legend carries `:quantity` and `:swatch`. A swatch follows the quantity the mark draws: circles for a radius, strokes of that thickness for a width.
-- A draft layer holds every aesthetic's scale spec under `<aesthetic>-scale`, `:color` included.
+- `pj/scale` writes the mapping rather than the pose's options. `pj/coord` and `pj/facet` still write `:opts`.
+- A size-legend entry carries `:magnitude` rather than `:radius`, and the legend carries `:quantity` and `:swatch`. The swatch matches what the mark draws: circles for a radius, squares for an opacity.
+- A draft layer holds every aesthetic's scale under `<aesthetic>-scale`.
 
 ### Reported rather than passed over
 
-- The messages Plotje prints say *aesthetic* where they said *channel*, which is the word the book teaches and `pj/scale` takes.
-- A mapping written in full is checked where it is written, so an unknown key, both sources at once, a source named `nil`, and a map naming no source are reported at the `pj/pose` or `lay-*` call rather than at `pj/draft`. It cannot stand where a whole map of mappings goes: `(pj/lay-point data :a {:column :b})` reads that map as the options map, so a full mapping goes under an aesthetic key, `{:y {:column :b}}`.
-- An aesthetic told not to scale refuses an option that configures the scale it just left, such as `:color-type` or a `pj/scale` call beside `{:scale false}`. A per-axis `:scale false` is refused on the marks that cannot read one, and under `:coord :flip` and `:coord :polar`, which move the axis it measures along; `{:in :drawing-area}` is refused on those same marks.
-- `:size`, `:alpha` and `:fill` name the aesthetic and the column when given a categorical one; `:fill` and `:group` refuse a value that names no column; a hex colour missing its `#` is refused on annotations as well as layers; `(pj/scale pose :x :categorical)` on a numeric column points at `:x-type`; and `pj/with-data` checks a column named in full at attach time.
-- The layer-option docs say what each aesthetic reads -- a keyword on `:color` names a column, and always did.
+- Messages say *aesthetic* where they used to say *channel*.
+- Mistakes in a full mapping -- an unknown key, a column and a value at once, a source of `nil`, or neither -- are reported at the `pj/pose` or `lay-*` call instead of later.
+- Setting `:scale false` and then setting an option for that scale is an error, since nothing would read it. `:scale false` on an axis is also an error on marks that cannot use it, and under `:coord :flip` and `:coord :polar`.
+- Giving `:size`, `:alpha` or `:fill` a categorical column reports which aesthetic and which column. `:fill` and `:group` report a value that names no column, and a hex colour missing its `#` is reported on annotations as well as layers.
 
 ### Fixed
 
-- A colour gradient and a colour scale can be asked for together: `(pj/options {:color-range :viridis})` beside `(pj/scale pose :color :log)` keeps both.
+- A gradient and a colour scale type can be set together: `(pj/options {:color-range :viridis})` beside `(pj/scale pose :color :log)`.
 - A log colour legend labels its decades, as a fill legend does.
-- A size or alpha legend's own text is measured when the legend column is sized, so its numbers and a long `:size-label` fit the canvas at any range. Rows are as tall as the widest swatch on them, thinned to what the canvas holds, and a row whose swatch has no size is dropped.
-- A panel where nothing places a mark through the x scale gets the same `[0 1]` fallback domain the y axis has always had, so a point or text layer placed in the drawing area draws; `lay-bar`, `lay-histogram` and `lay-interval-h` place through the axis scales and are refused by name. An axis no layer gives a data meaning draws no ticks and takes no label, until a layer placed in the data or a domain set with `pj/scale` gives it one.
-- An annotation takes a colour by either spelling: `(pj/lay-rule-h pose {:y-intercept 2 :color :red})` draws red. Applies to `pj/lay-rule-h`, `-v`, `pj/lay-band-h` and `-v`.
-- `:domain-padding` is read through the configuration chain, so `(pj/options {:domain-padding 0.0})` and `pj/with-config` both reach it. The default is unchanged at 5%.
-- `pj/lay` takes the layer-type entry `pj/layer-type-lookup` answers with, as well as the keyword, and the two behave the same.
-- `pj/config-key-docs` describes `:color-range` by every form it accepts: `:sequential`, `:diverging`, a gradient name, a `{:low :mid :high}` map of stops, or a function, so the Configuration Keys table generated from it names every one.
+- A size or alpha legend measures its own text, so its numbers and a long `:size-label` fit the canvas at any range.
+- A panel where nothing places a mark through the x scale falls back to the `[0 1]` domain the y axis has always used. An axis that no layer gives a data meaning draws no ticks and takes no label.
+- An annotation takes a colour by either spelling: `(pj/lay-rule-h pose {:y-intercept 2 :color :red})` draws red.
+- `:domain-padding` is read through the configuration chain, so `(pj/options {:domain-padding 0.0})` and `pj/with-config` both reach it.
+- `pj/lay` accepts the layer-type map from `pj/layer-type-lookup` as well as the keyword.
+- `pj/config-key-docs` describes every form `:color-range` accepts.
 
 ## [0.8.1 - 2026-08-12]
 - fix: tick labels, legend endpoints and tooltip numbers are formatted under `Locale/ROOT`, so a plot draws the same numbers whatever machine renders it.
