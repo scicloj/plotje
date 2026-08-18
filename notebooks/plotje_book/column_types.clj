@@ -1,9 +1,9 @@
 ;; # Column Types
 ;;
-;; Every column Plotje reads has a type, taken from the values it
-;; holds. That type decides the shape of the axis the column is drawn
-;; against, how the ticks are labelled, whether a color mapping splits
-;; the data into groups, and which layer types accept the column.
+;; Every column Plotje reads has a type. That type decides the shape of
+;; the axis the column is drawn against, how the ticks are labelled,
+;; whether a color mapping splits the data into groups, and which layer
+;; types accept the column.
 ;;
 ;; There are three types, and a column has exactly one:
 ;;
@@ -12,6 +12,14 @@
 ;; | numbers | numerical |
 ;; | anything else that is not a date -- strings, keywords, booleans | categorical |
 ;; | dates and timestamps | temporal |
+;;
+;; Plotje does not work the type out from scratch. Every column of a
+;; dataset already carries a Tablecloth datatype, and for most columns
+;; that datatype is what decides. Plain Clojure data gets its datatypes
+;; on the way in, since Plotje coerces it to a dataset with Tablecloth
+;; first; [Datasets](./plotje_book.datasets.html#datasets-and-plotje)
+;; is the background on that. Where the datatype does not settle the
+;; question, Plotje reads the values instead.
 ;;
 ;; The sections below take each of those in turn. The last one sets the
 ;; column's type beside a scale's type, a separate setting that shares
@@ -24,7 +32,9 @@
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
    ;; Tablecloth -- dataset manipulation
-   [tablecloth.api :as tc]))
+   [tablecloth.api :as tc]
+   ;; Tablecloth -- column-level operations
+   [tablecloth.column.api :as tcc]))
 
 ;; The three datasets below differ only in what their `:k` column
 ;; holds.
@@ -41,6 +51,37 @@
        (java.time.LocalDate/parse "2026-03-15")
        (java.time.LocalDate/parse "2026-04-15")]
    :v [10 20 30 40]})
+
+;; A fourth holds ratios, which is the case the datatype does not
+;; settle.
+
+(def ratios
+  {:k [(/ 1 3) (/ 2 3) (/ 4 3) (/ 5 3)] :v [10 20 30 40]})
+
+;; Tablecloth gives each `:k` column a datatype. For the first three it
+;; is the datatype that decides the type:
+
+(tc/dataset
+ (for [[label d] [["numerical" numerical]
+                  ["categorical" categorical]
+                  ["temporal" temporal]
+                  ["ratios" ratios]]]
+   {:dataset label
+    :datatype (tcc/typeof (:k (tc/dataset d)))}))
+
+(kind/test-last
+ [(fn [ds] (= [:int64 :string :packed-local-date :object]
+              (vec (:datatype ds))))])
+
+;; Ratios are numbers, but Tablecloth has no datatype of its own for
+;; them, so the column is `:object` and the values decide instead. The
+;; column is drawn as a quantity, like any other numerical one:
+
+(-> ratios
+    (pj/lay-point :k :v))
+
+(kind/test-last
+ [(fn [v] (false? (:categorical? (-> v pj/plan :panels first :x-ticks))))])
 
 ;; ## What the type decides about the axis
 
@@ -326,9 +367,11 @@
 
 ;; ## See Also
 ;;
+;; - [Datasets](./plotje_book.datasets.html#datasets-and-plotje) -- where
+;;   a column's Tablecloth datatype comes from, and what a dataset is
 ;; - [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers)
 ;;   -- what a mapping is, and how a column reaches an aesthetic
 ;; - [Inference Rules](./plotje_book.inference_rules.html#column-types) --
-;;   the dtype-by-dtype table behind the three types
+;;   the datatype-by-datatype table behind the three types
 ;; - [Layer Types](./plotje_book.layer_types.html) -- which layer types
 ;;   need which kind of axis
