@@ -58,11 +58,11 @@ book:
   - part: 🚀 Getting Started
     chapters: [plotje_book.quickstart.qmd]
   - part: 🧱 Foundations
-    chapters: [plotje_book.datasets.qmd, plotje_book.pose_model.qmd, plotje_book.core_concepts.qmd, plotje_book.composition.qmd, plotje_book.options_and_scopes.qmd, plotje_book.pose_rules.qmd, plotje_book.inference_rules.qmd, plotje_book.layer_types.qmd, plotje_book.glossary.qmd]
+    chapters: [plotje_book.datasets.qmd, plotje_book.pose_model.qmd, plotje_book.core_concepts.qmd, plotje_book.specifying_aesthetics.qmd, plotje_book.composition.qmd, plotje_book.options_and_scopes.qmd, plotje_book.pose_rules.qmd, plotje_book.column_types.qmd, plotje_book.inference_rules.qmd, plotje_book.layer_types.qmd, plotje_book.glossary.qmd]
   - part: 📊 Visualization Goals
     chapters: [plotje_book.distributions.qmd, plotje_book.ranking.qmd, plotje_book.change_over_time.qmd, plotje_book.timelines.qmd, plotje_book.relationships.qmd]
   - part: 🍳 How-to Guides
-    chapters: [plotje_book.cookbook.qmd, plotje_book.configuration.qmd, plotje_book.customization.qmd, plotje_book.placing_marks.qmd, plotje_book.faceting.qmd, plotje_book.polar.qmd, plotje_book.interactivity.qmd, plotje_book.troubleshooting.qmd]
+    chapters: [plotje_book.cookbook.qmd, plotje_book.configuration.qmd, plotje_book.scales.qmd, plotje_book.customization.qmd, plotje_book.placing_marks.qmd, plotje_book.faceting.qmd, plotje_book.polar.qmd, plotje_book.interactivity.qmd, plotje_book.troubleshooting.qmd]
   - part: 📖 Reference
     chapters: [plotje_book.api_reference.qmd, plotje_book.known_limitations.qmd]
   - part: 🖼 Gallery

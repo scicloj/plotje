@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.9.0 - 2026-08-19]
 
 A mapping may now be written out in full, saying which column or value it takes and whether to read it through a scale -- `{:size {:column :weight :scale :log}}`. A scale is written in the mapping it belongs to, and a scale set higher up carries down to the layers below it. Settings such as an axis title, a palette or a tick spacing can be written either in a scale or as a plot option of the same name, and the one written closest to the layer wins.
 
@@ -10,7 +10,7 @@ Three chapters are new to the book: [Specifying Aesthetics](https://scicloj.gith
 
 ### Removed and renamed
 
-The names below no longer work. `pj/options` and `pj/scale` report an error when given one. `pj/with-config`, `set-config!` and `plotje.edn` do not check yet, so an old name there is ignored with no message.
+The names below no longer work, and every place one can be written reports it: `pj/options`, `pj/scale`, `pj/with-config`, `pj/set-config!`, `plotje.edn` and the `:config` option.
 
 | Gone | Write instead |
 |:--|:--|
@@ -42,7 +42,7 @@ The names below no longer work. `pj/options` and `pj/scale` report an error when
 
 - `pj/scale` and a mapping's `:scale` take the same forms: `true`, `false`, a scale type, or a whole spec map. A scale set higher up carries down, key by key, and the setting closest to the layer wins -- so a pose that sets a range and a layer that sets a type give a plot with both.
 - `pj/scale :size` takes `:range`, `:by` and `:from-zero`; `:alpha` takes `:range` and `:from-zero`. `:range` is what the aesthetic spans: on `:size` that is a radius in drawing units, `[2 8]` by default.
-- `:domain` now works on `:size`, `:alpha`, `:color` and `:fill` (issue #39). A value outside a numeric domain is drawn at the nearer end instead of being dropped. The column's type decides how the domain is read, on every aesthetic that takes one: against a continuous column it replaces the interval, and against a categorical one it supplies the order of the categories, however many are listed. A category left out of the domain is drawn last, with a warning.
+- `:domain` now works on `:size`, `:alpha` and `:color` (issue #39). A value outside a numeric domain is drawn at the nearer end instead of being dropped. The column's type decides how the domain is read, on every aesthetic that takes one: against a continuous column it replaces the interval, and against a categorical one it supplies the order of the categories, however many are listed. A category left out of the domain is drawn last, with a warning. On `:fill` a `:domain` moves the marks and not the legend, so the two disagree -- issue #43.
 - An aesthetic has a single scale, so two layers cannot read it through different ones. The error suggests `pj/arrange`, where each cell has its own scales and legend.
 - Giving a scale a key it does not use is an error, both in `pj/scale` and in a mapping, and so is giving one a value it cannot carry out -- a marker symbol that does not exist, `:tick-labels` without `:breaks`. `:x-end`, `:x-min`, `:x-max`, `:y-min`, `:y-max` and `:text` take no scale at all, like `:group`.
 - `pj/aesthetic-scales` lists what each aesthetic's scale accepts, alongside `pj/config-key-docs`, `pj/plot-option-docs` and `pj/layer-option-docs`.
@@ -75,6 +75,7 @@ Many scale settings can be written in two places: in the scale itself, or as a p
 - Mistakes in a full mapping -- an unknown key, a column and a value at once, a source of `nil`, or neither -- are reported at the `pj/pose` or `lay-*` call instead of later.
 - Setting `:scale false` and then setting an option for that scale is an error, since nothing would read it. `:scale false` on an axis is also an error on marks that cannot use it, and under `:coord :flip` and `:coord :polar`.
 - Giving `:size`, `:alpha` or `:fill` a categorical column reports which aesthetic and which column. `:fill` and `:group` report a value that names no column, and a hex colour missing its `#` is reported on annotations as well as layers.
+- A configuration key Plotje does not read is reported wherever it is written: `plotje.edn`, `pj/set-config!`, `pj/with-config` and the `:config` option. `pj/options` already refused one, so a name this release retired went unnoticed only through the configuration path, and a project upgrading from 0.8.1 reverted to the default palette in silence. `:strict` turns the report into an error, as it does for options.
 
 ### Fixed
 

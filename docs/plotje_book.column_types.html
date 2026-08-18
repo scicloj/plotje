@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>10&nbsp; Column Types – Plotje</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./plotje_book.inference_rules.html" rel="next">
+<link href="./plotje_book.pose_rules.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-7fe93b6278088d83a8942670f25c821e.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./plotje_book.datasets.html">🧱 Foundations</a></li><li class="breadcrumb-item"><a href="./plotje_book.column_types.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Column Types</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">Plotje</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Preface</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">🚀 Getting Started</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.quickstart.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quickstart</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">🧱 Foundations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.datasets.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Datasets</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.pose_model.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Poses</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.core_concepts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Core Concepts</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.specifying_aesthetics.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Specifying Aesthetics</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.composition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Composition</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.options_and_scopes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Options and Scopes</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.pose_rules.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Pose Rules</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.column_types.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Column Types</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.inference_rules.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Inference Rules</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.layer_types.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Layer Types</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.glossary.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Glossary</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">📊 Visualization Goals</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.distributions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.ranking.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Ranking</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.change_over_time.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Change Over Time</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.timelines.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Timelines</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.relationships.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Relationships</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">🍳 How-to Guides</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.cookbook.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Cookbook</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.configuration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Configuration</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.scales.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Scales</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.customization.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Customization</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.placing_marks.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Placing Marks</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.faceting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Faceting</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.polar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Polar Coordinates</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.interactivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Interactivity</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.troubleshooting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Troubleshooting</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">📖 Reference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.api_reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">API Reference</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.known_limitations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Known Limitations</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">🖼 Gallery</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.gallery.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Gallery</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">🔬 Internals</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Architecture</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.exploring_plans.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Exploring Plans</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.membranes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Membranes</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.extensibility.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Extensibility</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.waterfall_extension.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Extension Example</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.edge_cases.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Edge Cases</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.development.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Development</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#what-the-type-decides-about-the-axis" id="toc-what-the-type-decides-about-the-axis" class="nav-link active" data-scroll-target="#what-the-type-decides-about-the-axis">What the type decides about the axis</a></li>
+  <li><a href="#what-the-type-decides-about-color" id="toc-what-the-type-decides-about-color" class="nav-link" data-scroll-target="#what-the-type-decides-about-color">What the type decides about color</a></li>
+  <li><a href="#what-the-type-decides-about-the-layer-type" id="toc-what-the-type-decides-about-the-layer-type" class="nav-link" data-scroll-target="#what-the-type-decides-about-the-layer-type">What the type decides about the layer type</a></li>
+  <li><a href="#which-layer-types-accept-the-column" id="toc-which-layer-types-accept-the-column" class="nav-link" data-scroll-target="#which-layer-types-accept-the-column">Which layer types accept the column</a></li>
+  <li><a href="#overriding-the-inferred-type" id="toc-overriding-the-inferred-type" class="nav-link" data-scroll-target="#overriding-the-inferred-type">Overriding the inferred type</a></li>
+  <li><a href="#the-columns-type-and-the-scales-type" id="toc-the-columns-type-and-the-scales-type" class="nav-link" data-scroll-target="#the-columns-type-and-the-scales-type">The column’s type and the scale’s type</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./plotje_book.datasets.html">🧱 Foundations</a></li><li class="breadcrumb-item"><a href="./plotje_book.column_types.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Column Types</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Column Types</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<style></style>
+<style>.printedClojure .sourceCode {
+  background-color: transparent;
+  border-style: none;
+}
+</style>
+<style>.clay-limit-image-width .clay-image {max-width: 100%}
+.clay-side-by-side .sourceCode {margin: 0}
+.clay-side-by-side {margin: 1em 0}
+</style>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" type="text/javascript"></script>
+<script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js" type="text/javascript"></script>
+<p>Every column Plotje reads has a type. That type decides the shape of the axis the column is drawn against, how the ticks are labelled, whether a color mapping splits the data into groups, and which layer types accept the column.</p>
+<p>There are three types, and a column has exactly one:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 64%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">The column holds</th>
+<th style="text-align: left;">Its type</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">numbers</td>
+<td style="text-align: left;">numerical</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">anything else that is not a date – strings, keywords, booleans</td>
+<td style="text-align: left;">categorical</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">dates and timestamps</td>
+<td style="text-align: left;">temporal</td>
+</tr>
+</tbody>
+</table>
+<p>Plotje does not work the type out from scratch. Every column of a dataset already carries a Tablecloth datatype, and for most columns that datatype is what decides. Plain Clojure data gets its datatypes on the way in, since Plotje coerces it to a dataset with Tablecloth first; <a href="./plotje_book.datasets.html#datasets-and-plotje">Datasets</a> is the background on that. Where the datatype does not settle the question, Plotje reads the values instead.</p>
+<p>The sections below take each of those in turn. The last one sets the column’s type beside a scale’s type, a separate setting that shares the word <code>:categorical</code>.</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">ns</span> plotje-book.column-types</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  (<span class="at">:require</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>   <span class="co">;; Kindly -- notebook rendering protocol</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>   [scicloj.kindly.v4.kind <span class="at">:as</span> kind]</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>   <span class="co">;; Plotje -- composable plotting</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>   [scicloj.plotje.api <span class="at">:as</span> pj]</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>   <span class="co">;; Tablecloth -- dataset manipulation</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>   [tablecloth.api <span class="at">:as</span> tc]</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>   <span class="co">;; Tablecloth -- column-level operations</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>   [tablecloth.column.api <span class="at">:as</span> tcc]))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The three datasets below differ only in what their <code>:k</code> column holds.</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> numerical</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:k</span> [<span class="dv">1</span> <span class="dv">2</span> <span class="dv">3</span> <span class="dv">4</span>] <span class="at">:v</span> [<span class="dv">10</span> <span class="dv">20</span> <span class="dv">30</span> <span class="dv">40</span>]})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> categorical</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:k</span> [<span class="st">"a"</span> <span class="st">"b"</span> <span class="st">"c"</span> <span class="st">"d"</span>] <span class="at">:v</span> [<span class="dv">10</span> <span class="dv">20</span> <span class="dv">30</span> <span class="dv">40</span>]})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> temporal</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:k</span> [(java.<span class="kw">time</span>.LocalDate/parse <span class="st">"2026-01-15"</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>       (java.<span class="kw">time</span>.LocalDate/parse <span class="st">"2026-02-15"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>       (java.<span class="kw">time</span>.LocalDate/parse <span class="st">"2026-03-15"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>       (java.<span class="kw">time</span>.LocalDate/parse <span class="st">"2026-04-15"</span>)]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>   <span class="at">:v</span> [<span class="dv">10</span> <span class="dv">20</span> <span class="dv">30</span> <span class="dv">40</span>]})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A fourth holds ratios, which is the case the datatype does not settle.</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> ratios</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:k</span> [(<span class="kw">/</span> <span class="dv">1</span> <span class="dv">3</span>) (<span class="kw">/</span> <span class="dv">2</span> <span class="dv">3</span>) (<span class="kw">/</span> <span class="dv">4</span> <span class="dv">3</span>) (<span class="kw">/</span> <span class="dv">5</span> <span class="dv">3</span>)] <span class="at">:v</span> [<span class="dv">10</span> <span class="dv">20</span> <span class="dv">30</span> <span class="dv">40</span>]})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Tablecloth gives each <code>:k</code> column a datatype. For the first three it is the datatype that decides the type:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>(tc/dataset</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a> (<span class="kw">for</span> [[label d] [[<span class="st">"numerical"</span> numerical]</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                  [<span class="st">"categorical"</span> categorical]</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                  [<span class="st">"temporal"</span> temporal]</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>                  [<span class="st">"ratios"</span> ratios]]]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:dataset</span> label</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">:datatype</span> (tcc/typeof (<span class="at">:k</span> (tc/dataset d)))}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="clay-dataset">
+<p>_unnamed [4 2]:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>:dataset</th>
+<th>:datatype</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>numerical</td>
+<td>:int64</td>
+</tr>
+<tr class="even">
+<td>categorical</td>
+<td>:string</td>
+</tr>
+<tr class="odd">
+<td>temporal</td>
+<td>:packed-local-date</td>
+</tr>
+<tr class="even">
+<td>ratios</td>
+<td>:object</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Ratios are numbers, but Tablecloth has no datatype of its own for them, so the column is <code>:object</code> and the values decide instead. The column is drawn as a quantity, like any other numerical one:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> ratios</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="59.27,10.00 59.27,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="133.18,10.00 133.18,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="207.09,10.00 207.09,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,10.00 281.00,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="354.91,10.00 354.91,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="428.82,10.00 428.82,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="502.73,10.00 502.73,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g data-row-idx="0" transform="translate(31.64,333.45)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(154.82,229.82)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(401.18,126.18)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(524.36,22.55)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(59.27,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">0.4</text></g></g><g transform="translate(133.18,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">0.6</text></g></g><g transform="translate(207.09,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">0.8</text></g></g><g transform="translate(281.00,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1.0</text></g></g><g transform="translate(354.91,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1.2</text></g></g><g transform="translate(428.82,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1.4</text></g></g><g transform="translate(502.73,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1.6</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<section id="what-the-type-decides-about-the-axis" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-type-decides-about-the-axis">What the type decides about the axis</h2>
+<p>A numerical column gives an axis that runs continuously between the smallest and largest value, with padding at each end so the outermost marks are not drawn on the panel edge:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> numerical</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="34.64,10.00 34.64,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="116.76,10.00 116.76,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="198.88,10.00 198.88,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,10.00 281.00,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="363.12,10.00 363.12,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="445.24,10.00 445.24,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="527.36,10.00 527.36,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g data-row-idx="0" transform="translate(31.64,333.45)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(195.88,229.82)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(360.12,126.18)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(524.36,22.55)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(34.64,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1.0</text></g></g><g transform="translate(116.76,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1.5</text></g></g><g transform="translate(198.88,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2.0</text></g></g><g transform="translate(281.00,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2.5</text></g></g><g transform="translate(363.12,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">3.0</text></g></g><g transform="translate(445.24,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">3.5</text></g></g><g transform="translate(527.36,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">4.0</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>A categorical column gives one band per distinct value, in the order the values first appear. There is nothing between two bands, so the axis carries exactly as many places as there are categories:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> categorical</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g data-row-idx="0" transform="translate(74.75,333.45)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(210.25,229.82)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(345.75,126.18)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(481.25,22.55)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(77.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">a</text></g></g><g transform="translate(213.25,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">b</text></g></g><g transform="translate(348.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">c</text></g></g><g transform="translate(484.25,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">d</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>A temporal column runs continuously like a numerical one, but its ticks land on calendar dates and are labelled as dates rather than as the numbers underneath:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> temporal</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="40.11,10.00 40.11,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="94.86,10.00 94.86,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="149.61,10.00 149.61,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="204.35,10.00 204.35,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="259.10,10.00 259.10,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="313.85,10.00 313.85,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="368.60,10.00 368.60,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="423.34,10.00 423.34,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="478.09,10.00 478.09,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g data-row-idx="0" transform="translate(31.64,333.45)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(201.35,229.82)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(354.65,126.18)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(524.36,22.55)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(40.11,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Jan-16</text></g></g><g transform="translate(94.86,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Jan-26</text></g></g><g transform="translate(149.61,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Feb-05</text></g></g><g transform="translate(204.35,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Feb-15</text></g></g><g transform="translate(259.10,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Feb-25</text></g></g><g transform="translate(313.85,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Mar-07</text></g></g><g transform="translate(368.60,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Mar-17</text></g></g><g transform="translate(423.34,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Mar-27</text></g></g><g transform="translate(478.09,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Apr-06</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+</section>
+<section id="what-the-type-decides-about-color" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-type-decides-about-color">What the type decides about color</h2>
+<p>The same three columns, mapped to <code>:color</code> instead of to a position. A categorical column draws one palette color per distinct value:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> categorical</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:v</span> <span class="at">:v</span> {<span class="at">:color</span> <span class="at">:k</span>}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(258.25,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g><g data-legend="true" transform="translate(510.00,2.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="11">k</text></g></g><g data-legend="true" transform="translate(510.00,20.00)"><g><g transform="translate(0.00,0.00)"><g><g><rect fill="rgb(228,26,28)" fill-opacity="1.0" height="8" rx="4.0" ry="4.0" stroke="none" width="8" x="0" y="0"></rect></g></g></g><g transform="translate(12.00,0.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="10">a</text></g></g></g></g><g data-legend="true" transform="translate(510.00,36.00)"><g><g transform="translate(0.00,0.00)"><g><g><rect fill="rgb(55,126,184)" fill-opacity="1.0" height="8" rx="4.0" ry="4.0" stroke="none" width="8" x="0" y="0"></rect></g></g></g><g transform="translate(12.00,0.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="10">b</text></g></g></g></g><g data-legend="true" transform="translate(510.00,52.00)"><g><g transform="translate(0.00,0.00)"><g><g><rect fill="rgb(77,175,74)" fill-opacity="1.0" height="8" rx="4.0" ry="4.0" stroke="none" width="8" x="0" y="0"></rect></g></g></g><g transform="translate(12.00,0.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="10">c</text></g></g></g></g><g data-legend="true" transform="translate(510.00,68.00)"><g><g transform="translate(0.00,0.00)"><g><g><rect fill="rgb(152,78,163)" fill-opacity="1.0" height="8" rx="4.0" ry="4.0" stroke="none" width="8" x="0" y="0"></rect></g></g></g><g transform="translate(12.00,0.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="10">d</text></g></g></g></g><g transform="translate(26.50,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="463.5" x="0" y="0"></rect></g></g></g><g transform="translate(16.50,0.00)"><g><g><g><g><polyline fill="none" points="31.07,10.00 31.07,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="101.30,10.00 101.30,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="171.52,10.00 171.52,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="241.75,10.00 241.75,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="311.98,10.00 311.98,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="382.20,10.00 382.20,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="452.43,10.00 452.43,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,352.00 473.50,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,317.80 473.50,317.80" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,283.60 473.50,283.60" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,249.40 473.50,249.40" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,215.20 473.50,215.20" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 473.50,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,146.80 473.50,146.80" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,112.60 473.50,112.60" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,78.40 473.50,78.40" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,44.20 473.50,44.20" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,10.00 473.50,10.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-5c1luc"><rect height="342.00" width="463.50" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-5c1luc)"><g><g data-row-idx="0" transform="translate(28.07,349.00)"><g><g><rect fill="rgb(228,26,28)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(168.52,349.00)"><g><g><rect fill="rgb(55,126,184)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(308.98,349.00)"><g><g><rect fill="rgb(77,175,74)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(449.43,349.00)"><g><g><rect fill="rgb(152,78,163)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(31.07,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">10</text></g></g><g transform="translate(101.30,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">15</text></g></g><g transform="translate(171.52,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">20</text></g></g><g transform="translate(241.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">25</text></g></g><g transform="translate(311.98,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">30</text></g></g><g transform="translate(382.20,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">35</text></g></g><g transform="translate(452.43,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">40</text></g></g><g transform="translate(7.00,346.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.0</text></g></g><g transform="translate(7.00,312.30)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.1</text></g></g><g transform="translate(7.00,278.10)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.2</text></g></g><g transform="translate(7.00,243.90)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.3</text></g></g><g transform="translate(7.00,209.70)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.4</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.5</text></g></g><g transform="translate(7.00,141.30)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.6</text></g></g><g transform="translate(7.00,107.10)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.7</text></g></g><g transform="translate(7.00,72.90)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.8</text></g></g><g transform="translate(7.00,38.70)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.9</text></g></g><g transform="translate(7.00,4.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">1.0</text></g></g></g></g></g></svg>
+<p>A numerical column shades each row from a gradient, so the plot carries many more colors than it has rows – the gradient bar in the legend is drawn from a stack of them:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> numerical</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:v</span> <span class="at">:v</span> {<span class="at">:color</span> <span class="at">:k</span>}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(258.25,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g><g transform="translate(510.00,2.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="11">k</text></g></g><g transform="translate(510.00,140.00)"><g><g><rect fill="rgb(19,43,67)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,133.68)"><g><g><rect fill="rgb(22,50,76)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,127.37)"><g><g><rect fill="rgb(26,57,85)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,121.05)"><g><g><rect fill="rgb(29,64,95)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,114.74)"><g><g><rect fill="rgb(33,71,104)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,108.42)"><g><g><rect fill="rgb(36,78,114)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,102.11)"><g><g><rect fill="rgb(40,85,123)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,95.79)"><g><g><rect fill="rgb(43,92,133)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,89.47)"><g><g><rect fill="rgb(47,99,142)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,83.16)"><g><g><rect fill="rgb(50,106,152)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,76.84)"><g><g><rect fill="rgb(54,113,161)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,70.53)"><g><g><rect fill="rgb(57,120,171)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,64.21)"><g><g><rect fill="rgb(61,127,180)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,57.89)"><g><g><rect fill="rgb(64,134,190)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,51.58)"><g><g><rect fill="rgb(68,141,199)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,45.26)"><g><g><rect fill="rgb(71,148,209)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,38.95)"><g><g><rect fill="rgb(75,155,218)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,32.63)"><g><g><rect fill="rgb(78,162,228)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,26.32)"><g><g><rect fill="rgb(82,169,237)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(510.00,20.00)"><g><g><rect fill="rgb(86,177,247)" fill-opacity="1.0" height="6" stroke="none" width="12" x="0" y="0"></rect></g></g></g><g transform="translate(526.00,136.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="10">1</text></g></g><g transform="translate(526.00,26.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="10">4</text></g></g><g transform="translate(26.50,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="463.5" x="0" y="0"></rect></g></g></g><g transform="translate(16.50,0.00)"><g><g><g><g><polyline fill="none" points="31.07,10.00 31.07,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="101.30,10.00 101.30,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="171.52,10.00 171.52,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="241.75,10.00 241.75,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="311.98,10.00 311.98,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="382.20,10.00 382.20,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="452.43,10.00 452.43,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,352.00 473.50,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,317.80 473.50,317.80" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,283.60 473.50,283.60" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,249.40 473.50,249.40" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,215.20 473.50,215.20" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 473.50,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,146.80 473.50,146.80" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,112.60 473.50,112.60" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,78.40 473.50,78.40" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,44.20 473.50,44.20" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,10.00 473.50,10.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-5c1luc"><rect height="342.00" width="463.50" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-5c1luc)"><g><g data-row-idx="0" transform="translate(28.07,349.00)"><g><g><rect fill="rgb(19,43,67)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(168.52,349.00)"><g><g><rect fill="rgb(41,87,127)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(308.98,349.00)"><g><g><rect fill="rgb(63,132,187)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(449.43,349.00)"><g><g><rect fill="rgb(86,177,247)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(31.07,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">10</text></g></g><g transform="translate(101.30,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">15</text></g></g><g transform="translate(171.52,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">20</text></g></g><g transform="translate(241.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">25</text></g></g><g transform="translate(311.98,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">30</text></g></g><g transform="translate(382.20,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">35</text></g></g><g transform="translate(452.43,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">40</text></g></g><g transform="translate(7.00,346.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.0</text></g></g><g transform="translate(7.00,312.30)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.1</text></g></g><g transform="translate(7.00,278.10)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.2</text></g></g><g transform="translate(7.00,243.90)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.3</text></g></g><g transform="translate(7.00,209.70)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.4</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.5</text></g></g><g transform="translate(7.00,141.30)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.6</text></g></g><g transform="translate(7.00,107.10)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.7</text></g></g><g transform="translate(7.00,72.90)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.8</text></g></g><g transform="translate(7.00,38.70)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.9</text></g></g><g transform="translate(7.00,4.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">1.0</text></g></g></g></g></g></svg>
+<p>Beyond the colors themselves, a categorical mapping divides the rows into groups, and every layer computes itself once per group. A numerical mapping does not. <a href="./plotje_book.inference_rules.html#categorical-color-implies-grouping">Inference Rules</a> works through that difference.</p>
+</section>
+<section id="what-the-type-decides-about-the-layer-type" class="level2">
+<h2 class="anchored" data-anchor-id="what-the-type-decides-about-the-layer-type">What the type decides about the layer type</h2>
+<p>A pose with no <code>pj/lay-*</code> call still draws something. The column types choose the layer type, which is a mark together with the statistic computed before that mark is drawn. Every combination of the three types is settled by the same rules, and the three datasets above cover them:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">defn</span><span class="fu"> inferred-mark</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"The mark a pose is drawn with when no layer type is named."</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  [pose]</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> pose pj/plan <span class="at">:panels</span> <span class="kw">first</span> <span class="at">:layers</span> <span class="kw">first</span> <span class="at">:mark</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>(tc/dataset</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a> [{<span class="at">:x-column</span> <span class="st">"numerical"</span>   <span class="at">:y-column</span> <span class="st">"none"</span>        <span class="at">:mark</span> (inferred-mark (pj/pose numerical <span class="at">:k</span>))}</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:x-column</span> <span class="st">"temporal"</span>    <span class="at">:y-column</span> <span class="st">"none"</span>        <span class="at">:mark</span> (inferred-mark (pj/pose temporal <span class="at">:k</span>))}</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:x-column</span> <span class="st">"categorical"</span> <span class="at">:y-column</span> <span class="st">"none"</span>        <span class="at">:mark</span> (inferred-mark (pj/pose categorical <span class="at">:k</span>))}</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:x-column</span> <span class="st">"temporal"</span>    <span class="at">:y-column</span> <span class="st">"numerical"</span>   <span class="at">:mark</span> (inferred-mark (pj/pose temporal <span class="at">:k</span> <span class="at">:v</span>))}</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:x-column</span> <span class="st">"categorical"</span> <span class="at">:y-column</span> <span class="st">"numerical"</span>   <span class="at">:mark</span> (inferred-mark (pj/pose categorical <span class="at">:k</span> <span class="at">:v</span>))}</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:x-column</span> <span class="st">"numerical"</span>   <span class="at">:y-column</span> <span class="st">"categorical"</span> <span class="at">:mark</span> (inferred-mark (pj/pose categorical <span class="at">:v</span> <span class="at">:k</span>))}</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:x-column</span> <span class="st">"numerical"</span>   <span class="at">:y-column</span> <span class="st">"numerical"</span>   <span class="at">:mark</span> (inferred-mark (pj/pose numerical <span class="at">:k</span> <span class="at">:v</span>))}])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="clay-dataset">
+<p>_unnamed [7 3]:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>:x-column</th>
+<th>:y-column</th>
+<th>:mark</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>numerical</td>
+<td>none</td>
+<td>:bar</td>
+</tr>
+<tr class="even">
+<td>temporal</td>
+<td>none</td>
+<td>:bar</td>
+</tr>
+<tr class="odd">
+<td>categorical</td>
+<td>none</td>
+<td>:rect</td>
+</tr>
+<tr class="even">
+<td>temporal</td>
+<td>numerical</td>
+<td>:line</td>
+</tr>
+<tr class="odd">
+<td>categorical</td>
+<td>numerical</td>
+<td>:boxplot</td>
+</tr>
+<tr class="even">
+<td>numerical</td>
+<td>categorical</td>
+<td>:boxplot</td>
+</tr>
+<tr class="odd">
+<td>numerical</td>
+<td>numerical</td>
+<td>:point</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>With one column, a categorical one is counted and anything else is binned. A temporal column is binned like a numerical one, since it is not categorical.</p>
+<p>With two, a temporal x against a numerical y is a time series, drawn as a line:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>(pj/pose temporal <span class="at">:k</span> <span class="at">:v</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="40.11,10.00 40.11,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="94.86,10.00 94.86,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="149.61,10.00 149.61,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="204.35,10.00 204.35,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="259.10,10.00 259.10,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="313.85,10.00 313.85,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="368.60,10.00 368.60,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="423.34,10.00 423.34,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="478.09,10.00 478.09,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g><g><polyline fill="none" points="34.64,336.45 204.35,232.82 357.65,129.18 527.36,25.55" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="2.5"></polyline></g></g></g></g></g><g transform="translate(40.11,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Jan-16</text></g></g><g transform="translate(94.86,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Jan-26</text></g></g><g transform="translate(149.61,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Feb-05</text></g></g><g transform="translate(204.35,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Feb-15</text></g></g><g transform="translate(259.10,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Feb-25</text></g></g><g transform="translate(313.85,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Mar-07</text></g></g><g transform="translate(368.60,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Mar-17</text></g></g><g transform="translate(423.34,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Mar-27</text></g></g><g transform="translate(478.09,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">Apr-06</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>A categorical column against a numerical one is summarised as a boxplot, whichever of the two axes the categories are on. The datasets above hold one row per category, which makes a box with nothing in it, so this section uses one with repeats:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> readings</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:batch</span>   [<span class="st">"a"</span> <span class="st">"a"</span> <span class="st">"a"</span> <span class="st">"a"</span> <span class="st">"b"</span> <span class="st">"b"</span> <span class="st">"b"</span> <span class="st">"c"</span> <span class="st">"c"</span>]</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>   <span class="at">:reading</span> [<span class="dv">3</span> <span class="dv">5</span> <span class="dv">4</span> <span class="dv">6</span> <span class="dv">8</span> <span class="dv">9</span> <span class="dv">7</span> <span class="dv">2</span> <span class="dv">6</span>]})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>(pj/pose readings <span class="at">:batch</span> <span class="at">:reading</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">reading</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">batch</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,292.04 552.00,292.04" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,247.62 552.00,247.62" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,203.21 552.00,203.21" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,158.79 552.00,158.79" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,114.38 552.00,114.38" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,69.96 552.00,69.96" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.7" points="46.13,192.10 154.53,192.10 154.53,258.73 46.13,258.73 46.13,192.10" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><g><polyline fill="none" points="46.13,192.10 154.53,192.10 154.53,258.73 46.13,258.73 46.13,192.10" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="46.13,225.42 154.53,225.42" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="100.33,258.73 100.33,292.04" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="100.33,192.10 100.33,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="84.07,292.04 116.59,292.04" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="84.07,158.79 116.59,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.7" points="226.80,47.75 335.20,47.75 335.20,92.17 226.80,92.17 226.80,47.75" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><g><polyline fill="none" points="226.80,47.75 335.20,47.75 335.20,92.17 226.80,92.17 226.80,47.75" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="226.80,69.96 335.20,69.96" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,92.17 281.00,114.38" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,47.75 281.00,25.55" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="264.74,114.38 297.26,114.38" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="264.74,25.55 297.26,25.55" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.7" points="407.47,203.21 515.87,203.21 515.87,292.04 407.47,292.04 407.47,203.21" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><g><polyline fill="none" points="407.47,203.21 515.87,203.21 515.87,292.04 407.47,292.04 407.47,203.21" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="407.47,247.62 515.87,247.62" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="461.67,292.04 461.67,336.45" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="461.67,203.21 461.67,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="445.41,336.45 477.93,336.45" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="445.41,158.79 477.93,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g></g></g></g><g transform="translate(100.33,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">a</text></g></g><g transform="translate(281.00,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">b</text></g></g><g transform="translate(461.67,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">c</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">2</text></g></g><g transform="translate(7.00,286.54)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">3</text></g></g><g transform="translate(7.00,242.12)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">4</text></g></g><g transform="translate(7.00,197.71)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">5</text></g></g><g transform="translate(7.00,153.29)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">6</text></g></g><g transform="translate(7.00,108.88)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">7</text></g></g><g transform="translate(7.00,64.46)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">8</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">9</text></g></g></g></g></g></svg>
+<p>The same column alone is counted instead, one bar per batch, as tall as the number of rows that batch holds – four, three and two:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>(pj/pose readings <span class="at">:batch</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(308.25,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">batch</text></g></g><g transform="translate(26.50,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="563.5" x="0" y="0"></rect></g></g></g><g transform="translate(16.50,0.00)"><g><g><g><g><polyline fill="none" points="10.00,352.00 573.50,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,311.29 573.50,311.29" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,270.57 573.50,270.57" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,229.86 573.50,229.86" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,189.14 573.50,189.14" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,148.43 573.50,148.43" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,107.71 573.50,107.71" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,67.00 573.50,67.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,26.29 573.50,26.29" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-z45keo"><rect height="342.00" width="563.50" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-z45keo)"><g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="28.78,352.00 179.05,352.00 179.05,26.29 28.78,26.29 28.78,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="216.62,352.00 366.88,352.00 366.88,107.71 216.62,107.71 216.62,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="404.45,352.00 554.72,352.00 554.72,189.14 404.45,189.14 404.45,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g></g></g></g><g transform="translate(103.92,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">a</text></g></g><g transform="translate(291.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">b</text></g></g><g transform="translate(479.58,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">c</text></g></g><g transform="translate(7.00,346.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.0</text></g></g><g transform="translate(7.00,305.79)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0.5</text></g></g><g transform="translate(7.00,265.07)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">1.0</text></g></g><g transform="translate(7.00,224.36)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">1.5</text></g></g><g transform="translate(7.00,183.64)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">2.0</text></g></g><g transform="translate(7.00,142.93)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">2.5</text></g></g><g transform="translate(7.00,102.21)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">3.0</text></g></g><g transform="translate(7.00,61.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">3.5</text></g></g><g transform="translate(7.00,20.79)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">4.0</text></g></g></g></g></g></svg>
+<p>Two numerical columns are a scatter, which is the case every combination not listed above falls back to.</p>
+<p>Naming a layer type with <code>pj/lay-*</code> settles the question instead, and the column types then decide only what that layer type does with the column.</p>
+</section>
+<section id="which-layer-types-accept-the-column" class="level2">
+<h2 class="anchored" data-anchor-id="which-layer-types-accept-the-column">Which layer types accept the column</h2>
+<p>Some layer types need a categorical axis. <code>pj/lay-boxplot</code> draws one box per category, so on a numerical column it reports the mismatch rather than drawing nothing:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">try</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> numerical</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>      (pj/lay-boxplot <span class="at">:k</span> <span class="at">:v</span>)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>      pj/plot)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">catch</span> Exception <span class="kw">e</span> (ex-message <span class="kw">e</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="printedClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="st">"lay-boxplot requires a categorical column on either :x or :y, but both :k and :v are numerical. Override with {:x-type :categorical} or {:y-type :categorical} to treat a numeric column as categorical."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>On a categorical column it draws one box per category. The <code>readings</code> data above has several rows per batch, so the boxes have something in them:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> readings</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-boxplot <span class="at">:batch</span> <span class="at">:reading</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">reading</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">batch</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,292.04 552.00,292.04" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,247.62 552.00,247.62" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,203.21 552.00,203.21" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,158.79 552.00,158.79" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,114.38 552.00,114.38" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,69.96 552.00,69.96" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.7" points="46.13,192.10 154.53,192.10 154.53,258.73 46.13,258.73 46.13,192.10" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><g><polyline fill="none" points="46.13,192.10 154.53,192.10 154.53,258.73 46.13,258.73 46.13,192.10" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="46.13,225.42 154.53,225.42" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="100.33,258.73 100.33,292.04" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="100.33,192.10 100.33,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="84.07,292.04 116.59,292.04" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="84.07,158.79 116.59,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.7" points="226.80,47.75 335.20,47.75 335.20,92.17 226.80,92.17 226.80,47.75" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><g><polyline fill="none" points="226.80,47.75 335.20,47.75 335.20,92.17 226.80,92.17 226.80,47.75" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="226.80,69.96 335.20,69.96" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,92.17 281.00,114.38" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,47.75 281.00,25.55" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="264.74,114.38 297.26,114.38" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="264.74,25.55 297.26,25.55" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.7" points="407.47,203.21 515.87,203.21 515.87,292.04 407.47,292.04 407.47,203.21" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><g><polyline fill="none" points="407.47,203.21 515.87,203.21 515.87,292.04 407.47,292.04 407.47,203.21" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="407.47,247.62 515.87,247.62" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="461.67,292.04 461.67,336.45" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="461.67,203.21 461.67,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="445.41,336.45 477.93,336.45" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g><g><g><g><polyline fill="none" points="445.41,158.79 477.93,158.79" stroke="rgb(51,51,51)" stroke-opacity="1.0" stroke-width="1.5"></polyline></g></g></g></g></g></g><g transform="translate(100.33,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">a</text></g></g><g transform="translate(281.00,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">b</text></g></g><g transform="translate(461.67,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">c</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">2</text></g></g><g transform="translate(7.00,286.54)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">3</text></g></g><g transform="translate(7.00,242.12)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">4</text></g></g><g transform="translate(7.00,197.71)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">5</text></g></g><g transform="translate(7.00,153.29)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">6</text></g></g><g transform="translate(7.00,108.88)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">7</text></g></g><g transform="translate(7.00,64.46)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">8</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">9</text></g></g></g></g></g></svg>
+<p>Other layer types need the opposite: <code>pj/lay-histogram</code> bins numbers, and has nothing to bin on a categorical column. <a href="./plotje_book.layer_types.html">Layer Types</a> lists what each one needs.</p>
+</section>
+<section id="overriding-the-inferred-type" class="level2">
+<h2 class="anchored" data-anchor-id="overriding-the-inferred-type">Overriding the inferred type</h2>
+<p>The type is read from the values, and the values do not always match what they stand for. A year, a postcode and a region code are numbers that name something rather than measure it. <code>:x-type</code>, <code>:y-type</code> and <code>:color-type</code> override the inference for one axis or one mapping:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> {<span class="at">:year</span> [<span class="dv">2020</span> <span class="dv">2021</span> <span class="dv">2022</span> <span class="dv">2023</span>] <span class="at">:revenue</span> [<span class="dv">10</span> <span class="dv">20</span> <span class="dv">30</span> <span class="dv">40</span>]}</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-bar <span class="at">:year</span> <span class="at">:revenue</span> {<span class="at">:x-type</span> <span class="at">:categorical</span>}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">revenue</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">year</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="10.00,352.00 552.00,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,311.29 552.00,311.29" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,270.57 552.00,270.57" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,229.86 552.00,229.86" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,189.14 552.00,189.14" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,148.43 552.00,148.43" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,107.71 552.00,107.71" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,67.00 552.00,67.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,26.29 552.00,26.29" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="23.55,352.00 131.95,352.00 131.95,270.57 23.55,270.57 23.55,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="159.05,352.00 267.45,352.00 267.45,189.14 159.05,189.14 159.05,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="294.55,352.00 402.95,352.00 402.95,107.71 294.55,107.71 294.55,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="430.05,352.00 538.45,352.00 538.45,26.29 430.05,26.29 430.05,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g></g></g></g><g transform="translate(77.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2020</text></g></g><g transform="translate(213.25,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2021</text></g></g><g transform="translate(348.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2022</text></g></g><g transform="translate(484.25,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2023</text></g></g><g transform="translate(7.00,346.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0</text></g></g><g transform="translate(7.00,305.79)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">5</text></g></g><g transform="translate(7.00,265.07)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,224.36)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,183.64)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,142.93)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,102.21)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,61.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.79)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>Without the override the same call reads <code>:year</code> as a quantity and draws bars along a continuous axis, ticked at the round numbers a numerical axis is ticked at rather than at one per year:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> {<span class="at">:year</span> [<span class="dv">2020</span> <span class="dv">2021</span> <span class="dv">2022</span> <span class="dv">2023</span>] <span class="at">:revenue</span> [<span class="dv">10</span> <span class="dv">20</span> <span class="dv">30</span> <span class="dv">40</span>]}</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-bar <span class="at">:year</span> <span class="at">:revenue</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">revenue</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">year</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="28.32,10.00 28.32,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="91.49,10.00 91.49,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="154.66,10.00 154.66,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="217.83,10.00 217.83,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,10.00 281.00,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="344.17,10.00 344.17,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="407.34,10.00 407.34,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="470.51,10.00 470.51,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="533.68,10.00 533.68,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,352.00 552.00,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,311.29 552.00,311.29" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,270.57 552.00,270.57" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,229.86 552.00,229.86" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,189.14 552.00,189.14" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,148.43 552.00,148.43" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,107.71 552.00,107.71" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,67.00 552.00,67.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,26.29 552.00,26.29" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="34.64,352.00 148.34,352.00 148.34,270.57 34.64,270.57 34.64,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="160.98,352.00 274.68,352.00 274.68,189.14 160.98,189.14 160.98,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="287.32,352.00 401.02,352.00 401.02,107.71 287.32,107.71 287.32,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g><g><g><polygon fill="rgb(51,51,51)" fill-opacity="0.85" points="413.66,352.00 527.36,352.00 527.36,26.29 413.66,26.29 413.66,352.00" shape-rendering="crispEdges" stroke="none"></polygon></g></g></g></g></g><g transform="translate(28.32,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2019.5</text></g></g><g transform="translate(91.49,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2020.0</text></g></g><g transform="translate(154.66,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2020.5</text></g></g><g transform="translate(217.83,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2021.0</text></g></g><g transform="translate(281.00,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2021.5</text></g></g><g transform="translate(344.17,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2022.0</text></g></g><g transform="translate(407.34,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2022.5</text></g></g><g transform="translate(470.51,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2023.0</text></g></g><g transform="translate(533.68,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2023.5</text></g></g><g transform="translate(7.00,346.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">0</text></g></g><g transform="translate(7.00,305.79)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">5</text></g></g><g transform="translate(7.00,265.07)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,224.36)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,183.64)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,142.93)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,102.21)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,61.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.79)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>The override changes the type, and so changes everything the type decides – the axis becomes bands, a color mapping on the same column splits rather than shades, and the layer types that need a categorical axis start accepting it.</p>
+</section>
+<section id="the-columns-type-and-the-scales-type" class="level2">
+<h2 class="anchored" data-anchor-id="the-columns-type-and-the-scales-type">The column’s type and the scale’s type</h2>
+<p>Two settings are written with the word <code>:categorical</code>, and they are not the same setting.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Setting</th>
+<th style="text-align: left;">Written as</th>
+<th style="text-align: left;">Values</th>
+<th style="text-align: left;">Says</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Column type</td>
+<td style="text-align: left;"><code>:x-type</code>, <code>:y-type</code>, <code>:color-type</code>, in the mapping</td>
+<td style="text-align: left;"><code>:categorical</code>, <code>:numerical</code>, <code>:temporal</code></td>
+<td style="text-align: left;">what kind of data the column holds</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Scale type</td>
+<td style="text-align: left;"><code>:type</code> in a scale spec, or the bare keyword given to <code>pj/scale</code></td>
+<td style="text-align: left;"><code>:linear</code>, <code>:log</code>, <code>:categorical</code></td>
+<td style="text-align: left;">how a numeric domain is spaced</td>
+</tr>
+</tbody>
+</table>
+<p>They meet at the domain. The column’s type decides what the domain is – a list of distinct categories, or an interval of numbers – and a domain of categories gives a scale that places categories. The scale’s own <code>:type</code> chooses between <code>:linear</code> and <code>:log</code>, which is a choice only an interval of numbers offers.</p>
+<p>So the column’s type decides whether the scale places categories, and the scale’s type decides how a numeric scale is spaced. Naming <code>:categorical</code> as a scale type cannot make a column categorical.</p>
+<p>On a numeric column the scale’s type chooses between <code>:linear</code> and <code>:log</code>. The four values of <code>:k</code> are spaced by ratio here:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> numerical</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    (pj/scale <span class="at">:x</span> <span class="at">:log</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="34.64,10.00 34.64,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="281.00,10.00 281.00,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="425.11,10.00 425.11,352.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g data-row-idx="0" transform="translate(31.64,333.45)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(278.00,229.82)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(422.11,126.18)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(524.36,22.55)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(34.64,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">1</text></g></g><g transform="translate(281.00,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">2</text></g></g><g transform="translate(425.11,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">3</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>Asking that same column for a <code>:categorical</code> scale is refused, and the message names the setting that would do it instead:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">try</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> numerical</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>      (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>      (pj/scale <span class="at">:x</span> <span class="at">:categorical</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>      pj/plan)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">catch</span> clojure.lang.ExceptionInfo <span class="kw">e</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    (ex-message <span class="kw">e</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="printedClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="st">"A :categorical scale places categories, and this axis spans numbers: [0.85 4.15]. To read a numeric column as categories, set :x-type or :y-type to :categorical on the layer -- the scale follows from the column's type. A :categorical scale spec supplies the category order for a column that is already categorical."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A categorical column is refused in the other direction: it has nothing to take a logarithm of, so <code>:log</code> is refused on one:</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">try</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> categorical</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>      (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>      (pj/scale <span class="at">:x</span> <span class="at">:log</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>      pj/plan)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">catch</span> clojure.lang.ExceptionInfo <span class="kw">e</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    (ex-message <span class="kw">e</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="printedClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="st">"Log scale on :x requires numeric data, but column :k is non-numeric."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>A <code>:linear</code> written on a categorical column is not read at all. The scale places categories because the domain holds categories, so the call below draws exactly what the same call without the scale draws.</p>
+<div class="sourceClojure">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> categorical</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:k</span> <span class="at">:v</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    (pj/scale <span class="at">:x</span> <span class="at">:linear</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<svg class="plotje-plot" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" height="400" role="img" viewbox="0 0 600 400" width="600" xmlns="http://www.w3.org/2000/svg"><g><g transform="translate(12.00,181.00)"><g transform="rotate(-90.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">v</text></g></g></g><g transform="translate(319.00,382.00)"><g><text dominant-baseline="hanging" fill="rgb(51,51,51)" fill-opacity="1.0" font-size="13" text-anchor="middle">k</text></g></g><g transform="translate(48.00,10.00)"><g><g><rect fill="rgb(232,232,232)" fill-opacity="1.0" height="342.0" stroke="none" width="542.0" x="0" y="0"></rect></g></g></g><g transform="translate(38.00,0.00)"><g><g><g><g><polyline fill="none" points="10.00,336.45 552.00,336.45" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,284.64 552.00,284.64" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,232.82 552.00,232.82" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,181.00 552.00,181.00" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,129.18 552.00,129.18" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,77.36 552.00,77.36" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><g><g><polyline fill="none" points="10.00,25.55 552.00,25.55" stroke="rgb(245,245,245)" stroke-opacity="1.0" stroke-width="0.6"></polyline></g></g></g><g><clippath id="plotje-clip-nsmkeq"><rect height="342.00" width="542.00" x="10.00" y="10.00"></rect></clippath><g clip-path="url(#plotje-clip-nsmkeq)"><g><g data-row-idx="0" transform="translate(74.75,333.45)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="1" transform="translate(210.25,229.82)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="2" transform="translate(345.75,126.18)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g><g data-row-idx="3" transform="translate(481.25,22.55)"><g><g><rect fill="rgb(51,51,51)" fill-opacity="0.75" height="6.0" rx="3.0" ry="3.0" stroke="none" width="6.0" x="0" y="0"></rect></g></g></g></g></g></g><g transform="translate(77.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">a</text></g></g><g transform="translate(213.25,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">b</text></g></g><g transform="translate(348.75,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">c</text></g></g><g transform="translate(484.25,364.00)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="middle">d</text></g></g><g transform="translate(7.00,330.95)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">10</text></g></g><g transform="translate(7.00,279.14)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">15</text></g></g><g transform="translate(7.00,227.32)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">20</text></g></g><g transform="translate(7.00,175.50)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">25</text></g></g><g transform="translate(7.00,123.68)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">30</text></g></g><g transform="translate(7.00,71.86)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">35</text></g></g><g transform="translate(7.00,20.05)"><g><text dominant-baseline="hanging" fill="rgb(102,102,102)" fill-opacity="1.0" font-size="11" text-anchor="end">40</text></g></g></g></g></g></svg>
+<p>A temporal column is spaced linearly, over the instants underneath its dates, and its ticks are labelled as calendar dates – the axis section above draws one.</p>
+</section>
+<section id="see-also" class="level2">
+<h2 class="anchored" data-anchor-id="see-also">See Also</h2>
+<ul>
+<li><p><a href="./plotje_book.datasets.html#datasets-and-plotje">Datasets</a> – where a column’s Tablecloth datatype comes from, and what a dataset is</p></li>
+<li><p><a href="./plotje_book.core_concepts.html#mappings-and-layers">Core Concepts</a> – what a mapping is, and how a column reaches an aesthetic</p></li>
+<li><p><a href="./plotje_book.inference_rules.html#column-types">Inference Rules</a> – the datatype-by-datatype table behind the three types</p></li>
+<li><p><a href="./plotje_book.layer_types.html">Layer Types</a> – which layer types need which kind of axis</p></li>
+</ul>
+<div style="background-color:grey;height:2px;width:100%;"></div>
+<div><pre><small><small>source: <a href="https://github.com/scicloj/plotje/blob/main/notebooks/plotje_book/column_types.clj">notebooks/plotje_book/column_types.clj</a></small></small></pre></div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./plotje_book.pose_rules.html" class="pagination-link" aria-label="Pose Rules">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Pose Rules</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./plotje_book.inference_rules.html" class="pagination-link" aria-label="Inference Rules">
+        <span class="nav-page-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Inference Rules</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+          const toc = document.getElementById('TOC');
+          if (toc) {
+            const tocHeading = toc.querySelector('h2');
+            if (tocHeading) tocHeading.style.display = 'none';
+
+            const topList = toc.querySelector('ul');
+
+            const btn = document.createElement('button');
+            btn.textContent = '⌃';
+            btn.style.cssText = `
+              display: block;
+              width: 100%;
+              padding: 4px 8px;
+              margin-bottom: 8px;
+              font-size: 2em;
+              cursor: pointer;
+              border: none;
+              outline: none;
+              box-shadow: none;
+              background: transparent;
+              color: #2780e3;
+              text-align: left;
+              transition: transform 0.25s ease;
+              transform-origin: center;
+              -webkit-appearance: none;
+              appearance: none;
+            `;
+
+            let expanded = true;
+
+            btn.addEventListener('click', function () {
+              expanded = !expanded;
+              if (topList) topList.style.display = expanded ? 'block' : 'none';
+              btn.style.transform = expanded ? 'rotate(0deg)' : 'rotate(180deg)';
+            });
+
+            toc.insertBefore(btn, toc.firstChild);
+          }
+        });
+        </script>
+
+
+
+
+</body></html>

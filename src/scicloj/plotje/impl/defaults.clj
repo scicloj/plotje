@@ -829,16 +829,28 @@
 (defonce ^:private config-atom
   (atom nil))
 
+;; Defined below, once `config-key-docs` -- the set it validates
+;; against -- exists. Only ever called at runtime, so the forward
+;; reference resolves.
+(declare validate-config-keys!)
+
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
    (set-config! {:color-values :dark2 :theme {:bg \"#FFFFFF\"}})
    (set-config! nil)  — reset to defaults"
   [m]
+  (validate-config-keys! "pj/set-config!" m)
   (reset! config-atom m))
 
 (def ^:private edn-cache
   "TTL cache for plotje.edn (1 second)."
   (atom {:value nil :timestamp 0}))
+
+;; The last plotje.edn content checked, so a file naming a key Plotje
+;; does not read is reported when it changes rather than once a second
+;; forever. `defonce` takes no docstring, hence the comment.
+(defonce ^:private edn-validated
+  (atom ::unread))
 
 (defn- read-plotje-edn
   "Read plotje.edn from classpath or the current working directory.
@@ -854,6 +866,9 @@
             source (or from-cp from-cwd)
             v (when source (edn/read-string (slurp source)))]
         (reset! edn-cache {:value v :timestamp now})
+        (when (not= v @edn-validated)
+          (reset! edn-validated v)
+          (validate-config-keys! "plotje.edn" v))
         v))))
 
 (def config-key-docs
@@ -954,6 +969,50 @@
                          t
                          t)))))
 
+(defn- config-strict?
+  "Whether an unreadable configuration key throws rather than warns.
+
+   Resolved without calling `config`, because `plotje.edn` is checked
+   while `config` is building its answer and would recur."
+  [m]
+  (cond
+    (contains? m :strict) (:strict m)
+    (contains? *config* :strict) (:strict *config*)
+    (contains? @config-atom :strict) (:strict @config-atom)
+    :else (:strict @library-defaults)))
+
+(defn validate-config-keys!
+  "Report configuration keys Plotje does not read, naming `where` they
+   were written. Warns, or throws under `:strict`.
+
+   `pj/options` has always refused a key it does not read, and the
+   configuration path did not. A key a release removed -- `:palette`,
+   `:color-scale`, `:tick-spacing-x` -- written in `plotje.edn` or
+   passed to `set-config!`, `with-config` or the `:config` option was
+   merged into the resolved configuration, read by nothing, and drew
+   the default without a word. Upgrading a project reverted its palette
+   in silence.
+
+   The key is left in the map rather than stripped: nothing reads it
+   either way, and the resolved configuration is what `pj/config`
+   reports, so removing entries there would hide what was written.
+
+   Returns `m`, so it can sit in a threading position."
+  [where m]
+  (when (map? m)
+    (let [accepted (set (keys config-key-docs))
+          unknown (remove accepted (keys m))]
+      (when (seq unknown)
+        (let [msg (str where " does not recognize configuration key(s): "
+                       (vec (sort unknown)) "."
+                       "\n  Accepted: " (vec (sort accepted)))]
+          (if (config-strict? m)
+            (throw (ex-info msg {:caller where
+                                 :unknown (vec (sort unknown))
+                                 :accepted accepted}))
+            (println (str "Warning: " msg)))))))
+  m)
+
 (def ^:private flat-config-keys
   "Config keys that are forwarded as flat scalars from plot-opts to cfg.
    :theme is excluded (deep-merged separately) and :config is excluded
@@ -974,7 +1033,8 @@
           (let [;; Deep-merge the nested :config escape hatch first (lowest priority
                 ;; among plot-opts, highest priority over the cfg chain).
                 cfg (if-let [nested (:config plot-opts)]
-                      (kindly/deep-merge cfg nested)
+                      (kindly/deep-merge
+                       cfg (validate-config-keys! "The :config option" nested))
                       cfg)
                 ;; Deep-merge :theme (map value, not scalar)
                 cfg (if-let [th (:theme plot-opts)]

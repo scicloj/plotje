@@ -1,41 +1,60 @@
-;; plotje.edn — Project-level configuration overrides.
+;; plotje.edn -- Project-level configuration overrides.
 ;;
 ;; Copy this file to your project root as plotje.edn.
-;; Only include keys you want to override — everything else
+;; Only include keys you want to override -- everything else
 ;; falls back to the library defaults.
+;;
+;; Every value shown below is the library default, so a line you
+;; uncomment and leave alone changes nothing.
 ;;
 ;; Precedence (highest wins):
 ;;   per-call options > with-config > set-config! > plotje.edn > library defaults
+;;
+;; A key Plotje does not read is reported when this file is loaded.
+;; `(pj/config)` shows what resolved, and `pj/config-key-docs` lists
+;; every key with a description.
 
 {;; ---------- Layout ----------
- ;; :width 600          ;; default plot width (px)
- ;; :height 400         ;; default plot height (px)
- ;; :margin 25          ;; panel margin (px)
+ ;; Widths, heights and margins are in drawing units: one unit of the
+ ;; plot's :width and :height.
+ ;; :width 600
+ ;; :height 400
+ ;; :margin 10          ;; around single-panel plots
+ ;; :margin-multi 10    ;; around multi-panel plots
 
  ;; ---------- Theme ----------
  ;; Visual identity: background, grid lines, font size.
- ;; Only include keys you want to change — the rest are preserved.
- ;; :theme {:bg "#EBEBEB" :grid "#FFFFFF" :font-size 8}
+ ;; Only include keys you want to change -- the rest are preserved.
+ ;; :theme {:bg "#E8E8E8" :grid "#F5F5F5" :font-size 11}
 
  ;; ---------- Color ----------
- ;; Categorical palette — keyword name or vector of hex strings.
- ;; Over 7,000 named palettes available via clojure2d.
- ;; :palette :set1
+ ;; The colors a categorical :color column is drawn in: a palette name,
+ ;; a vector of colors, or a map from category to color. Over 7,000
+ ;; named palettes are available via clojure2d.
+ ;; :color-values :set1
 
- ;; Continuous color scale for numerical :color mappings.
- ;; :sequential (default viridis), :diverging, or a keyword like :inferno, :plasma.
- ;; :color-scale :sequential
+ ;; The gradient a numeric :color column is read through: :sequential,
+ ;; :diverging, a gradient name such as :inferno, a {:low :mid :high}
+ ;; map, or a function.
+ ;; :color-range :sequential
+
+ ;; The value the middle of that gradient is drawn at, which centers a
+ ;; diverging gradient there rather than halfway along the data.
+ ;; :color-midpoint 0
+
+ ;; Fallback color where no color mapping is set.
+ ;; :default-color "#333"
 
  ;; ---------- Points ----------
- ;; :point-radius 2.5
- ;; :point-opacity 0.7
+ ;; :point-radius 3.0
+ ;; :point-opacity 0.75
 
  ;; ---------- Bars and Lines ----------
- ;; :bar-opacity 0.7
- ;; :line-width 2
+ ;; :bar-opacity 0.85
+ ;; :line-width 2.5
 
  ;; ---------- Behavior ----------
- ;; :validate true      ;; validate poses against Malli schema
- ;; :strict true        ;; throw on unknown option keys (typos like {:colour :species})
- ;;                     ;; instead of warning to stderr and silently stripping
+ ;; :validate true      ;; validate plans against Malli schema
+ ;; :strict false       ;; when true, throw on unknown keys (typos like
+ ;;                     ;; {:colour :species}) instead of warning
  }

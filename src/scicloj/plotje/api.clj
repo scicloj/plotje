@@ -103,8 +103,10 @@
 
    - `(with-config {:theme {:bg \"#FFF\"}} (plot ...))`"
   [config-map & body]
-  `(binding [defaults/*config* ~config-map]
-     ~@body))
+  `(let [cfg# ~config-map]
+     (defaults/validate-config-keys! "pj/with-config" cfg#)
+     (binding [defaults/*config* cfg#]
+       ~@body)))
 
 (defn config
   "Return the effective resolved configuration as a map.
