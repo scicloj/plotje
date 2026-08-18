@@ -2686,10 +2686,12 @@
    aesthetic does not read is refused where it is written rather than
    dropped in silence:
 
-   - `:x` and `:y` take `:breaks` (explicit tick locations), `:labels`
-     (custom tick text paired with `:breaks`), `:n-ticks` (thin a
+   - `:x` and `:y` take `:breaks` (explicit tick locations),
+     `:tick-labels` (custom tick text paired with `:breaks`),
+     `:n-ticks` (thin a
      categorical axis to about this many ticks) and `:label` (the axis
-     title, which the `:x-label` / `:y-label` plot options override).
+     title, which wins over the `:x-label` / `:y-label` plot options
+     naming the same thing further out).
    - `:size` and `:alpha` take `:range` -- what the aesthetic spans, in
      the quantity the mark draws it as, so `[2 8]` on `:size` is a
      radius in drawing units.
@@ -2738,9 +2740,9 @@
    `:alpha`. That is how every panel of a facet can be given one scale
    to share.
 
-   `:labels` requires `:breaks` and must match it in count. Use it to
-   render numeric positions with custom text -- for example, days of the
-   week on a tile heatmap.
+   `:tick-labels` requires `:breaks` and must match it in count. Use it
+   to draw numeric breaks with text of your own -- for example, days of
+   the week on a tile heatmap.
 
    `:n-ticks` thins a crowded categorical axis to about that many
    evenly-spaced tick labels (a categorical axis otherwise labels every
@@ -2754,7 +2756,7 @@
      about eight evenly-spaced tick labels.
    - `(scale pose :y {:type :linear :breaks [0 5 10]})` -- pin tick locations.
    - `(scale pose :x {:type :linear :breaks [1 2 3 4 5 6 7]
-                      :labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`
+                      :tick-labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`
      -- numeric positions with custom tick text.
    - `(scale pose :y {:type :log :domain [1 1000]})` -- log scale with
      explicit range.
@@ -2804,18 +2806,27 @@
                :supported (vec (sort valid-types))})))
     (when (map? scale-type)
       (let [breaks (:breaks scale-type)
-            labels (:labels scale-type)]
+            labels (:tick-labels scale-type)]
+        (when (and (some? labels) (not (sequential? labels)))
+          (throw (ex-info
+                  (str "pj/scale :tick-labels " (pr-str labels) " is not a"
+                       " sequence of tick texts. It draws one text per"
+                       " break, so it takes as many as :breaks names."
+                       " To title the axis itself, use :label.")
+                  {:caller "pj/scale" :channel channel :tick-labels labels})))
         (when (and labels (not breaks))
           (throw (ex-info
-                  (str "pj/scale :labels requires :breaks. Pass both, or"
-                       " drop :labels to keep auto-formatted tick text.")
-                  {:caller "pj/scale" :channel channel :labels labels})))
+                  (str "pj/scale :tick-labels requires :breaks. Pass both,"
+                       " or drop :tick-labels to keep auto-formatted tick"
+                       " text.")
+                  {:caller "pj/scale" :channel channel :tick-labels labels})))
         (when (and breaks labels (not= (count breaks) (count labels)))
           (throw (ex-info
-                  (str "pj/scale :breaks and :labels must have the same count, got "
-                       (count breaks) " breaks and " (count labels) " labels.")
+                  (str "pj/scale :breaks and :tick-labels must have the same"
+                       " count, got " (count breaks) " breaks and "
+                       (count labels) " tick labels.")
                   {:caller "pj/scale" :channel channel
-                   :breaks (vec breaks) :labels (vec labels)})))
+                   :breaks (vec breaks) :tick-labels (vec labels)})))
         ;; :values names marker symbols, which only :shape draws. An
         ;; unrecognized symbol would draw as a circle while the legend
         ;; advertised the name, so reject it here rather than render a

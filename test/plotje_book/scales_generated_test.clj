@@ -528,7 +528,7 @@
  (->
   {:quarter ["Q1" "Q2" "Q3" "Q4"], :revenue [120 150 90 200]}
   (pj/lay-bar :quarter :revenue)
-  (pj/scale :x {:breaks ["Q1" "Q4"], :labels ["First" "Fourth"]})))
+  (pj/scale :x {:breaks ["Q1" "Q4"], :tick-labels ["First" "Fourth"]})))
 
 
 (deftest

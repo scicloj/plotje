@@ -706,7 +706,7 @@
  [(fn [msg] (re-find #"String cannot be cast to.*Number" msg))])
 
 ;; **Fix**: render a numeric-indexed grid (1-N integers in place of
-;; the categorical column) and pair `:breaks` with `:labels` on the
+;; the categorical column) and pair `:breaks` with `:tick-labels` on the
 ;; axis so the tick text shows the original category names:
 
 (-> (for [day (range 1 8) hour (range 0 24)]
@@ -715,7 +715,7 @@
     (pj/lay-tile :day :hour {:fill :v})
     (pj/scale :x {:type :linear
                   :breaks [1 2 3 4 5 6 7]
-                  :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
+                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
@@ -723,7 +723,7 @@
 
 ;; If a true categorical *axis* (with binning over labels rather
 ;; than numeric intervals) is what you need, that is tracked in
-;; `CHANGELOG.md` Known limitations. The integer-plus-`:labels`
+;; `CHANGELOG.md` Known limitations. The integer-plus-`:tick-labels`
 ;; pattern above covers most heatmap-with-categorical-axis cases.
 
 ;; ## See Also

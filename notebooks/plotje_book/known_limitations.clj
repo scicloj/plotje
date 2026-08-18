@@ -157,7 +157,7 @@
 ;;   clear "Stat :bin2d requires a numeric column" error at plan
 ;;   time. The recommended workaround is to render a numeric-indexed
 ;;   grid (1-N integers in place of the categorical column) and
-;;   pair `:breaks` with `:labels` on the axis -- see Customization
+;;   pair `:breaks` with `:tick-labels` on the axis -- see Customization
 ;;   and Troubleshooting for a worked example. For a true categorical
 ;;   axis (binning over labels rather than numeric intervals),
 ;;   `pj/lay-bar` with a `y` column and `{:color :value}` gives a

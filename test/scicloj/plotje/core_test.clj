@@ -401,10 +401,10 @@
 
 (deftest categorical-breaks-labels-test
   (let [xticks (fn [pose] (-> pose pj/plan :panels first :x-ticks))]
-    (testing ":breaks selects a category subset and :labels relabels it"
+    (testing ":breaks selects a category subset and :tick-labels relabels it"
       (let [t (xticks (-> (tc/dataset {:x ["a" "m" "q" "z"] :y [1 2 3 4]})
                           (pj/lay-point :x :y)
-                          (pj/scale :x {:breaks ["a" "z"] :labels ["A" "Z"]})))]
+                          (pj/scale :x {:breaks ["a" "z"] :tick-labels ["A" "Z"]})))]
         (is (= ["a" "z"] (vec (:values t))))
         (is (= ["A" "Z"] (vec (:labels t))))))
     (testing "a break naming no category is dropped (matched categories remain)"

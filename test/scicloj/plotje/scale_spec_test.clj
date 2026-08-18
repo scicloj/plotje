@@ -200,7 +200,30 @@
       (is (= "Mapped" (-> wide (pj/lay-point {:x {:column :when
                                                   :scale {:label "Mapped"}}
                                               :y :level})
-                          pj/plan :x-label))))))
+                          pj/plan :x-label))))
+
+    (testing "`:label` and `:x-label` are one setting, and the innermost wins"
+      ;; An axis label is the one place where a plot option and a scale
+      ;; spec say the same thing. It resolves like every other scale
+      ;; setting: the spec is written further in, so it wins, however
+      ;; far out the option sits.
+      (is (= "spec" (-> wide
+                        (pj/pose {:x :when :y :level})
+                        (pj/options {:x-label "option"})
+                        (pj/lay-point {:x {:column :when
+                                           :scale {:label "spec"}}})
+                        pj/plan :x-label)))
+      (is (= "spec y" (-> wide (pj/lay-point :when :level)
+                          (pj/scale :y {:label "spec y"})
+                          (pj/options {:y-label "option y"})
+                          pj/plan :y-label)))
+      ;; With no spec the option still titles the axis, and with
+      ;; neither the column name is inferred.
+      (is (= ["option" "level"]
+             (-> wide (pj/lay-point :when :level)
+                 (pj/options {:x-label "option"})
+                 pj/plan
+                 ((juxt :x-label :y-label))))))))
 
 (deftest layers-that-name-different-axis-scales-are-refused-test
   ;; A panel has one x axis and every layer is drawn against it, so it
@@ -617,16 +640,16 @@
                      true
                      (catch clojure.lang.ExceptionInfo _ false)))
         sample {:range [1 2] :by :linear :from-zero true
-                :breaks [1 2] :labels ["a" "b"] :n-ticks 3
+                :breaks [1 2] :tick-labels ["a" "b"] :n-ticks 3
                 :label "t" :values [(first pj/shape-symbols)]}
         ;; Two keys carry a constraint the capability table does not
         ;; describe, and a value has to respect it to test acceptance
-        ;; at all: `:labels` is meaningless without the `:breaks` it
+        ;; at all: `:tick-labels` is meaningless without the `:breaks` it
         ;; pairs with, and an opacity range has to lie inside 0 to 1.
         spec-for (fn [aesthetic a-type k]
                    (merge {:type a-type}
                           (cond
-                            (= k :labels) {:breaks [1 2] :labels ["a" "b"]}
+                            (= k :tick-labels) {:breaks [1 2] :tick-labels ["a" "b"]}
                             (and (= k :range) (= aesthetic :alpha)) {:range [0.1 1.0]}
                             :else {k (get sample k)})))]
 

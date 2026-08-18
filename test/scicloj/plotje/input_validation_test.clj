@@ -755,7 +755,7 @@
                  (pj/lay-tile :day :hour {:fill :v})
                  (pj/scale :x {:type :linear
                                :breaks [1 2 3 4 5 6 7]
-                               :labels days})
+                               :tick-labels days})
                  pj/plan)
         x-labels (-> plan :panels first :x-ticks :labels)
         x-values (-> plan :panels first :x-ticks :values)]
@@ -765,15 +765,15 @@
 
 (deftest scale-labels-validation
   (let [data (tc/dataset {:x [1 2 3] :y [10 20 30]})]
-    (testing ":labels without :breaks throws"
+    (testing ":tick-labels without :breaks throws"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #":labels requires :breaks"
+           #":tick-labels requires :breaks"
            (-> data
                (pj/lay-point :x :y)
-               (pj/scale :x {:type :linear :labels ["a" "b" "c"]})))))
+               (pj/scale :x {:type :linear :tick-labels ["a" "b" "c"]})))))
 
-    (testing ":breaks and :labels with mismatched counts throws"
+    (testing ":breaks and :tick-labels with mismatched counts throws"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"same count"
@@ -781,7 +781,18 @@
                (pj/lay-point :x :y)
                (pj/scale :x {:type :linear
                              :breaks [1 2 3]
-                             :labels ["a" "b"]})))))))
+                             :tick-labels ["a" "b"]})))))
+
+    ;; The axis title and the tick text are one character apart, so a
+    ;; text where a vector belongs is refused by name rather than
+    ;; counted as one label per character.
+    (testing ":tick-labels given a single string is refused, and says why"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #":tick-labels \"Axis title\" is not a sequence"
+           (-> data
+               (pj/lay-point :x :y)
+               (pj/scale :x {:breaks [1 2] :tick-labels "Axis title"})))))))
 
 (deftest plan-warns-on-unused-pose-mapping-keys
   (let [data (tc/dataset {:x [1 2 3] :y [10 20 30]

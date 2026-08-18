@@ -221,7 +221,7 @@
  v33_l165
  (->
   {:product
-   (map (fn* [p1__71920#] (str "Product " p1__71920#)) (range 12)),
+   (map (fn* [p1__71925#] (str "Product " p1__71925#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -242,7 +242,7 @@
  v36_l178
  (->
   {:product
-   (map (fn* [p1__71921#] (str "Product " p1__71921#)) (range 12)),
+   (map (fn* [p1__71926#] (str "Product " p1__71926#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -379,7 +379,7 @@
    (pj/options {:thousands-separator ","})
    pj/svg-summary
    :texts)
-  (filter (fn* [p1__71922#] (re-find #"," p1__71922#)))
+  (filter (fn* [p1__71927#] (re-find #"," p1__71927#)))
   distinct
   sort))
 
@@ -437,7 +437,7 @@
   (pj/scale
    :x
    {:breaks [1 2 3 4 5 6 7],
-    :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})
+    :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})
   (pj/options {:title "Weekly Load by Hour"})))
 
 
@@ -728,11 +728,11 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__71923#] (= :text (:mark p1__71923#))))
+        (filter (fn* [p1__71928#] (= :text (:mark p1__71928#))))
         (mapv
          (fn*
-          [p1__71924#]
-          (-> p1__71924# :style :box :corner-radius))))))))
+          [p1__71929#]
+          (-> p1__71929# :style :box :corner-radius))))))))
    v98_l526)))
 
 

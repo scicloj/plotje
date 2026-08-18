@@ -47,7 +47,7 @@
   (let [n (scale/tick-count (double pixel-budget) tick-spacing)
         log? (= :log (:type scale-spec))
         user-breaks (:breaks scale-spec)
-        user-labels (:labels scale-spec)]
+        user-labels (:tick-labels scale-spec)]
     (cond
       (and user-breaks (sequential? user-breaks) (seq user-breaks))
       (let [vs (vec user-breaks)

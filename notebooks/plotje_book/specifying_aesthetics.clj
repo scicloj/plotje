@@ -588,9 +588,9 @@ integer-named
 ;; `(pj/scale pose :size :log)` are separate decisions, and either can
 ;; be made without the other. Which keys a spec may carry depends on
 ;; the aesthetic -- `:size` reads `:range`, `:by` and `:from-zero`
-;; beside `:type` and `:domain`, an axis reads `:breaks` and `:labels`
-;; -- and a key the aesthetic does not read is refused rather than
-;; dropped. [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
+;; beside `:type` and `:domain`, an axis reads `:breaks` and
+;; `:tick-labels` -- and a key the aesthetic does not read is refused
+;; rather than dropped. [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
 ;; has each of them.
 ;;
 ;; ### The axes take one scale per panel

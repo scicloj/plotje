@@ -207,14 +207,14 @@
    When `scale-spec` contains `:breaks` (a vector of numbers), those
    exact values are used as ticks instead of the auto-computed ones
    -- ggplot2's `scale_*_continuous(breaks = ...)` equivalent. When
-   `scale-spec` also contains `:labels` (a vector of strings), those
+   `scale-spec` also contains `:tick-labels` (a vector of strings), those
    replace the auto-formatted labels at the corresponding break
    positions.
 
    On a categorical axis, `:breaks` selects which categories get a tick
    (ggplot2's discrete `breaks`): each break is matched to a category by
    its displayed label, unmatched breaks are dropped with a warning, and
-   `:labels` relabels the kept ticks. Explicit `:breaks` take precedence
+   `:tick-labels` relabels the kept ticks. Explicit `:breaks` take precedence
    over `:n-ticks` -- when both are given, the exact breaks win and no
    thinning is applied."
   ([domain pixel-range scale-spec spacing]
@@ -224,11 +224,11 @@
   ([domain pixel-range scale-spec spacing temporal-extent separators]
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
-           user-labels (:labels scale-spec)]
+           user-labels (:tick-labels scale-spec)]
        (if (and user-breaks (sequential? user-breaks) (seq user-breaks))
          ;; Explicit category subset -- :breaks wins over :n-ticks. Match
          ;; each break to a category by displayed label, keep them in the
-         ;; user's order, and relabel with :labels when given.
+         ;; user's order, and relabel with :tick-labels when given.
          (let [display->cat (into {} (map (juxt defaults/fmt-category-label identity)
                                           domain))
                break-labels (if (and user-labels (sequential? user-labels))
@@ -248,10 +248,10 @@
      (let [n (scale/tick-count (Math/abs (double (- (second pixel-range) (first pixel-range)))) spacing)
            log? (= :log (:type scale-spec))
            user-breaks (:breaks scale-spec)
-           user-labels (:labels scale-spec)]
+           user-labels (:tick-labels scale-spec)]
        (cond
          ;; User-supplied breaks override everything — use the exact values
-         ;; they asked for. Labels come from user-supplied :labels when
+         ;; they asked for. Labels come from user-supplied :tick-labels when
          ;; provided, otherwise from the same format the scale uses.
          (and user-breaks (sequential? user-breaks) (seq user-breaks))
          (let [vs (vec user-breaks)
@@ -674,25 +674,24 @@
 
 (defn- resolve-labels
   "Resolve effective title and axis labels.
-   Title comes from opts only; axis labels fall back to draft-layer-level :x-label/:y-label
-   (set via pj/options), then scale :label, then auto-inferred column name."
-  [draft-layers x-vars y-vars x-scale-spec y-scale-spec
+   Title comes from opts only. An axis label is one setting written at
+   two scopes: `:label` in a scale spec on a mapping or a layer, and
+   the `:x-label` / `:y-label` plot options on a pose. The innermost
+   wins, as it does for every other scale setting, so a spec beats an
+   option; with neither, the column name is inferred."
+  [x-vars y-vars x-scale-spec y-scale-spec
    title x-label y-label auto-label?]
-  (let [draft-layer-x-label (:x-label (first draft-layers))
-        draft-layer-y-label (:y-label (first draft-layers))]
-    {:eff-title title
-     :eff-x-label (or x-label
-                      draft-layer-x-label
-                      (:label x-scale-spec)
-                      (when auto-label?
-                        (when-let [x (first x-vars)] (defaults/fmt-name x))))
-     :eff-y-label (or y-label
-                      draft-layer-y-label
-                      (:label y-scale-spec)
-                      (when auto-label?
-                        (when-let [y (first y-vars)]
-                          (when (not= y (first x-vars))
-                            (defaults/fmt-name y)))))}))
+  {:eff-title title
+   :eff-x-label (or (:label x-scale-spec)
+                    x-label
+                    (when auto-label?
+                      (when-let [x (first x-vars)] (defaults/fmt-name x))))
+   :eff-y-label (or (:label y-scale-spec)
+                    y-label
+                    (when auto-label?
+                      (when-let [y (first y-vars)]
+                        (when (not= y (first x-vars))
+                          (defaults/fmt-name y)))))})
 
 (defn- finite-vals
   "Concatenate a seq of column buffers into a single Clojure vector with
@@ -2071,7 +2070,7 @@
          multi? (and (= layout-type :multi-variable) (> grid-cols-n 1) (> grid-rows-n 1))
          auto-label? (and (not multi?) (coord/show-ticks? rep-coord))
          {:keys [eff-title eff-x-label eff-y-label]}
-         (resolve-labels draft-layers x-vars y-vars rep-x-scale rep-y-scale
+         (resolve-labels x-vars y-vars rep-x-scale rep-y-scale
                          title x-label y-label auto-label?)
          swap-labels? (or (= rep-coord :flip) has-ridgeline?)
          [eff-x-label eff-y-label] (if swap-labels?

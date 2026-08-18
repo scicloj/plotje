@@ -276,14 +276,15 @@
    low end of a gradient is a color rather than an absence, so there is
    no quantity there to be proportional to anything.
 
-   `:breaks`, `:labels` and `:n-ticks` place and word tick marks, and
-   `:label` titles the axis, so all four belong to the two channels
-   drawn as an axis. (`:label` is the axis title; `:labels` is the tick
-   text. The plot options `:x-label` and `:y-label` say the same as
-   `:label` and win over it.) `:values` names marker symbols, which
+   `:breaks`, `:tick-labels` and `:n-ticks` place and word tick marks,
+   and `:label` titles the axis, so all four belong to the two channels
+   drawn as an axis. (`:label` is the axis title; `:tick-labels` is the
+   text drawn at the ticks. The plot options `:x-label` and `:y-label` are the same
+   setting written further out, so a `:label` in a spec wins over
+   them.) `:values` names marker symbols, which
    only `:shape` draws."
-  {:x     #{:breaks :labels :n-ticks :label}
-   :y     #{:breaks :labels :n-ticks :label}
+  {:x     #{:breaks :tick-labels :n-ticks :label}
+   :y     #{:breaks :tick-labels :n-ticks :label}
    :color #{}
    :fill  #{}
    :shape #{:values}
@@ -309,7 +310,7 @@
    aesthetic spans and how a value spreads across it, then the keys
    that place and word tick marks, then the axis title, then the
    symbols only `:shape` draws."
-  [:range :by :from-zero :breaks :labels :n-ticks :label :values])
+  [:range :by :from-zero :breaks :tick-labels :n-ticks :label :values])
 
 (def scale-bearing-aesthetic-order
   "Display order for the aesthetics that have a scale: the two drawn as
@@ -847,8 +848,8 @@
   {:title ["Content" "Plot title string"]
    :subtitle ["Content" "Plot subtitle string"]
    :caption ["Content" "Plot caption string (bottom)"]
-   :x-label ["Content" "X-axis label (overrides inferred)"]
-   :y-label ["Content" "Y-axis label (overrides inferred)"]
+   :x-label ["Content" "X-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a scale spec, so a spec written on a mapping or a layer wins over it"]
+   :y-label ["Content" "Y-axis title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a scale spec, so a spec written on a mapping or a layer wins over it"]
    :color-label ["Content" "Color legend title (overrides inferred column name)"]
    :fill-label ["Content" "Fill legend title (overrides inferred column name; used by tile fills, density-2d, bin2d)"]
    :size-label ["Content" "Size legend title (overrides inferred column name)"]

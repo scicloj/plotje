@@ -338,7 +338,7 @@
 ;; the case where the axis is indexed by number and the labels should
 ;; be words.
 ;;
-;; `:breaks` pins the values that get a tick, and `:labels` gives each
+;; `:breaks` pins the values that get a tick, and `:tick-labels` gives each
 ;; one its text -- one label per break. This tile heatmap is indexed by
 ;; day number, 1 to 7, and its ticks read as days:
 
@@ -347,7 +347,7 @@
                                     (* 0.2 (mod day 3)))})
     (pj/lay-tile :day :hour {:fill :load})
     (pj/scale :x {:breaks [1 2 3 4 5 6 7]
-                  :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})
+                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})
     (pj/options {:title "Weekly Load by Hour"}))
 
 (kind/test-last

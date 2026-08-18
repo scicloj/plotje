@@ -218,7 +218,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__71761#] (Math/sin (* p1__71761# 0.3))) (range 30))}))
+   (map (fn* [p1__72339#] (Math/sin (* p1__72339# 0.3))) (range 30))}))
 
 
 (def v45_l175 (-> wave (pj/lay-line :x :y)))
@@ -402,9 +402,9 @@
     :y
     (mapv
      (fn*
-      [p1__71762#]
+      [p1__72340#]
       (+
-       (Math/sin (* p1__71762# 0.2))
+       (Math/sin (* p1__72340# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -977,7 +977,7 @@
    :x
    {:type :linear,
     :breaks [1 2 3 4 5 6 7],
-    :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})))
+    :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})))
 
 
 (deftest
@@ -1278,7 +1278,7 @@
    (:canvas f)
    boxes
    (mapv
-    (fn* [p1__71763#] (-> p1__71763# :frames :panel-box))
+    (fn* [p1__72341#] (-> p1__72341# :frames :panel-box))
     (:panels f))
    inside?
    (fn
@@ -1289,7 +1289,7 @@
    :every-box-inside-the-canvas (every? inside? boxes),
    :panel-rectangle-keys
    (mapv
-    (fn* [p1__71764#] (vec (keys (:frames p1__71764#))))
+    (fn* [p1__72342#] (vec (keys (:frames p1__72342#))))
     (:panels f))}))
 
 
@@ -1304,7 +1304,7 @@
      (apply not= (map first (:panel-boxes m)))
      (true? (:every-box-inside-the-canvas m))
      (every?
-      (fn* [p1__71765#] (= [:panel-box :drawing-area] p1__71765#))
+      (fn* [p1__72343#] (= [:panel-box :drawing-area] p1__72343#))
       (:panel-rectangle-keys m))))
    v262_l847)))
 
@@ -1346,7 +1346,7 @@
   (->>
    (pj/to-drawing panel 2 5)
    (apply pj/to-data panel)
-   (mapv (fn* [p1__71766#] (Math/round (double p1__71766#)))))))
+   (mapv (fn* [p1__72344#] (Math/round (double p1__72344#)))))))
 
 
 (deftest t274_l896 (is ((fn [v] (= [2 5] v)) v273_l891)))
@@ -1702,7 +1702,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__71767#] (bit-and p1__71767# 255)) (vec bs))))))
+    (mapv (fn* [p1__72345#] (bit-and p1__72345# 255)) (vec bs))))))
 
 
 (deftest
@@ -1723,7 +1723,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__71768#] (bit-and p1__71768# 255)) (vec bs))))))
+    (mapv (fn* [p1__72346#] (bit-and p1__72346# 255)) (vec bs))))))
 
 
 (deftest t387_l1196 (is ((fn [bs] (= [137 80 78 71] bs)) v386_l1187)))

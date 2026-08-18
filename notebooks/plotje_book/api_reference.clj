@@ -615,13 +615,13 @@ pj/shape-symbols
 (kind/test-last [(fn [syms] (and (seq syms) (every? keyword? syms)))])
 
 ;; Custom tick labels on a numeric axis -- pair `:breaks` with
-;; `:labels`:
+;; `:tick-labels`:
 
 (-> (for [d (range 1 8)] {:day d :v (mod d 3)})
     (pj/lay-point :day :v)
     (pj/scale :x {:type :linear
                   :breaks [1 2 3 4 5 6 7]
-                  :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
+                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]

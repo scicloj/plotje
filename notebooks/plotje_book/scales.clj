@@ -549,7 +549,7 @@ gapminder-2007
  [(fn [fr] (= [40.0 50.0 60.0 70.0 80.0]
               (->> fr pj/plan :panels first :y-ticks :values (mapv double))))])
 
-;; `:labels` pairs custom text with those breaks, one label each. It is
+;; `:tick-labels` pairs custom text with those breaks, one label each. It is
 ;; how an axis that is numerically indexed gets worded labels -- days
 ;; of the week along a heatmap indexed 1 to 7, for instance. That case
 ;; is worked through in
@@ -563,7 +563,7 @@ gapminder-2007
 (-> {:quarter ["Q1" "Q2" "Q3" "Q4"]
      :revenue [120 150 90 200]}
     (pj/lay-bar :quarter :revenue)
-    (pj/scale :x {:breaks ["Q1" "Q4"] :labels ["First" "Fourth"]}))
+    (pj/scale :x {:breaks ["Q1" "Q4"] :tick-labels ["First" "Fourth"]}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
@@ -589,9 +589,9 @@ gapminder-2007
             (= 8 (count labels))))])
 
 ;; `:label` is an axis key too, and it words the axis itself rather
-;; than a tick. `:x-label` and `:y-label` in `pj/options` set
-;; the same text and take precedence over it; where neither is
-;; written, the column's name is drawn.
+;; than a tick. `:x-label` and `:y-label` in `pj/options` are the same
+;; setting written further out, so a `:label` in a spec wins over
+;; them; where neither is written, the column's name is drawn.
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)

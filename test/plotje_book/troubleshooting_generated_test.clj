@@ -191,7 +191,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__74105#] (= :text (:mark p1__74105#))))
+      (filter (fn* [p1__73993#] (= :text (:mark p1__73993#))))
       first
       :style
       :align-x)))
@@ -481,7 +481,7 @@
     [fr]
     (let
      [radii
-      (fn* [p1__74106#] (sort (:sizes (pj/svg-summary p1__74106#))))
+      (fn* [p1__73994#] (sort (:sizes (pj/svg-summary p1__73994#))))
       now
       (radii fr)
       before
@@ -660,7 +660,7 @@
    :x
    {:type :linear,
     :breaks [1 2 3 4 5 6 7],
-    :labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})))
+    :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})))
 
 
 (deftest
