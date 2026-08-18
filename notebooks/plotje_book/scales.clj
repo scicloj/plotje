@@ -11,9 +11,9 @@
 ;; the full mapping form in
 ;; [Specifying Aesthetics](./plotje_book.specifying_aesthetics.html),
 ;; free domains in [Faceting](./plotje_book.faceting.html), and the
-;; palettes a color scale draws from in
-;; [Customization](./plotje_book.customization.html#palettes). What a
-;; scale is, and what each one takes, is here.
+;; catalogue of named palettes and gradients in
+;; [Customization](./plotje_book.customization.html#discovering-palettes-and-gradients).
+;; What a scale is, and what each one takes, is here.
 
 (ns plotje-book.scales
   (:require
@@ -66,7 +66,8 @@ gapminder-2007
 ;;   `:x` and `:y` it is the panel, measured in drawing units, whose
 ;;   size follows from the plot's `:width` and `:height`. For `:size` it
 ;;   is an interval of radii in drawing units, for `:alpha` an interval
-;;   of opacities, and for `:shape` a list of symbols.
+;;   of opacities, for `:color` and `:fill` a palette or a gradient, and
+;;   for `:shape` a list of symbols.
 ;;
 ;; Written down, these go in a scale **spec** -- the map that says
 ;; which scale, and how. Two of the three are written the same way
@@ -681,13 +682,12 @@ gapminder-2007
 ;; `:range` key.
 ;;
 ;; An axis has none to set, since the panel size determines it -- the
-;; refusal is [above](#what-each-aesthetics-scale-takes). `:color` and
-;; `:fill` span a palette or a gradient, which is a plot option rather
-;; than part of the scale; see
-;; [Customization](./plotje_book.customization.html#palettes). `:shape`
-;; spans a list of symbols, written with `:values` rather than
-;; `:range`, because symbols are named one by one rather than spanned
-;; between two ends.
+;; refusal is [above](#what-each-aesthetics-scale-takes). `:shape` spans
+;; a list of symbols, written with `:values` rather than `:range`,
+;; because symbols are named one by one rather than spanned between two
+;; ends. `:color` and `:fill` span a palette or a gradient, set as a
+;; plot option; [the section below](#the-colours-a-scale-spans) draws
+;; both.
 ;;
 ;; The smallest and largest value in a column are drawn at the two ends
 ;; of the range, so the default can be read off the marks themselves.
@@ -887,6 +887,61 @@ gapminder-2007
 ;; that declares its own is covered in
 ;; [Extensibility](./plotje_book.extensibility.html).
 
+;; ### The colours a scale spans
+;;
+;; A `:color` or `:fill` scale spans a palette where the column is
+;; categorical, and a gradient where it is numeric. Both are set as plot
+;; options, `:palette` and `:color-scale`, rather than as spec keys --
+;; which is where they are written, not what they do. The palette or the
+;; gradient is the range the scale draws across, exactly as an interval
+;; of radii is for `:size`.
+;;
+;; A palette is a vector of colours, a map from category to colour, or
+;; the name of a built-in one. It is assigned in domain order, so
+;; [a `:domain`](#ordering-categories) moves the colours together with
+;; the legend rows:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]}))
+
+(kind/test-last
+ [(fn [v] (= #{"rgb(231,76,60)" "rgb(52,152,219)" "rgb(46,204,113)"}
+             (disj (:colors (pj/svg-summary v)) "none")))])
+
+;; A gradient is named, or written as a map of stops: `:low`, `:mid` and
+;; `:high` build one of three, and `:mid` may be left out for two.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
+    (pj/options {:color-scale {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}}))
+
+(kind/test-last
+ [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
+             (-> v pj/plan :legend :color-scale)))])
+
+;; The range and the type are separate settings, and a plot may name
+;; both. The column below spans four orders of magnitude, so the
+;; gradient says which colours and the scale's type says how the values
+;; are spaced along them; the legend labels the decades:
+
+(-> {:x (range 40)
+     :y (range 40)
+     :n (map #(Math/pow 10 (/ % 10.0)) (range 40))}
+    (pj/lay-point :x :y {:color :n})
+    (pj/scale :color :log)
+    (pj/options {:color-scale :viridis}))
+
+(kind/test-last
+ [(fn [v]
+    (let [legend (-> v pj/plan :legend)]
+      (and (= :log (:scale-type legend))
+           (= :viridis (:color-scale legend)))))])
+
+;; Which palettes and gradients are available, and how to search them,
+;; is
+;; [Customization](./plotje_book.customization.html#discovering-palettes-and-gradients).
+
 ;; ### The symbols `:shape` spans
 ;;
 ;; `:shape` takes only a `:categorical` type, so what it spans is a
@@ -983,8 +1038,8 @@ pj/shape-symbols
 
 ;; ## See Also
 ;;
-;; - [Customization](./plotje_book.customization.html#palettes) -- the
-;;   palettes and gradients a color scale draws from
+;; - [Customization](./plotje_book.customization.html#discovering-palettes-and-gradients)
+;;   -- the named palettes and gradients available, and how to search them
 ;; - [Customization](./plotje_book.customization.html#tick-placement-and-text)
 ;;   -- wording the tick labels of a numerically indexed axis
 ;; - [Specifying Aesthetics](./plotje_book.specifying_aesthetics.html)

@@ -1,7 +1,7 @@
 ;; # Customization
 ;;
 ;; How to adjust the look of a plot: dimensions, labels, tick text,
-;; mark styling, palettes, themes, and legend placement. Where a mark
+;; mark styling, themes, and legend placement. Where a mark
 ;; goes, as opposed to how it looks, is
 ;; [Placing Marks](./plotje_book.placing_marks.html). What a scale is
 ;; and what each aesthetic's scale takes is
@@ -624,42 +624,16 @@
                                 (= 1 (:dashed-lines s))
                                 (contains? (:dash-patterns s) "6.00 4.00"))))])
 
-;; ## Palettes
-;;
-;; Pass `:palette` to override the default color cycle. It accepts a
-;; vector of hex strings, a map from category to hex, or a keyword
-;; naming one of the built-in palettes (`:set1`, `:set2`, `:dark2`,
-;; `:tableau-10`, `:category10`, `:pastel1`, `:accent`, `:paired`, and
-;; many more).
-;;
-;; The full list of forms is in
-;; [Palette Configuration](./plotje_book.configuration.html#palette-configuration),
-;; the project-level / thread-local / plot-level precedence chain in
-;; [The Precedence Chain](./plotje_book.configuration.html#the-precedence-chain),
-;; and the key table in
-;; [Configuration Keys](./plotje_book.configuration.html#configuration-keys).
-
-;; Custom vector:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]}))
-
-(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
-
-;; Named preset -- here `:dark2` for a high-contrast qualitative palette:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette :dark2}))
-
-(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
-
 ;; ## Discovering Palettes and Gradients
+;;
+;; A `:color` or `:fill` scale spans a palette or a gradient, named with
+;; the `:palette` and `:color-scale` plot options --
+;; [Scales](./plotje_book.scales.html#the-colours-a-scale-spans) covers
+;; what they do. This section is the catalogue of what there is to name.
 ;;
 ;; Plotje delegates color to the
 ;; [clojure2d](https://github.com/Clojure2D/clojure2d) library, which
-;; bundles thousands of named palettes and gradients.  Use
+;; bundles thousands of named palettes and gradients. Use
 ;; `clojure2d.color/find-palette` and `clojure2d.color/find-gradient`
 ;; to search by regex pattern.
 
@@ -703,44 +677,6 @@
     (pj/options {:palette :khroma/okabeito}))
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
-
-;; ## Gradients for a numeric column
-;;
-;; A numeric column mapped to `:color` or `:fill` is drawn through a
-;; gradient rather than a palette, and `:color-scale` names which one.
-;; Beside `:sequential`, `:diverging` and the gradient names
-;; `c2d/find-gradient` lists, it takes a map of stops and a function of
-;; its own.
-;;
-;; A map naming `:low`, `:mid` and `:high` builds a three-stop gradient.
-;; `:mid` may be left out for two stops:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
-    (pj/options {:color-scale {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}}))
-
-(kind/test-last
- [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
-             (-> v pj/plan :legend :color-scale)))])
-
-;; The gradient and the scale are separate settings, and a plot can ask
-;; for both. `:color-scale` says which colours the gradient runs
-;; through; `pj/scale :color` says how the values are spaced along it.
-;; Here the column spans four orders of magnitude, so the gradient is
-;; read logarithmically and its legend labels the decades:
-
-(-> {:x (range 40)
-     :y (range 40)
-     :n (map #(Math/pow 10 (/ % 10.0)) (range 40))}
-    (pj/lay-point :x :y {:color :n})
-    (pj/scale :color :log)
-    (pj/options {:color-scale :viridis}))
-
-(kind/test-last
- [(fn [v]
-    (let [legend (-> v pj/plan :legend)]
-      (and (= :log (:scale-type legend))
-           (= :viridis (:color-scale legend)))))])
 
 ;; ## Theme
 ;;
