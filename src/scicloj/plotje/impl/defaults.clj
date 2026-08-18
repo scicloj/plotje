@@ -833,7 +833,7 @@
    :strict ["Behavior" "When true, throw on unknown option keys instead of warning and stripping"]
    :default-color ["Behavior" "Fallback color when no color mapping is set"]
    :palette ["Color" "Categorical palette — keyword, vector, or map"]
-   :color-scale ["Color" "Continuous color scale — :sequential, :diverging, or keyword"]
+   :color-scale ["Color" "Continuous color scale — :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function"]
    :color-midpoint ["Color" "Center value for diverging color scales"]
    :tooltip ["Interaction" "Enable hover tooltips (truthy value)"]
    :brush ["Interaction" "Enable drag-to-select brush (truthy value)"]

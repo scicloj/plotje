@@ -704,6 +704,44 @@
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
+;; ## Gradients for a numeric column
+;;
+;; A numeric column mapped to `:color` or `:fill` is drawn through a
+;; gradient rather than a palette, and `:color-scale` names which one.
+;; Beside `:sequential`, `:diverging` and the gradient names
+;; `c2d/find-gradient` lists, it takes a map of stops and a function of
+;; its own.
+;;
+;; A map naming `:low`, `:mid` and `:high` builds a three-stop gradient.
+;; `:mid` may be left out for two stops:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
+    (pj/options {:color-scale {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}}))
+
+(kind/test-last
+ [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
+             (-> v pj/plan :legend :color-scale)))])
+
+;; The gradient and the scale are separate settings, and a plot can ask
+;; for both. `:color-scale` says which colours the gradient runs
+;; through; `pj/scale :color` says how the values are spaced along it.
+;; Here the column spans four orders of magnitude, so the gradient is
+;; read logarithmically and its legend labels the decades:
+
+(-> {:x (range 40)
+     :y (range 40)
+     :n (map #(Math/pow 10 (/ % 10.0)) (range 40))}
+    (pj/lay-point :x :y {:color :n})
+    (pj/scale :color :log)
+    (pj/options {:color-scale :viridis}))
+
+(kind/test-last
+ [(fn [v]
+    (let [legend (-> v pj/plan :legend)]
+      (and (= :log (:scale-type legend))
+           (= :viridis (:color-scale legend)))))])
+
 ;; ## Theme
 ;;
 ;; Customize background color, grid color, and font size.

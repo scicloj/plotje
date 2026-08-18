@@ -60,6 +60,7 @@ Three new chapters cover it in full: [Specifying Aesthetics](https://scicloj.git
 - A panel where nothing places a mark through the x scale gets the same `[0 1]` fallback domain the y axis has always had, so `lay-bar`, `lay-histogram` and `lay-interval-h` draw. An axis no layer gives a data meaning draws no ticks and takes no label. A layer placed in the data on the same panel gives the axis its meaning back, and a domain set with `pj/scale` counts too.
 - An annotation takes a colour by either spelling: `(pj/lay-rule-h pose {:y-intercept 2 :color :red})` draws red. Applies to all four of `pj/lay-rule-h`, `-v`, `pj/lay-band-h` and `-v`.
 - `pj/lay` takes the layer-type entry `pj/layer-type-lookup` answers with, as well as the keyword, and the two behave the same.
+- `pj/config-key-docs` describes `:color-scale` by every form it accepts: `:sequential`, `:diverging`, a gradient name, a `{:low :mid :high}` map of stops, or a function. The map and the function were accepted and undescribed, so the Configuration Keys table generated from it named neither.
 
 ## [0.8.1 - 2026-08-12]
 - fix: tick labels, legend endpoints and tooltip numbers are formatted under `Locale/ROOT`, so a plot draws the same numbers whatever machine renders it.
