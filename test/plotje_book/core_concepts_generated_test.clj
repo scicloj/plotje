@@ -251,7 +251,7 @@
   setosa
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__72532#] (= "setosa" (:species p1__72532#))))))
+   (fn* [p1__75253#] (= "setosa" (:species p1__75253#))))))
 
 
 (def
@@ -260,7 +260,7 @@
   versicolor
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__72533#] (= "versicolor" (:species p1__72533#))))))
+   (fn* [p1__75254#] (= "versicolor" (:species p1__75254#))))))
 
 
 (def
@@ -742,7 +742,7 @@
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
   (pj/options
-   {:title "Iris Measurements", :width 500, :palette :dark2})))
+   {:title "Iris Measurements", :width 500, :color-values :dark2})))
 
 
 (deftest

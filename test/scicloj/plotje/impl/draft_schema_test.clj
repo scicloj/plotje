@@ -29,7 +29,7 @@
                                 (pj/scale :x :log)
                                 (pj/coord :flip))
              "gradient"     (-> (pj/lay-point data :num :num2 {:color :num2})
-                                (pj/options {:color-scale :inferno}))
+                                (pj/options {:color-range :inferno}))
              "composite"    (pj/arrange [(pj/lay-point data :num :num2)
                                          (pj/lay-line data :num :num2)])}]
       (let [draft (pj/draft pose)]
@@ -77,23 +77,30 @@
       (is (ds/layer-valid? layer)))))
 
 (deftest the-color-scale-spec-has-a-key-of-its-own-test
-  ;; The spec and the gradient shared `:color-scale` until 0.9.0, and
+  ;; The spec and the gradient shared one key until 0.9.0, and
   ;; whichever was written second silently discarded the other -- so a
   ;; viridis gradient and a log scale could not be asked for together.
+  ;; The gradient is now the colour scale's own `:range`.
   (testing "the spec travels on the layer, under its own key"
     (is (= {:type :log}
            (-> (pj/lay-point data :num :num2 {:color :num2})
                (pj/scale :color :log)
                pj/draft :layers first :color-scale-spec))))
 
-  (testing "and the gradient does not travel on the layer at all"
-    ;; It is resolved from the configuration at plan time, which is
-    ;; where every reader of it already looked.
+  (testing "a gradient written as a plot option does not travel on the layer"
+    ;; It is the outer scope of the same setting, resolved from the
+    ;; configuration where the marks and the legend read it.
     (let [layer (-> (pj/lay-point data :num :num2 {:color :num2})
-                    (pj/options {:color-scale :inferno})
+                    (pj/options {:color-range :inferno})
                     pj/draft :layers first)]
-      (is (nil? (:color-scale layer)))
       (is (nil? (:color-scale-spec layer)))
+      (is (ds/layer-valid? layer))))
+
+  (testing "and written as a spec key it travels with the rest of the spec"
+    (let [layer (-> (pj/lay-point data :num :num2 {:color :num2})
+                    (pj/scale :color {:type :log :range :inferno})
+                    pj/draft :layers first)]
+      (is (= {:type :log :range :inferno} (:color-scale-spec layer)))
       (is (ds/layer-valid? layer))))
 
   (testing "so both can be asked for at once, in either order"
@@ -101,13 +108,13 @@
           colors (fn [pose] (-> pose pj/plan :panels first :layers first
                                 :groups first :colors vec))
           gradient-then-scale (-> (pj/lay-point data :num :num2 {:color :num2})
-                                  (pj/options {:color-scale :inferno})
+                                  (pj/options {:color-range :inferno})
                                   (pj/scale :color :log))
           scale-then-gradient (-> (pj/lay-point data :num :num2 {:color :num2})
                                   (pj/scale :color :log)
-                                  (pj/options {:color-scale :inferno}))
+                                  (pj/options {:color-range :inferno}))
           plain (-> (pj/lay-point data :num :num2 {:color :num2})
-                    (pj/options {:color-scale :inferno}))]
+                    (pj/options {:color-range :inferno}))]
       (is (= (stops gradient-then-scale) (stops scale-then-gradient))
           "the order does not decide which survives")
       (is (= (stops plain) (stops gradient-then-scale))

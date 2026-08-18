@@ -865,36 +865,38 @@
 
 
 (def
- v134_l904
+ v134_l907
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
-  (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]})))
+  (pj/scale :color {:values ["#E74C3C" "#3498DB" "#2ECC71"]})))
 
 
 (deftest
- t135_l908
+ t135_l911
  (is
   ((fn
     [v]
     (=
      #{"rgb(231,76,60)" "rgb(52,152,219)" "rgb(46,204,113)"}
      (disj (:colors (pj/svg-summary v)) "none")))
-   v134_l904)))
+   v134_l907)))
 
 
 (def
- v137_l917
+ v137_l920
  (->
   {:district ["a" "b" "c" "d" "e" "f"],
    :share [10 20 30 40 50 60],
    :party ["rep" "dem" "dem" "ind" "rep" "ind"]}
   (pj/lay-point :district :share {:color :party})
-  (pj/options {:palette {"rep" "red", "dem" "blue", "ind" "green"}})))
+  (pj/scale
+   :color
+   {:values {"rep" "red", "dem" "blue", "ind" "green"}})))
 
 
 (deftest
- t138_l923
+ t138_l926
  (is
   ((fn
     [v]
@@ -903,31 +905,32 @@
       ["dem" [0.0 0.0 1.0 1.0]]
       ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
      (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))
-   v137_l917)))
+   v137_l920)))
 
 
 (def
- v140_l933
+ v140_l936
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
-  (pj/options
-   {:color-scale {:low "#2166AC", :mid "#F7F7F7", :high "#B2182B"}})))
+  (pj/scale
+   :color
+   {:range {:low "#2166AC", :mid "#F7F7F7", :high "#B2182B"}})))
 
 
 (deftest
- t141_l937
+ t141_l940
  (is
   ((fn
     [v]
     (=
      {:low "#2166AC", :mid "#F7F7F7", :high "#B2182B"}
-     (-> v pj/plan :legend :color-scale)))
-   v140_l933)))
+     (-> v pj/plan :legend :color-range)))
+   v140_l936)))
 
 
 (def
- v143_l946
+ v143_l949
  (->
   {:x (range 40),
    :y (range 40),
@@ -936,12 +939,11 @@
     (fn* [p1__11197#] (Math/pow 10 (/ p1__11197# 10.0)))
     (range 40))}
   (pj/lay-point :x :y {:color :n})
-  (pj/scale :color :log)
-  (pj/options {:color-scale :viridis})))
+  (pj/scale :color {:type :log, :range :viridis})))
 
 
 (deftest
- t144_l953
+ t144_l955
  (is
   ((fn
     [v]
@@ -949,20 +951,89 @@
      [legend (-> v pj/plan :legend)]
      (and
       (= :log (:scale-type legend))
-      (= :viridis (:color-scale legend)))))
-   v143_l946)))
-
-
-(def v146_l974 pj/shape-symbols)
-
-
-(deftest
- t147_l976
- (is ((fn [syms] (= syms (distinct syms))) v146_l974)))
+      (= :viridis (:color-range legend)))))
+   v143_l949)))
 
 
 (def
- v149_l985
+ v146_l966
+ (->
+  {:region ["n" "s" "e" "w" "c"],
+   :year [1 2 3 4 5],
+   :change [-40 -10 5 30 60]}
+  (pj/lay-point :year :change {:color :change})
+  (pj/scale :color {:range :diverging, :midpoint 0})))
+
+
+(deftest
+ t147_l972
+ (is
+  ((fn
+    [v]
+    (let
+     [colours
+      (fn
+       [p]
+       (->
+        p
+        pj/plan
+        :panels
+        first
+        :layers
+        first
+        :groups
+        first
+        :colors
+        vec))]
+     (not=
+      (colours v)
+      (colours
+       (->
+        {:region ["n" "s" "e" "w" "c"],
+         :year [1 2 3 4 5],
+         :change [-40 -10 5 30 60]}
+        (pj/lay-point :year :change {:color :change})
+        (pj/scale :color {:range :diverging}))))))
+   v146_l966)))
+
+
+(def
+ v149_l992
+ (->
+  {:district ["a" "b" "c" "d" "e" "f"],
+   :share [10 20 30 40 50 60],
+   :party ["rep" "dem" "dem" "ind" "rep" "ind"]}
+  (pj/lay-point :district :share {:color :party})
+  (pj/options
+   {:color-values {"rep" "grey", "dem" "grey", "ind" "grey"}})
+  (pj/scale
+   :color
+   {:values {"rep" "red", "dem" "blue", "ind" "green"}})))
+
+
+(deftest
+ t150_l999
+ (is
+  ((fn
+    [v]
+    (=
+     [["rep" [1.0 0.0 0.0 1.0]]
+      ["dem" [0.0 0.0 1.0 1.0]]
+      ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
+     (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))
+   v149_l992)))
+
+
+(def v152_l1021 pj/shape-symbols)
+
+
+(deftest
+ t153_l1023
+ (is ((fn [syms] (= syms (distinct syms))) v152_l1021)))
+
+
+(def
+ v155_l1032
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:shape :continent})
@@ -974,7 +1045,7 @@
 
 
 (deftest
- t150_l991
+ t156_l1038
  (is
   ((fn
     [fr]
@@ -987,11 +1058,11 @@
      (mapv
       (juxt :label :shape)
       (:entries (:shape-legend (pj/plan fr))))))
-   v149_l985)))
+   v155_l1032)))
 
 
 (def
- v152_l1010
+ v158_l1057
  (->
   squares
   (pj/lay-point :x :y {:size :n, :alpha :n})
@@ -999,7 +1070,7 @@
 
 
 (deftest
- t153_l1014
+ t159_l1061
  (is
   ((fn
     [fr]
@@ -1009,11 +1080,11 @@
       (= :radius (:quantity (:size-legend p)))
       (= :circle (:swatch (:size-legend p)))
       (= :square (:swatch (layer-type/quantities :opacity))))))
-   v152_l1010)))
+   v158_l1057)))
 
 
 (def
- v155_l1033
+ v161_l1080
  (try
   (->
    gapminder-2007
@@ -1025,7 +1096,7 @@
 
 
 (deftest
- t156_l1042
+ t162_l1089
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v155_l1033)))
+   v161_l1080)))

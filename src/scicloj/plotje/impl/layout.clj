@@ -272,7 +272,7 @@
     (max-label-pixel-width-over-panels
      panel-y-domains y-scale-spec y-temporal
      (double (:height opts))
-     (:tick-spacing-y cfg)
+     (:y-tick-spacing cfg)
      (tick-font-size cfg)
      (defaults/number-separators cfg))))
 

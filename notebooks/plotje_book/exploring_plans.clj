@@ -204,7 +204,7 @@ iris-plan
 
 ;; The legend has pre-computed gradient stops -- no functions:
 
-(select-keys (:legend cont-plan) [:title :type :min :max :color-scale])
+(select-keys (:legend cont-plan) [:title :type :min :max :color-range])
 
 (kind/test-last [(fn [m] (and (= :continuous (:type m))
                               (not (contains? m :gradient-fn))))])

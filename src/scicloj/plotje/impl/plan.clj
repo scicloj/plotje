@@ -313,7 +313,7 @@
 (defn- filter-log-nonpositive
   "Filter rows with non-positive values on log-scaled channels.
    When any of :x-scale / :y-scale / :size-scale / :alpha-scale /
-   :fill-scale / :color-scale is {:type :log}, removes rows where the
+   :fill-scale / :color-scale-spec is {:type :log}, removes rows where the
    corresponding column has values <= 0 and prints a warning. Throws a
    clear error if log scale is applied to non-numeric data.
    Returns the resolved draft layer with filtered :data."
@@ -618,17 +618,19 @@
          size, so colors will visibly repeat;
      (2) the user passed a gradient-family palette name (`:viridis`,
          `:plasma`, `:inferno`, `:magma`, `:turbo`, `:rocket`, `:mako`,
-         `:cividis`, `:RdBu`, `:RdYlBu`, `:BrBG`, `:coolwarm`) to
-         `:palette`. These are continuous gradients, not categorical
-         palettes -- the user probably wanted `:color-scale` with a
-         numeric color column; or
+         `:cividis`, `:RdBu`, `:RdYlBu`, `:BrBG`, `:coolwarm`) as the
+         colours themselves. These are continuous gradients, not
+         categorical palettes -- the user probably wanted a `:range`
+         with a numeric color column; or
      (3) the user passed an explicit palette keyword that resolves
          to nothing (typo or unknown name). `resolve-palette` silently
-         falls back to the default; we warn here so the user knows."
-  [all-colors cfg]
+         falls back to the default; we warn here so the user knows.
+
+   Takes the resolved palette rather than the configuration, so it
+   warns about the colours the marks are actually drawn in."
+  [all-colors palette]
   (when (seq all-colors)
-    (let [palette (:palette cfg)
-          n-cats (count all-colors)
+    (let [n-cats (count all-colors)
           resolved (when (keyword? palette) (defaults/resolve-palette palette))
           pal-size (cond
                      (map? palette) nil ;; explicit mapping — no wrap possible
@@ -644,16 +646,16 @@
       (when (and pal-size (> n-cats pal-size))
         (println (str "Warning: " n-cats " color categories exceeds palette size "
                       pal-size ". Colors will repeat. Use a larger palette via "
-                      ":palette, or reduce the number of categories.")))
+                      ":color-values, or reduce the number of categories.")))
       (when gradient?
-        (println (str "Warning: :palette " palette " is a continuous gradient, "
+        (println (str "Warning: :color :values " palette " is a continuous gradient, "
                       "not a categorical palette, so the first " n-cats " colors "
                       "will look nearly identical. For continuous color mapping "
-                      "use a numeric :color column with :color-scale "
+                      "use a numeric :color column with :range "
                       palette " instead. For a discrete palette, try "
                       ":set1, :dark2, or :tableau-10.")))
       (when unknown?
-        (println (str "Warning: :palette " palette " is not a known categorical "
+        (println (str "Warning: :color :values " palette " is not a known categorical "
                       "palette; using default (" defaults/default-palette-name
                       "). Try :set1, :dark2, :tableau-10, or pass an explicit "
                       "vector of hex colors."))))))
@@ -783,8 +785,7 @@
    and a plot that mixes the two legends only the scaled half, rather
    than all of it or none."
   [resolved-all numeric-color? all-colors color-cols cfg opts-title]
-  (let [grad-fn (:gradient-fn cfg)
-        title (or opts-title (first color-cols))]
+  (let [title (or opts-title (first color-cols))]
     (cond
       numeric-color?
       (let [color-draft-layers (filter #(and (scaled-color-column? %)
@@ -795,6 +796,7 @@
                 ;; Through the same function the marks read, so the bar
                 ;; a reader matches a colour against spans what the
                 ;; marks were drawn against.
+                grad-fn (defaults/scale-gradient-fn :color spec cfg)
                 [c-min c-max] (scale/numeric-color-domain
                                spec
                                (dfn/reduce-min all-vals)
@@ -806,7 +808,8 @@
                      :type :continuous
                      :min c-min :max c-max
                      :scale-type scale-type
-                     :color-scale (:color-scale cfg)
+                     :color-range (defaults/scale-setting :color :range spec cfg)
+                     :range-from-spec? (contains? spec :range)
                      :stops (vec (for [i (range n-stops)
                                        :let [t (/ (double i) (dec n-stops))]]
                                    {:t t :color (grad-fn t)}))}
@@ -816,7 +819,11 @@
       {:title title
        :entries (vec (for [cat all-colors]
                        {:label (defaults/fmt-category-label cat)
-                        :color (defaults/color-for all-colors cat (:palette cfg))}))})))
+                        :color (defaults/color-for
+                                all-colors cat
+                                (defaults/scale-setting
+                                 :color :values
+                                 (some :color-scale-spec resolved-all) cfg))}))})))
 
 (defn- nice-legend-values
   "Generate ~n nicely-rounded tick-like values spanning [lo, hi].
@@ -1738,9 +1745,9 @@
         ;; domain stays -- the coordinate function needs one -- but
         ;; numbers drawn off it would name values no mark carries.
         x-ticks (when (and x-dom x-informed?)
-                  (compute-ticks x-dom x-px x-scale (:tick-spacing-x cfg) x-te seps))
+                  (compute-ticks x-dom x-px x-scale (:x-tick-spacing cfg) x-te seps))
         y-ticks (when (and y-dom y-informed?)
-                  (compute-ticks y-dom y-px y-scale (:tick-spacing-y cfg) y-te seps))]
+                  (compute-ticks y-dom y-px y-scale (:y-tick-spacing cfg) y-te seps))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale
@@ -1767,7 +1774,7 @@
   "If no color legend was built (no :color column), check for tile
    layers with computed fill ranges (:bin2d, :density-2d, or identity tiles
    with :fill). Returns a continuous legend map or nil.
-   When :fill-scale or :color-scale is {:type :log}, the gradient
+   When :fill-scale or :color-scale-spec is {:type :log}, the gradient
    stops sample colors in log-space and the legend carries log-spaced
    ticks for the renderer to label.
    `opts-title` (from a user-supplied `:fill-label` plot option)
@@ -1792,9 +1799,17 @@
         [f-lo f-hi] (or stat-fill-range draft-layer-fill-range)
         scale-type (or (some #(:type (:fill-scale %)) resolved-all)
                        (some #(:type (:color-scale-spec %)) resolved-all)
-                       :linear)]
+                       :linear)
+        ;; The gradient comes from whichever layer names a fill scale,
+        ;; through the same function the tiles were drawn with -- and
+        ;; through the same :color fallback, since a tile reads :color
+        ;; as a synonym for :fill.
+        fill-draft-layer (or (some #(when (:fill-scale %) %) resolved-all)
+                             (some #(when (:color-scale-spec %) %) resolved-all)
+                             {})]
     (when f-lo
-      (let [grad-fn (:gradient-fn cfg)
+      (let [grad-fn (defaults/resolve-gradient-fn
+                     (extract/fill-setting :range fill-draft-layer cfg))
             title (or opts-title
                       (cond
                         (= stat-kind :bin2d) :count
@@ -1817,7 +1832,8 @@
                  :type :continuous
                  :min f-lo :max f-hi
                  :scale-type scale-type
-                 :color-scale (:color-scale cfg)
+                 :color-range (extract/fill-setting :range fill-draft-layer cfg)
+                 :range-from-spec? (contains? (:fill-scale fill-draft-layer) :range)
                  :stops stops}
           ticks (assoc :ticks ticks))))))
 
@@ -1882,7 +1898,6 @@
   ([draft {:keys [x-label y-label title subtitle caption
                   scales legend-position grid-cols grid-rows] :as opts}]
    (let [cfg (defaults/resolve-config opts)
-         cfg (assoc cfg :gradient-fn (defaults/resolve-gradient-fn (:color-scale cfg)))
          validate? (:validate cfg true)
          ;; Effective width/height: user opts override cfg. These are
          ;; total SVG dimensions under the new semantics.
@@ -1933,7 +1948,10 @@
          ;; Colors + warnings
          {:keys [resolved-all numeric-color? all-colors color-cols tagged-draft-layers]}
          (collect-colors draft-layers)
-         _ (warn-palette-wrap! all-colors cfg)
+         _ (warn-palette-wrap! all-colors
+                               (defaults/scale-setting
+                                :color :values
+                                (some :color-scale-spec resolved-all) cfg))
          _ (warn-monochrome-numeric-color! resolved-all)
          _ (warn-fill-scale-without-fill! resolved-all opts)
 

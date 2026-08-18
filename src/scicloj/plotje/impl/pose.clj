@@ -1032,6 +1032,14 @@
    rather than an aesthetic's own reading."
   {:color :color-type :x :x-type :y :y-type})
 
+(def ^:private scale-reading-keys
+  "The scale spec keys that say how a value is read through the scale,
+   as opposed to how the result is worded. A `:scale false` contradicts
+   these -- the aesthetic passes through no scale for them to
+   configure. It does not contradict an axis title or its tick text,
+   which are drawn either way."
+  #{:range :values :by :from-zero :midpoint})
+
 (defn- validate-unscaled-channel-options
   "Throw when a channel told not to scale also carries an option that
    configures the scale it has just left.
@@ -1049,14 +1057,17 @@
    written below a scale replaces it, which is the ordinary rule for a
    setting written in a narrower scope. What is left here are the
    settings that do not accumulate -- the column-type overrides, and
-   the gradient `:color-scale` holds."
+   the plot options that are the outer scope of a scale setting, such
+   as `:color-range`."
   [resolved opts]
   (doseq [[k {:keys [scale-key]}] defaults/aesthetic-registry
           :when (and scale-key (false? (get-in resolved [:__scale k])))
           :let [type-key (channel-type-key k)
-                named (cond-> []
-                        (and (= :color k) (get opts :color-scale))
-                        (conj ":color-scale")
+                named (cond-> (vec (for [sk (sort (get defaults/channel-scale-options k #{}))
+                                         :when (contains? scale-reading-keys sk)
+                                         :let [option (defaults/scale-option-key k sk)]
+                                         :when (contains? opts option)]
+                                     (str option)))
                         (and type-key (get resolved type-key))
                         (conj (str type-key " " (pr-str (get resolved type-key)))))]
           :when (seq named)]

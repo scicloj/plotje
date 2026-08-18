@@ -710,7 +710,7 @@ two-panel
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/options {:title "Iris Measurements"
-                 :width 500 :palette :dark2}))
+                 :width 500 :color-values :dark2}))
 
 (kind/test-last [(fn [v] (some #{"Iris Measurements"} (:texts (pj/svg-summary v))))])
 

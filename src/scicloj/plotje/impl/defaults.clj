@@ -46,7 +46,7 @@
    :width 600 :height 400
    :margin 10 :margin-multi 10 :panel-size 200 :legend-width 100
    ;; Ticks
-   :tick-spacing-x 60 :tick-spacing-y 40
+   :x-tick-spacing 60 :y-tick-spacing 40
    ;; Points
    :point-radius 3.0 :point-opacity 0.75
    :point-stroke "none" :point-stroke-width 0
@@ -169,11 +169,10 @@
    :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
    :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
    ;; `:color`'s scale spec has a key of its own, unlike every other
-   ;; channel, whose key is `<channel>-scale`. `:color-scale` is a
-   ;; configuration key holding a gradient, and while `pj/scale :color`
-   ;; wrote its spec there too, whichever was written last silently
-   ;; discarded the other: a viridis gradient and a log scale could not
-   ;; be asked for together.
+   ;; channel, whose key is `<channel>-scale`. The name dates from a
+   ;; `:color-scale` configuration key that held a gradient, which the
+   ;; colour scale's own `:range` has replaced; the draft slot keeps
+   ;; the longer name for now.
    :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale-spec :legend? true}
    :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
    :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
@@ -260,9 +259,17 @@
    `:domain`, which every scale that has a type has.
 
    A key a channel does not read is refused where it is written rather
-   than dropped in silence. The three drawn-range options are the ones
-   this most matters for. An axis has no range to set -- the panel
-   decides that.
+   than dropped in silence.
+
+   `:range` and `:values` are the two shapes the output set takes.
+   `:range` is spanned between two ends: an interval of radii for
+   `:size`, an interval of opacities for `:alpha`, a gradient for the
+   two colour channels. `:values` is enumerated and assigned by index:
+   the marker symbols `:shape` draws, the colours a categorical
+   `:color` column is drawn in. `:color` reads both, because a colour
+   column may be of either type, and its type decides which is read;
+   `:fill` takes only numbers, so it reads `:range` alone. An axis
+   reads neither -- the panel decides what it spans.
 
    `:by` asks how a value spreads across a range in the quantity the
    mark draws it as, correcting for the way ink grows with that
@@ -272,21 +279,21 @@
 
    `:from-zero` asks a different question -- whether the drawn quantity
    is proportional to the value -- and an opacity can answer it, since
-   zero opacity is absence the way zero area is. `:color` cannot: the
-   low end of a gradient is a color rather than an absence, so there is
-   no quantity there to be proportional to anything.
+   zero opacity is absence the way zero area is. A colour cannot: the
+   low end of a gradient is a colour rather than an absence, so there
+   is no quantity there to be proportional to anything. `:midpoint` is
+   what the two colour channels anchor with instead. It names the value
+   the middle of the range is drawn at, which is what centres a
+   diverging gradient on zero rather than halfway along the data.
 
    `:breaks`, `:tick-labels` and `:n-ticks` place and word tick marks,
    and `:label` titles the axis, so all four belong to the two channels
-   drawn as an axis. (`:label` is the axis title; `:tick-labels` is the
-   text drawn at the ticks. The plot options `:x-label` and `:y-label` are the same
-   setting written further out, so a `:label` in a spec wins over
-   them.) `:values` names marker symbols, which
-   only `:shape` draws."
+   drawn as an axis. `:label` is the axis title; `:tick-labels` is the
+   text drawn at the ticks."
   {:x     #{:breaks :tick-labels :n-ticks :label}
    :y     #{:breaks :tick-labels :n-ticks :label}
-   :color #{}
-   :fill  #{}
+   :color #{:range :values :midpoint}
+   :fill  #{:range :midpoint}
    :shape #{:values}
    :size  #{:range :by :from-zero}
    :alpha #{:range :from-zero}})
@@ -306,11 +313,12 @@
   [:linear :log :categorical])
 
 (def scale-spec-key-order
-  "Display order for the per-aesthetic scale spec keys: what an
-   aesthetic spans and how a value spreads across it, then the keys
-   that place and word tick marks, then the axis title, then the
-   symbols only `:shape` draws."
-  [:range :by :from-zero :breaks :tick-labels :n-ticks :label :values])
+  "Display order for the per-aesthetic scale spec keys: the output set
+   an aesthetic is drawn from, then how a value spreads across it and
+   where it is anchored, then the keys that place and word tick marks,
+   then the axis title."
+  [:range :values :by :from-zero :midpoint
+   :breaks :tick-labels :n-ticks :label])
 
 (def scale-bearing-aesthetic-order
   "Display order for the aesthetics that have a scale: the two drawn as
@@ -342,6 +350,36 @@
           :types (in-canonical-order scale-type-order (get channel-scale-types a))
           :keys  (in-canonical-order scale-spec-key-order
                                      (get channel-scale-options a #{}))})))
+
+(defn scale-option-key
+  "The plot option that is the outer scope of scale spec key `k` on
+   `aesthetic`: the two names joined by a hyphen. `:label` on `:x` is
+   `:x-label`, `:values` on `:color` is `:color-values`, `:midpoint` on
+   `:fill` is `:fill-midpoint`.
+
+   Computed rather than listed, so an option and the spec key it is the
+   outer scope of cannot drift apart, and so a new spec key gets its
+   option spelling by being named."
+  [aesthetic k]
+  (keyword (str (name aesthetic) "-" (name k))))
+
+(defn scale-setting
+  "The effective value of scale setting `k` for `aesthetic`: what the
+   scale spec says, and failing that what the plot option of the same
+   name says.
+
+   A setting belonging to one aesthetic is written in two places: in a
+   scale spec, and as the plot option `scale-option-key` names. The
+   spec is written further in, so it wins, and it wins by naming the
+   key at all -- a spec giving the key the value nil means nil, and
+   does not fall back to the option.
+
+   `spec` is the resolved scale spec, nil where none was written;
+   `cfg` the resolved configuration."
+  [aesthetic k spec cfg]
+  (if (contains? spec k)
+    (get spec k)
+    (get cfg (scale-option-key aesthetic k))))
 
 (def drawn-range-options
   "The scale-spec keys that describe how a value spreads across what a
@@ -411,7 +449,8 @@
    instead of the first n entries.
 
    Currently unused by `color-for` — the canonical path for continuous
-   color is `:color-scale`, not `:palette` with a gradient name. This
+   color is a colour scale's `:range`, not its `:values` with a
+   gradient name. This
    helper stays as a dormant utility in case we later expose a
    `:palette-sampling :spread` escape hatch."
   [^long i ^long n ^long p]
@@ -435,9 +474,9 @@
    palette entry (wrapping modulo the palette size). This preserves
    the authorial ordering of designed-categorical palettes like
    :set1, :dark2, :tableau-10. If you want a continuous color ramp
-   (viridis, inferno, etc.) for a numeric column, use the dedicated
-   `:color-scale` option instead -- that's the canonical gradient
-   path and interpolates the full color range smoothly."
+   (viridis, inferno, etc.) for a numeric column, use the colour
+   scale's `:range` instead -- that's the canonical gradient path and
+   interpolates the full color range smoothly."
   ([categories val]
    (color-for categories val nil))
   ([categories val palette]
@@ -493,9 +532,10 @@
 
 (def gradient-palette-keywords
   "Set of keywords that resolve to a continuous gradient rather than a
-   categorical palette. Users who pass these to `:palette` almost always
-   meant `:color-scale` with a numeric color column. `plan/warn-palette-wrap!`
-   fires a warning when it sees one of these on the `:palette` slot."
+   categorical palette. Users who pass one as a colour scale's
+   `:values` almost always meant its `:range` with a numeric color
+   column. `plan/warn-palette-wrap!` fires a warning when it sees one
+   of these among the values."
   (set (keys gradient-aliases)))
 
 (defn- resolve-gradient-name
@@ -525,28 +565,30 @@
 
 (defn gradient-map?
   "True of a map that describes a custom gradient -- one naming at least
-   one of its three stops.
+   one of `:low`, `:mid` and `:high`.
 
-   The `:color-scale` key carries two unrelated things, because
-   `pj/scale :color` and the `:color-scale` configuration key both write
-   it: a scale spec such as `{:type :log}`, and a gradient. Only the
-   gradient belongs to `resolve-gradient-fn`, and a scale spec taken as
-   one would resolve to three default stops -- which is how asking for a
-   log scale used to change the gradient as well as the spacing."
+   A gradient reaches `resolve-gradient-fn` as the `:range` of a colour
+   scale, which holds a gradient and nothing else. The check remains
+   because a map is also how a whole scale spec is written, and a spec
+   read as a gradient would resolve to three default stops: a plot
+   asking for a log colour scale would silently change its colours as
+   well as its spacing."
   [m]
   (and (map? m)
        (boolean (some #(contains? m %) [:low :mid :high]))))
 
 (defn resolve-gradient-fn
-  "Resolve a :color-scale option to a gradient function t→[r g b a] (0-1 range).
+  "Resolve a colour scale's `:range` to a gradient function
+   t→[r g b a] (0-1 range).
    nil or :sequential → dark blue to light blue (ggplot2 default).
    :diverging → RdBu.
    keyword → clojure2d gradient name (:inferno, :viridis/plasma, etc.).
    map {:low hex :mid hex :high hex} → custom 3-stop gradient.
    function → used directly.
-   A map naming none of the three stops is a scale spec from `pj/scale`
-   rather than a gradient, and leaves the default gradient in place.
-   Throws on unrecognized keyword."
+   Throws on an unrecognized keyword, and on a map naming none of the
+   three stops -- that map is a whole scale spec written where a
+   gradient belongs, and drawing it as three default stops would change
+   a plot's colours without saying so."
   [color-scale]
   (cond
     (nil? color-scale) gradient-color
@@ -559,16 +601,32 @@
       (throw (ex-info (str "Unknown color scale: " color-scale
                            ". Use a clojure2d gradient name (e.g. :inferno, :viridis, :plasma)"
                            " or :sequential / :diverging.")
-                      {:color-scale color-scale})))
+                      {:range color-scale})))
     (gradient-map? color-scale)
     (let [{:keys [low mid high]
            :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} color-scale
           g (c/gradient [(c/to-color low) (c/to-color mid) (c/to-color high)])]
       (wrap-gradient g))
-    (map? color-scale) gradient-color
-    :else (throw (ex-info (str "Invalid color scale: " (pr-str color-scale)
-                               ". Expected nil, keyword, map, or function.")
-                          {:color-scale color-scale}))))
+    (map? color-scale)
+    (throw (ex-info (str "A colour :range map names at least one of :low,"
+                         " :mid and :high, and " (pr-str color-scale)
+                         " names none. A whole scale spec goes under"
+                         " :scale, not under its own :range.")
+                    {:range color-scale}))
+    :else (throw (ex-info (str "Invalid colour :range: " (pr-str color-scale)
+                               ". Expected nil, a keyword, a {:low :mid :high}"
+                               " map, or a function.")
+                          {:range color-scale}))))
+
+(defn scale-gradient-fn
+  "The gradient function `aesthetic` reads a numeric column through.
+
+   One resolution, used by the marks and by the legend alike, so the
+   bar a reader matches a colour against is drawn from the same
+   function the marks were. Takes the `:range` the scale spec names,
+   and failing that the `:color-range` or `:fill-range` plot option."
+  [aesthetic spec cfg]
+  (resolve-gradient-fn (scale-setting aesthetic :range spec cfg)))
 
 (defn normalize-midpoint
   "Remap a value v from [vmin, vmax] to [0,1] with optional midpoint.
@@ -769,7 +827,7 @@
 
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
-   (set-config! {:palette :dark2 :theme {:bg \"#FFFFFF\"}})
+   (set-config! {:color-values :dark2 :theme {:bg \"#FFFFFF\"}})
    (set-config! nil)  — reset to defaults"
   [m]
   (reset! config-atom m))
@@ -818,8 +876,8 @@
    :annotation-stroke ["Annotations" "Stroke color for annotation marks"]
    :annotation-dash ["Annotations" "Dash pattern [dash gap] for annotation lines"]
    :band-opacity ["Annotations" "Opacity for confidence bands"]
-   :tick-spacing-x ["Ticks" "Minimum spacing between x-axis ticks"]
-   :tick-spacing-y ["Ticks" "Minimum spacing between y-axis ticks"]
+   :x-tick-spacing ["Ticks" "Minimum spacing, in drawing units, between ticks on the x axis"]
+   :y-tick-spacing ["Ticks" "Minimum spacing, in drawing units, between ticks on the y axis"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
    :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
@@ -833,9 +891,11 @@
    :validate ["Behavior" "When true, validate plans against Malli schema"]
    :strict ["Behavior" "When true, throw on unknown option keys instead of warning and stripping"]
    :default-color ["Behavior" "Fallback color when no color mapping is set"]
-   :palette ["Color" "Categorical palette — keyword, vector, or map"]
-   :color-scale ["Color" "Continuous color scale — :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function"]
-   :color-midpoint ["Color" "Center value for diverging color scales"]
+   :color-values ["Color" "The colours a categorical :color column is drawn in, as a palette name, a vector of colours, or a map from category to colour. The outermost scope of :values in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-range ["Color" "The gradient a numeric :color column is read through — :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function. The outermost scope of :range in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-midpoint ["Color" "The value the middle of the :color gradient is drawn at, which centres a diverging gradient there rather than halfway along the data. The outermost scope of :midpoint in a :color scale spec"]
+   :fill-range ["Color" "The gradient a numeric :fill column is read through, in the same forms as :color-range. The outermost scope of :range in a :fill scale spec"]
+   :fill-midpoint ["Color" "The value the middle of the :fill gradient is drawn at. The outermost scope of :midpoint in a :fill scale spec"]
    :tooltip ["Interaction" "Enable hover tooltips (truthy value)"]
    :brush ["Interaction" "Enable drag-to-select brush (truthy value)"]
    :format ["Output" "Render format — :svg (default)"]})

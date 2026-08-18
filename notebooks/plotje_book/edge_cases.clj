@@ -317,7 +317,7 @@
      :y (map #(- % 10) (range 20))
      :val (map #(- % 10.0) (range 20))}
     (pj/lay-point :x :y {:color :val})
-    (pj/options {:color-scale :diverging :color-midpoint 0}))
+    (pj/options {:color-range :diverging :color-midpoint 0}))
 
 (kind/test-last [(fn [v] (= 20 (:points (pj/svg-summary v))))])
 

@@ -101,20 +101,30 @@
     (is (= (defaults/gradient-color 2.0) (defaults/gradient-color 1.0)))))
 
 (deftest legend-serializable-test
-  (testing "continuous legend has :color-scale keyword, no :gradient-fn"
+  (testing "continuous legend has :color-range keyword, no :gradient-fn"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
           pl (pj/plan (-> ds (pj/lay-point :x :y {:color :c})))
           legend (:legend pl)]
       (is (= :continuous (:type legend)))
-      (is (contains? legend :color-scale))
+      (is (contains? legend :color-range))
       (is (not (contains? legend :gradient-fn)))
-      (is (nil? (:color-scale legend)) "default color-scale is nil")))
-  (testing "explicit :color-scale is stored as keyword"
+      (is (nil? (:color-range legend)) "default color range is nil")))
+  (testing "explicit :color-range is stored as keyword"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
           pl (pj/plan (-> ds (pj/lay-point :x :y {:color :c}))
-                      {:color-scale :inferno})
+                      {:color-range :inferno})
           legend (:legend pl)]
-      (is (= :inferno (:color-scale legend)))))
+      (is (= :inferno (:color-range legend)))
+      (is (false? (:range-from-spec? legend)))))
+  (testing "a range from a scale spec is marked as such, so render-time"
+    ;; configuration does not repaint a legend the spec decided.
+    (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
+          legend (-> ds
+                     (pj/lay-point :x :y {:color :c})
+                     (pj/scale :color {:range :inferno})
+                     pj/plan :legend)]
+      (is (= :inferno (:color-range legend)))
+      (is (true? (:range-from-spec? legend)))))
   (testing "legend has 20 pre-computed stops"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 50)})
           pl (pj/plan (-> ds (pj/lay-point :x :y {:color :c})))
@@ -471,7 +481,7 @@
   ;; The third argument is the resolved draft layer, which answers both
   ;; "is a fixed color set" and "is this layer's color column drawn as
   ;; it stands" -- the two ways a color can arrive already decided.
-  (let [cfg (assoc defaults/defaults :palette nil)]
+  (let [cfg (assoc defaults/defaults :color-values nil)]
     (testing "column color"
       (let [c (extract/resolve-color ["a" "b"] "a" {} cfg)]
         (is (= 4 (count c)))))
@@ -643,14 +653,19 @@
     (is (fn? (defaults/resolve-gradient-fn :inferno)))
     (is (fn? (defaults/resolve-gradient-fn {:low "#FF0000" :mid "#FFFFFF" :high "#0000FF"}))))
   (testing "a scale spec is not a gradient"
-    ;; `pj/scale :color` and the `:color-scale` configuration key write
-    ;; the same `:opts` key. A scale spec taken as a gradient resolved to
-    ;; three default stops, so asking for a log scale changed the gradient
-    ;; as well as the spacing.
+    ;; A colour scale's `:range` holds a gradient and nothing else. A
+    ;; whole spec written there is a mistake, and drawing it as three
+    ;; default stops would change a plot's colours without saying so.
     (is (not (defaults/gradient-map? {:type :log})))
     (is (defaults/gradient-map? {:low "#000000" :high "#FFFFFF"}))
-    (is (= (mapv (defaults/resolve-gradient-fn nil) [0.0 0.5 1.0])
-           (mapv (defaults/resolve-gradient-fn {:type :log}) [0.0 0.5 1.0]))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"names at least one of :low"
+                          (defaults/resolve-gradient-fn {:type :log})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"names at least one of :low"
+                          (-> (tc/dataset {:x [1 2] :y [1 2] :c [1.0 2.0]})
+                              (pj/lay-point :x :y {:color :c})
+                              (pj/scale :color {:range {:type :log}})))))
   (testing "a log color scale keeps the default gradient"
     (let [ds (tc/dataset {:x (range 50) :y (range 50) :c (range 1 51)})
           stops (fn [pose] (->> pose pj/plan :legend :stops (mapv :color)))
@@ -661,13 +676,16 @@
           "and the legend says which scale it explains")
       (is (seq (:ticks (:legend (pj/plan (pj/scale base :color :log)))))
           "with ticks, so the gradient bar can be read back to a value")
-      (is (not= (stops base) (stops (pj/options base {:color-scale :inferno})))
-          "a gradient name still changes the gradient")))
+      (is (not= (stops base) (stops (pj/options base {:color-range :inferno})))
+          "a gradient name still changes the gradient")
+      (is (= (stops (pj/options base {:color-range :inferno}))
+             (stops (pj/scale base :color {:range :inferno})))
+          "and the spec spelling gives the same gradient as the option")))
   (testing "diverging end-to-end"
     (let [ds (tc/dataset {:x (range 10) :y (range 10) :z (map #(- % 5) (range 10))})
           fig (-> ds (pj/pose :x :y)
                   (pj/lay-point {:color :z})
-                  (pj/plot {:color-scale :diverging :color-midpoint 0}))
+                  (pj/plot {:color-range :diverging :color-midpoint 0}))
           s (pj/svg-summary fig)]
       (is (= 10 (:points s))))))
 
@@ -749,8 +767,8 @@
       (is (= 0.6 (:grid-stroke-width cfg)))
       (is (string? (:annotation-stroke cfg)))
       (is (= 0.15 (:band-opacity cfg)))
-      (is (= 60 (:tick-spacing-x cfg)))
-      (is (= 40 (:tick-spacing-y cfg)))
+      (is (= 60 (:x-tick-spacing cfg)))
+      (is (= 40 (:y-tick-spacing cfg)))
       (is (= :sturges (:bin-method cfg)))
       (is (= 0.05 (:domain-padding cfg)))
       (is (= 13 (:label-font-size cfg)))
@@ -861,11 +879,11 @@
       (is (= "#F5F5F5" (get-in cfg [:theme :grid])))
       (is (= 11 (get-in cfg [:theme :font-size])))))
   (testing "per-call palette"
-    (let [cfg (defaults/resolve-config {:palette :dark2})]
-      (is (= :dark2 (:palette cfg)))))
+    (let [cfg (defaults/resolve-config {:color-values :dark2})]
+      (is (= :dark2 (:color-values cfg)))))
   (testing "per-call color-scale"
-    (let [cfg (defaults/resolve-config {:color-scale :diverging})]
-      (is (= :diverging (:color-scale cfg)))))
+    (let [cfg (defaults/resolve-config {:color-range :diverging})]
+      (is (= :diverging (:color-range cfg)))))
   (testing "per-call validate false"
     (let [cfg (defaults/resolve-config {:validate false})]
       (is (false? (:validate cfg))))))
@@ -982,16 +1000,20 @@
       (let [colors (group-colors-from-plan (pj/plan views))]
         (is (= 2 (count colors))
             "two categories, two colors")))
-    (testing "per-call :palette :dark2 produces colors that differ from default"
+    (testing "per-call :color-values :dark2 produces colors that differ from default"
       (let [default-colors (group-colors-from-plan (pj/plan views))
-            dark2-colors (group-colors-from-plan (pj/plan views {:palette :dark2}))]
+            dark2-colors (group-colors-from-plan (pj/plan views {:color-values :dark2}))]
         (is (= 2 (count dark2-colors)))
         (is (not= default-colors dark2-colors)
-            "palette change must actually change the rendered colors")))
+            "palette change must actually change the rendered colors")
+        (is (= dark2-colors
+               (group-colors-from-plan
+                (pj/plan (pj/scale views :color {:values :dark2}))))
+            "and the spec spelling gives the same colours as the option")))
     (testing "set-config! palette flows through"
       (try
         (let [default-colors (group-colors-from-plan (pj/plan views))]
-          (pj/set-config! {:palette :set2})
+          (pj/set-config! {:color-values :set2})
           (let [set2-colors (group-colors-from-plan (pj/plan views))]
             (is (= 2 (count set2-colors)))
             (is (not= default-colors set2-colors)

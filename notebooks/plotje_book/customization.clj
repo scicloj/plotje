@@ -627,7 +627,7 @@
 ;; ## Discovering Palettes and Gradients
 ;;
 ;; A `:color` or `:fill` scale spans a palette or a gradient, named with
-;; the `:palette` and `:color-scale` plot options --
+;; the `:color-values` and `:color-range` plot options --
 ;; [Scales](./plotje_book.scales.html#the-colours-a-scale-spans) covers
 ;; what they do. This section is the catalogue of what there is to name.
 ;;
@@ -674,7 +674,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette :khroma/okabeito}))
+    (pj/options {:color-values :khroma/okabeito}))
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 

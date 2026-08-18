@@ -371,17 +371,19 @@
 ;; ---- A gradient and a scale are separate things ----
 
 (deftest a-gradient-and-a-colour-scale-can-both-be-asked-for-test
-  ;; They shared the `:color-scale` key, so whichever was written
-  ;; second discarded the other in silence.
+  ;; The gradient and the scale type are two settings. They shared one
+  ;; key once, so whichever was written second discarded the other in
+  ;; silence; the gradient is now the scale's own `:range`.
   (let [d {:x [1 2 3 4] :y [1 2 3 4] :n [1 10 100 1000]}
         stops #(->> % pj/plan :legend :stops (mapv :color))
         colours #(-> % pj/plan :panels first :layers first :groups first :colors vec)
         plain (-> d (pj/lay-point :x :y {:color :n}))
-        viridis (-> plain (pj/options {:color-scale :viridis}))
+        viridis (-> plain (pj/options {:color-range :viridis}))
         logged (-> plain (pj/scale :color :log))
-        both (-> plain (pj/options {:color-scale :viridis}) (pj/scale :color :log))
+        both (-> plain (pj/options {:color-range :viridis}) (pj/scale :color :log))
         both-reversed (-> plain (pj/scale :color :log)
-                          (pj/options {:color-scale :viridis}))]
+                          (pj/options {:color-range :viridis}))
+        both-in-one-spec (-> plain (pj/scale :color {:type :log :range :viridis}))]
     (testing "the order they are written in does not decide which survives"
       (is (= (stops both) (stops both-reversed)))
       (is (= (colours both) (colours both-reversed))))
@@ -392,7 +394,11 @@
 
     (testing "and the log scale still spaces the marks"
       (is (not= (colours viridis) (colours both)))
-      (is (not= (colours plain) (colours logged))))))
+      (is (not= (colours plain) (colours logged))))
+
+    (testing "one spec can carry both, and says the same as the two spellings"
+      (is (= (stops both) (stops both-in-one-spec)))
+      (is (= (colours both) (colours both-in-one-spec))))))
 
 (deftest a-log-colour-legend-labels-its-decades-test
   ;; The marks were log-spaced already; the gradient bar carried only
@@ -639,18 +645,23 @@
                      (pj/scale (pj/lay-point d :x :y) aesthetic spec)
                      true
                      (catch clojure.lang.ExceptionInfo _ false)))
-        sample {:range [1 2] :by :linear :from-zero true
+        sample {:range [1 2] :by :linear :from-zero true :midpoint 0
                 :breaks [1 2] :tick-labels ["a" "b"] :n-ticks 3
                 :label "t" :values [(first pj/shape-symbols)]}
-        ;; Two keys carry a constraint the capability table does not
+        ;; Some keys carry a constraint the capability table does not
         ;; describe, and a value has to respect it to test acceptance
-        ;; at all: `:tick-labels` is meaningless without the `:breaks` it
-        ;; pairs with, and an opacity range has to lie inside 0 to 1.
+        ;; at all: `:tick-labels` is meaningless without the `:breaks`
+        ;; it pairs with, an opacity range has to lie inside 0 to 1,
+        ;; and the two colour aesthetics read `:range` as a gradient
+        ;; and `:values` as colours rather than as symbols.
+        colour? #{:color :fill}
         spec-for (fn [aesthetic a-type k]
                    (merge {:type a-type}
                           (cond
                             (= k :tick-labels) {:breaks [1 2] :tick-labels ["a" "b"]}
                             (and (= k :range) (= aesthetic :alpha)) {:range [0.1 1.0]}
+                            (and (= k :range) (colour? aesthetic)) {:range :viridis}
+                            (and (= k :values) (colour? aesthetic)) {:values ["#e41a1c" "#377eb8"]}
                             :else {k (get sample k)})))]
 
     (testing "every type listed is accepted, and one left out is refused"

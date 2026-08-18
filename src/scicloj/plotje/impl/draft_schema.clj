@@ -99,11 +99,11 @@
    [:size-scale {:optional true} ps/ScaleSpec]
    [:alpha-scale {:optional true} ps/ScaleSpec]
    [:fill-scale {:optional true} ps/ScaleSpec]
-   ;; `:color`'s spec has a key of its own. The configuration's
-   ;; `:color-scale` holds a gradient, and while `pj/scale :color`
-   ;; wrote its spec there too, whichever was written second silently
-   ;; discarded the other. The gradient does not travel on a layer; it
-   ;; is resolved from the configuration at plan time.
+   ;; `:color`'s spec has a key of its own, where every other channel
+   ;; uses `<channel>-scale`. The name dates from a `:color-scale`
+   ;; configuration key that held a gradient; the gradient is now the
+   ;; colour scale's own `:range` and travels here with the rest of
+   ;; the spec.
    [:color-scale-spec {:optional true} ps/ScaleSpec]
    [:shape-scale {:optional true} ps/ScaleSpec]
    [:coord {:optional true} keyword?]

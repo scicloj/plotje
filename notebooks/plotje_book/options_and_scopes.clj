@@ -226,7 +226,7 @@
 ;; Sources 2-5 sit outside any specific pose and carry across
 ;; every plot you render. Source 1 is how a specific pose dips
 ;; into the chain to override a configuration key for itself --
-;; `(pj/options {:palette :dark2})` sets `:palette` on one
+;; `(pj/options {:color-values :dark2})` sets `:color-values` on one
 ;; pose, and at render time wins over any palette set through
 ;; the other four sources.
 ;;

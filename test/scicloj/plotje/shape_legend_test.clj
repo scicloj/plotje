@@ -264,18 +264,20 @@
            (pj/lay-point :model :score {:shape :tier})
            (pj/scale :shape {:values [:nonsense :square :cross]}))))
   (is (thrown-with-msg?
-       clojure.lang.ExceptionInfo #":values applies to :shape only"
+       clojure.lang.ExceptionInfo #"unexpected key\(s\): \[:values\]"
        (-> tiers
            (pj/lay-point :model :score {:size :score})
            (pj/scale :size {:values [:circle]})))
-      "another channel has no symbols to choose")
-  ;; Saying only what :values is not for leaves a caller who wanted to
-  ;; choose colors with nowhere to go, so the message names the palette.
-  (is (thrown-with-msg?
-       clojure.lang.ExceptionInfo #":palette"
-       (-> tiers
-           (pj/lay-point :model :score {:color :tier})
-           (pj/scale :color {:values ["#e41a1c"]})))))
+      "a magnitude is measured along a range, not chosen from a list")
+  ;; :color reads :values too -- the colours a categorical column is
+  ;; drawn in -- and the symbol check must not police those.
+  (is (= [(/ 228.0 255) (/ 26.0 255) (/ 28.0 255) 1.0]
+         (->> (-> tiers
+                  (pj/lay-point :model :score {:color :tier})
+                  (pj/scale :color {:values ["#e41a1c"]})
+                  pj/plan :legend :entries)
+              (mapv :color)
+              first))))
 
 (deftest a-domain-that-omits-a-category-warns-and-still-assigns-it
   (let [[out pairs] (capturing

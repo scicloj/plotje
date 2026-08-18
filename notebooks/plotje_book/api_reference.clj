@@ -1065,8 +1065,8 @@ plan1
 
 (kind/doc #'pj/with-config)
 
-(pj/with-config {:palette :pastel1}
-  (:palette (pj/config)))
+(pj/with-config {:color-values :pastel1}
+  (:color-values (pj/config)))
 
 (kind/test-last [(fn [p] (= :pastel1 p))])
 
@@ -1078,7 +1078,7 @@ plan1
 
 (count pj/config-key-docs)
 
-(kind/test-last [(fn [n] (= 42 n))])
+(kind/test-last [(fn [n] (= 44 n))])
 
 (kind/doc #'pj/plot-option-docs)
 

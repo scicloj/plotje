@@ -221,7 +221,7 @@
  v33_l165
  (->
   {:product
-   (map (fn* [p1__71925#] (str "Product " p1__71925#)) (range 12)),
+   (map (fn* [p1__74633#] (str "Product " p1__74633#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -242,7 +242,7 @@
  v36_l178
  (->
   {:product
-   (map (fn* [p1__71926#] (str "Product " p1__71926#)) (range 12)),
+   (map (fn* [p1__74634#] (str "Product " p1__74634#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -379,7 +379,7 @@
    (pj/options {:thousands-separator ","})
    pj/svg-summary
    :texts)
-  (filter (fn* [p1__71927#] (re-find #"," p1__71927#)))
+  (filter (fn* [p1__74635#] (re-find #"," p1__74635#)))
   distinct
   sort))
 
@@ -728,11 +728,11 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__71928#] (= :text (:mark p1__71928#))))
+        (filter (fn* [p1__74636#] (= :text (:mark p1__74636#))))
         (mapv
          (fn*
-          [p1__71929#]
-          (-> p1__71929# :style :box :corner-radius))))))))
+          [p1__74637#]
+          (-> p1__74637# :style :box :corner-radius))))))))
    v98_l526)))
 
 
@@ -875,7 +875,7 @@
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
-  (pj/options {:palette :khroma/okabeito})))
+  (pj/options {:color-values :khroma/okabeito})))
 
 
 (deftest

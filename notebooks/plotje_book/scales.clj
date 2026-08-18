@@ -889,12 +889,15 @@ gapminder-2007
 
 ;; ### The colours a scale spans
 ;;
-;; A `:color` or `:fill` scale spans a palette where the column is
-;; categorical, and a gradient where it is numeric. Both are set as plot
-;; options, `:palette` and `:color-scale`, rather than as spec keys --
-;; which is where they are written, not what they do. The palette or the
-;; gradient is the range the scale draws across, exactly as an interval
-;; of radii is for `:size`.
+;; A `:color` or `:fill` scale draws from a palette where the column is
+;; categorical, and from a gradient where it is numeric. The column's
+;; type decides which, and each has its own spec key: `:values` for the
+;; palette, `:range` for the gradient.
+;;
+;; The two names carry the distinction the book draws everywhere else.
+;; A `:range` is spanned between two ends, as an interval of radii is
+;; for `:size`; a `:values` is enumerated and assigned by index, as the
+;; marker symbols are for `:shape`.
 ;;
 ;; A palette is a vector of colours, a map from category to colour, or
 ;; the name of a built-in one. It is assigned in domain order, so
@@ -903,7 +906,7 @@ gapminder-2007
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]}))
+    (pj/scale :color {:values ["#E74C3C" "#3498DB" "#2ECC71"]}))
 
 (kind/test-last
  [(fn [v] (= #{"rgb(231,76,60)" "rgb(52,152,219)" "rgb(46,204,113)"}
@@ -918,7 +921,7 @@ gapminder-2007
      :share [10 20 30 40 50 60]
      :party ["rep" "dem" "dem" "ind" "rep" "ind"]}
     (pj/lay-point :district :share {:color :party})
-    (pj/options {:palette {"rep" "red" "dem" "blue" "ind" "green"}}))
+    (pj/scale :color {:values {"rep" "red" "dem" "blue" "ind" "green"}}))
 
 (kind/test-last
  [(fn [v]
@@ -932,11 +935,11 @@ gapminder-2007
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
-    (pj/options {:color-scale {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}}))
+    (pj/scale :color {:range {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}}))
 
 (kind/test-last
  [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
-             (-> v pj/plan :legend :color-scale)))])
+             (-> v pj/plan :legend :color-range)))])
 
 ;; The range and the type are separate settings, and a plot may name
 ;; both. The column below spans four orders of magnitude, so the
@@ -947,14 +950,58 @@ gapminder-2007
      :y (range 40)
      :n (map #(Math/pow 10 (/ % 10.0)) (range 40))}
     (pj/lay-point :x :y {:color :n})
-    (pj/scale :color :log)
-    (pj/options {:color-scale :viridis}))
+    (pj/scale :color {:type :log :range :viridis}))
 
 (kind/test-last
  [(fn [v]
     (let [legend (-> v pj/plan :legend)]
       (and (= :log (:scale-type legend))
-           (= :viridis (:color-scale legend)))))])
+           (= :viridis (:color-range legend)))))])
+
+;; `:midpoint` names the value the middle of a gradient is drawn at.
+;; A diverging gradient reads as a departure from a centre, and without
+;; a midpoint that centre falls halfway along the data rather than
+;; where the reader expects it:
+
+(-> {:region ["n" "s" "e" "w" "c"]
+     :year [1 2 3 4 5]
+     :change [-40 -10 5 30 60]}
+    (pj/lay-point :year :change {:color :change})
+    (pj/scale :color {:range :diverging :midpoint 0}))
+
+(kind/test-last
+ [(fn [v]
+    ;; The centre of the gradient sits at zero rather than at 10, the
+    ;; middle of -40 to 60, so every mark but the extremes is drawn a
+    ;; different colour than it would be without the midpoint.
+    (let [colours (fn [p] (-> p pj/plan :panels first :layers first
+                              :groups first :colors vec))]
+      (not= (colours v)
+            (colours (-> {:region ["n" "s" "e" "w" "c"]
+                          :year [1 2 3 4 5]
+                          :change [-40 -10 5 30 60]}
+                         (pj/lay-point :year :change {:color :change})
+                         (pj/scale :color {:range :diverging}))))))])
+
+;; Each of the three has a plot option of the same name, one scope
+;; further out: `:color-values`, `:color-range` and `:color-midpoint`,
+;; and `:fill-range` and `:fill-midpoint` for the other colour
+;; aesthetic. They set the whole plot where a spec sets one mapping or
+;; one layer, and the spec wins where both are written.
+
+(-> {:district ["a" "b" "c" "d" "e" "f"]
+     :share [10 20 30 40 50 60]
+     :party ["rep" "dem" "dem" "ind" "rep" "ind"]}
+    (pj/lay-point :district :share {:color :party})
+    (pj/options {:color-values {"rep" "grey" "dem" "grey" "ind" "grey"}})
+    (pj/scale :color {:values {"rep" "red" "dem" "blue" "ind" "green"}}))
+
+(kind/test-last
+ [(fn [v]
+    (= [["rep" [1.0 0.0 0.0 1.0]]
+        ["dem" [0.0 0.0 1.0 1.0]]
+        ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
+       (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))])
 
 ;; Which palettes and gradients are available, and how to search them,
 ;; is

@@ -192,7 +192,7 @@
     [gs]
     (and
      (= 3 (count gs))
-     (every? (fn* [p1__78377#] (= 50 (:n-points p1__78377#))) gs)))
+     (every? (fn* [p1__75989#] (= 50 (:n-points p1__75989#))) gs)))
    v49_l175)))
 
 
@@ -224,7 +224,7 @@
  v59_l207
  (select-keys
   (:legend cont-plan)
-  [:title :type :min :max :color-scale]))
+  [:title :type :min :max :color-range]))
 
 
 (deftest
@@ -296,9 +296,9 @@
     (and
      (> (count bars) 3)
      (every?
-      (fn* [p1__78378#] (< (:lo p1__78378#) (:hi p1__78378#)))
+      (fn* [p1__75990#] (< (:lo p1__75990#) (:hi p1__75990#)))
       bars)
-     (every? (fn* [p1__78379#] (pos? (:count p1__78379#))) bars)))
+     (every? (fn* [p1__75991#] (pos? (:count p1__75991#))) bars)))
    v74_l246)))
 
 
@@ -484,7 +484,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__78380#] (Math/sin (* p1__78380# 0.3))) (range 30))}))
+   (map (fn* [p1__75992#] (Math/sin (* p1__75992# 0.3))) (range 30))}))
 
 
 (def v111_l381 (-> wave (pj/lay-line :x :y)))

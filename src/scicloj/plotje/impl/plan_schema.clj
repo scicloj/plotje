@@ -278,9 +278,13 @@
     [:type [:= :continuous]]
     [:min number?]
     [:max number?]
-    ;; :color-scale carries the cfg's color-scale value, which may be a
-    ;; keyword (e.g. :viridis) or a map (e.g. {:type :log}); accept both.
-    [:color-scale {:optional true} [:maybe [:or keyword? map?]]]
+    ;; :color-range carries the resolved range the legend was drawn
+    ;; from -- a keyword (:viridis), a {:low :mid :high} map, or a
+    ;; gradient function. :range-from-spec? records whether it came
+    ;; from a scale spec, which render-time configuration must not
+    ;; repaint over.
+    [:color-range {:optional true} [:maybe [:or keyword? map? fn?]]]
+    [:range-from-spec? {:optional true} boolean?]
     ;; :scale-type and :ticks are added by the legend builder when the
     ;; color scale is log (build-fill-fallback-legend, plan.clj). Both
     ;; need to be declared optional so the plan validates.

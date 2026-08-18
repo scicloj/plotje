@@ -139,7 +139,7 @@
     ;; a map, not a scalar
     :theme
     ;; naming a palette or gradient, tested in the color tests
-    :palette :color-scale :color-midpoint
+    :color-values :color-range :color-midpoint :fill-range :fill-midpoint
     ;; chooses which render path runs, so it cannot compare two of them
     :format
     ;; where the legend sits, tested in legend_position_test

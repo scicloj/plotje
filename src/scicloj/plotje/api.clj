@@ -159,8 +159,8 @@
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
 
-   - `(set-config! {:palette :dark2 :theme {:bg \"#FFFFFF\"}})` -- override
-     palette and background.
+   - `(set-config! {:color-values :dark2 :theme {:bg \"#FFFFFF\"}})` --
+     override the categorical colours and the background.
    - `(set-config! nil)` -- reset to defaults."
   [m]
   (defaults/set-config! m))
@@ -301,7 +301,7 @@
    for `plan->membrane` (e.g. `{:tooltip true}`).
 
    Render-stage options set on the original pose via `pj/options`
-   (`:theme`, `:palette`, ...) ride on the draft's `:opts` and form
+   (`:theme`, `:color-values`, ...) ride on the draft's `:opts` and form
    the base; any opts passed here override them per key. This keeps
    the explicit pipeline consistent with `pj/plot`, which feeds the
    pose's opts into the membrane stage.
@@ -317,7 +317,7 @@
   "Compose draft -> plan -> plot for the given format.
 
    Render-stage options set on the original pose via `pj/options`
-   (`:theme`, `:palette`, ...) ride on the draft's `:opts` and form
+   (`:theme`, `:color-values`, ...) ride on the draft's `:opts` and form
    the base; the passed opts override them per key.
 
    - `(draft->plot (draft pose) :svg {})`
@@ -333,7 +333,7 @@
    and the plot title.
 
    The 1-arity uses no rendering options. The 2-arity takes an
-   opts map with optional `:tooltip`, `:theme`, `:palette`, etc.
+   opts map with optional `:tooltip`, `:theme`, `:color-values`, etc.
 
    The result implements `membrane.ui` `IOrigin`, `IBounds`, and
    `IChildren`, so width and height are accessible via
@@ -2747,7 +2747,7 @@
    `:n-ticks` thins a crowded categorical axis to about that many
    evenly-spaced tick labels (a categorical axis otherwise labels every
    category). It applies to discrete axes; numeric axes control tick
-   density through the `:tick-spacing-x` / `:tick-spacing-y` options.
+   density through the `:x-tick-spacing` / `:y-tick-spacing` options.
 
    - `(scale pose :x :log)` -- log scale on x-axis.
    - `(scale pose :x {:type :categorical :domain [...]})` -- explicit
@@ -2827,29 +2827,23 @@
                        (count labels) " tick labels.")
                   {:caller "pj/scale" :channel channel
                    :breaks (vec breaks) :tick-labels (vec labels)})))
-        ;; :values names marker symbols, which only :shape draws. An
-        ;; unrecognized symbol would draw as a circle while the legend
-        ;; advertised the name, so reject it here rather than render a
-        ;; legend that disagrees with its own marks.
+        ;; :values is the enumerated output set, and what belongs in it
+        ;; depends on the channel: marker symbols on :shape, colours on
+        ;; :color. An unrecognized symbol would draw as a circle while
+        ;; the legend advertised the name, so reject it here rather
+        ;; than render a legend that disagrees with its own marks.
+        ;; Which channels read :values at all is settled by
+        ;; validate-spec-keys! below, off the published table.
         (when-let [values (:values scale-type)]
-          (when (not= channel :shape)
-            (throw (ex-info
-                    (str "pj/scale :values applies to :shape only, got channel "
-                         channel ". It names the marker symbols a shape mapping"
-                         " draws with; other channels have no symbols to choose."
-                         " To choose the colors a categorical :color mapping"
-                         " draws with, pass them as a palette:"
-                         " (pj/options pose {:palette [\"#e41a1c\" ...]}) for one"
-                         " plot, or pj/set-config! for every plot.")
-                    {:caller "pj/scale" :channel channel :values (vec values)})))
-          (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
-            (throw (ex-info
-                    (str "pj/scale :shape :values does not recognize "
-                         (vec unknown) ". Supported symbols: "
-                         defaults/shape-syms ".")
-                    {:caller "pj/scale" :channel channel
-                     :unknown (vec unknown)
-                     :supported defaults/shape-syms}))))
+          (when (= channel :shape)
+            (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
+              (throw (ex-info
+                      (str "pj/scale :shape :values does not recognize "
+                           (vec unknown) ". Supported symbols: "
+                           defaults/shape-syms ".")
+                      {:caller "pj/scale" :channel channel
+                       :unknown (vec unknown)
+                       :supported defaults/shape-syms})))))
         (scale/validate-drawn-range-options! channel scale-type "pj/scale")
         (scale/validate-spec-keys! channel scale-type "pj/scale")))
     ;; The spec is written as the caller stated it. A map that names no
@@ -3174,7 +3168,7 @@
    `IOrigin`, `IBounds`, `IChildren`) carrying the rendered drawables
    plus plan-derived width and height; the title, when set, rides as
    `:plotje/title`. Render-time options (`:tooltip`, `:theme`,
-   `:palette`, `:color-scale`, `:color-midpoint`) ride along on the
+   `:color-values`, `:color-range`, `:color-midpoint`) ride along on the
    pose's `:opts` and reach `plan->membrane` through this call.
 
    Useful for exploring rendering targets beyond the SVG and Java2D

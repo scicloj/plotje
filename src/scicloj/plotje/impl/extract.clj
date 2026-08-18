@@ -37,8 +37,26 @@
       fixed-color (if (vector? fixed-color) fixed-color (defaults/hex->rgba fixed-color))
       (and (:color-drawn? draft-layer) (some? color-val))
       (defaults/hex->rgba color-val)
-      (some? color-val) (defaults/color-for all-colors color-val (:palette cfg))
+      (some? color-val) (defaults/color-for
+                         all-colors color-val
+                         (defaults/scale-setting
+                          :color :values (:color-scale-spec draft-layer) cfg))
       :else (defaults/hex->rgba (:default-color cfg)))))
+
+(defn fill-setting
+  "A scale setting for a mark drawn in a fill: what a `:fill` scale spec
+   or the matching plot option says, and failing that what the `:color`
+   ones say.
+
+   A tile reads `:color` as a synonym for `:fill`, so a gradient or a
+   midpoint written either way has to reach it. The spec side already
+   falls back this way; this keeps the option side in step rather than
+   letting the two disagree."
+  [k draft-layer cfg]
+  (let [v (defaults/scale-setting :fill k (:fill-scale draft-layer) cfg)]
+    (if (some? v)
+      v
+      (defaults/scale-setting :color k (:color-scale-spec draft-layer) cfg))))
 
 (def dash-presets
   "Named stroke-dash presets, resolved to a `[dash gap]` pixel pattern.
@@ -226,9 +244,12 @@
                       (some? color) (assoc :label (defaults/fmt-category-label color))
                       (and numeric-color? color-values)
                       (assoc :colors (vec (map (fn [v]
-                                                 (let [scale-type (or (:type (:color-scale-spec draft-layer)) :linear)
-                                                       t (defaults/normalize-continuous scale-type v (or c-min 0) (or c-max 1) (:color-midpoint cfg))
-                                                       grad-fn (:gradient-fn cfg)]
+                                                 (let [spec (:color-scale-spec draft-layer)
+                                                       scale-type (or (:type spec) :linear)
+                                                       t (defaults/normalize-continuous
+                                                          scale-type v (or c-min 0) (or c-max 1)
+                                                          (defaults/scale-setting :color :midpoint spec cfg))
+                                                       grad-fn (defaults/scale-gradient-fn :color spec cfg)]
                                                    (grad-fn t)))
                                                color-values)))
                       sizes (assoc :sizes sizes)
@@ -534,8 +555,8 @@
         fill-col (or (:fill draft-layer)
                      (when (let [c (:color draft-layer)] (and c (or (keyword? c) (string? c))))
                        (:color draft-layer)))
-        grad-fn (:gradient-fn cfg)
-        midpoint (:color-midpoint cfg)
+        grad-fn (defaults/resolve-gradient-fn (fill-setting :range draft-layer cfg))
+        midpoint (fill-setting :midpoint draft-layer cfg)
         ;; :fill-scale wins over the colour scale spec, which is honored
         ;; on tiles when the user wrote :color (synonym for :fill).
         fill-spec (or (:fill-scale draft-layer)
@@ -757,7 +778,9 @@
                               :when (seq polylines)]
                           {:threshold threshold
                            :t t
-                           :color ((:gradient-fn cfg) t)
+                           :color ((defaults/scale-gradient-fn
+                                    :color (:color-scale-spec draft-layer) cfg)
+                                   t)
                            :polylines (vec polylines)}))]
         {:mark :contour
          :levels levels
@@ -813,12 +836,13 @@
                     (and numeric-color? color-values)
                     (assoc :colors
                            (vec (map (fn [v]
-                                       (let [scale-type (or (:type (:color-scale-spec draft-layer)) :linear)
+                                       (let [spec (:color-scale-spec draft-layer)
+                                             scale-type (or (:type spec) :linear)
                                              t (defaults/normalize-continuous
                                                 scale-type v
                                                 (or c-min 0) (or c-max 1)
-                                                (:color-midpoint cfg))
-                                             grad-fn (:gradient-fn cfg)]
+                                                (defaults/scale-setting :color :midpoint spec cfg))
+                                             grad-fn (defaults/scale-gradient-fn :color spec cfg)]
                                          (grad-fn t)))
                                      color-values))))))]
     (when (and (seq groups) (not-any? :x-ends groups))

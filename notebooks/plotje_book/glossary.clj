@@ -939,11 +939,12 @@ annotated
 ;; are assigned from the active palette in order.
 ;;
 ;; Plotje uses [clojure2d](https://github.com/Clojure2D/clojure2d)
-;; for palettes. Set via `{:palette :set2}` in options:
+;; for palettes. Set with `:values` in a `:color` scale spec, or with
+;; the `:color-values` option one scope further out:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:palette :set2}))
+    (pj/scale :color {:values :set2}))
 
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])
@@ -962,22 +963,23 @@ annotated
 ;; column.
 ;;
 ;; Common gradients: `:viridis`, `:inferno`, `:plasma`,
-;; `:magma`. Diverging gradients center on a midpoint value.
-;; Set via `{:color-scale :inferno}` in options:
+;; `:magma`. Diverging gradients center on a `:midpoint` value.
+;; Set with `:range` in a `:color` scale spec, or with the
+;; `:color-range` option one scope further out:
 
 (-> {:x (range 50) :y (range 50) :c (range 50)}
     (pj/lay-point :x :y {:color :c})
-    (pj/options {:color-scale :inferno}))
+    (pj/scale :color {:range :inferno}))
 
 (kind/test-last
  [(fn [v]
     (and (= 50 (:points (pj/svg-summary v)))
          (= :inferno
-            (:color-scale
+            (:color-range
              (:legend (pj/plan
                        (-> {:x (range 50) :y (range 50) :c (range 50)}
                            (pj/lay-point :x :y {:color :c})
-                           (pj/options {:color-scale :inferno}))))))))])
+                           (pj/scale :color {:range :inferno}))))))))])
 
 ;; ## Configuration
 ;;
@@ -995,7 +997,7 @@ annotated
 ;; See the Configuration chapter for details. The active configuration
 ;; is itself a Clojure map -- `pj/config` returns a snapshot:
 
-(select-keys (pj/config) [:width :height :theme :palette :color-scale])
+(select-keys (pj/config) [:width :height :theme :color-values :color-range])
 
 (kind/test-last
  [(fn [m]
@@ -1104,8 +1106,8 @@ annotated
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
 ;; | Layer options | Per-layer aesthetics and layer-type parameters | `pj/lay-*` options map |
 ;; | Theme | Visual styling: background, grid, fonts | `:theme` in `pj/options` |
-;; | Palette | Ordered color set for categorical aesthetics | `:palette` in `pj/options` |
-;; | Gradient | Continuous color ramp for numerical mappings | `:color-scale` in `pj/options` |
+;; | Palette | Ordered color set for categorical aesthetics | `:values` in a `:color` scale spec |
+;; | Gradient | Continuous color ramp for numerical mappings | `:range` in a `:color` scale spec |
 ;; | Configuration | Global rendering defaults | `pj/config`, `pj/set-config!`, `pj/with-config` |
 ;; | Membrane | `PlotjeMembrane` record -- a Membrane UI component carrying the drawable tree, plan-derived dimensions, and `:plotje/title` | `pj/membrane`, `pj/plan->membrane` |
 ;; | Plot | Final output (SVG hiccup) | `pj/plot`, `pj/save` |

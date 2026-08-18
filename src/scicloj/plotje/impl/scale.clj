@@ -200,6 +200,12 @@
   {:alpha {:lo 0.0 :hi 1.0 :what "an opacity"}
    :size  {:lo 0.0 :what "a size in drawing units"}})
 
+(def ^:private gradient-range-channels
+  "The channels whose `:range` is a gradient rather than a pair of
+   numbers. A colour is picked from a ramp, not measured along one, so
+   the range names the ramp."
+  #{:color :fill})
+
 (defn- validate-bounds-pair!
   "Throw when a spec's `:range` or `:domain` is not a pair of two finite
    numbers, or falls outside what the channel can draw.
@@ -246,8 +252,7 @@
    release exists to remove. `where` names the caller for the message.
 
    Only the drawn-range options are policed here. The rest of the spec
-   is checked where it is written, because `:color-scale` carries a
-   gradient as well as a scale spec and the two share the key."
+   is checked where it is written."
   [channel spec where]
   (let [read-here (get defaults/channel-scale-options channel #{})]
     (doseq [k defaults/drawn-range-options
@@ -299,7 +304,17 @@
                              " is not true or false. It says whether the"
                              " domain and the range are anchored at zero.")
                         {:channel channel :from-zero v :caller where})))))
-  (validate-bounds-pair! channel spec :range where)
+  ;; A range is a pair of numbers where the channel measures along it,
+  ;; and a gradient where the channel picks a colour from it. One key,
+  ;; two shapes, so the check follows the channel.
+  (if (contains? gradient-range-channels channel)
+    (when (contains? spec :range)
+      (try
+        (defaults/resolve-gradient-fn (:range spec))
+        (catch clojure.lang.ExceptionInfo e
+          (throw (ex-info (str where " " channel " :range -- " (ex-message e))
+                          (assoc (ex-data e) :channel channel :caller where))))))
+    (validate-bounds-pair! channel spec :range where))
   ;; Only where a domain can only be numeric. An axis, a shape and a
   ;; colour all take a domain of categories -- which is what orders
   ;; their legend -- so a pair of numbers is not the shape to demand

@@ -48,13 +48,18 @@
         title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
       ;; Continuous gradient legend
-      (let [{:keys [min max stops color-scale ticks]} legend
+      (let [{:keys [min max stops color-range range-from-spec? ticks]} legend
             seps (defaults/number-separators cfg)
-            ;; If render-time config overrides the color-scale, resolve fresh
-            render-cs (:color-scale cfg)
-            override? (and render-cs (not= render-cs color-scale))
+            ;; Render-time configuration is the outermost scope of the
+            ;; range, so it repaints a legend built from an option but
+            ;; not one built from a scale spec, which is written
+            ;; further in and wins.
+            render-range (:color-range cfg)
+            override? (and render-range
+                           (not range-from-spec?)
+                           (not= render-range color-range))
             grad-fn (when override?
-                      (defaults/resolve-gradient-fn render-cs))
+                      (defaults/resolve-gradient-fn render-range))
             bar-h 120 bar-w 12
             n-stops (count stops)]
         (vec

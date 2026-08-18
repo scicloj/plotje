@@ -67,7 +67,7 @@
                   "Category" cat
                   "Description" desc}))))})
 
-(kind/test-last [(fn [t] (= 42 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 44 (count (:row-maps t))))])
 
 ;; ### Plot Options
 ;;
@@ -123,7 +123,7 @@
 ;; Named palette:
 
 (-> (base-plot)
-    (pj/options {:palette :dark2}))
+    (pj/options {:color-values :dark2}))
 
 (kind/test-last
  [(fn [v]
@@ -272,7 +272,7 @@ precedence-point-radius
 ;; {:width 800
 ;;  :height 500
 ;;  :theme {:bg "#FFFFFF" :grid "#F0F0F0" :font-size 10}
-;;  :palette :tableau-10
+;;  :color-values :tableau-10
 ;;  :point-radius 3}
 ;; ```
 ;;
@@ -346,8 +346,11 @@ precedence-point-radius
 
 ;; ## Palette Configuration
 ;;
-;; The `:palette` key controls the color cycle for categorical
-;; color mappings.  It accepts:
+;; The `:color-values` key controls the color cycle for categorical
+;; color mappings. It is the outermost scope of `:values` in a `:color`
+;; scale spec, so a spec written on a mapping or a layer wins over it;
+;; [Scales](./plotje_book.scales.html#the-colours-a-scale-spans) has the
+;; spec spelling. It accepts:
 ;;
 ;; - a keyword -- any palette name from the
 ;;   [clojure2d](https://github.com/Clojure2D/clojure2d) color library
@@ -359,12 +362,12 @@ precedence-point-radius
 ;; `:category10`, `:pastel1`, `:accent`, `:paired`.
 ;; Use `(clojure2d.color/find-palette #"pattern")` to discover more.
 ;;
-;; Palette works at every configuration level.
+;; The key works at every configuration level.
 
 ;; Named palette via plot options:
 
 (-> (base-plot)
-    (pj/options {:palette :tableau-10}))
+    (pj/options {:color-values :tableau-10}))
 
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])
@@ -372,7 +375,7 @@ precedence-point-radius
 ;; Custom vector palette:
 
 (-> (base-plot)
-    (pj/options {:palette ["#E74C3C" "#3498DB" "#2ECC71"]}))
+    (pj/options {:color-values ["#E74C3C" "#3498DB" "#2ECC71"]}))
 
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])
@@ -380,16 +383,16 @@ precedence-point-radius
 ;; Explicit map palette:
 
 (-> (base-plot)
-    (pj/options {:palette {"setosa" "#FF6B6B"
-                           "versicolor" "#4ECDC4"
-                           "virginica" "#45B7D1"}}))
+    (pj/options {:color-values {"setosa" "#FF6B6B"
+                                "versicolor" "#4ECDC4"
+                                "virginica" "#45B7D1"}}))
 
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; Global palette via set-config!:
 
-(pj/set-config! {:palette :pastel1})
+(pj/set-config! {:color-values :pastel1})
 
 (-> (base-plot))
 
@@ -400,7 +403,7 @@ precedence-point-radius
 
 ;; Thread-local palette via with-config:
 
-(pj/with-config {:palette :accent}
+(pj/with-config {:color-values :accent}
   (-> (base-plot)))
 
 (kind/test-last
@@ -409,8 +412,9 @@ precedence-point-radius
 ;; ## Color Scale Configuration
 ;;
 ;; When a numeric column is mapped to `:color`, Plotje uses a
-;; continuous gradient (dark-to-light blue by default). The `:color-scale` option
-;; controls which gradient is used.
+;; continuous gradient (dark-to-light blue by default). The
+;; `:color-range` option controls which gradient is used, and is the
+;; outermost scope of `:range` in a `:color` scale spec.
 
 ;; Default continuous color (dark blue to light blue):
 
@@ -425,20 +429,20 @@ precedence-point-radius
 
 (-> {:x (range 50) :y (range 50) :c (range 50)}
     (pj/lay-point :x :y {:color :c})
-    (pj/options {:color-scale :inferno}))
+    (pj/options {:color-range :inferno}))
 
 (kind/test-last
  [(fn [v]
     (let [leg (:legend (pj/plan (-> {:x (range 50) :y (range 50) :c (range 50)}
                                     (pj/lay-point :x :y {:color :c})
-                                    (pj/options {:color-scale :inferno}))))]
+                                    (pj/options {:color-range :inferno}))))]
       (and (= 50 (:points (pj/svg-summary v)))
-           (= :inferno (:color-scale leg))
+           (= :inferno (:color-range leg))
            (= :continuous (:type leg)))))])
 
 ;; Thread-local color scale via `with-config`:
 
-(pj/with-config {:color-scale :plasma}
+(pj/with-config {:color-range :plasma}
   (-> {:x (range 50) :y (range 50) :c (range 50)}
       (pj/lay-point :x :y {:color :c})))
 
