@@ -10,7 +10,7 @@ Three new chapters cover it in full: [Specifying Aesthetics](https://scicloj.git
 
 ### Removed and renamed
 
-There is no deprecation period. Each name below is gone, and `pj/options` and `pj/scale` refuse it where it is written.
+`pj/options` and `pj/scale` refuse a retired name where it is written.
 
 | Gone | Write instead |
 |:--|:--|
@@ -21,17 +21,17 @@ There is no deprecation period. Each name below is gone, and `pj/options` and `p
 | `:x-scale`, `:y-scale`, `:size-scale` and their siblings in a pose's `:opts` | `pj/scale`, which now writes the mapping |
 | `pj/scale` on `:group` | scale `:color` or `:shape` |
 
-A name written through `pj/with-config`, `set-config!` or `plotje.edn` is not yet checked, so a retired one is dropped there in silence.
+A name written through `pj/with-config`, `set-config!` or `plotje.edn` is not yet checked, so it is dropped there in silence.
 
 `:color-midpoint` is unchanged and is now joined by `:fill-midpoint`. The draft layer's `:color-scale-spec` slot is `:color-scale`, uniform with every other aesthetic.
 
 ### Plots that look different after upgrading
 
-- **Every plot with a `:size` column.** A size scale spreads the square root of a value's place in the domain across the radii, which is ggplot2's `scale_size`, where it spread that place itself, which is `scale_radius`. `(pj/scale pose :size {:by :linear})` restores the old picture, and `{:by :area}` spreads the ink itself.
+- **Every plot with a `:size` column.** A size scale spreads the square root of a value's place in the domain across the radii, which is ggplot2's `scale_size`, where it spread that place itself, which is `scale_radius`. `(pj/scale pose :size {:by :linear})` restores the old picture, and `{:by :area}` makes the drawn area proportional to the value, which with `:from-zero` is ggplot2's `scale_size_area`.
 - **Every plot with an `:alpha` column.** The default range is 0.1 to 1.0, which is ggplot2's, rather than 0.2 to 1.0. `(pj/scale pose :alpha {:range [0.2 1.0]})` restores it.
 - **Every plot pairing a numeric `:color` column with `pj/scale`.** Any spec used to be read as a custom gradient, so `:linear` and a `:domain` swapped the default blue ramp for red-white-blue. A spec now changes what it names and leaves the gradient alone; a gradient map is one naming at least one of `:low`, `:mid`, `:high`.
 - **A `:size` or `:alpha` column whose values are all equal.** Every mark is drawn halfway across the domain, read through the scale's own `:by` method: 6.243 at the default range, where the bottom of the range was drawn before.
-- **`:from-zero` on a column holding zero or negative values.** The ink is proportional to distance from zero, so -5 draws the size 5 draws, and the domain reaches whichever value is furthest from zero in either direction.
+- **`:from-zero` on a column holding zero or negative values.** A value's distance from zero is what the scale reads, so -5 draws the size 5 draws, and the domain reaches whichever value is furthest from zero in either direction.
 - **A categorical `:color` or `:fill` given a `:domain`.** The list orders the categories and the palette is assigned in that order, so the legend rows and the colours move together. The key used to change nothing.
 - **A plot writing both a scale spec's `:label` and the matching `:x-label` or `:y-label`.** An axis title is one setting written at two scopes, and the innermost wins as every other scale setting does, so the spec titles the axis however far out the option sits. Where only one is written, the axis reads as before.
 
@@ -66,7 +66,7 @@ A setting belonging to one aesthetic's scale is a spec key. Where that setting a
 
 ### What a layer type varies
 
-- A layer type declares which appearance aesthetics its mark varies from row to row, and as what: `(layer-type/register! :bubble {:mark :bubble :varies {:size :radius} ...})`. The declared quantity also decides how ink grows with the value, which is what lets `:by :area` mean the same thing on a mark drawing a radius and one drawing a width. The declaration is checked at registration and again at plan time.
+- A layer type declares which appearance aesthetics its mark varies from row to row, and as what: `(layer-type/register! :bubble {:mark :bubble :varies {:size :radius} ...})`. The declared quantity also decides how the drawn area grows with it -- a radius and a side square it, a stroke's width does not -- which is what lets `:by :area` mean the same thing on a mark drawing a radius and one drawing a width. The declaration is checked at registration and again at plan time.
 - `layer-type/channel-magnitude-fn` gives a mark's renderer the function its legend is built from: a value from the layer's per-row buffers in, the quantity the mark draws it as out. The built-in point mark reads the same function, so an extension and a built-in cannot differ. `layer-type/quantities` publishes the quantities a mark may declare and what each implies.
 - A `:size` or `:alpha` column earns no legend where no mark on the plot varies that aesthetic, and says so. `{:size {:column :r :scale false}}` is refused on the marks that draw one value for the whole layer.
 
