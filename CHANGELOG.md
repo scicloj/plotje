@@ -87,6 +87,10 @@ Many scale settings can be written in two places: in the scale itself, or as a p
 - `pj/lay` accepts the layer-type map from `pj/layer-type-lookup` as well as the keyword.
 - `pj/config-key-docs` describes every form `:color-range` accepts.
 
+### Repository
+
+- `run_tests.sh`, `release.sh` and `snapshot.sh` find bash through `#!/usr/bin/env bash`, so they run on distributions that do not keep it at `/bin/bash`, such as NixOS. (PR #35) - thanks, @otfrom
+
 ## [0.8.1 - 2026-08-12]
 - fix: tick labels, legend endpoints and tooltip numbers are formatted under `Locale/ROOT`, so a plot draws the same numbers whatever machine renders it.
 - new configuration key `:decimal-separator` draws the decimal point as whatever string you name: `(pj/options {:thousands-separator "." :decimal-separator ","})` writes 1.234,5. Off by default.
