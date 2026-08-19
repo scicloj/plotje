@@ -784,6 +784,27 @@
                                (pj/scale :fill {:range :inferno})
                                (pj/scale :color {:range :viridis}))))))))
 
+(deftest every-fill-setting-reads-the-same-lattice-test
+  ;; One resolver answers every fill setting, so :midpoint is ordered
+  ;; the way :range is rather than keeping a rule of its own.
+  (let [plain (-> heat (pj/lay-tile :a :b {:fill :n}))
+        spec-only (tile-colours (-> plain (pj/scale :color {:midpoint 100})))
+        option-only (tile-colours (-> plain (pj/options {:fill-midpoint 200})))]
+    (is (not= spec-only option-only)
+        "the two midpoints differ, so the test can fail")
+
+    (testing "a :color spec beats a :fill plot option"
+      (is (= spec-only
+             (tile-colours (-> plain
+                               (pj/scale :color {:midpoint 100})
+                               (pj/options {:fill-midpoint 200}))))))
+
+    (testing "and a :fill spec beats a :color plot option"
+      (is (= (tile-colours (-> plain (pj/scale :fill {:midpoint 100})))
+             (tile-colours (-> plain
+                               (pj/scale :fill {:midpoint 100})
+                               (pj/options {:color-midpoint 200}))))))))
+
 (deftest a-fill-spec-answers-key-by-key-test
   ;; A :fill spec naming only a gradient leaves the domain to :color,
   ;; rather than shadowing the whole :color spec.

@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
-- fix: a `:fill` legend is drawn through the same scale its marks are. A `:domain` set on `:fill` moves the bar together with the tiles, a `:range` set in a scale spec wins over the matching plot option, and a range a spec decided is left alone at render time. A tile reads `:color` as a synonym for `:fill` key by key, so a `:fill` spec naming only a gradient leaves the domain to `:color`.
+- fix: a `:fill` legend is drawn through the same scale its marks are. A `:domain` set on `:fill` moves the bar together with the tiles, a setting written in a scale spec wins over the matching plot option -- `:range` and `:midpoint` alike -- and a range a spec decided is left alone at render time. A tile reads `:color` as a synonym for `:fill` key by key, so a `:fill` spec naming only a gradient leaves the domain to `:color`.
 - fix: a contour's legend reads the `:color` scale its levels are built from. `:fill` paints the interior of a tile, and a contour draws lines, so a `:fill` scale set on one changes neither the lines nor the bar beside them.
 - fix: a mark that draws one color per group reports a numeric `:color` column, which it cannot read as a gradient: bars, boxplots, violins, lollipops, ridgelines, rugs, text, error bars, point ranges, lines, steps and areas. `:point` is the mark that carries a color per row. The message names `:color-type :categorical`, which gives each category a color of its own.
 
