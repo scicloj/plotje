@@ -1290,12 +1290,11 @@ pj/shape-symbols
 ;; aesthetic, so two layers reading `:size` through different scales
 ;; are refused in the same way.
 ;;
-;; On an axis, a layer naming no scale is no disagreement -- it is
-;; drawn against whichever scale the panel has. On an appearance
-;; aesthetic the default counts as a scale, so a layer that names none
-;; brings `:linear` to the comparison and disagrees with a layer that
-;; names `:log`. Name the same scale in each mapping, or set it once
-;; with `pj/scale`, which is what the message says.
+;; A layer that names no scale is no disagreement, on any aesthetic:
+;; it is drawn against whichever scale the plot settles on. Only the
+;; layers that named one are compared. Two layers naming different
+;; scales are refused, and the message says the two ways out -- name
+;; the same scale in each mapping, or set it once with `pj/scale`.
 
 (try
   (-> gapminder-2007
@@ -1309,30 +1308,32 @@ pj/shape-symbols
 (kind/test-last
  [(fn [m] (re-find #"read :size through different scales" m))])
 
-;; The same two layers with the second naming nothing, which is the
-;; case the two aesthetics answer differently:
+;; The same two layers with the second naming nothing are drawn, and
+;; both read the log scale the first one named:
 
-(try
-  (-> gapminder-2007
-      (pj/pose :gdp-percap :life-exp {:size :pop})
-      (pj/lay-point {:size {:column :pop :scale :log}})
-      (pj/lay-point {})
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e
-    (ex-message e)))
+(-> gapminder-2007
+    (pj/pose :gdp-percap :life-exp {:size :pop})
+    (pj/lay-point {:size {:column :pop :scale :log}})
+    (pj/lay-point {})
+    (pj/scale :x :log))
 
 (kind/test-last
- [(fn [m]
-    (and (re-find #"\{:type :log\}, \{:type :linear\}" m)
-         ;; The same shape on :x is drawn, not refused: the second
-         ;; layer brings no scale to disagree with.
-         (= {:type :log}
-            (-> gapminder-2007
-                (pj/pose :gdp-percap :life-exp)
-                (pj/lay-point {:x {:column :gdp-percap :scale :log}})
-                (pj/lay-point {})
-                pj/plan
-                :panels first :x-scale))))])
+ [(fn [fr]
+    (let [plan (pj/plan fr)]
+      (and
+       ;; Both layers on the panel, both reading the one scale.
+       (= [{:type :log} {:type :log}]
+          (mapv :size-scale (-> plan :panels first :layers)))
+       ;; The same shape on :x answers the same way, which is the
+       ;; point: an aesthetic that names nothing has no opinion,
+       ;; whichever aesthetic it is.
+       (= {:type :log}
+          (-> gapminder-2007
+              (pj/pose :gdp-percap :life-exp)
+              (pj/lay-point {:x {:column :gdp-percap :scale :log}})
+              (pj/lay-point {})
+              pj/plan
+              :panels first :x-scale)))))])
 
 ;; ## Not supported yet
 ;;
@@ -1341,10 +1342,6 @@ pj/shape-symbols
 ;;   legends for one aesthetic.
 ;; - Facet panels share their scale types. Their domains can already
 ;;   differ: `{:scales :free}` gives each panel its own.
-;; - A `:size` mark is scaled against its own panel, while the legend
-;;   is scaled against the whole plot. Two facet panels whose values
-;;   cover different intervals can therefore look the same. Setting
-;;   `:domain` explicitly avoids this.
 
 ;; ## See Also
 ;;

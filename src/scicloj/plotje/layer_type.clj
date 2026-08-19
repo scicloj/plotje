@@ -40,9 +40,9 @@
    :mark "Override the mark the layer type draws with — the shape on the panel"
    :stat "Override the statistic the layer type computes — e.g. {:stat :count} on a text layer labels counted bars"
    :color "A column of the layer's data, or a color -- a hex string with its #, a CSS name, or a keyword naming one. The data decides: a column called blue wins over the color of that name, and {:value \"blue\"} or {:column \"blue\"} insists. A column always passes through the color scale; {:color {:column :hex :scale false}} draws the colors it holds"
-   :color-type "Override inferred color type — :categorical or :numerical. Use :categorical to treat numeric IDs as groups."
-   :x-type "Override inferred x-column type — :categorical, :numerical, or :temporal. Use :categorical on numeric x (hours, years, IDs) when a categorical-axis mark (bar, boxplot) is needed."
-   :y-type "Override inferred y-column type — :categorical, :numerical, or :temporal. Mirror of :x-type, used for horizontal layouts."
+   :color-type "Read the color column as a type other than its own. :categorical gives a numeric column one color per distinct value instead of a gradient. Same rule as :x-type: only :categorical can be asked of a column holding something else"
+   :x-type "Read the x column as a type other than its own -- :categorical, :numerical or :temporal. Only :categorical can be asked of a column holding something else, because every value can name a group: it puts numbers (hours, years, identifiers) or dates on a categorical axis, which a bar or a boxplot needs. The other two are accepted where they name the column's own type and refused where they do not"
+   :y-type "Mirror of :x-type, on the y column. Used for horizontal layouts"
    :alpha "A column of the layer's data (per-row opacity), or a number within 0 and 1 for the whole layer. A column is scaled and a written number is drawn; {:alpha {:column :r :scale false}} reads the column as opacities, {:alpha {:value 0.3 :scale true}} sends the number through the scale"
    :group "A column of the layer's data, or a vector of them, grouping without color"
    :position "Position adjustment keyword — how overlapping groups are arranged (see pj/position-doc)"
@@ -302,12 +302,19 @@
   (when (seq bufs)
     (if (get layer (keyword (str (name aesthetic) "-drawn?")))
       identity
-      (scale/channel-mapper
-       (get layer (defaults/channel->scale-key aesthetic))
-       (reduce min (map #(reduce min %) bufs))
-       (reduce max (map #(reduce max %) bufs))
-       (get defaults/channel-ranges aesthetic)
-       (ink-exponent (:mark layer) aesthetic)))))
+      ;; The plot's own extent where the plan carried one, and the
+      ;; layer's buffers otherwise. Reading the buffers alone scaled
+      ;; each layer against its own values while the legend was built
+      ;; from every layer, so in a facet the smallest mark of each
+      ;; panel was drawn at the same radius whatever it measured.
+      (let [[lo hi] (or (get layer (keyword (str (name aesthetic) "-extent")))
+                        [(reduce min (map #(reduce min %) bufs))
+                         (reduce max (map #(reduce max %) bufs))])]
+        (scale/channel-mapper
+         (get layer (defaults/channel->scale-key aesthetic))
+         lo hi
+         (get defaults/channel-ranges aesthetic)
+         (ink-exponent (:mark layer) aesthetic))))))
 
 (defn channel-magnitude-fn
   "Retired in favour of `aesthetic-magnitude-fn`, which does the same

@@ -182,7 +182,7 @@
 
 
 (def
- v24_l152
+ v24_l154
  (def
   per-panel
   {:g ["L" "L" "L" "R" "R" "R"],
@@ -192,31 +192,51 @@
 
 
 (def
- v25_l158
+ v25_l160
  (-> per-panel (pj/lay-point :x :y {:size :n}) (pj/facet :g)))
 
 
 (deftest
- t26_l162
- (is ((fn [v] (= 3 (count (:sizes (pj/svg-summary v))))) v25_l158)))
+ t26_l164
+ (is
+  ((fn
+    [v]
+    (let
+     [layers (->> v pj/plan :panels (mapcat :layers))]
+     (and
+      (= 2 (count layers))
+      (= [[1 10] [1 10]] (mapv :size-extent layers))
+      (=
+       [[1 2 3] [4 7 10]]
+       (mapv (fn [l] (vec (mapcat :sizes (:groups l)))) layers)))))
+   v25_l160)))
 
 
 (def
- v28_l170
+ v28_l182
  (->
   per-panel
   (pj/lay-point :x :y {:size :n})
   (pj/facet :g)
-  (pj/scale :size {:domain [1 10]})))
+  (pj/scale :size {:domain [0 20]})))
 
 
 (deftest
- t29_l175
- (is ((fn [v] (= 5 (count (:sizes (pj/svg-summary v))))) v28_l170)))
+ t29_l187
+ (is
+  ((fn
+    [v]
+    (let
+     [radii (sort (:sizes (pj/svg-summary v)))]
+     (and
+      (= 6 (count radii))
+      (> (first radii) 2.0)
+      (< (last radii) 8.0))))
+   v28_l182)))
 
 
 (def
- v31_l188
+ v31_l206
  (pj/lay-histogram
   (rdatasets/datasets-iris)
   [:sepal-length :sepal-width :petal-length]
@@ -224,18 +244,18 @@
 
 
 (deftest
- t32_l190
+ t32_l208
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (pos? (:polygons s)))))
-   v31_l188)))
+   v31_l206)))
 
 
 (def
- v34_l200
+ v34_l218
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :species {:color :species})
@@ -243,18 +263,18 @@
 
 
 (deftest
- t35_l204
+ t35_l222
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (= 5 (:polygons s)))))
-   v34_l200)))
+   v34_l218)))
 
 
 (def
- v37_l212
+ v37_l230
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -266,7 +286,7 @@
 
 
 (deftest
- t38_l218
+ t38_l236
  (is
   ((fn
     [v]
@@ -277,4 +297,4 @@
       (= 150 (:points s))
       (some #{"Iris by Species"} (:texts s))
       (some #{"Sepal Length (cm)"} (:texts s)))))
-   v37_l212)))
+   v37_l230)))

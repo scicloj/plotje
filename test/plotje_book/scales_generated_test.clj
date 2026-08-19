@@ -1305,7 +1305,7 @@
 
 
 (def
- v186_l1300
+ v186_l1299
  (try
   (->
    gapminder-2007
@@ -1317,40 +1317,42 @@
 
 
 (deftest
- t187_l1309
+ t187_l1308
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v186_l1300)))
+   v186_l1299)))
 
 
 (def
- v189_l1315
- (try
-  (->
-   gapminder-2007
-   (pj/pose :gdp-percap :life-exp {:size :pop})
-   (pj/lay-point {:size {:column :pop, :scale :log}})
-   (pj/lay-point {})
-   pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+ v189_l1314
+ (->
+  gapminder-2007
+  (pj/pose :gdp-percap :life-exp {:size :pop})
+  (pj/lay-point {:size {:column :pop, :scale :log}})
+  (pj/lay-point {})
+  (pj/scale :x :log)))
 
 
 (deftest
- t190_l1324
+ t190_l1320
  (is
   ((fn
-    [m]
-    (and
-     (re-find #"\{:type :log\}, \{:type :linear\}" m)
-     (=
-      {:type :log}
-      (->
-       gapminder-2007
-       (pj/pose :gdp-percap :life-exp)
-       (pj/lay-point {:x {:column :gdp-percap, :scale :log}})
-       (pj/lay-point {})
-       pj/plan
-       :panels
-       first
-       :x-scale))))
-   v189_l1315)))
+    [fr]
+    (let
+     [plan (pj/plan fr)]
+     (and
+      (=
+       [{:type :log} {:type :log}]
+       (mapv :size-scale (-> plan :panels first :layers)))
+      (=
+       {:type :log}
+       (->
+        gapminder-2007
+        (pj/pose :gdp-percap :life-exp)
+        (pj/lay-point {:x {:column :gdp-percap, :scale :log}})
+        (pj/lay-point {})
+        pj/plan
+        :panels
+        first
+        :x-scale)))))
+   v189_l1314)))

@@ -4,6 +4,7 @@
    non-map last arg in pj/pose's 4-arity."
   (:require [clojure.test :refer [deftest testing is]]
             [tablecloth.api :as tc]
+            [java-time.api :as jt]
             [scicloj.plotje.api :as pj]))
 
 (def tiny {:x [1.0 2.0 3.0] :y [4.0 5.0 6.0]})
@@ -1060,3 +1061,50 @@
     (is (pj/plan (pj/scale (pj/lay-point mixed :num :num2 {:shape :cat})
                            :shape {:domain ["q" "p"]})))
     (is (pj/plan (pj/scale (pj/lay-point mixed :num :num2) :x :log)))))
+
+(def strings {:s ["p" "q" "r"] :n [1.0 2.0 3.0]})
+(def numbers {:s [1.0 2.0 3.0] :n [1.0 2.0 3.0]})
+(def dates {:s [(jt/local-date 2020 1 1) (jt/local-date 2020 6 1)] :n [1.0 2.0]})
+
+(defn- msg
+  "The message a plan reports, or nil where it plans."
+  [pose]
+  (try (pj/plan pose) nil
+       (catch clojure.lang.ExceptionInfo e (ex-message e))
+       (catch Exception e (ex-message e))))
+
+(deftest only-categorical-can-be-asked-of-another-type-test
+  ;; Every value can name a group, so :categorical is always available.
+  ;; The other two have nothing to read on a column holding something
+  ;; else, and used to reach the cast -- which reported a String or a
+  ;; LocalDate and named neither the column nor the option.
+  (testing ":categorical is accepted on every kind of column"
+    (is (nil? (msg (pj/lay-point numbers :s :n {:x-type :categorical}))))
+    (is (nil? (msg (pj/lay-point strings :s :n {:x-type :categorical}))))
+    (is (nil? (msg (pj/lay-point dates :s :n {:x-type :categorical})))))
+
+  (testing ":numerical and :temporal are accepted where they name the column's own type"
+    (is (nil? (msg (pj/lay-point numbers :s :n {:x-type :numerical}))))
+    (is (nil? (msg (pj/lay-point dates :s :n {:x-type :temporal})))))
+
+  (testing "and report the column and what it holds where they do not"
+    (doseq [[what pose] [[:numerical-on-strings (pj/lay-point strings :s :n {:x-type :numerical})]
+                         [:temporal-on-strings (pj/lay-point strings :s :n {:x-type :temporal})]
+                         [:temporal-on-numbers (pj/lay-point numbers :s :n {:x-type :temporal})]
+                         [:numerical-on-dates (pj/lay-point dates :s :n {:x-type :numerical})]]]
+      (let [m (msg pose)]
+        (is (some? m) (str what " should report"))
+        (is (re-find #":x-type" m) (str what " names the option"))
+        (is (re-find #":s" m) (str what " names the column"))
+        (is (re-find #"Write :categorical" m) (str what " names the way out")))))
+
+  (testing "on :y-type and :color-type by the same rule"
+    (is (re-find #":y-type" (msg (pj/lay-point strings :n :s {:y-type :numerical}))))
+    (is (re-find #":color-type"
+                 (msg (pj/lay-point {:a [1.0 2.0] :b [1.0 2.0] :c ["p" "q"]}
+                                    :a :b {:color :c :color-type :numerical})))))
+
+  (testing "a value that is not a column type is reported too"
+    (let [m (msg (pj/lay-point numbers :s :n {:x-type :nonsense}))]
+      (is (re-find #"is not a column type" m))
+      (is (re-find #":categorical :numerical :temporal" m)))))

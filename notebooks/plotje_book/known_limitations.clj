@@ -207,14 +207,6 @@
 ;;   one panel a log axis and another a linear one. Workaround:
 ;;   `pj/arrange` again.
 ;;
-;; - A `:size` or `:alpha` mark is scaled against its own panel, while
-;;   the legend is scaled against the whole plot. Under faceting, two
-;;   panels whose values cover different intervals are drawn alike: a
-;;   panel whose values run from 1 to 3 gets the same three radii as
-;;   one whose values run from 4 to 10, and the legend matches neither.
-;;   Workaround: set the domain explicitly, as in
-;;   `(pj/scale pose :size {:domain [1 10]})`, so every panel uses the
-;;   same one. `:alpha` and a numeric `:color` take the same workaround.
 
 ;; ## Options and Configuration
 ;;

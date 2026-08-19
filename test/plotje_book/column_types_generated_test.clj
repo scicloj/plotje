@@ -308,18 +308,33 @@
    v53_l270)))
 
 
-(def v56_l316 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
+(def
+ v56_l301
+ (try
+  (->
+   {:species ["setosa" "versicolor"], :count [50 50]}
+   (pj/lay-point :species :count {:x-type :numerical})
+   pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t57_l320
+ t57_l308
+ (is ((fn [m] (re-find #"which holds categorical values" m)) v56_l301)))
+
+
+(def v59_l334 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
+
+
+(deftest
+ t60_l338
  (is
   ((fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))
-   v56_l316)))
+   v59_l334)))
 
 
 (def
- v59_l326
+ v62_l344
  (try
   (->
    numerical
@@ -330,35 +345,35 @@
 
 
 (deftest
- t60_l334
+ t63_l352
  (is
   ((fn [m] (re-find #"set :x-type or :y-type to :categorical" m))
-   v59_l326)))
+   v62_l344)))
 
 
 (def
- v62_l340
+ v65_l358
  (try
   (-> categorical (pj/lay-point :k :v) (pj/scale :x :log) pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t63_l348
- (is ((fn [m] (re-find #"requires numeric data" m)) v62_l340)))
+ t66_l366
+ (is ((fn [m] (re-find #"requires numeric data" m)) v65_l358)))
 
 
 (def
- v65_l356
+ v68_l374
  (-> categorical (pj/lay-point :k :v) (pj/scale :x :linear)))
 
 
 (deftest
- t66_l360
+ t69_l378
  (is
   ((fn
     [v]
     (=
      (pj/svg-summary v)
      (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))
-   v65_l356)))
+   v68_l374)))

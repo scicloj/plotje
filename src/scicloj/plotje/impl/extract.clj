@@ -182,6 +182,22 @@
                          ", got keys: " (pr-str (keys stat)))
                     {:mark mark :expected expected-key :stat-keys (keys stat)}))))
 
+(defn- color-extent
+  "The lowest and highest value the color gradient is read against, as
+   `[lo hi]`, or nil where the layer carries no numeric color.
+
+   The plot's own extent where the plan carried one, so every panel and
+   every layer of a plot is drawn against the same gradient and the bar
+   beside them explains all of them. This layer's own values otherwise
+   -- which is what every layer used to read, so in a facet each panel
+   spanned the whole gradient whatever interval its values covered."
+  [draft-layer stat]
+  (or (:color-extent draft-layer)
+      (let [bufs (keep :color-values (:points stat))]
+        (when (seq bufs)
+          (let [buf (dtype/concat-buffers bufs)]
+            [(dfn/reduce-min buf) (dfn/reduce-max buf)])))))
+
 (defn- extract-xy-groups
   "Extract groups from stat :points, resolving colors. Common to most mark types.
    Options:
@@ -243,15 +259,9 @@
 (defmethod extract-layer [:interval-h :doc] [_ _ _ _] "Horizontal bars from x to x-end at categorical y")
 (defmethod extract-layer :point [draft-layer stat all-colors cfg]
   (let [numeric-color? (= (:color-type draft-layer) :numerical)
-        ;; For numeric color: compute global min/max for normalization
-        all-color-buf (when numeric-color?
-                        (let [bufs (keep :color-values (:points stat))]
-                          (when (seq bufs) (dtype/concat-buffers bufs))))
+        [lo hi] (when numeric-color? (color-extent draft-layer stat))
         ;; A `:domain` on the scale spec replaces what the data covers.
-        [c-min c-max] (scale/numeric-color-domain
-                       (:color-scale draft-layer)
-                       (when all-color-buf (dfn/reduce-min all-color-buf))
-                       (when all-color-buf (dfn/reduce-max all-color-buf)))]
+        [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)]
     (-> {:mark :point
          :size-scale (:size-scale draft-layer)
          :alpha-scale (:alpha-scale draft-layer)
@@ -853,13 +863,8 @@
 
 (defmethod extract-layer :interval-h [draft-layer stat all-colors cfg]
   (let [numeric-color? (= (:color-type draft-layer) :numerical)
-        all-color-buf (when numeric-color?
-                        (let [bufs (keep :color-values (:points stat))]
-                          (when (seq bufs) (dtype/concat-buffers bufs))))
-        [c-min c-max] (scale/numeric-color-domain
-                       (:color-scale draft-layer)
-                       (when all-color-buf (dfn/reduce-min all-color-buf))
-                       (when all-color-buf (dfn/reduce-max all-color-buf)))
+        [lo hi] (when numeric-color? (color-extent draft-layer stat))
+        [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)
         groups (vec
                 (for [{:keys [color xs ys x-ends color-values row-indices]} (:points stat)]
                   (cond-> {:color (resolve-color all-colors color draft-layer cfg)

@@ -180,9 +180,10 @@
 ;; - Scale **type** (log, categorical, linear, etc.) is shared
 ;;   across all panels -- if you set `pj/scale :x :log` on a
 ;;   faceted pose, every panel has a log x-axis.
-;; - Scale **domain** (the numeric range shown) is
-;;   computed per panel by default, so different panels may
-;;   display different numeric ranges.
+;; - Scale **domain** (the extent of values shown) is shared as well,
+;;   so the panels can be compared. `{:scales :free-x}`, `:free-y` or
+;;   `:free` gives each panel its own on the axis named, and the
+;;   appearance aesthetics keep one domain either way.
 ;;
 ;; A note on the scope of scales and coord: `pj/scale` and `pj/coord`
 ;; write at the pose they are called on and flow down from there, so

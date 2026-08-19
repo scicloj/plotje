@@ -10,7 +10,8 @@
    composite layouts keep per-panel domains because aggregating across
    different x/y columns is meaningless."
   (:require [clojure.test :refer [deftest testing is]]
-            [scicloj.plotje.api :as pj]))
+            [scicloj.plotje.api :as pj]
+            [scicloj.plotje.layer-type :as layer-type]))
 
 (def small
   ;; Three groups with deliberately different x and y ranges.
@@ -116,3 +117,85 @@
           pl   (pj/plan pose)
           ps   (:panels pl)]
       (is (= 1 (count ps))))))
+
+(def split-values
+  "Two panels covering different intervals: L holds 1 to 3, R holds 4
+   to 10."
+  {:g ["L" "L" "L" "R" "R" "R"]
+   :x [1.0 2.0 3.0 1.0 2.0 3.0]
+   :y [1.0 1.0 1.0 1.0 1.0 1.0]
+   :n [1.0 2.0 3.0 4.0 7.0 10.0]})
+
+(defn- panel-magnitudes
+  "What each panel draws `aesthetic` as, panel by panel, through the
+   function the renderer uses."
+  [plan aesthetic buf-key]
+  (for [panel (:panels plan)
+        layer (:layers panel)
+        :let [bufs (keep buf-key (:groups layer))
+              f (layer-type/aesthetic-magnitude-fn layer aesthetic bufs)]]
+    (mapv f (mapcat identity bufs))))
+
+(deftest one-extent-across-panels-and-layers-test
+  ;; A mark used to be scaled against its own layer's values while the
+  ;; legend was built from every layer, so in a facet the smallest mark
+  ;; of each panel was drawn at the same radius whatever it measured
+  ;; and the legend matched neither panel.
+  (testing ":size reads one extent, so the panels can be compared"
+    (let [plan (-> split-values
+                   (pj/lay-point :x :y {:size :n})
+                   (pj/facet :g)
+                   pj/plan)
+          [left right] (panel-magnitudes plan :size :sizes)]
+      (is (= [[1.0 10.0] [1.0 10.0]]
+             (mapv :size-extent (mapcat :layers (:panels plan)))))
+      ;; Every mark on the left is smaller than every mark on the right.
+      (is (< (apply max left) (apply min right)))
+      ;; And the legend explains both: the swatch for a value is the
+      ;; magnitude the panel holding it draws.
+      (let [by-value (into {} (map (juxt :value :magnitude)
+                                   (:entries (:size-legend plan))))]
+        (is (= (get by-value 10.0) (apply max right))))))
+
+  (testing ":alpha reads one extent too"
+    (let [plan (-> split-values
+                   (pj/lay-point :x :y {:alpha :n})
+                   (pj/facet :g)
+                   pj/plan)
+          [left right] (panel-magnitudes plan :alpha :alphas)]
+      (is (= [[1.0 10.0] [1.0 10.0]]
+             (mapv :alpha-extent (mapcat :layers (:panels plan)))))
+      (is (< (apply max left) (apply min right)))))
+
+  (testing "a numeric :color reads one gradient"
+    (let [plan (-> split-values
+                   (pj/lay-point :x :y {:color :n})
+                   (pj/facet :g)
+                   pj/plan)
+          brightness (fn [panel]
+                       (for [layer (:layers panel)
+                             c (mapcat :colors (:groups layer))]
+                         (reduce + (take 3 c))))
+          left (brightness (first (:panels plan)))
+          right (brightness (second (:panels plan)))]
+      (is (= [1.0 10.0] [(:min (:legend plan)) (:max (:legend plan))]))
+      ;; The gradient runs dark to light, so the panel holding the
+      ;; higher values is drawn lighter throughout.
+      (is (< (apply max left) (apply min right)))))
+
+  (testing "two size layers on one panel share the extent"
+    (let [plan (-> (pj/pose {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0]
+                             :s1 [1.0 2.0 3.0] :s2 [10.0 20.0 30.0]}
+                            {:x :a :y :b})
+                   (pj/lay-point {:size :s1})
+                   (pj/lay-point {:size :s2})
+                   pj/plan)
+          [first-layer second-layer] (panel-magnitudes plan :size :sizes)]
+      (is (< (apply max first-layer) (apply min second-layer)))))
+
+  (testing "one panel and one layer is unchanged -- it spans the range"
+    (let [plan (-> {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0] :n [1.0 2.0 3.0]}
+                   (pj/lay-point :a :b {:size :n})
+                   pj/plan)
+          [only] (panel-magnitudes plan :size :sizes)]
+      (is (= [2.0 8.0] [(apply min only) (apply max only)])))))

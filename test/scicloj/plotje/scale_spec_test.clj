@@ -984,3 +984,82 @@
                       (pj/lay-tile :x :y {:fill :v})
                       (pj/scale :fill :log)
                       pj/plan))))))
+
+(def narrow-sizes
+  {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0] :s [6.0 7.0 9.0]})
+
+(deftest a-legend-labels-only-values-the-data-reaches-test
+  ;; A legend entry pairs a value with the quantity a mark of that value
+  ;; is drawn at. The log tick generator is allowed to reach past the
+  ;; domain -- on an axis a bounding power of ten just outside the data
+  ;; is an ordinary tick -- and on a narrow domain every tick it picks
+  ;; can land outside: 6 to 9 gave the single tick 10.
+  (testing "a narrow log domain falls back to its own ends"
+    (let [entries (-> narrow-sizes
+                      (pj/lay-point :a :b {:size :s})
+                      (pj/scale :size :log)
+                      pj/plan :size-legend :entries)]
+      (is (= [6.0 9.0] (mapv :value entries)))
+      (is (every? (fn [e] (<= 6.0 (:value e) 9.0)) entries))))
+
+  (testing "the same on :alpha"
+    (let [entries (-> narrow-sizes
+                      (pj/lay-point :a :b {:alpha :s})
+                      (pj/scale :alpha :log)
+                      pj/plan :alpha-legend :entries)]
+      (is (= [6.0 9.0] (mapv :value entries)))))
+
+  (testing "a wide log domain is untouched -- its decades are all inside"
+    (let [entries (-> {:a [1.0 2.0 3.0 4.0] :b [1.0 2.0 3.0 4.0]
+                       :s [1.0 10.0 100.0 1000.0]}
+                      (pj/lay-point :a :b {:size :s})
+                      (pj/scale :size :log)
+                      pj/plan :size-legend :entries)]
+      (is (= [1.0 10.0 100.0 1000.0] (mapv :value entries)))))
+
+  (testing "and every labelled value lies within a linear domain too"
+    (let [entries (-> {:a [1.0 2.0 3.0 4.0] :b [1.0 4.0 2.0 3.0]
+                       :s [3.0 8.0 14.0 20.0]}
+                      (pj/lay-point :a :b {:size :s})
+                      pj/plan :size-legend :entries)]
+      (is (every? (fn [e] (<= 3.0 (:value e) 20.0)) entries)))))
+
+(deftest a-layer-naming-no-scale-has-no-opinion-test
+  ;; The rule an axis has always followed, now on every aesthetic. The
+  ;; default used to materialize into a second opinion, so a `:log`
+  ;; written on one layer disagreed with the silence of the next.
+  (let [d {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0] :p [1.0 10.0 100.0]}
+        two-layers (fn [aesthetic]
+                     (-> d
+                         (pj/pose :a :b {aesthetic :p})
+                         (pj/lay-point {aesthetic {:column :p :scale :log}})
+                         (pj/lay-point {})
+                         pj/plan))]
+    (testing "the plot is drawn, on the scale the one naming layer gave"
+      (doseq [[aesthetic scale-key] [[:size :size-scale] [:alpha :alpha-scale]]]
+        (let [layers (-> (two-layers aesthetic) :panels first :layers)]
+          (is (= 2 (count layers)) (str aesthetic " draws both layers"))
+          ;; Settled onto both, so the silent layer is drawn through the
+          ;; scale the legend explains rather than through the default.
+          (is (= [{:type :log} {:type :log}] (mapv scale-key layers))
+              (str aesthetic " settles onto both layers")))))
+
+    (testing ":color settles the same way"
+      (is (= :log (-> (two-layers :color) :legend :scale-type))))
+
+    (testing "and the axis rule it now matches is unchanged"
+      (is (= {:type :log}
+             (-> d
+                 (pj/pose :a :b)
+                 (pj/lay-point {:x {:column :a :scale :log}})
+                 (pj/lay-point {})
+                 pj/plan :panels first :x-scale))))
+
+    (testing "two layers that each name a different scale are still refused"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"read :size through different scales"
+           (-> d
+               (pj/pose :a :b {:size :p})
+               (pj/lay-point {:size {:column :p :scale :log}})
+               (pj/lay-point {:size {:column :p :scale :linear}})
+               pj/plan))))))

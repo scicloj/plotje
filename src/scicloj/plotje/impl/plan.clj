@@ -472,8 +472,13 @@
    If pre-resolved draft layers are provided, skips resolve-draft-layer.
    `:shape-map` is the plot-wide category-to-symbol assignment, carried
    onto every layer so the marks draw the symbols the legend advertises.
+   `:extents` is the plot-wide `[lo hi]` per continuous appearance
+   aesthetic, carried the same way and for the same reason: a mark is
+   scaled against every value the plot holds rather than against its
+   own layer or its own panel, so the swatch beside a value is the
+   quantity a mark of that value is drawn at wherever it sits.
    Returns {:resolved [...] :stat-results [...] :layers [...]}."
-  [panel-draft-layers all-colors cfg & {:keys [resolved shape-map]}]
+  [panel-draft-layers all-colors cfg & {:keys [resolved shape-map extents]}]
   (let [resolved (or resolved (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) panel-draft-layers))
         stat-results (mapv #(stat/compute-stat (assoc % :cfg (merge cfg (:cfg %)))) resolved)
         raw-plan-layers (vec (map (fn [rv sr]
@@ -481,6 +486,8 @@
                                         (assoc :y-domain (:y-domain sr)
                                                :x-domain (:x-domain sr))
                                         (cond-> shape-map (assoc :shape-map shape-map))
+                                        (cond-> (:size extents) (assoc :size-extent (:size extents))
+                                                (:alpha extents) (assoc :alpha-extent (:alpha extents)))
                                         ;; A drawing-unit offset is carried whole rather than
                                         ;; folded into the positions: it is not a data value, so
                                         ;; it must not reach the domains, and every mark shifts
@@ -776,6 +783,74 @@
   (let [out (into [] (comp cat (filter #(and (some? %) (number? %) (Double/isFinite (double %))))) bufs)]
     (when (seq out) out)))
 
+(defn- reads-per-row?
+  "Whether `mark` varies `channel` from row to row -- the registry's
+   `:varies` declaration, asked per mark.
+
+   Every mark that does not declare the channel draws one value for the
+   whole layer: `:line` takes one stroke width, `:boxplot` one opacity.
+   A column there varies nothing, because the extractor never reads the
+   buffer -- so the request passed every check and changed not one
+   pixel, while the plot still grew a legend explaining the encoding it
+   did not apply.
+
+   This was a closed table here until the marks declared it, and a mark
+   the table had never heard of answered no. An extension that varied
+   size per row was warned about and denied its legend while drawing
+   correctly, with no way to say otherwise."
+  [channel mark]
+  (some? (layer-type/mark-varies mark channel)))
+
+(defn- varies-aesthetic?
+  "True of a resolved draft layer whose marks vary `aesthetic` from row
+   to row through its scale -- a column mapped to it, no fixed value, a
+   mark that declares it varies, and data to read. The one filter the
+   legend and the marks are both chosen by."
+  [aesthetic draft-layer]
+  (let [fixed-key (keyword (str "fixed-" (name aesthetic)))
+        drawn-key (keyword (str (name aesthetic) "-drawn?"))]
+    (and (resolve/column-ref? (get draft-layer aesthetic))
+         (nil? (get draft-layer fixed-key))
+         ;; A column drawn as it stands passed through no scale, so
+         ;; there is no scale to explain or to share.
+         (not (get draft-layer drawn-key))
+         ;; And a mark that draws one value for the whole layer never
+         ;; read the column.
+         (reads-per-row? aesthetic (:mark draft-layer))
+         (:data draft-layer))))
+
+(defn- reads-aesthetic?
+  "Which layers a plot-wide extent is taken over.
+
+   `:size` and `:alpha` are read by the marks that declare they vary
+   them: a column mapped on the pose flows into every layer, and a mark
+   drawing one size for the whole layer never reads it. `:color` has no
+   such declaration -- a mark that paints at all paints through the
+   gradient -- so every layer mapping a scaled numeric column to it is
+   counted."
+  [aesthetic draft-layer]
+  (if (= :color aesthetic)
+    (and (scaled-color-column? draft-layer)
+         (= :numerical (:color-type draft-layer))
+         (:data draft-layer))
+    (varies-aesthetic? aesthetic draft-layer)))
+
+(defn- plot-aesthetic-extent
+  "The lowest and highest value `aesthetic` takes anywhere on the plot,
+   as `[lo hi]`, or nil where no layer reads it.
+
+   One extent for the whole plot, which is what makes a mark comparable
+   with the legend that explains it and with the same mark in another
+   panel. Each layer used to be scaled against its own values while the
+   legend was built from all of them, so in a facet the smallest mark
+   of every panel was drawn at the same radius whatever it measured,
+   and a legend swatch stood for a size no particular mark had."
+  [resolved-all aesthetic]
+  (let [layers (filter #(reads-aesthetic? aesthetic %) resolved-all)]
+    (when (seq layers)
+      (when-let [vals (finite-vals (map #(aesthetic-col % aesthetic) layers))]
+        [(dfn/reduce-min vals) (dfn/reduce-max vals)]))))
+
 (def ^:private monochrome-marks
   "Marks that draw each group in one solid color and therefore cannot
    show a continuous color ramp along the mark itself. `:point` is the
@@ -907,18 +982,14 @@
     (cond
       numeric-color?
       (let [color-draft-layers (filter #(and (scaled-color-column? %)
-                                             (:data %)) resolved-all)
-            all-bufs (map #(aesthetic-col % :color) color-draft-layers)]
-        (when-let [all-vals (finite-vals all-bufs)]
+                                             (:data %)) resolved-all)]
+        (when-let [[c-lo c-hi] (plot-aesthetic-extent resolved-all :color)]
           (let [spec (some :color-scale color-draft-layers)
                 ;; Through the same function the marks read, so the bar
                 ;; a reader matches a colour against spans what the
                 ;; marks were drawn against.
                 grad-fn (defaults/scale-gradient-fn :color spec cfg)
-                [c-min c-max] (scale/numeric-color-domain
-                               spec
-                               (dfn/reduce-min all-vals)
-                               (dfn/reduce-max all-vals))
+                [c-min c-max] (scale/numeric-color-domain spec c-lo c-hi)
                 scale-type (or (some #(:type (:color-scale %)) color-draft-layers)
                                :linear)
                 ;; The midpoint the marks were drawn around, read the
@@ -978,13 +1049,26 @@
   scale/channel-mapper)
 
 (defn- continuous-channel-ticks
-  "Pick `n` tick values across [d-min, d-max] for a continuous channel
-   legend. Log scale uses the shared 1-2-5 log-tick generator; linear
-   falls through to nice-legend-values."
+  "Pick `n` tick values across [d-min, d-max] for a continuous
+   aesthetic's legend. Log scale uses the shared 1-2-5 log-tick
+   generator; linear falls through to nice-legend-values.
+
+   Only values the data reaches are kept. A legend entry pairs a value
+   with the quantity a mark of that value is drawn at, so a value
+   outside the domain is a swatch nothing on the panel can match. The
+   log generator reaches a little past the domain on purpose -- on an
+   axis a bounding power of ten just outside the data is an ordinary
+   tick -- and on a narrow domain every tick it picks can land outside:
+   values from 6 to 9 gave the single tick 10. Where fewer than two
+   survive, the domain's own ends stand in."
   [scale-type d-min d-max n]
-  (if (= scale-type :log)
-    (vec (scale/log-ticks [d-min d-max] n))
-    (nice-legend-values d-min d-max n)))
+  (let [picked (if (= scale-type :log)
+                 (scale/log-ticks [d-min d-max] n)
+                 (nice-legend-values d-min d-max n))
+        inside (filterv #(<= d-min % d-max) picked)]
+    (if (>= (count inside) 2)
+      inside
+      (vec (sort (distinct (concat [d-min d-max] inside)))))))
 
 (defn- channel-quantity
   "The quantity a draft layer's mark draws `channel` as, and how ink
@@ -1035,24 +1119,6 @@
                     " per row in the mark's extractor, or take " channel
                     " out of the layer type's :varies.")))))
 
-(defn- reads-per-row?
-  "Whether `mark` varies `channel` from row to row -- the registry's
-   `:varies` declaration, asked per mark.
-
-   Every mark that does not declare the channel draws one value for the
-   whole layer: `:line` takes one stroke width, `:boxplot` one opacity.
-   A column there varies nothing, because the extractor never reads the
-   buffer -- so the request passed every check and changed not one
-   pixel, while the plot still grew a legend explaining the encoding it
-   did not apply.
-
-   This was a closed table here until the marks declared it, and a mark
-   the table had never heard of answered no. An extension that varied
-   size per row was warned about and denied its legend while drawing
-   correctly, with no way to say otherwise."
-  [channel mark]
-  (some? (layer-type/mark-varies mark channel)))
-
 (defn- thin-to
   "At most `k` of `vs`, evenly spaced, keeping the first and the last.
 
@@ -1094,29 +1160,14 @@
    that a wide range takes fewer rows rather than more room than there
    is."
   [resolved-all opts-title height]
-  (let [size-draft-layers (filter #(and (resolve/column-ref? (:size %))
-                                        (nil? (:fixed-size %))
-                                        ;; A column drawn as it stands
-                                        ;; passed through no scale, so
-                                        ;; there is no scale to explain.
-                                        (not (:size-drawn? %))
-                                        ;; And a mark that draws one
-                                        ;; radius for the layer never
-                                        ;; read the column, so a legend
-                                        ;; here would pair values with
-                                        ;; radii the panel does not draw.
-                                        (reads-per-row? :size (:mark %))
-                                        (:data %)) resolved-all)]
+  (let [size-draft-layers (filter #(varies-aesthetic? :size %) resolved-all)]
     (when (seq size-draft-layers)
       (let [size-col (:size (first size-draft-layers))
             spec (:size-scale (first size-draft-layers))
             scale-type (or (:type spec) :linear)
-            [quantity ink-exponent] (channel-quantity (first size-draft-layers) :size)
-            all-bufs (map #(aesthetic-col % :size) size-draft-layers)]
-        (when-let [all-vals (finite-vals all-bufs)]
-          (let [s-min (dfn/reduce-min all-vals)
-                s-max (dfn/reduce-max all-vals)
-                ;; The values the legend labels span the scale's own
+            [quantity ink-exponent] (channel-quantity (first size-draft-layers) :size)]
+        (when-let [[s-min s-max] (plot-aesthetic-extent resolved-all :size)]
+          (let [;; The values the legend labels span the scale's own
                 ;; domain, not the data's, so a `:domain` that widens
                 ;; what a size means is what the reader is told.
                 [dom-lo dom-hi] (scale/channel-domain spec s-min s-max)
@@ -1153,23 +1204,14 @@
    `opts-title` overrides the inferred column-name title (from a
    user-supplied `:alpha-label` plot option)."
   [resolved-all opts-title]
-  (let [alpha-draft-layers (filter #(and (resolve/column-ref? (:alpha %))
-                                         (nil? (:fixed-alpha %))
-                                         (not (:alpha-drawn? %))
-                                         ;; As with `:size`: no legend for
-                                         ;; a channel the mark never varied.
-                                         (reads-per-row? :alpha (:mark %))
-                                         (:data %)) resolved-all)]
+  (let [alpha-draft-layers (filter #(varies-aesthetic? :alpha %) resolved-all)]
     (when (seq alpha-draft-layers)
       (let [alpha-col (:alpha (first alpha-draft-layers))
             spec (:alpha-scale (first alpha-draft-layers))
             scale-type (or (:type spec) :linear)
-            [_ ink-exponent] (channel-quantity (first alpha-draft-layers) :alpha)
-            all-bufs (map #(aesthetic-col % :alpha) alpha-draft-layers)]
-        (when-let [all-vals (finite-vals all-bufs)]
-          (let [a-min (dfn/reduce-min all-vals)
-                a-max (dfn/reduce-max all-vals)
-                [dom-lo dom-hi] (scale/channel-domain spec a-min a-max)
+            [_ ink-exponent] (channel-quantity (first alpha-draft-layers) :alpha)]
+        (when-let [[a-min a-max] (plot-aesthetic-extent resolved-all :alpha)]
+          (let [[dom-lo dom-hi] (scale/channel-domain spec a-min a-max)
                 values (continuous-channel-ticks scale-type dom-lo dom-hi 5)
                 alpha-fn (channel-mapper spec a-min a-max
                                          (:alpha defaults/channel-ranges)
@@ -1415,9 +1457,11 @@
                          " same :scale in each mapping.")
                     {:channel channel :specs (vec named)}))))
 
-(defn- validate-channel-spec-agreement
-  "Refuse two layers that read one appearance channel through different
-   scales, or draw it as different quantities.
+(defn- settle-channel-specs
+  "Refuse two layers that read one appearance aesthetic through
+   different scales, or draw it as different quantities. Return the
+   draft layers with the one settled scale written onto every layer
+   that reads the aesthetic.
 
    One legend explains one scale. Two layers whose sizes run through a
    log scale and a linear one need two, and so do a point layer and a
@@ -1426,15 +1470,20 @@
    one channel, drawing the picture would mean labelling one of the two
    encodings wrongly.
 
-   A layer that names no scale counts as naming the default, unlike on
-   an axis: each layer here scales its own values, so a layer left on
-   the default really is drawn through a different scale.
+   A layer that names no scale has no opinion about it, as on an axis,
+   and only the layers that named one are compared. A layer that writes
+   the type the default already has agrees with one that names the same
+   thing, so both are resolved to a whole spec before they are
+   compared -- otherwise `{:scale :linear}` beside `{:scale :linear}`
+   written differently was refused for disagreeing with itself.
 
-   Counting as the default means being compared as it, though. A layer
-   that writes the type the default already has agrees with a layer
-   that writes nothing, so the two are resolved to the same spec before
-   they are compared -- otherwise `{:scale :linear}` beside a layer left
-   alone was refused for disagreeing with itself.
+   Settling is the other half, and an axis needs no equivalent: a panel
+   carries one axis scale and draws every layer against it, while each
+   layer here scales its own values through the spec written on it.
+   Without writing the settled spec onto the silent layers, dropping
+   them from the comparison would leave them drawn through the default
+   while the plot's legend explained the named scale -- the error
+   removed and the disagreement left in place.
 
    Only layers that read the channel are asked, and what counts as
    reading it differs. `:size` and `:alpha` are read by the marks that
@@ -1449,35 +1498,43 @@
    layer's scale silently decided for both and a log scale written on
    the second changed nothing."
   [draft-layers]
-  (doseq [[channel reads?] [[:size #(and (resolve/column-ref? (:size %))
-                                         (reads-per-row? :size (:mark %)))]
-                            [:alpha #(and (resolve/column-ref? (:alpha %))
-                                          (reads-per-row? :alpha (:mark %)))]
-                            [:color scaled-color-column?]
-                            [:fill #(resolve/column-ref? (:fill %))]]
-          :let [scale-key (defaults/channel->scale-key channel)
-                varying (filter #(and (reads? %) (:data %)) draft-layers)
-                resolve-spec #(merge {:type (defaults/default-scale-type channel)}
-                                     (get % scale-key))
-                specs (distinct (map resolve-spec varying))
-                drawn-as (distinct (map #(layer-type/mark-varies (:mark %) channel)
-                                        varying))]]
-    (when (> (count specs) 1)
-      (throw (ex-info (str "Layers read " channel " through different scales: "
-                           (str/join ", " (map describe-spec specs))
-                           ". One legend explains one"
-                           " scale, so the plot cannot say which of the two a"
-                           " mark's " (name channel) " means. Set the scale"
-                           " once with (pj/scale pose " channel " ...), or"
-                           " write the same :scale in each mapping.")
-                      {:channel channel :specs (vec specs)})))
-    (when (> (count drawn-as) 1)
-      (throw (ex-info (str "Layers draw " channel " as different quantities: "
-                           (pr-str (vec drawn-as)) ", so one legend cannot"
-                           " explain both -- a swatch is a circle or a stroke,"
-                           " not both at once. Map " channel " on the layer"
-                           " that should carry it rather than on the pose.")
-                      {:channel channel :quantities (vec drawn-as)})))))
+  (reduce
+   (fn [layers [channel reads?]]
+     (let [scale-key (defaults/channel->scale-key channel)
+           reads-it? #(and (reads? %) (:data %))
+           varying (filter reads-it? layers)
+           named (filter #(seq (get % scale-key)) varying)
+           resolve-spec #(merge {:type (defaults/default-scale-type channel)}
+                                (get % scale-key))
+           specs (distinct (map resolve-spec named))
+           drawn-as (distinct (map #(layer-type/mark-varies (:mark %) channel)
+                                   varying))]
+       (when (> (count specs) 1)
+         (throw (ex-info (str "Layers read " channel " through different scales: "
+                              (str/join ", " (map describe-spec specs))
+                              ". One legend explains one"
+                              " scale, so the plot cannot say which of the two a"
+                              " mark's " (name channel) " means. Set the scale"
+                              " once with (pj/scale pose " channel " ...), or"
+                              " write the same :scale in each mapping.")
+                         {:channel channel :specs (vec specs)})))
+       (when (> (count drawn-as) 1)
+         (throw (ex-info (str "Layers draw " channel " as different quantities: "
+                              (pr-str (vec drawn-as)) ", so one legend cannot"
+                              " explain both -- a swatch is a circle or a stroke,"
+                              " not both at once. Map " channel " on the layer"
+                              " that should carry it rather than on the pose.")
+                         {:channel channel :quantities (vec drawn-as)})))
+       (if-let [settled (first specs)]
+         (mapv #(cond-> % (reads-it? %) (assoc scale-key settled)) layers)
+         layers)))
+   (vec draft-layers)
+   [[:size #(and (resolve/column-ref? (:size %))
+                 (reads-per-row? :size (:mark %)))]
+    [:alpha #(and (resolve/column-ref? (:alpha %))
+                  (reads-per-row? :alpha (:mark %)))]
+    [:color scaled-color-column?]
+    [:fill #(resolve/column-ref? (:fill %))]]))
 
 (defn- warn-conflicting-specs
   "Warn when draft layers disagree about the coord.
@@ -2112,7 +2169,31 @@
          _ (warn-unread-channel-columns resolved-all)
          _ (warn-conflicting-specs draft-layers)
          _ (validate-axis-spec-agreement resolved-all)
-         _ (validate-channel-spec-agreement resolved-all)
+         resolved-all (settle-channel-specs resolved-all)
+         ;; The panels are built from the tagged draft layers, whose
+         ;; `:__resolved` was attached before the scales were settled.
+         ;; Re-tagging is what carries the settled spec to the marks;
+         ;; without it a layer that named no scale would still be drawn
+         ;; through the default while the legend explained the named
+         ;; one.
+         tagged-draft-layers (mapv (fn [v rv] (assoc v :__resolved rv))
+                                   tagged-draft-layers resolved-all)
+         ;; One extent per aesthetic for the whole plot, computed from
+         ;; the same layers and by the same function the legends are
+         ;; built from, so a mark and the swatch explaining it cannot
+         ;; be read against different values.
+         aesthetic-extents (into {} (for [a [:size :alpha :color]
+                                          :let [e (plot-aesthetic-extent resolved-all a)]
+                                          :when e]
+                                      [a e]))
+         ;; `:color` is applied while the layer is extracted rather than
+         ;; while it is drawn, so its extent travels on the draft layer
+         ;; the extractor reads, not on the plan layer the renderer
+         ;; does. One extent either way.
+         tagged-draft-layers
+         (if-let [e (:color aesthetic-extents)]
+           (mapv #(update % :__resolved assoc :color-extent e) tagged-draft-layers)
+           tagged-draft-layers)
 
          ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
          ;; layers extracted above. Root-scope annotations (carried
@@ -2183,7 +2264,8 @@
                              (if (seq panel-tagged)
                                (merge pg (resolve-panel-draft-layers panel-tagged all-colors cfg
                                                                      :resolved pre-resolved
-                                                                     :shape-map (:shape-map shape-info)))
+                                                                     :shape-map (:shape-map shape-info)
+                                                                     :extents aesthetic-extents))
                                pg)))))
                      (:panels grid))
 

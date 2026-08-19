@@ -1,5 +1,6 @@
 (ns scicloj.plotje.impl.resolve
-  (:require [tablecloth.api :as tc]
+  (:require [clojure.string :as str]
+            [tablecloth.api :as tc]
             [tablecloth.column.api :as tcc]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.datetime :as dt-dt]
@@ -155,6 +156,50 @@
           (every? number? (take 100 c)) :numerical
           :else :categorical)))))
 
+(def type-override-values
+  "What `:x-type`, `:y-type` and `:color-type` accept."
+  #{:categorical :numerical :temporal})
+
+(defn check-type-override!
+  "Report a type override the column cannot carry out, naming the
+   option and the column rather than dying in the scale several stages
+   later.
+
+   `:categorical` is the override that does something: every value can
+   be the name of a group, so a column of numbers, dates or strings can
+   all be read as categories, and reading numbers that way -- hours,
+   years, identifiers -- is why the option exists.
+
+   The other two only ever confirm what the column already holds. There
+   is no number in \"setosa\" and no instant either, so `:numerical` on
+   a column of strings has nothing to read, and neither has `:temporal`
+   on a column of numbers. Both used to reach the cast, which reported
+   a String or a LocalDate and named neither the column nor the option
+   that sent it there."
+  [option-key written ds col]
+  (when (some? written)
+    (when-not (type-override-values written)
+      (throw (ex-info (str option-key " " (pr-str written) " is not a column type. "
+                           "Accepted: " (vec (sort type-override-values)) ".")
+                      {:option option-key :written written
+                       :accepted (vec (sort type-override-values))})))
+    (let [actual (when (and ds col) (column-type ds col))]
+      (when (and actual
+                 (not= :categorical written)
+                 (not= written actual))
+        (let [aesthetic (keyword (str/replace (name option-key) #"-type$" ""))]
+          (throw (ex-info (str option-key " " written " names column " (pr-str col)
+                               ", which holds " (name actual) " values. Only"
+                               " :categorical can be asked of a column holding"
+                               " something else, because every value can name a"
+                               " group; a column is otherwise read as what it"
+                               " holds. Write :categorical, or map " aesthetic
+                               " to a " (name written) " column.")
+                          {:option option-key :written written
+                           :aesthetic aesthetic
+                           :column col :column-type actual}))))))
+  nil)
+
 (defn temporal->epoch-ms
   "Convert a temporal value to epoch-milliseconds (double).
    Accepts LocalDate, LocalDateTime, Instant, and java.util.Date.
@@ -213,6 +258,8 @@
   (let [x-res (resolve-col-name ds (:x v))
         y-res (resolve-col-name ds (:y v))
         x-end-res (resolve-col-name ds (:x-end v))
+        _ (check-type-override! :x-type (:x-type v) ds x-res)
+        _ (check-type-override! :y-type (:y-type v) ds y-res)
         x-type (or (:x-type v) (column-type ds x-res))
         ;; When x and y reference the same column, propagate x-type to y-type
         ;; rather than returning nil — callers (e.g., `validate-numeric-column`)
@@ -307,6 +354,7 @@
         ;; a category column does. All that changes is where each
         ;; group's color comes from.
         c-type (when color-is-col?
+                 (check-type-override! :color-type (:color-type v) ds color-val)
                  (or (:color-type v) (column-type ds color-val)))
         fixed-color (when (and color-val (not color-is-col?)) color-val)
         size-val (:size v)

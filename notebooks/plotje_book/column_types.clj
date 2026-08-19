@@ -290,6 +290,24 @@
 ;; column splits rather than shades, and the layer types that need a
 ;; categorical axis start accepting it.
 
+;; ### Only :categorical can be asked of a column holding something else
+;;
+;; Every value can be the name of a group, whatever the column holds, so
+;; `:categorical` is always available. The other direction has nothing
+;; to read: there is no number in "setosa" and no instant either.
+;; `:numerical` and `:temporal` are accepted where they name the
+;; column's own type, and reported where they do not:
+
+(try
+  (-> {:species ["setosa" "versicolor"] :count [50 50]}
+      (pj/lay-point :species :count {:x-type :numerical})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (re-find #"which holds categorical values" m))])
+
 ;; ## The column's type and the scale's type
 ;;
 ;; Two settings are written with the word `:categorical`, and they are
