@@ -650,11 +650,13 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (= ["4" "5" "6" "8"] (->> fr pj/plan :panels first :x-domain vec)))])
 
-;; `:color`, `:fill` and `:shape` read a categorical `:domain` the same
-;; way. For `:color` and `:fill` the palette is assigned in the order
-;; given, so the domain moves the legend rows and the colors together:
-;; the first category listed takes the palette's first color wherever
-;; it sits in the data.
+;; `:color` and `:shape` read a categorical `:domain` the same way.
+;; For `:color` the palette is assigned in the order given, so the
+;; domain moves the legend rows and the colors together: the first
+;; category listed takes the palette's first color wherever it sits in
+;; the data. `:fill` reads no categorical column at all, as
+;; [The colors a scale spans](#the-colors-a-scale-spans) shows, so
+;; there is no categorical `:domain` for it to read.
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -731,6 +733,24 @@ gapminder-2007
 ;; than dropped. A domain says what the reader should compare, and a
 ;; dropped row would leave no trace on the panel to say so.
 ;;
+;; A `:fill` column reads a domain the same way, and the bar beside the
+;; tiles spans what the tiles were drawn against. The counts here reach
+;; nineteen; ending the gradient at sixty leaves room for a second
+;; heatmap to be read on the same scale:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-tile :displ :hwy)
+    (pj/scale :fill {:domain [0 60]}))
+
+(kind/test-last
+ [(fn [fr]
+    (and (= [0.0 60.0] ((juxt :min :max) (:legend (pj/plan fr))))
+         ;; Nineteen is what the data reaches without the domain.
+         (= [0.0 19.0]
+            ((juxt :min :max)
+             (:legend (pj/plan (-> (rdatasets/ggplot2-mpg)
+                                   (pj/lay-tile :displ :hwy))))))))])
+
 ;; Fixing the domain this way is also how every panel of a facet is
 ;; given one size or color scale to share -- see
 ;; [Faceting](./plotje_book.faceting.html).

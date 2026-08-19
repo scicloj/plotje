@@ -741,36 +741,59 @@
     (when (seq out) out)))
 
 (def ^:private monochrome-marks
-  "Marks that draw strokes or polygons in a single solid color per group
-   and therefore can't show a continuous color ramp along the mark
-   itself. When a numeric :color mapping is supplied on one of these
-   marks, the mark still renders in a single color (there is no
-   per-vertex coloring). We emit the legend anyway -- readers can
-   still see which value the line's representative color maps to --
-   but we print a one-line warning so users realise the gradient they
-   see in the legend is not what's painted on the line."
-  #{:line :step :area :density :stacked-area :linear-model :loess})
+  "Marks that draw each group in one solid color and therefore cannot
+   show a continuous color ramp along the mark itself. `:point` is the
+   only mark that carries a per-row color; every mark listed here draws
+   the default color instead, whatever a numeric `:color` column holds.
+   We emit the legend anyway -- a reader can still see the range the
+   column covers -- but we print a one-line warning, since the gradient
+   in the bar is not painted on the mark.
+
+   Spelled in mark names, which is what a resolved layer carries. A
+   stat or a layer-type name written here would match nothing and warn
+   about nothing: `:bar` is the mark under `lay-histogram` and `:rect`
+   the mark under `lay-bar`."
+  #{:area :bar :boxplot :errorbar :line :lollipop :pointrange
+    :rect :ridgeline :rug :step :text :violin})
 
 (defn- warn-monochrome-numeric-color!
   "Warn once per plan when a numeric :color is paired with a mark that
-   cannot render per-point colors. The user's color column is being
-   used only to pick a single representative color; they may have
-   meant to set `:color-type :categorical` to split into groups."
+   draws one color per group. The column is not read as a gradient at
+   all; the user may have meant `:color-type :categorical`, which
+   splits the data into a group per category and gives each its own
+   color."
   [resolved-all]
   (when-let [affected (seq (filter #(and (= :numerical (:color-type %))
                                          (contains? monochrome-marks (:mark %)))
                                    resolved-all))]
     (let [marks (vec (distinct (map :mark affected)))]
-      (println (str "Warning: " marks " with a numeric :color render as a "
-                    "single line per group. The color column picks one "
-                    "representative color from the gradient legend; use "
-                    ":color-type :categorical to split into multiple lines.")))))
+      (println (str "Warning: " marks " with a numeric :color draw one "
+                    "color per group and do not read the column as a "
+                    "gradient, though the legend shows one. Use "
+                    ":color-type :categorical to give each category its "
+                    "own color.")))))
+
+(def ^:private fill-drawing-marks
+  "Marks that paint an interior through the `:fill` aesthetic, and so
+   read a `:fill` scale spec.
+
+   Every other mark that computes a fill range draws through `:color`
+   instead: a contour builds its levels from the `:color` scale alone,
+   and `warn-fill-scale-without-fill!` tells a user who wrote `:fill`
+   on one that `:color` is the key it reads. A legend is built through
+   whichever of the two its marks were drawn through, so the bar and
+   the marks cannot answer differently."
+  #{:tile})
 
 (defn- warn-fill-scale-without-fill!
-  "Warn once when a fill scale is set but no draft layer maps to
-   `:fill`. Most marks paint with `:color`, not `:fill`; this catches
-   the common slip of writing `(pj/scale :fill ...)` when `:color`
-   was meant.
+  "Warn once when a fill scale is set but no draft layer reads `:fill`.
+   Most marks paint with `:color`, not `:fill`; this catches the common
+   slip of writing `(pj/scale :fill ...)` when `:color` was meant.
+
+   A layer reads `:fill` by mapping a column to it, and a tile reads it
+   whether or not one was mapped -- the `:bin2d` and `:density-2d`
+   stats compute the fill themselves, and the scale still decides the
+   gradient and the domain those tiles are drawn against.
 
    Read off the draft layers rather than off `:opts`: `pj/scale` writes
    the mapping now, so the `:fill-scale` key this looked for stopped
@@ -779,7 +802,8 @@
    fill-versus-colour guidance that is the whole point of this one."
   [resolved-all _opts]
   (when (and (some (defaults/channel->scale-key :fill) resolved-all)
-             (not-any? :fill resolved-all))
+             (not-any? #(or (:fill %) (contains? fill-drawing-marks (:mark %)))
+                       resolved-all))
     (println "Warning: pj/scale :fill set but no descendant layer uses"
              ":fill -- did you mean :color? :fill paints interior of"
              "tile/density-2d/bin2d marks; :color paints stroke or"
@@ -1814,10 +1838,10 @@
       col-label (assoc :col-label col-label))))
 
 (defn- build-fill-fallback-legend
-  "If no color legend was built (no :color column), check for tile
-   layers with computed fill ranges (:bin2d, :density-2d, or identity tiles
+  "If no color legend was built (no :color column), check for layers
+   with computed fill ranges (:bin2d, :density-2d, or identity tiles
    with :fill). Returns a continuous legend map or nil.
-   When :fill-scale or :color-scale is {:type :log}, the gradient
+   When the scale the marks read is {:type :log}, the gradient
    stops sample colors in log-space and the legend carries log-spaced
    ticks for the renderer to label.
    `opts-title` (from a user-supplied `:fill-label` plot option)
@@ -1839,20 +1863,38 @@
                                              (when (seq vals)
                                                [(dfn/reduce-min vals) (dfn/reduce-max vals)]))))
                                        resolved-all))
-        [f-lo f-hi] (or stat-fill-range draft-layer-fill-range)
-        scale-type (or (some #(:type (:fill-scale %)) resolved-all)
-                       (some #(:type (:color-scale %)) resolved-all)
-                       :linear)
-        ;; The gradient comes from whichever layer names a fill scale,
-        ;; through the same function the tiles were drawn with -- and
-        ;; through the same :color fallback, since a tile reads :color
-        ;; as a synonym for :fill.
-        fill-draft-layer (or (some #(when (:fill-scale %) %) resolved-all)
+        [data-lo data-hi] (or stat-fill-range draft-layer-fill-range)
+        ;; Which aesthetic the marks read decides which the bar reads.
+        fill-mark? (boolean (some #(contains? fill-drawing-marks (:mark %))
+                                  resolved-all))
+        ;; One layer answers, so the gradient, the domain and the scale
+        ;; type cannot arrive from three different scales.
+        fill-draft-layer (or (when fill-mark?
+                               (some #(when (:fill-scale %) %) resolved-all))
                              (some #(when (:color-scale %) %) resolved-all)
-                             {})]
+                             {})
+        ;; Through the same resolver the marks were drawn with: a tile
+        ;; reads :color as a synonym for :fill, a contour reads :color
+        ;; alone. The provenance is that resolver's own answer, so
+        ;; render-time configuration repaints a bar built from a plot
+        ;; option and leaves one the spec decided.
+        spec (if fill-mark?
+               (extract/fill-spec fill-draft-layer)
+               (:color-scale fill-draft-layer))
+        color-range (if fill-mark?
+                      (extract/fill-setting :range fill-draft-layer cfg)
+                      (defaults/scale-setting :color :range spec cfg))
+        range-from-spec? (if fill-mark?
+                           (extract/fill-setting-from-spec? :range fill-draft-layer cfg)
+                           (= :spec (defaults/scale-setting-source spec :range)))
+        scale-type (or (:type spec) :linear)
+        ;; The bar spans what the marks were drawn against, through the
+        ;; resolver that decided their domain, so a :domain that moved
+        ;; them moves it too.
+        [f-lo f-hi] (or (scale/numeric-color-domain spec data-lo data-hi)
+                        [data-lo data-hi])]
     (when f-lo
-      (let [grad-fn (defaults/resolve-gradient-fn
-                     (extract/fill-setting :range fill-draft-layer cfg))
+      (let [grad-fn (defaults/resolve-gradient-fn color-range)
             title (or opts-title
                       (cond
                         (= stat-kind :bin2d) :count
@@ -1875,8 +1917,8 @@
                  :type :continuous
                  :min f-lo :max f-hi
                  :scale-type scale-type
-                 :color-range (extract/fill-setting :range fill-draft-layer cfg)
-                 :range-from-spec? (contains? (:fill-scale fill-draft-layer) :range)
+                 :color-range color-range
+                 :range-from-spec? range-from-spec?
                  :stops stops}
           ticks (assoc :ticks ticks))))))
 

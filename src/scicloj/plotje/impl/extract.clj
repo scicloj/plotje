@@ -43,20 +43,54 @@
                           :color :values (:color-scale draft-layer) cfg))
       :else (defaults/hex->rgba (:default-color cfg)))))
 
+(defn fill-spec
+  "The scale spec a mark drawn in a fill reads: the `:fill` spec over
+   the `:color` one, key by key.
+
+   A tile reads `:color` as a synonym for `:fill`, so a gradient, a
+   domain or a midpoint written either way has to reach it, and a
+   `:fill` spec naming only one of them leaves the rest to `:color`.
+   A key neither spec names is answered by the plot options, through
+   `fill-setting`."
+  [draft-layer]
+  (merge (:color-scale draft-layer) (:fill-scale draft-layer)))
+
+(defn- fill-setting*
+  "One walk of the places a fill setting can be written, answering
+   `[value from-spec?]`.
+
+   Scope decides first: a scale spec is written on a mapping, a layer
+   or a pose, and a plot option is written outside all three, so both
+   specs are read before either option. Within one scope `:fill` wins,
+   being the aesthetic the mark draws. A spec wins by naming the key at
+   all, as it does in `defaults/scale-setting`.
+
+   The provenance comes out of the same walk as the value, so a legend
+   asking where the setting came from gets the answer the marks were
+   drawn from."
+  [k draft-layer cfg]
+  (let [spec (fill-spec draft-layer)]
+    (if (= :spec (defaults/scale-setting-source spec k))
+      [(get spec k) true]
+      (let [v (defaults/scale-setting :fill k nil cfg)]
+        [(if (some? v) v (defaults/scale-setting :color k nil cfg))
+         false]))))
+
 (defn fill-setting
   "A scale setting for a mark drawn in a fill: what a `:fill` scale spec
-   or the matching plot option says, and failing that what the `:color`
-   ones say.
-
-   A tile reads `:color` as a synonym for `:fill`, so a gradient or a
-   midpoint written either way has to reach it. The spec side already
-   falls back this way; this keeps the option side in step rather than
-   letting the two disagree."
+   says, and failing that a `:color` one, the `:fill` plot option, and
+   the `:color` plot option, in that order."
   [k draft-layer cfg]
-  (let [v (defaults/scale-setting :fill k (:fill-scale draft-layer) cfg)]
-    (if (some? v)
-      v
-      (defaults/scale-setting :color k (:color-scale draft-layer) cfg))))
+  (first (fill-setting* k draft-layer cfg)))
+
+(defn fill-setting-from-spec?
+  "True when `fill-setting` answers `k` from a scale spec rather than
+   from a plot option. Render-time configuration is the outermost scope
+   of a colour range, so it repaints a legend built from an option and
+   leaves one built from a spec alone; this is how the legend knows
+   which it has."
+  [k draft-layer cfg]
+  (second (fill-setting* k draft-layer cfg)))
 
 (def dash-presets
   "Named stroke-dash presets, resolved to a `[dash gap]` pixel pattern.
@@ -557,11 +591,10 @@
                        (:color draft-layer)))
         grad-fn (defaults/resolve-gradient-fn (fill-setting :range draft-layer cfg))
         midpoint (fill-setting :midpoint draft-layer cfg)
-        ;; :fill-scale wins over the colour scale spec, which is honored
-        ;; on tiles when the user wrote :color (synonym for :fill).
-        fill-spec (or (:fill-scale draft-layer)
-                      (:color-scale draft-layer))
-        fill-scale-type (or (:type fill-spec) :linear)
+        ;; The :fill spec over the :color one, key by key, since a tile
+        ;; reads :color as a synonym for :fill.
+        spec (fill-spec draft-layer)
+        fill-scale-type (or (:type spec) :linear)
         ;; Two paths: bin2d/kde2d stat produces :tiles as a dataset;
         ;; identity stat with :fill uses point groups
         tiles (if (and (:tiles stat)
@@ -570,7 +603,7 @@
                 ;; bin2d/kde2d path — :tiles is a dataset with :x-lo :x-hi :y-lo :y-hi :fill
                 (let [tile-ds (:tiles stat)
                       [f-lo f-hi] (let [[lo hi] (:fill-range stat)]
-                                    (or (scale/numeric-color-domain fill-spec lo hi)
+                                    (or (scale/numeric-color-domain spec lo hi)
                                         [lo hi]))
                       ;; Derive :color column from :fill using gradient function
                       with-color (tc/add-column tile-ds :color
@@ -587,7 +620,7 @@
                 (let [data (:data draft-layer)
                       fill-vals (when fill-col (data fill-col))
                       [f-lo f-hi] (scale/numeric-color-domain
-                                   fill-spec
+                                   spec
                                    (when (seq fill-vals) (dfn/reduce-min fill-vals))
                                    (when (seq fill-vals) (dfn/reduce-max fill-vals)))
                       all-xs (mapcat :xs (:points stat))

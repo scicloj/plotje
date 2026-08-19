@@ -8,7 +8,8 @@
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.layer-type :as layer-type]
             [scicloj.plotje.impl.extract :as extract]
-            [scicloj.plotje.render.mark :as mark]))
+            [scicloj.plotje.render.mark :as mark]
+            [scicloj.metamorph.ml.rdatasets :as rdatasets]))
 
 (def measured
   {:when [1 2 3 4]
@@ -692,3 +693,195 @@
               :when absent]
         (is (not (accepts? aesthetic (spec-for aesthetic a-type absent)))
             (str aesthetic " should refuse " absent))))))
+
+;; ============================================================
+;; The colour path: :fill and :color answer one question
+;; ============================================================
+
+(def heat
+  "A tile grid whose fill runs 0 to 361, wide enough that a domain of
+   [0 100] clamps most of it."
+  (let [cells (for [a (range 5) b (range 4)] [a b])]
+    {:a (mapv first cells)
+     :b (mapv second cells)
+     :n (mapv (fn [[a b]] (* 19 (+ (* 4 a) b))) cells)}))
+
+(defn fill-legend
+  [pose]
+  (-> pose pj/plan :legend))
+
+(defn tile-colours
+  [pose]
+  (->> pose pj/plan :panels first :layers first :tiles (mapv :color)))
+
+(deftest a-fill-domain-moves-the-legend-with-the-marks-test
+  ;; The bar a reader matches a tile against has to span what the tiles
+  ;; were drawn against, so the domain that clamps them bounds it too.
+  (let [plain (-> heat (pj/lay-tile :a :b {:fill :n}))
+        bounded (-> plain (pj/scale :fill {:domain [0 100]}))]
+    (testing "the legend spans the domain, not the data"
+      (is (= [0.0 361.0] [(:min (fill-legend plain)) (:max (fill-legend plain))]))
+      (is (= [0.0 100.0] [(:min (fill-legend bounded)) (:max (fill-legend bounded))])))
+
+    (testing "and the tiles are clamped to it, as :color's marks are"
+      (is (= 20 (count (distinct (tile-colours plain)))))
+      (is (= 7 (count (distinct (tile-colours bounded))))))
+
+    (testing "a domain written on :color reaches a tile the same way"
+      (is (= [0.0 100.0]
+             (let [lg (fill-legend (-> plain (pj/scale :color {:domain [0 100]})))]
+               [(:min lg) (:max lg)]))))))
+
+(deftest a-fill-legends-provenance-is-the-resolver-that-drew-the-marks-test
+  ;; :range-from-spec? decides whether render-time configuration
+  ;; repaints the bar. Read off :fill-scale alone it answered false for
+  ;; a range a :color spec had decided, and the bar was repainted to a
+  ;; gradient the tiles were never drawn with.
+  (let [plain (-> heat (pj/lay-tile :a :b {:fill :n}))]
+    (testing "a range from a :fill spec is marked as coming from a spec"
+      (is (true? (:range-from-spec?
+                  (fill-legend (-> plain (pj/scale :fill {:range :inferno})))))))
+
+    (testing "and so is one from a :color spec, which a tile reads too"
+      (let [lg (fill-legend (-> plain (pj/scale :color {:range :inferno})))]
+        (is (= :inferno (:color-range lg)))
+        (is (true? (:range-from-spec? lg)))))
+
+    (testing "a range from a plot option is not"
+      (let [lg (fill-legend (-> plain (pj/options {:color-range :inferno})))]
+        (is (= :inferno (:color-range lg)))
+        (is (false? (:range-from-spec? lg)))))))
+
+(deftest a-fill-scale-spec-wins-over-the-matching-plot-option-test
+  ;; A spec is written on a mapping, a layer or a pose; a plot option is
+  ;; written outside all three. Both specs are read before either
+  ;; option, so a :fill-range option does not overrule a :color spec.
+  (let [plain (-> heat (pj/lay-tile :a :b {:fill :n}))
+        inferno (tile-colours (-> plain (pj/scale :fill {:range :inferno})))
+        viridis (tile-colours (-> plain (pj/scale :fill {:range :viridis})))]
+    (is (not= inferno viridis) "the two gradients differ, so the test can fail")
+
+    (testing "a :color spec beats a :fill plot option"
+      (is (= inferno
+             (tile-colours (-> plain
+                               (pj/scale :color {:range :inferno})
+                               (pj/options {:fill-range :viridis}))))))
+
+    (testing "and the legend says the same"
+      (is (= :inferno
+             (:color-range (fill-legend (-> plain
+                                            (pj/scale :color {:range :inferno})
+                                            (pj/options {:fill-range :viridis})))))))
+
+    (testing "between the two options, :fill wins -- the aesthetic the mark draws"
+      (is (= inferno
+             (tile-colours (-> plain (pj/options {:fill-range :inferno
+                                                  :color-range :viridis}))))))
+
+    (testing "and between the two specs, :fill wins for the same reason"
+      (is (= inferno
+             (tile-colours (-> plain
+                               (pj/scale :fill {:range :inferno})
+                               (pj/scale :color {:range :viridis}))))))))
+
+(deftest a-fill-spec-answers-key-by-key-test
+  ;; A :fill spec naming only a gradient leaves the domain to :color,
+  ;; rather than shadowing the whole :color spec.
+  (let [lg (fill-legend (-> heat
+                            (pj/lay-tile :a :b {:fill :n})
+                            (pj/scale :fill {:range :inferno})
+                            (pj/scale :color {:domain [0 100]})))]
+    (is (= :inferno (:color-range lg)))
+    (is (= [0.0 100.0] [(:min lg) (:max lg)]))))
+
+(deftest a-contour-reads-its-legend-from-the-colour-scale-test
+  ;; A contour draws lines, and only a tile paints an interior through
+  ;; :fill. The bar is built through the resolver the levels are, so a
+  ;; :fill scale changes neither.
+  (let [rnd (java.util.Random. 42)
+        d {:x (vec (repeatedly 300 #(.nextGaussian rnd)))
+           :y (vec (repeatedly 300 #(.nextGaussian rnd)))}
+        levels #(->> % pj/plan :panels first :layers first :levels (mapv :color))
+        plain (-> d (pj/lay-contour :x :y))]
+    (testing "a :color scale moves the levels and the bar together"
+      (let [coloured (-> plain (pj/scale :color {:range :inferno}))]
+        (is (not= (levels plain) (levels coloured)))
+        (is (= :inferno (:color-range (fill-legend coloured))))
+        (is (true? (:range-from-spec? (fill-legend coloured))))))
+
+    (testing "a :fill scale moves neither"
+      ;; Two warnings say :color is the key a contour reads, and they
+      ;; are held back here; what matters is that the bar does not
+      ;; honour :fill on its own.
+      (binding [*out* (java.io.StringWriter.)]
+        (let [filled (-> plain (pj/scale :fill {:range :inferno}))]
+          (is (= (levels plain) (levels filled)))
+          (is (nil? (:color-range (fill-legend filled)))))))))
+
+(deftest a-mark-that-draws-one-colour-per-group-says-so-test
+  ;; :point is the only mark carrying a colour per row. Every other mark
+  ;; draws its group's one colour, so a numeric :color column it cannot
+  ;; read as a gradient is reported rather than passed over.
+  (let [d {:cat ["u" "u" "u" "v" "v" "v"]
+           :b [1.0 4.0 2.0 3.0 5.0 2.0]
+           :a [1.0 2.0 3.0 4.0 5.0 6.0]
+           :lo [0.5 3.0 1.0 2.0 4.0 1.0]
+           :hi [1.5 5.0 3.0 4.0 6.0 3.0]
+           :lab ["p" "q" "r" "s" "t" "u"]
+           :n [10.0 20.0 30.0 40.0 50.0 60.0]}
+        warned? (fn [pose]
+                  (let [out (java.io.StringWriter.)]
+                    (binding [*out* out] (pj/plan pose))
+                    (boolean (re-find #"do not read the column as a gradient"
+                                      (str out)))))]
+    (testing "every mark drawing one colour per group reports it"
+      (doseq [[what pose]
+              [[:line (-> d (pj/lay-line :a :b {:color :n}))]
+               [:step (-> d (pj/lay-step :a :b {:color :n}))]
+               [:area (-> d (pj/lay-area :a :b {:color :n}))]
+               [:smooth (-> d (pj/lay-smooth :a :b {:color :n}))]
+               [:bar (-> d (pj/lay-bar :cat :b {:color :n}))]
+               [:histogram (-> d (pj/lay-histogram :a {:color :n}))]
+               [:boxplot (-> d (pj/lay-boxplot :cat :b {:color :n}))]
+               [:violin (-> d (pj/lay-violin :cat :b {:color :n}))]
+               [:lollipop (-> d (pj/lay-lollipop :cat :b {:color :n}))]
+               [:ridgeline (-> d (pj/lay-ridgeline :cat :b {:color :n}))]
+               [:rug (-> d (pj/lay-rug :a {:color :n}))]
+               [:density (-> d (pj/lay-density :a {:color :n}))]
+               [:text (-> d (pj/lay-text :a :b {:text :lab :color :n}))]
+               [:errorbar (-> d (pj/lay-errorbar :a :b {:y-min :lo :y-max :hi
+                                                        :color :n}))]
+               [:summary (-> d (pj/lay-summary :cat :b {:color :n}))]]]
+        (is (warned? pose) (str what " should report a numeric :color"))))
+
+    (testing "and the marks that read the column say nothing"
+      (is (not (warned? (-> d (pj/lay-point :a :b {:color :n})))))
+      (is (not (warned? (-> d (pj/lay-tile :a :b {:fill :n}))))))
+
+    (testing "a categorical :color is what those marks do read"
+      (is (not (warned? (-> d (pj/lay-line :a :b {:color :cat}))))))))
+
+(deftest a-fill-scale-is-reported-unused-only-where-nothing-reads-it-test
+  ;; A tile reads :fill whether a column was mapped to it or the :bin2d
+  ;; stat computed it, and the scale decides the gradient and the domain
+  ;; either way. The warning belongs to the marks that paint with
+  ;; :color, which a :fill scale leaves alone.
+  (let [warned? (fn [pose]
+                  (let [out (java.io.StringWriter.)]
+                    (binding [*out* out] (pj/plan pose))
+                    (boolean (re-find #"did you mean :color" (str out)))))
+        binned (-> (rdatasets/ggplot2-mpg) (pj/lay-tile :displ :hwy))
+        mapped (-> {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0] :n [1.0 2.0 3.0]}
+                   (pj/lay-tile :a :b {:fill :n}))]
+    (testing "a tile reads the scale, so nothing is reported"
+      (is (not (warned? (-> binned (pj/scale :fill {:range :inferno})))))
+      (is (not (warned? (-> mapped (pj/scale :fill {:range :inferno}))))))
+
+    (testing "and the scale it reads bounds the bar"
+      (let [lg (-> binned (pj/scale :fill {:domain [0 60]}) pj/plan :legend)]
+        (is (= [0.0 60.0] [(:min lg) (:max lg)]))))
+
+    (testing "a mark that paints with :color is told which key it reads"
+      (is (warned? (-> {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0]}
+                       (pj/lay-point :a :b)
+                       (pj/scale :fill {:range :inferno})))))))

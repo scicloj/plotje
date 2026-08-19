@@ -365,6 +365,17 @@
   [aesthetic k]
   (keyword (str (name aesthetic) "-" (name k))))
 
+(defn scale-setting-source
+  "Which of the two scopes answers scale setting `k`: `:spec` when the
+   scale spec names the key, `:option` otherwise.
+
+   Stated once because a caller that needs the value and a caller that
+   needs its provenance are answering the same question, and a legend
+   built from one while its marks were drawn from the other paints a
+   bar the plot does not match."
+  [spec k]
+  (if (contains? spec k) :spec :option))
+
 (defn scale-setting
   "The effective value of scale setting `k` for `aesthetic`: what the
    scale spec says, and failing that what the plot option of the same
@@ -381,7 +392,7 @@
    configuration for a setting that has a configuration level, and a
    pose's own options for one that is per-plot, such as a title."
   [aesthetic k spec options]
-  (if (contains? spec k)
+  (if (= :spec (scale-setting-source spec k))
     (get spec k)
     (get options (scale-option-key aesthetic k))))
 
