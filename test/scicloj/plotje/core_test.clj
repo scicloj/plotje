@@ -320,10 +320,18 @@
                  :groups [{:label "g1" :counts [{:category "a" :count 10} {:category "b" :count 20}]}
                           {:label "g2" :counts [{:category "a" :count 30} {:category "b" :count 40}]}]}]
         result (position/apply-positions layers)
+        g1-counts (:counts (first (:groups (first result))))
         g2-counts (:counts (second (:groups (first result))))]
-    ;; g2 stacked on g1: y0 should be g1's count
-    (is (= 10.0 (:y0 (first g2-counts))))
-    (is (= 40.0 (:y1 (first g2-counts))))))
+    ;; The last group is laid down first, so g2 starts at zero and g1
+    ;; finishes on top -- the order the legend lists them in, and the
+    ;; order ggplot2's position_stack draws them (measured, 4.0.0).
+    (is (= 0.0 (:y0 (first g2-counts))))
+    (is (= 30.0 (:y1 (first g2-counts))))
+    (is (= 30.0 (:y0 (first g1-counts))))
+    (is (= 40.0 (:y1 (first g1-counts))))
+    ;; The groups come back in the order they arrived; only where each
+    ;; one sits changed.
+    (is (= ["g1" "g2"] (mapv :label (:groups (first result)))))))
 
 (deftest apply-positions-fill-test
   (let [layers [{:mark :rect :position :fill
@@ -333,10 +341,13 @@
         result (position/apply-positions layers)
         g1-counts (:counts (first (:groups (first result))))
         g2-counts (:counts (second (:groups (first result))))]
-    ;; fill normalizes: cat "a": g1=10/(10+30)=0.25
-    (is (< (Math/abs (- (:y1 (first g1-counts)) 0.25)) 0.01))
-    ;; g2 top = 1.0
-    (is (< (Math/abs (- (:y1 (first g2-counts)) 1.0)) 0.01))))
+    ;; fill normalizes: cat "a" gives g1 10/(10+30)=0.25 and g2 the
+    ;; remaining 0.75. g2 is laid down first, so it runs 0 to 0.75 and
+    ;; g1 -- the first group, and the legend's first row -- tops it off.
+    (is (< (Math/abs (- (:y0 (first g2-counts)) 0.0)) 0.01))
+    (is (< (Math/abs (- (:y1 (first g2-counts)) 0.75)) 0.01))
+    (is (< (Math/abs (- (:y0 (first g1-counts)) 0.75)) 0.01))
+    (is (< (Math/abs (- (:y1 (first g1-counts)) 1.0)) 0.01))))
 
 (deftest cross-layer-dodge-test
   (let [layers [{:mark :rect :position :dodge
@@ -370,9 +381,13 @@
                  (pj/lay-bar :day :count {:color :meal :position :stack})
                  pj/plan)
           groups (get-in pl [:panels 0 :layers 0 :groups])
+          lunch (first groups)
           dinner (second groups)]
-      ;; dinner baseline should equal lunch value (30)
-      (is (= [30.0] (vec (:y0s dinner)))))))
+      ;; The last group is laid down first, so dinner sits on the
+      ;; baseline and lunch -- the legend's first row -- sits on top of
+      ;; it, twenty units up.
+      (is (= [0.0] (vec (:y0s dinner))))
+      (is (= [20.0] (vec (:y0s lunch)))))))
 
 ;; ============================================================
 ;; scale.clj

@@ -555,7 +555,7 @@ graph LR
 ;; scale, and a mark that spreads the values itself instead will draw
 ;; sizes its own legend does not explain.
 ;;
-;; `layer-type/channel-magnitude-fn` is that shared function. It turns
+;; `layer-type/aesthetic-magnitude-fn` is that shared function. It turns
 ;; a value from the layer's per-row buffers into the quantity the mark
 ;; draws -- a radius, a width, an opacity:
 
@@ -566,8 +566,8 @@ graph LR
       :panels first :layers first))
 
 (let [groups (:groups bubble-layer)
-      radius-of (layer-type/channel-magnitude-fn bubble-layer :size
-                                                 (keep :sizes groups))]
+      radius-of (layer-type/aesthetic-magnitude-fn bubble-layer :size
+                                                   (keep :sizes groups))]
   (mapv radius-of [1 4 9]))
 
 (kind/test-last

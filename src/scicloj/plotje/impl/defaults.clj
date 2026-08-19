@@ -644,17 +644,33 @@
   (resolve-gradient-fn (scale-setting aesthetic :range spec cfg)))
 
 (defn normalize-midpoint
-  "Remap a value v from [vmin, vmax] to [0,1] with optional midpoint.
-   Without midpoint: linear (v-vmin)/(vmax-vmin).
-   With midpoint: values below midpoint → [0, 0.5], above → [0.5, 1.0]."
+  "Remap a value v from [vmin, vmax] to [0,1], optionally around a
+   midpoint. Without one: linear, (v-vmin)/(vmax-vmin).
+
+   With one, the midpoint is drawn at 0.5 and the two sides are read
+   against a single window centred there, half as wide as
+   `2 * max(|vmin - mid|, |vmax - mid|)` -- ggplot2's `rescale_mid`. So
+   equal deviations from the midpoint draw at equal saturation, and the
+   shorter side stops short of the end of the gradient instead of
+   reaching it. On the domain -40 to 60 around 0, -40 answers 0.167 and
+   60 answers 1.0: sixty is the further from the midpoint, so it is
+   sixty that takes the extreme.
+
+   Stretching each side to its own extent instead would draw -40 as
+   saturated as 60, which says the two are equally far from the middle
+   when one is two thirds of the distance.
+
+   The answer is not clamped here. A value outside [vmin, vmax] is
+   given its place on the same window and clamped by
+   `normalize-continuous`, so a midpoint at an end of the domain still
+   answers 0.5 rather than being cut off before the formula runs."
   [v vmin vmax midpoint]
   (if midpoint
-    (let [v (double v) vmin (double vmin) vmax (double vmax) mid (double midpoint)]
-      (cond
-        (<= v vmin) 0.0
-        (>= v vmax) 1.0
-        (<= v mid) (if (<= mid vmin) 0.5 (* 0.5 (/ (- v vmin) (- mid vmin))))
-        :else (if (>= mid vmax) 0.5 (+ 0.5 (* 0.5 (/ (- v mid) (- vmax mid)))))))
+    (let [v (double v) vmin (double vmin) vmax (double vmax) mid (double midpoint)
+          extent (* 2.0 (max (Math/abs (- vmin mid)) (Math/abs (- vmax mid))))]
+      (if (<= extent 0.0)
+        0.5
+        (+ 0.5 (/ (- v mid) extent))))
     (let [span (- (double vmax) (double vmin))]
       (if (<= span 0) 0.5 (/ (- (double v) (double vmin)) span)))))
 

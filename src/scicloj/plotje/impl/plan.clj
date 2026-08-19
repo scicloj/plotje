@@ -433,6 +433,29 @@
           (assoc rv :data ds)
           rv)))))
 
+(defn- order-groups-by-categories
+  "Put a layer's drawn groups in the order the categories were settled
+   in -- the order the legend lists them, and the order a `:domain`
+   asked for.
+
+   Without this the stat's own grouping decides where a group is
+   stacked or dodged while the legend is built from `all-colors`, so a
+   `:domain` moved the legend rows and left the marks where they were.
+   One step here rather than one per mark, because every mark answers
+   the same question.
+
+   Matched on the formatted label, which is what a group carries by the
+   time it is drawn; `all-colors` holds the raw values. A group whose
+   label names no category keeps its place at the end."
+  [layer all-colors]
+  (let [order (when (seq all-colors)
+                (into {} (map-indexed (fn [i c] [(defaults/fmt-category-label c) i])
+                                      all-colors)))]
+    (if (and order (seq (:groups layer)))
+      (update layer :groups
+              #(vec (sort-by (fn [g] (get order (:label g) Long/MAX_VALUE)) %)))
+      layer)))
+
 (defn resolve-panel-draft-layers
   "Resolve draft layers and compute stats for a group of draft layers belonging to one panel.
    If pre-resolved draft layers are provided, skips resolve-draft-layer.
@@ -461,7 +484,8 @@
                                                 (:x-drawn? rv) (assoc :x-drawn? true)
                                                 (:y-drawn? rv) (assoc :y-drawn? true))))
                                   resolved stat-results))
-        plan-layers (position/apply-positions raw-plan-layers)]
+        ordered (mapv #(order-groups-by-categories % all-colors) raw-plan-layers)
+        plan-layers (position/apply-positions ordered)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
 
 (defn- scaled-color-column?
@@ -828,6 +852,28 @@
            {:value v
             :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))
 
+(defn- gradient-stops
+  "The colours along a continuous legend's bar, low end first.
+
+   `:t` is the place on the bar, evenly spaced. `:gradient-t` is the
+   place in the gradient a value there is drawn at -- the same number
+   `normalize-continuous` gives the marks -- so the bar cannot show a
+   colour no mark on the panel can take.
+
+   The two agree wherever the domain covers the whole gradient, which
+   is every scale without a midpoint, `:log` among them. A midpoint
+   parts them: the gradient is centred on the midpoint and reaches its
+   extremes at the further of the two domain ends, so the nearer end
+   stops short, and the bar stops there with it."
+  [grad-fn scale-type lo hi midpoint]
+  (let [n 20
+        lo-t (defaults/normalize-continuous scale-type lo lo hi midpoint)
+        hi-t (defaults/normalize-continuous scale-type hi lo hi midpoint)]
+    (vec (for [i (range n)
+               :let [t (/ (double i) (dec n))
+                     g (+ lo-t (* t (- hi-t lo-t)))]]
+           {:t t :gradient-t g :color (grad-fn g)}))))
+
 (defn- build-legend
   "Build legend from resolved draft layers and color info. Returns nil when the
    legend would be empty (no data, or all nil/NaN in the color column).
@@ -863,16 +909,17 @@
                                (dfn/reduce-max all-vals))
                 scale-type (or (some #(:type (:color-scale %)) color-draft-layers)
                                :linear)
-                n-stops 20]
+                ;; The midpoint the marks were drawn around, read the
+                ;; way they read it, so the bar is centred where they
+                ;; are.
+                midpoint (defaults/scale-setting :color :midpoint spec cfg)]
             (cond-> {:title title
                      :type :continuous
                      :min c-min :max c-max
                      :scale-type scale-type
                      :color-range (defaults/scale-setting :color :range spec cfg)
                      :range-from-spec? (contains? spec :range)
-                     :stops (vec (for [i (range n-stops)
-                                       :let [t (/ (double i) (dec n-stops))]]
-                                   {:t t :color (grad-fn t)}))}
+                     :stops (gradient-stops grad-fn scale-type c-min c-max midpoint)}
               (= :log scale-type)
               (assoc :ticks (continuous-legend-ticks c-min c-max))))))
       (seq all-colors)
@@ -1884,6 +1931,9 @@
         color-range (if fill-mark?
                       (extract/fill-setting :range fill-draft-layer cfg)
                       (defaults/scale-setting :color :range spec cfg))
+        midpoint (if fill-mark?
+                   (extract/fill-setting :midpoint fill-draft-layer cfg)
+                   (defaults/scale-setting :color :midpoint spec cfg))
         range-from-spec? (if fill-mark?
                            (extract/fill-setting-from-spec? :range fill-draft-layer cfg)
                            (= :spec (defaults/scale-setting-source spec :range)))
@@ -1900,18 +1950,8 @@
                         (= stat-kind :bin2d) :count
                         (= stat-kind :density-2d) :relative-density
                         :else :fill))
-            n-stops 20
             log? (= :log scale-type)
-            ;; For log: sample t in [0,1] but compute the corresponding
-            ;; data value via the inverse log map and show colors at
-            ;; that data value's normalized position. Since the scale
-            ;; is log, the gradient bar reads "low log-value at top, high
-            ;; log-value at bottom" -- which means the gradient looks
-            ;; the same as the linear case. The visual difference is in
-            ;; the labels (log-spaced ticks).
-            stops (vec (for [i (range n-stops)
-                             :let [t (/ (double i) (dec n-stops))]]
-                         {:t t :color (grad-fn t)}))
+            stops (gradient-stops grad-fn scale-type f-lo f-hi midpoint)
             ticks (when log? (continuous-legend-ticks f-lo f-hi))]
         (cond-> {:title title
                  :type :continuous

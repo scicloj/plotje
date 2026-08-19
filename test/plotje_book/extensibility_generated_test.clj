@@ -493,7 +493,7 @@
   [groups
    (:groups bubble-layer)
    radius-of
-   (layer-type/channel-magnitude-fn
+   (layer-type/aesthetic-magnitude-fn
     bubble-layer
     :size
     (keep :sizes groups))]

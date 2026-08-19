@@ -269,8 +269,8 @@
         ;; purpose, so the built-in point mark and an extension read one
         ;; implementation and cannot drift from the legend or from each
         ;; other.
-        size-scale (layer-type/channel-magnitude-fn layer :size (keep :sizes groups))
-        alpha-scale (layer-type/channel-magnitude-fn layer :alpha (keep :alphas groups))
+        size-scale (layer-type/aesthetic-magnitude-fn layer :size (keep :sizes groups))
+        alpha-scale (layer-type/aesthetic-magnitude-fn layer :alpha (keep :alphas groups))
         ;; The category-to-symbol assignment is decided at plan time so
         ;; the legend and the marks show the same symbol for a category.
         shape-map (:shape-map layer)]

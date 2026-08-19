@@ -180,13 +180,6 @@
 ;;   a linear scale, or a baseline-free mark (`pj/lay-point`, `pj/lay-line`,
 ;;   `pj/lay-lollipop`). Count bars and histograms do support a log axis.
 ;;
-;; - Stack order in `pj/lay-area` and `pj/lay-bar` (with
-;;   `:position :stack`) follows the sort order of the `:color`
-;;   column. There is no `:stack-order` / `:color-order` option yet,
-;;   so forcing a specific bottom-to-top order requires prefixing
-;;   category labels with sort-stable ordinal characters
-;;   (`"01: ..."`, `"02: ..."`), which leaks into the legend.
-;;
 ;; - Annotations are silently skipped under `(pj/coord :polar)`. A
 ;;   polar rule would need to render as a circle (fixed radius) or
 ;;   spoke (fixed angle); those shapes are not implemented. Use

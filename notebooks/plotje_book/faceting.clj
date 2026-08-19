@@ -138,7 +138,7 @@
 ;; Other values: `:free-x` (x per-panel, y shared), `:free`
 ;; (both axes per-panel).
 
-;; ## Appearance Channels Across Panels
+;; ## Appearance Aesthetics Across Panels
 ;;
 ;; `:scales` applies to the axes only. A `:size` or `:alpha` column is
 ;; scaled against the panel it is drawn in, while its legend is built

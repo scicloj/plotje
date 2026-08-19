@@ -30,7 +30,7 @@
 
 (defmethod apply-position [:identity :doc] [_ _] "Plot at exact data coordinates (groups overlap)")
 (defmethod apply-position [:dodge :doc] [_ _] "Shift groups side-by-side within a band")
-(defmethod apply-position [:stack :doc] [_ _] "Pile groups cumulatively")
+(defmethod apply-position [:stack :doc] [_ _] "Pile groups cumulatively, the first group on top")
 (defmethod apply-position [:fill :doc] [_ _] "Stack normalized to [0, 1] (proportions)")
 
 (defmethod apply-position :identity [_ layers] (vec layers))
@@ -76,7 +76,13 @@
 
 (defn- stack-rect-layer
   "Apply stack to a :rect layer with categorical bar counts.
-   Adds :y0 and :y1 to each count entry."
+   Adds :y0 and :y1 to each count entry.
+
+   The last group is laid down first, so the first group finishes on
+   top -- the order a reader matches against a legend, which lists the
+   first group at its top. ggplot2's `position_stack` stacks the same
+   way round (measured, 4.0.0). The groups are returned in the order
+   they arrived, so only where each one sits changes."
   [layer]
   (let [{:keys [groups]} layer
         {:keys [adjusted-groups]}
@@ -93,16 +99,18 @@
                  new-cum (reduce (fn [c {:keys [category y1]}]
                                    (assoc c category (double y1)))
                                  cum new-counts)]
-             {:adjusted-groups (conj adjusted-groups
-                                     (assoc group :counts new-counts))
+             {:adjusted-groups (cons (assoc group :counts new-counts)
+                                     adjusted-groups)
               :cum new-cum}))
-         {:adjusted-groups [] :cum {}}
-         groups)]
-    (assoc layer :groups adjusted-groups)))
+         {:adjusted-groups () :cum {}}
+         (reverse groups))]
+    (assoc layer :groups (vec adjusted-groups))))
 
 (defn- stack-area-layer
   "Apply stack to an :area layer.
    Adds :y0s baseline vector to each group.
+   The last group is laid down first, so the first group finishes on
+   top and the stack reads in the order the legend lists.
    NaN y-values are dropped before accumulation — otherwise a single
    NaN would propagate through the cumulative sum and corrupt every
    subsequent category in the stack.
@@ -127,13 +135,13 @@
            (let [y0s (mapv #(get cum % 0.0) all-xs)
                  ys (mapv #(+ (get cum % 0.0) (get gm % 0.0)) all-xs)
                  new-cum (into cum (map vector all-xs ys))]
-             {:adjusted-groups (conj adjusted-groups
-                                     (assoc group
-                                            :xs all-xs :ys ys :y0s y0s))
+             {:adjusted-groups (cons (assoc group
+                                            :xs all-xs :ys ys :y0s y0s)
+                                     adjusted-groups)
               :cum new-cum}))
-         {:adjusted-groups [] :cum {}}
-         (map vector groups group-maps))]
-    (assoc layer :groups adjusted-groups)))
+         {:adjusted-groups () :cum {}}
+         (reverse (map vector groups group-maps)))]
+    (assoc layer :groups (vec adjusted-groups))))
 
 (defmethod apply-position :stack [_ layers]
   ;; Stacking rewrites y-values in every group/bar, so the layer's cached

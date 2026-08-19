@@ -157,15 +157,19 @@ my-pose
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
-          dinner-bar (-> tips
-                         (pj/lay-bar :day :count
-                                     {:color :meal :position :stack})
-                         pj/plan
-                         (get-in [:panels 0 :layers 0 :groups 1]))]
+          groups (-> tips
+                     (pj/lay-bar :day :count
+                                 {:color :meal :position :stack})
+                     pj/plan
+                     (get-in [:panels 0 :layers 0 :groups]))
+          lunch-bar (first groups)
+          dinner-bar (second groups)]
       (and (= 4 (:polygons s))
-           ;; Stacking lifts dinner bars off the baseline -- their
-           ;; y0 sits on top of the lunch bar's y1.
-           (every? pos? (:y0s dinner-bar)))))])
+           ;; The last group is laid down first, so dinner sits on the
+           ;; baseline and lunch is lifted onto it -- the order the
+           ;; legend lists the two in, reading down from its top.
+           (every? zero? (:y0s dinner-bar))
+           (every? pos? (:y0s lunch-bar)))))])
 
 ;; ## Draft
 ;;

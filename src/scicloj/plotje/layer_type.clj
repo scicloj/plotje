@@ -90,8 +90,8 @@
    :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline — :dashed, :dotted, :solid, or a raw [dash gap ...] pattern in drawing units"})
 
 (def quantities
-  "The quantities a mark can draw an appearance channel as, and what
-   each one implies. A mark names one of these per channel it varies
+  "The quantities a mark can draw an appearance aesthetic as, and what
+   each one implies. A mark names one of these per aesthetic it varies
    from row to row, under `:varies`.
 
    - `:ink-exponent` — how the ink a mark covers grows with the
@@ -100,14 +100,14 @@
      same thing on every mark: area is the quantity raised to this
      power, so the scale can spread ink evenly without knowing which
      shape draws it.
-   - `:swatch` — what the legend draws to explain the channel. A width
+   - `:swatch` — what the legend draws to explain the aesthetic. A width
      encoding explained by graduated circles has the reader comparing
      diameters while the panel shows thicknesses.
 
    `:opacity` is the odd one: it is not a geometry, so nothing about
    area applies to it, and its exponent is 1 only in the sense that it
    has no shape to grow. `:geometry?` records that difference, which is
-   what lets `register!` refuse a channel drawn as a quantity of the
+   what lets `register!` refuse an aesthetic drawn as a quantity of the
    wrong kind -- an opacity declared as a radius is not inert, it
    squares the opacity curve."
   {:radius  {:ink-exponent 2 :swatch :circle  :geometry? true}
@@ -116,14 +116,14 @@
    :opacity {:ink-exponent 1 :swatch :square  :geometry? false}})
 
 (def default-quantities
-  "What a channel is taken to be drawn as where the mark declares
-   nothing. Reached only for a mark that draws the channel without
+  "What an aesthetic is taken to be drawn as where the mark declares
+   nothing. Reached only for a mark that draws the aesthetic without
    saying so -- which the plan warns about -- and set to what the
    built-in marks do.
 
-   Its keys are also the channels a mark may declare it varies: these
+   Its keys are also the aesthetics a mark may declare it varies: these
    are the two the plan and the scale ask about, so a `:varies` naming
-   any other channel would be read by nothing."
+   any other aesthetic would be read by nothing."
   {:size :radius :alpha :opacity})
 
 (def ^:private registry*
@@ -141,15 +141,15 @@
    `:text` with `{:box true}`. Options passed at the call site win over
    these; see resolve-layer-type-info in impl/pose.clj.
 
-   :varies is an optional map from appearance channel to the quantity
+   :varies is an optional map from appearance aesthetic to the quantity
    the mark draws it as, from `quantities` — `:point` declares
-   `{:size :radius :alpha :opacity}`. A channel absent from the map is
+   `{:size :radius :alpha :opacity}`. An aesthetic absent from the map is
    one the mark draws once for the whole layer, so a column mapped to
    it varies nothing: `:line` takes one stroke width whatever the
    column holds.
 
    Two things read the declaration, and both were closed tables before
-   it existed. The plan asks it whether a column mapped to a channel is
+   it existed. The plan asks it whether a column mapped to an aesthetic is
    drawn at all — a mark it had never heard of answered no, so an
    extension that varied size per row was warned about and denied its
    legend while drawing correctly. The scale asks it which quantity to
@@ -164,40 +164,40 @@
                            " quantity it draws it as, as "
                            (pr-str {:size :radius}) ".")
                       {:layer-type k :varies v}))))
-  (doseq [[channel quantity] (:varies entry)]
-    (when-not (contains? default-quantities channel)
-      (throw (ex-info (str "Layer type " k " declares :varies for " channel
+  (doseq [[aesthetic quantity] (:varies entry)]
+    (when-not (contains? default-quantities aesthetic)
+      (throw (ex-info (str "Layer type " k " declares :varies for " aesthetic
                            ", which is not an aesthetic Plotje varies from row"
                            " to row. Supported: "
                            (vec (sort (keys default-quantities)))
                            ". A declaration for any other aesthetic is read by"
                            " nothing.")
-                      {:layer-type k :channel channel
+                      {:layer-type k :aesthetic aesthetic
                        :supported (vec (sort (keys default-quantities)))})))
     (when-not (quantities quantity)
-      (throw (ex-info (str "Layer type " k " declares :varies " channel " "
+      (throw (ex-info (str "Layer type " k " declares :varies " aesthetic " "
                            quantity ", which is not a quantity Plotje draws."
                            " Supported: " (vec (sort (keys quantities))) ".")
-                      {:layer-type k :channel channel :quantity quantity
+                      {:layer-type k :aesthetic aesthetic :quantity quantity
                        :supported (vec (sort (keys quantities)))})))
     ;; A geometry and an opacity are not interchangeable: declaring
     ;; `{:alpha :radius}` is not inert, it squares the opacity curve,
     ;; because the exponent that spreads ink is applied to whatever the
-    ;; channel is drawn as.
-    (let [wanted (get-in quantities [(default-quantities channel) :geometry?])
+    ;; aesthetic is drawn as.
+    (let [wanted (get-in quantities [(default-quantities aesthetic) :geometry?])
           got (get-in quantities [quantity :geometry?])]
       (when (not= wanted got)
-        (throw (ex-info (str "Layer type " k " declares :varies " channel " "
-                             quantity ", and " channel " is "
+        (throw (ex-info (str "Layer type " k " declares :varies " aesthetic " "
+                             quantity ", and " aesthetic " is "
                              (if wanted "a geometry" "not a geometry")
                              " while " quantity " is "
                              (if got "a geometry" "not one")
-                             ". Supported for " channel ": "
+                             ". Supported for " aesthetic ": "
                              (vec (sort (keep (fn [[q info]]
                                                 (when (= wanted (:geometry? info)) q))
                                               quantities)))
                              ".")
-                        {:layer-type k :channel channel :quantity quantity}))))
+                        {:layer-type k :aesthetic aesthetic :quantity quantity}))))
     ;; Two layer types sharing a mark describe the same drawing, so
     ;; every one of them has to say the same thing about it. The lookup
     ;; below answers per mark, so a declaration made here reaches every
@@ -216,20 +216,20 @@
     (doseq [[other-k other] @registry*
             :when (and (not= other-k k)
                        (= (:mark other) (:mark entry))
-                       (not= (get-in other [:varies channel]) quantity))
-            :let [theirs (get-in other [:varies channel])]]
-      (throw (ex-info (str "Layer type " k " declares :varies " channel " "
+                       (not= (get-in other [:varies aesthetic]) quantity))
+            :let [theirs (get-in other [:varies aesthetic])]]
+      (throw (ex-info (str "Layer type " k " declares :varies " aesthetic " "
                            quantity ", and " other-k " draws the same mark ("
                            (:mark entry) ") "
                            (if theirs
                              (str "as " theirs)
-                             (str "without varying " channel " at all"))
+                             (str "without varying " aesthetic " at all"))
                            ". Every layer type drawing one mark has to agree"
                            " about what that mark varies, because the mark is"
-                           " what draws it. To vary " channel " per row, give"
+                           " what draws it. To vary " aesthetic " per row, give"
                            " the layer type a mark of its own.")
                       {:layer-type k :other other-k :mark (:mark entry)
-                       :channel channel :quantity quantity :theirs theirs}))))
+                       :aesthetic aesthetic :quantity quantity :theirs theirs}))))
   (swap! registry* assoc k (resolve/map->LayerType entry))
   k)
 
@@ -245,7 +245,7 @@
   @registry*)
 
 (defn mark-varies
-  "The quantity `mark` draws `channel` as from row to row, or nil where
+  "The quantity `mark` draws `aesthetic` as from row to row, or nil where
    it draws one value for the whole layer.
 
    Asked of the mark rather than of the layer type, because a layer can
@@ -255,59 +255,70 @@
    `register!` call is still the whole of the extension contract.
    `register!` refuses a disagreement, so the first entry found answers
    for the mark."
-  [mark channel]
+  [mark aesthetic]
   (some (fn [[_ entry]]
           (when (= mark (:mark entry))
-            (get-in entry [:varies channel])))
+            (get-in entry [:varies aesthetic])))
         @registry*))
 
 (defn marks-varying
-  "Every mark that varies `channel` from row to row, as a set. What the
-   plan's messages name when a column is mapped to a channel no mark on
-   the plot draws."
-  [channel]
+  "Every mark that varies `aesthetic` from row to row, as a set. What
+   the plan's messages name when a column is mapped to an aesthetic no
+   mark on the plot draws."
+  [aesthetic]
   (into #{} (for [[_ entry] @registry*
-                  :when (get-in entry [:varies channel])]
+                  :when (get-in entry [:varies aesthetic])]
               (:mark entry))))
 
 (defn ink-exponent
-  "How the ink a mark covers grows with the quantity it draws `channel`
-   as. What lets a scale's `:by` mean one thing across marks that draw
-   different shapes."
-  [mark channel]
-  (-> (or (mark-varies mark channel) (default-quantities channel))
+  "How the ink a mark covers grows with the quantity it draws
+   `aesthetic` as. What lets a scale's `:by` mean one thing across marks
+   that draw different shapes."
+  [mark aesthetic]
+  (-> (or (mark-varies mark aesthetic) (default-quantities aesthetic))
       quantities
       :ink-exponent))
 
-(defn channel-magnitude-fn
+(defn aesthetic-magnitude-fn
   "A function from a value in `bufs` to the quantity a mark draws it as
-   -- a radius, a width, an opacity -- for `channel` on plan `layer`.
+   -- a radius, a width, an opacity -- for `aesthetic` on plan `layer`.
 
    This is the drawing half of a layer type's `:varies` declaration.
-   Declaring a channel earns the layer a legend, and the legend's
+   Declaring an aesthetic earns the layer a legend, and the legend's
    swatches are built from this same function: a mark that applies it
    to its own per-row buffers draws what its legend explains, and one
    that scales the values itself does not.
 
    `layer` is the plan layer a renderer is handed, and `bufs` are the
    per-row buffers it will draw from -- their extremes are what the
-   scale reads the values against. Answers `identity` where the channel
-   is drawn as it stands (a mapping's `:scale false`), so a renderer
-   can apply the result either way, and nil where there is nothing to
-   draw.
+   scale reads the values against. Answers `identity` where the
+   aesthetic is drawn as it stands (a mapping's `:scale false`), so a
+   renderer can apply the result either way, and nil where there is
+   nothing to draw.
 
-       (let [f (layer-type/channel-magnitude-fn layer :size (keep :sizes groups))]
+       (let [f (layer-type/aesthetic-magnitude-fn layer :size (keep :sizes groups))]
          (if sizes (f (sizes i)) default-radius))"
-  [layer channel bufs]
+  [layer aesthetic bufs]
   (when (seq bufs)
-    (if (get layer (keyword (str (name channel) "-drawn?")))
+    (if (get layer (keyword (str (name aesthetic) "-drawn?")))
       identity
       (scale/channel-mapper
-       (get layer (defaults/channel->scale-key channel))
+       (get layer (defaults/channel->scale-key aesthetic))
        (reduce min (map #(reduce min %) bufs))
        (reduce max (map #(reduce max %) bufs))
-       (get defaults/channel-ranges channel)
-       (ink-exponent (:mark layer) channel)))))
+       (get defaults/channel-ranges aesthetic)
+       (ink-exponent (:mark layer) aesthetic)))))
+
+(defn channel-magnitude-fn
+  "Retired in favour of `aesthetic-magnitude-fn`, which does the same
+   thing under the name the rest of the library uses. Reports the new
+   name rather than resolving to nothing."
+  [& _]
+  (throw (ex-info (str "layer-type/channel-magnitude-fn is retired. "
+                       "Write layer-type/aesthetic-magnitude-fn, which takes "
+                       "the same arguments and answers the same function.")
+                  {:retired 'layer-type/channel-magnitude-fn
+                   :write-instead 'layer-type/aesthetic-magnitude-fn})))
 
 (def layer-type-order
   "Canonical display order for built-in layer types."
@@ -327,7 +338,7 @@
 ;; label, so `{:text "note"}` there was taken and dropped in silence.
 ;; Off the list, the universal warning names `lay-text` and `lay-label`
 ;; as the layer types that draw one.
-;; The only built-in mark that varies an appearance channel from row to
+;; The only built-in mark that varies an appearance aesthetic from row to
 ;; row. Every other mark draws one value for the whole layer -- `:line`
 ;; takes one stroke width, `:boxplot` one opacity -- so a column mapped
 ;; there varies nothing.

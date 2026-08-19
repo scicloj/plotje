@@ -2648,10 +2648,10 @@
                :facet-col (column-argument "pj/facet-grid" col-col)
                :facet-row (column-argument "pj/facet-grid" row-col)))
 
-(def ^:private channel->scale-key
-  "Channel keyword to the opts key holding its scale spec. Derived from
-   `defaults/aesthetic-registry`, so a new scalable aesthetic gets a
-   channel by carrying a `:scale-key` there.
+(def ^:private aesthetic->scale-key
+  "Aesthetic keyword to the opts key holding its scale spec. Derived
+   from `defaults/aesthetic-registry`, so a new scalable aesthetic gets
+   a scale by carrying a `:scale-key` there.
 
    `:group` has none on purpose. It used to map to a `:group-scale`
    that `pose/leaf->draft` never stamped onto a layer and nothing ever
@@ -2659,14 +2659,15 @@
    nothing about the plot."
   defaults/channel->scale-key)
 
-(def ^:private continuous-visual-channels
-  "Continuous visual channels. These accept `:linear` and `:log` only --
-   `:categorical` does not apply to a continuous encoding."
+(def ^:private continuous-appearance-aesthetics
+  "The continuous appearance aesthetics. These accept `:linear` and
+   `:log` only -- `:categorical` does not apply to a continuous
+   encoding."
   #{:size :alpha :fill :color})
 
-(def ^:private discrete-visual-channels
-  "Discrete visual channels. These accept :categorical only -- there
-   is no continuous interpretation for a shape symbol."
+(def ^:private discrete-appearance-aesthetics
+  "The discrete appearance aesthetics. These accept `:categorical` only
+   -- there is no continuous reading of a shape symbol."
   #{:shape})
 
 (defn scale
@@ -2716,20 +2717,22 @@
    dropped, so a narrower domain says what the reader should compare
    without leaving rows off the panel.
 
-   Channels and accepted scale types:
+   Aesthetics and accepted scale types:
 
-   - Axis channels (`:x`, `:y`) accept `:linear`, `:log`, `:categorical`.
-   - Continuous visual channels (`:size`, `:alpha`, `:fill`, `:color`) accept
-     `:linear` and `:log` only -- `:categorical` does not apply.
-   - The discrete visual channel `:shape` accepts `:categorical` only --
-     `:linear` and `:log` do not apply to a discrete encoding.
+   - The axis aesthetics (`:x`, `:y`) accept `:linear`, `:log`,
+     `:categorical`.
+   - The continuous appearance aesthetics (`:size`, `:alpha`, `:fill`,
+     `:color`) accept `:linear` and `:log` only -- `:categorical` does
+     not apply.
+   - The discrete appearance aesthetic `:shape` accepts `:categorical`
+     only -- `:linear` and `:log` do not apply to a discrete encoding.
 
    `:group` is refused: it draws nothing of its own, so there is no
    scale to set. It splits a layer into one drawn group per value, and
    the order of those groups is the order of the data.
 
-   To take a channel off its scale for one mapping rather than choose a
-   type for the whole plot, write that mapping out in full:
+   To take an aesthetic off its scale for one mapping rather than
+   choose a type for the whole plot, write that mapping out in full:
    `{:color {:column :hex :scale false}}` draws the column's values as
    they stand, and `{:size {:value 7 :scale true}}` sends a written
    value through the scale. See the layer option docs for `:color` and
@@ -2785,47 +2788,47 @@
    - `(scale pose :shape {:type :categorical :domain [...]})` -- shape
      legend order.
    - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols."
-  [pose channel scale-type]
-  (when (= :group channel)
+  [pose aesthetic scale-type]
+  (when (= :group aesthetic)
     (throw (ex-info (str "pj/scale has no :group aesthetic. Grouping draws"
                          " nothing of its own -- it splits a layer into one"
                          " drawn group per value, in the order the data"
                          " gives them -- so there is no scale to set. To"
                          " order or restyle what the reader sees, scale the"
                          " aesthetic that draws it: :color or :shape.")
-                    {:channel channel
-                     :supported (vec (sort (keys channel->scale-key)))})))
-  (let [k (or (channel->scale-key channel)
+                    {:aesthetic aesthetic
+                     :supported (vec (sort (keys aesthetic->scale-key)))})))
+  (let [k (or (aesthetic->scale-key aesthetic)
               (throw (ex-info (str "pj/scale takes one of the aesthetics "
-                                   (vec (sort (keys channel->scale-key)))
-                                   ", got: " channel)
-                              {:channel channel})))
-        cont-visual? (continuous-visual-channels channel)
-        disc-visual? (discrete-visual-channels channel)
-        valid-types (defaults/channel-scale-types channel)
+                                   (vec (sort (keys aesthetic->scale-key)))
+                                   ", got: " aesthetic)
+                              {:aesthetic aesthetic})))
+        cont-visual? (continuous-appearance-aesthetics aesthetic)
+        disc-visual? (discrete-appearance-aesthetics aesthetic)
+        valid-types (defaults/channel-scale-types aesthetic)
         type-kw (if (map? scale-type) (:type scale-type) scale-type)]
     (when-not (or (nil? type-kw) (valid-types type-kw))
       (throw (ex-info
               (cond
                 (and cont-visual? (= type-kw :categorical))
-                (str "The aesthetic " channel " is continuous and does not"
+                (str "The aesthetic " aesthetic " is continuous and does not"
                      " support a :categorical scale. Supported: "
                      (vec (sort valid-types)) ".")
                 (and disc-visual? (#{:linear :log} type-kw))
-                (str "The aesthetic " channel " is discrete and does not"
+                (str "The aesthetic " aesthetic " is discrete and does not"
                      " support a continuous scale (" type-kw "). Supported: "
                      (vec (sort valid-types)) ".")
                 :else
                 (str "Unknown scale type: " type-kw ". Supported for "
-                     channel ": " (vec (sort valid-types)) "."))
-              {:channel channel :scale-type type-kw
+                     aesthetic ": " (vec (sort valid-types)) "."))
+              {:aesthetic aesthetic :scale-type type-kw
                :supported (vec (sort valid-types))})))
     (when (map? scale-type)
       ;; The same three calls a mapping's `:scale` makes, in the same
       ;; order, so a spec means one thing wherever it is written.
-      (scale/validate-spec-values! channel scale-type "pj/scale")
-      (scale/validate-drawn-range-options! channel scale-type "pj/scale")
-      (scale/validate-spec-keys! channel scale-type "pj/scale"))
+      (scale/validate-spec-values! aesthetic scale-type "pj/scale")
+      (scale/validate-drawn-range-options! aesthetic scale-type "pj/scale")
+      (scale/validate-spec-keys! aesthetic scale-type "pj/scale"))
     ;; The spec is written as the caller stated it. A map that names no
     ;; :type does not mean the scale is linear -- it means this call had
     ;; no opinion about the type -- so filling one in here would make
@@ -2836,7 +2839,7 @@
                  scale-type
                  {:type scale-type})]
       (update (->pose pose "pj/scale") :mapping
-              pose/put-scale channel spec))))
+              pose/put-scale aesthetic spec))))
 
 (defn coord
   "Set coordinate transform on a pose. The coord applies to the pose it

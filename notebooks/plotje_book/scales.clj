@@ -654,7 +654,10 @@ gapminder-2007
 ;; For `:color` the palette is assigned in the order given, so the
 ;; domain moves the legend rows and the colors together: the first
 ;; category listed takes the palette's first color wherever it sits in
-;; the data. `:fill` reads no categorical column at all, as
+;; the data. It moves the marks with them: where the groups of one
+;; layer are piled up or set side by side, they follow the same order,
+;; so a stacked bar reads down its height in the order the legend reads
+;; down its rows. `:fill` reads no categorical column at all, as
 ;; [The colors a scale spans](#the-colors-a-scale-spans) shows, so
 ;; there is no categorical `:domain` for it to read.
 
@@ -666,6 +669,29 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (= ["Oceania" "Europe" "Asia" "Americas" "Africa"]
               (mapv :label (:entries (:legend (pj/plan fr))))))])
+
+;; On a stacked bar the same domain moves the segments. Listed the
+;; other way round, breakfast goes from the top of each bar to its
+;; foot, and the legend rows go with it:
+
+(-> {:day ["Mon" "Mon" "Mon" "Tue" "Tue" "Tue"]
+     :meal ["breakfast" "lunch" "dinner" "breakfast" "lunch" "dinner"]
+     :n [10 30 20 12 25 30]}
+    (pj/lay-bar :day :n {:color :meal :position :stack})
+    (pj/scale :color {:domain ["dinner" "lunch" "breakfast"]}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [plan (pj/plan fr)
+          groups (-> plan :panels first :layers first :groups)]
+      (and
+       ;; The legend reads down in the order the domain gives.
+       (= ["dinner" "lunch" "breakfast"]
+          (mapv :label (:entries (:legend plan))))
+       ;; And so do the segments: the first listed is on top, the last
+       ;; rests on the baseline.
+       (= ["dinner" "lunch" "breakfast"] (mapv :label groups))
+       (every? zero? (:y0s (last groups))))))])
 
 ;; The number of categories listed changes nothing. A column holding
 ;; exactly two numeric categories is ordered by the same `:domain` on
@@ -1112,17 +1138,32 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v]
-    ;; The centre of the gradient sits at zero rather than at 10, the
-    ;; middle of -40 to 60, so every mark but the extremes is drawn a
-    ;; different color than it would be without the midpoint.
     (let [colors (fn [p] (-> p pj/plan :panels first :layers first
-                             :groups first :colors vec))]
-      (not= (colors v)
-            (colors (-> {:region ["n" "s" "e" "w" "c"]
-                         :year [1 2 3 4 5]
-                         :change [-40 -10 5 30 60]}
-                        (pj/lay-point :year :change {:color :change})
-                        (pj/scale :color {:range :diverging}))))))])
+                             :groups first :colors vec))
+          stops (-> v pj/plan :legend :stops)]
+      (and
+       ;; The centre of the gradient sits at zero rather than at 10,
+       ;; the middle of -40 to 60, so the marks are drawn in different
+       ;; colors than they would be without the midpoint.
+       (not= (colors v)
+             (colors (-> {:region ["n" "s" "e" "w" "c"]
+                          :year [1 2 3 4 5]
+                          :change [-40 -10 5 30 60]}
+                         (pj/lay-point :year :change {:color :change})
+                         (pj/scale :color {:range :diverging}))))
+       ;; The two ends of the bar are the two ends of the data, and the
+       ;; place in the gradient each is drawn at is what the prose
+       ;; below states: a sixth of the way along, and all the way.
+       (< 0.16666 (:gradient-t (first stops)) 0.16667)
+       (== 1.0 (:gradient-t (last stops))))))])
+
+;; The gradient is centred on the midpoint and widened until it reaches
+;; whichever end of the domain is further from it, so a departure of
+;; the same size in either direction is drawn at the same saturation.
+;; Sixty is further from zero than -40 is, so sixty takes the extreme
+;; color and -40 is drawn a sixth of the way along the gradient rather
+;; than at its other end. The bar beside the panel spans the same
+;; stretch, so a color read off it is a color some mark carries.
 
 ;; Each of the three has a plot option of the same name, one scope
 ;; further out: `:color-values`, `:color-range` and `:color-midpoint`,

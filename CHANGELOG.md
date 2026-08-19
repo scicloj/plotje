@@ -3,9 +3,23 @@
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
 ## [Unreleased]
-- fix: a `:fill` legend is drawn through the same scale its marks are. A `:domain` set on `:fill` moves the bar together with the tiles, a setting written in a scale spec wins over the matching plot option -- `:range` and `:midpoint` alike -- and a range a spec decided is left alone at render time. A tile reads `:color` as a synonym for `:fill` key by key, so a `:fill` spec naming only a gradient leaves the domain to `:color`.
-- fix: a contour's legend reads the `:color` scale its levels are built from. `:fill` paints the interior of a tile, and a contour draws lines, so a `:fill` scale set on one changes neither the lines nor the bar beside them.
-- fix: a mark that draws one color per group reports a numeric `:color` column, which it cannot read as a gradient: bars, boxplots, violins, lollipops, ridgelines, rugs, text, error bars, point ranges, lines, steps and areas. `:point` is the mark that carries a color per row. The message names `:color-type :categorical`, which gives each category a color of its own.
+
+### Plots that look different after upgrading
+
+- **Every plot setting a `:midpoint`.** The gradient is centred on the midpoint and widened until it reaches whichever end of the domain is further from it, so a departure of the same size in either direction is drawn at the same saturation and the nearer end stops short of the extreme -- ggplot2's `rescale_mid`. On a domain of -40 to 60 around zero, -40 is drawn a sixth of the way along the gradient and 60 takes its far end.
+- **Every stacked bar, area and step.** The groups pile up in the order the legend lists them, the first on top, where the first group used to rest on the baseline. `:position :fill` stacks the same way round. ggplot2's `position_stack` stacks this way too (measured, 4.0.0), so a reader matches the legend against the bar by reading both downward.
+- **A `:domain` on a categorical `:color`.** The order it gives now reaches the marks as well as the legend, so a stacked bar's segments and a dodged bar's bars follow the rows of the legend beside them. Before, the domain moved the legend and left the marks where the stat had grouped them.
+- **A `:midpoint` at an end of its domain.** The value there is drawn at the middle of the gradient, so `{:midpoint 0}` on a column of zero and up draws zero in the middle rather than at the most saturated colour below it.
+
+### Renamed
+
+- `layer-type/aesthetic-magnitude-fn` gives a mark's renderer the function its legend is built from. The retired `layer-type/channel-magnitude-fn` reports the name to write instead. Every published docstring and arglist says *aesthetic* where it said *channel* -- `pj/scale` takes `[pose aesthetic scale-type]` -- and the errors `layer-type/register!` throws about `:varies` carry `:aesthetic` in their data.
+
+### Fixed
+- a continuous legend's bar is drawn through the normalization its marks are, so a `:midpoint` moves the bar with them. The bar spans the stretch of gradient the data reaches and no more, and the colour at the end labelled with the domain's low value is the colour the lowest mark carries.
+- a `:fill` legend is drawn through the same scale its marks are. A `:domain` set on `:fill` moves the bar together with the tiles, a setting written in a scale spec wins over the matching plot option -- `:range` and `:midpoint` alike -- and a range a spec decided is left alone at render time. A tile reads `:color` as a synonym for `:fill` key by key, so a `:fill` spec naming only a gradient leaves the domain to `:color`.
+- a contour's legend reads the `:color` scale its levels are built from. `:fill` paints the interior of a tile, and a contour draws lines, so a `:fill` scale set on one changes neither the lines nor the bar beside them.
+- a mark that draws one color per group reports a numeric `:color` column, which it cannot read as a gradient: bars, boxplots, violins, lollipops, ridgelines, rugs, text, error bars, point ranges, lines, steps and areas. `:point` is the mark that carries a color per row. The message names `:color-type :categorical`, which gives each category a color of its own.
 
 ## [0.9.0 - 2026-08-19]
 

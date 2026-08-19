@@ -70,8 +70,11 @@
                              (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
           ;; Gradient bar: stack of small colored rectangles
           (for [i (range n-stops)
-                :let [{:keys [t color]} (nth stops i)
-                      c (if override? (grad-fn t) color)
+                :let [{:keys [t gradient-t color]} (nth stops i)
+                      ;; Repainted at the place in the gradient the
+                      ;; stop stands for, not at its place on the bar.
+                      ;; A midpoint parts the two.
+                      c (if override? (grad-fn gradient-t) color)
                       [cr cg cb _] c
                       ry (+ y (* (- 1.0 t) bar-h))]]
             (ui/translate x ry

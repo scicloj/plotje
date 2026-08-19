@@ -1,11 +1,12 @@
 (ns scicloj.plotje.scale-spec-test
-  "A scale spec says which scale a channel is read through and how a
+  "A scale spec says which scale an aesthetic is read through and how a
    value spreads across what the mark draws it as: `:type`, `:domain`,
    `:range`, `:by` and `:from-zero`. The same spec can be written on
    the pose with `pj/scale` or in the mapping itself."
   (:require [clojure.test :refer [deftest is testing]]
             [scicloj.plotje.api :as pj]
             [scicloj.plotje.impl.scale :as scale]
+            [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.layer-type :as layer-type]
             [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.render.mark :as mark]
@@ -906,3 +907,80 @@
       (is (warned? (-> {:a [1.0 2.0 3.0] :b [1.0 2.0 3.0]}
                        (pj/lay-point :a :b)
                        (pj/scale :fill {:range :inferno})))))))
+
+(def diverging
+  {:region ["n" "s" "e" "w" "c"]
+   :year [1 2 3 4 5]
+   :change [-40 -10 5 30 60]})
+
+(deftest a-midpoint-centres-one-window-on-itself-test
+  ;; ggplot2's rescale_mid: the window is symmetric about the midpoint
+  ;; and as wide as the further of the two domain ends reaches, so equal
+  ;; deviations draw at equal saturation. Stretching each half to its
+  ;; own extent instead drew -40 as saturated as 60.
+  (testing "the further end takes the extreme and the nearer stops short"
+    (is (== 1.0 (defaults/normalize-continuous :linear 60 -40 60 0)))
+    (is (< 0.16666 (defaults/normalize-continuous :linear -40 -40 60 0) 0.16667)))
+
+  (testing "the midpoint itself is the middle of the gradient"
+    (is (== 0.5 (defaults/normalize-continuous :linear 0 -40 60 0))))
+
+  (testing "equal deviations from the midpoint draw equally far from it"
+    (let [t (fn [v] (defaults/normalize-continuous :linear v -40 60 0))]
+      (is (< (Math/abs (- (- 0.5 (t -30)) (- (t 30) 0.5))) 1e-12))))
+
+  (testing "a midpoint at an end of the domain still answers 0.5 there"
+    ;; The clamp used to fire first, so zero on a column of zero and up
+    ;; was drawn at the most saturated below-midpoint colour.
+    (is (== 0.5 (defaults/normalize-continuous :linear 0 0 100 0))))
+
+  (testing "a domain of one value answers the middle"
+    (is (== 0.5 (defaults/normalize-continuous :linear 7 7 7 7))))
+
+  (testing "a value outside the domain is drawn at the nearer end"
+    (is (== 0.0 (defaults/normalize-continuous :linear -200 -40 60 0)))
+    (is (== 1.0 (defaults/normalize-continuous :linear 200 -40 60 0))))
+
+  (testing "no midpoint, and log, are untouched"
+    (is (== 0.0 (defaults/normalize-continuous :linear 0 0 10 nil)))
+    (is (== 0.5 (defaults/normalize-continuous :linear 5 0 10 nil)))
+    (is (< 0.333 (defaults/normalize-continuous :log 10 1 1000 nil) 0.334))))
+
+(deftest a-legend-bar-is-drawn-through-the-midpoint-its-marks-are-test
+  ;; The bar's stops used to be sampled at evenly spaced places in the
+  ;; gradient while the marks reached only part of it, so the colour at
+  ;; the end labelled -40 was one no mark on the panel could take.
+  (let [plan (-> diverging
+                 (pj/lay-point :year :change {:color :change})
+                 (pj/scale :color {:range :diverging :midpoint 0})
+                 pj/plan)
+        stops (-> plan :legend :stops)
+        lowest-mark-color (-> plan :panels first :layers first
+                              :groups first :colors first vec)]
+    (testing "the bar spans the data, not the whole gradient"
+      (is (= [-40.0 60.0] [(-> plan :legend :min) (-> plan :legend :max)]))
+      (is (== 0.0 (:t (first stops))))
+      (is (< 0.16666 (:gradient-t (first stops)) 0.16667))
+      (is (== 1.0 (:gradient-t (last stops)))))
+
+    (testing "so its low end is the colour its lowest mark is drawn in"
+      (is (= (mapv double lowest-mark-color)
+             (mapv double (:color (first stops))))))))
+
+(deftest a-bar-without-a-midpoint-reads-place-for-place-test
+  ;; Where the domain covers the whole gradient -- every scale without a
+  ;; midpoint, :log among them -- a stop's place on the bar and its
+  ;; place in the gradient are the same number.
+  (let [agree? (fn [plan]
+                 (every? #(== (:t %) (:gradient-t %)) (-> plan :legend :stops)))]
+    (testing "a linear colour bar"
+      (is (agree? (-> diverging
+                      (pj/lay-point :year :change {:color :change})
+                      (pj/scale :color {:range :diverging})
+                      pj/plan))))
+
+    (testing "a log fill bar"
+      (is (agree? (-> {:x [1 2 3 4] :y [1 1 1 1] :v [1 10 100 1000]}
+                      (pj/lay-tile :x :y {:fill :v})
+                      (pj/scale :fill :log)
+                      pj/plan))))))

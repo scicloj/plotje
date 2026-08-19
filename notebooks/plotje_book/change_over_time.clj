@@ -110,8 +110,8 @@
 
 ;; ## Stacked Step
 
-;; Each group stacks above the previous, with horizontal-then-vertical
-;; segments.
+;; The groups pile up in the order the legend lists them, the first on
+;; top, with horizontal-then-vertical segments.
 
 (-> {:x (concat (range 5) (range 5) (range 5))
      :y (concat [1 2 3 4 5] [2 2 2 2 2] [3 1 2 1 2])

@@ -263,7 +263,10 @@
 
 (def GradientStop
   [:map
+   ;; Where the stop sits on the bar, and where in the gradient the
+   ;; value there is drawn. The same number except under a midpoint.
    [:t number?]
+   [:gradient-t number?]
    [:color Color]])
 
 (def Legend
