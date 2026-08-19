@@ -38,7 +38,17 @@
 ;; ---- Dodge ----
 
 (defmethod apply-position :dodge [_ layers]
-  (let [all-labels (vec (distinct (mapcat layer-group-labels layers)))
+  (let [;; The order the plot settled its categories in, carried here by
+        ;; `apply-positions`. Where it is present the groups are placed
+        ;; in it, so a dodged bar reads the way the legend beside it
+        ;; reads; a label it does not rank keeps its place at the end.
+        ;; Without it the index followed whichever group the stat
+        ;; happened to emit first.
+        rank (some :__category-order layers)
+        observed (vec (distinct (mapcat layer-group-labels layers)))
+        all-labels (if rank
+                     (vec (sort-by #(get rank % Long/MAX_VALUE) observed))
+                     observed)
         n-groups (max 1 (count all-labels))
         label->idx (zipmap all-labels (range))
         dodge-ctx {:n-groups n-groups}
@@ -240,26 +250,34 @@
    layers; it must not leak into paint order. (It used to: emitting in
    the canonical position order meant text/label marks -- position
    :identity -- always painted before, and so under, bar marks -- position
-   :dodge/:stack -- regardless of the order the author added them.)"
-  [layers]
-  (let [;; Tag each layer with its original index so the author's order
+   :dodge/:stack -- regardless of the order the author added them.)
+
+   `rank`, when given, maps a category's drawn label to its place in
+   the order the plot settled on. It reaches `:dodge` on each layer and
+   is stripped again here, the way `:__layer-order` is."
+  ([layers] (apply-positions layers nil))
+  ([layers rank]
+   (let [;; Tag each layer with its original index so the author's order
         ;; can be restored after grouping. apply-position preserves
         ;; arbitrary keys on each layer map and the within-group order,
         ;; so this index survives every position transform.
-        indexed (map-indexed (fn [i l] (assoc l :__layer-order i)) layers)
-        dodged-labels (into #{} (comp (filter #(= :dodge (:position %)))
-                                      (mapcat layer-group-labels))
-                            indexed)
-        by-pos (group-by #(position-key dodged-labels %) indexed)
+         indexed (map-indexed (fn [i l]
+                                (cond-> (assoc l :__layer-order i)
+                                  rank (assoc :__category-order rank)))
+                              layers)
+         dodged-labels (into #{} (comp (filter #(= :dodge (:position %)))
+                                       (mapcat layer-group-labels))
+                             indexed)
+         by-pos (group-by #(position-key dodged-labels %) indexed)
         ;; Iterate known positions in canonical order first, then any
         ;; unknown ones, so the per-group computation is deterministic
         ;; regardless of group-by's hash-based key order.
-        known (set position-order)
-        ordered (concat position-order
-                        (filter (complement known) (keys by-pos)))]
-    (->> ordered
-         (mapcat (fn [pos]
-                   (when-let [ls (seq (get by-pos pos))]
-                     (apply-position pos ls))))
-         (sort-by :__layer-order)
-         (mapv #(dissoc % :__layer-order)))))
+         known (set position-order)
+         ordered (concat position-order
+                         (filter (complement known) (keys by-pos)))]
+     (->> ordered
+          (mapcat (fn [pos]
+                    (when-let [ls (seq (get by-pos pos))]
+                      (apply-position pos ls))))
+          (sort-by :__layer-order)
+          (mapv #(dissoc % :__layer-order :__category-order))))))

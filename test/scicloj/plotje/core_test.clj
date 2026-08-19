@@ -8,6 +8,7 @@
             [scicloj.plotje.impl.stat :as stat]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.position :as position]
+            [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.layer-type :as layer-type]
@@ -313,6 +314,61 @@
     (is (= 2 (:n-groups (:dodge-ctx layer))))
     (is (= 0 (:dodge-idx (first (:groups layer)))))
     (is (= 1 (:dodge-idx (second (:groups layer)))))))
+
+(deftest dodge-order-follows-the-settled-categories-test
+  ;; The index used to follow whichever group the stat emitted first,
+  ;; so a dodged bar could read in a different order from the legend
+  ;; beside it, and a `:domain` moved the legend alone.
+  (let [layers [{:mark :rect :position :dodge
+                 :categories ["a"]
+                 :groups [{:label "g2" :counts [{:category "a" :count 10}]}
+                          {:label "g1" :counts [{:category "a" :count 20}]}]}]]
+    (testing "with no ranking, the order is the one the layer arrived in"
+      (let [gs (:groups (first (position/apply-positions layers)))]
+        (is (= [0 1] (mapv :dodge-idx gs)))))
+
+    (testing "a ranking places them, whatever order the stat emitted"
+      (let [gs (:groups (first (position/apply-positions layers {"g1" 0 "g2" 1})))]
+        (is (= [1 0] (mapv :dodge-idx gs)))))
+
+    (testing "a label the ranking does not name goes last"
+      (let [gs (:groups (first (position/apply-positions layers {"g2" 0})))]
+        (is (= [0 1] (mapv :dodge-idx gs)))))))
+
+(deftest boxes-and-violins-dodge-in-the-legend-order-test
+  ;; A boxplot stores its groups under :boxes and a violin under
+  ;; :violins, so the ordering step that sorts :groups never reaches
+  ;; them. Their index comes from the same ranking instead.
+  (let [boxes [{:mark :box :position :dodge
+                :boxes [{:category "compact" :color-category "4"}
+                        {:category "compact" :color-category "f"}]}]
+        violins [{:mark :violin :position :dodge
+                  :violins [{:category "compact" :color-category "4"}
+                            {:category "compact" :color-category "f"}]}]
+        rank {"f" 0 "4" 1}]
+    (is (= [1 0] (mapv :dodge-idx (:boxes (first (position/apply-positions boxes rank))))))
+    (is (= [1 0] (mapv :dodge-idx (:violins (first (position/apply-positions violins rank))))))))
+
+(deftest band-position-counts-from-the-reader-s-first-end-test
+  ;; An x band scale runs left to right and a y band scale places its
+  ;; first category at the foot of the panel, so its bandwidth is
+  ;; negative. Counting sub-bands from index zero in drawing units put
+  ;; the first group at the bottom of a horizontal dodge while the
+  ;; legend listed it at the top.
+  (let [forward (scale/make-scale ["Mon" "Tue"] [0.0 300.0] {})
+        inverted (scale/make-scale ["Mon" "Tue"] [300.0 0.0] {})
+        mid (fn [s i] (:mid (mark/band-position s "Mon" i 3 0.9)))]
+    (testing "on an x band scale the first group is leftmost"
+      (is (< (mid forward 0) (mid forward 1) (mid forward 2))))
+
+    (testing "on a y band scale the first group is topmost -- the least y"
+      (is (< (mid inverted 0) (mid inverted 1) (mid inverted 2))))
+
+    (testing "a lone group sits at the middle of its band on either scale"
+      ;; Mon spans 0 to 150 on the forward scale and 300 to 150 on the
+      ;; inverted one, so its middle is 75 and 225.
+      (is (== 75.0 (:mid (mark/band-position forward "Mon" 0 1 0.9))))
+      (is (== 225.0 (:mid (mark/band-position inverted "Mon" 0 1 0.9)))))))
 
 (deftest apply-positions-stack-test
   (let [layers [{:mark :rect :position :stack

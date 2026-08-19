@@ -433,28 +433,39 @@
           (assoc rv :data ds)
           rv)))))
 
+(defn- category-rank
+  "A map from a category's drawn label to its place in the order the
+   plot settled on -- the order the legend lists, and the order a
+   `:domain` asked for. Nil where no categories were collected.
+
+   Both spellings of a label are keys, because the slots a mark stores
+   its groups in do not agree on one: a `:groups` entry carries
+   `fmt-category-label` of the value, while a `:boxes` or `:violins`
+   entry carries `str` of it. On a keyword category the two differ, and
+   a rank found under only one of them would leave half the marks
+   ordered by the stat instead."
+  [all-colors]
+  (when (seq all-colors)
+    (into {} (mapcat (fn [c i] [[(defaults/fmt-category-label c) i] [(str c) i]])
+                     all-colors (range)))))
+
 (defn- order-groups-by-categories
   "Put a layer's drawn groups in the order the categories were settled
-   in -- the order the legend lists them, and the order a `:domain`
-   asked for.
+   in, so what is drawn reads the way the legend beside it reads.
 
    Without this the stat's own grouping decides where a group is
-   stacked or dodged while the legend is built from `all-colors`, so a
-   `:domain` moved the legend rows and left the marks where they were.
-   One step here rather than one per mark, because every mark answers
-   the same question.
+   stacked while the legend is built from `all-colors`, so a `:domain`
+   moved the legend rows and left the marks where they were. One step
+   here rather than one per mark, because every mark answers the same
+   question. The dodged marks are ordered from the same ranking, in
+   `position/apply-positions`, which is where their index is assigned.
 
-   Matched on the formatted label, which is what a group carries by the
-   time it is drawn; `all-colors` holds the raw values. A group whose
-   label names no category keeps its place at the end."
-  [layer all-colors]
-  (let [order (when (seq all-colors)
-                (into {} (map-indexed (fn [i c] [(defaults/fmt-category-label c) i])
-                                      all-colors)))]
-    (if (and order (seq (:groups layer)))
-      (update layer :groups
-              #(vec (sort-by (fn [g] (get order (:label g) Long/MAX_VALUE)) %)))
-      layer)))
+   A group whose label names no category keeps its place at the end."
+  [layer rank]
+  (if (and rank (seq (:groups layer)))
+    (update layer :groups
+            #(vec (sort-by (fn [g] (get rank (:label g) Long/MAX_VALUE)) %)))
+    layer))
 
 (defn resolve-panel-draft-layers
   "Resolve draft layers and compute stats for a group of draft layers belonging to one panel.
@@ -484,8 +495,9 @@
                                                 (:x-drawn? rv) (assoc :x-drawn? true)
                                                 (:y-drawn? rv) (assoc :y-drawn? true))))
                                   resolved stat-results))
-        ordered (mapv #(order-groups-by-categories % all-colors) raw-plan-layers)
-        plan-layers (position/apply-positions ordered)]
+        rank (category-rank all-colors)
+        ordered (mapv #(order-groups-by-categories % rank) raw-plan-layers)
+        plan-layers (position/apply-positions ordered rank)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
 
 (defn- scaled-color-column?

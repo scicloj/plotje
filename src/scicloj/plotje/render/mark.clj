@@ -72,8 +72,19 @@
       [[x1 y1] [x2 y2] [x3 y3] [x4 y4] [x1 y1]])))
 
 (defn band-position
-  "Compute dodged position within a categorical band.
-   Returns {:lo :hi :mid} pixel coordinates for one sub-band.
+  "Where one dodged group sits inside a categorical band, in drawing
+   units. Returns `{:lo :hi :mid :sub-bw}` for that sub-band.
+
+   The first group is placed at the start of the band as a reader meets
+   it: leftmost on a categorical x axis, topmost on a categorical y
+   axis. Those are opposite directions in drawing units -- an x band
+   scale runs left to right, and a y band scale places its first
+   category at the foot of the panel, so its bandwidth is negative --
+   and the index is counted from the far end in that second case.
+   Without it a horizontal dodge drew its groups bottom-up while the
+   legend listed them top-down, so matching one against the other meant
+   reading them in opposite directions.
+
    - band-s: wadogo band scale
    - category: category value to look up
    - group-idx: index of this group within n-groups
@@ -81,13 +92,15 @@
    - frac: fraction of band width to use (e.g. 0.8)"
   [band-s category group-idx n-groups frac]
   (let [bw (ws/data band-s :bandwidth)
+        n (max 1 n-groups)
+        idx (if (neg? bw) (- n 1 group-idx) group-idx)
         band-info (band-s category true)
         band-start (:rstart band-info)
         band-end (:rend band-info)
         band-mid (/ (+ band-start band-end) 2.0)
-        sub-bw (/ (* bw frac) (max 1 n-groups))
+        sub-bw (/ (* bw frac) n)
         group-start (- band-mid (/ (* n-groups sub-bw) 2.0))
-        lo (+ group-start (* group-idx sub-bw))
+        lo (+ group-start (* idx sub-bw))
         hi (+ lo sub-bw)]
     {:lo lo :hi hi :mid (/ (+ lo hi) 2.0) :sub-bw sub-bw}))
 
