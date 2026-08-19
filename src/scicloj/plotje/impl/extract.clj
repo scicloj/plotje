@@ -344,12 +344,17 @@
       (apply-nudge draft-layer)))
 
 (defmethod extract-layer :step [draft-layer stat all-colors cfg]
-  {:mark :step
-   :style (cond-> {:stroke-width (or (:fixed-size draft-layer) (:line-width cfg))
-                   :opacity (or (:fixed-alpha draft-layer) 1.0)}
-            (resolve-dash (:stroke-dash draft-layer))
-            (assoc :dash (resolve-dash (:stroke-dash draft-layer))))
-   :groups (extract-xy-groups draft-layer stat all-colors cfg)})
+  ;; `:position` is carried as `:area` carries it, so a stacked step
+  ;; stacks. Without it the layer reached `apply-positions` with no
+  ;; position, was grouped as `:identity`, and drew its raw values --
+  ;; the chapter's Stacked Step example was three unstacked lines.
+  (cond-> {:mark :step
+           :style (cond-> {:stroke-width (or (:fixed-size draft-layer) (:line-width cfg))
+                           :opacity (or (:fixed-alpha draft-layer) 1.0)}
+                    (resolve-dash (:stroke-dash draft-layer))
+                    (assoc :dash (resolve-dash (:stroke-dash draft-layer))))
+           :groups (extract-xy-groups draft-layer stat all-colors cfg)}
+    (:position draft-layer) (assoc :position (:position draft-layer))))
 
 (defmethod extract-layer :rect [draft-layer stat all-colors cfg]
   (if (:bars stat)

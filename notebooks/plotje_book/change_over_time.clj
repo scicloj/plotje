@@ -118,9 +118,19 @@
      :group (concat (repeat 5 "A") (repeat 5 "B") (repeat 5 "C"))}
     (pj/lay-step :x :y {:position :stack :color :group}))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 3 (:lines s)))))])
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          groups (-> v pj/plan :panels first :layers first :groups)]
+      (and (= 1 (:panels s))
+           (= 3 (:lines s))
+           ;; Stacked, not three lines drawn at their own values: C
+           ;; rests on the baseline and each group above it starts
+           ;; where the one below ends.
+           (= ["A" "B" "C"] (mapv :label groups))
+           (every? zero? (:y0s (last groups)))
+           (= (vec (:ys (second groups))) (vec (:y0s (first groups))))
+           (= (vec (:ys (last groups))) (vec (:y0s (second groups)))))))])
 
 ;; ## Area
 
@@ -136,7 +146,8 @@
 
 ;; ## [Stacked Area](https://en.wikipedia.org/wiki/Area_chart)
 
-;; Each group fills above the previous.
+;; The bands pile up in the order the legend lists them, the first on
+;; top.
 
 (-> {:x (concat (range 10) (range 10) (range 10))
      :y (concat [1 2 3 4 5 4 3 2 1 0]

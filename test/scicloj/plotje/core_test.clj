@@ -315,6 +315,24 @@
     (is (= 0 (:dodge-idx (first (:groups layer)))))
     (is (= 1 (:dodge-idx (second (:groups layer)))))))
 
+(deftest a-step-layer-carries-its-position-test
+  ;; The layer reached the position stage carrying no :position, was
+  ;; grouped as :identity, and drew its raw values. Nothing said so --
+  ;; three lines were drawn either way, which is what the chapter's
+  ;; assertion checked.
+  (let [d {:x [0 1 2 0 1 2] :y [1 2 3 10 10 10]
+           :g ["A" "A" "A" "B" "B" "B"]}
+        groups (-> d
+                   (pj/lay-step :x :y {:position :stack :color :g})
+                   pj/plan
+                   :panels first :layers first :groups)]
+    (is (= ["A" "B"] (mapv :label groups)))
+    ;; B is laid down first and A sits on top of it.
+    (is (= [0.0 0.0 0.0] (vec (:y0s (second groups)))))
+    (is (= [10.0 10.0 10.0] (vec (:ys (second groups)))))
+    (is (= [10.0 10.0 10.0] (vec (:y0s (first groups)))))
+    (is (= [11.0 12.0 13.0] (vec (:ys (first groups)))))))
+
 (deftest dodge-order-follows-the-settled-categories-test
   ;; The index used to follow whichever group the stat emitted first,
   ;; so a dodged bar could read in a different order from the legend
