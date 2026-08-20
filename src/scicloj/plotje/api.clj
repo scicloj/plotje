@@ -5,6 +5,7 @@
             [scicloj.plotje.impl.compositor :as compositor]
             [scicloj.plotje.impl.plan :as plan]
             [scicloj.plotje.impl.plan-schema :as ss]
+            [scicloj.plotje.impl.pose-schema :as pose-schema]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.render :as render-impl]
             [scicloj.plotje.impl.stat :as stat]
@@ -378,6 +379,30 @@
   [plan format opts]
   (expect-type plan resolve/plan? "plan (from pj/plan)" "pj/plan->plot")
   (render-impl/plan->plot plan format opts))
+
+;; ---- Pose Validation ----
+
+(defn valid-pose?
+  "Check if a pose conforms to the Malli schema.
+
+   - `(valid-pose? (lay-point data :x :y))` -- true if valid.
+
+   The schema is structural and deliberately permissive: it says what
+   shape a pose has, not whether the columns it names are in the data.
+   A pose built by `pj/pose`, `pj/lay-*`, `pj/options`, `pj/facet`,
+   `pj/arrange`, `pj/coord` or `pj/scale` conforms by construction; the
+   check is for a pose that has been reached into and changed, which is
+   the one place the constructors cannot speak for."
+  [pose]
+  (pose-schema/valid? pose))
+
+(defn explain-pose
+  "Explain why a pose does not conform to the Malli schema.
+   Returns `nil` if valid, or a Malli explanation map if invalid.
+
+   - `(explain-pose (assoc (lay-point data :x :y) :layers {}))`"
+  [pose]
+  (pose-schema/explain pose))
 
 ;; ---- Plan Validation ----
 
@@ -3105,6 +3130,10 @@
    area's own corner instead, so drawing these positions back means
    subtracting that corner first.
 
+   A pose, a plan or the whole frames map in the panel's place is
+   refused, with a message naming which of them it got and the call that
+   reaches a panel entry from there.
+
    A categorical axis is a band scale: it has a position for each of its
    categories and none between them. Asking it for anything else -- a
    category the axis does not carry, or a fractional place such as 2.5
@@ -3132,7 +3161,11 @@
 
    A continuous axis answers with numbers, so its column is `:float64`.
    A categorical axis answers with the category whose band holds the
-   position, so its column holds those."
+   position, so its column holds those.
+
+   A pose, a plan or the whole frames map in the panel's place is
+   refused, with a message naming which of them it got and the call that
+   reaches a panel entry from there."
   ([panel cx cy] (frames-impl/to-data panel cx cy))
   ([panel data] (frames-impl/to-data panel data)))
 

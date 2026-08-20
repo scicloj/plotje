@@ -1412,6 +1412,42 @@
       (is (= 1 (count (:panels pl))))
       (is (seq (get-in pl [:panels 0 :x-ticks :labels]))))))
 
+(deftest a-whole-day-axis-names-its-month
+  (let [labels (fn [start n step]
+                 (-> {:d (vec (for [i (range n)]
+                                (jt/plus (jt/local-date start) (jt/days (* i step)))))
+                      :v (vec (repeat n 1.0))}
+                     (pj/lay-point :d :v)
+                     pj/plan :panels first :x-ticks :labels))]
+    (testing "a span inside one month is labelled with that month"
+      ;; wadogo formats these as the bare day -- "02" "05" "08" -- which
+      ;; reads the same over January as over March. ggplot2 4.0.0 names
+      ;; the month on the same 28 dates.
+      (is (= ["Jan-02" "Jan-05" "Jan-08" "Jan-11" "Jan-14"
+              "Jan-17" "Jan-20" "Jan-23" "Jan-26"]
+             (labels "2024-01-01" 28 1))))
+
+    (testing "a span of about ten days, which wadogo labels Tue 01:00"
+      ;; The ticks here are a day apart but fall at 01:00, so the test
+      ;; that decides this is the gap between ticks, not the time of day.
+      (is (every? #(re-find #"^[A-Z][a-z]{2}-\d{2}$" %) (labels "2024-01-01" 10 1))))
+
+    (testing "ticks less than a day apart keep the hour that tells them apart"
+      (is (every? #(re-find #":" %) (labels "2024-03-04" 5 1))))
+
+    (testing "a span wadogo already names a month in keeps its labels"
+      (is (= ["Jan-02" "Jan-09" "Jan-16" "Jan-23" "Jan-30"
+              "Feb-06" "Feb-13" "Feb-20" "Feb-27"]
+             (labels "2024-01-01" 60 1))))
+
+    (testing "a span carrying a year keeps the year"
+      ;; Relabelling these to month and day would lose which year.
+      (is (every? #(re-find #"^\d{4}-" %) (labels "2024-01-01" 104 7)))
+      (is (every? #(re-find #"^\d{4}-" %) (labels "2015-01-01" 120 30))))
+
+    (testing "ticks that fall at a time of day are left to say the hour"
+      (is (every? #(re-find #":" %) (labels "2024-01-01" 3 1))))))
+
 (deftest format-log-ticks-test
   (testing "Powers of 10 >= 1 render as integers"
     (is (= ["1" "10" "100" "1000"]

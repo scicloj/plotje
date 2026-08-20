@@ -56,33 +56,14 @@
 
 
 (def
- v15_l80
- (->
-  {:height [1 2 3 4], :weight [1 2 3 40]}
-  (pj/lay-point :height :weight)
-  (pj/scale :y {:domain [0 5]})))
-
-
-(deftest
- t16_l84
- (is
-  ((fn
-    [v]
-    (let
-     [s (pj/svg-summary v)]
-     (and (= 4 (:points s)) (= 1 (:clips s)))))
-   v15_l80)))
-
-
-(def
- v18_l101
+ v15_l77
  (->
   {:height [1 2 3 4], :weight [1 2 3 4], :species ["a" nil "b" "a"]}
   (pj/lay-point :height :weight {:color :species})))
 
 
 (deftest
- t19_l104
+ t16_l80
  (is
   ((fn
     [v]
@@ -91,4 +72,23 @@
      (and
       (= 3 (:points s))
       (= ["a" "b"] (filterv #{"a" "b"} (:texts s))))))
-   v18_l101)))
+   v15_l77)))
+
+
+(def
+ v18_l102
+ (->
+  {:height [1 2 3 4], :weight [1 2 3 40]}
+  (pj/lay-point :height :weight)
+  (pj/scale :y {:domain [0 5]})))
+
+
+(deftest
+ t19_l106
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 4 (:points s)) (= 1 (:clips s)))))
+   v18_l102)))

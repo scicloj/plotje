@@ -62,6 +62,54 @@
   (testing "valid sequence-of-maps data still works"
     (is (pj/pose? (pj/pose [{:a 1 :b 2} {:a 3 :b 4}])))))
 
+(deftest pose-validation-is-published
+  (testing "a pose built by the constructors conforms"
+    ;; pj/valid-plan? and pj/valid-membrane? were published for the two
+    ;; stages users are taught not to touch, while the pose -- the one
+    ;; the book teaches them to build and assoc-in -- had none.
+    (is (true? (pj/valid-pose? (pj/lay-point tiny :x :y))))
+    (is (nil? (pj/explain-pose (pj/lay-point tiny :x :y))))
+    (is (true? (pj/valid-pose? (pj/arrange [(pj/lay-point tiny :x :y)
+                                            (pj/lay-line tiny :x :y)]))))
+    (is (true? (pj/valid-pose? (-> {:x [1.0 2.0] :y [3.0 4.0] :g ["a" "b"]}
+                                   (pj/lay-point :x :y)
+                                   (pj/facet :g))))))
+
+  (testing "a pose reached into and broken does not, and says why"
+    (let [broken (assoc (pj/lay-point tiny :x :y) :layers {})]
+      (is (false? (pj/valid-pose? broken)))
+      (is (some? (pj/explain-pose broken)))))
+
+  (testing "a value that is no pose at all"
+    (is (false? (pj/valid-pose? 42)))
+    (is (false? (pj/valid-pose? nil)))))
+
+(deftest rows-given-as-vectors-are-data-not-a-membrane
+  (testing "a vector of row vectors plots, and does not report a membrane"
+    ;; `membrane.ui` extends IOrigin to vectors, so the rejection
+    ;; diagnostic read [[1 2] [3 4]] as a hand-built drawable tree and
+    ;; answered with a message about PlotjeMembrane. Timothy Pratley's
+    ;; #32 thread began from data written this way.
+    (is (pj/pose? (pj/lay-point [[1 2] [3 4]])))
+    (is (= {:x 0 :y 1} (:mapping (pj/lay-point [[1 2] [3 4]])))
+        "the integer column names the coercion gives are inferred as usual")
+    (is (= 3 (:points (pj/svg-summary (pj/plot (pj/lay-point [[1 2] [3 4] [5 6]]))))))
+    (is (pj/pose? (pj/pose [[1 2] [3 4]] 0 1))
+        "pj/pose already accepted this shape, and still does"))
+
+  (testing "a real Membrane tree is still reported"
+    (let [m (pj/membrane (pj/lay-point tiny :x :y))]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"Membrane drawable tree"
+           (pj/lay-point m)))))
+
+  (testing "a rendered hiccup vector is still reported as hiccup"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #"rendered hiccup vector"
+         (pj/lay-point (pj/plot (pj/lay-point tiny :x :y)))))))
+
 (deftest template-idiom-still-works
   (testing "(pj/pose nil {:x :x :y :y}) supported as template"
     (let [tmpl (pj/pose nil {:x :x :y :y})]

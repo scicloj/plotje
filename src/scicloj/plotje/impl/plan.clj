@@ -134,6 +134,67 @@
 
 ;; ---- Tick Computation ----
 
+(def ^:private month-day-formatter
+  "Month and day, in wadogo's own separator so one axis does not mix two
+   spellings of a date, and with the locale pinned so one dataset's axis
+   reads the same wherever it is drawn."
+  (java.time.format.DateTimeFormatter/ofPattern "MMM-dd" java.util.Locale/ENGLISH))
+
+(def ^:private names-a-month-or-year
+  "A tick label that already says which month or which year it is in."
+  #"\d{4}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec")
+
+(defn- day-resolution?
+  "True where `ticks` step by whole days -- one tick per day, per week,
+   per month -- rather than by a time within a day.
+
+   The test is the gap between ticks, not the time of day they fall at.
+   wadogo places a ten-day axis on ticks a day apart at 01:00, and an
+   axis of a single day on ticks six hours apart; only the second is
+   about the hour. A value carrying no time of day at all, such as a
+   `LocalDate`, steps by days by construction."
+  [ticks]
+  (let [field (fn [t f]
+                (when (.isSupported ^java.time.temporal.TemporalAccessor t f)
+                  (.getLong ^java.time.temporal.TemporalAccessor t f)))
+        days (mapv #(field % java.time.temporal.ChronoField/EPOCH_DAY) ticks)
+        secs (mapv #(or (field % java.time.temporal.ChronoField/SECOND_OF_DAY) 0) ticks)]
+    (and (> (count days) 1)
+         (every? some? days)
+         (apply = secs)
+         (every? pos? (map - (rest days) days)))))
+
+(defn- name-the-month
+  "Give a run of whole-day ticks a month to sit in.
+
+   wadogo labels a span of a few weeks with the bare day of the month --
+   02, 05, 08 -- and a span of about ten days with a weekday and a time,
+   Tue 01:00, whose weekday comes round again once the span passes a
+   week. Neither says which month, so an axis over January and one over
+   March read alike, and a span crossing a month boundary counts back
+   down to 01 with nothing to say why.
+
+   Where the ticks step by whole days and no label already names a month
+   or a year, they are relabelled from their own values: 28 daily dates
+   in January give Jan-02, Jan-05, Jan-08. A span wadogo has already
+   named a month or a year in keeps its labels, as does one whose ticks
+   step by hours -- there the hour is the point. ggplot2 labels the same
+   28 days with a month too."
+  [labels dt-ticks]
+  (if (and (seq labels)
+           (not-any? #(re-find names-a-month-or-year (str %)) labels)
+           (every? #(and (instance? java.time.temporal.TemporalAccessor %)
+                         (.isSupported ^java.time.temporal.TemporalAccessor %
+                                       java.time.temporal.ChronoField/MONTH_OF_YEAR)
+                         (.isSupported ^java.time.temporal.TemporalAccessor %
+                                       java.time.temporal.ChronoField/DAY_OF_MONTH))
+                   dt-ticks)
+           (day-resolution? dt-ticks))
+    (mapv #(.format ^java.time.format.DateTimeFormatter month-day-formatter
+                    ^java.time.temporal.TemporalAccessor %)
+          dt-ticks)
+    labels))
+
 (defn- merge-temporal-extents
   "Merge temporal extents from multiple draft layers into a single [min max] pair."
   [extents]
@@ -300,7 +361,7 @@
            {:values [(first domain)] :labels [(str (first temporal-extent))] :categorical? false}
            (let [dt-scale (ws/scale :datetime {:domain temporal-extent :range [0.0 1.0]})
                  dt-ticks (ws/ticks dt-scale n)
-                 labels (vec (ws/format dt-scale dt-ticks))
+                 labels (name-the-month (vec (ws/format dt-scale dt-ticks)) dt-ticks)
                  values (mapv resolve/temporal->epoch-ms dt-ticks)]
              {:values values :labels labels :categorical? false}))
 

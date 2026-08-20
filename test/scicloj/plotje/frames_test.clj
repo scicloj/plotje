@@ -229,6 +229,50 @@
         (is (= 1 (tc/row-count (pj/to-drawing p {:x [2] :y [5]}))))
         (is (= 2 (count (pj/to-drawing p 2 5))))))))
 
+(deftest a-pose-or-a-plan-in-place-of-a-panel-is-refused
+  (testing "the stages that are not a panel entry are each named"
+    ;; Reported by Timothy Pratley, 2026-08-14. Every one of these died on
+    ;; "Cannot invoke java.lang.Number.doubleValue() because x is null",
+    ;; which names neither the argument, the function, nor the fix: the
+    ;; panel entry has no :frames, so panel-shape read nil out of it and
+    ;; the arithmetic below failed several frames down.
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"but got a pose"
+         (pj/to-drawing lone-point 2.0 7.0)))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"but got a pose"
+         (pj/to-drawing lone-point {:x [2.0] :y [7.0]}))
+        "the dataset arity too, which failed at the same place")
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"but got a plan"
+         (pj/to-drawing (pj/plan lone-point) 2.0 7.0)))
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"but got the whole frames map"
+         (pj/to-drawing (pj/frames lone-point) 2.0 7.0))
+        "one level short of a panel entry is the likeliest slip of all")
+    (testing "and to-data, which had the same defect and was not reported"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"but got a pose"
+           (pj/to-data lone-point 100.0 100.0)))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"but got a plan"
+           (pj/to-data (pj/plan lone-point) {:x [100.0] :y [100.0]}))))))
+
+(deftest a-non-panel-of-any-shape-is-refused-without-a-raw-throw
+  (testing "nil, a number and a stray map each get an ExceptionInfo"
+    ;; nil is the case the first version of the guard itself died on:
+    ;; (.getName (class nil)) is a NullPointerException.
+    (doseq [bad [nil 7 [1 2 3] {:a 1 :b 2}]]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"takes one panel entry"
+           (pj/to-drawing bad 2.0 7.0))
+          (str "for " (pr-str bad))))))
+
+(deftest the-panel-entry-a-refusal-points-at-works
+  (testing "the fix each message suggests is the call that succeeds"
+    (is (= 2 (count (pj/to-drawing (-> lone-point pj/frames :panels first)
+                                   2.0 7.0))))))
+
 ;; ---- Frames ----
 
 (defn- inside?

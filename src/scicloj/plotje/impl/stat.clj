@@ -69,6 +69,40 @@
         scale (max (Math/abs lo) (Math/abs hi) 1.0)]
     (<= span (* 1e-4 scale))))
 
+(defn- drop-missing-reported
+  "Drop rows with a missing value in any of `cols`, and say how many went
+   and which column they were missing from.
+
+   The numeric aesthetics are filtered a stage earlier, by
+   `plan/filter-infinities`, which reports them in its own words; by the
+   time a stat runs, its numeric columns hold no nils and this removes
+   nothing more. What it does remove is a row whose *category* is
+   missing -- a nil among the values of a string or keyword column,
+   which until now took its mark, its band and its legend entry with it
+   and said nothing.
+
+   Only the columns that actually held a missing value are named, so a
+   message points at the column to look at rather than at every column
+   the stat happens to read."
+  [ds cols]
+  ;; A faithful wrapper: `cols` reaches `tc/drop-missing` exactly as it
+  ;; was given, so which rows go is unchanged and only the message is new.
+  (let [before (tc/row-count ds)
+        out (tc/drop-missing ds cols)
+        removed (- before (tc/row-count out))]
+    (when (pos? removed)
+      (let [culprits (filterv #(pos? (- before (tc/row-count (tc/drop-missing ds [%]))))
+                              cols)
+            ;; A column holding strings or keywords is missing a
+            ;; *category*; one holding nothing but nils -- an all-nil
+            ;; :size, say -- is missing a value, and calling that a
+            ;; category would name something the data never had.
+            categories? (fn [col] (some #(or (string? %) (keyword? %)) (ds col)))]
+        (println (str "Warning: Removed " removed " rows with a missing "
+                      (if (every? categories? culprits) "category" "value")
+                      " in " (str/join ", " (map pr-str culprits)) "."))))
+    out))
+
 (defn group-by-columns
   "Split dataset by grouping columns, apply f to each group.
    Iterates groups in the order they first appear in the dataset, so
@@ -148,7 +182,7 @@
                          (col-ref? x-end)  (conj x-end)
                          (col-ref? fill)  (conj fill))
         drop-cols (vec (distinct (concat (if x-only? [x] [x y]) aesthetic-cols)))
-        clean (cond-> (tc/drop-missing data-idx drop-cols)
+        clean (cond-> (drop-missing-reported data-idx drop-cols)
                 (= x-type :categorical) (format-category-column x)
                 ;; Format the categorical axis whichever side it is on, so a
                 ;; horizontal value bar's category labels (on y) match its band
@@ -313,7 +347,7 @@
     (when-not (and (number? bw) (pos? bw))
       (throw (ex-info (str ":binwidth must be a positive number, got: " (pr-str bw))
                       {:binwidth bw}))))
-  (let [clean (cond-> (tc/drop-missing data [x])
+  (let [clean (cond-> (drop-missing-reported data [x])
                 (= x-type :categorical) (format-category-column x))
         xs-col (clean x)
         user-binwidth (:binwidth draft-layer)
@@ -401,7 +435,7 @@
                     {:stat :count :x (:x draft-layer) :x-type (:x-type draft-layer)})))
   (let [{:keys [data x x-type group]} draft-layer
         group-cols (or group [])
-        clean (cond-> (tc/drop-missing data [x])
+        clean (cond-> (drop-missing-reported data [x])
                 (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)
@@ -409,7 +443,7 @@
       ;; Use tc/group-by for efficient counting
       (let [color-col (first group-cols)
             has-color? (seq group-cols)
-            clean-c (if has-color? (tc/drop-missing clean group-cols) clean)
+            clean-c (if has-color? (drop-missing-reported clean group-cols) clean)
             color-cats (when has-color? (sort (distinct (clean-c color-col))))
             ;; Single tc/group-by handles both colored and uncolored cases
             grouped (tc/group-by clean-c
@@ -500,7 +534,7 @@
   (let [se (:confidence-band draft-layer)
         level (or (:level draft-layer) 0.95)
         n-grid (or (:se-n-grid (or cfg defaults/defaults)) 80)
-        clean (tc/drop-missing data [x y])
+        clean (drop-missing-reported data [x y])
         n (tc/row-count clean)]
     (if (or (< n 3)
             (near-constant? (clean x)))
@@ -660,7 +694,7 @@
   (validate-numeric-column draft-layer :y :loess)
   (let [se (:confidence-band draft-layer)
         level (or (:level draft-layer) 0.95)
-        clean (tc/drop-missing data [x y])
+        clean (drop-missing-reported data [x y])
         n (tc/row-count clean)
         ;; Adaptive bootstrap count: LOESS fits are O(n^1.7), so running
         ;; 200 bootstraps on 100k rows is prohibitive. Scale the sample
@@ -793,7 +827,7 @@
 (defmethod compute-stat :density [draft-layer]
   (validate-numeric-column draft-layer :x :kde)
   (let [{:keys [data x group cfg]} draft-layer
-        clean (tc/drop-missing data [x])
+        clean (drop-missing-reported data [x])
         n (tc/row-count clean)
         ;; 512 grid points, matching ggplot2. 100 looked identical at a
         ;; default 600px plot but drew a visibly faceted peak once the
@@ -856,7 +890,7 @@
         flipped? (and (= y-type :categorical) (not= x-type :categorical))
         cat-col (if flipped? y x)
         num-col (if flipped? x y)
-        clean (-> (tc/drop-missing data [x y])
+        clean (-> (drop-missing-reported data [x y])
                   (format-category-column cat-col))
         categories (distinct (clean cat-col))]
     (if (empty? categories)
@@ -866,7 +900,7 @@
       (let [group-cols (or group [])
             color-col (first group-cols)
             has-color? (and (seq group-cols) color-col)
-            clean-c (if has-color? (tc/drop-missing clean group-cols) clean)
+            clean-c (if has-color? (drop-missing-reported clean group-cols) clean)
             color-cats (when has-color? (vec (sort (distinct (clean-c color-col)))))
             ;; Single tc/group-by replaces O(cats × colors) select-rows calls
             group-keys (if has-color? [cat-col color-col] [cat-col])
@@ -1004,7 +1038,7 @@
 
 (defmethod compute-stat :summary [{:keys [data x y x-type group] :as draft-layer}]
   (validate-numeric-column draft-layer :y :summary)
-  (let [clean (cond-> (tc/drop-missing data [x y])
+  (let [clean (cond-> (drop-missing-reported data [x y])
                 (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)
@@ -1041,7 +1075,7 @@
   (validate-numeric-column draft-layer :x :bin2d)
   (validate-numeric-column draft-layer :y :bin2d)
   (let [cfg (or cfg defaults/defaults)
-        clean (tc/drop-missing data [x y])
+        clean (drop-missing-reported data [x y])
         n (tc/row-count clean)]
     (if (zero? n)
       {:tiles [] :x-domain [0 1] :y-domain [0 1] :fill-range [0 1]}
@@ -1090,7 +1124,7 @@
   (validate-numeric-column draft-layer :x :kde2d)
   (validate-numeric-column draft-layer :y :kde2d)
   (let [cfg (or cfg defaults/defaults)
-        clean (tc/drop-missing data [x y])
+        clean (drop-missing-reported data [x y])
         n (tc/row-count clean)]
     (if (< n 2)
       ;; Empty-data branch: return :grid nil explicitly so downstream

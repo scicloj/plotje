@@ -903,6 +903,18 @@ plan1
 (kind/test-last [(fn [m] (and (= 1 (:panels m))
                               (= 150 (:points m))))])
 
+(kind/doc #'pj/valid-pose?)
+
+(pj/valid-pose? (pj/lay-point tiny :x :y))
+
+(kind/test-last [true?])
+
+(kind/doc #'pj/explain-pose)
+
+(pj/explain-pose (pj/lay-point tiny :x :y))
+
+(kind/test-last [nil?])
+
 (kind/doc #'pj/valid-plan?)
 
 (pj/valid-plan? plan1)

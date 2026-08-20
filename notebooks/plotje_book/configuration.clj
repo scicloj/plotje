@@ -461,7 +461,10 @@ precedence-point-radius
 ;;
 ;; The membrane stage has the same pair -- `pj/valid-membrane?` and
 ;; `pj/explain-membrane` -- shown in the
-;; [Membranes](./plotje_book.membranes.html#schema) chapter.
+;; [Membranes](./plotje_book.membranes.html#schema) chapter, and so does
+;; the pose: `pj/valid-pose?` and `pj/explain-pose`. A pose built by
+;; `pj/pose`, `pj/lay-*` and the rest conforms by construction, so the
+;; pose pair is for a pose that has been reached into and changed.
 
 ;; Default behavior (validate = true) -- a valid plan passes silently:
 

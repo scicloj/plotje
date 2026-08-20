@@ -186,6 +186,51 @@
                           {:caller caller :axis axis :value bad
                            :categories (vec domain)})))))))
 
+(defn- check-panel
+  "Refuse anything but a panel entry from `pj/frames`.
+
+   A panel entry is one element of `(:panels (pj/frames plot))`, and it
+   is recognised by its `:frames`. Given a pose, a plan or the frames map
+   itself, `panel-shape` read nil out of `:frames` and the arithmetic
+   below it died on a NullPointerException naming neither the argument
+   nor the function -- the same shape `check-categories` was written to
+   remove."
+  [caller panel]
+  (when-not (and (map? panel)
+                 (-> panel :frames :panel-box)
+                 (-> panel :frames :drawing-area))
+    ;; One cond, so what the argument is and what to do about it cannot
+    ;; disagree, and so no branch reads a key out of a non-map.
+    (let [[got fix]
+          (cond
+            (nil? panel)
+            ["nil"
+             "A panel entry comes from `pj/frames`: `(-> pose pj/frames :panels first)`."]
+
+            (not (map? panel))
+            [(str "a " (.getName (class panel)))
+             "A panel entry comes from `pj/frames`: `(-> pose pj/frames :panels first)`."]
+
+            (and (contains? panel :canvas) (contains? panel :panels))
+            ["the whole frames map"
+             "Pick a panel from it: `(-> frames :panels first)`."]
+
+            (or (contains? panel :panels) (contains? panel :sub-plots))
+            ["a plan"
+             "Ask for its frames first: `(-> plan pj/frames :panels first)`."]
+
+            (or (contains? panel :layers) (contains? panel :poses))
+            ["a pose"
+             "Ask for its frames first: `(-> pose pj/frames :panels first)`."]
+
+            :else
+            [(str "a map with keys " (vec (sort-by str (keys panel))))
+             "A panel entry comes from `pj/frames`: `(-> pose pj/frames :panels first)`."])]
+      (throw (ex-info (str caller " takes one panel entry -- an element of "
+                           "`(:panels (pj/frames plot))` -- but got "
+                           got ". " fix)
+                      {:caller caller :panel panel})))))
+
 (defn- axis-answer-type
   "The datatype a data axis answers in when read backwards. A continuous
    scale inverts to a number; a band scale inverts to the category whose
@@ -226,10 +271,12 @@
   "Map data positions into canvas coordinates for `panel`. Two coordinates
    give one point back as `[x y]`; a dataset of them gives a dataset back."
   ([panel x y]
+   (check-panel "pj/to-drawing" panel)
    (check-categories "pj/to-drawing" panel :x [x])
    (check-categories "pj/to-drawing" panel :y [y])
    ((to-drawing-fn panel) x y))
   ([panel data]
+   (check-panel "pj/to-drawing" panel)
    (let [[xs ys] (coordinate-columns "pj/to-drawing" data)
          _ (check-categories "pj/to-drawing" panel :x xs)
          _ (check-categories "pj/to-drawing" panel :y ys)
@@ -247,8 +294,11 @@
   "Map canvas coordinates back to data positions for `panel`. Two
    coordinates give one point back as `[x y]`; a dataset of them gives a
    dataset back."
-  ([panel cx cy] ((to-data-fn panel) cx cy))
+  ([panel cx cy]
+   (check-panel "pj/to-data" panel)
+   ((to-data-fn panel) cx cy))
   ([panel data]
+   (check-panel "pj/to-data" panel)
    (let [[cxs cys] (coordinate-columns "pj/to-data" data)
          {:keys [x0 y0 pw ph m] :as shape} (panel-shape panel)
          {:keys [sx sy]} (panel-scale-pair panel shape)

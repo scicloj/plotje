@@ -441,42 +441,42 @@
  (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v96_l445)))
 
 
-(def v99_l468 (pj/plan (base-plot)))
+(def v99_l471 (pj/plan (base-plot)))
 
 
 (deftest
- t100_l470
- (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v99_l468)))
+ t100_l473
+ (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v99_l471)))
 
 
-(def v102_l477 (-> (base-plot)))
+(def v102_l480 (-> (base-plot)))
 
 
 (deftest
- t103_l479
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v102_l477)))
+ t103_l482
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v102_l480)))
 
 
-(def v105_l488 (def good-plan (pj/plan (base-plot) {:validate false})))
+(def v105_l491 (def good-plan (pj/plan (base-plot) {:validate false})))
 
 
-(def v106_l490 (pj/valid-plan? good-plan))
+(def v106_l493 (pj/valid-plan? good-plan))
 
 
-(deftest t107_l492 (is ((fn [v] (true? v)) v106_l490)))
+(deftest t107_l495 (is ((fn [v] (true? v)) v106_l493)))
 
 
-(def v109_l497 (def bad-plan (assoc good-plan :width "not-a-number")))
+(def v109_l500 (def bad-plan (assoc good-plan :width "not-a-number")))
 
 
-(def v110_l499 (pj/valid-plan? bad-plan))
+(def v110_l502 (pj/valid-plan? bad-plan))
 
 
-(deftest t111_l501 (is ((fn [v] (false? v)) v110_l499)))
+(deftest t111_l504 (is ((fn [v] (false? v)) v110_l502)))
 
 
 (def
- v113_l508
+ v113_l511
  (->
   (pj/explain-plan bad-plan)
   :errors
@@ -485,14 +485,14 @@
 
 
 (deftest
- t114_l513
+ t114_l516
  (is
   ((fn [m] (and (= [:width] (:in m)) (= "not-a-number" (:value m))))
-   v113_l508)))
+   v113_l511)))
 
 
 (def
- v116_l522
+ v116_l525
  (try
   (let
    [plan
@@ -510,26 +510,26 @@
 
 
 (deftest
- t117_l533
+ t117_l536
  (is
   ((fn
     [m]
     (and
      (:caught m)
      (= "Plan does not conform to schema" (:message m))))
-   v116_l522)))
+   v116_l525)))
 
 
-(def v119_l542 (pj/plan (base-plot) {:validate false}))
+(def v119_l545 (pj/plan (base-plot) {:validate false}))
 
 
 (deftest
- t120_l544
- (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v119_l542)))
+ t120_l547
+ (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v119_l545)))
 
 
 (def
- v122_l568
+ v122_l571
  (pj/with-config
   {:strict false}
   (->
@@ -539,12 +539,12 @@
 
 
 (deftest
- t123_l573
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v122_l568)))
+ t123_l576
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v122_l571)))
 
 
 (def
- v125_l577
+ v125_l580
  (pj/with-config
   {:strict true}
   (try
@@ -557,7 +557,7 @@
 
 
 (deftest
- t126_l585
+ t126_l588
  (is
   ((fn [msg] (and (string? msg) (re-find #"does not recognize" msg)))
-   v125_l577)))
+   v125_l580)))

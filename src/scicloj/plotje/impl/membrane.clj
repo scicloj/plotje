@@ -42,21 +42,44 @@
   [x]
   (instance? PlotjeMembrane x))
 
+(defn- drawable-element?
+  "True if `x` is a Membrane element in its own right.
+
+   `membrane.ui` extends `IOrigin` to vectors and to nil, treating a
+   vector as a group of drawables, so those two answer true whatever
+   they hold and cannot settle the question on their own."
+  [x]
+  (and (some? x)
+       (not (vector? x))
+       (satisfies? ui/IOrigin x)))
+
 (defn membrane-tree?
   "True if x looks like a Membrane drawable tree -- either a
    `PlotjeMembrane` record (the canonical Plotje shape) or a non-empty
-   vector whose first element satisfies `membrane.ui/IOrigin` (a
-   hand-built Membrane drawable tree).
+   vector that bottoms out in a Membrane element (a hand-built drawable
+   tree, whose groups are vectors).
+
+   The leftmost branch is followed down to its first non-vector, because
+   asking `IOrigin` of the vector itself answers true for `[[1 2] [3 4]]`
+   -- a pair of data rows, which `pj/pose` reads as a dataset.
 
    Used by Plotje's input-validation gate to detect when a user has
    accidentally piped a rendered membrane back into a function that
    expects a pose, so the error can advise calling `pj/membrane->plot`
-   instead. Rejection diagnostic only -- not used to accept input."
+   instead. Rejection diagnostic only -- not used to accept input, so
+   where it cannot tell, answering false leaves the value to the checks
+   that follow."
   [x]
   (or (membrane? x)
-      (and (vector? x)
-           (seq x)
-           (satisfies? ui/IOrigin (first x)))))
+      (boolean
+       (and (vector? x)
+            (seq x)
+            (loop [head (first x)]
+              (if (vector? head)
+                (if (seq head)
+                  (recur (first head))
+                  false)
+                (drawable-element? head)))))))
 
 (def PlotjeMembraneSchema
   "Malli schema for the `PlotjeMembrane` record, validated as a map.

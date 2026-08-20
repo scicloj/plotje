@@ -11,7 +11,7 @@
 ;;   outside the view. It still counts toward the axis range.
 ;;
 ;; Everything below is one or the other. Dropping is reported on the
-;; console as it happens, with one exception noted at the end.
+;; console as it happens.
 
 (ns plotje-book.drawn-rows
   (:require
@@ -66,6 +66,28 @@
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
+;; ## Dropped: a category with no value
+
+;; A `nil` among the values of a **categorical** column leaves its row
+;; with no category to belong to, so the row is dropped like any other
+;; unplaceable one:
+;; `Warning: Removed 1 rows with a missing category in :species`. Four
+;; rows, three marks, and a legend naming only the two real categories:
+
+(-> {:height [1 2 3 4] :weight [1 2 3 4] :species ["a" nil "b" "a"]}
+    (pj/lay-point :height :weight {:color :species}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 3 (:points s))
+                 (= ["a" "b"] (filterv #{"a" "b"} (:texts s))))))])
+
+;; The message names the column rather than the aesthetic it was mapped
+;; to, because the column is the thing to go and look at. Filling or
+;; filtering it before plotting makes the choice yours --
+;; `(tc/replace-missing ds :species :value "unknown")` keeps those rows
+;; and names them.
+
 ;; ## Clipped: a value outside a domain you set
 
 ;; Narrowing an axis with `pj/scale` does not remove anything. The
@@ -91,26 +113,6 @@
 ;; window then decides how much of it you see. Removing rows from the
 ;; computation is a job for the data, with `tc/select-rows`, before the
 ;; pose is built.
-
-;; ## The one that says nothing
-
-;; A `nil` among the values of a **categorical** column is dropped like
-;; any unplaceable row, but without a warning. Four rows, three marks,
-;; and a legend naming only the two real categories:
-
-(-> {:height [1 2 3 4] :weight [1 2 3 4] :species ["a" nil "b" "a"]}
-    (pj/lay-point :height :weight {:color :species}))
-
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
-            (and (= 3 (:points s))
-                 (= ["a" "b"] (filterv #{"a" "b"} (:texts s))))))])
-
-;; The numeric cases above all announce themselves; this one does not,
-;; so a plot quietly short of a mark is worth checking for a `nil`
-;; category. Filling or filtering the column before plotting makes the
-;; choice yours -- `(tc/replace-missing ds :species :value "unknown")`
-;; keeps those rows and names them.
 
 ;; ## See Also
 ;;
