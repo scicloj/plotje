@@ -17,7 +17,7 @@
   gapminder-2007
   (->
    (rdatasets/gapminder-gapminder)
-   (tc/select-rows (fn* [p1__11193#] (= 2007 (:year p1__11193#)))))))
+   (tc/select-rows (fn* [p1__72264#] (= 2007 (:year p1__72264#)))))))
 
 
 (def v4_l41 gapminder-2007)
@@ -101,8 +101,8 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__11194#]
-        (-> p1__11194# :plan :panels first :x-scale :type))))))
+        [p1__72265#]
+        (-> p1__72265# :plan :panels first :x-scale :type))))))
    v16_l141)))
 
 
@@ -626,30 +626,62 @@
 
 
 (def
- v103_l655
+ v103_l653
  (->
-  {:bin (map (fn* [p1__11195#] (str "bin-" p1__11195#)) (range 40)),
+  {:when
+   (mapv (fn [year] (jt/local-date year 6 15)) (range 2015 2025)),
+   :reading [12 15 11 18 22 19 25 24 28 31]}
+  (pj/lay-line :when :reading)
+  (pj/scale
+   :x
+   {:domain [(jt/local-date 2010 1 1) (jt/local-date 2030 1 1)]})))
+
+
+(deftest
+ t104_l659
+ (is
+  ((fn
+    [fr]
+    (=
+     ["2011"
+      "2013"
+      "2015"
+      "2017"
+      "2019"
+      "2021"
+      "2023"
+      "2025"
+      "2027"
+      "2029"]
+     (->> fr pj/plan :panels first :x-ticks :labels vec)))
+   v103_l653)))
+
+
+(def
+ v106_l671
+ (->
+  {:bin (map (fn* [p1__72266#] (str "bin-" p1__72266#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
 
 
 (deftest
- t104_l660
+ t107_l676
  (is
   ((fn
     [v]
     (let
      [labels
       (filter
-       (fn* [p1__11196#] (.startsWith p1__11196# "bin-"))
+       (fn* [p1__72267#] (.startsWith p1__72267# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
-   v103_l655)))
+   v106_l671)))
 
 
 (def
- v106_l670
+ v109_l686
  (->
   {:hour (range 20), :load (range 20)}
   (pj/lay-point :hour :load)
@@ -657,18 +689,18 @@
 
 
 (deftest
- t107_l674
+ t110_l690
  (is
   ((fn
     [v]
     (=
      [0.0 5.0 10.0 15.0]
      (->> v pj/plan :panels first :x-ticks :values (mapv double))))
-   v106_l670)))
+   v109_l686)))
 
 
 (def
- v109_l685
+ v112_l701
  (->
   {:hour (range 20), :load (range 20)}
   (pj/lay-point :hour :load)
@@ -676,14 +708,14 @@
 
 
 (deftest
- t110_l689
+ t113_l705
  (is
   ((fn [v] (= 2 (->> v pj/plan :panels first :x-ticks :values count)))
-   v109_l685)))
+   v112_l701)))
 
 
 (def
- v112_l708
+ v115_l724
  (->
   gapminder-2007
   (pj/lay-bar :continent)
@@ -693,18 +725,18 @@
 
 
 (deftest
- t113_l712
+ t116_l728
  (is
   ((fn
     [fr]
     (=
      ["Oceania" "Africa" "Asia" "Americas" "Europe"]
      (->> fr pj/plan :panels first :x-domain vec)))
-   v112_l708)))
+   v115_l724)))
 
 
 (def
- v115_l720
+ v118_l736
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :cyl :hwy {:x-type :categorical})
@@ -712,16 +744,16 @@
 
 
 (deftest
- t116_l724
+ t119_l740
  (is
   ((fn
     [fr]
     (= ["4" "5" "6" "8"] (->> fr pj/plan :panels first :x-domain vec)))
-   v115_l720)))
+   v118_l736)))
 
 
 (def
- v118_l738
+ v121_l754
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -732,18 +764,18 @@
 
 
 (deftest
- t119_l743
+ t122_l759
  (is
   ((fn
     [fr]
     (=
      ["Oceania" "Europe" "Asia" "Americas" "Africa"]
      (mapv :label (:entries (:legend (pj/plan fr))))))
-   v118_l738)))
+   v121_l754)))
 
 
 (def
- v121_l751
+ v124_l767
  (->
   {:day ["Mon" "Mon" "Mon" "Tue" "Tue" "Tue"],
    :meal ["breakfast" "lunch" "dinner" "breakfast" "lunch" "dinner"],
@@ -753,7 +785,7 @@
 
 
 (deftest
- t122_l757
+ t125_l773
  (is
   ((fn
     [fr]
@@ -768,18 +800,18 @@
        (mapv :label (:entries (:legend plan))))
       (= ["dinner" "lunch" "breakfast"] (mapv :label groups))
       (every? zero? (:y0s (last groups))))))
-   v121_l751)))
+   v124_l767)))
 
 
 (def
- v124_l774
+ v127_l790
  (def
   two-grades
   {:grade [1 2 1 2], :hours [3 9 2 11], :score [72 88 64 91]}))
 
 
 (def
- v125_l779
+ v128_l795
  (->
   two-grades
   (pj/lay-point
@@ -790,7 +822,7 @@
 
 
 (deftest
- t126_l783
+ t129_l799
  (is
   ((fn
     [fr]
@@ -817,11 +849,11 @@
       on-color
       (-> fr pj/plan :legend :entries (->> (mapv :label)))]
      (= ["2" "1"] on-axis on-color on-shape)))
-   v125_l779)))
+   v128_l795)))
 
 
 (def
- v128_l820
+ v131_l836
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :pop})
@@ -830,18 +862,18 @@
 
 
 (deftest
- t129_l825
+ t132_l841
  (is
   ((fn
     [fr]
     (and
      (= [0.0 5.0E7] ((juxt :min :max) (:legend (pj/plan fr))))
      (= (tc/row-count gapminder-2007) (:points (pj/svg-summary fr)))))
-   v128_l820)))
+   v131_l836)))
 
 
 (def
- v131_l841
+ v134_l857
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-tile :displ :hwy)
@@ -849,7 +881,7 @@
 
 
 (deftest
- t132_l845
+ t135_l861
  (is
   ((fn
     [fr]
@@ -861,18 +893,18 @@
        (:legend
         (pj/plan
          (-> (rdatasets/ggplot2-mpg) (pj/lay-tile :displ :hwy))))))))
-   v131_l841)))
+   v134_l857)))
 
 
 (def
- v134_l879
+ v137_l895
  (def
   squares
   {:step [1 2 3 4 5 6], :row [1 1 1 1 1 1], :n [1 4 9 16 25 36]}))
 
 
 (def
- v135_l882
+ v138_l898
  (->
   squares
   (pj/lay-point :step :row {:size :n})
@@ -881,13 +913,13 @@
 
 
 (deftest
- t136_l887
+ t139_l903
  (is
-  ((fn [radii] (= [2.0 8.0] [(first radii) (last radii)])) v135_l882)))
+  ((fn [radii] (= [2.0 8.0] [(first radii) (last radii)])) v138_l898)))
 
 
 (def
- v138_l892
+ v141_l908
  (->
   squares
   (pj/lay-point :step :row {:size :n})
@@ -895,7 +927,7 @@
 
 
 (deftest
- t139_l896
+ t142_l912
  (is
   ((fn
     [fr]
@@ -911,11 +943,11 @@
       (= [3.0 20.0] [(first radii) (last radii)])
       (= (count default) (count radii))
       (every? true? (map < default radii)))))
-   v138_l892)))
+   v141_l908)))
 
 
 (def
- v141_l913
+ v144_l929
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:alpha :pop})
@@ -924,7 +956,7 @@
 
 
 (deftest
- t142_l918
+ t145_l934
  (is
   ((fn
     [fr]
@@ -939,11 +971,11 @@
       :alpha-legend
       :entries
       (mapv :alpha))))
-   v141_l913)))
+   v144_l929)))
 
 
 (def
- v144_l954
+ v147_l970
  (->
   (pj/arrange
    [(->
@@ -964,7 +996,7 @@
 
 
 (def
- v146_l968
+ v149_l984
  (defn
   legend-magnitudes
   [spec]
@@ -980,7 +1012,7 @@
 
 
 (def
- v147_l978
+ v150_l994
  (->
   (for
    [by [:linear :area :sqrt] :let [ms (legend-magnitudes {:by by})]]
@@ -992,7 +1024,7 @@
 
 
 (deftest
- t148_l986
+ t151_l1002
  (is
   ((fn
     [_]
@@ -1012,16 +1044,16 @@
         (update
          squares
          :n
-         (fn [ns] (mapv (fn* [p1__11197#] (* 100 p1__11197#)) ns)))
+         (fn [ns] (mapv (fn* [p1__72268#] (* 100 p1__72268#)) ns)))
         (pj/lay-point :step :row {:size :n})
         pj/plan
         :size-legend
         :entries)))))
-   v147_l978)))
+   v150_l994)))
 
 
 (def
- v150_l1024
+ v153_l1040
  (->
   squares
   (pj/lay-point :step :row {:size :n})
@@ -1029,7 +1061,7 @@
 
 
 (deftest
- t151_l1028
+ t154_l1044
  (is
   ((fn
     [fr]
@@ -1048,11 +1080,11 @@
         (< (Math/abs (- (/ a half) 2.0)) 1.0E-6)
         true))
       by-value)))
-   v150_l1024)))
+   v153_l1040)))
 
 
 (def
- v153_l1046
+ v156_l1062
  (->
   squares
   (pj/lay-point :step :row {:alpha :n})
@@ -1060,7 +1092,7 @@
 
 
 (deftest
- t154_l1050
+ t157_l1066
  (is
   ((fn
     [fr]
@@ -1077,19 +1109,19 @@
         (< (Math/abs (- (/ a half) 2.0)) 1.0E-6)
         true))
       by-value)))
-   v153_l1046)))
+   v156_l1062)))
 
 
-(def v156_l1079 (:varies (layer-type/lookup :point)))
+(def v159_l1095 (:varies (layer-type/lookup :point)))
 
 
 (deftest
- t157_l1081
- (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v156_l1079)))
+ t160_l1097
+ (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v159_l1095)))
 
 
 (def
- v159_l1113
+ v162_l1129
  (try
   (->
    {:hour [1 2 3], :day [1 2 3], :shift ["early" "late" "early"]}
@@ -1099,12 +1131,12 @@
 
 
 (deftest
- t160_l1120
- (is ((fn [m] (re-find #":fill needs a numeric column" m)) v159_l1113)))
+ t163_l1136
+ (is ((fn [m] (re-find #":fill needs a numeric column" m)) v162_l1129)))
 
 
 (def
- v162_l1128
+ v165_l1144
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1112,18 +1144,18 @@
 
 
 (deftest
- t163_l1132
+ t166_l1148
  (is
   ((fn
     [v]
     (=
      #{"rgb(231,76,60)" "rgb(52,152,219)" "rgb(46,204,113)"}
      (disj (:colors (pj/svg-summary v)) "none")))
-   v162_l1128)))
+   v165_l1144)))
 
 
 (def
- v165_l1141
+ v168_l1157
  (->
   {:district ["a" "b" "c" "d" "e" "f"],
    :share [10 20 30 40 50 60],
@@ -1135,7 +1167,7 @@
 
 
 (deftest
- t166_l1147
+ t169_l1163
  (is
   ((fn
     [v]
@@ -1144,11 +1176,11 @@
       ["dem" [0.0 0.0 1.0 1.0]]
       ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
      (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))
-   v165_l1141)))
+   v168_l1157)))
 
 
 (def
- v168_l1162
+ v171_l1178
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
@@ -1158,18 +1190,18 @@
 
 
 (deftest
- t169_l1166
+ t172_l1182
  (is
   ((fn
     [v]
     (=
      {:low "#2166AC", :mid "#F7F7F7", :high "#B2182B"}
      (-> v pj/plan :legend :color-range)))
-   v168_l1162)))
+   v171_l1178)))
 
 
 (def
- v171_l1173
+ v174_l1189
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
@@ -1177,7 +1209,7 @@
 
 
 (deftest
- t172_l1177
+ t175_l1193
  (is
   ((fn
     [v]
@@ -1186,24 +1218,24 @@
      (and
       (= [0.0 0.0 1.0 1.0] (:color (first stops)))
       (= 0.0 (second (:color (last stops)))))))
-   v171_l1173)))
+   v174_l1189)))
 
 
 (def
- v174_l1190
+ v177_l1206
  (->
   {:step (range 40),
    :row (range 40),
    :n
    (map
-    (fn* [p1__11198#] (Math/pow 10 (/ p1__11198# 10.0)))
+    (fn* [p1__72269#] (Math/pow 10 (/ p1__72269# 10.0)))
     (range 40))}
   (pj/lay-point :step :row {:color :n})
   (pj/scale :color {:type :log, :range :viridis})))
 
 
 (deftest
- t175_l1196
+ t178_l1212
  (is
   ((fn
     [v]
@@ -1212,11 +1244,11 @@
      (and
       (= :log (:scale-type legend))
       (= :viridis (:color-range legend)))))
-   v174_l1190)))
+   v177_l1206)))
 
 
 (def
- v177_l1207
+ v180_l1223
  (->
   {:region ["n" "s" "e" "w" "c"],
    :year [1 2 3 4 5],
@@ -1226,7 +1258,7 @@
 
 
 (deftest
- t178_l1213
+ t181_l1229
  (is
   ((fn
     [v]
@@ -1259,11 +1291,11 @@
          (pj/scale :color {:range :diverging}))))
       (< 0.16666 (:gradient-t (first stops)) 0.16667)
       (== 1.0 (:gradient-t (last stops))))))
-   v177_l1207)))
+   v180_l1223)))
 
 
 (def
- v180_l1248
+ v183_l1264
  (->
   {:district ["a" "b" "c" "d" "e" "f"],
    :share [10 20 30 40 50 60],
@@ -1277,7 +1309,7 @@
 
 
 (deftest
- t181_l1255
+ t184_l1271
  (is
   ((fn
     [v]
@@ -1286,19 +1318,19 @@
       ["dem" [0.0 0.0 1.0 1.0]]
       ["ind" [0.0 (/ 128.0 255) 0.0 1.0]]]
      (mapv (juxt :label :color) (:entries (:legend (pj/plan v))))))
-   v180_l1248)))
+   v183_l1264)))
 
 
-(def v183_l1277 pj/shape-symbols)
+(def v186_l1293 pj/shape-symbols)
 
 
 (deftest
- t184_l1279
- (is ((fn [syms] (= syms (distinct syms))) v183_l1277)))
+ t187_l1295
+ (is ((fn [syms] (= syms (distinct syms))) v186_l1293)))
 
 
 (def
- v186_l1288
+ v189_l1304
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:shape :continent})
@@ -1310,7 +1342,7 @@
 
 
 (deftest
- t187_l1294
+ t190_l1310
  (is
   ((fn
     [fr]
@@ -1323,11 +1355,11 @@
      (mapv
       (juxt :label :shape)
       (:entries (:shape-legend (pj/plan fr))))))
-   v186_l1288)))
+   v189_l1304)))
 
 
 (def
- v189_l1308
+ v192_l1324
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -1336,18 +1368,18 @@
 
 
 (deftest
- t190_l1313
+ t193_l1329
  (is
   ((fn
     [fr]
     (=
      ["GDP per capita, log scale" "Continent"]
      (-> fr pj/plan ((juxt :x-label (comp :title :legend))))))
-   v189_l1308)))
+   v192_l1324)))
 
 
 (def
- v192_l1323
+ v195_l1339
  (->
   gapminder-2007
   (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -1356,14 +1388,14 @@
 
 
 (deftest
- t193_l1328
+ t196_l1344
  (is
   ((fn [fr] (= "From the spec" (-> fr pj/plan :legend :title)))
-   v192_l1323)))
+   v195_l1339)))
 
 
 (def
- v195_l1345
+ v198_l1361
  (->
   squares
   (pj/lay-point :step :row {:size :n, :alpha :n})
@@ -1371,7 +1403,7 @@
 
 
 (deftest
- t196_l1349
+ t199_l1365
  (is
   ((fn
     [fr]
@@ -1381,11 +1413,11 @@
       (= :radius (:quantity (:size-legend p)))
       (= :circle (:swatch (:size-legend p)))
       (= :square (:swatch (layer-type/quantities :opacity))))))
-   v195_l1345)))
+   v198_l1361)))
 
 
 (def
- v198_l1373
+ v201_l1389
  (try
   (->
    gapminder-2007
@@ -1397,14 +1429,14 @@
 
 
 (deftest
- t199_l1382
+ t202_l1398
  (is
   ((fn [m] (re-find #"read :size through different scales" m))
-   v198_l1373)))
+   v201_l1389)))
 
 
 (def
- v201_l1388
+ v204_l1404
  (->
   gapminder-2007
   (pj/pose :gdp-percap :life-exp {:size :pop})
@@ -1414,7 +1446,7 @@
 
 
 (deftest
- t202_l1394
+ t205_l1410
  (is
   ((fn
     [fr]
@@ -1435,4 +1467,4 @@
         :panels
         first
         :x-scale)))))
-   v201_l1388)))
+   v204_l1404)))

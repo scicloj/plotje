@@ -136,6 +136,30 @@
                   (or (not (sequential? written))
                       (every? scale/whole-number? written))))))
 
+(defn- whole-aesthetic-values?
+  "True when every value an aesthetic reads is a whole number.
+
+   The legend's counterpart of `whole-axis-values?`, and it reads the
+   column directly because an appearance aesthetic has no stat result
+   of its own: the values it is drawn from are the column the mapping
+   names. A `:domain` written for the aesthetic is read too, since that
+   is what the legend spans.
+
+   Without this, a column of 1, 2, 3, 4 gave an axis reading 1 2 3 4
+   and a size legend beside it reading 1.0, 1.5, 2.0 and so on -- one
+   column answered two ways in one picture."
+  [draft-layers aesthetic spec]
+  (let [written (:domain spec)
+        cols (for [dl draft-layers
+                   :let [col-name (get dl aesthetic)
+                         c (when col-name (get (:data dl) col-name))]
+                   :when (and (some? c) (pos? (count c)) (number? (first c)))]
+               c)]
+    (boolean (and (seq cols)
+                  (every? whole-column? cols)
+                  (or (not (sequential? written))
+                      (every? scale/whole-number? written))))))
+
 (defn- pad-domain-anchored
   "Pad a numeric domain, then put back whichever end an anchor value
    sits on.
@@ -566,15 +590,28 @@
            {:values vs :labels labels :categorical? false})
 
          temporal-extent
-         ;; Temporal: use wadogo :datetime scale for calendar-aware ticks
-         (if (= (first temporal-extent) (second temporal-extent))
+         ;; Temporal: use wadogo :datetime scale for calendar-aware ticks.
+         ;;
+         ;; Over the domain where the writer set one, and over the data's
+         ;; own extent otherwise. A `:domain` says what the axis spans,
+         ;; and ticking the data's extent instead labelled only the part
+         ;; of the axis the data covers: a domain of a whole year around
+         ;; three months of data carried ticks from March to August and
+         ;; left both ends bare. The data-derived case keeps reading the
+         ;; extent rather than the domain because the domain has been
+         ;; padded by then, and calendar ticks are picked over the span
+         ;; the data actually covers.
+         (let [ext (if (:domain scale-spec)
+                     (mapv resolve/epoch-ms->local-date-time domain)
+                     temporal-extent)]
+           (if (= (first ext) (second ext))
            ;; Single-value temporal domain: one tick at the single value
-           {:values [(first domain)] :labels [(str (first temporal-extent))] :categorical? false}
-           (let [dt-scale (ws/scale :datetime {:domain temporal-extent :range [0.0 1.0]})
-                 dt-ticks (vec (ws/ticks dt-scale n))
-                 labels (format-temporal-ticks temporal-extent dt-ticks)
-                 values (mapv resolve/temporal->epoch-ms dt-ticks)]
-             {:values values :labels labels :categorical? false}))
+             {:values [(first domain)] :labels [(str (first ext))] :categorical? false}
+             (let [dt-scale (ws/scale :datetime {:domain ext :range [0.0 1.0]})
+                   dt-ticks (vec (ws/ticks dt-scale n))
+                   labels (format-temporal-ticks ext dt-ticks)
+                   values (mapv resolve/temporal->epoch-ms dt-ticks)]
+               {:values values :labels labels :categorical? false})))
 
          log?
          ;; Log: use ggplot2-style 1-2-5 nice breaks
@@ -1340,13 +1377,18 @@
    Delegates to wadogo's linear scale so the breaks are 1/2/5-aligned
    (e.g., [17, 83] → [20 40 60 80] rather than [17.0 33.5 50.0 66.5 83.0]).
    Falls back to evenly-spaced rounded values when wadogo returns fewer
-   than two ticks."
-  [lo hi n]
+   than two ticks.
+
+   `whole?` says whether the aesthetic reads whole numbers, and goes
+   through `scale/linear-ticks` -- the same function an axis reads, so
+   a legend and an axis drawn from one column cannot label it two
+   ways."
+  [lo hi n whole?]
   (let [lo (double lo) hi (double hi)]
     (if (= lo hi)
       [lo]
       (let [s (ws/scale :linear {:domain [lo hi] :range [0.0 1.0]})
-            nice (vec (ws/ticks s n))]
+            nice (vec (scale/linear-ticks s n whole?))]
         (if (>= (count nice) 2)
           nice
           ;; Fallback: evenly-spaced with enough decimals to distinguish
@@ -1385,10 +1427,10 @@
    Which ticks are inside is `scale/ticks-inside-domain`, as it is on an
    axis; what to do when too few survive is the part a legend answers
    differently."
-  [scale-type d-min d-max n]
+  [scale-type d-min d-max n whole?]
   (let [picked (if (= scale-type :log)
                  (scale/log-ticks [d-min d-max] n)
-                 (nice-legend-values d-min d-max n))
+                 (nice-legend-values d-min d-max n whole?))
         inside (scale/ticks-inside-domain picked [d-min d-max])]
     (if (>= (count inside) 2)
       inside
@@ -1497,7 +1539,9 @@
                 [dom-lo dom-hi] (scale/channel-domain spec s-min s-max)
                 [_ range-hi] (or (:range spec) (:size defaults/channel-ranges))
                 values (thin-to (continuous-channel-ticks
-                                 scale-type dom-lo dom-hi 5)
+                                 scale-type dom-lo dom-hi 5
+                                 (whole-aesthetic-values?
+                                  size-draft-layers :size spec))
                                 (size-legend-rows-that-fit height range-hi))
                 magnitude-fn (channel-mapper spec s-min s-max
                                              (:size defaults/channel-ranges)
@@ -1536,7 +1580,10 @@
             [_ ink-exponent] (channel-quantity (first alpha-draft-layers) :alpha)]
         (when-let [[a-min a-max] (plot-aesthetic-extent resolved-all :alpha)]
           (let [[dom-lo dom-hi] (scale/channel-domain spec a-min a-max)
-                values (continuous-channel-ticks scale-type dom-lo dom-hi 5)
+                values (continuous-channel-ticks
+                        scale-type dom-lo dom-hi 5
+                        (whole-aesthetic-values?
+                         alpha-draft-layers :alpha spec))
                 alpha-fn (channel-mapper spec a-min a-max
                                          (:alpha defaults/channel-ranges)
                                          ink-exponent)]

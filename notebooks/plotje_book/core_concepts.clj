@@ -92,6 +92,22 @@
 
 (kind/test-last [(fn [v] (= 4 (:polygons (pj/svg-summary v))))])
 
+;; **Sequence of row vectors** -- each vector is one row, and the
+;; columns are named by their place: 0, 1 and so on. Nothing has to be
+;; wrapped first:
+
+(-> [[1 2] [3 4] [5 7]]
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
+;; Those integer names are what the axes are titled with, and they can
+;; be mapped like any other column name. `(tc/rename-columns ds [:x :y])`
+;; gives them words. A vector of vectors written where a mapping goes
+;; means something else -- pairs of column names, one panel each, shown
+;; under [Identity](#identity) below. What tells the two apart is where
+;; the vector is written, not what it holds.
+
 ;; When the dataset has 1, 2, or 3 columns, you can omit the column
 ;; names entirely -- they are inferred by position: the first column
 ;; becomes x, the second becomes y, the third becomes color.

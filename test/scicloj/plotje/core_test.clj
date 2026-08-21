@@ -1674,6 +1674,46 @@
       (is (= ["0" "10" "20" "30" "40" "50" "60" "70" "80" "90" "100"]
              (xl (-> {:x [0 50 100] :y [1 2 3]} (pj/lay-point :x :y))))))))
 
+(deftest a-legend-and-its-axis-label-one-column-the-same-way
+  ;; The whole-number rule went into `scale/linear-ticks`, which the
+  ;; axis path read and `nice-legend-values` did not, so one column of
+  ;; 1, 2, 3, 4 was labelled 1 2 3 4 on the axis and 1.0, 1.5, 2.0 ...
+  ;; in the legend beside it.
+  (let [values (fn [pose k]
+                 (mapv :value (:entries (k (pj/plan pose)))))
+        axis (fn [pose] (vec (-> pose pj/plan :panels first :x-ticks :labels)))]
+    (testing "a whole column reads whole in both"
+      (let [pose (-> {:x [1 2 3 4] :y [1 2 3 4] :n [1 2 3 4]}
+                     (pj/lay-point :x :y {:size :n}))]
+        (is (= ["1" "2" "3" "4"] (axis pose)))
+        (is (= [1.0 2.0 3.0 4.0] (values pose :size-legend)))))
+
+    (testing "and the alpha legend answers the same"
+      (is (= [1.0 2.0 3.0 4.0]
+             (values (-> {:x [1 2 3 4] :y [1 2 3 4] :n [1 2 3 4]}
+                         (pj/lay-point :x :y {:alpha :n}))
+                     :alpha-legend))))
+
+    (testing "a column that is not whole keeps its fractions"
+      (is (some #(not (== % (Math/rint (double %))))
+                (values (-> {:x [1 2 3 4] :y [1 2 3 4] :n [1.5 2.5 3.5 4.5]}
+                            (pj/lay-point :x :y {:size :n}))
+                        :size-legend))))))
+
+(deftest a-temporal-axis-is-ticked-over-the-domain-it-was-given
+  ;; A `:domain` says what the axis spans. Ticking the data's own extent
+  ;; instead labelled only the part of the axis the data covers, which
+  ;; became reachable when a dated `:domain` started working at all.
+  (let [pose (-> {:when (mapv (fn [year] (jt/local-date year 6 15)) (range 2015 2025))
+                  :reading [12 15 11 18 22 19 25 24 28 31]}
+                 (pj/lay-line :when :reading)
+                 (pj/scale :x {:domain [(jt/local-date 2010 1 1)
+                                        (jt/local-date 2030 1 1)]}))
+        labels (vec (-> pose pj/plan :panels first :x-ticks :labels))]
+    (is (= "2011" (first labels)))
+    (is (= "2029" (last labels))
+        "the ticks reach both ends of the domain, not just the data")))
+
 (deftest a-log-axis-spanning-decades-is-labelled-between-the-powers
   ;; The candidate set is scored by the ticks the axis draws, not by the
   ;; ticks the generator offers. The 15%-of-log-span margin puts bounding

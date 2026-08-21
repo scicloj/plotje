@@ -644,6 +644,22 @@ gapminder-2007
 
 ;; A `LocalDate`, a `LocalDateTime` and a `java.util.Date` are all
 ;; accepted, and `:tick-labels` rewords them as it does any other break.
+;;
+;; A `:domain` is written in dates on such an axis too, and widening one
+;; to a span the data does not fill puts the readings in the part of it
+;; they occupy. The ticks follow the domain rather than the data, so
+;; both ends of the axis are labelled:
+
+(-> {:when (mapv (fn [year] (jt/local-date year 6 15)) (range 2015 2025))
+     :reading [12 15 11 18 22 19 25 24 28 31]}
+    (pj/lay-line :when :reading)
+    (pj/scale :x {:domain [(jt/local-date 2010 1 1)
+                           (jt/local-date 2030 1 1)]}))
+
+(kind/test-last
+ [(fn [fr] (= ["2011" "2013" "2015" "2017" "2019" "2021" "2023" "2025"
+               "2027" "2029"]
+              (->> fr pj/plan :panels first :x-ticks :labels vec)))])
 
 ;; A categorical axis labels every category by default, so with many of
 ;; them the labels overlap. `:n-ticks` keeps roughly that many
