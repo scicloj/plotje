@@ -198,6 +198,43 @@
     (is (= "0" (:x-label pl)))
     (is (= "1" (:y-label pl)))))
 
+(deftest an-integer-column-name-reaches-the-error-message
+  ;; `validate-numeric-column` formatted the column with `name`, which
+  ;; throws on a Long, so the clear error it exists to give arrived as
+  ;; `Long cannot be cast to clojure.lang.Named` -- naming neither the
+  ;; column, the stat, nor the fix. Same shape as PR #32.
+  (let [ds (tc/dataset [["a" 1.0] ["b" 2.0] ["c" 3.0]])]
+    (doseq [[label pose-fn] [["histogram" #(pj/lay-histogram ds 0)]
+                             ["density"   #(pj/lay-density ds 0)]
+                             ["smooth"    #(pj/lay-smooth ds 0 1)]]]
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"requires a numeric column"
+           (pj/plan (pose-fn)))
+          label)))
+  (testing "and the message names a way forward"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"convert-types"
+         (pj/plan (pj/lay-histogram (tc/dataset {:d ["2020-01-01" "2021-01-01"]}) :d))))))
+
+(deftest a-column-with-no-values-is-not-called-numerical
+  ;; An empty column and an all-missing one are both typed :boolean by
+  ;; tech.ml.dataset, and `column-type` reads both as :numerical so the
+  ;; pipeline has something to work with. Saying "is numerical" of
+  ;; either sent the reader to check a column type that was not the
+  ;; problem.
+  (testing "an empty dataset"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"has no rows"
+         (pj/plan (pj/lay-summary {:c [] :y []} :c :y)))))
+  (testing "a column of nothing but nils"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"has no values"
+         (pj/plan (pj/lay-lollipop {:c [nil nil nil] :y [1.0 2.0 3.0]} :c :y)))))
+  (testing "a column that really is numerical still says so"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"is numerical"
+         (pj/plan (pj/lay-summary {:c [1.0 2.0] :y [1.0 2.0]} :c :y))))))
+
 (deftest string-column-names-auto-label-test
   ;; A string name titles its axis as written. Substituting its separators
   ;; would corrupt a name that meant them, which keyword names cannot express.
@@ -1447,6 +1484,59 @@
 
     (testing "ticks that fall at a time of day are left to say the hour"
       (is (every? #(re-find #":" %) (labels "2024-01-01" 3 1))))))
+
+(deftest a-log-axis-draws-no-tick-outside-its-panel
+  (let [y-ticks (fn [pose] (-> pose pj/plan :panels first :y-ticks))
+        domain  (fn [pose] (-> pose pj/plan :panels first :y-domain))]
+    (testing "a break below the domain is dropped, as ggplot2 drops it"
+      ;; y = 3, 40, 900 gives the domain 2.2556..1197.01 in both
+      ;; libraries. ggplot2 4.0.0 labels 10, 100 and 1000 and drops the
+      ;; 1; Plotje drew the 1 below the panel box entirely.
+      (let [pose (-> {:x [1.0 2.0 3.0] :y [3.0 40.0 900.0]}
+                     (pj/lay-point :x :y)
+                     (pj/scale :y :log)
+                     (pj/options {:width 620 :height 300}))
+            [lo hi] (domain pose)
+            {:keys [values labels]} (y-ticks pose)]
+        (is (= ["10" "100" "1000"] labels))
+        (is (every? #(<= (double lo) (double %) (double hi)) values)
+            "every tick sits inside the domain, so every label sits inside the panel")))
+
+    (testing "a narrow domain keeps its labels rather than losing them"
+      ;; Between 6 and 9 the only break the log generator offers is 10.
+      ;; Dropping it would leave the axis with no labels at all, which is
+      ;; worse than one just outside, so the filter does not apply.
+      (let [pose (-> {:x [1.0 2.0 3.0 4.0] :y [6.0 7.0 8.0 9.0]}
+                     (pj/lay-point :x :y)
+                     (pj/scale :y :log))]
+        (is (seq (:labels (y-ticks pose))))))))
+
+(deftest a-date-axis-takes-breaks-written-as-dates
+  ;; Timothy Pratley asked for a way to steer tick selection, having
+  ;; read the book and concluded there was none. `:breaks` existed and
+  ;; died on `LocalDate cannot be cast to Number`: a temporal axis holds
+  ;; epoch-ms, and the breaks went through as date objects.
+  (let [yearly (vec (for [i (range 30)] (jt/local-date (+ 1940 i) 6 15)))
+        labels (fn [spec]
+                 (-> {:d yearly :v (vec (repeat 30 1.0))}
+                     (pj/lay-line :d :v)
+                     (pj/options {:width 700})
+                     (pj/scale :x spec)
+                     pj/plan :panels first :x-ticks :labels))]
+    (testing "dates as breaks land where they were asked for"
+      (is (= ["1940" "1950" "1960" "1970"]
+             (labels {:breaks (mapv #(jt/local-date % 1 1) [1940 1950 1960 1970])}))))
+    (testing "a LocalDateTime and a java.util.Date are accepted too"
+      (is (= 1 (count (labels {:breaks [(jt/local-date-time "1950-01-01T00:00")]}))))
+      (is (= 1 (count (labels {:breaks [(java.util.Date. 0)]})))))
+    (testing ":tick-labels still relabel them"
+      (is (= ["forties" "fifties"]
+             (labels {:breaks (mapv #(jt/local-date % 1 1) [1940 1950])
+                      :tick-labels ["forties" "fifties"]}))))
+    (testing "a single break, which wadogo's own formatter cannot label"
+      ;; `find-minimum-step` reduces min over the gaps between ticks and
+      ;; dies on "Wrong number of args (0)" when there is one tick.
+      (is (= ["1950-01-01"] (labels {:breaks [(jt/local-date 1950 1 1)]}))))))
 
 (deftest format-log-ticks-test
   (testing "Powers of 10 >= 1 render as integers"

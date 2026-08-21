@@ -28,7 +28,9 @@
    ;; Tablecloth -- dataset manipulation
    [tablecloth.api :as tc]
    ;; Tablecloth -- column-level operations
-   [tablecloth.column.api :as tcc]))
+   [tablecloth.column.api :as tcc]
+   ;; java-time -- dates, for the temporal breaks below
+   [java-time.api :as jt]))
 
 ;; The examples use one year of the gapminder data.
 
@@ -570,6 +572,24 @@ gapminder-2007
             (and (contains? texts "First")
                  (contains? texts "Fourth")
                  (not (contains? texts "Q2")))))])
+
+;; A temporal axis takes breaks written as dates. Ten years of
+;; readings, ticked once a decade rather than wherever the generator
+;; would have put them:
+
+(-> {:when (mapv (fn [year] (jt/local-date year 6 15)) (range 2015 2025))
+     :reading [12 15 11 18 22 19 25 24 28 31]}
+    (pj/lay-line :when :reading)
+    (pj/scale :x {:breaks [(jt/local-date 2016 1 1)
+                           (jt/local-date 2020 1 1)
+                           (jt/local-date 2024 1 1)]}))
+
+(kind/test-last
+ [(fn [fr] (= ["2016" "2020" "2024"]
+              (->> fr pj/plan :panels first :x-ticks :labels)))])
+
+;; A `LocalDate`, a `LocalDateTime` and a `java.util.Date` are all
+;; accepted, and `:tick-labels` rewords them as it does any other break.
 
 ;; A categorical axis labels every category by default, so with many of
 ;; them the labels overlap. `:n-ticks` keeps roughly that many

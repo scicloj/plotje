@@ -226,9 +226,20 @@
                       {:mark (:mark draft-layer)})))
     (when (and with-labels? (seq groups)
                (not-any? :labels groups))
-      (throw (ex-info (str "text/label mark requires a :text column. "
-                           "Pass it as an option: (pj/lay-text :x :y {:text :label-column})")
-                      {:mark (:mark draft-layer)})))
+      (let [given (:text draft-layer)]
+        (throw (ex-info (str "text/label mark requires a :text column. "
+                             (if (some? given)
+                               ;; Reached with :text already written, which the
+                               ;; old message told the reader to go and write.
+                               ;; A column reference is a keyword or a string,
+                               ;; so an integer column name -- what a dataset
+                               ;; built without column names gets -- is read as
+                               ;; neither a column nor a label.
+                               (str (pr-str given) " was given for :text and named no column that "
+                                    "could be read. A column reference is a keyword or a string; "
+                                    "rename the column, or select it into one that is.")
+                               "Pass it as an option: (pj/lay-text :x :y {:text :label-column})"))
+                        {:mark (:mark draft-layer) :text given}))))
     groups))
 
 ;; ---- Geometry Extraction (stat → layer descriptors) ----

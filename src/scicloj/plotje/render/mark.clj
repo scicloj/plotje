@@ -3,6 +3,7 @@
             [membrane.ui :as ui]
             [scicloj.plotje.render.dash :as dash]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.text :as text]
             [scicloj.plotje.layer-type :as layer-type]
@@ -177,13 +178,9 @@
   "Format a temporalized x value (epoch-ms) as a date string."
   [v]
   (try
-    (let [ms (long (double v))
-          inst (java.time.Instant/ofEpochMilli ms)
-          ldt (java.time.LocalDateTime/ofInstant inst java.time.ZoneOffset/UTC)]
-      ;; Drop the time-of-day when it's exactly midnight (LocalDate-only inputs).
-      (if (= 0 (.getHour ldt) (.getMinute ldt) (.getSecond ldt))
-        (str (.toLocalDate ldt))
-        (.toString ldt)))
+    ;; The same two steps the axis labels take, so a tooltip and a tick
+    ;; cannot spell one instant two ways.
+    (-> v resolve/epoch-ms->local-date-time resolve/format-local-date-time)
     (catch Exception _ (fmt-val v))))
 
 (defn- make-interval-tooltip

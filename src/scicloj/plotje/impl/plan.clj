@@ -195,6 +195,44 @@
           dt-ticks)
     labels))
 
+(defn- ticks-within-domain
+  "Drop ticks that fall outside `domain`, unless that would leave fewer
+   than two.
+
+   A tick outside the domain is drawn outside the panel: on a log y axis
+   over 3 to 900 the generator offers 1, 10, 100 and 1000, and the 1 was
+   labelled below the panel box entirely. `warn-out-of-range-breaks!`
+   already treats this as a fault when a user writes the breaks; the
+   generated ones did it silently. ggplot2 drops the same break on the
+   same domain (measured, 4.0.0).
+
+   The two-tick floor is what keeps a narrow domain labelled. Between 6
+   and 9 the only tick the log generator offers is 10, and dropping it
+   would leave an axis with no labels at all -- worse than one label
+   just outside. ggplot2 picks breaks inside the range there instead,
+   which is a different generator rather than a filter."
+  [ticks domain]
+  (let [[lo hi] domain]
+    (if-not (and (number? lo) (number? hi))
+      ticks
+      (let [inside (filterv #(<= (double lo) (double %) (double hi)) ticks)]
+        (if (< (count inside) 2) ticks inside)))))
+
+(defn- format-temporal-ticks
+  "Label temporal ticks -- given as `LocalDateTime` -- through wadogo's
+   datetime formatter, then name the month where the ticks step by days.
+
+   A single tick is formatted here rather than by wadogo, whose
+   `find-minimum-step` reduces `min` over the gaps between ticks and dies
+   on `Wrong number of args (0) passed to: clojure.core/min` when there
+   are none. Both the automatic ticks and a user's `:breaks` come through
+   here, so an axis cannot spell a date two ways."
+  [temporal-extent ts]
+  (if (< (count ts) 2)
+    (mapv resolve/format-local-date-time ts)
+    (let [dt-scale (ws/scale :datetime {:domain temporal-extent :range [0.0 1.0]})]
+      (name-the-month (vec (ws/format dt-scale ts)) ts))))
+
 (defn- merge-temporal-extents
   "Merge temporal extents from multiple draft layers into a single [min max] pair."
   [extents]
@@ -342,11 +380,22 @@
          ;; they asked for. Labels come from user-supplied :tick-labels when
          ;; provided, otherwise from the same format the scale uses.
          (and user-breaks (sequential? user-breaks) (seq user-breaks))
-         (let [vs (vec user-breaks)
+         ;; A temporal axis holds epoch-ms, so breaks written as dates are
+         ;; converted the way the domain was. Given the dates straight
+         ;; through, the tick values stayed LocalDate objects and the
+         ;; out-of-range check died on `LocalDate cannot be cast to
+         ;; Number` -- naming neither :breaks nor the axis.
+         (let [vs (if temporal-extent
+                    (mapv resolve/temporal->epoch-ms user-breaks)
+                    (vec user-breaks))
                _ (warn-out-of-range-breaks! vs domain)
                labels (cond
                         (and user-labels (sequential? user-labels))
                         (mapv str user-labels)
+                        temporal-extent
+                        (format-temporal-ticks
+                         temporal-extent
+                         (mapv resolve/epoch-ms->local-date-time vs))
                         log?
                         (vec (scale/format-log-ticks vs))
                         :else
@@ -360,14 +409,14 @@
            ;; Single-value temporal domain: one tick at the single value
            {:values [(first domain)] :labels [(str (first temporal-extent))] :categorical? false}
            (let [dt-scale (ws/scale :datetime {:domain temporal-extent :range [0.0 1.0]})
-                 dt-ticks (ws/ticks dt-scale n)
-                 labels (name-the-month (vec (ws/format dt-scale dt-ticks)) dt-ticks)
+                 dt-ticks (vec (ws/ticks dt-scale n))
+                 labels (format-temporal-ticks temporal-extent dt-ticks)
                  values (mapv resolve/temporal->epoch-ms dt-ticks)]
              {:values values :labels labels :categorical? false}))
 
          log?
          ;; Log: use ggplot2-style 1-2-5 nice breaks
-         (let [ticks (scale/log-ticks domain n)
+         (let [ticks (ticks-within-domain (vec (scale/log-ticks domain n)) domain)
                labels (scale/format-log-ticks ticks)]
            {:values (vec ticks) :labels (vec labels) :categorical? false})
 

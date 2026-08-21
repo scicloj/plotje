@@ -213,6 +213,26 @@
     (instance? java.util.Date v) (double (.getTime ^java.util.Date v))
     :else (double v)))
 
+(defn epoch-ms->local-date-time
+  "The inverse of `temporal->epoch-ms`, read at UTC -- the offset that
+   function converts with, so a value round-trips.
+
+   Needed wherever an epoch-ms number has to be shown as a date again:
+   an axis holds epoch-ms, and wadogo's `:datetime` scale formats
+   `LocalDateTime` and refuses a `LocalDate`."
+  [ms]
+  (java.time.LocalDateTime/ofInstant
+   (java.time.Instant/ofEpochMilli (long (double ms)))
+   java.time.ZoneOffset/UTC))
+
+(defn format-local-date-time
+  "A `LocalDateTime` as a date string, dropping a midnight time of day so
+   a value that began life as a `LocalDate` reads back as one."
+  [^java.time.LocalDateTime ldt]
+  (if (= 0 (.getHour ldt) (.getMinute ldt) (.getSecond ldt))
+    (str (.toLocalDate ldt))
+    (.toString ldt)))
+
 (defn- temporalize-column
   "Replace a temporal column in a dataset with its epoch-ms numeric equivalent.
    Uses vectorized dt-dt/datetime->epoch for typed temporal columns;
@@ -478,6 +498,30 @@
                    :else                                   :identity))]
     {:mark mark :stat stat}))
 
+(defn- column-phrase
+  "How to describe a column in an error message: what it holds, or that
+   it holds nothing.
+
+   An empty column and an all-missing one are both typed `:boolean` by
+   tech.ml.dataset, and `column-type` reads both as `:numerical` so the
+   rest of the pipeline has something to work with. Saying \"is
+   numerical\" of either states something about the data that is not
+   true, and sends the reader to check a column type that is not the
+   problem."
+  [ds col]
+  (let [c (when (and ds col) (get ds col))]
+    (cond
+      (nil? c) "is not in the data"
+      (zero? (count c)) "has no rows"
+      (every? nil? (take 100 c)) "has no values"
+      :else "is numerical")))
+
+(defn- no-values?
+  "True where `column-phrase` would report the column as holding
+   nothing, so a caller can choose different advice."
+  [ds col]
+  (not= "is numerical" (column-phrase ds col)))
+
 (defn resolve-draft-layer
   "Resolve a single draft layer: infer column types, aesthetics, grouping, and layer type.
    Delegates to `infer-column-types`, `resolve-aesthetics`, `infer-grouping`,
@@ -547,18 +591,27 @@
                        (= stat (both-axes-marks mark))
                        both-numerical?)
               (throw (ex-info (str "lay-" (name user-fn-name) " requires a categorical column on either :x or :y, "
-                                   "but both " (pr-str (:x v)) " and " (pr-str (:y v))
-                                   " are numerical. Override with "
-                                   "{:x-type :categorical} or {:y-type :categorical} "
-                                   "to treat a numeric column as categorical.")
+                                   "but " (pr-str (:x v)) " " (column-phrase resolved-ds (:x v))
+                                   " and " (pr-str (:y v)) " " (column-phrase resolved-ds (:y v)) ". "
+                                   (if (or (no-values? resolved-ds (:x v))
+                                           (no-values? resolved-ds (:y v)))
+                                     (str "A layer that groups by category needs at least one row "
+                                          "carrying a category.")
+                                     (str "Override with {:x-type :categorical} or "
+                                          "{:y-type :categorical} to treat a numeric column "
+                                          "as categorical.")))
                               {:mark mark :x (:x v) :y (:y v)})))
           _ (when (and (contains? x-only-cat-marks mark)
                        (= stat (x-only-cat-marks mark))
                        (= x-type :numerical))
               (throw (ex-info (str "lay-" (name user-fn-name) " requires a categorical :x column, but "
-                                   (pr-str (:x v)) " is numerical. Use a categorical column "
-                                   "(e.g., species names) for the x-axis, or pass "
-                                   "{:x-type :categorical} to treat a numeric column as categorical.")
+                                   (pr-str (:x v)) " " (column-phrase resolved-ds (:x v)) ". "
+                                   (if (no-values? resolved-ds (:x v))
+                                     (str "A layer that groups by category needs at least one row "
+                                          "carrying a category.")
+                                     (str "Use a categorical column (e.g., species names) for the "
+                                          "x-axis, or pass {:x-type :categorical} to treat a "
+                                          "numeric column as categorical.")))
                               {:mark mark :x (:x v) :x-type x-type})))
           _ (when (and (contains? x-only-cat-marks mark)
                        (= stat (x-only-cat-marks mark))

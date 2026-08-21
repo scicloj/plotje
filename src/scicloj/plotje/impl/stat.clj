@@ -137,15 +137,30 @@
 ;; ---- Prepare Points ----
 
 (defn- validate-numeric-column
-  "Throw a clear error if the column referenced by `col-key` in `draft-layer` is categorical
-   but the stat requires numeric data."
+  "Report a column the stat cannot read, and say what to do about it.
+
+   The column name is printed with `pr-str` rather than `name`: a
+   dataset built without column names gets integer ones, and `name`
+   threw `Long cannot be cast to clojure.lang.Named` on those -- a cast
+   exception in place of the clear error this function exists to give.
+
+   Dates written as text are the common way to arrive here, so the
+   message names the conversion; a `:bin` stat also names the layer that
+   counts categories instead, which is what a categorical column
+   usually wants."
   [draft-layer col-key stat-name]
   (let [type-key (keyword (str (name col-key) "-type"))
-        col-type (get draft-layer type-key)]
+        col-type (get draft-layer type-key)
+        col (get draft-layer col-key)]
     (when (= col-type :categorical)
-      (throw (ex-info (str "Stat :" (name stat-name) " requires a numeric column for :" (name col-key)
-                           ", but :" (name (get draft-layer col-key)) " is categorical.")
-                      {:stat stat-name :column (get draft-layer col-key) :column-type col-type})))))
+      (throw (ex-info (str "Stat :" (name stat-name) " requires a numeric column for :"
+                           (name col-key) ", but " (pr-str col) " is categorical. "
+                           "Dates written as text stay categorical until they are parsed: "
+                           "(tc/convert-types ds " (pr-str col) " :local-date) makes the "
+                           "column temporal, which this stat can read."
+                           (when (= stat-name :bin)
+                             " To count the rows in each category instead of binning them, use pj/lay-bar."))
+                      {:stat stat-name :column col :column-type col-type})))))
 
 (defn- min-adjacent-gap
   "Smallest gap between adjacent distinct values, or nil when fewer than two
