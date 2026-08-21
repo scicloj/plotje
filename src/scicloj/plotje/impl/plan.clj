@@ -76,6 +76,66 @@
                       {:aesthetic aesthetic :include written})))
     (if (number? written) [written] (vec written))))
 
+(defn- whole-column?
+  "True when every value in `col` is a whole number. An integer column
+   is whole by its type and no value is read; a float column is read
+   until the first value that is not, which on continuous data is
+   usually the first."
+  [col]
+  (or (casting/integer-type? (dtype/elemwise-datatype col))
+      (every? scale/whole-number? col)))
+
+(defn- whole-axis-values?
+  "True when the axis reads whole numbers: its extent is whole, and
+   nothing it draws between the ends of that extent is fractional.
+
+   Neither half alone is enough.
+
+   The extent is not read off the domain, which arrives at the tick
+   picker padded -- a whole 40 to 60 reaches it as 39 to 61 and a
+   fractional 4.3 to 7.9 as 4.12 to 8.08, so neither can be told from
+   the other there. It is read off the stat's own `:x-domain` or
+   `:y-domain`, which is the extent before padding.
+
+   The extent by itself would call a column of 1.0, 1.5 and 2.0 whole,
+   and ticking that axis 1 and 2 leaves the middle mark with nothing to
+   read it against. So the values are read as well, from the `:xs` and
+   `:ys` of a stat result's `:points`.
+
+   Not every stat reports its values there: a histogram reports `:bins`
+   and a boxplot `:boxes`. Those axes are judged on their extent alone,
+   which is what puts whole ticks on a count axis. The cost is that a
+   boxplot of whole numbers is ticked at whole numbers even where a
+   quartile falls between two -- a mark sitting between ticks rather
+   than a mark drawn wrongly.
+
+   A `:domain` the writer set is read too: it is where the axis ends,
+   so a fractional one is a fractional axis whatever the data does.
+
+   A stacked layer contributes its unstacked values, which is sound in
+   the direction that matters -- a sum of whole numbers is whole, so
+   this never calls a fractional axis whole. Where it misses, the axis
+   is ticked as it always was."
+  [stat-results extent-key points-key spec]
+  (let [written (:domain spec)
+        extents (for [sr stat-results
+                      :let [d (extent-key sr)]
+                      :when (and (sequential? d) (= 2 (count d)) (number? (first d)))]
+                  d)
+        ;; Read by the first value rather than by the column's type: a
+        ;; count comes back in an `:object` column holding whole
+        ;; numbers, and a type test threw that away.
+        cols (for [sr stat-results
+                   g (:points sr)
+                   :let [c (points-key g)]
+                   :when (and (some? c) (pos? (count c)) (number? (first c)))]
+               c)]
+    (boolean (and (seq extents)
+                  (every? scale/whole-number? (apply concat extents))
+                  (every? whole-column? cols)
+                  (or (not (sequential? written))
+                      (every? scale/whole-number? written))))))
+
 (defn- pad-domain-anchored
   "Pad a numeric domain, then put back whichever end an anchor value
    sits on.
@@ -422,6 +482,12 @@
    replace the auto-formatted labels at the corresponding break
    positions.
 
+   `whole?` says whether every value the domain came from is a whole
+   number. It cannot be read off the domain, which arrives padded: a
+   whole 40 to 60 reaches here as 39 to 61. A numeric axis whose values
+   are whole is ticked at whole numbers rather than at the halves
+   wadogo picks when the span is small and the count asked for is not.
+
    On a categorical axis, `:breaks` selects which categories get a tick
    (ggplot2's discrete `breaks`): each break is matched to a category by
    its displayed label, unmatched breaks are dropped with a warning, and
@@ -429,10 +495,12 @@
    over `:n-ticks` -- when both are given, the exact breaks win and no
    thinning is applied."
   ([domain pixel-range scale-spec spacing]
-   (compute-ticks domain pixel-range scale-spec spacing nil nil))
+   (compute-ticks domain pixel-range scale-spec spacing nil nil false))
   ([domain pixel-range scale-spec spacing temporal-extent]
-   (compute-ticks domain pixel-range scale-spec spacing temporal-extent nil))
+   (compute-ticks domain pixel-range scale-spec spacing temporal-extent nil false))
   ([domain pixel-range scale-spec spacing temporal-extent separators]
+   (compute-ticks domain pixel-range scale-spec spacing temporal-extent separators false))
+  ([domain pixel-range scale-spec spacing temporal-extent separators whole?]
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
            user-labels (:tick-labels scale-spec)]
@@ -515,9 +583,11 @@
            {:values (vec ticks) :labels (vec labels) :categorical? false})
 
          :else
-         ;; Linear: use wadogo
+         ;; Linear: wadogo, or whole numbers where the values the axis
+         ;; reads are whole -- `scale/linear-ticks` states the rule for
+         ;; this path and for `layout/ticks-at-budget`.
          (let [s (scale/make-scale domain pixel-range scale-spec)
-               ticks (ws/ticks s n)
+               ticks (scale/linear-ticks s n whole?)
                labels (scale/format-ticks s ticks separators)]
            {:values (vec ticks) :labels (vec labels) :categorical? false}))))))
 
@@ -2108,6 +2178,18 @@
         resolved-draft-layers (:resolved pd)
         x-temp-ext (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
         y-temp-ext (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
+        ;; Whether each axis reads whole numbers, taken where the raw
+        ;; extents are still visible. `finalize-panel` cannot ask this
+        ;; of the padded domain it holds.
+        ;; `:fill` rewrites the values it draws: whole counts become
+        ;; proportions between 0 and 1, and the stat's own values say
+        ;; nothing about them. A fill axis ticked at whole numbers reads
+        ;; 0 and 1 with nothing between.
+        fills? (boolean (some #(= :fill (:position %)) local-plan-layers))
+        x-whole? (and (not fills?)
+                      (whole-axis-values? local-srs :x-domain :xs x-scale-spec))
+        y-whole? (and (not fills?)
+                      (whole-axis-values? local-srs-y :y-domain :ys y-scale-spec))
         x-dom (or (axis-domain :x x-scale-spec
                                (collect-domain local-srs :x-domain x-scale-spec padding)
                                (some? x-temp-ext))
@@ -2147,7 +2229,10 @@
                               [x-scale-spec y-scale-spec])
         [x-te y-te] (if (= coord-type :flip)
                       [y-temp-ext x-temp-ext]
-                      [x-temp-ext y-temp-ext])]
+                      [x-temp-ext y-temp-ext])
+        [x-whole?' y-whole?'] (if (= coord-type :flip)
+                                [y-whole? x-whole?]
+                                [x-whole? y-whole?])]
     {:x-dom x-dom'
      :y-dom y-dom'
      :x-informed? x-informed?'
@@ -2157,6 +2242,8 @@
      :coord coord-type
      :x-te x-te
      :y-te y-te
+     :x-whole? x-whole?'
+     :y-whole? y-whole?'
      :layers (or local-plan-layers [])
      :row (:row pd)
      :col (:col pd)
@@ -2169,7 +2256,7 @@
   "Given a pre-tick panel domain map and pixel dimensions, compute the
    tick sets for both axes and assemble the final panel map."
   [{:keys [x-dom y-dom x-scale y-scale coord x-te y-te
-           x-informed? y-informed?
+           x-informed? y-informed? x-whole? y-whole?
            row col row-label col-label var-x var-y]
     plan-layers :layers}
    pw ph m cfg annotations]
@@ -2185,11 +2272,11 @@
         x-ticks (when (and x-dom x-informed?)
                   (compute-ticks x-dom x-px x-scale
                                  (defaults/scale-setting :x :tick-spacing x-scale cfg)
-                                 x-te seps))
+                                 x-te seps x-whole?))
         y-ticks (when (and y-dom y-informed?)
                   (compute-ticks y-dom y-px y-scale
                                  (defaults/scale-setting :y :tick-spacing y-scale cfg)
-                                 y-te seps))]
+                                 y-te seps y-whole?))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale

@@ -78,7 +78,7 @@
      [ticks (-> v pj/plan :panels first :x-ticks)]
      (and
       (false? (:categorical? ticks))
-      (contains? (set (:labels ticks)) "2.0"))))
+      (contains? (set (:labels ticks)) "2"))))
    v15_l92)))
 
 

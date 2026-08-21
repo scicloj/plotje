@@ -636,6 +636,61 @@
                   (str v))))))
         ticks))
 
+(defn whole-number?
+  "True when `x` is a number with nothing after the decimal point."
+  [x]
+  (and (number? x) (== (double x) (Math/rint (double x)))))
+
+(defn whole-number-ticks
+  "Ticks at whole-number multiples across `[lo hi]`, targeting about `n`
+   of them, or nil where fewer than two fit.
+
+   The step is a 1-2-5 multiple of a power of ten, never below one, and
+   the one whose tick count comes closest to `n` is taken. Taking the
+   largest step that stays under `n` instead left a domain of 0.8 to 5.2
+   ticked 2 and 4, where 1 2 3 4 5 is what the axis is asking for."
+  [[lo hi] n]
+  (let [lo (double lo)
+        hi (double hi)
+        n (max 2 (or n 5))
+        at (fn [step]
+             (let [start (* step (Math/ceil (/ lo step)))]
+               (vec (take-while #(<= % (+ hi 1e-9))
+                                (iterate #(+ % step) start)))))
+        candidates (for [p (range 0 12)
+                         m [1 2 5]
+                         :let [step (* m (Math/pow 10.0 p))
+                               ts (at step)]
+                         :when (>= (count ts) 2)]
+                     {:step step :ticks ts :off (Math/abs (- (count ts) n))})]
+    (:ticks (first (sort-by (juxt :off :step) candidates)))))
+
+(defn linear-ticks
+  "The ticks a linear axis draws across `[lo hi]`: wadogo's, or whole
+   numbers where the values the axis reads are whole and wadogo's would
+   be fractional.
+
+   wadogo picks the step from the span and the count asked for, so an
+   axis over four whole values asked for ten ticks is given halves:
+   `[0 1 2 3]` was ticked 0.0, 0.5, 1.0 ... 3.0. A reader takes a tick
+   at 1.5 to mean the data has a value there.
+
+   `whole?` is whether every value the extent came from is a whole
+   number, which the caller knows and this cannot see: the domain
+   reaching here has been padded, so a whole 40 to 60 arrives as 39 to
+   61 and a fractional 4.3 to 7.9 arrives as 4.12 to 8.08.
+
+   Not ggplot2's rule. `scales::extended_breaks` honours the count it
+   is given as wadogo does, so ggplot2 draws 1, 1.5, 2, 2.5, 3 on the
+   integers 1 to 3 (measured, 4.0.0); it lands on whole numbers for
+   `[0 1 2 3]` because 0-1-2-3 scores well there, not because the
+   algorithm prefers them."
+  [scale n whole?]
+  (let [ts (vec (ws/ticks scale n))]
+    (if (and whole? (some #(and (number? %) (not (whole-number? %))) ts))
+      (or (whole-number-ticks (ws/domain scale) n) ts)
+      ts)))
+
 (defn ticks-inside-domain
   "The ticks of `ticks` that fall within `[lo hi]`.
 

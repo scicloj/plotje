@@ -95,7 +95,7 @@
 (kind/test-last
  [(fn [v] (let [ticks (-> v pj/plan :panels first :x-ticks)]
             (and (false? (:categorical? ticks))
-                 (contains? (set (:labels ticks)) "2.0"))))])
+                 (contains? (set (:labels ticks)) "2"))))])
 
 ;; A categorical column gives one band per distinct value, in the order
 ;; the values first appear. There is nothing between two bands, so the

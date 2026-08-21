@@ -75,6 +75,13 @@
         {:values (vec ticks) :labels (vec labels)})
 
       :else
+      ;; wadogo's ticks, not `scale/linear-ticks`: this measures how
+      ;; much room the labels need, and whether the axis is ticked at
+      ;; whole numbers is known in plan.clj rather than here. The
+      ;; estimate stays an upper bound either way -- whole labels carry
+      ;; the same magnitudes with fewer characters, so an axis that
+      ;; ends up ticked at whole numbers is given a little more room
+      ;; than it uses, never less.
       (let [s (scale/make-scale domain [0.0 (double pixel-budget)] scale-spec)
             ticks (ws/ticks s n)
             labels (scale/format-ticks s ticks separators)]

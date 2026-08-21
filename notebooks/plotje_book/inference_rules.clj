@@ -844,7 +844,11 @@ fill-pose
 ;; Once domains are computed, Plotje selects "nice" round tick
 ;; values. The logic depends on the scale type:
 ;;
-;; - **Linear** -- wadogo selects ticks at round intervals (1, 2, 2.5, 5, ...)
+;; - **Linear** -- ticks at round intervals (1, 2, 2.5, 5, ...). Where
+;;   every value the axis reads is a whole number, so are the ticks:
+;;   a column of 0, 1, 2 and 3 is ticked 0, 1, 2, 3 rather than at the
+;;   halves the interval rule would otherwise reach for on so short a
+;;   span
 ;; - **Log** -- 1-2-5 nice numbers: powers of 10 when at least three
 ;;   of them fall inside the domain, otherwise intermediates at 1-2-5
 ;;   or 1-2-3-5 multiples per decade
@@ -852,19 +856,22 @@ fill-pose
 ;; - **Temporal** -- calendar-aware snapping (year, month, day, hour)
 ;;   with adaptive formatting
 ;;
-;; Linear ticks for the scatter example:
+;; Linear ticks for the scatter example. Its `:x` is 1, 2, 3, 4, 5 and
+;; its `:y` runs 2.1 to 5.2, so the two axes are ticked differently
+;; from one another on almost the same span:
 
 scatter-pose
 
 (kind/test-last
  [(fn [_]
     (let [p (first (:panels (pj/plan scatter-pose)))]
-      (and (= [1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0]
-              (:values (:x-ticks p)))
-           (= ["1.0" "1.5" "2.0" "2.5" "3.0" "3.5" "4.0" "4.5" "5.0"]
-              (:labels (:x-ticks p))))))])
+      (and (= [1.0 2.0 3.0 4.0 5.0] (:values (:x-ticks p)))
+           (= ["1" "2" "3" "4" "5"] (:labels (:x-ticks p)))
+           (= ["2.0" "2.5" "3.0" "3.5" "4.0" "4.5" "5.0"]
+              (:labels (:y-ticks p))))))])
 
-;; Nine ticks from 1.0 to 5.0 at 0.5 intervals.
+;; Five whole ticks along x, where the values are whole; seven ticks at
+;; half intervals along y, where they are not.
 ;;
 ;; Log ticks for a multi-decade range:
 

@@ -1623,6 +1623,57 @@
         (is (every? number? (-> pose pj/plan :panels first :x-domain)))
         (is (= 3 (:points (pj/svg-summary pose))))))))
 
+(deftest an-axis-of-whole-numbers-is-ticked-at-whole-numbers
+  (let [xl (fn [pose] (vec (-> pose pj/plan :panels first :x-ticks :labels)))
+        yl (fn [pose] (vec (-> pose pj/plan :panels first :y-ticks :labels)))]
+    (testing "the case two users reported"
+      ;; Timothy Pratley and Adrian Smith, Zulip 2026-08-20. wadogo picks
+      ;; the step from the span and the count asked for, so four whole
+      ;; values asked for ten ticks were given halves.
+      (is (= ["0" "1" "2" "3"] (xl (-> {:x [0 1 2 3] :y [1 2 3 4]}
+                                       (pj/lay-point :x :y)))))
+      (is (= ["1" "2" "3"] (xl (-> {:x [1 2 3] :y [1 2 3]}
+                                   (pj/lay-point :x :y)))))
+      ;; ggplot2 4.0.0 draws 1, 1.5, 2, 2.5, 3 here (measured):
+      ;; `scales::extended_breaks` honours the count it is given, as
+      ;; wadogo does. This is not that algorithm.
+      (is (= ["4" "5" "6"] (xl (-> {:x [4 5 6] :y [1 2 3]}
+                                   (pj/lay-point :x :y))))))
+
+    (testing "a count axis, whatever computes the count"
+      (is (= ["0" "1" "2"] (yl (-> {:c ["a" "b" "a" "c"]} (pj/lay-bar :c)))))
+      (is (= ["0" "1" "2" "3"] (yl (-> {:v [1 2 2 3 3 3 4 5 5]}
+                                       (pj/lay-histogram :v))))))
+
+    (testing "an axis whose values are not whole is left alone"
+      (is (some #(clojure.string/includes? % ".")
+                (xl (-> {:x [1.5 2.5 3.5] :y [1 2 3]} (pj/lay-point :x :y)))))
+      ;; The extent alone would call this whole. The value at 1.5 is
+      ;; what says otherwise, and ticking 1 and 2 would leave it with
+      ;; nothing to read it against.
+      (is (some #(clojure.string/includes? % ".")
+                (xl (-> {:x [1.0 1.5 2.0] :y [10 20 30]} (pj/lay-point :x :y))))))
+
+    (testing "a proportion axis keeps its fractions"
+      ;; `:fill` rewrites whole counts as proportions, so the stat's own
+      ;; values say nothing about what is drawn.
+      (is (some #(clojure.string/includes? % ".")
+                (yl (-> {:x ["a" "a" "b" "b"] :g ["m" "n" "m" "n"] :v [10 20 30 40]}
+                        (pj/lay-bar :x :v {:color :g :position :fill}))))))
+
+    (testing "a written :domain is read too"
+      (is (= ["0" "1" "2" "3"] (xl (-> {:x [0 1 2 3] :y [1 2 3 4]}
+                                       (pj/lay-point :x :y)
+                                       (pj/scale :x {:domain [0 3]})))))
+      (is (some #(clojure.string/includes? % ".")
+                (xl (-> {:x [0 1 2 3] :y [1 2 3 4]}
+                        (pj/lay-point :x :y)
+                        (pj/scale :x {:domain [0.5 3.5]}))))))
+
+    (testing "an axis already ticked at whole numbers is unchanged"
+      (is (= ["0" "10" "20" "30" "40" "50" "60" "70" "80" "90" "100"]
+             (xl (-> {:x [0 50 100] :y [1 2 3]} (pj/lay-point :x :y))))))))
+
 (deftest a-log-axis-spanning-decades-is-labelled-between-the-powers
   ;; The candidate set is scored by the ticks the axis draws, not by the
   ;; ticks the generator offers. The 15%-of-log-span margin puts bounding
