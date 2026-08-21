@@ -27,11 +27,11 @@
 
 (kind/test-last [(fn [v] (= 4 (:points (pj/svg-summary v))))])
 
-;; ## Dropped: a position that is not a number
+;; ## Dropped: an axis value that is not a number
 
 ;; A mark needs a number on each axis to be placed. A row whose
-;; position is `nil` or `NaN` has none, so it is dropped and three
-;; marks are drawn from four rows:
+;; `:height` or `:weight` is `nil` or `NaN` has none, so it is dropped
+;; and three marks are drawn from four rows:
 
 (-> {:height [1 2 nil 4] :weight [1 2 3 4]}
     (pj/lay-point :height :weight))
@@ -43,7 +43,7 @@
 ;; when it does this. `NaN` is counted with `nil` in that message, since
 ;; both mean "no value here".
 
-;; ## Dropped: a position that is infinite
+;; ## Dropped: an axis value that is infinite
 
 ;; An infinity is a number but not a place, so it goes the same way,
 ;; under its own count in the warning -- `1 non-finite (Inf/-Inf)`:

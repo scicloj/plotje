@@ -538,6 +538,60 @@ gapminder-2007
             (and (= 150 (:points s))
                  (= 1 (:clips s)))))])
 
+;; ### Making an axis reach a value
+
+;; An axis follows the column it reads, so life expectancies from the
+;; high thirties to the mid eighties give an axis that starts in the
+;; high thirties. A reader comparing the heights of those marks is then
+;; comparing distances from the high thirties rather than from zero,
+;; which is what makes a chart drawn that way misleading. `:include`
+;; names a value the axis has to reach:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp)
+    (pj/scale :y {:include 0}))
+
+(kind/test-last
+ [(fn [fr] (= [0.0 86.73315]
+              (-> fr pj/plan :panels first :y-domain vec)))])
+
+;; The value sits exactly at the edge of the panel and the other end is
+;; padded as any domain is, which is where `pj/lay-bar` already draws
+;; its baseline: a bar chart and a scatter of the same column span the
+;; same axis. ggplot2 spells this `expand_limits(y = 0)`, and neither
+;; library reaches zero on its own -- measured on this data, ggplot2
+;; 4.0.0 expands the axis to the same extent Plotje does.
+;;
+;; A collection names more than one value, which is how an axis is
+;; given room the data does not fill:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp)
+    (pj/scale :y {:include [0 100]}))
+
+(kind/test-last
+ [(fn [fr] (= [0.0 100.0]
+              (-> fr pj/plan :panels first :y-domain vec)))])
+
+;; `:include` is a set of values, so `[0 100]` and `[100 0]` say the
+;; same thing. A `:domain` is an ordered pair, and writing it the other
+;; way round draws the axis the other way up:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp)
+    (pj/scale :y {:domain [100 0]}))
+
+(kind/test-last
+ [(fn [fr] (= [100.0 90.0 80.0 70.0 60.0 50.0 40.0 30.0 20.0 10.0 0.0]
+              (-> fr pj/plan :panels first :y-ticks :values vec)))])
+
+;; The two cannot both be written for one aesthetic. A `:domain`
+;; replaces the extent the data gives and an `:include` adds to it, so
+;; a scale carrying both asks for two answers and reports. `:include`
+;; is reported on a log scale as well, which has no reading for zero,
+;; and on a categorical axis, which is ticked at its categories and has
+;; no extent between them.
+
 ;; ### Where the ticks go
 ;;
 ;; An axis scale carries the keys that place and word its tick marks. `:breaks` pins the values that get a tick, which is

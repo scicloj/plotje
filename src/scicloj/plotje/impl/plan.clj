@@ -23,6 +23,87 @@
 
 ;; ---- Domain Helpers ----
 
+(defn- include-anchors
+  "The values `:include` says an axis's domain has to reach, as a
+   vector, or nil where it says nothing.
+
+   `:domain` and `:include` are the two ways to speak about what an
+   axis spans and they cannot both be written: a `:domain` replaces the
+   data's extent outright and an `:include` adds to it, so a spec
+   carrying both asks for two answers. They can arrive from different
+   scopes -- scale settings accumulate key by key -- which is why the
+   pair is reported here, where the merged spec is what is read, rather
+   than at the call that wrote one of them.
+
+   A categorical axis is ticked at its categories, and there is no
+   extent between them for a number to extend. A log axis has no
+   reading for zero, and extending towards one is what `:include` is
+   for; `scale/pad-domain` refuses the domain that would result, and
+   this says which setting asked for it.
+
+   The written value's own shape -- a finite number, or a collection of
+   them -- is checked at the call by `scale/validate-spec-options!`."
+  [aesthetic spec numeric?]
+  (when-let [written (:include spec)]
+    (when (:domain spec)
+      (throw (ex-info (str "pj/scale " aesthetic " sets both :domain "
+                           (pr-str (:domain spec)) " and :include "
+                           (pr-str written) ". A :domain says what the"
+                           " axis spans and replaces the data's own"
+                           " extent; an :include says what that extent"
+                           " has to reach and adds to it. Take one off:"
+                           " :domain to fix both ends, :include to keep"
+                           " the end the data decides.")
+                      {:aesthetic aesthetic :domain (:domain spec)
+                       :include written})))
+    (when-not numeric?
+      (throw (ex-info (str "pj/scale " aesthetic " sets :include "
+                           (pr-str written) " on a categorical axis,"
+                           " which is ticked at its categories and has"
+                           " no extent between them to extend. To choose"
+                           " which categories are drawn and in what"
+                           " order, write them as the :domain.")
+                      {:aesthetic aesthetic :include written})))
+    (when (= :log (:type spec))
+      (throw (ex-info (str "pj/scale " aesthetic " sets :include "
+                           (pr-str written) " beside a log scale. A log"
+                           " scale has no reading for zero or for a"
+                           " negative value, so it cannot be extended"
+                           " towards one. Take one of the two off:"
+                           " :include for an axis that reaches a value"
+                           " the data does not, or the log scale for a"
+                           " multiplicative one.")
+                      {:aesthetic aesthetic :include written})))
+    (if (number? written) [written] (vec written))))
+
+(defn- pad-domain-anchored
+  "Pad a numeric domain, then put back whichever end an anchor value
+   sits on.
+
+   An anchor is a value the domain has to cover: zero for a mark drawn
+   from a baseline, and whatever `:include` names. The end an anchor
+   reaches is drawn exactly there rather than padded past it, which is
+   why a bar chart's baseline sits on the panel edge -- padding below a
+   baseline draws a gap the bars are measured from. The other end is
+   padded as any domain is.
+
+   One function because the two rules are one rule: `lay-bar` asked for
+   zero through its mark and `:include` asks for it by name, and a
+   stacked bar used to pad below the baseline its unstacked sibling sat
+   on."
+  [[raw-lo raw-hi] anchors scale-spec padding]
+  (if (empty? anchors)
+    (scale/pad-domain [raw-lo raw-hi] scale-spec padding)
+    (let [raw-lo (double raw-lo)
+          raw-hi (double raw-hi)
+          a-lo (double (reduce min anchors))
+          a-hi (double (reduce max anchors))
+          lo (min raw-lo a-lo)
+          hi (max raw-hi a-hi)
+          [plo phi] (scale/pad-domain [lo hi] scale-spec padding)]
+      [(if (<= a-lo raw-lo) a-lo plo)
+       (if (>= a-hi raw-hi) a-hi phi)])))
+
 (defn collect-domain
   "Collect and merge domains from stat results along axis-key.
    Throws if some stat results contribute numeric domains and others
@@ -45,9 +126,13 @@
                              ". Each layer must use a consistent column type for this axis.")
                         {:axis axis-key
                          :domains (mapv :vals parsed)})))
-      (let [vals (mapcat :vals parsed)]
-        (if (number? (first vals))
-          (scale/pad-domain [(reduce min vals) (reduce max vals)] scale-spec padding)
+      (let [vals (mapcat :vals parsed)
+            aesthetic (if (= :x-domain axis-key) :x :y)
+            numeric? (number? (first vals))
+            anchors (include-anchors aesthetic scale-spec numeric?)]
+        (if numeric?
+          (pad-domain-anchored [(reduce min vals) (reduce max vals)]
+                               anchors scale-spec padding)
           (distinct vals))))))
 
 (defn compute-global-y-domain
@@ -63,18 +148,26 @@
   (let [fill-layers (filter #(= :fill (:position %)) plan-layers)
         stack-layers (filter #(= :stack (:position %)) plan-layers)
         log? (= :log (:type scale-spec))
+        ;; What `:include` asks for, beside whatever the marks ask for.
+        ;; Read once here so a categorical y or a `:domain` beside it is
+        ;; reported whichever branch below answers.
+        y-categorical? (and (seq plan-layers)
+                            (let [d (some :y-domain plan-layers)]
+                              (boolean (and d (seq d) (not (number? (first d)))))))
+        wanted (include-anchors :y scale-spec (not y-categorical?))
         ;; Marks whose visual identity anchors at y=0 (rectangle base, fill
         ;; baseline, lollipop stem). :rect is the categorical-bar mark (from
         ;; lay-bar, whether counting or using y heights); :bar is the
         ;; histogram mark.
         zero-baseline-marks #{:bar :rect :lollipop :area}
         needs-zero? (and (not log?)
-                         (some #(zero-baseline-marks (:mark %)) plan-layers))
-        extend-to-zero (fn [[lo hi]] [(min 0.0 (double lo)) (max 0.0 (double hi))])]
+                         (some #(zero-baseline-marks (:mark %)) plan-layers))]
     (cond
-      ;; Fill mode: normalized to [0, 1]
+      ;; Fill mode: normalized to [0, 1], which `:include` may still
+      ;; widen -- a proportion axis asked to reach a value outside 0 to
+      ;; 1 reaches it, rather than ignoring the request.
       (seq fill-layers)
-      [0.0 1.0]
+      (pad-domain-anchored [0.0 1.0] wanted scale-spec 0.0)
 
       ;; Stack mode: read pre-computed y0/y1 values from adjusted layers
       (seq stack-layers)
@@ -97,17 +190,20 @@
                                (when-not (#{:stack :fill} (:position l))
                                  (:y-domain l)))
                              plan-layers)
-            ;; Include 0 for the stacked-bar baseline on linear scales.
-            ;; Log scales have no zero -- skip the injection and rely on
-            ;; the data's own positive values for the lower bound.
-            baseline-vals (if log? [] [0])
-            raw-vals (concat rect-vals area-vals other-yd baseline-vals)
+            ;; The stacked baseline is an anchor, not a value: zero is
+            ;; where the stack is measured from, so it sits on the panel
+            ;; edge as an unstacked bar's does, rather than being padded
+            ;; past. Log scales have no zero -- skip it and rely on the
+            ;; data's own positive values for the lower bound.
+            baseline-anchors (if log? [] [0.0])
+            anchors (concat baseline-anchors wanted)
+            raw-vals (concat rect-vals area-vals other-yd)
             all-vals (if log? (filter pos? raw-vals) raw-vals)]
         (if (seq all-vals)
           (let [lo (double (reduce min all-vals))
                 hi (double (reduce max all-vals))]
-            (if (< lo hi)
-              (scale/pad-domain [lo hi] scale-spec padding)
+            (if (or (< lo hi) (seq anchors))
+              (pad-domain-anchored [lo hi] anchors scale-spec padding)
               [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
           [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
 
@@ -121,15 +217,11 @@
         (when (seq vals)
           (if (number? (first vals))
             (let [raw-lo (reduce min vals)
-                  raw-hi (reduce max vals)]
-              (if needs-zero?
-                ;; Baseline marks: include zero, only pad away from zero.
-                (let [lo (min 0.0 raw-lo)
-                      hi (max 0.0 raw-hi)
-                      [plo phi] (scale/pad-domain [lo hi] scale-spec padding)]
-                  [(if (>= raw-lo 0.0) 0.0 plo)
-                   (if (<= raw-hi 0.0) 0.0 phi)])
-                (scale/pad-domain [raw-lo raw-hi] scale-spec padding)))
+                  raw-hi (reduce max vals)
+                  ;; A baseline mark asks for zero through its mark;
+                  ;; `:include` asks for values by name. One rule.
+                  anchors (concat (if needs-zero? [0.0] []) wanted)]
+              (pad-domain-anchored [raw-lo raw-hi] anchors scale-spec padding))
             (distinct vals)))))))
 
 ;; ---- Tick Computation ----
@@ -210,13 +302,15 @@
    and 9 the only tick the log generator offers is 10, and dropping it
    would leave an axis with no labels at all -- worse than one label
    just outside. ggplot2 picks breaks inside the range there instead,
-   which is a different generator rather than a filter."
+   which is a different generator rather than a filter.
+
+   Which ticks are inside is `scale/ticks-inside-domain`, the same rule
+   `scale/log-ticks` scores its candidate sets by. The floor belongs
+   here rather than there: it is a decision about what to draw once the
+   set has been chosen."
   [ticks domain]
-  (let [[lo hi] domain]
-    (if-not (and (number? lo) (number? hi))
-      ticks
-      (let [inside (filterv #(<= (double lo) (double %) (double hi)) ticks)]
-        (if (< (count inside) 2) ticks inside)))))
+  (let [inside (scale/ticks-inside-domain ticks domain)]
+    (if (< (count inside) 2) (vec ticks) inside)))
 
 (defn- format-temporal-ticks
   "Label temporal ticks -- given as `LocalDateTime` -- through wadogo's
@@ -708,9 +802,21 @@
    Reading the shape instead made `{:domain [4 5 6 8]}` on a
    categorical axis look like a numeric range: the axis was built as a
    linear scale, and every mark -- text by the time it got there --
-   died casting inside it. A temporal axis is unaffected either way,
-   since its domain reaches here as epoch numbers."
-  [aesthetic spec data-domain]
+   died casting inside it.
+
+   A temporal axis holds epoch milliseconds, so a domain written in
+   dates is converted the way `:breaks` is. Given the dates straight
+   through, the panel's domain held `LocalDate` objects and the first
+   mark to be placed died on `Number.doubleValue() because \"x\" is
+   null`, naming neither the axis nor the setting.
+
+   Against a continuous column a domain is two finite numbers, and
+   `scale/validate-bounds-pair!` cannot say so at the call: it is the
+   column's type that decides how the domain is read, and that is not
+   known until here. So `{:domain [0]}` drew an axis with a single tick
+   and the marks off the panel, and `{:domain [0 nil]}` died in the
+   arithmetic."
+  [aesthetic spec data-domain temporal?]
   (let [written (:domain spec)]
     (cond
       (nil? written) data-domain
@@ -719,7 +825,29 @@
       (do (warn-category-domain-gap! aesthetic data-domain written)
           (order-by-domain data-domain written))
 
-      :else written)))
+      :else
+      (let [vs (if temporal?
+                 (mapv resolve/temporal->epoch-ms written)
+                 (vec written))]
+        (when-not (and (= 2 (count vs))
+                       (every? #(and (number? %) (Double/isFinite (double %))) vs))
+          (throw (ex-info (str "pj/scale " aesthetic " :domain " (pr-str written)
+                               " is not a pair of two finite numbers, as "
+                               (pr-str [0 100]) " is"
+                               (if temporal?
+                                 (str ", nor a pair of dates, as this axis"
+                                      " reads them")
+                                 "")
+                               ". " aesthetic " here reads a continuous"
+                               " column, so its domain is the interval the"
+                               " panel spans."
+                               (when (not= 2 (count vs))
+                                 (str " It has " (count vs) "."))
+                               " To extend the interval the data gives"
+                               " rather than replace it, write :include.")
+                          {:aesthetic aesthetic :domain written
+                           :temporal? temporal?})))
+        vs))))
 
 (defn- collect-colors
   "Resolve draft layers and collect color categories across all draft layers.
@@ -1040,14 +1168,26 @@
 
    Stated once because both continuous legends need it: the fill legend
    had it and the colour legend did not, so `pj/scale :color :log`
-   spaced the marks and left the legend describing a linear scale."
+   spaced the marks and left the legend describing a linear scale.
+
+   Only the ticks inside the domain, by `scale/ticks-inside-domain`.
+   The generator reaches a little past the domain -- on an axis a
+   bounding power of ten just outside the data is an ordinary tick --
+   and a bar has no room past its own ends: on gapminder's gross
+   domestic product per capita the tick at 100000 was drawn at 1.14 of
+   a bar that stops at 1.0, over the legend's title. Where fewer than
+   two survive, no ticks are returned and the renderer labels the bar's
+   two ends instead, which is what a linear bar carries."
   [lo hi]
   (let [lo-l (Math/log10 (max 1e-300 (double lo)))
         hi-l (Math/log10 (max 1e-300 (double hi)))
-        span (max 1e-6 (- hi-l lo-l))]
-    (vec (for [v (scale/log-ticks [lo hi] 5)]
-           {:value v
-            :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))
+        span (max 1e-6 (- hi-l lo-l))
+        inside (scale/ticks-inside-domain (scale/log-ticks [lo hi] 5) [lo hi])]
+    (if (< (count inside) 2)
+      []
+      (vec (for [v inside]
+             {:value v
+              :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)})))))
 
 (defn- gradient-stops
   "The colours along a continuous legend's bar, low end first.
@@ -1170,12 +1310,16 @@
    axis a bounding power of ten just outside the data is an ordinary
    tick -- and on a narrow domain every tick it picks can land outside:
    values from 6 to 9 gave the single tick 10. Where fewer than two
-   survive, the domain's own ends stand in."
+   survive, the domain's own ends stand in.
+
+   Which ticks are inside is `scale/ticks-inside-domain`, as it is on an
+   axis; what to do when too few survive is the part a legend answers
+   differently."
   [scale-type d-min d-max n]
   (let [picked (if (= scale-type :log)
                  (scale/log-ticks [d-min d-max] n)
                  (nice-legend-values d-min d-max n))
-        inside (filterv #(<= d-min % d-max) picked)]
+        inside (scale/ticks-inside-domain picked [d-min d-max])]
     (if (>= (count inside) 2)
       inside
       (vec (sort (distinct (concat [d-min d-max] inside)))))))
@@ -1958,8 +2102,15 @@
         ;; and `lay-interval-h` died on
         ;; `Number.doubleValue() because "x" is null`, and the marks
         ;; that survived drew no x ticks at all.
+        ;; Read before the domains, because a written `:domain` on a
+        ;; temporal axis is spelled in dates and the axis holds
+        ;; epoch-ms.
+        resolved-draft-layers (:resolved pd)
+        x-temp-ext (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
+        y-temp-ext (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
         x-dom (or (axis-domain :x x-scale-spec
-                               (collect-domain local-srs :x-domain x-scale-spec padding))
+                               (collect-domain local-srs :x-domain x-scale-spec padding)
+                               (some? x-temp-ext))
                   [0 1])
         y-dom (or (axis-domain :y y-scale-spec
                                (or (compute-global-y-domain domain-layers y-scale-spec padding)
@@ -1967,7 +2118,8 @@
                                    ;; layers; their y-domain lives in the
                                    ;; synthesized stat-results.
                                    (when (empty? domain-layers)
-                                     (collect-domain local-srs-y :y-domain y-scale-spec padding))))
+                                     (collect-domain local-srs-y :y-domain y-scale-spec padding)))
+                               (some? y-temp-ext))
                   [0 1])
         ;; Whether anything on this panel gives the axis a meaning in
         ;; the data. Where nothing does, the `[0 1]` fallback above is
@@ -1993,9 +2145,6 @@
         [x-sspec' y-sspec'] (if (= coord-type :flip)
                               [y-scale-spec x-scale-spec]
                               [x-scale-spec y-scale-spec])
-        resolved-draft-layers (:resolved pd)
-        x-temp-ext (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
-        y-temp-ext (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
         [x-te y-te] (if (= coord-type :flip)
                       [y-temp-ext x-temp-ext]
                       [x-temp-ext y-temp-ext])]

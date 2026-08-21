@@ -96,6 +96,7 @@ scatter-pose
 ;; | Grouping | categorical color column | `:group` aesthetic |
 ;; | Layer type (mark + stat) | column types (see Layer Type section) | `pj/lay-point`, `pj/lay-histogram`, etc. |
 ;; | Domain extent | data range + 5% padding | `(pj/scale pose :x {:domain [0 10]})` |
+;; | Domain reach | the axis spans what the data covers | `(pj/scale pose :y {:include 0})` |
 ;; | Domain zero-anchor | bar/stacked charts include zero | `(pj/scale pose :y {:domain [5 20]})` |
 ;; | Fill domain | `[0.0, 1.0]` for fill position | `(pj/scale pose :y {:domain [0 2]})` |
 ;; | Tick values | round intervals (linear), powers of 10 (log) | `(pj/scale pose :x {:breaks [1 2 3]})` |
@@ -799,6 +800,13 @@ scatter-pose
 ;; The x-domain is `[0.8, 5.2]` -- the data range `[1.0, 5.0]` plus
 ;; 0.2 padding on each side (5% of the data range, 4.0).
 ;;
+;; The domain follows the data, so an axis reaches zero only where the
+;; data does. Two settings say otherwise: `:include` names a value the
+;; axis has to reach, which is how zero gets onto it, and `:domain`
+;; replaces the extent outright. Scales works through
+;; [the first](./plotje_book.scales.html#making-an-axis-reach-a-value)
+;; and [the second](./plotje_book.scales.html#on-an-axis-a-view-window).
+;;
 ;; Special domain rules apply in certain contexts:
 ;;
 ;; Bar charts always include zero on the value axis -- for these
@@ -837,9 +845,9 @@ fill-pose
 ;; values. The logic depends on the scale type:
 ;;
 ;; - **Linear** -- wadogo selects ticks at round intervals (1, 2, 2.5, 5, ...)
-;; - **Log** -- 1-2-5 nice numbers: powers of 10 when they give at
-;;   least 3 ticks, otherwise intermediates at 1-2-5 or 1-2-3-5
-;;   multiples per decade
+;; - **Log** -- 1-2-5 nice numbers: powers of 10 when at least three
+;;   of them fall inside the domain, otherwise intermediates at 1-2-5
+;;   or 1-2-3-5 multiples per decade
 ;; - **Categorical** -- tick at each category, in order of appearance
 ;; - **Temporal** -- calendar-aware snapping (year, month, day, hour)
 ;;   with adaptive formatting
@@ -886,6 +894,13 @@ bar-pose
  [(fn [_]
     (let [p (first (:panels (pj/plan bar-pose)))]
       (= ["cat" "dog" "bird" "fish"] (:values (:x-ticks p)))))])
+
+;; All of this is what Plotje selects on its own. An axis scale also
+;; takes `:breaks`, `:tick-labels`, `:n-ticks` and `:tick-spacing`,
+;; which name the ticks rather than leaving them to the generator --
+;; `:breaks` takes dates on a temporal axis. All four are worked
+;; through in
+;; [Scales](./plotje_book.scales.html#where-the-ticks-go).
 
 ;; ## Axis Labels
 ;;

@@ -1321,7 +1321,11 @@
                           (pj/lay-bar :category :value {:color :group :position :stack})))
           [lo hi] (:y-domain (first (:panels pl)))]
       (is (neg? lo) "lower bound should be negative for all-negative stacked data")
-      (is (pos? hi) "upper bound includes 0 baseline with padding")))
+      ;; The baseline is where the stack is measured from, so it sits on
+      ;; the panel edge as an unstacked bar's does. It used to be padded
+      ;; past, which put the baseline of a stacked chart and the
+      ;; baseline of an unstacked one in different places.
+      (is (== 0.0 hi) "the zero baseline is the top edge, not padded past")))
   (testing "mixed positive/negative stacked bars span both sides"
     (let [pl (pj/plan (-> {:category ["A" "A" "B" "B"]
                            :group ["g1" "g2" "g1" "g2"]
@@ -1329,7 +1333,12 @@
                           (pj/lay-bar :category :value {:color :group :position :stack})))
           [lo hi] (:y-domain (first (:panels pl)))]
       (is (neg? lo) "lower bound extends below zero")
-      (is (pos? hi) "upper bound extends above zero")))
+      ;; `position_stack` accumulates signed values, so a +10 written
+      ;; after a -20 is drawn from -20 up to -10 rather than above the
+      ;; baseline. Measured: the layer's y0s are 0 and -20, its ys -20
+      ;; and -10, so nothing on this chart is drawn above zero and the
+      ;; domain that covers it ends there.
+      (is (== 0.0 hi) "the baseline is the top of what this chart draws")))
   (testing "all-negative stacked bars render without NaN"
     (let [svg (pj/plot (-> {:category ["A" "A" "B" "B"]
                             :group ["g1" "g2" "g1" "g2"]
@@ -1510,6 +1519,155 @@
                      (pj/lay-point :x :y)
                      (pj/scale :y :log))]
         (is (seq (:labels (y-ticks pose))))))))
+
+(deftest include-makes-an-axis-reach-a-value
+  (let [ydom (fn [pose] (vec (-> pose pj/plan :panels first :y-domain)))
+        base (-> {:c [1 2 3] :v [40 50 60]} (pj/lay-point :c :v))]
+    (testing "the value sits exactly at the panel edge, the other end is padded"
+      ;; The same place `lay-bar` puts its baseline, so a bar chart and
+      ;; a scatter of one column span one axis.
+      (is (= [0.0 63.0] (ydom (pj/scale base :y {:include 0}))))
+      (is (= [0.0 63.0] (ydom (-> {:c ["a" "b" "c"] :v [40 50 60]}
+                                  (pj/lay-bar :c :v))))))
+
+    (testing "a value inside the data changes nothing"
+      (is (= (ydom base) (ydom (pj/scale base :y {:include 50})))))
+
+    (testing "it reaches downward or upward, whichever the data misses"
+      (is (= [-42.0 0.0] (ydom (-> {:c [1 2] :v [-40 -10]}
+                                   (pj/lay-point :c :v)
+                                   (pj/scale :y {:include 0}))))))
+
+    (testing "a collection is a set, so the order it is written in says nothing"
+      (is (= [0.0 100.0] (ydom (pj/scale base :y {:include [0 100]}))))
+      (is (= [0.0 100.0] (ydom (pj/scale base :y {:include [100 0]})))))
+
+    (testing "a :domain is an ordered pair, which is what tells the two apart"
+      (is (= [100 0] (ydom (pj/scale base :y {:domain [100 0]}))))
+      (is (= [80.0 70.0 60.0 50.0 40.0 30.0 20.0 10.0 0.0]
+             (vec (-> (pj/scale base :y {:domain [85 0]})
+                      pj/plan :panels first :y-ticks :values)))))
+
+    (testing "what it refuses"
+      ;; The shape is a property of the written value, so it is reported
+      ;; at the call; the rest needs the merged spec and the column, so
+      ;; they are reported at plan time.
+      (are [spec] (thrown? clojure.lang.ExceptionInfo
+                           (pj/scale base :y spec))
+        {:include "a"}
+        {:include []}
+        {:include [0 nil]}
+        {:include ##Inf})
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"both :domain .* and :include"
+                            (ydom (pj/scale base :y {:include 0 :domain [0 85]}))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"beside a log scale"
+                            (ydom (pj/scale base :y {:include 0 :type :log}))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"categorical axis"
+                            (ydom (-> {:c [1 2 3] :v ["a" "b" "c"]}
+                                      (pj/lay-point :c :v)
+                                      (pj/scale :y {:include 0})))))
+      (is (thrown? clojure.lang.ExceptionInfo (pj/scale base :color {:include 0}))
+          "only the two aesthetics drawn as an axis read it"))
+
+    (testing "the pair is reported wherever the two settings accumulated from"
+      ;; Scale settings merge key by key down the scope chain, so a
+      ;; :domain on the pose and an :include on a layer arrive as one
+      ;; spec. That is why the pair is answered at plan time.
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"both :domain .* and :include"
+                            (ydom (-> {:c [1 2 3] :v [40 50 60]}
+                                      (pj/pose {:x :c :y :v})
+                                      (pj/scale :y {:domain [0 85]})
+                                      (pj/lay-point {:y {:scale {:include 0}}}))))))))
+
+(deftest a-stacked-baseline-sits-where-an-unstacked-one-does
+  ;; The stacked path put zero among the values it padded, so the
+  ;; baseline floated above the panel edge its unstacked sibling sat on.
+  (let [ydom (fn [pose] (vec (-> pose pj/plan :panels first :y-domain)))]
+    (is (= 0.0 (first (ydom (-> {:c ["a" "a" "b" "b"] :g ["m" "n" "m" "n"] :v [10 20 30 40]}
+                                (pj/lay-bar :c :v {:color :g :position :stack}))))))
+    (is (= 0.0 (first (ydom (-> {:c ["a" "b"] :v [30 70]}
+                                (pj/lay-bar :c :v))))))))
+
+(deftest an-axis-domain-is-checked-against-the-column
+  (let [base (-> {:c [1 2 3] :v [40 50 60]} (pj/lay-point :c :v))
+        ydom (fn [pose] (vec (-> pose pj/plan :panels first :y-domain)))]
+    (testing "a continuous column takes two finite numbers and nothing else"
+      ;; scale/validate-bounds-pair! cannot ask this at the call: the
+      ;; column's type decides how a domain is read, and a categorical
+      ;; one takes a list of categories.
+      (are [d] (thrown-with-msg? clojure.lang.ExceptionInfo
+                                 #":domain .* is not a pair of two finite numbers"
+                                 (ydom (pj/scale base :y {:domain d})))
+        [0]
+        [0 50 100]
+        [0 nil]
+        [0 ##Inf])
+      (is (= [0 85] (ydom (pj/scale base :y {:domain [0 85]})))))
+
+    (testing "a categorical column still takes its categories"
+      (is (= ["c" "b" "a"] (ydom (-> {:c [1 2 3] :v ["a" "b" "c"]}
+                                     (pj/lay-point :c :v)
+                                     (pj/scale :y {:domain ["c" "b" "a"]}))))))
+
+    (testing "a temporal axis takes dates, as its :breaks do"
+      ;; The axis holds epoch milliseconds. Given the dates straight
+      ;; through, the domain held LocalDate objects and the first mark
+      ;; placed died on a null doubleValue.
+      (let [pose (-> {:d [(jt/local-date 2020 3 1)
+                          (jt/local-date 2020 6 1)
+                          (jt/local-date 2020 9 1)]
+                      :v [1 2 3]}
+                     (pj/lay-point :d :v)
+                     (pj/scale :x {:domain [(jt/local-date 2020 1 1)
+                                            (jt/local-date 2020 12 31)]}))]
+        (is (every? number? (-> pose pj/plan :panels first :x-domain)))
+        (is (= 3 (:points (pj/svg-summary pose))))))))
+
+(deftest a-log-axis-spanning-decades-is-labelled-between-the-powers
+  ;; The candidate set is scored by the ticks the axis draws, not by the
+  ;; ticks the generator offers. The 15%-of-log-span margin puts bounding
+  ;; powers of ten just outside the domain, and counting those chose
+  ;; powers of ten for an axis that then drew two of them.
+  (let [pose (-> (tc/select-rows (rdatasets/gapminder-gapminder)
+                                 #(= 2007 (:year %)))
+                 (pj/lay-point :gdp-percap :life-exp)
+                 (pj/scale :x :log)
+                 (pj/options {:width 620 :height 400}))
+        panel (-> pose pj/plan :panels first)
+        [lo hi] (:x-domain panel)
+        {:keys [values labels]} (:x-ticks panel)]
+    (is (= ["300" "500" "1000" "2000" "3000" "5000" "10000" "20000" "30000" "50000"]
+           labels)
+        "a 2.5-decade axis carries intermediates; it read 1000 and 10000")
+    (is (every? #(<= (double lo) (double %) (double hi)) values)
+        "and every one of them sits inside the domain")))
+
+(deftest a-log-gradient-bar-is-labelled-only-on-the-bar
+  ;; `continuous-legend-ticks` passed the generator through with no
+  ;; filter, so the tick at 100000 was placed at 1.14 of a bar that ends
+  ;; at 1.0 -- drawn over the legend's title.
+  (let [legend (-> (tc/select-rows (rdatasets/gapminder-gapminder)
+                                   #(= 2007 (:year %)))
+                   (pj/lay-point :life-exp :gdp-percap {:color :gdp-percap})
+                   (pj/scale :color :log)
+                   pj/plan
+                   :legend)
+        {:keys [ticks min max]} legend]
+    (is (seq ticks))
+    (is (every? #(<= 0.0 (double (:t %)) 1.0) ticks)
+        "every tick sits on the bar")
+    (is (every? #(<= (double min) (double (:value %)) (double max)) ticks)
+        "and names a value the data reaches")
+    (testing "a domain too narrow for two ticks falls back to the bar's ends"
+      ;; The renderer labels the two ends when :ticks is empty, which is
+      ;; what a linear bar carries. Between 6 and 9 the log generator
+      ;; offers only 10.
+      (is (empty? (-> {:x [1 2 3] :y [1 2 3] :v [6 7 9]}
+                      (pj/lay-point :x :y {:color :v})
+                      (pj/scale :color :log)
+                      pj/plan
+                      :legend
+                      :ticks))))))
 
 (deftest a-date-axis-takes-breaks-written-as-dates
   ;; Timothy Pratley asked for a way to steer tick selection, having

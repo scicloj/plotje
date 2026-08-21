@@ -298,6 +298,32 @@
                              " is not true or false. It says whether the"
                              " domain and the range are anchored at zero.")
                         {:channel channel :from-zero v :caller where})))))
+  ;; `:include` is numeric on every aesthetic that reads it, so its
+  ;; shape is a property of the written value and is checked here.
+  ;; What it cannot be checked against here is the column: whether the
+  ;; axis is categorical, and whether a `:domain` written in another
+  ;; scope has accumulated beside it, are both known only once the
+  ;; merged spec meets the data, so `plan/include-anchors` answers
+  ;; those.
+  (when (contains? spec :include)
+    (let [v (:include spec)
+          vs (if (number? v) [v] v)
+          numbers? (and (or (number? v) (sequential? v))
+                        (seq vs)
+                        (every? #(and (number? %)
+                                      (Double/isFinite (double %)))
+                                vs))]
+      (when-not numbers?
+        (throw (ex-info (str where " " channel " :include " (pr-str v)
+                             " is not a finite number or a collection of"
+                             " them, as " (pr-str 0) " and "
+                             (pr-str [0 100]) " are."
+                             (when (and (sequential? v) (empty? v))
+                               (str " It is empty, and an empty :include"
+                                    " extends the domain to nothing."))
+                             " It names the values the domain has to"
+                             " reach.")
+                        {:channel channel :include v :caller where})))))
   ;; A range is a pair of numbers where the channel measures along it,
   ;; and a gradient where the channel picks a colour from it. One key,
   ;; two shapes, so the check follows the channel.
@@ -610,6 +636,19 @@
                   (str v))))))
         ticks))
 
+(defn ticks-inside-domain
+  "The ticks of `ticks` that fall within `[lo hi]`.
+
+   One rule, read in two places: `log-ticks` scores a candidate set by
+   how many of its ticks this keeps, and `plan/ticks-within-domain`
+   draws exactly those. A tick outside the domain is drawn outside the
+   panel, so a candidate set is only as dense as the part of it that
+   survives. A non-numeric bound keeps every tick."
+  [ticks [lo hi]]
+  (if-not (and (number? lo) (number? hi))
+    (vec ticks)
+    (filterv #(<= (double lo) (double %) (double hi)) ticks)))
+
 (defn log-ticks
   "Generate clean log-scale tick values for a [lo hi] domain, targeting
    approximately n ticks. Uses ggplot2-style 1-2-5 nice numbers instead
@@ -617,11 +656,22 @@
    values like 3.162...). Returns a vector of tick values (doubles).
 
    Strategy:
-   - Powers of 10 only when they give >= 3 ticks (strongly preferred)
+   - Powers of 10 only when at least three of them fall inside the
+     domain (strongly preferred)
    - 1-2-5 intermediates per decade when more ticks are needed
    - 1-2-3-5 intermediates for dense sub-decade ranges
    - Bounding powers of 10 are included when they fall within a small
-     margin (15% of log-span) of the domain edges"
+     margin (15% of log-span) of the domain edges
+
+   A candidate set is counted by the ticks `ticks-inside-domain` keeps,
+   not by the ticks it offers. The bounding-power margin puts breaks
+   just outside the domain and those are not drawn, so counting them
+   let a 2.5-decade axis choose powers of ten and then draw two of
+   them: on gapminder's gross domestic product per capita, 214 to
+   63951, the four powers 100 1000 10000 100000 were returned whatever
+   `n` asked for, and 1000 and 10000 were all that reached the panel.
+   Asked for seven, the same domain now gives 500 1000 2000 5000 10000
+   20000 50000."
   [[lo hi] n]
   (let [lo (max (double lo) 1e-300)
         hi (max (double hi) lo)
@@ -631,14 +681,15 @@
         margin (* 0.15 (max log-span 0.5))
         log-lo-i (long (Math/floor log-lo-f))
         log-hi-i (long (Math/ceil log-hi-f))
+        drawn-count (fn [ticks] (count (ticks-inside-domain ticks [lo hi])))
         ;; Powers of 10 with margin (catches nearby bounding powers)
         powers (vec (sort (for [exp (range log-lo-i (inc log-hi-i))
                                 :let [v (Math/pow 10.0 exp)]
                                 :when (and (>= (double exp) (- log-lo-f margin))
                                            (<= (double exp) (+ log-hi-f margin)))]
                             v)))]
-    ;; Strongly prefer powers of 10 — use them if >= 3 ticks
-    (if (>= (count powers) 3)
+    ;; Strongly prefer powers of 10 — use them if >= 3 are drawn
+    (if (>= (drawn-count powers) 3)
       powers
       ;; Need intermediates for narrow ranges (< 3 decades visible)
       (let [make-intermediate
@@ -659,9 +710,9 @@
             breaks-125 (make-intermediate [1 2 5])
             breaks-1235 (make-intermediate [1 2 3 5])
             ;; Also consider powers with the bounding powers included
-            candidates [{:breaks powers :cnt (count powers)}
-                        {:breaks breaks-125 :cnt (count breaks-125)}
-                        {:breaks breaks-1235 :cnt (count breaks-1235)}]
+            candidates [{:breaks powers :cnt (drawn-count powers)}
+                        {:breaks breaks-125 :cnt (drawn-count breaks-125)}
+                        {:breaks breaks-1235 :cnt (drawn-count breaks-1235)}]
             score (fn [{:keys [cnt]}]
                     (let [diff (- cnt n)]
                       (if (neg? diff) (* 2.0 (Math/abs diff)) (double diff))))

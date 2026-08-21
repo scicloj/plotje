@@ -2719,6 +2719,13 @@
      rest. It wins over the `<aesthetic>-label` plot option -- `:x-label`,
      `:color-label` and their siblings -- which names the same thing one
      scope further out.
+   - `:x` and `:y` take `:include`, a value the axis has to reach, or a
+     collection of them. `{:include 0}` puts zero on the axis so that
+     lengths drawn along it are proportional to the values, and the
+     value lands exactly at the edge of the panel. `:include` extends
+     the extent the data gives where `:domain` replaces it, so the two
+     are not written together, and it is a set of values where a
+     `:domain` is an ordered pair.
    - `:x` and `:y` take `:breaks` (explicit tick locations),
      `:tick-labels` (custom tick text paired with `:breaks`),
      `:n-ticks` (about this many ticks) and `:tick-spacing` (about
@@ -2740,7 +2747,10 @@
 
    A value outside `:domain` is drawn at the nearer end rather than
    dropped, so a narrower domain says what the reader should compare
-   without leaving rows off the panel.
+   without leaving rows off the panel. On an axis a `:domain` is two
+   finite numbers, or two dates where the column is temporal; against a
+   categorical column it is the list of categories, in the order they
+   are to be drawn.
 
    Aesthetics and accepted scale types:
 
@@ -3109,12 +3119,12 @@
      :panels (frames-impl/plan-frames p [0.0 0.0])}))
 
 (defn to-drawing
-  "Where data positions land on the canvas, for one panel of `pj/frames`.
+  "Where data values land on the canvas, for one panel of `pj/frames`.
 
    Takes a panel entry -- an element of `(:panels (frames plot))` -- and
    either one x and y, or a dataset of them with `:x` and `:y` columns.
    The dataset arity maps whole columns and builds the panel's scales
-   once, so it is the one to reach for when placing many positions.
+   once, so it is the one to reach for when placing many of them.
 
    - `(to-drawing panel 3.2 21.0)` returns `[x y]` in canvas coordinates
    - `(to-drawing panel {:x [3.2 4.0] :y [21.0 18.5]})` returns a dataset
@@ -3127,14 +3137,14 @@
 
    The result is in canvas coordinates, measured from the top left of the
    whole image. A `{:in :drawing-area}` layer measures from the drawing
-   area's own corner instead, so drawing these positions back means
+   area's own corner instead, so drawing these coordinates back means
    subtracting that corner first.
 
    A pose, a plan or the whole frames map in the panel's place is
    refused, with a message naming which of them it got and the call that
    reaches a panel entry from there.
 
-   A categorical axis is a band scale: it has a position for each of its
+   A categorical axis is a band scale: it has a place for each of its
    categories and none between them. Asking it for anything else -- a
    category the axis does not carry, or a fractional place such as 2.5
    -- throws, naming the value and the categories it could have been.
@@ -3145,7 +3155,7 @@
   ([panel data] (frames-impl/to-drawing panel data)))
 
 (defn to-data
-  "What data positions the canvas coordinates name, for one panel of
+  "What data values the canvas coordinates name, for one panel of
    `pj/frames`. The inverse of `pj/to-drawing`. An interaction reads
    this direction: which value is under the pointer, which range a
    selection covers.
@@ -3161,7 +3171,7 @@
 
    A continuous axis answers with numbers, so its column is `:float64`.
    A categorical axis answers with the category whose band holds the
-   position, so its column holds those.
+   coordinate, so its column holds those.
 
    A pose, a plan or the whole frames map in the panel's place is
    refused, with a message naming which of them it got and the call that

@@ -281,6 +281,15 @@
    the middle of the range is drawn at, which is what centres a
    diverging gradient on zero rather than halfway along the data.
 
+   `:include` extends a domain to cover values the data does not reach,
+   which is what puts zero on an axis so that lengths drawn along it
+   are proportional to the values. It belongs to the two channels drawn
+   as an axis, because it works on a domain the panel spans rather than
+   on one a mark is scaled against, and it is the extending counterpart
+   of `:domain`: a `:domain` says what the axis spans and replaces the
+   data's own extent, `:include` says what the span must reach and adds
+   to it. The two cannot both be written.
+
    `:breaks`, `:tick-labels`, `:n-ticks` and `:tick-spacing` place and
    word tick marks, so all four belong to the two channels drawn as an
    axis. `:n-ticks` asks for about that many ticks and `:tick-spacing`
@@ -292,8 +301,8 @@
    `:x` and `:y`, the legend for the rest. Every channel with a scale
    reads it. (`:label` is that title; `:tick-labels` is the text drawn
    at the ticks of an axis.)"
-  {:x     #{:breaks :tick-labels :n-ticks :tick-spacing :label}
-   :y     #{:breaks :tick-labels :n-ticks :tick-spacing :label}
+  {:x     #{:include :breaks :tick-labels :n-ticks :tick-spacing :label}
+   :y     #{:include :breaks :tick-labels :n-ticks :tick-spacing :label}
    :color #{:range :values :midpoint :label}
    :fill  #{:range :midpoint :label}
    :shape #{:values :label}
@@ -317,9 +326,9 @@
 (def scale-spec-key-order
   "Display order for the per-aesthetic scale spec keys: the output set
    an aesthetic is drawn from, then how a value spreads across it and
-   where it is anchored, then the keys that place and word tick marks,
-   then the axis title."
-  [:range :values :by :from-zero :midpoint
+   where it is anchored, then what the domain must reach, then the keys
+   that place and word tick marks, then the axis title."
+  [:range :values :by :from-zero :midpoint :include
    :breaks :tick-labels :n-ticks :tick-spacing :label])
 
 (def scale-bearing-aesthetic-order
