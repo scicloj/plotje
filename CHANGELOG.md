@@ -4,9 +4,11 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-An axis labels the values it is given. A column of whole numbers is ticked at whole numbers, a log axis carries its ticks inside its own panel and between its decades, and a date axis takes both its `:breaks` and its `:domain` written as dates. A size or alpha legend reads the same rule as the axis beside it, so one column mapped to both is labelled one way in both.
+An axis is ticked for the values it carries. A column of whole numbers gets whole ticks, a log axis keeps its ticks inside its own panel and is labelled between its decades, and a date axis takes its `:breaks` and its `:domain` written as dates. A size or alpha legend reads the same rule as the axis beside it, so a column mapped to both is labelled one way in both.
 
-`:include` names a value an axis has to reach: `(pj/scale pose :y {:include 0})` puts zero on it, which is what makes a length drawn along that axis proportional to the value it stands for.
+A legend and the marks it explains are drawn from one decision. Stacked and dodged groups follow the order the legend lists them in, a `:domain` on a categorical `:color` reaches the marks as well as the legend, and a gradient bar is drawn through the same normalization its marks are.
+
+`:include` names a value an axis has to reach. `(pj/scale pose :y {:include 0})` puts zero on the axis, which is what makes a length drawn along it proportional to the value it stands for.
 
 ### Renamed
 
