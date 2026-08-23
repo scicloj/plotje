@@ -1481,18 +1481,52 @@
     (testing "ticks less than a day apart keep the hour that tells them apart"
       (is (every? #(re-find #":" %) (labels "2024-03-04" 5 1))))
 
-    (testing "a span wadogo already names a month in keeps its labels"
+    (testing "a span crossing a month boundary names both months"
       (is (= ["Jan-02" "Jan-09" "Jan-16" "Jan-23" "Jan-30"
               "Feb-06" "Feb-13" "Feb-20" "Feb-27"]
              (labels "2024-01-01" 60 1))))
 
     (testing "a span carrying a year keeps the year"
       ;; Relabelling these to month and day would lose which year.
-      (is (every? #(re-find #"^\d{4}-" %) (labels "2024-01-01" 104 7)))
-      (is (every? #(re-find #"^\d{4}-" %) (labels "2015-01-01" 120 30))))
+      (is (every? #(re-find #"^\d{4}-" %) (labels "2024-01-01" 104 7))))
 
     (testing "ticks that fall at a time of day are left to say the hour"
       (is (every? #(re-find #":" %) (labels "2024-01-01" 3 1))))))
+
+(deftest a-date-axis-is-labelled-at-the-step-it-takes
+  ;; wadogo's own formatter measures a year as 365 days and a month as
+  ;; 30, and asks for a step longer than that, so a step of exactly one
+  ;; calendar unit fell through to the unit below: fifteen years of
+  ;; January firsts were written 2001-01, 2002-01, and a year of month
+  ;; starts Feb-01, Mar-01. The month and the day are the same on every
+  ;; one of those ticks, so they take up room without telling any two
+  ;; ticks apart.
+  (let [labels (fn [pose] (-> pose pj/plan :panels first :x-ticks :labels vec))
+        yearly (fn [from to]
+                 (let [yrs (vec (range from to))]
+                   (-> {:d (mapv #(jt/local-date % 6 15) yrs)
+                        :v (mapv double yrs)}
+                       (pj/lay-line :d :v))))
+        monthly (fn [n]
+                  (let [ds (vec (for [i (range n)]
+                                  (jt/plus (jt/local-date 2020 1 1) (jt/months i))))]
+                    (-> {:d ds :v (vec (map double (range n)))}
+                        (pj/lay-line :d :v))))]
+
+    (testing "ticks a year apart are labelled with the year alone"
+      (is (= ["2001" "2002" "2003" "2004" "2005" "2006" "2007"
+              "2008" "2009" "2010" "2011" "2012" "2013" "2014"]
+             (labels (yearly 2000 2015)))))
+
+    (testing "ticks several years apart are labelled the same way"
+      (is (every? #(re-matches #"\d{4}" %) (labels (yearly 1938 1972)))))
+
+    (testing "ticks a month apart within one year are labelled with the month"
+      (is (= ["Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct" "Nov"]
+             (labels (monthly 12)))))
+
+    (testing "ticks a month apart across years carry the year too"
+      (is (every? #(re-matches #"\d{4}-\d{2}" %) (labels (monthly 48)))))))
 
 (deftest a-log-axis-draws-no-tick-outside-its-panel
   (let [y-ticks (fn [pose] (-> pose pj/plan :panels first :y-ticks))

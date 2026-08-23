@@ -184,7 +184,7 @@ temp-pose
           tick-labels (:labels (:x-ticks panel))]
       (and (= 6 (:points s))
            (= 1 (:lines s))
-           ;; Tick labels are calendar-aware (e.g., "Feb-01", not raw
+           ;; Tick labels are calendar-aware (e.g., "Feb-03", not raw
            ;; epoch-millisecond numbers).
            (some #(re-find #"[A-Z][a-z]{2}" %) tick-labels))))])
 

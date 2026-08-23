@@ -254,7 +254,7 @@ temporal-pose
     (let [p (first (:panels (pj/plan temporal-pose)))]
       (and (number? (first (:x-domain p)))
            (= 10 (count (:values (:x-ticks p))))
-           (= "Feb-01" (first (:labels (:x-ticks p)))))))])
+           (= "Feb" (first (:labels (:x-ticks p)))))))])
 
 ;; The axis reads as dates. The plan underneath it holds none: the
 ;; scale is an ordinary `:linear` one, the domain is a pair of
@@ -274,9 +274,11 @@ temporal-pose
          (every? number? (:x-domain m))
          (= 10 (count (:x-tick-labels m)))))])
 
-;; The label format follows the span the axis covers. The same
-;; two-point layer over three spans gives clock time, weekday and
-;; hour, and year and month:
+;; A tick is labelled at the granularity of the calendar unit it steps
+;; by, and no finer: ticks a year apart carry the year alone, ticks a
+;; month apart within one year carry the month. The same two-point
+;; layer over three spans gives clock time, weekday and hour, and
+;; year:
 
 (let [labels (fn [a b]
                (-> {:when [a b] :level [1 2]}
@@ -290,7 +292,7 @@ temporal-pose
  [(fn [m]
     (and (every? #(re-matches #"\d{2}:\d{2}" %) (:six-hours m))
          (every? #(re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" %) (:three-days m))
-         (every? #(re-matches #"\d{4}-\d{2}" %) (:nine-years m))))])
+         (every? #(re-matches #"\d{4}" %) (:nine-years m))))])
 
 ;; Over the longer spans the tick values are placed on calendar
 ;; boundaries as well, rather than at evenly spaced numbers: the

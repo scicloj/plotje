@@ -310,66 +310,88 @@
 
 ;; ---- Tick Computation ----
 
-(def ^:private month-day-formatter
-  "Month and day, in wadogo's own separator so one axis does not mix two
-   spellings of a date, and with the locale pinned so one dataset's axis
-   reads the same wherever it is drawn."
-  (java.time.format.DateTimeFormatter/ofPattern "MMM-dd" java.util.Locale/ENGLISH))
+(def ^:private ms-per-second 1000)
+(def ^:private ms-per-minute (* 60 ms-per-second))
+(def ^:private ms-per-hour (* 60 ms-per-minute))
+(def ^:private ms-per-day (* 24 ms-per-hour))
 
-(def ^:private names-a-month-or-year
-  "A tick label that already says which month or which year it is in."
-  #"\d{4}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec")
+(def ^:private calendar-step-units
+  "How long one step of each calendar unit lasts, at its shortest, in
+   milliseconds -- coarsest unit first.
 
-(defn- day-resolution?
-  "True where `ticks` step by whole days -- one tick per day, per week,
-   per month -- rather than by a time within a day.
+   A calendar unit is not a fixed length: a year is 365 days or 366, a
+   month 28 through 31. The shortest is what a step has to reach to be
+   that unit, so 1 January to 1 January is a year's step in a common
+   year as well as a leap one, and 1 February to 1 March is a month's."
+  [[:years   (* 365 ms-per-day)]
+   [:months  (* 28 ms-per-day)]
+   [:days    ms-per-day]
+   [:hours   ms-per-hour]
+   [:minutes ms-per-minute]
+   [:seconds ms-per-second]])
+
+(defn- tick-step-unit
+  "The calendar unit `ticks` step by: the coarsest unit whose shortest
+   step the smallest gap between two consecutive ticks reaches.
 
    The test is the gap between ticks, not the time of day they fall at.
    wadogo places a ten-day axis on ticks a day apart at 01:00, and an
    axis of a single day on ticks six hours apart; only the second is
-   about the hour. A value carrying no time of day at all, such as a
-   `LocalDate`, steps by days by construction."
+   about the hour."
   [ticks]
-  (let [field (fn [t f]
-                (when (.isSupported ^java.time.temporal.TemporalAccessor t f)
-                  (.getLong ^java.time.temporal.TemporalAccessor t f)))
-        days (mapv #(field % java.time.temporal.ChronoField/EPOCH_DAY) ticks)
-        secs (mapv #(or (field % java.time.temporal.ChronoField/SECOND_OF_DAY) 0) ticks)]
-    (and (> (count days) 1)
-         (every? some? days)
-         (apply = secs)
-         (every? pos? (map - (rest days) days)))))
+  (let [gap (->> ticks
+                 (partition 2 1)
+                 (map (fn [[s e]] (Math/abs (jt/time-between s e :millis))))
+                 (reduce min))]
+    (or (some (fn [[unit len]] (when (>= gap len) unit)) calendar-step-units)
+        :millis)))
 
-(defn- name-the-month
-  "Give a run of whole-day ticks a month to sit in.
+(defn- tick-pattern
+  "The date pattern that writes `unit`-stepped ticks running from
+   `start` to `end`.
 
-   wadogo labels a span of a few weeks with the bare day of the month --
-   02, 05, 08 -- and a span of about ten days with a weekday and a time,
-   Tue 01:00, whose weekday comes round again once the span passes a
-   week. Neither says which month, so an axis over January and one over
-   March read alike, and a span crossing a month boundary counts back
-   down to 01 with nothing to say why.
+   A tick says which unit it stands for and what tells it apart from the
+   others, and nothing finer: years a year apart are `1940`, `1950`;
+   months within one year are `Jan`, `Apr`; months across two are
+   `2020-01`, `2020-04`. Anything finer is noise the reader has to look
+   past -- fifteen years of January firsts written `2001-01`, `2002-01`
+   are told apart by four characters out of seven.
 
-   Where the ticks step by whole days and no label already names a month
-   or a year, they are relabelled from their own values: 28 daily dates
-   in January give Jan-02, Jan-05, Jan-08. A span wadogo has already
-   named a month or a year in keeps its labels, as does one whose ticks
-   step by hours -- there the hour is the point. ggplot2 labels the same
-   28 days with a month too."
-  [labels dt-ticks]
-  (if (and (seq labels)
-           (not-any? #(re-find names-a-month-or-year (str %)) labels)
-           (every? #(and (instance? java.time.temporal.TemporalAccessor %)
-                         (.isSupported ^java.time.temporal.TemporalAccessor %
-                                       java.time.temporal.ChronoField/MONTH_OF_YEAR)
-                         (.isSupported ^java.time.temporal.TemporalAccessor %
-                                       java.time.temporal.ChronoField/DAY_OF_MONTH))
-                   dt-ticks)
-           (day-resolution? dt-ticks))
-    (mapv #(.format ^java.time.format.DateTimeFormatter month-day-formatter
-                    ^java.time.temporal.TemporalAccessor %)
-          dt-ticks)
-    labels))
+   wadogo's own formatter classifies a step of exactly one calendar unit
+   as the next unit down, because it measures a year as 365 days and a
+   month as 30 and asks for a step longer than that. `tick-step-unit`
+   asks the calendar instead.
+
+   Hour ticks take their weekday from how far the axis runs rather than
+   from which calendar day its ends fall on. An axis of eleven hours
+   running from an afternoon into the small hours crosses a day
+   boundary without any clock time coming round twice, and reads as
+   17:00 through 02:00; one running over three days repeats every hour
+   it draws, and each needs its weekday. ggplot2 4.0.0 draws the same
+   two spans the same way round."
+  [unit ^java.time.LocalDateTime start ^java.time.LocalDateTime end]
+  (let [span         (Math/abs (jt/time-between start end :millis))
+        same-year?   (= (.getYear start) (.getYear end))
+        same-month?  (and same-year? (= (.getMonthValue start) (.getMonthValue end)))
+        same-day?    (and same-month? (= (.getDayOfMonth start) (.getDayOfMonth end)))
+        same-hour?   (and same-day? (= (.getHour start) (.getHour end)))
+        same-minute? (and same-hour? (= (.getMinute start) (.getMinute end)))
+        same-second? (and same-minute? (= (.getSecond start) (.getSecond end)))]
+    (case unit
+      :years   "y"
+      :months  (if same-year? "MMM" "y-MM")
+      :days    (if same-year? "MMM-dd" "y-MM-dd")
+      :hours   (if (< span ms-per-day) "HH:mm" "E HH:mm")
+      :minutes "HH:mm"
+      :seconds (if same-minute? "ss" "HH:mm:ss")
+      :millis  (if same-second? "S" "ss.S"))))
+
+(def ^:private tick-formatter
+  "A `DateTimeFormatter` for a pattern, with the locale pinned so one
+   dataset's axis reads the same wherever it is drawn."
+  (memoize (fn [pattern]
+             (java.time.format.DateTimeFormatter/ofPattern
+              pattern java.util.Locale/ENGLISH))))
 
 (defn- ticks-within-domain
   "Drop ticks that fall outside `domain`, unless that would leave fewer
@@ -397,19 +419,20 @@
     (if (< (count inside) 2) (vec ticks) inside)))
 
 (defn- format-temporal-ticks
-  "Label temporal ticks -- given as `LocalDateTime` -- through wadogo's
-   datetime formatter, then name the month where the ticks step by days.
+  "Label temporal ticks -- given as `LocalDateTime` -- at the granularity
+   of the calendar unit they step by.
 
-   A single tick is formatted here rather than by wadogo, whose
-   `find-minimum-step` reduces `min` over the gaps between ticks and dies
-   on `Wrong number of args (0) passed to: clojure.core/min` when there
-   are none. Both the automatic ticks and a user's `:breaks` come through
-   here, so an axis cannot spell a date two ways."
-  [temporal-extent ts]
+   A single tick has no step to read, so it is written out in full.
+   Both the automatic ticks and a user's `:breaks` come through here, so
+   an axis cannot spell a date two ways."
+  [ts]
   (if (< (count ts) 2)
     (mapv resolve/format-local-date-time ts)
-    (let [dt-scale (ws/scale :datetime {:domain temporal-extent :range [0.0 1.0]})]
-      (name-the-month (vec (ws/format dt-scale ts)) ts))))
+    (let [pattern (tick-pattern (tick-step-unit ts) (first ts) (last ts))
+          fmt (tick-formatter pattern)]
+      (mapv #(.format ^java.time.format.DateTimeFormatter fmt
+                      ^java.time.temporal.TemporalAccessor %)
+            ts))))
 
 (defn- merge-temporal-extents
   "Merge temporal extents from multiple draft layers into a single [min max] pair."
@@ -580,7 +603,6 @@
                         (mapv str user-labels)
                         temporal-extent
                         (format-temporal-ticks
-                         temporal-extent
                          (mapv resolve/epoch-ms->local-date-time vs))
                         log?
                         (vec (scale/format-log-ticks vs))
@@ -605,11 +627,15 @@
                      (mapv resolve/epoch-ms->local-date-time domain)
                      temporal-extent)]
            (if (= (first ext) (second ext))
-           ;; Single-value temporal domain: one tick at the single value
-             {:values [(first domain)] :labels [(str (first ext))] :categorical? false}
+           ;; Single-value temporal domain: one tick at the single value,
+           ;; written by the same formatter the rest of the axis uses so
+           ;; a date that began life as a `LocalDate` reads back as one.
+             {:values [(first domain)]
+              :labels (format-temporal-ticks [(first ext)])
+              :categorical? false}
              (let [dt-scale (ws/scale :datetime {:domain ext :range [0.0 1.0]})
                    dt-ticks (vec (ws/ticks dt-scale n))
-                   labels (format-temporal-ticks ext dt-ticks)
+                   labels (format-temporal-ticks dt-ticks)
                    values (mapv resolve/temporal->epoch-ms dt-ticks)]
                {:values values :labels labels :categorical? false})))
 
