@@ -191,7 +191,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__73993#] (= :text (:mark p1__73993#))))
+      (filter (fn* [p1__11193#] (= :text (:mark p1__11193#))))
       first
       :style
       :align-x)))
@@ -481,7 +481,7 @@
     [fr]
     (let
      [radii
-      (fn* [p1__73994#] (sort (:sizes (pj/svg-summary p1__73994#))))
+      (fn* [p1__11194#] (sort (:sizes (pj/svg-summary p1__11194#))))
       now
       (radii fr)
       before
@@ -672,3 +672,67 @@
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
    v122_l712)))
+
+
+(def
+ v125_l739
+ (try
+  (->
+   {:group [], :measurement []}
+   (pj/lay-boxplot :group :measurement)
+   pj/plot)
+  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+
+
+(deftest
+ t126_l745
+ (is
+  ((fn
+    [msg]
+    (re-find #"requires a categorical column.*has no rows" msg))
+   v125_l739)))
+
+
+(def
+ v128_l752
+ (try
+  (->
+   {:group [nil nil], :measurement [nil nil]}
+   (pj/lay-boxplot :group :measurement)
+   pj/plot)
+  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+
+
+(deftest
+ t129_l758
+ (is ((fn [msg] (re-find #"has no values" msg)) v128_l752)))
+
+
+(def
+ v131_l777
+ (try
+  (-> {:x [1 2], :y [1 2]} (pj/lay-text :x :y {:text :nope}) pj/plot)
+  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+
+
+(deftest
+ t132_l783
+ (is ((fn [msg] (re-find #"not a label either" msg)) v131_l777)))
+
+
+(def
+ v134_l800
+ (try
+  (->
+   {:height [1 2 3], :weight [1 2 3]}
+   (pj/lay-point :height :weight)
+   (pj/scale :y {:domain [0]})
+   pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+
+
+(deftest
+ t135_l807
+ (is
+  ((fn [msg] (re-find #"not a pair of two finite numbers" msg))
+   v134_l800)))

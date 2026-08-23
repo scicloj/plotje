@@ -726,6 +726,93 @@
 ;; `CHANGELOG.md` Known limitations. The integer-plus-`:tick-labels`
 ;; pattern above covers most heatmap-with-categorical-axis cases.
 
+;; ## Empty or All-Missing Column on a Grouping Layer
+;;
+;; **Symptom**: `"lay-boxplot requires a categorical column on either
+;; :x or :y, but :c has no rows and :v has no rows"`, or `"has no
+;; values"` where the column holds only `nil`.
+;;
+;; **Cause**: The layer groups its data by category, and no row carries
+;; one. This is usually a data problem upstream of the plot -- a filter
+;; that matched nothing, or a join that dropped every row:
+
+(try
+  (-> {:group [] :measurement []}
+      (pj/lay-boxplot :group :measurement)
+      pj/plot)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #"requires a categorical column.*has no rows" msg))])
+
+;; A column holding nothing but `nil` reports having no *values*, which
+;; separates the two cases -- rows that never arrived, against rows
+;; that arrived empty:
+
+(try
+  (-> {:group [nil nil] :measurement [nil nil]}
+      (pj/lay-boxplot :group :measurement)
+      pj/plot)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #"has no values" msg))])
+
+;; The message names neither column a *type*, deliberately. An empty
+;; column and an all-`nil` one are both typed boolean by
+;; tech.ml.dataset, and Plotje reads such a column as numerical so the
+;; rest of the pipeline has something to work with -- so a message
+;; naming the type would send you to check something that is not the
+;; problem.
+
+;; ## `:text` Given a Value That Names No Column
+;;
+;; **Symptom**: `"Column :nope (from :text) not found in dataset"`,
+;; ending `"It is not a label either -- a label is a string"`.
+;;
+;; **Cause**: `:text` takes either a column reference, drawing one
+;; row's value at each mark, or a literal string drawn at every mark.
+;; A keyword that names no column is neither:
+
+(try
+  (-> {:x [1 2] :y [1 2]}
+      (pj/lay-text :x :y {:text :nope})
+      pj/plot)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #"not a label either" msg))])
+
+;; Write a string for constant text -- `{:text "note"}` -- or name a
+;; column the dataset carries.
+
+;; ## An Axis `:domain` That Is Not Two Numbers
+;;
+;; **Symptom**: `"pj/scale :y :domain [0] is not a pair of two finite
+;; numbers, as [0 100] is"`.
+;;
+;; **Cause**: What a `:domain` means depends on the column it is read
+;; for. Against a continuous column it is the interval the panel spans,
+;; which is two finite numbers; against a categorical one it is the
+;; list of categories, in the order they are to be drawn. Since the
+;; column decides, the check is made once the column is known:
+
+(try
+  (-> {:height [1 2 3] :weight [1 2 3]}
+      (pj/lay-point :height :weight)
+      (pj/scale :y {:domain [0]})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #"not a pair of two finite numbers" msg))])
+
+;; Write both ends -- `{:domain [0 100]}` -- or, to extend the interval
+;; the data gives rather than replace it, write `:include` instead:
+;; `{:include 0}` puts zero on the axis and leaves the other end to the
+;; data. [Scales](./plotje_book.scales.html#making-an-axis-reach-a-value)
+;; works through the difference.
+
 ;; ## See Also
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping and inference rules behind most of these symptoms
