@@ -253,8 +253,8 @@ temporal-pose
  [(fn [_]
     (let [p (first (:panels (pj/plan temporal-pose)))]
       (and (number? (first (:x-domain p)))
-           (= 10 (count (:values (:x-ticks p))))
-           (= "Feb" (first (:labels (:x-ticks p)))))))])
+           (= 6 (count (:values (:x-ticks p))))
+           (= "Jan" (first (:labels (:x-ticks p)))))))])
 
 ;; The axis reads as dates. The plan underneath it holds none: the
 ;; scale is an ordinary `:linear` one, the domain is a pair of
@@ -272,7 +272,7 @@ temporal-pose
  [(fn [m]
     (and (= {:type :linear} (:x-scale m))
          (every? number? (:x-domain m))
-         (= 10 (count (:x-tick-labels m)))))])
+         (= 6 (count (:x-tick-labels m)))))])
 
 ;; A tick is labelled at the granularity of the calendar unit it steps
 ;; by, and no finer: ticks a year apart carry the year alone, ticks a
@@ -292,14 +292,17 @@ temporal-pose
  [(fn [m]
     (and (every? #(re-matches #"\d{2}:\d{2}" %) (:six-hours m))
          (every? #(re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" %) (:three-days m))
-         (every? #(re-matches #"\d{4}" %) (:nine-years m))))])
+         (every? #(re-matches #"\d{4}" %) (:nine-years m))
+         ;; backs "one tick per year" in the prose below
+         (= 9 (count (:nine-years m)))))])
 
-;; Over the longer spans the tick values are placed on calendar
-;; boundaries as well, rather than at evenly spaced numbers: the
-;; nine-year axis above carries one tick per year, and the twelve-month
-;; axis at the top of this section carries one per month. Below a month
-;; the ticks are evenly spaced and it is the label format alone that is
-;; calendar-aware.
+;; The tick values sit on the calendar as well as the labels do, at
+;; every resolution. The step is a round number of years, months,
+;; weeks, days, hours, minutes or seconds, and each tick lands on a
+;; multiple of that step counted from the calendar rather than from the
+;; first value: the nine-year axis above carries one tick per year, and
+;; the twelve-month axis at the top of this section carries one every
+;; two months, beginning in January. A weekly axis lands on Mondays.
 
 ;; ### Overriding inferred types with `:x-type` / `:y-type`
 ;;

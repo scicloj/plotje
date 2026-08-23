@@ -657,8 +657,8 @@ gapminder-2007
                            (jt/local-date 2030 1 1)]}))
 
 (kind/test-last
- [(fn [fr] (= ["2011" "2013" "2015" "2017" "2019" "2021" "2023" "2025"
-               "2027" "2029"]
+ [(fn [fr] (= ["2010" "2012" "2014" "2016" "2018" "2020" "2022" "2024"
+               "2026" "2028" "2030"]
               (->> fr pj/plan :panels first :x-ticks :labels vec)))])
 
 ;; A categorical axis labels every category by default, so with many of

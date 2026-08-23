@@ -1,5 +1,6 @@
 (ns scicloj.plotje.impl.scale
   (:require [wadogo.scale :as ws]
+            [java-time.api :as jt]
             [clojure.string :as str]
             [scicloj.plotje.impl.defaults :as defaults]))
 
@@ -773,6 +774,97 @@
                       (if (neg? diff) (* 2.0 (Math/abs diff)) (double diff))))
             best (apply min-key score candidates)]
         (:breaks best)))))
+
+(def ^:private calendar-steps
+  "The steps a date axis is allowed to take, coarsest unit first and
+   largest step first within each unit.
+
+   These are the steps a reader counts in: decades and half-decades on
+   a century, quarters and half-years on a few years, weeks and
+   fortnights on a season, quarter-hours on an hour. A step outside the
+   list -- three years, eleven minutes -- lands the ticks on values
+   nobody reads a date off."
+  [[:years   [1000 500 250 200 100 50 25 20 10 5 2 1]]
+   [:months  [6 3 2 1]]
+   [:days    [14 7 2 1]]
+   [:hours   [12 6 3 2 1]]
+   [:minutes [30 15 10 5 2 1]]
+   [:seconds [30 15 10 5 2 1]]])
+
+(defn- step-amount [unit step]
+  (case unit
+    :years (jt/years step) :months (jt/months step) :days (jt/days step)
+    :hours (jt/hours step) :minutes (jt/minutes step) :seconds (jt/seconds step)))
+
+(defn- first-aligned
+  "The earliest tick at or after `t` that sits on a multiple of `step`
+   `unit` -- a year divisible by the step, the first of such a month,
+   midnight of such a day, and so on.
+
+   Aligning is the half of this that wadogo does not do. Its generator
+   starts one unit after the truncated first value, so a five-year step
+   over 1938 to 1971 begins at 1939 and lands on 1944 and 1949; the
+   step was round and the phase was not."
+  [^java.time.LocalDateTime t unit step]
+  (let [floor-div (fn [^long a ^long b] (long (Math/floor (/ (double a) (double b)))))
+        c (case unit
+            :years   (jt/local-date-time (* step (floor-div (.getYear t) step)) 1 1 0 0)
+            :months  (let [m (* step (floor-div (+ (* 12 (.getYear t))
+                                                   (dec (.getMonthValue t)))
+                                                step))]
+                       (jt/local-date-time (quot m 12) (inc (mod m 12)) 1 0 0))
+            ;; Epoch day 0 is a Thursday, so a plain multiple of seven
+            ;; ticks Thursdays. A week is read from its Monday, which
+            ;; the offset of three puts the multiples on; a step of one
+            ;; or two days is unaffected by it.
+            :days    (jt/local-date-time
+                      (java.time.LocalDate/ofEpochDay
+                       (- (* step (floor-div (+ 3 (.toEpochDay (.toLocalDate t))) step)) 3))
+                      (jt/local-time 0))
+            :hours   (jt/plus (.truncatedTo t java.time.temporal.ChronoUnit/DAYS)
+                              (jt/hours (* step (floor-div (.getHour t) step))))
+            :minutes (jt/plus (.truncatedTo t java.time.temporal.ChronoUnit/HOURS)
+                              (jt/minutes (* step (floor-div (.getMinute t) step))))
+            :seconds (jt/plus (.truncatedTo t java.time.temporal.ChronoUnit/MINUTES)
+                              (jt/seconds (* step (floor-div (.getSecond t) step)))))]
+    (if (jt/before? c t) (jt/plus c (step-amount unit step)) c)))
+
+(defn- aligned-ticks
+  "Every multiple of `step` `unit` from `start` to `end` inclusive."
+  [start end unit step]
+  (let [amount (step-amount unit step)]
+    (loop [t (first-aligned start unit step) acc []]
+      (if (or (jt/after? t end) (> (count acc) 500))
+        acc
+        (recur (jt/plus t amount) (conj acc t))))))
+
+(defn date-ticks
+  "The ticks a date axis draws between `start` and `end`, given as
+   `LocalDateTime`: multiples of a step a reader counts in, as near to
+   `n` of them as the calendar allows.
+
+   Both halves matter. wadogo divides the span by the count asked for
+   and floors the result into whole units, which gives steps of three
+   years and eleven minutes; and it phases the ticks from the first
+   value rather than from the step, so 1938 to 1971 was ticked 1939,
+   1943, 1947 where a reader expects 1940, 1950. Choosing from
+   `calendar-steps` fixes the first and `first-aligned` the second.
+
+   Candidates are ranked by how near their count comes to `n`, then by
+   the coarser unit, then by the larger step -- so a span that two
+   candidates fit equally well is ticked in the larger, rounder one.
+   Returns nil where no step gives two ticks, which leaves the caller
+   with wadogo's answer."
+  [start end n]
+  (->> (for [[i [unit steps]] (map-indexed vector calendar-steps)
+             [j step] (map-indexed vector steps)
+             :let [ticks (aligned-ticks start end unit step)]
+             :when (>= (count ticks) 2)]
+         {:ticks ticks
+          :rank [(Math/abs (- (count ticks) (long n))) i j]})
+       (sort-by :rank)
+       first
+       :ticks))
 
 (defn tick-count
   "How many ticks an axis asks for across `pixel-range` drawing units.

@@ -136,6 +136,34 @@
 
 ;; ---- Prepare Points ----
 
+(def ^:private temporal-datatypes
+  "The datatypes to offer for a column of text dates, finest spelling
+   last. `tc/convert-types` reads each shape of text as one of these and
+   refuses the others, so the order is the order they are tried in."
+  [:local-date :local-date-time :instant])
+
+(defn- temporal-datatype-for
+  "The datatype `tc/convert-types` reads `values` as, or nil where none
+   of them does.
+
+   The answer is measured by running the conversion the error message
+   is about to recommend, on one value, rather than by matching the text
+   against a pattern. A GitHub timestamp such as
+   `2015-03-21T10:00:00Z` is an `:instant` and refuses `:local-date`, so
+   a message naming `:local-date` for every column told the reader to
+   run a call that throws on the data that produced the message."
+  [values]
+  (when-let [sample (first (remove nil? values))]
+    (some (fn [dt]
+            (let [converted (try (-> (tc/dataset {:c [sample]})
+                                     (tc/convert-types :c dt)
+                                     :c
+                                     meta
+                                     :datatype)
+                                 (catch Throwable _ nil))]
+              (when (= dt converted) dt)))
+          temporal-datatypes)))
+
 (defn- validate-numeric-column
   "Report a column the stat cannot read, and say what to do about it.
 
@@ -145,22 +173,30 @@
    exception in place of the clear error this function exists to give.
 
    Dates written as text are the common way to arrive here, so the
-   message names the conversion; a `:bin` stat also names the layer that
-   counts categories instead, which is what a categorical column
-   usually wants."
+   message names the conversion, and names the datatype this column's
+   own text converts to. A `:bin` stat also names the layer that counts
+   categories instead, which is what a categorical column usually
+   wants."
   [draft-layer col-key stat-name]
   (let [type-key (keyword (str (name col-key) "-type"))
         col-type (get draft-layer type-key)
         col (get draft-layer col-key)]
     (when (= col-type :categorical)
-      (throw (ex-info (str "Stat :" (name stat-name) " requires a numeric column for :"
-                           (name col-key) ", but " (pr-str col) " is categorical. "
-                           "Dates written as text stay categorical until they are parsed: "
-                           "(tc/convert-types ds " (pr-str col) " :local-date) makes the "
-                           "column temporal, which this stat can read."
-                           (when (= stat-name :bin)
-                             " To count the rows in each category instead of binning them, use pj/lay-bar."))
-                      {:stat stat-name :column col :column-type col-type})))))
+      (let [dt (temporal-datatype-for (get (:data draft-layer) col))]
+        (throw (ex-info (str "Stat :" (name stat-name) " requires a numeric column for :"
+                             (name col-key) ", but " (pr-str col) " is categorical. "
+                             (if dt
+                               (str "Dates written as text stay categorical until they are "
+                                    "parsed: (tc/convert-types ds " (pr-str col) " " dt
+                                    ") makes the column temporal, which this stat can read.")
+                               (str "A stat that bins or smooths reads numbers; a column of "
+                                    "text names groups instead. Dates written as text stay "
+                                    "categorical until they are parsed with "
+                                    "tc/convert-types."))
+                             (when (= stat-name :bin)
+                               " To count the rows in each category instead of binning them, use pj/lay-bar."))
+                        (cond-> {:stat stat-name :column col :column-type col-type}
+                          dt (assoc :convert-to dt))))))))
 
 (defn- min-adjacent-gap
   "Smallest gap between adjacent distinct values, or nil when fewer than two

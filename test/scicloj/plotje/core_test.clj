@@ -216,6 +216,38 @@
          clojure.lang.ExceptionInfo #"convert-types"
          (pj/plan (pj/lay-histogram (tc/dataset {:d ["2020-01-01" "2021-01-01"]}) :d))))))
 
+(deftest the-conversion-a-message-names-parses-that-column
+  ;; The message named `:local-date` for every column of text, and
+  ;; `tc/convert-types` refuses that for a GitHub timestamp such as
+  ;; 2015-03-21T10:00:00Z -- so the error that greeted Adrian Smith's
+  ;; :created_at column told him to run a call that throws on the data
+  ;; that produced it. The datatype is now measured on the column.
+  (let [msg (fn [values]
+              (try (pj/plan (pj/lay-histogram (tc/dataset {:c (vec values)}) :c))
+                   nil
+                   (catch clojure.lang.ExceptionInfo e (ex-message e))))
+        suggests (fn [values] (some #(when (re-find (re-pattern (str "convert-types ds :c " %))
+                                                    (msg values))
+                                       %)
+                                    [":local-date-time" ":local-date" ":instant"]))]
+    (testing "each shape of text date is offered the datatype that reads it"
+      (is (= ":local-date"      (suggests (repeat 4 "2024-03-01"))))
+      (is (= ":local-date-time" (suggests (repeat 4 "2024-03-01T10:00:00"))))
+      (is (= ":instant"         (suggests (repeat 4 "2024-03-01T10:00:00Z"))))
+      (is (= ":instant"         (suggests (concat [nil] (repeat 4 "2024-03-01T10:00:00Z"))))
+          "a leading missing value does not decide the datatype"))
+
+    (testing "every one of those conversions actually parses its column"
+      (doseq [text ["2024-03-01" "2024-03-01T10:00:00" "2024-03-01T10:00:00Z"]]
+        (let [dt (keyword (subs (suggests (repeat 4 text)) 1))
+              ds (tc/convert-types (tc/dataset {:c (vec (repeat 4 text))}) :c dt)]
+          (is (= dt (:datatype (meta (:c ds)))) text))))
+
+    (testing "a column that is not a date at all is offered no conversion"
+      (let [m (msg ["ant" "bee" "cow"])]
+        (is (re-find #"names groups instead" m))
+        (is (not (re-find #"convert-types ds" m)))))))
+
 (deftest a-column-with-no-values-is-not-called-numerical
   ;; An empty column and an all-missing one are both typed :boolean by
   ;; tech.ml.dataset, and `column-type` reads both as :numerical so the
@@ -1469,8 +1501,7 @@
       ;; wadogo formats these as the bare day -- "02" "05" "08" -- which
       ;; reads the same over January as over March. ggplot2 4.0.0 names
       ;; the month on the same 28 dates.
-      (is (= ["Jan-02" "Jan-05" "Jan-08" "Jan-11" "Jan-14"
-              "Jan-17" "Jan-20" "Jan-23" "Jan-26"]
+      (is (= ["Jan-01" "Jan-08" "Jan-15" "Jan-22"]
              (labels "2024-01-01" 28 1))))
 
     (testing "a span of about ten days, which wadogo labels Tue 01:00"
@@ -1482,8 +1513,8 @@
       (is (every? #(re-find #":" %) (labels "2024-03-04" 5 1))))
 
     (testing "a span crossing a month boundary names both months"
-      (is (= ["Jan-02" "Jan-09" "Jan-16" "Jan-23" "Jan-30"
-              "Feb-06" "Feb-13" "Feb-20" "Feb-27"]
+      (is (= ["Jan-01" "Jan-08" "Jan-15" "Jan-22" "Jan-29"
+              "Feb-05" "Feb-12" "Feb-19" "Feb-26"]
              (labels "2024-01-01" 60 1))))
 
     (testing "a span carrying a year keeps the year"
@@ -1513,16 +1544,15 @@
                     (-> {:d ds :v (vec (map double (range n)))}
                         (pj/lay-line :d :v))))]
 
-    (testing "ticks a year apart are labelled with the year alone"
-      (is (= ["2001" "2002" "2003" "2004" "2005" "2006" "2007"
-              "2008" "2009" "2010" "2011" "2012" "2013" "2014"]
+    (testing "ticks a whole number of years apart carry the year alone"
+      (is (= ["2002" "2004" "2006" "2008" "2010" "2012" "2014"]
              (labels (yearly 2000 2015)))))
 
     (testing "ticks several years apart are labelled the same way"
       (is (every? #(re-matches #"\d{4}" %) (labels (yearly 1938 1972)))))
 
-    (testing "ticks a month apart within one year are labelled with the month"
-      (is (= ["Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct" "Nov"]
+    (testing "ticks a whole number of months apart within one year carry the month"
+      (is (= ["Jan" "Mar" "May" "Jul" "Sep" "Nov"]
              (labels (monthly 12)))))
 
     (testing "ticks a month apart across years carry the year too"
@@ -1744,8 +1774,8 @@
                  (pj/scale :x {:domain [(jt/local-date 2010 1 1)
                                         (jt/local-date 2030 1 1)]}))
         labels (vec (-> pose pj/plan :panels first :x-ticks :labels))]
-    (is (= "2011" (first labels)))
-    (is (= "2029" (last labels))
+    (is (= "2010" (first labels)))
+    (is (= "2030" (last labels))
         "the ticks reach both ends of the domain, not just the data")))
 
 (deftest a-log-axis-spanning-decades-is-labelled-between-the-powers

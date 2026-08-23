@@ -362,6 +362,10 @@
    month as 30 and asks for a step longer than that. `tick-step-unit`
    asks the calendar instead.
 
+   A tick is read as a `TemporalAccessor` rather than a `LocalDateTime`:
+   wadogo's tick generator hands back whatever type the domain was built
+   from, so a `ZonedDateTime` column arrives here as one.
+
    Hour ticks take their weekday from how far the axis runs rather than
    from which calendar day its ends fall on. An axis of eleven hours
    running from an afternoon into the small hours crosses a day
@@ -369,14 +373,20 @@
    17:00 through 02:00; one running over three days repeats every hour
    it draws, and each needs its weekday. ggplot2 4.0.0 draws the same
    two spans the same way round."
-  [unit ^java.time.LocalDateTime start ^java.time.LocalDateTime end]
-  (let [span         (Math/abs (jt/time-between start end :millis))
-        same-year?   (= (.getYear start) (.getYear end))
-        same-month?  (and same-year? (= (.getMonthValue start) (.getMonthValue end)))
-        same-day?    (and same-month? (= (.getDayOfMonth start) (.getDayOfMonth end)))
-        same-hour?   (and same-day? (= (.getHour start) (.getHour end)))
-        same-minute? (and same-hour? (= (.getMinute start) (.getMinute end)))
-        same-second? (and same-minute? (= (.getSecond start) (.getSecond end)))]
+  [unit start end]
+  (let [same? (fn [^java.time.temporal.ChronoField field]
+                (let [read (fn [^java.time.temporal.TemporalAccessor t]
+                             (when (.isSupported t field) (.getLong t field)))
+                      a (read start)
+                      b (read end)]
+                  (and a b (= a b))))
+        span         (Math/abs (jt/time-between start end :millis))
+        same-year?   (same? java.time.temporal.ChronoField/YEAR)
+        same-month?  (and same-year? (same? java.time.temporal.ChronoField/MONTH_OF_YEAR))
+        same-day?    (and same-month? (same? java.time.temporal.ChronoField/DAY_OF_MONTH))
+        same-hour?   (and same-day? (same? java.time.temporal.ChronoField/HOUR_OF_DAY))
+        same-minute? (and same-hour? (same? java.time.temporal.ChronoField/MINUTE_OF_HOUR))
+        same-second? (and same-minute? (same? java.time.temporal.ChronoField/SECOND_OF_MINUTE))]
     (case unit
       :years   "y"
       :months  (if same-year? "MMM" "y-MM")
@@ -634,7 +644,8 @@
               :labels (format-temporal-ticks [(first ext)])
               :categorical? false}
              (let [dt-scale (ws/scale :datetime {:domain ext :range [0.0 1.0]})
-                   dt-ticks (vec (ws/ticks dt-scale n))
+                   dt-ticks (vec (or (scale/date-ticks (first ext) (second ext) n)
+                                     (ws/ticks dt-scale n)))
                    labels (format-temporal-ticks dt-ticks)
                    values (mapv resolve/temporal->epoch-ms dt-ticks)]
                {:values values :labels labels :categorical? false})))
