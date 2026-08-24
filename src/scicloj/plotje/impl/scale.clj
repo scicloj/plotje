@@ -709,10 +709,10 @@
   "The ticks of `ticks` that fall within `[lo hi]`.
 
    One rule, read in two places: `log-ticks` scores a candidate set by
-   how many of its ticks this keeps, and `plan/ticks-within-domain`
-   draws exactly those. A tick outside the domain is drawn outside the
-   panel, so a candidate set is only as dense as the part of it that
-   survives. A non-numeric bound keeps every tick."
+   how many of its ticks this keeps, and `log-ticks-drawn` draws
+   exactly those. A tick outside the domain is drawn outside the panel,
+   so a candidate set is only as dense as the part of it that survives.
+   A non-numeric bound keeps every tick."
   [ticks [lo hi]]
   (if-not (and (number? lo) (number? hi))
     (vec ticks)
@@ -787,6 +787,37 @@
                       (if (neg? diff) (* 2.0 (Math/abs diff)) (double diff))))
             best (apply min-key score candidates)]
         (:breaks best)))))
+
+(defn log-ticks-drawn
+  "The ticks a log scale draws across `[lo hi]`, and whether they are
+   the 1-2-5 breaks or the fallback.
+
+   The breaks that fall inside the domain, normally. A domain narrower
+   than one 1-2-5 step has fewer than two of them inside, and there the
+   ticks are spaced across the domain itself instead -- 6 to 9 is
+   ticked 6, 7, 8, 9. ggplot2 answers such a domain the same way round,
+   by picking breaks inside the range rather than by filtering.
+
+   One function because an axis, a size legend and a gradient bar all
+   ask it, and they used to answer three ways. The axis kept every
+   break including the ones outside: a domain of 6 to 9 drew its only
+   tick, 10, sixty drawing units above a four-hundred-unit canvas, and
+   7 to 8 drew no ticks at all, while the legends beside them stood the
+   domain's own ends in.
+
+   `:nice?` says the fallback fired, which is what tells an axis to
+   label the values with the linear formatter. `format-log-ticks` reads
+   the number of decimals off each value's own magnitude, which is
+   right for a 1-2-5 break and turns 0.006, 0.0065, 0.007 into 0.006,
+   0.007, 0.007."
+  [[lo hi] n whole?]
+  (let [inside (ticks-inside-domain (log-ticks [lo hi] n) [lo hi])]
+    (if (>= (count inside) 2)
+      {:values (vec inside) :nice? false}
+      {:values (vec (linear-ticks (ws/scale :linear {:domain [lo hi]
+                                                     :range [0.0 1.0]})
+                                  n whole?))
+       :nice? true})))
 
 (def ^:private calendar-steps
   "The steps a date axis is allowed to take, coarsest unit first and

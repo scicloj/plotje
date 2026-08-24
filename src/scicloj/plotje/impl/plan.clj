@@ -404,31 +404,6 @@
              (java.time.format.DateTimeFormatter/ofPattern
               pattern java.util.Locale/ENGLISH))))
 
-(defn- ticks-within-domain
-  "Drop ticks that fall outside `domain`, unless that would leave fewer
-   than two.
-
-   A tick outside the domain is drawn outside the panel: on a log y axis
-   over 3 to 900 the generator offers 1, 10, 100 and 1000, and the 1 was
-   labelled below the panel box entirely. `warn-out-of-range-breaks!`
-   already treats this as a fault when a user writes the breaks; the
-   generated ones did it silently. ggplot2 drops the same break on the
-   same domain (measured, 4.0.0).
-
-   The two-tick floor is what keeps a narrow domain labelled. Between 6
-   and 9 the only tick the log generator offers is 10, and dropping it
-   would leave an axis with no labels at all -- worse than one label
-   just outside. ggplot2 picks breaks inside the range there instead,
-   which is a different generator rather than a filter.
-
-   Which ticks are inside is `scale/ticks-inside-domain`, the same rule
-   `scale/log-ticks` scores its candidate sets by. The floor belongs
-   here rather than there: it is a decision about what to draw once the
-   set has been chosen."
-  [ticks domain]
-  (let [inside (scale/ticks-inside-domain ticks domain)]
-    (if (< (count inside) 2) (vec ticks) inside)))
-
 (defn- format-temporal-ticks
   "Label temporal ticks -- given as `LocalDateTime` -- at the granularity
    of the calendar unit they step by.
@@ -664,10 +639,19 @@
                {:values values :labels labels :categorical? false})))
 
          log?
-         ;; Log: use ggplot2-style 1-2-5 nice breaks
-         (let [ticks (ticks-within-domain (vec (scale/log-ticks domain n)) domain)
-               labels (scale/format-log-ticks ticks)]
-           {:values (vec ticks) :labels (vec labels) :categorical? false})
+         ;; Log: the 1-2-5 breaks inside the domain, or ticks across the
+         ;; domain itself where fewer than two are -- `scale/log-ticks-drawn`
+         ;; states that rule for the axis and for both legends.
+         (let [{:keys [values nice?]} (scale/log-ticks-drawn domain n whole?)
+               labels (if nice?
+                        ;; The fallback values are not 1-2-5 breaks, and
+                        ;; `format-log-ticks` reads its decimals off each
+                        ;; value's own magnitude: it wrote 0.006, 0.0065,
+                        ;; 0.007 as 0.006, 0.007, 0.007.
+                        (scale/format-ticks (scale/make-scale domain pixel-range scale-spec)
+                                            values separators)
+                        (scale/format-log-ticks values))]
+           {:values (vec values) :labels (vec labels) :categorical? false})
 
          :else
          ;; Linear: wadogo, or whole numbers where the values the axis
@@ -1335,16 +1319,16 @@
    a bar that stops at 1.0, over the legend's title. Where fewer than
    two survive, no ticks are returned and the renderer labels the bar's
    two ends instead, which is what a linear bar carries."
-  [lo hi]
+  [lo hi whole?]
   (let [lo-l (Math/log10 (max 1e-300 (double lo)))
         hi-l (Math/log10 (max 1e-300 (double hi)))
-        span (max 1e-6 (- hi-l lo-l))
-        inside (scale/ticks-inside-domain (scale/log-ticks [lo hi] 5) [lo hi])]
-    (if (< (count inside) 2)
-      []
-      (vec (for [v inside]
-             {:value v
-              :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)})))))
+        span (max 1e-6 (- hi-l lo-l))]
+    (vec (for [v (:values (scale/log-ticks-drawn [lo hi] 5 whole?))]
+           {:value v
+            ;; Where on the bar, read in log space whether or not the
+            ;; value came from the fallback: that is where the colour
+            ;; for it sits.
+            :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))
 
 (defn- gradient-stops
   "The colours along a continuous legend's bar, low end first.
@@ -1411,7 +1395,9 @@
                      :range-from-spec? (contains? spec :range)
                      :stops (gradient-stops grad-fn scale-type c-min c-max midpoint)}
               (= :log scale-type)
-              (assoc :ticks (continuous-legend-ticks c-min c-max))))))
+              (assoc :ticks (continuous-legend-ticks
+                             c-min c-max
+                             (whole-aesthetic-values? color-draft-layers :color spec)))))))
       (seq all-colors)
       {:title title
        :entries (vec (for [cat all-colors]
@@ -1432,12 +1418,7 @@
    `whole?` says whether the aesthetic reads whole numbers, and goes
    through `scale/linear-ticks` -- the same function an axis reads, so
    one column gives a legend and the axis beside it the same values.
-
-   The two still part on a domain where fewer than two generated ticks
-   fall inside: an axis keeps them all (`ticks-within-domain`) and a
-   legend stands the domain's own ends in (`continuous-channel-ticks`).
-   Values from 6 to 9 on a log scale are the measured case -- the axis
-   labels 10 and the legend labels 6 and 9."
+   A log scale is the same story through `scale/log-ticks-drawn`."
   [lo hi n whole?]
   (let [lo (double lo) hi (double hi)]
     (if (= lo hi)
@@ -1483,13 +1464,13 @@
    axis; what to do when too few survive is the part a legend answers
    differently."
   [scale-type d-min d-max n whole?]
-  (let [picked (if (= scale-type :log)
-                 (scale/log-ticks [d-min d-max] n)
-                 (nice-legend-values d-min d-max n whole?))
-        inside (scale/ticks-inside-domain picked [d-min d-max])]
-    (if (>= (count inside) 2)
-      inside
-      (vec (sort (distinct (concat [d-min d-max] inside)))))))
+  (if (= scale-type :log)
+    (:values (scale/log-ticks-drawn [d-min d-max] n whole?))
+    (let [inside (scale/ticks-inside-domain (nice-legend-values d-min d-max n whole?)
+                                            [d-min d-max])]
+      (if (>= (count inside) 2)
+        inside
+        (vec (sort (distinct (concat [d-min d-max] inside))))))))
 
 (defn- channel-quantity
   "The quantity a draft layer's mark draws `channel` as, and how ink
@@ -2469,7 +2450,11 @@
                         :else :fill))
             log? (= :log scale-type)
             stops (gradient-stops grad-fn scale-type f-lo f-hi midpoint)
-            ticks (when log? (continuous-legend-ticks f-lo f-hi))]
+            ticks (when log?
+                    (continuous-legend-ticks
+                     f-lo f-hi
+                     (whole-aesthetic-values? (when fill-draft-layer [fill-draft-layer])
+                                              :fill spec)))]
         (cond-> {:title title
                  :type :continuous
                  :min f-lo :max f-hi

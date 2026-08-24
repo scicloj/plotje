@@ -1851,16 +1851,19 @@
         "every tick sits on the bar")
     (is (every? #(<= (double min) (double (:value %)) (double max)) ticks)
         "and names a value the data reaches")
-    (testing "a domain too narrow for two ticks falls back to the bar's ends"
-      ;; The renderer labels the two ends when :ticks is empty, which is
-      ;; what a linear bar carries. Between 6 and 9 the log generator
-      ;; offers only 10.
-      (is (empty? (-> {:x [1 2 3] :y [1 2 3] :v [6 7 9]}
-                      (pj/lay-point :x :y {:color :v})
-                      (pj/scale :color :log)
-                      pj/plan
-                      :legend
-                      :ticks))))))
+    (testing "a domain too narrow for two breaks is ticked across itself"
+      ;; Between 6 and 9 the log generator offers only 10, which is
+      ;; outside. `scale/log-ticks-drawn` ticks the domain itself there,
+      ;; and the axis beside such a legend reads the same values.
+      (let [narrow (-> {:x [1 2 3] :y [1 2 3] :v [6 7 9]}
+                       (pj/lay-point :x :y {:color :v})
+                       (pj/scale :color :log)
+                       pj/plan
+                       :legend
+                       :ticks)]
+        (is (= [6.0 7.0 8.0 9.0] (mapv :value narrow)))
+        (is (every? #(<= 0.0 (double (:t %)) 1.0) narrow)
+            "and every one of them sits on the bar")))))
 
 (deftest a-date-axis-takes-breaks-written-as-dates
   ;; Timothy Pratley asked for a way to steer tick selection, having

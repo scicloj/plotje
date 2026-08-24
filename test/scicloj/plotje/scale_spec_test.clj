@@ -994,13 +994,15 @@
   ;; is drawn at. The log tick generator is allowed to reach past the
   ;; domain -- on an axis a bounding power of ten just outside the data
   ;; is an ordinary tick -- and on a narrow domain every tick it picks
-  ;; can land outside: 6 to 9 gave the single tick 10.
-  (testing "a narrow log domain falls back to its own ends"
+  ;; can land outside: 6 to 9 gave the single tick 10. There the domain
+  ;; is ticked across itself instead, by `scale/log-ticks-drawn`, which
+  ;; is the same function the axis reads.
+  (testing "a narrow log domain is ticked across itself"
     (let [entries (-> narrow-sizes
                       (pj/lay-point :a :b {:size :s})
                       (pj/scale :size :log)
                       pj/plan :size-legend :entries)]
-      (is (= [6.0 9.0] (mapv :value entries)))
+      (is (= [6.0 7.0 8.0 9.0] (mapv :value entries)))
       (is (every? (fn [e] (<= 6.0 (:value e) 9.0)) entries))))
 
   (testing "the same on :alpha"
@@ -1008,7 +1010,16 @@
                       (pj/lay-point :a :b {:alpha :s})
                       (pj/scale :alpha :log)
                       pj/plan :alpha-legend :entries)]
-      (is (= [6.0 9.0] (mapv :value entries)))))
+      (is (= [6.0 7.0 8.0 9.0] (mapv :value entries)))))
+
+  (testing "and the axis beside it reads the same values"
+    ;; The claim the release makes: one column gives a legend and the
+    ;; axis beside it the same labels.
+    (is (= ["6" "7" "8" "9"]
+           (-> narrow-sizes
+               (pj/lay-point :a :s)
+               (pj/scale :y :log)
+               pj/plan :panels first :y-ticks :labels))))
 
   (testing "a wide log domain is untouched -- its decades are all inside"
     (let [entries (-> {:a [1.0 2.0 3.0 4.0] :b [1.0 2.0 3.0 4.0]
