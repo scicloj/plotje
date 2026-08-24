@@ -370,9 +370,10 @@
    from which calendar day its ends fall on. An axis of eleven hours
    running from an afternoon into the small hours crosses a day
    boundary without any clock time coming round twice, and reads as
-   17:00 through 02:00; one running over three days repeats every hour
-   it draws, and each needs its weekday. ggplot2 4.0.0 draws the same
-   two spans the same way round."
+   17:00 through 02:00, which is how ggplot2 4.0.0 reads it too. One
+   running over three days repeats every hour it draws, and each needs
+   its weekday; ggplot2 answers that span by stepping in days and
+   labelling the date instead, so the two diverge there."
   [unit start end]
   (let [same? (fn [^java.time.temporal.ChronoField field]
                 (let [read (fn [^java.time.temporal.TemporalAccessor t]
@@ -624,23 +625,35 @@
          temporal-extent
          ;; Temporal: use wadogo :datetime scale for calendar-aware ticks.
          ;;
-         ;; Over the domain where the writer set one, and over the data's
-         ;; own extent otherwise. A `:domain` says what the axis spans,
-         ;; and ticking the data's extent instead labelled only the part
-         ;; of the axis the data covers: a domain of a whole year around
-         ;; three months of data carried ticks from March to August and
-         ;; left both ends bare. The data-derived case keeps reading the
-         ;; extent rather than the domain because the domain has been
-         ;; padded by then, and calendar ticks are picked over the span
-         ;; the data actually covers.
-         (let [ext (if (:domain scale-spec)
+         ;; Over the domain where the writer widened it, and over the
+         ;; data's own extent otherwise. A `:domain` says what the axis
+         ;; spans, and ticking the data's extent instead labelled only
+         ;; the part of the axis the data covers: a domain of a whole
+         ;; year around three months of data carried ticks from March to
+         ;; August and left both ends bare. `:include` reads the same
+         ;; way for the same reason -- it moves an end of the axis, so
+         ;; the ticks have to reach the end it moved, and five months of
+         ;; data given `{:include 0}` carried six labels piled on each
+         ;; other at the right edge of an axis running back to 1970.
+         ;;
+         ;; The data-derived case keeps reading the extent rather than
+         ;; the domain because the domain has been padded by then, and
+         ;; calendar ticks are picked over the span the data covers.
+         (let [ext (if (or (:domain scale-spec) (:include scale-spec))
                      (mapv resolve/epoch-ms->local-date-time domain)
                      temporal-extent)]
            (if (= (first ext) (second ext))
            ;; Single-value temporal domain: one tick at the single value,
            ;; written by the same formatter the rest of the axis uses so
            ;; a date that began life as a `LocalDate` reads back as one.
-             {:values [(first domain)]
+           ;;
+           ;; The tick is placed at the value, not at `(first domain)`.
+           ;; A domain of one date is padded like any other -- by a
+           ;; fraction of the epoch-millisecond number, which is years
+           ;; wide -- so reading the low end put the tick at the left
+           ;; edge of the panel, labelled with a date two and a half
+           ;; years to its right, while the mark sat in the middle.
+             {:values [(resolve/temporal->epoch-ms (first ext))]
               :labels (format-temporal-ticks [(first ext)])
               :categorical? false}
              (let [dt-scale (ws/scale :datetime {:domain ext :range [0.0 1.0]})
@@ -1418,8 +1431,13 @@
 
    `whole?` says whether the aesthetic reads whole numbers, and goes
    through `scale/linear-ticks` -- the same function an axis reads, so
-   a legend and an axis drawn from one column cannot label it two
-   ways."
+   one column gives a legend and the axis beside it the same values.
+
+   The two still part on a domain where fewer than two generated ticks
+   fall inside: an axis keeps them all (`ticks-within-domain`) and a
+   legend stands the domain's own ends in (`continuous-channel-ticks`).
+   Values from 6 to 9 on a log scale are the measured case -- the axis
+   labels 10 and the legend labels 6 and 9."
   [lo hi n whole?]
   (let [lo (double lo) hi (double hi)]
     (if (= lo hi)

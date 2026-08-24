@@ -111,11 +111,13 @@
    (let [log? (= :log (:type scale-spec))
          _ (when (and log? (or (not (pos? (double lo))) (not (pos? (double hi)))))
              (throw (ex-info (str "A log scale cannot include zero or negative values, but this "
-                                  "axis spans [" lo ", " hi "]. Bar and area marks draw from a "
-                                  "zero baseline, so they cannot sit on a log-scaled value axis -- "
-                                  "use a linear scale for those, or a mark without a baseline "
-                                  "(lay-point, lay-line, lay-lollipop). If the data itself has "
-                                  "non-positive values, a log scale does not apply to this axis.")
+                                  "axis spans [" lo ", " hi "]. A mark measured from zero carries "
+                                  "zero into the domain whatever the data holds -- a bar drawn to "
+                                  "a value, or a density -- and a log scale has no reading for it. "
+                                  "Use a linear scale for the value axis, or a mark that is not "
+                                  "measured from a baseline (lay-point, lay-line). If the data "
+                                  "itself has non-positive values, a log scale does not apply "
+                                  "to this axis.")
                              {:lo lo :hi hi :scale-spec scale-spec})))
          [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
          span (- b a)
@@ -649,22 +651,33 @@
    The step is a 1-2-5 multiple of a power of ten, never below one, and
    the one whose tick count comes closest to `n` is taken. Taking the
    largest step that stays under `n` instead left a domain of 0.8 to 5.2
-   ticked 2 and 4, where 1 2 3 4 5 is what the axis is asking for."
+   ticked 2 and 4, where 1 2 3 4 5 is what the axis is asking for.
+
+   The steps are tried from the smallest that could give about ten times
+   `n` ticks, not from one. A candidate set is built by counting up from
+   `lo`, so trying step one whatever the span meant enumerating every
+   whole number in the domain: `[0 1e6]` took a tenth of a second to
+   answer with six ticks and `[0 1e9]` did not answer at all. No
+   candidate that could win is skipped -- a step giving ten times the
+   ticks asked for is already far past the best."
   [[lo hi] n]
   (let [lo (double lo)
         hi (double hi)
         n (max 2 (or n 5))
-        at (fn [step]
-             (let [start (* step (Math/ceil (/ lo step)))]
-               (vec (take-while #(<= % (+ hi 1e-9))
-                                (iterate #(+ % step) start)))))
-        candidates (for [p (range 0 12)
-                         m [1 2 5]
-                         :let [step (* m (Math/pow 10.0 p))
-                               ts (at step)]
-                         :when (>= (count ts) 2)]
-                     {:step step :ticks ts :off (Math/abs (- (count ts) n))})]
-    (:ticks (first (sort-by (juxt :off :step) candidates)))))
+        span (- hi lo)]
+    (when (and (Double/isFinite lo) (Double/isFinite hi) (pos? span))
+      (let [at (fn [step]
+                 (let [start (* step (Math/ceil (/ lo step)))]
+                   (vec (take-while #(<= % (+ hi 1e-9))
+                                    (iterate #(+ % step) start)))))
+            p-lo (max 0 (long (Math/floor (Math/log10 (max 1.0 (/ span (* 10.0 n)))))))
+            candidates (for [p (range p-lo (+ p-lo 13))
+                             m [1 2 5]
+                             :let [step (* m (Math/pow 10.0 p))
+                                   ts (at step)]
+                             :when (>= (count ts) 2)]
+                         {:step step :ticks ts :off (Math/abs (- (count ts) n))})]
+        (:ticks (first (sort-by (juxt :off :step) candidates)))))))
 
 (defn linear-ticks
   "The ticks a linear axis draws across `[lo hi]`: wadogo's, or whole
@@ -812,11 +825,18 @@
             :months  (let [m (* step (floor-div (+ (* 12 (.getYear t))
                                                    (dec (.getMonthValue t)))
                                                 step))]
-                       (jt/local-date-time (quot m 12) (inc (mod m 12)) 1 0 0))
+                       ;; `floor-div` again rather than `quot`: a month
+                       ;; index before year 1 is negative, and `quot`
+                       ;; rounds it towards zero, which names the wrong
+                       ;; year for it.
+                       (jt/local-date-time (floor-div m 12) (inc (mod m 12)) 1 0 0))
             ;; Epoch day 0 is a Thursday, so a plain multiple of seven
             ;; ticks Thursdays. A week is read from its Monday, which
-            ;; the offset of three puts the multiples on; a step of one
-            ;; or two days is unaffected by it.
+            ;; the offset of three puts the multiples on. A step of one
+            ;; day is unchanged by the offset; a step of two has its
+            ;; parity turned over by it, so a January axis is ticked on
+            ;; the 2nd, 4th and 6th rather than the 1st, 3rd and 5th --
+            ;; which is the phase ggplot2 picks there too.
             :days    (jt/local-date-time
                       (java.time.LocalDate/ofEpochDay
                        (- (* step (floor-div (+ 3 (.toEpochDay (.toLocalDate t))) step)) 3))

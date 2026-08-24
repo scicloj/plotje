@@ -100,10 +100,35 @@
         band-end (:rend band-info)
         band-mid (/ (+ band-start band-end) 2.0)
         sub-bw (/ (* bw frac) n)
-        group-start (- band-mid (/ (* n-groups sub-bw) 2.0))
+        group-start (- band-mid (/ (* n sub-bw) 2.0))
         lo (+ group-start (* idx sub-bw))
         hi (+ lo sub-bw)]
     {:lo lo :hi hi :mid (/ (+ lo hi) 2.0) :sub-bw sub-bw}))
+
+(defn numeric-baseline
+  "The value in data space that a mark drawn from a baseline measures
+   from -- the foot of a bar, the closing edge of an area, the bottom of
+   a lollipop stem.
+
+   Zero on a linear axis, where `plan/compute-global-y-domain` has
+   already pulled the domain out to cover it. A log axis has no reading
+   for zero, so the baseline is the panel's own smallest value and the
+   mark rests on the axis rather than being drawn from an infinity.
+
+   One function because five marks ask one question. `:area` and
+   `:lollipop` each answered it with a literal zero, so on a log value
+   axis `sy` of that zero was `-Infinity`: it reached the SVG as the
+   word `Infinity` inside a coordinate, Java2D clipped it without a
+   word, and Skia refused the drawing. An area drew a bowtie and a
+   lollipop lost every stem, on data with no zero in it at all.
+
+   `flipped?` is `orient-scales`' answer: the value axis is x on a
+   horizontal chart and y otherwise. Marks that read `coord-fn`, which
+   flips for them, pass false."
+  [ctx flipped?]
+  (max 0.0 (double (if flipped?
+                     (:x-domain-min ctx 0)
+                     (:y-domain-min ctx 0)))))
 
 (defn- closed-path
   "A filled polygon through `pts`, closed by repeating the first point."
@@ -414,9 +439,11 @@
 
 (defmethod layer->membrane :area [layer ctx]
   (let [{:keys [style groups position]} layer
-        {:keys [coord-fn y-domain-min]} ctx
+        {:keys [coord-fn]} ctx
         {:keys [opacity]} style
-        baseline 0]
+        ;; `coord-fn` flips for this mark, so the baseline is read off
+        ;; the y domain whichever way the chart runs.
+        baseline (numeric-baseline ctx false)]
     (if (and (#{:stack :fill} position) (some :y0s groups))
       ;; Stacked: use pre-computed y0s from position/apply-positions
       (vec
@@ -432,7 +459,7 @@
                        (apply ui/path all-pts)))
                    (area-outline style top-pts)])))
         groups))
-      ;; Non-stacked: each group has baseline at y-domain-min
+      ;; Non-stacked: each group is closed at the numeric baseline
       (vec
        (mapcat
         (fn [{:keys [color xs ys]}]
@@ -523,7 +550,8 @@
         {:keys [radius stroke-width opacity]} style
         {:keys [n-groups] :or {n-groups (clojure.core/count groups)}} (:dodge-ctx layer)
         r (or radius 4)
-        op (or opacity 1.0)]
+        op (or opacity 1.0)
+        base (numeric-baseline ctx flipped?)]
     (vec
      (for [group groups
            i (range (clojure.core/count (:xs group)))
@@ -533,7 +561,7 @@
                  dodge-idx (or (:dodge-idx group) 0)
                  bp (band-position band-s cat dodge-idx n-groups 0.8)
                  cat-pos (:mid bp)
-                 val-base (num-s 0)
+                 val-base (num-s base)
                  val-top (num-s val)]]
        [(ui/with-color [cr cg cb op]
           (ui/with-style ::ui/style-stroke
@@ -882,14 +910,10 @@
 
 (defmethod layer->membrane :bar [layer ctx]
   (let [{:keys [style groups]} layer
-        {:keys [sx sy y-domain-min]} ctx
+        {:keys [sx sy]} ctx
         coord-px (:coord-px ctx)
         {:keys [opacity]} style
-        ;; Bar baseline. On a linear axis, :bar is in zero-baseline-marks
-        ;; so the domain already includes 0. On a log axis (no zero), the
-        ;; baseline is the panel's smallest positive value -- bars rest
-        ;; on the axis bottom rather than vanishing.
-        y-base (max 0.0 (double y-domain-min))
+        y-base (numeric-baseline ctx false)
         scaled (for [{:keys [color bars]} groups
                      {:keys [lo hi count]} bars]
                  {:color color
@@ -1007,12 +1031,7 @@
         {:keys [opacity]} style
         coord-px (:coord-px ctx)
         position (or position :dodge)
-        ;; Numeric-axis baseline: 0 on linear (extended into domain by
-        ;; zero-baseline-marks rule), smallest positive on log (where
-        ;; 0 has no representation).
-        num-base (max 0.0 (double (if flipped?
-                                    (:x-domain-min ctx 0)
-                                    (:y-domain-min ctx 0))))
+        num-base (numeric-baseline ctx flipped?)
         mk-rect (fn [[cr cg cb _] cat-lo cat-hi val-lo val-hi]
                   (let [pts (bar-polygon coord-px flipped? cat-lo cat-hi val-lo val-hi)]
                     (ui/with-color [cr cg cb (or opacity 1.0)]
@@ -1049,9 +1068,7 @@
         coord-px (:coord-px ctx)
         {:keys [n-groups] :or {n-groups (clojure.core/count groups)}} (:dodge-ctx layer)
         frac 0.8
-        num-base (max 0.0 (double (if flipped?
-                                    (:x-domain-min ctx 0)
-                                    (:y-domain-min ctx 0))))]
+        num-base (numeric-baseline ctx flipped?)]
     (vec
      (for [group groups
            i (range (clojure.core/count (:xs group)))

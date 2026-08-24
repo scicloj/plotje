@@ -175,10 +175,13 @@
 ;;   not applied. Pre-aggregate or jitter positions to separate groups.
 ;;
 ;; - Value bars (`pj/lay-bar` with a value column) cannot use a log scale
-;;   on the value axis: a bar rests on a zero baseline, and a log scale has
-;;   no zero. Plotje raises a clear error pointing to the alternatives --
-;;   a linear scale, or a baseline-free mark (`pj/lay-point`, `pj/lay-line`,
-;;   `pj/lay-lollipop`). Count bars and histograms do support a log axis.
+;;   on the value axis: a bar is measured from zero, so its axis always
+;;   reaches zero, and a log scale has no reading for zero. Plotje reports
+;;   this and names the alternatives -- a linear value axis, or a mark that
+;;   is not measured from a baseline (`pj/lay-point`, `pj/lay-line`). Count
+;;   bars and histograms do support a log axis, as do the other marks that
+;;   are measured from a baseline: `pj/lay-area` and `pj/lay-lollipop` rest
+;;   on the panel's smallest value there, as a count bar does.
 ;;
 ;; - Annotations are silently skipped under `(pj/coord :polar)`. A
 ;;   polar rule would need to render as a circle (fixed radius) or
