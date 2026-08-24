@@ -9,6 +9,47 @@
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]))
 
+(defn smallest-drawn-fill
+  "The smallest fill value the tiles of `stat` actually carry, or nil
+   where it has none."
+  [stat]
+  (let [ts (:tiles stat)]
+    (when (and (tc/dataset? ts) (pos? (tc/row-count ts)) (ts :fill))
+      (dfn/reduce-min (ts :fill)))))
+
+(defn fill-domain
+  "The `[lo hi]` a fill scale is read against -- by the marks, in this
+   namespace, and by the legend, in `plan/build-fill-legend`. One
+   function because they are one question, and answering it twice let
+   the bar describe a scale the tiles were not drawn through.
+
+   A stat reports its range floored at zero: `[0 max-count]` for a
+   two-dimensional bin, `[0 max-density]` for a density grid. That is
+   what a linear count legend should span -- a count starts at none.
+
+   A log scale has no reading for zero, and the floor is a convention
+   rather than a value any tile carries: an empty bin is not drawn at
+   all, so the smallest tile a count heatmap draws is one. So on a log
+   scale the low end is read from the tiles instead. Read from the
+   floor, the generator offered every decade from 1e-300 and the
+   legend carried three hundred labels printed over each other.
+
+   A `:domain` written on the scale still wins, through
+   `scale/numeric-color-domain`, and is checked the same way."
+  [stat spec scale-type]
+  (let [[lo hi] (:fill-range stat)
+        drawn (when (= :log scale-type) (smallest-drawn-fill stat))
+        lo (if (and drawn (pos? (double drawn))) drawn lo)
+        [d-lo d-hi] (or (scale/numeric-color-domain spec lo hi) [lo hi])]
+    (when (and (= :log scale-type) d-lo (not (pos? (double d-lo))))
+      (throw (ex-info (str "A log :fill scale has no reading for " (pr-str d-lo)
+                           ", and this fill spans [" d-lo ", " d-hi "]. A count"
+                           " or a density is measured from none, and none has"
+                           " no place on a log scale. Use a linear :fill scale,"
+                           " or give the scale a :domain starting above zero.")
+                      {:aesthetic :fill :domain [d-lo d-hi] :scale-type scale-type})))
+    [d-lo d-hi]))
+
 ;; ---- Color Resolution (data-space) ----
 
 (defn resolve-color
@@ -628,9 +669,7 @@
                            (and (not (tc/dataset? (:tiles stat))) (seq (:tiles stat)))))
                 ;; bin2d/kde2d path — :tiles is a dataset with :x-lo :x-hi :y-lo :y-hi :fill
                 (let [tile-ds (:tiles stat)
-                      [f-lo f-hi] (let [[lo hi] (:fill-range stat)]
-                                    (or (scale/numeric-color-domain spec lo hi)
-                                        [lo hi]))
+                      [f-lo f-hi] (fill-domain stat spec fill-scale-type)
                       ;; Derive :color column from :fill using gradient function
                       with-color (tc/add-column tile-ds :color
                                                 (fn [ds]

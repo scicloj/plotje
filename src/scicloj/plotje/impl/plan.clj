@@ -2502,9 +2502,10 @@
    overrides the inferred title (`:count`, `:relative-density`, or
    `:fill`)."
   [panel-data resolved-all cfg opts-title]
-  (let [stat-fill-range (some (fn [pd]
-                                (some :fill-range (:stat-results pd)))
-                              panel-data)
+  (let [fill-stat (some (fn [pd]
+                          (some #(when (:fill-range %) %) (:stat-results pd)))
+                        panel-data)
+        stat-fill-range (:fill-range fill-stat)
         stat-kind (when stat-fill-range
                     (some (fn [rv]
                             (when (#{:bin2d :density-2d} (:stat rv))
@@ -2547,9 +2548,14 @@
         scale-type (or (:type spec) :linear)
         ;; The bar spans what the marks were drawn against, through the
         ;; resolver that decided their domain, so a :domain that moved
-        ;; them moves it too.
-        [f-lo f-hi] (or (scale/numeric-color-domain spec data-lo data-hi)
-                        [data-lo data-hi])]
+        ;; them moves it too. `extract/fill-domain` is that resolver
+        ;; where a stat computed the fill -- it is what replaces the
+        ;; stat's zero floor on a log scale, and the bar has to span
+        ;; what the tiles were painted from.
+        [f-lo f-hi] (if fill-stat
+                      (extract/fill-domain fill-stat spec scale-type)
+                      (or (scale/numeric-color-domain spec data-lo data-hi)
+                          [data-lo data-hi]))]
     (when f-lo
       (let [grad-fn (defaults/resolve-gradient-fn color-range)
             title (or opts-title
