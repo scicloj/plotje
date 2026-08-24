@@ -200,9 +200,23 @@
                            :column col :column-type actual}))))))
   nil)
 
+(defn temporal-value?
+  "True of a value `temporal->epoch-ms` reads as a date.
+
+   The list is that function's own, stated once so a caller can ask
+   whether a written value is a date before converting it -- which is
+   what an axis setting written as `(jt/local-date 2019 1 1)` needs, on
+   `:domain`, on `:breaks` and on `:include` alike."
+  [v]
+  (or (jt/local-date-time? v)
+      (jt/local-date? v)
+      (jt/instant? v)
+      (instance? java.util.Date v)))
+
 (defn temporal->epoch-ms
   "Convert a temporal value to epoch-milliseconds (double).
-   Accepts LocalDate, LocalDateTime, Instant, and java.util.Date.
+   Accepts LocalDate, LocalDateTime, Instant, and java.util.Date --
+   the values `temporal-value?` answers true for.
    Returns ##NaN for nil input."
   [v]
   (cond

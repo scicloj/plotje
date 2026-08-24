@@ -38,7 +38,7 @@ The retired name reports the one to write. Every published docstring and arglist
 
 ### Added
 
-- `:include` on an `:x` or `:y` scale names a value the axis has to reach, as ggplot2's `expand_limits(y = 0)` does. The value lands exactly at the edge of the panel, where `pj/lay-bar` already draws its baseline -- ggplot2 pads past it instead. A collection names more than one, so `{:include [0 100]}` gives an axis room the data does not fill; the order it is written in says nothing. A temporal axis is ticked across what `:include` widened it to, as it is across a `:domain`.
+- `:include` on an `:x` or `:y` scale names a value the axis has to reach, as ggplot2's `expand_limits(y = 0)` does. The value lands exactly at the edge of the panel, where `pj/lay-bar` already draws its baseline -- ggplot2 pads past it instead. A collection names more than one, so `{:include [0 100]}` gives an axis room the data does not fill; the order it is written in says nothing. On a temporal axis it is written as a date, as `:domain` and `:breaks` are, and the axis is ticked across what it widened it to.
 - A `:domain` and an `:include` on one aesthetic are reported, as is an `:include` on a log axis, which has no reading for zero, or on a categorical one, which has no extent between its categories.
 - `pj/valid-pose?` and `pj/explain-pose` check a pose against its schema, as the pair `pj/valid-plan?` and `pj/valid-membrane?` already did for the two later stages. The schema is structural: it says what shape a pose has, not whether the columns it names are in the data. A pose the API built conforms by construction, so the pair is for one that has been reached into and changed.
 

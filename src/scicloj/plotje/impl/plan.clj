@@ -43,7 +43,7 @@
 
    The written value's own shape -- a finite number, or a collection of
    them -- is checked at the call by `scale/validate-spec-options!`."
-  [aesthetic spec numeric?]
+  [aesthetic spec numeric? temporal?]
   (when-let [written (:include spec)]
     (when (:domain spec)
       (throw (ex-info (str "pj/scale " aesthetic " sets both :domain "
@@ -74,7 +74,33 @@
                            " the data does not, or the log scale for a"
                            " multiplicative one.")
                       {:aesthetic aesthetic :include written})))
-    (if (number? written) [written] (vec written))))
+    ;; Checked before it is converted. `resolve/temporal->epoch-ms` ends
+    ;; in `(double v)`, so running it first turned `{:include "banana"}`
+    ;; -- which `vec` reads as a sequence of characters -- into a bare
+    ;; `Character cannot be cast to Number` naming neither the key nor
+    ;; the axis.
+    (let [raw (if (or (number? written) (resolve/temporal-value? written))
+                [written]
+                (vec written))]
+      (when-not (and (seq raw)
+                     (every? #(or (and (number? %) (Double/isFinite (double %)))
+                                  (and temporal? (resolve/temporal-value? %)))
+                             raw))
+        (throw (ex-info (str "pj/scale " aesthetic " :include " (pr-str written)
+                             " is not a finite number or a collection of"
+                             " them, as " (pr-str 0) " and " (pr-str [0 100])
+                             " are"
+                             (if temporal?
+                               ", nor a date or dates, as this axis reads them"
+                               "")
+                             "."
+                             (when (and (sequential? written) (empty? written))
+                               (str " It is empty, and an empty :include"
+                                    " extends the domain to nothing."))
+                             " It names the values the domain has to reach.")
+                        {:aesthetic aesthetic :include written
+                         :temporal? (boolean temporal?)})))
+      (mapv (if temporal? resolve/temporal->epoch-ms identity) raw))))
 
 (defn- whole-column?
   "True when every value in `col` is a whole number. An integer column
@@ -194,8 +220,9 @@
    contribute categorical domains -- mixing the two on one axis is
    ambiguous.
 
-   `padding` is the resolved `:domain-padding`."
-  [stat-results axis-key scale-spec padding]
+   `padding` is the resolved `:domain-padding`. `temporal?` says the
+   axis reads dates, which is what lets `:include` be written as one."
+  [stat-results axis-key scale-spec padding temporal?]
   (let [parsed (keep (fn [sr]
                        (when-let [d (axis-key sr)]
                          {:vals (if (and (= 2 (count d)) (number? (first d)))
@@ -213,7 +240,7 @@
       (let [vals (mapcat :vals parsed)
             aesthetic (if (= :x-domain axis-key) :x :y)
             numeric? (number? (first vals))
-            anchors (include-anchors aesthetic scale-spec numeric?)]
+            anchors (include-anchors aesthetic scale-spec numeric? temporal?)]
         (if numeric?
           (pad-domain-anchored [(reduce min vals) (reduce max vals)]
                                anchors scale-spec padding)
@@ -227,8 +254,9 @@
    extension is skipped -- the lower bound is the smallest positive
    value the layers report -- because log scales have no zero.
 
-   `padding` is the resolved `:domain-padding`."
-  [plan-layers scale-spec padding]
+   `padding` is the resolved `:domain-padding`. `temporal?` says the
+   axis reads dates, for `:include`."
+  [plan-layers scale-spec padding temporal?]
   (let [fill-layers (filter #(= :fill (:position %)) plan-layers)
         stack-layers (filter #(= :stack (:position %)) plan-layers)
         log? (= :log (:type scale-spec))
@@ -238,7 +266,7 @@
         y-categorical? (and (seq plan-layers)
                             (let [d (some :y-domain plan-layers)]
                               (boolean (and d (seq d) (not (number? (first d)))))))
-        wanted (include-anchors :y scale-spec (not y-categorical?))
+        wanted (include-anchors :y scale-spec (not y-categorical?) temporal?)
         ;; Marks whose visual identity anchors at y=0 (rectangle base, fill
         ;; baseline, lollipop stem). :rect is the categorical-bar mark (from
         ;; lay-bar, whether counting or using y heights); :bar is the
@@ -2274,16 +2302,19 @@
         y-whole? (and (not fills?)
                       (whole-axis-values? local-srs-y :y-domain :ys y-scale-spec))
         x-dom (or (axis-domain :x x-scale-spec
-                               (collect-domain local-srs :x-domain x-scale-spec padding)
+                               (collect-domain local-srs :x-domain x-scale-spec padding
+                                               (some? x-temp-ext))
                                (some? x-temp-ext))
                   [0 1])
         y-dom (or (axis-domain :y y-scale-spec
-                               (or (compute-global-y-domain domain-layers y-scale-spec padding)
+                               (or (compute-global-y-domain domain-layers y-scale-spec padding
+                                                            (some? y-temp-ext))
                                    ;; Annotation-only panels have no plan
                                    ;; layers; their y-domain lives in the
                                    ;; synthesized stat-results.
                                    (when (empty? domain-layers)
-                                     (collect-domain local-srs-y :y-domain y-scale-spec padding)))
+                                     (collect-domain local-srs-y :y-domain y-scale-spec padding
+                                                     (some? y-temp-ext))))
                                (some? y-temp-ext))
                   [0 1])
         ;; Whether anything on this panel gives the axis a meaning in

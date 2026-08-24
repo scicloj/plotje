@@ -2,7 +2,8 @@
   (:require [wadogo.scale :as ws]
             [java-time.api :as jt]
             [clojure.string :as str]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.resolve :as resolve]))
 
 (defn categorical-domain?
   "True if domain is a sequence of non-numeric values (categorical)."
@@ -301,25 +302,28 @@
                              " is not true or false. It says whether the"
                              " domain and the range are anchored at zero.")
                         {:channel channel :from-zero v :caller where})))))
-  ;; `:include` is numeric on every aesthetic that reads it, so its
-  ;; shape is a property of the written value and is checked here.
-  ;; What it cannot be checked against here is the column: whether the
-  ;; axis is categorical, and whether a `:domain` written in another
-  ;; scope has accumulated beside it, are both known only once the
-  ;; merged spec meets the data, so `plan/include-anchors` answers
-  ;; those.
+  ;; What `:include` may hold is checked in two places, because the
+  ;; question splits in two. Its shape -- a finite number or a date, or
+  ;; a collection of those -- is a property of the written value and is
+  ;; answered here, at the call that wrote it. Whether *this* axis reads
+  ;; that shape is the column's business: a date is an `:include` on a
+  ;; temporal axis and nothing at all on a numeric one, and the column's
+  ;; type is known only once the merged spec meets the data.
+  ;; `plan/include-anchors` answers that half, beside the checks for a
+  ;; `:domain` written in another scope, a categorical axis and a log
+  ;; one.
   (when (contains? spec :include)
     (let [v (:include spec)
-          vs (if (number? v) [v] v)
-          numbers? (and (or (number? v) (sequential? v))
-                        (seq vs)
-                        (every? #(and (number? %)
-                                      (Double/isFinite (double %)))
-                                vs))]
-      (when-not numbers?
+          vs (if (or (number? v) (resolve/temporal-value? v)) [v] v)
+          ok? (and (or (number? v) (resolve/temporal-value? v) (sequential? v))
+                   (seq vs)
+                   (every? #(or (and (number? %) (Double/isFinite (double %)))
+                                (resolve/temporal-value? %))
+                           vs))]
+      (when-not ok?
         (throw (ex-info (str where " " channel " :include " (pr-str v)
-                             " is not a finite number or a collection of"
-                             " them, as " (pr-str 0) " and "
+                             " is not a finite number or a date, nor a"
+                             " collection of them, as " (pr-str 0) " and "
                              (pr-str [0 100]) " are."
                              (when (and (sequential? v) (empty? v))
                                (str " It is empty, and an empty :include"
