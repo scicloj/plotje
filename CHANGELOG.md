@@ -55,6 +55,7 @@ The retired name reports the one to write. Every published docstring and arglist
 
 ### Fixed
 
+- A histogram bar that cannot be drawn on a log value axis is dropped, and the drop is reported. An empty bin counts zero, and a log scale has no reading for zero, so the bar's top scaled to an infinity that reached both the SVG and the Membrane drawables. Java2D clipped it without a word; Skia refused the drawing with `Value out of range for float: Infinity`. ggplot2 drops the same bars.
 - A temporal axis takes a `:domain` written as dates, as its `:breaks` do, and is ticked across it. A domain wider than the data reaches both ends of the axis rather than labelling only the span the data covers.
 - A date axis takes `:breaks` written as dates: `(pj/scale :x {:breaks [(jt/local-date 1940 1 1) ...]})` places a tick at each of them, and `:tick-labels` relabels them. A `LocalDate`, a `LocalDateTime` and a `java.util.Date` are all accepted.
 - A temporal axis with a single tick is labelled.

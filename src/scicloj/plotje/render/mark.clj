@@ -867,6 +867,19 @@
 
 ;; ---- Bar (histogram) ----
 
+(defn- drawable-corner?
+  "True where every coordinate of a bar is a finite number.
+
+   A log scale has no reading for zero, so an empty histogram bin scales
+   to an infinite top. Both the SVG and the Membrane drawables carried
+   that infinity, giving `points=\"92.53,352.00 ... 149.45,Infinity\"`;
+   Java2D clipped it without a word and Skia threw `Value out of range
+   for float: Infinity` from inside its own renderer, naming nothing a
+   reader could act on. ggplot2 drops the same bars, warning that the
+   transformation introduced infinite values."
+  [& coords]
+  (every? #(and (number? %) (Double/isFinite (double %))) coords))
+
 (defmethod layer->membrane :bar [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [sx sy y-domain-min]} ctx
@@ -876,11 +889,22 @@
         ;; so the domain already includes 0. On a log axis (no zero), the
         ;; baseline is the panel's smallest positive value -- bars rest
         ;; on the axis bottom rather than vanishing.
-        y-base (max 0.0 (double y-domain-min))]
+        y-base (max 0.0 (double y-domain-min))
+        scaled (for [{:keys [color bars]} groups
+                     {:keys [lo hi count]} bars]
+                 {:color color
+                  :corners [(sx lo) (sx hi) (sy y-base) (sy count)]})
+        drawable (filter #(apply drawable-corner? (:corners %)) scaled)
+        dropped (- (clojure.core/count scaled) (clojure.core/count drawable))]
+    (when (pos? dropped)
+      (println (str "Warning: Removed " dropped
+                    " bars whose height has no place on a log scale"
+                    " (an empty bin counts zero, and a log scale has no"
+                    " reading for it).")))
     (vec
-     (for [{:keys [color bars]} groups
-           {:keys [lo hi count]} bars
-           :let [pts (bar-polygon coord-px false (sx lo) (sx hi) (sy y-base) (sy count))
+     (for [{:keys [color corners]} drawable
+           :let [[x-lo x-hi y-lo y-hi] corners
+                 pts (bar-polygon coord-px false x-lo x-hi y-lo y-hi)
                  [cr cg cb _] color]]
        (ui/with-color [cr cg cb (or opacity 1.0)]
          (ui/with-style ::ui/style-fill

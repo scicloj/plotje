@@ -1,6 +1,7 @@
 (ns scicloj.plotje.core-test
   "Hand-written unit tests for plotje core logic."
   (:require [clojure.test :refer [deftest testing is are]]
+            [clojure.string :as str]
             [tablecloth.api :as tc]
             [java-time.api :as jt]
             [scicloj.plotje.api :as pj]
@@ -1557,6 +1558,43 @@
 
     (testing "ticks a month apart across years carry the year too"
       (is (every? #(re-matches #"\d{4}-\d{2}" %) (labels (monthly 48)))))))
+
+(deftest a-bar-that-cannot-be-drawn-on-a-log-axis-is-dropped
+  ;; A histogram bin holding nothing counts zero, and a log scale has no
+  ;; reading for zero, so the bar's top scaled to an infinity that went
+  ;; straight into the drawables and the SVG:
+  ;; `points="92.53,352.00 ... 149.45,Infinity"`. Java2D clipped it in
+  ;; silence, which is why a PNG looked right; Skia threw `Value out of
+  ;; range for float: Infinity` from inside its own renderer. Reported
+  ;; by Adrian Smith on Zulip, 2026-08-20, and reproduced with his data
+  ;; on 0.8.0, 0.8.1 and 0.9.0.
+  (let [gappy {:v (vec (concat (repeat 200 1.0) (repeat 3 100.0)))}
+        infinities (fn [x] (->> (tree-seq coll? seq x)
+                                (filter #(and (number? %)
+                                              (Double/isInfinite (double %))))
+                                clojure.core/count))]
+    (testing "no infinity reaches the SVG"
+      (let [svg (str (pj/plot (-> gappy (pj/lay-histogram :v) (pj/scale :y :log))))]
+        (is (not (str/includes? svg "Infinity")))))
+
+    (testing "no infinity reaches the Membrane drawables"
+      (is (zero? (infinities (:drawables (pj/membrane (-> gappy
+                                                          (pj/lay-histogram :v)
+                                                          (pj/scale :y :log))))))))
+
+    (testing "the bars that can be drawn still are"
+      ;; two bins hold rows -- the 200 at 1.0 and the 3 at 100.0
+      (is (= 2 (:polygons (pj/svg-summary
+                           (pj/plot (-> gappy (pj/lay-histogram :v) (pj/scale :y :log))))))))
+
+    (testing "a linear axis keeps every bar, empty ones included"
+      (is (= 9 (:polygons (pj/svg-summary
+                           (pj/plot (-> gappy (pj/lay-histogram :v))))))))
+
+    (testing "the drop is reported"
+      (is (str/includes? (with-out-str
+                           (pj/plot (-> gappy (pj/lay-histogram :v) (pj/scale :y :log))))
+                         "Removed 7 bars")))))
 
 (deftest a-log-axis-draws-no-tick-outside-its-panel
   (let [y-ticks (fn [pose] (-> pose pj/plan :panels first :y-ticks))
