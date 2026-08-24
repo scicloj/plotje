@@ -35,7 +35,8 @@
    design question and this schema is a description of the answer
    in force rather than an argument for one."
   (:require [malli.core :as m]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.temporal :as temporal]))
 
 ;; ---- Sub-schemas ----
 
@@ -64,13 +65,12 @@
 
 (def Temporal
   "A temporal value, which a scale coerces like any other datum.
-   Mirrors the instance checks in `impl.resolve/literal-position?`."
-  [:fn {:error/message "should be a LocalDate, LocalDateTime, Instant or Date"}
-   (fn [v]
-     (or (instance? java.time.LocalDate v)
-         (instance? java.time.LocalDateTime v)
-         (instance? java.time.Instant v)
-         (instance? java.util.Date v)))])
+
+   The types are `impl.temporal/readings`, asked rather than listed
+   again here: a fourth copy of that list is how a type came to be
+   accepted in one place and refused in another."
+  [:fn {:error/message (str "should be a " temporal/accepted-names)}
+   temporal/temporal-value?])
 
 (def PositionalLiteral
   "A literal value that places a mark on its own, as `{:x 6.5}` does,

@@ -6,7 +6,8 @@
             [tech.v3.datatype.datetime :as dt-dt]
             [java-time.api :as jt]
             [scicloj.plotje.impl.aesthetics :as aes]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.temporal :as temporal]))
 
 ;; ---- Helpers ----
 
@@ -27,17 +28,19 @@
    code that wants it."
   defaults/literal-to-column-aesthetics)
 
+(def temporal-value?
+  "True of a value a temporal axis reads as a date.
+   `impl.temporal/temporal-value?`, named here because this namespace is
+   where most callers already look."
+  temporal/temporal-value?)
+
 (defn literal-position?
   "True of a value that places a mark on its own, as `{:x 6.5}` does,
    rather than naming a column to read one from. Numbers are the whole of
    it today; a temporal value is coerced by the scale like any other, so
    it counts too."
   [v]
-  (or (number? v)
-      (instance? java.time.LocalDate v)
-      (instance? java.time.LocalDateTime v)
-      (instance? java.time.Instant v)
-      (instance? java.util.Date v)))
+  (or (number? v) (temporal-value? v)))
 
 ;; The fields declared on the records below are a minimal subset for
 ;; ergonomic construction; instances carry more keys, and the
@@ -150,8 +153,11 @@
           (#{:string :keyword :symbol :text} t) :categorical
           ;; Check for temporal types via dtype-next metadata
           (dt-dt/datetime-datatype? dt) :temporal
-          ;; Fallback for java.util.Date (:object dtype)
-          (instance? java.util.Date (first c)) :temporal
+          ;; A temporal type the dataset stores as :object -- a
+          ;; java.util.Date, an OffsetDateTime. Asked of the one table
+          ;; rather than named here: an OffsetDateTime was read as a
+          ;; category while `temporal->epoch-ms` knew how to convert it.
+          (temporal/temporal-value? (first (remove nil? c))) :temporal
           ;; Check actual values
           (every? number? (take 100 c)) :numerical
           :else :categorical)))))
@@ -200,31 +206,26 @@
                            :column col :column-type actual}))))))
   nil)
 
-(defn temporal-value?
-  "True of a value `temporal->epoch-ms` reads as a date.
-
-   The list is that function's own, stated once so a caller can ask
-   whether a written value is a date before converting it -- which is
-   what an axis setting written as `(jt/local-date 2019 1 1)` needs, on
-   `:domain`, on `:breaks` and on `:include` alike."
-  [v]
-  (or (jt/local-date-time? v)
-      (jt/local-date? v)
-      (jt/instant? v)
-      (instance? java.util.Date v)))
+(def temporal->local-date-time
+  "A temporal value as the `LocalDateTime` the tick generators read.
+   `impl.temporal/->local-date-time`."
+  temporal/->local-date-time)
 
 (defn temporal->epoch-ms
-  "Convert a temporal value to epoch-milliseconds (double).
-   Accepts LocalDate, LocalDateTime, Instant, and java.util.Date --
-   the values `temporal-value?` answers true for.
-   Returns ##NaN for nil input."
+  "Convert a temporal value to epoch-milliseconds (double), through the
+   one reading `temporal-readings` gives it. Returns ##NaN for nil, and
+   coerces a number as it stands.
+
+   Every type goes by way of `LocalDateTime` at UTC rather than by a
+   shortcut of its own: two routes to one number are two things to keep
+   in step, and this list has already grown past the four it started
+   with."
   [v]
   (cond
     (nil? v) ##NaN
-    (jt/instant? v) (double (jt/to-millis-from-epoch v))
-    (jt/local-date-time? v) (double (jt/to-millis-from-epoch (jt/instant v (jt/zone-offset 0))))
-    (jt/local-date? v) (double (jt/to-millis-from-epoch (jt/instant (jt/local-date-time v (jt/local-time 0)) (jt/zone-offset 0))))
-    (instance? java.util.Date v) (double (.getTime ^java.util.Date v))
+    (temporal-value? v) (double (jt/to-millis-from-epoch
+                                 (jt/instant (temporal->local-date-time v)
+                                             (jt/zone-offset 0))))
     :else (double v)))
 
 (defn epoch-ms->local-date-time
@@ -259,17 +260,6 @@
                            :float64))
     (tc/map-columns ds col [col] temporal->epoch-ms)))
 
-(defn- temporal->local-date-time
-  "Convert any supported temporal value to LocalDateTime (required by wadogo :datetime scale).
-   LocalDate gets midnight, Instant and java.util.Date get UTC conversion."
-  [v]
-  (cond
-    (jt/local-date-time? v) v
-    (jt/local-date? v) (jt/local-date-time v (jt/local-time 0))
-    (jt/instant? v) (jt/local-date-time v "UTC")
-    (instance? java.util.Date v) (jt/local-date-time (jt/instant v) "UTC")
-    :else v))
-
 (defn- temporal-extent
   "Return [min max] of original temporal values in a column, as LocalDateTime.
    All temporal types are normalized to LocalDateTime for wadogo :datetime scale."
@@ -280,6 +270,34 @@
         [(apply jt/min ldts) (apply jt/max ldts)]))))
 
 ;; ---- Resolve Draft Layer ----
+
+(defn warn-unread-temporal!
+  "Report a column of values that name a stretch of time rather than a
+   moment, which an axis reads as categories.
+
+   A `YearMonth` is the one a reader meets: grouping by month is what
+   `->year-month` is for, and the column that comes back was drawn with
+   one tick per value -- a hundred and eighty of them over fifteen
+   years -- rather than on a calendar axis. `Year` and `MonthDay` are
+   the same shape.
+
+   Reported rather than converted. A `YearMonth` has no instant of its
+   own, so reading it as the first of the month is a decision, and one
+   the writer can make in a line. `dev-notes/backlog.md` holds the
+   question of whether Plotje should make it."
+  [aesthetic ds col]
+  (when-let [c (and col (ds col))]
+    (when-let [v (first (remove nil? c))]
+      (when (temporal/names-a-period? v)
+        (println (str "Warning: " aesthetic " names the column " (pr-str col)
+                      ", which holds " (.getName (class v))
+                      ". That names a stretch of time rather than a moment, so"
+                      " it has no place on a calendar axis and is drawn as one"
+                      " tick per value. A temporal axis reads "
+                      temporal/accepted-names
+                      ". To place these on a calendar, map each to the day it"
+                      " starts: (tc/map-columns ds " (pr-str col) " [" (pr-str col)
+                      "] #(.atDay % 1))."))))))
 
 (defn infer-column-types
   "Detect x and y column types (`:categorical`, `:numerical`, `:temporal`).
@@ -294,6 +312,8 @@
         x-end-res (resolve-col-name ds (:x-end v))
         _ (check-type-override! :x-type (:x-type v) ds x-res)
         _ (check-type-override! :y-type (:y-type v) ds y-res)
+        _ (warn-unread-temporal! :x ds x-res)
+        _ (warn-unread-temporal! :y ds y-res)
         x-type (or (:x-type v) (column-type ds x-res))
         ;; When x and y reference the same column, propagate x-type to y-type
         ;; rather than returning nil — callers (e.g., `validate-numeric-column`)
