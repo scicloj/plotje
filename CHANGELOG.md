@@ -10,6 +10,8 @@ A legend and the marks it explains are drawn from one decision, so a reader can 
 
 `:include` names a value an axis has to reach. `(pj/scale pose :y {:include 0})` puts zero on the axis, so a length drawn along it is proportional to the value it stands for.
 
+Many thanks to @phronmophobic & @timothypratley who affected this release a lot.
+
 ### Renamed
 
 The retired name reports the one to write.
