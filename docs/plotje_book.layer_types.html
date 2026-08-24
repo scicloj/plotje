@@ -1312,7 +1312,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:stack</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Pile groups cumulatively</td>
+<td>Pile groups cumulatively, the first group on top</td>
 <td></td>
 </tr>
 <tr class="even">
@@ -1378,7 +1378,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:color-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Override inferred color type — :categorical or :numerical. Use :categorical to treat numeric IDs as groups.</td>
+<td>Read the color column as a type other than its own. :categorical gives a numeric column one color per distinct value instead of a gradient. Same rule as :x-type: only :categorical can be asked of a column holding something else</td>
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -1408,13 +1408,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Override inferred x-column type — :categorical, :numerical, or :temporal. Use :categorical on numeric x (hours, years, IDs) when a categorical-axis mark (bar, boxplot) is needed.</td>
+<td>Read the x column as a type other than its own -- :categorical, :numerical or :temporal. Only :categorical can be asked of a column holding something else, because every value can name a group: it puts numbers (hours, years, identifiers) or dates on a categorical axis, which a bar or a boxplot needs. The other two are accepted where they name the column's own type and refused where they do not</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:y-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Override inferred y-column type — :categorical, :numerical, or :temporal. Mirror of :x-type, used for horizontal layouts.</td>
+<td>Mirror of :x-type, on the y column. Used for horizontal layouts</td>
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -1807,7 +1807,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:color-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Override inferred color type — :categorical or :numerical. Use :categorical to treat numeric IDs as groups.</td>
+<td>Read the color column as a type other than its own. :categorical gives a numeric column one color per distinct value instead of a gradient. Same rule as :x-type: only :categorical can be asked of a column holding something else</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -2023,7 +2023,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Override inferred x-column type — :categorical, :numerical, or :temporal. Use :categorical on numeric x (hours, years, IDs) when a categorical-axis mark (bar, boxplot) is needed.</td>
+<td>Read the x column as a type other than its own -- :categorical, :numerical or :temporal. Only :categorical can be asked of a column holding something else, because every value can name a group: it puts numbers (hours, years, identifiers) or dates on a categorical axis, which a bar or a boxplot needs. The other two are accepted where they name the column's own type and refused where they do not</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -2053,7 +2053,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:y-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Override inferred y-column type — :categorical, :numerical, or :temporal. Mirror of :x-type, used for horizontal layouts.</td>
+<td>Mirror of :x-type, on the y column. Used for horizontal layouts</td>
 </tr>
 </tbody>
 </table>
