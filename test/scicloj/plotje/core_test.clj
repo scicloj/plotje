@@ -1552,9 +1552,17 @@
     (testing "ticks several years apart are labelled the same way"
       (is (every? #(re-matches #"\d{4}" %) (labels (yearly 1938 1972)))))
 
-    (testing "ticks a whole number of months apart within one year carry the month"
-      (is (= ["Jan" "Mar" "May" "Jul" "Sep" "Nov"]
+    (testing "ticks a month apart carry the year once the axis covers one"
+      ;; A year of month starts spans 368 drawn days once padded, past
+      ;; the point where the month alone stops saying which year it is.
+      ;; ggplot2 4.0.0 turns over between a 301-day panel and a 368-day
+      ;; one too.
+      (is (= ["Jan 2020" "Mar 2020" "May 2020" "Jul 2020" "Sep 2020" "Nov 2020"]
              (labels (monthly 12)))))
+
+    (testing "and carry the month alone on a shorter axis"
+      (is (= ["Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct"]
+             (labels (monthly 10)))))
 
     (testing "ticks a month apart across years carry the year too"
       (is (every? #(re-matches #"\d{4}-\d{2}" %) (labels (monthly 48)))))))

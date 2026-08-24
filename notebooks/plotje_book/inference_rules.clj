@@ -254,7 +254,7 @@ temporal-pose
     (let [p (first (:panels (pj/plan temporal-pose)))]
       (and (number? (first (:x-domain p)))
            (= 6 (count (:values (:x-ticks p))))
-           (= "Jan" (first (:labels (:x-ticks p)))))))])
+           (= "Jan 2024" (first (:labels (:x-ticks p)))))))])
 
 ;; The axis reads as dates. The plan underneath it holds none: the
 ;; scale is an ordinary `:linear` one, the domain is a pair of
@@ -275,10 +275,11 @@ temporal-pose
          (= 6 (count (:x-tick-labels m)))))])
 
 ;; A tick is labelled at the granularity of the calendar unit it steps
-;; by, and no finer: ticks a year apart carry the year alone, ticks a
-;; month apart within one year carry the month. The same two-point
-;; layer over three spans gives clock time, weekday and hour, and
-;; year:
+;; by, and no finer: ticks a year apart carry the year alone, and ticks
+;; a month apart carry the month, with the year beside it once the axis
+;; covers about a year -- the point past which the month alone stops
+;; saying which one. The same two-point layer over three spans gives
+;; clock time, weekday and hour, and year:
 
 (let [labels (fn [a b]
                (-> {:when [a b] :level [1 2]}

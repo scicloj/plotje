@@ -343,6 +343,26 @@
 (def ^:private ms-per-hour (* 60 ms-per-minute))
 (def ^:private ms-per-day (* 24 ms-per-hour))
 
+(def ^:private months-before-naming-the-year
+  "How much of an axis a month-stepped tick may cover before its label
+   names the year, in milliseconds -- about eleven months.
+
+   Below it a reader takes the whole axis as one stretch of one year and
+   the year is repetition; above it the axis reaches into another and
+   the month alone no longer says which. ggplot2 4.0.0 turns over
+   between a 301-day panel and a 368-day one; this sits between them."
+  (* 335 24 60 60 1000))
+
+(def ^:private months-before-iso-year-month
+  "Where a month-stepped label stops naming its month first and reads as
+   a year and a month -- `2020-01` in place of `Jan 2020` -- in
+   milliseconds, about fifteen months.
+
+   Past a year or so the year is what tells two ticks apart and belongs
+   first, and the label reads as a date rather than as a month. ggplot2
+   turns over between a 437-day panel and a 502-day one."
+  (* 470 24 60 60 1000))
+
 (def ^:private calendar-step-units
   "How long one step of each calendar unit lasts, at its shortest, in
    milliseconds -- coarsest unit first.
@@ -402,7 +422,7 @@
    running over three days repeats every hour it draws, and each needs
    its weekday; ggplot2 answers that span by stepping in days and
    labelling the date instead, so the two diverge there."
-  [unit start end]
+  [unit start end axis-span]
   (let [same? (fn [^java.time.temporal.ChronoField field]
                 (let [read (fn [^java.time.temporal.TemporalAccessor t]
                              (when (.isSupported t field) (.getLong t field)))
@@ -410,6 +430,8 @@
                       b (read end)]
                   (and a b (= a b))))
         span         (Math/abs (jt/time-between start end :millis))
+        ;; Read by the day pattern; the month pattern asks the axis
+        ;; span instead.
         same-year?   (same? java.time.temporal.ChronoField/YEAR)
         same-month?  (and same-year? (same? java.time.temporal.ChronoField/MONTH_OF_YEAR))
         same-day?    (and same-month? (same? java.time.temporal.ChronoField/DAY_OF_MONTH))
@@ -418,7 +440,18 @@
         same-second? (and same-minute? (same? java.time.temporal.ChronoField/SECOND_OF_MINUTE))]
     (case unit
       :years   "y"
-      :months  (if same-year? "MMM" "y-MM")
+      ;; Month ticks name their year once the axis covers about one, as
+      ;; ggplot2's do -- measured, 4.0.0: a panel spanning 301 days is
+      ;; labelled `Oct Jan Apr Jul Oct`, one spanning 368 days
+      ;; `Oct 2019 Jan 2020 ... Jan 2021`, and one spanning 502 days
+      ;; `2019-07 2020-01 ...`. The test is the axis rather than the
+      ;; ticks: a year of month starts is ticked January to November,
+      ;; every tick inside 2020, and naming no year left the reader
+      ;; nothing on the picture to say which year it was.
+      :months  (condp > (or axis-span 0)
+                 months-before-naming-the-year  "MMM"
+                 months-before-iso-year-month   "MMM y"
+                 "y-MM")
       :days    (if same-year? "MMM-dd" "y-MM-dd")
       :hours   (if (< span ms-per-day) "HH:mm" "E HH:mm")
       :minutes "HH:mm"
@@ -432,6 +465,16 @@
              (java.time.format.DateTimeFormatter/ofPattern
               pattern java.util.Locale/ENGLISH))))
 
+(defn- axis-span-ms
+  "How much time the axis covers, in milliseconds, from its domain.
+
+   The domain rather than the ticks, because that is what the reader
+   sees: a year of month starts is ticked January to November, and
+   asking the ticks would call that eleven months."
+  [[lo hi]]
+  (when (and (number? lo) (number? hi))
+    (Math/abs (- (double hi) (double lo)))))
+
 (defn- format-temporal-ticks
   "Label temporal ticks -- given as `LocalDateTime` -- at the granularity
    of the calendar unit they step by.
@@ -439,10 +482,10 @@
    A single tick has no step to read, so it is written out in full.
    Both the automatic ticks and a user's `:breaks` come through here, so
    an axis cannot spell a date two ways."
-  [ts]
+  [ts axis-span]
   (if (< (count ts) 2)
     (mapv resolve/format-local-date-time ts)
-    (let [pattern (tick-pattern (tick-step-unit ts) (first ts) (last ts))
+    (let [pattern (tick-pattern (tick-step-unit ts) (first ts) (last ts) axis-span)
           fmt (tick-formatter pattern)]
       (mapv #(.format ^java.time.format.DateTimeFormatter fmt
                       ^java.time.temporal.TemporalAccessor %)
@@ -617,7 +660,8 @@
                         (mapv str user-labels)
                         temporal-extent
                         (format-temporal-ticks
-                         (mapv resolve/epoch-ms->local-date-time vs))
+                         (mapv resolve/epoch-ms->local-date-time vs)
+                         (axis-span-ms domain))
                         log?
                         (vec (scale/format-log-ticks vs))
                         :else
@@ -657,12 +701,12 @@
            ;; edge of the panel, labelled with a date two and a half
            ;; years to its right, while the mark sat in the middle.
              {:values [(resolve/temporal->epoch-ms (first ext))]
-              :labels (format-temporal-ticks [(first ext)])
+              :labels (format-temporal-ticks [(first ext)] (axis-span-ms domain))
               :categorical? false}
              (let [dt-scale (ws/scale :datetime {:domain ext :range [0.0 1.0]})
                    dt-ticks (vec (or (scale/date-ticks (first ext) (second ext) n)
                                      (ws/ticks dt-scale n)))
-                   labels (format-temporal-ticks dt-ticks)
+                   labels (format-temporal-ticks dt-ticks (axis-span-ms domain))
                    values (mapv resolve/temporal->epoch-ms dt-ticks)]
                {:values values :labels labels :categorical? false})))
 
