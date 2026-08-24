@@ -829,20 +829,37 @@
 
    These are the steps a reader counts in: decades and half-decades on
    a century, quarters and half-years on a few years, weeks and
-   fortnights on a season, quarter-hours on an hour. A step outside the
-   list -- three years, eleven minutes -- lands the ticks on values
-   nobody reads a date off."
+   fortnights on a season, quarter-hours on an hour, tenths of a second
+   on a second. A step outside the list -- three years, eleven minutes
+   -- lands the ticks on values nobody reads a date off.
+
+   Every unit a temporal axis can step by is here. Milliseconds were
+   not, so a span under two seconds had no candidate giving two ticks,
+   `date-ticks` answered nil, and the caller fell back to wadogo -- the
+   arithmetic this list exists to replace. Half a second of data was
+   ticked a millisecond after the first value and every 62 ms after
+   that.
+
+   The millisecond steps stop at 200 rather than running to 500. A half
+   or a quarter of a second is a step a reader counts in, but it wins
+   the ranking against a whole second on any span of a few seconds, and
+   an axis whole seconds can serve is better left to them: with 500 in
+   the list a four-second axis moves off 00, 01, 02, 03, 04 onto halves.
+   Below about two seconds a whole second gives fewer than three ticks
+   and the finer steps are what is left."
   [[:years   [1000 500 250 200 100 50 25 20 10 5 2 1]]
    [:months  [6 3 2 1]]
    [:days    [14 7 2 1]]
    [:hours   [12 6 3 2 1]]
    [:minutes [30 15 10 5 2 1]]
-   [:seconds [30 15 10 5 2 1]]])
+   [:seconds [30 15 10 5 2 1]]
+   [:millis  [200 100 50 25 20 10 5 2 1]]])
 
 (defn- step-amount [unit step]
   (case unit
     :years (jt/years step) :months (jt/months step) :days (jt/days step)
-    :hours (jt/hours step) :minutes (jt/minutes step) :seconds (jt/seconds step)))
+    :hours (jt/hours step) :minutes (jt/minutes step) :seconds (jt/seconds step)
+    :millis (jt/millis step)))
 
 (defn- first-aligned
   "The earliest tick at or after `t` that sits on a multiple of `step`
@@ -881,7 +898,11 @@
             :minutes (jt/plus (.truncatedTo t java.time.temporal.ChronoUnit/HOURS)
                               (jt/minutes (* step (floor-div (.getMinute t) step))))
             :seconds (jt/plus (.truncatedTo t java.time.temporal.ChronoUnit/MINUTES)
-                              (jt/seconds (* step (floor-div (.getSecond t) step)))))]
+                              (jt/seconds (* step (floor-div (.getSecond t) step))))
+            :millis  (jt/plus (.truncatedTo t java.time.temporal.ChronoUnit/SECONDS)
+                              (jt/millis (* step (floor-div
+                                                  (.get t java.time.temporal.ChronoField/MILLI_OF_SECOND)
+                                                  step)))))]
     (if (jt/before? c t) (jt/plus c (step-amount unit step)) c)))
 
 (defn- aligned-ticks
@@ -908,8 +929,11 @@
    Candidates are ranked by how near their count comes to `n`, then by
    the coarser unit, then by the larger step -- so a span that two
    candidates fit equally well is ticked in the larger, rounder one.
-   Returns nil where no step gives two ticks, which leaves the caller
-   with wadogo's answer."
+
+   `calendar-steps` runs down to milliseconds, so every span a temporal
+   axis can carry is answered here. Returns nil only where even a
+   one-millisecond step gives fewer than two ticks -- a span under two
+   milliseconds -- which leaves the caller with wadogo's answer."
   [start end n]
   (->> (for [[i [unit steps]] (map-indexed vector calendar-steps)
              [j step] (map-indexed vector steps)

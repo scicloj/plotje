@@ -386,13 +386,35 @@
    wadogo places a ten-day axis on ticks a day apart at 01:00, and an
    axis of a single day on ticks six hours apart; only the second is
    about the hour."
+  [gap]
+  (or (some (fn [[unit len]] (when (>= gap len) unit)) calendar-step-units)
+      :millis))
+
+(defn- fraction-digits
+  "How many digits of a second write a step of `gap` milliseconds
+   exactly: one for a step in tenths, two for hundredths, three
+   otherwise.
+
+   A step of 250 ms is a quarter of a second and needs two; 25 ms needs
+   three. Asking only whether the ticks are far enough apart to tell
+   apart gives one digit for both and prints a regular step as an
+   irregular sequence."
+  [gap]
+  (cond (zero? (mod gap 100)) 1
+        (zero? (mod gap 10))  2
+        :else                 3))
+
+(defn- tick-gap-ms
+  "The smallest gap between two consecutive ticks, in milliseconds.
+
+   Read twice: `tick-step-unit` names the calendar unit a step of this
+   size is, and `tick-pattern` asks how much of a second a label has to
+   spell to tell two ticks apart."
   [ticks]
-  (let [gap (->> ticks
-                 (partition 2 1)
-                 (map (fn [[s e]] (Math/abs (jt/time-between s e :millis))))
-                 (reduce min))]
-    (or (some (fn [[unit len]] (when (>= gap len) unit)) calendar-step-units)
-        :millis)))
+  (->> ticks
+       (partition 2 1)
+       (map (fn [[s e]] (Math/abs (jt/time-between s e :millis))))
+       (reduce min)))
 
 (defn- tick-pattern
   "The date pattern that writes `unit`-stepped ticks running from
@@ -422,7 +444,7 @@
    running over three days repeats every hour it draws, and each needs
    its weekday; ggplot2 answers that span by stepping in days and
    labelling the date instead, so the two diverge there."
-  [unit start end axis-span]
+  [unit start end axis-span gap]
   (let [same? (fn [^java.time.temporal.ChronoField field]
                 (let [read (fn [^java.time.temporal.TemporalAccessor t]
                              (when (.isSupported t field) (.getLong t field)))
@@ -436,8 +458,7 @@
         same-month?  (and same-year? (same? java.time.temporal.ChronoField/MONTH_OF_YEAR))
         same-day?    (and same-month? (same? java.time.temporal.ChronoField/DAY_OF_MONTH))
         same-hour?   (and same-day? (same? java.time.temporal.ChronoField/HOUR_OF_DAY))
-        same-minute? (and same-hour? (same? java.time.temporal.ChronoField/MINUTE_OF_HOUR))
-        same-second? (and same-minute? (same? java.time.temporal.ChronoField/SECOND_OF_MINUTE))]
+        same-minute? (and same-hour? (same? java.time.temporal.ChronoField/MINUTE_OF_HOUR))]
     (case unit
       :years   "y"
       ;; Month ticks name their year once the axis covers about one, as
@@ -456,7 +477,19 @@
       :hours   (if (< span ms-per-day) "HH:mm" "E HH:mm")
       :minutes "HH:mm"
       :seconds (if same-minute? "ss" "HH:mm:ss")
-      :millis  (if same-second? "S" "ss.S"))))
+      ;; A fraction of a second is spelled to the precision its own step
+      ;; needs -- the fewest digits that write the step exactly, as
+      ;; `tick-step-unit` reads the same gap to name the unit.
+      ;;
+      ;; Fixed at tenths, ticks 62 ms apart read 0, 0, 1, 1, 2, 3, 3, 4,
+      ;; 4: nine ticks and five labels. Choosing the digits by how far
+      ;; apart the ticks are is not enough either -- a 250 ms step is
+      ;; far enough apart for one digit and rounds to 00.0, 00.2, 00.5,
+      ;; 00.7, which reads as an irregular sequence of a regular step.
+      ;;
+      ;; The seconds stay on the label whether or not the axis crosses
+      ;; one: a bare 0, 1, 2 does not say what it counts.
+      :millis  (str "ss." (apply str (repeat (fraction-digits gap) \S))))))
 
 (def ^:private tick-formatter
   "A `DateTimeFormatter` for a pattern, with the locale pinned so one
@@ -485,7 +518,8 @@
   [ts axis-span]
   (if (< (count ts) 2)
     (mapv resolve/format-local-date-time ts)
-    (let [pattern (tick-pattern (tick-step-unit ts) (first ts) (last ts) axis-span)
+    (let [gap (tick-gap-ms ts)
+          pattern (tick-pattern (tick-step-unit gap) (first ts) (last ts) axis-span gap)
           fmt (tick-formatter pattern)]
       (mapv #(.format ^java.time.format.DateTimeFormatter fmt
                       ^java.time.temporal.TemporalAccessor %)
