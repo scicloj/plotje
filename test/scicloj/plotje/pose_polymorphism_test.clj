@@ -336,9 +336,19 @@
 ;; When multi-pair pj/pose receives pairs that form an M x N
 ;; Cartesian rectangle (every combination of unique first-elements
 ;; with unique second-elements, in cross-order), the result is a
-;; nested composite: outer :vertical of M rows; each row is
-;; :horizontal of N cells. :share-scales is stamped as #{:x :y} so
-;; axes align across rows and columns -- the canonical SPLOM shape.
+;; nested composite: outer :vertical of rows, one per distinct y;
+;; each row is :horizontal of cells, one per distinct x.
+;; :share-scales is stamped as #{:x :y} so axes align across rows and
+;; columns -- the canonical SPLOM shape.
+;;
+;; A cell's x is named by the column it sits in and its y by the row,
+;; which is how a scatterplot matrix is read and what the tick
+;; suppression in grid-composite assumes (x ticks on the bottom row,
+;; y ticks in the leftmost column). The assertions below pin that
+;; orientation: written the other way round, every row but the last
+;; loses its x axis and every column but the first its y axis, and a
+;; reader takes a neighbour's numbers for its own.
+;;
 ;; Pair lists that are not rectangular keep the flat-reduce
 ;; behaviour asserted in M7.
 
@@ -353,11 +363,11 @@
         (is (= :horizontal (get-in row-0 [:layout :direction])))
         (is (= 2 (count (:poses row-0))) "2 cells per row")
         (is (= 2 (count (:poses row-1))))
-        ;; row 0: x = :a, y varies [:c :d]
+        ;; row 0: y = :c, x varies [:a :b] across the columns
         (is (= {:x :a :y :c} (:mapping (first (:poses row-0)))))
-        (is (= {:x :a :y :d} (:mapping (second (:poses row-0)))))
-        ;; row 1: x = :b, y varies [:c :d]
-        (is (= {:x :b :y :c} (:mapping (first (:poses row-1)))))
+        (is (= {:x :b :y :c} (:mapping (second (:poses row-0)))))
+        ;; row 1: y = :d, x varies the same way
+        (is (= {:x :a :y :d} (:mapping (first (:poses row-1)))))
         (is (= {:x :b :y :d} (:mapping (second (:poses row-1)))))))))
 
 (deftest multi-pair-grid-3x3-test

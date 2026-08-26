@@ -1074,7 +1074,20 @@
    combination of unique first-elements with unique second-elements,
    in cross order. Returns a vec of row-vecs when rectangular, nil
    otherwise. Requires M >= 2 and N >= 2 so a single row or column
-   stays flat (not a grid)."
+   stays flat (not a grid).
+
+   The rows are indexed by y and their cells by x: one row per
+   distinct y, each row running across the distinct x values. That is
+   the way every scatterplot matrix is read -- a cell's x is named by
+   the column it sits in, its y by the row -- and it is the same
+   arrangement `pose/matrix-axes` gives the `:matrix` layout, which
+   the non-rectangular case uses. The two must agree: the grid a
+   reader sees is the one the tick suppression in `grid-composite`
+   assumes, which keeps x ticks on the bottom row and y ticks in the
+   leftmost column.
+
+   The input order is unchanged -- `pj/cross` pairs x-major, and the
+   rectangularity check above still reads them that way."
   [pairs]
   (let [pairs  (vec pairs)
         xs     (vec (distinct (map first pairs)))
@@ -1084,7 +1097,7 @@
     (when (and (<= 2 m) (<= 2 n)
                (= (count pairs) (* m n))
                (= pairs (vec (for [x xs y ys] [x y]))))
-      (mapv (fn [x] (mapv (fn [y] [x y]) ys)) xs))))
+      (mapv (fn [y] (mapv (fn [x] [x y]) xs)) ys))))
 
 (defn- grid-composite
   "Build a 2D rows-of-cols composite from `base` (a leaf or composite)
@@ -1095,6 +1108,11 @@
    stamped as #{:x :y} so columns share x-axis domains and rows share
    y-axis domains -- SPLOM behavior.
 
+   `rows` arrives from `pairs->rows` with one row per y column and one
+   cell per x column, so a cell's x is named by the column it sits in
+   and its y by the row. Everything below depends on that: the strip
+   labels, and which cells keep their tick numbers.
+
    Each cell also carries :opts:
    - :suppress-legend on every cell -- one shared legend at composite
      level.
@@ -1102,10 +1120,11 @@
      strip labels carry the axis-variable name; per-cell axis labels
      would duplicate them.
    - :suppress-x-ticks on every cell except the bottom row -- only
-     the bottom row's tick numbers stay, since tick scales are
-     shared down the column via :share-scales.
+     the bottom row's tick numbers stay, since every cell in a column
+     carries the same x and so the same tick scale, shared via
+     :share-scales.
    - :suppress-y-ticks on every cell except the leftmost column --
-     same reasoning, tick scales shared across the row.
+     same reasoning across a row, whose cells share one y.
 
    The composite root carries :grid-strip-labels so the compositor
    can draw column strip labels above the top row and row strip
@@ -1118,12 +1137,14 @@
         root-o    (:opts base)
         n-rows    (count rows)
         col->name (fn [c] (if (keyword? c) (name c) (str c)))
-        ;; Each column shares its y column; each row shares its x
+        ;; Each column shares its x column; each row shares its y
         ;; column. Strip labels live at the composite root, not on
-        ;; individual cells, so cell layout stays untouched.
+        ;; individual cells, so cell layout stays untouched. A column
+        ;; header therefore names the x of the cells beneath it, and a
+        ;; row header the y of the cells beside it.
         col-labels (when (seq rows)
-                     (mapv (fn [[_ y]] (col->name y)) (first rows)))
-        row-labels (mapv (fn [row] (col->name (first (first row)))) rows)
+                     (mapv (fn [[x _]] (col->name x)) (first rows)))
+        row-labels (mapv (fn [row] (col->name (second (first row)))) rows)
         cells      (fn [row-idx row]
                      (let [bottom? (= row-idx (dec n-rows))]
                        (vec

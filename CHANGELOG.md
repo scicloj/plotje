@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- A scatterplot matrix -- the grid `pj/pose` builds from a rectangular pair list such as `pj/cross` produces -- places each panel by its columns: `:x` decides which column it sits in and `:y` which row, so the tick numbers along the bottom row and down the leftmost column describe every panel above and beside them. The grid was built transposed, so those numbers were true of one row and one column only and every other panel was read against a neighbour's scale. A matrix drawn before this change comes out transposed after it.
+
 ## [0.10.0 - 2026-08-25]
 
 Ticks and their labels are most of this release. A number axis, a date axis, a size or alpha legend and a gradient bar are each ticked at round values, and a column drawn on an axis and in a legend at once is labelled the same way in both.

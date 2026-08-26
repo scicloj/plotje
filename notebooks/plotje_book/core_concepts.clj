@@ -352,9 +352,11 @@ two-panel
 ;; One pose, two layers: scatter points and a regression line
 ;; sharing the same axes.
 ;;
-;; To place two plots side by side with different columns, use an
-;; explicit `pj/pose` call with a vector of column-pairs -- each
-;; `[x y]` pair becomes one panel:
+;; To draw two column-pairs as their own panels, use an explicit
+;; `pj/pose` call with a vector of column-pairs. Each `[x y]` pair
+;; becomes one panel, and a panel's place on the grid follows its
+;; columns: its x decides which column of the grid it sits in, its y
+;; which row.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose [[:sepal-length :sepal-width] [:petal-length :petal-width]])
@@ -373,11 +375,25 @@ two-panel
                               (= :sepal-length (get-in v [:poses 0 :mapping :x]))
                               (= :sepal-width  (get-in v [:poses 0 :mapping :y]))
                               (= :petal-length (get-in v [:poses 1 :mapping :x]))
-                              (= :petal-width  (get-in v [:poses 1 :mapping :y]))))])
+                              (= :petal-width  (get-in v [:poses 1 :mapping :y]))
+                              ;; These two pairs share no column, so the
+                              ;; panels take a column and a row each and
+                              ;; come out on a diagonal -- they differ in
+                              ;; both where they start across and down.
+                              (let [[a b] (map (comp :panel-box :frames)
+                                               (:panels (pj/frames v)))]
+                                (and (not= (first a) (first b))
+                                     (not= (second a) (second b))))))])
 
-;; Two panels, arranged side by side. For plots with different
-;; layer kinds (a scatter and a histogram, say), use `pj/arrange`
-;; to combine independent poses:
+;; These two pairs have no column in common, so they take a column
+;; and a row each: the panels come out on the diagonal of a two-by-two
+;; grid, and the other two cells stay empty. Pairs that do share a
+;; column line up instead -- a shared y puts them in one row, a shared
+;; x in one column.
+;;
+;; For two plots side by side whatever their columns -- or for plots
+;; with different layer kinds, a scatter and a histogram say -- use
+;; `pj/arrange` to combine independent poses:
 
 (pj/arrange
  [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-width))

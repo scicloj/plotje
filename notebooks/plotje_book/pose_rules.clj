@@ -1105,9 +1105,9 @@ s2-tree
 ;; **Column-bucketing**: when `:x` is shared, sub-poses whose
 ;; effective `:x` column is the same share that scale's domain;
 ;; sub-poses with different `:x` columns get independent
-;; x-domains. Same for `:y`. This is what enables SPLOM (aligning
-;; columns down, rows across) and marginal plots (x shared between
-;; scatter and top density; right density has its own y).
+;; x-domains. Same for `:y`. This is what enables SPLOM (one x down
+;; each column, one y across each row) and marginal plots (x shared
+;; between scatter and top density; right density has its own y).
 
 (def l4-shared
   (pj/arrange
@@ -1131,16 +1131,21 @@ l4-shared
 ;; rectangular M x N Cartesian product (like the output of
 ;; `pj/cross cols cols`), the result is a nested **rows-of-cols**
 ;; composite with `:share-scales #{:x :y}` -- the canonical SPLOM
-;; layout. Each cell inherits the base's `:data`, root `:mapping`,
-;; and root `:layers` when rendered. The compositor applies three
-;; renderer flags on cells:
+;; layout. A cell's place follows its columns: its `:x` decides which
+;; column of the grid it sits in, its `:y` which row. Each cell
+;; inherits the base's `:data`, root `:mapping`, and root `:layers`
+;; when rendered. The compositor applies these renderer flags on
+;; cells:
 ;;
-;; - `:suppress-legend true` on every cell (one shared legend is
-;;   drawn at composite level).
-;; - `:suppress-x-label true` on every non-bottom row (x-axis label
-;;   shows only on the bottom row).
-;; - `:suppress-y-label true` on every non-leftmost column (y-axis
-;;   label shows only on the leftmost column).
+;; - `:suppress-legend`, `:suppress-x-label` and `:suppress-y-label`
+;;   on every cell. One legend is drawn at composite level, and the
+;;   strip labels carry the axis-variable names.
+;; - `:suppress-x-ticks` on every cell above the bottom row, and
+;;   `:suppress-y-ticks` on every cell right of the leftmost column.
+;;   Every cell in a grid column carries the same `:x` and every cell
+;;   in a row the same `:y`, so the bottom row's numbers describe the
+;;   whole of their column and the leftmost column's the whole of
+;;   their row.
 ;;
 ;; In practice, SPLOM usage therefore omits `pj/lay-point` -- each
 ;; cell infers its own layer type: scatter off-diagonal, histogram
@@ -1159,7 +1164,16 @@ l4-shared
          (= #{:x :y} (get-in pose [:opts :share-scales]))
          (= 2 (count (:poses pose)))
          (every? #(= 2 (count (:poses %))) (:poses pose))
-         (= {:color :species} (:mapping pose))))])
+         (= {:color :species} (:mapping pose))
+         ;; The row fixes y and the cells across it vary x, which is
+         ;; what makes the bottom row's tick numbers true of the
+         ;; column above them.
+         (= [[{:x :sepal-length :y :petal-length}
+              {:x :sepal-width :y :petal-length}]
+             [{:x :sepal-length :y :petal-width}
+              {:x :sepal-width :y :petal-width}]]
+            (mapv (fn [row] (mapv :mapping (:poses row)))
+                  (:poses pose)))))])
 
 ;; ---
 ;; ## A Note on `pj/cross`

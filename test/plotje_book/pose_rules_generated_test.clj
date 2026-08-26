@@ -1215,7 +1215,7 @@
 
 
 (def
- v187_l1151
+ v187_l1156
  (->
   iris
   (pj/pose
@@ -1224,7 +1224,7 @@
 
 
 (deftest
- t188_l1156
+ t188_l1161
  (is
   ((fn
     [pose]
@@ -1235,15 +1235,21 @@
      (every?
       (fn* [p1__11197#] (= 2 (count (:poses p1__11197#))))
       (:poses pose))
-     (= {:color :species} (:mapping pose))))
-   v187_l1151)))
+     (= {:color :species} (:mapping pose))
+     (=
+      [[{:x :sepal-length, :y :petal-length}
+        {:x :sepal-width, :y :petal-length}]
+       [{:x :sepal-length, :y :petal-width}
+        {:x :sepal-width, :y :petal-width}]]
+      (mapv (fn [row] (mapv :mapping (:poses row))) (:poses pose)))))
+   v187_l1156)))
 
 
-(def v190_l1176 (pj/cross [:a :b] [:c :d]))
+(def v190_l1190 (pj/cross [:a :b] [:c :d]))
 
 
 (deftest
- t191_l1178
+ t191_l1192
  (is
   ((fn [pairs] (= [[:a :c] [:a :d] [:b :c] [:b :d]] pairs))
-   v190_l1176)))
+   v190_l1190)))
