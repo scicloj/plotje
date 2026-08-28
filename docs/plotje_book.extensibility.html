@@ -444,6 +444,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
       </ul>
   </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">✏️ Drafts</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./plotje_book.plotting_the_clojure_ecosystem.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Draft: Plotting the Clojure Ecosystem</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
     </ul>
     </div>
 </nav>
@@ -1585,7 +1602,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb100"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> mark/mark-clip-region <span class="at">:margin-glyph</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb101"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x64c17dbc</span> <span class="st">"clojure.lang.MultiFn@64c17dbc"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb101"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a>#multifn[mark-clip-region <span class="bn">0x1fb52558</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb102"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">contains?</span> (<span class="kw">methods</span> mark/mark-clip-region) <span class="at">:margin-glyph</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1915,7 +1932,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb139"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb139-1"><a href="#cb139-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat [<span class="at">:quantile</span> <span class="at">:doc</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb140"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb140-1"><a href="#cb140-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x32eabd7e</span> <span class="st">"clojure.lang.MultiFn@32eabd7e"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb140"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb140-1"><a href="#cb140-1" aria-hidden="true" tabindex="-1"></a>#multifn[compute-stat <span class="bn">0x14fa5026</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb141"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb141-1"><a href="#cb141-1" aria-hidden="true" tabindex="-1"></a>(pj/stat-doc <span class="at">:quantile</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1931,7 +1948,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb143"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb143-1"><a href="#cb143-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat <span class="at">:quantile</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb144"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb144-1"><a href="#cb144-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x32eabd7e</span> <span class="st">"clojure.lang.MultiFn@32eabd7e"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb144"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb144-1"><a href="#cb144-1" aria-hidden="true" tabindex="-1"></a>#multifn[compute-stat <span class="bn">0x14fa5026</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb145"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb145-1"><a href="#cb145-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">count</span> (<span class="kw">remove</span> #{<span class="at">:default</span>} (<span class="kw">filter</span> <span class="kw">keyword?</span> (<span class="kw">keys</span> (<span class="kw">methods</span> stat/compute-stat)))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
