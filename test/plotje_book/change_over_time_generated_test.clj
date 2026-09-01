@@ -13,7 +13,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__94554#] (Math/sin (* p1__94554# 0.3))) (range 30))}))
+   (map (fn* [p1__86607#] (Math/sin (* p1__86607# 0.3))) (range 30))}))
 
 
 (def v4_l21 (-> wave (pj/lay-line :x :y)))
@@ -37,10 +37,10 @@
   (tc/dataset
    {:x (range 30),
     :sin
-    (map (fn* [p1__94555#] (Math/sin (* p1__94555# 0.3))) (range 30)),
+    (map (fn* [p1__86608#] (Math/sin (* p1__86608# 0.3))) (range 30)),
     :cos
     (map
-     (fn* [p1__94556#] (Math/cos (* p1__94556# 0.3)))
+     (fn* [p1__86609#] (Math/cos (* p1__86609# 0.3)))
      (range 30))})))
 
 
@@ -181,7 +181,7 @@
  (->
   {:x (range 30),
    :y
-   (map (fn* [p1__94557#] (Math/sin (* p1__94557# 0.3))) (range 30))}
+   (map (fn* [p1__86610#] (Math/sin (* p1__86610# 0.3))) (range 30))}
   (pj/lay-area :x :y)))
 
 
@@ -256,7 +256,7 @@
       (= 6 (:points s))
       (= 1 (:lines s))
       (some
-       (fn* [p1__94558#] (re-find #"[A-Z][a-z]{2}" p1__94558#))
+       (fn* [p1__86611#] (re-find #"[A-Z][a-z]{2}" p1__86611#))
        tick-labels))))
    v35_l178)))
 

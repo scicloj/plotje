@@ -209,21 +209,19 @@
       red
       [0.85 0.25 0.25 1.0]
       positive-bars
-      (mapv
-       (fn* [p1__100286#] (nth waterfall-bars p1__100286#))
-       [0 2 5])
+      (mapv (fn* [p1__93102#] (nth waterfall-bars p1__93102#)) [0 2 5])
       negative-bars
       (mapv
-       (fn* [p1__100287#] (nth waterfall-bars p1__100287#))
+       (fn* [p1__93103#] (nth waterfall-bars p1__93103#))
        [1 3 4])]
      (and
       (= 1 (:panels s))
       (= 6 (:polygons s))
       (every?
-       (fn* [p1__100288#] (= green (:color p1__100288#)))
+       (fn* [p1__93104#] (= green (:color p1__93104#)))
        positive-bars)
       (every?
-       (fn* [p1__100289#] (= red (:color p1__100289#)))
+       (fn* [p1__93105#] (= red (:color p1__93105#)))
        negative-bars))))
    v17_l164)))
 
