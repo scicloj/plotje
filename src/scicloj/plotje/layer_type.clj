@@ -78,7 +78,7 @@
    :x-max "Upper x bound of a vertical shaded band. The same two shapes as :x-min"
    :x-end "A column of the layer's data, or a number, for the right edge of a horizontal interval bar. A written value places every bar's right edge alike"
    :interval-thickness "Fraction (0.0–1.0) of the categorical band that an interval bar fills (default 0.7)"
-   :bar-width "Width of a bar on a numeric or temporal x axis, in data units. Defaults to 0.9 of the smallest gap between adjacent x positions."
+   :bar-width "How wide a bar is drawn, in the unit its axis offers. On a categorical axis, the fraction (0.0-1.0) of the category band the bar fills, as :box-width is for a box; defaults to 0.8. On a numeric or temporal axis, where there is no band, a width in data units; defaults to 0.9 of the smallest gap between adjacent x values."
    :bins "Number of histogram bins, overriding the :bin-method estimate"
    :binwidth "Width of one histogram bin in data units, an alternative to :bins"
    :box-width "Fraction (0.0-1.0) of the categorical band that a box fills (default 0.6)"

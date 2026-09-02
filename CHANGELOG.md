@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- A `:bar-width` that a bar cannot use is reported. The option sets a width in data units, which means something only where the bar sits at a numeric or temporal x; a bar laid out in category bands fills a fraction of its band, and no option sets that fraction. The message names `pj/lay-interval-h`, whose `:interval-thickness` is that fraction.
+- `:bar-width` sets how wide a bar is drawn on a categorical axis, as a fraction of the category band, `0.8` by default -- the quantity `:box-width` names for a box. `(pj/lay-bar :growth :cohort {:bar-width 0.4})` draws a bar half the usual thickness, so a second bar layer over a first reads as an overlay rather than a stack. On a numeric or temporal axis, where a bar sits at a value rather than in a band, the option keeps its meaning as a width in data units. It applies to value bars, counted bars, and dodged and stacked bars alike.
 
 ## [0.10.1 - 2026-08-27]
 

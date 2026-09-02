@@ -1028,7 +1028,11 @@
   [layer ctx]
   (let [{:keys [style groups position categories]} layer
         {:keys [flipped? band-s num-s]} (orient-scales ctx)
-        {:keys [opacity]} style
+        {:keys [opacity bar-width]} style
+        ;; On a categorical axis a bar has no data units to be wide in, so
+        ;; `:bar-width` is read as the fraction of the band it fills --
+        ;; the same quantity `:box-width` names for a box.
+        frac (or bar-width 0.8)
         coord-px (:coord-px ctx)
         position (or position :dodge)
         num-base (numeric-baseline ctx flipped?)
@@ -1043,13 +1047,12 @@
        (for [group groups
              {:keys [category y0 y1]} (:counts group)
              :when (and y0 y1 (not= y0 y1))]
-         (let [bp (band-position band-s category 0 1 0.8)
+         (let [bp (band-position band-s category 0 1 frac)
                y0' (max num-base (double y0))]
            (mk-rect (:color group) (:lo bp) (:hi bp)
                     (num-s y0') (num-s y1)))))
       ;; Dodged: use dodge-ctx annotations from position/apply-positions
-      (let [{:keys [n-groups] :or {n-groups 1}} (:dodge-ctx layer)
-            frac 0.8]
+      (let [{:keys [n-groups] :or {n-groups 1}} (:dodge-ctx layer)]
         (vec
          (for [group groups
                {:keys [category count]} (:counts group)
@@ -1064,10 +1067,10 @@
   [layer ctx]
   (let [{:keys [style groups]} layer
         {:keys [flipped? band-s num-s]} (orient-scales ctx)
-        {:keys [opacity]} style
+        {:keys [opacity bar-width]} style
         coord-px (:coord-px ctx)
         {:keys [n-groups] :or {n-groups (clojure.core/count groups)}} (:dodge-ctx layer)
-        frac 0.8
+        frac (or bar-width 0.8)
         num-base (numeric-baseline ctx flipped?)]
     (vec
      (for [group groups

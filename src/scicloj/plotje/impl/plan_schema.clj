@@ -150,6 +150,7 @@
    [:radius {:optional true} number?]
    [:stroke-width {:optional true} number?]
    [:font-size {:optional true} number?]
+   [:bar-width {:optional true} number?]
    [:box-width {:optional true} number?]
    [:cap-width {:optional true} number?]
    [:length {:optional true} number?]

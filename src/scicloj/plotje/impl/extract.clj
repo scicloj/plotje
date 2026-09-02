@@ -408,39 +408,12 @@
            :groups (extract-xy-groups draft-layer stat all-colors cfg)}
     (:position draft-layer) (assoc :position (:position draft-layer))))
 
-(defn- warn-unused-bar-width
-  "Report a `:bar-width` that this bar cannot use.
-
-   `:bar-width` is a width in data units, which only means something
-   where the bar sits at a numeric or temporal x. On a categorical axis
-   a bar fills a fraction of its category band, and there is no option
-   for that fraction -- so the value was read, accepted by the layer
-   type, and then dropped in silence.
-
-   The message names `pj/lay-interval-h`, whose `:interval-thickness`
-   is the band fraction the writer was reaching for."
-  [draft-layer]
-  (when (:bar-width draft-layer)
-    (println (str "Warning: lay-bar :bar-width "
-                  (pr-str (:bar-width draft-layer))
-                  " is ignored here. :bar-width is a width in data units"
-                  " and applies only where neither axis is categorical."
-                  " A bar on a categorical axis fills a fraction of its"
-                  " category band, which :bar-width cannot set. To draw a"
-                  " thinner mark there, use pj/lay-interval-h with"
-                  " :interval-thickness (a fraction of the band)."))))
-
 (defmethod extract-layer :rect [draft-layer stat all-colors cfg]
-  (when-not (:bar-width stat)
-    ;; `prepare-points` puts a `:bar-width` on the stat only for a bar at
-    ;; a numeric or temporal x. Its absence here means either no width was
-    ;; asked for -- the common case, and `warn-unused-bar-width` stays
-    ;; quiet -- or one was asked for on a categorical axis and dropped.
-    (warn-unused-bar-width draft-layer))
   (if (:bars stat)
     ;; Categorical bars (from :count stat) -- :count stat already validated
     {:mark :rect
-     :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
+     :style (cond-> {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
+              (:bar-width draft-layer) (assoc :bar-width (:bar-width draft-layer)))
      :position (default-position draft-layer)
      :categories (vec (:categories stat))
      :groups (vec
@@ -486,7 +459,11 @@
                             {:mark :rect :position (:position draft-layer)
                              :x (:x draft-layer) :y (:y draft-layer)})))
           {:mark :rect
-           :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
+           ;; A bar in a category band takes its width as a fraction of
+           ;; that band. The numeric-position branch above reads the same
+           ;; option in data units, the only unit an axis with no band has.
+           :style (cond-> {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
+                    (:bar-width draft-layer) (assoc :bar-width (:bar-width draft-layer)))
            :position (default-position draft-layer)
            :groups (vec
                     (for [{:keys [color xs ys]} (:points stat)]

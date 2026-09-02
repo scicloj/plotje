@@ -262,7 +262,9 @@
 
 ;; When neither axis is categorical, each bar sits at its numeric x position.
 ;; The width is `0.9` of the smallest gap between adjacent x values, or set it
-;; with `{:bar-width n}` (in data units):
+;; with `{:bar-width n}`, which is a width in data units here because an axis
+;; with no category band offers no other unit. On a categorical axis the same
+;; option is the fraction of the band a bar fills, `0.8` by default:
 
 (-> {:x [1 2 3 4 5] :y [10 20 15 30 25]}
     (pj/lay-bar :x :y))

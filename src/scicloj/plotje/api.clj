@@ -2348,8 +2348,15 @@
    When both axes are numeric or temporal (`(pj/lay-bar :x :y)` with no
    categorical axis), each bar sits at its x position with a width taken from
    `0.9` of the smallest gap between adjacent x values -- a time-series or
-   numeric-position bar chart. Pass `{:bar-width n}` (data units) to set the
-   width. Grouped numeric bars currently overlap rather than dodge."
+   numeric-position bar chart. Grouped numeric bars currently overlap rather
+   than dodge.
+
+   `:bar-width` sets how wide a bar is drawn, in the unit its axis offers. On
+   a categorical axis it is the fraction of the category band the bar fills,
+   `0.8` by default, as `:box-width` is for a box: `{:bar-width 0.4}` draws a
+   bar half the usual thickness, which is how a second bar layer is read as an
+   overlay rather than a stack. On a numeric or temporal axis, where there is
+   no band, it is a width in data units."
   ([pose-or-data] (lay-layer-type :bar pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :bar pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :bar pose-or-data x y-or-opts))
