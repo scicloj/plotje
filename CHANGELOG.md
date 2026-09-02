@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- A `:bar-width` that a bar cannot use is reported. The option sets a width in data units, which means something only where the bar sits at a numeric or temporal x; a bar laid out in category bands fills a fraction of its band, and no option sets that fraction. The message names `pj/lay-interval-h`, whose `:interval-thickness` is that fraction.
+
 ## [0.10.1 - 2026-08-27]
 
 ### Fixed

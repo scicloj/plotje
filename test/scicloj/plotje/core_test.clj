@@ -2562,6 +2562,25 @@
       ;; half-width 0.25 -> domain spans roughly [0.75, 3.25] before padding
       (is (< 0.5 (double lo) 0.8))
       (is (< 3.2 (double hi) 3.5))))
+  (testing "{:bar-width ...} on a categorical axis is reported, not dropped"
+    ;; :bar-width is a width in data units, so a bar laid out in category
+    ;; bands cannot use it. It was accepted by the layer type and then
+    ;; ignored in silence; the warning names pj/lay-interval-h, which has
+    ;; the band fraction the writer was reaching for.
+    (let [warn (fn [pose]
+                 (let [out (java.io.StringWriter.)]
+                   (binding [*out* out] (pj/svg-summary pose))
+                   (str out)))
+          cohorts [{:cohort "a" :growth 1.0} {:cohort "b" :growth 2.0}]]
+      (is (str/includes? (warn (pj/lay-bar cohorts :growth :cohort {:bar-width 0.4}))
+                         ":bar-width 0.4 is ignored here"))
+      (is (str/includes? (warn (pj/lay-bar cohorts :cohort :growth {:bar-width 0.4}))
+                         "pj/lay-interval-h"))
+      (is (str/includes? (warn (pj/lay-bar [{:kind "a"} {:kind "b"}] :kind {:bar-width 0.4}))
+                         ":bar-width 0.4 is ignored here"))
+      ;; Silent where the option applies, and where none was given.
+      (is (= "" (warn (pj/lay-bar {:x [1 2 3] :y [10 20 15]} :x :y {:bar-width 0.5}))))
+      (is (= "" (warn (pj/lay-bar cohorts :growth :cohort))))))
   (testing "numeric bars support negative heights (diverging)"
     (is (= 3 (:polygons (pj/svg-summary
                          (pj/plot (-> {:x [1 2 3] :y [-10 20 -5]} (pj/lay-bar :x :y))))))))
