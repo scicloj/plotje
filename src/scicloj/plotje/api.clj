@@ -3627,10 +3627,18 @@
          marginal-leaf (-> (lay-marginal (:data pose) x-col)
                            (assoc :opts {:suppress-x-ticks true
                                          :suppress-x-label true}))]
-     {:poses [marginal-leaf pose]
-      :layout {:direction :vertical :weights [size (- 1.0 size)]}
-      :share-scales #{:x}
-      :opts (merge (:opts pose) {:align-panels true})})))
+     ;; Through prepare-pose, as every other composite-building path is
+     ;; (`pj/arrange`, `pj/pose`'s promoting arities): it coerces :data
+     ;; at every depth, puts the printed keys in the book's order, and
+     ;; attaches the Kindly metadata that captures the current *config*
+     ;; for render time. Returned raw, a marginal printed in a different
+     ;; key order from its neighbours and lost a surrounding
+     ;; `pj/with-config`.
+     (prepare-pose
+      {:poses [marginal-leaf pose]
+       :layout {:direction :vertical :weights [size (- 1.0 size)]}
+       :share-scales #{:x}
+       :opts (merge (:opts pose) {:align-panels true})}))))
 
 (defn- infer-format-from-path
   "Map a path's file extension to a save format. Returns nil for
