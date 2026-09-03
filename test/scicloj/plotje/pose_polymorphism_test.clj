@@ -539,6 +539,52 @@
       (is (= {:x :a :y :b} (:mapping (first (:poses fr)))))
       (is (= {:x "a" :y "b"} (:mapping (second (:poses fr))))))))
 
+(deftest promotion-keeps-a-layers-own-mapping-test
+  ;; Promotion stamps the leaf's position onto a layer that names
+  ;; none, so promote-leaf keeps that layer with panel-1. The stamp
+  ;; merges into the layer's mapping rather than replacing it: a
+  ;; layer's aesthetics and its layer-type options share that slot,
+  ;; and replacing it dropped every one of them in silence.
+  (testing "an aesthetic written on the layer survives the split"
+    (let [layer (-> iris
+                    (pj/lay-point :a :b {:color "#377eb8"})
+                    (pj/lay-point :c :d)
+                    :poses
+                    first
+                    :layers
+                    first)]
+      (is (= {:x :a :y :b :color "#377eb8"} (:mapping layer)))))
+  (testing "and reaches the drawn marks"
+    (let [colors (->> (-> iris
+                          (pj/lay-point :a :b {:color "#377eb8"})
+                          (pj/lay-point :c :d)
+                          pj/svg-summary
+                          :colors)
+                      (remove #{"none"})
+                      set)]
+      ;; #377eb8 is rgb(55,126,184); the default point grey is
+      ;; rgb(51,51,51), which is what the panel-2 layer draws.
+      (is (contains? colors "rgb(55,126,184)"))))
+  (testing "a layer-type option written on the layer survives too"
+    (let [layer (-> iris
+                    (pj/lay-histogram :a {:bins 3})
+                    (pj/lay-histogram :c)
+                    :poses
+                    first
+                    :layers
+                    first)]
+      (is (= 3 (:bins (:mapping layer))))))
+  (testing "a layer that names its own position is left alone"
+    (let [layer (-> iris
+                    (pj/pose :a :b)
+                    (pj/lay-point :a :b {:color "#377eb8"})
+                    (pj/lay-point :c :d)
+                    :poses
+                    first
+                    :layers
+                    first)]
+      (is (= {:x :a :y :b :color "#377eb8"} (:mapping layer))))))
+
 ;; ============================================================
 ;; Layer structural keys -- :stat, :position, :mark (Decision 1)
 ;; ============================================================

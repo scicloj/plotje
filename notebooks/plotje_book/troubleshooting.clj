@@ -486,11 +486,16 @@
 ;; comes out with two panels:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-    (pj/pose :growth :cohort)
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
     (pj/lay-bar :tax :cohort {:color "#e6550d"}))
 
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                ;; The same two series as the fix
+                                ;; below, so the two pictures differ
+                                ;; only in how many panels they use.
+                                (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
+                                   (disj (:colors s) "none")))))])
 
 ;; **Fix**: Add `pj/overlay` before the layers. Every layer added after
 ;; it goes on the panel it is added to, keeping its own columns, and

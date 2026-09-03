@@ -702,6 +702,21 @@
    which throws; these only warn, so they need the pointer here."
   {:scale-x "pj/scale" :scale-y "pj/scale"})
 
+(defn- layer-accepted-options
+  "The option keys a layer of `layer-type-key` accepts: the universal
+   layer options plus that layer type's own `:accepts`, less anything
+   it `:rejects`. An unregistered or missing layer type answers the
+   universal options alone.
+
+   One rule, read by `build-layer` when it warns about an options map
+   and by `validate-pose-shape` when it walks a built layer."
+  [layer-type-key]
+  (let [reg (when (keyword? layer-type-key)
+              (layer-type/lookup layer-type-key))]
+    (-> (set layer-type/universal-layer-options)
+        (into (:accepts reg))
+        (set/difference (set (:rejects reg))))))
+
 (defn- layer-types-accepting
   "Registered layer types whose :accepts list contains `k`, sorted.
    Read from the registry at call time so layer types registered by the
@@ -821,16 +836,24 @@
     fr))
 
 (defn- warn-unknown-mapping-keys
-  "Warn about keys in a :mapping map that are not in pose-mapping-keys.
-   `context` (e.g. \"pj/pose\", \"pj/pose layer\") prefixes the message
-   so the user can tell which mapping has the typo. Returns nil."
-  [m context]
-  (let [unknown (remove pose-mapping-keys (keys m))]
-    (when (seq unknown)
-      (println (str "Warning: " context " :mapping has unexpected"
-                    " key(s): " (vec unknown)
-                    ". Known mapping keys: "
-                    (vec (sort pose-mapping-keys)))))))
+  "Warn about keys in a :mapping map that are neither in
+   pose-mapping-keys nor in `also-known`. `context` (e.g.
+   \"pj/pose\", \"pj/pose layer\") prefixes the message so the user
+   can tell which mapping has the typo. Returns nil.
+
+   A layer's `:mapping` holds its layer-type options beside its
+   aesthetics -- `:bins`, `:bar-width`, `:jitter` -- so a layer passes
+   the options its layer type accepts as `also-known`. Without them
+   every option written on a layer reads as a typo."
+  ([m context] (warn-unknown-mapping-keys m context nil))
+  ([m context also-known]
+   (let [known (into pose-mapping-keys also-known)
+         unknown (remove known (keys m))]
+     (when (seq unknown)
+       (println (str "Warning: " context " :mapping has unexpected"
+                     " key(s): " (vec unknown)
+                     ". Known keys here: "
+                     (vec (sort known))))))))
 
 (defn- reorder-pose-keys
   "Return a copy of fr with known keys in pose-print-order, followed
@@ -919,7 +942,8 @@
     (check-position-mapping context m))
   (doseq [layer (:layers fr)]
     (when-let [lm (:mapping layer)]
-      (warn-unknown-mapping-keys lm (str context " layer"))
+      (warn-unknown-mapping-keys lm (str context " layer")
+                                 (layer-accepted-options (:layer-type layer)))
       (check-column-ref-types (str context " layer") lm)
       (check-explicit-mappings (str context " layer") lm)
       (check-position-mapping (str context " layer") lm)))
@@ -1750,12 +1774,10 @@
     (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
     (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
   (let [opts (if (and opts (keyword? layer-type-key))
-               (let [reg (layer-type/lookup layer-type-key)
-                     accepted (-> (set layer-type/universal-layer-options)
-                                  (into (:accepts reg))
-                                  (set/difference (set (:rejects reg))))]
-                 (warn-and-strip-unknown-opts (str "lay-" (name layer-type-key))
-                                              opts accepted))
+               (warn-and-strip-unknown-opts
+                (str "lay-" (name layer-type-key))
+                opts
+                (layer-accepted-options layer-type-key))
                opts)
         opts-map (or opts {})
         d (:data opts-map)
@@ -1902,13 +1924,22 @@
           ;; misuse its column refs). This is the lay-* analog of
           ;; LP3: a non-matching position on a leaf creates a new
           ;; sub-pose, not a layer that crosses panels.
+          ;;
+          ;; Through merge-mappings, and into the layer's own mapping:
+          ;; a layer's aesthetics and its layer-type options share that
+          ;; slot, so replacing it discards every one of them -- the
+          ;; colour, the `:bar-width`, the `:bins`. The layer names no
+          ;; position, which is why it is being stamped at all, so
+          ;; nothing it carries is overridden.
           (let [leaf-pos (select-keys (:mapping fr) [:x :y])
                 stamped (update fr :layers
                                 (fn [ls]
                                   (mapv (fn [l]
                                           (if (layer-has-position? l)
                                             l
-                                            (assoc l :mapping leaf-pos)))
+                                            (update l :mapping
+                                                    #(pose/merge-mappings
+                                                      leaf-pos (or % {})))))
                                         (or ls []))))]
             (check-new-sub-pose-columns layer-type-key position-mapping
                                         bare-layer (:data fr))

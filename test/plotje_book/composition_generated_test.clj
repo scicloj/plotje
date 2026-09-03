@@ -142,7 +142,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal)))
       panels
-      (mapv (fn* [p1__88520#] (-> p1__88520# :panels first)) plans)
+      (mapv (fn* [p1__11193#] (-> p1__11193# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)
       [d-y s-y]
@@ -158,12 +158,12 @@
       (apply
        ==
        (map
-        (fn* [p1__88521#] (get-in p1__88521# [:layout :y-label-pad]))
+        (fn* [p1__11194#] (get-in p1__11194# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__88522#] (get-in p1__88522# [:layout :legend-w]))
+        (fn* [p1__11195#] (get-in p1__11195# [:layout :legend-w]))
         plans)))))
    v22_l141)))
 
@@ -217,7 +217,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal-by-hand)))
       panels
-      (mapv (fn* [p1__88523#] (-> p1__88523# :panels first)) plans)
+      (mapv (fn* [p1__11196#] (-> p1__11196# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)]
      (and
@@ -227,7 +227,7 @@
       (=
        [0 102]
        (mapv
-        (fn* [p1__88524#] (get-in p1__88524# [:layout :legend-w]))
+        (fn* [p1__11197#] (get-in p1__11197# [:layout :legend-w]))
         plans)))))
    v29_l212)))
 
@@ -247,12 +247,12 @@
       (apply
        ==
        (map
-        (fn* [p1__88525#] (get-in p1__88525# [:layout :y-label-pad]))
+        (fn* [p1__11198#] (get-in p1__11198# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__88526#] (get-in p1__88526# [:layout :legend-w]))
+        (fn* [p1__11199#] (get-in p1__11199# [:layout :legend-w]))
         plans)))))
    v32_l241)))
 
@@ -359,16 +359,15 @@
 
 
 (def
- v47_l385
+ v47_l387
  (->
   overlay-base
-  (pj/pose :fitted :residual)
   (pj/lay-point :fitted :residual {:color "#377eb8"})
   (pj/lay-point :x :y {:color "#e6550d", :data overlay-other})))
 
 
 (deftest
- t48_l390
+ t48_l391
  (is
   ((fn
     [v]
@@ -377,14 +376,15 @@
      (and
       (= 2 (:panels s))
       (= 6 (:points s))
+      (= [2 2] ((juxt :n-rows :n-cols) (:chrome (pj/plan v))))
       (=
        #{"rgb(55,126,184)" "rgb(230,85,13)"}
        (disj (:colors s) "none")))))
-   v47_l385)))
+   v47_l387)))
 
 
 (def
- v50_l415
+ v50_l420
  (def
   bounded
   (->
@@ -394,22 +394,22 @@
    (pj/scale :y {:type :linear, :domain [0 30]}))))
 
 
-(def v51_l421 (pj/arrange [bounded bounded] {:cols 1}))
+(def v51_l426 (pj/arrange [bounded bounded] {:cols 1}))
 
 
 (deftest
- t52_l423
+ t52_l428
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 2 (:clips s)))))
-   v51_l421)))
+   v51_l426)))
 
 
 (def
- v54_l474
+ v54_l479
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -420,7 +420,7 @@
 
 
 (deftest
- t55_l480
+ t55_l485
  (is
   ((fn
     [v]
@@ -442,4 +442,4 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v54_l474)))
+   v54_l479)))

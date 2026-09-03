@@ -377,13 +377,14 @@ dashboard
 ;; columns directly. When the new layer's position does not match
 ;; the existing one, the pose splits into two panels: the original
 ;; leaf becomes panel-1, and a new sub-pose carrying the new
-;; position and the new layer becomes panel-2. The two render side
-;; by side in a grid (the default `:matrix` layout, which arranges
-;; panels in rows and columns). This promotion is specified as Rule
+;; position and the new layer becomes panel-2. The default `:matrix`
+;; layout places a panel by its columns -- `:x` picks the column of
+;; the grid, `:y` picks the row -- so two panels naming four different
+;; columns sit on the diagonal of a two-by-two grid and the other two
+;; cells stay empty. This promotion is specified as Rule
 ;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html#rule-lp2-position-carrying-lay--attaches-to-the-dfs-last-matching-leaf) chapter.
 
 (-> overlay-base
-    (pj/pose :fitted :residual)
     (pj/lay-point :fitted :residual {:color "#377eb8"})
     (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
 
@@ -392,6 +393,10 @@ dashboard
     (let [s (pj/svg-summary v)]
       (and (= 2 (:panels s))
            (= 6 (:points s))
+           ;; The two-by-two grid the prose describes: two distinct
+           ;; x columns give two grid columns, two distinct y columns
+           ;; give two rows, and only two of the four cells are filled.
+           (= [2 2] ((juxt :n-rows :n-cols) (:chrome (pj/plan v))))
            ;; The same two colours as the two examples above, so the
            ;; three outcomes can be compared mark for mark.
            (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
@@ -399,10 +404,10 @@ dashboard
 
 ;; Each panel has three points and its own x/y axis labels:
 ;; panel-1 shows `fitted` vs `residual`, panel-2 shows `x` vs
-;; `y`. (For finer layout control -- different weights, shared
-;; scales, or an explicit grid -- build the composite via
-;; `pj/arrange` or the explicit composite-pose form shown
-;; earlier in the chapter.)
+;; `y`. To put the two panels in a row instead of on a diagonal --
+;; or to set weights, share scales, or give an explicit grid --
+;; build the composite via `pj/arrange` or the explicit
+;; composite-pose form shown earlier in the chapter.
 
 ;; ## Panels Clip Their Own Content
 ;;

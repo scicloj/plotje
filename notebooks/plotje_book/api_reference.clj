@@ -705,7 +705,6 @@ pj/shape-symbols
 ;; panel and `:spend` gets its own:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4] :spend [7 9 6]}
-    (pj/pose :growth :cohort)
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
     pj/overlay
     (pj/lay-bar :tax :cohort {:color "#e6550d"})

@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file. This change
 
 - A bar keeps its full width when a colour column is named. A bar fills a fraction of its category band, and the band was being divided by the number of colour categories even where nothing asked for a dodge, which narrowed every bar and pushed it to one side of its band. Dodged bars still divide the band between their groups. - thanks, @timothypratley
 
+- A layer keeps everything written on it when a later `pj/lay-*` call splits the pose into two panels. The split stamps the panel's `:x` and `:y` onto a layer that names neither, so that the layer stays with the panel it was added to, and the stamp replaced the layer's whole mapping: a `:color`, a `:bar-width` or a `:bins` written on that layer was dropped with no message, and the layer drew at its defaults. The stamp now merges, so a layer draws the same before and after a split.
+
+- A layer option written on a sub-pose's layer is not reported as a typo. A layer's `:mapping` holds its layer-type options -- `:bins`, `:bar-width`, `:jitter` -- beside its aesthetics, and the sub-pose check read that map against the aesthetic names alone. The check now accepts what the layer's own type accepts, and a misspelled key is still reported.
+
 ## [0.10.1 - 2026-08-27]
 
 ### Fixed

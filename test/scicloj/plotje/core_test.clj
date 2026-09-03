@@ -2756,6 +2756,35 @@
     (testing "valid options stay quiet"
       (is (= "" (with-out-str (-> data (pj/pose :x :y {:color :y}))))))))
 
+(deftest layer-mapping-warning-knows-layer-options-test
+  ;; A layer's :mapping holds its layer-type options beside its
+  ;; aesthetics, so the sub-pose walk has to accept both. Checking
+  ;; against mapping keys alone reported every option as a typo.
+  (let [data {:x [1 2 3] :y [10 20 30] :z [5 6 7]}]
+    (testing "an option the layer type accepts stays quiet"
+      (is (= "" (with-out-str
+                  (-> data
+                      (pj/lay-histogram :x {:bins 3})
+                      (pj/lay-histogram :z))))))
+
+    (testing "a typo on a layer still warns"
+      (let [out (with-out-str
+                  (pj/plot {:data data
+                            :mapping {:x :x :y :y}
+                            :layers [{:layer-type :point
+                                      :mapping {:colr "red"}}]}))]
+        (is (re-find #"layer :mapping has unexpected key" out))
+        (is (re-find #":colr" out))))
+
+    (testing "an option another layer type accepts still warns"
+      (let [out (with-out-str
+                  (pj/plot {:data data
+                            :mapping {:x :x :y :y}
+                            :layers [{:layer-type :point
+                                      :mapping {:bins 5}}]}))]
+        (is (re-find #"layer :mapping has unexpected key" out))
+        (is (re-find #":bins" out))))))
+
 (deftest raw-data-plan-plot-test
   ;; persona-16 H2. Closes P1-R3 F2/F3, P9-R2 L2.
   (let [data {:x [1 2 3] :y [10 20 30]}]
