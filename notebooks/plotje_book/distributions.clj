@@ -428,7 +428,7 @@
 ;; ## See Also
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- mappings and aesthetics referenced throughout
-;; - [**Relationships**](./plotje_book.relationships.html) -- two-distribution comparisons via heatmap, contour, and SPLOM
+;; - [**Relationships**](./plotje_book.relationships.html#scatter-with-a-marginal-distribution) -- two-distribution comparisons via heatmap, contour, and SPLOM, and a distribution drawn above a scatter
 
 ;; ## What's Next
 ;;

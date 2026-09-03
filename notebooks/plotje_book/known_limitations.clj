@@ -94,6 +94,34 @@
 ;;   whole. A note outside every panel -- beside the legend, or under
 ;;   the title -- has no position to be given. Workaround: `:caption`
 ;;   and `:subtitle` for text below and above the panels.
+;;
+;; - `pj/marginal` draws on `:top` and nowhere else. A right-hand
+;;   marginal needs the distribution drawn on its side, and
+;;   `:share-scales` refuses to share an axis between an upright cell
+;;   and a flipped one, so the two cells cannot be pinned to one y
+;;   range. `:right` is reported rather than drawn wrongly.
+;;
+;; - A `pj/marginal` on a faceted pose draws each facet's strip label
+;;   twice, once over the marginal row and once over the row below it.
+;;   Faceting lives in the pose's `:opts`, which the marginal copies
+;;   onto the composite it builds, so both rows facet and each marginal
+;;   describes its own facet. Only the repeated label is wrong, and
+;;   there is no workaround for it.
+;;
+;; - `(pj/marginal pose :top :histogram)` draws its tallest bar flush
+;;   against the top of the marginal panel. A value domain is not padded
+;;   at the top, which a density hides -- its tail approaches zero --
+;;   and a histogram does not. Workaround: `pj/marginal` builds a
+;;   composite whose first sub-pose is the marginal, so
+;;   `(update-in m [:poses 0] pj/scale :y {:include n})` with `n` above
+;;   the tallest count gives the strip room over the bars.
+;;
+;; - The pose's `:color` mapping does not reach its marginal. A
+;;   marginal describes the pose's `:x` column as a whole, so one
+;;   undivided curve or set of bars is drawn over however many colored
+;;   groups the panel below carries. Workaround: facet instead of
+;;   coloring -- faceting does reach the marginal, giving one
+;;   distribution per panel.
 
 ;; ## Marks
 ;;

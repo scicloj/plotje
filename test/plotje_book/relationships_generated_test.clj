@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__86878#]
+      [p1__90823#]
       (+
-       (Math/sin (* p1__86878# 0.2))
+       (Math/sin (* p1__90823# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -376,18 +376,58 @@
    v48_l247)))
 
 
-(def v51_l267 (def small-cols [:sepal-length :petal-length]))
+(def
+ v51_l262
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width)
+  (pj/marginal :top)))
+
+
+(deftest
+ t52_l266
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 2 (:panels s)) (= 150 (:points s)))))
+   v51_l262)))
 
 
 (def
- v52_l269
+ v54_l280
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width)
+  (pj/facet :species)
+  (pj/marginal :top)
+  (pj/options {:width 900, :height 480})))
+
+
+(deftest
+ t55_l286
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 6 (:panels s)) (= 150 (:points s)))))
+   v54_l280)))
+
+
+(def v57_l308 (def small-cols [:sepal-length :petal-length]))
+
+
+(def
+ v58_l310
  (->
   (rdatasets/datasets-iris)
   (pj/pose (pj/cross small-cols small-cols) {:color :species})))
 
 
 (deftest
- t53_l272
+ t59_l313
  (is
   ((fn
     [v]
@@ -404,23 +444,23 @@
      (and
       (= 4 (:panels (pj/svg-summary v)))
       (every? (fn [[r c m]] (= m (if (= r c) :bar :point))) marks))))
-   v52_l269)))
+   v58_l310)))
 
 
 (def
- v55_l285
+ v61_l326
  (def cols [:sepal-length :sepal-width :petal-length :petal-width]))
 
 
 (def
- v56_l287
+ v62_l328
  (->
   (rdatasets/datasets-iris)
   (pj/pose (pj/cross cols cols) {:color :species})))
 
 
 (deftest
- t57_l290
+ t63_l331
  (is
   ((fn
     [v]
@@ -438,4 +478,4 @@
          (let
           [[r c] path mark (-> plan :panels first :layers first :mark)]
           (= mark (if (= r c) :bar :point)))))))))
-   v56_l287)))
+   v62_l328)))

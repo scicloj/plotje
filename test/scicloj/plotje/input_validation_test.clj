@@ -987,8 +987,15 @@
         (is (not (re-find #":x-type" doc))
             "lay-rule-h docstring should not list :x-type")))
 
-    (testing "lay-histogram lists its layer-type-specific :bins option"
-      (is (re-find #":bins\s|:bins$" (:doc (meta #'pj/lay-histogram)))))))
+    (testing "lay-histogram's accepted-options block lists its layer-type-specific :bins"
+      ;; Against the generated block alone, not the whole docstring: the
+      ;; prose above it names `:bins` too, so matching the docstring
+      ;; would pass even if the block dropped the option. The closing
+      ;; backtick is what keeps `:bins` from matching `:binwidth`.
+      (let [block (second (re-find #"(?s)(Accepted options:.*)\z"
+                                   (:doc (meta #'pj/lay-histogram))))]
+        (is (some? block) "lay-histogram docstring lacks an Accepted options block")
+        (is (re-find #"`:bins`" block))))))
 
 (deftest the-anchor-options-belong-to-text-alone
   (testing "a non-text layer warns, names where they belong, and ignores them"

@@ -474,6 +474,51 @@
 ;; The [Datasets](./plotje_book.datasets.html#column-names) chapter covers column
 ;; names in full.
 
+;; ## Two Panels Where One Was Wanted
+;;
+;; **Symptom**: a second `pj/lay-*` meant to draw on the same panel
+;; draws beside it instead, and the plot comes out with two panels.
+;;
+;; **Cause**: a `pj/lay-*` call naming `:x` and `:y` joins the panel
+;; whose own `:x` and `:y` match. When none matches it cannot share
+;; those axes, so it becomes a panel. Below, the second bar layer names
+;; a different value column from the first, so it gets one:
+
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    (pj/pose :growth :cohort)
+    (pj/lay-bar :growth :cohort {:color "#377eb8"})
+    (pj/lay-bar :tax :cohort {:color "#e6550d"}))
+
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+
+;; **Fix**: Add `pj/overlay` before the layers. Every layer added after
+;; it goes on the panel it is added to, keeping its own columns, and
+;; the axis covers every column drawn on it:
+
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    pj/overlay
+    (pj/lay-bar :growth :cohort {:color "#377eb8"})
+    (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 6 (:polygons s))
+                                ;; The same two series as the picture
+                                ;; above, now sharing one panel.
+                                (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
+                                   (disj (:colors s) "none")))))])
+
+;; To join one layer without changing where later layers go, write
+;; `{:overlay true}` in that layer's own options map.
+;;
+;; Joining has to be asked for because two panels are right when the
+;; columns are unrelated. There is a second remedy for the case where
+;; the incoming values are the same quantity under another name: rename
+;; those columns to the panel's own, and the layer joins without
+;; `pj/overlay`. The
+;; [Composition](./plotje_book.composition.html#overlay-on-the-same-panel)
+;; chapter shows both.
+
 ;; ## Dataset Missing Columns a Template References
 ;;
 ;; **Symptom**: An error like

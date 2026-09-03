@@ -7,9 +7,9 @@
 ;;
 ;; This chapter walks through composition patterns from simple
 ;; side-by-side arrangements to shared-scale marginal plots, using
-;; `pj/arrange` and explicit composite-pose maps -- compactly for
-;; simple cases, with a bit of literal map construction for nested
-;; layouts.
+;; `pj/arrange`, `pj/marginal` and explicit composite-pose maps --
+;; compactly for simple cases, with a bit of literal map construction
+;; for nested layouts.
 
 (ns plotje-book.composition
   (:require
@@ -126,28 +126,25 @@ shared-x
 ;; effective x-column matches share a scale. Panels with different
 ;; x-columns would each get their own domain.
 
-;; ## A Marginal-Plot Pattern
+;; ## Marginal Plots
 ;;
-;; The classic "scatter with top density" -- a distribution strip
-;; above the main plot -- is a vertical composite with shared x:
+;; The classic "scatter with top density" -- a distribution strip above
+;; the main plot -- has a function of its own. `pj/marginal` takes a leaf
+;; pose and puts a distribution of its `:x` column in a thin panel above
+;; it:
 
 (def marginal
-  (pj/pose
-   {:share-scales #{:x}
-    :layout {:direction :vertical :weights [1 3]}
-    :poses [{:mapping {:x :sepal-length}
-             :layers [{:layer-type :density}]}
-            {:mapping {:x :sepal-length :y :sepal-width :color :species}
-             :layers [{:layer-type :point}]}]
-    :data (rdatasets/datasets-iris)}))
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width {:color :species})
+      (pj/marginal :top)))
 
 marginal
 
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
-          panels (mapv #(-> % :plan :panels first)
-                       (:sub-plots (pj/plan marginal)))
+          plans (mapv :plan (:sub-plots (pj/plan marginal)))
+          panels (mapv #(-> % :panels first) plans)
           [d-x s-x] (mapv :x-domain panels)
           [d-y s-y] (mapv :y-domain panels)]
       (and (= 2 (:panels s))
@@ -156,11 +153,107 @@ marginal
            ;; Both panels share the same x-domain (sepal-length range).
            (= d-x s-x)
            ;; Each panel has its own y-domain (density vs sepal-width).
-           (not= d-y s-y))))])
+           (not= d-y s-y)
+           ;; The strip carries neither x ticks nor an x title.
+           (= [] (:values (:x-ticks (first panels))))
+           (nil? (:x-label (first plans)))
+           ;; Both cells reserve the same room on the left for the
+           ;; y title and on the right for the legend, so the two
+           ;; drawing areas line up. `==` rather than `=`: the cell
+           ;; that computed the pad carries a double and the cell
+           ;; given it as a floor carries whatever it was written as.
+           (apply == (map #(get-in % [:layout :y-label-pad]) plans))
+           (apply == (map #(get-in % [:layout :legend-w]) plans)))))])
 
-;; The top panel's density curve aligns with the scatter's x-axis.
-;; Each panel retains its own y-axis because `:share-scales` here
-;; contains only `:x`.
+;; The strip shares the scatter's x axis and keeps its own value scale.
+;; Its duplicate x ticks and axis title are dropped, since the axis below
+;; describes both panels, and the two drawing areas are aligned so a value
+;; sits at the same place in each -- including here, where the scatter
+;; carries a legend and the strip does not.
+;;
+;; The color mapping does not reach the strip. A marginal describes the
+;; pose's `:x` column as a whole, so one grey curve is drawn over the
+;; three colored groups below it.
+;;
+;; `:histogram` draws the distribution as bars instead of a curve, and
+;; `:size` sets the strip's share of the height (`0.25` by default):
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :top :histogram {:size 0.35}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 2 (:panels s))
+                 (= 150 (:points s)))))])
+
+;; `:top` is the side available. A right-hand marginal needs the
+;; distribution drawn on its side, and `:share-scales` refuses to share an
+;; axis between an upright cell and a flipped one.
+
+;; ### What a marginal is made of
+;;
+;; `pj/marginal` builds a vertical composite with a shared x, which can
+;; also be written out. Four things make it up: the weights, the shared
+;; scale, the ticks and axis title suppressed on the strip, and
+;; `:align-panels`. Here are the first three:
+
+(def marginal-by-hand
+  (pj/pose
+   {:share-scales #{:x}
+    :layout {:direction :vertical :weights [1 3]}
+    :poses [{:mapping {:x :sepal-length}
+             :opts {:suppress-x-ticks true :suppress-x-label true}
+             :layers [{:layer-type :density}]}
+            {:mapping {:x :sepal-length :y :sepal-width :color :species}
+             :layers [{:layer-type :point}]}]
+    :data (rdatasets/datasets-iris)}))
+
+marginal-by-hand
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          plans (mapv :plan (:sub-plots (pj/plan marginal-by-hand)))
+          panels (mapv #(-> % :panels first) plans)
+          [d-x s-x] (mapv :x-domain panels)]
+      (and (= 2 (:panels s))
+           (= 150 (:points s))
+           (= d-x s-x)
+           ;; The strip reserves no legend column and the scatter
+           ;; reserves 102 drawing units for one, so the two drawing
+           ;; areas are different widths.
+           (= [0 102] (mapv #(get-in % [:layout :legend-w]) plans)))))])
+
+;; So the two drawing areas do not line up: the strip draws no legend,
+;; reserves no column for one, and comes out wider than the scatter
+;; below it. The density then sits at a different scale from the points
+;; it describes.
+;;
+;; That is the fourth part, and the one `pj/marginal` adds:
+;; `:align-panels` in the composite's own `:opts`. It plans every cell
+;; twice, the second time with the widest y-label pad and legend column
+;; any of them needed as a floor, so each cell reserves what the others
+;; do. `pj/options` does not accept the key -- it is a composite's
+;; internal setting rather than a plot option -- so a written-out
+;; composite carries it in the map:
+
+(assoc-in marginal-by-hand [:opts :align-panels] true)
+
+(kind/test-last
+ [(fn [v]
+    (let [plans (mapv :plan (:sub-plots (pj/plan v)))]
+      (and (= 2 (:panels (pj/svg-summary v)))
+           ;; `==` rather than `=`: the cell that computed the value
+           ;; carries a double, the cell given it as a floor carries
+           ;; whatever it was written as.
+           (apply == (map #(get-in % [:layout :y-label-pad]) plans))
+           (apply == (map #(get-in % [:layout :legend-w]) plans)))))])
+
+;; With the key in place the written-out form is the composite
+;; `pj/marginal` returns, up to the weights it computes from `:size`.
+;; Nothing in the shape is specific to distributions, so the same four
+;; parts serve any stack of panels read against one x axis.
 
 ;; ## A Small Dashboard
 ;;
@@ -227,9 +320,10 @@ dashboard
                :y [1.5 2.5 3.5]}))
 
 (-> overlay-base
-    (pj/lay-point :fitted :residual)
+    (pj/lay-point :fitted :residual {:color "#377eb8"})
     (pj/lay-point :fitted :residual
-                  {:data (tc/rename-columns overlay-other
+                  {:color "#e6550d"
+                   :data (tc/rename-columns overlay-other
                                             {:x :fitted :y :residual})}))
 
 (kind/test-last
@@ -251,15 +345,26 @@ dashboard
 ;; every layer added after it joins the panel:
 
 (-> overlay-base
-    (pj/lay-point :fitted :residual)
+    (pj/lay-point :fitted :residual {:color "#377eb8"})
     pj/overlay
-    (pj/lay-point :x :y {:data overlay-other}))
+    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
 
 (kind/test-last
  [(fn [v]
-    (let [s (pj/svg-summary v)]
+    (let [s (pj/svg-summary v)
+          renamed (-> overlay-base
+                      (pj/lay-point :fitted :residual {:color "#377eb8"})
+                      (pj/lay-point :fitted :residual
+                                    {:color "#e6550d"
+                                     :data (tc/rename-columns
+                                            overlay-other
+                                            {:x :fitted :y :residual})}))]
       (and (= 1 (:panels s))
-           (= 6 (:points s)))))])
+           (= 6 (:points s))
+           ;; "Same picture" taken literally: the renamed form above
+           ;; draws the same SVG, which the written colours make
+           ;; checkable rather than merely plausible.
+           (= (pj/plot renamed) (pj/plot v)))))])
 
 ;; Same picture, no renaming. Which to reach for depends on what the
 ;; incoming columns mean: rename when they are the same quantity under
@@ -278,14 +383,19 @@ dashboard
 ;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html#rule-lp2-position-carrying-lay--attaches-to-the-dfs-last-matching-leaf) chapter.
 
 (-> overlay-base
-    (pj/lay-point :fitted :residual)
-    (pj/lay-point :x :y {:data overlay-other}))
+    (pj/pose :fitted :residual)
+    (pj/lay-point :fitted :residual {:color "#377eb8"})
+    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
 
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)]
       (and (= 2 (:panels s))
-           (= 6 (:points s)))))])
+           (= 6 (:points s))
+           ;; The same two colours as the two examples above, so the
+           ;; three outcomes can be compared mark for mark.
+           (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
+              (disj (:colors s) "none")))))])
 
 ;; Each panel has three points and its own x/y axis labels:
 ;; panel-1 shows `fitted` vs `residual`, panel-2 shows `x` vs
@@ -322,15 +432,20 @@ dashboard
 ;; - **Each leaf draws its own axes, labels, and ticks.** Shared
 ;;   scales align the data ranges across panels, but these
 ;;   decorations are per-leaf in `:horizontal` and `:vertical`
-;;   layouts, so the marginal example renders the x-axis label
-;;   on both the strip and the scatter. (Matrix layouts -- the
-;;   SPLOM grid in particular -- replace per-leaf x/y labels with
-;;   shared strip labels, and SPLOM additionally suppresses ticks
-;;   on interior cells.)
+;;   layouts, so a stack of cells reading one x column carries that
+;;   axis label once per cell. A cell drops its own with
+;;   `:suppress-x-ticks` and `:suppress-x-label` in that cell's
+;;   `:opts`, which is what `pj/marginal` writes on the strip it
+;;   builds. (Matrix layouts -- the SPLOM grid in particular --
+;;   replace per-leaf x/y labels with shared strip labels, and
+;;   SPLOM additionally suppresses ticks on interior cells.)
 ;; - **Plot-area edges may not line up** across composite siblings,
 ;;   since each leaf reserves its own padding for axes and labels --
-;;   two sub-poses with different label lengths can produce visibly
-;;   different panel widths.
+;;   two sub-poses with different label lengths, or one drawing a
+;;   legend that its neighbour does not, produce visibly different
+;;   panel widths. `pj/marginal` is the one construction that
+;;   answers this today: it plans its two cells against a common
+;;   floor for both the y-label pad and the legend column.
 ;; - **Each cell has its own plot options.** A cell is a pose, so
 ;;   `pj/options`, `pj/scale` and `pj/coord` written on it apply to
 ;;   that cell: one cell can be log-scaled and its neighbour linear,

@@ -292,7 +292,19 @@ bar-layer
 
 ;; ## Stacked Bars
 ;;
-;; Stacking changes the position field:
+;; The same data with `{:position :stack}` piles the species on top of
+;; one another instead of setting them side by side:
+
+(-> (rdatasets/palmerpenguins-penguins)
+    (pj/lay-bar :island {:position :stack :color :species}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                ;; One rectangle per species that the
+                                ;; island has, not one per island.
+                                (= 5 (:polygons s)))))])
+
+;; In the plan that difference is one field:
 
 (def stacked-plan (-> (rdatasets/palmerpenguins-penguins)
                       (pj/lay-bar :island {:position :stack :color :species})

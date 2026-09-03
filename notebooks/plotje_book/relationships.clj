@@ -252,6 +252,47 @@
                            (and (= 150 (:points s))
                                 (pos? (:lines s)))))])
 
+;; ## Scatter with a Marginal Distribution
+;;
+;; A scatter shows how two columns move together and says little about
+;; how either is spread on its own. `pj/marginal` puts that spread back:
+;; a distribution of the pose's `:x` column, drawn in a thin panel above
+;; the scatter and sharing its x axis.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :top))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 2 (:panels s))
+                 (= 150 (:points s)))))])
+
+;; The strip keeps its own value scale, its duplicate x ticks and axis
+;; title are dropped, and the two drawing areas are aligned so a value
+;; sits at the same place in both. `:histogram` draws bars instead of a
+;; curve, and `:size` sets the strip's share of the height.
+;;
+;; A `:color` mapping does not reach the strip -- it describes the
+;; column as a whole. Faceting does reach it, giving one distribution
+;; per panel, so facet first and add the marginal after:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/facet :species)
+    (pj/marginal :top)
+    (pj/options {:width 900 :height 480}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 6 (:panels s))
+                 (= 150 (:points s)))))])
+
+;; Faceting lives in the pose's options, which the marginal copies onto
+;; the composite it builds, so both rows facet -- and each species name
+;; is drawn over both of them, noted in
+;; [Known Limitations](./plotje_book.known_limitations.html).
+
 ;; ## Scatter Plot Matrix (SPLOM)
 ;;
 ;; `pj/cross` generates all combinations of two lists. Passing
@@ -311,7 +352,7 @@
 
 ;; ## See Also
 ;;
-;; - [**Composition**](./plotje_book.composition.html) -- composite poses (the SPLOM is one) and shared scales
+;; - [**Composition**](./plotje_book.composition.html#marginal-plots) -- composite poses (the SPLOM and the marginal are two) and shared scales
 ;; - [**Distributions**](./plotje_book.distributions.html) -- one-variable shape and spread
 
 ;; ## What's Next

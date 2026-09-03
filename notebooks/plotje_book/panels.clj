@@ -92,10 +92,15 @@
 
 (-> measurements
     pj/overlay
-    (pj/lay-point :height :weight)
-    (pj/lay-point :depth :weight))
+    (pj/lay-point :height :weight {:color "#377eb8"})
+    (pj/lay-point :depth :weight {:color "#e6550d"}))
 
-(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                ;; A written colour per layer, so which
+                                ;; call drew which marks is readable.
+                                (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
+                                   (disj (:colors s) "none")))))])
 
 ;; The layer keeps its own columns; they are drawn against the axes the
 ;; panel already has, and each axis covers every column drawn on it. An
@@ -107,8 +112,8 @@
 ;; `pj/overlay` set further up.
 
 (-> measurements
-    (pj/lay-point :height :weight)
-    (pj/lay-point :depth :weight {:overlay true}))
+    (pj/lay-point :height :weight {:color "#377eb8"})
+    (pj/lay-point :depth :weight {:color "#e6550d" :overlay true}))
 
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 

@@ -260,14 +260,33 @@
 ;; are not supported directly yet -- put the category on x and add
 ;; `(pj/coord :flip)` for those.
 
-;; When neither axis is categorical, each bar sits at its numeric x position.
-;; The width is `0.9` of the smallest gap between adjacent x values, or set it
-;; with `{:bar-width n}`, which is a width in data units here because an axis
-;; with no category band offers no other unit. On a categorical axis the same
-;; option is the fraction of the band a bar fills, `0.8` by default:
+;; `{:bar-width n}` sets how wide a bar is drawn, in the unit its axis
+;; offers. On a categorical axis that is the fraction of the category band
+;; the bar fills, `0.8` by default, so `0.4` draws a bar half the usual
+;; thickness:
+
+(-> sales
+    (pj/lay-bar :product :revenue {:bar-width 0.4}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 4 (:polygons s))))])
+
+;; When neither axis is categorical, each bar sits at its own x value and
+;; there is no band, so the same option is a width in data units. The
+;; default there is `0.9` of the smallest gap between adjacent x values:
 
 (-> {:x [1 2 3 4 5] :y [10 20 15 30 25]}
     (pj/lay-bar :x :y))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 5 (:polygons s))))])
+
+;; Set it there and the value is a width in the units `:x` is measured
+;; in. These x values sit one apart, so `0.3` leaves most of each gap
+;; empty:
+
+(-> {:x [1 2 3 4 5] :y [10 20 15 30 25]}
+    (pj/lay-bar :x :y {:bar-width 0.3}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 5 (:polygons s))))])
@@ -664,6 +683,71 @@ pj/shape-symbols
             {:cols 2})
 
 (kind/test-last [(fn [v] (pj/pose? v))])
+
+(kind/doc #'pj/overlay)
+
+;; A layer naming columns the panel does not draw becomes a panel of its
+;; own. `pj/overlay` says the layer was meant to join the panel it is
+;; added to, so two measures are read against one axis:
+
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    pj/overlay
+    (pj/lay-bar :growth :cohort {:color "#377eb8"})
+    (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 6 (:polygons s)))))])
+
+;; `(pj/overlay pose false)` turns it off from there on. The layers
+;; added while it was on stay where they joined, and the one added after
+;; it starts a panel of its own -- so `:tax` is drawn on the `growth`
+;; panel and `:spend` gets its own:
+
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4] :spend [7 9 6]}
+    (pj/pose :growth :cohort)
+    (pj/lay-bar :growth :cohort {:color "#377eb8"})
+    pj/overlay
+    (pj/lay-bar :tax :cohort {:color "#e6550d"})
+    (pj/overlay false)
+    (pj/lay-bar :spend :cohort {:color "#4daf4a"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 9 (:polygons s))
+                                ;; A colour per call: blue and orange
+                                ;; share the growth panel, green is on
+                                ;; its own.
+                                (= #{"rgb(55,126,184)" "rgb(230,85,13)"
+                                     "rgb(77,175,74)"}
+                                   (disj (:colors s) "none"))
+                                ;; Two layers on the growth panel, one
+                                ;; on the spend panel -- the switch
+                                ;; moved only the layer after it.
+                                (= [2 1] (mapv (comp count :layers)
+                                               (:poses v))))))])
+
+(kind/doc #'pj/marginal)
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :top))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 150 (:points s)))))])
+
+;; `:histogram` draws the distribution as bars instead, and `:size`
+;; sets the marginal's share of the height:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :top :histogram {:size 0.3}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 150 (:points s))
+                                (= 9 (:polygons s)))))])
 
 ;; ## Rendering
 

@@ -401,6 +401,29 @@ two-panel
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
+;; By default, a layer naming columns the panel does not draw starts a
+;; panel of its own. That is right for two unrelated pairs of columns.
+;; It is wrong for two measures that belong on one axis. `pj/overlay`
+;; turns the default off: every layer added after it joins the panel it
+;; is added to, keeping its own columns.
+
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    pj/overlay
+    (pj/lay-bar :growth :cohort {:color "#377eb8"})
+    (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 6 (:polygons s)))))])
+
+;; Both bars are drawn against the panel's axes. Those axes cover every
+;; column drawn on them, and they keep the name of the panel's own
+;; column, so the axis below reads `growth` even though it also carries
+;; `tax`.
+;;
+;; To make a single layer join without changing where later layers go,
+;; write `{:overlay true}` in that layer's own options map.
+
 ;; ## The Pose
 ;;
 ;; The [Poses](./plotje_book.pose_model.html) chapter walked
@@ -413,6 +436,7 @@ two-panel
 ;; | `:data` | the dataset | `pj/pose`, `pj/lay-*`, or `pj/with-data` |
 ;; | `:mapping` | pose-level mappings, and their scales | `pj/pose`, `pj/scale` |
 ;; | `:layers` | layers attached to the pose | `pj/lay-*` |
+;; | `:overlay` | whether a later `pj/lay-*` joins a panel rather than starting one | `pj/overlay` |
 ;; | `:opts` | title, width, theme, coord, facets | `pj/options`, `pj/coord`, `pj/facet` |
 ;;
 ;; A composite pose adds `:poses` (sub-poses) and optionally
