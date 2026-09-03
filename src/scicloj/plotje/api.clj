@@ -2549,7 +2549,7 @@
            current prefix]
       (if (nil? opt)
         (str/join "\n" (conj lines (str current ".")))
-        (let [token (str opt)
+        (let [token (str "`" opt "`")
               candidate (if (= current prefix) token (str " " token))
               fits? (<= (+ (count current) (count candidate) 1) max-w)]
           (if fits?
