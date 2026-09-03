@@ -1069,7 +1069,13 @@
         {:keys [flipped? band-s num-s]} (orient-scales ctx)
         {:keys [opacity bar-width]} style
         coord-px (:coord-px ctx)
-        {:keys [n-groups] :or {n-groups (clojure.core/count groups)}} (:dodge-ctx layer)
+        ;; No dodge context means nothing asked for a dodge, so a bar
+        ;; fills its whole band. Defaulting to the group count divided
+        ;; the band by the number of colour categories and drew every
+        ;; group in the first slot, so naming a colour column narrowed
+        ;; the bars and pushed them off centre. `:boxplot` and the
+        ;; counted-bar branch already default to 1.
+        {:keys [n-groups] :or {n-groups 1}} (:dodge-ctx layer)
         frac (or bar-width 0.8)
         num-base (numeric-baseline ctx flipped?)]
     (vec
