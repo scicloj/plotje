@@ -380,8 +380,8 @@
              (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))])
 
 ;; A temporal column is spaced linearly, over the instants underneath
-;; its dates, and its ticks are labelled as calendar dates -- the axis
-;; section above draws one.
+;; its dates, and its ticks are labelled as calendar dates. The axis
+;; section above draws a temporal axis.
 
 ;; ## See Also
 ;;

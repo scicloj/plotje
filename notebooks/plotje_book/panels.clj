@@ -62,15 +62,14 @@
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; This is the one that arrives unasked. A layer meant to overlay draws
-;; beside instead, and the cause is a position mapping that does not
-;; match. [Pose Rules](./plotje_book.pose_rules.html) states the matching
+;; This way arrives unasked. A layer meant to overlay draws beside
+;; instead, and the cause is a position mapping that does not match. [Pose Rules](./plotje_book.pose_rules.html) states the matching
 ;; rule as LP2.
 
 ;; ### Arranging poses side by side
 
-;; `pj/arrange` is the deliberate form of the same thing: it takes
-;; finished poses and makes each a leaf of one composite.
+;; `pj/arrange` asks for another leaf outright: it takes finished
+;; poses and makes each one a leaf of a single composite.
 
 (pj/arrange [(pj/lay-point measurements :height :weight)
              (pj/lay-point measurements :depth :weight)])
@@ -85,10 +84,10 @@
 
 ;; ## Keeping a layer on the panel
 
-;; The first of those three is the one that arrives unasked, so there is
-;; a way to say you meant an overlay. `pj/overlay` marks a pose, and
-;; every layer added after it joins the panel it is added to rather than
-;; starting one of its own:
+;; Laying on columns the pose does not have is the way that arrives
+;; unasked, so there is a way to say you meant an overlay. `pj/overlay`
+;; marks a pose, and every layer added after it joins the panel it is
+;; added to rather than starting a panel of its own:
 
 (-> measurements
     pj/overlay
@@ -107,9 +106,10 @@
 ;; axis is named for the panel's own column, so overlaying two columns
 ;; with different names leaves the axis named for the first.
 
-;; `{:overlay true}` on a single `pj/lay-*` call does the same for that
-;; layer alone, and `{:overlay false}` opts one layer out of a
-;; `pj/overlay` set further up.
+;; To join a single layer without changing where later layers go,
+;; write `{:overlay true}` in that layer's own options map.
+;; `{:overlay false}` opts one layer out of a `pj/overlay` set further
+;; up.
 
 (-> measurements
     (pj/lay-point :height :weight {:color "#377eb8"})
@@ -169,4 +169,5 @@
 ;; - [Faceting](./plotje_book.faceting.html) -- faceting in practice,
 ;;   including grids of two columns
 ;; - [Pose Rules](./plotje_book.pose_rules.html) -- the matching rule
-;;   that decides whether a `pj/lay-*` call joins a leaf or makes one
+;;   that decides whether a `pj/lay-*` call joins a leaf or makes a new
+;;   leaf

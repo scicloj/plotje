@@ -112,7 +112,7 @@
                            (and (= 150 (:points s))
                                 (some #{"Petal length (override)"} (:texts s)))))])
 
-;; `:shape-label` does the same for the shape legend. Naming it also
+;; `:shape-label` overrides the shape legend title. Naming it also
 ;; splits a merged color-and-shape legend back into two, since asking
 ;; for a separate name is asking for a separate legend:
 

@@ -55,8 +55,8 @@ iris-pose
 
 (kind/test-last [true?])
 
-;; The step `pj/plan->membrane` does the same starting from an
-;; already-resolved plan -- handy when you have a plan in hand from
+;; The step `pj/plan->membrane` also builds a membrane, starting from
+;; an already-resolved plan -- handy when you have a plan in hand from
 ;; inspection and want to skip re-running the earlier stages:
 
 (def iris-plan (pj/plan iris-pose))

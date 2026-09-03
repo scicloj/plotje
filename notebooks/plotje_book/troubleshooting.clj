@@ -481,8 +481,9 @@
 ;;
 ;; **Cause**: a `pj/lay-*` call naming `:x` and `:y` joins the panel
 ;; whose own `:x` and `:y` match. When none matches it cannot share
-;; those axes, so it becomes a panel. Below, the second bar layer names
-;; a different value column from the first, so it gets one:
+;; those axes, so it starts a panel of its own. Below, the second bar
+;; layer names a different value column from the first, so the plot
+;; comes out with two panels:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     (pj/pose :growth :cohort)

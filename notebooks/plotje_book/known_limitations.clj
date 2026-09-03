@@ -39,10 +39,10 @@
 ;;   users the sort.
 ;;
 ;; - `:fit-text-domain` widens a numeric domain so that text and label
-;;   marks near its edge are drawn in full. Nothing does the same for a
-;;   mark whose size is in drawing units for another reason: a `pj/lay-point`
-;;   given a large `:size` at the extreme of its domain is cut at the
-;;   panel edge, as is a long rug tick. The 5% domain padding absorbs
+;;   marks near its edge are drawn in full. Nothing widens the domain
+;;   for a mark whose size is in drawing units for another reason: a
+;;   `pj/lay-point` given a large `:size` at the extreme of its domain is
+;;   cut at the panel edge, as is a long rug tick. The 5% domain padding absorbs
 ;;   this at ordinary radii, and a scale given a wide `:range` -- say
 ;;   `(pj/scale pose :size {:range [3 20]})` -- reaches past it.
 ;;   Workaround: widen the domain with `pj/scale`.

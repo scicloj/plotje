@@ -136,7 +136,7 @@ composite-pose
 ;; both places it was looked for.
 ;;
 ;; `{:column c}` and `{:value v}` say which source you want where the
-;; data would pick the other one, and `:scale` says which side of the
+;; data would pick the other source, and `:scale` says which side of the
 ;; scale, overriding the convention in either direction. `:scale` also
 ;; takes a scale type or a whole spec, which names *which* scale that
 ;; one mapping is read through.

@@ -57,9 +57,9 @@ gapminder-2007
 ;;
 ;; - The **type** decides how a data value becomes a drawn one. A
 ;;   `:linear` type maps equal differences in the data to equal
-;;   differences in what is drawn, a `:log` type does the same for equal
-;;   ratios, and a `:categorical` type gives each distinct value a place
-;;   of its own.
+;;   differences in what is drawn, a `:log` type maps equal ratios in
+;;   the data to equal differences in what is drawn, and a
+;;   `:categorical` type gives each distinct value a place of its own.
 ;; - The **domain** is the extent of data values the scale reads: the
 ;;   lowest and highest value for a continuous scale, or the list of
 ;;   distinct categories for a categorical one. Plotje takes it from the
@@ -1371,8 +1371,8 @@ pj/shape-symbols
 
 ;; A mark that draws a size as the width of a stroke rather than the
 ;; radius of a circle is explained by strokes of that thickness. No
-;; built-in mark draws one, so seeing that swatch means registering a
-;; layer type that declares `{:size :width}`.
+;; built-in mark draws a size as a stroke width, so seeing that swatch
+;; means a registered layer type declaring `{:size :width}`.
 ;;
 ;; One legend per aesthetic is also the reason an aesthetic has one
 ;; scale. A panel has one of each axis, so two layers naming different

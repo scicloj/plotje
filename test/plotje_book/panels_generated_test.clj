@@ -51,19 +51,19 @@
 
 
 (def
- v13_l75
+ v13_l74
  (pj/arrange
   [(pj/lay-point measurements :height :weight)
    (pj/lay-point measurements :depth :weight)]))
 
 
 (deftest
- t14_l78
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v13_l75)))
+ t14_l77
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v13_l74)))
 
 
 (def
- v16_l93
+ v16_l92
  (->
   measurements
   pj/overlay
@@ -72,7 +72,7 @@
 
 
 (deftest
- t17_l98
+ t17_l97
  (is
   ((fn
     [v]
@@ -83,7 +83,7 @@
       (=
        #{"rgb(55,126,184)" "rgb(230,85,13)"}
        (disj (:colors s) "none")))))
-   v16_l93)))
+   v16_l92)))
 
 
 (def
