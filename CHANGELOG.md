@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file. This change
 
 - `:bar-width` sets how wide a bar is drawn on a categorical axis, as a fraction of the category band, `0.8` by default -- the quantity `:box-width` names for a box. `(pj/lay-bar :growth :cohort {:bar-width 0.4})` draws a bar half the usual thickness, so a second bar layer over a first reads as an overlay rather than a stack. On a numeric or temporal axis, where a bar sits at a value rather than in a band, the option keeps its meaning as a width in data units. It applies to value bars, counted bars, and dodged and stacked bars alike.
 
+### Fixed
+
+- A categorical column mapped to both an axis and `:color` draws one palette colour per category. The axis column is rewritten to display strings before the colour is chosen, while the category list keeps the values as written, so a keyword column matched nothing and every mark took the first palette entry while the legend listed the rest. Marks and legend now agree.
+
 ## [0.10.1 - 2026-08-27]
 
 ### Fixed

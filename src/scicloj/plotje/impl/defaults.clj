@@ -504,7 +504,21 @@
   ([categories val]
    (color-for categories val nil))
   ([categories val palette]
-   (let [raw-idx (if categories (.indexOf ^java.util.List categories val) -1)
+   (let [;; Match the value in either spelling, as the map-palette branch
+         ;; below does. A categorical axis column is rewritten to display
+         ;; strings before it reaches here, while the category list keeps
+         ;; the raw values, so a keyword column mapped to both the axis
+         ;; and to :color missed on every lookup and every mark took the
+         ;; first palette entry.
+         raw-idx (if categories
+                   (let [i (.indexOf ^java.util.List categories val)]
+                     (if (neg? i)
+                       (.indexOf ^java.util.List categories
+                                 (cond (keyword? val) (name val)
+                                       (string? val)  (keyword val)
+                                       :else          val))
+                       i))
+                   -1)
          idx (if (neg? raw-idx) 0 raw-idx)]
      (if (map? palette)
        ;; Explicit mapping: look up value, try alternate string/keyword form,
