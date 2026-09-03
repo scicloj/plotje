@@ -122,9 +122,12 @@
    word, and Skia refused the drawing. An area drew a bowtie and a
    lollipop lost every stem, on data with no zero in it at all.
 
-   `flipped?` is `orient-scales`' answer: the value axis is x on a
-   horizontal chart and y otherwise. Marks that read `coord-fn`, which
-   flips for them, pass false."
+   `flipped?` says which axis carries the value: x on a horizontal
+   chart, y otherwise. Marks that read the band and value scales get it
+   from `orient-scales`. Marks that read `coord-fn` get it from the
+   coord, since `:flip` swaps the domains and passes the baseline
+   through `sx` -- passing false there closed a flipped area at the
+   column's minimum instead of at zero."
   [ctx flipped?]
   (max 0.0 (double (if flipped?
                      (:x-domain-min ctx 0)
@@ -441,9 +444,14 @@
   (let [{:keys [style groups position]} layer
         {:keys [coord-fn]} ctx
         {:keys [opacity]} style
-        ;; `coord-fn` flips for this mark, so the baseline is read off
-        ;; the y domain whichever way the chart runs.
-        baseline (numeric-baseline ctx false)]
+        ;; The baseline is passed to `coord-fn` as its second argument,
+        ;; and under `:coord :flip` that argument is scaled by `sx` --
+        ;; `make-coord :flip` is `(fn [dx dy] [(sx dy) (sy dx)])`. The
+        ;; plan has already swapped the domains for a flip, so the value
+        ;; axis is x there, and reading the y domain gave the column's
+        ;; minimum instead: a density closed at 4.12 on a 0-to-0.42
+        ;; scale ran about ten panel widths wide.
+        baseline (numeric-baseline ctx (= :flip (:coord-type ctx)))]
     (if (and (#{:stack :fill} position) (some :y0s groups))
       ;; Stacked: use pre-computed y0s from position/apply-positions
       (vec

@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- An area or density under `(pj/coord :flip)` is measured from the value axis. The baseline reaches the coordinate function as the argument a flip scales by x, and it was read off the y domain, so a flipped density was drawn about ten panel widths wide and a flipped area was closed at its column's smallest value rather than at zero.
+
 - A categorical column mapped to both an axis and `:color` draws one palette colour per category. The axis column is rewritten to display strings before the colour is chosen, while the category list keeps the values as written, so a keyword column matched nothing and every mark took the first palette entry while the legend listed the rest. Marks and legend now agree. - thanks, @timothypratley
 
 - A bar keeps its full width when a colour column is named. A bar fills a fraction of its category band, and the band was being divided by the number of colour categories even where nothing asked for a dodge, which narrowed every bar and pushed it to one side of its band. Dodged bars still divide the band between their groups. - thanks, @timothypratley
