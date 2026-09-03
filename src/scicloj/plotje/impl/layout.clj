@@ -287,16 +287,24 @@
   "y-label-pad = label-offset + max(0, tick-text-width − 12) when a
    y-label is present; otherwise just the tick-text-width (so tick
    labels don't collide with the panel edge). Polar axes suppress
-   y-ticks entirely, so the pad is zero."
+   y-ticks entirely, so the pad is zero.
+
+   `:min-y-label-pad` in opts raises the result to at least that many
+   drawing units. Two panels stacked in a composite have the same cell
+   width, so equal y-label pads are what makes their drawing areas --
+   and so their x scales -- line up. Each panel still gets at least the
+   room its own labels need: this is a floor, never a ceiling, so it
+   cannot clip a label."
   [scene cfg opts]
-  (let [{:keys [coord-type y-label?]} scene]
-    (cond
-      (= coord-type :polar) 0.0
-      :else (let [tick-w (y-tick-text-width scene cfg opts)]
-              (if y-label?
-                (+ (double (:label-offset cfg))
-                   (max 0.0 (- tick-w 12.0)))
-                tick-w)))))
+  (let [{:keys [coord-type y-label?]} scene
+        computed (if (= coord-type :polar)
+                   0.0
+                   (let [tick-w (y-tick-text-width scene cfg opts)]
+                     (if y-label?
+                       (+ (double (:label-offset cfg))
+                          (max 0.0 (- tick-w 12.0)))
+                       tick-w)))]
+    (max computed (double (or (:min-y-label-pad opts) 0.0)))))
 
 (defn- pad-strip-h [{:keys [has-col-strips?]} cfg]
   (if has-col-strips?
@@ -358,45 +366,52 @@
    The base width from config (default 100) is extended when the
    longest legend label (title or category) exceeds what fits there,
    so long category names like 'tech.ml.dataset.dev' don't clip at
-   the SVG right edge."
-  [legend-pos scene cfg]
-  (if (#{:left :right} legend-pos)
-    (let [base (:legend-width cfg 100)
+   the SVG right edge.
+
+   `:min-legend-w` in opts raises the result to at least that many
+   drawing units, the mirror of `:min-y-label-pad` on the other side of
+   the panel. A cell with no legend still reserves the column, so a
+   panel beside one that has a legend keeps the same drawing area."
+  [legend-pos scene cfg opts]
+  (max
+   (double (or (:min-legend-w opts) 0.0))
+   (if (#{:left :right} legend-pos)
+     (let [base (:legend-width cfg 100)
           ;; Swatch + gap takes ~24px; estimate label font advance as
           ;; ~7px per char; leave ~8px right margin.
-          char-px 7
-          chrome  32
-          margin  8
+           char-px 7
+           chrome  32
+           margin  8
           ;; The legend column itself starts this far past the panels
           ;; (`legend-x` in render/membrane.clj), so the reserved width
           ;; has to carry the gap as well as the content.
-          gap     10
+           gap     10
           ;; Each legend in the column is measured against its own
           ;; swatch, because each places its labels to the right of
           ;; that swatch rather than of a shared one. The size
           ;; legend's swatch column is as wide as its widest mark,
           ;; which the scale's range decides, so a wide range pushes
           ;; its numbers further right than any colour label goes.
-          colour-need (+ chrome (* char-px (:legend-max-chars scene 0)))
+           colour-need (+ chrome (* char-px (:legend-max-chars scene 0)))
           ;; These entries carry a value and no label, so the number is
           ;; formatted here exactly as the renderer formats it.
-          value-chars (fn [l]
-                        (reduce max 0 (map #(count (defaults/fmt-legend-number
-                                                    (:value %) cfg))
-                                           (:entries l))))
-          text-need (fn [l swatch-w title-n]
-                      (max (+ gap margin (* char-px title-n))
-                           (+ gap swatch-w 6 margin (* char-px (value-chars l)))))
-          size-need (if-let [sl (:size-legend scene)]
-                      (text-need sl (size-legend-swatch-w sl)
-                                 (:size-legend-title-chars scene 0))
-                      0)
-          alpha-need (if-let [al (:alpha-legend scene)]
-                       (text-need al defaults/legend-swatch-size
-                                  (:alpha-legend-title-chars scene 0))
-                       0)]
-      (max base colour-need size-need alpha-need))
-    0))
+           value-chars (fn [l]
+                         (reduce max 0 (map #(count (defaults/fmt-legend-number
+                                                     (:value %) cfg))
+                                            (:entries l))))
+           text-need (fn [l swatch-w title-n]
+                       (max (+ gap margin (* char-px title-n))
+                            (+ gap swatch-w 6 margin (* char-px (value-chars l)))))
+           size-need (if-let [sl (:size-legend scene)]
+                       (text-need sl (size-legend-swatch-w sl)
+                                  (:size-legend-title-chars scene 0))
+                       0)
+           alpha-need (if-let [al (:alpha-legend scene)]
+                        (text-need al defaults/legend-swatch-size
+                                   (:alpha-legend-title-chars scene 0))
+                        0)]
+       (max base colour-need size-need alpha-need))
+     0)))
 
 (defn- pad-legend-h
   "Height reserved for top/bottom legends. Parameterized via cfg:
@@ -435,7 +450,7 @@
      :y-label-pad        (pad-y-label scene cfg opts)
      :strip-h            (pad-strip-h scene cfg)
      :strip-w            (pad-strip-w scene cfg)
-     :legend-w           (pad-legend-w legend-pos scene cfg)
+     :legend-w           (pad-legend-w legend-pos scene cfg opts)
      :legend-h           legend-h
      :legend-position    legend-pos
      :top-legend-pad     top-pad

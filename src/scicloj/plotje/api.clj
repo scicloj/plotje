@@ -3560,6 +3560,74 @@
                    " pj/pose with sub-poses for a composite.")
               {:caller caller :pose fr})))))
 
+(defn marginal
+  "Add a marginal panel above a leaf pose: a distribution of the pose's
+   `:x` column, drawn in a thin panel that shares the main panel's x
+   axis and carries its own value scale.
+
+   - `(marginal pose :top)` -- a density above the plot.
+   - `(marginal pose :top :histogram)` -- a histogram instead.
+   - `(marginal pose :top :density {:size 0.3})` -- a thicker panel.
+
+   `:size` is the marginal's share of the height, `0.25` by default.
+   The marginal's own x ticks and axis title are dropped, since the
+   axis below describes both panels, and the two drawing areas are
+   aligned so a value sits at the same place in each.
+
+   `pj/overlay` and `pj/marginal` are the two answers to one question.
+   Overlay puts a second layer on the panel it is added to; a marginal
+   puts a distribution beside that panel, on an axis of its own.
+
+   Only `:top` is available. A right-hand marginal needs the
+   distribution drawn on its side, and `:share-scales` refuses to share
+   an axis across cells whose coords differ, which is what a flipped
+   cell is -- see `dev-notes/marginal-panels-2026-09-02.md`."
+  ([pose side] (marginal pose side :density {}))
+  ([pose side layer-type] (marginal pose side layer-type {}))
+  ([pose side layer-type opts]
+   (when-not (= :top side)
+     (throw (ex-info (str "pj/marginal draws a marginal on :top, got "
+                          (pr-str side) ". A right-hand marginal needs the"
+                          " distribution drawn on its side, and a composite"
+                          " cannot yet share an axis between an upright cell"
+                          " and a flipped one.")
+                     {:caller "pj/marginal" :side side :supported #{:top}})))
+   (when-not (pose/leaf? pose)
+     (throw (ex-info (str "pj/marginal takes a leaf pose -- one panel to put"
+                          " a marginal above. For a composite, add the"
+                          " marginal to a cell before arranging.")
+                     {:caller "pj/marginal"})))
+   (let [x-col (pose/mapping-source (get-in pose [:mapping :x]))
+         _ (when-not x-col
+             (throw (ex-info (str "pj/marginal needs the pose to name an :x"
+                                  " column, since that is the column the"
+                                  " marginal describes.")
+                             {:caller "pj/marginal"
+                              :mapping (:mapping pose)})))
+         ;; The public lay-* function rather than a bare `(lay :histogram)`:
+         ;; `lay` attaches a layer carrying no column of its own, and the
+         ;; binning stat then reads an x that never arrives.
+         lay-marginal (case layer-type
+                        :density lay-density
+                        :histogram lay-histogram
+                        (throw (ex-info
+                                (str "pj/marginal draws :density or :histogram,"
+                                     " got " (pr-str layer-type) ".")
+                                {:caller "pj/marginal"
+                                 :layer-type layer-type
+                                 :supported #{:density :histogram}})))
+         size (double (or (:size opts) 0.25))
+         ;; :suppress-x-ticks and :suppress-x-label are read by the plan
+         ;; stage, and pj/options rejects them by whitelist, so they are
+         ;; written onto the marginal leaf's own :opts.
+         marginal-leaf (-> (lay-marginal (:data pose) x-col)
+                           (assoc :opts {:suppress-x-ticks true
+                                         :suppress-x-label true}))]
+     {:poses [marginal-leaf pose]
+      :layout {:direction :vertical :weights [size (- 1.0 size)]}
+      :share-scales #{:x}
+      :opts (merge (:opts pose) {:align-panels true})})))
+
 (defn- infer-format-from-path
   "Map a path's file extension to a save format. Returns nil for
    unknown extensions; callers fall back to opts or default."

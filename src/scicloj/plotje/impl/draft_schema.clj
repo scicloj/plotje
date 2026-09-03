@@ -162,7 +162,11 @@
    [:height pos-int?]
    [:sub-drafts [:vector SubDraft]]
    [:chrome-spec ps/CompositeChrome]
-   [:layout [:map-of [:vector int?] ps/Rect]]])
+   [:layout [:map-of [:vector int?] ps/Rect]]
+   ;; Set from a composite's `:opts`. Plans every cell twice so they end
+   ;; with the same y-label pad, and so with drawing areas that line up
+   ;; -- what a marginal panel needs from the panel it sits on.
+   [:align-panels {:optional true} boolean?]])
 
 (def DraftSchema
   "Top-level draft schema -- accepts either shape."

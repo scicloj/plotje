@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file. This change
 
 - `:bar-width` sets how wide a bar is drawn on a categorical axis, as a fraction of the category band, `0.8` by default -- the quantity `:box-width` names for a box. `(pj/lay-bar :growth :cohort {:bar-width 0.4})` draws a bar half the usual thickness, so a second bar layer over a first reads as an overlay rather than a stack. On a numeric or temporal axis, where a bar sits at a value rather than in a band, the option keeps its meaning as a width in data units. It applies to value bars, counted bars, and dodged and stacked bars alike. - thanks, @timothypratley
 
+- `pj/marginal` draws a distribution of a pose's `:x` column in a thin panel above the plot: `(-> pose (pj/marginal :top))` for a density, `(-> pose (pj/marginal :top :histogram))` for a histogram, and `:size` for the marginal's share of the height. The marginal shares the main panel's x axis and keeps its own value scale, its duplicate x ticks and title are dropped, and the two drawing areas are aligned so a value sits at the same place in both -- including when the main panel carries a legend. `:top` is the side available; a right-hand marginal needs a composite to share one axis between an upright cell and a flipped one, which `:share-scales` refuses.
+
 ### Fixed
 
 - An area or density under `(pj/coord :flip)` is measured from the value axis. The baseline reaches the coordinate function as the argument a flip scales by x, and it was read off the y domain, so a flipped density was drawn about ten panel widths wide and a flipped area was closed at its column's smallest value rather than at zero.

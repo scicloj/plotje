@@ -287,7 +287,9 @@
         chrome-spec (-> chrome
                         (assoc :shared? shared?)
                         (assoc :shared-aesthetics shared-aesthetics))]
-    (resolve/->CompositeDraft width height sub-drafts chrome-spec layout)))
+    (cond-> (resolve/->CompositeDraft width height sub-drafts chrome-spec layout)
+      (get-in composite [:opts :align-panels])
+      (assoc :align-panels true))))
 
 (defn composite-draft->plan
   "Convert a CompositeDraft into a CompositePlan. Per sub-draft, this
@@ -297,11 +299,33 @@
    N+1 issue from the round-2 internals review)."
   [composite-draft]
   (let [{:keys [width height sub-drafts chrome-spec layout]} composite-draft
-        sub-plots (mapv (fn [{:keys [path rect draft opts]}]
-                          {:path path
-                           :rect rect
-                           :plan (plan/draft->plan draft opts)})
-                        sub-drafts)
+        plan-sub (fn [{:keys [path rect draft opts]}]
+                   {:path path
+                    :rect rect
+                    :plan (plan/draft->plan draft opts)})
+        first-pass (mapv plan-sub sub-drafts)
+        ;; Aligning drawing areas takes a second pass, because the pad a
+        ;; cell needs is only known once that cell has been planned.
+        ;; Pass one measures every cell's y-label pad; pass two re-plans
+        ;; them all with the widest as a floor. A cell whose own labels
+        ;; need more still gets more, so one extra pass reaches a common
+        ;; value and a third would change nothing.
+        ;; Both sides of the drawing area, since either can differ: the
+        ;; y-label pad on the left, because only a cell with a y title
+        ;; pays for one, and the legend column on the right, because
+        ;; only a cell that draws a legend reserves it.
+        widest (fn [k] (->> first-pass
+                            (map #(double (or (get-in % [:plan :layout k]) 0.0)))
+                            (reduce max 0.0)))
+        sub-plots (if (:align-panels composite-draft)
+                    (let [pad (widest :y-label-pad)
+                          legend-w (widest :legend-w)]
+                      (mapv (fn [sub]
+                              (plan-sub (update sub :opts assoc
+                                                :min-y-label-pad pad
+                                                :min-legend-w legend-w)))
+                            sub-drafts))
+                    first-pass)
         shared-legend (when (:shared? chrome-spec)
                         (when-let [first-sub (first sub-drafts)]
                           (let [shared-aes (:shared-aesthetics chrome-spec)
