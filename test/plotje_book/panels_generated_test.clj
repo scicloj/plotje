@@ -63,17 +63,44 @@
 
 
 (def
- v16_l91
+ v16_l93
+ (->
+  measurements
+  pj/overlay
+  (pj/lay-point :height :weight)
+  (pj/lay-point :depth :weight)))
+
+
+(deftest
+ t17_l98
+ (is ((fn [v] (= 1 (:panels (pj/svg-summary v)))) v16_l93)))
+
+
+(def
+ v19_l109
+ (->
+  measurements
+  (pj/lay-point :height :weight)
+  (pj/lay-point :depth :weight {:overlay true})))
+
+
+(deftest
+ t20_l113
+ (is ((fn [v] (= 1 (:panels (pj/svg-summary v)))) v19_l109)))
+
+
+(def
+ v22_l120
  (-> measurements (pj/lay-point :height :weight) (pj/facet :species)))
 
 
 (deftest
- t17_l95
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v16_l91)))
+ t23_l124
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v22_l120)))
 
 
 (def
- v19_l100
+ v25_l129
  (->
   {:height [1 2 3 4], :weight [1 2 3 4], :site ["p" "q" "r" "s"]}
   (pj/lay-point :height :weight)
@@ -81,12 +108,12 @@
 
 
 (deftest
- t20_l104
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v19_l100)))
+ t26_l133
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v25_l129)))
 
 
 (def
- v22_l117
+ v28_l146
  (try
   (->
    measurements
@@ -98,7 +125,7 @@
 
 
 (deftest
- t23_l125
+ t29_l154
  (is
   ((fn [m] (re-find #"not yet supported on composite poses" m))
-   v22_l117)))
+   v28_l146)))

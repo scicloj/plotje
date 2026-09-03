@@ -83,6 +83,35 @@
 ;; [Composition](./plotje_book.composition.html#explicit-composite-poses)
 ;; covers. It is the same structure `pj/arrange` builds.
 
+;; ## Keeping a layer on the panel
+
+;; The first of those three is the one that arrives unasked, so there is
+;; a way to say you meant an overlay. `pj/overlay` marks a pose, and
+;; every layer added after it joins the panel it is added to rather than
+;; starting one of its own:
+
+(-> measurements
+    pj/overlay
+    (pj/lay-point :height :weight)
+    (pj/lay-point :depth :weight))
+
+(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+
+;; The layer keeps its own columns; they are drawn against the axes the
+;; panel already has, and each axis covers every column drawn on it. An
+;; axis is named for the panel's own column, so overlaying two columns
+;; with different names leaves the axis named for the first.
+
+;; `{:overlay true}` on a single `pj/lay-*` call does the same for that
+;; layer alone, and `{:overlay false}` opts one layer out of a
+;; `pj/overlay` set further up.
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/lay-point :depth :weight {:overlay true}))
+
+(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+
 ;; ## Faceting multiplies the panels
 
 ;; Faceting takes the leaf and cuts it into one panel per category of

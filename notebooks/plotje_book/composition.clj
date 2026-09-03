@@ -211,11 +211,12 @@ dashboard
 ;;
 ;; ### Overlay on the same panel
 ;;
-;; To draw the layer on the existing panel with data from
-;; elsewhere, use the panel's column refs. If your incoming
-;; dataset uses different names, rename them on the way in via
-;; `tc/rename-columns`. Here a base scatter is overlaid with a
-;; second set of points from another dataset:
+;; There are two ways to draw the layer on the existing panel with
+;; data from elsewhere. The first is to use the panel's column refs,
+;; renaming the incoming dataset's columns to match via
+;; `tc/rename-columns`; a layer whose columns match the panel's joins
+;; it. Here a base scatter is overlaid with a second set of points
+;; from another dataset:
 
 (def overlay-base
   {:fitted   [1 2 3]
@@ -244,6 +245,26 @@ dashboard
 ;; the order they were added -- see
 ;; [Poses](./plotje_book.pose_model.html#layer-order-is-paint-order) -- so add the layer you
 ;; want on top last.
+;;
+;; The second way is to say outright that you meant an overlay, and
+;; leave the incoming columns alone. `pj/overlay` marks the pose, and
+;; every layer added after it joins the panel:
+
+(-> overlay-base
+    (pj/lay-point :fitted :residual)
+    pj/overlay
+    (pj/lay-point :x :y {:data overlay-other}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      (and (= 1 (:panels s))
+           (= 6 (:points s)))))])
+
+;; Same picture, no renaming. Which to reach for depends on what the
+;; incoming columns mean: rename when they are the same quantity under
+;; another name, and use `pj/overlay` when they are a different
+;; quantity you want read against the same axes.
 ;;
 ;; ### Separate sub-pose for the new layer
 ;;

@@ -145,7 +145,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__84733#] (-> p1__84733# :plan :panels first))
+       (fn* [p1__69775#] (-> p1__69775# :plan :panels first))
        (:sub-plots (pj/plan marginal)))
       [d-x s-x]
       (mapv :x-domain panels)
@@ -193,16 +193,16 @@
    v26_l182)))
 
 
-(def v29_l220 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
+(def v29_l221 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
 
 
 (def
- v30_l224
+ v30_l225
  (def overlay-other (tc/dataset {:x [0.5 1.5 2.5], :y [1.5 2.5 3.5]})))
 
 
 (def
- v31_l228
+ v31_l229
  (->
   overlay-base
   (pj/lay-point :fitted :residual)
@@ -214,18 +214,38 @@
 
 
 (deftest
- t32_l234
+ t32_l235
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 6 (:points s)))))
-   v31_l228)))
+   v31_l229)))
 
 
 (def
- v34_l259
+ v34_l253
+ (->
+  overlay-base
+  (pj/lay-point :fitted :residual)
+  pj/overlay
+  (pj/lay-point :x :y {:data overlay-other})))
+
+
+(deftest
+ t35_l258
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 1 (:panels s)) (= 6 (:points s)))))
+   v34_l253)))
+
+
+(def
+ v37_l280
  (->
   overlay-base
   (pj/lay-point :fitted :residual)
@@ -233,18 +253,18 @@
 
 
 (deftest
- t35_l263
+ t38_l284
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 6 (:points s)))))
-   v34_l259)))
+   v37_l280)))
 
 
 (def
- v37_l284
+ v40_l305
  (def
   bounded
   (->
@@ -254,22 +274,22 @@
    (pj/scale :y {:type :linear, :domain [0 30]}))))
 
 
-(def v38_l290 (pj/arrange [bounded bounded] {:cols 1}))
+(def v41_l311 (pj/arrange [bounded bounded] {:cols 1}))
 
 
 (deftest
- t39_l292
+ t42_l313
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 2 (:clips s)))))
-   v38_l290)))
+   v41_l311)))
 
 
 (def
- v41_l338
+ v44_l359
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -280,7 +300,7 @@
 
 
 (deftest
- t42_l344
+ t45_l365
  (is
   ((fn
     [v]
@@ -302,4 +322,4 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v41_l338)))
+   v44_l359)))
