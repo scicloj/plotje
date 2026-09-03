@@ -6,15 +6,15 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `pj/overlay` and the layer option `{:overlay true}` put a layer on the panel it is added to, rather than on a panel of its own. A layer naming columns the panel does not draw normally becomes a new panel, which is right for two unrelated pairs of columns and wrong for two measures meant to be read against one axis; `pj/overlay` says which was meant, and every layer added after it joins. The layer keeps its own columns, the axis covers every column drawn on it, and the axis is named for the panel's own column. `{:overlay false}` on one layer opts it out, and `(pj/overlay pose false)` turns it off from there on.
+- `pj/overlay` and the layer option `{:overlay true}` put a layer on the panel it is added to, rather than on a panel of its own. A layer naming columns the panel does not draw normally becomes a new panel, which is right for two unrelated pairs of columns and wrong for two measures meant to be read against one axis; `pj/overlay` says which was meant, and every layer added after it joins. The layer keeps its own columns, the axis covers every column drawn on it, and the axis is named for the panel's own column. `{:overlay false}` on one layer opts it out, and `(pj/overlay pose false)` turns it off from there on. - thanks, @timothypratley
 
-- `:bar-width` sets how wide a bar is drawn on a categorical axis, as a fraction of the category band, `0.8` by default -- the quantity `:box-width` names for a box. `(pj/lay-bar :growth :cohort {:bar-width 0.4})` draws a bar half the usual thickness, so a second bar layer over a first reads as an overlay rather than a stack. On a numeric or temporal axis, where a bar sits at a value rather than in a band, the option keeps its meaning as a width in data units. It applies to value bars, counted bars, and dodged and stacked bars alike.
+- `:bar-width` sets how wide a bar is drawn on a categorical axis, as a fraction of the category band, `0.8` by default -- the quantity `:box-width` names for a box. `(pj/lay-bar :growth :cohort {:bar-width 0.4})` draws a bar half the usual thickness, so a second bar layer over a first reads as an overlay rather than a stack. On a numeric or temporal axis, where a bar sits at a value rather than in a band, the option keeps its meaning as a width in data units. It applies to value bars, counted bars, and dodged and stacked bars alike. - thanks, @timothypratley
 
 ### Fixed
 
-- A categorical column mapped to both an axis and `:color` draws one palette colour per category. The axis column is rewritten to display strings before the colour is chosen, while the category list keeps the values as written, so a keyword column matched nothing and every mark took the first palette entry while the legend listed the rest. Marks and legend now agree.
+- A categorical column mapped to both an axis and `:color` draws one palette colour per category. The axis column is rewritten to display strings before the colour is chosen, while the category list keeps the values as written, so a keyword column matched nothing and every mark took the first palette entry while the legend listed the rest. Marks and legend now agree. - thanks, @timothypratley
 
-- A bar keeps its full width when a colour column is named. A bar fills a fraction of its category band, and the band was being divided by the number of colour categories even where nothing asked for a dodge, which narrowed every bar and pushed it to one side of its band. Dodged bars still divide the band between their groups.
+- A bar keeps its full width when a colour column is named. A bar fills a fraction of its category band, and the band was being divided by the number of colour categories even where nothing asked for a dodge, which narrowed every bar and pushed it to one side of its band. Dodged bars still divide the band between their groups. - thanks, @timothypratley
 
 ## [0.10.1 - 2026-08-27]
 
