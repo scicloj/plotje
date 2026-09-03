@@ -2535,7 +2535,11 @@
 (defn- wrap-options-list
   "Wrap a sorted seq of option keywords across lines so the rendered
    docstring stays readable. First line is prefixed with 'Accepted
-   options: '; continuation lines align under the first option."
+   options: '; continuation lines align under the first option.
+
+   Each keyword is wrapped in backticks, as every other code-like token
+   in these docstrings is: `kind/doc` renders them as Markdown, so an
+   unbacked keyword loses its monospace and reads as prose."
   [opts]
   (let [prefix "   Accepted options: "
         cont   "                     "
