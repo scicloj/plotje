@@ -799,7 +799,7 @@
    outer-scope :mapping inherits downward and merges with each
    descendant's own mapping."
   #{:data :mapping :layers :opts :poses :layout :share-scales
-    :grid-strip-labels})
+    :grid-strip-labels :overlay})
 
 (def ^:private pose-print-order
   "Key order used by pj/prepare-pose to make printed pose maps
@@ -807,7 +807,7 @@
    each level's data stays visually bound to its own siblings rather
    than trailing past its children; :poses last since children can
    be heavy."
-  [:opts :mapping :share-scales :grid-strip-labels :layout :layers :data :poses])
+  [:opts :mapping :overlay :share-scales :grid-strip-labels :layout :layers :data :poses])
 
 (defn- warn-unknown-pose-keys
   "Warn once about top-level keys in fr that are not in pose-keys.
@@ -1495,17 +1495,27 @@
    leaf whose effective :x/:y (after ancestor-merge) match
    `position-mapping`. On miss, append a fresh leaf at the root level
    (LP3) after firing the new-sub-pose column-existence safety check."
-  [fr position-mapping layer]
-  (let [match-path (pose/last-matching-leaf-path fr position-mapping)]
-    (if (some? match-path)
-      (update-in fr
-                 (conj (pose/path->update-in-path match-path) :layers)
-                 (fnil conj []) layer)
-      (do
-        (check-new-sub-pose-columns (:layer-type layer)
-                                    position-mapping layer (:data fr))
-        (update fr :poses (fnil conj [])
-                {:mapping position-mapping :layers [layer]})))))
+  ([fr position-mapping layer]
+   (add-leaf-layer-to-composite fr position-mapping layer false))
+  ([fr position-mapping layer overlay?]
+   (let [match-path (pose/last-matching-leaf-path fr position-mapping)
+         ;; Under overlay a miss is not a new panel. The layer joins the
+         ;; last leaf in reading order -- the one a reader would call
+         ;; "the panel being built" -- carrying its own columns, which
+         ;; the four-level merge in pose/leaf->draft honors over the
+         ;; leaf's.
+         path (or match-path (when overlay? (pose/last-leaf-path fr)))]
+     (if (some? path)
+       (update-in fr
+                  (conj (pose/path->update-in-path path) :layers)
+                  (fnil conj []) (cond-> layer
+                                   (and overlay? (nil? match-path))
+                                   (update :mapping (fnil merge {}) position-mapping)))
+       (do
+         (check-new-sub-pose-columns (:layer-type layer)
+                                     position-mapping layer (:data fr))
+         (update fr :poses (fnil conj [])
+                 {:mapping position-mapping :layers [layer]}))))))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -1711,7 +1721,7 @@
   "User-supplied layer options that are layer-structural (not
    column-to-aesthetic mappings). Promoted to top-level keys on the
    layer map; `:mapping` holds only true mappings."
-  #{:stat :position :mark})
+  #{:stat :position :mark :overlay})
 
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
@@ -1845,7 +1855,15 @@
   ;; check pj/pose runs on the map it is handed.
   (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
                           position-mapping)
-  (let [bare-layer (elide-empty-maps (build-layer layer-type-key opts))
+  (let [built (elide-empty-maps (build-layer layer-type-key opts))
+        ;; `:overlay` says where the layer goes, so it is read here and
+        ;; not carried onto the layer: once the layer is placed, the pose
+        ;; structure is the record of where it landed. A layer's own
+        ;; `false` overrides a `pj/overlay` set further out.
+        overlay? (boolean (if (contains? built :overlay)
+                            (:overlay built)
+                            (:overlay fr)))
+        bare-layer (dissoc built :overlay)
         ;; What the mapping *names*, not how it is written: a scale
         ;; written by `pj/scale` puts a map under `:x` that names no
         ;; position, and a position written in full names one.
@@ -1853,7 +1871,7 @@
                       (pose/mapping-source (:y (:mapping fr))))]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
-      (add-leaf-layer-to-composite fr position-mapping bare-layer)
+      (add-leaf-layer-to-composite fr position-mapping bare-layer overlay?)
 
       (and (seq position-mapping) (not pose-pos?))
       (-> fr
@@ -1876,7 +1894,7 @@
                                 :when (and pos-v leaf-v
                                            (not= pos-v leaf-v))]
                             [k pos-v leaf-v])]
-        (if (seq disagreements)
+        (if (and (seq disagreements) (not overlay?))
           ;; Stamp the leaf's position onto each bare layer before
           ;; promotion so promote-leaf treats them as panel-origin
           ;; (they stay with the original panel) rather than root-
@@ -2672,6 +2690,34 @@
                          "The facet grid would cross the composite layout. "
                          "Flatten to a single leaf.")
                     {:pose-kind :composite}))))
+
+(defn overlay
+  "Mark a pose so that every `lay-*` added after it joins the panel it is
+   added to, instead of starting a new one.
+
+   A layer naming columns the panel does not draw cannot share that
+   panel's axes, so by default it becomes a panel of its own. That is
+   the right answer for two unrelated pairs of columns and the wrong one
+   for two measures meant to be read against one axis. `pj/overlay` says
+   which was meant:
+
+   - `(-> data pj/overlay (pj/lay-bar :growth :cohort) (pj/lay-bar :tax :cohort))`
+
+   The layer keeps its own columns; they are drawn against the axes the
+   panel already has, and each axis covers every column drawn on it. An
+   axis is named for the panel's own column, so overlaying two
+   differently named columns leaves the axis named for the first.
+
+   `{:overlay false}` on one `lay-*` call opts that layer out, and
+   `(pj/overlay pose false)` turns it off from there on. A layer whose
+   columns already match the panel is unaffected -- it was joining
+   anyway."
+  ([pose-or-data] (overlay pose-or-data true))
+  ([pose-or-data on?]
+   (let [fr (->pose pose-or-data "pj/overlay")]
+     (if on?
+       (assoc fr :overlay true)
+       (dissoc fr :overlay)))))
 
 (defn facet
   "Facet a pose by a column.

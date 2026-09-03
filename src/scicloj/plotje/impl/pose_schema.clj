@@ -296,7 +296,8 @@
       :poses       ?  sub-poses; absent or empty = leaf
       :layout       ?  Layout for composites
       :opts         ?  plot options (inheritable)
-      :share-scales ?  ShareScales}
+      :share-scales ?  ShareScales
+      :overlay      ?  true if layers added here join the panel}
 
    Permissive {:closed false} intentionally -- generators like facet
    and mosaic attach metadata keys (:panel-label, :facet-row, ...) to
@@ -308,7 +309,8 @@
                                [:poses {:optional true} [:vector [:ref ::pose]]]
                                [:layout {:optional true} Layout]
                                [:opts {:optional true} map?]
-                               [:share-scales {:optional true} ShareScales]]}}
+                               [:share-scales {:optional true} ShareScales]
+                               [:overlay {:optional true} boolean?]]}}
    [:ref ::pose]])
 
 ;; ---- Validation Helpers ----
