@@ -19,9 +19,10 @@
    treats a numeric x as categorical). :mark and :stat let any layer
    override the visual mark or statistical transform supplied by its
    layer-type entry; unknown keywords raise a clear error at build time.
-   `:tooltip` names the column a mark reads its hover text from, or a
-   string every mark of the layer shows -- the mapping, not the plot
-   option of the same name, which is the switch that turns hovering on."
+   `:tooltip` is the aesthetic a mark reads its hover text from -- a
+   column of them, or a string every mark of the layer shows. Not to be
+   confused with the plot option of the same name, which is the switch
+   that turns hovering on."
   [:x :y :color :color-type :alpha :group :position :data
    :x-type :y-type :mark :stat :offset-x :offset-y :in :overlay
    :tooltip])

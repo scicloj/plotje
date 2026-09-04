@@ -50,8 +50,8 @@
 ;; presenting -- a currency sign, a thousands separator, a percentage,
 ;; 1,653,346 read as 1.7M, or a column the plot does not draw at all.
 ;;
-;; Rather than a formatting option per case, `:tooltip` is a mapping
-;; like any other: it names a column whose values are what each mark
+;; Rather than a formatting option per case, `:tooltip` is an aesthetic
+;; like any other, mapped to a column whose values are what each mark
 ;; says. Building that column is ordinary data work, with the whole
 ;; language available.
 
@@ -91,8 +91,8 @@ sales-labelled
            (true? (:tooltip (pj/plan pose)))
            (re-find #"nsk-tooltip" s))))])
 
-;; Three things follow from `:tooltip` being a mapping rather than an
-;; option.
+;; Three things follow from `:tooltip` being an aesthetic rather than
+;; a plot option.
 ;;
 ;; - **The month is in the tooltip and on neither axis.** A tooltip
 ;;   column is built from whatever the dataset holds.
