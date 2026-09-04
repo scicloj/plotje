@@ -5,8 +5,8 @@
 ;;
 ;; - **Built-in**: pass `:tooltip true` or `:brush true` in pose
 ;;   options. Plotje injects `data-tooltip` / `data-row-idx`
-;;   attributes on rendered shapes and includes the matching
-;;   browser-side script automatically.
+;;   attributes on the points and interval bars it draws, and includes
+;;   the matching browser-side script automatically.
 ;; - **Custom wrappers**: wrap the SVG output with `kind/hiccup`
 ;;   plus a small `[:script ...]` form for behaviours not built in
 ;;   (e.g. save-as-PNG).
@@ -28,9 +28,15 @@
 
 ;; ## Tooltips
 ;;
-;; Pass `:tooltip true` to `pj/options` and every data shape gets
+;; Pass `:tooltip true` to `pj/options` and every point gets
 ;; a `data-tooltip` attribute holding its column values. A small
 ;; embedded script renders the tooltip on hover -- no extra setup.
+;; `pj/lay-point` and `pj/lay-interval-h` are the two marks that carry
+;; a tooltip, whether the text is the built-in one or a mapped column;
+;; a tooltip written on any other layer type is accepted and draws
+;; none, which
+;; [Known Limitations](./plotje_book.known_limitations.html#marks)
+;; records.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -51,7 +57,7 @@
 ;; 1,653,346 read as 1.7M, or a column the plot does not draw at all.
 ;;
 ;; Rather than a formatting option per case, `:tooltip` is an aesthetic
-;; like any other, mapped to a column whose values are what each mark
+;; like any other, mapped to a column whose values are what each point
 ;; says. Building that column is ordinary data work, with the whole
 ;; language available.
 

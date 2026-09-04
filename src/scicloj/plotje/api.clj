@@ -2733,8 +2733,8 @@
    A layer naming columns the panel does not draw cannot share that
    panel's axes, so by default it becomes a panel of its own. That is
    the right answer for two unrelated pairs of columns and the wrong one
-   for two measures meant to be read against one axis. `pj/overlay` says
-   which was meant:
+   for two measures meant to be read against one axis. `pj/overlay`
+   turns that default off:
 
    - `(-> data pj/overlay (pj/lay-bar :growth :cohort) (pj/lay-bar :tax :cohort))`
 
