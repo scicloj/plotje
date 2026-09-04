@@ -18,9 +18,13 @@
    override the inferred column types (e.g. :x-type :categorical
    treats a numeric x as categorical). :mark and :stat let any layer
    override the visual mark or statistical transform supplied by its
-   layer-type entry; unknown keywords raise a clear error at build time."
+   layer-type entry; unknown keywords raise a clear error at build time.
+   `:tooltip` names the column a mark reads its hover text from, or a
+   string every mark of the layer shows -- the mapping, not the plot
+   option of the same name, which is the switch that turns hovering on."
   [:x :y :color :color-type :alpha :group :position :data
-   :x-type :y-type :mark :stat :offset-x :offset-y :in :overlay])
+   :x-type :y-type :mark :stat :offset-x :offset-y :in :overlay
+   :tooltip])
 
 (def spaces
   "The coordinate systems a layer's `:x` and `:y` can be given in, named
@@ -58,6 +62,7 @@
    :shape "A column of the layer's data, one symbol per category; or one symbol for the whole layer, from the list pj/shape-symbols gives"
    :jitter "true or an amount in drawing units — random offset to reduce overplotting"
    :text "A column of the layer's data, or a string, which labels every row with itself"
+   :tooltip "What a mark says on hover: a column of the layer's data, one string per row, or a string every mark of the layer shows. Format it in the data language before plotting -- a currency sign, a thousands separator, a value from a column the layer does not draw -- and it is shown as it stands. Writing it turns tooltips on, so `{:tooltip true}` in pj/options is not also needed. A newline in the string breaks the line"
    :font-size "Text height in drawing units for a text or label mark (default 10)"
    :font-weight "Draws the text bold — :normal (default) or :bold"
    :font-style "Draws the text italic — :normal (default) or :italic"

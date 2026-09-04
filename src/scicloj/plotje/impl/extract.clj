@@ -315,6 +315,7 @@
         ;; A `:domain` on the scale spec replaces what the data covers.
         [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)]
     (-> {:mark :point
+         :fixed-tooltip (:fixed-tooltip draft-layer)
          :size-scale (:size-scale draft-layer)
          :alpha-scale (:alpha-scale draft-layer)
          ;; A column told not to scale holds radii and opacities
@@ -334,7 +335,8 @@
                   (assoc :stroke (:point-stroke cfg)
                          :stroke-width (or (:point-stroke-width cfg) 0)))
          :groups (vec
-                  (for [{:keys [color xs ys sizes alphas shapes row-indices color-values]} (:points stat)]
+                  (for [{:keys [color xs ys sizes alphas shapes row-indices color-values
+                                tooltips]} (:points stat)]
                     (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                              :xs xs :ys ys}
                       (some? color) (assoc :label (defaults/fmt-category-label color))
@@ -351,6 +353,7 @@
                       sizes (assoc :sizes sizes)
                       alphas (assoc :alphas alphas)
                       shapes (assoc :shapes (vec shapes))
+                      tooltips (assoc :tooltips tooltips)
                       row-indices (assoc :row-indices row-indices))))}
         (cond-> (:position draft-layer) (assoc :position (:position draft-layer)))
         (apply-nudge draft-layer))))
@@ -926,9 +929,10 @@
         [lo hi] (when numeric-color? (color-extent draft-layer stat))
         [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)
         groups (vec
-                (for [{:keys [color xs ys x-ends color-values row-indices]} (:points stat)]
+                (for [{:keys [color xs ys x-ends color-values row-indices tooltips]} (:points stat)]
                   (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                            :xs xs :ys ys :x-ends x-ends}
+                    tooltips (assoc :tooltips tooltips)
                     row-indices (assoc :row-indices row-indices)
                     (some? color) (assoc :label (defaults/fmt-category-label color))
                     (and numeric-color? color-values)
@@ -949,6 +953,7 @@
                            "(pj/lay-interval-h data :start :task {:x-end :end})")
                       {:mark :interval-h})))
     {:mark :interval-h
+     :fixed-tooltip (:fixed-tooltip draft-layer)
      :style {:opacity (or (:fixed-alpha draft-layer) 0.85)
              :interval-thickness (or (:interval-thickness draft-layer) 0.7)}
      :x-temporal? (boolean (:x-temporal? draft-layer))

@@ -1204,7 +1204,7 @@ plan1
 
 (count pj/layer-option-docs)
 
-(kind/test-last [(fn [n] (= 55 n))])
+(kind/test-last [(fn [n] (= 56 n))])
 
 ;; ## Layer Type Registry
 

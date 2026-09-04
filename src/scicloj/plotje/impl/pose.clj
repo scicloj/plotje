@@ -925,7 +925,8 @@
    :shape "a symbol"
    :size  "a radius"
    :alpha "an opacity"
-   :text  "a label"})
+   :text  "a label"
+   :tooltip "hover text"})
 
 (defn- drawn-value-description
   "What each aesthetic accepts as a written value, spelled out. Stated
@@ -939,6 +940,7 @@
     :size  "a fixed size is a positive number"
     :alpha "a fixed alpha is a number within 0 and 1"
     :text  "a label is a string"
+    :tooltip "hover text is a string"
     nil))
 
 (defn- also-not-drawable-sentence

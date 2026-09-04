@@ -323,7 +323,11 @@
 
 (defmethod plan->membrane false
   [plan opts]
-  (let [{:keys [tooltip]} opts
+  ;; The plan's own flag as well as the opts': `draft->plan` turns
+  ;; tooltips on where a layer maps a `:tooltip` column, so writing the
+  ;; column is the request and `{:tooltip true}` beside it is not also
+  ;; needed. An opts flag still wins for a plan handed here directly.
+  (let [tooltip (or (:tooltip opts) (:tooltip plan))
         cfg (defaults/resolve-config opts)
         {:keys [margin total-width total-height panel-width panel-height
                 title subtitle caption x-label y-label
@@ -541,4 +545,11 @@
                                (assoc (ui/label caption (ui/font nil 9))
                                       :text-anchor "end")))])))]
       (cond-> (mem/->PlotjeMembrane drawables (long total-width) (long total-height))
-        title (assoc :plotje/title title)))))
+        title (assoc :plotje/title title)
+        ;; The writer needs to know whether to emit the hover script and
+        ;; its stylesheet, and a `:tooltip` mapping asks for tooltips
+        ;; without anything appearing in the render options. Carried
+        ;; beside the title, which reaches the writer the same way.
+        ;; Without it the marks carried `data-tooltip` and nothing on
+        ;; the page read it.
+        tooltip (assoc :plotje/tooltip true)))))

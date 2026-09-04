@@ -3079,7 +3079,14 @@
            :shape-legend shape-legend
            :legend-position (:legend-position padding)
            :panels panels
-           :tooltip (:tooltip opts)
+           ;; A `:tooltip` mapping is a request for tooltips. Writing
+           ;; the column and then having to write `{:tooltip true}`
+           ;; beside it asks the same thing twice, and leaving the
+           ;; second out drew a plot whose hover text was computed and
+           ;; never shown.
+           :tooltip (or (:tooltip opts)
+                        (boolean (some #(or (:tooltip-col %) (:fixed-tooltip %))
+                                       resolved-all)))
            :layout (select-keys padding [:x-label-pad :y-label-pad :title-pad
                                          :subtitle-pad :caption-pad
                                          :legend-w :legend-h :strip-h :strip-w])})]

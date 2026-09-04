@@ -202,6 +202,35 @@
                 color-label (conj (str "color: " color-label)))]
     (str/join ", " parts)))
 
+(defn tooltip-value
+  "What one mark says on hover.
+
+   A `:tooltip` mapping is the writer's own answer and wins: a column
+   gives one string per row, a written value gives the same string for
+   every mark of the layer. Formatting a tooltip is formatting a
+   column, which the data language already does better than a plotting
+   option could -- a currency sign, a thousands separator, `1.7M`, a
+   value from a column the layer does not draw.
+
+   Where nothing was mapped, `built-in` is called to describe the mark
+   from what its layer read.
+
+   The value is returned as the writer wrote it -- a string, or a
+   hiccup vector for a tooltip with markup in it. Which of the two it
+   is decides how the writer carries it to the page, so the decision is
+   made once, there, rather than by every mark.
+
+   Returns nil when the layer draws no tooltip at all, which is what
+   leaves the attribute off the element."
+  [group layer i built-in]
+  (let [tooltips (:tooltips group)
+        fixed (:fixed-tooltip layer)
+        keep-shape (fn [v] (if (vector? v) v (str v)))]
+    (cond
+      tooltips (let [v (nth tooltips i nil)] (when (some? v) (keep-shape v)))
+      (some? fixed) (keep-shape fixed)
+      :else (built-in))))
+
 (defn- fmt-temporal-val
   "Format a temporalized x value (epoch-ms) as a date string."
   [v]
@@ -349,7 +378,11 @@
                                   (ui/with-style ::ui/style-stroke
                                     (ui/rounded-rectangle d d pt-r))))))])
            (cond-> row-indices (assoc :row-idx (row-indices i))
-                   tooltip (assoc :tooltip (make-tooltip ctx (xs i) (ys i) label))))))))
+                   tooltip (as-> $ (if-let [t (tooltip-value
+                                               group layer i
+                                               #(make-tooltip ctx (xs i) (ys i) label))]
+                                     (assoc $ :tooltip t)
+                                     $))))))))
 
 ;; ---- Text ----
 
@@ -1136,7 +1169,7 @@
                            "(use a string/keyword column, or pass {:y-type :categorical}).")
                       {:mark :interval-h})))
     (vec
-     (for [{:keys [color colors xs ys x-ends row-indices label]} groups
+     (for [{:keys [color colors xs ys x-ends row-indices label] :as group} groups
            i (range (clojure.core/count xs))
            :let [x-start (xs i)
                  x-end (x-ends i)
@@ -1154,5 +1187,9 @@
                               (apply ui/path pts)))])
            (cond->
             row-indices (assoc :row-idx (row-indices i))
-            tooltip     (assoc :tooltip (make-interval-tooltip
-                                         ctx x-temporal? y-cat x-start x-end label))))))))
+            tooltip     (as-> $ (if-let [t (tooltip-value
+                                            group layer i
+                                            #(make-interval-tooltip
+                                              ctx x-temporal? y-cat x-start x-end label))]
+                                  (assoc $ :tooltip t)
+                                  $))))))))

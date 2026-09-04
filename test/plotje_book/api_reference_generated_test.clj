@@ -218,7 +218,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__72260#] (Math/sin (* p1__72260# 0.3))) (range 30))}))
+   (map (fn* [p1__11193#] (Math/sin (* p1__11193# 0.3))) (range 30))}))
 
 
 (def v45_l175 (-> wave (pj/lay-line :x :y)))
@@ -426,9 +426,9 @@
     :y
     (mapv
      (fn*
-      [p1__72261#]
+      [p1__11194#]
       (+
-       (Math/sin (* p1__72261# 0.2))
+       (Math/sin (* p1__11194# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1192,7 +1192,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__72262#] (-> p1__72262# :plan :panels first))
+       (fn* [p1__11195#] (-> p1__11195# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))
@@ -1424,7 +1424,7 @@
    (:canvas f)
    boxes
    (mapv
-    (fn* [p1__72263#] (-> p1__72263# :frames :panel-box))
+    (fn* [p1__11196#] (-> p1__11196# :frames :panel-box))
     (:panels f))
    inside?
    (fn
@@ -1435,7 +1435,7 @@
    :every-box-inside-the-canvas (every? inside? boxes),
    :panel-rectangle-keys
    (mapv
-    (fn* [p1__72264#] (vec (keys (:frames p1__72264#))))
+    (fn* [p1__11197#] (vec (keys (:frames p1__11197#))))
     (:panels f))}))
 
 
@@ -1450,7 +1450,7 @@
      (apply not= (map first (:panel-boxes m)))
      (true? (:every-box-inside-the-canvas m))
      (every?
-      (fn* [p1__72265#] (= [:panel-box :drawing-area] p1__72265#))
+      (fn* [p1__11198#] (= [:panel-box :drawing-area] p1__11198#))
       (:panel-rectangle-keys m))))
    v284_l949)))
 
@@ -1492,7 +1492,7 @@
   (->>
    (pj/to-drawing panel 2 5)
    (apply pj/to-data panel)
-   (mapv (fn* [p1__72266#] (Math/round (double p1__72266#)))))))
+   (mapv (fn* [p1__11199#] (Math/round (double p1__11199#)))))))
 
 
 (deftest t296_l998 (is ((fn [v] (= [2 5] v)) v295_l993)))
@@ -1748,7 +1748,7 @@
 (def v375_l1205 (count pj/layer-option-docs))
 
 
-(deftest t376_l1207 (is ((fn [n] (= 55 n)) v375_l1205)))
+(deftest t376_l1207 (is ((fn [n] (= 56 n)) v375_l1205)))
 
 
 (def v378_l1211 (kind/doc #'pj/layer-type-lookup))
@@ -1866,7 +1866,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__72267#] (bit-and p1__72267# 255)) (vec bs))))))
+    (mapv (fn* [p1__11200#] (bit-and p1__11200# 255)) (vec bs))))))
 
 
 (deftest
@@ -1887,7 +1887,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__72268#] (bit-and p1__72268# 255)) (vec bs))))))
+    (mapv (fn* [p1__11201#] (bit-and p1__11201# 255)) (vec bs))))))
 
 
 (deftest t415_l1310 (is ((fn [bs] (= [137 80 78 71] bs)) v414_l1301)))

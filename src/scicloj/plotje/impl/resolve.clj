@@ -383,7 +383,7 @@
 
    Returns a map with keys :color, :color-is-col?, :color-type, :fixed-color,
    :size, :size-is-col?, :fixed-size, :alpha, :alpha-is-col?, :fixed-alpha,
-   :text-col."
+   :text-col, :tooltip-col, :fixed-tooltip."
   [ds v]
   (let [col-names (set (tc/column-names ds))
         ;; `:__source` and `:__scale` carry what an explicit mapping
@@ -429,7 +429,19 @@
                                                     :value alpha-val
                                                     :scale (said-scale :alpha)})))
         text-val (:text v)
-        text-col (when (and text-val (column-ref? text-val)) text-val)]
+        text-col (when (and text-val (column-ref? text-val)) text-val)
+        ;; What a mark says on hover, read exactly as `:text` is: a
+        ;; column names one string per row, and anything else is one
+        ;; string for every mark of the layer.
+        tooltip-val (:tooltip v)
+        ;; Through `column?`, as `:color` and `:size` are, rather than
+        ;; through `column-ref?` as `:text` is: a tooltip is written as
+        ;; a string more often than not, and a string is column-shaped.
+        ;; The data decides, which is the rule everywhere else.
+        tooltip-is-col? (column? :tooltip tooltip-val)
+        tooltip-col (when tooltip-is-col? tooltip-val)
+        fixed-tooltip (when (and (some? tooltip-val) (not tooltip-is-col?))
+                        tooltip-val)]
     {:color (when color-is-col? color-val)
      :color-is-col? color-is-col?
      :color-drawn? color-drawn?
@@ -443,7 +455,9 @@
      :alpha-is-col? alpha-is-col?
      :alpha-drawn? alpha-drawn?
      :fixed-alpha fixed-alpha
-     :text-col text-col}))
+     :text-col text-col
+     :tooltip-col tooltip-col
+     :fixed-tooltip fixed-tooltip}))
 
 (defn validate-continuous-aesthetics
   "Throw a clear error when `:size`, `:alpha` or `:fill` names a
@@ -604,7 +618,8 @@
           _ (validate-continuous-aesthetics resolved-ds v)
           {:keys [color color-type color-drawn? fixed-color
                   size size-drawn? fixed-size
-                  alpha alpha-drawn? fixed-alpha text-col]} (resolve-aesthetics resolved-ds v)
+                  alpha alpha-drawn? fixed-alpha text-col
+                  tooltip-col fixed-tooltip]} (resolve-aesthetics resolved-ds v)
           group (infer-grouping v color-type color)
           {:keys [mark stat]} (infer-layer-type v x-type y-type x-temporal? y-temporal?)
           ;; Validate that category-grouping marks have a categorical axis.
@@ -681,7 +696,9 @@
                                   :size-drawn? size-drawn?
                                   :alpha alpha :fixed-alpha fixed-alpha
                                   :alpha-drawn? alpha-drawn?
-                                  :text-col text-col)
+                                  :text-col text-col
+                                  :tooltip-col tooltip-col
+                                  :fixed-tooltip fixed-tooltip)
                      x-temporal? (assoc :x-temporal? true)
                      y-temporal? (assoc :y-temporal? true)
                      x-temporal-extent (assoc :x-temporal-extent x-temporal-extent)

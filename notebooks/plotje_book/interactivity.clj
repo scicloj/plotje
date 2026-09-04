@@ -43,6 +43,119 @@
                      (and (re-find #":data-tooltip" s)
                           (re-find #"nsk-tooltip" s))))])
 
+;; ### Writing the tooltip yourself
+;;
+;; The built-in text names the columns the layer drew and their values,
+;; which is right for exploring and wrong as soon as the numbers need
+;; presenting -- a currency sign, a thousands separator, a percentage,
+;; 1,653,346 read as 1.7M, or a column the plot does not draw at all.
+;;
+;; Rather than a formatting option per case, `:tooltip` is a mapping
+;; like any other: it names a column whose values are what each mark
+;; says. Building that column is ordinary data work, with the whole
+;; language available.
+
+(def sales
+  (tc/dataset {:month   ["Jan" "Feb" "Mar" "Apr"]
+               :revenue [1653346 2410880 987654 3120500]
+               :margin  [0.184 0.223 0.161 0.207]}))
+
+sales
+
+;; The tooltip column is built with the same tools any other column is.
+;; A newline in the string breaks the line on the page.
+
+(def sales-labelled
+  (tc/add-column sales :hover
+                 #(map (fn [month revenue margin]
+                         (str month "\n"
+                              (format "%.1fM" (/ (double revenue) 1e6))
+                              " at " (format "%.1f%%" (* 100.0 margin))))
+                       (:month %) (:revenue %) (:margin %))))
+
+sales-labelled
+
+;; Mapping that column is the whole of it:
+
+(-> sales-labelled
+    (pj/lay-point :margin :revenue {:tooltip :hover})
+    (pj/options {:title "Hover for the month, revenue and margin"
+                 :height 320}))
+
+(kind/test-last
+ [(fn [pose]
+    (let [s (str (pj/plot pose))]
+      (and (re-find #"1.7M at 18.4%" s)
+           ;; The mapping is the request -- there is no
+           ;; `{:tooltip true}` in the options above.
+           (true? (:tooltip (pj/plan pose)))
+           (re-find #"nsk-tooltip" s))))])
+
+;; Three things follow from `:tooltip` being a mapping rather than an
+;; option.
+;;
+;; - **The month is in the tooltip and on neither axis.** A tooltip
+;;   column is built from whatever the dataset holds.
+;; - **Writing it turns tooltips on.** `{:tooltip true}` in `pj/options`
+;;   is the switch for the built-in text, and is not needed beside a
+;;   mapping.
+;; - **It scopes like every mapping.** On the pose it covers each layer;
+;;   on one layer it covers that layer, and the nearer one wins.
+;;
+;; A newline in the string breaks the line. A written string rather than
+;; a column says the same thing for every mark of the layer:
+;; `{:tooltip "one reading per bar"}`.
+
+;; ### Tooltips with markup
+;;
+;; A tooltip column may hold hiccup instead of a string, for when a
+;; label wants a heading, an emphasis or a table rather than a line of
+;; text.
+
+(def sales-rich
+  (tc/add-column sales :hover
+                 #(map (fn [month revenue margin]
+                         [:div
+                          [:b month]
+                          [:br]
+                          "revenue " [:code (format "%.1fM" (/ (double revenue) 1e6))]
+                          [:br]
+                          "margin " [:code (format "%.1f%%" (* 100.0 margin))]])
+                       (:month %) (:revenue %) (:margin %))))
+
+sales-rich
+
+;; The column holds hiccup vectors, one per row.
+
+(-> sales-rich
+    (pj/lay-point :margin :revenue {:tooltip :hover})
+    (pj/options {:title "Hover for a formatted label"
+                 :height 320}))
+
+(kind/test-last
+ [(fn [pose]
+    (let [s (str (pj/plot pose))]
+      (and (re-find #"<b>Jan</b>" s)
+           (re-find #"<code>1.7M</code>" s))))])
+
+;; A string tooltip stays text, so a string that happens to spell out a
+;; tag is shown as that text rather than rendered:
+
+(-> sales
+    (pj/lay-point :margin :revenue {:tooltip "<b>not bold</b>"})
+    (pj/options {:height 240}))
+
+(kind/test-last
+ [(fn [pose]
+    ;; Read the attributes off the tree rather than the printed form:
+    ;; the hover script names both keys, so a text search finds them
+    ;; whatever the marks carry.
+    (let [attrs (->> (tree-seq vector? seq (pj/plot pose))
+                     (filter #(and (vector? %) (map? (second %))))
+                     (map second))]
+      (and (some :data-tooltip attrs)
+           (not-any? :data-tooltip-html attrs))))])
+
 ;; ## Brush selection
 ;;
 ;; `:brush true` enables drag-to-select. While dragging, a shaded

@@ -163,7 +163,10 @@
    :alpha [:and number? [:fn {:error/message "should be within 0 and 1"}
                          (fn [v] (<= 0 v 1))]]
    ;; Any string labels a mark; there is nothing to check beyond type.
-   :text  string?})
+   :text  string?
+   ;; And any string is a tooltip. What it says is the writer's, formed
+   ;; in the data language before the plot is built.
+   :tooltip string?})
 
 (def aesthetic-value-schemas
   "Value grammar per aesthetic, as the code behaves today. The key set

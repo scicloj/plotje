@@ -49,7 +49,8 @@
 
 (deftest derived-sets-test
   (testing "the sets other namespaces read are the ones they expect"
-    (is (= #{:x :y :x-end :y-min :y-max :color :size :alpha :fill :shape :text :group}
+    (is (= #{:x :y :x-end :y-min :y-max :color :size :alpha :fill :shape :text
+             :tooltip :group}
            defaults/column-keys))
     (is (= [:x :x-end :y]
            (vec (sort-by str resolve/positional-aesthetics)))

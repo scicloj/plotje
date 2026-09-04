@@ -160,7 +160,10 @@
    hides: `:y-min` / `:y-max` are a column on `:errorbar` and a value
    on `:band-h`. `:text` is not such a pair -- a written label
    broadcasts over the layer's rows whether or not the layer has
-   data."
+   data. `:tooltip` reads the same way: a column names what each mark
+   says on hover, and a written string says one thing for every mark of
+   the layer. Neither passes through a scale -- what the writer put in
+   the column is what is shown."
   {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
    :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
    :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
@@ -174,6 +177,7 @@
    :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
    :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
    :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
+   :tooltip {:category :appearance :column? true :value? true :numeric? false :categorical-column? true :scale-default :never :drawn-column? true}
    :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}})
 
 (defn aesthetics-where

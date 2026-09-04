@@ -87,13 +87,23 @@
   "Convert a membrane drawable element to SVG hiccup."
   (-to-svg [elem ctx]))
 
+(declare hiccup->html)
+
 (defn- data-attrs
-  "Extract data-* attributes from extra keys on a membrane element."
+  "Extract data-* attributes from extra keys on a membrane element.
+
+   A tooltip written as hiccup travels under its own attribute. Two
+   attributes rather than one flag, so that the page can tell markup
+   from text by which key it found: only what went through
+   `hiccup->html` is ever inserted as markup, and a plain string stays
+   text however it is spelled."
   [elem]
-  (cond-> {}
-    (:row-idx elem) (assoc :data-row-idx (:row-idx elem))
-    (:tooltip elem) (assoc :data-tooltip (:tooltip elem))
-    (:legend elem) (assoc :data-legend "true")))
+  (let [tip (:tooltip elem)]
+    (cond-> {}
+      (:row-idx elem) (assoc :data-row-idx (:row-idx elem))
+      (and tip (vector? tip)) (assoc :data-tooltip-html (hiccup->html tip))
+      (and tip (not (vector? tip))) (assoc :data-tooltip tip)
+      (:legend elem) (assoc :data-legend "true"))))
 
 (extend-protocol ToSVG
   Translate
@@ -255,7 +265,7 @@
 ;; ---- Tooltip interactivity ----
 
 (def ^:private tooltip-css
-  ".nsk-tooltip { display:none; position:absolute; pointer-events:none; background:rgba(0,0,0,0.8); color:#fff; padding:6px 10px; border-radius:4px; font-family:sans-serif; font-size:13px; white-space:nowrap; z-index:10; }")
+  ".nsk-tooltip { display:none; position:absolute; pointer-events:none; background:rgba(0,0,0,0.8); color:#fff; padding:6px 10px; border-radius:4px; font-family:sans-serif; font-size:13px; white-space:pre-line; max-width:320px; z-index:10; }")
 
 (defn- tooltip-script
   "Scittle script for tooltips on elements with data-tooltip attribute.
@@ -266,11 +276,20 @@
               'tip-el '(.createElement js/document "div")]
         '(set! (.-className tip-el) "nsk-tooltip")
         '(.appendChild container tip-el)
+        ;; Either attribute wakes the tooltip, and which one was found
+        ;; decides how it is written: `data-tooltip-html` holds markup
+        ;; the writer produced through `hiccup->html`, whose text was
+        ;; escaped on the way; `data-tooltip` holds text and is written
+        ;; as text, so a string spelling out a tag shows that tag.
         '(let [show! (fn [e]
-                       (when-let [el (.closest (.-target e) "[data-tooltip]")]
-                         (let [text (.getAttribute el "data-tooltip")]
-                           (when text
-                             (set! (.-textContent tip-el) text)
+                       (when-let [el (.closest (.-target e)
+                                               "[data-tooltip],[data-tooltip-html]")]
+                         (let [html (.getAttribute el "data-tooltip-html")
+                               text (.getAttribute el "data-tooltip")]
+                           (when (or html text)
+                             (if html
+                               (set! (.-innerHTML tip-el) html)
+                               (set! (.-textContent tip-el) text))
                              (set! (.. tip-el -style -display) "block")))))
                hide! (fn [_]
                        (set! (.. tip-el -style -display) "none"))
@@ -359,7 +378,11 @@
   (let [total-width (or (ui/width membrane-tree) (:total-width opts))
         total-height (or (ui/height membrane-tree) (:total-height opts))
         title (or (:plotje/title membrane-tree) (:title opts))
-        {:keys [tooltip brush]} opts
+        ;; The membrane's own flag as well as the render options': a
+        ;; `:tooltip` mapping turns tooltips on at plan time, and the
+        ;; page needs the script and stylesheet either way.
+        tooltip (or (:tooltip opts) (:plotje/tooltip membrane-tree))
+        brush (:brush opts)
         svg-body (membrane->svg membrane-tree)
         svg (wrap-svg total-width total-height svg-body title)
         interactive? (or tooltip brush)]
@@ -461,6 +484,50 @@
       (str/replace "<" "&lt;")
       (str/replace ">" "&gt;")
       (str/replace "\"" "&quot;")))
+
+(def ^:private void-html-tags
+  "HTML elements that close themselves. `[:br]` is the one a tooltip
+   reaches for; the rest are here so a writer who uses one is not given
+   a stray closing tag."
+  #{:area :base :br :col :embed :hr :img :input :link :meta :param
+    :source :track :wbr})
+
+(defn hiccup->html
+  "A hiccup vector as an HTML string, for a tooltip that carries markup.
+
+   **Text is escaped and structure is not.** The tags and attributes are
+   the writer's, written in their own code; every string that reaches
+   the page as content goes through `escape-xml` first. So a tooltip
+   built from a column -- `[:b (:name row)]` -- carries a name holding
+   `<script>` to the page as those eight characters, while the `:b` the
+   writer typed is a bold element. That is the same boundary a hiccup
+   library draws, and it is the one that matters here: the markup is
+   code, the content is data.
+
+   Handles a tag, an optional attribute map, and any nesting of
+   vectors, seqs, strings and numbers. Nil children are dropped, as
+   hiccup drops them."
+  [node]
+  (letfn [(attrs->str [m]
+            (apply str (for [[k v] m
+                             :when (some? v)]
+                         (str " " (name k) "=\"" (escape-xml v) "\""))))
+          (render [n]
+            (cond
+              (nil? n) ""
+              (vector? n)
+              (let [[tag & more] n
+                    attrs (when (map? (first more)) (first more))
+                    children (if attrs (rest more) more)
+                    tag-name (name tag)]
+                (if (contains? void-html-tags tag)
+                  (str "<" tag-name (attrs->str attrs) ">")
+                  (str "<" tag-name (attrs->str attrs) ">"
+                       (apply str (map render children))
+                       "</" tag-name ">")))
+              (sequential? n) (apply str (map render n))
+              :else (escape-xml n)))]
+    (render node)))
 
 (defn- format-num
   "Format a number for SVG output. Avoids floating-point noise like

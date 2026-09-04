@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file. This change
 
 - `:share-scales` pools a temporal axis. An axis holds a date as epoch milliseconds, so the union across cells is defined, and every cell is ticked over that union rather than over its own data -- two panels sharing a date axis carry the same labels as well as the same range. `(pj/marginal pose :top)` therefore describes a date column, and a `pj/arrange` of time series with `{:share-scales #{:x}}` lines them up. A categorical axis is still reported, since a category has no extent to pool.
 
+- `:tooltip` is a mapping: it names a column whose values are what each mark says on hover, or a string every mark of the layer says. What a tooltip reads is then ordinary data work -- a currency sign, a thousands separator, 1,653,346 read as `1.7M`, a percentage, a column the plot does not draw -- rather than a formatting option per case. It scopes like any mapping, the nearer one winning, and writing it turns tooltips on, so `{:tooltip true}` in `pj/options` is the switch for the built-in text and is not needed beside a mapping. A newline in the string breaks the line, and a column of hiccup gives a tooltip with markup in it -- `[:div [:b month] [:br] "revenue " [:code amount]]`. A string tooltip stays text, so a string that spells out a tag is shown as that text rather than rendered. - thanks, @otfrom
+
 ### Fixed
 
 - An area or density under `(pj/coord :flip)` is measured from the value axis. The baseline reaches the coordinate function as the argument a flip scales by x, and it was read off the y domain, so a flipped density was drawn about ten panel widths wide and a flipped area was closed at its column's smallest value rather than at zero.

@@ -31,7 +31,144 @@
 
 
 (def
- v6_l56
+ v6_l58
+ (def
+  sales
+  (tc/dataset
+   {:month ["Jan" "Feb" "Mar" "Apr"],
+    :revenue [1653346 2410880 987654 3120500],
+    :margin [0.184 0.223 0.161 0.207]})))
+
+
+(def v7_l63 sales)
+
+
+(def
+ v9_l68
+ (def
+  sales-labelled
+  (tc/add-column
+   sales
+   :hover
+   (fn*
+    [p1__11193#]
+    (map
+     (fn
+      [month revenue margin]
+      (str
+       month
+       "\n"
+       (format "%.1fM" (/ (double revenue) 1000000.0))
+       " at "
+       (format "%.1f%%" (* 100.0 margin))))
+     (:month p1__11193#)
+     (:revenue p1__11193#)
+     (:margin p1__11193#))))))
+
+
+(def v10_l76 sales-labelled)
+
+
+(def
+ v12_l80
+ (->
+  sales-labelled
+  (pj/lay-point :margin :revenue {:tooltip :hover})
+  (pj/options
+   {:title "Hover for the month, revenue and margin", :height 320})))
+
+
+(deftest
+ t13_l85
+ (is
+  ((fn
+    [pose]
+    (let
+     [s (str (pj/plot pose))]
+     (and
+      (re-find #"1.7M at 18.4%" s)
+      (true? (:tooltip (pj/plan pose)))
+      (re-find #"nsk-tooltip" s))))
+   v12_l80)))
+
+
+(def
+ v15_l115
+ (def
+  sales-rich
+  (tc/add-column
+   sales
+   :hover
+   (fn*
+    [p1__11194#]
+    (map
+     (fn
+      [month revenue margin]
+      [:div
+       [:b month]
+       [:br]
+       "revenue "
+       [:code (format "%.1fM" (/ (double revenue) 1000000.0))]
+       [:br]
+       "margin "
+       [:code (format "%.1f%%" (* 100.0 margin))]])
+     (:month p1__11194#)
+     (:revenue p1__11194#)
+     (:margin p1__11194#))))))
+
+
+(def v16_l126 sales-rich)
+
+
+(def
+ v18_l130
+ (->
+  sales-rich
+  (pj/lay-point :margin :revenue {:tooltip :hover})
+  (pj/options {:title "Hover for a formatted label", :height 320})))
+
+
+(deftest
+ t19_l135
+ (is
+  ((fn
+    [pose]
+    (let
+     [s (str (pj/plot pose))]
+     (and (re-find #"<b>Jan</b>" s) (re-find #"<code>1.7M</code>" s))))
+   v18_l130)))
+
+
+(def
+ v21_l144
+ (->
+  sales
+  (pj/lay-point :margin :revenue {:tooltip "<b>not bold</b>"})
+  (pj/options {:height 240})))
+
+
+(deftest
+ t22_l148
+ (is
+  ((fn
+    [pose]
+    (let
+     [attrs
+      (->>
+       (tree-seq vector? seq (pj/plot pose))
+       (filter
+        (fn*
+         [p1__11195#]
+         (and (vector? p1__11195#) (map? (second p1__11195#)))))
+       (map second))]
+     (and
+      (some :data-tooltip attrs)
+      (not-any? :data-tooltip-html attrs))))
+   v21_l144)))
+
+
+(def
+ v24_l169
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -42,7 +179,7 @@
 
 
 (deftest
- t7_l62
+ t25_l175
  (is
   ((fn
     [pose]
@@ -52,11 +189,11 @@
       (re-find #"nsk-brush-sel" s)
       (re-find #"\"0\.15\"|0\.15\b" s)
       (re-find #"\(<\s*bw\s+3\)" s))))
-   v6_l56)))
+   v24_l169)))
 
 
 (def
- v9_l80
+ v27_l193
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -69,18 +206,18 @@
 
 
 (deftest
- t10_l88
+ t28_l201
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-row-idx" s) (re-find #"nsk-brush-sel" s))))
-   v9_l80)))
+   v27_l193)))
 
 
 (def
- v12_l100
+ v30_l213
  (->
   {:start
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -104,18 +241,18 @@
 
 
 (deftest
- t13_l111
+ t31_l224
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-tooltip" s) (re-find #" → " s))))
-   v12_l100)))
+   v30_l213)))
 
 
 (def
- v15_l122
+ v33_l235
  (let
   [plot-svg
    (pj/plot
