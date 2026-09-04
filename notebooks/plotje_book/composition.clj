@@ -128,10 +128,11 @@ shared-x
 
 ;; ## Marginal Plots
 ;;
-;; The classic "scatter with top density" -- a distribution strip above
+;; The classic "scatter with top density" -- a distribution strip beside
 ;; the main plot -- has a function of its own. `pj/marginal` takes a leaf
-;; pose and puts a distribution of its `:x` column in a thin panel above
-;; it:
+;; pose and puts a distribution of one of its columns in a thin panel
+;; against one edge: the `:x` column above the panel, the `:y` column to
+;; its right.
 
 (def marginal
   (-> (rdatasets/datasets-iris)
@@ -187,13 +188,47 @@ marginal
             (and (= 2 (:panels s))
                  (= 150 (:points s)))))])
 
-;; `:top` is the side available. A right-hand marginal needs the
-;; distribution drawn on its side, and `:share-scales` refuses to share an
-;; axis between an upright cell and a flipped one.
+;; ### A marginal on the right
+;;
+;; `:right` describes the pose's `:y` column instead, in a strip beside
+;; the panel. The distribution is drawn under `pj/coord :flip`, so its
+;; value axis runs across the strip and its baseline stands at the left
+;; edge, against the scatter:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/marginal :right))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          plans (mapv :plan (:sub-plots (pj/plan v)))
+          panels (mapv #(-> % :panels first) plans)]
+      (and (= 2 (:panels s))
+           (= 150 (:points s))
+           ;; The scatter comes first here, the strip second -- a
+           ;; right marginal reads left to right.
+           (= (:y-domain (first panels)) (:y-domain (second panels)))
+           ;; The strip carries neither y ticks nor a y title.
+           (= [] (:values (:y-ticks (second panels))))
+           (nil? (:y-label (second plans)))
+           ;; A row of cells lines up on its top and bottom edges, so
+           ;; the room reserved below each is what has to agree.
+           (apply == (map #(get-in % [:layout :x-label-pad]) plans)))))])
+
+;; A `:top` marginal and a `:right` one line up on different edges. Two
+;; panels in a column share their left and right edges, so what has to
+;; agree is the room reserved for the y title and for the legend; two
+;; panels in a row share their top and bottom edges, so what has to
+;; agree is the room below them. `:align-panels` reserves whichever the
+;; layout calls for.
+;;
+;; `:bottom` and `:left` are not drawn: a strip there would sit between
+;; the panel and the axis that describes it.
 
 ;; ### What a marginal is made of
 ;;
-;; `pj/marginal` builds a vertical composite with a shared x, which can
+;; A `:top` marginal is a vertical composite with a shared x, which can
 ;; also be written out. Four things make it up: the weights, the shared
 ;; scale, the ticks and axis title suppressed on the strip, and
 ;; `:align-panels`. Here are the first three:
@@ -232,11 +267,12 @@ marginal-by-hand
 ;;
 ;; That is the fourth part, and the one `pj/marginal` adds:
 ;; `:align-panels` in the composite's own `:opts`. It plans every cell
-;; twice, the second time with the widest y-label pad and legend column
-;; any of them needed as a floor, so each cell reserves what the others
-;; do. `pj/options` does not accept the key -- it is a composite's
-;; internal setting rather than a plot option -- so a written-out
-;; composite carries it in the map:
+;; twice, the second time with the widest pad any of them needed as a
+;; floor, so each cell reserves what the others do -- the y-label pad
+;; and the legend column for a column of cells, the room below for a
+;; row of them. `pj/options` does not accept the key -- it is a
+;; composite's internal setting rather than a plot option -- so a
+;; written-out composite carries it in the map:
 
 (assoc-in marginal-by-hand [:opts :align-panels] true)
 

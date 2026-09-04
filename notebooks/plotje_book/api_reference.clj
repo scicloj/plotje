@@ -748,6 +748,23 @@ pj/shape-symbols
                                 (= 150 (:points s))
                                 (= 9 (:polygons s)))))])
 
+;; `:right` describes the pose's `:y` column in a strip beside the
+;; panel, drawn on its side:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :right))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               panels (mapv #(-> % :plan :panels first)
+                                            (:sub-plots (pj/plan v)))]
+                           (and (= 2 (:panels s))
+                                (= 150 (:points s))
+                                ;; The scatter and the strip are pinned
+                                ;; to one range of sepal width.
+                                (= (:y-domain (first panels))
+                                   (:y-domain (second panels))))))])
+
 ;; ## Rendering
 
 (kind/doc #'pj/plot)

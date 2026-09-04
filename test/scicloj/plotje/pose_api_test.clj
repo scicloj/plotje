@@ -291,14 +291,19 @@
                              {:data ds-b :mapping {:x :x :y :y}
                               :layers [{:layer-type :point}]}]}
           d (pj/draft composite)
-          ;; Each leaf's draft entries should now carry :x-scale with
-          ;; the shared domain [0 30], not their own narrow domains.
+          ;; Each leaf carries the shared extent [0 30] on its opts,
+          ;; not its own narrow one. It rides there rather than as a
+          ;; `:domain` on the scale because the plan pads an extent and
+          ;; honours a `:domain` exactly as written.
           leaf0-x-scale (-> d :sub-drafts (get 0) :draft first :x-scale)
-          leaf1-x-scale (-> d :sub-drafts (get 1) :draft first :x-scale)]
+          leaf1-x-scale (-> d :sub-drafts (get 1) :draft first :x-scale)
+          leaf-extent (fn [i] (-> d :sub-drafts (get i) :opts :x-scale-domain))]
       (is (= leaf0-x-scale leaf1-x-scale)
           "both per-leaf drafts carry the same :x-scale")
-      (is (= [0 30] (:domain leaf0-x-scale))
-          "the shared domain is the union of each leaf's data range"))))
+      (is (= [0 30] (leaf-extent 0))
+          "the shared extent is the union of each leaf's data range")
+      (is (= (leaf-extent 0) (leaf-extent 1))
+          "and both leaves were given it"))))
 
 (deftest composite-plan-validates-test
   (testing "pj/valid-plan? returns true for a CompositePlan;
@@ -408,7 +413,9 @@
             dom1 (-> p :sub-plots (get 1) :plan :panels first :x-domain)]
         (is (= dom0 dom1)
             "compositor honored :share-scales from :opts")
-        (is (= [0 30] dom0))))))
+        ;; The union [0 30], padded as any data extent is: a shared
+        ;; axis is padded exactly as an unshared one.
+        (is (= [-1.5 31.5] dom0))))))
 
 (deftest share-scales-back-compat-top-level-test
   (testing "hand-built composites with :share-scales at top-level still work"
@@ -532,8 +539,49 @@
           dom1 (-> p :sub-plots (get 1) :plan :panels first :x-domain)]
       (is (= dom0 dom1)
           "both sub-plots have the same x-domain")
-      (is (= [0 30] dom0)
-          "shared domain is the union of each leaf's data range"))))
+      ;; The union [0 30], padded as any data extent is -- 5% of the
+      ;; span at each end.
+      (is (= [-1.5 31.5] dom0)
+          "shared domain is the padded union of each leaf's data range"))))
+
+(deftest shared-axis-is-padded-like-an-unshared-one-test
+  ;; A shared extent is an extent, not a `:domain`: the plan pads it as
+  ;; it pads a panel's own values. Written as a `:domain` it was
+  ;; honoured exactly as given, so a shared axis lost its padding and
+  ;; drew its outermost marks on the panel edge.
+  (let [ds (tc/dataset {:x [0 1 2] :y [1 2 3]})
+        alone (-> (pj/plan (pj/lay-point ds :x :y)) :panels first :x-domain)]
+    (testing "one cell sharing a column nothing else names is unchanged"
+      (let [p (pj/plan {:share-scales #{:x}
+                        :layout {:direction :horizontal :weights [1 1]}
+                        :poses [(pj/lay-point ds :x :y)
+                                (pj/lay-point (tc/dataset {:a [5 6] :y [1 2]}) :a :y)]})]
+        (is (= alone (-> p :sub-plots first :plan :panels first :x-domain)))))
+    (testing "two cells over the same values reach that same domain"
+      (let [p (pj/plan {:share-scales #{:x}
+                        :layout {:direction :horizontal :weights [1 1]}
+                        :poses [(pj/lay-point ds :x :y)
+                                (pj/lay-point ds :x :y)]})
+            doms (mapv #(-> % :plan :panels first :x-domain) (:sub-plots p))]
+        (is (apply = doms))
+        (is (= alone (first doms)))))
+    (testing "and the padding still reaches past the data on both sides"
+      (let [p (pj/plan {:share-scales #{:x}
+                        :layout {:direction :horizontal :weights [1 1]}
+                        :poses [(pj/lay-point ds :x :y)
+                                (pj/lay-point ds :x :y)]})
+            [lo hi] (-> p :sub-plots first :plan :panels first :x-domain)]
+        (is (< (double lo) 0.0))
+        (is (> (double hi) 2.0)))))
+  (testing "a `:domain` the writer wrote is still honoured exactly"
+    ;; The other half of the distinction: sharing pads, a written
+    ;; domain does not.
+    (let [ds (tc/dataset {:x [0 1 2] :y [1 2 3]})
+          p (pj/plan {:share-scales #{:x}
+                      :layout {:direction :horizontal :weights [1 1]}
+                      :poses [(-> (pj/lay-point ds :x :y) (pj/scale :x {:domain [-10 10]}))
+                              (pj/lay-point ds :x :y)]})]
+      (is (= [-10 10] (-> p :sub-plots first :plan :panels first :x-domain))))))
 
 (deftest composite-share-scales-x-column-bucketing-test
   (testing "leaves with different x-columns get independent buckets"
@@ -551,8 +599,10 @@
           dom1 (-> p :sub-plots (get 1) :plan :panels first :x-domain)]
       (is (not= dom0 dom1)
           "different columns -> different domains")
-      (is (= [0 2] dom0))
-      (is (= [100 200] dom1)))))
+      ;; A bucket of one leaf is that leaf's own extent, padded, so
+      ;; sharing a column nothing else names changes nothing.
+      (is (= [-0.1 2.1] dom0))
+      (is (= [95.0 205.0] dom1)))))
 
 (deftest composite-share-scales-marginal-style-test
   (testing "marginal-style: scatter + top density share :x = :a, right density

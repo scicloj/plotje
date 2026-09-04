@@ -25,36 +25,31 @@
 (defn- long-or [x default]
   (long (Math/round (double (or x default)))))
 
-(defn- domain->scale-entry
-  [existing-scale domain]
-  (let [base (or existing-scale {:type :linear})]
-    (assoc base :domain domain)))
-
 (defn- apply-shared-scale-domains
-  "If :x-scale-domain / :y-scale-domain were stamped on the leaf by
-   inject-shared-scales, write them as a `:domain` on the axis's scale,
-   where the plan reads it.
+  "Keep the :x-scale-domain / :y-scale-domain that inject-shared-scales
+   stamped on the leaf, dropping either where that axis has no domain
+   to share. The plan reads them from the leaf's opts and uses each as
+   the extent that axis's domain is computed from.
 
-   A scale lives with the mapping it reads, so a shared domain is set
-   the same way `pj/scale` sets one. An axis mapped with `:scale false`
-   is left alone: it measures in drawing units and has no domain to
-   share."
+   An extent, not a `:domain`: a `:domain` says draw exactly this
+   interval, and the plan honours it without padding, which is right
+   for a domain the writer wrote and wrong for one the cells were
+   given. Written as a `:domain`, a shared axis lost its padding and
+   drew its outermost marks on the panel edge.
+
+   An axis mapped with `:scale false` is left alone: it measures in
+   drawing units and has no domain to share."
   [leaf]
   (let [opts (or (:opts leaf) {})
-        x-dom (:x-scale-domain opts)
-        y-dom (:y-scale-domain opts)
         unscaled? (fn [axis]
                     (false? (:scale (get-in leaf [:mapping axis]))))
-        put (fn [mapping axis dom]
-              (if (or (nil? dom) (unscaled? axis))
-                mapping
-                (pose/put-scale mapping axis {:domain dom})))]
-    (if (or x-dom y-dom)
-      (-> leaf
-          (assoc :opts (dissoc opts :x-scale-domain :y-scale-domain))
-          (update :mapping put :x x-dom)
-          (update :mapping put :y y-dom))
-      leaf)))
+        keep-dom (fn [o axis opt-key]
+                   (if (and (contains? o opt-key) (unscaled? axis))
+                     (dissoc o opt-key)
+                     o))]
+    (assoc leaf :opts (-> opts
+                          (keep-dom :x :x-scale-domain)
+                          (keep-dom :y :y-scale-domain)))))
 
 (defn- outer-dimensions
   [pose]
@@ -289,7 +284,12 @@
                         (assoc :shared-aesthetics shared-aesthetics))]
     (cond-> (resolve/->CompositeDraft width height sub-drafts chrome-spec layout)
       (get-in composite [:opts :align-panels])
-      (assoc :align-panels true))))
+      ;; The direction as the composite wrote it, not as the computed
+      ;; layout holds it: `layout` here is a map of path to rect, and
+      ;; which pads have to agree is a question about how the cells
+      ;; were asked to run.
+      (assoc :align-panels true
+             :align-direction (:direction (:layout composite))))))
 
 (defn composite-draft->plan
   "Convert a CompositeDraft into a CompositePlan. Per sub-draft, this
@@ -306,25 +306,31 @@
         first-pass (mapv plan-sub sub-drafts)
         ;; Aligning drawing areas takes a second pass, because the pad a
         ;; cell needs is only known once that cell has been planned.
-        ;; Pass one measures every cell's y-label pad; pass two re-plans
-        ;; them all with the widest as a floor. A cell whose own labels
-        ;; need more still gets more, so one extra pass reaches a common
-        ;; value and a third would change nothing.
-        ;; Both sides of the drawing area, since either can differ: the
-        ;; y-label pad on the left, because only a cell with a y title
-        ;; pays for one, and the legend column on the right, because
-        ;; only a cell that draws a legend reserves it.
+        ;; Pass one measures every cell's pads; pass two re-plans them
+        ;; all with the widest of each as a floor. A cell whose own
+        ;; labels need more still gets more, so one extra pass reaches a
+        ;; common value and a third would change nothing.
         widest (fn [k] (->> first-pass
                             (map #(double (or (get-in % [:plan :layout k]) 0.0)))
                             (reduce max 0.0)))
+        ;; Which pads have to agree depends on which way the cells run.
+        ;; A column of cells shares its left and right edges, so the
+        ;; y-label pad and the legend column are floored: only a cell
+        ;; with a y title pays for the first, and only a cell drawing a
+        ;; legend reserves the second. A row shares its top and bottom
+        ;; edges instead, so the x-label pad is floored. A layout that
+        ;; is neither -- a grid -- shares both.
+        direction (:align-direction composite-draft)
+        align-floors (cond-> {}
+                       (not= direction :horizontal)
+                       (assoc :min-y-label-pad (widest :y-label-pad)
+                              :min-legend-w (widest :legend-w))
+                       (not= direction :vertical)
+                       (assoc :min-x-label-pad (widest :x-label-pad)))
         sub-plots (if (:align-panels composite-draft)
-                    (let [pad (widest :y-label-pad)
-                          legend-w (widest :legend-w)]
-                      (mapv (fn [sub]
-                              (plan-sub (update sub :opts assoc
-                                                :min-y-label-pad pad
-                                                :min-legend-w legend-w)))
-                            sub-drafts))
+                    (mapv (fn [sub]
+                            (plan-sub (update sub :opts merge align-floors)))
+                          sub-drafts)
                     first-pass)
         shared-legend (when (:shared? chrome-spec)
                         (when-let [first-sub (first sub-drafts)]

@@ -3595,49 +3595,62 @@
                    " pj/pose with sub-poses for a composite.")
               {:caller caller :pose fr})))))
 
+(def ^:private marginal-sides
+  "Sides a marginal can be drawn on. `:bottom` and `:left` would put
+   the distribution between the panel and its own axis, so they are
+   not offered."
+  #{:top :right})
+
 (defn marginal
-  "Add a marginal panel above a leaf pose: a distribution of the pose's
-   `:x` column, drawn in a thin panel that shares the main panel's x
-   axis and carries its own value scale.
+  "Add a marginal panel beside a leaf pose: a distribution of one of
+   the pose's columns, drawn in a thin panel that shares the main
+   panel's axis for that column and carries its own value scale.
 
-   - `(marginal pose :top)` -- a density above the plot.
+   - `(marginal pose :top)` -- a density of the `:x` column, above.
+   - `(marginal pose :right)` -- a density of the `:y` column, to the
+     right, drawn on its side.
    - `(marginal pose :top :histogram)` -- a histogram instead.
-   - `(marginal pose :top :density {:size 0.3})` -- a thicker panel.
+   - `(marginal pose :right :density {:size 0.3})` -- a thicker panel.
 
-   `:size` is the marginal's share of the height, `0.25` by default.
-   The marginal's own x ticks and axis title are dropped, since the
-   axis below describes both panels, and the two drawing areas are
-   aligned so a value sits at the same place in each.
+   `:size` is the marginal's share of the height for `:top` and of the
+   width for `:right`, `0.25` by default. The marginal's ticks and axis
+   title along the shared axis are dropped, since the main panel's axis
+   describes both, and the two drawing areas are aligned so a value
+   sits at the same place in each.
+
+   A `:right` marginal is drawn under `pj/coord :flip`, so its value
+   axis runs across the panel and its baseline stands at the left edge,
+   against the main panel.
 
    `pj/overlay` and `pj/marginal` are the two answers to one question.
    Overlay puts a second layer on the panel it is added to; a marginal
-   puts a distribution beside that panel, on an axis of its own.
-
-   Only `:top` is available. A right-hand marginal needs the
-   distribution drawn on its side, and `:share-scales` refuses to share
-   an axis across cells whose coords differ, which is what a flipped
-   cell is -- see `dev-notes/marginal-panels-2026-09-02.md`."
+   puts a distribution beside that panel, on an axis of its own."
   ([pose side] (marginal pose side :density {}))
   ([pose side layer-type] (marginal pose side layer-type {}))
   ([pose side layer-type opts]
-   (when-not (= :top side)
-     (throw (ex-info (str "pj/marginal draws a marginal on :top, got "
-                          (pr-str side) ". A right-hand marginal needs the"
-                          " distribution drawn on its side, and a composite"
-                          " cannot yet share an axis between an upright cell"
-                          " and a flipped one.")
-                     {:caller "pj/marginal" :side side :supported #{:top}})))
+   (when-not (marginal-sides side)
+     (throw (ex-info (str "pj/marginal draws a marginal on :top or :right,"
+                          " got " (pr-str side) ".")
+                     {:caller "pj/marginal" :side side
+                      :supported marginal-sides})))
    (when-not (pose/leaf? pose)
      (throw (ex-info (str "pj/marginal takes a leaf pose -- one panel to put"
-                          " a marginal above. For a composite, add the"
+                          " a marginal beside. For a composite, add the"
                           " marginal to a cell before arranging.")
                      {:caller "pj/marginal"})))
-   (let [x-col (pose/mapping-source (get-in pose [:mapping :x]))
-         _ (when-not x-col
-             (throw (ex-info (str "pj/marginal needs the pose to name an :x"
-                                  " column, since that is the column the"
-                                  " marginal describes.")
+   (let [;; A marginal describes the column drawn along the axis it
+         ;; sits against: the x column above the panel, the y column
+         ;; beside it.
+         axis (if (= :right side) :y :x)
+         col (pose/mapping-source (get-in pose [:mapping axis]))
+         _ (when-not col
+             (throw (ex-info (str "pj/marginal needs the pose to name "
+                                  (if (= :right side) "a :y" "an :x")
+                                  " column, since that is the column a "
+                                  (pr-str side) " marginal describes.")
                              {:caller "pj/marginal"
+                              :side side
+                              :axis axis
                               :mapping (:mapping pose)})))
          ;; The public lay-* function rather than a bare `(lay :histogram)`:
          ;; `lay` attaches a layer carrying no column of its own, and the
@@ -3652,12 +3665,26 @@
                                  :layer-type layer-type
                                  :supported #{:density :histogram}})))
          size (double (or (:size opts) 0.25))
-         ;; :suppress-x-ticks and :suppress-x-label are read by the plan
-         ;; stage, and pj/options rejects them by whitelist, so they are
-         ;; written onto the marginal leaf's own :opts.
-         marginal-leaf (-> (lay-marginal (:data pose) x-col)
-                           (assoc :opts {:suppress-x-ticks true
-                                         :suppress-x-label true}))]
+         right? (= :right side)
+         ;; The ticks and title along the shared axis are the main
+         ;; panel's to draw. These keys are read by the plan stage, and
+         ;; `pj/options` rejects them by whitelist, so they are written
+         ;; onto the marginal leaf's own :opts.
+         suppress (if right?
+                    {:suppress-y-ticks true :suppress-y-label true}
+                    {:suppress-x-ticks true :suppress-x-label true})
+         marginal-leaf (cond-> (lay-marginal (:data pose) col)
+                         ;; A density or histogram draws its column
+                         ;; along x. On the right it has to run up the
+                         ;; panel instead, which is what a flip does.
+                         right? (coord :flip)
+                         true   (update :opts merge suppress))
+         ;; The marginal's own column carries the shared axis, and a
+         ;; flip means the two cells name that column on different
+         ;; axes -- :y on the main panel, :x on the marginal. Sharing
+         ;; both stamps each with the column's own extent, and the two
+         ;; agree because it is one column of one dataset.
+         shares (if right? #{:x :y} #{:x})]
      ;; Through prepare-pose, as every other composite-building path is
      ;; (`pj/arrange`, `pj/pose`'s promoting arities): it coerces :data
      ;; at every depth, puts the printed keys in the book's order, and
@@ -3666,9 +3693,12 @@
      ;; key order from its neighbours and lost a surrounding
      ;; `pj/with-config`.
      (prepare-pose
-      {:poses [marginal-leaf pose]
-       :layout {:direction :vertical :weights [size (- 1.0 size)]}
-       :share-scales #{:x}
+      {:poses (if right? [pose marginal-leaf] [marginal-leaf pose])
+       :layout {:direction (if right? :horizontal :vertical)
+                :weights (if right?
+                           [(- 1.0 size) size]
+                           [size (- 1.0 size)])}
+       :share-scales shares
        :opts (merge (:opts pose) {:align-panels true})}))))
 
 (defn- infer-format-from-path

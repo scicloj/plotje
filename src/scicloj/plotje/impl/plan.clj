@@ -221,30 +221,40 @@
    ambiguous.
 
    `padding` is the resolved `:domain-padding`. `temporal?` says the
-   axis reads dates, which is what lets `:include` be written as one."
-  [stat-results axis-key scale-spec padding temporal?]
-  (let [parsed (keep (fn [sr]
-                       (when-let [d (axis-key sr)]
-                         {:vals (if (and (= 2 (count d)) (number? (first d)))
-                                  d
-                                  (mapv str d))
-                          :numeric? (and (= 2 (count d)) (number? (first d)))}))
-                     stat-results)
-        types (distinct (map :numeric? parsed))]
-    (when (seq parsed)
-      (when (> (count types) 1)
-        (throw (ex-info (str "Cannot merge numeric and categorical domains on " axis-key
-                             ". Each layer must use a consistent column type for this axis.")
-                        {:axis axis-key
-                         :domains (mapv :vals parsed)})))
-      (let [vals (mapcat :vals parsed)
-            aesthetic (if (= :x-domain axis-key) :x :y)
-            numeric? (number? (first vals))
-            anchors (include-anchors aesthetic scale-spec numeric? temporal?)]
-        (if numeric?
-          (pad-domain-anchored [(reduce min vals) (reduce max vals)]
-                               anchors scale-spec padding)
-          (distinct vals))))))
+   axis reads dates, which is what lets `:include` be written as one.
+
+   `shared` is the extent `:share-scales` computed across the cells of
+   a composite, or nil. It stands in for the extent this panel's own
+   values give, and is then padded and anchored as that extent would
+   be -- so a cell in a shared composite is padded exactly as it is
+   alone, and every cell reaches the same padded domain because they
+   start from the same shared extent."
+  ([stat-results axis-key scale-spec padding temporal?]
+   (collect-domain stat-results axis-key scale-spec padding temporal? nil))
+  ([stat-results axis-key scale-spec padding temporal? shared]
+   (let [parsed (keep (fn [sr]
+                        (when-let [d (axis-key sr)]
+                          {:vals (if (and (= 2 (count d)) (number? (first d)))
+                                   d
+                                   (mapv str d))
+                           :numeric? (and (= 2 (count d)) (number? (first d)))}))
+                      stat-results)
+         types (distinct (map :numeric? parsed))]
+     (when (seq parsed)
+       (when (> (count types) 1)
+         (throw (ex-info (str "Cannot merge numeric and categorical domains on " axis-key
+                              ". Each layer must use a consistent column type for this axis.")
+                         {:axis axis-key
+                          :domains (mapv :vals parsed)})))
+       (let [vals (mapcat :vals parsed)
+             aesthetic (if (= :x-domain axis-key) :x :y)
+             numeric? (number? (first vals))
+             anchors (include-anchors aesthetic scale-spec numeric? temporal?)]
+         (if numeric?
+           (pad-domain-anchored (or shared
+                                    [(reduce min vals) (reduce max vals)])
+                                anchors scale-spec padding)
+           (distinct vals)))))))
 
 (defn compute-global-y-domain
   "Compute global y-domain from position-adjusted layers.
@@ -255,86 +265,94 @@
    value the layers report -- because log scales have no zero.
 
    `padding` is the resolved `:domain-padding`. `temporal?` says the
-   axis reads dates, for `:include`."
-  [plan-layers scale-spec padding temporal?]
-  (let [fill-layers (filter #(= :fill (:position %)) plan-layers)
-        stack-layers (filter #(= :stack (:position %)) plan-layers)
-        log? (= :log (:type scale-spec))
+   axis reads dates, for `:include`.
+
+   `shared` is the extent `:share-scales` computed across the cells of
+   a composite, or nil, and stands in for the extent this panel's own
+   layers give -- see `collect-domain`. A `:fill` axis is left alone:
+   it is normalized to 0 to 1 and reads no column extent at all."
+  ([plan-layers scale-spec padding temporal?]
+   (compute-global-y-domain plan-layers scale-spec padding temporal? nil))
+  ([plan-layers scale-spec padding temporal? shared]
+   (let [fill-layers (filter #(= :fill (:position %)) plan-layers)
+         stack-layers (filter #(= :stack (:position %)) plan-layers)
+         log? (= :log (:type scale-spec))
         ;; What `:include` asks for, beside whatever the marks ask for.
         ;; Read once here so a categorical y or a `:domain` beside it is
         ;; reported whichever branch below answers.
-        y-categorical? (and (seq plan-layers)
-                            (let [d (some :y-domain plan-layers)]
-                              (boolean (and d (seq d) (not (number? (first d)))))))
-        wanted (include-anchors :y scale-spec (not y-categorical?) temporal?)
+         y-categorical? (and (seq plan-layers)
+                             (let [d (some :y-domain plan-layers)]
+                               (boolean (and d (seq d) (not (number? (first d)))))))
+         wanted (include-anchors :y scale-spec (not y-categorical?) temporal?)
         ;; Marks whose visual identity anchors at y=0 (rectangle base, fill
         ;; baseline, lollipop stem). :rect is the categorical-bar mark (from
         ;; lay-bar, whether counting or using y heights); :bar is the
         ;; histogram mark.
-        zero-baseline-marks #{:bar :rect :lollipop :area}
-        needs-zero? (and (not log?)
-                         (some #(zero-baseline-marks (:mark %)) plan-layers))]
-    (cond
+         zero-baseline-marks #{:bar :rect :lollipop :area}
+         needs-zero? (and (not log?)
+                          (some #(zero-baseline-marks (:mark %)) plan-layers))]
+     (cond
       ;; Fill mode: normalized to [0, 1], which `:include` may still
       ;; widen -- a proportion axis asked to reach a value outside 0 to
       ;; 1 reaches it, rather than ignoring the request.
-      (seq fill-layers)
-      (pad-domain-anchored [0.0 1.0] wanted scale-spec 0.0)
+       (seq fill-layers)
+       (pad-domain-anchored [0.0 1.0] wanted scale-spec 0.0)
 
       ;; Stack mode: read pre-computed y0/y1 values from adjusted layers
-      (seq stack-layers)
-      (let [;; Stacked rect: collect all y0 and y1 values
-            rect-vals (for [l stack-layers
-                            :when (:categories l)
-                            g (:groups l)
-                            {:keys [y0 y1]} (:counts g)
-                            v [y0 y1]
-                            :when v]
-                        v)
+       (seq stack-layers)
+       (let [;; Stacked rect: collect all y0 and y1 values
+             rect-vals (for [l stack-layers
+                             :when (:categories l)
+                             g (:groups l)
+                             {:keys [y0 y1]} (:counts g)
+                             v [y0 y1]
+                             :when v]
+                         v)
             ;; Stacked area: all ys and y0s (already accumulated)
-            area-vals (for [l stack-layers
-                            :when (and (not (:categories l)) (:groups l))
-                            g (:groups l)
-                            y (concat (:ys g) (or (:y0s g) []))]
-                        y)
+             area-vals (for [l stack-layers
+                             :when (and (not (:categories l)) (:groups l))
+                             g (:groups l)
+                             y (concat (:ys g) (or (:y0s g) []))]
+                         y)
             ;; Other (non-stacked) layers: use their y-domain
-            other-yd (mapcat (fn [l]
-                               (when-not (#{:stack :fill} (:position l))
-                                 (:y-domain l)))
-                             plan-layers)
+             other-yd (mapcat (fn [l]
+                                (when-not (#{:stack :fill} (:position l))
+                                  (:y-domain l)))
+                              plan-layers)
             ;; The stacked baseline is an anchor, not a value: zero is
             ;; where the stack is measured from, so it sits on the panel
             ;; edge as an unstacked bar's does, rather than being padded
             ;; past. Log scales have no zero -- skip it and rely on the
             ;; data's own positive values for the lower bound.
-            baseline-anchors (if log? [] [0.0])
-            anchors (concat baseline-anchors wanted)
-            raw-vals (concat rect-vals area-vals other-yd)
-            all-vals (if log? (filter pos? raw-vals) raw-vals)]
-        (if (seq all-vals)
-          (let [lo (double (reduce min all-vals))
-                hi (double (reduce max all-vals))]
-            (if (or (< lo hi) (seq anchors))
-              (pad-domain-anchored [lo hi] anchors scale-spec padding)
-              [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
-          [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
+             baseline-anchors (if log? [] [0.0])
+             anchors (concat baseline-anchors wanted)
+             raw-vals (concat rect-vals area-vals other-yd)
+             all-vals (if log? (filter pos? raw-vals) raw-vals)]
+         (if (seq all-vals)
+           (let [lo (double (reduce min all-vals))
+                 hi (double (reduce max all-vals))]
+             (if (or (< lo hi) (seq anchors))
+               (pad-domain-anchored (or shared [lo hi]) anchors scale-spec padding)
+               [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
+           [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
 
       ;; Normal: collect y-domains from layers
-      :else
-      (let [all-yds (keep :y-domain plan-layers)
-            vals (mapcat (fn [d]
-                           (if (and (= 2 (count d)) (number? (first d)))
-                             d (map str d)))
-                         all-yds)]
-        (when (seq vals)
-          (if (number? (first vals))
-            (let [raw-lo (reduce min vals)
-                  raw-hi (reduce max vals)
+       :else
+       (let [all-yds (keep :y-domain plan-layers)
+             vals (mapcat (fn [d]
+                            (if (and (= 2 (count d)) (number? (first d)))
+                              d (map str d)))
+                          all-yds)]
+         (when (seq vals)
+           (if (number? (first vals))
+             (let [raw-lo (reduce min vals)
+                   raw-hi (reduce max vals)
                   ;; A baseline mark asks for zero through its mark;
                   ;; `:include` asks for values by name. One rule.
-                  anchors (concat (if needs-zero? [0.0] []) wanted)]
-              (pad-domain-anchored [raw-lo raw-hi] anchors scale-spec padding))
-            (distinct vals)))))))
+                   anchors (concat (if needs-zero? [0.0] []) wanted)]
+               (pad-domain-anchored (or shared [raw-lo raw-hi])
+                                    anchors scale-spec padding))
+             (distinct vals))))))))
 
 ;; ---- Tick Computation ----
 
@@ -2309,8 +2327,13 @@
    compute the oriented x/y domains, scale specs, and temporal extents.
    Applies the :coord :flip swap so downstream code doesn't have to.
    Does NOT compute ticks -- that happens after panel dimensions are
-   known."
-  [pd default-x-scale default-y-scale default-coord padding]
+   known.
+
+   `shared-domains` is `{:x [lo hi] :y [lo hi]}` where a composite's
+   `:share-scales` gave this cell an extent to use, and nil otherwise.
+   It is read before the flip swap, because a shared extent is decided
+   from the pose's mapping and a flip is applied to the plan."
+  [pd default-x-scale default-y-scale default-coord padding shared-domains]
   (let [;; A layer placed in a drawing-space frame is on the panel, not in
         ;; the data: its numbers are drawing units, so letting them reach a
         ;; domain would stretch the axis to a page measurement. It is left
@@ -2381,18 +2404,20 @@
                       (whole-axis-values? local-srs-y :y-domain :ys y-scale-spec))
         x-dom (or (axis-domain :x x-scale-spec
                                (collect-domain local-srs :x-domain x-scale-spec padding
-                                               (some? x-temp-ext))
+                                               (some? x-temp-ext) (:x shared-domains))
                                (some? x-temp-ext))
                   [0 1])
         y-dom (or (axis-domain :y y-scale-spec
                                (or (compute-global-y-domain domain-layers y-scale-spec padding
-                                                            (some? y-temp-ext))
+                                                            (some? y-temp-ext)
+                                                            (:y shared-domains))
                                    ;; Annotation-only panels have no plan
                                    ;; layers; their y-domain lives in the
                                    ;; synthesized stat-results.
                                    (when (empty? domain-layers)
                                      (collect-domain local-srs-y :y-domain y-scale-spec padding
-                                                     (some? y-temp-ext))))
+                                                     (some? y-temp-ext)
+                                                     (:y shared-domains))))
                                (some? y-temp-ext))
                   [0 1])
         ;; Whether anything on this panel gives the axis a meaning in
@@ -2702,6 +2727,17 @@
          shape-info (collect-shapes resolved-all)
 
          ;; Representative scale/coord (first draft layer) for plot-level decisions
+         ;; What `:share-scales` decided for this cell, stamped onto
+         ;; the leaf's opts by `inject-shared-scales`. It is an extent
+         ;; the panel's domain is computed from, not a domain written
+         ;; by the writer: a `:domain` says use exactly this, while a
+         ;; shared extent is padded and anchored as the cell's own
+         ;; values would be. Without the difference a shared axis lost
+         ;; its padding and drew its outermost marks on the panel edge.
+         shared-domains (let [x (:x-scale-domain opts)
+                              y (:y-scale-domain opts)]
+                          (when (or x y)
+                            (cond-> {} x (assoc :x x) y (assoc :y y))))
          default-x-scale {:type :linear}
          default-y-scale {:type :linear}
          default-coord :cartesian
@@ -2824,7 +2860,8 @@
                         (for [pd panel-data
                               :when (seq (:draft-layers pd))]
                           (resolve-panel-domains pd default-x-scale default-y-scale default-coord
-                                                 (:domain-padding cfg))))
+                                                 (:domain-padding cfg)
+                                                 shared-domains)))
 
          ;; Ridgeline swap: categories go on y, density on x. Swap
          ;; per-panel domains/scales/temporal extents before anything

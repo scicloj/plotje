@@ -259,15 +259,28 @@
    x-label (e.g. a multi-variable grid whose columns have different
    x axes, each titled by a strip label at the top), we still need
    room for the x-tick labels themselves; reserve tick-font-size
-   plus a small padding."
-  [{:keys [x-label?]} cfg]
+   plus a small padding.
+
+   `:min-x-label-pad` in opts raises the result to at least that many
+   drawing units, the mirror of `:min-y-label-pad` for cells set side
+   by side. Two panels in a row have the same cell height, so equal
+   x-label pads are what makes their drawing areas -- and so their y
+   scales -- line up. Each panel still gets at least the room its own
+   labels need: this is a floor, never a ceiling, so it cannot clip a
+   label. Without a floor the computed value is returned as it was, so
+   a caller comparing it with `=` against a config integer still
+   matches."
+  [{:keys [x-label?]} cfg opts]
   (let [base (cond x-label? (:label-offset cfg)
                    :else (+ (tick-font-size cfg) 6))
         angle (get cfg :x-tick-angle 0)
         extra (or (:x-tick-label-pad cfg)
                   (+ (long (* 50 (Math/abs (Math/sin (Math/toRadians (double angle))))))
-                     (if (zero? angle) 0 8)))]
-    (+ base extra)))
+                     (if (zero? angle) 0 8)))
+        computed (+ base extra)]
+    (if-let [floor (:min-x-label-pad opts)]
+      (max (double computed) (double floor))
+      computed)))
 
 (defn- y-tick-text-width
   "Over-estimate of the widest y-tick label in pixels. Runs the tick
@@ -446,7 +459,7 @@
     {:title-pad          (pad-title scene cfg)
      :subtitle-pad       (pad-subtitle scene cfg)
      :caption-pad        (pad-caption scene cfg)
-     :x-label-pad        (pad-x-label scene cfg)
+     :x-label-pad        (pad-x-label scene cfg opts)
      :y-label-pad        (pad-y-label scene cfg opts)
      :strip-h            (pad-strip-h scene cfg)
      :strip-w            (pad-strip-w scene cfg)

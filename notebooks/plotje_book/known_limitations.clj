@@ -95,11 +95,15 @@
 ;;   the title -- has no position to be given. Workaround: `:caption`
 ;;   and `:subtitle` for text below and above the panels.
 ;;
-;; - `pj/marginal` draws on `:top` and nowhere else. A right-hand
-;;   marginal needs the distribution drawn on its side, and
-;;   `:share-scales` refuses to share an axis between an upright cell
-;;   and a flipped one, so the two cells cannot be pinned to one y
-;;   range. `:right` is reported rather than drawn wrongly.
+;; - `pj/marginal` draws on `:top` and `:right`. `:bottom` and `:left`
+;;   would put the strip between the panel and the axis that describes
+;;   it, so they are reported rather than drawn.
+;;
+;; - A pose gets one marginal at a time. `pj/marginal` takes a leaf
+;;   pose and returns a composite, and a composite has no single panel
+;;   to put a second strip beside, so a scatter with a density above it
+;;   and another to its right has to be written out as a composite by
+;;   hand.
 ;;
 ;; - A `pj/marginal` on a faceted pose draws each facet's strip label
 ;;   twice, once over the marginal row and once over the row below it.
@@ -108,18 +112,20 @@
 ;;   describes its own facet. Only the repeated label is wrong, and
 ;;   there is no workaround for it.
 ;;
-;; - `(pj/marginal pose :top :histogram)` draws its tallest bar flush
-;;   against the top of the marginal panel. A value domain is not padded
-;;   at the top, which a density hides -- its tail approaches zero --
-;;   and a histogram does not. Workaround: `pj/marginal` builds a
-;;   composite whose first sub-pose is the marginal, so
+;; - `(pj/marginal pose :top :histogram)` draws its tallest bar close to
+;;   the top of the marginal panel. The value axis is padded by the same
+;;   fraction any axis is, and the strip is a quarter of the height, so
+;;   the gap comes to a few drawing units -- which a density hides,
+;;   since its tail approaches zero, and a histogram does not.
+;;   Workaround: `pj/marginal` builds a composite whose marginal cell is
+;;   the first sub-pose for `:top` and the second for `:right`, so
 ;;   `(update-in m [:poses 0] pj/scale :y {:include n})` with `n` above
-;;   the tallest count gives the strip room over the bars.
+;;   the tallest count gives the strip more room over the bars.
 ;;
 ;; - The pose's `:color` mapping does not reach its marginal. A
-;;   marginal describes the pose's `:x` column as a whole, so one
-;;   undivided curve or set of bars is drawn over however many colored
-;;   groups the panel below carries. Workaround: facet instead of
+;;   marginal describes one whole column, so one undivided curve or set
+;;   of bars is drawn beside however many colored groups the panel
+;;   carries. Workaround: facet instead of
 ;;   coloring -- faceting does reach the marginal, giving one
 ;;   distribution per panel.
 

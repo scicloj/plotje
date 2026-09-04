@@ -918,14 +918,21 @@
 
 (defmethod layer->membrane :bar [layer ctx]
   (let [{:keys [style groups]} layer
-        {:keys [sx sy]} ctx
+        ;; A bin edge runs along one axis and its count along the other,
+        ;; and `:coord :flip` swaps which is which: the plan has already
+        ;; swapped the domains, so under a flip `sx` scales a count and
+        ;; `sy` scales a bin edge. Read through `orient-scales`, as
+        ;; every other mark measured from a baseline does -- scaling a
+        ;; bin edge with the count scale drew every bar of a flipped
+        ;; histogram inside the first few drawing units of the panel.
+        {:keys [flipped? band-s num-s]} (orient-scales ctx)
         coord-px (:coord-px ctx)
         {:keys [opacity]} style
-        y-base (numeric-baseline ctx false)
+        base (numeric-baseline ctx flipped?)
         scaled (for [{:keys [color bars]} groups
                      {:keys [lo hi count]} bars]
                  {:color color
-                  :corners [(sx lo) (sx hi) (sy y-base) (sy count)]})
+                  :corners [(band-s lo) (band-s hi) (num-s base) (num-s count)]})
         drawable (filter #(apply drawable-corner? (:corners %)) scaled)
         dropped (- (clojure.core/count scaled) (clojure.core/count drawable))]
     (when (pos? dropped)
@@ -935,8 +942,8 @@
                     " reading for it).")))
     (vec
      (for [{:keys [color corners]} drawable
-           :let [[x-lo x-hi y-lo y-hi] corners
-                 pts (bar-polygon coord-px false x-lo x-hi y-lo y-hi)
+           :let [[bin-lo bin-hi val-lo val-hi] corners
+                 pts (bar-polygon coord-px flipped? bin-lo bin-hi val-lo val-hi)
                  [cr cg cb _] color]]
        (ui/with-color [cr cg cb (or opacity 1.0)]
          (ui/with-style ::ui/style-fill
