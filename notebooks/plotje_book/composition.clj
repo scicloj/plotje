@@ -121,6 +121,11 @@ shared-x
                            (and (= 2 (:panels s))
                                 (= 300 (:points s)))))])
 
+;; A date column pools the same way -- an axis holds a date as a number
+;; of milliseconds, so the union across cells is defined, and the cells
+;; are ticked over it rather than each over its own dates. See
+;; [Change Over Time](./plotje_book.change_over_time.html#two-series-on-one-date-axis).
+;;
 ;; Both panels share the sepal-length x-domain even though their y
 ;; columns differ. Column bucketing is automatic: only siblings whose
 ;; effective x-column matches share a scale. Panels with different

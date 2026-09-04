@@ -227,6 +227,107 @@ temp-pose
 ;; See [Inference Rules](./plotje_book.inference_rules.html#temporal-columns)
 ;; for details on how dates are detected and formatted.
 
+;; ## Two Series on One Date Axis
+;;
+;; Two series measured over different stretches of time read against
+;; each other only if their axes agree. Stacked without saying so, each
+;; panel spans its own dates across the same width, so a reading above
+;; another stands for a different month.
+
+(def zurich
+  {:date [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"
+          #inst "2024-04-01" #inst "2024-05-01" #inst "2024-06-01"]
+   :temperature [3 5 9 14 19 23]})
+
+(def athens
+  {:date [#inst "2024-05-01" #inst "2024-06-01" #inst "2024-07-01"
+          #inst "2024-08-01" #inst "2024-09-01" #inst "2024-10-01"]
+   :temperature [25 28 31 32 27 22]})
+
+(def cities
+  [(-> zurich (pj/lay-line :date :temperature) pj/lay-point)
+   (-> athens (pj/lay-line :date :temperature) pj/lay-point)])
+
+(pj/arrange cities {:cols 1})
+
+(kind/test-last
+ [(fn [v]
+    (let [panels (mapv #(-> % :plan :panels first) (:sub-plots (pj/plan v)))]
+      (and (= 2 (:panels (pj/svg-summary v)))
+           (= 12 (:points (pj/svg-summary v)))
+           ;; Each panel spans its own dates and is ticked over them.
+           (apply not= (mapv :x-domain panels))
+           (apply not= (mapv #(:labels (:x-ticks %)) panels)))))])
+
+;; `:share-scales #{:x}` pools the date column across the cells. The
+;; pooled range is the union of both, so each series occupies the part
+;; of the axis it covers, and both panels carry the same tick labels.
+;; One above the other, that is something to look at rather than to
+;; check: a month is at the same place in both panels.
+
+(pj/arrange cities {:cols 1 :share-scales #{:x}})
+
+(kind/test-last
+ [(fn [v]
+    (let [panels (mapv #(-> % :plan :panels first) (:sub-plots (pj/plan v)))
+          widths (->> (tree-seq vector? seq (pj/plot v))
+                      (filter #(and (vector? %) (= :rect (first %))
+                                    (= "rgb(232,232,232)" (:fill (second %)))))
+                      (mapv #(double (:width (second %)))))]
+      (and (= 2 (:panels (pj/svg-summary v)))
+           (= 12 (:points (pj/svg-summary v)))
+           (apply = (mapv :x-domain panels))
+           (apply = (mapv #(:labels (:x-ticks %)) panels))
+           ;; And the panels are the same width, which is what puts a
+           ;; month at the same place in both.
+           (apply = widths))))])
+
+;; An axis holds a date as a number of milliseconds, which is what lets
+;; the two ranges be pooled at all.
+;;
+;; The two panels line up here because their y axes label at the same
+;; width. Where they do not -- one series in single digits and one in
+;; millions -- each panel reserves the room its own labels need, and the
+;; shared axis comes out spanning different widths. Writing the
+;; composite out and setting `:align-panels` reserves the same room on
+;; every cell; the
+;; [Composition](./plotje_book.composition.html#shared-scales) chapter
+;; covers that and `:share-scales` on any column.
+
+;; ## A Distribution of the Dates
+;;
+;; A time series says what the readings were, and less about when they
+;; were taken. `pj/marginal` puts a distribution of the pose's `:x`
+;; column in a thin panel above the plot, sharing its axis -- and on a
+;; date column that distribution is how the observations are spread
+;; through time.
+
+(def sightings
+  {:date [#inst "2021-03-14" #inst "2021-07-02" #inst "2021-11-28"
+          #inst "2022-02-09" #inst "2022-05-30" #inst "2022-06-11"
+          #inst "2022-06-25" #inst "2022-07-08" #inst "2022-09-17"
+          #inst "2023-01-22" #inst "2023-08-05" #inst "2024-02-19"]
+   :count [2 5 3 8 6 11 9 14 12 7 4 2]})
+
+(-> sightings
+    (pj/lay-point :date :count)
+    (pj/marginal :top :histogram))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          panels (mapv #(-> % :plan :panels first) (:sub-plots (pj/plan v)))]
+      (and (= 2 (:panels s))
+           (= 12 (:points s))
+           ;; Five bars over twelve sightings.
+           (= 5 (:polygons s))
+           ;; The strip and the plot are pinned to one range, so a bar
+           ;; stands over the readings it counts.
+           (apply = (mapv :x-domain panels))
+           ;; The strip's own date ticks are dropped; the axis below
+           ;; describes both panels.
+           (= [] (:values (:x-ticks (first panels)))))))])
+
 ;; ## Smoothed Time Series
 
 ;; A LOESS smoother overlaid on a noisy time series makes the
