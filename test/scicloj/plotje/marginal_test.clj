@@ -2,7 +2,16 @@
   "`pj/marginal` and the `:align-panels` pass it rests on."
   (:require [clojure.test :refer [deftest is testing]]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]
+            [tablecloth.api :as tc]
             [scicloj.plotje.api :as pj]))
+
+(def dated
+  "A temporal x, a numeric y, and a categorical column."
+  (tc/dataset {:d (mapv #(java.time.LocalDate/parse %)
+                        ["2020-01-01" "2020-03-01" "2020-06-01"
+                         "2020-09-01" "2020-12-01"])
+               :v [1 4 2 5 3]
+               :c ["a" "b" "a" "b" "a"]}))
 
 (def iris (rdatasets/datasets-iris))
 
@@ -132,6 +141,41 @@
       (is (< 200.0 (span upright :y)))
       (is (< 200.0 (span flipped :y))))))
 
+(deftest marginal-on-a-temporal-axis-test
+  ;; `pj/marginal` writes `:share-scales` for the writer, so a refusal
+  ;; from the sharing machinery names a setting they never wrote. Both
+  ;; answers below now come from `pj/marginal` itself.
+  (testing "a right marginal is unaffected by dates on the other axis"
+    ;; The strip describes the numeric :y; that the :x holds dates is
+    ;; nothing to do with it. Refusing this was the visible cost of
+    ;; `assert-share-bucket-numeric!` rejecting a bucket of one cell.
+    (let [pose (-> dated (pj/lay-point :d :v) (pj/marginal :right))
+          y-doms (mapv #(-> % :plan :panels first :y-domain)
+                       (:sub-plots (pj/plan pose)))]
+      (is (= 2 (:panels (pj/svg-summary pose))))
+      (is (apply = y-doms))
+      (is (= (-> (pj/plan (pj/lay-point dated :d :v)) :panels first :y-domain)
+             (first y-doms))
+          "and the scatter's own y range is untouched")))
+  (testing "a right marginal of a temporal column draws"
+    (let [pose (-> dated (pj/lay-point :v :d) (pj/marginal :right))
+          y-doms (mapv #(-> % :plan :panels first :y-domain)
+                       (:sub-plots (pj/plan pose)))]
+      (is (= 2 (:panels (pj/svg-summary pose))))
+      (is (apply = y-doms))))
+  (testing "a top marginal of a temporal column names the axis it shares"
+    (is (thrown-with-msg? Exception #"shared axis cannot be temporal"
+                          (-> dated (pj/lay-point :d :v) (pj/marginal :top)))))
+  (testing "a categorical column is refused by pj/marginal, on either side"
+    (is (thrown-with-msg? Exception #"pj/marginal draws a density or a histogram"
+                          (-> dated (pj/lay-point :c :v) (pj/marginal :top))))
+    (is (thrown-with-msg? Exception #"pj/marginal draws a density or a histogram"
+                          (-> dated (pj/lay-point :v :c) (pj/marginal :right)))))
+  (testing "and the distribution the top case refuses draws on its own"
+    ;; The refusal is about sharing an axis, not about the column, so
+    ;; the message's suggestion has to work.
+    (is (= 1 (:panels (pj/svg-summary (pj/lay-histogram dated :d)))))))
+
 (deftest marginal-refusals-test
   (let [scatter (pj/lay-point iris :sepal-length :sepal-width)]
     (testing "a side that would put the distribution behind an axis is refused"
@@ -148,4 +192,14 @@
                             (pj/marginal (pj/pose iris) :top))))
     (testing "and a right marginal names the :y column instead"
       (is (thrown-with-msg? Exception #":y column"
-                            (pj/marginal (pj/pose iris) :right))))))
+                            (pj/marginal (pj/pose iris) :right))))
+    (testing "raw data is told it has no mapping, not just no :x"
+      ;; `pj/marginal` is the one pose function that does not lift raw
+      ;; data, so the error has to say which of the two is missing.
+      (is (thrown-with-msg? Exception #"carries no mapping yet"
+                            (pj/marginal iris :top))))
+    (testing "a pose that has a mapping but not that axis is not told that"
+      (let [msg (try (pj/marginal (pj/pose iris {:color :species}) :top)
+                     (catch Exception e (ex-message e)))]
+        (is (re-find #":x column" msg))
+        (is (not (re-find #"carries no mapping" msg)))))))

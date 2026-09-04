@@ -3647,11 +3647,54 @@
              (throw (ex-info (str "pj/marginal needs the pose to name "
                                   (if (= :right side) "a :y" "an :x")
                                   " column, since that is the column a "
-                                  (pr-str side) " marginal describes.")
+                                  (pr-str side) " marginal describes."
+                                  ;; `pj/marginal` is the one pose
+                                  ;; function that does not lift raw
+                                  ;; data, because a marginal has no
+                                  ;; column to describe until a mapping
+                                  ;; names one. Say so rather than
+                                  ;; reporting the missing axis alone.
+                                  (when (empty? (:mapping pose))
+                                    (str " This pose carries no mapping"
+                                         " yet: give it one with pj/pose"
+                                         " or a pj/lay-* call first.")))
                              {:caller "pj/marginal"
                               :side side
                               :axis axis
                               :mapping (:mapping pose)})))
+         ;; What the column is, before a composite is built around it.
+         ;; Both refusals below reach the writer through `pj/marginal`,
+         ;; which is where they asked for the marginal; without them the
+         ;; message came from `:share-scales`, a setting `pj/marginal`
+         ;; writes for the writer and which they cannot drop.
+         {col-type :x-type temporal? :x-temporal?}
+         (resolve/infer-column-types (:data pose) {:x col})
+         _ (when (= :categorical col-type)
+             (throw (ex-info (str "pj/marginal draws a density or a histogram"
+                                  " of " (pr-str col) ", and both read"
+                                  " numbers; " (pr-str col) " is categorical."
+                                  " To count the rows in each category"
+                                  " instead, use pj/lay-bar.")
+                             {:caller "pj/marginal"
+                              :column col
+                              :column-type col-type})))
+         ;; A temporal column draws a distribution perfectly well on its
+         ;; own. What a `:top` marginal adds is a *shared* x axis, and a
+         ;; shared axis cannot be temporal yet. A `:right` marginal is
+         ;; unaffected: its column carries the panel's y, which the two
+         ;; cells reach from the same data rather than by sharing.
+         _ (when (and temporal? (= :top side))
+             (throw (ex-info (str "pj/marginal :top shares its x axis with"
+                                  " the panel below, and a shared axis"
+                                  " cannot be temporal yet, so a marginal"
+                                  " of " (pr-str col) " is not drawn."
+                                  " The distribution itself is fine on its"
+                                  " own: (pj/lay-histogram data "
+                                  (pr-str col) ").")
+                             {:caller "pj/marginal"
+                              :column col
+                              :side side
+                              :temporal? true})))
          ;; The public lay-* function rather than a bare `(lay :histogram)`:
          ;; `lay` attaches a layer carrying no column of its own, and the
          ;; binning stat then reads an x that never arrives.

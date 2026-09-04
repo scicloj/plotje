@@ -99,6 +99,14 @@
 ;;   would put the strip between the panel and the axis that describes
 ;;   it, so they are reported rather than drawn.
 ;;
+;; - A `:top` marginal cannot describe a temporal column. The strip
+;;   shares its x axis with the panel below, and a shared axis cannot be
+;;   temporal yet. The distribution itself is fine on its own, and a
+;;   `:right` marginal is unaffected, since its two cells reach the same
+;;   column from the same data rather than by sharing. Workaround: draw
+;;   the distribution as its own plot, or put the dates on `:y` and take
+;;   a `:right` marginal.
+;;
 ;; - A pose gets one marginal at a time. `pj/marginal` takes a leaf
 ;;   pose and returns a composite, and a composite has no single panel
 ;;   to put a second strip beside, so a scatter with a density above it

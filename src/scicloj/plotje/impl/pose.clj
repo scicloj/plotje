@@ -717,7 +717,15 @@
 (defn- assert-share-bucket-numeric!
   "Refuse :share-scales on a bucket whose data column is non-numeric.
    Categorical / temporal sharing is deferred to post-alpha; today
-   the silent path produces no shared domain."
+   the silent path produces no shared domain.
+
+   A bucket of one cell is left alone: sharing is between cells, and a
+   cell that shares with nobody is stamped with its own extent, which
+   is what it would have had anyway. Refusing those reported an axis
+   the writer never asked to share -- `pj/marginal` sets
+   `:share-scales` itself, so a right marginal on a numeric column was
+   refused because the *other* axis held dates, and the message named a
+   setting the writer had not written."
   [subtree axes]
   (doseq [axis axes
           [col leaves-in-bucket] (group-by #(effective-axis-col % axis) subtree)
@@ -732,7 +740,7 @@
                 vals (mapcat #(col-values (:data %)
                                           (effective-axis-col % axis))
                              filtered)]
-          :when (and (seq filtered) (seq vals) (not-any? number? vals))]
+          :when (and (< 1 (count filtered)) (seq vals) (not-any? number? vals))]
     (throw (ex-info
             (str ":share-scales " axis " refused: column "
                  (pr-str col)
