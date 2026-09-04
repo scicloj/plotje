@@ -1257,8 +1257,10 @@ s2-tree
 ;; effective `:x` column is the same share that scale's domain;
 ;; sub-poses with different `:x` columns get independent
 ;; x-domains. Same for `:y`. This is what enables SPLOM (one x down
-;; each column, one y across each row) and marginal plots (x shared
-;; between scatter and top density; right density has its own y).
+;; each column, one y across each row) and marginal plots: a top strip
+;; names the scatter's `:x` and falls in the same bucket, and a right
+;; strip names the scatter's `:y` column on its own `:x`, so it falls
+;; in a bucket of its own and is pinned to that column's extent there.
 
 (def l4-shared
   (pj/arrange
@@ -1270,11 +1272,35 @@ l4-shared
 
 (kind/test-last
  [(fn [pose]
-    (let [sub-plots (:sub-plots (pj/plan pose))
-          domains (mapv #(get-in % [:plan :panels 0 :x-scale :domain]) sub-plots)]
-      ;; Both panels share :sepal-length as x -> same x-domain
+    (let [x-domains (fn [p]
+                      (mapv #(get-in % [:plan :panels 0 :x-domain])
+                            (:sub-plots (pj/plan p))))
+          domains (x-domains pose)
+          ;; Both cells above hold the whole dataset, so their x
+          ;; domains would agree with or without the setting -- the
+          ;; example shows the shape, and this shows the effect. Two
+          ;; cells over different species have different extents of
+          ;; sepal-length, and only the shared pose pins them to one.
+          cells (fn [share]
+                  (pj/arrange
+                   [(-> iris
+                        (tc/select-rows #(= "setosa" (:species %)))
+                        (pj/pose :sepal-length :sepal-width)
+                        pj/lay-point)
+                    (-> iris
+                        (tc/select-rows #(= "virginica" (:species %)))
+                        (pj/pose :sepal-length :petal-width)
+                        pj/lay-point)]
+                   (if share {:share-scales #{:x}} {})))]
+      ;; Read from the panel rather than from its scale spec: a shared
+      ;; extent is not written as a `:domain`, so asking the scale for
+      ;; one answers nil for every cell and `nil = nil` passes whatever
+      ;; the panels were drawn against.
       (and (= 2 (count domains))
-           (= (first domains) (second domains)))))])
+           (every? some? domains)
+           (apply = domains)
+           (apply = (x-domains (cells true)))
+           (apply not= (x-domains (cells false))))))])
 
 ;; ### Rule L5: multi-pair `pj/pose` reshapes rectangular pairs into a 2D grid (SPLOM)
 ;;

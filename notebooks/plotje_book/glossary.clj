@@ -774,12 +774,13 @@ my-pose
 
 ;; ## Marginal
 ;;
-;; A **marginal** is a distribution of a panel's `:x` column, drawn in a
-;; thin panel above that panel and sharing its x axis. `pj/marginal`
-;; builds one: a vertical composite of two cells with `:share-scales`
-;; pinning the x, the marginal's duplicate x ticks and axis title
-;; dropped, and the two drawing areas aligned so a value sits at the
-;; same place in each.
+;; A **marginal** is a distribution of one of a panel's columns, drawn
+;; in a thin panel against one edge of that panel and sharing its axis
+;; for the column: the `:x` column above, the `:y` column to the right.
+;; `pj/marginal` builds one -- a composite of two cells with
+;; `:share-scales` pinning the shared axis, the marginal's duplicate
+;; ticks and axis title dropped, and the two drawing areas aligned so a
+;; value sits at the same place in each.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -789,6 +790,21 @@ my-pose
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 2 (:panels s))
                  (= 150 (:points s)))))])
+
+;; The same scatter with its `:y` column described instead. The strip
+;; is drawn under `pj/coord :flip`, so the distribution runs up the
+;; panel and its baseline stands against the scatter.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :right))
+
+(kind/test-last
+ [(fn [v] (let [panels (mapv #(-> % :plan :panels first)
+                             (:sub-plots (pj/plan v)))]
+            (and (= 2 (:panels (pj/svg-summary v)))
+                 (= (:y-domain (first panels))
+                    (:y-domain (second panels))))))])
 
 ;; ## Annotation
 ;;
@@ -1144,7 +1160,7 @@ annotated
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/overlay`, `:overlay` in a `pj/lay-*` options map |
-;; | Marginal | A distribution of a panel's `:x` column, drawn above it on a shared x axis | `pj/marginal` |
+;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make sibling poses of a composite share data ranges across named axes | `:share-scales` in composite `:opts` |
 ;; | Annotation | Reference marks (rules, bands); positions in `:mapping` as written values today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |

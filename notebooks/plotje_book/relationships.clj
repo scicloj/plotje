@@ -256,8 +256,9 @@
 ;;
 ;; A scatter shows how two columns move together and says little about
 ;; how either is spread on its own. `pj/marginal` puts that spread back:
-;; a distribution of the pose's `:x` column, drawn in a thin panel above
-;; the scatter and sharing its x axis.
+;; a distribution of one of the pose's columns, drawn in a thin panel
+;; against one edge of the scatter and sharing the scatter's axis for
+;; that column. `:top` describes the `:x` column.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -268,10 +269,33 @@
             (and (= 2 (:panels s))
                  (= 150 (:points s)))))])
 
-;; The strip keeps its own value scale, its duplicate x ticks and axis
+;; The strip keeps its own value scale, its duplicate ticks and axis
 ;; title are dropped, and the two drawing areas are aligned so a value
 ;; sits at the same place in both. `:histogram` draws bars instead of a
 ;; curve, and `:size` sets the strip's share of the height.
+;;
+;; `:right` describes the `:y` column instead, in a strip beside the
+;; scatter. The distribution is drawn under `pj/coord :flip`, so it
+;; runs up the panel with its baseline against the scatter:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/marginal :right :histogram))
+
+(kind/test-last
+ [(fn [v] (let [panels (mapv #(-> % :plan :panels first)
+                             (:sub-plots (pj/plan v)))]
+            (and (= 2 (:panels (pj/svg-summary v)))
+                 (= 150 (:points (pj/svg-summary v)))
+                 ;; The scatter and the strip are pinned to one range
+                 ;; of sepal width.
+                 (= (:y-domain (first panels))
+                    (:y-domain (second panels))))))])
+
+;; A pose takes one marginal: `pj/marginal` returns a composite, and a
+;; composite has no single panel for a second strip to sit against. A
+;; scatter with a distribution on both edges has to be written out as a
+;; composite by hand.
 ;;
 ;; A `:color` mapping does not reach the strip -- it describes the
 ;; column as a whole. Faceting does reach it, giving one distribution
