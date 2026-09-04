@@ -406,6 +406,12 @@ two-panel
 ;; It is wrong for two measures that belong on one axis. `pj/overlay`
 ;; turns the default off: every layer added after it joins the panel it
 ;; is added to, keeping its own columns.
+;;
+;; Where the columns are written makes no difference: `{:y :tax}` in a
+;; layer's options map asks for a panel exactly as `(pj/lay-bar :tax
+;; :cohort)` does. A written value is not a column and asks for no
+;; panel, so a label at `{:x 5 :y 10}` annotates the panel it is added
+;; to.
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     pj/overlay

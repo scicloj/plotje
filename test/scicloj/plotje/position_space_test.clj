@@ -99,8 +99,13 @@
       (is (< 1 (count (->> (pj/plan from-col) :panels first :layers last
                            :groups first :labels distinct))))))
   (testing "and it broadcasts over the layer's own data when it brings some"
+    ;; `:overlay` is what keeps the layer on this panel. Its `:y` names a
+    ;; column no panel here draws, and identity reads the columns a layer
+    ;; names wherever they are written, so without asking it would go to a
+    ;; panel of its own.
     (is (= 2 (n-marks (pj/lay-text scatter {:x 2.0 :y :w
                                             :text :t
+                                            :overlay true
                                             :data {:t ["a" "b"] :w [3.0 4.0]}}))))))
 
 (deftest a-layer-of-values-alone-draws-one-mark

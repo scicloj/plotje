@@ -1502,15 +1502,15 @@
                      " names a column that doesn't exist in the data"
                      " the new sub-pose would use. Available columns: "
                      (vec (sort col-names))
-                     ". The " k " differs from the receiving pose's"
-                     " position, so this layer would land on a new"
-                     " sub-pose -- but that sub-pose has no column"
-                     " " (pr-str col) " to map to. If you meant to"
-                     " overlay on the existing panel, align the"
-                     " layer's columns with the pose's position"
-                     " (rename the data's columns if needed). If you"
-                     " meant a separate sub-pose, pass `:data` on this"
-                     " lay-* call with the new columns.")
+                     ". The " k " differs from the column the"
+                     " receiving pose draws, so this layer would land"
+                     " on a new sub-pose -- but that sub-pose has no"
+                     " column " (pr-str col) " to map to. If you meant"
+                     " to draw this layer on the existing panel, write"
+                     " pj/overlay before it, or {:overlay true} in its"
+                     " own options map. If you meant a separate"
+                     " sub-pose, pass `:data` on this lay-* call with"
+                     " the new columns.")
                 {:caller (str "pj/lay-" (layer-type-name layer-type))
                  :key k :column col :available (sort col-names)}))))))
 
@@ -1846,6 +1846,30 @@
   [layer-type-key]
   (:x-only (layer-type/lookup layer-type-key)))
 
+(defn- identity-columns
+  "The `:x` / `:y` entries of a layer's own mapping that name a column of
+   `data` -- the part of a mapping that says which panel the layer
+   belongs on.
+
+   Identity reads the columns a layer names, and a layer names them
+   either in a `lay-*` argument slot or in its options map. Both reach
+   here. A written value is not a column: it places a mark on the panel
+   the layer is added to and asks for no panel of its own, so
+   `(pj/lay-text pose {:x 7.5 :y 4.2 :text \"note\"})` annotates the
+   panel rather than starting one. The layer's data answers which of the
+   two a value is -- the same question `pose/leaf->draft` asks when it
+   draws the layer. With no data to ask, a keyword or a string is taken
+   for a column name, which is the reading the draft will give it."
+  [mapping data]
+  (let [col-names (when data (set (tc/column-names data)))]
+    (into {}
+          (filter (fn [[_ v]]
+                    (let [src (pose/mapping-source v)]
+                      (if col-names
+                        (contains? col-names src)
+                        (resolve/column-ref? src)))))
+          (select-keys mapping [:x :y]))))
+
 (defn- lay-on-pose
   "Append a layer to a pose following the DFS-last identity rule.
 
@@ -1886,6 +1910,17 @@
                             (:overlay built)
                             (:overlay fr)))
         bare-layer (dissoc built :overlay)
+        ;; A position written in the options map is the layer's own
+        ;; mapping and stays there, and it decides which panel the layer
+        ;; lands on exactly as one written in an argument slot does.
+        ;; Before this, the two spellings meant different things: a
+        ;; second `:y` in the options map joined the panel silently, and
+        ;; `{:overlay false}` could not undo it, because such a layer was
+        ;; never a candidate to start a panel.
+        position-mapping (merge position-mapping
+                                (identity-columns (:mapping bare-layer)
+                                                  (or (:data bare-layer)
+                                                      (:data fr))))
         ;; What the mapping *names*, not how it is written: a scale
         ;; written by `pj/scale` puts a map under `:x` that names no
         ;; position, and a position written in full names one.
@@ -1931,7 +1966,27 @@
           ;; colour, the `:bar-width`, the `:bins`. The layer names no
           ;; position, which is why it is being stamped at all, so
           ;; nothing it carries is overridden.
-          (let [leaf-pos (select-keys (:mapping fr) [:x :y])
+          (let [;; A layer that names a y and no x -- which only an options
+                ;; map can write -- would go to a panel with no x at all.
+                ;; Every layer type draws along an x, so the panel it
+                ;; leaves supplies one, where the data the new sub-pose
+                ;; reads carries that column: `(-> data (pj/pose :X)
+                ;; (pj/lay-line {:y :Y}) (pj/lay-line {:y :Z}))` gives two
+                ;; panels over the same `:X`. The mirror case is left
+                ;; alone, because whether a layer type needs a y depends
+                ;; on the type -- a histogram named on x alone wants a
+                ;; panel with no y.
+                new-cols (when-let [d (or (:data bare-layer) (:data fr))]
+                           (set (tc/column-names d)))
+                leaf-x-col (pose/mapping-source (:x leaf-mapping))
+                position-mapping (if (and (pose/mapping-source (:y position-mapping))
+                                          (not (pose/mapping-source (:x position-mapping)))
+                                          leaf-x-col
+                                          (or (nil? new-cols)
+                                              (contains? new-cols leaf-x-col)))
+                                   (assoc position-mapping :x (:x leaf-mapping))
+                                   position-mapping)
+                leaf-pos (select-keys (:mapping fr) [:x :y])
                 stamped (update fr :layers
                                 (fn [ls]
                                   (mapv (fn [l]
@@ -1947,9 +2002,32 @@
                 (promote-leaf position-mapping)
                 (add-leaf-layer-to-composite position-mapping bare-layer)
                 prepare-pose))
-          (update fr :layers (fnil conj [])
-                  (elide-empty-maps
-                   (update bare-layer :mapping (fnil merge {}) position-mapping)))))
+          ;; The layer joins this leaf: it names the same columns, or an
+          ;; overlay was asked for. Where it names an axis the leaf does
+          ;; not name at all, the leaf takes that column, so that a later
+          ;; layer naming a different column for that axis disagrees with
+          ;; it rather than joining in silence. An overlay leaves the
+          ;; leaf's mapping as it was -- the axis keeps the name of the
+          ;; panel's own column.
+          (let [adopt (if overlay?
+                        {}
+                        (select-keys position-mapping
+                                     (remove #(pose/mapping-source
+                                               (get (:mapping fr) %))
+                                             [:x :y])))]
+            (cond-> fr
+              (seq adopt)
+              (update :mapping #(pose/merge-mappings (or % {}) adopt))
+
+              :always
+              (update :layers (fnil conj [])
+                      (elide-empty-maps
+                       ;; The layer's own mapping wins: an options map may
+                       ;; have written a value where the position names a
+                       ;; column, and `{:x 2.0}` on a label is the place
+                       ;; the label goes, not the panel's column.
+                       (update bare-layer :mapping
+                               #(merge position-mapping %))))))))
 
       :else
       (update fr :layers (fnil conj []) bare-layer))))
@@ -2746,7 +2824,13 @@
    `{:overlay false}` on one `lay-*` call opts that layer out, and
    `(pj/overlay pose false)` turns it off from there on. A layer whose
    columns already match the panel is unaffected -- it was joining
-   anyway."
+   anyway.
+
+   Where the columns are written makes no difference: an `:x` or `:y` in
+   the options map asks for a panel exactly as one in an argument slot
+   does, and `pj/overlay` answers both. A written value names no panel
+   -- `{:x 7.5 :y 4.2 :text \"note\"}` annotates the panel it is added
+   to -- so an annotation needs no overlay."
   ([pose-or-data] (overlay pose-or-data true))
   ([pose-or-data on?]
    (let [fr (->pose pose-or-data "pj/overlay")]

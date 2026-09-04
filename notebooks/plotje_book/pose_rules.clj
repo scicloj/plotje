@@ -557,6 +557,48 @@ composite-pose
          (= {:x :petal-length :y :petal-width}
             (:mapping (second (:poses fr))))))])
 
+
+;; **Where the columns are written does not change the rule.** A layer
+;; names its columns either in the call's argument slots or in its
+;; options map, and identity reads both alike:
+;; `(pj/lay-line pose :sepal-length :petal-width)` and
+;; `(pj/lay-line pose {:x :sepal-length :y :petal-width})` land on the
+;; same leaf. A written value is not a column -- it places a mark on the
+;; panel the layer is added to and asks for no panel of its own -- and
+;; the layer's data answers which of the two a value is.
+;;
+;; Two lines over one `:x`, each naming its own `:y` in an options map,
+;; therefore draw two panels:
+
+(-> {:X [1 2 3 4 5] :Y [1 2 3 4 5] :Z [1 4 9 16 25]}
+    (pj/pose :X)
+    (pj/lay-line {:y :Y})
+    (pj/lay-line {:y :Z}))
+
+(kind/test-last
+ [(fn [pose]
+    ;; The panel each line left supplies the `:x` the other names no
+    ;; column for, so both panels are drawn over :X.
+    (and (= 2 (count (:poses pose)))
+         (= {:x :X :y :Y} (:mapping (first (:poses pose))))
+         (= {:x :X :y :Z} (:mapping (second (:poses pose))))))])
+
+;; A written value in the same slot joins instead. Here `:x` and `:y`
+;; are numbers on a dataset that has no column named 2, so the label is
+;; drawn on the panel the points are:
+
+(-> {:X [1 2 3 4 5] :Y [1 2 3 4 5] :Z [1 4 9 16 25]}
+    (pj/lay-point :X :Y)
+    (pj/lay-text {:x 2 :y 4 :text "a note"}))
+
+(kind/test-last
+ [(fn [pose]
+    (and (nil? (:poses pose))
+         (= 2 (count (:layers pose)))))])
+
+;; `pj/overlay` is how a layer that does name other columns stays on the
+;; panel -- see Rule LP5.
+
 ;; ### Rule LP3: on a composite, position-carrying `lay-*` misses append a new leaf at root
 ;;
 ;; When `lay-*` carries `:x`/`:y` and **no** descendant leaf has

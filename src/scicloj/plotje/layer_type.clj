@@ -55,7 +55,7 @@
    :position "Position adjustment keyword — how overlapping groups are arranged (see pj/position-doc)"
    :nudge-x "Shift all x-coordinates by this data-space amount"
    :nudge-y "Shift all y-coordinates by this data-space amount"
-   :overlay "Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own. `pj/overlay` sets the same thing for every layer added after it."
+   :overlay "Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own -- whether those columns are written in the argument slots or here in the options map. A written value in :x or :y names no panel, so an annotation joins without asking. `pj/overlay` sets the same thing for every layer added after it."
    :in "The space this layer's :x and :y are in — :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). It does not widen to the other aesthetics; to take one axis off its scale on its own, write {:y {:column :b :scale false}}. An unscaled layer is placed on the panel rather than in the data, so it does not move the axis domains"
    :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :nudge-x this is not a data value, so it works on a categorical axis and does not move the axis domain — use it to clear a label of the mark it labels"
    :offset-y "Shift the whole layer down by this many drawing units, after the scales. See :offset-x"

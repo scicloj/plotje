@@ -978,7 +978,7 @@
   "Build a focused error message for a missing column reference.
    When the layer carries its own :data and the failing key was
    inherited from the pose, surface that asymmetry and offer two
-   fixes (rename to align with pose for overlay, or override on
+   fixes (`pj/overlay` to keep it on the panel, or override on
    the layer to create a separate sub-pose).
 
    `explicit-column?` marks a reference the writer wrote as
@@ -993,10 +993,10 @@
            ", inherited from the pose's mapping, names a column"
            " absent from this layer's :data. Available columns: "
            (vec (sort-by str col-names))
-           ". To overlay on the existing panel, rename the column"
-           " in :data to " (pr-str col) ". To draw this layer on"
-           " a separate sub-pose, set " k " on the layer call"
-           " to a column that exists in :data.")
+           ". To draw this layer on the existing panel, write"
+           " pj/overlay before it, or {:overlay true} in its own"
+           " options map. To draw it on a separate sub-pose, set "
+           k " on the layer call to a column that exists in :data.")
       ;; Default: simple "not found" with the available columns
       (str "Column " col " (from " k ") not found in dataset."
            " Available: " (sort-by str col-names)
