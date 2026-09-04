@@ -259,6 +259,17 @@
 ;; - `pj/plan` called on a plan or on a hiccup value now throws a
 ;;   clear error. Call `pj/plan` only on poses.
 
+;; - An `:x` or `:y` written in a `pj/lay-*` options map does not decide
+;;   which panel the layer lands on. Identity reads the columns in the
+;;   call's argument slots, so a `:X`/`:Z` line added after a `:X`/`:Y`
+;;   line gives two panels when both are written as arguments and one
+;;   panel when the second is written `(pj/lay-line :X {:y :Z})` -- and a
+;;   `{:y :Z}` layer joins a pose that already draws `:Y` the same way.
+;;   `{:overlay false}` does not undo it, since a layer whose `:x` and
+;;   `:y` are in the options map was never treated as one that starts a
+;;   panel. Workaround: write the columns in the argument slots for a
+;;   layer meant to have a panel of its own.
+
 ;; ## Mixing Keyword and String Column References
 ;;
 ;; - Mapping the same column with a keyword in one place and a
