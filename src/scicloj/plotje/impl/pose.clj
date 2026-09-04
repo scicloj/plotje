@@ -607,9 +607,19 @@
       (remove nil? (ds col-ref)))))
 
 (defn- numeric-domain
-  "[lo hi] across the numeric values in a sequence, or nil if none."
+  "[lo hi] across the numeric values in a sequence, or nil if none.
+
+   A temporal value counts as numeric here, read as the epoch
+   milliseconds an axis holds it in. That is the same reading
+   `axis-domain` gives a `:domain` written in dates, so a shared extent
+   and a written one arrive at the plan in the same units."
   [vals]
-  (let [nums (filter number? vals)]
+  (let [nums (keep (fn [v]
+                     (cond
+                       (number? v) v
+                       (resolve/temporal-value? v) (resolve/temporal->epoch-ms v)
+                       :else nil))
+                   vals)]
     (when (seq nums)
       [(dfn/reduce-min nums) (dfn/reduce-max nums)])))
 
@@ -714,10 +724,15 @@
                   " is ignored. Drop one of the two to remove the"
                   " conflict."))))
 
-(defn- assert-share-bucket-numeric!
-  "Refuse :share-scales on a bucket whose data column is non-numeric.
-   Categorical / temporal sharing is deferred to post-alpha; today
-   the silent path produces no shared domain.
+(defn- assert-share-bucket-has-extent!
+  "Refuse :share-scales on a bucket whose data column has no extent to
+   pool -- a categorical one.
+   A category has no extent to pool, so the silent path would produce
+   no shared domain and the cells would quietly disagree.
+
+   A temporal column is shared: an axis holds dates as epoch
+   milliseconds, so the union is defined, and `numeric-domain` reads
+   them that way.
 
    A bucket of one cell is left alone: sharing is between cells, and a
    cell that shares with nobody is stamped with its own extent, which
@@ -740,14 +755,15 @@
                 vals (mapcat #(col-values (:data %)
                                           (effective-axis-col % axis))
                              filtered)]
-          :when (and (< 1 (count filtered)) (seq vals) (not-any? number? vals))]
+          :when (and (< 1 (count filtered)) (seq vals)
+                     (not-any? #(or (number? %) (resolve/temporal-value? %)) vals))]
     (throw (ex-info
             (str ":share-scales " axis " refused: column "
                  (pr-str col)
-                 " is non-numeric across all sharing cells, so a"
+                 " is categorical across all sharing cells, so a"
                  " union domain is not defined. Drop :share-scales"
-                 " on this axis, or share scales only on numeric"
-                 " columns.")
+                 " on this axis, or share scales only on numerical"
+                 " or temporal columns.")
             {:caller "share-scales"
              :axis axis
              :column col}))))
@@ -784,7 +800,7 @@
                                                     :data inherited-data}
                                                    [])]
                          (validate-share-bucket-compatibility! subtree my-shares)
-                         (assert-share-bucket-numeric! subtree my-shares)
+                         (assert-share-bucket-has-extent! subtree my-shares)
                          (warn-share-scales-overrides-free! subtree my-shares)
                          (into {}
                                (keep

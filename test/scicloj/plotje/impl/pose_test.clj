@@ -409,7 +409,7 @@
       (is (= "" out)))))
 
 (deftest inject-shared-scales-rejects-all-categorical-bucket-test
-  (testing "share-scales refuses when no cell in the bucket has numeric values"
+  (testing "share-scales refuses when no cell in the bucket has an extent"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x ["a" "b"] :y [1.0 2.0]})
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}
@@ -417,8 +417,25 @@
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"non-numeric across all sharing cells"
-           (pose/inject-shared-scales tree))))))
+           #"categorical across all sharing cells"
+           (pose/inject-shared-scales tree)))))
+  (testing "but a temporal bucket is shared, read as epoch milliseconds"
+    ;; A date has an extent; a category does not. The stamp is in the
+    ;; units an axis holds a date in, which is what a `:domain` written
+    ;; in dates is converted to as well.
+    (let [d (fn [s] (java.time.LocalDate/parse s))
+          tree {:share-scales #{:x}
+                :poses [{:data (tc/dataset {:x [(d "2020-01-01") (d "2020-06-01")]
+                                            :y [1.0 2.0]})
+                         :layers [{:layer-type :point :mapping {:x :x :y :y}}]}
+                        {:data (tc/dataset {:x [(d "2020-03-01") (d "2020-12-01")]
+                                            :y [3.0 4.0]})
+                         :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}
+          stamped (mapv #(get-in % [:opts :x-scale-domain])
+                        (:poses (pose/inject-shared-scales tree)))]
+      (is (apply = stamped))
+      (is (= 2 (count (first stamped))))
+      (is (every? number? (first stamped))))))
 
 (deftest inject-shared-scales-explicit-density-stat-test
   (testing "explicit :stat :density triggers the exemption"

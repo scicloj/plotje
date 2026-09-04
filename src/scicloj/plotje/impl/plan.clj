@@ -2388,8 +2388,23 @@
         ;; temporal axis is spelled in dates and the axis holds
         ;; epoch-ms.
         resolved-draft-layers (:resolved pd)
-        x-temp-ext (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
-        y-temp-ext (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
+        ;; A temporal axis picks its ticks over the extent the data
+        ;; covers rather than over the padded domain, so a shared axis
+        ;; has to share that extent too. Sharing the domain alone gave
+        ;; two cells one range and two sets of labels -- the same span
+        ;; ticked Jan to May on one cell and Apr to Oct on the other.
+        ;; The shared extent arrives in the epoch milliseconds an axis
+        ;; holds, and is read back as the tick generators want it.
+        shared-temporal (fn [ext dom]
+                          (if (and ext dom)
+                            (mapv resolve/epoch-ms->local-date-time dom)
+                            ext))
+        x-temp-ext (shared-temporal
+                    (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
+                    (:x shared-domains))
+        y-temp-ext (shared-temporal
+                    (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
+                    (:y shared-domains))
         ;; Whether each axis reads whole numbers, taken where the raw
         ;; extents are still visible. `finalize-panel` cannot ask this
         ;; of the padded domain it holds.

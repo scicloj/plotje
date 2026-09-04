@@ -163,18 +163,40 @@
                        (:sub-plots (pj/plan pose)))]
       (is (= 2 (:panels (pj/svg-summary pose))))
       (is (apply = y-doms))))
-  (testing "a top marginal of a temporal column names the axis it shares"
-    (is (thrown-with-msg? Exception #"shared axis cannot be temporal"
-                          (-> dated (pj/lay-point :d :v) (pj/marginal :top)))))
+  (testing "a top marginal of a temporal column shares that axis"
+    ;; An axis holds a date as epoch milliseconds, so the union across
+    ;; the two cells is defined and both are ticked over it.
+    (let [pose (-> dated (pj/lay-point :d :v) (pj/marginal :top))
+          panels (mapv #(-> % :plan :panels first) (:sub-plots (pj/plan pose)))]
+      (is (= 2 (:panels (pj/svg-summary pose))))
+      (is (apply = (mapv :x-domain panels)))
+      (is (= [] (:values (:x-ticks (first panels))))
+          "and the strip's own ticks are still dropped")))
   (testing "a categorical column is refused by pj/marginal, on either side"
     (is (thrown-with-msg? Exception #"pj/marginal draws a density or a histogram"
                           (-> dated (pj/lay-point :c :v) (pj/marginal :top))))
     (is (thrown-with-msg? Exception #"pj/marginal draws a density or a histogram"
                           (-> dated (pj/lay-point :v :c) (pj/marginal :right)))))
-  (testing "and the distribution the top case refuses draws on its own"
-    ;; The refusal is about sharing an axis, not about the column, so
-    ;; the message's suggestion has to work.
+  (testing "and a distribution of a date column draws on its own"
     (is (= 1 (:panels (pj/svg-summary (pj/lay-histogram dated :d)))))))
+
+(deftest shared-temporal-axis-ticks-once-test
+  ;; A temporal axis picks its ticks over the extent the data covers,
+  ;; not over the padded domain, so sharing the domain alone left two
+  ;; cells with one range and two sets of labels -- the same span
+  ;; ticked Jan to May on one cell and Apr to Oct on the other.
+  (let [d #(java.time.LocalDate/parse %)
+        t1 (tc/dataset {:d [(d "2020-01-01") (d "2020-06-01")] :v [1 2]})
+        t2 (tc/dataset {:d [(d "2020-03-01") (d "2020-12-01")] :v [3 4]})
+        plan (pj/plan {:poses [(pj/lay-point t1 :d :v) (pj/lay-point t2 :d :v)]
+                       :layout {:direction :horizontal :weights [1 1]}
+                       :share-scales #{:x}})
+        panels (mapv #(-> % :plan :panels first) (:sub-plots plan))]
+    (testing "the two cells agree on the range"
+      (is (apply = (mapv :x-domain panels))))
+    (testing "and on the labels"
+      (is (apply = (mapv #(:labels (:x-ticks %)) panels)))
+      (is (seq (:labels (:x-ticks (first panels))))))))
 
 (deftest marginal-refusals-test
   (let [scatter (pj/lay-point iris :sepal-length :sepal-width)]
