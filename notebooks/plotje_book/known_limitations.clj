@@ -54,17 +54,25 @@
 ;;   left edge of the plotting area. Workaround: shorten the labels,
 ;;   reduce the angle, or widen the plot with `:width`.
 ;;
-;; - A categorical axis accepts its categories and nothing between
-;;   them. ggplot2 places categories at 1, 2, 3 and lets a mark be
-;;   drawn at 1.5 or 2.2, halfway along the gap; Plotje's categorical
-;;   axis is a band scale, which answers nothing for a value between
-;;   two bands, so a mark asking for one is not drawn. Workaround:
-;;   where the reason for wanting a fractional place was to clear
-;;   another mark, `:offset-x`/`:offset-y` shift by a distance on the
-;;   page and work on any axis. Wanting a place genuinely between two
-;;   categories has no workaround; it needs the categorical axis to
-;;   become a continuous scale carrying a label table, which is
-;;   designed but not implemented.
+;; - A categorical axis has no place between two categories, and a
+;;   number written for one is read as another category name. ggplot2
+;;   puts categories at 1, 2, 3 and draws a mark at 1.5, halfway along
+;;   the gap; Plotje's categorical axis is a band scale, which has a
+;;   place for each category and none between them. So
+;;   `(pj/lay-label {:x 1.5 :y 1.5 :text "note"})` over a categorical y
+;;   of `["x" "y" "z"]` does not report an error and does not go
+;;   halfway: it adds a fourth category, draws a fourth tick labelled
+;;   `1.5`, and puts the label in the new band. Workarounds: name an
+;;   existing category with `{:y {:value "z"}}`, which adds no tick, and
+;;   shift from there with `:offset-x`/`:offset-y`, which move a mark by
+;;   a distance on the page and work on any axis; or draw the axis from
+;;   a numeric column and label its ticks, since
+;;   `(pj/scale pose :x {:breaks [1 2 3] :tick-labels ["A" "B" "C"]})`
+;;   takes 1.5 as an ordinary value -- at the cost of the column no
+;;   longer being categorical, so bars, boxplots and dodging lose their
+;;   bands. Wanting a place genuinely between two categories has no
+;;   workaround; it needs the categorical axis to become a continuous
+;;   scale carrying a label table, which is designed but not built.
 ;;
 ;; - A line has no arrowhead. `pj/lay-line` draws a plain stroke, with
 ;;   `:stroke-dash` for dashed and dotted styles, so a leader line
