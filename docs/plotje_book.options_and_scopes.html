@@ -542,6 +542,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><strong>Layer-type parameters</strong> – settings specific to the layer type, like <code>:bandwidth</code> for <code>pj/lay-density</code> or <code>:bins</code> for <code>pj/lay-histogram</code>.</p></li>
 <li><p><strong>Aesthetics</strong> – how the layer maps data to visuals: <code>:color</code>, <code>:size</code>, <code>:alpha</code>, <code>:shape</code>, <code>:group</code>, plus mark-specific keys like <code>:text</code> and <code>:fill</code>. Either mapped from a column (<code>:color :species</code>) or given as a constant (<code>:alpha 0.3</code>).</p></li>
 <li><p><strong>Data</strong> – a per-layer <code>:data</code> key, if the layer should use a different dataset from the rest of the pose.</p></li>
+<li><p><strong>Where the layer goes</strong> – <code>:overlay</code>, which says whether a layer naming columns the panel does not draw joins that panel or starts one of its own. It says where the layer goes rather than what it draws, so it is read when the layer is placed and is not stored on the layer. <code>pj/overlay</code> sets it for every layer added after it.</p></li>
 </ul>
 <p>The primary way to set them is in the options map of <code>pj/lay-*</code>:</p>
 <div class="sourceClojure">

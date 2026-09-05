@@ -69,9 +69,9 @@
  v12_l105
  (mapv
   (fn*
-   [p1__85825#]
+   [p1__74526#]
    (select-keys
-    (layer-type/lookup p1__85825#)
+    (layer-type/lookup p1__74526#)
     [:mark :stat :defaults]))
   [:text :label]))
 

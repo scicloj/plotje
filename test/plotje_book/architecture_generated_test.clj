@@ -76,13 +76,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__92138#] (= :petal-length (:x p1__92138#)))
+        (fn* [p1__81049#] (= :petal-length (:x p1__81049#)))
         layers)
        (every?
-        (fn* [p1__92139#] (= :petal-width (:y p1__92139#)))
+        (fn* [p1__81050#] (= :petal-width (:y p1__81050#)))
         layers)
        (every?
-        (fn* [p1__92140#] (= :species (:color p1__92140#)))
+        (fn* [p1__81051#] (= :species (:color p1__81051#)))
         layers)))
      (= {} (:opts d))))
    v14_l205)))
@@ -136,8 +136,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__92141#]
-       (.startsWith (.getName (class p1__92141#)) "membrane.ui."))
+       [p1__81052#]
+       (.startsWith (.getName (class p1__81052#)) "membrane.ui."))
       (:drawables v))))
    v27_l263)))
 
@@ -229,7 +229,7 @@
        2
        (count
         (filter
-         (fn* [p1__92142#] (.startsWith p1__92142# "rgb"))
+         (fn* [p1__81053#] (.startsWith p1__81053# "rgb"))
          (:colors s)))))))
    v42_l507)))
 
