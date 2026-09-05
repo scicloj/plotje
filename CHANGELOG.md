@@ -2,47 +2,47 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.11.0 - 2026-09-05]
 
-Which panel a layer is drawn on is most of this release. A layer naming columns the panel does not draw starts a panel of its own, and `pj/overlay` puts that layer on the panel it was added to instead. `pj/marginal` draws a distribution of one of a pose's columns in a thin panel against the top or right edge. An axis shared across the cells of a composite is padded as an unshared axis is, and a date column can be shared.
+Which panel a layer is drawn on is most of this release. A layer whose columns match no panel of the pose is drawn on a panel of its own, and `pj/overlay` keeps the layer on the panel it is added to instead. `pj/marginal` draws a distribution of a pose's `:x` or `:y` column in a thin panel above the main panel or beside it.
 
-Hover text is an aesthetic. Map a column to `:tooltip` and its values are what a point says on hover, prepared in the data rather than by a formatting option per case.
+Hover text is an aesthetic. Map a column to `:tooltip` and its values are what a point says on hover; the values are shown as they stand, so format them in the data.
 
 Many thanks to @timothypratley, whose reports shaped much of this release.
 
 ### Plots that look different after upgrading
 
-- **Every scatterplot matrix, every `pj/marginal` and every composite carrying `:share-scales`.** The shared axis is padded, so the outermost marks stand inside the panel: a shared extent of 0 to 9 is drawn against 0 to 9.45.
-- **Every bar chart with a colour column.** A bar fills the whole band it would fill without the colour column, rather than a fraction of it against one side. Dodged bars are unchanged.
-- **Every plot mapping one categorical column to both an axis and `:color`.** Each category takes its own palette colour, the one the legend lists beside it, where a keyword column drew every mark in the first colour of the palette.
-- **Every plot whose `pj/lay-*` options map names a column the panel does not draw.** The layer is drawn on a panel of its own, as the same columns written in the argument slots have always been, and `pj/overlay` or `{:overlay true}` keeps it on the panel. A written value in `:x` or `:y` still places a mark on the panel it is added to, so annotations are unaffected.
-- **Every area, density and histogram under `(pj/coord :flip)`.** Each is drawn across the panel from the value axis, where it was drawn from the upright pair.
+- **Every scatterplot matrix and every composite carrying `:share-scales`.** The shared axis is padded, so the outermost marks stand inside the panel.
+- **Every bar chart with a colour column.** Each bar fills the same share of its category band whether or not a colour column is mapped. Dodged bars are unchanged.
+- **Every plot mapping one categorical column to both an axis and `:color`, where the values are keywords rather than strings.** Each category takes its own palette colour, the one the legend lists beside it.
+- **Every plot whose `pj/lay-*` options map names columns matching no panel.** The layer is drawn on a panel of its own, as a layer naming those columns in the argument slots is drawn, and `pj/overlay` or `{:overlay true}` keeps the layer on the panel it is added to. A written value is not a column -- it places a mark on the panel the layer is added to and asks for no panel of its own, so annotations are unaffected.
+- **Every area, density and histogram under `(pj/coord :flip)`.** Each runs across the panel, measured from the value axis.
 
 ### Added
 
-- `pj/overlay` and the layer option `{:overlay true}` put a layer on the panel it is added to, rather than on a panel of its own, so two measures meant to be read against one axis are drawn together. Every layer added after `pj/overlay` joins as well; `{:overlay false}` on one layer opts that layer out, and `(pj/overlay pose false)` turns overlaying off from there on. The layer keeps its own columns, the axis covers every column drawn on it, and the axis is named for the panel's own column. Identity reads the columns a layer names wherever they are written, an argument slot and the options map alike, so `{:y :other}` asks for a panel as `(pj/lay-line :x :other)` does. A written value names no panel: `{:x 7.5 :y 4.2 :text "note"}` annotates the panel it is added to. - thanks, @timothypratley
+- `pj/overlay` marks a pose so that every `lay-*` added after it joins the panel it is added to, instead of starting a panel of its own, so two measures meant to be read against one axis are drawn together. The layer keeps its own columns, each axis covers every column drawn on it, and an axis is named for the panel's own column. `{:overlay true}` on one `lay-*` call overlays that layer alone, `{:overlay false}` opts one layer out, and `(pj/overlay pose false)` turns overlaying off from there on. Where a layer's columns are written does not change which panel the layer lands on -- an `:x` or `:y` in the options map asks for a panel exactly as one in an argument slot does.
 
-- `pj/marginal` draws a distribution of one of a pose's columns in a thin panel against one edge of the plot: `(-> pose (pj/marginal :top))` puts a density of the `:x` column above, and `(-> pose (pj/marginal :right))` puts one of the `:y` column beside it, drawn on its side. `:histogram` draws bars instead of a curve, and `:size` sets the strip's share of the height or width. The strip shares the main panel's axis for that column, keeps its own value scale, drops its duplicate ticks and axis title, and is aligned with the main panel so a value sits at the same place in both. `:bottom` and `:left` are reported, since a strip there would sit between the panel and the axis that describes it, and a second marginal on the same pose is reported too, since a composite has no single panel for a second strip.
+- `pj/marginal` draws a distribution of one of a pose's columns in a thin panel against one edge of the plot: `(pj/marginal pose :top)` a density of the `:x` column above, `(pj/marginal pose :right)` a density of the `:y` column to the right, drawn on its side. `:histogram` draws bars instead of a curve, and `:size` sets the strip's share of the height or width, `0.25` by default. The strip shares the main panel's axis for that column, and the two drawing areas are aligned so a value sits at the same place in each. `:bottom`, `:left`, and a second marginal on the same pose each report an error.
 
-- `:share-scales` pools a temporal axis: every cell is ticked over the union across the cells rather than over its own data, so two panels sharing a date axis carry the same labels as well as the same range. `(pj/marginal pose :top)` therefore describes a date column, and a `pj/arrange` of time series with `{:share-scales #{:x}}` lines them up. A categorical axis is still reported, since a category has no extent to pool.
+- `:share-scales` accepts a temporal axis: every cell is ticked over the union of the cells' extents, so panels sharing a date axis carry the same labels as well as the same range. A `pj/arrange` of time series with `{:share-scales #{:x}}` lines its cells up. A categorical axis still reports an error, since a category has no extent to share.
 
-- `:tooltip` is an aesthetic: map a column to it and its values are what each mark says on hover, or map a string and every mark of the layer says that. `pj/lay-point` and `pj/lay-interval-h` are the marks that carry a tooltip, and a mapping written on any other layer type is accepted and draws none. A tooltip mapping scopes like any other, the nearer one winning, and writing one turns tooltips on, so `{:tooltip true}` in `pj/options` is the switch for the built-in text and is not needed beside a mapping. A newline breaks the line and a column of hiccup gives a tooltip with markup in it -- `[:div [:b month] [:br] "revenue " [:code amount]]` -- while a string stays text, so a string that spells out a tag is shown as that text. - thanks, @otfrom
+- `:tooltip` is an aesthetic: map a column to it and its values are what each mark says on hover, or map a string and every mark of the layer says that. The point and interval-h marks carry a tooltip, and a mapping written on any other layer type is accepted and draws none. A column of hiccup gives a tooltip with markup; a string is shown as text. - thanks, @otfrom
 
-- `:bar-width` sets how wide a bar is drawn on a categorical axis, as a fraction of the category band, `0.8` by default -- the quantity `:box-width` names for a box. `(pj/lay-bar :growth :cohort {:bar-width 0.4})` draws a bar half the usual thickness, so a second bar layer over a first reads as an overlay rather than a stack. On a numeric or temporal axis, where a bar sits at a value rather than in a band, the option keeps its meaning as a width in data units. - thanks, @timothypratley
+- `:bar-width` sets how wide a bar is drawn: on a categorical axis, the fraction of the category band it fills, `0.8` by default, as `:box-width` does for a box; on a numeric or temporal axis, a width in data units. A narrower bar over a wider one leaves the wider bar visible, so two bar layers can be read together. - thanks, @timothypratley
 
 ### Fixed
 
-- An axis whose domain is shared across the cells of a composite is padded as an unshared axis is, so the outermost marks stand inside the panel rather than on its edge. `:share-scales` wrote its extent as a `:domain`, which the plan honours exactly as given. Bars in such a composite gain headroom, the baseline stays on the panel edge, and a `:domain` written with `pj/scale` is unchanged.
+- An axis whose domain is shared across the cells of a composite is padded as an unshared axis is, so the outermost marks stand inside the panel rather than on its edge. A shared axis carrying bars reaches past the tallest bar while the baseline stays on the panel edge, and a `:domain` written with `pj/scale` is unchanged.
 
-- `:share-scales` accepts an axis only one cell names, rather than refusing it. A cell that shares with nobody is drawn against its own extent either way. A right-hand `pj/marginal` on a plot whose other axis holds dates is drawn rather than reported, and where a column genuinely cannot be shared the message still names it.
+- `:share-scales` accepts an axis only one cell names. A right-hand `pj/marginal` on a plot whose `:x` holds dates is drawn, and an axis that cannot be shared still reports an error naming the column.
 
-- An area, a density and a histogram under `(pj/coord :flip)` are measured from the value axis, so each runs across the panel, and an area closes at zero. The flip swaps which axis carries the data column and which the value, and both were read from the upright pair. A flipped density was drawn about ten panel widths wide, a flipped area closed at its column's smallest value, and every bar of a flipped histogram sat within the first few drawing units of the panel.
+- An area, a density and a histogram under `(pj/coord :flip)` are measured from the value axis, so each runs across the panel, and an area closes at zero.
 
-- A categorical column mapped to both an axis and `:color` draws one palette colour per category, and the marks and the legend agree. A keyword column matched nothing once the axis had rewritten it to display strings, so every mark took the first palette entry while the legend listed the rest. - thanks, @timothypratley
+- A categorical column mapped to both an axis and `:color` draws one palette colour per category, and the marks and the legend agree. - thanks, @timothypratley
 
-- A bar keeps its full width when a colour column is named. The band was divided between the colour categories even where nothing asked for a dodge, which narrowed every bar and pushed it to one side. Dodged bars still divide the band between their groups. - thanks, @timothypratley
+- A bar is as wide with a colour column as without one. Dodged bars still divide the band between their groups. - thanks, @timothypratley
 
-- A layer's `:mapping` holds its layer-type options -- `:bins`, `:bar-width`, `:jitter` -- beside its aesthetics, and two places read that map as aesthetics alone. When a later `pj/lay-*` call splits the pose into two panels, the panel's `:x` and `:y` are written onto a layer that names neither, so the layer stays with the panel it was added to -- and writing them replaced the layer's whole mapping, so a `:color` or a `:bins` written there was dropped with no message. The check on a sub-pose's layers reported a layer option there as a typo. The panel's columns are now merged into the layer's mapping instead of replacing it, and the check accepts what the layer's own type accepts, so a layer draws the same before and after a split, and a misspelled key is still reported.
+- A layer keeps its own mappings and layer-type options when a later `pj/lay-*` call splits the pose into panels, so a split does not change what the layer draws. A layer option written on a sub-pose's layer is accepted rather than reported as a typo. A layer's `:mapping` holds those options -- `:bins`, `:bar-width`, `:jitter` -- beside its aesthetics.
 
 ## [0.10.1 - 2026-08-27]
 
