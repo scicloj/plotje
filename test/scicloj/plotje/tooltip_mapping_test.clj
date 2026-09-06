@@ -152,3 +152,34 @@
            (svg/hiccup->html [:div "one" [:br] "two"]))))
   (testing "numbers are rendered as their text"
     (is (= "<b>42</b>" (svg/hiccup->html [:b 42])))))
+
+(defn- warning-text
+  "Whatever the plot printed while it was built."
+  [pose]
+  (let [w (java.io.StringWriter.)]
+    (binding [*out* w] (pj/plot pose))
+    (str w)))
+
+(deftest tooltip-on-a-mark-that-draws-none-warns-test
+  ;; Shipped silent in 0.11.0: the mapping was accepted, the stylesheet
+  ;; and the browser script were injected, and nothing appeared.
+  (testing "a bar is told, and the message names the marks that do draw one"
+    (let [w (warning-text (pj/lay-bar labelled :month :revenue {:tooltip :hover}))]
+      (is (re-find #"no mark on this plot draws hover text" w))
+      (is (re-find #":interval-h, :point" w))))
+  (testing "a written string on such a mark is told too"
+    (is (re-find #"draws hover text"
+                 (warning-text (pj/lay-line labelled :month :revenue
+                                            {:tooltip "one for the layer"})))))
+  (testing "a point is not told"
+    (is (= "" (warning-text (pj/lay-point labelled :month :revenue
+                                          {:tooltip :hover})))))
+  (testing "a pose-level mapping is not told where any layer draws it"
+    ;; The case the aesthetic exists for: the line ignores the column
+    ;; and the point beside it draws the hover text.
+    (is (= "" (warning-text (-> labelled
+                                (pj/pose {:x :month :y :revenue :tooltip :hover})
+                                (pj/lay-line)
+                                (pj/lay-point))))))
+  (testing "a plot with no tooltip mapping is not told"
+    (is (= "" (warning-text (pj/lay-bar labelled :month :revenue))))))

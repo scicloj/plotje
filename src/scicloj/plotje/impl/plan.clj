@@ -1924,6 +1924,37 @@
                   ". For one " (name channel) " over the layer, write the value"
                   " itself; the column is ignored and earns no legend."))))
 
+(defn- warn-unread-tooltip-mappings
+  "Warn when a `:tooltip` mapping reaches no mark that draws hover text.
+
+   Asked of the whole plot, as the channel warning above is, because a
+   `:tooltip` written on the pose flows into every layer: a point layer
+   beside a line layer is the case the aesthetic exists for, and warning
+   about the line there would be noise.
+
+   Asked of what the layers produced rather than of a table of marks. A
+   mark that attaches hover text puts it on the plan layer, so the plan
+   answers which marks did, and an extension that starts attaching one
+   is counted without declaring itself. `extract/tooltip-drawing-marks`
+   is read for the message alone.
+
+   Silent until this check: the mapping was accepted, the stylesheet and
+   the browser script were injected, and nothing was drawn."
+  [resolved-all panels]
+  (let [asked (filter #(or (:tooltip-col %) (:fixed-tooltip %)) resolved-all)
+        drawn? (fn [layer] (or (:fixed-tooltip layer)
+                               (some :tooltips (:groups layer))))]
+    (when (and (seq asked)
+               (not-any? drawn? (mapcat :layers panels)))
+      (let [marks (into #{} (keep :mark asked))]
+        (println (str "Warning: :tooltip is mapped, and no mark on this plot"
+                      " draws hover text"
+                      (when (seq marks)
+                        (str " -- " (str/join ", " (sort marks))))
+                      ". The marks that do: "
+                      (str/join ", " (sort extract/tooltip-drawing-marks))
+                      ". The mapping is accepted and draws nothing."))))))
+
 (defn- validate-unscaled-axis-coord
   "Refuse a per-axis `:scale false` under a coord that rearranges the
    axes.
@@ -3090,6 +3121,7 @@
            :layout (select-keys padding [:x-label-pad :y-label-pad :title-pad
                                          :subtitle-pad :caption-pad
                                          :legend-w :legend-h :strip-h :strip-w])})]
+     (warn-unread-tooltip-mappings resolved-all panels)
      (when validate?
        (when-let [explanation (ss/explain plan)]
          (throw (ex-info "Plan does not conform to schema" {:explanation explanation}))))

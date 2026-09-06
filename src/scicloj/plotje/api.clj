@@ -1620,6 +1620,18 @@
                              "whole layer, so it takes one value rather than "
                              "a column. For a data-space shift use "
                              (if (= k :offset-x) ":nudge-x" ":nudge-y") ".")
+                        {:option k :value v})))))
+  ;; How wide a mark is drawn across its band is one number for the
+  ;; layer, so a column has nothing to mean. Given one, the plan failed
+  ;; either with a raw cast error naming Keyword and Number, or with a
+  ;; schema report that named no option.
+  (doseq [k [:bar-width :box-width :interval-thickness]]
+    (when-let [v (get opts k)]
+      (when-not (number? v)
+        (throw (ex-info (str context " " k " must be a number, but got "
+                             (pr-str v) ". It sets one width for the whole "
+                             "layer, so it takes a number rather than a "
+                             "column.")
                         {:option k :value v}))))))
 
 (defn- check-column-ref-types

@@ -12,6 +12,12 @@ All notable changes to this project will be documented in this file. This change
 
 - A horizontal bar, boxplot or violin coloured by the column its categorical axis draws keeps its full width. The colour column is compared against the categorical axis, which is `:y` where a mark orients horizontally, so each band holds one colour group and nothing is dodged. A colour column naming groups the categorical axis does not draw still divides the band between them, as an explicit `:position :dodge` does. - thanks, @timothypratley
 
+- A `:tooltip` mapping that reaches no mark drawing hover text is reported. The point and interval-h marks draw a tooltip; a mapping written on any other layer type is accepted, draws nothing, and now says so once for the plot. A mapping written on the pose stays quiet where any layer of the plot draws it, since a point layer beside a line layer is the case the aesthetic exists for.
+
+- `:bar-width`, `:box-width` and `:interval-thickness` report what they were given when it is not a number, naming the option. Each sets one width for the whole layer, so a column has nothing to mean there.
+
+- The error for an unknown render format names every format a caller can ask for, including the ones whose renderer namespace loads on demand.
+
 **Correction to the 0.11.0 notes.** "A bar is as wide with a colour column as without one" holds where the colour column is the one the categorical axis draws. A colour column naming other groups divides the band between them, which is a dodge and is intended.
 
 ## [0.11.0 - 2026-09-05]

@@ -315,6 +315,14 @@
 (defmethod extract-layer [:text :doc] [_ _ _ _] "Data-driven label, optionally on a background box")
 (defmethod extract-layer [:rug :doc] [_ _ _ _] "Axis-margin tick marks")
 (defmethod extract-layer [:interval-h :doc] [_ _ _ _] "Horizontal bars from x to x-end at categorical y")
+(def tooltip-drawing-marks
+  "The marks that put hover text on the layer they extract: the two
+   methods below that carry `:fixed-tooltip` and the stat's `:tooltips`.
+   Named here so a message can list them; whether a plot drew any
+   tooltip is read from the plan rather than from this set, so an
+   extension that attaches one is counted without being added here."
+  [:interval-h :point])
+
 (defmethod extract-layer :point [draft-layer stat all-colors cfg]
   (let [numeric-color? (= (:color-type draft-layer) :numerical)
         [lo hi] (when numeric-color? (color-extent draft-layer stat))

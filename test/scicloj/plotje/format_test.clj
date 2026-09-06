@@ -59,6 +59,25 @@
            #"Unknown render format"
            (pj/plot pose))))))
 
+(deftest unknown-format-message-lists-lazily-loaded-formats
+  ;; The list was built from the defmethods registered so far, so the
+  ;; first call in a JVM named :svg alone and hid :bufimg and :png,
+  ;; whose namespaces load on demand. A caller was told a format that
+  ;; works does not exist.
+  (testing "the message names every format a caller can ask for"
+    (let [pose (-> tiny (pj/lay-point :x :y) (pj/options {:format :nonexistent}))
+          msg (try (pj/plot pose) (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+      (is (re-find #":bufimg" msg))
+      (is (re-find #":png" msg))
+      (is (re-find #":svg" msg))))
+  (testing "and says so before anything has rendered a bufimg"
+    ;; Same question asked of the data the message is built from, so the
+    ;; assertion holds whatever this JVM has already rendered.
+    (let [pose (-> tiny (pj/lay-point :x :y) (pj/options {:format :nonexistent}))
+          supported (:supported (try (pj/plot pose)
+                                     (catch clojure.lang.ExceptionInfo e (ex-data e))))]
+      (is (= [:bufimg :png :svg] (vec (sort supported)))))))
+
 ;; ---- pj/save format resolution (B2: opts > extension > :svg default) ----
 
 (defn- read-magic [path]

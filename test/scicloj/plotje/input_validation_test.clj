@@ -1163,3 +1163,43 @@
     (let [m (msg (pj/lay-point numbers :s :n {:x-type :nonsense}))]
       (is (re-find #"is not a column type" m))
       (is (re-find #":categorical :numerical :temporal" m)))))
+
+(def ^:private banded
+  {:cat ["a" "b" "c"] :num [1.0 2.0 3.0] :val [4.0 5.0 6.0] :w [0.2 0.5 0.9]})
+
+(deftest band-width-options-take-a-number-test
+  ;; A column here failed three ways: a raw ClassCastException naming
+  ;; Keyword and Number on a numeric axis, and "Plan does not conform to
+  ;; schema" -- which names no option -- on a categorical one and for a
+  ;; string. One width is drawn for the whole layer, so a column has
+  ;; nothing to mean.
+  (testing ":bar-width on a categorical axis"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":bar-width must be a number"
+         (pj/plot (pj/lay-bar banded :cat :val {:bar-width :w}) {:format :svg}))))
+  (testing ":bar-width on a numeric axis"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":bar-width must be a number"
+         (pj/plot (pj/lay-bar banded :num :val {:bar-width :w}) {:format :svg}))))
+  (testing ":bar-width given a string"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":bar-width must be a number"
+         (pj/plot (pj/lay-bar banded :cat :val {:bar-width "0.4"}) {:format :svg}))))
+  (testing ":box-width"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":box-width must be a number"
+         (pj/plot (pj/lay-boxplot banded :cat :val {:box-width :val}) {:format :svg}))))
+  (testing ":interval-thickness"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo
+         #":interval-thickness must be a number"
+         (pj/plot (pj/lay-interval-h banded {:y :cat :x 0 :x-end :val
+                                             :interval-thickness :w})
+                  {:format :svg}))))
+  (testing "and a number still draws"
+    (is (some? (pj/plot (pj/lay-bar banded :cat :val {:bar-width 0.4})
+                        {:format :svg})))))

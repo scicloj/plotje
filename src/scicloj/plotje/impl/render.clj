@@ -15,8 +15,15 @@
    on require-and-retry."
   (atom #{}))
 
-(defn- supported-formats [multi-fn]
-  (vec (sort (remove #{:default} (keys (methods multi-fn))))))
+(defn- supported-formats
+  "Every format a caller can ask for: the ones already registered on
+   this multimethod, plus the ones whose namespace loads on demand.
+   Reading the registered methods alone reported what this JVM had
+   happened to render so far, so a first call named only :svg and hid
+   :bufimg and :png, which work."
+  [multi-fn]
+  (vec (sort (into (set (keys known-render-namespaces))
+                   (remove #{:default} (keys (methods multi-fn)))))))
 
 (defn- load-renderer-or-fail!
   "Require the namespace registered for `fmt`. Throws on unknown
