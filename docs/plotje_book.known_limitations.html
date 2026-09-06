@@ -557,8 +557,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td style="text-align: left;">numeric (continuous) <code>:color</code></td>
-<td style="text-align: left;"><code>lay-point</code>, <code>lay-interval-h</code></td>
-<td style="text-align: left;">every other lay-* ignores it (a numeric column on a categorical-color path produces banded palette colors instead of a gradient)</td>
+<td style="text-align: left;">every mark drawn once per row</td>
+<td style="text-align: left;">a mark drawn once for many rows – a line, an area, a histogram bin, a box – draws one color and reports that the column is not painted on it</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>:tooltip</code>, and the row-index plumbing beside it</td>
@@ -569,7 +569,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <p>Only <code>lay-point</code> varies a radius or an opacity from row to row, so <code>{:size {:column :r :scale false}}</code> – which asks for the column’s own values as radii – is refused elsewhere rather than warned: there is no reading for it at all. The warning and the refusal both name <code>lay-point</code>. Which marks those are is read from the registry, where each layer type declares what its mark varies under <code>:varies</code>, so an extension that draws a per-row size says so and is named alongside <code>lay-point</code>.</p>
 <p><code>:shape</code> is not in this table: it is drawn only by <code>lay-point</code>, and passing it anywhere else is rejected rather than ignored – every other layer type warns and names <code>lay-point</code> as the one that takes it. <code>:text</code> is the same, and names <code>lay-text</code> and <code>lay-label</code>.</p>
-<p>Workaround: pre-bin or convert the numeric column into a discrete color column where appropriate, or use <code>lay-point</code> for the mark where the aesthetic must vary per row.</p></li>
+<p>Workaround for <code>:size</code> and <code>:alpha</code>: use <code>lay-point</code> where the aesthetic must vary per row. For a numeric <code>:color</code> on a mark drawn once for many rows, pre-bin the column into categories, or draw the quantity with a mark that stands for one row.</p></li>
 <li><p><code>:alpha</code> on <code>pj/lay-rule-h</code>/<code>pj/lay-rule-v</code> is silently dropped at render time (the rendering path reads <code>:color</code> only). Bands honor <code>:alpha</code>. Workaround: use a lighter <code>:color</code> to simulate the visual effect on rules.</p></li>
 <li><p><code>pj/lay-rule-h</code> rendered under <code>(pj/coord :flip)</code> becomes a vertical line; <code>pj/lay-rule-v</code> becomes a horizontal line. The mark name still reflects the unflipped semantics. Add a one-line note in the surrounding prose if the chart’s flipped state is non-obvious.</p></li>
 <li><p><code>:position :dodge</code> is ignored at render-time on several marks. The request fails in one of two ways: on <code>lay-bar</code> and <code>lay-summary</code> the dodge request is dropped at construction; on <code>lay-point</code> and <code>lay-line</code> the dodge metadata reaches the plan but no geometric offset is applied. Workaround: pre-compute dodge offsets via <code>tc/group-by</code>.</p></li>

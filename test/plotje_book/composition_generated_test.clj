@@ -142,7 +142,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal)))
       panels
-      (mapv (fn* [p1__73294#] (-> p1__73294# :panels first)) plans)
+      (mapv (fn* [p1__73343#] (-> p1__73343# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)
       [d-y s-y]
@@ -158,12 +158,12 @@
       (apply
        ==
        (map
-        (fn* [p1__73295#] (get-in p1__73295# [:layout :y-label-pad]))
+        (fn* [p1__73344#] (get-in p1__73344# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__73296#] (get-in p1__73296# [:layout :legend-w]))
+        (fn* [p1__73345#] (get-in p1__73345# [:layout :legend-w]))
         plans)))))
    v22_l147)))
 
@@ -206,7 +206,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan v)))
       panels
-      (mapv (fn* [p1__73297#] (-> p1__73297# :panels first)) plans)]
+      (mapv (fn* [p1__73346#] (-> p1__73346# :panels first)) plans)]
      (and
       (= 2 (:panels s))
       (= 150 (:points s))
@@ -216,7 +216,7 @@
       (apply
        ==
        (map
-        (fn* [p1__73298#] (get-in p1__73298# [:layout :x-label-pad]))
+        (fn* [p1__73347#] (get-in p1__73347# [:layout :x-label-pad]))
         plans)))))
    v28_l203)))
 
@@ -251,7 +251,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal-by-hand)))
       panels
-      (mapv (fn* [p1__73299#] (-> p1__73299# :panels first)) plans)
+      (mapv (fn* [p1__73348#] (-> p1__73348# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)]
      (and
@@ -261,7 +261,7 @@
       (=
        [0 102]
        (mapv
-        (fn* [p1__73300#] (get-in p1__73300# [:layout :legend-w]))
+        (fn* [p1__73349#] (get-in p1__73349# [:layout :legend-w]))
         plans)))))
    v32_l252)))
 
@@ -281,12 +281,12 @@
       (apply
        ==
        (map
-        (fn* [p1__73301#] (get-in p1__73301# [:layout :y-label-pad]))
+        (fn* [p1__73350#] (get-in p1__73350# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__73302#] (get-in p1__73302# [:layout :legend-w]))
+        (fn* [p1__73351#] (get-in p1__73351# [:layout :legend-w]))
         plans)))))
    v35_l282)))
 

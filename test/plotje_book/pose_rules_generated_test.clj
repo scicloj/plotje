@@ -21,7 +21,7 @@
    (:layers pose)
    (update
     :layers
-    (partial mapv (fn* [p1__73523#] (dissoc p1__73523# :data))))
+    (partial mapv (fn* [p1__73572#] (dissoc p1__73572# :data))))
    (:poses pose)
    (update :poses (partial mapv strip-data)))))
 
@@ -444,7 +444,7 @@
      (= {:color :species} (:mapping pose))
      (= 2 (count (:poses pose)))
      (every?
-      (fn* [p1__73524#] (= 2 (count (:poses p1__73524#))))
+      (fn* [p1__73573#] (= 2 (count (:poses p1__73573#))))
       (:poses pose))))
    v76_l415)))
 
@@ -1258,8 +1258,8 @@
       rule
       (some
        (fn*
-        [p1__73525#]
-        (when (= :rule-h (:layer-type p1__73525#)) p1__73525#))
+        [p1__73574#]
+        (when (= :rule-h (:layer-type p1__73574#)) p1__73574#))
        layers)]
      (and (some? rule) (= 3.0 (get-in rule [:mapping :y-intercept])))))
    v189_l1148)))
@@ -1428,8 +1428,8 @@
        [p]
        (mapv
         (fn*
-         [p1__73526#]
-         (get-in p1__73526# [:plan :panels 0 :x-domain]))
+         [p1__73575#]
+         (get-in p1__73575# [:plan :panels 0 :x-domain]))
         (:sub-plots (pj/plan p))))
       domains
       (x-domains pose)
@@ -1440,13 +1440,13 @@
         [(->
           iris
           (tc/select-rows
-           (fn* [p1__73527#] (= "setosa" (:species p1__73527#))))
+           (fn* [p1__73576#] (= "setosa" (:species p1__73576#))))
           (pj/pose :sepal-length :sepal-width)
           pj/lay-point)
          (->
           iris
           (tc/select-rows
-           (fn* [p1__73528#] (= "virginica" (:species p1__73528#))))
+           (fn* [p1__73577#] (= "virginica" (:species p1__73577#))))
           (pj/pose :sepal-length :petal-width)
           pj/lay-point)]
         (if share {:share-scales #{:x}} {})))]
@@ -1478,7 +1478,7 @@
      (= #{:y :x} (get-in pose [:opts :share-scales]))
      (= 2 (count (:poses pose)))
      (every?
-      (fn* [p1__73529#] (= 2 (count (:poses p1__73529#))))
+      (fn* [p1__73578#] (= 2 (count (:poses p1__73578#))))
       (:poses pose))
      (= {:color :species} (:mapping pose))
      (=
