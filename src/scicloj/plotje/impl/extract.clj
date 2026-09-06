@@ -204,14 +204,20 @@
 
 (defn- default-position
   "Default position for marks that normally dodge.
-   When :color is the same column as :x, dodge is suppressed — each x-band
-   already contains exactly one color group, so dodging shrinks and
-   offsets the mark unnecessarily."
+   When :color is the column the categorical axis draws, dodge is
+   suppressed — that band already contains exactly one color group, so
+   dodging shrinks and offsets the mark unnecessarily. The categorical
+   axis is :x for an upright mark and :y for one drawn horizontally, so
+   a color column equal to either axis is the same case; comparing
+   against :x alone left every horizontal bar, boxplot and violin
+   narrowed to a share of its band."
   [draft-layer]
-  (or (:position draft-layer)
-      (if (and (:color draft-layer) (= (:color draft-layer) (:x draft-layer)))
-        :identity
-        :dodge)))
+  (let [color (:color draft-layer)]
+    (or (:position draft-layer)
+        (if (and color (or (= color (:x draft-layer))
+                           (= color (:y draft-layer))))
+          :identity
+          :dodge))))
 
 (defn- check-stat
   "Assert that stat result contains expected key for the given mark.
