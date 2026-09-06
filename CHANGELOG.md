@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.12.0 - 2026-09-07]
 
 A column drawn as it stands does not group. `{:color {:column :c :scale false}}` says the column holds colors, and those values are drawn on the marks without splitting the rows. A column read through its scale is unchanged: each distinct value is still a category, and the rows are still split into a group per category.
 
