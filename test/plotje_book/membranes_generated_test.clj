@@ -202,8 +202,8 @@
   (ui/children clipped-membrane)
   (tree-seq coll? seq)
   (filter
-   (fn* [p1__81607#] (instance? membrane.ui.ScissorView p1__81607#)))
-  (mapv (fn* [p1__81608#] (select-keys p1__81608# [:offset :bounds])))))
+   (fn* [p1__81625#] (instance? membrane.ui.ScissorView p1__81625#)))
+  (mapv (fn* [p1__81626#] (select-keys p1__81626# [:offset :bounds])))))
 
 
 (deftest
@@ -213,9 +213,9 @@
     [rects]
     (and
      (= 2 (count rects))
-     (some (fn* [p1__81609#] (= [0 0] (:offset p1__81609#))) rects)
+     (some (fn* [p1__81627#] (= [0 0] (:offset p1__81627#))) rects)
      (some
-      (fn* [p1__81610#] (every? pos? (:offset p1__81610#)))
+      (fn* [p1__81628#] (every? pos? (:offset p1__81628#)))
       rects)))
    v51_l300)))
 

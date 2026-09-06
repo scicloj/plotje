@@ -47,8 +47,8 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__78334#] (= :text (:mark p1__78334#))))
-      (mapv (fn* [p1__78335#] (-> p1__78335# :style :align-x))))))
+      (filter (fn* [p1__78352#] (= :text (:mark p1__78352#))))
+      (mapv (fn* [p1__78353#] (-> p1__78353# :style :align-x))))))
    v3_l79)))
 
 
@@ -76,7 +76,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__78336#] (= :text (:mark p1__78336#))))
+       (filter (fn* [p1__78354#] (= :text (:mark p1__78354#))))
        first
        :style)
       text-style
@@ -90,12 +90,12 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__78337#] (= :text (:mark p1__78337#))))
+        (filter (fn* [p1__78355#] (= :text (:mark p1__78355#))))
         first
         :style
         ((fn*
-          [p1__78338#]
-          (select-keys p1__78338# [:align-x :align-y])))))]
+          [p1__78356#]
+          (select-keys p1__78356# [:align-x :align-y])))))]
      (and
       (= :center (:align-x style-of))
       (= :bottom (:align-y style-of))
@@ -166,7 +166,7 @@
      [panel
       (-> fr pj/frames :panels first)
       at
-      (fn* [p1__78339#] (first (pj/to-drawing panel p1__78339# 20.0)))]
+      (fn* [p1__78357#] (first (pj/to-drawing panel p1__78357# 20.0)))]
      (< 8.0 (- (at 2.08) (at 2.0)) 11.0)))
    v14_l176)))
 
@@ -188,7 +188,7 @@
      [panel
       (-> fr pj/frames :panels first)
       at
-      (fn* [p1__78340#] (first (pj/to-drawing panel p1__78340# 20.0)))]
+      (fn* [p1__78358#] (first (pj/to-drawing panel p1__78358# 20.0)))]
      (and
       (=
        [79.0 460.0]
@@ -327,8 +327,8 @@
    (pj/lay-text base {:in :drawing-area, :x 12, :y 12, :text "x"})
    x-domain
    (fn*
-    [p1__78341#]
-    (:x-domain (first (:panels (pj/plan p1__78341#)))))]
+    [p1__78359#]
+    (:x-domain (first (:panels (pj/plan p1__78359#)))))]
   {:no-note (x-domain base),
    :note-in-data (x-domain in-data),
    :note-in-drawing (x-domain in-drawing)}))
@@ -380,8 +380,8 @@
      true?
      (map
       (fn*
-       [p1__78342# p2__78343#]
-       (< (abs (- p1__78342# p2__78343#)) 1.0E-9))
+       [p1__78360# p2__78361#]
+       (< (abs (- p1__78360# p2__78361#)) 1.0E-9))
       (:round-trip m)
       [2.62 21.0])))
    v42_l367)))
@@ -411,7 +411,7 @@
       lo
       (apply min (cars column))
       at
-      (fn* [p1__78344#] (first (pj/to-drawing panel p1__78344# 20.0)))]
+      (fn* [p1__78362#] (first (pj/to-drawing panel p1__78362# 20.0)))]
      (- (at (+ lo 0.08)) (at lo))))]
   {:on-weight (shift :wt), :on-displacement (shift :disp)}))
 
@@ -526,8 +526,8 @@
  (let
   [drawing-area
    (fn*
-    [p1__78345#]
-    (-> p1__78345# pj/frames :panels first :frames :drawing-area))]
+    [p1__78363#]
+    (-> p1__78363# pj/frames :panels first :frames :drawing-area))]
   {:untitled (drawing-area scatter),
    :titled
    (drawing-area (pj/options scatter {:title "Motor Trend Cars"}))}))
@@ -561,8 +561,8 @@
     (let
      [drawing-area
       (fn*
-       [p1__78346#]
-       (-> p1__78346# pj/frames :panels first :frames :drawing-area))]
+       [p1__78364#]
+       (-> p1__78364# pj/frames :panels first :frames :drawing-area))]
      (and
       (= 6 (tc/row-count cars))
       (some #{"n = 6"} (:texts (pj/svg-summary (pj/plot fr))))
