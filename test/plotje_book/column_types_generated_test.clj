@@ -137,7 +137,31 @@
 
 
 (def
- v30_l160
+ v30_l153
+ (->
+  {:k ["a" "b" "c" "d"], :v [10 20 30 40], :warmth [7 30 12 21]}
+  (pj/lay-bar :k :v {:color :warmth})))
+
+
+(deftest
+ t31_l156
+ (is
+  ((fn
+    [v]
+    (let
+     [colors
+      (-> v pj/plan :panels first :layers first :groups first :colors)
+      lightness
+      (fn [c] (reduce + (take 3 c)))]
+     (and
+      (= 4 (:polygons (pj/svg-summary v)))
+      (= 4 (count (distinct colors)))
+      (> (lightness (nth colors 1)) (lightness (nth colors 3))))))
+   v30_l153)))
+
+
+(def
+ v33_l190
  (defn
   inferred-mark
   "The mark a pose is drawn with when no layer type is named."
@@ -146,7 +170,7 @@
 
 
 (def
- v31_l165
+ v34_l195
  (tc/dataset
   [{:x-column "numerical",
     :y-column "none",
@@ -172,45 +196,45 @@
 
 
 (deftest
- t32_l174
+ t35_l204
  (is
   ((fn
     [ds]
     (=
      [:bar :bar :rect :line :boxplot :boxplot :point]
      (vec (:mark ds))))
-   v31_l165)))
+   v34_l195)))
 
 
-(def v34_l185 (pj/pose temporal :k :v))
+(def v37_l215 (pj/pose temporal :k :v))
 
 
 (deftest
- t35_l187
- (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v34_l185)))
+ t38_l217
+ (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v37_l215)))
 
 
 (def
- v37_l195
+ v40_l225
  (def
   readings
   {:batch ["a" "a" "a" "a" "b" "b" "b" "c" "c"],
    :reading [3 5 4 6 8 9 7 2 6]}))
 
 
-(def v38_l199 (pj/pose readings :batch :reading))
+(def v41_l229 (pj/pose readings :batch :reading))
 
 
 (deftest
- t39_l201
- (is ((fn [v] (= :boxplot (inferred-mark v))) v38_l199)))
+ t42_l231
+ (is ((fn [v] (= :boxplot (inferred-mark v))) v41_l229)))
 
 
-(def v41_l207 (pj/pose readings :batch))
+(def v44_l237 (pj/pose readings :batch))
 
 
 (deftest
- t42_l209
+ t45_l239
  (is
   ((fn
     [v]
@@ -229,38 +253,38 @@
        first
        :counts
        (mapv :count)))))
-   v41_l207)))
+   v44_l237)))
 
 
 (def
- v44_l228
+ v47_l258
  (try
   (-> numerical (pj/lay-boxplot :k :v) pj/plot)
   (catch Exception e (ex-message e))))
 
 
 (deftest
- t45_l234
- (is ((fn [m] (re-find #"requires a categorical column" m)) v44_l228)))
+ t48_l264
+ (is ((fn [m] (re-find #"requires a categorical column" m)) v47_l258)))
 
 
-(def v47_l241 (-> readings (pj/lay-boxplot :batch :reading)))
+(def v50_l271 (-> readings (pj/lay-boxplot :batch :reading)))
 
 
 (deftest
- t48_l244
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v47_l241)))
+ t51_l274
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v50_l271)))
 
 
 (def
- v50_l258
+ v53_l288
  (->
   {:year [2020 2021 2022 2023], :revenue [10 20 30 40]}
   (pj/lay-bar :year :revenue {:x-type :categorical})))
 
 
 (deftest
- t51_l261
+ t54_l291
  (is
   ((fn
     [v]
@@ -269,18 +293,18 @@
      (and
       (true? (:categorical? ticks))
       (= ["2020" "2021" "2022" "2023"] (vec (:labels ticks))))))
-   v50_l258)))
+   v53_l288)))
 
 
 (def
- v53_l270
+ v56_l300
  (->
   {:year [2020 2021 2022 2023], :revenue [10 20 30 40]}
   (pj/lay-bar :year :revenue)))
 
 
 (deftest
- t54_l273
+ t57_l303
  (is
   ((fn
     [v]
@@ -305,11 +329,11 @@
       (contains? (set (:labels ticks)) "2020.5")
       (= 1 (groups {:color :year}))
       (= 4 (groups {:color :year, :color-type :categorical})))))
-   v53_l270)))
+   v56_l300)))
 
 
 (def
- v56_l301
+ v59_l331
  (try
   (->
    {:species ["setosa" "versicolor"], :count [50 50]}
@@ -319,22 +343,22 @@
 
 
 (deftest
- t57_l308
- (is ((fn [m] (re-find #"which holds categorical values" m)) v56_l301)))
+ t60_l338
+ (is ((fn [m] (re-find #"which holds categorical values" m)) v59_l331)))
 
 
-(def v59_l334 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
+(def v62_l364 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
 
 
 (deftest
- t60_l338
+ t63_l368
  (is
   ((fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))
-   v59_l334)))
+   v62_l364)))
 
 
 (def
- v62_l344
+ v65_l374
  (try
   (->
    numerical
@@ -345,35 +369,35 @@
 
 
 (deftest
- t63_l352
+ t66_l382
  (is
   ((fn [m] (re-find #"set :x-type or :y-type to :categorical" m))
-   v62_l344)))
+   v65_l374)))
 
 
 (def
- v65_l358
+ v68_l388
  (try
   (-> categorical (pj/lay-point :k :v) (pj/scale :x :log) pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t66_l366
- (is ((fn [m] (re-find #"requires numeric data" m)) v65_l358)))
+ t69_l396
+ (is ((fn [m] (re-find #"requires numeric data" m)) v68_l388)))
 
 
 (def
- v68_l374
+ v71_l404
  (-> categorical (pj/lay-point :k :v) (pj/scale :x :linear)))
 
 
 (deftest
- t69_l378
+ t72_l408
  (is
   ((fn
     [v]
     (=
      (pj/svg-summary v)
      (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))
-   v68_l374)))
+   v71_l404)))

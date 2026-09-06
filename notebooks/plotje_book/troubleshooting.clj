@@ -108,14 +108,21 @@
    :score   [3 5 4 6 6 7 5 8 8 9 7 10]
    :subject [1 1 1 1 2 2 2 2 3 3 3 3]})
 
-;; Gradient (wrong for IDs) -- one line for the whole dataset, with
-;; the color sampled from the gradient legend. Plotje also prints a
-;; warning at the REPL pointing at the fix:
+;; Gradient (wrong for IDs) -- one line for the whole dataset, drawn in
+;; the default color rather than in any color from the gradient: a line
+;; passes through rows of twelve different values and can take none of
+;; them. The legend still shows the gradient, and Plotje reports at the
+;; REPL that the column was not used, pointing at the fix:
 
 (-> subject-scores
     (pj/lay-line :day :score {:color :subject}))
 
-(kind/test-last [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:lines s))
+                 ;; The default stroke, which is what a line with no
+                 ;; :color mapping at all is drawn in.
+                 (contains? (:colors s) "rgb(51,51,51)"))))])
 
 ;; **Fix**: Add `:color-type :categorical` to override the inference --
 ;; three discrete groups, one line per subject:

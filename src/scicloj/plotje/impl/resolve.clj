@@ -481,14 +481,26 @@
 (defn infer-grouping
   "Build the grouping vector from explicit :group and categorical color column.
    Explicit groups are passed through; categorical color columns are appended.
-   Returns a vector of column references (keywords or strings)."
-  [v color-type color-col]
+   Returns a vector of column references (keywords or strings).
+
+   A color column drawn as it stands -- `{:color {:column :c :scale
+   false}}`, where the column already holds colors -- is not a grouping.
+   Reading a column through its scale turns each distinct value into a
+   category and splits the rows into a group per category: the stat is
+   computed once per group, the legend says which group is which, and a
+   bar divides its band between them. `:scale false` says the values are
+   drawn rather than read, and the library already acts on that by
+   drawing no legend for them, so no categories come out of the column
+   and the rows are not split. `:size` and `:alpha` have never grouped in
+   either spelling."
+  [v color-type color-col color-drawn?]
   (let [explicit-group (let [g (:group v)]
                          (cond (nil? g) nil
                                (column-ref? g) [g]
                                (sequential? g) (vec g)
                                :else [g]))
-        color-group (when (= color-type :categorical) [color-col])
+        color-group (when (and (= color-type :categorical) (not color-drawn?))
+                      [color-col])
         group (vec (distinct (concat (or explicit-group color-group [])
                                      (when (and color-group explicit-group) color-group))))]
     group))
@@ -620,7 +632,7 @@
                   size size-drawn? fixed-size
                   alpha alpha-drawn? fixed-alpha text-col
                   tooltip-col fixed-tooltip]} (resolve-aesthetics resolved-ds v)
-          group (infer-grouping v color-type color)
+          group (infer-grouping v color-type color color-drawn?)
           {:keys [mark stat]} (infer-layer-type v x-type y-type x-temporal? y-temporal?)
           ;; Validate that category-grouping marks have a categorical axis.
           ;; :boxplot and :violin accept a categorical axis on either x or y

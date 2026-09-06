@@ -491,11 +491,28 @@ colored-pose
 
 ;; Two groups, two legend entries -- one per category in `:g`.
 
+;; This is the column read through its scale. A column drawn as it
+;; stands -- `{:color {:column :hex :scale false}}` -- holds colors
+;; rather than data, so no categories come out of it and the rows are
+;; not split:
+
+(-> {:x [1 2 3] :y [4 5 6] :hex ["#EE7733" "#AA3377" "#000000"]}
+    (pj/lay-point :x :y {:color {:column :hex :scale false}}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [layer (-> fr pj/plan :panels first :layers first)]
+      (and (= 1 (count (:groups layer)))
+           (= 3 (count (:colors (first (:groups layer))))))))])
+
+;; One group, and three colors on it -- one per row. See
+;; [Specifying Aesthetics](./plotje_book.specifying_aesthetics.html#a-drawn-column-does-not-group).
+
 ;; ### Numeric color does not create groups
 ;;
 ;; When `:color` maps to a numerical column, data is NOT split.
-;; Instead, each point gets an individual color from a continuous
-;; gradient. There is one group, and the legend is continuous
+;; Instead, each mark drawn once per row takes its own color from a
+;; continuous gradient. There is one group, and the legend is continuous
 ;; with 20 pre-computed color stops.
 
 (def numeric-color-pose

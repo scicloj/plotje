@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
+A column drawn as it stands does not group. `{:color {:column :c :scale false}}` says the column holds colors, and those values are now drawn on the marks without splitting the rows: no groups, no dodge, and no layer computed once per color. A column read through its scale is unchanged -- each distinct value is still a category, and the rows are still split into a group per category, which is what the legend explains.
+
+### Plots that look different after upgrading
+
+- **Every bar coloured by a `:scale false` column.** The bar fills its whole band, where the band was divided between the colors as if they were a series. A boxplot or a violin coloured that way is reported instead, since each is drawn from many rows.
+- **Every bar, text, label, lollipop, errorbar and rug drawn with a numeric `:color` column.** The gradient the legend shows is painted on the marks, one color per row, where they were drawn in a single color.
+- **Every plot whose `:scale false` colour reaches a mark drawn once from many rows** -- a line, an area, a histogram bin, a box. That plot is now reported rather than drawn.
+
+### Fixed
+
+- A color column drawn as it stands does not group. Reading a column through its scale turns each distinct value into a category and splits the rows into a group per category, which is what the legend explains and what divides a bar's band. `:scale false` asks for the values to be drawn rather than read, so none of that follows from it -- as none of it has ever followed from `:size` or `:alpha` in either spelling.
+
+- A `:scale false` color on a mark that draws one shape from many rows is reported, naming the mark and both ways out: write one color for the layer, or drop the `:scale` so the column is read through the color scale. The same refusal `:size` and `:alpha` already make.
+
+- A mark drawn once per row wears that row's color when `:color` names a numeric column. A bar in a category band or at a numeric position, a text, a label, a lollipop, an errorbar and a rug tick read the per-row color buffer that `:point` and `:interval-h` have always read. A mark drawn once for many rows -- a line, an area, a histogram bin, a box, a violin -- draws one color and still reports that the column is not painted on it.
+
+- A numeric `:color` on an extension mark that does paint a gradient is no longer reported as drawing one color. Which marks read the column is answered by what the layers drew rather than by a list of mark names in the plan, so a mark that carries a per-row color is counted whether or not Plotje ships it.
+
 ## [0.11.1 - 2026-09-06]
 
 ### Plots that look different after upgrading

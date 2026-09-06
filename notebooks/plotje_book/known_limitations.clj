@@ -148,7 +148,7 @@
 ;;   |:----------|:------------|:------------------|
 ;;   | `:size` (column ref) | `lay-point` | warned, and no legend is drawn for it |
 ;;   | `:alpha` (column ref) | `lay-point` | warned, and no legend is drawn for it (a written `:alpha N` works on most via `:fixed-alpha`) |
-;;   | numeric (continuous) `:color` | `lay-point`, `lay-interval-h` | every other lay-* ignores it (a numeric column on a categorical-color path produces banded palette colors instead of a gradient) |
+;;   | numeric (continuous) `:color` | every mark drawn once per row | a mark drawn once for many rows -- a line, an area, a histogram bin, a box -- draws one color and reports that the column is not painted on it |
 ;;   | `:tooltip`, and the row-index plumbing beside it | `lay-point`, `lay-interval-h` | warned, and no tooltip is drawn |
 ;;
 ;;   Only `lay-point` varies a radius or an opacity from row to row, so
@@ -165,9 +165,10 @@
 ;;   other layer type warns and names `lay-point` as the one that takes
 ;;   it. `:text` is the same, and names `lay-text` and `lay-label`.
 ;;
-;;   Workaround: pre-bin or convert the numeric column into a
-;;   discrete color column where appropriate, or use `lay-point` for
-;;   the mark where the aesthetic must vary per row.
+;;   Workaround for `:size` and `:alpha`: use `lay-point` where the
+;;   aesthetic must vary per row. For a numeric `:color` on a mark drawn
+;;   once for many rows, pre-bin the column into categories, or draw the
+;;   quantity with a mark that stands for one row.
 ;;
 ;; - `:alpha` on `pj/lay-rule-h`/`pj/lay-rule-v` is silently dropped
 ;;   at render time (the rendering path reads `:color` only). Bands

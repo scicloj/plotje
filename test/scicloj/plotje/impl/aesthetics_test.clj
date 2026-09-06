@@ -160,8 +160,12 @@
 
 (deftest a-color-column-drawn-end-to-end-test
   ;; What the decision is for: the plan a pose actually produces.
-  (let [colors-of (fn [pose] (->> (pj/plan pose) :panels first :layers first
-                                  :groups (mapv :color)))
+  (let [;; A drawn color does not group: the layer has one group and the
+        ;; column's own values ride on it, one per row. A scaled color
+        ;; still puts one color on each group.
+        colors-of (fn [pose] (let [gs (->> (pj/plan pose) :panels first
+                                           :layers first :groups)]
+                               (or (:colors (first gs)) (mapv :color gs))))
         legend-of (fn [pose] (:legend (pj/plan pose)))]
     (testing "a column of hex codes draws itself when asked, with no legend"
       ;; `scale_colour_identity()`, and asking is the only way to it.
@@ -204,7 +208,8 @@
 
 (deftest the-explicit-form-overrides-the-convention-end-to-end-test
   (let [produce {:x [1 2 3] :y [4 5 6] :variety ["olive" "plum" "tomato"]}
-        cols (fn [p] (mapv :color (-> (pj/plan p) :panels first :layers first :groups)))
+        cols (fn [p] (let [gs (-> (pj/plan p) :panels first :layers first :groups)]
+                       (or (:colors (first gs)) (mapv :color gs))))
         olive [(/ 128.0 255) (/ 128.0 255) 0.0 1.0]]
 
     (testing "the convention scales a column, colour-named values and all"
@@ -806,8 +811,8 @@
            (mapv :color (-> mixed :panels first :layers second :groups)))
         "and the palette it draws from is unshifted")
     (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0] [1.0 0.0 1.0 1.0]]
-           (mapv :color (-> mixed :panels first :layers first :groups)))
-        "while the drawn column keeps drawing its own colors")))
+           (:colors (first (-> mixed :panels first :layers first :groups))))
+        "while the drawn column keeps drawing its own colors, per row")))
 
 (deftest the-form-is-checked-where-it-is-written-test
   ;; What the map says is decided by the map, so a malformed one is
@@ -1023,9 +1028,9 @@
                (pj/scale :color {:domain ["#FF0000"]})))))
     (testing "the unscaled column on its own is untouched"
       (is (= [[1.0 0.0 0.0 1.0] [0.0 1.0 0.0 1.0] [0.0 0.0 1.0 1.0] [1.0 0.0 1.0 1.0]]
-             (mapv :color (-> (pj/lay-point hexes :when :level
-                                            {:color {:column :hex :scale false}})
-                              pj/plan :panels first :layers first :groups)))))
+             (:colors (first (-> (pj/lay-point hexes :when :level
+                                               {:color {:column :hex :scale false}})
+                                 pj/plan :panels first :layers first :groups))))))
     (testing "and so is the scaled reading, which is what the option is for"
       (is (some? (pj/plan (pj/lay-point hexes :when :level
                                         {:color {:column :hex :scale true}

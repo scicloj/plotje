@@ -437,7 +437,7 @@
                              (try (ws/data band-s :bandwidth)
                                   (catch Exception _ nil))))]
     (vec
-     (for [{:keys [color xs ys labels dodge-idx]} groups
+     (for [{:keys [color colors xs ys labels dodge-idx]} groups
            i (range (count xs))
            :let [[px py] (coord-fn (xs i) (ys i))
                  [px py] (if dodge?
@@ -447,7 +447,7 @@
                              (if flipped? [px mid] [mid py]))
                            [px py])
                  label (if labels (labels i) "")
-                 [cr cg cb _] color
+                 [cr cg cb _] (if colors (colors i) color)
                  text-w (text/text-width fsize label)
                  [dx dy] (text/anchor-offset align-x align-y text-w fsize)
                  glyphs (ui/with-color [cr cg cb op] (ui/label label font))]]
@@ -535,7 +535,7 @@
         cat-scale (if flipped? sy sx)
         band-scale? (and n-groups (try (ws/data cat-scale :bandwidth) (catch Exception _ nil)))]
     (vec
-     (for [{:keys [color xs ys ymins ymaxs dodge-idx]} groups
+     (for [{:keys [color colors xs ys ymins ymaxs dodge-idx]} groups
            i (range (clojure.core/count xs))
            :let [x (xs i)
                  ymin-val (ymins i)
@@ -554,7 +554,7 @@
                        [px-min bp px-max bp]
                        [bp py-min bp py-max]))
                    [px-min py-min px-max py-max])
-                 [cr cg cb _] color]]
+                 [cr cg cb _] (if colors (colors i) color)]]
        (ui/with-color [cr cg cb op]
          (if flipped?
            ;; Horizontal range bar: line from (px-min, py) to (px-max, py),
@@ -596,7 +596,7 @@
     (vec
      (for [group groups
            i (range (clojure.core/count (:xs group)))
-           :let [[cr cg cb _] (:color group)
+           :let [[cr cg cb _] (if-let [cs (:colors group)] (nth cs i) (:color group))
                  cat (nth (:xs group) i)
                  val (nth (:ys group) i)
                  dodge-idx (or (:dodge-idx group) 0)
@@ -865,9 +865,9 @@
         {:keys [length stroke-width opacity]} style
         len (or length 6)]
     (vec
-     (for [{:keys [color xs ys]} groups
+     (for [{:keys [color colors xs ys]} groups
            i (range (count xs))
-           :let [[cr cg cb _] color
+           :let [[cr cg cb _] (if colors (colors i) color)
                  [px py] (coord-fn (xs i) (ys i))]
            tick (cond-> []
                   (#{:x :both} (or side :x))
@@ -900,9 +900,9 @@
         cat-scale (if flipped? sy sx)
         band-scale? (and n-groups (try (ws/data cat-scale :bandwidth) (catch Exception _ nil)))]
     (vec
-     (for [{:keys [color xs ys ymins ymaxs dodge-idx]} groups
+     (for [{:keys [color colors xs ys ymins ymaxs dodge-idx]} groups
            i (range (count xs))
-           :let [[cr cg cb _] color
+           :let [[cr cg cb _] (if colors (colors i) color)
                  x (xs i)
                  y (ys i)
                  ymin-val (ymins i)
@@ -963,8 +963,8 @@
         {:keys [opacity]} style
         base (numeric-baseline ctx flipped?)
         scaled (for [{:keys [color bars]} groups
-                     {:keys [lo hi count]} bars]
-                 {:color color
+                     {:keys [lo hi count] :as bar} bars]
+                 {:color (or (:color bar) color)
                   :corners [(band-s lo) (band-s hi) (num-s base) (num-s count)]})
         drawable (filter #(apply drawable-corner? (:corners %)) scaled)
         dropped (- (clojure.core/count scaled) (clojure.core/count drawable))]
@@ -1129,7 +1129,7 @@
     (vec
      (for [group groups
            i (range (clojure.core/count (:xs group)))
-           :let [[cr cg cb _] (:color group)
+           :let [[cr cg cb _] (if-let [cs (:colors group)] (nth cs i) (:color group))
                  cat (nth (:xs group) i)
                  val (nth (:ys group) i)
                  base (max num-base

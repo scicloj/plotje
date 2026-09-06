@@ -857,29 +857,43 @@
                     (binding [*out* out] (pj/plan pose))
                     (boolean (re-find #"do not read the column as a gradient"
                                       (str out)))))]
-    (testing "every mark drawing one colour per group reports it"
+    (testing "a mark drawn once for many rows reports a numeric colour"
+      ;; Each of these draws one path, one box or one bin from several
+      ;; rows, so there is no row whose colour it could wear.
       (doseq [[what pose]
               [[:line (-> d (pj/lay-line :a :b {:color :n}))]
                [:step (-> d (pj/lay-step :a :b {:color :n}))]
                [:area (-> d (pj/lay-area :a :b {:color :n}))]
                [:smooth (-> d (pj/lay-smooth :a :b {:color :n}))]
-               [:bar (-> d (pj/lay-bar :cat :b {:color :n}))]
+               [:counted-bar (-> d (pj/lay-bar :cat {:color :n}))]
                [:histogram (-> d (pj/lay-histogram :a {:color :n}))]
                [:boxplot (-> d (pj/lay-boxplot :cat :b {:color :n}))]
                [:violin (-> d (pj/lay-violin :cat :b {:color :n}))]
-               [:lollipop (-> d (pj/lay-lollipop :cat :b {:color :n}))]
                [:ridgeline (-> d (pj/lay-ridgeline :cat :b {:color :n}))]
-               [:rug (-> d (pj/lay-rug :a {:color :n}))]
                [:density (-> d (pj/lay-density :a {:color :n}))]
-               [:text (-> d (pj/lay-text :a :b {:text :lab :color :n}))]
-               [:errorbar (-> d (pj/lay-errorbar :a :b {:y-min :lo :y-max :hi
-                                                        :color :n}))]
                [:summary (-> d (pj/lay-summary :cat :b {:color :n}))]]]
         (is (warned? pose) (str what " should report a numeric :color"))))
 
-    (testing "and the marks that read the column say nothing"
-      (is (not (warned? (-> d (pj/lay-point :a :b {:color :n})))))
-      (is (not (warned? (-> d (pj/lay-tile :a :b {:fill :n}))))))
+    (testing "and a mark drawn once per row reads the column instead"
+      ;; The gradient is painted on the marks, so the legend beside them
+      ;; explains what they show. Silence is the assertion here.
+      (doseq [[what pose]
+              [[:point (-> d (pj/lay-point :a :b {:color :n}))]
+               [:tile (-> d (pj/lay-tile :a :b {:fill :n}))]
+               [:value-bar (-> d (pj/lay-bar :cat :b {:color :n}))]
+               [:numeric-position-bar (-> d (pj/lay-bar :a :b {:color :n}))]
+               [:lollipop (-> d (pj/lay-lollipop :cat :b {:color :n}))]
+               [:rug (-> d (pj/lay-rug :a {:color :n}))]
+               [:text (-> d (pj/lay-text :a :b {:text :lab :color :n}))]
+               [:errorbar (-> d (pj/lay-errorbar :a :b {:y-min :lo :y-max :hi
+                                                        :color :n}))]]]
+        (is (not (warned? pose)) (str what " should read a numeric :color"))))
+
+    (testing "a bar answers by what it stands for, not by its layer type"
+      ;; One `lay-bar` call, two answers: a bar per row wears its row's
+      ;; colour, a bar counting a category has no row to read.
+      (is (not (warned? (-> d (pj/lay-bar :cat :b {:color :n})))))
+      (is (warned? (-> d (pj/lay-bar :cat {:color :n})))))
 
     (testing "a categorical :color is what those marks do read"
       (is (not (warned? (-> d (pj/lay-line :a :b {:color :cat}))))))))

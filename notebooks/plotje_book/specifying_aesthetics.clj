@@ -148,11 +148,55 @@ plants
  [(fn [fr]
     (let [p (pj/plan fr)]
       (and (nil? (:legend p))
+           ;; One group, and the colors ride on it one per row: a column
+           ;; drawn as it stands holds drawn values, not data, so it
+           ;; does not split the rows.
+           (= 1 (count (-> p :panels first :layers first :groups)))
            (= [(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
-              (-> p :panels first :layers first :groups first :color)))))])
+              (-> p :panels first :layers first :groups first :colors first)))))])
 
-;; The first plant's `:shade` is `"#EE7733"`, and the first group is
-;; drawn in exactly that color: 238, 119 and 51 out of 255.
+;; The first plant's `:shade` is `"#EE7733"`, and the first mark is
+;; drawn in exactly that color.
+
+;; ## A drawn column does not group
+;;
+;; A color column read through its scale is data: each distinct value is
+;; a category, the rows are split into a group per category, every layer
+;; is computed once per group, and the legend says which group is which.
+;; A column drawn as it stands is not read that way. It holds drawn
+;; values already -- the colors themselves -- so no scale reads it, no
+;; categories come out of it, and the rows are not split. A bar keeps
+;; the whole of its band instead of sharing it with the other colors:
+
+(-> {:cohort ["a" "b" "c"] :growth [10 20 30]
+     :shade ["#EE7733" "#AA3377" "#000000"]}
+    (pj/lay-bar :cohort :growth {:color {:column :shade :scale false}}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [layer (-> fr pj/plan :panels first :layers first)]
+      (and (= 1 (count (:groups layer)))
+           (= 3 (count (:colors (first (:groups layer))))))))])
+
+;; The same column read through its scale would give three categories,
+;; so three groups, and three bars each a third of a band wide.
+;;
+;; With no groups there is also no group color for a mark to take, which
+;; is why a drawn column reaches only the marks that draw one shape per
+;; row. A line drawn from every row, a histogram bar counting the rows in
+;; its bin and a boxplot summarizing a category can each be drawn in one
+;; color only, so Plotje reports the mapping instead of drawing it:
+
+(-> {:x [1 2 3] :y [4 5 6] :shade ["#EE7733" "#AA3377" "#000000"]}
+    (pj/lay-line :x :y {:color {:column :shade :scale false}})
+    (pj/valid-pose?))
+
+(kind/test-last [(fn [ok] (true? ok))])
+
+;; The pose is well formed -- what cannot be done is drawing it, and
+;; `pj/plan` says so, naming the mark and both ways out: write one color
+;; for the layer, or drop the `:scale` so the column is read through the
+;; color scale.
 
 ;; ## A written value, drawn as it stands
 ;;
@@ -421,10 +465,14 @@ plants
 
 (kind/test-last
  [(fn [fr]
+    ;; One color per row, in row order -- four of them for four plants,
+    ;; with the first plant's orange drawn again for the third. A scaled
+    ;; column would give three groups instead, one per distinct value.
     (= [[(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
         [(/ 170.0 255) (/ 51.0 255) (/ 119.0 255) 1.0]
+        [(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
         [0.0 0.0 0.0 1.0]]
-       (->> fr pj/plan :panels first :layers first :groups (mapv :color))))])
+       (-> fr pj/plan :panels first :layers first :groups first :colors)))])
 
 ;; `{:column :shade :scale false}` draws the same plot here, and the
 ;; two differ on data that carries no such column. `:column` requires

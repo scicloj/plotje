@@ -143,6 +143,36 @@
 (kind/test-last
  [(fn [v] (< 4 (count (disj (:colors (pj/svg-summary v)) "none"))))])
 
+;; A gradient is not only for points. Any mark that draws one shape per
+;; row is shaded by the column mapped to `:color`, each shape taking the
+;; color of the row it stands for. The bars below are as tall as `:v`
+;; and colored by `:warmth`, so the height and the color say different
+;; things -- the second bar is half the height of the fourth and lighter
+;; than it:
+
+(-> {:k ["a" "b" "c" "d"] :v [10 20 30 40] :warmth [7 30 12 21]}
+    (pj/lay-bar :k :v {:color :warmth}))
+
+(kind/test-last
+ [(fn [v] (let [colors (-> v pj/plan :panels first :layers first
+                           :groups first :colors)
+                lightness (fn [c] (reduce + (take 3 c)))]
+            (and (= 4 (:polygons (pj/svg-summary v)))
+                 (= 4 (count (distinct colors)))
+                 ;; The second bar is lighter than the fourth, which is
+                 ;; twice its height: the color follows :warmth, not :v.
+                 (> (lightness (nth colors 1))
+                    (lightness (nth colors 3))))))])
+
+;; A mark that draws one shape from many rows cannot do this.
+;; `pj/lay-line` connects the rows in order with a single stroke, a
+;; histogram bar counts the rows that fall in its bin, and a boxplot
+;; summarizes a whole category. Each covers rows of different colors and
+;; can only be drawn in one, so Plotje draws it in the default color and
+;; reports that the column was not used.
+;; [Troubleshooting](./plotje_book.troubleshooting.html#numeric-ids-treated-as-continuous-color)
+;; has that case, where a numeric identifier was meant as a category.
+
 ;; Beyond the colors themselves, a categorical mapping divides the rows
 ;; into groups, and every layer computes itself once per group. A
 ;; numerical mapping does not.

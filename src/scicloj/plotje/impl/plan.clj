@@ -1354,38 +1354,68 @@
       (when-let [vals (finite-vals (map #(aesthetic-col % aesthetic) layers))]
         [(dfn/reduce-min vals) (dfn/reduce-max vals)]))))
 
-(def ^:private monochrome-marks
-  "Marks that draw each group in one solid color and therefore cannot
-   show a continuous color ramp along the mark itself. `:point` is the
-   only mark that carries a per-row color; every mark listed here draws
-   the default color instead, whatever a numeric `:color` column holds.
-   We emit the legend anyway -- a reader can still see the range the
-   column covers -- but we print a one-line warning, since the gradient
-   in the bar is not painted on the mark.
+(defn- validate-drawn-color-marks
+  "Refuse a `:scale false` color column on a mark that cannot draw one
+   color per row.
 
-   Spelled in mark names, which is what a resolved layer carries. A
-   stat or a layer-type name written here would match nothing and warn
-   about nothing: `:bar` is the mark under `lay-histogram` and `:rect`
-   the mark under `lay-bar`."
-  #{:area :bar :boxplot :errorbar :line :lollipop :pointrange
-    :rect :ridgeline :rug :step :text :violin})
+   The same rule `:size` and `:alpha` have had: a column drawn as it
+   stands holds one value per row, and a mark that draws one shape from
+   many rows can read none of them. It is refused rather than warned
+   because there is no reading for it at all -- the column is not a
+   grouping, so there is no group whose color it could become.
+
+   Asked of what the layers produced, as the gradient report beside it
+   is: a mark that paints a per-row color carries the buffer, so the
+   plan answers which marks can, and an extension is counted without
+   registering anything."
+  [resolved-all panels]
+  (let [drawn (filter :color-drawn? resolved-all)
+        painted? (fn [layer]
+                   (some (fn [g] (or (:colors g) (some :color (:bars g))))
+                         (:groups layer)))]
+    (when (and (seq drawn) (not-any? painted? (mapcat :layers panels)))
+      (let [marks (vec (sort (distinct (keep :mark drawn))))]
+        (throw (ex-info (str "A :scale false on :color draws the column's own"
+                             " values, one per row, and "
+                             (str/join ", " marks)
+                             " draws one shape from many rows, so it cannot"
+                             " read one. For one color over the layer, write"
+                             " the value itself. To split the data and color"
+                             " the parts, drop the :scale so the column is"
+                             " read through :color's scale.")
+                        {:marks marks :aesthetic :color}))))))
 
 (defn- warn-monochrome-numeric-color!
-  "Warn once per plan when a numeric :color is paired with a mark that
-   draws one color per group. The column is not read as a gradient at
-   all; the user may have meant `:color-type :categorical`, which
-   splits the data into a group per category and gives each its own
-   color."
-  [resolved-all]
-  (when-let [affected (seq (filter #(and (= :numerical (:color-type %))
-                                         (contains? monochrome-marks (:mark %)))
-                                   resolved-all))]
-    (let [marks (vec (distinct (map :mark affected)))]
-      (println (str "Warning: " marks " with a numeric :color draw one "
-                    "color per group and do not read the column as a "
-                    "gradient, though the legend shows one. Use "
-                    ":color-type :categorical to give each category its "
-                    "own color.")))))
+  "Warn once per plan when a numeric `:color` column reaches no mark that
+   paints a gradient with it. The legend still shows the range the column
+   covers, so without a word the picture claims an encoding the marks do
+   not carry; `:color-type :categorical` splits the data into a group per
+   category and gives each its own color instead.
+
+   Asked of what the layers produced, not of a list of marks. A mark that
+   varies color per row carries a `:colors` buffer on its plan layer, so
+   the plan answers which marks did, and a mark taught to read one -- or
+   an extension that arrives already reading one -- is counted without
+   being registered anywhere. This replaced a closed `monochrome-marks`
+   literal that named thirteen marks and went stale the moment six of
+   them learned to read the buffer."
+  [resolved-all panels]
+  (let [;; Two shapes carry a per-row color: a `:colors` buffer beside the
+        ;; group's `:xs`, and -- where a mark draws from bar maps rather
+        ;; than from parallel buffers -- a `:color` on each bar.
+        varies? (fn [layer]
+                  (some (fn [g] (or (:colors g) (some :color (:bars g))))
+                        (:groups layer)))]
+    (when (and (some #(= :numerical (:color-type %)) resolved-all)
+               (not-any? varies? (mapcat :layers panels)))
+      (let [marks (vec (sort (distinct (keep #(when (= :numerical (:color-type %))
+                                                (:mark %))
+                                             resolved-all))))]
+        (println (str "Warning: " marks " with a numeric :color draw one "
+                      "color per group and do not read the column as a "
+                      "gradient, though the legend shows one. Use "
+                      ":color-type :categorical to give each category its "
+                      "own color."))))))
 
 (def ^:private fill-drawing-marks
   "Marks that paint an interior through the `:fill` aesthetic, and so
@@ -2765,7 +2795,6 @@
                                (defaults/scale-setting
                                 :color :values
                                 (some :color-scale resolved-all) cfg))
-         _ (warn-monochrome-numeric-color! resolved-all)
          _ (warn-fill-scale-without-fill! resolved-all opts)
 
          ;; Shape symbols. Decided here, once per plan, so every panel's
@@ -3121,7 +3150,9 @@
            :layout (select-keys padding [:x-label-pad :y-label-pad :title-pad
                                          :subtitle-pad :caption-pad
                                          :legend-w :legend-h :strip-h :strip-w])})]
+     (validate-drawn-color-marks resolved-all panels)
      (warn-unread-tooltip-mappings resolved-all panels)
+     (warn-monochrome-numeric-color! resolved-all panels)
      (when validate?
        (when-let [explanation (ss/explain plan)]
          (throw (ex-info "Plan does not conform to schema" {:explanation explanation}))))

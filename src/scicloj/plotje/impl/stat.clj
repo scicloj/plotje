@@ -218,8 +218,9 @@
    position), returns a `:bar-width` in data units and widens the x-domain by
    half a bar on each side so edge bars are not clipped."
   [draft-layer]
-  (let [{:keys [data x y color color-type size alpha shape text-col tooltip-col
-                x-type y-type group mark y-min y-max x-end fill bar-width]} draft-layer
+  (let [{:keys [data x y color color-type color-drawn? size alpha shape
+                text-col tooltip-col x-type y-type group mark y-min y-max
+                x-end fill bar-width]} draft-layer
         x-only? (or (nil? y) (= x y))
         data-idx (tc/add-column data :__row-idx (range (tc/row-count data)))
         ds-cols (set (tc/column-names data-idx))
@@ -299,7 +300,8 @@
                           (cond-> {:xs (ds x) :ys (if x-only? (zero-ys ds) (ds y))
                                    :row-indices (ds :__row-idx)}
                             (some? group-val) (assoc :color (extract-color group-val))
-                            numeric-color? (assoc :color-values (ds color))
+                            (or numeric-color? color-drawn?)
+                            (assoc :color-values (ds color))
                             size (assoc :sizes (ds size))
                             alpha (assoc :alphas (ds alpha))
                             shape (assoc :shapes (ds shape))

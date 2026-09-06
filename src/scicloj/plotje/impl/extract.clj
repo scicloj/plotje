@@ -245,17 +245,64 @@
           (let [buf (dtype/concat-buffers bufs)]
             [(dfn/reduce-min buf) (dfn/reduce-max buf)])))))
 
+(defn- per-row-colors
+  "One color per row for a group whose color varies within it, or nil
+   where the group draws one color throughout.
+
+   A numeric color column is a gradient: each value is normalized against
+   the extent the whole plot is read against and handed to the scale's
+   gradient function. `:point` and `:interval-h` have read this buffer
+   since the gradient existed; every other mark drew its group color and
+   ignored it, so a bar with a numeric color column was one flat color
+   per group while the legend showed a gradient.
+
+   Written here once because the marks that draw one element per row all
+   ask the same question, and answering it in each extractor is how the
+   two paths that already existed came to disagree."
+  [draft-layer color-values per-row? c-min c-max cfg]
+  (when (and per-row? color-values)
+    (cond
+      ;; A column drawn as it stands already holds colors, one per row,
+      ;; written as `"red"`, `"#FF0000"` or `:steelblue`. It is not read
+      ;; through a scale and it does not group, so every row's own value
+      ;; is what its mark is drawn in.
+      (:color-drawn? draft-layer)
+      (mapv defaults/hex->rgba color-values)
+
+      (= :numerical (:color-type draft-layer))
+      (let [spec (:color-scale draft-layer)
+            scale-type (or (:type spec) :linear)
+            midpoint (defaults/scale-setting :color :midpoint spec cfg)
+            grad-fn (defaults/scale-gradient-fn :color spec cfg)]
+        (mapv (fn [v]
+                (grad-fn (defaults/normalize-continuous
+                          scale-type v (or c-min 0) (or c-max 1) midpoint)))
+              color-values)))))
+
 (defn- extract-xy-groups
   "Extract groups from stat :points, resolving colors. Common to most mark types.
    Options:
      :with-range? — include :ymins/:ymaxs (errorbar, pointrange)
      :with-labels? — include :labels from :labels key (text, label marks)"
-  [draft-layer stat all-colors cfg & {:keys [with-range? with-labels?]}]
-  (let [groups (vec
-                (for [{:keys [color xs ys ymins ymaxs labels]} (:points stat)]
+  [draft-layer stat all-colors cfg & {:keys [with-range? with-labels? per-row-color?]}]
+  (let [;; Opt-in, because a `:colors` buffer on a group whose renderer
+        ;; reads only `(:color group)` is worse than none: the mark draws
+        ;; one color while `warn-monochrome-numeric-color!` reads the
+        ;; buffer as evidence that it drew a gradient, and says nothing.
+        ;; A mark passing this flag is a mark whose renderer reads the
+        ;; buffer -- an area and a step draw one path from many rows and
+        ;; do not.
+        numeric-color? (= (:color-type draft-layer) :numerical)
+        [lo hi] (when numeric-color? (color-extent draft-layer stat))
+        [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)
+        groups (vec
+                (for [{:keys [color xs ys ymins ymaxs labels color-values]} (:points stat)]
                   (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                            :xs xs :ys ys}
                     (some? color) (assoc :label (defaults/fmt-category-label color))
+                    (per-row-colors draft-layer color-values per-row-color? c-min c-max cfg)
+                    (assoc :colors (per-row-colors draft-layer color-values
+                                                   per-row-color? c-min c-max cfg))
                     (and with-range? ymins) (assoc :ymins ymins)
                     (and with-range? ymaxs) (assoc :ymaxs ymaxs)
                     ;; Text drawn from a data column is the one label kind that
@@ -354,16 +401,9 @@
                     (cond-> {:color (resolve-color all-colors color draft-layer cfg)
                              :xs xs :ys ys}
                       (some? color) (assoc :label (defaults/fmt-category-label color))
-                      (and numeric-color? color-values)
-                      (assoc :colors (vec (map (fn [v]
-                                                 (let [spec (:color-scale draft-layer)
-                                                       scale-type (or (:type spec) :linear)
-                                                       t (defaults/normalize-continuous
-                                                          scale-type v (or c-min 0) (or c-max 1)
-                                                          (defaults/scale-setting :color :midpoint spec cfg))
-                                                       grad-fn (defaults/scale-gradient-fn :color spec cfg)]
-                                                   (grad-fn t)))
-                                               color-values)))
+                      (per-row-colors draft-layer color-values true c-min c-max cfg)
+                      (assoc :colors (per-row-colors draft-layer color-values
+                                                     true c-min c-max cfg))
                       sizes (assoc :sizes sizes)
                       alphas (assoc :alphas alphas)
                       shapes (assoc :shapes (vec shapes))
@@ -454,12 +494,24 @@
           {:mark :bar
            :style {:opacity (or (:fixed-alpha draft-layer) (:bar-opacity cfg))}
            :groups (vec
-                    (for [{:keys [color xs ys]} (:points stat)]
-                      {:color (resolve-color all-colors color draft-layer cfg)
-                       :bars (mapv (fn [x y]
-                                     (let [xd (double x)]
-                                       {:lo (- xd half) :hi (+ xd half) :count y}))
-                                   xs ys)}))})
+                    (let [numeric-color? (= (:color-type draft-layer) :numerical)
+                          [lo hi] (when numeric-color? (color-extent draft-layer stat))
+                          [c-min c-max] (scale/numeric-color-domain
+                                         (:color-scale draft-layer) lo hi)]
+                      (for [{:keys [color xs ys color-values]} (:points stat)]
+                        ;; A bar at a numeric position stands for one row, so
+                        ;; it can wear that row's color. The bin bars a
+                        ;; histogram emits stand for many and carry none, and
+                        ;; the renderer falls back to the group's color there.
+                        (let [cs (per-row-colors draft-layer color-values
+                                                 true c-min c-max cfg)]
+                          {:color (resolve-color all-colors color draft-layer cfg)
+                           :bars (vec (map-indexed
+                                       (fn [i [x y]]
+                                         (let [xd (double x)]
+                                           (cond-> {:lo (- xd half) :hi (+ xd half) :count y}
+                                             cs (assoc :color (nth cs i)))))
+                                       (map vector xs ys)))}))))})
         ;; Categorical value bars -- band layout, on x (vertical bars) or y
         ;; (horizontal bars). When the categorical axis is y, the orientation
         ;; is flipped (mirrors boxplot).
@@ -483,14 +535,21 @@
                     (:bar-width draft-layer) (assoc :bar-width (:bar-width draft-layer)))
            :position (default-position draft-layer)
            :groups (vec
-                    (for [{:keys [color xs ys]} (:points stat)]
-                      {:color (resolve-color all-colors color draft-layer cfg)
-                       :label (defaults/fmt-category-label color)
-                       ;; Canonical slots: category on :xs, numeric value on :ys.
-                       ;; The renderer bands :xs (on the auto-swapped band scale)
-                       ;; and measures :ys, so this draws correctly either way.
-                       :xs (if flipped? ys xs)
-                       :ys (if flipped? xs ys)}))})))))
+                    (let [numeric-color? (= (:color-type draft-layer) :numerical)
+                          [lo hi] (when numeric-color? (color-extent draft-layer stat))
+                          [c-min c-max] (scale/numeric-color-domain
+                                         (:color-scale draft-layer) lo hi)]
+                      (for [{:keys [color xs ys color-values]} (:points stat)]
+                        (cond-> {:color (resolve-color all-colors color draft-layer cfg)
+                                 :label (defaults/fmt-category-label color)
+                                 ;; Canonical slots: category on :xs, numeric value on :ys.
+                                 ;; The renderer bands :xs (on the auto-swapped band scale)
+                                 ;; and measures :ys, so this draws correctly either way.
+                                 :xs (if flipped? ys xs)
+                                 :ys (if flipped? xs ys)}
+                          (per-row-colors draft-layer color-values true c-min c-max cfg)
+                          (assoc :colors (per-row-colors draft-layer color-values
+                                                         true c-min c-max cfg))))))})))))
 
 (def ^:private align-x-values
   "Horizontal anchor values: which part of the text lands on the data point."
@@ -591,7 +650,8 @@
                       :opacity (or (:fixed-alpha draft-layer) 1.0)}
                      (resolve-align draft-layer)
                      (resolve-font draft-layer))
-       :groups (extract-xy-groups draft-layer stat all-colors cfg :with-labels? true)}
+       :groups (extract-xy-groups draft-layer stat all-colors cfg
+                                  :with-labels? true :per-row-color? true)}
       (apply-nudge draft-layer)))
 
 (defmethod extract-layer :area [draft-layer stat all-colors cfg]
@@ -614,7 +674,8 @@
        :style {:stroke-width (or (:fixed-size draft-layer) 1.5)
                :cap-width (or (:cap-width draft-layer) 6)
                :opacity (or (:fixed-alpha draft-layer) 1.0)}
-       :groups (extract-xy-groups draft-layer stat all-colors cfg :with-range? true)}
+       :groups (extract-xy-groups draft-layer stat all-colors cfg
+                                  :with-range? true :per-row-color? true)}
       (cond-> (:position draft-layer) (assoc :position (:position draft-layer)))
       (apply-nudge draft-layer)))
 
@@ -624,7 +685,7 @@
            :stroke-width 1.5
            :opacity (or (:fixed-alpha draft-layer) 1.0)}
    :position (default-position draft-layer)
-   :groups (extract-xy-groups draft-layer stat all-colors cfg)})
+   :groups (extract-xy-groups draft-layer stat all-colors cfg :per-row-color? true)})
 
 (defmethod extract-layer :boxplot [draft-layer stat all-colors cfg]
   (check-stat stat :boxes :boxplot)
@@ -929,14 +990,15 @@
            :stroke-width (or (:fixed-size draft-layer) 1.0)
            :opacity (or (:fixed-alpha draft-layer) 0.5)}
    :side (or (:side draft-layer) :x)
-   :groups (extract-xy-groups draft-layer stat all-colors cfg)})
+   :groups (extract-xy-groups draft-layer stat all-colors cfg :per-row-color? true)})
 
 (defmethod extract-layer :pointrange [draft-layer stat all-colors cfg]
   {:mark :pointrange
    :style {:radius (or (:fixed-size draft-layer) 3.5)
            :stroke-width 1.5
            :opacity (or (:fixed-alpha draft-layer) 1.0)}
-   :groups (extract-xy-groups draft-layer stat all-colors cfg :with-range? true)})
+   :groups (extract-xy-groups draft-layer stat all-colors cfg
+                              :with-range? true :per-row-color? true)})
 
 (defmethod extract-layer :interval-h [draft-layer stat all-colors cfg]
   (let [numeric-color? (= (:color-type draft-layer) :numerical)
@@ -949,18 +1011,9 @@
                     tooltips (assoc :tooltips tooltips)
                     row-indices (assoc :row-indices row-indices)
                     (some? color) (assoc :label (defaults/fmt-category-label color))
-                    (and numeric-color? color-values)
-                    (assoc :colors
-                           (vec (map (fn [v]
-                                       (let [spec (:color-scale draft-layer)
-                                             scale-type (or (:type spec) :linear)
-                                             t (defaults/normalize-continuous
-                                                scale-type v
-                                                (or c-min 0) (or c-max 1)
-                                                (defaults/scale-setting :color :midpoint spec cfg))
-                                             grad-fn (defaults/scale-gradient-fn :color spec cfg)]
-                                         (grad-fn t)))
-                                     color-values))))))]
+                    (per-row-colors draft-layer color-values true c-min c-max cfg)
+                    (assoc :colors (per-row-colors draft-layer color-values
+                                                   true c-min c-max cfg)))))]
     (when (and (seq groups) (not-any? :x-ends groups))
       (throw (ex-info (str "lay-interval-h requires an :x-end column. "
                            "Pass it as an option: "
