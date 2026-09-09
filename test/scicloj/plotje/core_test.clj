@@ -3148,6 +3148,32 @@
         (is (<= y-lo 2))
         (is (>= y-hi 100))))
 
+    (testing "a date rule outside the data carries the ticks out with it"
+      ;; The axis reaches the rule either way -- the domain is widened
+      ;; by the test above. What a temporal axis does not read off the
+      ;; domain is its ticks: they are picked over the extent the data
+      ;; covers, so a rule at December on two months of data left every
+      ;; label in January and February and five sixths of the axis
+      ;; bare. A numeric axis never had the gap, because numeric ticks
+      ;; are picked over the domain the rule already widened.
+      (let [d1 (java.time.LocalDate/parse "2024-01-01")
+            d2 (java.time.LocalDate/parse "2024-03-01")
+            far (java.time.LocalDate/parse "2024-12-01")
+            dated {:d [d1 d2] :y [1.0 2.0]}
+            ticks-of (fn [pose]
+                       (let [vs (-> pose pj/plan :panels first :x-ticks :values)]
+                         (mapv #(str (resolve/epoch-ms->local-date-time %)) vs)))
+            plain (ticks-of (-> dated (pj/lay-point :d :y)))
+            ruled (ticks-of (-> dated
+                                (pj/lay-point :d :y)
+                                (pj/lay-rule-v {:x-intercept far})))]
+        ;; Without the rule the ticks stop inside the data, as before.
+        (is (= "2024-02-26T00:00" (last plain)))
+        ;; With it they run out to the rule rather than stopping short.
+        (is (>= (compare (last ruled) "2024-11-01T00:00") 0)
+            (str "last tick was " (last ruled)))
+        (is (= "2024-01-01T00:00" (first ruled)))))
+
     (testing "a pose carrying only a rule still produces a panel"
       ;; The pose's mapping gives the axes their extent; the rule adds
       ;; its own value to the axis it names.

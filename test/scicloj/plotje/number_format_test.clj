@@ -6,7 +6,8 @@
    Part of https://github.com/scicloj/plotje/issues/19 (nicer labels)."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.scale :as scale]))
 
 (def ticket-data
   {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
@@ -235,3 +236,31 @@
       (is (= ["0.001" "0.01" "0.1" "1" "10" "100" "1000"]
              (vec (take 7 (drop 3 texts))))
           "0.001 read 0.001000, 0.01 read 0.01000, 0.1 read 0.1000"))))
+
+(deftest a-log-break-written-by-hand-reads-as-a-number
+  ;; The 1-2-5 breaks a log axis picks for itself are clean, and the
+  ;; branch that formats them is unchanged. A break written with
+  ;; `pj/scale` is not clean, and `(str v)` wrote what the double held.
+  (testing "a zero carrying a sign reads as zero"
+    (is (= ["0" "0"] (scale/format-log-ticks [-0.0 0.0]))
+        "-0.0 read \"-0.0\" on the axis -- issue #47's shape, though not its cause"))
+
+  (testing "a negative break reads at the precision the plot prints elsewhere"
+    (is (= ["-1" "-0.3"] (scale/format-log-ticks [-1.0 -0.30000000000000004]))))
+
+  (testing "and so does a value above one that arithmetic left noisy"
+    (is (= ["3" "2.5" "1"]
+           (scale/format-log-ticks [3.0000000000000004 2.5 1.0000000000000002]))))
+
+  (testing "the breaks a log axis picks for itself are untouched"
+    (is (= ["0.001" "0.006" "0.1" "1" "2" "5" "10" "1000"]
+           (scale/format-log-ticks [0.001 0.006 0.1 1.0 2.0 5.0 10.0 1000.0]))))
+
+  (testing "a zero break reaches the axis as a label rather than as a raw double"
+    ;; The break is out of a log domain and already reported by
+    ;; `warn-out-of-range-breaks!`; what is fixed here is what it reads.
+    (let [panel (first (:panels (pj/plan (-> {:x [1.0 10.0 100.0] :y [1.0 2.0 3.0]}
+                                             (pj/lay-point :x :y)
+                                             (pj/scale :x {:type :log
+                                                           :breaks [0 1 10 100]})))))]
+      (is (= ["0" "1" "10" "100"] (-> panel :x-ticks :labels))))))

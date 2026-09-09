@@ -551,6 +551,30 @@
       [(apply jt/min (map first extents))
        (apply jt/max (map second extents))])))
 
+(defn- written-temporal-extent
+  "The extent the rules and bands among `resolved-draft-layers` write on
+   `axis`, as the `LocalDateTime` pair the tick generators read, or nil
+   where none of them writes a value there.
+
+   A rule's intercept is coerced to epoch milliseconds at the API, so
+   by the time a draft layer exists nothing distinguishes a date from a
+   number. The axis is temporal only where a column made it so, which
+   is what `column-extents` reports, so this reads the written values
+   back as dates only when that column extent is there to join.
+
+   The axis domain already covers a written value -- that is what
+   `stat/written-extent` gives it -- and a temporal axis picks its
+   ticks over the extent rather than over the domain. Without this the
+   two disagreed: a rule at December on two months of data stretched
+   the axis across a year and left the ticks on January and February,
+   so five sixths of the axis carried no label."
+  [resolved-draft-layers axis column-extents]
+  (when (seq (remove nil? column-extents))
+    (let [written (mapcat #(stat/written-values % axis) resolved-draft-layers)]
+      (when (seq written)
+        (let [dates (map resolve/epoch-ms->local-date-time written)]
+          [(apply jt/min dates) (apply jt/max dates)])))))
+
 (defn- warn-out-of-range-breaks!
   "When user-supplied :breaks include values outside the [lo hi]
    numeric domain, the corresponding ticks render off-panel and the
@@ -2513,11 +2537,17 @@
                           (if (and ext dom)
                             (mapv resolve/epoch-ms->local-date-time dom)
                             ext))
+        x-col-exts (map :x-temporal-extent resolved-draft-layers)
+        y-col-exts (map :y-temporal-extent resolved-draft-layers)
         x-temp-ext (shared-temporal
-                    (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
+                    (merge-temporal-extents
+                     (cons (written-temporal-extent resolved-draft-layers :x x-col-exts)
+                           x-col-exts))
                     (:x shared-domains))
         y-temp-ext (shared-temporal
-                    (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
+                    (merge-temporal-extents
+                     (cons (written-temporal-extent resolved-draft-layers :y y-col-exts)
+                           y-col-exts))
                     (:y shared-domains))
         ;; Whether each axis reads whole numbers, taken where the raw
         ;; extents are still visible. `finalize-panel` cannot ask this

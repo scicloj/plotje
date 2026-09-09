@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. This change
 - **Every plot drawing a filled shape under two drawing units across** -- a narrow bar, a thin interval, a small tile. A shape narrower than one device pixel is drawn at partial opacity rather than dropped, and a shape between one and two device pixels is drawn at its own width rather than rounded to a whole number of them. Wider shapes are unchanged.
 - **Every plot whose rule or band was written before a data layer.** The rule is drawn under the marks written after it, where it used to be drawn over all of them.
 - **Every plot whose rule or band sits outside the extent its data covers.** The axis reaches the rule, where the rule used to be clipped away without a word. A `:domain` written with `pj/scale` still replaces what the data covers, so it pins the axis where the rule cannot widen it.
+- **Every plot whose rule or band sits outside the data on a date axis.** The ticks run the width of the axis, where they used to stop at the last date the data covers.
 - **Every rule given an `:alpha`.** The line is drawn at that opacity, where the number was accepted and ignored.
 - **Every plot combining a rule or a band with `(pj/coord :polar)`.** The plot is reported rather than drawn without the rule.
 
@@ -36,6 +37,10 @@ All notable changes to this project will be documented in this file. This change
 - A date axis draws as many ticks as its labels have room for. A tick count comes from `:tick-spacing`, which reserves the same room per tick whatever the labels say; on a date axis one tick can read `Mar 2023` or `2024-01-01`, so the count was reached that no width could fit and labels ran together. The count now steps down until the labels fit, which also keeps a wider plot on a calendar step a reader counts in rather than moving it to a finer one with longer labels.
 
 - A filled shape narrower than a device pixel is drawn. The renderer paints the one or two device pixels the shape touches at an opacity totalling the shape's width, so a bar a third of a device pixel wide is drawn a third as dark as a solid one, and two bars of different widths no longer look identical. A shape at least two drawing units across in both directions is still snapped to the device pixel grid, so bars and histogram bins meet without a seam between them. The coordinates written to the SVG are unchanged. - thanks, @carstenbehring
+
+- A date axis widened by a rule or a band is ticked across its whole width. A temporal axis picks its ticks over the extent its data covers rather than over its domain, and a rule written past the last date widened the domain alone: a rule at December on two months of data stretched the axis across the year and left every label in January and February. The value a rule or a band writes now reaches that extent as well as the domain, so the labels follow the axis. A numeric axis never had the gap, because numeric ticks are picked over the domain.
+
+- A break written on a log scale reads as a number. `pj/scale :breaks` sends its values to the log axis's own label writer, which had nothing to write for a value the 1-2-5 breaks never produce and printed what the double held: a zero carrying a sign read `-0.0`, and a computed value read `-0.30000000000000004`. Such a value is now written to six significant digits, which is what a continuous legend's endpoints are written to, so a number reads the same wherever the plot prints it. The breaks a log axis picks for itself are unchanged.
 
 ## [0.12.0 - 2026-09-07]
 
