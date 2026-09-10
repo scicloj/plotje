@@ -936,7 +936,7 @@
   (case k
     :color "a color is a CSS name, or a hex string written with its #"
     :shape (str "one layer's shape is one of "
-                (str/join ", " (map pr-str defaults/drawable-shape-syms)))
+                (str/join ", " (map pr-str (defaults/drawable-shapes))))
     :size  "a fixed size is a positive number"
     :alpha "a fixed alpha is a number within 0 and 1"
     :text  "a label is a string"

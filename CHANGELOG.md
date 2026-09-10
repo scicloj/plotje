@@ -32,6 +32,8 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 
 - `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written and is drawn through `layer->membrane` like every other mark, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @carstenbehring
 
+- `pj/shape-symbols` and `pj/shape-palette` are functions rather than values, so `pj/shape-symbols` becomes `(pj/shape-symbols)`. Both answer questions whose answers are meant to change -- which symbols a plot may draw, and which it hands out to categories -- and a value read when the namespace loads cannot follow a change. `pj/config` is a function for the same reason. An unknown symbol is also reported wherever it is written: `render.mark/draw-shape`, which an extension calls to draw its own marks, drew a circle for anything it did not recognise, where the same symbol written on a layer was refused by name.
+
 ### Fixed
 
 - A date axis draws as many ticks as its labels have room for. The count steps down until the labels stop running together, which keeps a wider plot on a calendar step a reader counts in rather than moving it to a finer one with longer labels.

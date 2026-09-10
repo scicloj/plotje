@@ -1246,7 +1246,7 @@
    no draft layer maps `:shape` to a column.
 
    Category order follows the data unless `pj/scale :shape` supplied a
-   `:domain`; the symbols are `defaults/shape-syms` unless that scale
+   `:domain`; the symbols are `defaults/shape-palette` unless that scale
    supplied `:values`. Deciding here rather than at render time is what
    lets the legend show the symbol the marks actually draw.
 
@@ -1257,7 +1257,7 @@
     (when (seq shape-draft-layers)
       (let [scale (some :shape-scale shape-draft-layers)
             domain (seq (categorical-domain scale))
-            syms (or (seq (:values scale)) defaults/shape-syms)
+            syms (or (seq (:values scale)) (defaults/shape-palette))
             observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
                                                          shape-draft-layers))))
             all-shapes (if domain

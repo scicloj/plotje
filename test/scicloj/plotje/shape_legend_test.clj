@@ -12,6 +12,9 @@
    is wrong in the picture while every plan value looks fine."
   (:require [clojure.test :refer [deftest testing is]]
             [clojure.string :as str]
+            [malli.core :as m]
+            [scicloj.plotje.impl.pose-schema :as pose-schema]
+            [scicloj.plotje.render.mark :as mark]
             [scicloj.plotje.api :as pj]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]))
 
@@ -297,7 +300,7 @@
   ;; palette, not pj/shape-symbols: what runs out is the list categories are
   ;; assigned from, and a symbol a caller has to name by hand -- :circle-open --
   ;; is never assigned, so it does not raise this ceiling.
-  (let [available (count pj/shape-palette)
+  (let [available (count (pj/shape-palette))
         syms (fn [n]
                (capturing
                 #(mapv :shape
@@ -367,6 +370,39 @@
 
   (testing "the palette is unchanged, so no existing plot moves"
     (is (= [:circle :square :triangle :diamond :triangle-down :plus :cross]
-           pj/shape-palette))
-    (is (= :circle-open (last pj/shape-symbols)))
-    (is (= pj/shape-palette (vec (butlast pj/shape-symbols))))))
+           (pj/shape-palette)))
+    (is (= :circle-open (last (pj/shape-symbols))))
+    (is (= (pj/shape-palette) (vec (butlast (pj/shape-symbols)))))))
+
+(deftest what-a-shape-is-is-answered-once
+  ;; The set of symbols is meant to grow, so nothing may answer "is
+  ;; this a shape" from a copy taken when a namespace loaded, and
+  ;; nothing may answer it a second way.
+  (testing "the schema reads the set when it validates, not at load"
+    ;; An `[:enum ...]` built here would be built once, and a symbol
+    ;; added afterwards would be refused however the rest answered.
+    (is (every? #(m/validate pose-schema/Shape %) (pj/shape-symbols)))
+    (is (not (m/validate pose-schema/Shape :banana)))
+    (is (= (set (pj/shape-symbols))
+           (set (filter #(m/validate pose-schema/Shape %) (pj/shape-symbols))))))
+
+  (testing "an unnamed symbol draws a circle and an unknown one is reported"
+    ;; Both callers inside the library substitute :circle for nil
+    ;; before calling, so the old catch-all branch was reachable only
+    ;; from outside -- and it handed a caller a circle where the pose
+    ;; boundary would have refused the same symbol by name.
+    (is (some? (mark/draw-shape nil 3.0)))
+    (is (some? (mark/draw-shape :circle 3.0)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot draw the shape :banana"
+                          (mark/draw-shape :banana 3.0))))
+
+  (testing "the plan assigns from the same palette the accessor publishes"
+    ;; Two readers of one list: the assignment in `plan.clj` and
+    ;; `pj/shape-palette`. They go through one accessor so they cannot
+    ;; drift, which is what a `:shape-values` configuration key would
+    ;; hook into.
+    (let [entries (-> {:x [1.0 2.0 3.0] :y [1.0 2.0 3.0] :g ["a" "b" "c"]}
+                      (pj/lay-point :x :y {:shape :g})
+                      pj/plan :shape-legend :entries)]
+      (is (= (vec (take 3 (pj/shape-palette)))
+             (mapv :shape entries))))))

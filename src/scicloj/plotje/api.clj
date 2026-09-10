@@ -151,26 +151,36 @@
    they enforce. Use it as `pj/config-key-docs` is used."
   defaults/aesthetic-scales)
 
-(def shape-symbols
+(defn shape-symbols
   "Every marker symbol a `:shape` mapping can draw.
 
-   The first seven are the assignment palette, in the order they are
-   given to categories: a plot with more categories than those repeats
-   a symbol, so two categories cannot be told apart, and that warns at
-   plan time. The rest are drawn only when named -- `:circle-open` is a
+   `(pj/shape-palette)` is the first part, in the order categories are
+   assigned. The rest are drawn only when named -- `:circle-open` is a
    ring rather than a disc, which keeps overlapping points countable.
 
    Pass a selection of these as `:values` to
    `(pj/scale pose :shape {:values [...]})` to choose them yourself, or
-   name one for a whole layer with `{:shape :circle-open}`."
-  defaults/drawable-shape-syms)
+   name one for a whole layer with `{:shape :circle-open}`.
 
-(def shape-palette
-  "The symbols assigned to categories automatically, in order -- the
-   first part of `pj/shape-symbols`. Published separately because the
-   two answer different questions: this is what a plot draws when you
-   say nothing, and `pj/shape-symbols` is what you may write."
-  defaults/shape-syms)
+   A function rather than a value, as `pj/config` is: what a plot may
+   draw is meant to grow, and a value read at load time could not."
+  []
+  (defaults/drawable-shapes))
+
+(defn shape-palette
+  "The symbols assigned to categories automatically, in order. A plot
+   with more categories than these repeats a symbol, so two categories
+   cannot be told apart, and that warns at plan time.
+
+   Published apart from `pj/shape-symbols` because the two answer
+   different questions: this is what a plot draws when you say nothing,
+   and `pj/shape-symbols` is what you may write. Adding to this one
+   changes which symbol every existing plot gives each category; adding
+   to the other takes nothing away.
+
+   A function rather than a value, as `pj/config` is."
+  []
+  (defaults/shape-palette))
 
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.

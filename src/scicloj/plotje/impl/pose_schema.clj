@@ -93,8 +93,16 @@
    (fn [v] (defaults/names-a-color? v))])
 
 (def Shape
-  "One of the marker symbols a `:shape` mapping draws with."
-  (into [:enum] defaults/drawable-shape-syms))
+  "One of the marker symbols a `:shape` mapping draws with.
+
+   A predicate rather than an `[:enum ...]` over the symbols, because
+   an enum built here is built once, when this namespace loads. The set
+   is meant to grow, and a symbol added after load would be refused by
+   a frozen enum however the rest of the library answered. A layer type
+   validates as a plain `keyword?` for the same reason, and the
+   registry reports an unknown one."
+  [:fn {:error/message "should be a symbol pj/shape-symbols lists"}
+   (fn [v] (contains? (set (defaults/drawable-shapes)) v))])
 
 (def ExplicitMapping
   "A mapping written out in full: which source it takes, and

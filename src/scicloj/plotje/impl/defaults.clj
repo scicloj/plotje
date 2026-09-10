@@ -456,6 +456,27 @@
    validates a written `:shape`, and what `pj/shape-symbols` publishes."
   (into shape-syms extra-shape-syms))
 
+(defn shape-palette
+  "The symbols categories are assigned, in order.
+
+   Read through here rather than off `shape-syms` directly, by the
+   plan that assigns them and by `pj/shape-palette` alike, so the two
+   cannot answer differently. A `:shape-values` configuration key would
+   be read here and nowhere else."
+  []
+  shape-syms)
+
+(defn drawable-shapes
+  "Every symbol a `:shape` mapping may name.
+
+   Read through here rather than off `drawable-shape-syms` directly, by
+   the validation, the error messages, the schema and
+   `pj/shape-symbols` alike. A registry of shapes an extension can add
+   to would be read here and nowhere else, and the readers would not
+   change."
+  []
+  drawable-shape-syms)
+
 (def legend-swatch-size
   "Side length of the colored key drawn beside a legend entry (square)."
   8)

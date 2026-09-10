@@ -176,7 +176,13 @@
 (defn draw-shape
   "Draw a shape symbol on a 2r-by-2r box whose top-left corner is the
    origin. Public so the legend renderer draws the same symbol the
-   marks do. An unknown symbol draws a circle.
+   marks do.
+
+   `nil` means no symbol was named and draws a circle, which is what
+   every point mark without a `:shape` gets. A symbol this cannot draw
+   is reported. The two used to be one answer -- anything unrecognized
+   drew a circle -- so a caller outside the library got a circle where
+   the pose boundary would have refused the same symbol by name.
 
    `:circle-open` is drawn as an outline rather than a disc, so
    overlapping points stay countable -- each ring shows through the
@@ -186,7 +192,7 @@
    straddles the path it is drawn on, so a ring drawn at radius r would
    otherwise reach r plus half the stroke and read as the larger
    symbol. It is deliberately not in the default palette
-   (`defaults/shape-syms`), which would change which symbol every
+   (`defaults/shape-palette`), which would change which symbol every
    existing plot gives each category."
   [shape-kw r]
   (let [d (* 2 r)]
@@ -210,9 +216,14 @@
                  (ui/path [r 0] [d r] [r d] [0 r] [r 0]))
       :plus (closed-path (plus-points r r r (* 0.32 r)))
       :cross (closed-path (rotate-45 r r (plus-points r r r (* 0.32 r))))
-      ;; default: circle
-      (ui/with-style ::ui/style-fill
-        (ui/rounded-rectangle d d r)))))
+      (nil :circle) (ui/with-style ::ui/style-fill
+                      (ui/rounded-rectangle d d r))
+      (throw (ex-info (str "Cannot draw the shape " (pr-str shape-kw)
+                           ". Plotje draws "
+                           (str/join ", " (map pr-str (defaults/drawable-shapes)))
+                           ".")
+                      {:shape shape-kw
+                       :drawable (defaults/drawable-shapes)})))))
 
 (defn- fmt-val
   "Format a value for tooltip display."

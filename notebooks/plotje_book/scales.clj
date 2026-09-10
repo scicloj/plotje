@@ -1291,7 +1291,7 @@ gapminder-2007
 ;; `pj/shape-palette` is the list categories are assigned from, in the
 ;; order they take them:
 
-pj/shape-palette
+(pj/shape-palette)
 
 (kind/test-last [(fn [syms] (= syms (distinct syms)))])
 
@@ -1302,11 +1302,11 @@ pj/shape-palette
 ;; is its first part, and the symbols after it are drawn only when
 ;; named:
 
-pj/shape-symbols
+(pj/shape-symbols)
 
 (kind/test-last
  [(fn [syms]
-    (and (= pj/shape-palette (vec (take (count pj/shape-palette) syms)))
+    (and (= (pj/shape-palette) (vec (take (count (pj/shape-palette)) syms)))
          (some #{:circle-open} syms)))])
 
 ;; `:circle-open` is one of those. It draws a ring rather than a disc,

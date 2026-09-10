@@ -17,7 +17,7 @@
   gapminder-2007
   (->
    (rdatasets/gapminder-gapminder)
-   (tc/select-rows (fn* [p1__83898#] (= 2007 (:year p1__83898#)))))))
+   (tc/select-rows (fn* [p1__11193#] (= 2007 (:year p1__11193#)))))))
 
 
 (def v4_l41 gapminder-2007)
@@ -101,8 +101,8 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__83899#]
-        (-> p1__83899# :plan :panels first :x-scale :type))))))
+        [p1__11194#]
+        (-> p1__11194# :plan :panels first :x-scale :type))))))
    v16_l141)))
 
 
@@ -661,7 +661,7 @@
 (def
  v106_l671
  (->
-  {:bin (map (fn* [p1__83900#] (str "bin-" p1__83900#)) (range 40)),
+  {:bin (map (fn* [p1__11195#] (str "bin-" p1__11195#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -675,7 +675,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__83901#] (.startsWith p1__83901# "bin-"))
+       (fn* [p1__11196#] (.startsWith p1__11196# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v106_l671)))
@@ -1045,7 +1045,7 @@
         (update
          squares
          :n
-         (fn [ns] (mapv (fn* [p1__83902#] (* 100 p1__83902#)) ns)))
+         (fn [ns] (mapv (fn* [p1__11197#] (* 100 p1__11197#)) ns)))
         (pj/lay-point :step :row {:size :n})
         pj/plan
         :size-legend
@@ -1229,7 +1229,7 @@
    :row (range 40),
    :n
    (map
-    (fn* [p1__83903#] (Math/pow 10 (/ p1__83903# 10.0)))
+    (fn* [p1__11198#] (Math/pow 10 (/ p1__11198# 10.0)))
     (range 40))}
   (pj/lay-point :step :row {:color :n})
   (pj/scale :color {:type :log, :range :viridis})))
@@ -1322,7 +1322,7 @@
    v183_l1264)))
 
 
-(def v186_l1294 pj/shape-palette)
+(def v186_l1294 (pj/shape-palette))
 
 
 (deftest
@@ -1330,7 +1330,7 @@
  (is ((fn [syms] (= syms (distinct syms))) v186_l1294)))
 
 
-(def v189_l1305 pj/shape-symbols)
+(def v189_l1305 (pj/shape-symbols))
 
 
 (deftest
@@ -1339,7 +1339,9 @@
   ((fn
     [syms]
     (and
-     (= pj/shape-palette (vec (take (count pj/shape-palette) syms)))
+     (=
+      (pj/shape-palette)
+      (vec (take (count (pj/shape-palette)) syms)))
      (some #{:circle-open} syms)))
    v189_l1305)))
 

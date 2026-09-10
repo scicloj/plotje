@@ -638,7 +638,7 @@
 
 (kind/doc #'pj/shape-symbols)
 
-pj/shape-symbols
+(pj/shape-symbols)
 
 (kind/test-last [(fn [syms] (and (seq syms) (every? keyword? syms)))])
 
