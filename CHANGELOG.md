@@ -13,6 +13,7 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 - **Every rule given an `:alpha`.** The line is drawn at that opacity.
 - **Every plot combining a rule or a band with `(pj/coord :polar)`.** The plot is reported rather than drawn without the rule.
 - **Every plot on a date axis that asked for more ticks than fit.** The axis carries fewer, larger-stepped ticks whose labels do not overlap.
+- **Every plot setting `:annotation-stroke`.** The key is `:rule-color` now. Under the old name the setting is reported and dropped, so rules draw in the default colour.
 - **Every SVG plot drawing a filled shape under two drawing units across** -- a narrow bar, a thin interval, a small tile. Wider shapes are unchanged, and the PNG path is unaffected.
 - **Every log axis carrying a break written with `pj/scale`.** The break reads to six significant digits.
 
@@ -33,6 +34,8 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 - `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written and is drawn through `layer->membrane` like every other mark, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @carstenbehring
 
 - `pj/shape-symbols` and `pj/shape-palette` are functions rather than values, so `pj/shape-symbols` becomes `(pj/shape-symbols)`. Both answer questions whose answers are meant to change -- which symbols a plot may draw, and which it hands out to categories -- and a value read when the namespace loads cannot follow a change. `pj/config` is a function for the same reason. An unknown symbol is also reported wherever it is written: `render.mark/draw-shape`, which an extension calls to draw its own marks, drew a circle for anything it did not recognise, where the same symbol written on a layer was refused by name.
+
+- The `:annotation-stroke` configuration key is `:rule-color`. It sets the colour a rule draws in where its layer names none, which is what it has always set; the name is what changed, so that no part of the public API still calls these four marks annotations. Written under the old name it is reported, and the report names the new one.
 
 ### Fixed
 

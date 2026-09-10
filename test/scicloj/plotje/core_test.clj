@@ -930,7 +930,7 @@
       (is (= 0.85 (:bar-opacity cfg)))
       (is (= 2.5 (:line-width cfg)))
       (is (= 0.6 (:grid-stroke-width cfg)))
-      (is (string? (:annotation-stroke cfg)))
+      (is (string? (:rule-color cfg)))
       (is (= 0.15 (:band-opacity cfg)))
       (is (= 60 (:x-tick-spacing cfg)))
       (is (= 40 (:y-tick-spacing cfg)))
@@ -2778,8 +2778,17 @@
         (is (re-find #":annotation-dash" out)))
       ;; The two keys beside it are live, and stay quiet.
       (is (= "" (with-out-str (-> data (pj/lay-point :x :y)
-                                  (pj/options {:annotation-stroke "#333"
+                                  (pj/options {:rule-color "#333"
                                                :band-opacity 0.2}))))))
+
+    (testing "a renamed configuration key is reported by its new name"
+      ;; Reported as unrecognized and nothing more, a rename reads as a
+      ;; typo: the writer hunts for a misspelling that is not there,
+      ;; because the setting exists under another name.
+      (let [out (with-out-str (-> data (pj/lay-point :x :y)
+                                  (pj/options {:annotation-stroke "#0000ff"})))]
+        (is (re-find #"Renamed to :rule-color" out))
+        (is (re-find #":annotation-stroke" out))))
 
     (testing "valid options stay quiet"
       (is (= "" (with-out-str (-> data (pj/pose :x :y {:color :y}))))))))

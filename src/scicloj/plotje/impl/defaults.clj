@@ -53,7 +53,7 @@
    ;; Bars and lines
    :bar-opacity 0.85 :line-width 2.5 :grid-stroke-width 0.6
    ;; Rules and bands
-   :annotation-stroke "#333" :band-opacity 0.15
+   :rule-color "#333" :band-opacity 0.15
    ;; Statistics
    :bin-method :sturges
    :domain-padding 0.05
@@ -984,7 +984,7 @@
    :bar-opacity ["Bars & Lines" "Default bar fill opacity"]
    :line-width ["Bars & Lines" "Default line stroke width"]
    :grid-stroke-width ["Bars & Lines" "Grid line stroke width"]
-   :annotation-stroke ["Rules & Bands" "Stroke color a rule draws in where its layer names none"]
+   :rule-color ["Rules & Bands" "Stroke color a rule draws in where its layer names none"]
    :band-opacity ["Rules & Bands" "Fill opacity a band draws at where its layer names none"]
    :x-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the x axis"]
    :y-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the y axis"]

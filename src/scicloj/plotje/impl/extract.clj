@@ -1072,19 +1072,19 @@
 (def ^:private band-fill
   "What a band fills with where its layer names no color. Mid grey,
    which is what a shaded region has always been drawn in -- the
-   `:annotation-stroke` default belongs to the lines."
+   `:rule-color` default belongs to the lines."
   [0.5 0.5 0.5 1.0])
 
 (defmethod extract-layer :rule-h [draft-layer _stat _all-colors cfg]
   {:mark :rule-h
    :style (rule-style draft-layer)
-   :color (written-color draft-layer (defaults/hex->rgba (:annotation-stroke cfg)))
+   :color (written-color draft-layer (defaults/hex->rgba (:rule-color cfg)))
    :y-intercept (:y-intercept draft-layer)})
 
 (defmethod extract-layer :rule-v [draft-layer _stat _all-colors cfg]
   {:mark :rule-v
    :style (rule-style draft-layer)
-   :color (written-color draft-layer (defaults/hex->rgba (:annotation-stroke cfg)))
+   :color (written-color draft-layer (defaults/hex->rgba (:rule-color cfg)))
    :x-intercept (:x-intercept draft-layer)})
 
 (defmethod extract-layer :band-h [draft-layer _stat _all-colors cfg]

@@ -751,6 +751,16 @@
        sort
        vec))
 
+(def ^:private renamed-options
+  "Options that were written under another name in an earlier release,
+   and the name they carry now.
+
+   Without this an old name is reported as unrecognized, which reads as
+   a typo: the writer looks for the misspelling and finds none, because
+   the setting is there under another name. Naming the new key turns a
+   dead end into a one-word edit."
+  {:annotation-stroke :rule-color})
+
 (defn- option-home
   "The category `k` belongs to and the function that sets it, as a
    phrase, given the `caller` that rejected it. Returns nil when `k`
@@ -759,6 +769,9 @@
   (let [lay? (str/starts-with? caller "lay-")
         elsewhere (layer-types-accepting k)]
     (cond
+      (renamed-options k)
+      (str "Renamed to " (renamed-options k))
+
       (dedicated-function-keys k)
       (str "Set by " (dedicated-function-keys k) ", not by an options map")
 

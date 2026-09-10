@@ -64,7 +64,7 @@
    :title-font-size 30
    :label-font-size 22
    :grid-stroke-width 4
-   :annotation-stroke "#0000ff"})
+   :rule-color "#0000ff"})
 
 (deftest an-option-that-moves-a-plot-moves-the-saved-file-too
   (testing "pj/save honors what pj/plot honors"
@@ -120,7 +120,7 @@
    value follows from it."
   {:thousands-separator ","
    :decimal-separator   "."
-   :annotation-stroke   "#0000ff"
+   :rule-color         "#0000ff"
    :default-color       "#0000ff"
    :point-stroke        "#00ff00"
    :x-tick-angle        45
