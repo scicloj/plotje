@@ -11,8 +11,9 @@
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
-   ;; Fastmath -- random number generation
+   ;; Fastmath -- random number generation and summary statistics
    [fastmath.random :as rng]
+   [fastmath.stats :as fstats]
    ;; Java-time -- idiomatic date/time construction
    [java-time.api :as jt]
    ;; Rdatasets -- additional datasets beyond the shared ones
@@ -392,8 +393,8 @@
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/options {:color-values {:setosa "#E91E63"
-                           :versicolor "#4CAF50"
-                           :virginica "#2196F3"}
+                                :versicolor "#4CAF50"
+                                :virginica "#2196F3"}
                  :title "Custom Palette Map"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -524,6 +525,40 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 150 (:points s))
                                 (= 1 (:lines s)))))])
+
+;; ### A reference line on a distribution
+;;
+;; A histogram, a density and a rug read one column and count or shape
+;; it themselves, so there is no y column to give them. A rule needs no
+;; column either -- an intercept, `:x-intercept` on a vertical rule and
+;; `:y-intercept` on a horizontal one, is a written value rather than a
+;; column reference -- so a rule goes on such a pose like any other
+;; layer. Marking where the mean falls is the usual reason.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-histogram :sepal-length)
+    (pj/lay-rule-v {:x-intercept (fstats/mean (:sepal-length (rdatasets/datasets-iris)))
+                    :color "firebrick"
+                    :size 2}))
+
+(kind/test-last
+ ;; The rule is the only line the plot draws -- the histogram's bars are
+ ;; filled shapes, not lines -- so this counts the rule and nothing else.
+ [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+
+;; The same holds for a band, and for a rule written across the counts
+;; rather than across the measurement: `pj/lay-rule-h` at a count of 20
+;; sits on the axis the histogram computed for itself.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-histogram :sepal-length)
+    (pj/lay-rule-h {:y-intercept 20 :color "firebrick"})
+    (pj/lay-band-v {:x-min 5.5 :x-max 6.5 :alpha 0.2}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:lines s))
+                 (pos? (:visible-tiles s)))))])
 
 ;; ### Labels on the lines instead of a legend
 ;;

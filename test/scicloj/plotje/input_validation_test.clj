@@ -1217,3 +1217,51 @@
   (testing "and a number still draws"
     (is (some? (pj/plot (pj/lay-bar banded :cat :val {:bar-width 0.4})
                         {:format :svg})))))
+
+(deftest a-rule-or-band-goes-on-an-x-only-pose
+  ;; The x-only guard exists so `prepare-points` cannot fabricate y=0
+  ;; for a mark that reads rows. These four write their value and read
+  ;; no rows, so it never applied to them -- but once they became
+  ;; ordinary layers they started reaching it, and a threshold line on
+  ;; a histogram threw. `resolve/written-position-marks` is exempted.
+  (let [counts (mapv (fn [i] {:v (rem (* i 7) 20) :g (if (even? i) "a" "b")})
+                     (range 40))
+        drawn (fn [pose] (:lines (pj/svg-summary pose)))]
+    (testing "each x-only base takes a rule"
+      (is (= 1 (drawn (-> counts (pj/lay-histogram :v) (pj/lay-rule-h {:y-intercept 3})))))
+      (is (= 1 (drawn (-> counts (pj/lay-histogram :v) (pj/lay-rule-v {:x-intercept 10})))))
+      (is (= 1 (drawn (-> counts (pj/lay-density :v) (pj/lay-rule-v {:x-intercept 10})))))
+      (is (= 1 (drawn (-> counts (pj/lay-bar :g) (pj/lay-rule-h {:y-intercept 3})))))
+      (is (= (inc (drawn (-> counts (pj/lay-rug :v))))
+             (drawn (-> counts (pj/lay-rug :v) (pj/lay-rule-v {:x-intercept 10}))))
+          "the rug draws a line per row, so the rule is one line more than the base"))
+    (testing "a band too, which draws a rect rather than a line"
+      (let [pose (-> counts (pj/lay-histogram :v) (pj/lay-band-h {:y-min 1 :y-max 3}))]
+        (is (pos? (:visible-tiles (pj/svg-summary pose))))))
+    (testing "the guard still fires for a mark that reads its rows"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #":point requires both :x and :y columns"
+           (pj/plan (-> counts (pj/lay-point :v)))))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #":line requires both :x and :y columns"
+           (pj/plan (-> counts (pj/lay-line :v))))))))
+
+(deftest a-band-with-equal-bounds-is-reported
+  ;; `lo > hi` was refused and `lo = hi` was not, so a band covering
+  ;; nothing drew a rect of zero thickness -- in the SVG, invisible on
+  ;; the plot, reported by nothing.
+  (let [base (pj/lay-point tiny :x :y)]
+    (testing "equal bounds name the rule that draws a line at one value"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"requires :y-min < :y-max.*lay-rule-h"
+           (pj/lay-band-h base {:y-min 3 :y-max 3})))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"requires :x-min < :x-max.*lay-rule-v"
+           (pj/lay-band-v base {:x-min 2 :x-max 2}))))
+    (testing "the neighbouring guards are unchanged"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"requires :y-min <= :y-max"
+           (pj/lay-band-h base {:y-min 5 :y-max 3}))
+          "a swapped pair still reports the swap, not the equality")
+      (is (some? (pj/lay-band-h base {:y-min 3 :y-max 5}))
+          "an ordinary band is accepted"))))

@@ -73,3 +73,34 @@
            clojure.lang.ExceptionInfo
            #":strict false"
            (-> tiny (pj/lay-point :x :y {:colour :a})))))))
+
+(deftest a-retired-configuration-key-names-its-replacement
+  ;; :annotation-stroke became :rule-color. `api/renamed-options` gave
+  ;; the pointer on the options path only, so the four configuration
+  ;; entry points -- the key's own home -- reported a bare "does not
+  ;; recognize" and read as a typo. The map lives in `defaults` now, so
+  ;; `validate-config-keys!` reads it too.
+  (let [said (fn [f]
+               (let [out (java.io.StringWriter.)]
+                 (binding [*out* out] (f))
+                 (str out)))]
+    (testing "the configuration path names the new key"
+      (doseq [[what f] [["pj/with-config" #(pj/with-config {:annotation-stroke "red"}
+                                             (constantly nil))]
+                        ["the :config option" #(pj/plot (-> tiny (pj/lay-point :x :y)
+                                                            (pj/options {:config {:annotation-stroke "red"}})))]]]
+        (let [msg (said f)]
+          (is (re-find #"does not recognize configuration key" msg)
+              (str what " still reports the key"))
+          (is (re-find #":annotation-stroke was renamed to :rule-color" msg)
+              (str what " names what replaced it")))))
+    (testing "the options path still does, in its own wording"
+      (is (re-find #"Renamed to :rule-color"
+                   (said #(pj/plot (-> tiny (pj/lay-point :x :y)
+                                       (pj/options {:annotation-stroke "red"})))))))
+    (testing "a key that was never renamed gets no pointer"
+      (let [msg (said #(pj/with-config {:not-a-key 1} (constantly nil)))]
+        (is (re-find #"does not recognize configuration key" msg))
+        (is (not (re-find #"renamed to" msg)))))
+    (testing "the replacement itself is accepted"
+      (is (empty? (said #(pj/with-config {:rule-color "red"} (constantly nil))))))))

@@ -251,8 +251,8 @@ my-pose
 ;;
 ;; | Key | Controls | Column type |
 ;; |:----|:---------|:------------|
-;; | `:x` | Horizontal position | Numerical, temporal, or categorical |
-;; | `:y` | Vertical position | Numerical, temporal, or categorical |
+;; | `:x` | Where the mark sits horizontally | Numerical, temporal, or categorical |
+;; | `:y` | Where the mark sits vertically | Numerical, temporal, or categorical |
 ;; | `:x-end` | Right edge of an interval bar | Same type as `:x` |
 ;; | `:x-min`, `:x-max` | Edges of a vertical band | No column -- a written value only |
 ;; | `:y-min`, `:y-max` | An errorbar's bounds, or the edges of a horizontal band | Same type as `:y`, or a written value |
@@ -810,8 +810,9 @@ my-pose
 ;;
 ;; An **annotation** is a mark layered on a plot to explain it rather
 ;; than to show data: a reference line, a shaded region, a note, a
-;; leader line, a caption. Their positions are given as values or
-;; measured on the panel, not read from a column for every row.
+;; leader line, a caption. Where each one sits is given as a written
+;; value or measured on the panel, not read from a column for every
+;; row.
 ;;
 ;; Two ways to place one, and every one of the constructors below
 ;; accepts both:
@@ -836,10 +837,11 @@ my-pose
 ;; | `pj/lay-band-h` | Horizontal shaded region from y = y-min to y = y-max |
 ;; | `pj/lay-text`, `pj/lay-label` | A note, at a value or on the panel |
 ;;
-;; The four rule and band constructors take their positions in the
-;; layer's `:mapping` slot (`:y-intercept` or `:x-intercept` for rules;
-;; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands) as written values
-;; rather than column references, and each draws at exactly one place.
+;; Each of the four rule and band constructors names where it draws in
+;; the layer's `:mapping` slot (`:y-intercept` or `:x-intercept` for
+;; rules; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands), as a
+;; written value rather than a column reference, and draws at exactly
+;; one place.
 ;; `{:value 1.5}` says the same thing at more length; a `{:column ...}`
 ;; there is reported, since these read no column.
 ;; Column-mapped intercepts, producing one mark per row like ggplot2's
@@ -1163,7 +1165,7 @@ annotated
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/overlay`, `:overlay` in a `pj/lay-*` options map |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make sibling poses of a composite share data ranges across named axes | `:share-scales` in composite `:opts` |
-;; | Annotation | Reference marks (rules, bands); positions in `:mapping` as written values today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
+;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
 ;; | Layer options | Per-layer aesthetics and layer-type parameters | `pj/lay-*` options map |

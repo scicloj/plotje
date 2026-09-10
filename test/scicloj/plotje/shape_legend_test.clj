@@ -15,6 +15,7 @@
             [malli.core :as m]
             [scicloj.plotje.impl.pose-schema :as pose-schema]
             [scicloj.plotje.render.mark :as mark]
+            [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.api :as pj]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]))
 
@@ -406,3 +407,42 @@
                       pj/plan :shape-legend :entries)]
       (is (= (vec (take 3 (pj/shape-palette)))
              (mapv :shape entries))))))
+
+(deftest the-palette-and-the-drawable-set-cannot-disagree
+  ;; `drawable-shape-syms` was a value computed from `shape-syms` when
+  ;; the namespace loaded, while `shape-palette` was a function reading
+  ;; the same var at call time. Changing the palette moved one answer
+  ;; and not the other: the plan handed a category the new symbol and
+  ;; the schema then refused it. `drawable-shapes` recomputes now.
+  (testing "before any change, every assigned symbol is a writable one"
+    (is (every? (set (pj/shape-symbols)) (pj/shape-palette))))
+  (testing "and after one, still"
+    (with-redefs [defaults/shape-syms (conj defaults/shape-syms :moon)]
+      (is (contains? (set (pj/shape-palette)) :moon)
+          "the palette follows the change")
+      (is (contains? (set (pj/shape-symbols)) :moon)
+          "and so does the set that validates what may be written")
+      (is (every? (set (pj/shape-symbols)) (pj/shape-palette))
+          "which is the invariant: a symbol handed out can be written")))
+  (testing "the change is not sticky"
+    (is (not (contains? (set (pj/shape-symbols)) :moon)))))
+
+(deftest the-refusal-does-not-list-the-symbol-it-refuses
+  ;; The sentence enumerates what may be written, not what `draw-shape`
+  ;; can draw. The two agree for every shipped symbol, so the only way
+  ;; to see the difference is to add one -- and then the message said
+  ;; Plotje draws the very symbol it was refusing.
+  (testing "a plain unknown symbol is reported with the drawable list"
+    (let [msg (try (mark/draw-shape :nonsense 5)
+                   (catch clojure.lang.ExceptionInfo e (.getMessage e)))]
+      (is (re-find #"Cannot draw the shape :nonsense" msg))
+      (is (not (re-find #":nonsense.*:nonsense" msg))
+          "named once, as the refused symbol, and not again as a drawable one")
+      (is (re-find #":circle" msg) "the drawable symbols are still listed")))
+  (testing "a symbol that is writable but undrawable is left out of its own list"
+    (with-redefs [defaults/shape-syms (conj defaults/shape-syms :moon)]
+      (let [msg (try (mark/draw-shape :moon 5)
+                     (catch clojure.lang.ExceptionInfo e (.getMessage e)))]
+        (is (re-find #"Cannot draw the shape :moon" msg))
+        (is (not (re-find #"Plotje draws.*:moon" msg))
+            "the list of what Plotje draws must not contain the refusal's subject")))))

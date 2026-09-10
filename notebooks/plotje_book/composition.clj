@@ -131,6 +131,36 @@ shared-x
 ;; effective x-column matches share a scale. Panels with different
 ;; x-columns would each get their own domain.
 
+;; A rule or a band is covered too. A shared axis pools the columns its
+;; cells name, and a rule names none: its `:x-intercept` is a mapping
+;; like any other, but it takes a written value rather than a column
+;; reference. The shared domain covers those written values too.
+;; Here one cell carries a limit beyond anything either species
+;; measures, and both cells reach it:
+
+(def limit 8.5)
+
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "setosa" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/lay-rule-v {:x-intercept limit :color "firebrick"}))
+  (-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "virginica" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width))]
+ {:share-scales #{:x}})
+
+(kind/test-last
+ ;; Both cells reach past the limit, and they reach it together. Note
+ ;; that the shape count says nothing here -- the rule is drawn whether
+ ;; or not the axis reaches it, and an axis stopping short would put the
+ ;; line outside the panel to be clipped away in silence.
+ [(fn [v] (let [panels (mapcat #(:panels (:plan %)) (:sub-plots (pj/plan v)))
+                domains (mapv #(mapv double (:x-domain %)) panels)]
+            (and (= 2 (count domains))
+                 (apply = domains)
+                 (< limit (second (first domains))))))])
+
 ;; ### Cells That Line Up
 ;;
 ;; Sharing a scale is not enough on its own. Each cell reserves the

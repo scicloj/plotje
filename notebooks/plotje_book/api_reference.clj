@@ -479,8 +479,8 @@
 
 ;; ## Reference Lines and Bands
 
-;; Reference lines and shaded bands are regular layers. Position comes
-;; from the options map (`:y-intercept` for `lay-rule-h`, `:x-intercept`
+;; Reference lines and shaded bands are regular layers. Where each one
+;; draws comes from the options map (`:y-intercept` for `lay-rule-h`, `:x-intercept`
 ;; for `lay-rule-v`; `:y-min`/`:y-max` for `lay-band-h`,
 ;; `:x-min`/`:x-max` for `lay-band-v`); `:color` overrides the default
 ;; reference color, `:alpha` the opacity -- which on a band overrides

@@ -1018,3 +1018,38 @@
       (is (re-find #":pose" (str warnings)))
       (is (= 1 (count (re-seq #"Warning: pose has unexpected" (str warnings))))
           "validation fires once -- ->pose short-circuits on already-lifted maps"))))
+
+;; :share-scales unions the columns its cells name. A rule writes its
+;; value on the layer rather than into a column, so the union never saw
+;; it: a rule outside the shared extent drew thousands of drawing units
+;; off the panel and was clipped away without a word. Faceting and
+;; pj/marginal already reached the written value, so the three
+;; composition paths disagreed.
+(deftest share-scales-covers-a-written-value-test
+  (let [d1 [{:a 1 :b 2} {:a 2 :b 6}]
+        d2 [{:a 1 :b 3} {:a 2 :b 5}]
+        y-domains (fn [pose]
+                    (let [p (pj/plan pose)
+                          panels (if (:composite? p)
+                                   (mapcat #(:panels (:plan %)) (:sub-plots p))
+                                   (:panels p))]
+                      (mapv #(mapv double (:y-domain %)) panels)))
+        with-rule (-> d1 (pj/lay-point :a :b) (pj/lay-rule-h {:y-intercept 99}))
+        plain (-> d2 (pj/lay-point :a :b))
+        unshared (first (y-domains with-rule))]
+    (testing "the control: an unshared axis reaches the rule"
+      (is (< 99.0 (second unshared))
+          "the domain covers the rule, plus padding"))
+    (testing "a shared axis reaches it too, on every cell"
+      (let [shared (y-domains (pj/arrange [with-rule plain] {:share-scales #{:y}}))]
+        (is (= 2 (count shared)))
+        (is (apply = shared) "sharing means one domain")
+        (is (= unshared (first shared))
+            "and that domain is the one the rule produced unshared")))
+    (testing "faceting agrees, which is what made the disagreement visible"
+      (let [faceted (-> (into (mapv #(assoc % :f "L") d1)
+                              (mapv #(assoc % :f "R") d2))
+                        (pj/lay-point :a :b)
+                        (pj/lay-rule-h {:y-intercept 99})
+                        (pj/facet :f))]
+        (is (every? #(= unshared %) (y-domains faceted)))))))

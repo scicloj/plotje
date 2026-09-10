@@ -280,6 +280,11 @@
 ;; **Cause**: Histogram, density, and rug layer types use only
 ;; the x column. Passing a y column is an error. (`lay-bar` is not
 ;; among them -- it uses a y column as the bar height when given one.)
+;;
+;; This restricts the layer's own columns and nothing else. A rule or a
+;; band goes on such a pose like any other layer, because its intercept
+;; is a written value rather than a column reference -- see
+;; [A reference line on a distribution](./plotje_book.cookbook.html#a-reference-line-on-a-distribution).
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -642,6 +647,68 @@
 
 (kind/test-last
  [(fn [v] (= 6 (:points (pj/svg-summary v))))])
+
+;; ## A Band Whose Two Edges Are the Same Value
+;;
+;; **Symptom**: `"lay-band-h requires :y-min < :y-max"` error on a call
+;; that drew something, or nothing, in an earlier release.
+;;
+;; **Cause**: A band shades the region between two values. Where the two
+;; are equal the region is empty, so the band covered nothing and drew a
+;; rectangle of zero thickness -- present in the SVG, invisible on the
+;; plot, and reported by nothing. It is refused now.
+
+(try
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/lay-band-h {:y-min 3.0 :y-max 3.0}))
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"requires :y-min < :y-max" msg)
+                 (re-find #"lay-rule-h" msg)))])
+
+;; **Fix**: A line at one value is a rule; a band needs two distinct
+;; edges. The error names the rule constructor for the axis in question.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-rule-h {:y-intercept 3.0}))
+
+(kind/test-last
+ [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+
+;; ## A Configuration Key From an Earlier Release
+;;
+;; **Symptom**: A configuration key that used to set something is
+;; reported as unrecognized, and the plot draws the default.
+;;
+;; **Cause**: The key was renamed. Plotje reports what it does not read
+;; rather than merging it in silence, and where a release renamed a key
+;; the report names the one that replaced it. `:annotation-stroke` sets
+;; the colour a rule draws in where its layer names none, and it is
+;; `:rule-color` now.
+
+(with-out-str
+  (pj/with-config {:annotation-stroke "firebrick"} (constantly nil)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"does not recognize configuration key" msg)
+                 (re-find #":annotation-stroke was renamed to :rule-color" msg)))])
+
+;; The same report reaches `pj/set-config!`, a `plotje.edn` file, the
+;; `:config` option and `pj/options`, so the key is named wherever it
+;; can be written.
+;;
+;; **Fix**: Write the current name.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-rule-h {:y-intercept 3.0})
+    (pj/options {:rule-color "firebrick"}))
+
+(kind/test-last
+ [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
 
 ;; ## A `:size` or `:alpha` Column That Changes Nothing
 ;;

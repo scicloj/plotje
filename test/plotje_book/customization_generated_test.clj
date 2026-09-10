@@ -221,7 +221,7 @@
  v33_l169
  (->
   {:product
-   (map (fn* [p1__13555#] (str "Product " p1__13555#)) (range 12)),
+   (map (fn* [p1__74020#] (str "Product " p1__74020#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -242,7 +242,7 @@
  v36_l182
  (->
   {:product
-   (map (fn* [p1__13556#] (str "Product " p1__13556#)) (range 12)),
+   (map (fn* [p1__74021#] (str "Product " p1__74021#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -379,7 +379,7 @@
    (pj/options {:thousands-separator ","})
    pj/svg-summary
    :texts)
-  (filter (fn* [p1__13557#] (re-find #"," p1__13557#)))
+  (filter (fn* [p1__74022#] (re-find #"," p1__74022#)))
   distinct
   sort))
 
@@ -728,11 +728,11 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__13558#] (= :text (:mark p1__13558#))))
+        (filter (fn* [p1__74023#] (= :text (:mark p1__74023#))))
         (mapv
          (fn*
-          [p1__13559#]
-          (-> p1__13559# :style :box :corner-radius))))))))
+          [p1__74024#]
+          (-> p1__74024# :style :box :corner-radius))))))))
    v98_l530)))
 
 
