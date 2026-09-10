@@ -1288,14 +1288,46 @@ gapminder-2007
 ;; Both matter when a reader compares two plots: one category should
 ;; keep one marker across both.
 ;;
-;; `pj/shape-symbols` is the list, in the order categories take them:
+;; `pj/shape-palette` is the list categories are assigned from, in the
+;; order they take them:
 
-pj/shape-symbols
+pj/shape-palette
 
 (kind/test-last [(fn [syms] (= syms (distinct syms)))])
 
 ;; A plot with more categories than that repeats a symbol, so two
 ;; categories cannot be told apart; Plotje warns when it happens.
+;;
+;; `pj/shape-symbols` is every symbol a mapping can draw. The palette
+;; is its first part, and the symbols after it are drawn only when
+;; named:
+
+pj/shape-symbols
+
+(kind/test-last
+ [(fn [syms]
+    (and (= pj/shape-palette (vec (take (count pj/shape-palette) syms)))
+         (some #{:circle-open} syms)))])
+
+;; `:circle-open` is one of those. It draws a ring rather than a disc,
+;; which keeps overlapping points countable where filled discs merge.
+;; Naming it for a layer draws every point that way:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:shape :circle-open})
+    (pj/scale :x :log))
+
+(kind/test-last
+ [(fn [fr]
+    ;; One symbol for a whole layer lives on the plan layer's `:style`
+    ;; rather than on its groups, and draws no shape legend: it is a
+    ;; style, not a mapping. A plain point layer carries no `:shape`
+    ;; there at all.
+    (let [plan (pj/plan fr)
+          layer (first (:layers (first (:panels plan))))]
+      (and (nil? (:shape-legend plan))
+           (= :circle-open (:shape (:style layer))))))])
+
 ;;
 ;; `:domain` sets the category order, as it does for `:color`, and
 ;; `:values` names the symbols themselves, paired with the categories

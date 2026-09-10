@@ -288,9 +288,9 @@ temp-pose
 ;; The two panels line up here because their y axes label at the same
 ;; width. Where they do not -- one series in single digits and one in
 ;; millions -- each panel reserves the room its own labels need, and the
-;; shared axis comes out spanning different widths. Writing the
-;; composite out and setting `:align-panels` reserves the same room on
-;; every cell; the
+;; shared axis comes out spanning different widths. `:align-panels`,
+;; which `pj/arrange` takes among its options, reserves the same room
+;; on every cell; the
 ;; [Composition](./plotje_book.composition.html#shared-scales) chapter
 ;; covers that and `:share-scales` on any column.
 

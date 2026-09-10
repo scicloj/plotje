@@ -2767,6 +2767,20 @@
         (is (re-find #"Warning: pj/options does not recognize option" out))
         (is (re-find #":titel" out))))
 
+    (testing "a retired configuration key is reported like any other"
+      ;; `:annotation-dash` documented a dash pattern for reference
+      ;; lines and was read by nothing, so a project setting it drew
+      ;; solid lines and heard nothing about it. It is gone; a dashed
+      ;; rule takes `:stroke-dash` on its layer.
+      (let [out (with-out-str (-> data (pj/lay-point :x :y)
+                                  (pj/options {:annotation-dash :dashed})))]
+        (is (re-find #"Warning: pj/options does not recognize option" out))
+        (is (re-find #":annotation-dash" out)))
+      ;; The two keys beside it are live, and stay quiet.
+      (is (= "" (with-out-str (-> data (pj/lay-point :x :y)
+                                  (pj/options {:annotation-stroke "#333"
+                                               :band-opacity 0.2}))))))
+
     (testing "valid options stay quiet"
       (is (= "" (with-out-str (-> data (pj/pose :x :y {:color :y}))))))))
 
@@ -3147,6 +3161,20 @@
             [y-lo y-hi] (:y-domain panel)]
         (is (<= y-lo 2))
         (is (>= y-hi 100))))
+
+    (testing "a rule under polar coordinates is reported"
+      ;; These four were skipped without a word under `(pj/coord
+      ;; :polar)`, so a plot asked for a reference line and got one
+      ;; without it. They travel among the layers now, so the same
+      ;; check every other unsupported mark meets applies to them.
+      (doseq [[layer-fn opts] [[pj/lay-rule-h {:y-intercept 2}]
+                               [pj/lay-rule-v {:x-intercept 2}]
+                               [pj/lay-band-h {:y-min 1 :y-max 2}]
+                               [pj/lay-band-v {:x-min 1 :x-max 2}]]]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo #"not supported with polar coordinates"
+             (pj/plan (-> ds (pj/lay-point :x :y) (pj/coord :polar)
+                          (layer-fn opts)))))))
 
     (testing "a date rule outside the data carries the ticks out with it"
       ;; The axis reaches the rule either way -- the domain is widened
