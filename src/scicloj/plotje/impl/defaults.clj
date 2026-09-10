@@ -453,7 +453,11 @@
 (def drawable-shape-syms
   "Every symbol `render.mark/draw-shape` can draw: the assignment
    palette plus the ones a caller has to ask for by name. This is what
-   validates a written `:shape`, and what `pj/shape-symbols` publishes."
+   validates a written `:shape`, and what `pj/shape-symbols` publishes.
+
+   Kept for callers that held this var directly; `drawable-shapes`
+   below is the accessor, and it recomputes rather than reading this,
+   so a change to the palette reaches both answers."
   (into shape-syms extra-shape-syms))
 
 (defn shape-palette
@@ -473,9 +477,15 @@
    the validation, the error messages, the schema and
    `pj/shape-symbols` alike. A registry of shapes an extension can add
    to would be read here and nowhere else, and the readers would not
-   change."
+   change.
+
+   Built from `shape-palette` on each call rather than read off the
+   `drawable-shape-syms` value, which is fixed when the namespace
+   loads. Reading the frozen value let the two answers drift: a symbol
+   added to the palette was handed to a category and then refused by
+   the schema that validates it and by the renderer that draws it."
   []
-  drawable-shape-syms)
+  (into (shape-palette) extra-shape-syms))
 
 (def legend-swatch-size
   "Side length of the colored key drawn beside a legend entry (square)."
@@ -1072,6 +1082,24 @@
     (contains? @config-atom :strict) (:strict @config-atom)
     :else (:strict @library-defaults)))
 
+(def renamed-options
+  "Options and configuration keys that were written under another name
+   in an earlier release, and the name they carry now.
+
+   Without this an old name is reported as unrecognized, which reads as
+   a typo: the writer looks for the misspelling and finds none, because
+   the setting is there under another name. Naming the new key turns a
+   dead end into a one-word edit.
+
+   Lives here rather than in `api` because a key can be written in two
+   kinds of place -- an options map, checked by
+   `api/warn-and-strip-unknown-opts`, and a configuration map, checked
+   by `validate-config-keys!` below -- and a rename reported in only
+   one of them sends half the writers looking for a typo. A
+   configuration key's own home is the configuration path, so that is
+   the half that must not be missed. Put the next rename here."
+  {:annotation-stroke :rule-color})
+
 (defn validate-config-keys!
   "Report configuration keys Plotje does not read, naming `where` they
    were written. Warns, or throws under `:strict`.
@@ -1092,10 +1120,15 @@
   [where m]
   (when (map? m)
     (let [accepted (set (keys config-key-docs))
-          unknown (remove accepted (keys m))]
+          unknown (remove accepted (keys m))
+          renamed (keep (fn [k] (when-let [to (renamed-options k)]
+                                  (str "  " k " was renamed to " to)))
+                        unknown)]
       (when (seq unknown)
         (let [msg (str where " does not recognize configuration key(s): "
                        (vec (sort unknown)) "."
+                       (when (seq renamed)
+                         (str "\n" (str/join "\n" (sort renamed))))
                        "\n  Accepted: " (vec (sort accepted)))]
           (if (config-strict? m)
             (throw (ex-info msg {:caller where

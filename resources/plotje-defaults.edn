@@ -38,7 +38,7 @@
  ;; Bars and lines
  :bar-opacity 0.85 :line-width 2.5 :grid-stroke-width 0.6
 
- ;; Annotations
+ ;; Rules and bands
  :rule-color "#333" :band-opacity 0.15
 
  ;; Ticks

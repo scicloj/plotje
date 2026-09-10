@@ -114,11 +114,40 @@
    columns its mapping names, which is what `stat/prepare-points`
    computes.
 
-   Read by `stat/compute-stat :identity`, which is the one place the
-   difference matters. Everything after it -- the extract, the plan
-   layer, the renderer -- treats these four as it treats any other
-   mark."
+   Read by `stat/compute-stat :identity`, which sends these four to
+   `written-extent` rather than `prepare-points`, and by the x-only
+   guard below, which exempts them for the same reason: a mark that
+   writes its extent never reads a row, so a missing y column is not
+   the fabricated-zero hazard the guard is for. Everything after the
+   stat -- the extract, the plan layer, the renderer -- treats these
+   four as it treats any other mark."
   #{:rule-h :rule-v :band-h :band-v})
+
+(defn written-values
+  "The values a rule or a band writes on `axis` -- `:x` or `:y` -- or
+   nil where the layer writes none there.
+
+   Each of the four marks whose extent is written on the layer names
+   its own keys: an intercept for a rule, two edges for a band. One
+   table, because three readers ask this question: `stat/written-extent`
+   asks it to widen the axis domain, `plan` asks it to widen a temporal
+   axis's tick extent, and `pose/inject-shared-scales` asks it so a
+   shared axis reaches a rule the way an unshared one does. An axis
+   whose domain reached a written date while its ticks stopped at the
+   data drew labels across the first sixth of itself and left the rest
+   bare; a shared axis that never saw the written value put the rule
+   thousands of drawing units off the panel.
+
+   Lives here beside `written-position-marks` because the set and the
+   table say the same thing about the same four marks, and a reader
+   that has one needs the other."
+  [{:keys [mark y-intercept x-intercept y-min y-max x-min x-max]} axis]
+  (case [mark axis]
+    [:rule-v :x] (when (number? x-intercept) [x-intercept])
+    [:band-v :x] (when (and (number? x-min) (number? x-max)) [x-min x-max])
+    [:rule-h :y] (when (number? y-intercept) [y-intercept])
+    [:band-h :y] (when (and (number? y-min) (number? y-max)) [y-min y-max])
+    nil))
 
 ;; ---- Cross ----
 
@@ -695,16 +724,24 @@
           ;; Reject x-only draft-layers (no :y) for layer types that require y.
           ;; Otherwise prepare-points silently fabricates y=0 for every
           ;; point and renders a flat line at the bottom of a [0, 1] domain.
-          ;; Three sources of x-only permission:
+          ;; That is a hazard for a mark that reads its extent from rows;
+          ;; a mark that writes its extent never calls prepare-points.
+          ;; Four sources of x-only permission:
           ;;   1. :x-only true from the layer-type registry (e.g., :histogram, :rug)
           ;;   2. stat is in `x-only-stats` — :bin/:count/:density synthesize y
           ;;      from x alone (covers the :rect mark + bar stat too)
           ;;   3. mark is :rug, which is structurally x-only even when
           ;;      constructed without the layer-type registry
+          ;;   4. the mark is one of `written-position-marks` — a rule or a
+          ;;      band, whose value is written on the layer. Adding one to a
+          ;;      histogram, density, count-bar or rug pose is the ordinary
+          ;;      reason to draw a threshold, and requiring a y column there
+          ;;      asks for a column the pose does not have.
           _ (when (and (nil? y-resolved)
                        (not (:x-only v))
                        (not (contains? x-only-stats stat))
-                       (not= :rug mark))
+                       (not= :rug mark)
+                       (not (written-position-marks mark)))
               (throw (ex-info (str ":" (name mark) " requires both :x and :y columns. "
                                    "Either pass a y column (e.g., (pj/lay-" (name mark)
                                    " data :x :y)) or use an x-only mark like histogram, "

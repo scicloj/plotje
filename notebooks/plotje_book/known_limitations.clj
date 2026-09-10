@@ -170,11 +170,6 @@
 ;;   once for many rows, pre-bin the column into categories, or draw the
 ;;   quantity with a mark that stands for one row.
 ;;
-;; - `:alpha` on `pj/lay-rule-h`/`pj/lay-rule-v` is silently dropped
-;;   at render time (the rendering path reads `:color` only). Bands
-;;   honor `:alpha`. Workaround: use a lighter `:color` to simulate
-;;   the visual effect on rules.
-
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The
 ;;   mark name still reflects the unflipped semantics. Add a

@@ -16,6 +16,9 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 - **Every plot setting `:annotation-stroke`.** The key is `:rule-color` now. Under the old name the setting is reported and dropped, so rules draw in the default colour.
 - **Every SVG plot drawing a filled shape under two drawing units across** -- a narrow bar, a thin interval, a small tile. Wider shapes are unchanged, and the PNG path is unaffected.
 - **Every log axis carrying a break written with `pj/scale`.** The break reads to six significant digits.
+- **Every plot whose band was written with equal bounds.** The plot is reported rather than drawn. A band covering nothing drew a rectangle of zero thickness, present in the SVG and invisible on the plot.
+- **Every composite sharing an axis a rule or a band is written on.** The shared axis reaches the written value, as an unshared axis does.
+- **Every caller of `pj/shape-symbols`.** It is a function now, and it answers with eight symbols where the value answered with the seven that categories are assigned. `(pj/shape-palette)` is the seven.
 
 ### Added
 
@@ -33,7 +36,7 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 
 - `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written and is drawn through `layer->membrane` like every other mark, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @carstenbehring
 
-- `pj/shape-symbols` and `pj/shape-palette` are functions rather than values, so `pj/shape-symbols` becomes `(pj/shape-symbols)`. Both answer questions whose answers are meant to change -- which symbols a plot may draw, and which it hands out to categories -- and a value read when the namespace loads cannot follow a change. `pj/config` is a function for the same reason. An unknown symbol is also reported wherever it is written: `render.mark/draw-shape`, which an extension calls to draw its own marks, drew a circle for anything it did not recognise, where the same symbol written on a layer was refused by name.
+- `pj/shape-symbols` and `pj/shape-palette` are functions rather than values, and `pj/shape-symbols` answers a different question than it did. It gives every symbol a mapping may name, which is now eight; the seven handed out to categories in order are `(pj/shape-palette)`. So `pj/shape-symbols` becomes `(pj/shape-palette)` where the code assigns symbols to categories, and `(pj/shape-symbols)` where it checks what may be written. Both answer questions whose answers are meant to change, and a value read when the namespace loads cannot follow a change; `pj/config` is a function for the same reason. An unknown symbol is also reported wherever it is written: `render.mark/draw-shape`, which an extension calls to draw its own marks, drew a circle for anything it did not recognise, where the same symbol written on a layer was refused by name.
 
 - The `:annotation-stroke` configuration key is `:rule-color`. It sets the colour a rule draws in where its layer names none, which is what it has always set; the name is what changed, so that no part of the public API still calls these four marks annotations. Written under the old name it is reported, and the report names the new one.
 
@@ -46,6 +49,12 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 - A date axis widened by a rule or a band is ticked across its whole width. A date axis picks its ticks over the extent its data covers, and the value a rule or a band writes now reaches that extent as well as the axis domain.
 
 - A break written with `pj/scale :breaks` on a log scale is written to six significant digits, the precision a continuous legend's endpoints use, rather than as the double holds it. The breaks a log axis picks for itself are unchanged.
+
+- An axis shared with `:share-scales` covers the values a rule or a band writes on it. A shared domain was built from the columns the cells name, and a rule writes its value on the layer rather than into a column, so a rule outside the shared extent drew thousands of drawing units off the panel and was clipped away without a word. Faceting and `pj/marginal` already covered the written value, so all three composition paths now answer alike.
+
+- A band written with equal bounds is reported. `{:y-min 3 :y-max 3}` covers nothing, and drew a rectangle of zero thickness that no reader could see. The error names the rule that draws a line at a single value.
+
+- A rule or a band can be added to a pose whose layers read only an x column -- a histogram, a density, a count bar or a rug. Requiring a y column there asked for a column the pose does not have, and the four marks write their value rather than reading it from rows.
 
 ## [0.12.0 - 2026-09-07]
 

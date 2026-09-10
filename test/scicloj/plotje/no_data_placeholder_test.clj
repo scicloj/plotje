@@ -1,6 +1,7 @@
 (ns scicloj.plotje.no-data-placeholder-test
   "The 'no data' placeholder is drawn over panels whose layers
-   render no geometry (and that have no annotations). The check
+   render no geometry. A rule or a band draws geometry like any other
+   mark, so a panel carrying one is not empty. The check
    is driven by the rendered output, so it works for built-in
    marks that store geometry in different slots (:groups, :boxes,
    :violins, :ridges, :tiles, :levels) and for any extension mark

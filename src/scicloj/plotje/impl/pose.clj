@@ -768,6 +768,31 @@
              :axis axis
              :column col}))))
 
+(defn written-axis-values
+  "The values the rules and bands among a leaf's layers write on
+   `axis`, for the shared-domain union.
+
+   A shared axis is built from the columns its leaves name, and a rule
+   writes its value on the layer rather than into a column, so without
+   this the union never sees it: a rule at 99 on data reaching 6 gave a
+   shared domain of [1.8 6.2] and drew the line thousands of drawing
+   units below the panel, where the same rule on an unshared axis
+   widened it to [-2.85 103.85]. Faceting and `pj/marginal` already
+   reach the written value, so this is what makes the three composition
+   paths answer alike.
+
+   A layer is still `{:layer-type k :mapping m}` here -- the mark and
+   the written value only come together at draft time -- so this puts
+   the two back together for `resolve/written-values` to read."
+  [leaf axis]
+  (mapcat (fn [layer]
+            (let [lt-key (:layer-type layer)
+                  lt-info (when (and lt-key (keyword? lt-key) (not= :infer lt-key))
+                            (layer-type/lookup lt-key))
+                  mark (or (:mark layer) (:mark lt-info))]
+              (resolve/written-values (assoc (:mapping layer) :mark mark) axis)))
+          (:layers leaf)))
+
 (defn inject-shared-scales
   "Walk a pose tree. For each composite with :share-scales, compute a
    union domain per (axis, effective-column) bucket across descendant
@@ -812,9 +837,12 @@
                                                         (fn [[col leaves]]
                                                           (when col
                                                             (when-let [d (numeric-domain
-                                                                          (mapcat #(col-values (:data %)
-                                                                                               (effective-axis-col % axis))
-                                                                                  leaves))]
+                                                                          (concat
+                                                                           (mapcat #(col-values (:data %)
+                                                                                                (effective-axis-col % axis))
+                                                                                   leaves)
+                                                                           (mapcat #(written-axis-values % axis)
+                                                                                   leaves)))]
                                                               [col d])))
                                                         by-col))]
                                     (when (seq col->dom)
@@ -1526,10 +1554,11 @@
    the merged mapping and the layer's data are both known:
 
    - **No positional aesthetic reads the data.** The layer does not
-     describe the data at all -- it is an annotation -- so one row holding
-     those values draws the single mark it asks for. `:text` is handled
-     only here: a string normally names a column, and a layer with no data
-     has no column for it to name, so there the string is the text.
+     describe the data at all -- it marks a place on the panel -- so one
+     row holding those values draws the single mark it asks for. `:text`
+     is handled only here: a string normally names a column, and a layer
+     with no data has no column for it to name, so there the string is
+     the text.
    - **One of them is a column.** The layer describes the data, and each
      value broadcasts over it as a constant column, so `{:x 6.5 :y :weight}`
      labels every row at one x. The column is a `dtype/const-reader`, so a

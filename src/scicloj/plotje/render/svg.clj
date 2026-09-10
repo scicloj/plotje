@@ -675,7 +675,7 @@
               so a shape-mapped scatter splits across the two counts.
               Every marker sits on a square bounding box, which is what
               distinguishes one from a label's background box
-   :lines   — number of non-grid polylines (data lines, annotations, whiskers)
+   :lines   — number of non-grid polylines (data lines, rules, whiskers)
    :dashed-lines — number of polylines with a stroke-dasharray (dashed/dotted
                    lines, dashed rules, dashed area outlines)
    :polygons — number of filled polygons (bars, histogram bins, areas, violins)

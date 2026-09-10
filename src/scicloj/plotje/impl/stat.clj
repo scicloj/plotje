@@ -344,25 +344,6 @@
 (defmethod compute-stat [:bin2d :doc] [_] "2D grid binning (heatmap counts)")
 (defmethod compute-stat [:density-2d :doc] [_] "Density 2D — 2D Gaussian kernel density estimation (KDE)")
 
-(defn written-values
-  "The values a rule or a band writes on `axis` -- `:x` or `:y` -- or
-   nil where the layer writes none there.
-
-   Each of the four marks whose extent is written on the layer names
-   its own keys: an intercept for a rule, two edges for a band. One
-   table, because two readers ask this question. `written-extent` asks
-   it to widen the axis domain, and the plan asks it again to widen a
-   temporal axis's tick extent, and an axis whose domain reached a
-   written date while its ticks stopped at the data drew labels across
-   the first sixth of itself and left the rest bare."
-  [{:keys [mark y-intercept x-intercept y-min y-max x-min x-max]} axis]
-  (case [mark axis]
-    [:rule-v :x] (when (number? x-intercept) [x-intercept])
-    [:band-v :x] (when (and (number? x-min) (number? x-max)) [x-min x-max])
-    [:rule-h :y] (when (number? y-intercept) [y-intercept])
-    [:band-h :y] (when (and (number? y-min) (number? y-max)) [y-min y-max])
-    nil))
-
 (defn written-extent
   "The data-space extent a rule or a band covers, for the four marks
    whose extent is written on the layer rather than read from its rows.
@@ -410,8 +391,8 @@
                        ;; to report, so a panel carrying only the rule
                        ;; needs a drawable extent from somewhere.
                        spans? [0.0 1.0])))))
-        x-written (written-values draft-layer :x)
-        y-written (written-values draft-layer :y)
+        x-written (resolve/written-values draft-layer :x)
+        y-written (resolve/written-values draft-layer :y)
         x-dom (axis x (= x-type :categorical) x-written (#{:rule-h :band-h} mark))
         y-dom (axis y (= y-type :categorical) y-written (#{:rule-v :band-v} mark))]
     (cond-> {}

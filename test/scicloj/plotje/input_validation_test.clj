@@ -667,12 +667,26 @@
       (is (= 1 n-no-data)
           "the empty cell renders 'no data'; the populated cell does not")))
 
-  (testing "annotation-only panel does not get the placeholder"
-    (let [pose (-> tiny
-                   (pj/lay-point :x :y)
-                   (pj/lay-rule-h {:y-intercept 2}))
-          texts (:texts (pj/svg-summary (pj/plot pose)))]
-      (is (not (some #(= % "no data") texts))))))
+  (testing "a panel whose only layer is a rule does not get the placeholder"
+    ;; The rule has to be the only layer for this to test anything. With
+    ;; a point layer beside it the point draws marks on its own, so the
+    ;; assertion passes whether or not the rule counts -- which is what
+    ;; it did after the rule stopped being an annotation and the
+    ;; `(empty? annotations)` clause it guarded left `render/panel.clj`.
+    (let [empty-ds (tc/dataset {:x [] :y []})
+          rule-only (-> empty-ds
+                        (pj/pose {:x :x :y :y})
+                        (pj/lay-rule-h {:y-intercept 2}))
+          nothing (-> empty-ds
+                      (pj/pose {:x :x :y :y})
+                      (pj/lay :point))
+          says-no-data? (fn [pose]
+                          (boolean (some #(= % "no data")
+                                         (:texts (pj/svg-summary (pj/plot pose))))))]
+      (is (not (says-no-data? rule-only))
+          "a rule draws a mark, so the panel is not empty")
+      (is (says-no-data? nothing)
+          "the control: a panel that really draws nothing still says so"))))
 
 (deftest options-width-height-non-number-throws
   (testing "(pj/options pose {:width \"800\"}) throws with type message"

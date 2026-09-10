@@ -164,8 +164,8 @@
         ;; The composite's own options reach each cell. Passing `{}` here
         ;; left every panel of a composite resolving its configuration
         ;; from the global chain alone, so a plot option that moved a
-        ;; leaf -- :thousands-separator, :label-font-size, the grid and
-        ;; annotation strokes -- did nothing once the same pose was
+        ;; leaf -- :thousands-separator, :label-font-size, the grid
+        ;; stroke and the rule colour -- did nothing once the same pose was
         ;; arranged. Tooltip stays per cell: it is decided on each
         ;; sub-plot's own plan, not on the composite.
         leaf-trees (mapv (fn [{:keys [plan rect]}]

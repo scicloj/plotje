@@ -257,10 +257,10 @@
     (is (= {:plus-or-cross 1 :diamond 1} (frequencies (map :kind legend))))))
 
 (deftest an-unknown-symbol-is-rejected
-  ;; draw-shape falls back to a circle for anything it does not know, so an
-  ;; unrecognized :values symbol would draw a circle while the legend named the
-  ;; symbol -- the very disagreement between legend and marks this feature
-  ;; exists to remove.
+  ;; An unrecognized :values symbol has to be refused here, at the pose
+  ;; boundary, while the writer can still see which symbol they wrote.
+  ;; draw-shape reports one it cannot draw rather than substituting a
+  ;; circle, but that report arrives from the renderer, naming no layer.
   (is (thrown-with-msg?
        clojure.lang.ExceptionInfo #"does not recognize \[:nonsense\]"
        (-> tiers

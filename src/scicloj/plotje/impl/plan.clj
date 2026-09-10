@@ -556,6 +556,11 @@
    `axis`, as the `LocalDateTime` pair the tick generators read, or nil
    where none of them writes a value there.
 
+   Takes the layers that inform the axis, not every layer on the panel:
+   a layer in a drawing-space frame writes drawing units, and reading
+   those as dates put a 2024 axis's labels between 1975 and 2020. The
+   caller applies the same `x-informs?` test the axis domain applies.
+
    A rule's intercept is coerced to epoch milliseconds at the API, so
    by the time a draft layer exists nothing distinguishes a date from a
    number. The axis is temporal only where a column made it so, which
@@ -570,7 +575,7 @@
    so five sixths of the axis carried no label."
   [resolved-draft-layers axis column-extents]
   (when (seq (remove nil? column-extents))
-    (let [written (mapcat #(stat/written-values % axis) resolved-draft-layers)]
+    (let [written (mapcat #(resolve/written-values % axis) resolved-draft-layers)]
       (when (seq written)
         (let [dates (map resolve/epoch-ms->local-date-time written)]
           [(apply jt/min dates) (apply jt/max dates)])))))
@@ -2539,14 +2544,21 @@
                             ext))
         x-col-exts (map :x-temporal-extent resolved-draft-layers)
         y-col-exts (map :y-temporal-extent resolved-draft-layers)
+        ;; The written value reaches the tick extent only from a layer
+        ;; that informs the axis, which is the same test the domain
+        ;; above applies. A rule in a drawing-space frame writes a
+        ;; distance across the panel, so reading it as a date put every
+        ;; label of a 2024 axis somewhere between 1975 and 2020.
         x-temp-ext (shared-temporal
                     (merge-temporal-extents
-                     (cons (written-temporal-extent resolved-draft-layers :x x-col-exts)
+                     (cons (written-temporal-extent (filter x-informs? resolved-draft-layers)
+                                                    :x x-col-exts)
                            x-col-exts))
                     (:x shared-domains))
         y-temp-ext (shared-temporal
                     (merge-temporal-extents
-                     (cons (written-temporal-extent resolved-draft-layers :y y-col-exts)
+                     (cons (written-temporal-extent (filter y-informs? resolved-draft-layers)
+                                                    :y y-col-exts)
                            y-col-exts))
                     (:y shared-domains))
         ;; Whether each axis reads whole numbers, taken where the raw

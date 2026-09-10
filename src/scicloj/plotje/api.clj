@@ -751,16 +751,6 @@
        sort
        vec))
 
-(def ^:private renamed-options
-  "Options that were written under another name in an earlier release,
-   and the name they carry now.
-
-   Without this an old name is reported as unrecognized, which reads as
-   a typo: the writer looks for the misspelling and finds none, because
-   the setting is there under another name. Naming the new key turns a
-   dead end into a one-word edit."
-  {:annotation-stroke :rule-color})
-
 (defn- option-home
   "The category `k` belongs to and the function that sets it, as a
    phrase, given the `caller` that rejected it. Returns nil when `k`
@@ -769,8 +759,8 @@
   (let [lay? (str/starts-with? caller "lay-")
         elsewhere (layer-types-accepting k)]
     (cond
-      (renamed-options k)
-      (str "Renamed to " (renamed-options k))
+      (defaults/renamed-options k)
+      (str "Renamed to " (defaults/renamed-options k))
 
       (dedicated-function-keys k)
       (str "Set by " (dedicated-function-keys k) ", not by an options map")
@@ -2364,6 +2354,17 @@
       (when-not (<= lo-num hi-num)
         (throw (ex-info (str "lay-" (name layer-type-key) " requires " lo-k " <= " hi-k ", got " lo-k " " lo " " hi-k " " hi ". "
                              "Swap the arguments or check the source of the values.")
+                        {:layer-type layer-type-key :opts opts})))
+      ;; Equal bounds passed this guard and drew a rectangle of zero
+      ;; thickness -- present in the SVG, invisible on the plot, and
+      ;; reported by nothing. A band marks a span; a span of nothing is
+      ;; a mistake in the values, and a line at that value is a rule.
+      (when (== lo-num hi-num)
+        (throw (ex-info (str "lay-" (name layer-type-key) " requires " lo-k " < " hi-k ", got both "
+                             lo ". A band with equal bounds covers nothing and draws nothing. "
+                             "For a line at that value use (pj/lay-"
+                             (if (= layer-type-key :band-h) "rule-h pose {:y-intercept " "rule-v pose {:x-intercept ")
+                             lo "}).")
                         {:layer-type layer-type-key :opts opts}))))))
 
 (defn- assert-rule-1-arity! [layer-type-key]
@@ -2898,8 +2899,8 @@
    Where the columns are written makes no difference: an `:x` or `:y` in
    the options map asks for a panel exactly as one in an argument slot
    does, and `pj/overlay` answers both. A written value names no panel
-   -- `{:x 7.5 :y 4.2 :text \"note\"}` annotates the panel it is added
-   to -- so an annotation needs no overlay."
+   -- `{:x 7.5 :y 4.2 :text \"note\"}` marks a place on the panel it is
+   added to -- so a written value needs no overlay."
   ([pose-or-data] (overlay pose-or-data true))
   ([pose-or-data on?]
    (let [fr (->pose pose-or-data "pj/overlay")]
