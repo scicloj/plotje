@@ -4,43 +4,43 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are drawn in the order they were written, take the options the other marks take, and widen the axis they are written on.
+
 ### Plots that look different after upgrading
 
-- **Every plot on a date axis wide enough to have asked for more ticks than fit.** The axis carries fewer, larger-stepped ticks whose labels do not overlap.
-- **Every plot drawing a filled shape under two drawing units across** -- a narrow bar, a thin interval, a small tile. A shape narrower than one device pixel is drawn at partial opacity rather than dropped, and a shape between one and two device pixels is drawn at its own width rather than rounded to a whole number of them. Wider shapes are unchanged.
-- **Every plot whose rule or band was written before a data layer.** The rule is drawn under the marks written after it, where it used to be drawn over all of them.
-- **Every plot whose rule or band sits outside the extent its data covers.** The axis reaches the rule, where the rule used to be clipped away without a word. A `:domain` written with `pj/scale` still replaces what the data covers, so it pins the axis where the rule cannot widen it.
-- **Every plot whose rule or band sits outside the data on a date axis.** The ticks run the width of the axis, where they used to stop at the last date the data covers.
-- **Every rule given an `:alpha`.** The line is drawn at that opacity, where the number was accepted and ignored.
+- **Every plot whose rule or band was written before a data layer.** The rule is drawn under the marks written after it.
+- **Every plot whose rule or band sits outside the extent its data covers.** The axis reaches the rule, and on a date axis the ticks run out to it. A `:domain` written with `pj/scale` still replaces what the data covers, so it pins the axis where the rule cannot widen it.
+- **Every rule given an `:alpha`.** The line is drawn at that opacity.
 - **Every plot combining a rule or a band with `(pj/coord :polar)`.** The plot is reported rather than drawn without the rule.
+- **Every plot on a date axis that asked for more ticks than fit.** The axis carries fewer, larger-stepped ticks whose labels do not overlap.
+- **Every SVG plot drawing a filled shape under two drawing units across** -- a narrow bar, a thin interval, a small tile. Wider shapes are unchanged, and the PNG path is unaffected.
+- **Every log axis carrying a break written with `pj/scale`.** The break reads to six significant digits.
 
 ### Added
 
-- Rules and bands take `:in`, so `(pj/lay-rule-h {:y-intercept 40 :in :drawing-area})` draws a line forty drawing units below the top of the panel background rather than at the data value 40. They take `:alpha` too, which sets the line's opacity or the band's fill opacity.
+- Rules and bands take `:in`, `:alpha` and `:size`. `(pj/lay-rule-h {:y-intercept 40 :in :drawing-area})` draws a line forty drawing units below the top of the panel background rather than at the data value 40; `:alpha` sets a line's opacity or a band's fill opacity; `:size` sets a rule's width, which defaults to 1.5 drawing units.
 
-- `:size` sets a rule's width, as it does a line's, so a reference line can be drawn heavier or lighter than the 1.5 drawing units it defaults to.
+- `pj/arrange` accepts `:align-panels`, which gives every cell the same drawing area by reserving the widest y-label pad and legend column any cell needs on all of them. Without it, two cells whose y axes label at different widths get different panel widths, so an axis shared with `:share-scales` covers a different extent in each. - thanks, @timothypratley
 
-- `pj/arrange` accepts `:align-panels`, which gives every cell the same drawing area by reserving the widest y-label pad and legend column a cell needs on all of them. Two cells whose y axes label at different widths otherwise get different panel widths, so an axis shared with `:share-scales` covers a different extent in each. The pass itself already existed and was reachable only on a hand-written composite. - thanks, @timothypratley
-
-- `:circle-open` draws a point as a ring rather than a disc, so overlapping points stay countable where filled discs merge. Name it for a layer with `{:shape :circle-open}` or pass it among `:values` to a `:shape` scale. It is not handed out automatically, so no existing plot changes: `pj/shape-symbols` is now every symbol a mapping can draw, and `pj/shape-palette` is the shorter list categories are assigned from in order. - thanks, @carstenbehring
+- `:circle-open` draws a point as a ring rather than a disc, so overlapping points stay countable where filled discs merge. Name it for a layer with `{:shape :circle-open}` or pass it among `:values` to a `:shape` scale. It is not handed out automatically: `pj/shape-symbols` is every symbol a mapping can draw, and `pj/shape-palette` is the shorter list categories are assigned from in order. (Closes #46) - thanks, @carstenbehring
 
 ### Removed
 
-- The `:annotation-dash` configuration key. It documented a dash pattern for reference lines and was read by nothing, so a project setting it drew solid lines and heard nothing about it. Written now, it is reported as an unrecognized configuration key. Rules take `:stroke-dash` on the layer, which is what draws a dashed one. The two keys that remain -- `:annotation-stroke` and `:band-opacity` -- are grouped under "Rules & Bands" in the configuration table, and `:band-opacity` is described as the fill opacity of a band rather than of a confidence ribbon, which is what it has always set.
+- The `:annotation-dash` configuration key, which was read by nothing. Written now, it is reported as an unrecognized configuration key. A dashed rule takes `:stroke-dash` on its layer.
 
 ### Changed
 
-- `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written and is drawn through `layer->membrane` like every other mark, so draw order is layer order and a rule written first sits under the data. Their extent reaches the axis, so a rule written outside everything the data covers widens the axis until the line is on the panel. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead.
+- `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written and is drawn through `layer->membrane` like every other mark, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @carstenbehring
 
 ### Fixed
 
-- A date axis draws as many ticks as its labels have room for. A tick count comes from `:tick-spacing`, which reserves the same room per tick whatever the labels say; on a date axis one tick can read `Mar 2023` or `2024-01-01`, so the count was reached that no width could fit and labels ran together. The count now steps down until the labels fit, which also keeps a wider plot on a calendar step a reader counts in rather than moving it to a finer one with longer labels.
+- A date axis draws as many ticks as its labels have room for. The count steps down until the labels stop running together, which keeps a wider plot on a calendar step a reader counts in rather than moving it to a finer one with longer labels.
 
-- A filled shape narrower than a device pixel is drawn. The renderer paints the one or two device pixels the shape touches at an opacity totalling the shape's width, so a bar a third of a device pixel wide is drawn a third as dark as a solid one, and two bars of different widths no longer look identical. A shape at least two drawing units across in both directions is still snapped to the device pixel grid, so bars and histogram bins meet without a seam between them. The coordinates written to the SVG are unchanged. - thanks, @carstenbehring
+- A thin filled shape is drawn rather than dropped. Snapping a filled shape to the device pixel grid is what keeps two bars that share an edge from showing a seam between them, and it also rounds away anything narrower than one pixel. Plotje now snaps only shapes at least two drawing units across in both directions, and leaves anything thinner to anti-alias, so a narrow bar draws faintly instead of vanishing and two bars of different widths look different. This is the SVG path; the coordinates Plotje writes are unchanged. Reported in [#plotje > missing bar char variant ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/missing.20bar.20char.20variant.20.3F/) - thanks, @carstenbehring
 
-- A date axis widened by a rule or a band is ticked across its whole width. A temporal axis picks its ticks over the extent its data covers rather than over its domain, and a rule written past the last date widened the domain alone: a rule at December on two months of data stretched the axis across the year and left every label in January and February. The value a rule or a band writes now reaches that extent as well as the domain, so the labels follow the axis. A numeric axis never had the gap, because numeric ticks are picked over the domain.
+- A date axis widened by a rule or a band is ticked across its whole width. A date axis picks its ticks over the extent its data covers, and the value a rule or a band writes now reaches that extent as well as the axis domain.
 
-- A break written on a log scale reads as a number. `pj/scale :breaks` sends its values to the log axis's own label writer, which had nothing to write for a value the 1-2-5 breaks never produce and printed what the double held: a zero carrying a sign read `-0.0`, and a computed value read `-0.30000000000000004`. Such a value is now written to six significant digits, which is what a continuous legend's endpoints are written to, so a number reads the same wherever the plot prints it. The breaks a log axis picks for itself are unchanged.
+- A break written with `pj/scale :breaks` on a log scale is written to six significant digits, the precision a continuous legend's endpoints use, rather than as the double holds it. The breaks a log axis picks for itself are unchanged.
 
 ## [0.12.0 - 2026-09-07]
 
