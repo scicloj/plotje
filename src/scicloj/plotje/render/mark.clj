@@ -218,9 +218,15 @@
       :cross (closed-path (rotate-45 r r (plus-points r r r (* 0.32 r))))
       (nil :circle) (ui/with-style ::ui/style-fill
                       (ui/rounded-rectangle d d r))
+      ;; The symbol being refused is left out of the list, which is
+      ;; built from what may be written rather than from this `case`.
+      ;; The two agree for every symbol the library ships, and a
+      ;; sentence that named the refused symbol among the drawable ones
+      ;; would be nonsense the moment they did not.
       (throw (ex-info (str "Cannot draw the shape " (pr-str shape-kw)
                            ". Plotje draws "
-                           (str/join ", " (map pr-str (defaults/drawable-shapes)))
+                           (str/join ", " (map pr-str (remove #{shape-kw}
+                                                              (defaults/drawable-shapes))))
                            ".")
                       {:shape shape-kw
                        :drawable (defaults/drawable-shapes)})))))

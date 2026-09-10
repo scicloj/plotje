@@ -162,8 +162,10 @@
    `(pj/scale pose :shape {:values [...]})` to choose them yourself, or
    name one for a whole layer with `{:shape :circle-open}`.
 
-   A function rather than a value, as `pj/config` is: what a plot may
-   draw is meant to grow, and a value read at load time could not."
+   A function rather than a value, as `pj/config` is: the list grows
+   from one release to the next, and a value read at load time could
+   not follow it. Adding a symbol of your own is not supported -- the
+   shapes are drawn by a fixed table in the renderer."
   []
   (defaults/drawable-shapes))
 

@@ -475,9 +475,12 @@
 
    Read through here rather than off `drawable-shape-syms` directly, by
    the validation, the error messages, the schema and
-   `pj/shape-symbols` alike. A registry of shapes an extension can add
-   to would be read here and nowhere else, and the readers would not
-   change.
+   `pj/shape-symbols` alike, so those four cannot disagree about what
+   may be written. A registry an extension adds to would be read here,
+   and none of those four would change -- but `render.mark/draw-shape`
+   would, because it draws from a closed `case` and a registered symbol
+   would pass every check here and then fail to draw. That is why the
+   accessors are groundwork rather than the feature.
 
    Built from `shape-palette` on each call rather than read off the
    `drawable-shape-syms` value, which is fixed when the namespace

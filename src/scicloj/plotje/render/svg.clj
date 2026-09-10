@@ -71,11 +71,20 @@
   "The smallest extent, in drawing units, at which a filled shape is drawn
    with `crispEdges`.
 
-   Two is enough to keep the seam-removal this is for while staying clear
-   of the width where snapping destroys the shape. Snapping a two-unit
-   extent to the device pixel grid moves an edge by at most half a unit,
-   which no reader sees; snapping a half-unit extent rounds it away."
-  2.0)
+   One is the measured floor. Sweeping a shape across 32 sub-pixel
+   offsets in headless Chromium, `crispEdges` never erased one a whole
+   drawing unit wide at device scale factor 1, and never erased one half
+   a unit wide at scale factor 2; erasures begin at 0.95 units and are
+   common by 0.90.
+
+   Set to two at first, on the reasoning that a two-unit extent moves by
+   at most half a unit when it snaps. That is true and cost more than it
+   bought: it left every shape between one and two units anti-aliased,
+   so 120 touching bars in a band 1.68 units wide showed seams -- ink
+   across the row varying 145 to 177 where snapping gives a uniform 177.
+   Seam removal is the whole reason this exists, and the band it was
+   giving up is a band where snapping is safe."
+  1.0)
 
 (defn- crisp-edges?
   "Whether a filled polygon should be drawn with `shape-rendering
@@ -101,10 +110,10 @@
    The threshold is in drawing units while the snapping is to device
    pixels, and the two coincide only at the plot's natural size on a
    standard-resolution display. The writer knows the first and cannot
-   know the second, so the rule is deliberately conservative: on a
-   high-resolution display a shape between one and two drawing units is
-   two or more device pixels and would have survived snapping, and it is
-   anti-aliased here anyway.
+   know the second, so the threshold is the floor measured at the worst
+   of the two: scale factor 1, where one drawing unit is one device
+   pixel. A high-resolution display only makes the same shape wider in
+   device pixels and safer to snap.
 
    So the rule is by extent, not by mark: any filled shape at least
    `crisp-edges-min-extent` in both directions is snapped, and anything

@@ -21,9 +21,11 @@
    step with their widths. On his own plot, ten needles came back and the
    distinct ink levels went from 4 to 56.
 
-   The rule is by extent, not by mark: a shape at least two drawing units
+   The rule is by extent, not by mark: a shape at least one drawing unit
    in both directions keeps `crispEdges`, and anything thinner is left to
-   anti-alias."
+   anti-alias. The floor is one because a sweep of 32 sub-pixel offsets
+   never erased a shape a whole drawing unit wide; an earlier two cost
+   the seam removal on every shape between one and two units."
   (:require [clojure.test :refer [deftest is testing]]
             [scicloj.plotje.api :as pj]))
 
@@ -48,7 +50,7 @@
           [crisp total] (crisp-fraction pose)]
       (is (= 100 total) "every bar is drawn")
       (is (zero? crisp)
-          "no bar under two drawing units wide is snapped to whole pixels"))))
+          "no bar under one drawing unit wide is snapped to whole pixels"))))
 
 (deftest an-ordinary-bar-is-still-snapped
   (testing "the seam-removal crispEdges exists for is kept"
@@ -77,7 +79,7 @@
           thin (-> {:x [1 2 3] :y [10 20 30]}
                    (pj/lay-bar :x :y {:bar-width 0.002}))]
       (is (= (apply = (crisp-fraction wide)) true)
-          "a bar well over two units wide is snapped")
+          "a bar well over one unit wide is snapped")
       (is (zero? (first (crisp-fraction thin)))
           "the same bars, drawn far narrower, are not"))))
 
@@ -101,3 +103,34 @@
       ;; which a spread of a hundredth of a unit says and an `=` does not.
       (is (< (- (apply max widths) (apply min widths)) 0.02)
           "and they are one width, as the data says, to within rounding"))))
+
+(deftest the-threshold-sits-at-one-drawing-unit
+  ;; The tests above use extremes -- 0.002 data units against 0.6 -- so
+  ;; they pass at any threshold between them. These two bracket the
+  ;; boundary itself, and the wide half fails if the floor goes back up
+  ;; to two: 120 bars in a 230-unit plot are 1.15 drawing units each,
+  ;; which is exactly the band an earlier threshold of 2.0 gave up.
+  (let [bars (fn [width]
+               (-> {:c (mapv #(str "c" %) (range 120))
+                    :v (vec (repeatedly 120 (constantly 1.0)))}
+                   (pj/lay-bar :c :v)
+                   (pj/options {:width width :height 200})))
+        bar-units (fn [pose]
+                    (let [xs (->> (clojure.string/split (:points (first (polygons pose))) #"\s+")
+                                  (map #(parse-double
+                                         (first (clojure.string/split % #",")))))]
+                      (- (apply max xs) (apply min xs))))]
+    (testing "just over one drawing unit is snapped"
+      (let [pose (bars 230)
+            [crisp total] (crisp-fraction pose)]
+        (is (< 1.0 (bar-units pose) 2.0)
+            "the bars sit between the old floor and the new one")
+        (is (= crisp total 120)
+            "every bar keeps crispEdges, so touching bars show no seam")))
+    (testing "just under one drawing unit is left to anti-alias"
+      (let [pose (bars 200)
+            [crisp total] (crisp-fraction pose)]
+        (is (< (bar-units pose) 1.0))
+        (is (= 120 total) "every bar is drawn")
+        (is (zero? crisp)
+            "narrower than a device pixel at natural size, so snapping would erase it")))))
