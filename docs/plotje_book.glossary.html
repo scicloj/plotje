@@ -789,12 +789,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td style="text-align: left;"><code>:x</code></td>
-<td style="text-align: left;">Horizontal position</td>
+<td style="text-align: left;">Where the mark sits horizontally</td>
 <td style="text-align: left;">Numerical, temporal, or categorical</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>:y</code></td>
-<td style="text-align: left;">Vertical position</td>
+<td style="text-align: left;">Where the mark sits vertically</td>
 <td style="text-align: left;">Numerical, temporal, or categorical</td>
 </tr>
 <tr class="odd">
@@ -1376,11 +1376,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="annotation" class="level2">
 <h2 class="anchored" data-anchor-id="annotation">Annotation</h2>
-<p>An <strong>annotation</strong> is a mark layered on a plot to explain it rather than to show data: a reference line, a shaded region, a note, a leader line, a caption. Their positions are given as values or measured on the panel, not read from a column for every row.</p>
-<p>Two ways to place one:</p>
+<p>An <strong>annotation</strong> is a mark layered on a plot to explain it rather than to show data: a reference line, a shaded region, a note, a leader line, a caption. Where each one sits is given as a written value or measured on the panel, not read from a column for every row.</p>
+<p>Two ways to place one, and every one of the constructors below accepts both:</p>
 <ul>
-<li><p><strong>In data space</strong>, so the annotation moves with the axis. Reference lines and bands have their own layer types; a note is a text layer whose <code>:x</code> and <code>:y</code> are values.</p></li>
-<li><p><strong>On the panel</strong>, with <code>:in :drawing-area</code>, so the annotation is positioned in drawing units from the corner of the panel background and the axis domains are unaffected. See <strong>Drawing Area</strong>.</p></li>
+<li><p><strong>In data space</strong>, so the annotation moves with the axis, and the axis reaches it: a rule written outside everything the data covers widens the axis rather than being clipped away.</p></li>
+<li><p><strong>On the panel</strong>, with <code>:in :drawing-area</code>, so the annotation is placed in drawing units from the corner of the panel background and the axis domains are unaffected. See <strong>Drawing Area</strong>.</p></li>
 </ul>
 <p>Annotations are regular layers, so they attach under the same three cases as any <code>lay-*</code>: bare call sits on the pose, matching columns join the most recent matching leaf, non-matching columns create a new leaf.</p>
 <table class="caption-top table">
@@ -1417,8 +1417,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
-<p>The four rule and band constructors take their positions in the layer’s <code>:mapping</code> slot (<code>:y-intercept</code> or <code>:x-intercept</code> for rules; <code>:y-min</code>/<code>:y-max</code> or <code>:x-min</code>/<code>:x-max</code> for bands) as written values rather than column references, and each draws at exactly one place. <code>{:value 1.5}</code> says the same thing at more length; a <code>{:column ...}</code> there is reported, since these read no column. Column-mapped intercepts, producing one mark per row like ggplot2’s <code>geom_hline(aes(yintercept = ...))</code>, are planned but not yet implemented.</p>
-<p>Those four are also the only ones the plan keeps apart: a panel carries them in an <code>:annotations</code> slot of its own rather than among its <code>:layers</code>, which matters when walking a plan but not when writing a pose. A text note is an ordinary layer. See the <a href="./plotje_book.extensibility.html#rule-and-band-marks-live-on-the-panels-annotations-not-layers">Extensibility</a> chapter.</p>
+<p>Each of the four rule and band constructors names where it draws in the layer’s <code>:mapping</code> slot (<code>:y-intercept</code> or <code>:x-intercept</code> for rules; <code>:y-min</code>/<code>:y-max</code> or <code>:x-min</code>/<code>:x-max</code> for bands), as a written value rather than a column reference, and draws at exactly one place. <code>{:value 1.5}</code> says the same thing at more length; a <code>{:column ...}</code> there is reported, since these read no column. Column-mapped intercepts, producing one mark per row like ggplot2’s <code>geom_hline(aes(yintercept = ...))</code>, are planned but not yet implemented.</p>
+<p>Annotation names a use rather than a kind of thing. Every one of those constructors builds an ordinary layer, and a panel carries them among its <code>:layers</code> in the order they were written – so a rule written before a scatter is drawn under its points, and one written after is drawn over them. See the <a href="./plotje_book.extensibility.html#a-mark-placed-at-a-written-value">Extensibility</a> chapter.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> annotated</span></span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
@@ -4337,7 +4337,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td style="text-align: left;">Annotation</td>
-<td style="text-align: left;">Reference marks (rules, bands); positions in <code>:mapping</code> as written values today, data-driven planned</td>
+<td style="text-align: left;">Reference marks (rules, bands); where they draw is a written value in <code>:mapping</code> today, data-driven planned</td>
 <td style="text-align: left;"><code>pj/lay-rule-*</code>, <code>pj/lay-band-*</code></td>
 </tr>
 <tr class="odd">

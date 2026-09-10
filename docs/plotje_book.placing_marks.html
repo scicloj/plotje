@@ -708,7 +708,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a> <span class="at">:note-in-data</span> [<span class="fl">3.915</span> <span class="fl">12.385</span>],</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a> <span class="at">:note-in-drawing</span> [<span class="fl">4.12</span> <span class="fl">8.08</span>]}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Use a data-space value when the note is about a value, and <code>:in :drawing-area</code> when it is about the picture. <code>pj/lay-rule-*</code> and <code>pj/lay-band-*</code> reject <code>:in</code>: those four are carried on the panel’s annotations and are placed from data values only.</p>
+<p>Use a data-space value when the note is about a value, and <code>:in :drawing-area</code> when it is about the picture. <code>pj/lay-rule-*</code> and <code>pj/lay-band-*</code> take <code>:in</code> too, reading their intercept or their bounds as drawing units from the panel background’s corner.</p>
 </section>
 <section id="where-a-value-lands-on-the-page" class="level2">
 <h2 class="anchored" data-anchor-id="where-a-value-lands-on-the-page">Where a value lands on the page</h2>
