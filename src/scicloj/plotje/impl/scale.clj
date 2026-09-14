@@ -90,6 +90,63 @@
     (band-value sc v)
     (ws/inverse sc v)))
 
+(defn- band-center
+  [{:keys [rstart rend]}]
+  (/ (+ (double rstart) (double rend)) 2.0))
+
+(defn- numeric-band-position
+  "Drawing-space position for a fractional, 1-indexed place on a band
+   scale: 1 sits at the first category's centre, 2 at the second, and
+   a value between two whole numbers interpolates between their
+   centres. A value outside `[1 n]` extrapolates by the step between
+   the nearest two centres -- the same step a whole category is one
+   of, so `0.5` sits half a category before the first."
+  [sc pos]
+  (let [bands (vec (ws/data sc :bands))
+        n (count bands)]
+    (cond
+      (zero? n) 0.0
+      (= n 1) (band-center (first bands))
+      :else
+      (let [centers (mapv band-center bands)
+            step (- (double (nth centers 1)) (double (nth centers 0)))
+            idx (dec (double pos))
+            i0 (int (Math/floor idx))]
+        (cond
+          (< i0 0) (+ (double (first centers)) (* idx step))
+          (>= i0 (dec n)) (+ (double (peek centers)) (* (- idx (dec n)) step))
+          :else (let [c0 (double (nth centers i0))
+                      c1 (double (nth centers (inc i0)))
+                      frac (- idx i0)]
+                  (+ c0 (* frac (- c1 c0)))))))))
+
+(defn forward
+  "Map a value through a scale to a drawing-space position.
+
+   A band scale only otherwise answers a category it was given; this
+   extends it to also accept a plain number as a continuous, 1-indexed
+   place among its categories, so `1.5` sits halfway between the first
+   two and a nudge can land a label between the categories it labels."
+  [sc v]
+  (if (and (number? v) (= :bands (ws/kind sc)))
+    (numeric-band-position sc v)
+    (sc v)))
+
+(defn category-index
+  "The 1-indexed place of `category` among a band scale's categories, in
+   the order the scale carries them, or nil when it is not one of them.
+
+   The unit `forward`'s numeric position is counted in, so a nudge
+   applied to a category can be answered by `forward` the same way a
+   nudge on a numeric axis always was: a number added to a position."
+  [sc category]
+  (let [bands (ws/data sc :bands)]
+    (loop [i 1 bs (seq bands)]
+      (when bs
+        (if (= (:value (first bs)) category)
+          i
+          (recur (inc i) (next bs)))))))
+
 (defmethod make-scale [:categorical :doc] [_ _ _] "Band scale (one band per category)")
 (defmethod make-scale [:linear :doc] [_ _ _] "Continuous linear mapping")
 (defmethod make-scale [:log :doc] [_ _ _] "Logarithmic mapping")

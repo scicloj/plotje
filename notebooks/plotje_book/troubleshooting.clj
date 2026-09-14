@@ -179,30 +179,27 @@
 
 ;; ## Nudge on a Categorical Axis
 ;;
-;; **Symptom**: Passing `:nudge-x` (or `:nudge-y`) to a label or point
-;; layer whose corresponding axis is categorical raises an error like
-;; `":nudge-x is a data-space shift and does not apply to a categorical
-;; x axis"`.
-;;
-;; **Cause**: `:nudge-x`/`:nudge-y` shift coordinates by a data-space
-;; amount. On a categorical axis the coordinates are still category
-;; labels at this stage -- their drawing positions are assigned later by
-;; the renderer -- so a numeric shift has no defined meaning. A value
-;; label on a bar runs into this, because the bar's axis is categorical:
+;; `:nudge-x`/`:nudge-y` shift a mark by a data-space amount. On a
+;; numeric axis that amount is a value; on a categorical axis, where
+;; the categories carry no numbers of their own, it is a fractional
+;; place among them, counted from one -- `0.5` sits halfway between
+;; the first category and the second. A label naming a bar can nudge
+;; a fraction of a category off it rather than only up or down:
 
-(try
-  (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
-      (pj/lay-bar :species :pct)
-      (pj/lay-text :species :pct {:text :pct :nudge-x -2})
-      pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+(-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
+    (pj/lay-bar :species :pct)
+    (pj/lay-text :species :pct {:text :pct :nudge-x 0.3}))
 
 (kind/test-last
- [(fn [msg] (re-find #":nudge-x .* categorical x axis" msg))])
+ [(fn [fr]
+    (= [nil 0.3]
+       (->> fr pj/plan :panels first :layers (mapv :nudge-x))))])
 
-;; **Fix**: To move a mark by a distance on the page, use `:offset-x`
-;; or `:offset-y`. These are drawing units applied after the scales, so
-;; they apply on a categorical axis as on any other:
+;; A nudge does not change the axis domain, so a nudge large enough to
+;; carry a mark past the end of the axis leaves it clipped there --
+;; unlike ggplot2's `nudge_x`, which widens the range instead. To move
+;; a mark by a distance on the page regardless of the axis's own units,
+;; use `:offset-x`/`:offset-y`:
 
 (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
     (pj/lay-bar :species :pct)

@@ -135,26 +135,26 @@
 
 
 (def
- v32_l193
- (try
-  (->
-   {:species ["setosa" "versicolor" "virginica"],
-    :pct [33.3 33.3 33.3]}
-   (pj/lay-bar :species :pct)
-   (pj/lay-text :species :pct {:text :pct, :nudge-x -2})
-   pj/plan)
-  (catch clojure.lang.ExceptionInfo e (ex-message e))))
+ v32_l189
+ (->
+  {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
+  (pj/lay-bar :species :pct)
+  (pj/lay-text :species :pct {:text :pct, :nudge-x 0.3})))
 
 
 (deftest
- t33_l200
+ t33_l193
  (is
-  ((fn [msg] (re-find #":nudge-x .* categorical x axis" msg))
-   v32_l193)))
+  ((fn
+    [fr]
+    (=
+     [nil 0.3]
+     (->> fr pj/plan :panels first :layers (mapv :nudge-x))))
+   v32_l189)))
 
 
 (def
- v35_l207
+ v35_l204
  (->
   {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
   (pj/lay-bar :species :pct)
@@ -165,18 +165,18 @@
 
 
 (deftest
- t36_l211
+ t36_l208
  (is
   ((fn
     [fr]
     (=
      [nil -6]
      (->> fr pj/plan :panels first :layers (mapv :offset-y))))
-   v35_l207)))
+   v35_l204)))
 
 
 (def
- v38_l221
+ v38_l218
  (->
   {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
   (pj/lay-bar :species :pct {:color "#a6cee3"})
@@ -185,7 +185,7 @@
 
 
 (deftest
- t39_l226
+ t39_l223
  (is
   ((fn
     [fr]
@@ -201,11 +201,11 @@
       first
       :style
       :align-x)))
-   v38_l221)))
+   v38_l218)))
 
 
 (def
- v41_l251
+ v41_l248
  (with-out-str
   (->
    (rdatasets/ggplot2-diamonds)
@@ -214,14 +214,14 @@
 
 
 (deftest
- t42_l256
+ t42_l253
  (is
   ((fn [out] (re-find #"does not recognize option.*:scale-y" out))
-   v41_l251)))
+   v41_l248)))
 
 
 (def
- v44_l261
+ v44_l258
  (->
   (rdatasets/ggplot2-diamonds)
   (pj/lay-point :carat :price {:alpha 0.1})
@@ -229,8 +229,8 @@
 
 
 (deftest
- t45_l265
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v44_l261)))
+ t45_l262
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v44_l258)))
 
 
 (def

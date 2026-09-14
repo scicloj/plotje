@@ -218,12 +218,11 @@ cars
     (= [nil 10]
        (->> fr pj/plan :panels first :layers (mapv :offset-x))))])
 
-;; Every layer type accepts these two options, and they also work where a
-;; nudge cannot: on a categorical axis there is no numeric value to shift,
-;; and `:nudge-x` throws. The bar chart below has its categories on x, so
-;; a nudge along that axis would be refused. `:offset-y -6` lifts each
+;; Every layer type accepts these two options. `:offset-y -6` lifts each
 ;; value label six drawing units above its bar -- negative, because a
-;; positive `:offset-y` moves down the page, as drawing coordinates do:
+;; positive `:offset-y` moves down the page, as drawing coordinates do.
+;; The categories are on x here, and an offset works on that axis just
+;; as it does on a numeric one:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score)
@@ -231,17 +230,23 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (and (= [nil -6]
-            (->> fr pj/plan :panels first :layers (mapv :offset-y)))
-         ;; The same chart with a nudge along its categorical x instead.
-         (try (-> {:team ["red" "green" "blue"] :score [3 5 4]}
-                  (pj/lay-bar :team :score)
-                  (pj/lay-text {:text :score :nudge-x 0.2})
-                  pj/plot)
-              false
-              (catch Exception e
-                (boolean (re-find #":nudge-x is a data-space shift"
-                                  (ex-message e)))))))])
+    (= [nil -6]
+       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
+
+;; A nudge along a categorical axis, once refused outright, now places a
+;; mark at a fractional position between two categories: `0.5` sits
+;; halfway between the first and the second, counting from one. Here it
+;; moves the same label half a category to the right of the bar it
+;; names, instead of straight up:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-bar :team :score)
+    (pj/lay-text {:text :score :align-x :center :nudge-x 0.5}))
+
+(kind/test-last
+ [(fn [fr]
+    (= [nil 0.5]
+       (->> fr pj/plan :panels first :layers (mapv :nudge-x))))])
 
 ;; One more difference between the two: a nudge does not change the axis
 ;; domain, so a nudge large enough to carry a mark past the end of the

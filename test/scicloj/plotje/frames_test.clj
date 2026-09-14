@@ -170,10 +170,9 @@
           "and the dataset arity writes that nil into the column"))))
 
 (deftest a-value-a-categorical-axis-has-no-position-for-is-refused
-  (testing "a category that is not on the axis, and a place between two that are"
+  (testing "a category that is not on the axis"
     (let [p (one-panel categorical)]
       (doseq [[label bad] [["an unknown category" "nope"]
-                           ["a fractional place" 2.5]
                            ["nothing at all" nil]]]
         (is (thrown-with-msg? clojure.lang.ExceptionInfo
                               #"is not a category on this axis"
@@ -189,6 +188,15 @@
                             #"got \"nope\" for :x.*\[\"a\" \"b\" \"c\"\]"
                             (pj/to-drawing p "nope" 3.0))))))
 
+(deftest a-fractional-place-sits-between-two-categories
+  (testing "a number is a 1-indexed place, not a category, and a band scale answers it too"
+    (let [p (one-panel categorical)
+          [ax] (pj/to-drawing p "a" 3.0)
+          [bx] (pj/to-drawing p "b" 3.0)
+          [mx] (pj/to-drawing p 1.5 3.0)]
+      (is (< (abs (- mx (/ (+ ax bx) 2.0))) 1e-9)
+          "1.5 sits halfway between the first category's position and the second's"))))
+
 (deftest a-flipped-categorical-axis-is-read-in-data-order
   (testing "under :flip the data x is a category even though :x-domain is not"
     (let [p (one-panel (-> categorical (pj/coord :flip)))]
@@ -198,10 +206,8 @@
       (let [back (pj/to-data p (pj/to-drawing p {:x ["a" "c"] :y [1.0 6.0]}))]
         (is (= ["a" "c"] (vec (back :x))))
         (is (every? #(< (abs %) 1e-9) (dfn/- (back :y) [1.0 6.0]))))
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"got 2.5 for :x"
-                            (pj/to-drawing p 2.5 3.0))
-          "the guard reads the same axis the scale does"))))
+      (is (some? (pj/to-drawing p 2.5 3.0))
+          "the guard reads the same axis the scale does, and a number is a position on it"))))
 
 ;; ---- The shape of the arguments ----
 

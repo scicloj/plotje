@@ -153,8 +153,8 @@
 
 (defn- apply-nudge
   "Apply nudge-x/nudge-y offsets to a layer's groups.
-   Nudge shifts data coordinates by a constant amount — orthogonal to
-   position adjustment (dodge/stack). Handles three group shapes:
+   Nudge shifts a mark by a constant amount — orthogonal to position
+   adjustment (dodge/stack). Handles three group shapes:
      - polyline groups with :xs/:ys (and optional :ymins/:ymaxs)
      - line-segment groups with :x1/:y1/:x2/:y2 (from :lm regression)
      - any group with any subset of the above
@@ -163,31 +163,26 @@
    `:accepts` but the segment-style groups they produced were silently
    untouched because only :xs/:ys were updated.
 
-   Nudge is a data-space shift, so it only applies to a numeric or
-   temporal axis. On a categorical axis the coordinates are still
-   category labels at this stage (positions are assigned later by the
-   renderer), so a numeric shift has no meaning -- refuse it with a
-   message pointing at the tools that do place marks on a categorical
-   axis."
+   On a numeric or temporal axis this is a data-space shift, applied
+   here, directly to the values. On a categorical axis the coordinates
+   are still category labels at this stage -- a band's position is
+   assigned later, from the panel's domain order, once every layer's
+   categories are known -- so a number cannot be added to them yet.
+   Left on the layer as `:nudge-x`/`:nudge-y` instead, that shift is
+   read once the render step resolves each label to its place among
+   the categories (`render.panel/layer-ctx`), and added there as the
+   same one-category-is-one-unit position `scale/forward` already
+   reads for a bare numeric x or y on a categorical axis."
   [layer {:keys [nudge-x nudge-y x-type y-type]}]
-  (when (and nudge-x (= x-type :categorical))
-    (throw (ex-info (str ":nudge-x is a data-space shift and does not apply to a "
-                         "categorical x axis. To move a mark by a distance on the "
-                         "page use :offset-x, which works on any axis; to place a "
-                         "label relative to its point use :align-x; to spread "
-                         "overlapping marks use :jitter or :position :dodge.")
-                    {:nudge-x nudge-x :x-type x-type})))
-  (when (and nudge-y (= y-type :categorical))
-    (throw (ex-info (str ":nudge-y is a data-space shift and does not apply to a "
-                         "categorical y axis. To move a mark by a distance on the "
-                         "page use :offset-y, which works on any axis; to place a "
-                         "label relative to its point use :align-y; to spread "
-                         "overlapping marks use :jitter or :position :dodge.")
-                    {:nudge-y nudge-y :y-type y-type})))
-  (if (or nudge-x nudge-y)
-    (let [nx (when nudge-x (double nudge-x))
-          ny (when nudge-y (double nudge-y))]
-      (update layer :groups
+  (let [x-cat? (= x-type :categorical)
+        y-cat? (= y-type :categorical)
+        nx (when (and nudge-x (not x-cat?)) (double nudge-x))
+        ny (when (and nudge-y (not y-cat?)) (double nudge-y))]
+    (cond-> layer
+      (and nudge-x x-cat?) (assoc :nudge-x (double nudge-x))
+      (and nudge-y y-cat?) (assoc :nudge-y (double nudge-y))
+      (or nx ny)
+      (update :groups
               (fn [gs]
                 (mapv (fn [g]
                         (cond-> g
@@ -199,8 +194,7 @@
                           (and ny (:y1 g))    (update :y1 + ny)
                           (and nx (:x2 g))    (update :x2 + nx)
                           (and ny (:y2 g))    (update :y2 + ny)))
-                      gs))))
-    layer))
+                      gs))))))
 
 (defn- default-position
   "Default position for marks that normally dodge.
@@ -1109,4 +1103,3 @@
     (throw (ex-info (str "Unknown mark: " (pr-str mark)
                          ". Supported marks: " (vec registered))
                     {:mark mark :supported (vec registered)}))))
-

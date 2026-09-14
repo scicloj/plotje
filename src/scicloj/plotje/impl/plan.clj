@@ -216,9 +216,14 @@
 
 (defn collect-domain
   "Collect and merge domains from stat results along axis-key.
-   Throws if some stat results contribute numeric domains and others
-   contribute categorical domains -- mixing the two on one axis is
-   ambiguous.
+
+   A categorical axis's domain is its categories; a layer whose value
+   on this axis is a bare number rather than a column of categories --
+   `(pj/lay-text {:x 1.5 ...})` beside a categorical `:x` -- names a
+   position among them (`scale/forward`, `scicloj.plotje.impl.scale`),
+   not a new one, so it contributes nothing to the domain and is
+   dropped rather than merged. Only when every layer on this axis is
+   numeric, or every layer is categorical, does its own domain apply.
 
    `padding` is the resolved `:domain-padding`. `temporal?` says the
    axis reads dates, which is what lets `:include` be written as one.
@@ -239,13 +244,9 @@
                                    (mapv str d))
                            :numeric? (and (= 2 (count d)) (number? (first d)))}))
                       stat-results)
-         types (distinct (map :numeric? parsed))]
+         mixed? (> (count (distinct (map :numeric? parsed))) 1)
+         parsed (if mixed? (remove :numeric? parsed) parsed)]
      (when (seq parsed)
-       (when (> (count types) 1)
-         (throw (ex-info (str "Cannot merge numeric and categorical domains on " axis-key
-                              ". Each layer must use a consistent column type for this axis.")
-                         {:axis axis-key
-                          :domains (mapv :vals parsed)})))
        (let [vals (mapcat :vals parsed)
              aesthetic (if (= :x-domain axis-key) :x :y)
              numeric? (number? (first vals))

@@ -161,28 +161,30 @@
 (defn- check-categories
   "Refuse a value a categorical axis has no position for.
 
-   A band scale answers with a position for each of its categories and
-   with nothing between them, so a value it does not name -- a typo, a
-   category filtered out of the data, or a fractional place such as 2.5
-   -- has no position at all. Left to the scale this surfaced as a
-   NullPointerException naming neither the value nor the axis, and the
-   two arities disagreed about it: the scalar one threw while the
-   dataset one wrote nil into the column."
+   A band scale answers with a position for each of its categories, and
+   for a plain number too -- read as a 1-indexed, continuous place
+   among them, so `2.5` sits between the second and third category
+   (`scale/forward`). What it has no position for is a value that
+   names neither: a typo, or a category filtered out of the data. Left
+   to the scale this surfaced as a NullPointerException naming neither
+   the value nor the axis, and the two arities disagreed about it: the
+   scalar one threw while the dataset one wrote nil into the column."
   [caller panel axis values]
   (let [[domain spec] (data-axis panel axis)]
     (when (= :categorical (scale/scale-kind domain spec))
       ;; The seq is what says whether there was an offender; the offender
       ;; itself may be nil, which is one of the values a categorical axis
       ;; has no position for. Testing it for truth would let exactly that
-      ;; one through.
-      (when-let [offenders (seq (remove (set domain) values))]
+      ;; one through. A number is always a position, whether or not it
+      ;; names a category.
+      (when-let [offenders (seq (remove #(or (number? %) (contains? (set domain) %)) values))]
         (let [bad (first offenders)]
           (throw (ex-info (str caller " got " (pr-str bad) " for " axis ", which is not a "
-                               "category on this axis. Categories: " (vec domain) ". A "
-                               "categorical axis is a band scale: it has a position for "
-                               "each category and none between them. To place a mark clear "
-                               "of another, use :offset-x / :offset-y, which shift by a "
-                               "distance on the page and work on any axis.")
+                               "category on this axis, nor a number. Categories: " (vec domain) ". "
+                               "A categorical axis is a band scale: it has a position for each "
+                               "category, and for a number too -- read as a 1-indexed place among "
+                               "them, so a number between two whole ones sits between the "
+                               "categories they name.")
                           {:caller caller :axis axis :value bad
                            :categories (vec domain)})))))))
 

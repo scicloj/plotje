@@ -81,12 +81,15 @@
   [pose k]
   (mapv k (:layers (first (:panels (pj/plan pose))))))
 
-(deftest a-data-space-nudge-refuses-a-categorical-axis
-  (testing "the gap :offset-* exists to fill"
-    (is (thrown-with-msg?
-         Exception #"does not apply to a categorical"
-         (pj/plan (pj/lay-point {:team ["red" "green"] :score [3 5]}
-                                :team :score {:nudge-x 0.2}))))))
+;; ---- Nudge on a categorical axis ----
+
+(deftest a-nudge-on-a-categorical-axis-is-a-fractional-place
+  (testing "a category has no number of its own to add to, so the plan carries the nudge as-is"
+    (is (= [0.2] (layer-offsets (pj/lay-point {:team ["red" "green"] :score [3 5]}
+                                              :team :score {:nudge-x 0.2})
+                                :nudge-x)))
+    (is (some? (pj/svg-summary (pj/plot (pj/lay-point {:team ["red" "green"] :score [3 5]}
+                                                      :team :score {:nudge-x 0.2})))))))
 
 (deftest an-offset-applies-on-a-categorical-axis
   (testing "a label is lifted clear of its bar, on an axis with no data units"

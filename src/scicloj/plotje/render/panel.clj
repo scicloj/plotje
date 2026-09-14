@@ -1,6 +1,5 @@
 (ns scicloj.plotje.render.panel
   (:require [membrane.ui :as ui]
-            [wadogo.scale :as ws]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
@@ -138,6 +137,23 @@
                                          :text-anchor "end"))))))
             values labels)))))
 
+(defn- nudge-data-value
+  "Shift `v` by `amount` on the axis `sc` scales.
+
+   A number is already the position `scale/forward` reads, on any
+   axis, so the amount is added straight to it. A category label has
+   no number of its own until it is placed among the others, so it is
+   first read as its 1-indexed place in `sc`'s domain order -- the same
+   order `scale/forward` counts a bare numeric position in -- and the
+   amount is added to that place instead."
+  [sc v amount]
+  (cond
+    (number? v) (+ (double v) amount)
+    (nil? v) v
+    :else (if-let [idx (scale/category-index sc v)]
+            (+ idx amount)
+            v)))
+
 (defn- layer-ctx
   "The drawing context one layer is rendered with.
 
@@ -151,22 +167,38 @@
    of both at once; `{:y {:column :b :scale false}}` says it of one, and
    then x is still read through its scale while y is a distance down
    the panel. The two are asked separately here so a layer can mix
-   them."
+   them.
+
+   A layer nudged on a categorical axis (`extract/apply-nudge` leaves
+   `:nudge-x`/`:nudge-y` on the layer rather than folding it into
+   `:xs`/`:ys`, since a category label carries no number to add to
+   until it is placed) is shifted here instead, once the label can be
+   read as a position -- see `nudge-data-value`."
   [ctx layer m]
   (let [both?      (= :drawing-area (:in layer))
         x-drawn?   (or both? (:x-drawn? layer))
-        y-drawn?   (or both? (:y-drawn? layer))]
-    (if-not (or x-drawn? y-drawn?)
+        y-drawn?   (or both? (:y-drawn? layer))
+        nx         (:nudge-x layer)
+        ny         (:nudge-y layer)]
+    (if-not (or x-drawn? y-drawn? nx ny)
       ctx
       (let [base (:coord-fn ctx)
-            md   (double m)]
-        (assoc ctx :coord-fn
-               (fn [x y]
-                 (let [[bx by] (if (and x-drawn? y-drawn?)
-                                 [nil nil]
-                                 (base x y))]
-                   [(if x-drawn? (+ md (double x)) bx)
-                    (if y-drawn? (+ md (double y)) by)])))))))
+            sx (:sx ctx) sy (:sy ctx)
+            nudged (if (or nx ny)
+                     (fn [x y]
+                       (base (if nx (nudge-data-value sx x nx) x)
+                             (if ny (nudge-data-value sy y ny) y)))
+                     base)]
+        (if-not (or x-drawn? y-drawn?)
+          (assoc ctx :coord-fn nudged)
+          (let [md (double m)]
+            (assoc ctx :coord-fn
+                   (fn [x y]
+                     (let [[bx by] (if (and x-drawn? y-drawn?)
+                                     [nil nil]
+                                     (nudged x y))]
+                       [(if x-drawn? (+ md (double x)) bx)
+                        (if y-drawn? (+ md (double y)) by)])))))))))
 
 (defn- offset-drawables
   "Shift a layer's drawables by its `:offset-x` / `:offset-y`, in drawing

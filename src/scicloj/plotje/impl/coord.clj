@@ -18,13 +18,13 @@
   (fn [coord-type sx sy pw ph m] coord-type))
 
 (defmethod make-coord :cartesian [_ sx sy pw ph m]
-  (fn [dx dy] [(sx dx) (sy dy)]))
+  (fn [dx dy] [(scale/forward sx dx) (scale/forward sy dy)]))
 
 (defmethod make-coord :fixed [_ sx sy pw ph m]
-  (fn [dx dy] [(sx dx) (sy dy)]))
+  (fn [dx dy] [(scale/forward sx dx) (scale/forward sy dy)]))
 
 (defmethod make-coord :flip [_ sx sy pw ph m]
-  (fn [dx dy] [(sx dy) (sy dx)]))
+  (fn [dx dy] [(scale/forward sx dy) (scale/forward sy dx)]))
 
 (defmethod make-coord :polar [_ sx sy pw ph m]
   (let [cx (/ pw 2.0) cy (/ ph 2.0)
@@ -32,7 +32,7 @@
         x-lo (double m) x-span (double (- pw m m))
         y-lo (double m) y-span (double (- ph m m))]
     (fn [dx dy]
-      (polar-project cx cy r-max x-lo x-span y-lo y-span (sx dx) (sy dy)))))
+      (polar-project cx cy r-max x-lo x-span y-lo y-span (scale/forward sx dx) (scale/forward sy dy)))))
 
 (defmethod make-coord [:cartesian :doc] [_ _ _ _ _ _] "Standard x-right, y-up mapping")
 (defmethod make-coord [:fixed :doc] [_ _ _ _ _ _] "Fixed aspect ratio (1 data unit = 1 data unit)")
@@ -76,13 +76,16 @@
         [pxs pys]))))
 
 (defmethod make-coord-columns :cartesian [_ sx sy _ _ _]
-  (fn [xs ys] [(dtype/emap sx :float64 xs) (dtype/emap sy :float64 ys)]))
+  (fn [xs ys] [(dtype/emap #(scale/forward sx %) :float64 xs)
+               (dtype/emap #(scale/forward sy %) :float64 ys)]))
 
 (defmethod make-coord-columns :fixed [_ sx sy _ _ _]
-  (fn [xs ys] [(dtype/emap sx :float64 xs) (dtype/emap sy :float64 ys)]))
+  (fn [xs ys] [(dtype/emap #(scale/forward sx %) :float64 xs)
+               (dtype/emap #(scale/forward sy %) :float64 ys)]))
 
 (defmethod make-coord-columns :flip [_ sx sy _ _ _]
-  (fn [xs ys] [(dtype/emap sx :float64 ys) (dtype/emap sy :float64 xs)]))
+  (fn [xs ys] [(dtype/emap #(scale/forward sx %) :float64 ys)
+               (dtype/emap #(scale/forward sy %) :float64 xs)]))
 
 ;; ---- Pixel-space reprojection (for arc interpolation) ----
 

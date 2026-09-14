@@ -703,24 +703,24 @@
           stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
           layer (extract/extract-layer rv stat-result [] defaults/defaults)]
       (is (= [1 2 3 4 5] (:xs (first (:groups layer)))))))
-  (testing "nudge-x on a categorical x axis throws a clear error, not a cast error"
+  (testing "nudge-x on a categorical x axis is deferred to the layer, not folded into xs"
     (let [view {:mark :text :data (tc/dataset {:cat ["a" "b"] :v [1.0 2.0]})
                 :x :cat :y :v :text :v :x-type :categorical :y-type :numerical
                 :nudge-x 0.5}
           rv (resolve/resolve-draft-layer view)
-          stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))]
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo #":nudge-x .* categorical x axis.* :align-x"
-           (extract/extract-layer rv stat-result [] defaults/defaults)))))
-  (testing "nudge-y on a categorical y axis throws a clear error"
+          stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
+          layer (extract/extract-layer rv stat-result [] defaults/defaults)]
+      (is (= 0.5 (:nudge-x layer)))
+      (is (= ["a" "b"] (:xs (first (:groups layer)))))))
+  (testing "nudge-y on a categorical y axis is deferred to the layer, not folded into ys"
     (let [view {:mark :text :data (tc/dataset {:v [1.0 2.0] :cat ["a" "b"]})
                 :x :v :y :cat :text :v :x-type :numerical :y-type :categorical
                 :nudge-y 0.5}
           rv (resolve/resolve-draft-layer view)
-          stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))]
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo #":nudge-y .* categorical y axis.* :align-y"
-           (extract/extract-layer rv stat-result [] defaults/defaults))))))
+          stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
+          layer (extract/extract-layer rv stat-result [] defaults/defaults)]
+      (is (= 0.5 (:nudge-y layer)))
+      (is (= ["a" "b"] (:ys (first (:groups layer))))))))
 
 ;; ============================================================
 ;; layer_type.clj -- mark constructors
