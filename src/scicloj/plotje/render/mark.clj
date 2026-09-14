@@ -162,13 +162,48 @@
                (+ cy (* k (+ dx dy)))]))
           pts)))
 
+(defn- open-stroke-width
+  "How thick to draw an unfilled symbol's outline, for a symbol of
+   radius `r`.
+
+   Proportional so the ring stays visible when `:size` scales a point
+   down and does not swell into a disc when it scales one up, with a
+   floor so the smallest points keep a drawable line. At the default
+   radius of 3 this is one drawing unit."
+  [r]
+  (max 1.0 (* 0.28 (double r))))
+
 (defn draw-shape
   "Draw a shape symbol on a 2r-by-2r box whose top-left corner is the
    origin. Public so the legend renderer draws the same symbol the
-   marks do. An unknown symbol draws a circle."
+   marks do.
+
+   `nil` means no symbol was named and draws a circle, which is what
+   every point mark without a `:shape` gets. A symbol this cannot draw
+   is reported. The two used to be one answer -- anything unrecognized
+   drew a circle -- so a caller outside the library got a circle where
+   the pose boundary would have refused the same symbol by name.
+
+   `:circle-open` is drawn as an outline rather than a disc, so
+   overlapping points stay countable -- each ring shows through the
+   ones on top of it, where filled discs merge into one blob. Requested
+   on the issue tracker (#46). It is inset by half its own stroke width
+   so it covers the same 2r-by-2r box a filled circle does: a stroke
+   straddles the path it is drawn on, so a ring drawn at radius r would
+   otherwise reach r plus half the stroke and read as the larger
+   symbol. It is deliberately not in the default palette
+   (`defaults/shape-palette`), which would change which symbol every
+   existing plot gives each category."
   [shape-kw r]
   (let [d (* 2 r)]
     (case shape-kw
+      :circle-open (let [w (open-stroke-width r)]
+                     (ui/translate
+                      (* 0.5 w) (* 0.5 w)
+                      (ui/with-style ::ui/style-stroke
+                        (ui/with-stroke-width w
+                          (ui/rounded-rectangle (- d w) (- d w)
+                                                (- r (* 0.5 w)))))))
       :square (ui/with-style ::ui/style-fill
                 (ui/rounded-rectangle d d 0))
       :triangle (let [h (* r 1.73)] ;; equilateral triangle height
@@ -181,9 +216,20 @@
                  (ui/path [r 0] [d r] [r d] [0 r] [r 0]))
       :plus (closed-path (plus-points r r r (* 0.32 r)))
       :cross (closed-path (rotate-45 r r (plus-points r r r (* 0.32 r))))
-      ;; default: circle
-      (ui/with-style ::ui/style-fill
-        (ui/rounded-rectangle d d r)))))
+      (nil :circle) (ui/with-style ::ui/style-fill
+                      (ui/rounded-rectangle d d r))
+      ;; The symbol being refused is left out of the list, which is
+      ;; built from what may be written rather than from this `case`.
+      ;; The two agree for every symbol the library ships, and a
+      ;; sentence that named the refused symbol among the drawable ones
+      ;; would be nonsense the moment they did not.
+      (throw (ex-info (str "Cannot draw the shape " (pr-str shape-kw)
+                           ". Plotje draws "
+                           (str/join ", " (map pr-str (remove #{shape-kw}
+                                                              (defaults/drawable-shapes))))
+                           ".")
+                      {:shape shape-kw
+                       :drawable (defaults/drawable-shapes)})))))
 
 (defn- fmt-val
   "Format a value for tooltip display."
@@ -282,6 +328,10 @@
 (defmethod layer->membrane [:step :doc] [_ _] "Stroked step polylines")
 (defmethod layer->membrane [:pointrange :doc] [_ _] "Point at mean + vertical SE line")
 (defmethod layer->membrane [:contour :doc] [_ _] "Stroked iso-density polylines")
+(defmethod layer->membrane [:rule-h :doc] [_ _] "One stroked line across the panel at a written y")
+(defmethod layer->membrane [:rule-v :doc] [_ _] "One stroked line down the panel at a written x")
+(defmethod layer->membrane [:band-h :doc] [_ _] "One filled rectangle across the panel between two written y values")
+(defmethod layer->membrane [:band-v :doc] [_ _] "One filled rectangle down the panel between two written x values")
 (defmethod layer->membrane [:default :doc] [_ _] "Generic layer fallback")
 
 ;; ---- Clip region ----
@@ -925,6 +975,97 @@
                       (ui/with-color [cr cg cb op]
                         (ui/with-style ::ui/style-fill
                           (ui/rounded-rectangle (* 2 r) (* 2 r) r))))]))))
+
+;; ---- Rules and bands ----
+;;
+;; The four marks that draw one shape at values written on the layer
+;; rather than read from its rows. Each spans the panel on one axis and
+;; is placed on the other.
+
+(defn- written-place
+  "How a rule or a band puts a written value on the panel, as
+   `[place horizontal?]`: a function from the value to a drawing-unit
+   distance, and whether the shape it draws runs across the panel.
+
+   `:rule-h` and `:band-h` name a value on the y data axis, so they run
+   across the panel and are placed with `sy`. Under `:coord :flip` the y
+   data axis runs across the panel instead, so the value is placed with
+   `sx` and the shape is drawn down the panel. `:rule-v` and `:band-v`
+   name a value on the x data axis and are the mirror of that.
+
+   A layer in a drawing-space frame -- `{:in :drawing-area}`, or the one
+   axis under `{:scale false}` -- names no data value: the number is a
+   distance from the panel background's corner, so it is measured from
+   the margin rather than sent through a scale, and the shape keeps the
+   orientation the mark's own name gives it."
+  [layer ctx axis]
+  (let [{:keys [sx sy coord-type margin]} ctx
+        flip? (= coord-type :flip)
+        drawn? (or (= :drawing-area (:in layer))
+                   (if (= axis :y) (:y-drawn? layer) (:x-drawn? layer)))]
+    (if drawn?
+      [(fn [v] (+ (double margin) (double v))) (= axis :y)]
+      (if (= axis :y)
+        [(if flip? sx sy) (not flip?)]
+        [(if flip? sy sx) flip?]))))
+
+(defn- rule->membrane
+  "One stroked line at `value` on `axis`, spanning the drawing area on
+   the other axis.
+
+   `:coord :polar` never arrives here: a polar rule would have to be a
+   circle or a spoke, and `plan/validate-polar-marks` refuses these four
+   marks there by name, beside every other mark polar cannot draw."
+  [layer ctx axis value]
+  (let [{:keys [panel-width panel-height margin]} ctx
+        {:keys [dash stroke-width opacity]} (:style layer)
+        [r g b _] (:color layer)
+        [place horizontal?] (written-place layer ctx axis)
+        m (double margin)
+        pw (double panel-width)
+        ph (double panel-height)
+        pixel (place value)]
+    [(maybe-dash dash
+                 (ui/with-color [r g b opacity]
+                   (ui/with-stroke-width stroke-width
+                     (ui/with-style ::ui/style-stroke
+                       (if horizontal?
+                         (ui/path [m pixel] [(- pw m) pixel])
+                         (ui/path [pixel m] [pixel (- ph m)]))))))]))
+
+(defn- band->membrane
+  "One filled rectangle between `lo` and `hi` on `axis`, spanning the
+   drawing area on the other axis."
+  [layer ctx axis lo hi]
+  (let [{:keys [panel-width panel-height margin]} ctx
+        {:keys [opacity]} (:style layer)
+        [r g b _] (:color layer)
+        [place horizontal?] (written-place layer ctx axis)
+        m (double margin)
+        pw (double panel-width)
+        ph (double panel-height)
+        p1 (double (place lo))
+        p2 (double (place hi))
+        thickness (Math/abs (- p2 p1))]
+    [(ui/with-color [r g b opacity]
+       (ui/with-style ::ui/style-fill
+         (if horizontal?
+           (ui/translate m (min p1 p2)
+                         (ui/rectangle (- pw m m) thickness))
+           (ui/translate (min p1 p2) m
+                         (ui/rectangle thickness (- ph m m))))))]))
+
+(defmethod layer->membrane :rule-h [layer ctx]
+  (rule->membrane layer ctx :y (:y-intercept layer)))
+
+(defmethod layer->membrane :rule-v [layer ctx]
+  (rule->membrane layer ctx :x (:x-intercept layer)))
+
+(defmethod layer->membrane :band-h [layer ctx]
+  (band->membrane layer ctx :y (:y-min layer) (:y-max layer)))
+
+(defmethod layer->membrane :band-v [layer ctx]
+  (band->membrane layer ctx :x (:x-min layer) (:x-max layer)))
 
 (defmethod layer->membrane :default [layer ctx]
   (let [m (:mark layer)]

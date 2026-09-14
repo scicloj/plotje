@@ -12,6 +12,10 @@
    is wrong in the picture while every plan value looks fine."
   (:require [clojure.test :refer [deftest testing is]]
             [clojure.string :as str]
+            [malli.core :as m]
+            [scicloj.plotje.impl.pose-schema :as pose-schema]
+            [scicloj.plotje.render.mark :as mark]
+            [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.api :as pj]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]))
 
@@ -254,10 +258,10 @@
     (is (= {:plus-or-cross 1 :diamond 1} (frequencies (map :kind legend))))))
 
 (deftest an-unknown-symbol-is-rejected
-  ;; draw-shape falls back to a circle for anything it does not know, so an
-  ;; unrecognized :values symbol would draw a circle while the legend named the
-  ;; symbol -- the very disagreement between legend and marks this feature
-  ;; exists to remove.
+  ;; An unrecognized :values symbol has to be refused here, at the pose
+  ;; boundary, while the writer can still see which symbol they wrote.
+  ;; draw-shape reports one it cannot draw rather than substituting a
+  ;; circle, but that report arrives from the renderer, naming no layer.
   (is (thrown-with-msg?
        clojure.lang.ExceptionInfo #"does not recognize \[:nonsense\]"
        (-> tiers
@@ -291,10 +295,13 @@
 ;; ---- More categories than symbols ----
 
 (deftest symbols-run-out-loudly
-  ;; One category past the end of the symbol list repeats the first symbol, so
+  ;; One category past the end of the palette repeats the first symbol, so
   ;; two categories become indistinguishable -- say so rather than draw a lie.
-  ;; Driven off pj/shape-symbols so growing the list does not break the test.
-  (let [available (count pj/shape-symbols)
+  ;; Driven off pj/shape-palette so growing it does not break the test. The
+  ;; palette, not pj/shape-symbols: what runs out is the list categories are
+  ;; assigned from, and a symbol a caller has to name by hand -- :circle-open --
+  ;; is never assigned, so it does not raise this ceiling.
+  (let [available (count (pj/shape-palette))
         syms (fn [n]
                (capturing
                 #(mapv :shape
@@ -312,3 +319,130 @@
                                      available " available")))
     (is (= (first over) (last over))
         "one category past the end reuses the first symbol")))
+
+;; ---- An unfilled symbol ----
+
+(defn- ring-and-disc-counts
+  "How many circular marks the plot draws as an outline, and how many as
+   a solid disc. A circle is a rounded rect whose radius is half its
+   side, so both are `:rect` with an `:rx`; what tells them apart is
+   whether the fill or the stroke carries the colour."
+  [pose]
+  (let [rects (->> (tree-seq vector? seq (pj/plot pose {:format :svg}))
+                   (filter #(and (vector? %) (= :rect (first %))
+                                 (map? (second %)) (:rx (second %))))
+                   (map second))]
+    {:rings (count (filter #(= "none" (:fill %)) rects))
+     :discs (count (remove #(= "none" (:fill %)) rects))}))
+
+(deftest circle-open-draws-a-ring-test
+  ;; Requested on the issue tracker (#46): overlapping points are easier
+  ;; to count as rings than as discs, which merge into one blob.
+  (testing "a layer given :circle-open draws outlines, not discs"
+    (let [pose (-> {:x [1 2 3] :y [1 2 3]}
+                   (pj/lay-point :x :y {:shape :circle-open}))]
+      (is (= {:rings 3 :discs 0} (ring-and-disc-counts pose)))))
+
+  (testing "the legend draws the same symbol the marks do"
+    ;; `draw-shape` is shared with the legend renderer, so this is really
+    ;; a check that nothing routes around it.
+    (let [pose (-> {:x [1 2 3 4] :y [1 2 3 4] :g ["a" "b" "a" "b"]}
+                   (pj/lay-point :x :y {:shape :g})
+                   (pj/scale :shape {:values [:circle-open :circle]}))]
+      (is (= {:rings 3 :discs 3} (ring-and-disc-counts pose))
+          "two marks and one legend key of each")))
+
+  (testing "a ring covers the same box as the disc it replaces"
+    ;; A stroke straddles its path, so a ring drawn at radius r would
+    ;; reach r plus half the stroke and read as the larger symbol.
+    (let [side (fn [shape]
+                 (->> (tree-seq vector? seq
+                                (pj/plot (-> {:x [1] :y [1]}
+                                             (pj/lay-point :x :y (cond-> {:size 8}
+                                                                   shape (assoc :shape shape))))
+                                         {:format :svg}))
+                      (filter #(and (vector? %) (= :rect (first %))
+                                    (map? (second %)) (:rx (second %))))
+                      (map second)
+                      (map (fn [a] (+ (double (:width a))
+                                      (double (or (:stroke-width a) 0)))))
+                      first))]
+      (is (== (side nil) (side :circle-open)))))
+
+  (testing "the palette is unchanged, so no existing plot moves"
+    (is (= [:circle :square :triangle :diamond :triangle-down :plus :cross]
+           (pj/shape-palette)))
+    (is (= :circle-open (last (pj/shape-symbols))))
+    (is (= (pj/shape-palette) (vec (butlast (pj/shape-symbols)))))))
+
+(deftest what-a-shape-is-is-answered-once
+  ;; The set of symbols is meant to grow, so nothing may answer "is
+  ;; this a shape" from a copy taken when a namespace loaded, and
+  ;; nothing may answer it a second way.
+  (testing "the schema reads the set when it validates, not at load"
+    ;; An `[:enum ...]` built here would be built once, and a symbol
+    ;; added afterwards would be refused however the rest answered.
+    (is (every? #(m/validate pose-schema/Shape %) (pj/shape-symbols)))
+    (is (not (m/validate pose-schema/Shape :banana)))
+    (is (= (set (pj/shape-symbols))
+           (set (filter #(m/validate pose-schema/Shape %) (pj/shape-symbols))))))
+
+  (testing "an unnamed symbol draws a circle and an unknown one is reported"
+    ;; Both callers inside the library substitute :circle for nil
+    ;; before calling, so the old catch-all branch was reachable only
+    ;; from outside -- and it handed a caller a circle where the pose
+    ;; boundary would have refused the same symbol by name.
+    (is (some? (mark/draw-shape nil 3.0)))
+    (is (some? (mark/draw-shape :circle 3.0)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Cannot draw the shape :banana"
+                          (mark/draw-shape :banana 3.0))))
+
+  (testing "the plan assigns from the same palette the accessor publishes"
+    ;; Two readers of one list: the assignment in `plan.clj` and
+    ;; `pj/shape-palette`. They go through one accessor so they cannot
+    ;; drift, which is what a `:shape-values` configuration key would
+    ;; hook into.
+    (let [entries (-> {:x [1.0 2.0 3.0] :y [1.0 2.0 3.0] :g ["a" "b" "c"]}
+                      (pj/lay-point :x :y {:shape :g})
+                      pj/plan :shape-legend :entries)]
+      (is (= (vec (take 3 (pj/shape-palette)))
+             (mapv :shape entries))))))
+
+(deftest the-palette-and-the-drawable-set-cannot-disagree
+  ;; `drawable-shape-syms` was a value computed from `shape-syms` when
+  ;; the namespace loaded, while `shape-palette` was a function reading
+  ;; the same var at call time. Changing the palette moved one answer
+  ;; and not the other: the plan handed a category the new symbol and
+  ;; the schema then refused it. `drawable-shapes` recomputes now.
+  (testing "before any change, every assigned symbol is a writable one"
+    (is (every? (set (pj/shape-symbols)) (pj/shape-palette))))
+  (testing "and after one, still"
+    (with-redefs [defaults/shape-syms (conj defaults/shape-syms :moon)]
+      (is (contains? (set (pj/shape-palette)) :moon)
+          "the palette follows the change")
+      (is (contains? (set (pj/shape-symbols)) :moon)
+          "and so does the set that validates what may be written")
+      (is (every? (set (pj/shape-symbols)) (pj/shape-palette))
+          "which is the invariant: a symbol handed out can be written")))
+  (testing "the change is not sticky"
+    (is (not (contains? (set (pj/shape-symbols)) :moon)))))
+
+(deftest the-refusal-does-not-list-the-symbol-it-refuses
+  ;; The sentence enumerates what may be written, not what `draw-shape`
+  ;; can draw. The two agree for every shipped symbol, so the only way
+  ;; to see the difference is to add one -- and then the message said
+  ;; Plotje draws the very symbol it was refusing.
+  (testing "a plain unknown symbol is reported with the drawable list"
+    (let [msg (try (mark/draw-shape :nonsense 5)
+                   (catch clojure.lang.ExceptionInfo e (.getMessage e)))]
+      (is (re-find #"Cannot draw the shape :nonsense" msg))
+      (is (not (re-find #":nonsense.*:nonsense" msg))
+          "named once, as the refused symbol, and not again as a drawable one")
+      (is (re-find #":circle" msg) "the drawable symbols are still listed")))
+  (testing "a symbol that is writable but undrawable is left out of its own list"
+    (with-redefs [defaults/shape-syms (conj defaults/shape-syms :moon)]
+      (let [msg (try (mark/draw-shape :moon 5)
+                     (catch clojure.lang.ExceptionInfo e (.getMessage e)))]
+        (is (re-find #"Cannot draw the shape :moon" msg))
+        (is (not (re-find #"Plotje draws.*:moon" msg))
+            "the list of what Plotje draws must not contain the refusal's subject")))))

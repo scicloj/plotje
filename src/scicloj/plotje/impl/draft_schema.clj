@@ -64,8 +64,8 @@
    `:jitter`, `:in`, `:nudge-x`, `:font-size`, `:bandwidth` and the
    rest -- and a layer type's `:defaults` arrive the same way.
 
-   `:data` is always present and may be nil (an annotation layer that
-   names no data). `:mark` and `:stat` are absent on a layer whose
+   `:data` is always present and may be nil (a layer drawn at written
+   values, on a pose that names no data). `:mark` and `:stat` are absent on a layer whose
    layer type is still to be inferred: `leaf->draft` emits the
    `:infer` sentinel and then drops both, leaving the choice to
    `impl.resolve/infer-layer-type` at plan time."

@@ -930,7 +930,7 @@
       (is (= 0.85 (:bar-opacity cfg)))
       (is (= 2.5 (:line-width cfg)))
       (is (= 0.6 (:grid-stroke-width cfg)))
-      (is (string? (:annotation-stroke cfg)))
+      (is (string? (:rule-color cfg)))
       (is (= 0.15 (:band-opacity cfg)))
       (is (= 60 (:x-tick-spacing cfg)))
       (is (= 40 (:y-tick-spacing cfg)))
@@ -1492,12 +1492,15 @@
       (is (seq (get-in pl [:panels 0 :x-ticks :labels]))))))
 
 (deftest a-whole-day-axis-names-its-month
-  (let [labels (fn [start n step]
-                 (-> {:d (vec (for [i (range n)]
-                                (jt/plus (jt/local-date start) (jt/days (* i step)))))
-                      :v (vec (repeat n 1.0))}
-                     (pj/lay-point :d :v)
-                     pj/plan :panels first :x-ticks :labels))]
+  (let [labels (fn labels
+                 ([start n step] (labels start n step 600))
+                 ([start n step width]
+                  (-> {:d (vec (for [i (range n)]
+                                 (jt/plus (jt/local-date start) (jt/days (* i step)))))
+                       :v (vec (repeat n 1.0))}
+                      (pj/lay-point :d :v)
+                      (pj/options {:width width})
+                      pj/plan :panels first :x-ticks :labels)))]
     (testing "a span inside one month is labelled with that month"
       ;; wadogo formats these as the bare day -- "02" "05" "08" -- which
       ;; reads the same over January as over March. ggplot2 4.0.0 names
@@ -1511,7 +1514,18 @@
       (is (every? #(re-find #"^[A-Z][a-z]{2}-\d{2}$" %) (labels "2024-01-01" 10 1))))
 
     (testing "ticks less than a day apart keep the hour that tells them apart"
-      (is (every? #(re-find #":" %) (labels "2024-03-04" 5 1))))
+      ;; Widened deliberately. This asserts on the formatter -- given
+      ;; sub-day ticks, the label says the hour -- and five daily dates
+      ;; stopped producing sub-day ticks at 600 wide once the temporal
+      ;; picker began rejecting a tick count whose labels do not fit
+      ;; (2026-09-09). At 600 the same span is now ticked once a day and
+      ;; labelled Mar-04 .. Mar-08, which is the right picture for daily
+      ;; data; at 1200 there is room to tick every six hours, which is
+      ;; the case this rule is about.
+      (is (every? #(re-find #":" %) (labels "2024-03-04" 5 1 1200)))
+      (is (= ["Mar-04" "Mar-05" "Mar-06" "Mar-07" "Mar-08"]
+             (labels "2024-03-04" 5 1))
+          "and at the default width the day is enough to tell them apart"))
 
     (testing "a span crossing a month boundary names both months"
       (is (= ["Jan-01" "Jan-08" "Jan-15" "Jan-22" "Jan-29"
@@ -2753,6 +2767,29 @@
         (is (re-find #"Warning: pj/options does not recognize option" out))
         (is (re-find #":titel" out))))
 
+    (testing "a retired configuration key is reported like any other"
+      ;; `:annotation-dash` documented a dash pattern for reference
+      ;; lines and was read by nothing, so a project setting it drew
+      ;; solid lines and heard nothing about it. It is gone; a dashed
+      ;; rule takes `:stroke-dash` on its layer.
+      (let [out (with-out-str (-> data (pj/lay-point :x :y)
+                                  (pj/options {:annotation-dash :dashed})))]
+        (is (re-find #"Warning: pj/options does not recognize option" out))
+        (is (re-find #":annotation-dash" out)))
+      ;; The two keys beside it are live, and stay quiet.
+      (is (= "" (with-out-str (-> data (pj/lay-point :x :y)
+                                  (pj/options {:rule-color "#333"
+                                               :band-opacity 0.2}))))))
+
+    (testing "a renamed configuration key is reported by its new name"
+      ;; Reported as unrecognized and nothing more, a rename reads as a
+      ;; typo: the writer hunts for a misspelling that is not there,
+      ;; because the setting exists under another name.
+      (let [out (with-out-str (-> data (pj/lay-point :x :y)
+                                  (pj/options {:annotation-stroke "#0000ff"})))]
+        (is (re-find #"Renamed to :rule-color" out))
+        (is (re-find #":annotation-stroke" out))))
+
     (testing "valid options stay quiet"
       (is (= "" (with-out-str (-> data (pj/pose :x :y {:color :y}))))))))
 
@@ -3025,22 +3062,31 @@
 ;; ---- Annotations-as-layers (pj/lay-rule-*, pj/lay-band-*) ----
 
 (deftest lay-rule-band-test
-  ;; Reference lines and shaded bands are first-class layers; these
-  ;; tests cover root-scope vs layer-scope, facet interaction,
-  ;; color/alpha overrides, and annotation-only domain synthesis.
-  (let [ds (tc/dataset {:x [1 2 3 4 5] :y [2 4 3 5 4]})]
+  ;; Reference lines and shaded bands are ordinary layers: they are
+  ;; drawn through `layer->membrane` like every other mark and travel on
+  ;; a panel's `:layers`. These tests cover root-scope vs layer-scope,
+  ;; facet interaction, color/alpha overrides, and the extent a rule on
+  ;; a panel of its own gives its axes.
+  (let [ds (tc/dataset {:x [1 2 3 4 5] :y [2 4 3 5 4]})
+        marks-of (fn [panel] (mapv :mark (:layers panel)))
+        layer-of (fn [panel mark] (first (filter #(= mark (:mark %)) (:layers panel))))]
 
-    (testing "root-scope rule-h attaches a single annotation"
-      (let [p (pj/plan (-> ds
-                           (pj/lay-point :x :y)
-                           (pj/lay-rule-h {:y-intercept 3})))
-            panel (first (:panels p))]
-        (is (= 1 (count (:annotations panel))))
-        (is (= :rule-h (:mark (first (:annotations panel)))))
-        (is (= 3 (:y-intercept (first (:annotations panel)))))))
+    (testing "root-scope rule-h is a layer on the panel"
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/lay-point :x :y)
+                                               (pj/lay-rule-h {:y-intercept 3})))))]
+        (is (= [:point :rule-h] (marks-of panel)))
+        (is (= 3 (:y-intercept (layer-of panel :rule-h))))))
 
-    (testing "root-scope rule applies to every facet panel (deduped)"
-      ;; Without dedupe the cross-product would emit N copies per panel.
+    (testing "a rule written before a mark is drawn under it"
+      ;; Draw order is layer order, which is what makes a rule a
+      ;; background reference rather than something drawn over the data.
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/lay-rule-h {:y-intercept 3})
+                                               (pj/lay-point :x :y)))))]
+        (is (= [:rule-h :point] (marks-of panel)))))
+
+    (testing "root-scope rule applies to every facet panel"
       (let [iris (tc/dataset "https://vincentarelbundock.github.io/Rdatasets/csv/datasets/iris.csv"
                              {:key-fn keyword})
             p (pj/plan (-> iris
@@ -3049,45 +3095,41 @@
                            (pj/lay-rule-h {:y-intercept 3})))]
         (is (= 3 (count (:panels p))))
         (doseq [panel (:panels p)]
-          (is (= 1 (count (:annotations panel)))
+          (is (= 1 (count (filter #(= :rule-h (:mark %)) (:layers panel))))
               (str "panel " (:row panel) "/" (:col panel) " had "
-                   (count (:annotations panel)) " annotations")))))
+                   (count (filter #(= :rule-h (:mark %)) (:layers panel))) " rules")))))
 
     (testing "pj/lay-rule-v with :color and :alpha flows into the plan"
-      (let [p (pj/plan (-> ds
-                           (pj/lay-point :x :y)
-                           (pj/lay-rule-v {:x-intercept 2 :color "red" :alpha 0.5})))
-            a (first (:annotations (first (:panels p))))]
-        (is (= :rule-v (:mark a)))
-        (is (= 2 (:x-intercept a)))
-        (is (= "red" (:color a)))
-        (is (= 0.5 (:alpha a)))))
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/lay-point :x :y)
+                                               (pj/lay-rule-v {:x-intercept 2 :color "red" :alpha 0.5})))))
+            l (layer-of panel :rule-v)]
+        (is (= 2 (:x-intercept l)))
+        (is (= [1.0 0.0 0.0 1.0] (:color l)))
+        ;; The opacity is the layer's style, as it is for every mark,
+        ;; and a rule honours it rather than always drawing solid.
+        (is (= 0.5 (:opacity (:style l))))))
 
     (testing "pj/lay-band-h / pj/lay-band-v carry their min/max bounds"
-      (let [p (pj/plan (-> ds
-                           (pj/lay-point :x :y)
-                           (pj/lay-band-h {:y-min 2 :y-max 4})
-                           (pj/lay-band-v {:x-min 1 :x-max 3})))
-            anns (:annotations (first (:panels p)))
-            band-h (first (filter #(= :band-h (:mark %)) anns))
-            band-v (first (filter #(= :band-v (:mark %)) anns))]
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/lay-point :x :y)
+                                               (pj/lay-band-h {:y-min 2 :y-max 4})
+                                               (pj/lay-band-v {:x-min 1 :x-max 3})))))
+            band-h (layer-of panel :band-h)
+            band-v (layer-of panel :band-v)]
         (is (= 2 (:y-min band-h)))
         (is (= 4 (:y-max band-h)))
         (is (= 1 (:x-min band-v)))
         (is (= 3 (:x-max band-v)))))
 
     (testing "positioned rule with root-scope data layer renders both"
-      ;; Regression: data layer must coexist with a positioned annotation.
-      (let [p (pj/plan (-> ds
-                           (pj/pose :x :y)
-                           pj/lay-point
-                           (pj/lay-rule-h :x :y {:y-intercept 3})))
-            panel (first (:panels p))]
-        (is (= 1 (count (:layers panel))))
-        (is (= :point (:mark (first (:layers panel)))))
-        (is (= 1 (count (:annotations panel))))))
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/pose :x :y)
+                                               pj/lay-point
+                                               (pj/lay-rule-h :x :y {:y-intercept 3})))))]
+        (is (= [:point :rule-h] (marks-of panel)))))
 
-    (testing "plan with annotation layer validates against schema"
+    (testing "plan with a rule and a band validates against schema"
       (let [p (pj/plan (-> ds
                            (pj/lay-point :x :y)
                            (pj/lay-rule-h {:y-intercept 3 :color "red" :alpha 0.5})
@@ -3106,29 +3148,95 @@
         (is (clojure.string/includes? svg-red "rgb(255,0,0)"))
         (is (not (clojure.string/includes? svg-default "rgb(255,0,0)")))))
 
-    (testing "annotation-only pose still produces a panel"
-      ;; Edge case: a pose with only a positioned annotation (no data
-      ;; layer) should still infer a panel and render the annotation.
-      ;; Domain comes from the pose's data columns plus the
-      ;; annotation's own position.
+    (testing "a rule draws at the width and opacity it was given"
+      ;; `:size` names the width, as it does on a line; `:alpha` was
+      ;; accepted on these layers and drawn by nothing, so every rule
+      ;; came out fully opaque.
+      (let [svg (pr-str (pj/plot (-> ds
+                                     (pj/lay-point :x :y)
+                                     (pj/lay-rule-h {:y-intercept 3 :size 5
+                                                     :alpha 0.25 :color "#cc0000"}))))
+            drawn (re-find #"204,0,0.{0,60}" svg)]
+        (is (clojure.string/includes? drawn ":stroke-width 5"))
+        (is (clojure.string/includes? drawn ":stroke-opacity 0.25"))))
+
+    (testing "a rule outside everything the data reaches widens the axis"
+      ;; A reference line asked for and then clipped away is a picture
+      ;; that answers no question. The rule reports its own extent, so
+      ;; the axis reaches it.
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/lay-point :x :y)
+                                               (pj/lay-rule-h {:y-intercept 100})))))
+            [y-lo y-hi] (:y-domain panel)]
+        (is (<= y-lo 2))
+        (is (>= y-hi 100))))
+
+    (testing "a rule under polar coordinates is reported"
+      ;; These four were skipped without a word under `(pj/coord
+      ;; :polar)`, so a plot asked for a reference line and got one
+      ;; without it. They travel among the layers now, so the same
+      ;; check every other unsupported mark meets applies to them.
+      (doseq [[layer-fn opts] [[pj/lay-rule-h {:y-intercept 2}]
+                               [pj/lay-rule-v {:x-intercept 2}]
+                               [pj/lay-band-h {:y-min 1 :y-max 2}]
+                               [pj/lay-band-v {:x-min 1 :x-max 2}]]]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo #"not supported with polar coordinates"
+             (pj/plan (-> ds (pj/lay-point :x :y) (pj/coord :polar)
+                          (layer-fn opts)))))))
+
+    (testing "a date rule outside the data carries the ticks out with it"
+      ;; The axis reaches the rule either way -- the domain is widened
+      ;; by the test above. What a temporal axis does not read off the
+      ;; domain is its ticks: they are picked over the extent the data
+      ;; covers, so a rule at December on two months of data left every
+      ;; label in January and February and five sixths of the axis
+      ;; bare. A numeric axis never had the gap, because numeric ticks
+      ;; are picked over the domain the rule already widened.
+      (let [d1 (java.time.LocalDate/parse "2024-01-01")
+            d2 (java.time.LocalDate/parse "2024-03-01")
+            far (java.time.LocalDate/parse "2024-12-01")
+            dated {:d [d1 d2] :y [1.0 2.0]}
+            ticks-of (fn [pose]
+                       (let [vs (-> pose pj/plan :panels first :x-ticks :values)]
+                         (mapv #(str (resolve/epoch-ms->local-date-time %)) vs)))
+            plain (ticks-of (-> dated (pj/lay-point :d :y)))
+            ruled (ticks-of (-> dated
+                                (pj/lay-point :d :y)
+                                (pj/lay-rule-v {:x-intercept far})))]
+        ;; Without the rule the ticks stop inside the data, as before.
+        (is (= "2024-02-26T00:00" (last plain)))
+        ;; With it they run out to the rule rather than stopping short.
+        (is (>= (compare (last ruled) "2024-11-01T00:00") 0)
+            (str "last tick was " (last ruled)))
+        (is (= "2024-01-01T00:00" (first ruled)))))
+
+    (testing "a pose carrying only a rule still produces a panel"
+      ;; The pose's mapping gives the axes their extent; the rule adds
+      ;; its own value to the axis it names.
       (let [p (pj/plan (-> ds
                            (pj/pose :x :y)
                            (pj/lay-rule-h :x :y {:y-intercept 3})))
             panel (first (:panels p))]
         (is (= 1 (count (:panels p))))
-        (is (= 0 (count (:layers panel))))
-        (is (= 1 (count (:annotations panel))))
-        (is (= :rule-h (:mark (first (:annotations panel)))))
-        ;; Domain spans both the column data and the intercept.
+        (is (= [:rule-h] (marks-of panel)))
         (let [[y-lo y-hi] (:y-domain panel)]
           (is (<= y-lo 2))
           (is (>= y-hi 5)))))
 
-    (testing "annotation-only panel with band extends domain to include band"
-      (let [p (pj/plan (-> ds
-                           (pj/pose :x :y)
-                           (pj/lay-band-h :x :y {:y-min 10 :y-max 20})))
-            panel (first (:panels p))
+    (testing "a pose carrying only a band extends the domain to include it"
+      (let [panel (first (:panels (pj/plan (-> ds
+                                               (pj/pose :x :y)
+                                               (pj/lay-band-h :x :y {:y-min 10 :y-max 20})))))
             [y-lo y-hi] (:y-domain panel)]
         (is (<= y-lo 2))
-        (is (>= y-hi 20))))))
+        (is (>= y-hi 20))))
+
+    (testing "a rule on a pose with no data at all is still drawable"
+      (let [panel (first (:panels (pj/plan (-> (pj/pose)
+                                               (pj/lay-rule-h {:y-intercept 3})))))]
+        (is (= [:rule-h] (marks-of panel)))
+        ;; The rule spans x and no column names it, so the axis falls
+        ;; back to 0 to 1 and is padded like any other.
+        (is (= [-0.05 1.05] (mapv double (:x-domain panel))))))))
+

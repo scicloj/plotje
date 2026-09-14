@@ -504,7 +504,7 @@ graph LR
        (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
                       "Output" (pj/mark-doc k)})))})
 
-(kind/test-last [(fn [t] (= 17 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 21 (count (:row-maps t))))])
 
 ;; A plan layer looks like this. Starting from a familiar iris
 ;; scatter:
@@ -544,7 +544,7 @@ graph LR
        (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
                       "Membrane output" (pj/membrane-mark-doc k)})))})
 
-(kind/test-last [(fn [t] (= 17 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 21 (count (:row-maps t))))])
 ;;
 ;; ### Drawing an aesthetic the layer type declares it varies
 ;;
@@ -632,22 +632,35 @@ graph LR
 ;; need a `layer->membrane` defmethod for the SVG renderer. Without one,
 ;; the library throws an error explaining which defmethod to add.
 
-;; ### Rule and band marks live on the panel's `:annotations`, not `:layers`
+;; ### A mark placed at a written value
 ;;
-;; Four marks -- `:rule-h`, `:rule-v`, `:band-h`, `:band-v` -- are split
-;; out of the per-panel `:layers` list during planning and rendered from
-;; a separate `:annotations` slot on each panel of the resolved plan.
-;; Extension authors building tooling that walks a plan should expect to
-;; find these on panel `:annotations`, not on panel `:layers`. The split
-;; is driven by `scicloj.plotje.impl.resolve/annotation-marks`, the
-;; canonical set of those mark keywords; if you add a custom mark that
-;; should follow the same lifecycle, register it there.
+;; Four marks -- `:rule-h`, `:rule-v`, `:band-h`, `:band-v` -- draw one
+;; shape at a value written on the layer rather than at values read from
+;; its rows. They are ordinary marks: they travel on a panel's `:layers`
+;; in the order they were written, and they have the two defmethods this
+;; chapter has been describing.
 ;;
-;; The `:annotations` slot holds only these four marks. The
-;; [Glossary](./plotje_book.glossary.html#annotation) defines an annotation more
-;; broadly -- any mark that explains a plot rather than showing data,
-;; including notes and leader lines. Those are ordinary text and line
-;; layers, and they stay on `:layers`.
+;; What differs is the stat. `stat/written-extent` reports the extent
+;; the mark covers -- the written value on the axis the mark names, and
+;; the layer's column on the axis it spans -- instead of grouping rows
+;; into `:points`. Its `extract-layer` method then reads the written
+;; value straight off the draft layer, so the plan layer carries a
+;; number rather than a group of buffers:
+
+(let [layer (-> (rdatasets/datasets-iris)
+                (pj/lay-point :sepal-length :sepal-width)
+                (pj/lay-rule-h {:y-intercept 3.0})
+                pj/plan
+                :panels first :layers last)]
+  layer)
+
+(kind/test-last [(fn [m] (and (= :rule-h (:mark m))
+                              (= 3.0 (:y-intercept m))))])
+
+;; A custom mark placed the same way follows the same three steps: a
+;; stat that reports an extent, an `extract-layer` method that carries
+;; the written value onto the plan layer, and a `layer->membrane`
+;; method that draws it.
 
 ;; ## `mark-clip-region`
 ;;

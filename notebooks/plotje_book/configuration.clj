@@ -51,7 +51,7 @@
 
 (def category-order
   ["Layout" "Theme" "Typography" "Points" "Bars & Lines"
-   "Annotations" "Ticks" "Statistics" "Labels" "Behavior"
+   "Rules & Bands" "Ticks" "Statistics" "Labels" "Behavior"
    "Color" "Interaction" "Output"])
 
 (kind/table
@@ -67,7 +67,7 @@
                   "Category" cat
                   "Description" desc}))))})
 
-(kind/test-last [(fn [t] (= 44 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 43 (count (:row-maps t))))])
 
 ;; ### Plot Options
 ;;

@@ -3,7 +3,6 @@
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.scale :as scale]
             [scicloj.plotje.impl.coord :as coord]
-            [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.impl.text :as text]
             [scicloj.plotje.render.mark :as mark]))
 
@@ -201,29 +200,20 @@
                        [(if x-drawn? (+ md (double x)) bx)
                         (if y-drawn? (+ md (double y)) by)])))))))))
 
-(defn- offset-drawable
-  "Shift one drawable by `m`'s `:offset-x` / `:offset-y`, in drawing
-   units. `m` is a plan layer or an annotation; both carry the offsets
-   under the same two keys."
-  [m drawable]
-  (let [dx (double (or (:offset-x m) 0))
-        dy (double (or (:offset-y m) 0))]
-    (if (and (zero? dx) (zero? dy))
-      drawable
-      (ui/translate dx dy drawable))))
-
 (defn- offset-drawables
   "Shift a layer's drawables by its `:offset-x` / `:offset-y`, in drawing
    units.
 
    A constant offset over a whole layer is a translation of what that
    layer drew, so it applies here, once, rather than inside each of the
-   twenty-five marks' renderers. The translation sits inside the clip
-   region, so an offset mark is still clipped to the drawing area."
+   marks' renderers. The translation sits inside the clip region, so an
+   offset mark is still clipped to the drawing area."
   [layer drawables]
-  (if (and (nil? (:offset-x layer)) (nil? (:offset-y layer)))
-    drawables
-    [(offset-drawable layer (vec drawables))]))
+  (let [dx (double (or (:offset-x layer) 0))
+        dy (double (or (:offset-y layer) 0))]
+    (if (and (zero? dx) (zero? dy))
+      drawables
+      [(ui/translate dx dy (vec drawables))])))
 
 ;; ---- Panel Rendering ----
 
@@ -240,7 +230,7 @@
   [panel pw ph m cfg & {:keys [show-x? show-y? include-bg? tooltip x-col-name y-col-name]
                         :or {show-x? true show-y? true include-bg? true}}]
   (let [{:keys [x-domain y-domain x-scale y-scale coord
-                x-ticks y-ticks layers annotations]} panel
+                x-ticks y-ticks layers]} panel
         coord-type (or coord :cartesian)
         theme (:theme cfg)
 
@@ -326,83 +316,13 @@
                                         region-layers))]))
         marks (vec (mapcat val marks-by-region))
 
-        ;; Annotation marks
-        ann-marks
-        (when (seq annotations)
-          (let [default-ann-color (defaults/hex->rgba (:annotation-stroke cfg))
-                band-alpha (:band-opacity cfg)
-                flip? (= coord-type :flip)
-                ;; Annotation-specific scales. :rule-h / :band-h annotate a
-                ;; value on the y-data axis; under :flip that axis is
-                ;; horizontal, so we scale with sx and draw a vertical
-                ;; line/band. :rule-v / :band-v annotate a value on the
-                ;; x-data axis; under :flip that axis is vertical.
-                ;; Under :polar, annotations would need circle/spoke
-                ;; shapes and are skipped for now (see backlog).
-                y-data-scale (if flip? sx sy)
-                x-data-scale (if flip? sy sx)
-                horizontal-y-data? (not flip?)
-                draw-rule (fn [pixel color horizontal? dash]
-                            (mark/maybe-dash dash
-                                             (ui/with-color color
-                                               (ui/with-stroke-width 1.5
-                                                 (ui/with-style ::ui/style-stroke
-                                                   (if horizontal?
-                                                     (ui/path [m pixel] [(- pw m) pixel])
-                                                     (ui/path [pixel m] [pixel (- ph m)])))))))
-                draw-band (fn [p1 p2 rgba horizontal?]
-                            (ui/with-color rgba
-                              (ui/with-style ::ui/style-fill
-                                (if horizontal?
-                                  (ui/translate m (min p1 p2)
-                                                (ui/rectangle (- pw m m)
-                                                              (Math/abs (double (- p2 p1)))))
-                                  (ui/translate (min p1 p2) m
-                                                (ui/rectangle (Math/abs (double (- p2 p1)))
-                                                              (- ph m m)))))))]
-            (vec
-             (for [a annotations
-                   :when (not= coord-type :polar)]
-               (offset-drawable
-                a
-                (case (:mark a)
-                  :rule-v (let [color (if-let [c (:color a)]
-                                        (defaults/hex->rgba c)
-                                        default-ann-color)
-                                pixel (x-data-scale (:x-intercept a))]
-                            (draw-rule pixel color flip? (extract/resolve-dash (:stroke-dash a))))
-                  :rule-h (let [color (if-let [c (:color a)]
-                                        (defaults/hex->rgba c)
-                                        default-ann-color)
-                                pixel (y-data-scale (:y-intercept a))]
-                            (draw-rule pixel color horizontal-y-data? (extract/resolve-dash (:stroke-dash a))))
-                  :band-v (let [p1 (x-data-scale (:x-min a))
-                                p2 (x-data-scale (:x-max a))
-                                alpha (or (:alpha a) band-alpha)
-                                rgba (if-let [c (:color a)]
-                                       (let [[r g b _] (defaults/hex->rgba c)]
-                                         [r g b alpha])
-                                       [0.5 0.5 0.5 alpha])]
-                            (draw-band p1 p2 rgba flip?))
-                  :band-h (let [p1 (y-data-scale (:y-min a))
-                                p2 (y-data-scale (:y-max a))
-                                alpha (or (:alpha a) band-alpha)
-                                rgba (if-let [c (:color a)]
-                                       (let [[r g b _] (defaults/hex->rgba c)]
-                                         [r g b alpha])
-                                       [0.5 0.5 0.5 alpha])]
-                            (draw-band p1 p2 rgba horizontal-y-data?))
-                  nil))))))
-
         ;; "No data" placeholder for cells where every layer
-        ;; rendered nothing and there are no annotations --
-        ;; previously these rendered as a blank grid with no visual
-        ;; indicator that the cell was empty by design. Driving
-        ;; this off the rendered marks (rather than known data
-        ;; slots) means custom mark types from extensions are
-        ;; recognized whatever slot they store geometry in.
-        no-data? (and (empty? annotations)
-                      (seq layers)
+        ;; rendered nothing -- previously these rendered as a blank
+        ;; grid with no visual indicator that the cell was empty by
+        ;; design. Driving this off the rendered marks (rather than
+        ;; known data slots) means custom mark types from extensions
+        ;; are recognized whatever slot they store geometry in.
+        no-data? (and (seq layers)
                       (empty? marks))
         no-data-label (when no-data?
                         (ui/translate (/ (double pw) 2.0)
@@ -435,7 +355,7 @@
     ;; rectangle. :drawing-area (the grey panel background) matches
     ;; ggplot's default panel clip, so data marks do not spill into the
     ;; axis margin; :panel-box is the wider rectangle, for margin marks
-    ;; like rug. Annotations clip with the drawing-area marks. Because
+    ;; like rug. Because
     ;; the scissor is a node in the membrane tree, every backend that
     ;; honours it clips identically; a single panel and a composite then
     ;; behave the same way.
@@ -444,8 +364,7 @@
                            :panel-box [[0 0] [pw ph]]
                            ;; :drawing-area and any unknown region
                            [[m m] [(- pw m m) (- ph m m)]]))
-          drawing-area-content (vec (concat (get marks-by-region :drawing-area [])
-                                            ann-marks))
+          drawing-area-content (get marks-by-region :drawing-area [])
           other-regions (dissoc marks-by-region :drawing-area)
           scissor (fn [region content]
                     (let [[off bnd] (region->rect region)]

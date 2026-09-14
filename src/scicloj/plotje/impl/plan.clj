@@ -552,6 +552,35 @@
       [(apply jt/min (map first extents))
        (apply jt/max (map second extents))])))
 
+(defn- written-temporal-extent
+  "The extent the rules and bands among `resolved-draft-layers` write on
+   `axis`, as the `LocalDateTime` pair the tick generators read, or nil
+   where none of them writes a value there.
+
+   Takes the layers that inform the axis, not every layer on the panel:
+   a layer in a drawing-space frame writes drawing units, and reading
+   those as dates put a 2024 axis's labels between 1975 and 2020. The
+   caller applies the same `x-informs?` test the axis domain applies.
+
+   A rule's intercept is coerced to epoch milliseconds at the API, so
+   by the time a draft layer exists nothing distinguishes a date from a
+   number. The axis is temporal only where a column made it so, which
+   is what `column-extents` reports, so this reads the written values
+   back as dates only when that column extent is there to join.
+
+   The axis domain already covers a written value -- that is what
+   `stat/written-extent` gives it -- and a temporal axis picks its
+   ticks over the extent rather than over the domain. Without this the
+   two disagreed: a rule at December on two months of data stretched
+   the axis across a year and left the ticks on January and February,
+   so five sixths of the axis carried no label."
+  [resolved-draft-layers axis column-extents]
+  (when (seq (remove nil? column-extents))
+    (let [written (mapcat #(resolve/written-values % axis) resolved-draft-layers)]
+      (when (seq written)
+        (let [dates (map resolve/epoch-ms->local-date-time written)]
+          [(apply jt/min dates) (apply jt/max dates)])))))
+
 (defn- warn-out-of-range-breaks!
   "When user-supplied :breaks include values outside the [lo hi]
    numeric domain, the corresponding ticks render off-panel and the
@@ -627,6 +656,55 @@
                   " categorical axis are its categories; :n-ticks thins"
                   " them to about that many, and :breaks names the ones"
                   " to keep."))))
+
+(defn- temporal-ticks-that-fit
+  "The most detailed set of date ticks whose labels fit across `width`.
+
+   A tick count comes from `:tick-spacing`, which reserves the same room
+   per tick whatever the labels say. That works on a numeric axis, where
+   `11` is a couple of characters, and fails on a date axis, where one
+   tick can be `Mar 2023` or `2024-01-01`. Measured 2026-09-09 on twelve
+   monthly dates: a 700-wide plot asked for twelve ticks whose labels
+   need about 660 units in 640 of room, and a 1200-wide one stepped down
+   to a fortnightly step and drew twenty-four `2024-01-01` labels needing
+   about 1600 in 1140.
+
+   `pick` is called with a count and answers `[ticks labels]`. It is
+   called with progressively smaller counts until the labels fit or the
+   count reaches two, and the first fitting answer is returned. Asking
+   for fewer date ticks moves to a coarser calendar step, whose labels
+   are the same length or shorter -- months to quarters keeps `Apr 2023`,
+   fortnights to months drops `2024-01-01` to `Jan 2024` -- so the search
+   terminates and never trades a long label for a longer one.
+
+   Two ticks are returned even where they do not fit: an axis has to be
+   labelled, and a label running past the panel is a smaller lie than an
+   axis with nothing on it.
+
+   The font size is read from the effective config rather than passed in,
+   which is what `layout/tick-font-size` does, and the gap is a margin
+   over an estimate -- this decides how many ticks to draw, not where to
+   draw them, so being a character out changes nothing."
+  [pick n width]
+  (let [font-size (get-in (defaults/config) [:theme :font-size]
+                          (get-in defaults/defaults [:theme :font-size]))
+        gap 6.0
+        fits? (fn [labels]
+                (or (< (count labels) 2)
+                    (<= (->> labels
+                             (map #(+ gap (text/text-width font-size (str %))))
+                             (reduce + 0.0))
+                        (double width))))]
+    (loop [n (long n)]
+      (let [[ticks labels :as answer] (pick n)]
+        (cond
+          (fits? labels) answer
+          (<= n 2) answer
+          ;; Step down rather than decrement: a calendar step is coarser
+          ;; by a factor, so walking one tick at a time would call `pick`
+          ;; twenty times to cross from fortnights to quarters and answer
+          ;; the same three times over.
+          :else (recur (max 2 (long (Math/floor (* 0.7 n))))))))))
 
 (defn compute-ticks
   "Compute tick values and labels for a domain+pixel range, using wadogo transiently.
@@ -757,9 +835,14 @@
               :labels (format-temporal-ticks [(first ext)] (axis-span-ms domain))
               :categorical? false}
              (let [dt-scale (ws/scale :datetime {:domain ext :range [0.0 1.0]})
-                   dt-ticks (vec (or (scale/date-ticks (first ext) (second ext) n)
-                                     (ws/ticks dt-scale n)))
-                   labels (format-temporal-ticks dt-ticks (axis-span-ms domain))
+                   pick (fn [n]
+                          (let [ts (vec (or (scale/date-ticks (first ext) (second ext) n)
+                                            (ws/ticks dt-scale n)))]
+                            [ts (format-temporal-ticks ts (axis-span-ms domain))]))
+                   [dt-ticks labels] (temporal-ticks-that-fit
+                                      pick n
+                                      (Math/abs (double (- (second pixel-range)
+                                                           (first pixel-range)))))
                    values (mapv resolve/temporal->epoch-ms dt-ticks)]
                {:values values :labels labels :categorical? false})))
 
@@ -1169,7 +1252,7 @@
    no draft layer maps `:shape` to a column.
 
    Category order follows the data unless `pj/scale :shape` supplied a
-   `:domain`; the symbols are `defaults/shape-syms` unless that scale
+   `:domain`; the symbols are `defaults/shape-palette` unless that scale
    supplied `:values`. Deciding here rather than at render time is what
    lets the legend show the symbol the marks actually draw.
 
@@ -1180,7 +1263,7 @@
     (when (seq shape-draft-layers)
       (let [scale (some :shape-scale shape-draft-layers)
             domain (seq (categorical-domain scale))
-            syms (or (seq (:values scale)) defaults/shape-syms)
+            syms (or (seq (:values scale)) (defaults/shape-palette))
             observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
                                                          shape-draft-layers))))
             all-shapes (if domain
@@ -1850,8 +1933,12 @@
                       {:mark m :supported polar-supported-marks})))))
 
 (def ^:private drawn-axis-marks
-  "The marks that place through the panel's `coord-fn`, and so measure
-   an axis told not to scale in drawing units.
+  "The marks that measure an axis told not to scale in drawing units.
+
+   Most of them do it by placing through the panel's `coord-fn`, which
+   is where the measurement from the panel corner lives. The four rules
+   and bands place a written value rather than a row, so each asks the
+   same question of its own axis and measures from the same corner.
 
    The rest read the oriented scales (`sx` / `sy`) directly, so the
    request never reaches them: `:bar` drew full-height bars and
@@ -1860,7 +1947,8 @@
    mark that places through the oriented scales belongs on the other
    side of it, and the test below renders both sides to keep the list
    honest."
-  #{:area :contour :errorbar :line :point :pointrange :rug :step :text :tile})
+  #{:area :contour :errorbar :line :point :pointrange :rug :step :text :tile
+    :rule-h :rule-v :band-h :band-v})
 
 (defn- validate-unscaled-axis-marks
   "Refuse a request to measure an axis in drawing units on a mark that
@@ -2206,7 +2294,6 @@
                   {:draft-layers (:draft-layers pg)
                    :row (if (> sub 0) (+ (* ri (count col-vals)) sub) ri)
                    :col ci
-                   :var-x (:x v) :var-y (:y v)
                    :col-label col-label
                    :row-label row-label}))
         ;; Compute actual grid dimensions
@@ -2411,18 +2498,13 @@
         x-informs? (fn [layer] (and (data-space? layer) (not (:x-drawn? layer))))
         y-informs? (fn [layer] (and (data-space? layer) (not (:y-drawn? layer))))
         local-plan-layers (:layers pd)
-        ;; An annotation-only panel carries synthesized stat-results with
-        ;; no resolved layer behind them, so the two are only pairable
-        ;; when their counts agree. Where they do not, nothing is in a
-        ;; drawing-space frame either, and every result counts.
+        ;; Stat results are index-aligned with the resolved layers they
+        ;; came from, so a result counts for an axis when its layer
+        ;; informs that axis.
         srs-for (fn [informs?]
-                  (let [rs (:resolved pd)
-                        srs (:stat-results pd)]
-                    (if (= (count rs) (count srs))
-                      (->> (map vector rs srs)
-                           (filter (comp informs? first))
-                           (mapv second))
-                      srs)))
+                  (->> (map vector (:resolved pd) (:stat-results pd))
+                       (filter (comp informs? first))
+                       (mapv second)))
         local-srs (srs-for x-informs?)
         local-srs-y (srs-for y-informs?)
         domain-layers (filterv y-informs? local-plan-layers)
@@ -2461,11 +2543,24 @@
                           (if (and ext dom)
                             (mapv resolve/epoch-ms->local-date-time dom)
                             ext))
+        x-col-exts (map :x-temporal-extent resolved-draft-layers)
+        y-col-exts (map :y-temporal-extent resolved-draft-layers)
+        ;; The written value reaches the tick extent only from a layer
+        ;; that informs the axis, which is the same test the domain
+        ;; above applies. A rule in a drawing-space frame writes a
+        ;; distance across the panel, so reading it as a date put every
+        ;; label of a 2024 axis somewhere between 1975 and 2020.
         x-temp-ext (shared-temporal
-                    (merge-temporal-extents (map :x-temporal-extent resolved-draft-layers))
+                    (merge-temporal-extents
+                     (cons (written-temporal-extent (filter x-informs? resolved-draft-layers)
+                                                    :x x-col-exts)
+                           x-col-exts))
                     (:x shared-domains))
         y-temp-ext (shared-temporal
-                    (merge-temporal-extents (map :y-temporal-extent resolved-draft-layers))
+                    (merge-temporal-extents
+                     (cons (written-temporal-extent (filter y-informs? resolved-draft-layers)
+                                                    :y y-col-exts)
+                           y-col-exts))
                     (:y shared-domains))
         ;; Whether each axis reads whole numbers, taken where the raw
         ;; extents are still visible. `finalize-panel` cannot ask this
@@ -2488,9 +2583,9 @@
                                (or (compute-global-y-domain domain-layers y-scale-spec padding
                                                             (some? y-temp-ext)
                                                             (:y shared-domains))
-                                   ;; Annotation-only panels have no plan
-                                   ;; layers; their y-domain lives in the
-                                   ;; synthesized stat-results.
+                                   ;; A panel whose every layer sits in a
+                                   ;; drawing-space frame has no layer to
+                                   ;; read a y extent from.
                                    (when (empty? domain-layers)
                                      (collect-domain local-srs-y :y-domain y-scale-spec padding
                                                      (some? y-temp-ext)
@@ -2504,11 +2599,9 @@
         ;; false}}` on values of 10, 50 and 90 drew a y axis reading
         ;; 0.0 to 1.0 labelled `b`, beside a real x axis, and nothing
         ;; about the picture looked wrong. A domain the writer set with
-        ;; `pj/scale` counts as a meaning; so does a panel carrying
-        ;; only annotations, whose extent lives in its stat-results.
+        ;; `pj/scale` counts as a meaning.
         informed? (fn [informs? spec]
                     (boolean (or (:domain spec)
-                                 (empty? (:resolved pd))
                                  (some informs? (:resolved pd)))))
         x-informed? (informed? x-informs? x-scale-spec)
         y-informed? (informed? y-informs? y-scale-spec)
@@ -2542,18 +2635,16 @@
      :row (:row pd)
      :col (:col pd)
      :row-label (:row-label pd)
-     :col-label (:col-label pd)
-     :var-x (:var-x pd)
-     :var-y (:var-y pd)}))
+     :col-label (:col-label pd)}))
 
 (defn- finalize-panel
   "Given a pre-tick panel domain map and pixel dimensions, compute the
    tick sets for both axes and assemble the final panel map."
   [{:keys [x-dom y-dom x-scale y-scale coord x-te y-te
            x-informed? y-informed? x-whole? y-whole?
-           row col row-label col-label var-x var-y]
+           row col row-label col-label]
     plan-layers :layers}
-   pw ph m cfg annotations]
+   pw ph m cfg]
   (let [x-px [m (- pw m)]
         y-px [(- ph m) m]
         seps (defaults/number-separators cfg)
@@ -2581,15 +2672,6 @@
              :layers plan-layers
              :row row
              :col col}
-      (seq annotations)
-      (assoc :annotations
-             (let [panel-anns
-                   (filterv
-                    (fn [a]
-                      (and (or (nil? (:x a)) (= (:x a) var-x))
-                           (or (nil? (:y a)) (= (:y a) var-y))))
-                    annotations)]
-               (mapv #(dissoc % :facet-col :facet-row :x :y) panel-anns)))
       row-label (assoc :row-label row-label)
       col-label (assoc :col-label col-label))))
 
@@ -2681,54 +2763,6 @@
                  :stops stops}
           ticks (assoc :ticks ticks))))))
 
-(defn- synthesize-annotation-domain
-  "For an annotation draft layer in an annotation-only panel, compute
-   a synthetic stat-result whose :x-domain / :y-domain come from the
-   draft-layer's data columns plus the annotation's own position values
-   (:y-intercept / :x-intercept for rules, :y-min/:y-max or
-   :x-min/:x-max for bands) so the panel's axes are well-defined even
-   when no data layer is attached to the panel. Falls back to [0 1] on
-   the axis perpendicular to a rule (where the annotation alone supplies
-   no extent) so the line still draws. Skips non-numeric columns
-   (string/keyword/temporal) and nil cells so a categorical or
-   partly-missing column on a pose-scope annotation-only panel doesn't
-   crash the reducer."
-  [{:keys [mark data x y y-intercept x-intercept y-min y-max x-min x-max]}]
-  (let [col-vals (fn [col]
-                   (when (and data col (tc/dataset? data))
-                     (let [resolved (resolve/resolve-col-name data col)]
-                       (try
-                         (let [vs (seq (data resolved))
-                               numeric (->> vs (remove nil?) (filter number?) seq)]
-                           numeric)
-                         (catch Exception _ nil)))))
-        x-col-vals (col-vals x)
-        y-col-vals (col-vals y)
-        x-extra (case mark
-                  :rule-v (when (number? x-intercept) [x-intercept])
-                  :band-v (when (and (number? x-min) (number? x-max)) [x-min x-max])
-                  nil)
-        y-extra (case mark
-                  :rule-h (when (number? y-intercept) [y-intercept])
-                  :band-h (when (and (number? y-min) (number? y-max)) [y-min y-max])
-                  nil)
-        x-all (cond-> []
-                x-col-vals (into x-col-vals)
-                x-extra (into x-extra))
-        y-all (cond-> []
-                y-col-vals (into y-col-vals)
-                y-extra (into y-extra))
-        ;; The axis perpendicular to a rule has no annotation-supplied
-        ;; extent. If no data column fills it either, default to [0 1]
-        ;; so the line is drawable.
-        x-fallback? (and (empty? x-all) (#{:rule-h :band-h} mark))
-        y-fallback? (and (empty? y-all) (#{:rule-v :band-v} mark))]
-    (cond-> {}
-      (seq x-all) (assoc :x-domain [(reduce min x-all) (reduce max x-all)])
-      (seq y-all) (assoc :y-domain [(reduce min y-all) (reduce max y-all)])
-      x-fallback? (assoc :x-domain [0.0 1.0])
-      y-fallback? (assoc :y-domain [0.0 1.0]))))
-
 (defn draft->plan
   "Pipeline: convert a draft into a plan using panel-based grid layout.
    Grid position from structural columns.
@@ -2753,32 +2787,10 @@
          layout-opts (assoc opts :width width :height height)
          draft-layers (if (map? draft) [draft] draft)
 
-         ;; Annotations-as-layers: split annotation draft layers
-         ;; (created by pj/lay-rule-*/pj/lay-band-*) from data draft
-         ;; layers. Annotations skip the stat/extract-layer pipeline
-         ;; and join the plot-level :annotations list merged below.
-         ;; A draft-layer with only annotations (no data layer) still needs
-         ;; a panel inferred for it, so annotation-only panel-idx
-         ;; groups are threaded into grid inference separately.
-         layer-annotations (filterv #(resolve/annotation-marks (:mark %)) draft-layers)
-         draft-layers (filterv #(not (resolve/annotation-marks (:mark %))) draft-layers)
-         data-panel-ids (set (map :__panel-idx draft-layers))
-         ann-only-by-idx (->> layer-annotations
-                              (remove #(contains? data-panel-ids (:__panel-idx %)))
-                              (group-by :__panel-idx))
-
-         ;; Group draft layers by source panel index. Annotation-only
-         ;; entries get their own groups tagged :__annotation-only?
-         ;; so downstream Phase 1 synthesizes their domains instead of
-         ;; running the stat pipeline.
+         ;; Group draft layers by source panel index.
          draft-layer-groups (vec
-                             (concat
-                              (for [[idx vs] (sort-by key (group-by :__panel-idx draft-layers))]
-                                {:panel-idx idx :draft-layers (vec vs)})
-                              (for [[idx vs] (sort-by key ann-only-by-idx)]
-                                {:panel-idx idx
-                                 :draft-layers (vec vs)
-                                 :__annotation-only? true})))
+                             (for [[idx vs] (sort-by key (group-by :__panel-idx draft-layers))]
+                               {:panel-idx idx :draft-layers (vec vs)}))
 
          ;; Infer grid from draft layer groups
          grid (infer-grid draft-layer-groups
@@ -2855,78 +2867,20 @@
            (mapv #(update % :__resolved assoc :color-extent e) tagged-draft-layers)
            tagged-draft-layers)
 
-         ;; Plot-level annotations -- from pj/lay-rule-* / pj/lay-band-*
-         ;; layers extracted above. Root-scope annotations (carried
-         ;; down through pose/resolve-tree) need deduping because
-         ;; facet expansion repeats the same annotation for every
-         ;; panel. Strip :x/:y on root-scope so they apply to all
-         ;; panels. Panel-scope annotations keep their :x/:y so
-         ;; finalize-panel can match them to the right panel.
-         ;; Annotations only support literal :color (string) and
-         ;; literal :alpha (number); column-mapped aesthetics are
-         ;; silently dropped (annotations don't participate in
-         ;; column-mapped scales).
-         ;; An annotation draws one color for itself and takes no part
-         ;; in a scale, so what survives here is a written color and
-         ;; nothing else. The test asks whether the value names a color
-         ;; rather than whether it is a string: the pose gate accepts a
-         ;; keyword naming one now, so `{:color :red}` reached this
-         ;; point and was dropped without a word, while
-         ;; `{:color :notacolour}` was still reported -- the gate and
-         ;; the draw path disagreeing about the same value.
-         ;; Annotations carry their color as a string to the renderer,
-         ;; so a keyword naming one is spelled out here rather than
-         ;; widening the plan schema for a second spelling of the same
-         ;; value. Computed once rather than as two `cond->` branches:
-         ;; the tests there read the original map, so dropping a
-         ;; non-color and then spelling out a keyword both fired on the
-         ;; same value and `name` was handed the nil that the drop had
-         ;; just left behind.
-         clean-aesthetics (fn [m]
-                            (let [c (:color m)
-                                  c (when (defaults/names-a-color? c)
-                                      (if (keyword? c) (name c) c))]
-                              (cond-> (dissoc m :color)
-                                c (assoc :color c)
-                                (not (number? (:alpha m))) (dissoc :alpha))))
-         annotation-position-keys [:y-intercept :x-intercept :y-min :y-max :x-min :x-max]
-         ;; Annotations cross-product when a leaf is expanded by
-         ;; pj/facet (one identical copy per facet panel). Dedup by
-         ;; content so finalize-panel matches a single annotation
-         ;; against every panel that shares the leaf's x/y.
-         annotations (->> layer-annotations
-                          (map #(-> %
-                                    (select-keys (into [:mark :color :alpha :stroke-dash :offset-x :offset-y :x :y]
-                                                       annotation-position-keys))
-                                    clean-aesthetics))
-                          distinct
-                          vec)
-
          ;; --- Phase 1: compute stats for every panel (no pixel math) ---
          tagged-by-idx (group-by :__panel-idx tagged-draft-layers)
          panel-data (mapv
                      (fn [pg]
                        (let [dls (:draft-layers pg)
-                             annotation-only? (and (seq dls)
-                                                   (every? #(resolve/annotation-marks (:mark %)) dls))]
-                         (cond
-                           ;; Annotation-only panel: no stat pipeline,
-                           ;; synthesize domains from the annotation's
-                           ;; draft-layer data plus the annotation's positions.
-                           annotation-only?
-                           (merge pg {:resolved []
-                                      :stat-results (mapv synthesize-annotation-domain dls)
-                                      :layers []})
-                           :else
-                           (let [pidx (:__panel-idx (first dls))
-                                 panel-tagged (or (get tagged-by-idx pidx) dls)
-                                 pre-resolved (mapv :__resolved panel-tagged)]
-                             (if (seq panel-tagged)
-                               (merge pg (resolve-panel-draft-layers panel-tagged all-colors cfg
-                                                                     :resolved pre-resolved
-                                                                     :shape-map (:shape-map shape-info)
-                                                                     :extents aesthetic-extents))
-                               pg)))))
+                             pidx (:__panel-idx (first dls))
+                             panel-tagged (or (get tagged-by-idx pidx) dls)
+                             pre-resolved (mapv :__resolved panel-tagged)]
+                         (if (seq panel-tagged)
+                           (merge pg (resolve-panel-draft-layers panel-tagged all-colors cfg
+                                                                 :resolved pre-resolved
+                                                                 :shape-map (:shape-map shape-info)
+                                                                 :extents aesthetic-extents))
+                           pg)))
                      (:panels grid))
 
          _ (warn-undrawn-varies! panel-data)
@@ -3113,7 +3067,7 @@
                    total-h)
 
          ;; --- Phase 5: compute ticks at the final panel dimensions ---
-         panels (mapv #(finalize-panel % pw ph m cfg annotations) panel-domains)
+         panels (mapv #(finalize-panel % pw ph m cfg) panel-domains)
          ;; :suppress-x-ticks / :suppress-y-ticks on opts blank the
          ;; tick set for the corresponding axis. Compositor sets these
          ;; on inner cells of grid-composites (SPLOM) so only the

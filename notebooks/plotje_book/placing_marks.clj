@@ -343,8 +343,8 @@ cars
 
 ;; Use a data-space value when the note is about a value, and
 ;; `:in :drawing-area` when it is about the picture. `pj/lay-rule-*` and
-;; `pj/lay-band-*` reject `:in`: those four are carried on the panel's
-;; annotations and are placed from data values only.
+;; `pj/lay-band-*` take `:in` too, reading their intercept or their
+;; bounds as drawing units from the panel background's corner.
 
 ;; ## Where a value lands on the page
 ;;

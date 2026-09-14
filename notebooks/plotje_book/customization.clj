@@ -572,9 +572,9 @@
 ;;
 ;; They take `:offset-x` and `:offset-y` like any other layer, so a
 ;; rule can sit a fixed distance from the value it marks -- a line
-;; drawn just above a threshold rather than on it. `:in` is the one
-;; layer option they do not take: their positions come from data
-;; values.
+;; drawn just above a threshold rather than on it. They take `:in` too:
+;; `{:in :drawing-area}` reads the intercept as drawing units from the
+;; top left of the panel background rather than as a data value.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:alpha 0.4})
@@ -583,8 +583,10 @@
 
 (kind/test-last
  [(fn [fr]
-    (= [nil -25]
-       (mapv :offset-y (:annotations (first (:panels (pj/plan fr)))))))])
+    ;; The two rules are ordinary layers on the panel, so the offset is
+    ;; read off the layer beside the point layer that has none.
+    (= [nil nil -25]
+       (mapv :offset-y (:layers (first (:panels (pj/plan fr)))))))])
 ;;
 ;; Shaded bands draw at a default opacity of 0.15:
 
@@ -602,13 +604,13 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
-;; Note: intercept and band-edge positions must be written values
+;; Note: an intercept and a band edge must be written values
 ;; (numbers, or temporal values on a time axis) in this release. A
 ;; faceted plot with a different reference value per panel
 ;; (column-mapped intercept, ggplot2's
 ;; `geom_hline(aes(yintercept=...))`) is on the post-alpha roadmap.
-;; Today, an annotation added once with the same intercept appears
-;; on every panel of the faceted pose.
+;; Today, a rule added once with the same intercept appears on every
+;; panel of the faceted pose.
 ;;
 ;; Giving a line layer its own two-point dataset does not stand in for
 ;; it: a layer's own `:data` is not split by `pj/facet` either, so each
@@ -627,6 +629,25 @@
                            (and (= 150 (:points s))
                                 (= 1 (:dashed-lines s))
                                 (contains? (:dash-patterns s) "6.00 4.00"))))])
+
+;; A rule's width comes from `:size` and its opacity from `:alpha`, so a
+;; broad faint line can sit behind the data rather than cutting across
+;; it. The rule is written before the points here, so it is drawn under
+;; them -- layers paint in the order they are added, and these are
+;; layers. A rule written first needs the columns to come from
+;; somewhere, so the pose names them:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose :sepal-length :sepal-width)
+    (pj/lay-rule-h {:y-intercept 3.0 :size 8 :alpha 0.3 :color "#cc3311"})
+    (pj/lay-point {:color :species}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [layers (:layers (first (:panels (pj/plan fr))))]
+      (and (= [:rule-h :point] (mapv :mark layers))
+           (= 8 (:stroke-width (:style (first layers))))
+           (= 0.3 (:opacity (:style (first layers)))))))])
 
 ;; ## Discovering Palettes and Gradients
 ;;

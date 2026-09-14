@@ -2,6 +2,59 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.13.0 - 2026-09-10]
+
+Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are drawn in the order they were written, take the options the other marks take, and widen the axis they are written on.
+
+### Plots that look different after upgrading
+
+- **Every plot whose rule or band was written before a data layer.** The rule is drawn under the marks written after it.
+- **Every plot whose rule or band sits outside the extent its data covers.** The axis reaches the rule -- on a date axis the ticks run out to it, and on an axis shared with `:share-scales` every cell reaches it. A `:domain` written with `pj/scale` still pins the axis where the rule cannot widen it.
+- **Every rule given an `:alpha`.** The line is drawn at that opacity.
+- **Every plot combining a rule or a band with `(pj/coord :polar)`.** `pj/plan` reports an error rather than drawing the plot with the rule left out of it.
+- **Every plot whose band was written with equal bounds.** `pj/lay-band-h` and `pj/lay-band-v` report an error rather than returning a pose.
+- **Every plot on a date axis that asked for more ticks than fit.** The axis carries fewer, larger-stepped ticks whose labels do not overlap.
+- **Every plot setting `:annotation-stroke`.** The key is `:rule-color` now. Under the old name Plotje warns, names the new key and drops the setting (an error under `:strict`), so the plot still draws and its rules take the default colour.
+- **Every SVG plot drawing a filled shape under one drawing unit across** -- a narrow bar, a thin interval, a small tile. Wider shapes are unchanged, and PNG is unaffected.
+- **Every log axis carrying a break written with `pj/scale`.** The break reads to six significant digits.
+- **Every caller of `pj/shape-symbols`.** It is a function now, and it answers with every symbol a mapping may name rather than the shorter list categories are assigned from, which is `(pj/shape-palette)`.
+
+### Added
+
+- Rules and bands take `:in`, `:alpha` and `:size`. `(pj/lay-rule-h {:y-intercept 40 :in :drawing-area})` draws a line forty drawing units below the top of the panel background rather than at the data value 40; `:alpha` sets a line's opacity or a band's fill opacity; `:size` sets a rule's width.
+
+- `pj/arrange` accepts `:align-panels`, which gives every cell the same drawing area. Without it, cells whose y axes label at different widths get different panel widths, so an axis shared with `:share-scales` covers a different extent in each. - thanks, @timothypratley
+
+- `:circle-open` draws a point as a ring rather than a disc, so overlapping points stay countable where filled discs merge. Name it for a layer with `{:shape :circle-open}` or pass it among `:values` to a `:shape` scale; it is not handed out to categories automatically. (Closes #46) - thanks, @carstenbehring
+
+### Removed
+
+- The `:annotation-dash` configuration key, which was read by nothing. Written now, Plotje warns that it is an unrecognized configuration key and the plot still draws (an error under `:strict`). A dashed rule takes `:stroke-dash` on its layer.
+
+### Changed
+
+- `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @carstenbehring
+
+- The `:annotation-stroke` configuration key is `:rule-color`, so no part of the public API still calls these four marks annotations. Under the old name Plotje warns and the warning names the new key.
+
+- `pj/shape-symbols` and `pj/shape-palette` are functions rather than values, and the two answer different questions: `(pj/shape-symbols)` is every symbol a mapping may name, and `(pj/shape-palette)` the shorter list categories are assigned from in order. Code that assigns symbols to categories wants `(pj/shape-palette)`. This is groundwork for letting a plot add a shape symbol rather than that feature: the symbols Plotje draws are still fixed in the library, though `render.mark/draw-shape` now reports an error on a symbol it cannot draw rather than drawing a circle for it.
+
+### Fixed
+
+- A date axis draws as many ticks as its labels have room for. The count steps down until the labels stop running together, so a wider plot stays on a calendar step a reader counts in rather than moving to a finer one with longer labels.
+
+- A date axis widened by a rule or a band is ticked across its whole width. A date axis picks its ticks over the extent its data covers, and the value a rule or a band writes now reaches that extent as well as the axis domain.
+
+- A thin filled shape is drawn rather than dropped. Plotje asks the renderer to snap a filled shape's edges to device pixels only where the shape is at least one drawing unit across in both directions, and leaves anything thinner to anti-alias, so a narrow bar draws faintly instead of vanishing and two bars of different widths look different. The change is one SVG attribute: `shape-rendering="crispEdges"` is now conditional on that extent, and the numbers in the polygon's `points` are what they always were. PNG never set the attribute and is unaffected. Reported in [#plotje > missing bar char variant ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/missing.20bar.20char.20variant.20.3F/) - thanks, @carstenbehring
+
+- A break written with `pj/scale :breaks` on a log scale is written to six significant digits rather than as the double holds it. The breaks a log axis picks for itself are unchanged.
+
+- An axis shared with `:share-scales` covers the values a rule or a band writes on it. A shared domain is built from the columns its cells name, and a rule names none, so a rule outside the shared extent drew off the panel and was clipped away without a word.
+
+- `pj/lay-band-h` and `pj/lay-band-v` report an error on equal bounds. `{:y-min 3 :y-max 3}` covers nothing and drew a rectangle of zero thickness that no reader could see. The error names the rule that draws a line at a single value.
+
+- A rule or a band can be added to a pose whose layers read only an x column -- a histogram, a density, a count bar or a rug. An intercept is a written value rather than a column reference, so these four need no y column of their own.
+
 ## [0.12.0 - 2026-09-07]
 
 A column drawn as it stands does not group. `{:color {:column :c :scale false}}` says the column holds colors, and those values are drawn on the marks without splitting the rows. A column read through its scale is unchanged: each distinct value is still a category, and the rows are still split into a group per category.

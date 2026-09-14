@@ -778,10 +778,13 @@ two-panel
 
 ;; Reference lines and shaded bands are themselves layers, added with
 ;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v`.
-;; Positions come from the options map (`:y-intercept` / `:x-intercept` for
-;; rules; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands); appearance
+;; Where each one draws comes from the options map (`:y-intercept` /
+;; `:x-intercept` for rules; `:y-min`/`:y-max` or `:x-min`/`:x-max` for
+;; bands); appearance
 ;; aesthetics like `:color` and `:alpha` work the same way they do on
-;; any other layer.
+;; any other layer, and so does
+;; [layer order](./plotje_book.pose_model.html#layer-order-is-paint-order) --
+;; a rule added before the points is drawn under them.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})

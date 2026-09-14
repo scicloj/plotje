@@ -479,18 +479,25 @@
 
 ;; ## Reference Lines and Bands
 
-;; Reference lines and shaded bands are regular layers. Position comes
-;; from the options map (`:y-intercept` for `lay-rule-h`, `:x-intercept`
+;; Reference lines and shaded bands are regular layers. Where each one
+;; draws comes from the options map (`:y-intercept` for `lay-rule-h`, `:x-intercept`
 ;; for `lay-rule-v`; `:y-min`/`:y-max` for `lay-band-h`,
 ;; `:x-min`/`:x-max` for `lay-band-v`); `:color` overrides the default
-;; annotation color, and bands additionally honor `:alpha` to override
-;; the `:band-opacity` configuration default. Without x/y columns they attach at the
-;; root (every panel); with x/y columns they attach to one matching
-;; leaf.
+;; reference color, `:alpha` the opacity -- which on a band overrides
+;; the `:band-opacity` configuration default -- and `:size` a rule's
+;; width. Without x/y columns they attach at the root (every panel);
+;; with x/y columns they attach to one matching leaf.
+;;
+;; They paint in the order they were added, like any other layer, so a
+;; rule written before a scatter sits under its points. The axis
+;; reaches the value they are drawn at, so a rule written outside
+;; everything the data covers widens the axis rather than disappearing;
+;; a `:domain` written with `pj/scale` replaces what the data covers
+;; and pins the axis where the rule cannot widen it.
 ;;
 ;; Rule intercepts also accept temporal values (`LocalDate`,
-;; `LocalDateTime`, `Instant`, `java.util.Date`) so date-axis
-;; annotations need no manual conversion -- see the second
+;; `LocalDateTime`, `Instant`, `java.util.Date`) so a date-axis
+;; intercept needs no manual conversion -- see the second
 ;; `lay-rule-v` example below.
 ;;
 ;; **Note on `:y-min`/`:y-max`.** The same option keys carry two
@@ -631,7 +638,7 @@
 
 (kind/doc #'pj/shape-symbols)
 
-pj/shape-symbols
+(pj/shape-symbols)
 
 (kind/test-last [(fn [syms] (and (seq syms) (every? keyword? syms)))])
 
@@ -1192,7 +1199,7 @@ plan1
 
 (count pj/config-key-docs)
 
-(kind/test-last [(fn [n] (= 44 n))])
+(kind/test-last [(fn [n] (= 43 n))])
 
 (kind/doc #'pj/plot-option-docs)
 

@@ -151,13 +151,38 @@
    they enforce. Use it as `pj/config-key-docs` is used."
   defaults/aesthetic-scales)
 
-(def shape-symbols
-  "The marker symbols a categorical `:shape` mapping draws with, in the
-   order they are assigned to categories. A plot with more categories
-   than this repeats a symbol, so two categories cannot be told apart;
-   that warns at plan time. Pass a selection of these as `:values` to
-   `(pj/scale pose :shape {:values [...]})` to choose them yourself."
-  defaults/shape-syms)
+(defn shape-symbols
+  "Every marker symbol a `:shape` mapping can draw.
+
+   `(pj/shape-palette)` is the first part, in the order categories are
+   assigned. The rest are drawn only when named -- `:circle-open` is a
+   ring rather than a disc, which keeps overlapping points countable.
+
+   Pass a selection of these as `:values` to
+   `(pj/scale pose :shape {:values [...]})` to choose them yourself, or
+   name one for a whole layer with `{:shape :circle-open}`.
+
+   A function rather than a value, as `pj/config` is: the list grows
+   from one release to the next, and a value read at load time could
+   not follow it. Adding a symbol of your own is not supported -- the
+   shapes are drawn by a fixed table in the renderer."
+  []
+  (defaults/drawable-shapes))
+
+(defn shape-palette
+  "The symbols assigned to categories automatically, in order. A plot
+   with more categories than these repeats a symbol, so two categories
+   cannot be told apart, and that warns at plan time.
+
+   Published apart from `pj/shape-symbols` because the two answer
+   different questions: this is what a plot draws when you say nothing,
+   and `pj/shape-symbols` is what you may write. Adding to this one
+   changes which symbol every existing plot gives each category; adding
+   to the other takes nothing away.
+
+   A function rather than a value, as `pj/config` is."
+  []
+  (defaults/shape-palette))
 
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
@@ -736,6 +761,9 @@
   (let [lay? (str/starts-with? caller "lay-")
         elsewhere (layer-types-accepting k)]
     (cond
+      (defaults/renamed-options k)
+      (str "Renamed to " (defaults/renamed-options k))
+
       (dedicated-function-keys k)
       (str "Set by " (dedicated-function-keys k) ", not by an options map")
 
@@ -1770,7 +1798,8 @@
    mappings. Of the layer options documented in
    `layer-type/layer-option-docs`, fourteen are aesthetics and the rest
    are drawing options (:jitter, :in, :font-size), stat parameters
-   (:bandwidth, :bins) and annotation values (:x-intercept). Which of
+   (:bandwidth, :bins) and the values a rule or a band is drawn at
+   (:x-intercept). Which of
    them are aesthetics is answered by `defaults/aesthetic-registry`,
    not by the map they share."
   [layer-type-key opts]
@@ -2327,6 +2356,17 @@
       (when-not (<= lo-num hi-num)
         (throw (ex-info (str "lay-" (name layer-type-key) " requires " lo-k " <= " hi-k ", got " lo-k " " lo " " hi-k " " hi ". "
                              "Swap the arguments or check the source of the values.")
+                        {:layer-type layer-type-key :opts opts})))
+      ;; Equal bounds passed this guard and drew a rectangle of zero
+      ;; thickness -- present in the SVG, invisible on the plot, and
+      ;; reported by nothing. A band marks a span; a span of nothing is
+      ;; a mistake in the values, and a line at that value is a rule.
+      (when (== lo-num hi-num)
+        (throw (ex-info (str "lay-" (name layer-type-key) " requires " lo-k " < " hi-k ", got both "
+                             lo ". A band with equal bounds covers nothing and draws nothing. "
+                             "For a line at that value use (pj/lay-"
+                             (if (= layer-type-key :band-h) "rule-h pose {:y-intercept " "rule-v pose {:x-intercept ")
+                             lo "}).")
                         {:layer-type layer-type-key :opts opts}))))))
 
 (defn- assert-rule-1-arity! [layer-type-key]
@@ -2345,12 +2385,18 @@
   "Add `:rule-h` layer -- horizontal reference line at y = y-intercept.
    Position comes from opts (not data columns); `:y-intercept` is required.
    Accepts `:y-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
-   Instant, java.util.Date), `:color` (literal string), and `:stroke-dash`
+   Instant, java.util.Date), `:color` (a written color), `:alpha` (the
+   line's opacity), `:size` (its width) and `:stroke-dash`
    (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector).
    Temporal values are converted internally to match the y-axis scale
-   so date-axis annotations work without manual conversion.
-   The 4-arity finds or creates a sub-pose with these x/y columns
-   and attaches the rule there (only panels matching that leaf show it).
+   so a date-axis intercept needs no manual conversion.
+   `{:in :drawing-area}` reads the intercept as drawing units from the
+   top left of the panel background instead of as a data value.
+   The rule is drawn in the order its layer was written, so one written
+   before a scatter sits under its points and one written after sits
+   over them. The 4-arity finds or creates a sub-pose with these x/y
+   columns and attaches the rule there (only panels matching that leaf
+   show it).
 
    - `(lay-rule-h pose {:y-intercept 3})` -- root-level, flows to every panel.
    - `(lay-rule-h pose :x :y {:y-intercept 3})` -- panel-scope (columns pick
@@ -2367,12 +2413,18 @@
   "Add `:rule-v` layer -- vertical reference line at x = x-intercept.
    Position comes from opts (not data columns); `:x-intercept` is required.
    Accepts `:x-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
-   Instant, java.util.Date), `:color` (literal string), and `:stroke-dash`
+   Instant, java.util.Date), `:color` (a written color), `:alpha` (the
+   line's opacity), `:size` (its width) and `:stroke-dash`
    (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector).
    Temporal values are converted internally to match the x-axis scale
-   so date-axis annotations work without manual conversion.
-   The 4-arity finds or creates a sub-pose with these x/y columns
-   and attaches the rule there (only panels matching that leaf show it).
+   so a date-axis intercept needs no manual conversion.
+   `{:in :drawing-area}` reads the intercept as drawing units from the
+   top left of the panel background instead of as a data value.
+   The rule is drawn in the order its layer was written, so one written
+   before a scatter sits under its points and one written after sits
+   over them. The 4-arity finds or creates a sub-pose with these x/y
+   columns and attaches the rule there (only panels matching that leaf
+   show it).
 
    - `(lay-rule-v pose {:x-intercept 5})` -- root-level, flows to every panel.
    - `(lay-rule-v pose :x :y {:x-intercept 5})` -- panel-scope (columns pick
@@ -2389,12 +2441,16 @@
   "Add `:band-h` layer -- horizontal shaded band between y = y-min and y = y-max.
    Position comes from opts (not data columns); `:y-min` and `:y-max` are
    required and `:y-min` must be <= `:y-max`.
-   Accepts `:y-min` (required), `:y-max` (required), `:color` (literal
-   string), `:alpha`. Bounds may be numeric or temporal (LocalDate,
-   LocalDateTime, Instant, java.util.Date); temporal values are
-   converted internally to match the y-axis scale.
-   The 4-arity finds or creates a sub-pose with these x/y columns
-   and attaches the band there (only panels matching that leaf show it).
+   Accepts `:y-min` (required), `:y-max` (required), `:color` (a
+   written color) and `:alpha`. Bounds may be numeric or temporal
+   (LocalDate, LocalDateTime, Instant, java.util.Date); temporal values
+   are converted internally to match the y-axis scale.
+   `{:in :drawing-area}` reads the bounds as drawing units from the top
+   left of the panel background instead of as data values.
+   The band is drawn in the order its layer was written, so one written
+   before a scatter sits under its points. The 4-arity finds or creates
+   a sub-pose with these x/y columns and attaches the band there (only
+   panels matching that leaf show it).
 
    - `(lay-band-h pose {:y-min 2 :y-max 4})` -- root-level, flows to every panel.
    - `(lay-band-h pose :x :y {:y-min 2 :y-max 4})` -- panel-scope (columns pick
@@ -2410,12 +2466,16 @@
   "Add `:band-v` layer -- vertical shaded band between x = x-min and x = x-max.
    Position comes from opts (not data columns); `:x-min` and `:x-max` are
    required and `:x-min` must be <= `:x-max`.
-   Accepts `:x-min` (required), `:x-max` (required), `:color` (literal
-   string), `:alpha`. Bounds may be numeric or temporal (LocalDate,
-   LocalDateTime, Instant, java.util.Date); temporal values are
-   converted internally to match the x-axis scale.
-   The 4-arity finds or creates a sub-pose with these x/y columns
-   and attaches the band there (only panels matching that leaf show it).
+   Accepts `:x-min` (required), `:x-max` (required), `:color` (a
+   written color) and `:alpha`. Bounds may be numeric or temporal
+   (LocalDate, LocalDateTime, Instant, java.util.Date); temporal values
+   are converted internally to match the x-axis scale.
+   `{:in :drawing-area}` reads the bounds as drawing units from the top
+   left of the panel background instead of as data values.
+   The band is drawn in the order its layer was written, so one written
+   before a scatter sits under its points. The 4-arity finds or creates
+   a sub-pose with these x/y columns and attaches the band there (only
+   panels matching that leaf show it).
 
    - `(lay-band-v pose {:x-min 4 :x-max 6})` -- root-level, flows to every panel.
    - `(lay-band-v pose :x :y {:x-min 4 :x-max 6})` -- panel-scope (columns pick
@@ -2841,8 +2901,8 @@
    Where the columns are written makes no difference: an `:x` or `:y` in
    the options map asks for a panel exactly as one in an argument slot
    does, and `pj/overlay` answers both. A written value names no panel
-   -- `{:x 7.5 :y 4.2 :text \"note\"}` annotates the panel it is added
-   to -- so an annotation needs no overlay."
+   -- `{:x 7.5 :y 4.2 :text \"note\"}` marks a place on the panel it is
+   added to -- so a written value needs no overlay."
   ([pose-or-data] (overlay pose-or-data true))
   ([pose-or-data on?]
    (let [fr (->pose pose-or-data "pj/overlay")]
@@ -3152,8 +3212,8 @@
       (some pose-has-data-anywhere? (:poses pose))))
 
 (defn- bare-template-leaf?
-  "True for a leaf pose carrying a mapping but no layers, no
-   annotations, and no own :data."
+  "True for a leaf pose carrying a mapping but no layers and no own
+   :data."
   [leaf]
   (and (not (:poses leaf))
        (seq (:mapping leaf))
@@ -3600,14 +3660,23 @@
    - `:height` -- total composite height.
    - `:share-scales` -- subset of `#{:x :y}` shared across cells
      (default: `#{}`).
+   - `:align-panels` -- give every cell the same drawing area, by
+     reserving the widest y-label pad and legend column a cell needs on
+     all of them (and, for a row, the tallest x-label pad). Two cells
+     whose y axes label at different widths otherwise get different
+     panel widths, so a shared x axis covers a different extent in
+     each. Pair it with `:share-scales` where the cells are meant to be
+     read against one another.
 
+   - `(arrange [fr-a fr-b] {:cols 1 :share-scales #{:x} :align-panels true})`
+     -- a column of cells whose x axes line up.
    - `(arrange [fr-a fr-b])` -- 1x2 row.
    - `(arrange [fr-a fr-b fr-c] {:cols 2 :width 900})` -- 2x2 grid (wraps).
    - `(arrange [[fr-a fr-b] [fr-c fr-d]])` -- explicit 2x2 grid."
   ([plots] (arrange plots {}))
   ([plots opts]
    (let [cfg (defaults/config)
-         {:keys [cols title share-scales]
+         {:keys [cols title share-scales align-panels]
           :or {share-scales #{}}} opts
          _ (when-not (and (or (set? share-scales)
                               (sequential? share-scales))
@@ -3664,7 +3733,8 @@
          composite {:opts (cond-> {:width  (long (Math/round (double width)))
                                    :height (long (Math/round (double height)))}
                             title (assoc :title title)
-                            (seq share-scales) (assoc :share-scales (set share-scales)))
+                            (seq share-scales) (assoc :share-scales (set share-scales))
+                            align-panels (assoc :align-panels true))
                     :layout {:direction :vertical}
                     :poses row-poses}]
      (kind/fn composite

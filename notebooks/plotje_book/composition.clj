@@ -131,6 +131,77 @@ shared-x
 ;; effective x-column matches share a scale. Panels with different
 ;; x-columns would each get their own domain.
 
+;; A rule or a band is covered too. A shared axis pools the columns its
+;; cells name, and a rule names none: its `:x-intercept` is a mapping
+;; like any other, but it takes a written value rather than a column
+;; reference. The shared domain covers those written values too.
+;; Here one cell carries a limit beyond anything either species
+;; measures, and both cells reach it:
+
+(def limit 8.5)
+
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "setosa" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/lay-rule-v {:x-intercept limit :color "firebrick"}))
+  (-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "virginica" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width))]
+ {:share-scales #{:x}})
+
+(kind/test-last
+ ;; Both cells reach past the limit, and they reach it together. Note
+ ;; that the shape count says nothing here -- the rule is drawn whether
+ ;; or not the axis reaches it, and an axis stopping short would put the
+ ;; line outside the panel to be clipped away in silence.
+ [(fn [v] (let [panels (mapcat #(:panels (:plan %)) (:sub-plots (pj/plan v)))
+                domains (mapv #(mapv double (:x-domain %)) panels)]
+            (and (= 2 (count domains))
+                 (apply = domains)
+                 (< limit (second (first domains))))))])
+
+;; ### Cells That Line Up
+;;
+;; Sharing a scale is not enough on its own. Each cell reserves the
+;; room its own y labels need, so a cell labelled in single digits
+;; comes out wider than a cell labelled in millions, and the axis the
+;; two share covers a different extent in each. `:align-panels`
+;; reserves the widest y-label pad and legend column any cell needs on
+;; all of them, so every cell gets the same drawing area:
+
+(def readings
+  {:t [1 2 3 4 5]
+   :rate [1.0 2.0 3.0 2.0 4.0]
+   :total [1200000.0 2400000.0 1800000.0 3100000.0 2600000.0]})
+
+(pj/arrange
+ [(-> readings (pj/lay-line :t :rate))
+  (-> readings (pj/lay-line :t :total))]
+ {:cols 1 :share-scales #{:x} :align-panels true})
+
+(kind/test-last
+ [(fn [v]
+    (let [pads-of (fn [pose]
+                    (mapv #(get-in % [:plan :layout :y-label-pad])
+                          (:sub-plots (pj/plan pose))))
+          plain (pads-of (pj/arrange
+                          [(-> readings (pj/lay-line :t :rate))
+                           (-> readings (pj/lay-line :t :total))]
+                          {:cols 1 :share-scales #{:x}}))]
+      (and (= 2 (:panels (pj/svg-summary v)))
+           ;; `==` rather than `=`: the cell that computed the pad
+           ;; carries a double, the cell given it as a floor carries
+           ;; whatever it was written as.
+           (apply == (pads-of v))
+           ;; Without the key the two cells differ, which is the whole
+           ;; reason the key exists.
+           (not (apply == plain)))))])
+
+;; Pair it with `:share-scales` where the cells are meant to be read
+;; against one another. `pj/marginal` sets both for you -- the next
+;; section takes one apart.
+
 ;; ## Marginal Plots
 ;;
 ;; The classic "scatter with top density" -- a distribution strip beside
@@ -275,9 +346,10 @@ marginal-by-hand
 ;; twice, the second time with the widest pad any of them needed as a
 ;; floor, so each cell reserves what the others do -- the y-label pad
 ;; and the legend column for a column of cells, the room below for a
-;; row of them. `pj/options` does not accept the key -- it is a
-;; composite's internal setting rather than a plot option -- so a
-;; written-out composite carries it in the map:
+;; row of them. `pj/arrange` takes `:align-panels` among its options,
+;; as above, and a written-out composite carries it in its own
+;; `:opts`. `pj/options` does not accept it -- it is a composite's own
+;; setting rather than a plot option:
 
 (assoc-in marginal-by-hand [:opts :align-panels] true)
 

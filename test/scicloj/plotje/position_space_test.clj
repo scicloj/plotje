@@ -16,6 +16,7 @@
    below matter as much as the ink ones."
   (:require [clojure.test :refer [deftest testing is]]
             [tablecloth.api :as tc]
+            [java-time.api :as jt]
             [scicloj.plotje.api :as pj])
   (:import [java.awt.image BufferedImage]))
 
@@ -239,6 +240,14 @@
       (is (pj/plan (pj/lay-area num-d :a :b drawn)))
       (is (pj/plan (pj/lay-text num-d :a :b (assoc drawn :text "x"))))))
 
+  (testing "and so do the rules and bands, which place a written value"
+    ;; Their intercept is the value being measured, so the same
+    ;; question is asked of one axis rather than of a column.
+    (is (pj/plan (pj/lay-rule-h {:a [1 2] :b [1 2]} :a :b
+                                {:y-intercept 40 :in :drawing-area})))
+    (is (pj/plan (pj/lay-band-v {:a [1 2] :b [1 2]} :a :b
+                                {:x-min 10 :x-max 40 :in :drawing-area}))))
+
   (testing "the marks that read the oriented scales refuse it by name"
     (let [cat-d {:k ["a" "b" "c" "d"] :v [40 80 20 60]}
           drawn {:y {:column :v :scale false}}]
@@ -272,17 +281,19 @@
       (is (pj/plan (pj/lay-text {:a [1 2] :b [1 2]}
                                 {:x 20 :y 20 :text "n" :in :drawing-area}))))))
 
-;; ---- Annotation colors ----
+;; ---- Rule colors ----
 
-(deftest an-annotation-takes-a-color-by-either-spelling
+(deftest a-rule-takes-a-color-by-either-spelling
   ;; The pose gate reads a keyword naming a color as that color now,
-  ;; but the annotation path kept `:color` only when it was a string --
-  ;; so `{:color :red}` was dropped in silence while
+  ;; and the draw path kept `:color` only when it was a string -- so
+  ;; `{:color :red}` was dropped in silence while
   ;; `{:color :notacolour}` was still reported. The gate and the draw
   ;; path have to agree about the same value.
   (let [color-of (fn [v] (-> scatter
                              (pj/lay-rule-h {:y-intercept 2 :color v})
-                             pj/plan :panels first :annotations first :color))]
+                             pj/plan :panels first :layers
+                             (->> (filter #(= :rule-h (:mark %))))
+                             first :color))]
     (is (= (color-of "red") (color-of :red)))
     (is (some? (color-of :red))))
 
@@ -290,3 +301,35 @@
     (is (thrown-with-msg?
          Exception #"not found in dataset"
          (pj/plan (pj/lay-rule-h scatter {:y-intercept 2 :color :notacolour}))))))
+
+(deftest a-drawing-space-rule-does-not-reach-a-temporal-tick-extent
+  ;; The axis domain already excluded a drawing-space layer -- its
+  ;; numbers are page measurements. The temporal tick extent is a second
+  ;; reader of the same written values, and it was given every layer on
+  ;; the panel, so a rule at drawing unit 50 on three January 2024 dates
+  ;; was read back as an epoch and the axis was ticked 1975 to 2020.
+  (let [dated (tc/dataset {:d [(jt/local-date 2024 1 1)
+                               (jt/local-date 2024 1 15)
+                               (jt/local-date 2024 1 31)]
+                           :v [1 5 3]})
+        labels (fn [pose]
+                 (->> (tree-seq vector? seq (pj/plot pose))
+                      (filter #(and (vector? %) (= :text (first %))))
+                      (map last)
+                      (filter string?)
+                      (filter #(re-matches #"[A-Z][a-z]{2}-\d\d|\d{4}" %))
+                      vec))
+        base (-> dated (pj/lay-point :d :v))]
+    (testing "the dates are ticked by month with no rule"
+      (is (every? #(re-matches #"[A-Z][a-z]{2}-\d\d" %) (labels base))
+          "every tick label is a month-day, not a year")
+      (is (seq (labels base))))
+    (testing "a drawing-space rule leaves those labels alone"
+      (is (= (labels base)
+             (labels (-> dated (pj/lay-point :d :v)
+                         (pj/lay-rule-v {:x-intercept 50 :in :drawing-area}))))
+          "the rule writes drawing units, so it says nothing about when"))
+    (testing "and it does not widen the axis either"
+      (is (= (x-domain base)
+             (x-domain (-> dated (pj/lay-point :d :v)
+                           (pj/lay-rule-v {:x-intercept 50 :in :drawing-area}))))))))

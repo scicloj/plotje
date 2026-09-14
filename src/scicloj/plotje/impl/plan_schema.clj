@@ -157,48 +157,11 @@
    [:jitter {:optional true} [:or boolean? number?]]])
 
 (def FiniteNumber
-  "A finite number. Rejects NaN and Infinity, which would render as
-   silently-invisible annotations at unresolvable axis positions."
+  "A finite number. Rejects NaN and Infinity, which would place a mark
+   at an axis position no scale can resolve, so that it draws nothing
+   and reports nothing."
   [:and number? [:fn {:error/message "must be finite (not NaN or Infinity)"}
                  (fn [n] (Double/isFinite (double n)))]])
-
-(def Annotation
-  "A reference line or band annotation. Dispatched on :mark:
-   rule-h requires :y-intercept; rule-v requires :x-intercept;
-   band-h requires :y-min and :y-max; band-v requires :x-min and :x-max.
-   :color must be a literal string (not a column reference); pose-level
-   column-mapped aesthetics are filtered before annotations reach the plan."
-  [:multi {:dispatch :mark}
-   [:rule-h [:map
-             [:mark [:= :rule-h]]
-             [:y-intercept FiniteNumber]
-             [:color {:optional true} string?]
-             [:alpha {:optional true} number?]
-             [:offset-x {:optional true} number?]
-             [:offset-y {:optional true} number?]]]
-   [:rule-v [:map
-             [:mark [:= :rule-v]]
-             [:x-intercept FiniteNumber]
-             [:color {:optional true} string?]
-             [:alpha {:optional true} number?]
-             [:offset-x {:optional true} number?]
-             [:offset-y {:optional true} number?]]]
-   [:band-h [:map
-             [:mark [:= :band-h]]
-             [:y-min FiniteNumber]
-             [:y-max FiniteNumber]
-             [:color {:optional true} string?]
-             [:alpha {:optional true} number?]
-             [:offset-x {:optional true} number?]
-             [:offset-y {:optional true} number?]]]
-   [:band-v [:map
-             [:mark [:= :band-v]]
-             [:x-min FiniteNumber]
-             [:x-max FiniteNumber]
-             [:color {:optional true} string?]
-             [:alpha {:optional true} number?]
-             [:offset-x {:optional true} number?]
-             [:offset-y {:optional true} number?]]]])
 
 (def PlanLayer
   "A plan-layer: a rendered mark with data-space geometry. Canonical
@@ -213,6 +176,21 @@
    [:tiles {:optional true} [:vector TileEntry]]
    [:ridges {:optional true} [:vector [:map [:category any?] [:color Color] [:ys [:sequential number?]] [:densities [:sequential number?]]]]]
    [:levels {:optional true} [:vector any?]]
+   ;; What a rule or a band draws itself at. Written on the layer
+   ;; rather than read from its rows, so it arrives here as one number
+   ;; per bound rather than as a group of buffers. Finite, because an
+   ;; infinite or missing value would draw at a place no scale can
+   ;; resolve and so draw nothing at all.
+   [:y-intercept {:optional true} FiniteNumber]
+   [:x-intercept {:optional true} FiniteNumber]
+   [:y-min {:optional true} FiniteNumber]
+   [:y-max {:optional true} FiniteNumber]
+   [:x-min {:optional true} FiniteNumber]
+   [:x-max {:optional true} FiniteNumber]
+   ;; The one color a rule or a band draws in. Every other mark keeps
+   ;; its colors in its groups, one per group of rows; these four have
+   ;; no rows to group.
+   [:color {:optional true} Color]
    [:ribbons {:optional true} [:vector any?]]
    [:color-categories {:optional true} [:maybe [:vector any?]]]
    [:position {:optional true} keyword?]
@@ -248,7 +226,6 @@
    [:layers [:vector PlanLayer]]
    [:row int?]
    [:col int?]
-   [:annotations {:optional true} [:vector Annotation]]
    [:row-label {:optional true} [:maybe string?]]
    [:col-label {:optional true} [:maybe string?]]])
 

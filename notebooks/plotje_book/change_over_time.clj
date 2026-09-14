@@ -288,9 +288,9 @@ temp-pose
 ;; The two panels line up here because their y axes label at the same
 ;; width. Where they do not -- one series in single digits and one in
 ;; millions -- each panel reserves the room its own labels need, and the
-;; shared axis comes out spanning different widths. Writing the
-;; composite out and setting `:align-panels` reserves the same room on
-;; every cell; the
+;; shared axis comes out spanning different widths. `:align-panels`,
+;; which `pj/arrange` takes among its options, reserves the same room
+;; on every cell; the
 ;; [Composition](./plotje_book.composition.html#shared-scales) chapter
 ;; covers that and `:share-scales` on any column.
 
@@ -354,7 +354,9 @@ temp-pose
 ;; Time series with positive and negative values often benefit from a
 ;; horizontal reference at zero, drawn with `pj/lay-rule-h`. The rule is
 ;; drawn at a value written on the layer, `:y-intercept`, rather than
-;; from a data column, so it is an annotation and not a data layer.
+;; from a data column, and it is a layer like any other: it paints in
+;; the order it was added, and the y axis reaches its value even where
+;; the series does not.
 
 (-> {:t (range 12)
      :delta [-3 -1 -2 0 2 4 -1 3 5 -2 1 4]}

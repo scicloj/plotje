@@ -381,8 +381,9 @@
 
 ;; ### Polar with many categories
 
-(-> {:cat (map #(str "cat-" %) (range 12))
-     :val (repeatedly 12 #(rand-int 100))}
+(-> (let [r (rng/rng :jdk 12)]
+      {:cat (map #(str "cat-" %) (range 12))
+       :val (repeatedly 12 #(rng/irandom r 100))})
     (pj/lay-bar :cat :val)
     (pj/coord :polar))
 

@@ -43,7 +43,7 @@
    "Typography"
    "Points"
    "Bars & Lines"
-   "Annotations"
+   "Rules & Bands"
    "Ticks"
    "Statistics"
    "Labels"
@@ -73,7 +73,7 @@
         "Description" desc}))))}))
 
 
-(deftest t10_l70 (is ((fn [t] (= 44 (count (:row-maps t)))) v9_l57)))
+(deftest t10_l70 (is ((fn [t] (= 43 (count (:row-maps t)))) v9_l57)))
 
 
 (def

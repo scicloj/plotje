@@ -1197,8 +1197,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="reference-lines-and-bands" class="level2">
 <h2 class="anchored" data-anchor-id="reference-lines-and-bands">Reference Lines and Bands</h2>
-<p>Reference lines and shaded bands are regular layers. Position comes from the options map (<code>:y-intercept</code> for <code>lay-rule-h</code>, <code>:x-intercept</code> for <code>lay-rule-v</code>; <code>:y-min</code>/<code>:y-max</code> for <code>lay-band-h</code>, <code>:x-min</code>/<code>:x-max</code> for <code>lay-band-v</code>); <code>:color</code> overrides the default annotation color, and bands additionally honor <code>:alpha</code> to override the <code>:band-opacity</code> configuration default. Without x/y columns they attach at the root (every panel); with x/y columns they attach to one matching leaf.</p>
-<p>Rule intercepts also accept temporal values (<code>LocalDate</code>, <code>LocalDateTime</code>, <code>Instant</code>, <code>java.util.Date</code>) so date-axis annotations need no manual conversion – see the second <code>lay-rule-v</code> example below.</p>
+<p>Reference lines and shaded bands are regular layers. Where each one draws comes from the options map (<code>:y-intercept</code> for <code>lay-rule-h</code>, <code>:x-intercept</code> for <code>lay-rule-v</code>; <code>:y-min</code>/<code>:y-max</code> for <code>lay-band-h</code>, <code>:x-min</code>/<code>:x-max</code> for <code>lay-band-v</code>); <code>:color</code> overrides the default reference color, <code>:alpha</code> the opacity – which on a band overrides the <code>:band-opacity</code> configuration default – and <code>:size</code> a rule’s width. Without x/y columns they attach at the root (every panel); with x/y columns they attach to one matching leaf.</p>
+<p>They paint in the order they were added, like any other layer, so a rule written before a scatter sits under its points. The axis reaches the value they are drawn at, so a rule written outside everything the data covers widens the axis rather than disappearing; a <code>:domain</code> written with <code>pj/scale</code> replaces what the data covers and pins the axis where the rule cannot widen it.</p>
+<p>Rule intercepts also accept temporal values (<code>LocalDate</code>, <code>LocalDateTime</code>, <code>Instant</code>, <code>java.util.Date</code>) so a date-axis intercept needs no manual conversion – see the second <code>lay-rule-v</code> example below.</p>
 <p><strong>Note on <code>:y-min</code>/<code>:y-max</code>.</strong> The same option keys carry two meanings depending on the layer kind. On <code>lay-band-h</code>/<code>-v</code> they are written numeric bounds (the band sits at fixed coordinates, independent of the data). On <code>lay-errorbar</code> (above) they are column references – one row per error bar, with <code>:y-min</code> and <code>:y-max</code> naming columns that supply the lower and upper bounds. ggplot2 keeps these separate via <code>aes()</code> (column) versus a value written outside it; Plotje overloads the keyword and dispatches by mark. Writing the mapping in full – <code>{:column :lo}</code> on the errorbar, <code>{:value 12}</code> on the band – says which reading you mean without changing which one the mark accepts.</p>
 <section id="lay-rule-v" class="level3">
 <h3 class="anchored" data-anchor-id="lay-rule-v"><code>lay-rule-v</code></h3>
@@ -1206,14 +1207,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>[pose-or-data x-or-opts]</code></p>
 <p><code>[pose-or-data x y-or-opts]</code></p>
 <p><code>[pose-or-data x y opts]</code></p>
-<p>Add <code>:rule-v</code> layer – vertical reference line at x = x-intercept. Position comes from opts (not data columns); <code>:x-intercept</code> is required. Accepts <code>:x-intercept</code> (numeric or temporal – LocalDate, LocalDateTime, Instant, java.util.Date), <code>:color</code> (literal string), and <code>:stroke-dash</code> (<code>:dashed</code>/<code>:dotted</code>/<code>:solid</code> or a raw <code>[dash gap]</code> vector). Temporal values are converted internally to match the x-axis scale so date-axis annotations work without manual conversion. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the rule there (only panels matching that leaf show it).</p>
+<p>Add <code>:rule-v</code> layer – vertical reference line at x = x-intercept. Position comes from opts (not data columns); <code>:x-intercept</code> is required. Accepts <code>:x-intercept</code> (numeric or temporal – LocalDate, LocalDateTime, Instant, java.util.Date), <code>:color</code> (a written color), <code>:alpha</code> (the line’s opacity), <code>:size</code> (its width) and <code>:stroke-dash</code> (<code>:dashed</code>/<code>:dotted</code>/<code>:solid</code> or a raw <code>[dash gap]</code> vector). Temporal values are converted internally to match the x-axis scale so a date-axis intercept needs no manual conversion. <code>{:in :drawing-area}</code> reads the intercept as drawing units from the top left of the panel background instead of as a data value. The rule is drawn in the order its layer was written, so one written before a scatter sits under its points and one written after sits over them. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the rule there (only panels matching that leaf show it).</p>
 <ul>
 <li><p><code>(lay-rule-v pose {:x-intercept 5})</code> – root-level, flows to every panel.</p></li>
 <li><p><code>(lay-rule-v pose :x :y {:x-intercept 5})</code> – panel-scope (columns pick or create a sub-pose).</p></li>
 <li><p><code>(lay-rule-v pose {:x-intercept 5 :color "red"})</code> – with override color.</p></li>
 <li><p><code>(lay-rule-v pose {:x-intercept #inst "2008-09-15"})</code> – temporal intercept on a date axis.</p></li>
 </ul>
-<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:stat</code> <code>:stroke-dash</code> <code>:tooltip</code> <code>:x</code> <code>:x-intercept</code> <code>:y</code>.</p>
+<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:in</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:size</code> <code>:stat</code> <code>:stroke-dash</code> <code>:tooltip</code> <code>:x</code> <code>:x-intercept</code> <code>:y</code>.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
 <span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:sepal-length</span> <span class="at">:sepal-width</span>)</span>
@@ -1236,14 +1237,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>[pose-or-data x-or-opts]</code></p>
 <p><code>[pose-or-data x y-or-opts]</code></p>
 <p><code>[pose-or-data x y opts]</code></p>
-<p>Add <code>:rule-h</code> layer – horizontal reference line at y = y-intercept. Position comes from opts (not data columns); <code>:y-intercept</code> is required. Accepts <code>:y-intercept</code> (numeric or temporal – LocalDate, LocalDateTime, Instant, java.util.Date), <code>:color</code> (literal string), and <code>:stroke-dash</code> (<code>:dashed</code>/<code>:dotted</code>/<code>:solid</code> or a raw <code>[dash gap]</code> vector). Temporal values are converted internally to match the y-axis scale so date-axis annotations work without manual conversion. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the rule there (only panels matching that leaf show it).</p>
+<p>Add <code>:rule-h</code> layer – horizontal reference line at y = y-intercept. Position comes from opts (not data columns); <code>:y-intercept</code> is required. Accepts <code>:y-intercept</code> (numeric or temporal – LocalDate, LocalDateTime, Instant, java.util.Date), <code>:color</code> (a written color), <code>:alpha</code> (the line’s opacity), <code>:size</code> (its width) and <code>:stroke-dash</code> (<code>:dashed</code>/<code>:dotted</code>/<code>:solid</code> or a raw <code>[dash gap]</code> vector). Temporal values are converted internally to match the y-axis scale so a date-axis intercept needs no manual conversion. <code>{:in :drawing-area}</code> reads the intercept as drawing units from the top left of the panel background instead of as a data value. The rule is drawn in the order its layer was written, so one written before a scatter sits under its points and one written after sits over them. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the rule there (only panels matching that leaf show it).</p>
 <ul>
 <li><p><code>(lay-rule-h pose {:y-intercept 3})</code> – root-level, flows to every panel.</p></li>
 <li><p><code>(lay-rule-h pose :x :y {:y-intercept 3})</code> – panel-scope (columns pick or create a sub-pose).</p></li>
 <li><p><code>(lay-rule-h pose {:y-intercept 3 :color "red"})</code> – with override color.</p></li>
 <li><p><code>(lay-rule-h pose {:y-intercept (java.time.LocalDate/parse "2024-01-01")})</code> – temporal intercept on a date axis.</p></li>
 </ul>
-<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:stat</code> <code>:stroke-dash</code> <code>:tooltip</code> <code>:x</code> <code>:y</code> <code>:y-intercept</code>.</p>
+<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:in</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:size</code> <code>:stat</code> <code>:stroke-dash</code> <code>:tooltip</code> <code>:x</code> <code>:y</code> <code>:y-intercept</code>.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
 <span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:sepal-length</span> <span class="at">:sepal-width</span>)</span>
@@ -1257,13 +1258,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>[pose-or-data x-or-opts]</code></p>
 <p><code>[pose-or-data x y-or-opts]</code></p>
 <p><code>[pose-or-data x y opts]</code></p>
-<p>Add <code>:band-v</code> layer – vertical shaded band between x = x-min and x = x-max. Position comes from opts (not data columns); <code>:x-min</code> and <code>:x-max</code> are required and <code>:x-min</code> must be &lt;= <code>:x-max</code>. Accepts <code>:x-min</code> (required), <code>:x-max</code> (required), <code>:color</code> (literal string), <code>:alpha</code>. Bounds may be numeric or temporal (LocalDate, LocalDateTime, Instant, java.util.Date); temporal values are converted internally to match the x-axis scale. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the band there (only panels matching that leaf show it).</p>
+<p>Add <code>:band-v</code> layer – vertical shaded band between x = x-min and x = x-max. Position comes from opts (not data columns); <code>:x-min</code> and <code>:x-max</code> are required and <code>:x-min</code> must be &lt;= <code>:x-max</code>. Accepts <code>:x-min</code> (required), <code>:x-max</code> (required), <code>:color</code> (a written color) and <code>:alpha</code>. Bounds may be numeric or temporal (LocalDate, LocalDateTime, Instant, java.util.Date); temporal values are converted internally to match the x-axis scale. <code>{:in :drawing-area}</code> reads the bounds as drawing units from the top left of the panel background instead of as data values. The band is drawn in the order its layer was written, so one written before a scatter sits under its points. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the band there (only panels matching that leaf show it).</p>
 <ul>
 <li><p><code>(lay-band-v pose {:x-min 4 :x-max 6})</code> – root-level, flows to every panel.</p></li>
 <li><p><code>(lay-band-v pose :x :y {:x-min 4 :x-max 6})</code> – panel-scope (columns pick or create a sub-pose).</p></li>
 <li><p><code>(lay-band-v pose {:x-min 4 :x-max 6 :color "blue" :alpha 0.3})</code> – with color and opacity overrides.</p></li>
 </ul>
-<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:stat</code> <code>:tooltip</code> <code>:x</code> <code>:x-max</code> <code>:x-min</code> <code>:y</code>.</p>
+<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:in</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:stat</code> <code>:tooltip</code> <code>:x</code> <code>:x-max</code> <code>:x-min</code> <code>:y</code>.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
 <span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:sepal-length</span> <span class="at">:sepal-width</span>)</span>
@@ -1277,13 +1278,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>[pose-or-data x-or-opts]</code></p>
 <p><code>[pose-or-data x y-or-opts]</code></p>
 <p><code>[pose-or-data x y opts]</code></p>
-<p>Add <code>:band-h</code> layer – horizontal shaded band between y = y-min and y = y-max. Position comes from opts (not data columns); <code>:y-min</code> and <code>:y-max</code> are required and <code>:y-min</code> must be &lt;= <code>:y-max</code>. Accepts <code>:y-min</code> (required), <code>:y-max</code> (required), <code>:color</code> (literal string), <code>:alpha</code>. Bounds may be numeric or temporal (LocalDate, LocalDateTime, Instant, java.util.Date); temporal values are converted internally to match the y-axis scale. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the band there (only panels matching that leaf show it).</p>
+<p>Add <code>:band-h</code> layer – horizontal shaded band between y = y-min and y = y-max. Position comes from opts (not data columns); <code>:y-min</code> and <code>:y-max</code> are required and <code>:y-min</code> must be &lt;= <code>:y-max</code>. Accepts <code>:y-min</code> (required), <code>:y-max</code> (required), <code>:color</code> (a written color) and <code>:alpha</code>. Bounds may be numeric or temporal (LocalDate, LocalDateTime, Instant, java.util.Date); temporal values are converted internally to match the y-axis scale. <code>{:in :drawing-area}</code> reads the bounds as drawing units from the top left of the panel background instead of as data values. The band is drawn in the order its layer was written, so one written before a scatter sits under its points. The 4-arity finds or creates a sub-pose with these x/y columns and attaches the band there (only panels matching that leaf show it).</p>
 <ul>
 <li><p><code>(lay-band-h pose {:y-min 2 :y-max 4})</code> – root-level, flows to every panel.</p></li>
 <li><p><code>(lay-band-h pose :x :y {:y-min 2 :y-max 4})</code> – panel-scope (columns pick or create a sub-pose).</p></li>
 <li><p><code>(lay-band-h pose {:y-min 2 :y-max 4 :color "blue" :alpha 0.3})</code> – with color and opacity overrides.</p></li>
 </ul>
-<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:stat</code> <code>:tooltip</code> <code>:x</code> <code>:y</code> <code>:y-max</code> <code>:y-min</code>.</p>
+<p>Accepted options: <code>:alpha</code> <code>:color</code> <code>:data</code> <code>:in</code> <code>:mark</code> <code>:offset-x</code> <code>:offset-y</code> <code>:stat</code> <code>:tooltip</code> <code>:x</code> <code>:y</code> <code>:y-max</code> <code>:y-min</code>.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
 <span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:sepal-length</span> <span class="at">:sepal-width</span>)</span>
@@ -1398,12 +1399,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="shape-symbols" class="level3">
 <h3 class="anchored" data-anchor-id="shape-symbols"><code>shape-symbols</code></h3>
-<p>The marker symbols a categorical <code>:shape</code> mapping draws with, in the order they are assigned to categories. A plot with more categories than this repeats a symbol, so two categories cannot be told apart; that warns at plan time. Pass a selection of these as <code>:values</code> to <code>(pj/scale pose :shape {:values [...]})</code> to choose them yourself.</p>
+<p><code>[]</code></p>
+<p>Every marker symbol a <code>:shape</code> mapping can draw.</p>
+<p><code>(pj/shape-palette)</code> is the first part, in the order categories are assigned. The rest are drawn only when named – <code>:circle-open</code> is a ring rather than a disc, which keeps overlapping points countable.</p>
+<p>Pass a selection of these as <code>:values</code> to <code>(pj/scale pose :shape {:values [...]})</code> to choose them yourself, or name one for a whole layer with <code>{:shape :circle-open}</code>.</p>
+<p>A function rather than a value, as <code>pj/config</code> is: the list grows from one release to the next, and a value read at load time could not follow it. Adding a symbol of your own is not supported – the shapes are drawn by a fixed table in the renderer.</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>pj/shape-symbols</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>(pj/shape-symbols)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>[<span class="at">:circle</span> <span class="at">:square</span> <span class="at">:triangle</span> <span class="at">:diamond</span> <span class="at">:triangle-down</span> <span class="at">:plus</span> <span class="at">:cross</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>[<span class="at">:circle</span></span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a> <span class="at">:square</span></span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a> <span class="at">:triangle</span></span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a> <span class="at">:diamond</span></span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a> <span class="at">:triangle-down</span></span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a> <span class="at">:plus</span></span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a> <span class="at">:cross</span></span>
+<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a> <span class="at">:circle-open</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Custom tick labels on a numeric axis – pair <code>:breaks</code> with <code>:tick-labels</code>:</p>
 <div class="sourceClojure">
@@ -1457,6 +1469,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><code>:width</code> – total composite width.</p></li>
 <li><p><code>:height</code> – total composite height.</p></li>
 <li><p><code>:share-scales</code> – subset of <code>#{:x :y}</code> shared across cells (default: <code>#{}</code>).</p></li>
+<li><p><code>:align-panels</code> – give every cell the same drawing area, by reserving the widest y-label pad and legend column a cell needs on all of them (and, for a row, the tallest x-label pad). Two cells whose y axes label at different widths otherwise get different panel widths, so a shared x axis covers a different extent in each. Pair it with <code>:share-scales</code> where the cells are meant to be read against one another.</p></li>
+<li><p><code>(arrange [fr-a fr-b] {:cols 1 :share-scales #{:x} :align-panels true})</code> – a column of cells whose x axes line up.</p></li>
 <li><p><code>(arrange [fr-a fr-b])</code> – 1x2 row.</p></li>
 <li><p><code>(arrange [fr-a fr-b fr-c] {:cols 2 :width 900})</code> – 2x2 grid (wraps).</p></li>
 <li><p><code>(arrange [[fr-a fr-b] [fr-c fr-d]])</code> – explicit 2x2 grid.</p></li>
@@ -1483,7 +1497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 <p>The layer keeps its own columns; they are drawn against the axes the panel already has, and each axis covers every column drawn on it. An axis is named for the panel’s own column, so overlaying two differently named columns leaves the axis named for the first.</p>
 <p><code>{:overlay false}</code> on one <code>lay-*</code> call opts that layer out, and <code>(pj/overlay pose false)</code> turns it off from there on. A layer whose columns already match the panel is unaffected – it was joining anyway.</p>
-<p>Where the columns are written makes no difference: an <code>:x</code> or <code>:y</code> in the options map asks for a panel exactly as one in an argument slot does, and <code>pj/overlay</code> answers both. A written value names no panel – <code>{:x 7.5 :y 4.2 :text "note"}</code> annotates the panel it is added to – so an annotation needs no overlay.</p>
+<p>Where the columns are written makes no difference: an <code>:x</code> or <code>:y</code> in the options map asks for a panel exactly as one in an argument slot does, and <code>pj/overlay</code> answers both. A written value names no panel – <code>{:x 7.5 :y 4.2 :text "note"}</code> marks a place on the panel it is added to – so a written value needs no overlay.</p>
 <p>A layer naming columns the panel does not draw becomes a panel of its own. <code>pj/overlay</code> says the layer was meant to join the panel it is added to, so two measures are read against one axis:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb69"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> {<span class="at">:cohort</span> [<span class="at">:a</span> <span class="at">:b</span> <span class="at">:c</span>] <span class="at">:growth</span> [<span class="dv">12</span> <span class="dv">19</span> <span class="dv">15</span>] <span class="at">:tax</span> [<span class="dv">3</span> <span class="dv">5</span> <span class="dv">4</span>]}</span>
@@ -2358,10 +2372,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb150-14"><a href="#cb150-14" aria-hidden="true" tabindex="-1"></a> <span class="at">:legend-header-pad</span> <span class="dv">20</span>,</span>
 <span id="cb150-15"><a href="#cb150-15" aria-hidden="true" tabindex="-1"></a> <span class="at">:y-tick-spacing</span> <span class="dv">40</span>,</span>
 <span id="cb150-16"><a href="#cb150-16" aria-hidden="true" tabindex="-1"></a> <span class="at">:point-stroke-width</span> <span class="dv">0</span>,</span>
-<span id="cb150-17"><a href="#cb150-17" aria-hidden="true" tabindex="-1"></a> <span class="at">:annotation-dash</span> [<span class="dv">4</span> <span class="dv">3</span>],</span>
-<span id="cb150-18"><a href="#cb150-18" aria-hidden="true" tabindex="-1"></a> <span class="at">:decimal-separator</span> <span class="va">nil</span>,</span>
-<span id="cb150-19"><a href="#cb150-19" aria-hidden="true" tabindex="-1"></a> <span class="at">:legend-width</span> <span class="dv">100</span>,</span>
-<span id="cb150-20"><a href="#cb150-20" aria-hidden="true" tabindex="-1"></a> <span class="at">:legend-entry-height</span> <span class="dv">18</span>,</span>
+<span id="cb150-17"><a href="#cb150-17" aria-hidden="true" tabindex="-1"></a> <span class="at">:decimal-separator</span> <span class="va">nil</span>,</span>
+<span id="cb150-18"><a href="#cb150-18" aria-hidden="true" tabindex="-1"></a> <span class="at">:legend-width</span> <span class="dv">100</span>,</span>
+<span id="cb150-19"><a href="#cb150-19" aria-hidden="true" tabindex="-1"></a> <span class="at">:legend-entry-height</span> <span class="dv">18</span>,</span>
+<span id="cb150-20"><a href="#cb150-20" aria-hidden="true" tabindex="-1"></a> <span class="at">:rule-color</span> <span class="st">"#333"</span>,</span>
 <span id="cb150-21"><a href="#cb150-21" aria-hidden="true" tabindex="-1"></a> <span class="at">:theme</span> {<span class="at">:bg</span> <span class="st">"#E8E8E8"</span>, <span class="at">:grid</span> <span class="st">"#F5F5F5"</span>, <span class="at">:font-size</span> <span class="dv">11</span>},</span>
 <span id="cb150-22"><a href="#cb150-22" aria-hidden="true" tabindex="-1"></a> <span class="at">:bin-method</span> <span class="at">:sturges</span>,</span>
 <span id="cb150-23"><a href="#cb150-23" aria-hidden="true" tabindex="-1"></a> <span class="at">:domain-padding</span> <span class="fl">0.05</span>,</span>
@@ -2374,10 +2388,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb150-30"><a href="#cb150-30" aria-hidden="true" tabindex="-1"></a> <span class="at">:title-font-size</span> <span class="dv">15</span>,</span>
 <span id="cb150-31"><a href="#cb150-31" aria-hidden="true" tabindex="-1"></a> <span class="at">:band-opacity</span> <span class="fl">0.15</span>,</span>
 <span id="cb150-32"><a href="#cb150-32" aria-hidden="true" tabindex="-1"></a> <span class="at">:bar-opacity</span> <span class="fl">0.85</span>,</span>
-<span id="cb150-33"><a href="#cb150-33" aria-hidden="true" tabindex="-1"></a> <span class="at">:annotation-stroke</span> <span class="st">"#333"</span>,</span>
-<span id="cb150-34"><a href="#cb150-34" aria-hidden="true" tabindex="-1"></a> <span class="at">:height</span> <span class="dv">400</span>,</span>
-<span id="cb150-35"><a href="#cb150-35" aria-hidden="true" tabindex="-1"></a> <span class="at">:margin</span> <span class="dv">10</span>,</span>
-<span id="cb150-36"><a href="#cb150-36" aria-hidden="true" tabindex="-1"></a> <span class="at">:point-radius</span> <span class="fl">3.0</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb150-33"><a href="#cb150-33" aria-hidden="true" tabindex="-1"></a> <span class="at">:height</span> <span class="dv">400</span>,</span>
+<span id="cb150-34"><a href="#cb150-34" aria-hidden="true" tabindex="-1"></a> <span class="at">:margin</span> <span class="dv">10</span>,</span>
+<span id="cb150-35"><a href="#cb150-35" aria-hidden="true" tabindex="-1"></a> <span class="at">:point-radius</span> <span class="fl">3.0</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="set-config" class="level3">
@@ -2415,7 +2428,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb153"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">count</span> pj/config-key-docs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb154"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb154-1"><a href="#cb154-1" aria-hidden="true" tabindex="-1"></a><span class="dv">44</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb154"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb154-1"><a href="#cb154-1" aria-hidden="true" tabindex="-1"></a><span class="dv">43</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="plot-option-docs" class="level3">

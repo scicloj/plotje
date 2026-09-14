@@ -19,7 +19,9 @@
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    [tablecloth.api :as tc]
    [tech.v3.datatype.functional :as dfn]
-   [fastmath.stats :as fstats]))
+   [fastmath.stats :as fstats]
+   ;; Fastmath -- seeded random number generation
+   [fastmath.random :as rng]))
 
 ;; ## Scatter
 
@@ -1171,7 +1173,11 @@
 ;; ### Simulated approximately-normal distribution
 ;; Source: [ECharts: Histogram](https://echarts.apache.org/examples/en/editor.html?c=bar-histogram)
 
-(-> {:value (repeatedly 500 #(+ (* 2.0 (rand)) (* 2.0 (rand)) (* 2.0 (rand)) -3.0))}
+(-> (let [r (rng/rng :jdk 7)]
+      {:value (repeatedly 500 #(+ (* 2.0 (rng/drandom r))
+                                  (* 2.0 (rng/drandom r))
+                                  (* 2.0 (rng/drandom r))
+                                  -3.0))})
     (pj/pose :value)
     (pj/lay-histogram {:bins 30 :normalize :density})
     pj/lay-density

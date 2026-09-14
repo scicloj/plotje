@@ -80,6 +80,30 @@
       (is (not (apply = (widths plain))))
       (is (apply = (widths aligned))))))
 
+(deftest arrange-accepts-align-panels-test
+  (testing "`pj/arrange` reaches the alignment pass"
+    ;; `:align-panels` existed and worked, but only on a hand-written
+    ;; composite. `pj/arrange` did not pass it through, so a column of
+    ;; cells sharing :x got different panel widths and the shared axis
+    ;; covered a different extent in each -- the one thing sharing was
+    ;; asked for. Nothing reported it: the domains agree, the tick
+    ;; labels agree, and every assertion about the plan passes.
+    (let [small (-> {:t [1 2 3 4] :v [1 3 2 4]} (pj/lay-line :t :v))
+          big   (-> {:t [1 2 3 4] :v [1000000 3000000 2000000 4000000]}
+                    (pj/lay-line :t :v))]
+      (testing "a column of cells, which agrees on width"
+        (is (not (apply = (widths (pj/arrange [small big]
+                                              {:cols 1 :share-scales #{:x}}))))
+            "without the option the wider y labels shrink one cell")
+        (is (apply = (widths (pj/arrange [small big]
+                                         {:cols 1 :share-scales #{:x}
+                                          :align-panels true})))))
+      (testing "a row and a grid take it too"
+        (is (apply = (widths (pj/arrange [small big]
+                                         {:cols 2 :align-panels true}))))
+        (is (apply = (widths (pj/arrange [small big small big]
+                                         {:cols 2 :align-panels true}))))))))
+
 (deftest marginal-on-the-right-test
   (let [scatter (pj/lay-point iris :sepal-length :sepal-width)]
     (testing "a right marginal is a second panel beside the first"

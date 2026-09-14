@@ -55,7 +55,7 @@
    :position "Position adjustment keyword — how overlapping groups are arranged (see pj/position-doc)"
    :nudge-x "Shift all x-coordinates by this data-space amount"
    :nudge-y "Shift all y-coordinates by this data-space amount"
-   :overlay "Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own -- whether those columns are written in the argument slots or here in the options map. A written value in :x or :y names no panel, so an annotation joins without asking. `pj/overlay` sets the same thing for every layer added after it."
+   :overlay "Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own -- whether those columns are written in the argument slots or here in the options map. A written value in :x or :y names no panel, so a layer placed at one joins without asking. `pj/overlay` sets the same thing for every layer added after it."
    :in "The space this layer's :x and :y are in — :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). It does not widen to the other aesthetics; to take one axis off its scale on its own, write {:y {:column :b :scale false}}. An unscaled layer is placed on the panel rather than in the data, so it does not move the axis domains"
    :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :nudge-x this is not a data value, so it works on a categorical axis and does not move the axis domain — use it to clear a label of the mark it labels"
    :offset-y "Shift the whole layer down by this many drawing units, after the scales. See :offset-x"
@@ -385,20 +385,21 @@
                         :rejects [:position]
                         :doc "Interval — horizontal bars from x to x-end at categorical y. For Gantt-style timelines."})
 ;; Rule and band layer types reject the universal options that have no
-;; meaning for a single rule/band: there are no groups to dodge or
-;; stack, no shape/jitter to vary across an aggregated mark, and the
-;; column-type overrides only matter for stat-based marks.
+;; meaning for one line or one box drawn at a written value. There are
+;; no rows to dodge, to stack or to split into groups, and the three
+;; column-type overrides change how a column is read, which decides
+;; nothing about a line drawn across the whole panel. `:overlay` is
+;; rejected because a mark placed at a written value names no panel of
+;; its own and so joins the panel it is added to already.
 ;;
-;; `:in` is rejected for a different reason: these four marks are
-;; carried on a panel's `:annotations` slot rather than among its
-;; `:layers`, and that path places them from data values only.
-;; `:offset-x`/`:offset-y` do apply -- the annotation renderer shifts
-;; each drawable by them, as the layer renderer does.
-(def ^:private annotation-rejects
-  [:position :group :x-type :y-type :color-type :in :overlay])
+;; `:in` is accepted: a rule reads its intercept as a distance from the
+;; panel background's corner under `{:in :drawing-area}`, as any other
+;; layer reads its `:x` and `:y` there.
+(def ^:private rule-band-rejects
+  [:position :group :x-type :y-type :color-type :overlay])
 
-(register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept :stroke-dash] :rejects annotation-rejects :doc "Horizontal reference line at y = y-intercept."})
-(register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept :stroke-dash] :rejects annotation-rejects :doc "Vertical reference line at x = x-intercept."})
-(register! :band-h {:mark :band-h :stat :identity :accepts [:y-min :y-max] :rejects annotation-rejects :doc "Horizontal shaded band between y = y-min and y = y-max."})
-(register! :band-v {:mark :band-v :stat :identity :accepts [:x-min :x-max] :rejects annotation-rejects :doc "Vertical shaded band between x = x-min and x = x-max."})
+(register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept :stroke-dash :size] :rejects rule-band-rejects :doc "Horizontal reference line at y = y-intercept."})
+(register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept :stroke-dash :size] :rejects rule-band-rejects :doc "Vertical reference line at x = x-intercept."})
+(register! :band-h {:mark :band-h :stat :identity :accepts [:y-min :y-max] :rejects rule-band-rejects :doc "Horizontal shaded band between y = y-min and y = y-max."})
+(register! :band-v {:mark :band-v :stat :identity :accepts [:x-min :x-max] :rejects rule-band-rejects :doc "Vertical shaded band between x = x-min and x = x-max."})
 

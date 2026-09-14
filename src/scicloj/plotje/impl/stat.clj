@@ -10,7 +10,8 @@
             [fastmath.interpolation.acm :as interp]
             [fastmath.kernel :as kernel]
             [fastmath.random :as frand]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.resolve :as resolve]))
 
 ;; ---- Helpers ----
 
@@ -343,13 +344,70 @@
 (defmethod compute-stat [:bin2d :doc] [_] "2D grid binning (heatmap counts)")
 (defmethod compute-stat [:density-2d :doc] [_] "Density 2D — 2D Gaussian kernel density estimation (KDE)")
 
+(defn written-extent
+  "The data-space extent a rule or a band covers, for the four marks
+   whose extent is written on the layer rather than read from its rows.
+
+   Two axes, answered separately. The axis the mark names a value on --
+   y for `:rule-h` and `:band-h`, x for `:rule-v` and `:band-v` --
+   covers what was written, so a rule written outside everything the
+   data reaches widens the axis until the line is on the panel. The
+   axis the mark spans covers whatever column the layer's mapping names
+   there, which is what gives a panel holding nothing but a rule an
+   axis to draw against; where the mapping names no column, that axis
+   falls back to `[0 1]` so the line is still drawable.
+
+   Both readings apply to the axis the value is written on: the column
+   the mapping names there is covered too, so a pose carrying `:x` and
+   `:y` and nothing but a rule draws the axes its mapping describes,
+   with the rule somewhere on them.
+
+   A categorical axis reports the categories its column holds, as
+   `prepare-points` does, and takes no written value: a band scale
+   places a value by which category it is, and a rule's intercept is a
+   number rather than one of them.
+
+   The shape returned is a stat result: `:x-domain` and `:y-domain`,
+   read by `plan/collect-domain` and `plan/compute-global-y-domain` the
+   same way every other mark's is. There are no `:points`, because
+   these four marks draw no rows -- `extract-layer` reads the written
+   values straight from the draft layer."
+  [{:keys [mark data x y x-type y-type] :as draft-layer}]
+  (let [col-of (fn [col]
+                 (when (and data col (tc/dataset? data))
+                   (try (data col) (catch Exception _ nil))))
+        numbers (fn [c] (->> c (remove nil?) (filter number?) seq))
+        axis (fn [col cat? written spans?]
+               (let [c (col-of col)]
+                 (if (and cat? (some? c))
+                   (distinct c)
+                   (let [ns (numbers c)
+                         vals (cond-> []
+                                ns (into ns)
+                                written (into written))]
+                     (cond
+                       (seq vals) [(reduce min vals) (reduce max vals)]
+                       ;; The axis a rule spans has nothing of its own
+                       ;; to report, so a panel carrying only the rule
+                       ;; needs a drawable extent from somewhere.
+                       spans? [0.0 1.0])))))
+        x-written (resolve/written-values draft-layer :x)
+        y-written (resolve/written-values draft-layer :y)
+        x-dom (axis x (= x-type :categorical) x-written (#{:rule-h :band-h} mark))
+        y-dom (axis y (= y-type :categorical) y-written (#{:rule-v :band-v} mark))]
+    (cond-> {}
+      (seq x-dom) (assoc :x-domain (vec x-dom))
+      (seq y-dom) (assoc :y-domain (vec y-dom)))))
+
 (defmethod compute-stat :identity [{:keys [mark x y x-type] :as draft-layer}]
   (when (and (#{:lollipop :errorbar :pointrange} mark)
              (or (nil? y) (= x y))
              (= x-type :categorical))
     (throw (ex-info (str "Mark :" (name mark) " requires both :x and :y columns with numeric :y.")
                     {:mark mark :x x :y y})))
-  (prepare-points draft-layer))
+  (if (resolve/written-position-marks mark)
+    (written-extent draft-layer)
+    (prepare-points draft-layer)))
 
 ;; ---- Binning ----
 

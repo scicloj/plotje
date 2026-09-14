@@ -356,6 +356,10 @@
 (defmethod extract-layer [:text :doc] [_ _ _ _] "Data-driven label, optionally on a background box")
 (defmethod extract-layer [:rug :doc] [_ _ _ _] "Axis-margin tick marks")
 (defmethod extract-layer [:interval-h :doc] [_ _ _ _] "Horizontal bars from x to x-end at categorical y")
+(defmethod extract-layer [:rule-h :doc] [_ _ _ _] "Horizontal reference line at a written y")
+(defmethod extract-layer [:rule-v :doc] [_ _ _ _] "Vertical reference line at a written x")
+(defmethod extract-layer [:band-h :doc] [_ _ _ _] "Horizontal shaded band between two written y values")
+(defmethod extract-layer [:band-v :doc] [_ _ _ _] "Vertical shaded band between two written x values")
 (def tooltip-drawing-marks
   "The marks that put hover text on the layer they extract: the two
    methods below that carry `:fixed-tooltip` and the stat's `:tooltips`.
@@ -1019,6 +1023,77 @@
              :interval-thickness (or (:interval-thickness draft-layer) 0.7)}
      :x-temporal? (boolean (:x-temporal? draft-layer))
      :groups groups}))
+
+;; ---- Rules and bands ----
+;;
+;; The four marks whose geometry is written on the layer rather than
+;; read from its rows. `stat/written-extent` has already given the panel
+;; the extent they cover; here the written values go onto the plan layer
+;; for the renderer to draw, beside a resolved color -- the way
+;; `:boxplot` carries its `:boxes` and `:tile` carries its `:tiles`.
+
+(defn- written-color
+  "The color a rule or a band draws in: what the layer's `:color` names,
+   and `fallback` where it names no color.
+
+   These marks draw one line or one box and have no rows, so `:color` is
+   read as the color it names whether or not the data carries a column
+   of that name -- the shorthand's usual tie-breaker has nothing to
+   break here. A column mapped to `:color` says how to tell rows apart,
+   and so says nothing about a rule."
+  [draft-layer fallback]
+  (let [c (or (:fixed-color draft-layer) (:color draft-layer))]
+    (if (defaults/names-a-color? c)
+      (defaults/hex->rgba c)
+      fallback)))
+
+(defn- rule-style
+  "A rule's stroke: the layer's `:size` as the width and its `:alpha` as
+   the opacity, each falling back to what a reference line has always
+   been drawn with, plus a dash pattern where one was named."
+  [draft-layer]
+  (let [dash (resolve-dash (:stroke-dash draft-layer))]
+    (cond-> {:stroke-width (or (:fixed-size draft-layer) 1.5)
+             :opacity (or (:fixed-alpha draft-layer) 1.0)}
+      dash (assoc :dash dash))))
+
+(defn- band-style
+  "A band's fill opacity: the layer's `:alpha`, and the `:band-opacity`
+   configuration default otherwise."
+  [draft-layer cfg]
+  {:opacity (or (:fixed-alpha draft-layer) (:band-opacity cfg))})
+
+(def ^:private band-fill
+  "What a band fills with where its layer names no color. Mid grey,
+   which is what a shaded region has always been drawn in -- the
+   `:rule-color` default belongs to the lines."
+  [0.5 0.5 0.5 1.0])
+
+(defmethod extract-layer :rule-h [draft-layer _stat _all-colors cfg]
+  {:mark :rule-h
+   :style (rule-style draft-layer)
+   :color (written-color draft-layer (defaults/hex->rgba (:rule-color cfg)))
+   :y-intercept (:y-intercept draft-layer)})
+
+(defmethod extract-layer :rule-v [draft-layer _stat _all-colors cfg]
+  {:mark :rule-v
+   :style (rule-style draft-layer)
+   :color (written-color draft-layer (defaults/hex->rgba (:rule-color cfg)))
+   :x-intercept (:x-intercept draft-layer)})
+
+(defmethod extract-layer :band-h [draft-layer _stat _all-colors cfg]
+  {:mark :band-h
+   :style (band-style draft-layer cfg)
+   :color (written-color draft-layer band-fill)
+   :y-min (:y-min draft-layer)
+   :y-max (:y-max draft-layer)})
+
+(defmethod extract-layer :band-v [draft-layer _stat _all-colors cfg]
+  {:mark :band-v
+   :style (band-style draft-layer cfg)
+   :color (written-color draft-layer band-fill)
+   :x-min (:x-min draft-layer)
+   :x-max (:x-max draft-layer)})
 
 (defmethod extract-layer :default [draft-layer _stat _all-colors _cfg]
   (let [mark (:mark draft-layer)

@@ -67,6 +67,69 @@
   [dash]
   (str/join " " (map #(fmt %) dash)))
 
+(def ^:private crisp-edges-min-extent
+  "The smallest extent, in drawing units, at which a filled shape is drawn
+   with `crispEdges`.
+
+   One is the measured floor. Sweeping a shape across 32 sub-pixel
+   offsets in headless Chromium, `crispEdges` never erased one a whole
+   drawing unit wide at device scale factor 1, and never erased one half
+   a unit wide at scale factor 2; erasures begin at 0.95 units and are
+   common by 0.90.
+
+   Set to two at first, on the reasoning that a two-unit extent moves by
+   at most half a unit when it snaps. That is true and cost more than it
+   bought: it left every shape between one and two units anti-aliased,
+   so 120 touching bars in a band 1.68 units wide showed seams -- ink
+   across the row varying 145 to 177 where snapping gives a uniform 177.
+   Seam removal is the whole reason this exists, and the band it was
+   giving up is a band where snapping is safe."
+  1.0)
+
+(defn- crisp-edges?
+  "Whether a filled polygon should be drawn with `shape-rendering
+   crispEdges`.
+
+   `crispEdges` turns off anti-aliasing and snaps edges to whole device
+   pixels. On adjacent bars that is what is wanted -- it removes the
+   hairline seam anti-aliasing leaves between two bars that share an edge,
+   which is why it was turned on for every filled shape in the first
+   place. On a shape thinner than a device pixel it is destructive: the
+   two edges snap to the same pixel and the shape is drawn as nothing.
+
+   Measured 2026-09-09 in headless Chromium, twelve bars sweeping 0.3 to
+   1.4 units wide: with `crispEdges`, two vanished outright and the ten
+   that survived were all drawn one device pixel wide at full opacity, so
+   a bar four times wider than its neighbour looked identical to it.
+   Without it, each bar painted the one or two device pixels it touches
+   at an opacity totalling its width -- ink over that of a solid device
+   pixel came to the bar's own width, within one percent across the whole
+   sweep. That is the honest drawing of a shape smaller than the grid it
+   is drawn on.
+
+   The threshold is in drawing units while the snapping is to device
+   pixels, and the two coincide only at the plot's natural size on a
+   standard-resolution display. The writer knows the first and cannot
+   know the second, so the threshold is the floor measured at the worst
+   of the two: scale factor 1, where one drawing unit is one device
+   pixel. A high-resolution display only makes the same shape wider in
+   device pixels and safer to snap.
+
+   So the rule is by extent, not by mark: any filled shape at least
+   `crisp-edges-min-extent` in both directions is snapped, and anything
+   thinner is left to anti-alias. Diagonal and curved fills are unaffected
+   either way -- measured in the same run, an anti-aliased slope and a
+   `crispEdges` one differ by one shade over a two-pixel band, because
+   the snapping applies to axis-aligned edges."
+  [pts]
+  (let [xs (map first pts)
+        ys (map second pts)]
+    (and (seq pts)
+         (>= (- (double (apply max xs)) (double (apply min xs)))
+             crisp-edges-min-extent)
+         (>= (- (double (apply max ys)) (double (apply min ys)))
+             crisp-edges-min-extent))))
+
 (defn- apply-style-attrs
   "Generate SVG attributes from drawing context for a shape element."
   [ctx]
@@ -168,9 +231,9 @@
                   dash (assoc :stroke-dasharray (dash->str dash)))]
       (if (= :stroke (:style ctx))
         [:polyline (assoc attrs :points (points->str pts))]
-        [:polygon (assoc attrs
-                         :points (points->str pts)
-                         :shape-rendering "crispEdges")])))
+        [:polygon (cond-> (assoc attrs :points (points->str pts))
+                    (crisp-edges? pts)
+                    (assoc :shape-rendering "crispEdges"))])))
 
   RoundedRectangle
   (-to-svg [elem ctx]
@@ -621,7 +684,7 @@
               so a shape-mapped scatter splits across the two counts.
               Every marker sits on a square bounding box, which is what
               distinguishes one from a label's background box
-   :lines   — number of non-grid polylines (data lines, annotations, whiskers)
+   :lines   — number of non-grid polylines (data lines, rules, whiskers)
    :dashed-lines — number of polylines with a stroke-dasharray (dashed/dotted
                    lines, dashed rules, dashed area outlines)
    :polygons — number of filled polygons (bars, histogram bins, areas, violins)

@@ -1157,8 +1157,8 @@ s2-tree
       (and (some? rule)
            (= 3.0 (get-in rule [:mapping :y-intercept])))))])
 
-;; A pose-scope annotation via the 4-arity attaches to a matching
-;; leaf, not every panel:
+;; A pose-scope rule via the 4-arity attaches to a matching leaf, not
+;; every panel:
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)

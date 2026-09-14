@@ -650,7 +650,7 @@
         sample {:range [1 2] :by :linear :from-zero true :midpoint 0
                 :include 0
                 :breaks [1 2] :tick-labels ["a" "b"] :n-ticks 3
-                :label "t" :values [(first pj/shape-symbols)]}
+                :label "t" :values [(first (pj/shape-symbols))]}
         ;; Some keys carry a constraint the capability table does not
         ;; describe, and a value has to respect it to test acceptance
         ;; at all: `:tick-labels` is meaningless without the `:breaks`

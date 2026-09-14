@@ -170,11 +170,6 @@
 ;;   once for many rows, pre-bin the column into categories, or draw the
 ;;   quantity with a mark that stands for one row.
 ;;
-;; - `:alpha` on `pj/lay-rule-h`/`pj/lay-rule-v` is silently dropped
-;;   at render time (the rendering path reads `:color` only). Bands
-;;   honor `:alpha`. Workaround: use a lighter `:color` to simulate
-;;   the visual effect on rules.
-
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The
 ;;   mark name still reflects the unflipped semantics. Add a
@@ -226,10 +221,11 @@
 ;;   are measured from a baseline: `pj/lay-area` and `pj/lay-lollipop` rest
 ;;   on the panel's smallest value there, as a count bar does.
 ;;
-;; - Annotations are silently skipped under `(pj/coord :polar)`. A
-;;   polar rule would need to render as a circle (fixed radius) or
-;;   spoke (fixed angle); those shapes are not implemented. Use
-;;   Cartesian or flip coords for annotated plots.
+;; - Rules and bands are refused under `(pj/coord :polar)`. A polar
+;;   rule would need to draw as a circle (fixed radius) or a spoke
+;;   (fixed angle); those shapes are not implemented, and the message
+;;   names the marks polar does draw. Use Cartesian or flip coords for
+;;   annotated plots.
 ;;
 ;; - Large scatters produce large SVGs (~220 bytes/point). For >10k
 ;;   points, use `:format :bufimg` for raster output.

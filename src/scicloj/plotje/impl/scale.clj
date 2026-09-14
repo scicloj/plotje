@@ -447,13 +447,13 @@
   ;; legend that disagrees with its own marks.
   (when-let [values (:values spec)]
     (when (= channel :shape)
-      (when-let [unknown (seq (remove (set defaults/shape-syms) values))]
+      (when-let [unknown (seq (remove (set (defaults/drawable-shapes)) values))]
         (throw (ex-info (str where " " channel " :values does not recognize "
                              (vec unknown) ". Supported symbols: "
-                             defaults/shape-syms ".")
+                             (defaults/drawable-shapes) ".")
                         {:caller where :channel channel
                          :unknown (vec unknown)
-                         :supported defaults/shape-syms}))))))
+                         :supported (defaults/drawable-shapes)}))))))
 
 (defn numeric-color-domain
   "The `[lo hi]` a numeric colour or fill column is read against.
@@ -684,20 +684,35 @@
         [lo hi]))
 
 (defn format-log-ticks
-  "Format log scale tick values. Values are always clean 1-2-3-5 multiples
-   of powers of 10, so formatting is straightforward: integers >= 1 shown
-   without decimals, sub-1 values use minimal decimal places."
+  "Format log scale tick values. The 1-2-5 breaks a log axis picks for
+   itself are clean multiples of powers of ten, so a value of one or
+   more that is whole is written without decimals, and a value below
+   one keeps the decimals its own magnitude needs.
+
+   A break written with `pj/scale` reaches here too, and nothing makes
+   that one clean. `(str v)` wrote a zero carrying a sign as `-0.0`,
+   and wrote a computed value as `-0.30000000000000004` -- the noise
+   `format-ticks` exists to keep off an axis. Both go through
+   `plain-significant` instead, which is what a continuous legend's
+   endpoints go through, so a number reads the same wherever the plot
+   prints it. A log axis cannot place a value at or below zero at all,
+   and `plan/warn-out-of-range-breaks!` reports one written there."
   [ticks]
   (mapv (fn [v]
           (let [v (double v)]
-            (if (or (zero? v) (neg? v))
-              (str v)
-              (if (and (>= v 1.0) (== v (Math/floor v)))
-                (str (long v))
-                (if (< v 1.0)
-                  (let [exp (long (Math/ceil (- (Math/log10 v))))]
-                    (defaults/fmt-root (str "%." exp "f") v))
-                  (str v))))))
+            (cond
+              (or (zero? v) (neg? v))
+              (plain-significant v endpoint-significant-digits)
+
+              (and (>= v 1.0) (== v (Math/floor v)))
+              (str (long v))
+
+              (< v 1.0)
+              (let [exp (long (Math/ceil (- (Math/log10 v))))]
+                (defaults/fmt-root (str "%." exp "f") v))
+
+              :else
+              (plain-significant v endpoint-significant-digits))))
         ticks))
 
 (defn whole-number?

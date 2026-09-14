@@ -52,8 +52,8 @@
    :point-stroke "none" :point-stroke-width 0
    ;; Bars and lines
    :bar-opacity 0.85 :line-width 2.5 :grid-stroke-width 0.6
-   ;; Annotations
-   :annotation-stroke "#333" :annotation-dash [4 3] :band-opacity 0.15
+   ;; Rules and bands
+   :rule-color "#333" :band-opacity 0.15
    ;; Statistics
    :bin-method :sturges
    :domain-padding 0.05
@@ -438,6 +438,57 @@
    start of the list, which makes two categories indistinguishable --
    plan time warns before that happens."
   [:circle :square :triangle :diamond :triangle-down :plus :cross])
+
+(def extra-shape-syms
+  "Symbols a caller may name that the assignment palette does not hand
+   out. `:circle-open` is drawn as a ring rather than a disc, so
+   overlapping points stay countable; a plot wanting it says so.
+
+   Kept apart from `shape-syms` because the two answer different
+   questions. `shape-syms` is the order categories are assigned in, so
+   adding to it changes which symbol every existing plot gives each
+   category. This is the set a caller may write, which only grows."
+  [:circle-open])
+
+(def drawable-shape-syms
+  "Every symbol `render.mark/draw-shape` can draw: the assignment
+   palette plus the ones a caller has to ask for by name. This is what
+   validates a written `:shape`, and what `pj/shape-symbols` publishes.
+
+   Kept for callers that held this var directly; `drawable-shapes`
+   below is the accessor, and it recomputes rather than reading this,
+   so a change to the palette reaches both answers."
+  (into shape-syms extra-shape-syms))
+
+(defn shape-palette
+  "The symbols categories are assigned, in order.
+
+   Read through here rather than off `shape-syms` directly, by the
+   plan that assigns them and by `pj/shape-palette` alike, so the two
+   cannot answer differently. A `:shape-values` configuration key would
+   be read here and nowhere else."
+  []
+  shape-syms)
+
+(defn drawable-shapes
+  "Every symbol a `:shape` mapping may name.
+
+   Read through here rather than off `drawable-shape-syms` directly, by
+   the validation, the error messages, the schema and
+   `pj/shape-symbols` alike, so those four cannot disagree about what
+   may be written. A registry an extension adds to would be read here,
+   and none of those four would change -- but `render.mark/draw-shape`
+   would, because it draws from a closed `case` and a registered symbol
+   would pass every check here and then fail to draw. That is why the
+   accessors are groundwork rather than the feature.
+
+   Built from `shape-palette` on each call rather than read off the
+   `drawable-shape-syms` value, which is fixed when the namespace
+   loads. Reading the frozen value let the two answers drift: a symbol
+   added to the palette was handed to a category and then refused by
+   the schema that validates it and by the renderer that draws it."
+  []
+  (into (shape-palette) extra-shape-syms))
 
 (def legend-swatch-size
   "Side length of the colored key drawn beside a legend entry (square)."
@@ -946,9 +997,8 @@
    :bar-opacity ["Bars & Lines" "Default bar fill opacity"]
    :line-width ["Bars & Lines" "Default line stroke width"]
    :grid-stroke-width ["Bars & Lines" "Grid line stroke width"]
-   :annotation-stroke ["Annotations" "Stroke color for annotation marks"]
-   :annotation-dash ["Annotations" "Dash pattern [dash gap] for annotation lines"]
-   :band-opacity ["Annotations" "Opacity for confidence bands"]
+   :rule-color ["Rules & Bands" "Stroke color a rule draws in where its layer names none"]
+   :band-opacity ["Rules & Bands" "Fill opacity a band draws at where its layer names none"]
    :x-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the x axis"]
    :y-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the y axis"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
@@ -1035,6 +1085,24 @@
     (contains? @config-atom :strict) (:strict @config-atom)
     :else (:strict @library-defaults)))
 
+(def renamed-options
+  "Options and configuration keys that were written under another name
+   in an earlier release, and the name they carry now.
+
+   Without this an old name is reported as unrecognized, which reads as
+   a typo: the writer looks for the misspelling and finds none, because
+   the setting is there under another name. Naming the new key turns a
+   dead end into a one-word edit.
+
+   Lives here rather than in `api` because a key can be written in two
+   kinds of place -- an options map, checked by
+   `api/warn-and-strip-unknown-opts`, and a configuration map, checked
+   by `validate-config-keys!` below -- and a rename reported in only
+   one of them sends half the writers looking for a typo. A
+   configuration key's own home is the configuration path, so that is
+   the half that must not be missed. Put the next rename here."
+  {:annotation-stroke :rule-color})
+
 (defn validate-config-keys!
   "Report configuration keys Plotje does not read, naming `where` they
    were written. Warns, or throws under `:strict`.
@@ -1055,10 +1123,15 @@
   [where m]
   (when (map? m)
     (let [accepted (set (keys config-key-docs))
-          unknown (remove accepted (keys m))]
+          unknown (remove accepted (keys m))
+          renamed (keep (fn [k] (when-let [to (renamed-options k)]
+                                  (str "  " k " was renamed to " to)))
+                        unknown)]
       (when (seq unknown)
         (let [msg (str where " does not recognize configuration key(s): "
                        (vec (sort unknown)) "."
+                       (when (seq renamed)
+                         (str "\n" (str/join "\n" (sort renamed))))
                        "\n  Accepted: " (vec (sort accepted)))]
           (if (config-strict? m)
             (throw (ex-info msg {:caller where
