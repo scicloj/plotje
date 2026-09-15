@@ -4,9 +4,9 @@
 
    This is what `:nudge-x` and `:nudge-y` cannot be. A label has to clear
    the mark it labels by roughly the mark's radius, which is a length on
-   the page: no data value is right for it across two scales, and on a
-   categorical axis a data-space shift has nothing to add itself to --
-   `:nudge-x` throws there.
+   the page, and no data value is right for it across two scales. A
+   nudge on a categorical axis is a fraction of a band, which is a
+   distance in the data and not on the page.
 
    The tests read the raster, because an offset that reaches the plan and
    then fails to move any ink would pass every structural assertion."

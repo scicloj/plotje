@@ -54,25 +54,25 @@
 ;;   left edge of the plotting area. Workaround: shorten the labels,
 ;;   reduce the angle, or widen the plot with `:width`.
 ;;
-;; - A categorical axis has no place between two categories, and a
-;;   number written for one is read as another category name. ggplot2
-;;   puts categories at 1, 2, 3 and draws a mark at 1.5, halfway along
-;;   the gap; Plotje's categorical axis is a band scale, which has a
-;;   place for each category and none between them. So
-;;   `(pj/lay-label {:x 1.5 :y 1.5 :text "note"})` over a categorical y
-;;   of `["x" "y" "z"]` does not report an error and does not go
-;;   halfway: it adds a fourth category, draws a fourth tick labelled
-;;   `1.5`, and puts the label in the new band. Workarounds: name an
-;;   existing category with `{:y {:value "z"}}`, which adds no tick, and
-;;   shift from there with `:offset-x`/`:offset-y`, which move a mark by
-;;   a distance on the page and work on any axis; or draw the axis from
-;;   a numeric column and label its ticks, since
-;;   `(pj/scale pose :x {:breaks [1 2 3] :tick-labels ["A" "B" "C"]})`
-;;   takes 1.5 as an ordinary value -- at the cost of the column no
-;;   longer being categorical, so bars, boxplots and dodging lose their
-;;   bands. Wanting a place genuinely between two categories has no
-;;   workaround; it needs the categorical axis to become a continuous
-;;   scale carrying a label table, which is designed but not built.
+;; - A rule or a band written past the ends of a categorical axis is
+;;   drawn off the panel with nothing said, where a point or a label at
+;;   the same value is refused by name. A number written for a
+;;   categorical axis is a place among the categories, counted from one,
+;;   and the axis reaches half a place past each end -- so on three
+;;   categories it runs from 0.5 to 3.5, and
+;;   `(pj/lay-label {:x 99 :y 1 :text "note"})` reports that 99 is past
+;;   the ends. `(pj/lay-rule-v {:x-intercept 99})` beside it draws a
+;;   line far to the right of the panel and says nothing, because these
+;;   four marks contribute the axis's own categories as their domain
+;;   rather than the value they were written with, so the check never
+;;   sees them. Workaround: keep a written intercept inside the axis.
+;;
+;; - A mark that occupies a band cannot be drawn at a place between two
+;;   categories. `pj/lay-boxplot` and `pj/lay-violin` require a category
+;;   column and report that they do; `pj/lay-bar` given a written place
+;;   draws the histogram bar instead, one place wide and centred there,
+;;   rather than a bar in a band of its own. Workaround: none -- a mark
+;;   between two bands would need a band the axis does not have.
 ;;
 ;; - A line has no arrowhead. `pj/lay-line` draws a plain stroke, with
 ;;   `:stroke-dash` for dashed and dotted styles, so a leader line
@@ -263,7 +263,6 @@
 ;;
 ;; - `pj/plan` called on a plan or on a hiccup value now throws a
 ;;   clear error. Call `pj/plan` only on poses.
-
 
 ;; ## Mixing Keyword and String Column References
 ;;

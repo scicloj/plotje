@@ -29,7 +29,13 @@
    categorical (band) scale and numeric scale, swapped when flipped.
    Flipped means either `:coord :flip` is in effect, or the panel's
    y-axis is itself a band scale (numerical x + categorical y).
-   Returns {:flipped? :band-s :num-s}."
+   Returns {:flipped? :band-s :num-s}.
+
+   Both scales come back raw, because `band-position` and the
+   `:bandwidth` reads beside it need the scale object itself rather
+   than what it answers. A mark scaling a *value* through either calls
+   `scale/forward`, as `impl.coord` does, so that a number on a
+   categorical axis is read as a place among its categories."
   [ctx]
   (let [sx (:sx ctx) sy (:sy ctx)
         coord-flipped? (= (:coord-type ctx) :flip)
@@ -997,7 +1003,13 @@
    axis under `{:scale false}` -- names no data value: the number is a
    distance from the panel background's corner, so it is measured from
    the margin rather than sent through a scale, and the shape keeps the
-   orientation the mark's own name gives it."
+   orientation the mark's own name gives it.
+
+   Through `scale/forward`, so that a written value on a categorical
+   axis is read as a place among the categories, as it is everywhere
+   else. Called on the scale directly, a band scale answered nil for
+   every number and each of these four marks drew on the panel's left
+   or bottom edge whatever intercept it was given."
   [layer ctx axis]
   (let [{:keys [sx sy coord-type margin]} ctx
         flip? (= coord-type :flip)
@@ -1006,8 +1018,8 @@
     (if drawn?
       [(fn [v] (+ (double margin) (double v))) (= axis :y)]
       (if (= axis :y)
-        [(if flip? sx sy) (not flip?)]
-        [(if flip? sy sx) flip?]))))
+        [(partial scale/forward (if flip? sx sy)) (not flip?)]
+        [(partial scale/forward (if flip? sy sx)) flip?]))))
 
 (defn- rule->membrane
   "One stroked line at `value` on `axis`, spanning the drawing area on
@@ -1106,7 +1118,15 @@
         scaled (for [{:keys [color bars]} groups
                      {:keys [lo hi count] :as bar} bars]
                  {:color (or (:color bar) color)
-                  :corners [(band-s lo) (band-s hi) (num-s base) (num-s count)]})
+                  ;; Through `scale/forward`, because a bin edge here is a
+                  ;; number and the band axis it lands on reads a number as a
+                  ;; place among its categories. Called on the scale directly,
+                  ;; `(pj/lay-bar {:x 1.5 :y 3.0})` beside a categorical x
+                  ;; answered nil, the corner was dropped as non-finite, and
+                  ;; the log-scale warning below named a cause that was not
+                  ;; the one.
+                  :corners [(scale/forward band-s lo) (scale/forward band-s hi)
+                            (scale/forward num-s base) (scale/forward num-s count)]})
         drawable (filter #(apply drawable-corner? (:corners %)) scaled)
         dropped (- (clojure.core/count scaled) (clojure.core/count drawable))]
     (when (pos? dropped)

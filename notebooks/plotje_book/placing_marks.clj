@@ -233,11 +233,11 @@ cars
     (= [nil -6]
        (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
 
-;; A nudge along a categorical axis, once refused outright, now places a
-;; mark at a fractional position between two categories: `0.5` sits
-;; halfway between the first and the second, counting from one. Here it
-;; moves the same label half a category to the right of the bar it
-;; names, instead of straight up:
+;; A nudge along a categorical axis is a fraction of a band. The
+;; categories carry no numbers of their own, so the amount is counted in
+;; bands from wherever the mark sits: `0.5` is half a band along, which
+;; is halfway to the next category. Here it moves the same label half a
+;; band to the right of the bar it names, instead of straight up:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score)
@@ -252,7 +252,11 @@ cars
 ;; domain, so a nudge large enough to carry a mark past the end of the
 ;; axis leaves it clipped there. ggplot2's `nudge_x` widens the range
 ;; instead. The [Glossary](./plotje_book.glossary.html#nudge) entry for Nudge
-;; describes that difference.
+;; describes that difference. A number written in the slot itself is the
+;; other case and is answered the other way: on a numeric axis it widens
+;; the domain to reach it, and on a categorical axis, where the
+;; categories are the domain and cannot be widened, a number past the
+;; ends of the axis is reported rather than drawn off the panel.
 ;;
 ;; An offset does not keep labels from overlapping each other. It moves a
 ;; whole layer by one amount, so two labels at nearby values stay as

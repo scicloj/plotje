@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
+A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route to a categorical axis reads it that way: a value written in a slot, a nudge from a named category, `pj/to-drawing`, and the marks that draw at a written value.
+
+### Plots that look different after upgrading
+
+- **Every plot writing a number for a categorical axis.** The mark is drawn at that place among the categories. A number on a categorical `:y` used to add a category of its own, drawing a tick labelled with the number and putting the mark in the new band; on `:x` the same number reported that numeric and categorical domains could not be merged.
+- **Every plot nudging a mark along a categorical axis.** The nudge is a fraction of a band, so `{:nudge-x 0.5}` moves a mark half a band along. `:nudge-x` and `:nudge-y` used to report an error on that axis.
+- **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
+- **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A value past the ends used to be scaled and the mark drawn off the panel, where clipping hid it.
+
+### Fixed
+
+- A histogram bar written at a place on a categorical axis is drawn there, one place wide. It used to be dropped, under a warning saying its height had no place on a log scale.
+
+- One reader answers what a number means on either axis. `:x` and `:y` each had their own copy of the parse that decides whether a layer contributes a numeric extent or a list of categories, and the two disagreed about a number written beside categories.
+
 ## [0.13.0 - 2026-09-10]
 
 Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are drawn in the order they were written, take the options the other marks take, and widen the axis they are written on.

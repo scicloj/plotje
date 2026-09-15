@@ -177,29 +177,58 @@
 ;; [Inference Rules](./plotje_book.inference_rules.html#overriding-inferred-types-with-x-type-y-type)
 ;; for a worked example.
 
-;; ## Nudge on a Categorical Axis
+;; ## A Number Where a Category Was Meant
 ;;
-;; `:nudge-x`/`:nudge-y` shift a mark by a data-space amount. On a
-;; numeric axis that amount is a value; on a categorical axis, where
-;; the categories carry no numbers of their own, it is a fractional
-;; place among them, counted from one -- `0.5` sits halfway between
-;; the first category and the second. A label naming a bar can nudge
-;; a fraction of a category off it rather than only up or down:
+;; **Symptom**: A value written for a categorical axis reports
+;; `"pj/plan got 2021 for :x, which is past the ends of this axis"`.
+;;
+;; **Cause**: A number written for a categorical axis is a place among
+;; the categories, counted from one -- `1` is the first category, `1.5`
+;; sits halfway to the second -- and the axis reaches half a place past
+;; each end. On an axis built from the years 2020, 2021 and 2022 the
+;; number `2` is therefore the second band, and `2021` is a place far
+;; past the third and last one, which is what the refusal names.
 
-(-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
-    (pj/lay-bar :species :pct)
-    (pj/lay-text :species :pct {:text :pct :nudge-x 0.3}))
+(-> {:cohort [2020 2021 2022] :n [3 5 4]}
+    (pj/lay-bar :cohort :n {:x-type :categorical})
+    (pj/lay-text {:x 2 :y 5.5 :text "place 2"}))
 
 (kind/test-last
  [(fn [fr]
-    (= [nil 0.3]
-       (->> fr pj/plan :panels first :layers (mapv :nudge-x))))])
+    (= ["2020" "2021" "2022"]
+       (->> fr pj/plan :panels first :x-domain)))])
 
-;; A nudge does not change the axis domain, so a nudge large enough to
-;; carry a mark past the end of the axis leaves it clipped there --
-;; unlike ggplot2's `nudge_x`, which widens the range instead. To move
-;; a mark by a distance on the page regardless of the axis's own units,
-;; use `:offset-x`/`:offset-y`:
+;; **Fix**: Name the category as a value. `{:x {:value "2021"}}` puts
+;; the mark on that band whatever numbers the categories are written
+;; from, and leaves a place for the spot between two categories that no
+;; category names.
+
+(-> {:cohort [2020 2021 2022] :n [3 5 4]}
+    (pj/lay-bar :cohort :n {:x-type :categorical})
+    (pj/lay-text {:x {:value "2021"} :y 5.5 :text "on the band"})
+    (pj/lay-text {:x 1.5 :y 4.0 :text "between two"}))
+
+(kind/test-last
+ [(fn [fr]
+    ;; Neither mark adds a category: the named one lands on a band that
+    ;; is already there, and the place counts among the bands rather
+    ;; than joining them.
+    (= ["2020" "2021" "2022"]
+       (->> fr pj/plan :panels first :x-domain)))])
+
+;; ## Moving a Mark Clear of Another
+;;
+;; **Symptom**: A value label sits on top of the bar it names, and the
+;; amount that separates them has to be guessed again on every chart.
+;;
+;; **Cause**: A nudge is a distance in the data -- a fraction of a band
+;; on a categorical axis, a value on a numeric one -- so the number that
+;; clears a mark depends on what the axis holds. A label has to clear
+;; its mark by roughly the mark's own size, which is a length on the
+;; page.
+;;
+;; **Fix**: Use `:offset-x`/`:offset-y`, which are drawing units applied
+;; after the scales and so mean the same on every axis:
 
 (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
     (pj/lay-bar :species :pct)
@@ -228,8 +257,8 @@
             first :style :align-x)))])
 
 ;; Anchoring is covered in
-;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark). `:nudge-x` and
-;; `:nudge-y` remain available on numeric and temporal axes.
+;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark),
+;; and the nudge itself in the same chapter.
 
 ;; ## Log Scale via `:scale-x` / `:scale-y` Options
 ;;

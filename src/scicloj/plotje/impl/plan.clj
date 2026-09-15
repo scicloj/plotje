@@ -214,16 +214,67 @@
       [(if (<= a-lo raw-lo) a-lo plo)
        (if (>= a-hi raw-hi) a-hi phi)])))
 
+(defn- parse-axis-domains
+  "The domains contributed to one axis, parsed, with the numbers dropped
+   where the axis is categorical.
+
+   A contributed domain is either a numeric extent -- a low and a high
+   -- or a list of categories, and one axis can receive both:
+   `(pj/lay-label {:x 1.5 ...})` beside a categorical `:x` contributes
+   a number where the bars contribute categories. The categories are
+   what the axis is. A number beside them names a place among them
+   (`scale/forward`) rather than a new category, so it is dropped here
+   instead of merged, and a place past the ends of the axis is refused
+   -- `scale/place-range` says where the ends are, and a value outside
+   it would otherwise be scaled to somewhere off the panel and clipped
+   away without a word.
+
+   One reader for both axes. `collect-domain` asks it for x and
+   `compute-global-y-domain` for y; each had its own copy of this
+   parse, so `{:x 1.5}` and `{:y 1.5}` were answered differently -- x
+   dropped the number and y added a fourth category ticked `1.5`.
+
+   Returns a sequence of `{:vals :numeric?}`, which each caller reduces
+   its own way. `aesthetic` names the axis for the refusal, and
+   `scale-spec` is read for a `:domain` the writer set, whose
+   categories are drawn beside the data's own and so count toward where
+   the axis ends."
+  [aesthetic scale-spec domains]
+  (let [parsed (keep (fn [d]
+                       (when (seq d)
+                         (let [numeric? (and (= 2 (count d)) (number? (first d)))]
+                           {:vals (if numeric? (vec d) (mapv str d))
+                            :numeric? numeric?})))
+                     domains)]
+    (if-not (> (count (distinct (map :numeric? parsed))) 1)
+      parsed
+      (let [categorical (remove :numeric? parsed)
+            written (when-not (and (= 2 (count (:domain scale-spec)))
+                                   (number? (first (:domain scale-spec))))
+                      (map str (:domain scale-spec)))
+            categories (distinct (concat written (mapcat :vals categorical)))
+            n (count categories)
+            [lo hi] (scale/place-range n)
+            places (mapcat :vals (filter :numeric? parsed))]
+        (when-let [bad (first (remove #(scale/place-on-axis? n %) places))]
+          (throw (ex-info
+                  (str "pj/plan got " (pr-str bad) " for " aesthetic ", which is past the ends of "
+                       "this axis. Categories: " (vec categories) ". A number written for a "
+                       "categorical axis is a place counted from one -- 1 is the first category, "
+                       "1.5 sits halfway to the second -- and this axis runs from " lo " to " hi
+                       ". To move a mark by a distance on the page instead, use :offset-x / "
+                       ":offset-y, which work on any axis; to draw the number as a category, give "
+                       "the axis a column of them.")
+                  {:caller "pj/plan" :axis aesthetic :value bad
+                   :categories (vec categories)
+                   :place-range [lo hi]})))
+        categorical))))
+
 (defn collect-domain
   "Collect and merge domains from stat results along axis-key.
 
-   A categorical axis's domain is its categories; a layer whose value
-   on this axis is a bare number rather than a column of categories --
-   `(pj/lay-text {:x 1.5 ...})` beside a categorical `:x` -- names a
-   position among them (`scale/forward`, `scicloj.plotje.impl.scale`),
-   not a new one, so it contributes nothing to the domain and is
-   dropped rather than merged. Only when every layer on this axis is
-   numeric, or every layer is categorical, does its own domain apply.
+   The parse and the categorical axis's reading of a number live in
+   `parse-axis-domains`, which the y axis reads too.
 
    `padding` is the resolved `:domain-padding`. `temporal?` says the
    axis reads dates, which is what lets `:include` be written as one.
@@ -237,18 +288,10 @@
   ([stat-results axis-key scale-spec padding temporal?]
    (collect-domain stat-results axis-key scale-spec padding temporal? nil))
   ([stat-results axis-key scale-spec padding temporal? shared]
-   (let [parsed (keep (fn [sr]
-                        (when-let [d (axis-key sr)]
-                          {:vals (if (and (= 2 (count d)) (number? (first d)))
-                                   d
-                                   (mapv str d))
-                           :numeric? (and (= 2 (count d)) (number? (first d)))}))
-                      stat-results)
-         mixed? (> (count (distinct (map :numeric? parsed))) 1)
-         parsed (if mixed? (remove :numeric? parsed) parsed)]
+   (let [aesthetic (if (= :x-domain axis-key) :x :y)
+         parsed (parse-axis-domains aesthetic scale-spec (map axis-key stat-results))]
      (when (seq parsed)
        (let [vals (mapcat :vals parsed)
-             aesthetic (if (= :x-domain axis-key) :x :y)
              numeric? (number? (first vals))
              anchors (include-anchors aesthetic scale-spec numeric? temporal?)]
          (if numeric?
@@ -337,13 +380,12 @@
                [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
            [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
 
-      ;; Normal: collect y-domains from layers
+      ;; Normal: collect y-domains from layers. Through the same parse
+      ;; the x axis reads, so a number written for a categorical y is a
+      ;; place among the categories there too -- see `parse-axis-domains`.
        :else
-       (let [all-yds (keep :y-domain plan-layers)
-             vals (mapcat (fn [d]
-                            (if (and (= 2 (count d)) (number? (first d)))
-                              d (map str d)))
-                          all-yds)]
+       (let [vals (mapcat :vals (parse-axis-domains :y scale-spec
+                                                    (keep :y-domain plan-layers)))]
          (when (seq vals)
            (if (number? (first vals))
              (let [raw-lo (reduce min vals)

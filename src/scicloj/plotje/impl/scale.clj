@@ -90,6 +90,28 @@
     (band-value sc v)
     (ws/inverse sc v)))
 
+(defn place-range
+  "The interval of numeric places a categorical axis of `n` categories
+   answers, as a low and a high.
+
+   A category sits at its 1-indexed place and a band is one unit wide,
+   so the drawn axis reaches from half a unit before the first category
+   to half a unit after the last. `forward` answers a number outside
+   that interval too, by extrapolating, which draws a mark off the
+   panel with nothing in the picture to say why -- so a caller given a
+   written value refuses a place outside this interval rather than
+   scaling it."
+  [n]
+  [0.5 (+ (double n) 0.5)])
+
+(defn place-on-axis?
+  "Whether `v` is a numeric place a categorical axis of `n` categories
+   has -- see `place-range`. False for anything that is not a number."
+  [n v]
+  (and (number? v)
+       (let [[lo hi] (place-range n)]
+         (<= (double lo) (double v) (double hi)))))
+
 (defn- band-center
   [{:keys [rstart rend]}]
   (/ (+ (double rstart) (double rend)) 2.0))
@@ -126,7 +148,12 @@
    A band scale only otherwise answers a category it was given; this
    extends it to also accept a plain number as a continuous, 1-indexed
    place among its categories, so `1.5` sits halfway between the first
-   two and a nudge can land a label between the categories it labels."
+   two and a nudge can land a label between the categories it labels.
+
+   A number past the ends of the axis is extrapolated rather than
+   refused, so that a nudge carrying a mark off the panel draws where
+   it was asked to. `place-range` is the interval the axis is drawn
+   over, and refusing a written value outside it is the caller's."
   [sc v]
   (if (and (number? v) (= :bands (ws/kind sc)))
     (numeric-band-position sc v)
