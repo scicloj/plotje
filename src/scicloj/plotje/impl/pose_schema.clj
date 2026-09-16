@@ -260,7 +260,7 @@
      into the pose itself rather than left in the mapping;
    - a layer's `:mapping` carries the aesthetics plus every layer
      option that is not `:data`, `:mark`, `:stat` or `:position` --
-     `:jitter`, `:in`, `:nudge-x`, `:font-size`, `:bandwidth` and the
+     `:jitter`, `:in`, `:dx`, `:font-size`, `:bandwidth` and the
      rest all live there (`api/build-layer`).
 
    So the name `:mapping` covers more than mappings, and the two

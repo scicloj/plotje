@@ -61,7 +61,7 @@
   "The keys a draft layer carries, as `impl.pose/leaf->draft` emits
    them. Open on purpose: the merged mapping brings along every layer
    option that is not `:data`, `:mark`, `:stat` or `:position` --
-   `:jitter`, `:in`, `:nudge-x`, `:font-size`, `:bandwidth` and the
+   `:jitter`, `:in`, `:dx`, `:font-size`, `:bandwidth` and the
    rest -- and a layer type's `:defaults` arrive the same way.
 
    `:data` is always present and may be nil (a layer drawn at written

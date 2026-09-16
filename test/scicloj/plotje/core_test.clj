@@ -689,37 +689,37 @@
     (is (seq (:groups layer)))
     (is (seq (:bars (first (:groups layer)))))))
 
-(deftest apply-nudge-test
-  (testing "nudge-x shifts xs"
+(deftest apply-shift-test
+  (testing ":dx shifts xs"
     (let [view {:mark :point :data (tc/dataset {:x [1.0 2.0] :y [3.0 4.0]})
-                :x :x :y :y :x-type :numerical :nudge-x 0.5}
+                :x :x :y :y :x-type :numerical :dx 0.5}
           rv (resolve/resolve-draft-layer view)
           stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
           layer (extract/extract-layer rv stat-result [] defaults/defaults)]
       (is (= [1.5 2.5] (:xs (first (:groups layer)))))))
-  (testing "no nudge is no-op"
+  (testing "no shift is no-op"
     (let [view {:mark :point :data tiny-ds :x :x :y :y :x-type :numerical}
           rv (resolve/resolve-draft-layer view)
           stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
           layer (extract/extract-layer rv stat-result [] defaults/defaults)]
       (is (= [1 2 3 4 5] (:xs (first (:groups layer)))))))
-  (testing "nudge-x on a categorical x axis is deferred to the layer, not folded into xs"
+  (testing ":dx on a categorical x axis is deferred to the layer, not folded into xs"
     (let [view {:mark :text :data (tc/dataset {:cat ["a" "b"] :v [1.0 2.0]})
                 :x :cat :y :v :text :v :x-type :categorical :y-type :numerical
-                :nudge-x 0.5}
+                :dx 0.5}
           rv (resolve/resolve-draft-layer view)
           stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
           layer (extract/extract-layer rv stat-result [] defaults/defaults)]
-      (is (= 0.5 (:nudge-x layer)))
+      (is (= 0.5 (:dx layer)))
       (is (= ["a" "b"] (:xs (first (:groups layer)))))))
-  (testing "nudge-y on a categorical y axis is deferred to the layer, not folded into ys"
+  (testing ":dy on a categorical y axis is deferred to the layer, not folded into ys"
     (let [view {:mark :text :data (tc/dataset {:v [1.0 2.0] :cat ["a" "b"]})
                 :x :v :y :cat :text :v :x-type :numerical :y-type :categorical
-                :nudge-y 0.5}
+                :dy 0.5}
           rv (resolve/resolve-draft-layer view)
           stat-result (stat/compute-stat (assoc rv :cfg defaults/defaults))
           layer (extract/extract-layer rv stat-result [] defaults/defaults)]
-      (is (= 0.5 (:nudge-y layer)))
+      (is (= 0.5 (:dy layer)))
       (is (= ["a" "b"] (:ys (first (:groups layer))))))))
 
 ;; ============================================================

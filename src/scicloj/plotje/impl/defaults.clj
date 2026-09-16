@@ -1087,12 +1087,28 @@
 
 (def renamed-options
   "Options and configuration keys that were written under another name
-   in an earlier release, and the name they carry now.
+   in an earlier release, the name they carry now, and what happens to
+   a plot that still writes the old one.
 
    Without this an old name is reported as unrecognized, which reads as
    a typo: the writer looks for the misspelling and finds none, because
    the setting is there under another name. Naming the new key turns a
    dead end into a one-word edit.
+
+   Each entry is `{:to <new key> :mode <:accept or :drop>}`.
+
+   - `:accept` reads the old name as the new one, so the plot draws
+     exactly as it did, and warns. For a setting that changes a
+     picture this is the only safe mode: dropping `:nudge-x` moves a
+     label back onto the mark it was written to clear, and the writer
+     meets a wrong picture rather than a message.
+   - `:drop` reports the old name and draws without the setting. Right
+     for a key whose absence is visible on its own, or that nothing
+     read by the time it was renamed.
+
+   `:accept` entries stay through the 0.x line and are reconsidered at
+   1.0, so a notebook written against an earlier release keeps drawing
+   while it is migrated.
 
    Lives here rather than in `api` because a key can be written in two
    kinds of place -- an options map, checked by
@@ -1101,7 +1117,45 @@
    one of them sends half the writers looking for a typo. A
    configuration key's own home is the configuration path, so that is
    the half that must not be missed. Put the next rename here."
-  {:annotation-stroke :rule-color})
+  {:annotation-stroke {:to :rule-color :mode :drop}
+   :nudge-x {:to :dx :mode :accept}
+   :nudge-y {:to :dy :mode :accept}})
+
+(defn renamed-to
+  "The key `k` carries now, or nil if `k` was never renamed. One
+   reader for both paths, so a message and a translation cannot
+   disagree about what replaced a name."
+  [k]
+  (:to (renamed-options k)))
+
+(defn rename-accepted?
+  "Whether `k`'s rename is read rather than dropped -- see
+   `renamed-options`."
+  [k]
+  (= :accept (:mode (renamed-options k))))
+
+(defn apply-renames
+  "Rewrite every `:accept`-mode old name in `m` to the key it carries
+   now, and answer `[m renamed]` where `renamed` names the pairs that
+   were rewritten, sorted, for the caller to report.
+
+   A key already written under its new name wins: if a map carries
+   both, the old one is dropped rather than overwriting the new, so
+   adding the old name to a map that has the new one cannot change
+   what the plot draws."
+  [m]
+  (if-not (map? m)
+    [m nil]
+    (let [pairs (keep (fn [k] (when (rename-accepted? k) [k (renamed-to k)]))
+                      (keys m))]
+      (if (empty? pairs)
+        [m nil]
+        [(reduce (fn [acc [from to]]
+                   (cond-> (dissoc acc from)
+                     (not (contains? m to)) (assoc to (get m from))))
+                 m
+                 pairs)
+         (vec (sort-by first pairs))]))))
 
 (defn validate-config-keys!
   "Report configuration keys Plotje does not read, naming `where` they
@@ -1119,26 +1173,36 @@
    either way, and the resolved configuration is what `pj/config`
    reports, so removing entries there would hide what was written.
 
-   Returns `m`, so it can sit in a threading position."
+   A key whose rename is `:accept` is read as the key it carries now
+   and warned about, so the configuration still takes effect. Returns
+   the map with those keys rewritten, so it can sit in a threading
+   position."
   [where m]
-  (when (map? m)
-    (let [accepted (set (keys config-key-docs))
-          unknown (remove accepted (keys m))
-          renamed (keep (fn [k] (when-let [to (renamed-options k)]
-                                  (str "  " k " was renamed to " to)))
-                        unknown)]
-      (when (seq unknown)
-        (let [msg (str where " does not recognize configuration key(s): "
-                       (vec (sort unknown)) "."
-                       (when (seq renamed)
-                         (str "\n" (str/join "\n" (sort renamed))))
-                       "\n  Accepted: " (vec (sort accepted)))]
-          (if (config-strict? m)
-            (throw (ex-info msg {:caller where
-                                 :unknown (vec (sort unknown))
-                                 :accepted accepted}))
-            (println (str "Warning: " msg)))))))
-  m)
+  (let [[m accepted-renames] (apply-renames m)]
+    (doseq [[from to] accepted-renames]
+      (let [msg (str where ": " from " was renamed to " to
+                     ", and is read as " to " for now. Write " to ".")]
+        (if (config-strict? m)
+          (throw (ex-info msg {:caller where :renamed from :to to}))
+          (println (str "Warning: " msg)))))
+    (when (map? m)
+      (let [accepted (set (keys config-key-docs))
+            unknown (remove accepted (keys m))
+            renamed (keep (fn [k] (when-let [to (renamed-to k)]
+                                    (str "  " k " was renamed to " to)))
+                          unknown)]
+        (when (seq unknown)
+          (let [msg (str where " does not recognize configuration key(s): "
+                         (vec (sort unknown)) "."
+                         (when (seq renamed)
+                           (str "\n" (str/join "\n" (sort renamed))))
+                         "\n  Accepted: " (vec (sort accepted)))]
+            (if (config-strict? m)
+              (throw (ex-info msg {:caller where
+                                   :unknown (vec (sort unknown))
+                                   :accepted accepted}))
+              (println (str "Warning: " msg)))))))
+    m))
 
 (def ^:private flat-config-keys
   "Config keys that are forwarded as flat scalars from plot-opts to cfg.

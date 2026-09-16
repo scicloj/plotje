@@ -523,17 +523,17 @@
 ;; square.
 ;;
 ;; A box sits at its data point, so it would cover the very point it
-;; labels. `:nudge-x` shifts each label clear of its point, in data
+;; labels. `:dx` shifts each label clear of its point, in data
 ;; units -- the same idiom a scatter plot needs when labelling its
 ;; marks:
 
 (-> {:x [1 1 1] :y [3 2 1]}
     (pj/lay-point :x :y {:size 5 :color "#888888"})
-    (pj/lay-label :x :y {:text :tag :box {:corner-radius 8} :nudge-x 0.05
+    (pj/lay-label :x :y {:text :tag :box {:corner-radius 8} :dx 0.05
                          :data {:x [1] :y [3] :tag ["corner-radius 8"]}})
-    (pj/lay-label :x :y {:text :tag :nudge-x 0.05
+    (pj/lay-label :x :y {:text :tag :dx 0.05
                          :data {:x [1] :y [2] :tag ["the default, 3"]}})
-    (pj/lay-label :x :y {:text :tag :box {:corner-radius 0} :nudge-x 0.05
+    (pj/lay-label :x :y {:text :tag :box {:corner-radius 0} :dx 0.05
                          :data {:x [1] :y [1] :tag ["corner-radius 0"]}}))
 
 (kind/test-last

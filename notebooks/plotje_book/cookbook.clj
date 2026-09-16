@@ -314,7 +314,7 @@
 
 (-> top5
     (pj/lay-point :sepal-length :sepal-width {:size 5})
-    (pj/lay-label {:text :species :nudge-y 0.15}))
+    (pj/lay-label {:text :species :dy 0.15}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (pos? (:points s))
@@ -471,7 +471,7 @@
 
 ;; ### Labeled scatter
 
-;; Combine points with text labels, using nudge to offset text from data points.
+;; Combine points with text labels, using `:dy` to shift the text clear of its point.
 
 (def top-cities
   {:city ["Tokyo" "Delhi" "Shanghai" "São Paulo" "Mumbai"]
@@ -480,7 +480,7 @@
 
 (-> top-cities
     (pj/lay-point :area :population)
-    (pj/lay-text {:text :city :nudge-y 1.0})
+    (pj/lay-text {:text :city :dy 1.0})
     (pj/options {:title "Population vs Area"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -584,7 +584,7 @@
 ;; year alone -- one row per country -- and takes its color from the
 ;; same `:country` column, so each name matches its line. `:offset-x`
 ;; moves the text clear of the line's end by a few drawing units. A
-;; nudge would not serve here: the gap is a distance on the page, not a
+;; a `:dy` would not serve here: the gap is a distance on the page, not a
 ;; number of years.
 
 (-> life-tracks

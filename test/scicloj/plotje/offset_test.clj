@@ -2,10 +2,10 @@
   "`:offset-x` and `:offset-y` shift a layer by a number of drawing units,
    after the scales have run.
 
-   This is what `:nudge-x` and `:nudge-y` cannot be. A label has to clear
-   the mark it labels by roughly the mark's radius, which is a length on
+   This is what `:dx` and `:dy` cannot be. A label has to clear the
+   mark it labels by roughly the mark's radius, which is a length on
    the page, and no data value is right for it across two scales. A
-   nudge on a categorical axis is a fraction of a band, which is a
+   `:dx` on a categorical axis is a fraction of a band, which is a
    distance in the data and not on the page.
 
    The tests read the raster, because an offset that reaches the plan and
@@ -66,7 +66,7 @@
            (-> (lone-point {:offset-x 40 :offset-y 25}) pj/plan :panels first
                ((juxt :x-domain :y-domain)))))))
 
-;; ---- Where nudge cannot go ----
+;; ---- Where a data-space shift cannot go ----
 
 (def categorical-labels
   ;; The label text is words, not the numbers, so the assertion below
@@ -81,15 +81,15 @@
   [pose k]
   (mapv k (:layers (first (:panels (pj/plan pose))))))
 
-;; ---- Nudge on a categorical axis ----
+;; ---- A :dx on a categorical axis ----
 
-(deftest a-nudge-on-a-categorical-axis-is-a-fractional-place
-  (testing "a category has no number of its own to add to, so the plan carries the nudge as-is"
+(deftest a-dx-on-a-categorical-axis-is-a-fractional-place
+  (testing "a category has no number of its own to add to, so the plan carries the shift as-is"
     (is (= [0.2] (layer-offsets (pj/lay-point {:team ["red" "green"] :score [3 5]}
-                                              :team :score {:nudge-x 0.2})
-                                :nudge-x)))
+                                              :team :score {:dx 0.2})
+                                :dx)))
     (is (some? (pj/svg-summary (pj/plot (pj/lay-point {:team ["red" "green"] :score [3 5]}
-                                                      :team :score {:nudge-x 0.2})))))))
+                                                      :team :score {:dx 0.2})))))))
 
 (deftest an-offset-applies-on-a-categorical-axis
   (testing "a label is lifted clear of its bar, on an axis with no data units"
@@ -245,10 +245,10 @@
              (pj/lay-point :height :weight {:offset-x :height})
              pj/plan)))))
 
-(deftest the-refusal-points-at-nudge
+(deftest the-refusal-points-at-the-data-space-shift
   (testing "the error names the data-space option, since that is the other half"
     (is (thrown-with-msg?
-         Exception #":nudge-y"
+         Exception #":dy"
          (-> {:height [1] :weight [2]}
              (pj/lay-point :height :weight {:offset-y "8"})
              pj/plan)))))

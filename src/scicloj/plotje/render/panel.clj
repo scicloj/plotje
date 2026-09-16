@@ -137,14 +137,14 @@
                                          :text-anchor "end"))))))
             values labels)))))
 
-(defn- nudge-data-value
+(defn- shift-data-value
   "Shift `v` by `amount` on the axis `sc` scales.
 
-   A number is already the position `scale/forward` reads, on any
-   axis, so the amount is added straight to it. A category label has
-   no number of its own until it is placed among the others, so it is
-   first read as its 1-indexed place in `sc`'s domain order -- the same
-   order `scale/forward` counts a bare numeric position in -- and the
+   A number is already the place `scale/forward` reads, on any axis,
+   so the amount is added straight to it. A category label has no
+   number of its own until it is placed among the others, so it is
+   first read as its 1-indexed place in `sc`'s domain order -- the
+   same order `scale/forward` counts a bare number in -- and the
    amount is added to that place instead."
   [sc v amount]
   (cond
@@ -169,34 +169,34 @@
    the panel. The two are asked separately here so a layer can mix
    them.
 
-   A layer nudged on a categorical axis (`extract/apply-nudge` leaves
-   `:nudge-x`/`:nudge-y` on the layer rather than folding it into
-   `:xs`/`:ys`, since a category label carries no number to add to
-   until it is placed) is shifted here instead, once the label can be
-   read as a position -- see `nudge-data-value`."
+   A layer shifted on a categorical axis (`extract/apply-shift` leaves
+   `:dx`/`:dy` on the layer rather than folding it into `:xs`/`:ys`,
+   since a category label carries no number to add to until it is
+   placed) is shifted here instead, once the label can be read as a
+   place -- see `shift-data-value`."
   [ctx layer m]
   (let [both?      (= :drawing-area (:in layer))
         x-drawn?   (or both? (:x-drawn? layer))
         y-drawn?   (or both? (:y-drawn? layer))
-        nx         (:nudge-x layer)
-        ny         (:nudge-y layer)]
+        nx         (:dx layer)
+        ny         (:dy layer)]
     (if-not (or x-drawn? y-drawn? nx ny)
       ctx
       (let [base (:coord-fn ctx)
             sx (:sx ctx) sy (:sy ctx)
-            nudged (if (or nx ny)
-                     (fn [x y]
-                       (base (if nx (nudge-data-value sx x nx) x)
-                             (if ny (nudge-data-value sy y ny) y)))
-                     base)]
+            shifted (if (or nx ny)
+                      (fn [x y]
+                        (base (if nx (shift-data-value sx x nx) x)
+                              (if ny (shift-data-value sy y ny) y)))
+                      base)]
         (if-not (or x-drawn? y-drawn?)
-          (assoc ctx :coord-fn nudged)
+          (assoc ctx :coord-fn shifted)
           (let [md (double m)]
             (assoc ctx :coord-fn
                    (fn [x y]
                      (let [[bx by] (if (and x-drawn? y-drawn?)
                                      [nil nil]
-                                     (nudged x y))]
+                                     (shifted x y))]
                        [(if x-drawn? (+ md (double x)) bx)
                         (if y-drawn? (+ md (double y)) by)])))))))))
 
@@ -209,11 +209,14 @@
    marks' renderers. The translation sits inside the clip region, so an
    offset mark is still clipped to the drawing area."
   [layer drawables]
-  (let [dx (double (or (:offset-x layer) 0))
-        dy (double (or (:offset-y layer) 0))]
-    (if (and (zero? dx) (zero? dy))
+  ;; Named for the option rather than `dx`/`dy`, which are the keys of
+  ;; the shift in the axis's own units -- a different quantity applied
+  ;; at a different stage.
+  (let [off-x (double (or (:offset-x layer) 0))
+        off-y (double (or (:offset-y layer) 0))]
+    (if (and (zero? off-x) (zero? off-y))
       drawables
-      [(ui/translate dx dy (vec drawables))])))
+      [(ui/translate off-x off-y (vec drawables))])))
 
 ;; ---- Panel Rendering ----
 

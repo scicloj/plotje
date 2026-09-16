@@ -104,3 +104,64 @@
         (is (not (re-find #"renamed to" msg)))))
     (testing "the replacement itself is accepted"
       (is (empty? (said #(pj/with-config {:rule-color "red"} (constantly nil))))))))
+
+(deftest a-retired-layer-option-is-read-rather-than-dropped
+  ;; :nudge-x became :dx. Reporting-and-dropping it the way
+  ;; :annotation-stroke is dropped would move a label back onto the
+  ;; mark it was written to clear -- a wrong picture behind a println.
+  ;; So this rename is :accept: the old name is read as the new one and
+  ;; the writer is told what to edit.
+  (let [said (fn [f] (let [out (java.io.StringWriter.)]
+                       (binding [*out* out] (f))
+                       [(str out)]))
+        bars {:team ["red" "green" "blue"] :score [3 5 4]}
+        draw (fn [opts] (-> bars
+                            (pj/lay-bar :team :score)
+                            (pj/lay-text (merge {:x {:value "red"} :y 3.0
+                                                 :text "hi"}
+                                                opts))
+                            pj/plot))]
+    (testing "the old name draws exactly what the new one draws"
+      (let [out (java.io.StringWriter.)
+            [old new] (binding [*out* out]
+                        [(draw {:nudge-x 0.5}) (draw {:dx 0.5})])]
+        (is (= new old))
+        (is (not= new (draw {})) "and 0.5 is a shift the picture shows")
+        (is (re-find #":nudge-x was renamed to :dx" (str out)))
+        (is (re-find #"Write :dx" (str out))
+            "the message names the one-word edit")))
+    (testing "the old name reaches the plan under the new one"
+      (is (= [nil 0.5]
+             (->> (-> bars
+                      (pj/lay-bar :team :score)
+                      (pj/lay-text {:x {:value "red"} :y 3.0 :text "hi"
+                                    :nudge-x 0.5})
+                      pj/plan)
+                  :panels first :layers (mapv :dx)))))
+    (testing "the new name draws with nothing said"
+      (is (= [""] (said #(draw {:dx 0.5})))))
+    (testing "under :strict the old name is an error rather than a warning"
+      (pj/with-config {:strict true}
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #":nudge-x was renamed to :dx"
+                              (draw {:nudge-x 0.5})))))
+    (testing "the new name wins where a map carries both"
+      (let [out (java.io.StringWriter.)
+            both (binding [*out* out] (draw {:nudge-x 0.1 :dx 0.5}))]
+        (is (= (draw {:dx 0.5}) both)
+            "adding the old name cannot change what the new one drew")))))
+
+(deftest a-dropped-rename-and-an-accepted-one-are-told-apart
+  (testing "each entry carries where the name went and what happens to it"
+    (is (= {:to :rule-color :mode :drop}
+           (defaults/renamed-options :annotation-stroke)))
+    (is (= {:to :dx :mode :accept} (defaults/renamed-options :nudge-x)))
+    (is (= {:to :dy :mode :accept} (defaults/renamed-options :nudge-y))))
+  (testing "one reader answers what replaced a name, for both paths"
+    (is (= :rule-color (defaults/renamed-to :annotation-stroke)))
+    (is (= :dx (defaults/renamed-to :nudge-x)))
+    (is (nil? (defaults/renamed-to :not-a-key))))
+  (testing "only an :accept rename is read"
+    (is (defaults/rename-accepted? :nudge-x))
+    (is (not (defaults/rename-accepted? :annotation-stroke)))
+    (is (not (defaults/rename-accepted? :not-a-key)))))

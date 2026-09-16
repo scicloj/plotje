@@ -154,7 +154,7 @@
  (->
   cars
   (pj/lay-point :wt :mpg {:size 5})
-  (pj/lay-text {:text :rownames, :nudge-x 0.08})))
+  (pj/lay-text {:text :rownames, :dx 0.08})))
 
 
 (deftest
@@ -176,7 +176,7 @@
  (->
   cars
   (pj/lay-point :disp :mpg {:size 5})
-  (pj/lay-text {:text :rownames, :nudge-x 0.08})))
+  (pj/lay-text {:text :rownames, :dx 0.08})))
 
 
 (deftest
@@ -247,7 +247,7 @@
    {:x {:value "red"},
     :y 3,
     :align-x :center,
-    :nudge-x 0.5,
+    :dx 0.5,
     :offset-y -10,
     :text "half a band along"})))
 
@@ -258,16 +258,14 @@
   ((fn
     [fr]
     (and
-     (=
-      [nil 0.5]
-      (->> fr pj/plan :panels first :layers (mapv :nudge-x)))
+     (= [nil 0.5] (->> fr pj/plan :panels first :layers (mapv :dx)))
      (=
       (pj/plot
        (->
         {:team ["red" "green" "blue"], :score [3 5 4]}
         (pj/lay-bar :team :score)
         (pj/lay-text
-         {:x {:value "red"}, :nudge-x 0.5, :y 4.5, :text "note"})))
+         {:x {:value "red"}, :dx 0.5, :y 4.5, :text "note"})))
       (pj/plot
        (->
         {:team ["red" "green" "blue"], :score [3 5 4]}
@@ -279,7 +277,7 @@
         {:team ["red" "green" "blue"], :score [3 5 4]}
         (pj/lay-bar :team :score)
         (pj/lay-text
-         {:x {:value "green"}, :nudge-x 0.5, :y 4.5, :text "note"})))
+         {:x {:value "green"}, :dx 0.5, :y 4.5, :text "note"})))
       (pj/plot
        (->
         {:team ["red" "green" "blue"], :score [3 5 4]}

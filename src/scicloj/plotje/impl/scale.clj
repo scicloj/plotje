@@ -148,10 +148,11 @@
    A band scale only otherwise answers a category it was given; this
    extends it to also accept a plain number as a continuous, 1-indexed
    place among its categories, so `1.5` sits halfway between the first
-   two and a nudge can land a label between the categories it labels.
+   two and a `:dx` shift can land a label between the categories it
+   labels.
 
    A number past the ends of the axis is extrapolated rather than
-   refused, so that a nudge carrying a mark off the panel draws where
+   refused, so that a shift carrying a mark off the panel draws where
    it was asked to. `place-range` is the interval the axis is drawn
    over, and refusing a written value outside it is the caller's."
   [sc v]
@@ -163,9 +164,9 @@
   "The 1-indexed place of `category` among a band scale's categories, in
    the order the scale carries them, or nil when it is not one of them.
 
-   The unit `forward`'s numeric position is counted in, so a nudge
-   applied to a category can be answered by `forward` the same way a
-   nudge on a numeric axis always was: a number added to a position."
+   The unit `forward` counts a bare number in, so a `:dx` applied to
+   a category can be answered by `forward` the same way a `:dx` on a
+   numeric axis always was: a number added to a place."
   [sc category]
   (let [bands (ws/data sc :bands)]
     (loop [i 1 bs (seq bands)]

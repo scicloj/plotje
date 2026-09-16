@@ -151,36 +151,37 @@
     (sequential? stroke-dash) (vec stroke-dash)
     :else nil))
 
-(defn- apply-nudge
-  "Apply nudge-x/nudge-y offsets to a layer's groups.
-   Nudge shifts a mark by a constant amount — orthogonal to position
-   adjustment (dodge/stack). Handles three group shapes:
+(defn- apply-shift
+  "Apply a layer's `:dx`/`:dy` shift to its groups.
+   The shift moves a mark by a constant amount in the axis's own
+   units — orthogonal to position adjustment (dodge/stack). Handles
+   three group shapes:
      - polyline groups with :xs/:ys (and optional :ymins/:ymaxs)
      - line-segment groups with :x1/:y1/:x2/:y2 (from :lm regression)
      - any group with any subset of the above
 
-   Previously, `:lm` and `:loess` listed `:nudge-x`/`:nudge-y` in their
-   `:accepts` but the segment-style groups they produced were silently
-   untouched because only :xs/:ys were updated.
+   Previously, `:lm` and `:loess` listed the shift in their `:accepts`
+   but the segment-style groups they produced were silently untouched
+   because only :xs/:ys were updated.
 
    On a numeric or temporal axis this is a data-space shift, applied
    here, directly to the values. On a categorical axis the coordinates
-   are still category labels at this stage -- a band's position is
-   assigned later, from the panel's domain order, once every layer's
-   categories are known -- so a number cannot be added to them yet.
-   Left on the layer as `:nudge-x`/`:nudge-y` instead, that shift is
-   read once the render step resolves each label to its place among
-   the categories (`render.panel/layer-ctx`), and added there as the
-   same one-category-is-one-unit position `scale/forward` already
-   reads for a bare numeric x or y on a categorical axis."
-  [layer {:keys [nudge-x nudge-y x-type y-type]}]
+   are still category labels at this stage -- a band is placed later,
+   from the panel's domain order, once every layer's categories are
+   known -- so a number cannot be added to them yet. Left on the layer
+   as `:dx`/`:dy` instead, that shift is read once the render step
+   resolves each label to its place among the categories
+   (`render.panel/layer-ctx`), and added there in the same
+   one-category-is-one-unit place `scale/forward` already reads for a
+   bare number on x or y of a categorical axis."
+  [layer {:keys [dx dy x-type y-type]}]
   (let [x-cat? (= x-type :categorical)
         y-cat? (= y-type :categorical)
-        nx (when (and nudge-x (not x-cat?)) (double nudge-x))
-        ny (when (and nudge-y (not y-cat?)) (double nudge-y))]
+        nx (when (and dx (not x-cat?)) (double dx))
+        ny (when (and dy (not y-cat?)) (double dy))]
     (cond-> layer
-      (and nudge-x x-cat?) (assoc :nudge-x (double nudge-x))
-      (and nudge-y y-cat?) (assoc :nudge-y (double nudge-y))
+      (and dx x-cat?) (assoc :dx (double dx))
+      (and dy y-cat?) (assoc :dy (double dy))
       (or nx ny)
       (update :groups
               (fn [gs]
@@ -408,7 +409,7 @@
                       tooltips (assoc :tooltips tooltips)
                       row-indices (assoc :row-indices row-indices))))}
         (cond-> (:position draft-layer) (assoc :position (:position draft-layer)))
-        (apply-nudge draft-layer))))
+        (apply-shift draft-layer))))
 
 (defmethod extract-layer :bar [draft-layer stat all-colors cfg]
   (check-stat stat :bins :bar)
@@ -448,7 +449,7 @@
                             :xs xs :ymins ymins :ymaxs ymaxs})))
         (:position draft-layer)
         (assoc :position (:position draft-layer)))
-      (apply-nudge draft-layer)))
+      (apply-shift draft-layer)))
 
 (defmethod extract-layer :step [draft-layer stat all-colors cfg]
   ;; `:position` is carried as `:area` carries it, so a stacked step
@@ -650,7 +651,7 @@
                      (resolve-font draft-layer))
        :groups (extract-xy-groups draft-layer stat all-colors cfg
                                   :with-labels? true :per-row-color? true)}
-      (apply-nudge draft-layer)))
+      (apply-shift draft-layer)))
 
 (defmethod extract-layer :area [draft-layer stat all-colors cfg]
   (let [stroke (:stroke draft-layer)
@@ -675,7 +676,7 @@
        :groups (extract-xy-groups draft-layer stat all-colors cfg
                                   :with-range? true :per-row-color? true)}
       (cond-> (:position draft-layer) (assoc :position (:position draft-layer)))
-      (apply-nudge draft-layer)))
+      (apply-shift draft-layer)))
 
 (defmethod extract-layer :lollipop [draft-layer stat all-colors cfg]
   {:mark :lollipop

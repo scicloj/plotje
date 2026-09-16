@@ -32,7 +32,7 @@
  (->
   computing-milestones
   (pj/lay-point :date :y {:size 6, :color "#2c3e50"})
-  (pj/lay-text :date :y {:text :event, :nudge-y 0.3, :color "#2c3e50"})
+  (pj/lay-text :date :y {:text :event, :dy 0.3, :color "#2c3e50"})
   (pj/options
    {:title "Five milestones in computing",
     :height 220,
@@ -69,10 +69,7 @@
  (->
   with-staggered-y
   (pj/lay-point :date :y {:size 6, :color "#2c3e50"})
-  (pj/lay-text
-   :date
-   :y
-   {:text :event, :nudge-y 0.18, :color "#2c3e50"})
+  (pj/lay-text :date :y {:text :event, :dy 0.18, :color "#2c3e50"})
   (pj/options
    {:title "Same milestones, staggered y for label clarity",
     :height 260,
@@ -99,9 +96,9 @@
    (rdatasets/ggplot2-economics)
    (tc/select-rows
     (fn*
-     [p1__78595#]
+     [p1__74943#]
      (let
-      [d (:date p1__78595#)]
+      [d (:date p1__74943#)]
       (and (>= (.getYear d) 2000) (<= (.getYear d) 2014))))))))
 
 

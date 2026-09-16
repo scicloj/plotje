@@ -150,7 +150,7 @@
 ;; depends on the size the mark is drawn at, not on what the axis
 ;; measures.
 ;;
-;; `:nudge-x` cannot do this, because it shifts the data value itself,
+;; `:dx` cannot do this, because it shifts the data value itself,
 ;; before the scales run.
 ;;
 ;; The examples that follow use six cars from `mtcars`, with their
@@ -169,13 +169,13 @@ cars
                 (= [1.935 5.424] [(apply min (ds :wt)) (apply max (ds :wt))])
                 (= [79.0 460.0] [(apply min (ds :disp)) (apply max (ds :disp))])))])
 
-;; Here each car is labelled with its name, and the labels are nudged
-;; along the weight axis. A nudge of 0.08 happens to be about the width
-;; of a marker on this axis, so it clears them:
+;; Here each car is labelled with its name, and the labels are shifted
+;; along the weight axis by `:dx`. A `:dx` of 0.08 happens to be about
+;; the width of a marker on this axis, so it clears them:
 
 (-> cars
     (pj/lay-point :wt :mpg {:size 5})
-    (pj/lay-text {:text :rownames :nudge-x 0.08}))
+    (pj/lay-text {:text :rownames :dx 0.08}))
 
 (kind/test-last
  [(fn [fr]
@@ -186,13 +186,13 @@ cars
       (< 8.0 (- (at 2.08) (at 2.0)) 11.0)))])
 
 ;; The same number does not work on a different axis. Displacement spans
-;; 79 to 460 where weight spans about 1.9 to 5.4, so a nudge of 0.08
+;; 79 to 460 where weight spans about 1.9 to 5.4, so a `:dx` of 0.08
 ;; moves the text by about a tenth of a drawing unit. The labels are back
 ;; on top of their markers:
 
 (-> cars
     (pj/lay-point :disp :mpg {:size 5})
-    (pj/lay-text {:text :rownames :nudge-x 0.08}))
+    (pj/lay-text {:text :rownames :dx 0.08}))
 
 (kind/test-last
  [(fn [fr]
@@ -207,7 +207,7 @@ cars
 ;; `:offset-x` and `:offset-y` shift a layer by a number of drawing units
 ;; after the scales have run. Because the number is a distance on the
 ;; page, the same one works on any axis. Here `:offset-x 10` clears the
-;; markers on the displacement axis that defeated the nudge:
+;; markers on the displacement axis that a `:dx` could not clear:
 
 (-> cars
     (pj/lay-point :disp :mpg {:size 5})
@@ -233,10 +233,10 @@ cars
     (= [nil -6]
        (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
 
-;; A nudge along a categorical axis is a fraction of a band. The
+;; A `:dx` along a categorical axis is a fraction of a band. The
 ;; categories carry no numbers of their own, so the amount is counted in
 ;; bands from wherever the mark sits: `0.5` is half a band along, which
-;; is halfway to the next category. The note below is nudged that far
+;; is halfway to the next category. The note below is shifted that far
 ;; from the bar it names, so it sits over the gap beside the bar rather
 ;; than above it. The bars take a light fill, because a label that
 ;; crosses one has to stay readable against it -- the other way round is
@@ -247,20 +247,20 @@ cars
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score {:color "#a6cee3"})
     (pj/lay-text {:x {:value "red"} :y 3 :align-x :center
-                  :nudge-x 0.5 :offset-y -10 :text "half a band along"}))
+                  :dx 0.5 :offset-y -10 :text "half a band along"}))
 
 (kind/test-last
  [(fn [fr]
     (and (= [nil 0.5]
-            (->> fr pj/plan :panels first :layers (mapv :nudge-x)))
+            (->> fr pj/plan :panels first :layers (mapv :dx)))
          ;; Half a band along from a category is the place halfway to the
-         ;; next one, so a nudge draws what writing that place draws. The
-         ;; picture above nudges every row from its own bar, which no one
+         ;; next one, so a `:dx` draws what writing that place draws. The
+         ;; picture above shifts every row from its own bar, which no one
          ;; written place matches, so the two spellings are held together
          ;; here on a single label.
          (= (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
                          (pj/lay-bar :team :score)
-                         (pj/lay-text {:x {:value "red"} :nudge-x 0.5
+                         (pj/lay-text {:x {:value "red"} :dx 0.5
                                        :y 4.5 :text "note"})))
             (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
                          (pj/lay-bar :team :score)
@@ -269,17 +269,17 @@ cars
          ;; a band rather than the first band being special.
          (= (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
                          (pj/lay-bar :team :score)
-                         (pj/lay-text {:x {:value "green"} :nudge-x 0.5
+                         (pj/lay-text {:x {:value "green"} :dx 0.5
                                        :y 4.5 :text "note"})))
             (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
                          (pj/lay-bar :team :score)
                          (pj/lay-text {:x 2.5 :y 4.5 :text "note"}))))))])
 
-;; One more difference between the two: a nudge does not change the axis
-;; domain, so a nudge large enough to carry a mark past the end of the
+;; One more difference between the two: a `:dx` does not change the axis
+;; domain, so a `:dx` large enough to carry a mark past the end of the
 ;; axis leaves it clipped there. ggplot2's `nudge_x` widens the range
-;; instead. The [Glossary](./plotje_book.glossary.html#nudge) entry for Nudge
-;; describes that difference. A number written in the slot itself is
+;; instead. The [Glossary](./plotje_book.glossary.html#shift) entry for
+;; Shift describes that difference. A number written in the slot itself is
 ;; answered the other way round -- Giving `:x` and `:y` as values, the
 ;; next section, shows both readings.
 ;;
@@ -498,8 +498,8 @@ scatter
 ;; dataset records that; two separate sequences would leave it to the
 ;; caller to keep them in step.
 
-;; These functions can answer the question the nudge section left open:
-;; how far does a nudge of 0.08 actually move a label on each of those
+;; These functions can answer the question the `:dx` section left open:
+;; how far does a `:dx` of 0.08 actually move a label on each of those
 ;; two axes? Ask each panel where 0.08 of its own units comes to:
 
 (let [shift (fn [column]
@@ -518,7 +518,7 @@ scatter
  [(fn [m] (and (< 10.0 (:on-weight m) 13.0)
                (< (:on-displacement m) 0.2)))])
 
-;; Both figures are the same `:nudge-x 0.08`, measured on the two axes
+;; Both figures are the same `:dx 0.08`, measured on the two axes
 ;; shown earlier.
 
 ;; ## Mapping a categorical axis

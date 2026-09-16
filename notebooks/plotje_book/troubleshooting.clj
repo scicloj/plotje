@@ -221,8 +221,8 @@
 ;; **Symptom**: A value label sits on top of the bar it names, and the
 ;; amount that separates them has to be guessed again on every chart.
 ;;
-;; **Cause**: A nudge is a distance in the data -- a fraction of a band
-;; on a categorical axis, a value on a numeric one -- so the number that
+;; **Cause**: A `:dx` or `:dy` is a distance in the data -- a fraction of
+;; a band on a categorical axis, a value on a numeric one -- so the number that
 ;; clears a mark depends on what the axis holds. A label has to clear
 ;; its mark by roughly the mark's own size, which is a length on the
 ;; page.
@@ -258,7 +258,7 @@
 
 ;; Anchoring is covered in
 ;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark),
-;; and the nudge itself in the same chapter.
+;; and `:dx` itself in the same chapter.
 
 ;; ## Log Scale via `:scale-x` / `:scale-y` Options
 ;;

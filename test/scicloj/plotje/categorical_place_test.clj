@@ -6,7 +6,7 @@
    axis reaches half a unit past each end. The same number has to mean
    the same thing however it is written and on whichever axis it is
    written for, so these tests hold the two spellings together -- a bare
-   number, and a nudge from a named category -- and hold `:x` against
+   number, and a shift from a named category -- and hold `:x` against
    `:y`. Those were three separate answers before: `:x` reported that
    numeric and categorical domains could not be merged, `:y` added a
    fourth category ticked `1.5`, and `pj/to-drawing` refused the value
@@ -46,20 +46,20 @@
 ;; ---- One number, one meaning ----
 
 (deftest the-two-spellings-draw-the-same-picture
-  (testing "a bare place and a nudge from the category it counts from"
+  (testing "a bare place and a :dx from the category it counts from"
     ;; Byte-identical drawings, not merely equal positions: the plans
     ;; differ -- one carries :xs [1.5], the other :xs ["A"] and a
-    ;; :nudge-x -- and the whole point is that the difference stops
+    ;; :dx -- and the whole point is that the difference stops
     ;; there.
     (is (= (pj/plot (-> x-categorical (pj/lay-label {:x 1.5 :y 3.0 :text "note"})))
-           (pj/plot (-> x-categorical (pj/lay-label {:x {:value "A"} :nudge-x 0.5
+           (pj/plot (-> x-categorical (pj/lay-label {:x {:value "A"} :dx 0.5
                                                      :y 3.0 :text "note"}))))
         "on x")
     (is (= (pj/plot (-> x-categorical (pj/lay-point {:x 1.5 :y 3.0})))
-           (pj/plot (-> x-categorical (pj/lay-point {:x {:value "A"} :nudge-x 0.5 :y 3.0}))))
+           (pj/plot (-> x-categorical (pj/lay-point {:x {:value "A"} :dx 0.5 :y 3.0}))))
         "and not only for text")
     (is (= (pj/plot (-> y-categorical (pj/lay-label {:y 1.5 :x 2.0 :text "note"})))
-           (pj/plot (-> y-categorical (pj/lay-label {:y {:value "x"} :nudge-y 0.5
+           (pj/plot (-> y-categorical (pj/lay-label {:y {:value "x"} :dy 0.5
                                                      :x 2.0 :text "note"}))))
         "on y, which used to add a fourth category for the bare number")))
 

@@ -761,8 +761,8 @@
   (let [lay? (str/starts-with? caller "lay-")
         elsewhere (layer-types-accepting k)]
     (cond
-      (defaults/renamed-options k)
-      (str "Renamed to " (defaults/renamed-options k))
+      (defaults/renamed-to k)
+      (str "Renamed to " (defaults/renamed-to k))
 
       (dedicated-function-keys k)
       (str "Set by " (dedicated-function-keys k) ", not by an options map")
@@ -807,11 +807,18 @@
      opts with unknown keys stripped, so they don't propagate into
      downstream resolution.
    - :strict true -- throw an ex-info naming the unknown keys and
-     listing the accepted set."
+     listing the accepted set.
+
+   An option written under a name a release retired is rewritten to
+   the name it carries now before any of this, when that rename is
+   `:accept` -- see `defaults/renamed-options`. So the plot draws as
+   it did and the writer is told what to edit, rather than meeting a
+   picture the missing setting changed."
   [caller opts accepted]
   (if-not (and (map? opts) (seq opts))
     opts
-    (let [unknown (remove accepted (keys opts))
+    (let [[opts accepted-renames] (defaults/apply-renames opts)
+          unknown (remove accepted (keys opts))
           strict-val (:strict (defaults/config))]
       (when-not (or (nil? strict-val) (boolean? strict-val))
         (throw (ex-info (str ":strict config value must be true or false, got: "
@@ -820,6 +827,12 @@
                              " treated as enabled in earlier releases; this"
                              " is now an error.")
                         {:value strict-val})))
+      (doseq [[from to] accepted-renames]
+        (let [msg (str caller ": " from " was renamed to " to
+                       ", and is read as " to " for now. Write " to ".")]
+          (if strict-val
+            (throw (ex-info msg {:caller caller :renamed from :to to}))
+            (println (str "Warning: " msg)))))
       (if (seq unknown)
         (let [msg (str caller " does not recognize option(s): " (vec unknown) "."
                        (option-home-lines caller unknown)
@@ -1647,7 +1660,7 @@
                              "units, but got " (pr-str v) ". It shifts the "
                              "whole layer, so it takes one value rather than "
                              "a column. For a data-space shift use "
-                             (if (= k :offset-x) ":nudge-x" ":nudge-y") ".")
+                             (if (= k :offset-x) ":dx" ":dy") ".")
                         {:option k :value v})))))
   ;; How wide a mark is drawn across its band is one number for the
   ;; layer, so a column has nothing to mean. Given one, the plan failed
@@ -2491,8 +2504,8 @@
   "Add `:line` layer type -- connected line through data points.
    Requires x (numerical) and y (numerical).
    Accepts `:color`, `:alpha`, `:size` (stroke width), `:stroke-dash`
-   (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector), `:nudge-x`,
-   `:nudge-y`."
+   (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector), `:dx`,
+   `:dy`."
   ([pose-or-data] (lay-layer-type :line pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :line pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :line pose-or-data x y-or-opts))

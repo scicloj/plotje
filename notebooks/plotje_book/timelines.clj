@@ -34,7 +34,7 @@
 ;; ## Historical event timeline
 ;;
 ;; Five milestones in computing history. Each event is a point on
-;; a single horizontal line, with a text label nudged above. The
+;; a single horizontal line, with a text label shifted above. The
 ;; vertical position is fixed (`y = 1`) because the y-axis here
 ;; carries no meaning -- it provides a baseline.
 ;;
@@ -63,7 +63,7 @@
 
 (-> computing-milestones
     (pj/lay-point :date :y {:size 6 :color "#2c3e50"})
-    (pj/lay-text  :date :y {:text :event :nudge-y 0.3 :color "#2c3e50"})
+    (pj/lay-text  :date :y {:text :event :dy 0.3 :color "#2c3e50"})
     (pj/options {:title "Five milestones in computing"
                  :height 220
                  :y-label ""
@@ -87,7 +87,7 @@
 
 (-> with-staggered-y
     (pj/lay-point :date :y {:size 6 :color "#2c3e50"})
-    (pj/lay-text  :date :y {:text :event :nudge-y 0.18 :color "#2c3e50"})
+    (pj/lay-text  :date :y {:text :event :dy 0.18 :color "#2c3e50"})
     (pj/options {:title "Same milestones, staggered y for label clarity"
                  :height 260
                  :y-label ""

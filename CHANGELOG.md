@@ -4,24 +4,28 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route to a categorical axis reads it that way: a value written in a slot, a nudge from a named category, `pj/to-drawing`, and the marks that draw at a written value.
+A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route to a categorical axis reads it that way: a value written in a slot, a shift from a named category, `pj/to-drawing`, and the marks that draw at a written value.
 
 ### Plots that look different after upgrading
 
 - **Every plot writing a number for a categorical axis.** The mark is drawn at that place among the categories. A number on a categorical `:y` used to add a category of its own, drawing a tick labelled with the number and putting the mark in the new band; on `:x` the same number reported that numeric and categorical domains could not be merged.
-- **Every plot nudging a mark along a categorical axis.** The nudge is a fraction of a band, so `{:nudge-x 0.5}` moves a mark half a band along. `:nudge-x` and `:nudge-y` used to report an error on that axis.
+- **Every plot shifting a mark along a categorical axis.** The shift is a fraction of a band, so `{:dx 0.5}` moves a mark half a band along. `:dx` and `:dy` used to report an error on that axis.
 - **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
 - **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A value past the ends used to be scaled and the mark drawn off the panel, where clipping hid it.
 
 ### Added
 
-- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A nudge reads the same way, `{:nudge-x 0.5}` moving a mark half a band along, and `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that is reported. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
+- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A `:dx` reads the same way, `{:dx 0.5}` moving a mark half a band along, and `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that is reported. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
 
 ### Fixed
 
 - A histogram bar written at a place on a categorical axis is drawn there, one place wide. It used to be dropped, under a warning saying its height had no place on a log scale.
 
 - One reader answers what a number means on either axis. `:x` and `:y` each had their own copy of the parse that decides whether a layer contributes a numeric extent or a list of categories, and the two disagreed about a number written beside categories.
+
+### Changed
+
+- `:nudge-x` and `:nudge-y` are `:dx` and `:dy`. The shift they set is measured in the axis's own units, and a band is now one of those units, so the name says a change in `:x` without naming a unit. Written under the old name the option is read as the new one and Plotje warns, naming the edit (an error under `:strict`), so a plot written before this release draws as it did. `:offset-x` and `:offset-y`, which shift a layer by a distance on the page, keep their names. - thanks, @timothypratley
 
 ## [0.13.0 - 2026-09-10]
 

@@ -198,6 +198,14 @@
    ;; Numbers, not columns: one value shifts everything the layer drew.
    [:offset-x {:optional true} number?]
    [:offset-y {:optional true} number?]
+   ;; Shift in the axis's own units. A different quantity from
+   ;; `:offset-x`, applied at a different stage: on a numerical or
+   ;; temporal axis `extract/apply-shift` has already folded it into
+   ;; the groups, so it reaches a plan layer only on a categorical
+   ;; axis, where a label carries no number to add to until the render
+   ;; step places it (`render.panel/layer-ctx`).
+   [:dx {:optional true} number?]
+   [:dy {:optional true} number?]
    ;; The space this layer's positions are in. Absent means :data.
    [:in {:optional true} [:enum :data :drawing-area]]
    [:dodge-ctx {:optional true} any?]

@@ -404,50 +404,56 @@ my-pose
 ;; rectangle's top left corner, so a note at drawing-space `[12 12]`
 ;; lands 12 units right and 12 units down from that corner.
 
-;; ## Nudge
+;; ## Shift
 ;;
-;; A **nudge** shifts a mark by a constant amount measured in the axis's
-;; own units. Applied via `:nudge-x` and `:nudge-y` keys in the layer
-;; options. It is orthogonal to position: nudge within a dodge, or
-;; nudge at identity.
+;; A **shift** moves a mark by a constant amount measured in the axis's
+;; own units. Written as `:dx` and `:dy` in a layer's options. The name
+;; says a change in `:x` without naming a unit, because the unit is
+;; whatever `:x` is measured in. A shift is independent of
+;; `:position`: a mark shifts by the same amount within a dodge as it
+;; does at identity.
 ;;
 ;; What that unit is depends on the axis. On a numerical or temporal
 ;; axis it is a data value, added to the coordinate before the scales
 ;; run. On a categorical axis the categories carry no numbers of their
-;; own, so the unit is one band: `{:nudge-x 0.5}` moves a mark half a
-;; band along, which is halfway to the next category. The shift is
-;; applied there once each category has been placed among the others.
+;; own, so the unit is one band: `{:dx 0.5}` moves a mark half a band
+;; along, which is halfway to the next category. The shift is applied
+;; there once each category has been placed among the others.
 ;;
-;; Either way the axis domain is computed without the nudge, so a nudge
+;; `:offset-x` and `:offset-y` are the other way of moving a mark: a
+;; distance on the page in drawing units, applied after the scales, so
+;; the same number means the same thing on every axis.
+;;
+;; Either way the axis domain is computed without the shift, so a `:dx`
 ;; large enough to carry a mark past the domain leaves it clipped at the
 ;; panel edge. Widen the domain with `pj/scale` when that happens. A
-;; nudge is therefore a shift rather than a claim about where the datum
+;; shift is therefore a move rather than a claim about where the datum
 ;; belongs; ggplot2's `nudge_x` and `nudge_y` differ here, expanding the
-;; axis range to keep the nudged mark in view.
+;; axis range to keep the shifted mark in view.
 
 (-> {:x [1 2 3] :y [4 5 6]}
-    (pj/lay-point :x :y {:nudge-x 0.5}))
+    (pj/lay-point :x :y {:dx 0.5}))
 
 (kind/test-last
  [(fn [v]
     (let [xs (-> {:x [1 2 3] :y [4 5 6]}
-                 (pj/lay-point :x :y {:nudge-x 0.5})
+                 (pj/lay-point :x :y {:dx 0.5})
                  pj/plan
                  (get-in [:panels 0 :layers 0 :groups 0 :xs]))]
       (and (= 3 (:points (pj/svg-summary v)))
-           ;; The original xs were [1 2 3]; nudge-x 0.5 shifts each
+           ;; The original xs were [1 2 3]; :dx 0.5 shifts each
            ;; by 0.5 before the scale is applied.
            (= [1.5 2.5 3.5] xs))))])
 
 ;; On a categorical axis the same `0.5` is half a band. The label below
-;; is nudged from the first category and lands halfway to the second,
+;; is shifted from the first category and lands halfway to the second,
 ;; over the gap between the two bars. The light fill keeps it readable
 ;; where it crosses one:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score {:color "#a6cee3"})
     (pj/lay-text {:x {:value "red"} :y 3 :align-x :center
-                  :nudge-x 0.5 :offset-y -10 :text "half a band"}))
+                  :dx 0.5 :offset-y -10 :text "half a band"}))
 
 (kind/test-last
  [(fn [v]
@@ -455,7 +461,7 @@ my-pose
           at (fn [c] (first (pj/to-drawing panel c 4.5)))]
       (and
        ;; Half a band from the first category is the place halfway to
-       ;; the second, so the nudge draws what writing that place draws.
+       ;; the second, so the shift draws what writing that place draws.
        (= (pj/plot v)
           (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
                        (pj/lay-bar :team :score {:color "#a6cee3"})
@@ -463,13 +469,13 @@ my-pose
                                      :offset-y -10 :text "half a band"}))))
        ;; And that place is the midpoint of the two band centres.
        (< (abs (- (at 1.5) (/ (+ (at "red") (at "green")) 2.0))) 1e-9)
-       ;; The nudge is not a category, so the axis still carries three.
+       ;; The shift is not a category, so the axis still carries three.
        (= ["red" "green" "blue"] (-> v pj/plan :panels first :x-domain)))))])
 
 ;; ## Jitter
 ;;
 ;; **Jitter** adds random offsets in drawing units to reduce
-;; overplotting. Unlike position and nudge, jitter operates after
+;; overplotting. Unlike `:position` and a `:dx` shift, jitter operates after
 ;; scaling (not in data space) and is deterministic -- seeded by a
 ;; hash of the group's color so repeated renders produce identical
 ;; output.

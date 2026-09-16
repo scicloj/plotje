@@ -53,11 +53,11 @@
    :alpha "A column of the layer's data (per-row opacity), or a number within 0 and 1 for the whole layer. A column is scaled and a written number is drawn; {:alpha {:column :r :scale false}} reads the column as opacities, {:alpha {:value 0.3 :scale true}} sends the number through the scale"
    :group "A column of the layer's data, or a vector of them, grouping without color"
    :position "Position adjustment keyword — how overlapping groups are arranged (see pj/position-doc)"
-   :nudge-x "Shift all x-coordinates by this amount in the axis's own units -- a data value on a numerical or temporal axis, one band on a categorical one, where 0.5 is half a band along"
-   :nudge-y "Shift all y-coordinates by this amount in the axis's own units. See :nudge-x"
+   :dx "Shift all x-coordinates by this amount in the axis's own units -- a data value on a numerical or temporal axis, one band on a categorical one, where 0.5 is half a band along. The unit is whatever :x is measured in, which is why the name says a change in x without naming a unit; for a shift measured on the page, see :offset-x"
+   :dy "Shift all y-coordinates by this amount in the axis's own units. See :dx"
    :overlay "Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own -- whether those columns are written in the argument slots or here in the options map. A written value in :x or :y names no panel, so a layer placed at one joins without asking. `pj/overlay` sets the same thing for every layer added after it."
    :in "The space this layer's :x and :y are in — :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). It does not widen to the other aesthetics; to take one axis off its scale on its own, write {:y {:column :b :scale false}}. An unscaled layer is placed on the panel rather than in the data, so it does not move the axis domains"
-   :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :nudge-x the amount is a distance on the page rather than in the axis's units, so it means the same on every axis and does not move the axis domain -- use it to clear a label of the mark it labels"
+   :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :dx the amount is a distance on the page rather than in the axis's units, so it means the same on every axis and does not move the axis domain -- use it to clear a label of the mark it labels"
    :offset-y "Shift the whole layer down by this many drawing units, after the scales. See :offset-x"
    :align-x "Horizontal text anchor — :left, :center, or :right (default :left); which part of the label sits at the x position"
    :align-y "Vertical text anchor — :top, :center, or :bottom (default :center); which part of the label sits at the y position. Data-oriented: :top puts the label's top edge at the point"
@@ -358,13 +358,13 @@
 ;; row. Every other mark draws one value for the whole layer -- `:line`
 ;; takes one stroke width, `:boxplot` one opacity -- so a column mapped
 ;; there varies nothing.
-(register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :nudge-x :nudge-y] :varies {:size :radius :alpha :opacity} :doc "Scatter — individual data points."})
-(register! :line {:mark :line :stat :identity :accepts [:size :stroke-dash :nudge-x :nudge-y] :doc "Line — connects data points in order."})
+(register! :point {:mark :point :stat :identity :accepts [:size :shape :jitter :dx :dy] :varies {:size :radius :alpha :opacity} :doc "Scatter — individual data points."})
+(register! :line {:mark :line :stat :identity :accepts [:size :stroke-dash :dx :dy] :doc "Line — connects data points in order."})
 (register! :step {:mark :step :stat :identity :accepts [:size :stroke-dash] :doc "Step — horizontal-then-vertical connected points."})
 (register! :area {:mark :area :stat :identity :accepts [:stroke :stroke-width :stroke-dash] :doc "Area — filled region under a line."})
 (register! :histogram {:mark :bar :stat :bin :x-only true :accepts [:normalize :bins :binwidth] :doc "Histogram — bins numerical data into bars."})
 (register! :bar {:mark :rect :accepts [:bar-width] :doc "Bar — counts categories (x only), or uses y as the bar height when a y column is given."})
-(register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :stroke-dash :nudge-x :nudge-y] :doc "Smoothed trend line — defaults to LOESS; pass {:stat :linear-model} for OLS."})
+(register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :stroke-dash :dx :dy] :doc "Smoothed trend line — defaults to LOESS; pass {:stat :linear-model} for OLS."})
 (register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth :trim :stroke :stroke-width :stroke-dash] :doc "Density — KDE (kernel density estimation) as filled area."})
 (register! :tile {:mark :tile :stat :bin2d :accepts [:fill :density-2d-grid] :doc "Tile/heatmap — 2D grid binning."})
 (register! :density-2d {:mark :tile :stat :density-2d :accepts [:density-2d-grid] :doc "2D density — kernel density estimation (KDE) smoothed heatmap."})
@@ -373,10 +373,10 @@
 (register! :violin {:mark :violin :stat :violin :accepts [:bandwidth :trim :size] :doc "Violin — mirrored density curve per category."})
 (register! :ridgeline {:mark :ridgeline :stat :violin :accepts [:bandwidth :trim] :doc "Ridgeline — stacked density curves per category."})
 (register! :summary {:mark :pointrange :stat :summary :accepts [:size] :doc "Summary — mean ± standard error per category."})
-(register! :errorbar {:mark :errorbar :stat :identity :accepts [:y-min :y-max :size :cap-width :nudge-x :nudge-y] :doc "Errorbar — vertical error bars."})
+(register! :errorbar {:mark :errorbar :stat :identity :accepts [:y-min :y-max :size :cap-width :dx :dy] :doc "Errorbar — vertical error bars."})
 (register! :lollipop {:mark :lollipop :stat :identity :accepts [:size] :doc "Lollipop — stem with dot."})
-(register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :box :nudge-x :nudge-y :align-x :align-y] :doc "Text — data-driven labels, optionally on a background box."})
-(register! :label {:mark :text :stat :identity :defaults {:box true} :accepts [:text :font-size :font-weight :font-style :box :nudge-x :nudge-y :align-x :align-y] :doc "Label — text on a background box. The :text mark with :box preset on."})
+(register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :box :dx :dy :align-x :align-y] :doc "Text — data-driven labels, optionally on a background box."})
+(register! :label {:mark :text :stat :identity :defaults {:box true} :accepts [:text :font-size :font-weight :font-style :box :dx :dy :align-x :align-y] :doc "Label — text on a background box. The :text mark with :box preset on."})
 (register! :rug {:mark :rug :stat :identity :x-only true :accepts [:side :length] :doc "Rug — axis-margin tick marks."})
 (register! :interval-h {:mark :interval-h :stat :identity :accepts [:x-end :interval-thickness]
                         ;; Dodge/stack/fill don't compose with interval-h yet -- a Gantt

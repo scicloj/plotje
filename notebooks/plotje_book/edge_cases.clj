@@ -234,12 +234,12 @@
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; ### Nudge on scatter
+;; ### A shift on a scatter
 
-;; Nudge-x on continuous data -- shifts points without error.
+;; `:dx` and `:dy` on continuous data -- shifts points without error.
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:nudge-x 0.1 :nudge-y -0.05}))
+    (pj/lay-point :sepal-length :sepal-width {:dx 0.1 :dy -0.05}))
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
