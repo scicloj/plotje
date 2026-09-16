@@ -207,7 +207,8 @@
 
 (-> {:cohort [2020 2021 2022] :n [3 5 4]}
     (pj/lay-bar :cohort :n {:x-type :categorical})
-    (pj/lay-text {:x {:value "2021"} :y 5.5 :text "on the band"}))
+    (pj/lay-text {:x {:value "2021"} :y 5.5 :align-x :center
+                  :text "on the band"}))
 
 (kind/test-last
  [(fn [fr]

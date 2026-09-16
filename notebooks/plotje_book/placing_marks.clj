@@ -236,12 +236,18 @@ cars
 ;; A nudge along a categorical axis is a fraction of a band. The
 ;; categories carry no numbers of their own, so the amount is counted in
 ;; bands from wherever the mark sits: `0.5` is half a band along, which
-;; is halfway to the next category. Here it moves the same label half a
-;; band to the right of the bar it names, instead of straight up:
+;; is halfway to the next category. The note below is nudged that far
+;; from the bar it names, so it sits over the gap beside the bar rather
+;; than above it. The bars take a light fill, because a label that
+;; crosses one has to stay readable against it -- the other way round is
+;; to give the text its own background, which
+;; [Customization](./plotje_book.customization.html#text-on-a-background-box)
+;; covers and `pj/lay-label` does by default:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
-    (pj/lay-bar :team :score)
-    (pj/lay-text {:text :score :align-x :center :nudge-x 0.5}))
+    (pj/lay-bar :team :score {:color "#a6cee3"})
+    (pj/lay-text {:x {:value "red"} :y 3 :align-x :center
+                  :nudge-x 0.5 :offset-y -10 :text "half a band along"}))
 
 (kind/test-last
  [(fn [fr]
@@ -331,9 +337,10 @@ cars
 ;; between the first bar and the second, and adds no category of its own:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
-    (pj/lay-bar :team :score)
-    (pj/lay-text {:x 1.5 :y 4.5 :text "between two teams"
-                  :color "magenta"}))
+    (pj/lay-bar :team :score {:color "#a6cee3"})
+    (pj/lay-point {:x 1.5 :y 4.5 :size 6 :color "#cc3311"})
+    (pj/lay-text {:x 1.5 :y 4.5 :align-x :center :offset-y -10
+                  :text "between two teams"}))
 
 (kind/test-last
  [(fn [fr]
@@ -369,7 +376,8 @@ cars
 
 (-> {:cohort [2020 2021 2022] :n [3 5 4]}
     (pj/lay-bar :cohort :n {:x-type :categorical})
-    (pj/lay-text {:x {:value "2021"} :y 5.5 :text "the 2021 cohort"}))
+    (pj/lay-text {:x {:value "2021"} :y 5.5 :align-x :center
+                  :text "the 2021 cohort"}))
 
 (kind/test-last
  [(fn [fr]
