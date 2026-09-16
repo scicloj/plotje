@@ -3409,10 +3409,13 @@
    refused, with a message naming which of them it got and the call that
    reaches a panel entry from there.
 
-   A categorical axis is a band scale: it has a place for each of its
-   categories and none between them. Asking it for anything else -- a
-   category the axis does not carry, or a fractional place such as 2.5
-   -- throws, naming the value and the categories it could have been.
+   A categorical axis is a band scale, and it answers two kinds of
+   value. A category sits at the middle of its band. A number is a
+   place among the categories, counted from one: `1` is the first
+   category, `1.5` sits halfway to the second, and on `n` categories
+   the axis runs from `0.5` to `n + 0.5`. Anything else throws, naming
+   the value and the categories it could have been -- a category the
+   axis does not carry, or a number past the ends of the axis.
    Under `:coord :flip` the arguments stay in data order, even though a
    panel entry's `:x-domain` and `:y-domain` describe the drawn axes and
    the flip has already swapped those."

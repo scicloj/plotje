@@ -98,8 +98,11 @@
                  (contains? (set (:labels ticks)) "2"))))])
 
 ;; A categorical column gives one band per distinct value, in the order
-;; the values first appear. There is nothing between two bands, so the
-;; axis carries exactly as many places as there are categories:
+;; the values first appear, so the axis carries exactly as many bands as
+;; there are categories. A value written for that axis is read against
+;; those bands: a category names one of them, and a number is a place
+;; among them, counted from one -- see
+;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis).
 
 (-> categorical
     (pj/lay-point :k :v))

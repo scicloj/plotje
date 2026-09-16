@@ -183,36 +183,23 @@
 ;; `"pj/plan got 2021 for :x, which is past the ends of this axis"`.
 ;;
 ;; **Cause**: A number written for a categorical axis is a place among
-;; the categories, counted from one -- `1` is the first category, `1.5`
-;; sits halfway to the second -- and the axis reaches half a place past
-;; each end. On an axis built from the years 2020, 2021 and 2022 the
-;; number `2` is therefore the second band, and `2021` is a place far
-;; past the third and last one, which is what the refusal names.
-
-(-> {:cohort [2020 2021 2022] :n [3 5 4]}
-    (pj/lay-bar :cohort :n {:x-type :categorical})
-    (pj/lay-text {:x 2 :y 5.5 :text "place 2"}))
-
-(kind/test-last
- [(fn [fr]
-    (= ["2020" "2021" "2022"]
-       (->> fr pj/plan :panels first :x-domain)))])
-
+;; the categories rather than one of them, counted from one. On an axis
+;; built from the years 2020, 2021 and 2022 the number `2021` is a place
+;; far past the third and last category, which is what the refusal
+;; names. [Placing Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
+;; teaches the reading in full.
+;;
 ;; **Fix**: Name the category as a value. `{:x {:value "2021"}}` puts
 ;; the mark on that band whatever numbers the categories are written
-;; from, and leaves a place for the spot between two categories that no
-;; category names.
+;; from:
 
 (-> {:cohort [2020 2021 2022] :n [3 5 4]}
     (pj/lay-bar :cohort :n {:x-type :categorical})
-    (pj/lay-text {:x {:value "2021"} :y 5.5 :text "on the band"})
-    (pj/lay-text {:x 1.5 :y 4.0 :text "between two"}))
+    (pj/lay-text {:x {:value "2021"} :y 5.5 :text "on the band"}))
 
 (kind/test-last
  [(fn [fr]
-    ;; Neither mark adds a category: the named one lands on a band that
-    ;; is already there, and the place counts among the bands rather
-    ;; than joining them.
+    ;; The named band was already on the axis, so naming it adds none.
     (= ["2020" "2021" "2022"]
        (->> fr pj/plan :panels first :x-domain)))])
 

@@ -304,6 +304,48 @@ cars
  [(fn [fr] (every? (set (:texts (pj/svg-summary (pj/plot fr))))
                    ["Mazda RX4" "Valiant" "Merc 280C"]))])
 
+;; On a categorical axis the same value is read differently, because the
+;; axis cannot widen to reach it -- its categories are its whole extent.
+;; A number there is a place among the categories, counted from one: `1`
+;; is the first category, `1.5` sits halfway to the second, and on three
+;; categories the axis runs from `0.5` to `3.5`. So the note below lands
+;; between the first bar and the second, and adds no category of its own:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-bar :team :score)
+    (pj/lay-text {:x 1.5 :y 4.5 :text "between two teams"
+                  :color "magenta"}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [panel (-> fr pj/plan :panels first)]
+      (and (= ["red" "green" "blue"] (:x-domain panel))
+           (= ["red" "green" "blue"] (:values (:x-ticks panel))))))])
+
+;; To name a category rather than count to one, write the value in full
+;; as `{:value ...}`. That spelling matters most where the categories are
+;; themselves numbers, since there the two readings pick different bands
+;; -- on an axis of the years 2020, 2021 and 2022, `{:value "2021"}` is
+;; the middle band and the bare number `2021` is a place far past the
+;; third:
+
+(-> {:cohort [2020 2021 2022] :n [3 5 4]}
+    (pj/lay-bar :cohort :n {:x-type :categorical})
+    (pj/lay-text {:x {:value "2021"} :y 5.5 :text "the 2021 cohort"}))
+
+(kind/test-last
+ [(fn [fr]
+    (and (some #{"the 2021 cohort"} (:texts (pj/svg-summary (pj/plot fr))))
+         ;; The bare number is the reading this example is not asking
+         ;; for, and the axis says so rather than drawing off the panel.
+         (try (-> {:cohort [2020 2021 2022] :n [3 5 4]}
+                  (pj/lay-bar :cohort :n {:x-type :categorical})
+                  (pj/lay-text {:x 2021 :y 5.5 :text "the 2021 cohort"})
+                  pj/plan)
+              false
+              (catch Exception e
+                (boolean (re-find #"past the ends of this axis" (ex-message e)))))))])
+
 ;; ## Placing a mark on the panel instead of in the data
 ;;
 ;; The layer option `:in` names the space a layer's `:x` and `:y` are in:
@@ -430,16 +472,19 @@ scatter
 
 ;; ## Mapping a categorical axis
 ;;
-;; A categorical axis is a band scale: it has a place for each of its
-;; categories and none between them. That shows up in both directions.
-;; `pj/to-drawing` maps a category to the middle of its band, and
-;; `pj/to-data` reads back the category whose band holds the coordinate.
-;; Outside every band there is no category to name, so `pj/to-data`
-;; answers nil for that coordinate. In the other direction there is
-;; nothing sensible to answer at all, so `pj/to-drawing` refuses a value
-;; the axis has no place for -- a category it does not carry, or a
-;; fractional place between two bands -- naming the value and the
-;; categories it could have been:
+;; A categorical axis is a band scale, and `pj/to-drawing` answers two
+;; kinds of value on it. A category maps to the middle of its band. A
+;; number maps to a place among the categories, counted from one, so a
+;; number between two whole ones lands between the bands they name and
+;; the axis reaches half a place past each end. What it refuses is a
+;; value that is neither -- a category the axis does not carry, or a
+;; number past the ends of the axis -- naming the value and the
+;; categories it could have been.
+;;
+;; The two directions are not symmetrical. `pj/to-data` reads back the
+;; category whose band holds the coordinate, and answers nil outside
+;; every band, so a place between two bands comes back as one of the two
+;; categories rather than as the number that produced it:
 
 (let [panel (-> {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
                  :tickets   [462389 181444 163294]}
@@ -450,15 +495,32 @@ scatter
   {:band-middle     (pj/to-drawing panel 200000 "Over Time Limit")
    :read-back       (->> (pj/to-drawing panel 200000 "Over Time Limit")
                          (apply pj/to-data panel))
+   :halfway-up      (pj/to-drawing panel 200000 1.5)
    :outside-a-band  (pj/to-data panel 325.0 5.0)
    :not-a-category  (try (pj/to-drawing panel 200000 "Double Parked")
+                         (catch Exception e (ex-message e)))
+   :past-the-ends   (try (pj/to-drawing panel 200000 99)
                          (catch Exception e (ex-message e)))})
 
 (kind/test-last
  [(fn [m] (and (= [200000.0 "Over Time Limit"] (:read-back m))
                (nil? (second (:outside-a-band m)))
                (re-find #"Double Parked" (:not-a-category m))
-               (re-find #"Meter Expired" (:not-a-category m))))])
+               (re-find #"Meter Expired" (:not-a-category m))
+               (re-find #"past the ends of this axis" (:past-the-ends m))
+               ;; The place is on the categorical axis, which is y here,
+               ;; and sits midway between the first band's middle and the
+               ;; second's -- the two the number 1.5 falls between.
+               (let [mid (fn [v] (second (pj/to-drawing
+                                          (-> {:violation ["Meter Expired" "Over Time Limit"
+                                                           "Stop Prohibited"]
+                                               :tickets   [462389 181444 163294]}
+                                              (pj/lay-bar :tickets :violation)
+                                              pj/frames :panels first)
+                                          200000 v)))]
+                 (< (abs (- (second (:halfway-up m))
+                            (/ (+ (mid "Meter Expired") (mid "Over Time Limit")) 2.0)))
+                    1e-9))))])
 
 ;; Both functions take and answer in data order, and `(pj/coord :flip)`
 ;; does not change that -- the categorical column stays the `:x`

@@ -406,18 +406,24 @@ my-pose
 
 ;; ## Nudge
 ;;
-;; A **nudge** shifts data coordinates by a constant offset.
-;; It is orthogonal to position -- you can nudge within a dodge,
-;; or nudge at identity. Applied via `:nudge-x` and `:nudge-y`
-;; keys in the layer options.
+;; A **nudge** shifts a mark by a constant amount measured in the axis's
+;; own units. Applied via `:nudge-x` and `:nudge-y` keys in the layer
+;; options. It is orthogonal to position: nudge within a dodge, or
+;; nudge at identity.
 ;;
-;; A nudge is applied before the scales, but the axis domain is
-;; computed without it, so a nudge large enough to carry a mark past
-;; the domain leaves it clipped at the panel edge. Widen the domain
-;; with `pj/scale` when that happens. A nudge is therefore a shift in
-;; data units rather than a claim about where the datum belongs;
-;; ggplot2's `nudge_x` and `nudge_y` differ here, expanding the axis
-;; range to keep the nudged mark in view.
+;; What that unit is depends on the axis. On a numerical or temporal
+;; axis it is a data value, added to the coordinate before the scales
+;; run. On a categorical axis the categories carry no numbers of their
+;; own, so the unit is one band: `{:nudge-x 0.5}` moves a mark half a
+;; band along, which is halfway to the next category. The shift is
+;; applied there once each category has been placed among the others.
+;;
+;; Either way the axis domain is computed without the nudge, so a nudge
+;; large enough to carry a mark past the domain leaves it clipped at the
+;; panel edge. Widen the domain with `pj/scale` when that happens. A
+;; nudge is therefore a shift rather than a claim about where the datum
+;; belongs; ggplot2's `nudge_x` and `nudge_y` differ here, expanding the
+;; axis range to keep the nudged mark in view.
 
 (-> {:x [1 2 3] :y [4 5 6]}
     (pj/lay-point :x :y {:nudge-x 0.5}))
