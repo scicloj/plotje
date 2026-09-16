@@ -13,6 +13,10 @@ A number written for a categorical axis is a place among its categories, counted
 - **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
 - **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A value past the ends used to be scaled and the mark drawn off the panel, where clipping hid it.
 
+### Added
+
+- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A nudge reads the same way, `{:nudge-x 0.5}` moving a mark half a band along, and `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that is reported. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
+
 ### Fixed
 
 - A histogram bar written at a place on a categorical axis is drawn there, one place wide. It used to be dropped, under a warning saying its height had no place on a log scale.
