@@ -3437,9 +3437,8 @@
 
 (defn to-data
   "What data values the canvas coordinates name, for one panel of
-   `pj/frames`. The inverse of `pj/to-drawing`. An interaction reads
-   this direction: which value is under the pointer, which range a
-   selection covers.
+   `pj/frames`. The direction an interaction reads: which value is
+   under the pointer, which range a selection covers.
 
    Throws under a coordinate system with no inverse. `:polar` maps x and
    y together to an angle and a radius, so a canvas position there does
@@ -3450,9 +3449,13 @@
    - `(to-data panel {:x [412.0] :y [88.5]})` returns a dataset with the
      same two column names, now in data values
 
-   A continuous axis answers with numbers, so its column is `:float64`.
-   A categorical axis answers with the category whose band holds the
-   coordinate, so its column holds those.
+   A continuous axis answers with numbers, so its column is `:float64`,
+   and a coordinate `pj/to-drawing` produced comes back as the value it
+   was given. A categorical axis answers with the category whose band
+   holds the coordinate, so its column holds those -- which is what an
+   interaction wants, and is not the inverse of `pj/to-drawing` there:
+   a place between two categories, such as `1.5`, comes back as one of
+   them.
 
    A pose, a plan or the whole frames map in the panel's place is
    refused, with a message naming which of them it got and the call that

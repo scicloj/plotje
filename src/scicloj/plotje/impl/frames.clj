@@ -187,22 +187,17 @@
         ;; one through.
         (when-let [offenders (seq (remove #(or (scale/place-on-axis? n %) (named? %)) values))]
           (let [bad (first offenders)]
-            (throw (ex-info
-                    (if (number? bad)
-                      (str caller " got " (pr-str bad) " for " axis ", which is past the ends of "
-                           "this axis. Categories: " (vec domain) ". A number on a categorical "
-                           "axis is a place counted from one -- 1 is the first category, 1.5 sits "
-                           "halfway to the second -- and this axis runs from " lo " to " hi ". To "
-                           "move a mark by a distance on the page instead, use :offset-x / "
-                           ":offset-y, which work on any axis.")
+            (throw (if (number? bad)
+                     (scale/place-past-ends-error caller axis domain bad)
+                     (ex-info
                       (str caller " got " (pr-str bad) " for " axis ", which is not a category "
                            "on this axis. Categories: " (vec domain) ". A categorical axis is a "
                            "band scale: it has a position for each category, and for a number too "
                            "-- read as a place counted from one, so a number between two whole "
-                           "ones sits between the categories they name."))
-                    {:caller caller :axis axis :value bad
-                     :categories (vec domain)
-                     :place-range [lo hi]}))))))))
+                           "ones sits between the categories they name.")
+                      {:caller caller :axis axis :value bad
+                       :categories (vec domain)
+                       :place-range [lo hi]})))))))))
 
 (defn- check-panel
   "Refuse anything but a panel entry from `pj/frames`.

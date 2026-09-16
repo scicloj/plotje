@@ -182,22 +182,70 @@
              0.01)
           "a band spans from the first category's centre to the third's"))))
 
-;; ---- What Known Limitations records ----
+;; ---- Every route to the axis refuses the same place ----
 ;;
-;; `known_limitations.clj` carries no runnable examples -- the chapter is
-;; prose -- so the claims it makes about places are held here, where they
-;; fail if the behaviour moves and the page goes stale unnoticed.
+;; A value past the ends reaches the axis by four routes: a mark's
+;; mapping, a rule's intercept, a band's edges, and `pj/to-drawing`.
+;; They answered differently -- a rule at 99 was drawn far to the right
+;; of the panel and clipped away with nothing said, where a label at 99
+;; was refused by name -- so they are held together here.
 
-(deftest a-rule-past-the-ends-draws-where-a-label-is-refused
-  (testing "the gap the Known Limitations page records"
-    (is (some? (pj/svg-summary
-                (pj/plot (-> x-categorical (pj/lay-rule-v {:x-intercept 99})))))
-        "the rule draws, far off the panel, with nothing said")
+(deftest every-route-refuses-a-place-past-the-ends
+  (testing "a mark's mapping"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"past the ends of this axis"
                           (pj/plan (-> x-categorical
-                                       (pj/lay-label {:x 99 :y 3.0 :text "note"}))))
-        "where a label written at the same value is refused by name")))
+                                       (pj/lay-label {:x 99 :y 3.0 :text "note"}))))))
+  (testing "a rule's intercept, on either axis"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/plan got 99 for :x, which is past the ends"
+                          (pj/plan (-> x-categorical (pj/lay-rule-v {:x-intercept 99})))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/plan got 99 for :y, which is past the ends"
+                          (pj/plan (-> y-categorical (pj/lay-rule-h {:y-intercept 99}))))))
+  (testing "a band's edges"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"past the ends of this axis"
+                          (pj/plan (-> x-categorical (pj/lay-band-v {:x-min 1 :x-max 99})))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"past the ends of this axis"
+                          (pj/plan (-> x-categorical (pj/lay-band-v {:x-min -4 :x-max 2}))))))
+  (testing "pj/to-drawing"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"past the ends of this axis"
+                          (pj/to-drawing (frame x-categorical) 99 3.0))))
+  (testing "and each names the value, the categories and where the axis ends"
+    (let [d (try (pj/plan (-> x-categorical (pj/lay-rule-v {:x-intercept 99})))
+                 (catch clojure.lang.ExceptionInfo e (ex-data e)))]
+      (is (= 99 (:value d)))
+      (is (= :x (:axis d)))
+      (is (= ["A" "B" "C"] (:categories d)))
+      (is (= [0.5 3.5] (:place-range d))))))
+
+(deftest a-rule-inside-the-ends-still-draws
+  (testing "the ends themselves are on the axis"
+    (is (some? (pj/plan (-> x-categorical (pj/lay-rule-v {:x-intercept 0.5})))))
+    (is (some? (pj/plan (-> x-categorical (pj/lay-rule-v {:x-intercept 3.5}))))))
+  (testing "and a rule written on a numeric axis still widens it, however far out"
+    (is (= [-3.9000000000000004 103.9]
+           (:x-domain (panel (-> {:a [1 2 3] :v [2.0 3.0 4.0]}
+                                 (pj/lay-point :a :v)
+                                 (pj/lay-rule-v {:x-intercept 99}))))))))
+
+(deftest a-rule-in-a-drawing-space-frame-is-not-a-place
+  (testing "its number is a distance across the panel, so the axis has no say"
+    (is (some? (pj/plan (-> x-categorical
+                            (pj/lay-rule-v {:x-intercept 200 :in :drawing-area})))))))
+
+(deftest a-written-domain-orders-categories-and-does-not-add-them
+  (testing "so a place past the data's own categories is refused beside one"
+    (let [scaled (-> x-categorical (pj/scale :x {:domain ["A" "B" "C" "D" "E"]}))]
+      (is (= ["A" "B" "C"] (vec (:x-domain (panel scaled))))
+          "the two names no row carries never reach the axis")
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"Categories: \[\"A\" \"B\" \"C\"\]"
+                            (pj/plan (-> scaled (pj/lay-label {:x 4 :y 3.0 :text "note"}))))
+          "and the refusal counts the three that do"))))
 
 (deftest a-mark-that-occupies-a-band-asks-for-a-category-column
   (testing "and says so, rather than drawing at the place or dropping it"

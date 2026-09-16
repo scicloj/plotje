@@ -112,6 +112,45 @@
        (let [[lo hi] (place-range n)]
          (<= (double lo) (double v) (double hi)))))
 
+(defn place-past-ends-error
+  "The error reported for `bad`, a number written for a categorical axis
+   holding `categories` that is past the ends of it -- see
+   `place-range`.
+
+   One message for the three callers that refuse a place: `pj/plan`
+   refuses one a mark's mapping contributes, `pj/plan` refuses one
+   written as a rule's intercept or a band's edge, and `pj/to-drawing`
+   refuses one handed to it directly. Three sentences describing one
+   rule drift apart, and the first two already suggested different
+   things.
+
+   `caller` names the call that reports it, and `aesthetic` the axis."
+  [caller aesthetic categories bad]
+  (let [[lo hi] (place-range (count categories))]
+    (ex-info (str caller " got " (pr-str bad) " for " aesthetic ", which is past the ends of "
+                  "this axis. Categories: " (vec categories) ". A number written for a "
+                  "categorical axis is a place counted from one -- 1 is the first category, "
+                  "1.5 sits halfway to the second -- and this axis runs from " lo " to " hi
+                  ". To move a mark by a distance on the page instead, use :offset-x / "
+                  ":offset-y, which work on any axis; to draw the number as a category, give "
+                  "the axis a column of them.")
+             {:caller caller :axis aesthetic :value bad
+              :categories (vec categories)
+              :place-range [lo hi]})))
+
+(defn check-places
+  "Report the first of `values` that is a number past the ends of a
+   categorical axis holding `categories`.
+
+   Anything in `values` that is not a number is left alone. Whether the
+   axis has a category by that name is a separate question, and each
+   caller knows its own answer: a mark's mapping names one or it does
+   not, while a rule's intercept is a number or the layer writes none."
+  [caller aesthetic categories values]
+  (let [n (count categories)]
+    (when-let [bad (first (remove #(place-on-axis? n %) (filter number? values)))]
+      (throw (place-past-ends-error caller aesthetic categories bad)))))
+
 (defn- band-center
   [{:keys [rstart rend]}]
   (/ (+ (double rstart) (double rend)) 2.0))

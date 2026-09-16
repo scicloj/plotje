@@ -397,6 +397,40 @@ cars
               (catch Exception e
                 (boolean (re-find #"past the ends of this axis" (ex-message e)))))))])
 
+;; A rule and a band write their value on keys of their own rather than
+;; on `:x` or `:y` -- `:x-intercept` for a vertical rule, `:x-min` and
+;; `:x-max` for a vertical band -- and a categorical axis reads those
+;; numbers as places too. A rule at `2` draws down the middle of the
+;; second bar, and a band from `1` to `2` reaches from the first bar's
+;; centre to the second's:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-band-v {:x-min 1 :x-max 2 :color "#a6cee3" :alpha 0.55})
+    (pj/lay-bar :team :score)
+    (pj/lay-rule-v {:x-intercept 2 :color "#cc3311" :size 2}))
+
+(kind/test-last
+ [(fn [fr]
+    (let [frame (-> fr pj/frames :panels first)
+          at (fn [v] (first (pj/to-drawing frame v 4.0)))]
+      ;; An intercept and a mapping's value read the one axis the one
+      ;; way, so a place and the category it counts to meet.
+      (and (= (at 1) (at "red"))
+           (= (at 2) (at "green")))))])
+
+;; A value past the ends of the axis is refused here as it is on a
+;; mapping, naming the value, the categories and where the axis ends:
+
+(try (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+         (pj/lay-bar :team :score)
+         (pj/lay-rule-v {:x-intercept 99})
+         pj/plan)
+     (catch Exception e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"pj/plan got 99 for :x" msg)
+                 (re-find #"runs from 0.5 to 3.5" msg)))])
+
 ;; ## Placing a mark on the panel instead of in the data
 ;;
 ;; The layer option `:in` names the space a layer's `:x` and `:y` are in:
@@ -535,9 +569,11 @@ scatter
 ;; The two directions are not symmetrical. `pj/to-data` reads back the
 ;; category whose band holds the coordinate, and answers nil outside
 ;; every band, so a place between two bands comes back as one of the two
-;; categories rather than as the number that produced it -- halfway
-;; between two band centres is the edge they share, and an edge reads as
-;; the earlier band:
+;; categories rather than as the number that produced it. Halfway
+;; between two band centres is the edge the two bands share, and which
+;; of the two categories that edge answers with is not defined: the
+;; coordinate ends one band and starts the next, and rounding settles
+;; it. Read a place back as a category, not as a place:
 
 (let [panel (-> {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
                  :tickets   [462389 181444 163294]}
@@ -570,8 +606,10 @@ scatter
                (every? number? (concat (:first-end m) (:last-end m)))
                ;; The place comes back as a category, not as the 1.5
                ;; that produced it. Halfway between two band centres is
-               ;; the edge the two bands share, and an edge answers with
-               ;; the earlier of them.
+               ;; the edge the two bands share, and which of the two it
+               ;; answers with is not defined -- this axis answers with
+               ;; the earlier category, and a categorical :x answers
+               ;; with the later one at the same place.
                (= "Meter Expired" (second (:place-read-back m)))
                ;; The place is on the categorical axis, which is y here,
                ;; and sits midway between the first band's middle and the

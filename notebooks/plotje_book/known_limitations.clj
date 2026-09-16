@@ -54,19 +54,6 @@
 ;;   left edge of the plotting area. Workaround: shorten the labels,
 ;;   reduce the angle, or widen the plot with `:width`.
 ;;
-;; - A rule or a band written past the ends of a categorical axis is
-;;   drawn off the panel with nothing said, where a point or a label at
-;;   the same value is refused by name. A number written for a
-;;   categorical axis is a place among the categories, counted from one,
-;;   and the axis reaches half a place past each end -- so on three
-;;   categories it runs from 0.5 to 3.5, and
-;;   `(pj/lay-label {:x 99 :y 1 :text "note"})` reports that 99 is past
-;;   the ends. `(pj/lay-rule-v {:x-intercept 99})` beside it draws a
-;;   line far to the right of the panel and says nothing, because these
-;;   four marks contribute the axis's own categories as their domain
-;;   rather than the value they were written with, so the check never
-;;   sees them. Workaround: keep a written intercept inside the axis.
-;;
 ;; - A mark that occupies a band cannot be drawn at a place between two
 ;;   categories. `pj/lay-boxplot` and `pj/lay-violin` require a category
 ;;   column and report that they do; `pj/lay-bar` given a written place

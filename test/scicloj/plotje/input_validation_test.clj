@@ -900,6 +900,40 @@
                  pj/lay-point
                  pj/plan)))))))
 
+(deftest errorbar-range-bounds-are-columns
+  (let [data (tc/dataset {:x [1 2 3] :y [10.0 20.0 30.0]
+                          :lo [5.0 15.0 25.0] :hi [15.0 25.0 35.0]})]
+    (testing "two columns draw"
+      (is (some? (pj/plan (pj/lay-errorbar data :x :y {:y-min :lo :y-max :hi})))))
+
+    (testing "a number is reported, naming the mark, the key and what was written"
+      (doseq [[opts key] [[{:y-min 5.0 :y-max :hi} ":y-min"]
+                          [{:y-min :lo :y-max 35.0} ":y-max"]]]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo
+             (re-pattern (str "lay-errorbar " key " [0-9.]+ is not a column"))
+             (pj/plan (pj/lay-errorbar data :x :y opts)))
+            "it died on a NullPointerException naming neither")))
+
+    (testing "and where the whole mark is written rather than read from columns"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"lay-errorbar :y-min .* is not a column"
+           (pj/plan (-> data
+                        (pj/lay-point :x :y)
+                        (pj/lay-errorbar {:x 2 :y 3.0 :y-min 2.0 :y-max 4.0}))))))
+
+    (testing "the same two keys still take a written value on a band, which is the other reading"
+      (is (some? (pj/plan (-> data
+                              (pj/lay-point :x :y)
+                              (pj/lay-band-h {:y-min 12.0 :y-max 18.0}))))))
+
+    (testing "neither given is still reported as before"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"requires :y-min and :y-max columns"
+           (pj/plan (pj/lay-errorbar data :x :y)))))))
+
 (deftest plan-on-bare-template-throws-clear-error
   (testing "(pj/plan (pj/pose nil :x :y)) throws clear error instead of cryptic 'Unknown mark: nil'"
     (is (thrown-with-msg?

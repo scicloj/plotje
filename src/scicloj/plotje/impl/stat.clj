@@ -209,6 +209,34 @@
       (reduce min (map (fn [a b] (- (double b) (double a)))
                        sorted (rest sorted))))))
 
+(defn- check-range-columns
+  "Report a written value on `:y-min` or `:y-max`, which every mark
+   reaching `prepare-points` reads as a column.
+
+   Both keys have two readings, and the layer type decides which: a
+   column on `:errorbar`, where every row carries its own bounds, and a
+   written value on `:band-h`, which shades one region between two of
+   them. Only the column reading reaches `prepare-points`, and a number
+   fell through to a column lookup by that name -- the dataset has no
+   column called `2.0`, so the extent arithmetic below it died on
+   `Cannot invoke \"Object.getClass()\" because \"x\" is null`, naming
+   neither the option nor the mark. A keyword or a string that names no
+   column is reported earlier, where the pose's columns are listed.
+
+   `col-ref?` is the caller's own test, so what counts as a column
+   reference is decided in one place."
+  [mark ds-cols col-ref? y-min y-max]
+  (doseq [[k v] [[:y-min y-min] [:y-max y-max]]]
+    (when (and (some? v) (not (col-ref? v)))
+      (throw (ex-info (str "lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
+                           "layer's data. lay-" (name mark) " reads " k " as a column, one bound "
+                           "per row: (pj/lay-errorbar :x :y {:y-min :lo :y-max :hi}). Available "
+                           "columns: " (vec (sort-by str (remove #{:__row-idx} ds-cols)))
+                           ". A written number on these two keys is read by pj/lay-band-h, "
+                           "which shades one region between them.")
+                      {:mark mark :aesthetic k :value v
+                       :columns (vec (sort-by str (remove #{:__row-idx} ds-cols)))})))))
+
 (defn prepare-points
   "Clean data, compute domains, group by columns.
    Drops rows with missing values in x/y AND in any referenced numeric
@@ -243,6 +271,7 @@
                 ;; scale -- keyword/number categories become display strings.
                 (and (not x-only?) (= y-type :categorical))
                 (format-category-column y))]
+    (check-range-columns mark ds-cols col-ref? y-min y-max)
     (if (zero? (tc/row-count clean))
       {:points [] :x-domain [0 1] :y-domain [0 1]}
       (let [xs-col (clean x)
@@ -363,9 +392,12 @@
    with the rule somewhere on them.
 
    A categorical axis reports the categories its column holds, as
-   `prepare-points` does, and takes no written value: a band scale
-   places a value by which category it is, and a rule's intercept is a
-   number rather than one of them.
+   `prepare-points` does, and not the written value beside them: a
+   number written for a categorical axis is a place among its
+   categories rather than a category of its own, so it has nothing to
+   add to a list of them and cannot widen one. Whether that place is on
+   the axis is asked in `plan/check-written-places`, once every layer
+   has contributed and the panel's categories are known.
 
    The shape returned is a stat result: `:x-domain` and `:y-domain`,
    read by `plan/collect-domain` and `plan/compute-global-y-domain` the

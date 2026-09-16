@@ -11,7 +11,9 @@ A number written for a categorical axis is a place among its categories, counted
 - **Every plot writing a number for a categorical axis.** The mark is drawn at that place among the categories. A number on a categorical `:y` used to add a category of its own, drawing a tick labelled with the number and putting the mark in the new band; on `:x` the same number reported that numeric and categorical domains could not be merged.
 - **Every plot shifting a mark along a categorical axis.** The shift is a fraction of a band, so `{:dx 0.5}` moves a mark half a band along. `:dx` and `:dy` used to report an error on that axis.
 - **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
-- **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A value past the ends used to be scaled and the mark drawn off the panel, where clipping hid it.
+- **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A rule's intercept and a band's edges are read the same way, so `(pj/lay-rule-v {:x-intercept 99})` on three categories reports rather than drawing a line far to the right of the panel. A value past the ends used to be scaled and the mark drawn off the panel, where clipping hid it.
+- **Every plot writing a place beside a `pj/scale` `:domain` naming categories no row carries.** The axis ends where the data's own categories end, so a place past the last of them reports. The names no row carries used to count toward where the axis ends, letting a place through that was then drawn off the panel.
+- **Every plot writing a number on `pj/lay-errorbar`'s `:y-min` or `:y-max`.** An error names the mark, the key and what was written. An errorbar reads both keys as columns, and a number used to reach a column lookup by that name and die on a NullPointerException naming neither.
 
 ### Added
 
@@ -22,6 +24,14 @@ A number written for a categorical axis is a place among its categories, counted
 - A histogram bar written at a place on a categorical axis is drawn there, one place wide. It used to be dropped, under a warning saying its height had no place on a log scale.
 
 - One reader answers what a number means on either axis. `:x` and `:y` each had their own copy of the parse that decides whether a layer contributes a numeric extent or a list of categories, and the two disagreed about a number written beside categories.
+
+- A rule or a band written past the ends of a categorical axis reports an error rather than drawing off the panel. `(pj/lay-rule-v {:x-intercept 99})` on three categories is refused the way `(pj/lay-label {:x 99 :y 1 :text "note"})` beside it is. The four marks whose geometry is written on the layer contribute the axis's own categories rather than the value they were written with, so the written value is read where the panel's categories are known.
+
+- Where a categorical axis ends is counted from the categories the data holds. A `:domain` written with `pj/scale` orders those categories and adds none to them, so counting its names let a place past the last category through, and the mark was drawn off the panel and clipped away.
+
+- `pj/lay-errorbar` reports what it was given on `:y-min` or `:y-max` where that is not a column of the layer's data, naming the mark, the key and the value. An errorbar reads both keys as columns, one bound per row. The same two keys still take a written number on `pj/lay-band-h`, which shades one region between them.
+
+- One message says that a number is past the ends of a categorical axis, whichever call reports it. A mark's mapping, a rule's intercept and `pj/to-drawing` each reached their own sentence, and the first two already suggested different things.
 
 ### Changed
 

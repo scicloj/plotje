@@ -987,7 +987,7 @@ plan1
 
 (kind/doc #'pj/to-data)
 
-;; Many positions at once go in and come back as a dataset:
+;; Many data values at once go in and come back as a dataset:
 
 (pj/to-drawing (-> plan1 pj/frames :panels first)
                {:x [2 3] :y [5 6]})
@@ -995,7 +995,7 @@ plan1
 (kind/test-last [(fn [ds] (and (= [:x :y] (vec (tc/column-names ds)))
                                (= 2 (tc/row-count ds))))])
 
-;; A position survives the round trip:
+;; A value on a continuous axis survives the round trip:
 
 (let [panel (-> plan1 pj/frames :panels first)]
   (->> (pj/to-drawing panel 2 5)
@@ -1003,6 +1003,22 @@ plan1
        (mapv #(Math/round (double %)))))
 
 (kind/test-last [(fn [v] (= [2 5] v))])
+
+;; A categorical axis answers with a category, which is what an
+;; interaction reads it for. So a place between two categories does not
+;; come back as that place: `1.5` goes in and the category whose band
+;; holds the coordinate comes back.
+
+(let [panel (-> {:species ["setosa" "versicolor" "virginica"] :count [12.0 19.0 8.0]}
+                (pj/lay-bar :species :count)
+                pj/frames
+                :panels
+                first)]
+  {:in 1.5
+   :drawing-x (first (pj/to-drawing panel 1.5 10.0))
+   :back (first (pj/to-data panel (first (pj/to-drawing panel 1.5 10.0)) 10.0))})
+
+(kind/test-last [(fn [m] (= "versicolor" (:back m)))])
 
 (kind/doc #'pj/svg-summary)
 

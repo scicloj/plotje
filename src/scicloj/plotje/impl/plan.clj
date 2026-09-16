@@ -235,11 +235,17 @@
    dropped the number and y added a fourth category ticked `1.5`.
 
    Returns a sequence of `{:vals :numeric?}`, which each caller reduces
-   its own way. `aesthetic` names the axis for the refusal, and
-   `scale-spec` is read for a `:domain` the writer set, whose
-   categories are drawn beside the data's own and so count toward where
-   the axis ends."
-  [aesthetic scale-spec domains]
+   its own way. `aesthetic` names the axis for the refusal.
+
+   Where the axis ends is decided by the categories the data holds. A
+   `:domain` written with `pj/scale` orders them and does not add to
+   them -- `order-by-domain` keeps the observed ones and drops the
+   rest, since a mark carries the column's own value and has nothing to
+   match a category no row has. Counting the written domain here let
+   `{:x 4}` through beside a `:domain` of five names on three
+   categories, and the label was drawn off the panel and clipped away
+   -- the case this refusal exists for."
+  [aesthetic domains]
   (let [parsed (keep (fn [d]
                        (when (seq d)
                          (let [numeric? (and (= 2 (count d)) (number? (first d)))]
@@ -249,25 +255,9 @@
     (if-not (> (count (distinct (map :numeric? parsed))) 1)
       parsed
       (let [categorical (remove :numeric? parsed)
-            written (when-not (and (= 2 (count (:domain scale-spec)))
-                                   (number? (first (:domain scale-spec))))
-                      (map str (:domain scale-spec)))
-            categories (distinct (concat written (mapcat :vals categorical)))
-            n (count categories)
-            [lo hi] (scale/place-range n)
+            categories (distinct (mapcat :vals categorical))
             places (mapcat :vals (filter :numeric? parsed))]
-        (when-let [bad (first (remove #(scale/place-on-axis? n %) places))]
-          (throw (ex-info
-                  (str "pj/plan got " (pr-str bad) " for " aesthetic ", which is past the ends of "
-                       "this axis. Categories: " (vec categories) ". A number written for a "
-                       "categorical axis is a place counted from one -- 1 is the first category, "
-                       "1.5 sits halfway to the second -- and this axis runs from " lo " to " hi
-                       ". To move a mark by a distance on the page instead, use :offset-x / "
-                       ":offset-y, which work on any axis; to draw the number as a category, give "
-                       "the axis a column of them.")
-                  {:caller "pj/plan" :axis aesthetic :value bad
-                   :categories (vec categories)
-                   :place-range [lo hi]})))
+        (scale/check-places "pj/plan" aesthetic categories places)
         categorical))))
 
 (defn collect-domain
@@ -289,7 +279,7 @@
    (collect-domain stat-results axis-key scale-spec padding temporal? nil))
   ([stat-results axis-key scale-spec padding temporal? shared]
    (let [aesthetic (if (= :x-domain axis-key) :x :y)
-         parsed (parse-axis-domains aesthetic scale-spec (map axis-key stat-results))]
+         parsed (parse-axis-domains aesthetic (map axis-key stat-results))]
      (when (seq parsed)
        (let [vals (mapcat :vals parsed)
              numeric? (number? (first vals))
@@ -384,8 +374,7 @@
       ;; the x axis reads, so a number written for a categorical y is a
       ;; place among the categories there too -- see `parse-axis-domains`.
        :else
-       (let [vals (mapcat :vals (parse-axis-domains :y scale-spec
-                                                    (keep :y-domain plan-layers)))]
+       (let [vals (mapcat :vals (parse-axis-domains :y (keep :y-domain plan-layers)))]
          (when (seq vals)
            (if (number? (first vals))
              (let [raw-lo (reduce min vals)
@@ -2513,6 +2502,32 @@
           (fit :x-dom :x-scale (if flip? :ys :xs) :x pw)
           (fit :y-dom :y-scale (if flip? :xs :ys) :y ph)))))
 
+(defn- check-written-places
+  "Report a rule or a band written past the ends of a categorical axis.
+
+   The four marks whose geometry is written on the layer contribute the
+   axis's own categories as their domain rather than the value they
+   were written with, because a number is a place among categories and
+   cannot join a list of them. So `parse-axis-domains` never sees an
+   intercept: `(pj/lay-rule-v {:x-intercept 99})` on three categories
+   was scaled to a place far to the right of the panel and clipped away
+   without a word, where `(pj/lay-label {:x 99 ...})` beside it was
+   refused by name.
+
+   Asked here because this is where the panel's categories are known:
+   every layer has contributed, and a `:domain` written with `pj/scale`
+   has put them in its order. A layer in a drawing-space frame writes a
+   distance across the panel rather than a data value and is left out,
+   as it is left out of the domain itself.
+
+   `domain` is in data order, before the `:coord :flip` swap, which is
+   the order `resolve/written-values` speaks in."
+  [aesthetic domain draft-layers]
+  (when (and (seq domain) (not (number? (first domain))))
+    (doseq [layer draft-layers]
+      (scale/check-places "pj/plan" aesthetic domain
+                          (resolve/written-values layer aesthetic)))))
+
 (defn- resolve-panel-domains
   "Given a panel-data map (with :stat-results, :layers, and :draft-layers),
    compute the oriented x/y domains, scale specs, and temporal extents.
@@ -2662,6 +2677,11 @@
         [x-whole?' y-whole?'] (if (= coord-type :flip)
                                 [y-whole? x-whole?]
                                 [x-whole? y-whole?])]
+    ;; `x-dom` and `y-dom` are the domains before the flip swap, so
+    ;; they are in data order -- the order a rule's intercept and a
+    ;; band's edges are written in.
+    (check-written-places :x x-dom (filter x-informs? resolved-draft-layers))
+    (check-written-places :y y-dom (filter y-informs? resolved-draft-layers))
     {:x-dom x-dom'
      :y-dom y-dom'
      :x-informed? x-informed?'
