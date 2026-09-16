@@ -188,7 +188,19 @@
 ;; far past the third and last category, which is what the refusal
 ;; names. [Placing Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
 ;; teaches the reading in full.
-;;
+
+(try
+  (-> {:cohort [2020 2021 2022] :n [3 5 4]}
+      (pj/lay-bar :cohort :n {:x-type :categorical})
+      (pj/lay-text {:x 2021 :y 5.5 :text "the 2021 cohort"})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"got 2021 for :x" msg)
+                 (re-find #"past the ends of this axis" msg)
+                 (re-find #"\[\"2020\" \"2021\" \"2022\"\]" msg)))])
+
 ;; **Fix**: Name the category as a value. `{:x {:value "2021"}}` puts
 ;; the mark on that band whatever numbers the categories are written
 ;; from:

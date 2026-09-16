@@ -99,10 +99,7 @@
 
 ;; A categorical column gives one band per distinct value, in the order
 ;; the values first appear, so the axis carries exactly as many bands as
-;; there are categories. A value written for that axis is read against
-;; those bands: a category names one of them, and a number is a place
-;; among them, counted from one -- see
-;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis).
+;; there are categories:
 
 (-> categorical
     (pj/lay-point :k :v))
@@ -111,6 +108,42 @@
  [(fn [v] (let [ticks (-> v pj/plan :panels first :x-ticks)]
             (and (true? (:categorical? ticks))
                  (= ["a" "b" "c" "d"] (vec (:labels ticks))))))])
+
+;; The type also decides how a number written for that axis is read. On a
+;; numerical axis a number is a value, and the axis widens to reach one
+;; that falls outside the data -- the note below is written at 1.5 on an
+;; axis whose values run from 10 to 40, so the axis grows down to it:
+
+(-> numerical
+    (pj/lay-point :k :v)
+    (pj/lay-text {:x 2 :y 1.5 :text "a value of 1.5"}))
+
+(kind/test-last
+ [(fn [v]
+    (let [with    (-> v pj/plan :panels first :y-domain)
+          without (-> numerical (pj/lay-point :k :v)
+                      pj/plan :panels first :y-domain)]
+      (and (< (first with) (first without))
+           (< (first with) 1.5))))])
+
+;; On a categorical axis there is nothing to widen -- the bands are the
+;; whole axis -- so a number is read as a place among them, counted from
+;; one. The note below is written at 1.5 and lands between the first band
+;; and the second, adding no band of its own:
+
+(-> categorical
+    (pj/lay-point :k :v)
+    (pj/lay-text {:x 1.5 :y 25 :text "between a and b"}))
+
+(kind/test-last
+ [(fn [v]
+    (let [frame (-> v pj/frames :panels first)
+          at (fn [c] (first (pj/to-drawing frame c 25)))]
+      (and (= ["a" "b" "c" "d"] (-> v pj/plan :panels first :x-domain))
+           (< (abs (- (at 1.5) (/ (+ (at "a") (at "b")) 2.0))) 1e-9))))])
+
+;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis)
+;; covers what a categorical axis answers in both directions.
 
 ;; A temporal column runs continuously like a numerical one, but its
 ;; ticks land on calendar dates and are labelled as dates rather than

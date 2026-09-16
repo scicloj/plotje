@@ -245,18 +245,37 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (= [nil 0.5]
-       (->> fr pj/plan :panels first :layers (mapv :nudge-x))))])
+    (and (= [nil 0.5]
+            (->> fr pj/plan :panels first :layers (mapv :nudge-x)))
+         ;; Half a band along from a category is the place halfway to the
+         ;; next one, so a nudge draws what writing that place draws. The
+         ;; picture above nudges every row from its own bar, which no one
+         ;; written place matches, so the two spellings are held together
+         ;; here on a single label.
+         (= (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                         (pj/lay-bar :team :score)
+                         (pj/lay-text {:x {:value "red"} :nudge-x 0.5
+                                       :y 4.5 :text "note"})))
+            (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                         (pj/lay-bar :team :score)
+                         (pj/lay-text {:x 1.5 :y 4.5 :text "note"}))))
+         ;; And from the second category, so it is the step that is half
+         ;; a band rather than the first band being special.
+         (= (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                         (pj/lay-bar :team :score)
+                         (pj/lay-text {:x {:value "green"} :nudge-x 0.5
+                                       :y 4.5 :text "note"})))
+            (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                         (pj/lay-bar :team :score)
+                         (pj/lay-text {:x 2.5 :y 4.5 :text "note"}))))))])
 
 ;; One more difference between the two: a nudge does not change the axis
 ;; domain, so a nudge large enough to carry a mark past the end of the
 ;; axis leaves it clipped there. ggplot2's `nudge_x` widens the range
 ;; instead. The [Glossary](./plotje_book.glossary.html#nudge) entry for Nudge
-;; describes that difference. A number written in the slot itself is the
-;; other case and is answered the other way: on a numeric axis it widens
-;; the domain to reach it, and on a categorical axis, where the
-;; categories are the domain and cannot be widened, a number past the
-;; ends of the axis is reported rather than drawn off the panel.
+;; describes that difference. A number written in the slot itself is
+;; answered the other way round -- Giving `:x` and `:y` as values, the
+;; next section, shows both readings.
 ;;
 ;; An offset does not keep labels from overlapping each other. It moves a
 ;; whole layer by one amount, so two labels at nearby values stay as
@@ -318,9 +337,28 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (let [panel (-> fr pj/plan :panels first)]
+    (let [panel (-> fr pj/plan :panels first)
+          frame (-> fr pj/frames :panels first)
+          at (fn [v] (first (pj/to-drawing frame v 4.5)))]
       (and (= ["red" "green" "blue"] (:x-domain panel))
-           (= ["red" "green" "blue"] (:values (:x-ticks panel))))))])
+           (= ["red" "green" "blue"] (:values (:x-ticks panel)))
+           ;; Counted from one: 1 is the first category and 2 the second.
+           (= (at 1) (at "red"))
+           (= (at 2) (at "green"))
+           ;; So 1.5 is the midpoint of those two, which is what "lands
+           ;; between the first bar and the second" means.
+           (< (abs (- (at 1.5) (/ (+ (at "red") (at "green")) 2.0))) 1e-9)
+           ;; And on three categories the axis runs from 0.5 to 3.5: both
+           ;; ends answer, and anything past either is refused.
+           (number? (at 0.5))
+           (number? (at 3.5))
+           (every? (fn [bad]
+                     (try (at bad)
+                          false
+                          (catch Exception e
+                            (boolean (re-find #"past the ends of this axis"
+                                              (ex-message e))))))
+                   [0.4 3.6]))))])
 
 ;; To name a category rather than count to one, write the value in full
 ;; as `{:value ...}`. That spelling matters most where the categories are
@@ -336,6 +374,11 @@ cars
 (kind/test-last
  [(fn [fr]
     (and (some #{"the 2021 cohort"} (:texts (pj/svg-summary (pj/plot fr))))
+         ;; The named category is the middle band, which is place 2 --
+         ;; the two readings meet there, and part elsewhere.
+         (let [frame (-> fr pj/frames :panels first)]
+           (= (first (pj/to-drawing frame "2021" 5.5))
+              (first (pj/to-drawing frame 2 5.5))))
          ;; The bare number is the reading this example is not asking
          ;; for, and the axis says so rather than drawing off the panel.
          (try (-> {:cohort [2020 2021 2022] :n [3 5 4]}
@@ -484,7 +527,9 @@ scatter
 ;; The two directions are not symmetrical. `pj/to-data` reads back the
 ;; category whose band holds the coordinate, and answers nil outside
 ;; every band, so a place between two bands comes back as one of the two
-;; categories rather than as the number that produced it:
+;; categories rather than as the number that produced it -- halfway
+;; between two band centres is the edge they share, and an edge reads as
+;; the earlier band:
 
 (let [panel (-> {:violation ["Meter Expired" "Over Time Limit" "Stop Prohibited"]
                  :tickets   [462389 181444 163294]}
@@ -496,6 +541,10 @@ scatter
    :read-back       (->> (pj/to-drawing panel 200000 "Over Time Limit")
                          (apply pj/to-data panel))
    :halfway-up      (pj/to-drawing panel 200000 1.5)
+   :place-read-back (->> (pj/to-drawing panel 200000 1.5)
+                         (apply pj/to-data panel))
+   :first-end       (pj/to-drawing panel 200000 0.5)
+   :last-end        (pj/to-drawing panel 200000 3.5)
    :outside-a-band  (pj/to-data panel 325.0 5.0)
    :not-a-category  (try (pj/to-drawing panel 200000 "Double Parked")
                          (catch Exception e (ex-message e)))
@@ -508,6 +557,14 @@ scatter
                (re-find #"Double Parked" (:not-a-category m))
                (re-find #"Meter Expired" (:not-a-category m))
                (re-find #"past the ends of this axis" (:past-the-ends m))
+               ;; Three categories, so the axis runs from 0.5 to 3.5 and
+               ;; both ends answer with a place on the panel.
+               (every? number? (concat (:first-end m) (:last-end m)))
+               ;; The place comes back as a category, not as the 1.5
+               ;; that produced it. Halfway between two band centres is
+               ;; the edge the two bands share, and an edge answers with
+               ;; the earlier of them.
+               (= "Meter Expired" (second (:place-read-back m)))
                ;; The place is on the categorical axis, which is y here,
                ;; and sits midway between the first band's middle and the
                ;; second's -- the two the number 1.5 falls between.

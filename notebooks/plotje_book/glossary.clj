@@ -439,6 +439,29 @@ my-pose
            ;; by 0.5 before the scale is applied.
            (= [1.5 2.5 3.5] xs))))])
 
+;; On a categorical axis the same `0.5` is half a band. The label below
+;; is nudged from the first category and lands halfway to the second:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-bar :team :score)
+    (pj/lay-text {:x {:value "red"} :nudge-x 0.5 :y 4.5 :text "half a band"}))
+
+(kind/test-last
+ [(fn [v]
+    (let [panel (-> v pj/frames :panels first)
+          at (fn [c] (first (pj/to-drawing panel c 4.5)))]
+      (and
+       ;; Half a band from the first category is the place halfway to
+       ;; the second, so the nudge draws what writing that place draws.
+       (= (pj/plot v)
+          (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                       (pj/lay-bar :team :score)
+                       (pj/lay-text {:x 1.5 :y 4.5 :text "half a band"}))))
+       ;; And that place is the midpoint of the two band centres.
+       (< (abs (- (at 1.5) (/ (+ (at "red") (at "green")) 2.0))) 1e-9)
+       ;; The nudge is not a category, so the axis still carries three.
+       (= ["red" "green" "blue"] (-> v pj/plan :panels first :x-domain)))))])
+
 ;; ## Jitter
 ;;
 ;; **Jitter** adds random offsets in drawing units to reduce

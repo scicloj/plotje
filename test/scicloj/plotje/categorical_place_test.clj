@@ -181,3 +181,29 @@
                      (- c a)))
              0.01)
           "a band spans from the first category's centre to the third's"))))
+
+;; ---- What Known Limitations records ----
+;;
+;; `known_limitations.clj` carries no runnable examples -- the chapter is
+;; prose -- so the claims it makes about places are held here, where they
+;; fail if the behaviour moves and the page goes stale unnoticed.
+
+(deftest a-rule-past-the-ends-draws-where-a-label-is-refused
+  (testing "the gap the Known Limitations page records"
+    (is (some? (pj/svg-summary
+                (pj/plot (-> x-categorical (pj/lay-rule-v {:x-intercept 99})))))
+        "the rule draws, far off the panel, with nothing said")
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"past the ends of this axis"
+                          (pj/plan (-> x-categorical
+                                       (pj/lay-label {:x 99 :y 3.0 :text "note"}))))
+        "where a label written at the same value is refused by name")))
+
+(deftest a-mark-that-occupies-a-band-asks-for-a-category-column
+  (testing "and says so, rather than drawing at the place or dropping it"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"requires a categorical column"
+                          (pj/plot (pj/lay-boxplot x-categorical {:x 1.5 :y 3.0}))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"requires a categorical column"
+                          (pj/plot (pj/lay-violin x-categorical {:x 1.5 :y 3.0}))))))
