@@ -9,7 +9,7 @@
    set, they pin the panel size on that axis and `:width`/`:height`
    become the derived total.
 
-   The classic width→tick-count→label-width→y-label-pad→panel-width
+   The classic width->tick-count->label-width->y-label-pad->panel-width
    cycle is broken by a single reformulation: `max-label-pixel-width`
    runs the tick picker at a pixel budget equal to the user-supplied
    `:height` (or `:width`), not the actual panel size. Label width is
@@ -284,7 +284,7 @@
 
 (defn- y-tick-text-width
   "Over-estimate of the widest y-tick label in pixels. Runs the tick
-   picker at a pixel budget of `:height` — safe because tick label
+   picker at a pixel budget of `:height` -- safe because tick label
    width is monotonic in tick count across every supported scale."
   [{:keys [coord-type panel-y-domains y-scale-spec y-temporal]} cfg opts]
   (if (= coord-type :polar)
@@ -297,7 +297,7 @@
      (defaults/number-separators cfg))))
 
 (defn- pad-y-label
-  "y-label-pad = label-offset + max(0, tick-text-width − 12) when a
+  "y-label-pad = label-offset + max(0, tick-text-width - 12) when a
    y-label is present; otherwise just the tick-text-width (so tick
    labels don't collide with the panel edge). Polar axes suppress
    y-ticks entirely, so the pad is zero.
@@ -450,7 +450,7 @@
 
    The y-label-pad's tick-width input uses the user's `:height` as a
    pixel budget rather than the (unknown) real panel height. This is
-   the key trick that breaks the `panel-width ↔ y-label-pad` cycle."
+   the key trick that breaks the `panel-width <-> y-label-pad` cycle."
   [scene cfg opts]
   (let [legend-pos (resolved-legend-position scene cfg opts)
         legend-h (pad-legend-h legend-pos scene cfg)

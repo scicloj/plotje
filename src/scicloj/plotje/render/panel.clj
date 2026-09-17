@@ -293,7 +293,7 @@
                      (ui/with-style ::ui/style-fill
                        (ui/translate m m (ui/rectangle (- pw m m) (- ph m m)))))
 
-        ;; Grid — polar gets circles + spokes; cartesian/flip get tick-aligned lines
+        ;; Grid -- polar gets circles + spokes; cartesian/flip get tick-aligned lines
         ;; For ridgeline panels, add horizontal guide lines at baseline positions
         grid (if (= coord-type :polar)
                (render-polar-grid pw ph m cfg)

@@ -804,7 +804,7 @@
            user-breaks (:breaks scale-spec)
            user-labels (:tick-labels scale-spec)]
        (cond
-         ;; User-supplied breaks override everything — use the exact values
+         ;; User-supplied breaks override everything -- use the exact values
          ;; they asked for. Labels come from user-supplied :tick-labels when
          ;; provided, otherwise from the same format the scale uses.
          (and user-breaks (sequential? user-breaks) (seq user-breaks))
@@ -1330,7 +1330,7 @@
     (let [n-cats (count all-colors)
           resolved (when (keyword? palette) (defaults/resolve-palette palette))
           pal-size (cond
-                     (map? palette) nil ;; explicit mapping — no wrap possible
+                     (map? palette) nil ;; explicit mapping -- no wrap possible
                      (sequential? palette) (count palette)
                      (keyword? palette) (count resolved)
                      :else (count (defaults/resolve-palette defaults/default-palette-name)))
@@ -1680,7 +1680,7 @@
 (defn- nice-legend-values
   "Generate ~n nicely-rounded tick-like values spanning [lo, hi].
    Delegates to wadogo's linear scale so the breaks are 1/2/5-aligned
-   (e.g., [17, 83] → [20 40 60 80] rather than [17.0 33.5 50.0 66.5 83.0]).
+   (e.g., [17, 83] -> [20 40 60 80] rather than [17.0 33.5 50.0 66.5 83.0]).
    Falls back to evenly-spaced rounded values when wadogo returns fewer
    than two ticks.
 
@@ -2829,7 +2829,7 @@
   "Pipeline: convert a draft into a plan using panel-based grid layout.
    Grid position from structural columns.
 
-   New layout pipeline (2026-04-11): stats first, then scene → padding →
+   New layout pipeline (2026-04-11): stats first, then scene -> padding ->
    dimensions, then per-panel ticks at the now-known panel dimensions.
    `:width`/`:height` are total SVG dimensions; panel dimensions are
    derived by subtracting layout overhead. `:panel-width`/`:panel-height`

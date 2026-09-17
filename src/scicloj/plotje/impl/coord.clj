@@ -54,7 +54,7 @@
 (defmethod make-coord [:cartesian :doc] [_ _ _ _ _ _] "Standard x-right, y-up mapping")
 (defmethod make-coord [:fixed :doc] [_ _ _ _ _ _] "Fixed aspect ratio (1 data unit = 1 data unit)")
 (defmethod make-coord [:flip :doc] [_ _ _ _ _ _] "Swap x and y axes")
-(defmethod make-coord [:polar :doc] [_ _ _ _ _ _] "Radial mapping: x→angle, y→radius")
+(defmethod make-coord [:polar :doc] [_ _ _ _ _ _] "Radial mapping: x->angle, y->radius")
 
 (defmethod make-coord :default [coord-type _ _ _ _ _]
   (throw (ex-info (str "Unknown coord type: " (pr-str coord-type)

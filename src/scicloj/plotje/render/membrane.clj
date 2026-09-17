@@ -1,6 +1,6 @@
 (ns scicloj.plotje.render.membrane
   "Build a `PlotjeMembrane` from a plan.
-   Plan → membrane is format-agnostic: the resulting Membrane
+   Plan -> membrane is format-agnostic: the resulting Membrane
    component can be rendered to SVG, PNG, or any other format a
    Membrane backend supports.
 
@@ -291,7 +291,7 @@
                                         (ui/label label (ui/font nil 10))))])
          :legend true))))))
 
-;; ---- Plan → Membrane ----
+;; ---- Plan -> Membrane ----
 
 (defmulti plan->membrane
   "Build a membrane drawable tree from a plan.
@@ -409,7 +409,7 @@
                                                 :y-col-name (or y-label "y")))))
 
         ;; Strip labels (column headers on top, row headers on right)
-        ;; Use first panel found per column/row — handles triangular grids
+        ;; Use first panel found per column/row -- handles triangular grids
         ;; where the expected corner panel may not exist.
         strip-label-color text-color
 
@@ -479,7 +479,7 @@
                                (ui/with-color text-color
                                  (assoc (ui/label x-label (ui/font nil fsize))
                                         :text-anchor "middle")))]))
-            ;; Legends — stacked vertically on the right (or horizontal for top/bottom)
+            ;; Legends -- stacked vertically on the right (or horizontal for top/bottom)
             (let [any-legend? (or legend size-legend alpha-legend shape-legend)]
               (when (and any-legend? (not= legend-pos :none))
                 (let [legend-x (+ y-label-pad (* grid-cols pw) strip-w 10)

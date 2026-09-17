@@ -1,6 +1,6 @@
 (ns scicloj.plotje.impl.extract
   "Extract data-space geometry from resolved draft layers and stat results.
-   Produces layer descriptor maps — plain Clojure maps with mark type,
+   Produces layer descriptor maps -- plain Clojure maps with mark type,
    style, and groups of data-space coordinates."
   (:require [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
@@ -154,7 +154,7 @@
 (defn- apply-shift
   "Apply a layer's `:dx`/`:dy` shift to its groups.
    The shift moves a mark by a constant amount in the axis's own
-   units — orthogonal to position adjustment (dodge/stack). Handles
+   units -- orthogonal to position adjustment (dodge/stack). Handles
    three group shapes:
      - polyline groups with :xs/:ys (and optional :ymins/:ymaxs)
      - line-segment groups with :x1/:y1/:x2/:y2 (from :lm regression)
@@ -200,7 +200,7 @@
 (defn- default-position
   "Default position for marks that normally dodge.
    When :color is the column the categorical axis draws, dodge is
-   suppressed — that band already contains exactly one color group, so
+   suppressed -- that band already contains exactly one color group, so
    dodging shrinks and offsets the mark unnecessarily. The categorical
    axis is :x for an upright mark and :y for one drawn horizontally, so
    a color column equal to either axis is the same case; comparing
@@ -277,8 +277,8 @@
 (defn- extract-xy-groups
   "Extract groups from stat :points, resolving colors. Common to most mark types.
    Options:
-     :with-range? — include :ymins/:ymaxs (errorbar, pointrange)
-     :with-labels? — include :labels from :labels key (text, label marks)"
+     :with-range? -- include :ymins/:ymaxs (errorbar, pointrange)
+     :with-labels? -- include :labels from :labels key (text, label marks)"
   [draft-layer stat all-colors cfg & {:keys [with-range? with-labels? per-row-color?]}]
   (let [;; Opt-in, because a `:colors` buffer on a group whose renderer
         ;; reads only `(:color group)` is worse than none: the mark draws
@@ -340,7 +340,7 @@
                         {:mark (:mark draft-layer) :text given}))))
     groups))
 
-;; ---- Geometry Extraction (stat → layer descriptors) ----
+;; ---- Geometry Extraction (stat -> layer descriptors) ----
 
 (defmulti extract-layer
   "Extract data-space geometry from a resolved draft layer and its stat result.
@@ -758,7 +758,7 @@
         tiles (if (and (:tiles stat)
                        (or (and (tc/dataset? (:tiles stat)) (pos? (tc/row-count (:tiles stat))))
                            (and (not (tc/dataset? (:tiles stat))) (seq (:tiles stat)))))
-                ;; bin2d/kde2d path — :tiles is a dataset with :x-lo :x-hi :y-lo :y-hi :fill
+                ;; bin2d/kde2d path -- :tiles is a dataset with :x-lo :x-hi :y-lo :y-hi :fill
                 (let [tile-ds (:tiles stat)
                       [f-lo f-hi] (fill-domain stat spec fill-scale-type)
                       ;; Derive :color column from :fill using gradient function
@@ -772,7 +772,7 @@
                   (vec (tc/rows (tc/select-columns with-color
                                                    [:x-lo :x-hi :y-lo :y-hi :color])
                                 :as-maps)))
-                ;; identity path — derive tile bounds from point coordinates
+                ;; identity path -- derive tile bounds from point coordinates
                 (let [data (:data draft-layer)
                       fill-vals (when fill-col (data fill-col))
                       [f-lo f-hi] (scale/numeric-color-domain
@@ -816,7 +816,7 @@
 (defn- marching-squares-segments
   "Apply marching squares to a density grid for a given threshold.
    Returns a sequence of line segments [[x1 y1] [x2 y2]] in data coordinates.
-   Grid is n×n with densities[i*n+j] at cell (i,j)."
+   Grid is nxn with densities[i*n+j] at cell (i,j)."
   [^doubles densities n-grid threshold x-lo y-lo x-step y-step]
   (let [grid-val (fn [i j]
                    (if (and (< i n-grid) (< j n-grid) (>= i 0) (>= j 0))
@@ -824,7 +824,7 @@
                      0.0))
         interp (fn [v1 v2 p1 p2]
                  ;; Linear interpolation between two points based on threshold.
-                 ;; Clamp t to [0,1] to prevent numerical blowup when v1 ≈ v2.
+                 ;; Clamp t to [0,1] to prevent numerical blowup when v1 and v2 are nearly equal.
                  (let [t (/ (- threshold v1) (max 1e-15 (- v2 v1)))
                        t (max 0.0 (min 1.0 t))]
                    (+ p1 (* t (- p2 p1)))))]
@@ -861,7 +861,7 @@
                                   (2 13) (conj! segs [bottom right])
                                   (3 12) (conj! segs [left right])
                                   (4 11) (conj! segs [top right])
-                                  ;; Cases 5 and 10 are saddle points — the
+                                  ;; Cases 5 and 10 are saddle points -- the
                                   ;; level curve has two valid topologies.
                                   ;; Pick by comparing the cell-center value
                                   ;; (average of the 4 corners) to the

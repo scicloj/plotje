@@ -325,9 +325,9 @@
             extract-color (fn [group-val]
                             (cond
                               (nil? group-val) nil
-                              ;; Single group col — group-val is the value itself
+                              ;; Single group col -- group-val is the value itself
                               (= 1 (count group)) group-val
-                              ;; Multiple group cols — extract color column value
+                              ;; Multiple group cols -- extract color column value
                               (and color-idx (>= color-idx 0)) (nth group-val color-idx)
                               :else nil))
             zero-ys (fn [ds] (dtype/const-reader 0.0 (tc/row-count ds)))
@@ -366,17 +366,17 @@
 
 ;; ---- Doc methods (dispatching on [stat-key :doc]) ----
 
-(defmethod compute-stat [:identity :doc] [_] "Pass-through — no transform")
+(defmethod compute-stat [:identity :doc] [_] "Pass-through -- no transform")
 (defmethod compute-stat [:bin :doc] [_] "Bin numerical values into ranges")
 (defmethod compute-stat [:count :doc] [_] "Count occurrences per category")
-(defmethod compute-stat [:linear-model :doc] [_] "Linear model — OLS regression line + optional confidence band")
+(defmethod compute-stat [:linear-model :doc] [_] "Linear model -- OLS regression line + optional confidence band")
 (defmethod compute-stat [:loess :doc] [_] "LOESS (local regression) smoothing")
-(defmethod compute-stat [:density :doc] [_] "Density — 1D kernel density estimation (KDE)")
+(defmethod compute-stat [:density :doc] [_] "Density -- 1D kernel density estimation (KDE)")
 (defmethod compute-stat [:boxplot :doc] [_] "Five-number summary + outliers")
 (defmethod compute-stat [:violin :doc] [_] "KDE per category (density profile)")
-(defmethod compute-stat [:summary :doc] [_] "Mean ± standard error per category")
+(defmethod compute-stat [:summary :doc] [_] "Mean +/- standard error per category")
 (defmethod compute-stat [:bin2d :doc] [_] "2D grid binning (heatmap counts)")
-(defmethod compute-stat [:density-2d :doc] [_] "Density 2D — 2D Gaussian kernel density estimation (KDE)")
+(defmethod compute-stat [:density-2d :doc] [_] "Density 2D -- 2D Gaussian kernel density estimation (KDE)")
 
 (defn written-extent
   "The data-space extent a rule or a band covers, for the four marks
@@ -457,7 +457,7 @@
    the data). Returns a vector of maps `{:min :max :count}`. Each bin
    covers the half-open interval `[min, max)` except for the last bin,
    which is closed on the right so the max value is included.
-   `lo-anchor` is the anchor of the first bin's left edge — typically
+   `lo-anchor` is the anchor of the first bin's left edge -- typically
    the column's min value, so bin 0 starts exactly at the minimum."
   [col lo-anchor bw]
   (let [lo (double lo-anchor)
@@ -506,7 +506,7 @@
         user-binwidth (:binwidth draft-layer)
         ;; Compute a shared anchor when :binwidth is supplied, so every
         ;; group uses the same bin boundaries (important for stacked and
-        ;; colored histograms — otherwise groups with different minima
+        ;; colored histograms -- otherwise groups with different minima
         ;; produce misaligned bars).
         shared-lo (when user-binwidth
                     (when (pos? (tc/row-count clean))
@@ -744,7 +744,7 @@
   (let [n (alength xs)]
     (if (zero? n)
       [(double-array 0) (double-array 0)]
-      (let [;; worst case: all unique → n entries
+      (let [;; worst case: all unique -> n entries
             out-x (double-array n)
             out-y (double-array n)]
         (loop [i 1
@@ -824,7 +824,7 @@
         valid-boots (vec (remove nil? boot-grid-ys))
         n-valid (count valid-boots)]
     (if (zero? n-valid)
-      ;; No valid bootstrap samples — fall back to the point estimate curve
+      ;; No valid bootstrap samples -- fall back to the point estimate curve
       ;; with zero-width ribbons so downstream code has shape stability.
       {:xs grid-xs :ys grid-ys
        :ymins (vec grid-ys) :ymaxs (vec grid-ys)}
@@ -1055,11 +1055,11 @@
             has-color? (and (seq group-cols) color-col)
             clean-c (if has-color? (drop-missing-reported clean group-cols) clean)
             color-cats (when has-color? (vec (sort (distinct (clean-c color-col)))))
-            ;; Single tc/group-by replaces O(cats × colors) select-rows calls
+            ;; Single tc/group-by replaces O(cats x colors) select-rows calls
             group-keys (if has-color? [cat-col color-col] [cat-col])
             grouped (tc/group-by clean-c group-keys {:result-type :as-map})
             ;; When cat-col == color-col, each category IS its own color group
-            ;; (no cross-product — a "setosa" category can only have "setosa" color)
+            ;; (no cross-product -- a "setosa" category can only have "setosa" color)
             cat-is-color? (and has-color? (= cat-col color-col))
             items (vec
                    (cond
@@ -1187,7 +1187,7 @@
 
 ;; ---- 2D Binning (for heatmap/tile) ----
 
-;; ---- Summary (mean ± SE per category) ----
+;; ---- Summary (mean +/- SE per category) ----
 
 (defmethod compute-stat :summary [{:keys [data x y x-type group] :as draft-layer}]
   (validate-numeric-column draft-layer :y :summary)
@@ -1252,7 +1252,7 @@
                            {}
                            (range n))
             max-count (reduce max 1 (vals counts))
-            ;; Build tile dataset — each tile is an observation with bounds and fill.
+            ;; Build tile dataset -- each tile is an observation with bounds and fill.
             ;; Iterate in row-major order (yi, xi) so the output is deterministic
             ;; regardless of the hash map's internal key ordering.
             tile-data (reduce (fn [acc [xi yi]]

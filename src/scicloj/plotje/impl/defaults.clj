@@ -42,7 +42,7 @@
    file (`resources/plotje-defaults.edn`) is the canonical source;
    this map is consulted only when the EDN load fails or as a secondary
    lookup in `(or cfg defaults)` patterns in stat/layout code."
-  {;; Layout — must match EDN
+  {;; Layout -- must match EDN
    :width 600 :height 400
    :margin 10 :margin-multi 10 :panel-size 200 :legend-width 100
    ;; Ticks
@@ -528,7 +528,7 @@
    a p-entry palette pick values stretched across the whole range
    instead of the first n entries.
 
-   Currently unused by `color-for` — the canonical path for continuous
+   Currently unused by `color-for` -- the canonical path for continuous
    color is a colour scale's `:range`, not its `:values` with a
    gradient name. This
    helper stays as a dormant utility in case we later expose a
@@ -588,7 +588,7 @@
            (hex->rgba cv)
            (let [pal (resolve-palette default-palette-name)]
              (c2d->rgba (nth pal (mod idx (count pal)))))))
-       ;; Index-based: keyword → c/palette, vector → use directly, nil → default
+       ;; Index-based: keyword -> c/palette, vector -> use directly, nil -> default
        (cond
          (keyword? palette)
          (let [pal (resolve-palette palette)]
@@ -607,7 +607,7 @@
   (fn [t] (c2d->rgba (g t))))
 
 (def gradient-color
-  "Default gradient function (dark blue → light blue, matching ggplot2).
+  "Default gradient function (dark blue -> light blue, matching ggplot2).
    Takes t in [0,1], returns [r g b a] 0-1."
   (wrap-gradient (c/gradient [(c/to-color "#132B43") (c/to-color "#56B1F7")])))
 
@@ -673,12 +673,12 @@
 
 (defn resolve-gradient-fn
   "Resolve a colour scale's `:range` to a gradient function
-   t→[r g b a] (0-1 range).
-   nil or :sequential → dark blue to light blue (ggplot2 default).
-   :diverging → RdBu.
-   keyword → clojure2d gradient name (:inferno, :viridis/plasma, etc.).
-   map {:low hex :mid hex :high hex} → custom 3-stop gradient.
-   function → used directly.
+   t->[r g b a] (0-1 range).
+   nil or :sequential -> dark blue to light blue (ggplot2 default).
+   :diverging -> RdBu.
+   keyword -> clojure2d gradient name (:inferno, :viridis/plasma, etc.).
+   map {:low hex :mid hex :high hex} -> custom 3-stop gradient.
+   function -> used directly.
    Throws on an unrecognized keyword, and on a map naming none of the
    three stops -- that map is a whole scale spec written where a
    gradient belongs, and drawing it as three default stops would change
@@ -943,7 +943,7 @@
 (defn set-config!
   "Set global config overrides. Persists across calls until reset.
    (set-config! {:color-values :dark2 :theme {:bg \"#FFFFFF\"}})
-   (set-config! nil)  — reset to defaults"
+   (set-config! nil)  -- reset to defaults"
   [m]
   (validate-config-keys! "pj/set-config!" m)
   (reset! config-atom m))
@@ -986,13 +986,13 @@
    :margin-multi ["Layout" "Margin around multi-panel plots"]
    :panel-size ["Layout" "Default panel size for faceted/multi-variable grids"]
    :legend-width ["Layout" "Width reserved for the legend column"]
-   :legend-position ["Layout" "Legend placement — :right, :bottom, :top, or :none"]
-   :theme ["Theme" "Nested map {:bg :grid :font-size} — visual identity"]
+   :legend-position ["Layout" "Legend placement -- :right, :bottom, :top, or :none"]
+   :theme ["Theme" "Nested map {:bg :grid :font-size} -- visual identity"]
    :label-font-size ["Typography" "Font size for axis labels"]
    :title-font-size ["Typography" "Font size for the plot title"]
    :strip-font-size ["Typography" "Font size for facet strip labels"]
    :point-radius ["Points" "Default point radius"]
-   :point-opacity ["Points" "Default point opacity (0.0–1.0)"]
+   :point-opacity ["Points" "Default point opacity (0.0-1.0)"]
    :point-stroke ["Points" "Point border stroke color (\"none\" to disable)"]
    :point-stroke-width ["Points" "Point border stroke width"]
    :bar-opacity ["Bars & Lines" "Default bar fill opacity"]
@@ -1016,13 +1016,13 @@
    :strict ["Behavior" "When true, throw on unknown option keys instead of warning and stripping"]
    :default-color ["Behavior" "Fallback color when no color mapping is set"]
    :color-values ["Color" "The colours a categorical :color column is drawn in, as a palette name, a vector of colours, or a map from category to colour. The outermost scope of :values in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
-   :color-range ["Color" "The gradient a numeric :color column is read through — :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function. The outermost scope of :range in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-range ["Color" "The gradient a numeric :color column is read through -- :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function. The outermost scope of :range in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
    :color-midpoint ["Color" "The value the middle of the :color gradient is drawn at, which centres a diverging gradient there rather than halfway along the data. The outermost scope of :midpoint in a :color scale spec"]
    :fill-range ["Color" "The gradient a numeric :fill column is read through, in the same forms as :color-range. The outermost scope of :range in a :fill scale spec"]
    :fill-midpoint ["Color" "The value the middle of the :fill gradient is drawn at. The outermost scope of :midpoint in a :fill scale spec"]
    :tooltip ["Interaction" "Enable hover tooltips (truthy value)"]
    :brush ["Interaction" "Enable drag-to-select brush (truthy value)"]
-   :format ["Output" "Render format — :svg (default)"]})
+   :format ["Output" "Render format -- :svg (default)"]})
 
 (def plot-option-docs
   "Documentation for plot-level option keys.
@@ -1041,8 +1041,8 @@
    :shape-label ["Content" "Shape legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:shape` scale spec, so a spec written on a mapping or a layer wins over it"]
    :panel-width ["Layout" "Pin panel width (escape hatch; :width becomes derived total)"]
    :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
-   :scales ["Layout" "Facet scale coordination — :shared (default), :free, :free-x, :free-y"]
-   :share-scales ["Layout" "Composite scale coordination — set of axes (#{:x}, #{:y}, or #{:x :y}) shared across composite cells"]
+   :scales ["Layout" "Facet scale coordination -- :shared (default), :free, :free-x, :free-y"]
+   :share-scales ["Layout" "Composite scale coordination -- set of axes (#{:x}, #{:y}, or #{:x :y}) shared across composite cells"]
    :config ["Config" "Nested config map merged into resolved config"]})
 
 (defn config

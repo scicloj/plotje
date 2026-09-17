@@ -237,7 +237,7 @@
 
 (defn pad-domain
   "Add padding to a numeric domain. When lo == hi (constant data),
-   pads by ±1 or ±5% of |lo|, whichever is larger.
+   pads by +/-1 or +/-5% of |lo|, whichever is larger.
    For log scales, callers must supply positive lo and hi -- the
    responsibility for excluding non-positive values lives upstream
    (filter-log-nonpositive for raw data, the scale-aware branch of
@@ -264,7 +264,7 @@
          [a b] (if log? [(Math/log (double lo)) (Math/log (double hi))] [lo hi])
          span (- b a)
          pad (if (<= span 0.0)
-               ;; Constant data: use ±max(1, 5% of |value|)
+               ;; Constant data: use +/-max(1, 5% of |value|)
                (max 1.0 (* padding (Math/abs (double a))))
                (* padding span))
          from (if log? #(Math/exp %) identity)]
@@ -671,9 +671,9 @@
   "Format tick values without any digit grouping. See format-ticks."
   [sx ticks]
   (if (every? #(== (Math/floor %) %) ticks)
-    ;; All whole numbers — strip the .0
+    ;; All whole numbers -- strip the .0
     (mapv #(str (long %)) ticks)
-    ;; Float ticks — determine decimal places from step
+    ;; Float ticks -- determine decimal places from step
     (let [n (count ticks)]
       (if (< n 2)
         (ws/format sx ticks)
@@ -687,10 +687,10 @@
               zero (defaults/fmt-root fmt 0.0)]
           (mapv (fn [v]
                   (let [s (defaults/fmt-root fmt (double v))
-                        ;; Clean up -0.0 → 0.0
+                        ;; Clean up -0.0 -> 0.0
                         s (if (= s neg-zero) zero s)]
                     ;; Strip trailing zeros after decimal point, but keep at least one
-                    ;; "1.20" → "1.2", "1.00" → "1.0", "0.0010" → "0.001"
+                    ;; "1.20" -> "1.2", "1.00" -> "1.0", "0.0010" -> "0.001"
                     (if (.contains s ".")
                       (let [trimmed (str/replace s #"0+$" "")]
                         (if (.endsWith trimmed ".")
@@ -917,7 +917,7 @@
                                 :when (and (>= (double exp) (- log-lo-f margin))
                                            (<= (double exp) (+ log-hi-f margin)))]
                             v)))]
-    ;; Strongly prefer powers of 10 — use them if >= 3 are drawn
+    ;; Strongly prefer powers of 10 -- use them if >= 3 are drawn
     (if (>= (drawn-count powers) 3)
       powers
       ;; Need intermediates for narrow ranges (< 3 decades visible)

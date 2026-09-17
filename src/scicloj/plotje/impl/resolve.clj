@@ -177,7 +177,7 @@
         c (when resolved (ds resolved))
         n (count c)]
     (if (or (nil? c) (zero? n))
-      ;; Missing or empty column — treat as numerical (can't infer, let
+      ;; Missing or empty column -- treat as numerical (can't infer, let
       ;; downstream handle gracefully)
       :numerical
       (let [dt (dtype/elemwise-datatype c)
@@ -355,7 +355,7 @@
         _ (warn-unread-temporal! :y ds y-res)
         x-type (or (:x-type v) (column-type ds x-res))
         ;; When x and y reference the same column, propagate x-type to y-type
-        ;; rather than returning nil — callers (e.g., `validate-numeric-column`)
+        ;; rather than returning nil -- callers (e.g., `validate-numeric-column`)
         ;; rely on y-type being populated for validation.
         y-type (or (:y-type v) (when y-res
                                  (if (= x-res y-res)
@@ -376,7 +376,7 @@
                              :x-type x-type :x-end-type x-end-type})))
         x-temporal? (= x-type :temporal)
         y-temporal? (= y-type :temporal)
-        ;; If x is temporal, x-end (when present) is implicitly temporal too —
+        ;; If x is temporal, x-end (when present) is implicitly temporal too --
         ;; they must share an axis. Extend the temporal extent across both.
         x-temp-extent (when x-temporal?
                         (let [xe (temporal-extent ds x-res)
@@ -556,12 +556,12 @@
 (defn infer-layer-type
   "Choose mark and stat from column types when the user hasn't specified them.
    Rules:
-     - x only, categorical       → :rect    + :count    (bar chart)
-     - x only, non-categorical   → :bar     + :bin      (histogram)
-     - temporal x + numerical y  → :line    + :identity (time-series line)
-     - categorical x + numerical y → :boxplot + :boxplot (vertical)
-     - numerical x + categorical y → :boxplot + :boxplot (horizontal)
-     - otherwise                 → :point   + :identity (scatter)
+     - x only, categorical       -> :rect    + :count    (bar chart)
+     - x only, non-categorical   -> :bar     + :bin      (histogram)
+     - temporal x + numerical y  -> :line    + :identity (time-series line)
+     - categorical x + numerical y -> :boxplot + :boxplot (vertical)
+     - numerical x + categorical y -> :boxplot + :boxplot (horizontal)
+     - otherwise                 -> :point   + :identity (scatter)
    `x-type`/`y-type` come from `infer-column-types`, which reports
    temporal columns as `:numerical` (they're stored as epoch-ms);
    `x-temporal?`/`y-temporal?` flag the original temporal classification.
@@ -574,13 +574,13 @@
           ;; x only (or diagonal): count categories or bin numbers
           (or diagonal? (nil? (:y v)))
           (if (= x-type :categorical) [:rect :count] [:bar :bin])
-          ;; temporal x + numerical y → time-series line
+          ;; temporal x + numerical y -> time-series line
           (and x-temporal? (= y-type :numerical) (not y-temporal?))
           [:line :identity]
-          ;; categorical x + numerical y → boxplot
+          ;; categorical x + numerical y -> boxplot
           (and (= x-type :categorical) (= y-type :numerical))
           [:boxplot :boxplot]
-          ;; numerical x + categorical y → horizontal boxplot
+          ;; numerical x + categorical y -> horizontal boxplot
           (and (= x-type :numerical) (= y-type :categorical))
           [:boxplot :boxplot]
           ;; everything else: scatter
@@ -626,10 +626,10 @@
 (defn resolve-draft-layer
   "Resolve a single draft layer: infer column types, aesthetics, grouping, and layer type.
    Delegates to `infer-column-types`, `resolve-aesthetics`, `infer-grouping`,
-   and `infer-layer-type` — each named for the inference step it performs.
+   and `infer-layer-type` -- each named for the inference step it performs.
    Also normalizes user-facing shorthand options:
-     - `:bandwidth` → `:cfg {:<stat>-bandwidth ...}` (routed per stat)
-     - `:tile` with `:fill` → stat `:identity`"
+     - `:bandwidth` -> `:cfg {:<stat>-bandwidth ...}` (routed per stat)
+     - `:tile` with `:fill` -> stat `:identity`"
   [v]
   (if-not (:data v)
     v
@@ -730,11 +730,11 @@
           ;; a mark that writes its extent never calls prepare-points.
           ;; Four sources of x-only permission:
           ;;   1. :x-only true from the layer-type registry (e.g., :histogram, :rug)
-          ;;   2. stat is in `x-only-stats` — :bin/:count/:density synthesize y
+          ;;   2. stat is in `x-only-stats` -- :bin/:count/:density synthesize y
           ;;      from x alone (covers the :rect mark + bar stat too)
           ;;   3. mark is :rug, which is structurally x-only even when
           ;;      constructed without the layer-type registry
-          ;;   4. the mark is one of `written-position-marks` — a rule or a
+          ;;   4. the mark is one of `written-position-marks` -- a rule or a
           ;;      band, whose value is written on the layer. Adding one to a
           ;;      histogram, density, count-bar or rug pose is the ordinary
           ;;      reason to draw a threshold, and requiring a y column there
@@ -777,7 +777,7 @@
                            (assoc-in [:cfg cfg-key] bw)))
                      resolved)
           ;; Tile + default bin2d stat with a user-supplied :fill (or
-          ;; :color as a synonym) → override stat to :identity so the
+          ;; :color as a synonym) -> override stat to :identity so the
           ;; pre-computed fill values drive the tile colors directly.
           ;; Only applies to lay-tile (which defaults to :bin2d) -- NOT
           ;; to lay-density-2d (:density-2d) or lay-contour, which intentionally

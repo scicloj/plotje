@@ -1,12 +1,12 @@
 (ns scicloj.plotje.impl.position
-  "Position adjustment — composable transforms on layer descriptors.
+  "Position adjustment -- composable transforms on layer descriptors.
    Runs between extract-layer and build-panels in the plan pipeline.
 
    Position types:
-     :identity — no adjustment (default)
-     :dodge    — side-by-side within a categorical band (annotation)
-     :stack    — cumulative y-values across groups (data transform)
-     :fill     — normalized cumulative y, sums to 1.0 (data transform)")
+     :identity -- no adjustment (default)
+     :dodge    -- side-by-side within a categorical band (annotation)
+     :stack    -- cumulative y-values across groups (data transform)
+     :fill     -- normalized cumulative y, sums to 1.0 (data transform)")
 
 ;; ---- Helpers ----
 
@@ -58,7 +58,7 @@
      (fn [layer]
        ;; Only attach :dodge-ctx to layers that will actually use it.
        ;; Marks like :tile, :contour, and :ridgeline have neither :groups,
-       ;; :boxes, nor :violins — they ignore dodge silently, so don't
+       ;; :boxes, nor :violins -- they ignore dodge silently, so don't
        ;; pollute their layer maps with a context they'll never read.
        (cond-> layer
          (dodge-compatible? layer) (assoc :dodge-ctx dodge-ctx)
@@ -121,7 +121,7 @@
    Adds :y0s baseline vector to each group.
    The last group is laid down first, so the first group finishes on
    top and the stack reads in the order the legend lists.
-   NaN y-values are dropped before accumulation — otherwise a single
+   NaN y-values are dropped before accumulation -- otherwise a single
    NaN would propagate through the cumulative sum and corrupt every
    subsequent category in the stack.
    Duplicate x-values within a group are summed rather than dropped:
@@ -192,7 +192,7 @@
     (assoc layer :groups normalized)))
 
 (defmethod apply-position :fill [_ layers]
-  ;; Fill normalizes to [0, 1] — the cached :y-domain is always stale after
+  ;; Fill normalizes to [0, 1] -- the cached :y-domain is always stale after
   ;; this transform. Strip it (same reasoning as :stack).
   (mapv (fn [layer]
           (cond

@@ -84,12 +84,12 @@
           (is (apply not= cs)))))))
 
 (deftest gradient-color-test
-  (testing "t=0.0 (dark blue — low end)"
+  (testing "t=0.0 (dark blue -- low end)"
     (let [[r g b a] (defaults/gradient-color 0.0)]
       (is (< r 0.1))
       (is (< b 0.3))
       (is (== 1.0 a))))
-  (testing "t=1.0 (light blue — high end)"
+  (testing "t=1.0 (light blue -- high end)"
     (let [[r g b _] (defaults/gradient-color 1.0)]
       (is (> b 0.9))
       (is (> g 0.6))))
@@ -784,14 +784,14 @@
     (is (= 3 (count (:panels pl))))))
 
 (deftest coord-fixed-test
-  (testing "coord :fixed end-to-end — equal ranges produce square panel"
+  (testing "coord :fixed end-to-end -- equal ranges produce square panel"
     (let [ds (tc/dataset {:x [0 10 5] :y [0 10 5]})
           pl (-> ds (pj/pose :x :y) (pj/coord :fixed) pj/lay-point pj/plan)]
-      (is (== (:panel-width pl) (:panel-height pl)) "Equal data ranges → square panel")))
-  (testing "coord :fixed end-to-end — asymmetric ranges"
+      (is (== (:panel-width pl) (:panel-height pl)) "Equal data ranges -> square panel")))
+  (testing "coord :fixed end-to-end -- asymmetric ranges"
     (let [ds (tc/dataset {:x [0 100 50] :y [0 10 5]})
           pl (-> ds (pj/pose :x :y) (pj/coord :fixed) pj/lay-point pj/plan)]
-      (is (> (:panel-width pl) (:panel-height pl)) "Wide data → wider panel"))))
+      (is (> (:panel-width pl) (:panel-height pl)) "Wide data -> wider panel"))))
 
 (deftest diverging-color-test
   (testing "diverging-color endpoints"
@@ -1062,7 +1062,7 @@
         (let [cfg (defaults/resolve-config {:width 900})]
           (is (= 900 (:width cfg)))
           (is (= 500 (:height cfg)))
-          ;; margin untouched by any override → from defaults
+          ;; margin untouched by any override -> from defaults
           (is (= 10 (:margin cfg)))))
       (finally
         (defaults/set-config! nil)))))
@@ -1218,7 +1218,7 @@
       (is (some? (pj/plot (-> ds (pj/lay-point :x :y))))))))
 
 (deftest two-point-dataset-test
-  (testing "regression with exactly 2 points — lm needs n>=3 so falls back gracefully"
+  (testing "regression with exactly 2 points -- lm needs n>=3 so falls back gracefully"
     (let [ds (tc/dataset {:x [1 2] :y [3 4]})
           views (-> ds (pj/pose :x :y) pj/lay-point)]
       (is (some? (pj/plan views))))))

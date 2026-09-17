@@ -131,7 +131,7 @@
           layout (pose/compute-layout tree [0 0 400 400])]
       ;; top band: full width, top quarter
       (is (= [0.0 0.0 400.0 100.0] (layout [0])))
-      ;; bottom-left: 75% width × 75% height offset
+      ;; bottom-left: 75% width x 75% height offset
       (is (= [0.0 100.0 300.0 300.0] (layout [1 0])))
       ;; bottom-right
       (is (= [300.0 100.0 100.0 300.0] (layout [1 1]))))))

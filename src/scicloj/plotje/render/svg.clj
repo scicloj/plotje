@@ -48,7 +48,7 @@
   [ox oy w h]
   (str "plotje-clip-" (Integer/toUnsignedString (hash [ox oy w h]) 36)))
 
-;; ---- Membrane → SVG conversion ----
+;; ---- Membrane -> SVG conversion ----
 
 (defn- fmt
   "Format a numeric value to 2 decimal places for SVG coordinates."
@@ -318,10 +318,10 @@
                  title (assoc :aria-label title))]
      [:svg attrs body])))
 
-;; ---- Plan → Membrane (drawable tree) ----
+;; ---- Plan -> Membrane (drawable tree) ----
 
 ;; Membrane-building code lives in render/membrane.clj.
-;; This namespace handles membrane → SVG conversion only.
+;; This namespace handles membrane -> SVG conversion only.
 
 ;; ---- plan->plot :svg ----
 
@@ -672,55 +672,55 @@
   "Extract structural summary from SVG hiccup for testing.
    Returns a map with :width, :height, :panels, :points, :lines,
    :dashed-lines, :polygons, :tiles, :visible-tiles, :texts, :colors,
-   :sizes, :alphas, :dash-patterns, and :shapes — useful for asserting
+   :sizes, :alphas, :dash-patterns, and :shapes -- useful for asserting
    plot structure and that aesthetic mappings (color/size/alpha/shape)
    took effect.
-   (svg-summary (plot pose))  — summary of rendered SVG
+   (svg-summary (plot pose))  -- summary of rendered SVG
 
    Structure counts:
-   :panels  — number of plot panels (large background rectangles)
-   :points  — number of data point markers drawn as small rounded rects:
+   :panels  -- number of plot panels (large background rectangles)
+   :points  -- number of data point markers drawn as small rounded rects:
               circle and `:square` shape symbols. The `:triangle` and
               `:diamond` symbols draw as paths and count under :polygons,
               so a shape-mapped scatter splits across the two counts.
               Every marker sits on a square bounding box, which is what
               distinguishes one from a label's background box
-   :lines   — number of non-grid polylines (data lines, rules, whiskers)
-   :dashed-lines — number of polylines with a stroke-dasharray (dashed/dotted
+   :lines   -- number of non-grid polylines (data lines, rules, whiskers)
+   :dashed-lines -- number of polylines with a stroke-dasharray (dashed/dotted
                    lines, dashed rules, dashed area outlines)
-   :polygons — number of filled polygons (bars, histogram bins, areas, violins)
-   :tiles   — number of heatmap tile rectangles (small rects without border-radius)
-   :visible-tiles — tiles with positive width and height (excludes degenerate zero-extent tiles)
-   :clips   — number of clipPath definitions (one per panel per clip region in use: the drawing area for data marks, plus the panel box when a margin mark such as rug is present)
-   :texts   — vector of all text content strings
-   :bold-texts — number of texts drawn with :font-weight :bold
-   :italic-texts — number of texts drawn with :font-style :italic
-   :label-boxes — number of text background boxes, one per boxed label
+   :polygons -- number of filled polygons (bars, histogram bins, areas, violins)
+   :tiles   -- number of heatmap tile rectangles (small rects without border-radius)
+   :visible-tiles -- tiles with positive width and height (excludes degenerate zero-extent tiles)
+   :clips   -- number of clipPath definitions (one per panel per clip region in use: the drawing area for data marks, plus the panel box when a margin mark such as rug is present)
+   :texts   -- vector of all text content strings
+   :bold-texts -- number of texts drawn with :font-weight :bold
+   :italic-texts -- number of texts drawn with :font-style :italic
+   :label-boxes -- number of text background boxes, one per boxed label
                   (from `pj/lay-label`, or `pj/lay-text` with `:box`)
 
    Aesthetic-coverage sets (extracted across data shapes only;
    theme/legend/axis chrome is excluded):
-   :colors  — sorted set of distinct fill/stroke colors
-   :sizes   — sorted set of distinct positive point :rx values. A `:square`
+   :colors  -- sorted set of distinct fill/stroke colors
+   :sizes   -- sorted set of distinct positive point :rx values. A `:square`
               marker draws with an :rx of 0 whatever its size, so squares
               are counted in :points but contribute nothing here
-   :alphas  — sorted set of distinct non-default opacity values
-   :dash-patterns — sorted set of distinct stroke-dasharray strings (the
+   :alphas  -- sorted set of distinct non-default opacity values
+   :dash-patterns -- sorted set of distinct stroke-dasharray strings (the
                     dash/gap pattern, in pixels; :dashed and :dotted differ)
-   :shapes  — sorted set of distinct SVG element types used by data marks
+   :shapes  -- sorted set of distinct SVG element types used by data marks
 
    Accepts an optional theme map to detect grid-colored polylines correctly
    when a custom theme is used."
   ([svg] (svg-summary svg nil))
   ([svg theme]
    (let [attrs (when (and (vector? svg) (map? (second svg))) (second svg))
-         ;; Grid color from theme — used to filter grid polylines
+         ;; Grid color from theme -- used to filter grid polylines
          the-theme (or theme defaults/theme)
          grid-hex (:grid the-theme)
          grid-color (str "rgb(" (str/join ","
                                           (mapv #(int (* 255 (double %)))
                                                 (take 3 (defaults/hex->rgba grid-hex)))) ")")
-         ;; Background color from theme — used to identify panel rects
+         ;; Background color from theme -- used to identify panel rects
          bg-hex (:bg the-theme)
          bg-color (str "rgb(" (str/join ","
                                         (mapv #(int (* 255 (double %)))

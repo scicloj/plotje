@@ -323,6 +323,11 @@
   [ctx x-temporal? y-cat x-start x-end color-label]
   (let [{:keys [x-col-name y-col-name]} ctx
         fmt-x (if x-temporal? fmt-temporal-val fmt-val)
+        ;; The one non-ASCII character in src, and it stays. The ASCII
+        ;; rule keeps source prose grep-friendly; this arrow is text a
+        ;; reader sees in a browser, where the glyph is what belongs.
+        ;; A sweep replaced it with "->" once, which changed rendered
+        ;; output rather than a comment.
         parts (cond-> [(str y-col-name ": " (str y-cat))
                        (str x-col-name ": " (fmt-x x-start) " → " (fmt-x x-end))]
                 color-label (conj (str "color: " color-label)))]
@@ -705,7 +710,7 @@
         sw (or stroke-width 1.5)
         op (or opacity 1.0)
         ;; n-groups comes from dodge-ctx (set by position.clj when dodge is active).
-        ;; When dodge-ctx is absent (position = :identity), use 1 — the mark
+        ;; When dodge-ctx is absent (position = :identity), use 1 -- the mark
         ;; should fill the full band, not subdivide by color-categories.
         {:keys [n-groups] :or {n-groups 1}}
         (:dodge-ctx layer)]
@@ -774,7 +779,7 @@
   (let [{:keys [style violins color-categories]} layer
         {:keys [flipped? band-s num-s]} (orient-scales ctx)
         {:keys [opacity stroke-width]} style
-        ;; See boxplot comment — n-groups defaults to 1 when no dodge-ctx.
+        ;; See boxplot comment -- n-groups defaults to 1 when no dodge-ctx.
         {:keys [n-groups] :or {n-groups 1}}
         (:dodge-ctx layer)]
     (vec
@@ -906,7 +911,7 @@
                   0.001)
           norm (* bw overlap (/ 1.0 max-d))
           ;; After domain swap in plan, sx is the numeric scale (maps to x-pixels)
-          ;; and sy is categorical. Use sx for numeric value → pixel mapping.
+          ;; and sy is categorical. Use sx for numeric value -> pixel mapping.
           num-scale sx]
       (vec
        ;; Render from back (last category) to front (first category)
