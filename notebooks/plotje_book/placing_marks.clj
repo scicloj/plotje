@@ -345,8 +345,8 @@ cars
 (kind/test-last
  [(fn [fr]
     (let [panel (-> fr pj/plan :panels first)
-          frame (-> fr pj/frames :panels first)
-          at (fn [v] (first (pj/to-drawing frame v 4.5)))]
+          panel-entry (-> fr pj/frames :panels first)
+          at (fn [v] (first (pj/to-drawing panel-entry v 4.5)))]
       (and (= ["red" "green" "blue"] (:x-domain panel))
            (= ["red" "green" "blue"] (:values (:x-ticks panel)))
            ;; Counted from one: 1 is the first category and 2 the second.
@@ -384,9 +384,9 @@ cars
     (and (some #{"the 2021 cohort"} (:texts (pj/svg-summary (pj/plot fr))))
          ;; The named category is the middle band, which is place 2 --
          ;; the two readings meet there, and part elsewhere.
-         (let [frame (-> fr pj/frames :panels first)]
-           (= (first (pj/to-drawing frame "2021" 5.5))
-              (first (pj/to-drawing frame 2 5.5))))
+         (let [panel (-> fr pj/frames :panels first)]
+           (= (first (pj/to-drawing panel "2021" 5.5))
+              (first (pj/to-drawing panel 2 5.5))))
          ;; The bare number is the reading this example is not asking
          ;; for, and the axis says so rather than drawing off the panel.
          (try (-> {:cohort [2020 2021 2022] :n [3 5 4]}
@@ -411,8 +411,8 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (let [frame (-> fr pj/frames :panels first)
-          at (fn [v] (first (pj/to-drawing frame v 4.0)))]
+    (let [panel (-> fr pj/frames :panels first)
+          at (fn [v] (first (pj/to-drawing panel v 4.0)))]
       ;; An intercept and a mapping's value read the one axis the one
       ;; way, so a place and the category it counts to meet.
       (and (= (at 1) (at "red"))

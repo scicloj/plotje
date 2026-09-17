@@ -34,6 +34,23 @@
     (fn [dx dy]
       (polar-project cx cy r-max x-lo x-span y-lo y-span (scale/forward sx dx) (scale/forward sy dy)))))
 
+(defn data-axis-scales
+  "The scales data `:x` and `:y` are read through, as `[x-scale y-scale]`.
+
+   `make-coord` above decides this, and `:flip` is the one coordinate
+   system that parts it from the panel's drawn `sx` and `sy`: a flip
+   reads data y through `sx` and data x through `sy`.
+
+   A caller that scales a data value itself, rather than through the
+   coordinate function, has to ask here. `render/panel.clj` shifts a
+   `:dx` on a categorical axis by reading the category's place in its
+   own scale's domain, and reaching for `sx` there looked the category
+   up in the other axis's scale under a flip: `category-index` found
+   nothing, the label passed through unshifted, and the plot was drawn
+   with the shift missing and nothing said."
+  [coord-type sx sy]
+  (if (= :flip coord-type) [sy sx] [sx sy]))
+
 (defmethod make-coord [:cartesian :doc] [_ _ _ _ _ _] "Standard x-right, y-up mapping")
 (defmethod make-coord [:fixed :doc] [_ _ _ _ _ _] "Fixed aspect ratio (1 data unit = 1 data unit)")
 (defmethod make-coord [:flip :doc] [_ _ _ _ _ _] "Swap x and y axes")

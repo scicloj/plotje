@@ -223,19 +223,24 @@
    neither the option nor the mark. A keyword or a string that names no
    column is reported earlier, where the pose's columns are listed.
 
-   `col-ref?` is the caller's own test, so what counts as a column
-   reference is decided in one place."
-  [mark ds-cols col-ref? y-min y-max]
-  (doseq [[k v] [[:y-min y-min] [:y-max y-max]]]
-    (when (and (some? v) (not (col-ref? v)))
-      (throw (ex-info (str "lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
-                           "layer's data. lay-" (name mark) " reads " k " as a column, one bound "
-                           "per row: (pj/lay-errorbar :x :y {:y-min :lo :y-max :hi}). Available "
-                           "columns: " (vec (sort-by str (remove #{:__row-idx} ds-cols)))
-                           ". A written number on these two keys is read by pj/lay-band-h, "
-                           "which shades one region between them.")
-                      {:mark mark :aesthetic k :value v
-                       :columns (vec (sort-by str (remove #{:__row-idx} ds-cols)))})))))
+   What counts is whether the data has a column of that name, not what
+   the name is made of. A dataset built without column names has
+   integer ones, and `pj/lay-point` places `:x 0` against such a column
+   -- the data decides. Testing for a keyword or a string here refused
+   `{:y-min 2}` on a dataset whose columns are `[0 1 2 3]` while
+   listing `2` among the ones available."
+  [mark ds-cols y-min y-max]
+  (let [available (vec (sort-by str (remove #{:__row-idx} ds-cols)))]
+    (doseq [[k v] [[:y-min y-min] [:y-max y-max]]]
+      (when (and (some? v) (not (contains? ds-cols v)))
+        (throw (ex-info (str "lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
+                             "layer's data. lay-" (name mark) " reads " k " as a column, one "
+                             "bound per row: (pj/lay-errorbar :x :y {:y-min :lo :y-max :hi}). "
+                             "Available columns: " available
+                             ". On pj/lay-band-h these two keys take a written number instead, "
+                             "and shade one region between them.")
+                        {:mark mark :aesthetic k :value v
+                         :columns available}))))))
 
 (defn prepare-points
   "Clean data, compute domains, group by columns.
@@ -271,7 +276,7 @@
                 ;; scale -- keyword/number categories become display strings.
                 (and (not x-only?) (= y-type :categorical))
                 (format-category-column y))]
-    (check-range-columns mark ds-cols col-ref? y-min y-max)
+    (check-range-columns mark ds-cols y-min y-max)
     (if (zero? (tc/row-count clean))
       {:points [] :x-domain [0 1] :y-domain [0 1]}
       (let [xs-col (clean x)
@@ -383,8 +388,15 @@
    data reaches widens the axis until the line is on the panel. The
    axis the mark spans covers whatever column the layer's mapping names
    there, which is what gives a panel holding nothing but a rule an
-   axis to draw against; where the mapping names no column, that axis
-   falls back to `[0 1]` so the line is still drawable.
+   axis to draw against.
+
+   Where the mapping names no column, the spanned axis reports nothing
+   and `plan/resolve-panel-domains` falls back to `[0 1]` for a panel
+   that has no other extent for it. Reporting `[0 1]` from here instead
+   put the rule's own floor and ceiling into the merge, and a layer
+   whose values stay under 1 was flattened by it: a rule added beside
+   `pj/lay-density` drew the density along the bottom of a y axis
+   running 0 to 1. Reported in #plotje > lay-rule-v regression ?
 
    Both readings apply to the axis the value is written on: the column
    the mapping names there is covered too, so a pose carrying `:x` and
@@ -409,7 +421,7 @@
                  (when (and data col (tc/dataset? data))
                    (try (data col) (catch Exception _ nil))))
         numbers (fn [c] (->> c (remove nil?) (filter number?) seq))
-        axis (fn [col cat? written spans?]
+        axis (fn [col cat? written]
                (let [c (col-of col)]
                  (if (and cat? (some? c))
                    (distinct c)
@@ -417,16 +429,12 @@
                          vals (cond-> []
                                 ns (into ns)
                                 written (into written))]
-                     (cond
-                       (seq vals) [(reduce min vals) (reduce max vals)]
-                       ;; The axis a rule spans has nothing of its own
-                       ;; to report, so a panel carrying only the rule
-                       ;; needs a drawable extent from somewhere.
-                       spans? [0.0 1.0])))))
+                     (when (seq vals)
+                       [(reduce min vals) (reduce max vals)])))))
         x-written (resolve/written-values draft-layer :x)
         y-written (resolve/written-values draft-layer :y)
-        x-dom (axis x (= x-type :categorical) x-written (#{:rule-h :band-h} mark))
-        y-dom (axis y (= y-type :categorical) y-written (#{:rule-v :band-v} mark))]
+        x-dom (axis x (= x-type :categorical) x-written)
+        y-dom (axis y (= y-type :categorical) y-written)]
     (cond-> {}
       (seq x-dom) (assoc :x-domain (vec x-dom))
       (seq y-dom) (assoc :y-domain (vec y-dom)))))

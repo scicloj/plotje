@@ -28,7 +28,10 @@
 (defn- panel [pose]
   (first (:panels (pj/plan pose))))
 
-(defn- frame [pose]
+(defn- panel-entry
+  "One element of `(:panels (pj/frames pose))` -- what `pj/to-drawing`
+   and `pj/to-data` take. `panel` is the plan's panel above."
+  [pose]
   (first (:panels (pj/frames pose))))
 
 (defn- polygon-spans
@@ -75,7 +78,7 @@
 
 (deftest a-place-is-counted-from-one-and-interpolates
   (testing "1 is the first category and 1.5 is halfway to the second"
-    (let [p (frame x-categorical)
+    (let [p (panel-entry x-categorical)
           at (fn [v] (first (pj/to-drawing p v 3.0)))]
       (is (= (at "A") (at 1)))
       (is (= (at "B") (at 2)))
@@ -83,7 +86,7 @@
 
 (deftest a-place-counts-in-the-order-the-axis-draws
   (testing "a domain the writer set decides which category is first"
-    (let [p (frame (-> x-categorical (pj/scale :x {:domain ["C" "B" "A"]})))
+    (let [p (panel-entry (-> x-categorical (pj/scale :x {:domain ["C" "B" "A"]})))
           at (fn [v] (first (pj/to-drawing p v 3.0)))]
       (is (= (at "C") (at 1)) "not the order the data happened to arrive in")
       (is (= (at "A") (at 3))))))
@@ -92,7 +95,7 @@
 
 (deftest the-ends-of-the-axis-are-places-and-past-them-is-refused
   (testing "three categories reach from 0.5 to 3.5"
-    (let [p (frame x-categorical)]
+    (let [p (panel-entry x-categorical)]
       (is (number? (first (pj/to-drawing p 0.5 3.0))))
       (is (number? (first (pj/to-drawing p 3.5 3.0))))
       (doseq [bad [3.6 99 -50]]
@@ -101,7 +104,7 @@
                               (pj/to-drawing p bad 3.0))
             (str bad " has no place on a three-category axis")))))
   (testing "the refusal names the value, the categories and the range"
-    (let [p (frame x-categorical)
+    (let [p (panel-entry x-categorical)
           e (try (pj/to-drawing p 99 3.0) (catch clojure.lang.ExceptionInfo e e))]
       (is (re-find #"got 99 for :x" (ex-message e)))
       (is (re-find #"\[\"A\" \"B\" \"C\"\]" (ex-message e)))
@@ -118,8 +121,8 @@
 
 (deftest a-category-that-is-a-number-is-still-named-not-counted
   (testing "an axis built from numbers reads a place, and says so"
-    (let [p (frame (-> {:cohort [2020 2021 2022] :n [3 5 4]}
-                       (pj/lay-bar :cohort :n {:x-type :categorical})))
+    (let [p (panel-entry (-> {:cohort [2020 2021 2022] :n [3 5 4]}
+                             (pj/lay-bar :cohort :n {:x-type :categorical})))
           at (fn [v] (first (pj/to-drawing p v 3.0)))]
       (is (= (at "2021") (at 2))
           "the middle band is named by its label and counted as place 2")
@@ -213,7 +216,7 @@
   (testing "pj/to-drawing"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"past the ends of this axis"
-                          (pj/to-drawing (frame x-categorical) 99 3.0))))
+                          (pj/to-drawing (panel-entry x-categorical) 99 3.0))))
   (testing "and each names the value, the categories and where the axis ends"
     (let [d (try (pj/plan (-> x-categorical (pj/lay-rule-v {:x-intercept 99})))
                  (catch clojure.lang.ExceptionInfo e (ex-data e)))]
@@ -232,7 +235,7 @@
                                  (pj/lay-point :a :v)
                                  (pj/lay-rule-v {:x-intercept 99}))))))))
 
-(deftest a-rule-in-a-drawing-space-frame-is-not-a-place
+(deftest a-rule-in-a-drawing-area-layer-is-not-a-place
   (testing "its number is a distance across the panel, so the axis has no say"
     (is (some? (pj/plan (-> x-categorical
                             (pj/lay-rule-v {:x-intercept 200 :in :drawing-area})))))))

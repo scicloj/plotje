@@ -140,10 +140,10 @@
   ((fn
     [v]
     (let
-     [frame
+     [panel
       (-> v pj/frames :panels first)
       at
-      (fn [c] (first (pj/to-drawing frame c 25)))]
+      (fn [c] (first (pj/to-drawing panel c 25)))]
      (and
       (= ["a" "b" "c" "d"] (-> v pj/plan :panels first :x-domain))
       (< (abs (- (at 1.5) (/ (+ (at "a") (at "b")) 2.0))) 1.0E-9))))

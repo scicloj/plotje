@@ -308,9 +308,18 @@
                     (assoc :labels (mapv #(defaults/fmt-value-label
                                            % (defaults/number-separators cfg))
                                          labels)))))]
+    ;; Both bounds, not either: a mark drawn between two values needs
+    ;; the pair. Asking only about `:ymins` let `{:y-min :lo}` alone
+    ;; through, and the renderer died reaching for the upper bound --
+    ;; `Cannot invoke "clojure.lang.IFn.invoke(Object)" because
+    ;; "this.ymaxs" is null`, naming neither the option nor the mark.
     (when (and with-range? (seq groups)
-               (not-any? :ymins groups))
-      (throw (ex-info (str "errorbar/pointrange requires :y-min and :y-max columns. "
+               (or (not-any? :ymins groups) (not-any? :ymaxs groups)))
+      (throw (ex-info (str "errorbar/pointrange requires :y-min and :y-max columns, and got "
+                           (let [lo (some :ymins groups) hi (some :ymaxs groups)]
+                             (cond (and lo (not hi)) ":y-min alone. "
+                                   (and hi (not lo)) ":y-max alone. "
+                                   :else "neither. "))
                            "Pass them as options: (pj/lay-errorbar :x :y {:y-min :lo :y-max :hi})")
                       {:mark (:mark draft-layer)})))
     (when (and with-labels? (seq groups)

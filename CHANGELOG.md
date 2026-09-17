@@ -9,11 +9,11 @@ A number written for a categorical axis is a place among its categories, counted
 ### Plots that look different after upgrading
 
 - **Every plot writing a number for a categorical axis.** The mark is drawn at that place among the categories. A number on a categorical `:y` used to add a category of its own, drawing a tick labelled with the number and putting the mark in the new band; on `:x` the same number reported that numeric and categorical domains could not be merged.
-- **Every plot shifting a mark along a categorical axis.** The shift is a fraction of a band, so `{:dx 0.5}` moves a mark half a band along. `:dx` and `:dy` used to report an error on that axis.
+- **Every plot shifting a mark along a categorical axis.** The shift is a fraction of a band, so `{:dx 0.5}` moves a mark half a band along. Under their former names, `:nudge-x` and `:nudge-y` reported an error on that axis.
 - **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
-- **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A rule's intercept and a band's edges are read the same way, so `(pj/lay-rule-v {:x-intercept 99})` on three categories reports rather than drawing a line far to the right of the panel. A value past the ends used to be scaled and the mark drawn off the panel, where clipping hid it.
-- **Every plot writing a place beside a `pj/scale` `:domain` naming categories no row carries.** The axis ends where the data's own categories end, so a place past the last of them reports. The names no row carries used to count toward where the axis ends, letting a place through that was then drawn off the panel.
-- **Every plot writing a number on `pj/lay-errorbar`'s `:y-min` or `:y-max`.** An error names the mark, the key and what was written. An errorbar reads both keys as columns, and a number used to reach a column lookup by that name and die on a NullPointerException naming neither.
+- **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A rule's intercept and a band's edges are read the same way, so `(pj/lay-rule-v {:x-intercept 99})` on three categories reports rather than drawing a line on the panel's left edge.
+- **Every plot carrying a rule or a band and nothing that gives the other axis an extent.** That axis runs `0` to `1` and is ticked across it. It used to run `-0.05` to `1.05` and carry a tick at each end.
+- **Every plot adding a rule or a band beside a layer whose values stay under 1** -- a density, most often. The axis the rule spans keeps the extent that layer gives it. In 0.13.0 the rule reported `0` to `1` for that axis, which won the merge and drew the density flat along the bottom.
 
 ### Added
 
@@ -21,7 +21,7 @@ A number written for a categorical axis is a place among its categories, counted
 
 ### Fixed
 
-- A histogram bar written at a place on a categorical axis is drawn there, one place wide. It used to be dropped, under a warning saying its height had no place on a log scale.
+- A histogram bar written at a place on a categorical axis is drawn there, one place wide. The whole plot used to report that numeric and categorical domains could not be merged.
 
 - One reader answers what a number means on either axis. `:x` and `:y` each had their own copy of the parse that decides whether a layer contributes a numeric extent or a list of categories, and the two disagreed about a number written beside categories.
 
@@ -29,9 +29,13 @@ A number written for a categorical axis is a place among its categories, counted
 
 - Where a categorical axis ends is counted from the categories the data holds. A `:domain` written with `pj/scale` orders those categories and adds none to them, so counting its names let a place past the last category through, and the mark was drawn off the panel and clipped away.
 
-- `pj/lay-errorbar` reports what it was given on `:y-min` or `:y-max` where that is not a column of the layer's data, naming the mark, the key and the value. An errorbar reads both keys as columns, one bound per row. The same two keys still take a written number on `pj/lay-band-h`, which shades one region between them.
+- `pj/lay-errorbar` reports what it was given on `:y-min` or `:y-max` where that is not a column of the layer's data, naming the mark, the key and the value. It also reports one bound given without the other, saying which one it got. Both used to die on a NullPointerException naming neither the option nor the mark. An errorbar reads both keys as columns, one bound per row; the same two keys still take a written number on `pj/lay-band-h`, which shades one region between them.
 
 - One message says that a number is past the ends of a categorical axis, whichever call reports it. A mark's mapping, a rule's intercept and `pj/to-drawing` each reached their own sentence, and the first two already suggested different things.
+
+- A rule or a band gives no extent to the axis it spans. A rule names a value on one axis and reaches across the other, and across that other axis it reported `0` to `1` where the layer's mapping named no column there. A density beside such a rule was drawn along the bottom of a y axis running to 1. A panel that has nothing else to give the axis an extent still falls back to `0` to `1`, which is now the interval itself rather than a padded version of it, so a rule drawn on its own carries ticks across that interval. Reported in [#plotje > lay-rule-v regression ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/lay-rule-v.20regression.20.3F/) - thanks, @carstenbehring
+
+**Correction to the 0.13.0 notes.** "A rule or a band can be added to a pose whose layers read only an x column -- a histogram, a density, a count bar or a rug" holds for the rule, which is drawn where it was written. What it left out is that the rule also reported an extent for the axis it spans, so on a density the y axis ran to 1 and the distribution was flattened against it. A histogram or a count bar counts past 1 and was unaffected.
 
 ### Changed
 

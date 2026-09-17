@@ -83,13 +83,63 @@
 
 ;; ---- A :dx on a categorical axis ----
 
+(def ^:private three-bars
+  {:team ["red" "green" "blue"] :score [3.0 5.0 4.0]})
+
+(defn- drawn
+  "What a pose draws, as a string, for comparing two poses' pictures."
+  [pose]
+  (pr-str (pj/plot pose)))
+
 (deftest a-dx-on-a-categorical-axis-is-a-fractional-place
   (testing "a category has no number of its own to add to, so the plan carries the shift as-is"
     (is (= [0.2] (layer-offsets (pj/lay-point {:team ["red" "green"] :score [3 5]}
                                               :team :score {:dx 0.2})
-                                :dx)))
-    (is (some? (pj/svg-summary (pj/plot (pj/lay-point {:team ["red" "green"] :score [3 5]}
-                                                      :team :score {:dx 0.2})))))))
+                                :dx))))
+  ;; The plan carrying the shift is not the claim. The claim is that the
+  ;; shift moves the mark, by a fraction of a band, to exactly the place
+  ;; it counts to -- so the test is the drawn picture against the picture
+  ;; the bare place draws. Asserting only that the plan holds `:dx` and
+  ;; that a plot came back is what let a flipped shift be dropped at
+  ;; render with nothing said; see the flip test below.
+  (testing "and the shift draws what the place it counts to draws"
+    (doseq [[label coord] [["upright" identity]
+                           ["flipped" #(pj/coord % :flip)]]]
+      (let [shift (coord (-> three-bars
+                             (pj/lay-bar :team :score)
+                             (pj/lay-text {:x {:value "red"} :dx 0.5 :y 3.0 :text "t"})))
+            place (coord (-> three-bars
+                             (pj/lay-bar :team :score)
+                             (pj/lay-text {:x 1.5 :y 3.0 :text "t"})))
+            unshifted (coord (-> three-bars
+                                 (pj/lay-bar :team :score)
+                                 (pj/lay-text {:x {:value "red"} :y 3.0 :text "t"})))]
+        (is (= (drawn shift) (drawn place))
+            (str label ": half a band along from the first category is place 1.5"))
+        (is (not= (drawn shift) (drawn unshifted))
+            (str label ": and it is not where the unshifted mark sits"))))))
+
+(deftest a-dy-on-a-categorical-axis-reads-the-same-axis-a-flip-draws-it-on
+  ;; `impl/coord.clj`'s `:flip` reads data y through the panel's `sx`,
+  ;; so a shift written on data y has to be read there too. Reaching for
+  ;; `sy` found no category, left the label unshifted, and drew a plot
+  ;; that looked deliberate -- `coord/data-axis-scales` is the one
+  ;; answer to which scale a data axis goes through.
+  (testing "on data :y, upright and flipped alike"
+    (doseq [[label coord] [["upright" identity]
+                           ["flipped" #(pj/coord % :flip)]]]
+      (let [base {:score [3.0 5.0 4.0] :team ["red" "green" "blue"]}
+            shift (coord (-> base
+                             (pj/lay-point :score :team)
+                             (pj/lay-text {:y {:value "red"} :dy 0.5 :x 4.0 :text "t"})))
+            place (coord (-> base
+                             (pj/lay-point :score :team)
+                             (pj/lay-text {:y 1.5 :x 4.0 :text "t"})))
+            unshifted (coord (-> base
+                                 (pj/lay-point :score :team)
+                                 (pj/lay-text {:y {:value "red"} :x 4.0 :text "t"})))]
+        (is (= (drawn shift) (drawn place)) (str label ": :dy reaches the drawn axis"))
+        (is (not= (drawn shift) (drawn unshifted)) (str label ": and moves the mark"))))))
 
 (deftest an-offset-applies-on-a-categorical-axis
   (testing "a label is lifted clear of its bar, on an axis with no data units"

@@ -195,7 +195,7 @@
           [bx] (pj/to-drawing p "b" 3.0)
           [mx] (pj/to-drawing p 1.5 3.0)]
       (is (< (abs (- mx (/ (+ ax bx) 2.0))) 1e-9)
-          "1.5 sits halfway between the first category's position and the second's"))))
+          "1.5 sits halfway between the first category and the second"))))
 
 (deftest a-flipped-categorical-axis-is-read-in-data-order
   (testing "under :flip the data x is a category even though :x-domain is not"
@@ -206,8 +206,14 @@
       (let [back (pj/to-data p (pj/to-drawing p {:x ["a" "c"] :y [1.0 6.0]}))]
         (is (= ["a" "c"] (vec (back :x))))
         (is (every? #(< (abs %) 1e-9) (dfn/- (back :y) [1.0 6.0]))))
-      (is (some? (pj/to-drawing p 2.5 3.0))
-          "the guard reads the same axis the scale does, and a number is a position on it"))))
+      ;; `some?` was the assertion here, and `pj/to-drawing` answers a
+      ;; vector whatever is in it -- so it held whether or not the place
+      ;; was read. Hold it against the two categories it sits between.
+      (let [[bx] (pj/to-drawing p "b" 3.0)
+            [cx] (pj/to-drawing p "c" 3.0)
+            [mx] (pj/to-drawing p 2.5 3.0)]
+        (is (< (abs (- mx (/ (+ bx cx) 2.0))) 1e-9)
+            "2.5 sits halfway between the second category and the third, under a flip too")))))
 
 ;; ---- The shape of the arguments ----
 

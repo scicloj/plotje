@@ -560,6 +560,29 @@
             (and (= 1 (:lines s))
                  (pos? (:visible-tiles s)))))])
 
+;; The rule leaves the axis it spans alone. A histogram counts, so its y
+;; axis reaches past any line drawn across it; a density is a proportion
+;; per unit and stays small, and a y axis stretched to reach the rule
+;; would press the curve flat against the bottom. So a density keeps the
+;; extent it computed for itself, with the rule drawn across it:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-density :sepal-length)
+    (pj/lay-rug :sepal-length)
+    (pj/lay-rule-v {:x-intercept (fstats/mean (:sepal-length (rdatasets/datasets-iris)))
+                    :color "firebrick"}))
+
+(kind/test-last
+ ;; The measurement that says the curve was not flattened: the same
+ ;; density without the rule reaches the same height, and that height is
+ ;; well under 1. It used to reach 1, because the rule reported 0 to 1
+ ;; for the axis it spans and that won the domain merge.
+ [(fn [fr]
+    (let [top (fn [p] (second (:y-domain (first (:panels (pj/plan p))))))
+          bare (-> (rdatasets/datasets-iris) (pj/lay-density :sepal-length))]
+      (and (< (top fr) 0.5)
+           (= (top fr) (top bare)))))])
+
 ;; ### Labels on the lines instead of a legend
 ;;
 ;; A legend puts the series names in one corner and the series in
@@ -584,7 +607,7 @@
 ;; year alone -- one row per country -- and takes its color from the
 ;; same `:country` column, so each name matches its line. `:offset-x`
 ;; moves the text clear of the line's end by a few drawing units. A
-;; a `:dy` would not serve here: the gap is a distance on the page, not a
+;; `:dx` would not serve here: the gap is a distance on the page, not a
 ;; number of years.
 
 (-> life-tracks

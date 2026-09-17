@@ -3236,7 +3236,22 @@
       (let [panel (first (:panels (pj/plan (-> (pj/pose)
                                                (pj/lay-rule-h {:y-intercept 3})))))]
         (is (= [:rule-h] (marks-of panel)))
-        ;; The rule spans x and no column names it, so the axis falls
-        ;; back to 0 to 1 and is padded like any other.
-        (is (= [-0.05 1.05] (mapv double (:x-domain panel))))))))
+        ;; The rule spans x and no column names it, so the rule reports
+        ;; no x extent and the panel's own `[0 1]` fallback stands --
+        ;; the same one every axis nothing informs gets, and unpadded,
+        ;; because there is no data extent to pad. Reporting `[0 1]`
+        ;; from the rule instead put a floor and a ceiling into the
+        ;; domain merge, which flattened any layer whose values stay
+        ;; under 1: see "a rule does not give the axis it spans an
+        ;; extent" below.
+        (is (= [0.0 1.0] (mapv double (:x-domain panel))))))
+
+    (testing "a rule does not give the axis it spans an extent"
+      (let [dens (pj/lay-density ds :x)
+            alone (:y-domain (first (:panels (pj/plan dens))))
+            with-rule (:y-domain (first (:panels (pj/plan (pj/lay-rule-v dens {:x-intercept 2})))))]
+        ;; A density's y stays well under 1, so a `[0 1]` from the rule
+        ;; used to win the merge and draw the density along the bottom.
+        (is (< (second alone) 1.0))
+        (is (= alone with-rule))))))
 

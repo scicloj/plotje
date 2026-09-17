@@ -183,11 +183,15 @@
     (if-not (or x-drawn? y-drawn? nx ny)
       ctx
       (let [base (:coord-fn ctx)
-            sx (:sx ctx) sy (:sy ctx)
+            ;; The scales *data* x and y are read through, which a flip
+            ;; parts from the panel's drawn `:sx` and `:sy`. A shift is
+            ;; written in data order, so it has to be read in data
+            ;; order -- see `coord/data-axis-scales`.
+            [dsx dsy] (coord/data-axis-scales (:coord-type ctx) (:sx ctx) (:sy ctx))
             shifted (if (or nx ny)
                       (fn [x y]
-                        (base (if nx (shift-data-value sx x nx) x)
-                              (if ny (shift-data-value sy y ny) y)))
+                        (base (if nx (shift-data-value dsx x nx) x)
+                              (if ny (shift-data-value dsy y ny) y)))
                       base)]
         (if-not (or x-drawn? y-drawn?)
           (assoc ctx :coord-fn shifted)
