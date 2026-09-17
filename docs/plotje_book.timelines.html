@@ -531,7 +531,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <section id="historical-event-timeline" class="level2">
 <h2 class="anchored" data-anchor-id="historical-event-timeline">Historical event timeline</h2>
-<p>Five milestones in computing history. Each event is a point on a single horizontal line, with a text label nudged above. The vertical position is fixed (<code>y = 1</code>) because the y-axis here carries no meaning – it provides a baseline.</p>
+<p>Five milestones in computing history. Each event is a point on a single horizontal line, with a text label shifted above. The vertical position is fixed (<code>y = 1</code>) because the y-axis here carries no meaning – it provides a baseline.</p>
 <p>Sources for the milestones:</p>
 <ul>
 <li><p><a href="https://en.wikipedia.org/wiki/Turing_machine">Turing machine</a> (Alan Turing’s 1936 paper “On Computable Numbers”)</p></li>
@@ -554,7 +554,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> computing-milestones</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:date</span> <span class="at">:y</span> {<span class="at">:size</span> <span class="dv">6</span> <span class="at">:color</span> <span class="st">"#2c3e50"</span>})</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    (pj/lay-text  <span class="at">:date</span> <span class="at">:y</span> {<span class="at">:text</span> <span class="at">:event</span> <span class="at">:nudge-y</span> <span class="fl">0.3</span> <span class="at">:color</span> <span class="st">"#2c3e50"</span>})</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    (pj/lay-text  <span class="at">:date</span> <span class="at">:y</span> {<span class="at">:text</span> <span class="at">:event</span> <span class="at">:dy</span> <span class="fl">0.3</span> <span class="at">:color</span> <span class="st">"#2c3e50"</span>})</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    (pj/options {<span class="at">:title</span> <span class="st">"Five milestones in computing"</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                 <span class="at">:height</span> <span class="dv">220</span></span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                 <span class="at">:y-label</span> <span class="st">""</span></span>
@@ -569,7 +569,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> with-staggered-y</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    (pj/lay-point <span class="at">:date</span> <span class="at">:y</span> {<span class="at">:size</span> <span class="dv">6</span> <span class="at">:color</span> <span class="st">"#2c3e50"</span>})</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    (pj/lay-text  <span class="at">:date</span> <span class="at">:y</span> {<span class="at">:text</span> <span class="at">:event</span> <span class="at">:nudge-y</span> <span class="fl">0.18</span> <span class="at">:color</span> <span class="st">"#2c3e50"</span>})</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    (pj/lay-text  <span class="at">:date</span> <span class="at">:y</span> {<span class="at">:text</span> <span class="at">:event</span> <span class="at">:dy</span> <span class="fl">0.18</span> <span class="at">:color</span> <span class="st">"#2c3e50"</span>})</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    (pj/options {<span class="at">:title</span> <span class="st">"Same milestones, staggered y for label clarity"</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>                 <span class="at">:height</span> <span class="dv">260</span></span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                 <span class="at">:y-label</span> <span class="st">""</span></span>

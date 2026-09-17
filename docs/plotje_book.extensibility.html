@@ -715,25 +715,25 @@ graph LR
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:density</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Density — 1D kernel density estimation (KDE)</td>
+<td>Density -- 1D kernel density estimation (KDE)</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:density-2d</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Density 2D — 2D Gaussian kernel density estimation (KDE)</td>
+<td>Density 2D -- 2D Gaussian kernel density estimation (KDE)</td>
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Pass-through — no transform</td>
+<td>Pass-through -- no transform</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:linear-model</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Linear model — OLS regression line + optional confidence band</td>
+<td>Linear model -- OLS regression line + optional confidence band</td>
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -745,7 +745,7 @@ graph LR
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:summary</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Mean ± standard error per category</td>
+<td>Mean +/- standard error per category</td>
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -844,7 +844,7 @@ graph LR
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a> <span class="at">:stat</span> <span class="at">:bin</span>,</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a> <span class="at">:x-only</span> <span class="va">true</span>,</span>
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a> <span class="at">:accepts</span> [<span class="at">:normalize</span> <span class="at">:bins</span> <span class="at">:binwidth</span>],</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a> <span class="at">:doc</span> <span class="st">"Histogram — bins numerical data into bars."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a> <span class="at">:doc</span> <span class="st">"Histogram -- bins numerical data into bars."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p><strong>The layer type names a mark but no stat.</strong> <code>(layer-type/lookup :bar)</code> fixes <code>:mark :rect</code> and leaves <code>:stat</code> empty:</p>
 <div class="sourceClojure">
@@ -855,7 +855,7 @@ graph LR
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a> <span class="at">:stat</span> <span class="va">nil</span>,</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a> <span class="at">:accepts</span> [<span class="at">:bar-width</span>],</span>
 <span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a> <span class="at">:doc</span></span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a> <span class="st">"Bar — counts categories (x only), or uses y as the bar height when a y column is given."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a> <span class="st">"Bar -- counts categories (x only), or uses y as the bar height when a y column is given."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The mark is already decided, so the column-type rules below do not run. A narrower rule fills the gap instead, and it turns on one thing only – whether a y column was given. Without one, the bar counts its categories; with one, it takes that y as the bar height:</p>
 <div class="sourceClojure">
@@ -898,9 +898,9 @@ graph LR
 <div class="printedClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>{<span class="at">:mark</span> <span class="at">:point</span>,</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a> <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a> <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:shape</span> <span class="at">:jitter</span> <span class="at">:nudge-x</span> <span class="at">:nudge-y</span>],</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a> <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:shape</span> <span class="at">:jitter</span> <span class="at">:dx</span> <span class="at">:dy</span>],</span>
 <span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a> <span class="at">:varies</span> {<span class="at">:size</span> <span class="at">:radius</span>, <span class="at">:alpha</span> <span class="at">:opacity</span>},</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a> <span class="at">:doc</span> <span class="st">"Scatter — individual data points."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a> <span class="at">:doc</span> <span class="st">"Scatter -- individual data points."</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Choosing it explicitly is how a caller says “do not aggregate this”. That is the case a bar chart of pre-computed totals is in – and it is what <code>pj/lay-bar</code> resolves to on its own as soon as a y column is present, which is the rule from a few forms above seen from the other side.</p>
 <p>(The other fields in those lookups belong to the layer type rather than to the stat: <code>:x-only</code> says the layer type works from an x column alone, <code>:accepts</code> lists the layer options it takes beyond the universal ones, tabulated per layer type in <a href="./plotje_book.layer_types.html#layer-type-specific-options">Layer Types</a>, and <code>:varies</code> names the appearance aesthetics its mark varies from row to row – <code>:point</code> declares <code>{:size :radius :alpha :opacity}</code>. A aesthetic left out of <code>:varies</code> is one the mark draws once for the whole layer, so a column mapped to it varies nothing, and the plan says so rather than drawing a legend for an encoding the panel does not carry.)</p>
@@ -1651,7 +1651,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb110"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> mark/mark-clip-region <span class="at">:margin-glyph</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb111"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x7f4cc2e4</span> <span class="st">"clojure.lang.MultiFn@7f4cc2e4"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb111"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x14c94f8e</span> <span class="st">"clojure.lang.MultiFn@14c94f8e"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb112"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">contains?</span> (<span class="kw">methods</span> mark/mark-clip-region) <span class="at">:margin-glyph</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1921,7 +1921,7 @@ graph LR
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:polar</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>Radial mapping: x→angle, y→radius</td>
+<td>Radial mapping: x-&gt;angle, y-&gt;radius</td>
 </tr>
 </tbody>
 </table>
@@ -1981,7 +1981,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb149"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb149-1"><a href="#cb149-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat [<span class="at">:quantile</span> <span class="at">:doc</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb150"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb150-1"><a href="#cb150-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0xddd1408</span> <span class="st">"clojure.lang.MultiFn@ddd1408"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb150"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb150-1"><a href="#cb150-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x3a5062b7</span> <span class="st">"clojure.lang.MultiFn@3a5062b7"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb151"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb151-1"><a href="#cb151-1" aria-hidden="true" tabindex="-1"></a>(pj/stat-doc <span class="at">:quantile</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1997,7 +1997,7 @@ graph LR
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb153"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat <span class="at">:quantile</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb154"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb154-1"><a href="#cb154-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0xddd1408</span> <span class="st">"clojure.lang.MultiFn@ddd1408"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb154"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb154-1"><a href="#cb154-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x3a5062b7</span> <span class="st">"clojure.lang.MultiFn@3a5062b7"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb155"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb155-1"><a href="#cb155-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">count</span> (<span class="kw">remove</span> #{<span class="at">:default</span>} (<span class="kw">filter</span> <span class="kw">keyword?</span> (<span class="kw">keys</span> (<span class="kw">methods</span> stat/compute-stat)))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
