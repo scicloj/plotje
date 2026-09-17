@@ -114,9 +114,11 @@ sales-labelled
 
 ;; ### Tooltips with markup
 ;;
-;; A tooltip column may hold hiccup instead of a string, for when a
-;; label wants a heading, an emphasis or a table rather than a line of
-;; text.
+;; A tooltip may hold hiccup instead of a string, for a label that
+;; carries a heading, an emphasis or a table rather than a line of
+;; text. A column of hiccup gives each mark its own markup, and a
+;; written hiccup vector gives every mark of the layer the same
+;; markup, exactly as a column of strings and a written string do.
 
 (def sales-rich
   (tc/add-column sales :hover
@@ -143,6 +145,21 @@ sales-rich
     (let [s (str (pj/plot pose))]
       (and (re-find #"<b>Jan</b>" s)
            (re-find #"<code>1.7M</code>" s))))])
+
+;; A written hiccup vector covers the layer, the way a written string
+;; does:
+
+(-> sales
+    (pj/lay-point :margin :revenue {:tooltip [:b "one reading per point"]})
+    (pj/options {:height 240}))
+
+(kind/test-last
+ [(fn [pose]
+    (let [attrs (->> (tree-seq vector? seq (pj/plot pose))
+                     (filter #(and (vector? %) (map? (second %))))
+                     (map second))]
+      (= ["<b>one reading per point</b>"]
+         (distinct (keep :data-tooltip-html attrs)))))])
 
 ;; A string tooltip stays text, so a string that happens to spell out a
 ;; tag is shown as that text rather than rendered:

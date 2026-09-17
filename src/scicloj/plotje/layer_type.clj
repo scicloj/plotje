@@ -20,7 +20,9 @@
    override the visual mark or statistical transform supplied by its
    layer-type entry; unknown keywords raise a clear error at build time.
    `:tooltip` is the aesthetic a mark reads its hover text from -- a
-   column of them, or a string every mark of the layer shows. The
+   column of values, or one value every mark of the layer shows. A
+   value is a string, shown as it stands, or a hiccup vector, drawn as
+   markup. The
    `:point` and `:interval-h` marks read it; a tooltip written on any
    other layer type is reported and draws none. Not to be confused with
    the plot option of the same name, which is the switch that turns
@@ -65,7 +67,7 @@
    :shape "A column of the layer's data, one symbol per category; or one symbol for the whole layer, from the list pj/shape-symbols gives"
    :jitter "true or an amount in drawing units — random offset to reduce overplotting"
    :text "A column of the layer's data, or a string, which labels every row with itself"
-   :tooltip "What a mark says on hover: a column of the layer's data, one string per row, or a string every mark of the layer shows. Format it in the data language before plotting -- a currency sign, a thousands separator, a value from a column the layer does not draw -- and it is shown as it stands. Writing it turns tooltips on, so `{:tooltip true}` in pj/options is not also needed. A newline in the string breaks the line. Read by the point and interval-h marks; a tooltip written on any other layer type is reported and draws none"
+   :tooltip "What a mark says on hover: a column of the layer's data, one value per row, or one value every mark of the layer shows. A string is shown as it stands, so format it in the data language before plotting -- a currency sign, a thousands separator, a value from a column the layer does not draw -- and a newline in it breaks the line. A hiccup vector is drawn as markup, for a label carrying a heading or an emphasis; a string that spells out a tag is shown as that text. Writing it turns tooltips on, so `{:tooltip true}` in pj/options is not also needed. Read by the point and interval-h marks; a tooltip written on any other layer type is reported and draws none"
    :font-size "Text height in drawing units for a text or label mark (default 10)"
    :font-weight "Draws the text bold — :normal (default) or :bold"
    :font-style "Draws the text italic — :normal (default) or :italic"

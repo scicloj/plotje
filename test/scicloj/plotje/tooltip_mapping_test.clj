@@ -135,6 +135,26 @@
                                            {:tooltip [:b "one note"]}))
                    :data-tooltip-html))))))
 
+(deftest a-hiccup-tooltip-conforms-to-the-pose-schema-test
+  ;; The schema said `:tooltip string?` while the renderer drew a
+  ;; vector as markup, so `pj/valid-pose?` answered false for a pose
+  ;; that `pj/lay-point` had just built and that rendered correctly --
+  ;; against the promise its own docstring makes, that a pose built by
+  ;; the constructors conforms by construction.
+  (let [rich (tc/add-column sales :hover #(map (fn [m] [:b m]) (:month %)))]
+    (testing "a written hiccup value"
+      (is (pj/valid-pose? (pj/lay-point sales :margin :revenue {:tooltip [:b "one"]}))))
+    (testing "a column of hiccup"
+      (is (pj/valid-pose? (pj/lay-point rich :margin :revenue {:tooltip :hover}))))
+    (testing "and on the pose rather than the layer"
+      (is (pj/valid-pose? (-> sales
+                              (pj/pose {:x :margin :y :revenue :tooltip [:b "p"]})
+                              pj/lay-point))))
+    (testing "a string is still a tooltip"
+      (is (pj/valid-pose? (pj/lay-point sales :margin :revenue {:tooltip "t"}))))
+    (testing "and a number is still not one"
+      (is (not (pj/valid-pose? (pj/lay-point sales :margin :revenue {:tooltip 42})))))))
+
 (deftest hiccup-serializer-escapes-content-not-structure-test
   ;; The boundary that matters: the tags are the writer's code, the
   ;; strings are the data. A column holding markup is shown, not run.

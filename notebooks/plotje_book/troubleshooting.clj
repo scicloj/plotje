@@ -396,6 +396,13 @@
 ;; **Fix**: Use [Clay](https://scicloj.github.io/clay/) or another
 ;; Kindly-compatible tool that supports `kind/hiccup` with embedded
 ;; scripts.
+;;
+;; **A second cause**: the plot was rendered to a format that draws no
+;; interaction. Both are drawn by a browser reading the figure, so SVG
+;; is the only format that answers them; `{:format :bufimg}` and
+;; `pj/save` to a PNG report that the request draws nothing and name
+;; the formats that do. Read the message the plot printed before
+;; looking at the viewer.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})

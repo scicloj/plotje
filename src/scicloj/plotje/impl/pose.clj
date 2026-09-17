@@ -968,7 +968,7 @@
     :size  "a fixed size is a positive number"
     :alpha "a fixed alpha is a number within 0 and 1"
     :text  "a label is a string"
-    :tooltip "hover text is a string"
+    :tooltip "hover text is a string, or a hiccup vector for markup"
     nil))
 
 (defn- also-not-drawable-sentence

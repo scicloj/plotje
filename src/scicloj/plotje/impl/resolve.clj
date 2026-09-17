@@ -470,8 +470,10 @@
         text-val (:text v)
         text-col (when (and text-val (column-ref? text-val)) text-val)
         ;; What a mark says on hover, read exactly as `:text` is: a
-        ;; column names one string per row, and anything else is one
-        ;; string for every mark of the layer.
+        ;; column names one value per row, and anything else is one
+        ;; value for every mark of the layer. A value is a string or a
+        ;; hiccup vector; the renderer decides which attribute carries
+        ;; it.
         tooltip-val (:tooltip v)
         ;; Through `column?`, as `:color` and `:size` are, rather than
         ;; through `column-ref?` as `:text` is: a tooltip is written as

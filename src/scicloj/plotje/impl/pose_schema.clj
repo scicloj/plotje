@@ -172,9 +172,12 @@
                          (fn [v] (<= 0 v 1))]]
    ;; Any string labels a mark; there is nothing to check beyond type.
    :text  string?
-   ;; And any string is a tooltip. What it says is the writer's, formed
-   ;; in the data language before the plot is built.
-   :tooltip string?})
+   ;; A tooltip is a string or a hiccup vector. What it says is the
+   ;; writer's, formed in the data language before the plot is built:
+   ;; a string is shown as the text it spells and hiccup is drawn as
+   ;; markup. `vector?` is the renderer's own test for which of the two
+   ;; it has, so the schema and the drawing agree by construction.
+   :tooltip [:or string? vector?]})
 
 (def aesthetic-value-schemas
   "Value grammar per aesthetic, as the code behaves today. The key set
