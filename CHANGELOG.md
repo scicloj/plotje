@@ -35,6 +35,8 @@ A number written for a categorical axis is a place among its categories, counted
 
 - A rule or a band gives no extent to the axis it spans. A rule names a value on one axis and reaches across the other, and across that other axis it reported `0` to `1` where the layer's mapping named no column there. A density beside such a rule was drawn along the bottom of a y axis running to 1. A panel that has nothing else to give the axis an extent still falls back to `0` to `1`, which is now the interval itself rather than a padded version of it, so a rule drawn on its own carries ticks across that interval. Reported in [#plotje > lay-rule-v regression ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/lay-rule-v.20regression.20.3F/) - thanks, @carstenbehring
 
+- A `:tooltip` or a `:brush` asked for on a format that draws no interaction is reported. Both are drawn by a browser reading the figure, so SVG is the only format that answers them; a plot rendered to `:bufimg`, or saved as a PNG, reports that the request draws nothing and names the format it was asked of alongside the ones that do. The figure still renders. - thanks, @adriansmith
+
 **Correction to the 0.13.0 notes.** "A rule or a band can be added to a pose whose layers read only an x column -- a histogram, a density, a count bar or a rug" holds for the rule, which is drawn where it was written. What it left out is that the rule also reported an extent for the axis it spans, so on a density the y axis ran to 1 and the distribution was flattened against it. A histogram or a count bar counts past 1 and was unaffected.
 
 ### Changed

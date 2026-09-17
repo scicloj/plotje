@@ -1,4 +1,5 @@
-(ns scicloj.plotje.impl.render)
+(ns scicloj.plotje.impl.render
+  (:require [clojure.string :as str]))
 
 (def ^:private known-render-namespaces
   "Map from format keyword to the namespace that registers its
@@ -45,6 +46,37 @@
                     {:format fmt})))
   (require (known-render-namespaces fmt))
   (swap! attempted-requires conj [multi-key fmt]))
+
+(def interactive-formats
+  "The formats whose output can carry the `:tooltip` and `:brush`
+   aesthetics. Both are drawn by a browser reading the figure, so the
+   SVG renderer is the only one that answers them today. A renderer
+   that draws interaction adds its format here."
+  #{:svg})
+
+(defn warn-interaction-ignored!
+  "Warn when a plot asks for hover text or a brush and the format it is
+   rendered to draws neither.
+
+   `plan/warn-unread-tooltip-mappings` reports the same fact reached
+   the other way -- a `:tooltip` that reaches no mark that draws one.
+   This is the half that said nothing: a raster render returned an
+   image, drew no hover text and no brush, and printed nothing at all.
+
+   Called by each `plan->plot` method and by `pj/plot`, which are the
+   calls that know the format. Passing every format and letting
+   `interactive-formats` decide means a renderer added later is covered
+   without a second list naming it."
+  [plan format opts]
+  (when-not (contains? interactive-formats format)
+    (let [asked (cond-> []
+                  (or (:tooltip opts) (:tooltip plan)) (conj ":tooltip")
+                  (:brush opts) (conj ":brush"))]
+      (when (seq asked)
+        (println (str "Warning: " (str/join " and " asked) " asked for, and the "
+                      format " format draws no interaction. The formats that do: "
+                      (str/join ", " (sort interactive-formats))
+                      ". The request is accepted and draws nothing."))))))
 
 (defmulti plan->plot
   "Convert a plan into a figure for the given format.

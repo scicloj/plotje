@@ -476,7 +476,8 @@
                  brush (conj (kind/scittle (brush-script div-id)))))))
       (kind/hiccup2 svg))))
 
-(defmethod render/plan->plot :svg [plan _ opts]
+(defmethod render/plan->plot :svg [plan fmt opts]
+  (render/warn-interaction-ignored! plan fmt opts)
   ;; The whole opts map, not a select-keys list of it. The list dates
   ;; from a `plan->membrane` that took keyword arguments and was applied
   ;; over `(mapcat identity render-opts)`, where splatting arbitrary keys

@@ -78,9 +78,34 @@
             [cat-lo val-lo cat-hi val-lo cat-hi val-hi cat-lo val-hi])]
       [[x1 y1] [x2 y2] [x3 y3] [x4 y4] [x1 y1]])))
 
+(defn- band-extent
+  "The two ends of the band a mark occupies, in drawing units.
+
+   A category has a band of its own and the scale reports it. A number
+   is a place among the categories, and the band around a place is the
+   one place wide centred on it -- half a place either side, put
+   through the scale -- which is the same extent a bar written at a
+   place already spans.
+
+   The scale's own `rstart` and `rend` stay the source for a category
+   even though the place arithmetic reproduces them. The two are the
+   same distance and not the same double: on three categories over
+   `[10.0 547.5]`, category A starts at `10.0` and half a place before
+   place 1 is `9.999999999999986`. Routing a category through the
+   place arithmetic would move every drawn band in the last bit."
+  [band-s v]
+  (if (number? v)
+    [(scale/forward band-s (- (double v) 0.5))
+     (scale/forward band-s (+ (double v) 0.5))]
+    (let [{:keys [rstart rend]} (band-s v true)]
+      [rstart rend])))
+
 (defn band-position
   "Where one dodged group sits inside a categorical band, in drawing
    units. Returns `{:lo :hi :mid :sub-bw}` for that sub-band.
+
+   `category` is a category the scale carries, or a number, which is a
+   place among the categories counted from one.
 
    The first group is placed at the start of the band as a reader meets
    it: leftmost on a categorical x axis, topmost on a categorical y
@@ -101,9 +126,7 @@
   (let [bw (ws/data band-s :bandwidth)
         n (max 1 n-groups)
         idx (if (neg? bw) (- n 1 group-idx) group-idx)
-        band-info (band-s category true)
-        band-start (:rstart band-info)
-        band-end (:rend band-info)
+        [band-start band-end] (band-extent band-s category)
         band-mid (/ (+ band-start band-end) 2.0)
         sub-bw (/ (* bw frac) n)
         group-start (- band-mid (/ (* n sub-bw) 2.0))

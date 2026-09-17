@@ -88,7 +88,8 @@
         h (int (or (ui/height membrane-tree) (:total-height opts) 400))]
     (java2d/draw-to-image membrane-tree [w h])))
 
-(defmethod render/plan->plot :bufimg [plan _ opts]
+(defmethod render/plan->plot :bufimg [plan fmt opts]
+  (render/warn-interaction-ignored! plan fmt opts)
   ;; The whole opts map, not a select-keys list of it. See the note on
   ;; the :svg method in render/svg.clj.
   (let [membrane-tree (membrane/plan->membrane plan opts)]

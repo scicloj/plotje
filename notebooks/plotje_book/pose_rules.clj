@@ -60,10 +60,17 @@
 ;; | `:opts` | root | plot-level options (incl. composite-level keys like `:share-scales`) |
 ;;
 ;; A **leaf pose** has `:data`, `:mapping`, `:layers`; no `:poses`.
-;; A **composite pose** has `:poses`; sub-poses can be leaves or
-;; further composites. A **layer** is a map with `:layer-type` and an
-;; optional `:mapping`, plus sibling keys `:stat`, `:position`,
-;; `:mark` when the user provides them.
+;; A **composite pose** has `:poses`, and a sub-pose may itself be a
+;; composite: `pj/arrange` wraps its cells in a row per line of the
+;; grid, so the composite it returns holds rows and each row holds
+;; cells. What no route accepts is a composite the caller supplies --
+;; `pj/arrange` given one among its inputs, `pj/facet` called on one,
+;; and a nested map written out and handed to `pj/pose` are each
+;; reported. So a grid of grids cannot be written directly. The one
+;; way to put a grid inside a grid is a leaf that `pj/facet` has
+;; already divided, used as a cell of a `pj/arrange`. A **layer**
+;; is a map with `:layer-type` and an optional `:mapping`, plus sibling
+;; keys `:stat`, `:position`, `:mark` when the user provides them.
 ;;
 ;; The rules below assume some familiarity with these shapes. If this
 ;; is new, [Poses](./plotje_book.pose_model.html) shows
@@ -557,7 +564,6 @@ composite-pose
          (= {:x :petal-length :y :petal-width}
             (:mapping (second (:poses fr))))))])
 
-
 ;; **Where the columns are written does not change the rule.** A layer
 ;; names its columns either in the call's argument slots or in its
 ;; options map, and identity reads both alike:
@@ -863,10 +869,11 @@ composite-pose
 ;; user omits column names. (How column references are compared is
 ;; covered by Rule LP2.)
 
-;; ### Rule LI1: few-column datasets auto-infer columns by position
+;; ### Rule LI1: few-column datasets infer columns from column order
 ;;
 ;; When `lay-*` or `pj/pose` is called on a dataset without
-;; explicit column arguments, columns are inferred:
+;; explicit column arguments, the mapping is read off the order of
+;; the dataset's columns:
 ;;
 ;; | Columns | Inferred mapping |
 ;; |:--------|:-----------------|
@@ -874,8 +881,11 @@ composite-pose
 ;; | 2 | `{:x col0 :y col1}` |
 ;; | 3 | `{:x col0 :y col1 :color col2}` |
 ;; | 4+ | error (pass explicit x and y) |
+;;
+;; The example is a dataset rather than a map literal, because the rule
+;; reads an order and a Clojure map does not carry one.
 
-(-> {:height [1 2 3] :weight [4 5 6] :species ["a" "b" "a"]}
+(-> (tc/dataset {:height [1 2 3] :weight [4 5 6] :species ["a" "b" "a"]})
     pj/lay-point)
 
 (kind/test-last
@@ -884,7 +894,7 @@ composite-pose
 ;; Four or more columns without explicit arguments throws:
 
 (try
-  (-> {:a [1 2] :b [3 4] :c [5 6] :d [7 8]}
+  (-> (tc/dataset {:a [1 2] :b [3 4] :c [5 6] :d [7 8]})
       pj/lay-point)
   (catch Exception e
     (ex-message e)))
@@ -1141,9 +1151,9 @@ s2-tree
 ;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v`
 ;; produce layers and scope like any other `lay-*`: bare call
 ;; attaches at root (flows to every panel); 4-arity with column
-;; refs attaches to a matching leaf. Position rides as layer-type
-;; keys (`:y-intercept`, `:x-intercept`, `:y-min`/`:y-max`,
-;; `:x-min`/`:x-max`), not column refs.
+;; refs attaches to a matching leaf. Where the line or the band sits
+;; is written as layer-type keys (`:y-intercept`, `:x-intercept`,
+;; `:y-min`/`:y-max`, `:x-min`/`:x-max`), not as column references.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)

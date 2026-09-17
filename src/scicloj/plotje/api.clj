@@ -3530,10 +3530,9 @@
 
    `(let [pose (->pose x)
          opts (:opts pose {})
-         fmt  (or (:format opts) :svg)]
-     (-> pose
-         pose->draft
-         draft->plan
+         fmt  (or (:format opts) :svg)
+         plan (-> pose pose->draft draft->plan)]
+     (-> plan
          (plan->membrane opts)
          (membrane->plot fmt opts)))`
 
@@ -3564,10 +3563,14 @@
                      {:got :draft})))
    (let [fr (-> pose (->pose "pj/plot") infer-mapping)
          opts (:opts fr {})
-         fmt (or (:format opts) :svg)]
-     (-> fr
-         pose->draft
-         draft->plan
+         fmt (or (:format opts) :svg)
+         ;; Named rather than threaded because the interaction check
+         ;; reads it: a layer-scoped :tooltip sets a flag on the plan,
+         ;; not in opts, so the plan is what says a tooltip was asked
+         ;; for. pj/plan->plot runs the same check from its own methods.
+         pl (-> fr pose->draft draft->plan)]
+     (render-impl/warn-interaction-ignored! pl fmt opts)
+     (-> pl
          (plan->membrane opts)
          (membrane->plot fmt opts))))
   ([pose opts]

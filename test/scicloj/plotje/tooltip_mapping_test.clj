@@ -183,3 +183,36 @@
                                 (pj/lay-point))))))
   (testing "a plot with no tooltip mapping is not told"
     (is (= "" (warning-text (pj/lay-bar labelled :month :revenue))))))
+
+(defn- warning-text-in
+  "Whatever the plot printed while it was rendered to `fmt`."
+  [pose fmt]
+  (let [w (java.io.StringWriter.)]
+    (binding [*out* w] (pj/plot pose {:format fmt}))
+    (str w)))
+
+(deftest interaction-a-format-cannot-draw-is-reported-test
+  ;; The other half of the warning above, and the half that said
+  ;; nothing: the mapping reached a mark that draws hover text, and the
+  ;; format drew none. A raster render returned a BufferedImage and
+  ;; printed nothing at all.
+  (let [hovering (pj/lay-point labelled :month :revenue {:tooltip :hover})
+        brushing (-> labelled (pj/lay-point :month :revenue) (pj/options {:brush true}))]
+    (testing "a raster render is told, and the message names both formats"
+      (let [w (warning-text-in hovering :bufimg)]
+        (is (re-find #":tooltip asked for" w))
+        (is (re-find #":bufimg format draws no interaction" w))
+        (is (re-find #"The formats that do: :svg" w))))
+    (testing "a brush is told on the same rule"
+      (is (re-find #":brush asked for" (warning-text-in brushing :bufimg))))
+    (testing "both at once are named in one message"
+      (let [w (warning-text-in (pj/options brushing {:tooltip true}) :bufimg)]
+        (is (re-find #":tooltip and :brush asked for" w))))
+    (testing "the format that draws them is not told"
+      (is (= "" (warning-text-in hovering :svg))))
+    (testing "and a plot asking for neither is not told on any format"
+      (is (= "" (warning-text-in (pj/lay-point labelled :month :revenue) :bufimg))))
+    (testing "pj/plan->plot reports it too, since it is the call that knows the format"
+      (let [w (java.io.StringWriter.)]
+        (binding [*out* w] (pj/plan->plot (pj/plan hovering) :bufimg {}))
+        (is (re-find #"draws no interaction" (str w)))))))

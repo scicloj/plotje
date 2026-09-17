@@ -148,6 +148,45 @@
         (is (< (abs (- lo (centre (nth base 0)))) 0.01))
         (is (< (abs (- hi (centre (nth base 1)))) 0.01))))))
 
+(defn- polygon-y-spans
+  "The vertical extent of each polygon drawn, in the panel's own
+   coordinates. `polygon-spans` reads the other axis; an interval on a
+   categorical `:y` occupies a band down the page, so its extent is
+   read here."
+  [pose]
+  (->> (re-seq #":polygon \{[^}]*?:points \"([^\"]+)\"" (pr-str (pj/plot pose)))
+       (mapv (fn [[_ pts]]
+               (let [ys (mapv #(Double/parseDouble (second (str/split % #",")))
+                              (str/split pts #" "))]
+                 [(reduce min ys) (reduce max ys)])))))
+
+(def y-bars
+  "Three bars with the categories on y, which is the axis an
+   interval-h occupies a band of."
+  (-> {:v [3.0 2.0 1.0] :c ["A" "B" "C"]}
+      (pj/lay-bar :v :c)))
+
+(deftest an-interval-occupies-the-band-its-place-names
+  ;; A mark that occupies a band looked its value up as a category and
+  ;; got nothing back for a number, so a place on the axis died on a
+  ;; NullPointerException naming neither the mark nor the value -- while
+  ;; a place past the ends of the same axis was reported by name.
+  (testing "a place and the category it counts to draw the same picture"
+    (is (= (pj/plot (-> y-bars (pj/lay-interval-h {:y {:value "B"} :x 1.0 :x-end 2.5})))
+           (pj/plot (-> y-bars (pj/lay-interval-h {:y 2 :x 1.0 :x-end 2.5}))))))
+  (testing "and a place between two categories draws between them"
+    (let [mid (fn [place]
+                (let [[lo hi] (last (polygon-y-spans
+                                     (-> y-bars (pj/lay-interval-h
+                                                 {:y place :x 1.0 :x-end 2.5}))))]
+                  (/ (+ lo hi) 2.0)))]
+      (is (< (abs (- (mid 1.5) (/ (+ (mid 1) (mid 2)) 2.0))) 0.01))))
+  (testing "and a place past the ends is still reported"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/plan got 99 for :y, which is past the ends"
+                          (pj/plot (-> y-bars (pj/lay-interval-h
+                                               {:y 99 :x 1.0 :x-end 2.5})))))))
+
 (defn- vertical-line-x
   "The x of the one line drawn straight down the panel. The grid and the
    axis run across it, so a line whose two ends share an x is the rule."
