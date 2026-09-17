@@ -155,22 +155,39 @@
   [{:keys [rstart rend]}]
   (/ (+ (double rstart) (double rend)) 2.0))
 
+(defn- band-step
+  "The distance one whole category takes up on a band scale.
+
+   Bands abut, so the distance between two band centres and a band's
+   own width are the same distance, and a scale carrying one band
+   still has a step. The two derivations differ in the last bit of a
+   double, so the centres stay the source wherever there are two of
+   them."
+  [bands centers]
+  (if (> (count bands) 1)
+    (- (double (nth centers 1)) (double (nth centers 0)))
+    (let [{:keys [rstart rend]} (first bands)]
+      (- (double rend) (double rstart)))))
+
 (defn- numeric-band-position
   "Drawing-space position for a fractional, 1-indexed place on a band
    scale: 1 sits at the first category's centre, 2 at the second, and
    a value between two whole numbers interpolates between their
-   centres. A value outside `[1 n]` extrapolates by the step between
-   the nearest two centres -- the same step a whole category is one
-   of, so `0.5` sits half a category before the first."
+   centres. A value outside `[1 n]` extrapolates by the distance one
+   whole category takes up, so `0.5` sits half a category before the
+   first and lands on the drawing area's near edge, and `n + 0.5`
+   lands on its far edge.
+
+   One category is that rule and not a shorter one: the axis runs from
+   `0.5` to `1.5`, place `1` is the single band's centre, and the two
+   ends are the two ends of the drawing area."
   [sc pos]
   (let [bands (vec (ws/data sc :bands))
         n (count bands)]
-    (cond
-      (zero? n) 0.0
-      (= n 1) (band-center (first bands))
-      :else
+    (if (zero? n)
+      0.0
       (let [centers (mapv band-center bands)
-            step (- (double (nth centers 1)) (double (nth centers 0)))
+            step (band-step bands centers)
             idx (dec (double pos))
             i0 (int (Math/floor idx))]
         (cond

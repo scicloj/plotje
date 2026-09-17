@@ -185,6 +185,95 @@
              0.01)
           "a band spans from the first category's centre to the third's"))))
 
+;; ---- One category is the same axis, shorter ----
+;;
+;; Every case above carries three categories, which is why this went
+;; unmeasured: the band scale answered the single band's centre for
+;; every place it was given, so a rule drew in the same place whatever
+;; intercept it was written with, and a `:dx` moved nothing at all.
+;; A one-category axis is reached by a dataset that carries one -- a
+;; filtered frame, one group of a grouping, a single series -- and not
+;; by faceting, where the cells share the whole domain.
+
+(def one-category
+  "One bar, one category on x."
+  (-> {:c ["A"] :v [3.0]}
+      (pj/lay-bar :c :v)))
+
+(defn- drawing-area-x
+  "The left and right edges of the drawing area, in the panel's own
+   coordinates. The panel clips its marks to that rectangle, so the
+   rectangle is what says where the axis begins and ends."
+  [pose]
+  (let [[_ x w] (re-find #"rect \{:x \"([0-9.]+)\", :y \"[0-9.]+\", :width \"([0-9.]+)\""
+                         (pr-str (pj/plot pose)))]
+    [(Double/parseDouble x) (+ (Double/parseDouble x) (Double/parseDouble w))]))
+
+(defn- n-categories
+  "A bar per category, for however many categories are asked for."
+  [n]
+  (-> {:c (mapv str (take n ["A" "B" "C" "D"])) :v (vec (repeat n 3.0))}
+      (pj/lay-bar :c :v)))
+
+(deftest the-ends-of-the-axis-are-the-ends-of-the-drawing-area
+  (testing "place 0.5 is drawn at the left edge and n + 0.5 at the right"
+    ;; One category is an instance of the rule, not an exception to it.
+    ;; It reached neither edge before: both ends, and every place
+    ;; between them, drew at the band's centre.
+    (doseq [n [1 2 3 4]]
+      (let [pose (n-categories n)
+            [left right] (drawing-area-x pose)]
+        (is (= left (vertical-line-x (-> pose (pj/lay-rule-v {:x-intercept 0.5}))))
+            (str n " categories, place 0.5"))
+        (is (= right (vertical-line-x (-> pose (pj/lay-rule-v {:x-intercept (+ n 0.5)}))))
+            (str n " categories, place " (+ n 0.5)))))))
+
+(deftest one-category-draws-a-place-where-the-category-is
+  (testing "place 1 is the single band's centre, which is where the bar is"
+    (let [centre (fn [[lo hi]] (/ (+ lo hi) 2.0))
+          [bar] (polygon-spans one-category)]
+      (is (< (abs (- (vertical-line-x (-> one-category (pj/lay-rule-v {:x-intercept 1})))
+                     (centre bar)))
+             0.01))))
+  (testing "and a category is still named, not counted"
+    (let [p (panel-entry one-category)]
+      (is (= (first (pj/to-drawing p "A" 3.0))
+             (first (pj/to-drawing p 1 3.0)))))))
+
+(deftest one-category-moves-a-mark-by-a-shift
+  (testing "a bare place and the :dx counting to it draw the same picture"
+    ;; Byte-identical, the same check the three-category axis gets. On
+    ;; one category both sides of it were true and both were wrong: the
+    ;; shift was added to the place and the place was then discarded, so
+    ;; a :dx of 0.4 and a :dx of 5 drew where no shift draws.
+    (is (= (pj/plot (-> one-category (pj/lay-label {:x 1.5 :y 3.0 :text "note"})))
+           (pj/plot (-> one-category (pj/lay-label {:x {:value "A"} :dx 0.5
+                                                    :y 3.0 :text "note"}))))))
+  (testing "and a shift moves the mark at all"
+    (let [unshifted (pj/plot (-> one-category (pj/lay-label {:x {:value "A"} :y 3.0 :text "note"})))]
+      (doseq [dx [0.4 5]]
+        (is (not= unshifted
+                  (pj/plot (-> one-category (pj/lay-label {:x {:value "A"} :dx dx
+                                                           :y 3.0 :text "note"}))))
+            (str ":dx " dx))))))
+
+(deftest one-category-refuses-a-place-past-its-ends
+  (testing "the axis runs from 0.5 to 1.5 and says so"
+    (doseq [bad [0.4 1.6 2 -1]]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"past the ends of this axis"
+                            (pj/plan (-> one-category (pj/lay-rule-v {:x-intercept bad}))))
+          (str bad " has no place on a one-category axis"))))
+  (testing "and the ends themselves draw"
+    (doseq [ok [0.5 1 1.5]]
+      (is (some? (pj/plan (-> one-category (pj/lay-rule-v {:x-intercept ok}))))
+          (str ok))))
+  (testing "the refusal counts the one category it has"
+    (let [d (try (pj/plan (-> one-category (pj/lay-rule-v {:x-intercept 2})))
+                 (catch clojure.lang.ExceptionInfo e (ex-data e)))]
+      (is (= ["A"] (:categories d)))
+      (is (= [0.5 1.5] (:place-range d))))))
+
 ;; ---- Every route to the axis refuses the same place ----
 ;;
 ;; A value past the ends reaches the axis by four routes: a mark's
