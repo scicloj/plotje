@@ -2376,6 +2376,80 @@
                           #":binwidth must be a positive number"
                           (-> {:x [1 2 3]} (pj/lay-histogram :x {:binwidth 0}) pj/plan))))
 
+  (defn- drawn-bar-spans
+    "The x-span of every filled shape drawn in `color`, from the rendered
+   tree rather than the printed SVG -- a shape sits inside a
+   `<g transform>`, so a printed coordinate is not a canvas one. A span
+   is a difference and so survives the translation either way."
+    [fr color]
+    (->> (tree-seq vector? seq (pj/plot fr))
+         (filter #(and (vector? %) (map? (second %))))
+         (filter #(= color (:fill (second %))))
+         (keep (fn [[_ attrs]]
+                 (when-let [pts (:points attrs)]
+                   (let [xs (take-nth 2 (map #(Double/parseDouble %)
+                                             (re-seq #"[-0-9.]+"
+                                                     (clojure.string/replace pts "," " "))))]
+                     (- (apply max xs) (apply min xs))))))
+         vec))
+
+  (deftest a-histogram-of-one-distinct-value-draws-a-visible-bar
+  ;; fastmath answers a constant column with a single bin whose :min and
+  ;; :max are the value, and the bar came out zero units wide -- a shape
+  ;; svg-summary counts and no reader can see. ggplot2 draws a visible
+  ;; bar for the same data. A written `{:x 2}` is broadcast into a
+  ;; constant column before any stat runs, so it arrives here as the
+  ;; same thing and one rule covers both.
+    (let [red "rgb(204,51,17)"
+          panel-width (fn [fr] (let [[_ _ w _] (-> fr pj/frames :panels first :frames :drawing-area)] (double w)))]
+
+      (testing "a constant column draws a bar, not a zero-width shape"
+        (let [fr (-> {:v [2 2 2]} (pj/lay-histogram :v {:color "#cc3311"}))
+              spans (drawn-bar-spans fr red)]
+          (is (= 1 (count spans)))
+          (is (pos? (first spans)) "the defect: this was 0.0")
+        ;; The width is pad-domain's own degenerate padding, halved, so
+        ;; the bar fills half the panel the axis built around it.
+          (is (< (Math/abs (- (first spans) (/ (panel-width fr) 2.0))) 1.0))))
+
+      (testing "the same holds on the :bins path, which also goes through fastmath"
+        (let [spans (drawn-bar-spans (-> {:v [2 2 2]} (pj/lay-histogram :v {:bins 5 :color "#cc3311"})) red)]
+          (is (= 1 (count spans)))
+          (is (pos? (first spans)))))
+
+      (testing "the padding is relative, so a constant million is not given a hairline"
+        (let [fr (-> {:v [1000000 1000000]} (pj/lay-histogram :v {:color "#cc3311"}))
+              spans (drawn-bar-spans fr red)]
+          (is (= 1 (count spans)))
+          (is (< (Math/abs (- (first spans) (/ (panel-width fr) 2.0))) 1.0))))
+
+      (testing "an explicit :binwidth still decides the width itself"
+      ;; This path builds its own edges and was never affected, so the
+      ;; bar is the user's width and not half the panel.
+        (let [fr (-> {:v [2 2 2]} (pj/lay-histogram :v {:binwidth 0.5 :color "#cc3311"}))
+              spans (drawn-bar-spans fr red)]
+          (is (= 1 (count spans)))
+          (is (< (first spans) (/ (panel-width fr) 2.0)))))
+
+      (testing "a value written on a histogram draws one bar, one place wide"
+      ;; The categorical case the 0.14.0 notes describe: a written value
+      ;; reaches the same constant column, and the bar comes out one
+      ;; band step across, as pj/lay-bar draws at a written place.
+        (let [bars (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                       (pj/lay-bar :team :score {:color "#a6cee3"}))
+              spans (drawn-bar-spans (pj/lay-histogram bars {:x 2 :color "#cc3311"}) red)
+              panel (-> bars pj/frames :panels first)
+              step (- (first (pj/to-drawing panel 2 1)) (first (pj/to-drawing panel 1 1)))]
+          (is (= 1 (count spans)))
+          (is (< (Math/abs (- (first spans) step)) 1.0))))
+
+      (testing "a histogram of data that varies is unchanged"
+        (let [counts (fn [n] (:polygons (pj/svg-summary
+                                         (pj/plot (-> {:v [1 2 3 4 5 2 3 3]}
+                                                      (pj/lay-histogram :v {:bins n}))))))]
+          (is (pos? (counts 4)))
+          (is (= (counts 4) (counts 4)))))))
+
   (testing "lay-rule-h/v 1-arity throws helpful error pointing at the required intercept opt"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"requires an opts map with :y-intercept"

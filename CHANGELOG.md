@@ -12,6 +12,8 @@ A number written for a categorical axis is a place among its categories, counted
 - **Every plot shifting a mark along a categorical axis.** The shift is a fraction of a band, so `{:dx 0.5}` moves a mark half a band along. Under their former names, `:nudge-x` and `:nudge-y` reported an error on that axis.
 - **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
 - **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A rule's intercept and a band's edges are read the same way, so `(pj/lay-rule-v {:x-intercept 99})` on three categories reports rather than drawing a line on the panel's left edge.
+- **Every histogram of a column holding one distinct value.** The bar is drawn half the panel wide. It used to be drawn zero units across, so the plot came out empty.
+
 - **Every plot carrying a rule or a band and nothing that gives the other axis an extent.** That axis runs `0` to `1` and is ticked across it. It used to run `-0.05` to `1.05` and carry a tick at each end.
 - **Every plot adding a rule or a band beside a layer whose values stay under 1** -- a density, most often. The axis the rule spans keeps the extent that layer gives it. In 0.13.0 the rule reported `0` to `1` for that axis, which won the merge and drew the density flat along the bottom.
 
@@ -20,6 +22,8 @@ A number written for a categorical axis is a place among its categories, counted
 - A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A `:dx` reads the same way, `{:dx 0.5}` moving a mark half a band along, and `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that is reported. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
 
 ### Fixed
+
+- A histogram of a column holding one distinct value draws a bar a reader can see. The bar spans half the panel the axis builds around that value, which is the padding the axis itself uses for an extent of zero, so the width follows the data's magnitude rather than a fixed number. A width set with `:binwidth` decides the bar itself and is unchanged, as is every histogram of a column whose values differ.
 
 - A histogram bar written at a place on a categorical axis is drawn there, one place wide. The whole plot used to report that numeric and categorical domains could not be merged.
 

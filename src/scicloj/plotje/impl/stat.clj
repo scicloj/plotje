@@ -11,7 +11,8 @@
             [fastmath.kernel :as kernel]
             [fastmath.random :as frand]
             [scicloj.plotje.impl.defaults :as defaults]
-            [scicloj.plotje.impl.resolve :as resolve]))
+            [scicloj.plotje.impl.resolve :as resolve]
+            [scicloj.plotje.impl.scale :as scale]))
 
 ;; ---- Helpers ----
 
@@ -451,6 +452,42 @@
 
 ;; ---- Binning ----
 
+(defn- widen-degenerate-bins
+  "Give a bin of zero width a real one, so a histogram of a column
+   holding a single distinct value draws a bar a reader can see.
+
+   `fastmath.stats/histogram` answers such a column with one bin whose
+   `:min` and `:max` are both the value, and a bar of zero width is a
+   shape `svg-summary` counts and nobody sees. ggplot2 draws a visible
+   bar for the same data, and so does the `:binwidth` path here, which
+   builds its own edges -- only the bin counts fastmath picks were
+   affected, which is `:bins` and the default alike.
+
+   A written `:x` reaches this too: `{:x 2}` is broadcast into a
+   constant column before any stat runs, so a value written on a
+   histogram and a column that happens to be constant are the same
+   thing by the time the binning sees them, and one rule covers both.
+
+   The width is the padding `scale/pad-domain` gives that same
+   degenerate extent, halved, so the bar fills half the panel the axis
+   builds around it. Reusing the domain's own rule keeps a bar and the
+   axis it is drawn on from drifting apart -- and it is relative, so a
+   column of a constant million is not given a bar a millionth of its
+   panel wide."
+  [bin-maps padding]
+  (mapv (fn [b]
+          (let [lo (double (:min b))
+                hi (double (:max b))]
+            (if (== lo hi)
+              (let [[pad-lo _] (scale/pad-domain [lo lo] nil padding)
+                    half (/ (- lo (double pad-lo)) 2.0)]
+                (assoc b
+                       :min (- lo half)
+                       :max (+ lo half)
+                       :step (* 2.0 half)))
+              b)))
+        bin-maps))
+
 (defn- exact-width-bins
   "Build exact-`bw`-wide bin maps for a numeric column, in the ggplot2
    style (bins anchored at `lo`, extending in both directions to cover
@@ -527,7 +564,9 @@
                                              ;; Equal-count path (default or
                                              ;; explicit :bins): lets fastmath
                                              ;; pick bin edges.
-                                             (:bins-maps (stats/histogram (ds x) bin-arg)))]
+                                             (widen-degenerate-bins
+                                              (:bins-maps (stats/histogram (ds x) bin-arg))
+                                              (:domain-padding (or cfg defaults/defaults))))]
                               (cond-> {:bin-maps bin-maps}
                                 (some? gv) (assoc :color gv)))))
             ;; When normalize=:density, convert counts to density (area integrates to 1)
