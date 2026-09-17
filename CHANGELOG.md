@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route reads it that way: a value written in a slot, a `:dx`, a rule's intercept, a band's edges, and `pj/to-drawing`.
+A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route reads it that way: a value written in a slot, a `:dx`, a rule's intercept, a band's edges, and `pj/to-drawing`. `:dx` and `:dy` are the new names for `:nudge-x` and `:nudge-y`: a shift is measured in the axis's own units, and on a categorical axis that unit is a band.
 
 ### Plots that look different after upgrading
 

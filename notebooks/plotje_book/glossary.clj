@@ -406,14 +406,24 @@ my-pose
 
 ;; ## Place
 ;;
-;; A **place** is where a number falls among the categories of a
-;; categorical axis, counted from one: `1` is the first category, `2`
-;; the second, and `1.5` the point halfway between the two. Such an
-;; axis carries bands rather than a range of values, so it cannot
-;; widen to reach a number the way a numerical axis widens to reach a
-;; value. It runs from `0.5` to half a place past the last category,
-;; and a number outside that is reported, naming the value, the
-;; categories and where the axis ends.
+;; A **place** is where a mark is drawn: a location in data space that
+;; an axis can name. What a place is made of depends on what the axis
+;; holds.
+;;
+;; On a numerical or temporal axis a place is a data value -- a sepal
+;; length of 6.5, a year of 2007 -- and the axis widens to reach one
+;; that falls outside the data. A number naming no location the axis
+;; could reach is not a place: an infinity is a number, and a row
+;; carrying one is dropped before anything is drawn.
+;;
+;; On a categorical axis the categories carry no numbers of their own,
+;; so a place is counted among them from one: `1` is the first
+;; category, `2` the second, and `1.5` the point halfway between the
+;; two. Such an axis carries bands rather than a range of values, so it
+;; cannot widen to reach a number the way a numerical axis widens to
+;; reach a value. It runs from `0.5` to half a place past the last
+;; category, and a number outside that is reported, naming the value,
+;; the categories and where the axis ends.
 ;;
 ;; Every number written for a categorical axis is read as a place: a
 ;; value in an `:x` or `:y` slot, a rule's `:x-intercept`, a band's
@@ -449,12 +459,23 @@ my-pose
                           (catch Exception e
                             (boolean (re-find #"past the ends of this axis"
                                               (ex-message e))))))
-                   [0.4 3.6]))))])
+                   [0.4 3.6])
+           ;; And on a numerical axis a place is a data value, while an
+           ;; infinity names no location the axis could reach -- the row
+           ;; carrying one is dropped before anything is drawn.
+           (= 3 (:points (pj/svg-summary
+                          (pj/plot (-> {:h [1 2 ##Inf 4] :w [1 2 3 4]}
+                                       (pj/lay-point :h :w)))))))))])
 
-;; The reading does not run backwards. `pj/to-data` answers the
-;; category whose band holds a coordinate, so a place comes back as one
-;; of the two categories it fell between rather than as the number that
-;; produced it.
+;; A place is a location in data space, so it is not a drawing unit.
+;; [Drawing Space](#drawing-space) measures the page, and the scales map
+;; a place onto drawing units: `pj/to-drawing` is that mapping, and
+;; `pj/to-data` reads it back.
+;;
+;; Reading back does not always return what went in. `pj/to-data`
+;; answers the category whose band holds a coordinate, so a place on a
+;; categorical axis comes back as one of the two categories it fell
+;; between rather than as the number that produced it.
 ;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis)
 ;; covers both directions.
 
@@ -1245,7 +1266,7 @@ annotated
 ;; | Panel | One plotting area (domain, ticks, layers) | One or more per plan |
 ;; | Plan layer | Resolved geometry + style for one mark | Inside plan panels |
 ;; | Domain | Data range on an axis | Part of panel |
-;; | Place | Where a number falls among a categorical axis's categories, counted from one | Any number written for such an axis; `pj/to-drawing` |
+;; | Place | Where a mark is drawn, in data space -- a value on a numerical axis, a count among the categories on a categorical one | Any number written for an axis; `pj/to-drawing` |
 ;; | Tick | Axis mark with label at a domain value | Part of panel |
 ;; | Data space | Values in their original units -- what mappings, stats, domains, and ticks hold | Every stage up to the plan |
 ;; | Drawing space | Positions in drawing units on the output canvas | Membrane and plot stages |
