@@ -4,50 +4,39 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route to a categorical axis reads it that way: a value written in a slot, a shift from a named category, `pj/to-drawing`, and the marks that draw at a written value.
+A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route reads it that way: a value written in a slot, a `:dx`, a rule's intercept, a band's edges, and `pj/to-drawing`.
 
 ### Plots that look different after upgrading
 
 - **Every plot writing a number for a categorical axis.** The mark is drawn at that place among the categories.
-- **Every plot shifting a mark along a categorical axis.** The shift is a fraction of a band, so `{:dx 0.5}` moves a mark half a band along. Under their former names, `:nudge-x` and `:nudge-y` reported an error on that axis.
-- **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These four marks used to draw on the panel's left or bottom edge whatever value they were given, and `pj/lay-band-h` and `pj/lay-band-v` threw a NullPointerException naming neither the value nor the axis.
-- **Every plot writing a number past the ends of a categorical axis.** `pj/plan` and `pj/to-drawing` report an error naming the value, the categories and where the axis ends. A rule's intercept and a band's edges are read the same way, so `(pj/lay-rule-v {:x-intercept 99})` on three categories reports rather than drawing a line on the panel's left edge.
+- **Every plot shifting a mark along a categorical axis.** `{:dx 0.5}` moves a mark half a band along. Under their former names, `:nudge-x` and `:nudge-y` reported an error on that axis.
+- **Every plot writing a rule or a band on a categorical axis.** `(pj/lay-rule-v {:x-intercept 2})` draws at the second category. These marks used to draw on the panel's left or bottom edge whatever value they were given, and a band written for that axis failed with a NullPointerException.
+- **Every plot writing a number past the ends of a categorical axis.** The plot reports an error naming the value, the categories and where the axis ends.
 - **Every histogram of a column holding one distinct value.** The bar is drawn half the panel wide. It used to be drawn zero units across, so the plot came out empty.
-
 - **Every plot carrying a rule or a band and nothing that gives the other axis an extent.** That axis runs `0` to `1` and is ticked across it. It used to run `-0.05` to `1.05` and carry a tick at each end.
-- **Every plot adding a rule or a band beside a layer whose values stay under 1** -- a density, most often. The axis the rule spans keeps the extent that layer gives it. In 0.13.0 the rule reported `0` to `1` for that axis, which won the merge and drew the density flat along the bottom.
+- **Every plot adding a rule or a band beside a density.** The axis the rule spans keeps the extent the density gives it. In 0.13.0 the rule reported `0` to `1` for that axis, which won the merge and drew the density flat along the bottom.
 
 ### Added
 
-- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A `:dx` reads the same way, `{:dx 0.5}` moving a mark half a band along, and `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that is reported. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
+- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A `:dx` reads the same way, and so do a rule's intercept and a band's edges. `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that reports an error naming the value, the categories and the ends. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
 
 ### Fixed
 
-- A histogram of a column holding one distinct value draws a bar a reader can see. The bar spans half the panel the axis builds around that value, which is the padding the axis itself uses for an extent of zero, so the width follows the data's magnitude rather than a fixed number. A width set with `:binwidth` decides the bar itself and is unchanged, as is every histogram of a column whose values differ.
+- A histogram of a column holding one distinct value draws a bar a reader can see, half the panel wide. A value written on a histogram is read as one such column, so `{:x 2}` on a categorical axis draws a bar one place wide. A width set with `:binwidth` decides the bar itself and is unchanged.
 
-- A histogram bar written at a place on a categorical axis is drawn there, one place wide. The whole plot used to report that numeric and categorical domains could not be merged.
+- A categorical `:domain` written with `pj/scale` orders the categories the data holds and adds none to them. A name the data does not hold is dropped and Plotje warns, and where the axis ends is counted from the categories that remain, so a place past the last one is no longer let through and drawn off the panel.
 
-- One reader answers what a number means on either axis. `:x` and `:y` each had their own copy of the parse that decides whether a layer contributes a numeric extent or a list of categories, and the two disagreed about a number written beside categories.
+- `pj/lay-errorbar` reports an error on `:y-min` or `:y-max` where the value is not a column of the layer's data, naming the mark, the key and the value, and on one bound given without the other. An errorbar reads both keys as columns, one bound per row; the same two keys take a written number on `pj/lay-band-h`, which shades one region between them.
 
-- A rule or a band written past the ends of a categorical axis reports an error rather than drawing off the panel. `(pj/lay-rule-v {:x-intercept 99})` on three categories is refused the way `(pj/lay-label {:x 99 :y 1 :text "note"})` beside it is. The four marks whose geometry is written on the layer contribute the axis's own categories rather than the value they were written with, so the written value is read where the panel's categories are known.
+- A rule or a band gives no extent to the axis it spans. A rule names a value on one axis and reaches across the other, and across that other axis it reported `0` to `1`, which flattened a density drawn beside it. Reported in [#plotje > lay-rule-v regression ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/lay-rule-v.20regression.20.3F/) - thanks, @carstenbehring
 
-- Where a categorical axis ends is counted from the categories the data holds. A `:domain` written with `pj/scale` orders those categories and adds none to them, so counting its names let a place past the last category through, and the mark was drawn off the panel and clipped away.
+- A pose carrying a hiccup tooltip conforms to the pose schema, so `pj/valid-pose?` answers true for one. A `:tooltip` is a string, shown as the text it spells, or a hiccup vector, drawn as markup.
 
-- `pj/lay-errorbar` reports what it was given on `:y-min` or `:y-max` where that is not a column of the layer's data, naming the mark, the key and the value. It also reports one bound given without the other, saying which one it got. Both used to die on a NullPointerException naming neither the option nor the mark. An errorbar reads both keys as columns, one bound per row; the same two keys still take a written number on `pj/lay-band-h`, which shades one region between them.
+- A `:tooltip` or a `:brush` asked for on a format that draws no interaction warns and is dropped, and the figure still renders. Both are drawn by a browser reading the figure, so SVG is the only format that answers them. - thanks, @adriansmith
 
-- One message says that a number is past the ends of a categorical axis, whichever call reports it. A mark's mapping, a rule's intercept and `pj/to-drawing` each reached their own sentence, and the first two already suggested different things.
+- `pj/save` accepts a `java.io.File` as its path, which its docstring offers alongside a string.
 
-- A rule or a band gives no extent to the axis it spans. A rule names a value on one axis and reaches across the other, and across that other axis it reported `0` to `1` where the layer's mapping named no column there. A density beside such a rule was drawn along the bottom of a y axis running to 1. A panel that has nothing else to give the axis an extent still falls back to `0` to `1`, which is now the interval itself rather than a padded version of it, so a rule drawn on its own carries ticks across that interval. Reported in [#plotje > lay-rule-v regression ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/lay-rule-v.20regression.20.3F/) - thanks, @carstenbehring
-
-- A `pj/scale` `:domain` naming a category the data does not hold is reported. A categorical `:domain` orders the categories the data holds and adds none to them, so such a name is dropped and nothing is drawn under it, where ggplot2's `scale_*_discrete(limits = ...)` draws an empty band. One comparison answers both directions now, so the report reaches an axis, a `:color` and a `:shape` alike, beside the one that already named the categories a `:domain` leaves out.
-
-- `pj/save` accepts a `java.io.File` as its path, which its docstring offers alongside a string. The bytes were written and the call then threw a `ClassCastException`, so the file on disk was right and the caller got an exception.
-
-- A pose carrying a hiccup tooltip conforms to the pose schema, so `pj/valid-pose?` answers true for one. A `:tooltip` is a string, shown as the text it spells, or a hiccup vector, drawn as markup; the schema now reads the same rule the renderer draws by. The message naming what a `:tooltip` accepts, reported where the written value names no column, names both.
-
-- A `:tooltip` or a `:brush` asked for on a format that draws no interaction is reported. Both are drawn by a browser reading the figure, so SVG is the only format that answers them; a plot rendered to `:bufimg`, or saved as a PNG, reports that the request draws nothing and names the format it was asked of alongside the ones that do. The figure still renders. - thanks, @adriansmith
-
-**Correction to the 0.13.0 notes.** "A rule or a band can be added to a pose whose layers read only an x column -- a histogram, a density, a count bar or a rug" holds for the rule, which is drawn where it was written. What it left out is that the rule also reported an extent for the axis it spans, so on a density the y axis ran to 1 and the distribution was flattened against it. A histogram or a count bar counts past 1 and was unaffected.
+**Correction to the 0.13.0 notes.** "A rule or a band can be added to a pose whose layers read only an x column -- a histogram, a density, a count bar or a rug" holds for where the rule is drawn. What it left out is that the rule also reported an extent for the axis it spans, so a density beside one was flattened against it. A histogram or a count bar counts past 1 and was unaffected.
 
 ### Changed
 
