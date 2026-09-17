@@ -14,6 +14,11 @@
 ;; The static GFM render of this notebook shows the SVGs as
 ;; flat images. Open the HTML rendering to see the interactions
 ;; live.
+;;
+;; Both layers are drawn by a browser reading the figure, so SVG is the
+;; only format that answers them -- see
+;; [Formats that draw interaction](#formats-that-draw-interaction) at
+;; the end of the chapter.
 
 (ns plotje-book.interactivity
   (:require
@@ -285,6 +290,47 @@ sales-rich
      "Save PNG"]
     (into [:svg (assoc attrs :id plot-id)] body)
     [:script script]]))
+
+;; ## Formats that draw interaction
+;;
+;; A tooltip and a brush are behaviours a browser runs over the figure,
+;; so they reach a reader only where the figure is SVG. A plot rendered
+;; to `:bufimg`, or saved as a PNG, carries neither: a raster image is
+;; finished before anyone hovers over it, and has no elements for a
+;; script to attach to.
+;;
+;; Asking for one on such a format is reported. One message covers the
+;; plot, naming both requests where both were written, the format they
+;; were asked of, and the formats that answer them. The figure still
+;; renders -- what is dropped is the request, not the plot:
+
+(with-out-str
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width {:color :species})
+      (pj/options {:tooltip true :brush true})
+      (pj/plot {:format :bufimg})))
+
+(kind/test-last
+ [(fn [out]
+    (and (re-find #":tooltip and :brush asked for" out)
+         (re-find #":bufimg format draws no interaction" out)
+         (re-find #"The formats that do: :svg" out)
+         ;; One message for the plot, not one per request.
+         (= 1 (count (re-seq #"draws no interaction" out)))
+         ;; The figure is drawn whatever was asked of it: an image
+         ;; comes back, and the warning is all that the request cost.
+         (let [drawn (atom nil)]
+           (with-out-str
+             (reset! drawn (-> (rdatasets/datasets-iris)
+                               (pj/lay-point :sepal-length :sepal-width)
+                               (pj/options {:tooltip true})
+                               (pj/plot {:format :bufimg}))))
+           (instance? java.awt.image.BufferedImage (deref drawn)))))])
+
+;; `pj/save` to a PNG reports the same thing, since a PNG file is that
+;; format written to disk. Saving the SVG keeps the attributes on the
+;; marks, and a browser opening the file runs the script that reads
+;; them.
 
 ;; ## See Also
 ;;

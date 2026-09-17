@@ -113,6 +113,22 @@
       (is (png? path))
       (.delete (java.io.File. path)))))
 
+(deftest save-accepts-a-file-as-well-as-a-string
+  ;; The docstring offers both, and the last line of `save` handed the
+  ;; File itself to `imeta-file`, which proxies java.io.File over a
+  ;; String pathname. So the bytes were written and then the call threw
+  ;; a ClassCastException -- the file on disk was right and the caller
+  ;; got an exception.
+  (testing "a java.io.File path writes the file and answers with it"
+    (let [f (java.io.File. "/tmp/_plotje_save_format_file_arg.svg")
+          pose (pj/lay-point tiny :x :y)]
+      (try
+        (let [answered (pj/save pose f)]
+          (is (svg? (.getPath f)))
+          (is (= (java.io.File. (.getPath f)) answered)
+              "and answers with the file it wrote, as the string arity does"))
+        (finally (.delete f))))))
+
 (deftest save-opts-format-overrides-extension
   (testing "(pj/save pose \"x.png\" {:format :svg}) writes SVG (opts wins, warns)"
     (let [path "/tmp/_plotje_save_format_c.png"

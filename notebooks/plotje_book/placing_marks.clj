@@ -237,17 +237,18 @@ cars
 ;; categories carry no numbers of their own, so the amount is counted in
 ;; bands from wherever the mark sits: `0.5` is half a band along, which
 ;; is halfway to the next category. The note below is shifted that far
-;; from the bar it names, so it sits over the gap beside the bar rather
-;; than above it. The bars take a light fill, because a label that
-;; crosses one has to stay readable against it -- the other way round is
-;; to give the text its own background, which
+;; from the bar it names, so it is centered on the edge between that bar
+;; and the next rather than over the bar itself. A label is wider than
+;; the gap between two bars, so it reaches across both; the bars take a
+;; light fill to keep it readable where it crosses one. The other way
+;; round is to give the text its own background, which
 ;; [Customization](./plotje_book.customization.html#text-on-a-background-box)
 ;; covers and `pj/lay-label` does by default:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score {:color "#a6cee3"})
     (pj/lay-text {:x {:value "red"} :y 3 :align-x :center
-                  :dx 0.5 :offset-y -10 :text "half a band along"}))
+                  :dx 0.5 :offset-y -10 :text "half a band"}))
 
 (kind/test-last
  [(fn [fr]
@@ -275,13 +276,13 @@ cars
                          (pj/lay-bar :team :score)
                          (pj/lay-text {:x 2.5 :y 4.5 :text "note"}))))))])
 
-;; One more difference between the two: a `:dx` does not change the axis
-;; domain, so a `:dx` large enough to carry a mark past the end of the
-;; axis leaves it clipped there. ggplot2's `nudge_x` widens the range
-;; instead. The [Glossary](./plotje_book.glossary.html#shift) entry for
-;; Shift describes that difference. A number written in the slot itself is
-;; answered the other way round -- Giving `:x` and `:y` as values, the
-;; next section, shows both readings.
+;; A `:dx` does not change the axis domain, so a `:dx` large enough to
+;; carry a mark past the end of the axis leaves the mark clipped there.
+;; ggplot2's `nudge_x` widens the range instead, and the
+;; [Glossary](./plotje_book.glossary.html#shift) entry for Shift
+;; describes that difference. A number written in the `:x` slot itself
+;; is read the other way: on a numerical axis the axis widens to reach
+;; it. The next section shows both readings.
 ;;
 ;; An offset does not keep labels from overlapping each other. It moves a
 ;; whole layer by one amount, so two labels at nearby values stay as
@@ -367,16 +368,16 @@ cars
                                               (ex-message e))))))
                    [0.4 3.6]))))])
 
-;; To name a category rather than count to one, write the value in full
-;; as `{:value ...}`. That spelling matters most where the categories are
+;; To name a category rather than count places to it, write the value
+;; in full as `{:value ...}`. That spelling matters most where the categories are
 ;; themselves numbers, since there the two readings pick different bands
 ;; -- on an axis of the years 2020, 2021 and 2022, `{:value "2021"}` is
 ;; the middle band and the bare number `2021` is a place far past the
 ;; third:
 
 (-> {:cohort [2020 2021 2022] :n [3 5 4]}
-    (pj/lay-bar :cohort :n {:x-type :categorical})
-    (pj/lay-text {:x {:value "2021"} :y 5.5 :align-x :center
+    (pj/lay-bar :cohort :n {:x-type :categorical :color "#a6cee3"})
+    (pj/lay-text {:x {:value "2021"} :y 4.5 :align-x :center
                   :text "the 2021 cohort"}))
 
 (kind/test-last
@@ -405,8 +406,8 @@ cars
 ;; centre to the second's:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
-    (pj/lay-band-v {:x-min 1 :x-max 2 :color "#a6cee3" :alpha 0.55})
-    (pj/lay-bar :team :score)
+    (pj/lay-bar :team :score {:color "#a6cee3"})
+    (pj/lay-band-v {:x-min 1 :x-max 2 :color "#4477aa" :alpha 0.25})
     (pj/lay-rule-v {:x-intercept 2 :color "#cc3311" :size 2}))
 
 (kind/test-last

@@ -404,6 +404,60 @@ my-pose
 ;; rectangle's top left corner, so a note at drawing-space `[12 12]`
 ;; lands 12 units right and 12 units down from that corner.
 
+;; ## Place
+;;
+;; A **place** is where a number falls among the categories of a
+;; categorical axis, counted from one: `1` is the first category, `2`
+;; the second, and `1.5` the point halfway between the two. Such an
+;; axis carries bands rather than a range of values, so it cannot
+;; widen to reach a number the way a numerical axis widens to reach a
+;; value. It runs from `0.5` to half a place past the last category,
+;; and a number outside that is reported, naming the value, the
+;; categories and where the axis ends.
+;;
+;; Every number written for a categorical axis is read as a place: a
+;; value in an `:x` or `:y` slot, a rule's `:x-intercept`, a band's
+;; `:x-min` and `:x-max`, the amount a [Shift](#shift) moves a mark by,
+;; and the coordinate `pj/to-drawing` is asked about. To name a
+;; category rather than count places to it, write the value in full as
+;; `{:value ...}` -- which matters where the categories are themselves
+;; numbers, since `{:value "2021"}` is a band and `2021` a place far
+;; past the last one.
+;;
+;; A place adds no category to the axis. The note below sits between
+;; the first band and the second, and the axis still carries three:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-bar :team :score {:color "#a6cee3"})
+    (pj/lay-text {:x 1.5 :y 4.5 :align-x :center :text "between two"}))
+
+(kind/test-last
+ [(fn [v]
+    (let [panel (-> v pj/frames :panels first)
+          at (fn [c] (first (pj/to-drawing panel c 4.5)))]
+      (and (= ["red" "green" "blue"] (-> v pj/plan :panels first :x-domain))
+           ;; Counted from one, so a place and the category it counts
+           ;; to meet, and 1.5 is the midpoint of the two it falls
+           ;; between.
+           (= (at 1) (at "red"))
+           (< (abs (- (at 1.5) (/ (+ (at "red") (at "green")) 2.0))) 1e-9)
+           ;; Three categories, so the axis runs from 0.5 to 3.5.
+           (every? number? [(at 0.5) (at 3.5)])
+           (every? (fn [bad]
+                     (try (at bad)
+                          false
+                          (catch Exception e
+                            (boolean (re-find #"past the ends of this axis"
+                                              (ex-message e))))))
+                   [0.4 3.6]))))])
+
+;; The reading does not run backwards. `pj/to-data` answers the
+;; category whose band holds a coordinate, so a place comes back as one
+;; of the two categories it fell between rather than as the number that
+;; produced it.
+;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis)
+;; covers both directions.
+
 ;; ## Shift
 ;;
 ;; A **shift** moves a mark by a constant amount measured in the axis's
@@ -1191,6 +1245,7 @@ annotated
 ;; | Panel | One plotting area (domain, ticks, layers) | One or more per plan |
 ;; | Plan layer | Resolved geometry + style for one mark | Inside plan panels |
 ;; | Domain | Data range on an axis | Part of panel |
+;; | Place | Where a number falls among a categorical axis's categories, counted from one | Any number written for such an axis; `pj/to-drawing` |
 ;; | Tick | Axis mark with label at a domain value | Part of panel |
 ;; | Data space | Values in their original units -- what mappings, stats, domains, and ticks hold | Every stage up to the plan |
 ;; | Drawing space | Positions in drawing units on the output canvas | Membrane and plot stages |

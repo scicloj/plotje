@@ -6,6 +6,8 @@
   (:require
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
+   ;; Tablecloth -- dataset manipulation
+   [tablecloth.api :as tc]
    ;; Rdatasets -- standard datasets
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Plotje -- composable plotting
@@ -146,6 +148,36 @@
                            (and (= 1 (:panels s))
                                 (= 4 (:polygons s)))))])
 
+;; ### Ranked
+;;
+;; A ranking chart is read down from the biggest, and the bars above
+;; are in whatever order the data happened to hold. Plotje draws the
+;; bands of a categorical y axis in data order, running bottom to top,
+;; so sorting the rows ascending by the value puts the biggest bar at
+;; the top. The same sort does the same thing under `(pj/coord :flip)`,
+;; which is how the count-bar form gets there.
+
+(def sales-ranked
+  (-> sales
+      tc/dataset
+      (tc/order-by :revenue :asc)))
+
+(-> sales-ranked
+    (pj/lay-bar :revenue :product))
+
+(kind/test-last
+ [(fn [v]
+    (let [panel (-> v pj/frames :panels first)
+          bands (-> v pj/plan :panels first :y-domain vec)
+          ;; Smaller drawing coordinates are higher on the page, so the
+          ;; biggest seller having the smallest one is "at the top".
+          height-of (fn [c] (second (pj/to-drawing panel 100 c)))]
+      (and (= ["doohickey" "widget" "gizmo" "gadget"] bands)
+           (= 4 (:polygons (pj/svg-summary v)))
+           (apply > (mapv height-of bands))
+           (= "gadget" (last bands))
+           (= 340 (apply max (:revenue sales))))))])
+
 ;; ### Rotated labels
 
 ;; Horizontal bars are one way to fit long category names. To keep
@@ -164,9 +196,13 @@
                            (and (= 6 (:polygons s))
                                 (.contains ^String (pr-str (pj/plot v)) "rotate(-45"))))])
 
-;; ## [Lollipop](https://en.wikipedia.org/wiki/Lollipop_chart)
+;; ## Lollipop
+;;
+;; A stem and a dot in place of a bar -- a
+;; [lollipop chart](https://en.wikipedia.org/wiki/Lollipop_chart) draws
+;; the same comparison with less ink.
 
-;; Stem + dot -- a lighter alternative to bar charts.
+;; ### Vertical
 
 (-> sales
     (pj/lay-lollipop :product :revenue))
@@ -175,7 +211,7 @@
                            (and (= 4 (:points s))
                                 (= 4 (:lines s)))))])
 
-;; ## Lollipop (Horizontal)
+;; ### Horizontal
 
 ;; Flipped for horizontal orientation.
 
@@ -187,7 +223,7 @@
                            (and (= 4 (:points s))
                                 (= 4 (:lines s)))))])
 
-;; ## Lollipop with `:color`
+;; ### With a color column
 
 ;; Map a categorical column to `:color` to distinguish groups
 ;; visually -- here, products grouped by region.

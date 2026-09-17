@@ -157,6 +157,17 @@
 ;;   once for many rows, pre-bin the column into categories, or draw the
 ;;   quantity with a mark that stands for one row.
 ;;
+;; - **Interaction reaches a reader only through SVG.** A tooltip and a
+;;   brush are behaviours a browser runs over the figure, so a plot
+;;   rendered to `:bufimg`, or saved as a PNG, carries neither. The
+;;   table above is the per-mark half of the same question; this is the
+;;   per-format half. Asking for either on such a format is reported,
+;;   naming the format and the ones that answer, and the figure still
+;;   renders.
+;;   [Interactivity](./plotje_book.interactivity.html#formats-that-draw-interaction)
+;;   covers it. Workaround: render to SVG, and save the SVG rather than
+;;   a PNG where the reader is meant to hover.
+;;
 ;; - `pj/lay-rule-h` rendered under `(pj/coord :flip)` becomes a
 ;;   vertical line; `pj/lay-rule-v` becomes a horizontal line. The
 ;;   mark name still reflects the unflipped semantics. Add a

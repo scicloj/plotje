@@ -596,7 +596,62 @@
       (let [partial-domain (-> plain (pj/scale :color {:domain ["x"]}))]
         (is (= ["x" "z" "y"] (labels partial-domain)))
         (is (re-find #":domain omits"
-                     (with-out-str (pj/plan partial-domain))))))))
+                     (with-out-str (pj/plan partial-domain))))))
+
+    (testing "a name the data does not hold is dropped, and said"
+      ;; The other direction of the same comparison. It drew nothing and
+      ;; printed nothing, which reads as ggplot2's
+      ;; scale_*_discrete(limits = ...), where the extra name gets an
+      ;; empty band.
+      (let [extra-name (-> plain (pj/scale :color {:domain ["x" "y" "z" "q"]}))
+            out (with-out-str (pj/plan extra-name))]
+        (is (= ["x" "y" "z"] (labels extra-name))
+            "no legend row is added for a name nothing is drawn under")
+        (is (re-find #":domain names \[\"q\"\]" out))
+        (is (re-find #"adds none to them" out))
+        (is (not (re-find #"omits" out))
+            "the domain covers every category, so only one side reports")))))
+
+(deftest a-categorical-domain-reports-both-directions-test
+  ;; One comparison answers both questions, so neither side can be added
+  ;; and the other forgotten. On an axis, where a dropped name also
+  ;; decides where the axis ends and so which places are past it.
+  (let [bars (fn [teams scores] {:team teams :score scores})
+        drawn (fn [domain]
+                (-> (bars ["red" "green"] [3 5])
+                    (pj/lay-bar :team :score)
+                    (pj/scale :x {:domain domain})))]
+
+    (testing "a name the data does not hold adds no band"
+      (let [out (with-out-str
+                  (is (= ["red" "green"]
+                         (-> (drawn ["red" "green" "blue"])
+                             pj/plan :panels first :x-domain vec))))]
+        (is (re-find #"pj/scale :x :domain names \[\"blue\"\]" out))))
+
+    (testing "so the axis ends where the drawn bands end"
+      ;; Two bands, so a place of 3 is past the end whatever the domain
+      ;; lists -- the bug the 0.14.0 fix closed, now with a message
+      ;; where the name went missing.
+      (with-out-str
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo
+             #"past the ends of this axis"
+             (-> (drawn ["red" "green" "blue"])
+                 (pj/lay-text {:x 3 :y 4 :text "note"})
+                 pj/plan)))))
+
+    (testing "a domain that matches the data exactly says nothing"
+      (is (= "" (with-out-str (pj/plan (drawn ["green" "red"]))))))
+
+    (testing "a column of numbers read as categories matches numbers"
+      ;; Both sides are compared by the text the category is drawn with,
+      ;; so `4` in the domain matches the band `\"4\"`.
+      (is (= "" (with-out-str
+                  (-> {:cyl [4 6 4] :hwy [29 26 31]}
+                      (pj/lay-point :cyl :hwy {:x-type :categorical})
+                      (pj/scale :x {:domain [4 6]})
+                      pj/plan)))))))
 
 (deftest color-domain-sets-gradient-ends-test
   (let [d (mapv (fn [i] {:a i :b i :n (* 10 i)}) (range 1 10))

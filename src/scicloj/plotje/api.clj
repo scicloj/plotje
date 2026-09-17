@@ -4003,10 +4003,19 @@
        :svg (let [out (render-impl/plan->plot (plan fr) :svg (:opts fr {}))]
               (spit path (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                               (svg/hiccup->svg-str out))))
-       :png (let [img (render-impl/plan->plot (plan fr) :bufimg (:opts fr {}))]
+       ;; The renderer dispatches on :bufimg; the caller asked for a
+       ;; PNG. The binding is what the interaction warning names, so it
+       ;; reports the word that was written.
+       :png (let [img (binding [render-impl/*format-asked* :png]
+                        (render-impl/plan->plot (plan fr) :bufimg (:opts fr {})))]
               ((resolve 'scicloj.plotje.render.bufimg/save-png) img path))
        (throw (ex-info (str "pj/save cannot write format "
                             (pr-str resolved-fmt) " to a file. Supported: "
                             ":svg, :png.")
                        {:format resolved-fmt :path path-str})))
-     (kind/image (pf/imeta-file path) {:class "plotje-plot"}))))
+     ;; `path-str`, not `path`: this arity accepts a java.io.File as
+     ;; well as a string, and `imeta-file` proxies java.io.File over a
+     ;; String pathname. Handed the File itself it died on a cast,
+     ;; after the bytes had already been written -- so the file on disk
+     ;; was right and the call threw.
+     (kind/image (pf/imeta-file path-str) {:class "plotje-plot"}))))

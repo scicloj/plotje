@@ -235,4 +235,30 @@
     (testing "pj/plan->plot reports it too, since it is the call that knows the format"
       (let [w (java.io.StringWriter.)]
         (binding [*out* w] (pj/plan->plot (pj/plan hovering) :bufimg {}))
-        (is (re-find #"draws no interaction" (str w)))))))
+        (is (re-find #"draws no interaction" (str w)))))
+
+    (testing "pj/save names the file format the caller wrote, not the renderer's"
+      ;; A .png path reaches the :bufimg renderer. Naming :bufimg sent
+      ;; the reader looking for a word they never wrote; which formats
+      ;; draw interaction is still read from `interactive-formats`.
+      (let [dir (java.io.File. (System/getProperty "java.io.tmpdir"))
+            png (java.io.File. dir (str "plotje-save-warn-" (System/nanoTime) ".png"))
+            svg (java.io.File. dir (str "plotje-save-warn-" (System/nanoTime) ".svg"))
+            said (fn [f]
+                   (let [w (java.io.StringWriter.)]
+                     (binding [*out* w] (pj/save hovering f))
+                     (str w)))]
+        (try
+          (let [w (said png)]
+            (is (re-find #":png format draws no interaction" w))
+            (is (not (re-find #":bufimg" w))
+                "the renderer's own name does not appear")
+            (is (re-find #"The formats that do: :svg" w))
+            (is (.exists png) "and the file is still written"))
+          (testing "while saving the format that draws them says nothing"
+            (is (= "" (said svg))))
+          (finally (.delete png) (.delete svg)))))
+
+    (testing "the binding is unset outside pj/save, so pj/plot names the renderer"
+      (is (re-find #":bufimg format draws no interaction"
+                   (warning-text-in hovering :bufimg))))))

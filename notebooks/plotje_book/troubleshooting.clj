@@ -206,8 +206,8 @@
 ;; from:
 
 (-> {:cohort [2020 2021 2022] :n [3 5 4]}
-    (pj/lay-bar :cohort :n {:x-type :categorical})
-    (pj/lay-text {:x {:value "2021"} :y 5.5 :align-x :center
+    (pj/lay-bar :cohort :n {:x-type :categorical :color "#a6cee3"})
+    (pj/lay-text {:x {:value "2021"} :y 4.5 :align-x :center
                   :text "on the band"}))
 
 (kind/test-last
@@ -404,11 +404,27 @@
 ;; the formats that do. Read the message the plot printed before
 ;; looking at the viewer.
 
+(with-out-str
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width {:color :species})
+      (pj/options {:tooltip true})
+      (pj/plot {:format :bufimg})))
+
+(kind/test-last
+ [(fn [out] (and (re-find #":tooltip asked for" out)
+                 (re-find #":bufimg format draws no interaction" out)
+                 (re-find #"The formats that do: :svg" out)))])
+
+;; The figure still renders -- the request is dropped, not the plot.
+;; **Fix**: render to SVG, which is what a notebook shows by default:
+
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/options {:tooltip true}))
 
-(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v] (and (= 150 (:points (pj/svg-summary v)))
+               (re-find #"data-tooltip" (str (pj/plot v)))))])
 
 ;; ## Faceting Keys in a Layer's Options Map
 ;;
@@ -742,6 +758,68 @@
 
 (kind/test-last
  [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
+
+;; ## A Layer Option From an Earlier Release
+;;
+;; **Symptom**: A layer option that used to shift a mark prints a
+;; warning naming a different key, and the plot draws as it always
+;; did.
+;;
+;; **Cause**: The option was renamed. `:nudge-x` and `:nudge-y` are
+;; `:dx` and `:dy`. A retired layer option is not handled the way the
+;; retired configuration key above is: dropping a shift would move a
+;; label back onto the mark it was written to clear, so the old name is
+;; read as the new one and the warning names the edit. The warning is
+;; printed where the layer is built rather than where the plan is
+;; built:
+
+(with-out-str
+  (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+      (pj/lay-bar :team :score)
+      (pj/lay-text {:x {:value "red"} :y 3 :nudge-x 0.5 :text "note"})))
+
+(kind/test-last
+ [(fn [out] (and (re-find #":nudge-x was renamed to :dx" out)
+                 (re-find #"Write :dx" out)))])
+
+;; **Fix**: Write the current name. Both names draw one picture, which
+;; is why the old name warns rather than reporting an error:
+
+(-> {:team ["red" "green" "blue"] :score [3 5 4]}
+    (pj/lay-bar :team :score {:color "#a6cee3"})
+    (pj/lay-text {:x {:value "red"} :y 3 :align-x :center
+                  :dx 0.5 :offset-y -10 :text "half a band"}))
+
+(kind/test-last
+ [(fn [fr]
+    ;; The retired name is built inside `with-out-str` so its warning
+    ;; does not reach the rendered page; the pose it returns is drawn
+    ;; outside, and the two plots are compared.
+    (let [under-the-old-name
+          (atom nil)
+          _ (with-out-str
+              (reset! under-the-old-name
+                      (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                          (pj/lay-bar :team :score {:color "#a6cee3"})
+                          (pj/lay-text {:x {:value "red"} :y 3
+                                        :align-x :center :nudge-x 0.5
+                                        :offset-y -10
+                                        :text "half a band"}))))]
+      (and (= (pj/plot fr) (pj/plot (deref under-the-old-name)))
+           ;; And 0.5 is a shift the picture shows, so the equality
+           ;; above is not two undisturbed labels matching.
+           (not= (pj/plot fr)
+                 (pj/plot (-> {:team ["red" "green" "blue"] :score [3 5 4]}
+                              (pj/lay-bar :team :score {:color "#a6cee3"})
+                              (pj/lay-text {:x {:value "red"} :y 3
+                                            :align-x :center :offset-y -10
+                                            :text "half a band"})))))))])
+
+;; Under `:strict` the retired name reports an error instead of
+;; warning, so a notebook run that way names every retired name still
+;; written in it.
+;; [Configuration](./plotje_book.configuration.html#strict-option-checking)
+;; covers the setting.
 
 ;; ## A `:size` or `:alpha` Column That Changes Nothing
 ;;

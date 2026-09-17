@@ -489,11 +489,26 @@
 ;; with x/y columns they attach to one matching leaf.
 ;;
 ;; They paint in the order they were added, like any other layer, so a
-;; rule written before a scatter sits under its points. The axis
-;; reaches the value they are drawn at, so a rule written outside
-;; everything the data covers widens the axis rather than disappearing;
-;; a `:domain` written with `pj/scale` replaces what the data covers
-;; and pins the axis where the rule cannot widen it.
+;; rule written before a scatter sits under its points. The axis the
+;; value is written on reaches that value, so a rule written outside
+;; everything the data covers widens that axis rather than
+;; disappearing; a `:domain` written with `pj/scale` replaces what the
+;; data covers and pins the axis where the rule cannot widen it.
+;;
+;; The other axis -- the one the rule reaches across, or the one a band
+;; spans -- takes no extent from the rule or the band. A rule names a
+;; value on one axis only, and the axis it crosses keeps the extent the
+;; other layers give it, so a rule drawn over a density leaves the
+;; curve at the height the density computed. Where nothing else gives
+;; that axis an extent it runs from `0` to `1`.
+;;
+;; On a categorical axis a number written here is a place among the
+;; categories, counted from one, as a number written for `:x` or `:y`
+;; is: `(pj/lay-rule-v {:x-intercept 2})` draws down the middle of the
+;; second band. Such an axis cannot widen to reach a value, so a place
+;; past its ends is reported rather than drawn off the panel. [Placing
+;; Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
+;; teaches the reading.
 ;;
 ;; Rule intercepts also accept temporal values (`LocalDate`,
 ;; `LocalDateTime`, `Instant`, `java.util.Date`) so a date-axis
@@ -511,6 +526,34 @@
 ;; mark. Writing the mapping in full -- `{:column :lo}` on the
 ;; errorbar, `{:value 12}` on the band -- says which reading you mean
 ;; without changing which one the mark accepts.
+;;
+;; Writing a band's number on an errorbar is reported. The message
+;; names the mark, the key, the value, the columns the layer's data
+;; holds, and the mark that reads these two keys as numbers:
+
+(try (-> measurements
+         (pj/lay-point :treatment :mean)
+         (pj/lay-errorbar {:y-min 0.5 :y-max 1.5})
+         pj/plan)
+     (catch Exception e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"lay-errorbar :y-min 0.5 is not a column" msg)
+                 (re-find #"one bound per row" msg)
+                 (re-find #"pj/lay-band-h" msg)))])
+
+;; One bound given without the other is reported too, naming the one it
+;; got. An errorbar reads both, one bound per row:
+
+(try (-> measurements
+         (pj/lay-point :treatment :mean)
+         (pj/lay-errorbar {:y-min :ci-lo})
+         pj/plan)
+     (catch Exception e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"requires :y-min and :y-max columns" msg)
+                 (re-find #"got :y-min alone" msg)))])
 
 (kind/doc #'pj/lay-rule-v)
 

@@ -305,20 +305,42 @@
 
 ;; ### Label marks
 
-;; Annotate specific data points with text labels.
+;; Annotate specific data points with text labels. The labelled rows
+;; are a dataset of their own, given to the label layer as its `:data`,
+;; so the whole cloud is drawn once in grey and three rows of it are
+;; named. Here each label names the longest-sepalled flower of its
+;; species. `:align-x :right` with a negative `:offset-x` puts the box
+;; to the left of its point, which keeps the labels on the right-hand
+;; edge of the data inside the panel.
 
-(def top5
+(def longest-per-species
   (-> (rdatasets/datasets-iris)
+      (tc/group-by :species)
       (tc/order-by :sepal-length :desc)
-      (tc/head 5)))
+      (tc/head 1)
+      tc/ungroup))
 
-(-> top5
-    (pj/lay-point :sepal-length :sepal-width {:size 5})
-    (pj/lay-label {:text :species :dy 0.15}))
+longest-per-species
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (pos? (:points s))
-                                (some #(= "virginica" %) (:texts s)))))])
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:size 3 :color "#bbbbbb"})
+    (pj/lay-point {:data longest-per-species
+                   :x :sepal-length :y :sepal-width
+                   :size 5 :color "#cc3311"})
+    (pj/lay-label {:data longest-per-species
+                   :x :sepal-length :y :sepal-width :text :species
+                   :align-x :right :offset-x -8}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 153 (:points s))
+                 (= 3 (:label-boxes s))
+                 ;; One label per species, so the three differ -- a
+                 ;; label naming a column all the drawn rows share
+                 ;; would say the same word three times.
+                 (= #{"setosa" "versicolor" "virginica"}
+                    (set (filter #{"setosa" "versicolor" "virginica"}
+                                 (:texts s)))))))])
 
 ;; ### Value labels inside bars
 ;;
@@ -471,7 +493,11 @@
 
 ;; ### Labeled scatter
 
-;; Combine points with text labels, using `:dy` to shift the text clear of its point.
+;; Combine points with text labels, using `:offset-y` to lift the text
+;; clear of its point. The amount is a distance on the page, so the
+;; same number works whatever the axes measure -- a `:dy` would be a
+;; number of millions of people here, and would have to be guessed
+;; again on the next chart.
 
 (def top-cities
   {:city ["Tokyo" "Delhi" "Shanghai" "São Paulo" "Mumbai"]
@@ -480,7 +506,7 @@
 
 (-> top-cities
     (pj/lay-point :area :population)
-    (pj/lay-text {:text :city :dy 1.0})
+    (pj/lay-text {:text :city :align-x :center :offset-y -10})
     (pj/options {:title "Population vs Area"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

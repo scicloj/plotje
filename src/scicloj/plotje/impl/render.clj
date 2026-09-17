@@ -54,6 +54,19 @@
    that draws interaction adds its format here."
   #{:svg})
 
+(def ^:dynamic *format-asked*
+  "The format name the caller wrote, where it differs from the name the
+   renderer dispatches on. `pj/save` writes a file, so its vocabulary
+   names the file format: a `.png` path reaches the `:bufimg` renderer,
+   and a message naming `:bufimg` sends the reader looking for a word
+   they never wrote. Bound by `pj/save`; nil everywhere else, where the
+   two vocabularies agree.
+
+   Which formats draw interaction is still read from
+   `interactive-formats` alone -- this only changes the name the
+   message prints."
+  nil)
+
 (defn warn-interaction-ignored!
   "Warn when a plot asks for hover text or a brush and the format it is
    rendered to draws neither.
@@ -74,7 +87,8 @@
                   (:brush opts) (conj ":brush"))]
       (when (seq asked)
         (println (str "Warning: " (str/join " and " asked) " asked for, and the "
-                      format " format draws no interaction. The formats that do: "
+                      (or *format-asked* format)
+                      " format draws no interaction. The formats that do: "
                       (str/join ", " (sort interactive-formats))
                       ". The request is accepted and draws nothing."))))))
 

@@ -820,6 +820,57 @@ gapminder-2007
 ;; A category the domain leaves out is still drawn, ordered after the
 ;; ones listed, and Plotje says so -- an incomplete list is usually a
 ;; typo or a stale set of names rather than a request.
+;;
+;; A name the data does not hold is the other side of the same
+;; comparison, and is reported too: a `:domain` orders the categories
+;; the data holds and adds none to them, so the extra name is dropped
+;; and no band is drawn for it. ggplot2's `scale_x_discrete(limits =
+;; ...)` draws an empty band there instead, so the report is worth
+;; reading rather than a formality. The axis below carries two bands,
+;; not three:
+
+(with-out-str
+  (-> {:team ["red" "green"] :score [3 5]}
+      (pj/lay-bar :team :score)
+      (pj/scale :x {:domain ["red" "green" "blue"]})
+      pj/plan))
+
+(kind/test-last
+ [(fn [out] (and (re-find #":domain names \[\"blue\"\]" out)
+                 (re-find #"adds none to them" out)))])
+
+;; The two bands it does carry:
+
+(-> {:team ["red" "green"] :score [3 5]}
+    (pj/lay-bar :team :score)
+    (pj/scale :x {:domain ["red" "green" "blue"]})
+    pj/plan
+    :panels
+    first
+    :x-domain
+    vec)
+
+(kind/test-last
+ [(fn [d]
+    (and (= ["red" "green"] d)
+         ;; Two bands, so the axis ends at 2.5 and a place of 3 is past
+         ;; it -- the third name in the :domain adds no band to count to.
+         (try (-> {:team ["red" "green"] :score [3 5]}
+                  (pj/lay-bar :team :score)
+                  (pj/scale :x {:domain ["red" "green" "blue"]})
+                  (pj/lay-text {:x 3 :y 4 :text "note"})
+                  pj/plan)
+              false
+              (catch Exception e
+                (boolean (re-find #"past the ends of this axis"
+                                  (ex-message e)))))))])
+
+;; This is what a number written for such an axis is counted against. A
+;; place is counted among the bands an axis carries, so the axis above
+;; ends half a place past the second band, and `3` is past that end
+;; whatever the `:domain` lists. [Placing
+;; Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
+;; covers places.
 
 ;; ### On an appearance aesthetic
 ;;
