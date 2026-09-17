@@ -145,17 +145,26 @@
 ;; ## Shifting a mark by a distance on the page
 ;;
 ;; Anchoring places one edge of the label exactly on the point, so a
-;; point drawn with a radius still overlaps it. Clearing the mark takes a
-;; shift of a few units on the page, which is not a data quantity: it
-;; depends on the size the mark is drawn at, not on what the axis
-;; measures.
+;; point drawn with a radius still overlaps it. Two layer options move a
+;; mark off the coordinates it was given.
 ;;
-;; `:dx` cannot do this, because it shifts the data value itself,
-;; before the scales run.
+;; `:dx` and `:dy` shift a mark in the axis's own units. The amount is
+;; added to the data value before the scales run, so on an axis of
+;; weights in thousands of pounds, `{:dx 0.08}` moves the mark along by
+;; 0.08 of a thousand pounds.
 ;;
-;; The examples that follow use six cars from `mtcars`, with their
-;; weights in thousands of pounds and their displacements in cubic
-;; inches:
+;; `:offset-x` and `:offset-y` shift a mark by a distance on the page,
+;; measured in drawing units after the scales have run, so
+;; `{:offset-x 10}` moves the mark ten drawing units to the right on
+;; any axis.
+;;
+;; Clearing a label of its own marker is a job for `:offset-x`. The gap
+;; has to be about as wide as the marker is drawn, which is a length on
+;; the page rather than a quantity the data holds. The examples below
+;; put `:dx` to that job first, on two axes, and then `:offset-x`.
+;;
+;; They use six cars from `mtcars`, with their weights in thousands of
+;; pounds and their displacements in cubic inches:
 
 (def cars
   (-> (rdatasets/datasets-mtcars)
