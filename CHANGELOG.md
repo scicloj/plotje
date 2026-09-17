@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 A number written for a categorical axis is a place among its categories, counted from one. `1` is the first category, `1.5` sits halfway to the second, and the axis reaches half a place past each end. Every route reads it that way: a value written in a slot, a `:dx`, a rule's intercept, a band's edges, and `pj/to-drawing`. `:dx` and `:dy` are the new names for `:nudge-x` and `:nudge-y`: a shift is measured in the axis's own units, and on a categorical axis that unit is a band.
 
+Many thanks to @timothypratley, who wrote the pull request behind the place reading, and to @behrica, who asked for it.
+
 ### Plots that look different after upgrading
 
 - **Every plot writing a number for a categorical axis.** The mark is drawn at that place among the categories.
@@ -18,7 +20,7 @@ A number written for a categorical axis is a place among its categories, counted
 
 ### Added
 
-- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A `:dx` reads the same way, and so do a rule's intercept and a band's edges. `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that reports an error naming the value, the categories and the ends. (PR #49) - thanks, @timothypratley, and @carstenbehring for the request.
+- A number written for a categorical axis is read as a place among its categories, counted from one, so `(pj/lay-label {:x 1.5 :y 3 :text "note"})` draws between the first category and the second. A `:dx` reads the same way, and so do a rule's intercept and a band's edges. `pj/to-drawing` answers a place as it answers a category. The axis runs from `0.5` to half a place past the last category, and a number outside that reports an error naming the value, the categories and the ends. Written by @timothypratley in PR #49, and asked for by @behrica.
 
 ### Fixed
 
@@ -28,11 +30,11 @@ A number written for a categorical axis is a place among its categories, counted
 
 - `pj/lay-errorbar` reports an error on `:y-min` or `:y-max` where the value is not a column of the layer's data, naming the mark, the key and the value, and on one bound given without the other. An errorbar reads both keys as columns, one bound per row; the same two keys take a written number on `pj/lay-band-h`, which shades one region between them.
 
-- A rule or a band gives no extent to the axis it spans. A rule names a value on one axis and reaches across the other, and across that other axis it reported `0` to `1`, which flattened a density drawn beside it. Reported in [#plotje > lay-rule-v regression ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/lay-rule-v.20regression.20.3F/) - thanks, @carstenbehring
+- A rule or a band gives no extent to the axis it spans. A rule names a value on one axis and reaches across the other, and across that other axis it reported `0` to `1`, which flattened a density drawn beside it. Reported in [#plotje > lay-rule-v regression ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/lay-rule-v.20regression.20.3F/) - thanks, @behrica
 
 - A pose carrying a hiccup tooltip conforms to the pose schema, so `pj/valid-pose?` answers true for one. A `:tooltip` is a string, shown as the text it spells, or a hiccup vector, drawn as markup.
 
-- A `:tooltip` or a `:brush` asked for on a format that draws no interaction warns and is dropped, and the figure still renders. Both are drawn by a browser reading the figure, so SVG is the only format that answers them. - thanks, @adriansmith
+- A `:tooltip` or a `:brush` asked for on a format that draws no interaction warns and is dropped, and the figure still renders. Both are drawn by a browser reading the figure, so SVG is the only format that answers them. - thanks, @phronmophobic
 
 - `pj/save` accepts a `java.io.File` as its path, which its docstring offers alongside a string.
 
@@ -65,7 +67,7 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 
 - `pj/arrange` accepts `:align-panels`, which gives every cell the same drawing area. Without it, cells whose y axes label at different widths get different panel widths, so an axis shared with `:share-scales` covers a different extent in each. - thanks, @timothypratley
 
-- `:circle-open` draws a point as a ring rather than a disc, so overlapping points stay countable where filled discs merge. Name it for a layer with `{:shape :circle-open}` or pass it among `:values` to a `:shape` scale; it is not handed out to categories automatically. (Closes #46) - thanks, @carstenbehring
+- `:circle-open` draws a point as a ring rather than a disc, so overlapping points stay countable where filled discs merge. Name it for a layer with `{:shape :circle-open}` or pass it among `:values` to a `:shape` scale; it is not handed out to categories automatically. (Closes #46) - thanks, @behrica
 
 ### Removed
 
@@ -73,7 +75,7 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 
 ### Changed
 
-- `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @carstenbehring
+- `:rule-h`, `:rule-v`, `:band-h` and `:band-v` are ordinary marks. Each travels among a panel's `:layers` in the order it was written, so draw order is layer order and the extent a rule writes reaches the axis. A panel's `:annotations` slot is gone, along with the `Annotation` schema; code that walked a plan for these four reads `:layers` instead. (Closes #48) - thanks, @behrica
 
 - The `:annotation-stroke` configuration key is `:rule-color`, so no part of the public API still calls these four marks annotations. Under the old name Plotje warns and the warning names the new key.
 
@@ -85,7 +87,7 @@ Rules and bands are ordinary layers. `:rule-h`, `:rule-v`, `:band-h` and `:band-
 
 - A date axis widened by a rule or a band is ticked across its whole width. A date axis picks its ticks over the extent its data covers, and the value a rule or a band writes now reaches that extent as well as the axis domain.
 
-- A thin filled shape is drawn rather than dropped. Plotje asks the renderer to snap a filled shape's edges to device pixels only where the shape is at least one drawing unit across in both directions, and leaves anything thinner to anti-alias, so a narrow bar draws faintly instead of vanishing and two bars of different widths look different. The change is one SVG attribute: `shape-rendering="crispEdges"` is now conditional on that extent, and the numbers in the polygon's `points` are what they always were. PNG never set the attribute and is unaffected. Reported in [#plotje > missing bar char variant ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/missing.20bar.20char.20variant.20.3F/) - thanks, @carstenbehring
+- A thin filled shape is drawn rather than dropped. Plotje asks the renderer to snap a filled shape's edges to device pixels only where the shape is at least one drawing unit across in both directions, and leaves anything thinner to anti-alias, so a narrow bar draws faintly instead of vanishing and two bars of different widths look different. The change is one SVG attribute: `shape-rendering="crispEdges"` is now conditional on that extent, and the numbers in the polygon's `points` are what they always were. PNG never set the attribute and is unaffected. Reported in [#plotje > missing bar char variant ?](https://clojurians.zulipchat.com/#narrow/channel/610149-plotje/topic/missing.20bar.20char.20variant.20.3F/) - thanks, @behrica
 
 - A break written with `pj/scale :breaks` on a log scale is written to six significant digits rather than as the double holds it. The breaks a log axis picks for itself are unchanged.
 

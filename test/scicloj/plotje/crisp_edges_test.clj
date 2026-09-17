@@ -8,7 +8,7 @@
    so a bar narrower than one pixel has both its edges snapped to the
    same place and disappears.
 
-   Reported by @carstenbehring on #plotje 2026-09-07, while drawing a
+   Reported by @behrica on #plotje 2026-09-07, while drawing a
    needle plot with `:bar-width`: \"due to rounding errors it sometimes
    will go to width=0, instead of width=1\". The geometry was never
    wrong -- the SVG carried the right coordinates the whole time -- so

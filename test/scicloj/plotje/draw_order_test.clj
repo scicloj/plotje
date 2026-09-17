@@ -67,7 +67,7 @@
                                    (pj/lay-point :height :weight dot))))))))
 
 (deftest issue-48-two-rules-written-before-the-points
-  ;; The shape @carstenbehring reported: a horizontal rule, a vertical
+  ;; The shape @behrica reported: a horizontal rule, a vertical
   ;; rule, then the points -- "so I would expect that points are on top
   ;; of lines, but I see the opposite". Both rules cross at the datum,
   ;; so the pixel there is the point's white if the points were drawn

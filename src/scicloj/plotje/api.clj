@@ -2396,7 +2396,7 @@
 
 (defn lay-rule-h
   "Add `:rule-h` layer -- horizontal reference line at y = y-intercept.
-   Position comes from opts (not data columns); `:y-intercept` is required.
+   The value is written in opts rather than read from a column; `:y-intercept` is required.
    Accepts `:y-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
    Instant, java.util.Date), `:color` (a written color), `:alpha` (the
    line's opacity), `:size` (its width) and `:stroke-dash`
@@ -2424,7 +2424,7 @@
 
 (defn lay-rule-v
   "Add `:rule-v` layer -- vertical reference line at x = x-intercept.
-   Position comes from opts (not data columns); `:x-intercept` is required.
+   The value is written in opts rather than read from a column; `:x-intercept` is required.
    Accepts `:x-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
    Instant, java.util.Date), `:color` (a written color), `:alpha` (the
    line's opacity), `:size` (its width) and `:stroke-dash`
@@ -2452,7 +2452,7 @@
 
 (defn lay-band-h
   "Add `:band-h` layer -- horizontal shaded band between y = y-min and y = y-max.
-   Position comes from opts (not data columns); `:y-min` and `:y-max` are
+   The bounds are written in opts rather than read from a column; `:y-min` and `:y-max` are
    required and `:y-min` must be <= `:y-max`.
    Accepts `:y-min` (required), `:y-max` (required), `:color` (a
    written color) and `:alpha`. Bounds may be numeric or temporal
@@ -2477,7 +2477,7 @@
 
 (defn lay-band-v
   "Add `:band-v` layer -- vertical shaded band between x = x-min and x = x-max.
-   Position comes from opts (not data columns); `:x-min` and `:x-max` are
+   The bounds are written in opts rather than read from a column; `:x-min` and `:x-max` are
    required and `:x-min` must be <= `:x-max`.
    Accepts `:x-min` (required), `:x-max` (required), `:color` (a
    written color) and `:alpha`. Bounds may be numeric or temporal
