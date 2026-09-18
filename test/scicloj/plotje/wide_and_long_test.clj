@@ -268,32 +268,50 @@
 
 ;; ---- The panel split says what it did ----
 
+(defn- note-of
+  "What a pose says when it is drawn. The split is settled at draft
+   time, where `:overlay` is read, so the note is said there -- capturing
+   it around the `lay-*` calls would catch nothing."
+  [pose]
+  (with-out-str (pj/plot pose)))
+
 (deftest the-panel-split-reports-itself-test
   (testing "two layers disagreeing about an axis get a panel each, and say so"
-    (let [out (with-out-str
-                (-> sales (pj/lay-point :quarter :revenue)
-                    (pj/lay-point :quarter :cost)))]
+    (let [out (note-of (-> sales (pj/lay-point :quarter :revenue)
+                           (pj/lay-point :quarter :cost)))]
       (is (re-find #"panel of its own" out))
       (is (re-find #"pj/overlay" out) "one onward route")
       (is (re-find #"\[:revenue :cost\]" out) "and the other, spelled")))
 
   (testing "nothing is said where the layers agree"
-    (is (= "" (with-out-str (-> sales (pj/lay-point :quarter :revenue)
-                                (pj/lay-line :quarter :revenue))))))
+    (is (= "" (note-of (-> sales (pj/lay-point :quarter :revenue)
+                           (pj/lay-line :quarter :revenue))))))
 
   (testing "nothing is said under pj/overlay, which asked for one panel"
-    (is (= "" (with-out-str (-> sales pj/overlay
-                                (pj/lay-point :quarter :revenue)
-                                (pj/lay-point :quarter :cost))))))
+    (is (= "" (note-of (-> sales pj/overlay
+                           (pj/lay-point :quarter :revenue)
+                           (pj/lay-point :quarter :cost))))))
+
+  ;; Said at draft rather than at the call, so a pj/overlay written after
+  ;; the layers is read before the note is decided. Said at the call, the
+  ;; note stated an outcome that pj/overlay then changed.
+  (testing "nothing is said where pj/overlay comes after the layers"
+    (is (= "" (note-of (-> sales (pj/lay-point :quarter :revenue)
+                           (pj/lay-point :quarter :cost)
+                           pj/overlay)))))
+
+  (testing "nothing is said where the layer opts itself in"
+    (is (= "" (note-of (-> sales (pj/lay-point :quarter :revenue)
+                           (pj/lay-point :quarter :cost {:overlay true}))))))
 
   ;; The series route is named only where following it draws. The note
   ;; used to name it on every split, and both cases below reported a
   ;; missing column or left a disagreement standing.
   (testing "the series route is not offered where the layer brings its own data"
-    (let [out (with-out-str
-                (-> {:fitted [1 2 3] :residual [1 2 3]}
-                    (pj/lay-point :fitted :residual)
-                    (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))]
+    (let [out (note-of
+               (-> {:fitted [1 2 3] :residual [1 2 3]}
+                   (pj/lay-point :fitted :residual)
+                   (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))]
       (is (re-find #"panel of its own" out))
       (is (re-find #"pj/overlay" out) "the route that does apply")
       (is (not (re-find #"series" out))
@@ -301,9 +319,8 @@
 
   (testing "the series route is not offered where both axes disagree"
     (let [wide (assoc sales :units [3 4 5 6])
-          out (with-out-str
-                (-> wide (pj/lay-point :revenue :cost)
-                    (pj/lay-point :quarter :units)))]
+          out (note-of (-> wide (pj/lay-point :revenue :cost)
+                           (pj/lay-point :quarter :units)))]
       (is (re-find #"panel of its own" out))
       (is (not (re-find #"series" out))
           "a call takes one series, so the second disagreement would stand")))

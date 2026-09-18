@@ -2877,13 +2877,17 @@
       ;; notes itself -- that is this call saying what it did, not a
       ;; complaint about `:bins`. What must not appear is an option
       ;; warning.
-      (let [out (with-out-str
-                  (-> data
-                      (pj/lay-histogram :x {:bins 3})
-                      (pj/lay-histogram :z)))]
-        (is (not (re-find #"(?i)warning" out)))
-        (is (not (re-find #":bins" out)))
-        (is (re-find #"panel of its own" out))))
+      ;; The split note is said where the split is decided, which is at
+      ;; draft time -- capturing around the lay-* calls catches nothing.
+      (let [pose (-> data
+                     (pj/lay-histogram :x {:bins 3})
+                     (pj/lay-histogram :z))
+            built (with-out-str pose)
+            drawn (with-out-str (pj/plot pose))]
+        (is (not (re-find #"(?i)warning" built)))
+        (is (not (re-find #"(?i)warning" drawn)))
+        (is (not (re-find #":bins" drawn)))
+        (is (re-find #"panel of its own" drawn))))
 
     (testing "a typo on a layer still warns"
       (let [out (with-out-str

@@ -558,9 +558,9 @@
                                 (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
                                    (disj (:colors s) "none")))))])
 
-;; **Fix**: Add `pj/overlay` before the layers. Every layer added after
-;; it goes on the panel it is added to, keeping its own columns, and
-;; the axis covers every column drawn on it:
+;; **Fix**: Add `pj/overlay` to the pose. Its layers are drawn on one
+;; panel, each keeping its own columns, and the axis covers every column
+;; drawn on it:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     pj/overlay

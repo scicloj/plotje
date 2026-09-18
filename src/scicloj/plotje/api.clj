@@ -3212,8 +3212,9 @@
                        :panels (count (pose/leaf-panel-keys fr))})))))
 
 (defn overlay
-  "Mark a pose so that every `lay-*` added after it joins the panel it is
-   added to, instead of starting a new one.
+  "Mark a pose so that its layers are drawn on one panel, instead of a
+   layer naming columns the panel does not draw taking a panel of its
+   own.
 
    A layer naming columns the panel does not draw cannot share that
    panel's axes, so by default it becomes a panel of its own. That is
@@ -3228,10 +3229,15 @@
    axis is named for the panel's own column, so overlaying two
    differently named columns leaves the axis named for the first.
 
-   `{:overlay false}` on one `lay-*` call opts that layer out, and
-   `(pj/overlay pose false)` turns it off from there on. A layer whose
-   columns already match the panel is unaffected -- it was joining
-   anyway.
+   `pj/overlay` says the same thing wherever in a pipeline it is
+   written. It is read where the panels are decided rather than where a
+   layer is added, so writing it after the layers draws what writing it
+   before them draws.
+
+   `{:overlay true}` on one `lay-*` call joins that layer alone,
+   `{:overlay false}` opts one layer out, and `(pj/overlay pose false)`
+   turns it off for the pose. A layer whose columns already match the
+   panel is unaffected -- it was joining anyway.
 
    Where the columns are written makes no difference: an `:x` or `:y` in
    the options map asks for a panel exactly as one in an argument slot

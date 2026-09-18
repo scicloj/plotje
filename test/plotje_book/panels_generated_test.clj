@@ -136,6 +136,4 @@
 
 (deftest
  t29_l159
- (is
-  ((fn [m] (re-find #"not yet supported on composite poses" m))
-   v28_l151)))
+ (is ((fn [m] (re-find #"draw on more than one panel" m)) v28_l151)))

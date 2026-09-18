@@ -455,7 +455,7 @@ dashboard
 ;;
 ;; The second way is to say outright that you meant an overlay, and
 ;; leave the incoming columns alone. `pj/overlay` marks the pose, and
-;; every layer added after it joins the panel:
+;; its layers are drawn on one panel:
 
 (-> overlay-base
     (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -487,14 +487,15 @@ dashboard
 ;; ### Separate sub-pose for the new layer
 ;;
 ;; To put the new layer on its own panel, name the layer's
-;; columns directly. When the new layer's position does not match
-;; the existing one, the pose splits into two panels: the original
-;; leaf becomes panel-1, and a new sub-pose carrying the new
-;; position and the new layer becomes panel-2. The default `:matrix`
-;; layout places a panel by its columns -- `:x` picks the column of
-;; the grid, `:y` picks the row -- so two panels naming four different
-;; columns sit on the diagonal of a two-by-two grid and the other two
-;; cells stay empty. This promotion is specified as Rule
+;; columns directly. When the new layer's columns do not match the
+;; existing ones, the pose draws two panels: one for the columns it
+;; already had, one for the columns the layer names. The layer keeps
+;; its own columns and the pose stays a leaf -- which panels a leaf
+;; draws is settled at draft time, where `:overlay` is read. A panel is
+;; placed by its columns: `:x` picks the column of the grid, `:y` picks
+;; the row, so two panels naming four different columns sit on the
+;; diagonal of a two-by-two grid and the other two cells stay empty.
+;; This split is specified as Rule
 ;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html#rule-lp2-position-carrying-lay--attaches-to-the-dfs-last-matching-leaf) chapter.
 
 (-> overlay-base
@@ -508,8 +509,9 @@ dashboard
            (= 6 (:points s))
            ;; The two-by-two grid the prose describes: two distinct
            ;; x columns give two grid columns, two distinct y columns
-           ;; give two rows, and only two of the four cells are filled.
-           (= [2 2] ((juxt :n-rows :n-cols) (:chrome (pj/plan v))))
+           ;; give two rows, and only two of the four cells are filled --
+           ;; the two that are, on the diagonal.
+           (= [[0 0] [1 1]] (mapv (juxt :row :col) (:panels (pj/plan v))))
            ;; The same two colours as the two examples above, so the
            ;; three outcomes can be compared mark for mark.
            (= #{"rgb(55,126,184)" "rgb(230,85,13)"}

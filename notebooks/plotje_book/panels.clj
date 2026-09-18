@@ -86,8 +86,8 @@
 
 ;; Laying on columns the pose does not have is the way that arrives
 ;; unasked, so there is a way to say you meant an overlay. `pj/overlay`
-;; marks a pose, and every layer added after it joins the panel it is
-;; added to rather than starting a panel of its own:
+;; marks a pose, and its layers are drawn on one panel rather than one
+;; of them starting a panel of its own:
 
 (-> measurements
     pj/overlay
@@ -143,10 +143,10 @@
 
 ;; ## Where the two do not combine
 
-;; Faceting applies to a leaf. A pose that already has more than one
-;; leaf -- from either of the ways above -- cannot also be faceted,
-;; because the facet grid and the composite layout would each want to
-;; be the plot's grid:
+;; Faceting applies to a pose that draws one panel. A pose that already
+;; draws more than one -- from either of the ways above -- cannot also
+;; be faceted, because the facet grid and the panels the pose already
+;; has would each want to be the plot's grid:
 
 (try
   (-> measurements
@@ -157,7 +157,7 @@
   (catch Exception e (ex-message e)))
 
 (kind/test-last
- [(fn [m] (re-find #"not yet supported on composite poses" m))])
+ [(fn [m] (re-find #"draw on more than one panel" m))])
 
 ;; Facet each pose before arranging them, rather than arranging first.
 

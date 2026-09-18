@@ -68,19 +68,47 @@
       (is (contains? texts "55"))
       (is (not (contains? texts "humidity"))))))
 
-(deftest overlay-is-not-carried-onto-the-layer-test
-  (testing ":overlay says where the layer goes and is not kept on it"
-    (let [pose (-> wealth
-                   pj/overlay
-                   (pj/lay-bar :growth :cohort)
-                   (pj/lay-bar :tax :cohort))]
-      (is (every? #(not (contains? % :overlay)) (:layers pose)))
-      (is (true? (:overlay pose)))))
-  (testing "a per-layer flag leaves no trace either"
-    (is (every? #(not (contains? % :overlay))
-                (:layers (-> wealth
+(deftest overlay-is-read-at-draft-time-test
+  ;; `:overlay` used to be read where the layer was added, and the pose
+  ;; structure recorded where it landed. That made `pj/overlay` the one
+  ;; step in the pipeline whose placement in a thread changed the result.
+  ;; It is carried now and read at draft time, beside every other mapping.
+  (testing "a pose-level flag stays on the pose"
+    (is (true? (:overlay (-> wealth
+                             pj/overlay
                              (pj/lay-bar :growth :cohort)
-                             (pj/lay-bar :tax :cohort {:overlay true})))))))
+                             (pj/lay-bar :tax :cohort))))))
+
+  (testing "a per-layer flag is kept on the layer, for draft to read"
+    (let [layers (:layers (-> wealth
+                              (pj/lay-bar :growth :cohort)
+                              (pj/lay-bar :tax :cohort {:overlay true})))]
+      (is (not (contains? (first layers) :overlay)))
+      (is (true? (:overlay (second layers))))))
+
+  (testing "pj/overlay says the same thing wherever in a thread it is written"
+    (let [before (-> wealth
+                     pj/overlay
+                     (pj/lay-bar :growth :cohort)
+                     (pj/lay-bar :tax :cohort))
+          after  (-> wealth
+                     (pj/lay-bar :growth :cohort)
+                     (pj/lay-bar :tax :cohort)
+                     pj/overlay)]
+      (is (= 1 (panels before)))
+      (is (= 1 (panels after)))
+      ;; The same picture, not merely the same panel count.
+      (is (= (pj/plot before) (pj/plot after)))))
+
+  (testing "a mapping written after a layer already applied to it, and now :overlay does too"
+    (is (= (pj/plot (-> weather
+                        pj/overlay
+                        (pj/lay-line :day :reading)
+                        (pj/lay-line :day :humidity)))
+           (pj/plot (-> weather
+                        (pj/lay-line :day :reading)
+                        (pj/lay-line :day :humidity)
+                        pj/overlay))))))
 
 (deftest overlay-on-a-composite-test
   (testing "a miss appends a panel without it, and joins the last leaf with it"

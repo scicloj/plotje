@@ -6,9 +6,18 @@ All notable changes to this project will be documented in this file. This change
 
 Several columns where one goes are read as several series. A dataset carrying one measure per column can be drawn without reshaping it by hand: `(pj/lay-bar :quarter [:revenue :cost] {:position :dodge})` pivots the columns, maps the key column it invents to `:color`, and draws the measures as groups of one layer -- so `:dodge`, `:stack` and `:fill` place them against each other, which two layers cannot do.
 
+`pj/overlay` says the same thing wherever in a pipeline it is written. It is read where the panels are decided rather than where a layer is added, so writing it after the layers draws what writing it before them draws. Every other mapping already read that way.
+
 ### Plots that look different after upgrading
 
-- **Every plot where two layers name different columns on one axis.** The layers still get a panel each, and the split now says so, naming the ways to ask for one panel instead: `pj/overlay`, always, and the single call that reads the two columns as series where one dataset carries both and only one axis disagrees. Plots are unchanged; what is new is a note on standard output.
+- **Every plot where two layers name different columns on one axis.** The layers still get a panel each, and the split now says so, naming the ways to ask for one panel instead: `pj/overlay`, always, and the single call that reads the two columns as series where one dataset carries both and only one axis disagrees. Plots are unchanged; what is new is a note on standard output, said when the pose is drawn rather than when a layer is added.
+
+- **Every plot where `pj/overlay` is written after the layers it covers.** The layers are drawn on one panel. `pj/overlay` used to apply only to layers added after it, so written at the end it did nothing.
+
+- **Every plot where `(pj/overlay pose false)` follows a `pj/overlay` on the same pose.** The pose does not overlay: the later call turns it off for the whole pose rather than for the layers after it, so layers added while it was on take a panel each as well. Write `{:overlay true}` in a layer's own options map to put that layer on the panel while others take their own.
+
+- **Every `pj/lay-*` whose columns match no panel of a leaf.** The pose stays a leaf holding the layer, where it used to become a composite of two sub-poses. The plot is the same -- the panels are worked out when the pose is drawn -- but code reading `:poses` after a `lay-*` call sees `:layers` instead.
+
 - **Every plot with `{:position :fill}` on a bar carrying a value column, or on an area.** The marks are drawn as proportions of the total at each place, between zero and one. The value axis already read `0` to `1`; the marks were the raw cumulative sum, so every series but the last was drawn far above the panel and could not be seen.
 - **Every stacked area over a categorical axis.** The bands follow the order the axis carries. They used to be sorted, so an area over month names drew a polygon zig-zagging between them. A numerical axis is still sorted.
 - **Every arranged plot where a cell sets its own `:theme`.** The cell is drawn with it. A per-cell theme used to be accepted and then dropped.
@@ -20,6 +29,10 @@ Several columns where one goes are read as several series. A dataset carrying on
 - A composite pose may hold a composite. `pj/pose` and `pj/arrange` used to refuse the shape, which `pose/compute-layout` has always drawn correctly at any depth and which `pj/arrange` builds itself for more than one row.
 
 - Several columns written on an appearance aesthetic report an error naming the aesthetic and the value, and say that several columns belong on `:x` or `:y`. `:color`, `:size` and `:alpha` used to report only that the plan did not conform to a schema. A vector on `:group` is still one compound key, and a vector on `:tooltip` is still hiccup.
+
+### Changed
+
+- `:overlay` is read where a leaf's panels are decided rather than where a layer is added, and a layer's own `:overlay` is carried on the layer for that reading. A leaf draws one panel per place its layers name, as it already drew one per facet value, so `pj/lay-*` no longer builds a composite. `pj/pose` with a position on a positioned leaf still builds one.
 
 ### Fixed
 

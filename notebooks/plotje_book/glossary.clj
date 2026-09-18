@@ -56,7 +56,9 @@ my-pose
 
 ;; ## Leaf Pose
 ;;
-;; A **leaf pose** is a pose that describes a single plot panel.
+;; A **leaf pose** is a pose with no sub-poses. It draws one panel per
+;; place its layers name -- usually one -- multiplied by the facet
+;; values where it is faceted.
 ;; It carries `:data`, a `:mapping` from columns to aesthetics, and
 ;; `:layers` -- the chart-type layers attached to it. Created by
 ;; `pj/pose` or `pj/lay-*`.
@@ -874,9 +876,10 @@ my-pose
 ;; already draws on. Layers naming the panel's own columns overlay it
 ;; without being asked. A layer naming other columns cannot share those
 ;; axes and becomes a panel of its own instead, so `pj/overlay` marks
-;; the pose to say an overlay was meant: every `pj/lay-*` added after it
-;; joins the panel it is added to, keeping its own columns, and each
-;; axis covers every column drawn on it.
+;; the pose to say an overlay was meant: its layers are drawn on one
+;; panel, each keeping its own columns, and each axis covers every
+;; column drawn on it. `pj/overlay` says the same thing wherever in a
+;; pipeline it is written.
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     pj/overlay

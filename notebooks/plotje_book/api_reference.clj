@@ -749,16 +749,14 @@
                            (and (= 1 (:panels s))
                                 (= 6 (:polygons s)))))])
 
-;; `(pj/overlay pose false)` turns it off from there on. The layers
-;; added while it was on stay where they joined, and the one added after
-;; it starts a panel of its own -- so `:tax` is drawn on the `growth`
-;; panel and `:spend` gets its own:
+;; `{:overlay true}` in one call's options map joins that layer alone,
+;; which is how some layers share a panel while others take one of their
+;; own -- `:tax` is drawn on the `growth` panel and `:spend` gets its
+;; own:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4] :spend [7 9 6]}
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
-    pj/overlay
-    (pj/lay-bar :tax :cohort {:color "#e6550d"})
-    (pj/overlay false)
+    (pj/lay-bar :tax :cohort {:color "#e6550d" :overlay true})
     (pj/lay-bar :spend :cohort {:color "#4daf4a"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -769,12 +767,27 @@
                                 ;; its own.
                                 (= #{"rgb(55,126,184)" "rgb(230,85,13)"
                                      "rgb(77,175,74)"}
-                                   (disj (:colors s) "none"))
-                                ;; Two layers on the growth panel, one
-                                ;; on the spend panel -- the switch
-                                ;; moved only the layer after it.
-                                (= [2 1] (mapv (comp count :layers)
-                                               (:poses v))))))])
+                                   (disj (:colors s) "none")))))])
+
+;; `pj/overlay` is read where the panels are decided rather than where a
+;; layer is written, so it says the same thing at either end of a
+;; pipeline. `(pj/overlay pose false)` turns overlaying off for the
+;; pose:
+
+[(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+     pj/overlay
+     (pj/lay-bar :growth :cohort)
+     (pj/lay-bar :tax :cohort)
+     pj/svg-summary
+     :panels)
+ (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+     (pj/lay-bar :growth :cohort)
+     (pj/lay-bar :tax :cohort)
+     pj/overlay
+     pj/svg-summary
+     :panels)]
+
+(kind/test-last [(fn [v] (= [1 1] v))])
 
 (kind/doc #'pj/marginal)
 

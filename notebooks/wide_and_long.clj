@@ -492,8 +492,17 @@ sales-long
 ;; The series route replaces the two calls with one, and is named only
 ;; where following it draws.
 
-(with-out-str
-  (-> sales (pj/lay-point :quarter :revenue) (pj/lay-point :quarter :cost)))
+;; The split is settled where `:overlay` is read, which is at draft
+;; time, so the note is said when the pose is drawn rather than when a
+;; layer is added.
+
+(defn note-of
+  "What a pose says when it is drawn."
+  [pose]
+  (with-out-str (pj/plot pose)))
+
+(note-of (-> sales (pj/lay-point :quarter :revenue)
+             (pj/lay-point :quarter :cost)))
 
 (kind/test-last
  [(fn [out] (and (re-find #"panel of its own" out)
@@ -501,14 +510,18 @@ sales-long
                  (re-find #"\[:revenue :cost\]" out)))])
 
 ;; Nothing is said where the layers agree, or under `pj/overlay`, which
-;; asked for one panel:
+;; asked for one panel -- and nothing where `pj/overlay` is written
+;; after the layers, which asks for the same thing:
 
-[(with-out-str (-> sales (pj/lay-point :quarter :revenue)
-                   (pj/lay-line :quarter :revenue)))
- (with-out-str (-> sales pj/overlay (pj/lay-point :quarter :revenue)
-                   (pj/lay-point :quarter :cost)))]
+[(note-of (-> sales (pj/lay-point :quarter :revenue)
+              (pj/lay-line :quarter :revenue)))
+ (note-of (-> sales pj/overlay (pj/lay-point :quarter :revenue)
+              (pj/lay-point :quarter :cost)))
+ (note-of (-> sales (pj/lay-point :quarter :revenue)
+              (pj/lay-point :quarter :cost)
+              pj/overlay))]
 
-(kind/test-last [(fn [outs] (= ["" ""] outs))])
+(kind/test-last [(fn [outs] (= ["" "" ""] outs))])
 
 ;; The series route has two conditions, and the note leaves it out
 ;; where either fails. The pivot reads one dataset, so where the layer
@@ -516,14 +529,14 @@ sales-long
 ;; call takes one series, so where both axes disagree the second
 ;; disagreement would be left standing.
 
-[(with-out-str
-   (-> {:fitted [1 2 3] :residual [1 2 3]}
-       (pj/lay-point :fitted :residual)
-       (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))
- (with-out-str
-   (-> (assoc sales :units [3 4 5 6])
-       (pj/lay-point :revenue :cost)
-       (pj/lay-point :quarter :units)))]
+[(note-of
+  (-> {:fitted [1 2 3] :residual [1 2 3]}
+      (pj/lay-point :fitted :residual)
+      (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))
+ (note-of
+  (-> (assoc sales :units [3 4 5 6])
+      (pj/lay-point :revenue :cost)
+      (pj/lay-point :quarter :units)))]
 
 (kind/test-last
  [(fn [outs] (every? (fn [out] (and (re-find #"panel of its own" out)

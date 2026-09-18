@@ -498,59 +498,61 @@
 ;; ============================================================
 ;;
 ;; When a leaf already carries position and `pj/lay-*` is called with
-;; a non-matching position, the leaf is promoted into a 2-panel
-;; composite. The original leaf's layers stay with panel-1; the new
-;; sub-pose carries the new position and the new layer. This is the
-;; lay-* analog of Pose Rule LP3 (which already handled the composite
-;; case the same way): distinct positional aesthetics mean distinct
-;; poses, applied symmetrically across leaf and composite inputs.
+;; a non-matching position, the layer joins the leaf carrying its own
+;; place, and the leaf draws a panel per place at draft time. `lay-*`
+;; does not restructure the pose: which panels a leaf draws is settled
+;; where `:overlay` is read, so that `pj/overlay` says the same thing
+;; wherever in a thread it is written.
 
-(deftest leaf-layer-non-matching-position-promotes-test
-  (testing "leaf with position, lay-* with non-matching position -- promotes"
+(deftest leaf-layer-non-matching-position-splits-at-draft-test
+  (testing "leaf with position, lay-* with non-matching position -- a panel each"
     (let [fr (-> iris
                  (pj/pose :a :b)
                  (pj/lay-point :c :d))]
-      (is (= 2 (count (:poses fr))))
-      (is (= {:x :a :y :b} (:mapping (first (:poses fr)))))
-      (is (= {:x :c :y :d} (:mapping (second (:poses fr)))))))
-  (testing "promotion keeps the original layer on panel-1 (not flowing root)"
+      (is (nil? (:poses fr)) "lay-* does not restructure the pose")
+      (is (= {:x :a :y :b} (:mapping fr)))
+      (is (= [{:x :c :y :d}] (mapv :mapping (:layers fr))))
+      ;; The pose's own place keeps its panel, with a mark inferred for
+      ;; it, as the promoted sub-pose it replaces did.
+      (is (= 2 (:panels (pj/svg-summary fr))))))
+  (testing "each layer keeps its own place, and each place gets a panel"
     (let [fr (-> iris
                  (pj/lay-point :a :b)
                  (pj/lay-point :c :d))]
-      (is (nil? (:layers fr)))
-      (is (= 1 (count (:layers (first (:poses fr))))))
-      (is (= 1 (count (:layers (second (:poses fr))))))))
+      (is (nil? (:poses fr)))
+      (is (= [{:x :a :y :b} {:x :c :y :d}] (mapv :mapping (:layers fr))))
+      (is (= 2 (:panels (pj/svg-summary fr))))))
   (testing "matching position passes -- redundant :mapping on the layer is fine"
     (let [f (-> iris
                 (pj/pose :a :b)
                 (pj/lay-point :a :b))]
       (is (= {:x :a :y :b} (:mapping f)))
-      (is (= 1 (count (:layers f))))))
-  (testing "string vs keyword: distinct column references, so promotes"
+      (is (= 1 (count (:layers f))))
+      (is (= 1 (:panels (pj/svg-summary f))))))
+  (testing "string vs keyword: distinct column references, so a panel each"
     ;; Layer-level :data with string-named columns makes the safety
-    ;; check pass: the new sub-pose has columns "a" and "b" to map
-    ;; to. Without it, the safety check correctly notes that strings
+    ;; check pass: the new panel has columns "a" and "b" to map to.
+    ;; Without it, the safety check correctly notes that strings
     ;; "a"/"b" do not match the iris dataset's keyword columns.
     (let [fr (-> iris
                  (pj/pose :a :b)
                  (pj/lay-point "a" "b"
                                {:data (tc/dataset {"a" [1 2] "b" [1 2]})}))]
-      (is (= 2 (count (:poses fr))))
-      (is (= {:x :a :y :b} (:mapping (first (:poses fr)))))
-      (is (= {:x "a" :y "b"} (:mapping (second (:poses fr))))))))
+      (is (nil? (:poses fr)))
+      (is (= {:x :a :y :b} (:mapping fr)))
+      (is (= [{:x "a" :y "b"}] (mapv :mapping (:layers fr))))
+      (is (= 2 (:panels (pj/svg-summary fr)))))))
 
-(deftest promotion-keeps-a-layers-own-mapping-test
-  ;; Promotion stamps the leaf's position onto a layer that names
-  ;; none, so promote-leaf keeps that layer with panel-1. The stamp
-  ;; merges into the layer's mapping rather than replacing it: a
-  ;; layer's aesthetics and its layer-type options share that slot,
+(deftest a-split-keeps-a-layers-own-mapping-test
+  ;; A layer that names no place is stamped with the leaf's when the
+  ;; first disagreement arrives, so it stays on the panel it was written
+  ;; for. The stamp merges into the layer's mapping rather than replacing
+  ;; it: a layer's aesthetics and its layer-type options share that slot,
   ;; and replacing it dropped every one of them in silence.
   (testing "an aesthetic written on the layer survives the split"
     (let [layer (-> iris
                     (pj/lay-point :a :b {:color "#377eb8"})
                     (pj/lay-point :c :d)
-                    :poses
-                    first
                     :layers
                     first)]
       (is (= {:x :a :y :b :color "#377eb8"} (:mapping layer)))))
@@ -569,8 +571,6 @@
     (let [layer (-> iris
                     (pj/lay-histogram :a {:bins 3})
                     (pj/lay-histogram :c)
-                    :poses
-                    first
                     :layers
                     first)]
       (is (= 3 (:bins (:mapping layer))))))
@@ -579,8 +579,6 @@
                     (pj/pose :a :b)
                     (pj/lay-point :a :b {:color "#377eb8"})
                     (pj/lay-point :c :d)
-                    :poses
-                    first
                     :layers
                     first)]
       (is (= {:x :a :y :b :color "#377eb8"} (:mapping layer))))))

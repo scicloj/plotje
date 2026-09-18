@@ -1954,8 +1954,19 @@
         ;; lands on. An empty :layers stands in as one placeholder layer,
         ;; which names no place and so draws on the leaf's own.
         panel-keys   (leaf-panel-keys (assoc leaf :layers applicable))
-        panel-idxs   (layer-panel-indices (assoc leaf :layers applicable)
+        base-idxs    (layer-panel-indices (assoc leaf :layers applicable)
                                           panel-keys)
+        ;; A pose whose own place no layer draws at keeps its panel, with
+        ;; a mark inferred for it -- `(-> data (pj/pose :a :b)
+        ;; (pj/lay-point :c :d))` draws a-against-b beside c-against-d.
+        ;; The promoted sub-pose this replaces got the same placeholder by
+        ;; being a leaf with a mapping and no layers.
+        orphan-own?  (and (position-mapping-key (:mapping leaf))
+                          (not (contains? (set (apply concat base-idxs)) 0)))
+        applicable   (cond-> applicable
+                       orphan-own? (conj {:layer-type :infer}))
+        panel-idxs   (cond-> base-idxs
+                       orphan-own? (conj [0]))
         n-panels     (count panel-keys)
         ;; Said once per draft, and only where the leaf's own layers made
         ;; the split -- a faceted leaf has many panels and no disagreement

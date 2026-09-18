@@ -71,8 +71,9 @@
 ;; - **Where the layer goes** -- `:overlay`, which says whether a layer
 ;;   naming columns the panel does not draw joins that panel or starts
 ;;   one of its own. It says where the layer goes rather than what it
-;;   draws, so it is read when the layer is placed and is not stored on
-;;   the layer. `pj/overlay` sets it for every layer added after it.
+;;   draws, and is read where the panels are decided rather than where
+;;   the layer is written. `pj/overlay` sets it for every layer of the
+;;   pose.
 ;;
 ;; The primary way to set them is in the options map of `pj/lay-*`:
 

@@ -404,8 +404,9 @@ two-panel
 ;; By default, a layer naming columns the panel does not draw starts a
 ;; panel of its own. That is right for two unrelated pairs of columns.
 ;; It is wrong for two measures that belong on one axis. `pj/overlay`
-;; turns the default off: every layer added after it joins the panel it
-;; is added to, keeping its own columns.
+;; turns the default off: the pose's layers are drawn on one panel,
+;; each keeping its own columns. `pj/overlay` says the same thing
+;; wherever in a pipeline it is written.
 ;;
 ;; Where the columns are written makes no difference: `{:y :tax}` in a
 ;; layer's options map asks for a panel exactly as `(pj/lay-bar :tax
