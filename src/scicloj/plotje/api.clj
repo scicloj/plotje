@@ -2195,56 +2195,6 @@
                (assoc group-key label))])))
     [fr position-mapping opts]))
 
-(defn- series-route-open?
-  "Whether a series answers this split, so the note can offer it.
-
-   Two conditions, and both were measured against the note that named
-   the series route unconditionally. The columns have to live in one
-   dataset, because the pivot reads one -- where the layer brings data
-   of its own, neither dataset carries both columns and the advice
-   reports a missing column instead of drawing. And only one axis may
-   disagree, because a call takes one series and a second disagreement
-   would be left standing; two vectors in the two slots are the paired
-   panels form, which draws the split the note is about."
-  [disagreements data]
-  (let [[_ incoming standing] (first disagreements)]
-    (and (= 1 (count disagreements))
-         (some? data)
-         (let [cols (set (tc/column-names (tc/dataset data)))]
-           (and (cols incoming) (cols standing))))))
-
-(defn- report-panel-split
-  "Say that a layer got a panel of its own, and name the ways to ask for
-   one panel instead.
-
-   The split is the library's answer to two layers that disagree about
-   what an axis holds, and it is the right answer for two unrelated
-   measures. It used to happen in silence, so a writer who meant them
-   to be read against one another saw a picture they had not asked for
-   and no reason for it.
-
-   The two routes answer different questions. `pj/overlay` draws the
-   second column against the axis the panel already has, and always
-   applies. Several columns in one slot pivot them into series that can
-   be dodged, piled or normalized against each other, and apply where
-   `series-route-open?` holds -- so the note names the series route only
-   where following it draws. The series replaces both calls with one,
-   which the note says outright: written as an edit to the second call
-   alone, the pose's mapping still names a column the pivot consumes,
-   and the call reports that instead."
-  [layer-name disagreements data]
-  (let [[axis incoming standing] (first disagreements)]
-    (println
-     (str "Note: lay-" layer-name " names " (pr-str incoming) " where this"
-          " panel draws " (pr-str standing) " on " axis ", so lay-"
-          layer-name " was given a panel of its own. To draw both on one"
-          " panel: pj/overlay for the axis the panel already has"
-          (when (series-route-open? disagreements data)
-            (str ", or one lay-" layer-name " call naming "
-                 (pr-str [standing incoming]) " on " axis
-                 " in place of the two calls, to read them as series"))
-          "."))))
-
 (defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
@@ -2277,14 +2227,21 @@
   (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
                           position-mapping)
   (let [built (elide-empty-maps (build-layer layer-type-key opts))
-        ;; `:overlay` says where the layer goes, so it is read here and
-        ;; not carried onto the layer: once the layer is placed, the pose
-        ;; structure is the record of where it landed. A layer's own
-        ;; `false` overrides a `pj/overlay` set further out.
+        ;; `:overlay` is carried onto the layer rather than read here.
+        ;; Which panel a layer draws on is settled at draft time, where
+        ;; the leaf's `:overlay` and the layer's own are read together --
+        ;; so `pj/overlay` says the same thing wherever in a thread it is
+        ;; written, as every mapping already does. Read here, it made the
+        ;; one construct in the pipeline whose placement changed the
+        ;; result.
+        ;;
+        ;; A composite is the exception: its cells are separate poses, so
+        ;; a layer added to one has to be placed now, and the pose's own
+        ;; flag is what says which cell.
         overlay? (boolean (if (contains? built :overlay)
                             (:overlay built)
                             (:overlay fr)))
-        bare-layer (dissoc built :overlay)
+        bare-layer built
         ;; A position written in the options map is the layer's own
         ;; mapping and stays there, and it decides which panel the layer
         ;; lands on exactly as one written in an argument slot does.
@@ -2303,7 +2260,13 @@
                       (pose/mapping-source (:y (:mapping fr))))]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
-      (add-leaf-layer-to-composite fr position-mapping bare-layer overlay?)
+      ;; The resolved flag rides onto the layer: it lands on a cell whose
+      ;; own mapping it may disagree with, and the cell decides its
+      ;; panels at draft time from what its layers carry.
+      (add-leaf-layer-to-composite fr position-mapping
+                                   (cond-> bare-layer
+                                     overlay? (assoc :overlay true))
+                                   overlay?)
 
       (and (seq position-mapping) (not pose-pos?))
       (-> fr
@@ -2325,90 +2288,83 @@
                                               (get leaf-mapping k))]
                                 :when (and pos-v leaf-v
                                            (not= pos-v leaf-v))]
-                            [k pos-v leaf-v])]
-        (when (and (seq disagreements) (not overlay?))
-          (report-panel-split (layer-type-name layer-type-key) disagreements
-                              ;; The dataset a series call written here
-                              ;; would read, which is the layer's own
-                              ;; where it brings one.
-                              (or (:data bare-layer) (:data fr))))
-        (if (and (seq disagreements) (not overlay?))
-          ;; Stamp the leaf's position onto each bare layer before
-          ;; promotion so promote-leaf treats them as panel-origin
-          ;; (they stay with the original panel) rather than root-
-          ;; origin (which would make them flow to the new panel and
-          ;; misuse its column refs). This is the lay-* analog of
-          ;; LP3: a non-matching position on a leaf creates a new
-          ;; sub-pose, not a layer that crosses panels.
-          ;;
-          ;; Through merge-mappings, and into the layer's own mapping:
-          ;; a layer's aesthetics and its layer-type options share that
-          ;; slot, so replacing it discards every one of them -- the
-          ;; colour, the `:bar-width`, the `:bins`. The layer names no
-          ;; position, which is why it is being stamped at all, so
-          ;; nothing it carries is overridden.
-          (let [;; A layer that names a y and no x -- which only an options
-                ;; map can write -- would go to a panel with no x at all.
-                ;; Every layer type draws along an x, so the panel it
-                ;; leaves supplies one, where the data the new sub-pose
-                ;; reads carries that column: `(-> data (pj/pose :X)
-                ;; (pj/lay-line {:y :Y}) (pj/lay-line {:y :Z}))` gives two
-                ;; panels over the same `:X`. The mirror case is left
-                ;; alone, because whether a layer type needs a y depends
-                ;; on the type -- a histogram named on x alone wants a
-                ;; panel with no y.
-                new-cols (when-let [d (or (:data bare-layer) (:data fr))]
-                           (set (tc/column-names d)))
-                leaf-x-col (pose/mapping-source (:x leaf-mapping))
-                position-mapping (if (and (pose/mapping-source (:y position-mapping))
-                                          (not (pose/mapping-source (:x position-mapping)))
-                                          leaf-x-col
-                                          (or (nil? new-cols)
-                                              (contains? new-cols leaf-x-col)))
-                                   (assoc position-mapping :x (:x leaf-mapping))
-                                   position-mapping)
-                leaf-pos (select-keys (:mapping fr) [:x :y])
-                stamped (update fr :layers
-                                (fn [ls]
-                                  (mapv (fn [l]
-                                          (if (layer-has-position? l)
-                                            l
-                                            (update l :mapping
-                                                    #(pose/merge-mappings
-                                                      leaf-pos (or % {})))))
-                                        (or ls []))))]
-            (check-new-sub-pose-columns layer-type-key position-mapping
-                                        bare-layer (:data fr))
-            (-> stamped
-                (promote-leaf position-mapping)
-                (add-leaf-layer-to-composite position-mapping bare-layer)
-                prepare-pose))
-          ;; The layer joins this leaf: it names the same columns, or an
-          ;; overlay was asked for. Where it names an axis the leaf does
-          ;; not name at all, the leaf takes that column, so that a later
-          ;; layer naming a different column for that axis disagrees with
-          ;; it rather than joining in silence. An overlay leaves the
-          ;; leaf's mapping as it was -- the axis keeps the name of the
-          ;; panel's own column.
-          (let [adopt (if overlay?
-                        {}
-                        (select-keys position-mapping
-                                     (remove #(pose/mapping-source
-                                               (get (:mapping fr) %))
-                                             [:x :y])))]
-            (cond-> fr
-              (seq adopt)
-              (update :mapping #(pose/merge-mappings (or % {}) adopt))
+                            [k pos-v leaf-v])
+            ;; Whether this call is the one that first divides the leaf.
+            ;; Bare layers already on it were written for the one panel it
+            ;; had, so they are stamped with that place and stay on it;
+            ;; bare layers written after this one draw on every panel,
+            ;; which is how a rule or a line added at the end annotates
+            ;; all of them.
+            splitting? (and (seq disagreements)
+                            (= 1 (count (pose/leaf-panel-keys fr))))
+            ;; A layer that names a y and no x -- which only an options
+            ;; map can write -- would draw at no x at all. Every layer type
+            ;; draws along an x, so the panel it leaves supplies one, where
+            ;; the data the new panel reads carries that column:
+            ;; `(-> data (pj/pose :X) (pj/lay-line {:y :Y})
+            ;; (pj/lay-line {:y :Z}))` gives two panels over the same `:X`.
+            ;; The mirror case is left alone, because whether a layer type
+            ;; needs a y depends on the type -- a histogram named on x
+            ;; alone wants a panel with no y.
+            new-cols (when-let [d (or (:data bare-layer) (:data fr))]
+                       (set (tc/column-names d)))
+            leaf-x-col (pose/mapping-source (:x leaf-mapping))
+            position-mapping (if (and (seq disagreements)
+                                      (pose/mapping-source (:y position-mapping))
+                                      (not (pose/mapping-source (:x position-mapping)))
+                                      leaf-x-col
+                                      (or (nil? new-cols)
+                                          (contains? new-cols leaf-x-col)))
+                               (assoc position-mapping :x (:x leaf-mapping))
+                               position-mapping)
+            leaf-pos (select-keys leaf-mapping [:x :y])
+            stamped (if splitting?
+                      ;; Through merge-mappings, and into the layer's own
+                      ;; mapping: a layer's aesthetics and its layer-type
+                      ;; options share that slot, so replacing it would
+                      ;; discard every one of them -- the colour, the
+                      ;; `:bar-width`, the `:bins`. The layer names no
+                      ;; place, which is why it is being stamped at all,
+                      ;; so nothing it carries is overridden.
+                      (update fr :layers
+                              (fn [ls]
+                                (mapv (fn [l]
+                                        (if (layer-has-position? l)
+                                          l
+                                          (update l :mapping
+                                                  #(pose/merge-mappings
+                                                    leaf-pos (or % {})))))
+                                      (or ls []))))
+                      fr)
+            ;; Where the layer names an axis the leaf does not name at
+            ;; all, the leaf takes that column, so that a later layer
+            ;; naming a different column for that axis disagrees with it
+            ;; rather than joining in silence. A layer that overlays
+            ;; leaves the leaf's mapping as it was -- the axis keeps the
+            ;; name of the panel's own column -- and so does one that
+            ;; already disagrees, which is taking a panel of its own.
+            adopt (if (or overlay? (seq disagreements))
+                    {}
+                    (select-keys position-mapping
+                                 (remove #(pose/mapping-source
+                                           (get leaf-mapping %))
+                                         [:x :y])))]
+        (when (seq disagreements)
+          (check-new-sub-pose-columns layer-type-key position-mapping
+                                      bare-layer (:data fr)))
+        (cond-> stamped
+          (seq adopt)
+          (update :mapping #(pose/merge-mappings (or % {}) adopt))
 
-              :always
-              (update :layers (fnil conj [])
-                      (elide-empty-maps
-                       ;; The layer's own mapping wins: an options map may
-                       ;; have written a value where the position names a
-                       ;; column, and `{:x 2.0}` on a label is the place
-                       ;; the label goes, not the panel's column.
-                       (update bare-layer :mapping
-                               #(merge position-mapping %))))))))
+          :always
+          (update :layers (fnil conj [])
+                  (elide-empty-maps
+                   ;; The layer's own mapping wins: an options map may
+                   ;; have written a value where the position names a
+                   ;; column, and `{:x 2.0}` on a label is the place
+                   ;; the label goes, not the panel's column.
+                   (update bare-layer :mapping
+                           #(merge position-mapping %))))))
 
       :else
       (update fr :layers (fnil conj []) bare-layer))))
@@ -3233,14 +3189,27 @@
                       {:caller caller :value v})))))
 
 (defn- reject-composite-for-facet
-  "Throw if the input is a composite pose. Facet on composites would
-   cross the facet grid with the composite grid, which is deferred."
+  "Throw where the facet grid would cross a grid the pose already has.
+
+   Two shapes do that. A composite pose has the composite layout. And a
+   leaf whose layers draw at more than one place has a panel per place,
+   which faceting would multiply -- a shape `lay-*` used to build as a
+   composite, refused here, and refused here still."
   [fr]
-  (when (and (pose? fr) (pose/composite? fr))
-    (throw (ex-info (str "pj/facet and pj/facet-grid are not yet supported on composite poses. "
-                         "The facet grid would cross the composite layout. "
-                         "Flatten to a single leaf.")
-                    {:pose-kind :composite}))))
+  (when (pose? fr)
+    (when (pose/composite? fr)
+      (throw (ex-info (str "pj/facet and pj/facet-grid are not yet supported on composite poses. "
+                           "The facet grid would cross the composite layout. "
+                           "Flatten to a single leaf.")
+                      {:pose-kind :composite})))
+    (when (< 1 (count (pose/leaf-panel-keys fr)))
+      (throw (ex-info (str "pj/facet and pj/facet-grid are not yet supported on a pose"
+                           " whose layers draw on more than one panel. The facet grid"
+                           " would cross the panels the layers already make. Draw one"
+                           " place per pose and arrange them, or use pj/overlay to put"
+                           " the layers on one panel.")
+                      {:pose-kind :multi-panel-leaf
+                       :panels (count (pose/leaf-panel-keys fr))})))))
 
 (defn overlay
   "Mark a pose so that every `lay-*` added after it joins the panel it is

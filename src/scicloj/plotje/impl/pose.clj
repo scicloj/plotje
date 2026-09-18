@@ -1763,6 +1763,151 @@
                           spec
                           (assoc spec :type (defaults/default-scale-type k)))])))
 
+(defn position-mapping-key
+  "A mapping's place, as `[x-source y-source]`, or nil where it names
+   neither."
+  [m]
+  (let [m (or m {})]
+    (when (or (contains? m :x) (contains? m :y))
+      [(mapping-source (:x m)) (mapping-source (:y m))])))
+
+(defn layer-position-key
+  "The place a layer draws at, as `[x-source y-source]` -- what decides
+   which panel it lands on. Nil where the layer names no place of its
+   own, which is what makes it draw on every panel.
+
+   Whether the layer names a place is read from its own `:mapping`: a
+   layer that names none is not choosing the leaf's, it is declining to
+   choose, and the two answers place it differently. The place itself is
+   read from the leaf's mapping merged with the layer's, so that a layer
+   naming one axis draws at the same place as one naming both."
+  [leaf-mapping layer data]
+  (let [own (or (:mapping layer) {})
+        ;; A written value is not a column: it places a mark on the panel
+        ;; the layer is added to and asks for no panel of its own, so
+        ;; `(pj/lay-text pose {:x 7.5 :y 4.2 :text "note"})` annotates the
+        ;; panel rather than starting one. The layer's data answers which
+        ;; of the two a value is -- the same question `leaf->draft` asks
+        ;; when it draws the layer, and the same rule `identity-columns`
+        ;; applies where the layer is added.
+        col-names (when data (try (set (tc/column-names (coerce-dataset data)))
+                                  (catch Exception _ nil)))
+        column? (fn [k]
+                  (and (contains? own k)
+                       (let [src (mapping-source (get own k))]
+                         (if col-names
+                           (contains? col-names src)
+                           (resolve/column-ref? src)))))
+        ;; Only the axes the layer names by column; an axis it writes a
+        ;; value at leaves the leaf's column standing, so a label at
+        ;; `{:x 2.0 :y :weight}` draws at the place the panel already has
+        ;; rather than asking for one whose x is the number 2.0.
+        cols (select-keys own (filterv column? [:x :y]))]
+    (when (seq cols)
+      (let [m (merge-mappings (or leaf-mapping {}) cols)]
+        [(mapping-source (:x m)) (mapping-source (:y m))]))))
+
+(defn layer-overlays?
+  "Whether a layer joins the panel the leaf's own mapping names, rather
+   than taking one of its own.
+
+   The layer's own `:overlay` answers first and the leaf's answers
+   otherwise, which is the same precedence every mapping has: written
+   nearer wins. Read here rather than where the layer was added, so that
+   `pj/overlay` says the same thing wherever in a thread it is written."
+  [leaf layer]
+  (boolean (if (contains? layer :overlay)
+             (:overlay layer)
+             (:overlay leaf))))
+
+(defn leaf-panel-keys
+  "The places a leaf draws at, in the order its layers first name them.
+   One entry per panel the leaf produces.
+
+   A layer that overlays, and a layer that names no position, name no
+   panel of their own -- the first joins the panel the leaf's mapping
+   names, and the second draws on all of them. Where no layer names a
+   place, the leaf draws one panel, which is the leaf's own mapping."
+  [leaf]
+  (let [own   (position-mapping-key (:mapping leaf))
+        named (->> (:layers leaf)
+                   (remove #(layer-overlays? leaf %))
+                   (keep #(layer-position-key (:mapping leaf) %
+                                              (or (:data %) (:data leaf)))))
+        ;; The leaf's own place leads, so that it stays panel 0 -- the
+        ;; panel an overlaying layer joins -- even where every layer that
+        ;; names a place of its own names a different one.
+        all   (vec (distinct (if own (cons own named) named)))]
+    (if (seq all) all [nil])))
+
+(defn layer-panel-indices
+  "The panels each layer of a leaf is drawn on, as a vector of index
+   vectors aligned with `(:layers leaf)`.
+
+   A layer that names a place is drawn on the panel for that place. A
+   layer that overlays is drawn on the first panel, which is the one the
+   leaf's own mapping names. A layer that names no place is drawn on
+   every panel -- the rule that lets a bare `lay-*` added after a split
+   annotate all of them."
+  [leaf panel-keys]
+  (let [all (vec (range (count panel-keys)))
+        index-of (zipmap panel-keys (range))]
+    (mapv (fn [layer]
+            (cond
+              (layer-overlays? leaf layer) [0]
+              (nil? (layer-position-key (:mapping leaf) layer
+                                        (or (:data layer) (:data leaf)))) all
+              :else [(get index-of (layer-position-key (:mapping leaf) layer
+                                                       (or (:data layer) (:data leaf)))
+                          0)]))
+          (:layers leaf))))
+
+(defn ^:dynamic report-panel-split
+  "Say that a leaf drew more than one panel, and name the ways to ask
+   for one instead.
+
+   The split is the library's answer to layers that disagree about what
+   an axis holds, and it is the right answer for two unrelated measures.
+   It used to happen in silence, so a writer who meant them to be read
+   against one another saw a picture they had not asked for and no
+   reason for it.
+
+   Said here rather than at the `lay-*` call, because here is where the
+   split is decided: `:overlay` is read at draft time, so a note printed
+   as a layer was added would state an outcome a later `pj/overlay` can
+   still change. Every other warning in the library is emitted at this
+   stage for the same reason.
+
+   Two routes, and the second is named only where following it draws.
+   `pj/overlay` puts the layers on the panel the leaf's own mapping
+   names and always applies. Several columns in one slot pivot them into
+   series that can be dodged, piled or normalized against each other,
+   which needs one dataset carrying both columns and one axis
+   disagreeing -- a call takes one series, so a second disagreement
+   would be left standing."
+  [panel-keys data]
+  (let [[[x0 y0] [x1 y1]] panel-keys
+        [axis standing incoming] (cond
+                                   (not= x0 x1) [:x x0 x1]
+                                   (not= y0 y1) [:y y0 y1])
+        both-there? (and axis data
+                         (let [cols (set (tc/column-names (tc/dataset data)))]
+                           (and (cols standing) (cols incoming))))
+        series? (and (= 2 (count panel-keys))
+                     (if (= axis :x) (= y0 y1) (= x0 x1))
+                     both-there?)]
+    (when axis
+      (println
+       (str "Note: a layer names " (pr-str incoming) " where this pose draws "
+            (pr-str standing) " on " axis ", so the layer was given a panel of"
+            " its own. To draw both on one panel: pj/overlay for the axis the"
+            " pose already names"
+            (when series?
+              (str ", or one lay-* call naming " (pr-str [standing incoming])
+                   " on " axis " in place of the two calls, to read them as"
+                   " series"))
+            ".")))))
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -1785,9 +1930,12 @@
 
    Data precedence: layer :data > leaf :data.
 
-   Every emitted draft carries :__panel-idx 0 because a single leaf is
-   a single panel; plan.clj uses the key to group layers by panel, and
-   a leaf has no sub-panel structure."
+   :__panel-idx is the panel a draft entry belongs to, which plan.clj
+   groups by. A leaf draws one panel per place its layers name -- see
+   `leaf-panel-keys` -- and faceting multiplies those, so the index is
+   the facet variant crossed with the place. A layer that names no place
+   is emitted once per panel, which is how a bare `lay-*` annotates all
+   of them."
   [leaf]
   (let [leaf-mapping (or (:mapping leaf) {})
         leaf-data    (:data leaf)
@@ -1801,10 +1949,23 @@
                        (seq layers) layers
                        (seq leaf-mapping) [{:layer-type :infer}]
                        :else [])
-        variants     (facet-variants leaf-data (:facet-col opts) (:facet-row opts))]
+        variants     (facet-variants leaf-data (:facet-col opts) (:facet-row opts))
+        ;; The places this leaf draws at, and which of them each layer
+        ;; lands on. An empty :layers stands in as one placeholder layer,
+        ;; which names no place and so draws on the leaf's own.
+        panel-keys   (leaf-panel-keys (assoc leaf :layers applicable))
+        panel-idxs   (layer-panel-indices (assoc leaf :layers applicable)
+                                          panel-keys)
+        n-panels     (count panel-keys)
+        ;; Said once per draft, and only where the leaf's own layers made
+        ;; the split -- a faceted leaf has many panels and no disagreement
+        ;; to report.
+        _            (when (and (> n-panels 1) (seq (:layers leaf)))
+                       (report-panel-split panel-keys leaf-data))]
     (vec
      (for [[variant-idx variant] (map-indexed vector variants)
-           layer applicable]
+           [layer-idx layer] (map-indexed vector applicable)
+           panel-idx (nth panel-idxs layer-idx)]
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
              layer-mapping    (or (:mapping layer) {})
              layer-structural (select-keys layer [:stat :position :mark])
@@ -1834,7 +1995,10 @@
          (validate-unscaled-channel-options resolved opts)
          (-> resolved
              (assoc :data d
-                    :__panel-idx variant-idx)
+                    ;; The facet variant is the outer division and the
+                    ;; place the inner one, so panels of one variant stay
+                    ;; together and plan.clj's grid reads them in order.
+                    :__panel-idx (+ (* variant-idx n-panels) panel-idx))
              (merge (layer-scale-specs resolved))
              (cond->
               coord-type  (assoc :coord coord-type)
