@@ -168,10 +168,15 @@
         ;; stroke and the rule colour -- did nothing once the same pose was
         ;; arranged. Tooltip stays per cell: it is decided on each
         ;; sub-plot's own plan, not on the composite.
-        leaf-trees (mapv (fn [{:keys [plan rect]}]
+        ;; The cell's own options win over the composite's, so a
+        ;; `:theme` set on one cell reaches it. Without that merge a
+        ;; per-cell render-stage option was accepted by `pj/options`
+        ;; and then had no effect once the cell was arranged.
+        leaf-trees (mapv (fn [{:keys [plan rect] cell-opts :opts}]
                            (let [tree (membrane/plan->membrane
                                        plan
-                                       (assoc opts :tooltip (boolean (:tooltip plan))))
+                                       (-> (merge opts cell-opts)
+                                           (assoc :tooltip (boolean (:tooltip plan)))))
                                  [x y _ _] rect]
                              (ui/translate (double x) (double y) tree)))
                          sub-plots)

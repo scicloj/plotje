@@ -578,12 +578,13 @@ dashboard
 ;;   disagree -- or when only some leaves carry the aesthetic, as
 ;;   in the dashboard above -- each leaf with that aesthetic
 ;;   renders its own legend.
-;; - **Multi-row layouts go through `pj/arrange`.** Both `pj/arrange`
-;;   and the explicit-map form accept only leaf cells; a row of rows
-;;   or column of rows is built by passing nested vectors of leaves
-;;   to `pj/arrange` (the dashboard example above shows the shape).
-;;   Nested composites (a sub-pose that is itself composite) are out
-;;   of scope today.
+;; - **Multi-row layouts go through `pj/arrange`.** A row of rows is
+;;   built by passing nested vectors of poses to `pj/arrange` (the
+;;   dashboard example above shows the shape). A cell may be a
+;;   composite itself, so an arranged pose can be arranged again and
+;;   the cell draws its own grid. Unequal cell weights are the one
+;;   layout feature `pj/arrange` does not reach: write `:weights` in
+;;   a literal composite map and pass the map to `pj/pose`.
 
 ;; The legend note is the one to see rather than take on trust. Both
 ;; cells below map `:color` to the same column, so the two legends
@@ -605,6 +606,22 @@ dashboard
                       (-> (rdatasets/datasets-iris)
                           (pj/lay-point :petal-length :petal-width {:color :species}))])
                     pj/plan :chrome :shared-aesthetics))))])
+
+;; A cell that is itself a composite draws its own grid. Here the left
+;; cell holds two panels of its own and the right cell holds one, so
+;; the arranged pose draws three panels in two columns:
+
+(pj/arrange
+ [(pj/arrange
+   [(-> (rdatasets/datasets-iris)
+        (pj/lay-point :sepal-length :sepal-width))
+    (-> (rdatasets/datasets-iris)
+        (pj/lay-point :petal-length :petal-width))]
+   {:cols 1})
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-histogram :sepal-length))])
+
+(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
 ;; ## What's Next
 ;;

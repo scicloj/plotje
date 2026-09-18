@@ -129,9 +129,25 @@
 
 (deftest a-literal-still-rejects-what-is-neither
   (testing "the helpful error survives for values that are no kind of position"
+    ;; A vector of numbers is no kind of position: it names no column and
+    ;; places no mark.
     (is (thrown-with-msg?
          Exception #"must be a column reference"
-         (pj/lay-text scatter {:x [:a :b] :y 1 :text "x"})))))
+         (pj/lay-text scatter {:x [5 5] :y 1 :text "x"})))
+    (is (thrown-with-msg?
+         Exception #"must be a column reference"
+         (pj/lay-text scatter {:x true :y 1 :text "x"}))))
+
+  (testing "a vector of column references is a series, and is read as one"
+    ;; It used to fall in with the values above. Several columns where one
+    ;; goes is a request the library answers now, so what is reported is
+    ;; that the data does not have them -- naming the ones it does.
+    (is (thrown-with-msg?
+         Exception #"the data does not have \[:a :b\]"
+         (pj/lay-text scatter {:x [:a :b] :y 1 :text "x"})))
+    (is (= 1 (:panels (pj/svg-summary
+                       (pj/lay-point {:q ["a" "b"] :lo [1 2] :hi [3 4]}
+                                     :q [:lo :hi])))))))
 
 ;; ---- Drawing space ----
 

@@ -302,6 +302,82 @@
                     {:caller "pj/cross" :xs xs :ys ys})))
   (resolve/cross xs ys))
 
+;; ---- Series: the wide-side reading of a grouping ----
+
+(def ^:private default-series-label
+  "The name the invented key column takes when the writer does not give
+   one. It titles the legend, so it is a word a reader can read there."
+  :series)
+
+(def ^:private series-value-column
+  "The name the invented value column takes. It titles the value axis,
+   which `:x-label` and `:y-label` already rename, so it needs no
+   second spelling of its own."
+  :value)
+
+(defn series-mapping
+  "The series a mapping value asks for, as `{:cols [...] :as label}`, or
+   nil where it asks for none.
+
+   Two spellings, one meaning. A vector of columns on a positional
+   aesthetic is the short one; `{:series [...] :as :measure}` is the
+   same thing written out, and the only reason to write it is to name
+   the key column the pivot invents.
+
+   A vector of pairs is not a series -- that is the multi-panel form
+   `pj/pose` reads -- so a vector whose elements are themselves
+   sequential answers nil and is left to it."
+  [v]
+  (cond
+    ;; Every element a column reference, which is what keeps a dash
+    ;; pattern, a colour range and a list of breaks from being read as
+    ;; columns to pivot.
+    (and (sequential? v)
+         (not (map? v))
+         (seq v)
+         (every? resolve/column-ref? v))
+    {:cols (vec v) :as default-series-label}
+
+    (and (map? v) (contains? v :series))
+    (cond-> {:cols (vec (:series v)) :as (get v :as default-series-label)}
+      ;; The scale rides along, so the value column the pivot invents is
+      ;; read through it. Without this the `:scale` was accepted and
+      ;; dropped, and the axis came out linear with no word said.
+      (contains? v :scale) (assoc :scale (:scale v)))
+
+    :else nil))
+
+(def ^:private series-mapping-keys
+  "The keys a series written out may carry: the columns it reads, the
+   name for the key column the pivot invents, and the scale its value
+   column is read through -- the same `:scale` every other mapping map
+   takes."
+  #{:series :as :scale})
+
+(defn- check-series-keys!
+  "Throw where a series written out carries a key it does not take.
+
+   Every other mapping map is held to `pose/check-explicit-mapping!`,
+   which reports an unexpected key at the call. Without this the series
+   map was the one mapping form with no such check, so a misspelled
+   `:as` was ignored in silence and the legend came out titled
+   `:series`."
+  [caller v]
+  (when (map? v)
+    (let [unknown (remove series-mapping-keys (keys v))]
+      (when (seq unknown)
+        (throw (ex-info (str caller " was given a series with unexpected"
+                             " key(s): " (vec unknown) ". A series names the"
+                             " columns it reads with :series, the key column"
+                             " the pivot invents with :as, and the scale its"
+                             " value column is read through with :scale.")
+                        {:caller caller :value v :unknown (vec unknown)}))))))
+
+(defn series-mapping?
+  "True of a mapping value that asks for a series."
+  [v]
+  (some? (series-mapping v)))
+
 ;; ---- Pipeline Internals ----
 
 (defn draft->plan
@@ -992,11 +1068,6 @@
     (validate-pose-shape sub (str context " sub-pose")))
   fr)
 
-(def ^:private nested-composite-rejection-msg
-  (str "Nested composites (composite-of-composite) are not supported."
-       " Build each cell as a separate leaf pose and pass them as a"
-       " flat sequence to a single `pj/arrange` call."))
-
 (defn- pose-kind
   "Lift a pose-shaped map into a notebook-renderable pose: validate
    the shape (recursive unknown-key warnings, position-mapping check),
@@ -1019,14 +1090,13 @@
   [fr]
   (if (-> fr meta :kindly/kind)
     fr
-    (do (when (and (pose/composite? fr)
-                   (some pose/composite? (:poses fr)))
-          (throw (ex-info (str "pj/pose does not accept a nested composite"
-                               " (a `:poses` element that is itself a"
-                               " composite). "
-                               nested-composite-rejection-msg)
-                          {:got :nested-composite})))
-        (validate-pose-shape fr "pj/pose")
+    ;; A composite holding a composite used to be refused here.
+    ;; `pose/compute-layout` recurses for `:horizontal` and `:vertical`
+    ;; at any depth and the cells render correctly, so the refusal named
+    ;; a limitation the renderer does not have -- and `pj/arrange` of
+    ;; three plots builds exactly that shape, which made the advice the
+    ;; message gave produce what it refused.
+    (do (validate-pose-shape fr "pj/pose")
         (let [captured defaults/*config*]
           (kind/fn fr {:kindly/f (render-pose-map captured)})))))
 
@@ -1615,6 +1685,20 @@
   [context opts]
   (doseq [k [:x :y]]
     (when-let [v (get opts k)]
+      ;; A series reaching here was written where it is not read: a
+      ;; `lay-*` call expands one before any of these checks run, so the
+      ;; only way a series arrives is from `pj/pose`. Reported before the
+      ;; general message, which advised adding a column holding the
+      ;; vector as a constant -- advice that draws one mark at a place
+      ;; named by a list of columns, and never a series.
+      (when (series-mapping? v)
+        (throw (ex-info (str context " " k " was given several columns, "
+                             (pr-str (:cols (series-mapping v)))
+                             ". Several columns where one goes are read as"
+                             " several series, and a lay-* call is where a"
+                             " series is read. Write the columns in the"
+                             " lay-* call's " k " instead.")
+                        {:option k :value v :accepted-in "lay-*"})))
       (when-not (or (keyword? v) (string? v)
                     (pose/explicit-mapping? v)
                     (resolve/literal-position? v))
@@ -1683,6 +1767,28 @@
    inherited mapping at the call site (see core_test
    aesthetic-column-validation-test)."
   [context mapping]
+  ;; Several columns where one encoding goes. A vector of column
+  ;; references is a series request, which belongs on an axis; on an
+  ;; appearance aesthetic there is nothing for the pivot to draw. Three
+  ;; of these -- :color, :size and :alpha -- used to reach the plan and
+  ;; report only that it did not conform to a schema, naming neither the
+  ;; aesthetic nor the value.
+  (doseq [[k v] mapping
+          ;; `:x` and `:y` read a vector as a series, so it is expanded
+          ;; before this. `:group` reads one jointly, as a compound key.
+          ;; `:tooltip` takes hiccup, where a vector is markup and its
+          ;; elements look like column references without being any.
+          :when (and (contains? defaults/column-keys k)
+                     (not (#{:x :y :group :tooltip} k))
+                     (series-mapping? v))]
+    (throw (ex-info (str context " " k " was given several columns, "
+                         (pr-str (:cols (series-mapping v)))
+                         ". Several columns where one goes"
+                         " are read as several series, which belongs on :x"
+                         " or :y -- the aesthetics that name what a mark is"
+                         " drawn from. Written there, the key column the"
+                         " pivot invents is mapped to " k " on its own.")
+                    {:option k :value v :accepted [:x :y]})))
   (doseq [[k v] mapping
           ;; The same typo written out in full is the same typo, in any
           ;; of the three spellings, and reading only the plain one sent
@@ -1740,7 +1846,13 @@
    lookup whole and be reported as a column called `{:scale false}`."
   [context mapping]
   (doseq [[k v] mapping
-          :when (and (contains? defaults/column-keys k) (map? v))]
+          ;; A series written out names several columns rather than one
+          ;; source, so it is not the explicit form and the message below
+          ;; does not describe it. `check-position-mapping` reports it on
+          ;; `:x` and `:y`, and the several-columns check above on every
+          ;; other aesthetic -- both naming the series.
+          :when (and (contains? defaults/column-keys k) (map? v)
+                     (not (series-mapping? v)))]
     (if (pose/explicit-mapping? v)
       (pose/check-explicit-mapping! k v)
       (throw (ex-info (str context " " k " " (pr-str v) " names no source."
@@ -1924,7 +2036,216 @@
                         (resolve/column-ref? src)))))
           (select-keys mapping [:x :y]))))
 
-(defn- lay-on-pose
+(def ^:private series-slots
+  "The aesthetics a series may be written under. A series names the
+   columns a mark is drawn from, so it belongs where a column goes on
+   an axis; on an appearance aesthetic there would be nothing for the
+   pivot to draw."
+  #{:x :y})
+
+(defn- find-series
+  "The aesthetic a series is written under, looking in both of a `lay-*`
+   call's map slots. Nil where there is none."
+  [caller position-mapping opts]
+  (let [in (fn [m] (keep (fn [[k v]] (when (and (series-slots k) (series-mapping? v)) k)) m))
+        found (vec (concat (in position-mapping) (in opts)))]
+    (when (seq found)
+      (when (next found)
+        (throw (ex-info (str caller " was given a series on more than one"
+                             " aesthetic -- " (pr-str found) ". A series"
+                             " pivots the data into one value column, and"
+                             " two pivots have no shared shape, so write"
+                             " one series per layer.")
+                        {:caller caller :aesthetics found})))
+      (first found))))
+
+(defn- pivot-series
+  "Pivot the columns a series names into a key column and a value
+   column. Returns the new dataset."
+  [caller data spec]
+  (let [{cols :cols label :as} spec
+        ds (tc/dataset data)
+        available (vec (sort-by str (tc/column-names ds)))
+        present (set available)
+        missing (vec (remove present cols))]
+    (when (< (count cols) 2)
+      (throw (ex-info (str caller " was given " (count cols) " column in a"
+                           " slot where several are read as several series: "
+                           (pr-str (vec cols)) ". Name the column on its own"
+                           " where there is one.")
+                      {:caller caller :columns (vec cols)})))
+    (doseq [c cols]
+      (when-not (resolve/column-ref? c)
+        (throw (ex-info (str caller " was given " (pr-str (vec cols))
+                             ", and " (pr-str c) " is not a column reference"
+                             " -- a keyword or a string naming a column of"
+                             " the data.")
+                        {:caller caller :column c :columns (vec cols)}))))
+    (when (seq missing)
+      (throw (ex-info (str caller " was given several columns to read as"
+                           " series, and the data does not have "
+                           (pr-str missing) ". Available columns: "
+                           available ".")
+                      {:caller caller :missing missing :columns available})))
+    (let [remaining (remove (set cols) present)
+          clashes (vec (filter #{label series-value-column} remaining))]
+      (when (seq clashes)
+        (throw (ex-info (str caller " cannot pivot these columns: the pivot"
+                             " invents " (pr-str [label series-value-column])
+                             " and the data already has " (pr-str clashes)
+                             ". Name the key column something else --"
+                             " {:series " (pr-str (vec cols))
+                             " :as :measure} -- or rename the column in the"
+                             " data.")
+                        {:caller caller :clashes clashes
+                         :invents [label series-value-column]}))))
+    (tc/pivot->longer ds (set cols)
+                      {:target-columns label
+                       :value-column-name series-value-column})))
+
+(defn- series-consumers
+  "Where the pose already names a column the pivot would consume. A
+   `[what aesthetic column]` triple per hit, so the report can name all
+   three.
+
+   The pivot drops the columns it reads, so a mapping already written
+   against one of them would name a column that is no longer there --
+   reported here rather than at draft time, where the message would
+   name the column and not the series that removed it."
+  [fr cols]
+  (let [consumed (set cols)
+        hits (fn [what mapping]
+               (keep (fn [[k v]]
+                       (let [src (pose/mapping-source v)]
+                         (when (consumed src) [what k src])))
+                     mapping))]
+    (vec (concat (hits "this pose's mapping" (:mapping fr))
+                 (mapcat (fn [l] (hits "a layer already on this pose" (:mapping l)))
+                         (:layers fr))))))
+
+(defn- expand-series
+  "Rewrite a `lay-*` call that reads several columns as several series,
+   so the rest of the pipeline reads an ordinary call naming ordinary
+   columns. Returns `[fr position-mapping opts]`.
+
+   The pivoted data goes on the pose, so everything downstream sees one
+   dataset and one mapping per aesthetic, and the identity rule decides
+   which panel the layer lands on by the column names the pose now
+   carries. A layer carrying data of its own is a path the library does
+   not support -- a bare layer added after one reports the missing
+   column -- so the series does not take it.
+
+   The columns the series reads are consumed by the pivot. The ones it
+   does not read come through untouched, so a layer drawing another
+   column of the same dataset still finds it.
+
+   The key column the pivot invents is mapped to `:color`, and to
+   `:group` where the layer maps `:color` itself, so the series stay
+   separate marks either way."
+  [caller fr layer-type-key position-mapping opts]
+  (if-let [k (find-series caller position-mapping opts)]
+    (let [written (or (get position-mapping k) (get opts k))
+          _ (check-series-keys! caller written)
+          spec (series-mapping written)
+          cols (:cols spec)
+          label (:as spec)
+          data (or (:data opts) (:data fr))]
+      ;; The composite check comes first: a composite built by
+      ;; `pj/arrange` carries no data at its root, so the nil-data
+      ;; message would answer a question the writer did not ask.
+      (when (pose/composite? fr)
+        (throw (ex-info (str caller " was given several columns to read as"
+                             " series, on a composite pose. The pivot"
+                             " reshapes the dataset they are read from, and"
+                             " a composite's cells share one, so every cell"
+                             " would be reshaped. Add the layer to a cell"
+                             " before arranging the cells.")
+                        {:caller caller :aesthetic k :columns (vec cols)})))
+      (when (nil? data)
+        (throw (ex-info (str caller " was given several columns to read as"
+                             " series and has no data to pivot. Pass the"
+                             " data to the " caller " call, or put it on the"
+                             " pose with pj/pose first.")
+                        {:caller caller :aesthetic k})))
+      (let [pivoted (pivot-series caller data spec)]
+        (when-let [hits (seq (series-consumers fr cols))]
+          (throw (ex-info (str caller " reads " (pr-str (vec cols))
+                               " as series, and " (ffirst hits) " names "
+                               (pr-str (nth (first hits) 2)) " on "
+                               (second (first hits))
+                               ". The pivot consumes the columns it reads,"
+                               " so that mapping would name a column that is"
+                               " no longer there. Put the series on a pose of"
+                               " its own, or drop the mapping that names one"
+                               " of its columns.")
+                          {:caller caller :columns (vec cols)
+                           :conflicts (vec hits)})))
+        (let [group-key (if (contains? (or opts {}) :color) :group :color)
+              ;; `:from` rather than `:column`, so that a series reading
+              ;; through a scale is the same position as one reading
+              ;; plainly -- identity is decided on `pose/mapping-source`,
+              ;; which unwraps both to the invented column.
+              value-mapping (if-let [sc (:scale spec)]
+                              {:from series-value-column :scale sc}
+                              series-value-column)]
+          [(assoc fr :data pivoted)
+           (assoc (or position-mapping {}) k value-mapping)
+           (-> (or opts {})
+               (dissoc k :data)
+               (assoc group-key label))])))
+    [fr position-mapping opts]))
+
+(defn- series-route-open?
+  "Whether a series answers this split, so the note can offer it.
+
+   Two conditions, and both were measured against the note that named
+   the series route unconditionally. The columns have to live in one
+   dataset, because the pivot reads one -- where the layer brings data
+   of its own, neither dataset carries both columns and the advice
+   reports a missing column instead of drawing. And only one axis may
+   disagree, because a call takes one series and a second disagreement
+   would be left standing; two vectors in the two slots are the paired
+   panels form, which draws the split the note is about."
+  [disagreements data]
+  (let [[_ incoming standing] (first disagreements)]
+    (and (= 1 (count disagreements))
+         (some? data)
+         (let [cols (set (tc/column-names (tc/dataset data)))]
+           (and (cols incoming) (cols standing))))))
+
+(defn- report-panel-split
+  "Say that a layer got a panel of its own, and name the ways to ask for
+   one panel instead.
+
+   The split is the library's answer to two layers that disagree about
+   what an axis holds, and it is the right answer for two unrelated
+   measures. It used to happen in silence, so a writer who meant them
+   to be read against one another saw a picture they had not asked for
+   and no reason for it.
+
+   The two routes answer different questions. `pj/overlay` draws the
+   second column against the axis the panel already has, and always
+   applies. Several columns in one slot pivot them into series that can
+   be dodged, piled or normalized against each other, and apply where
+   `series-route-open?` holds -- so the note names the series route only
+   where following it draws. The series replaces both calls with one,
+   which the note says outright: written as an edit to the second call
+   alone, the pose's mapping still names a column the pivot consumes,
+   and the call reports that instead."
+  [layer-name disagreements data]
+  (let [[axis incoming standing] (first disagreements)]
+    (println
+     (str "Note: lay-" layer-name " names " (pr-str incoming) " where this"
+          " panel draws " (pr-str standing) " on " axis ", so lay-"
+          layer-name " was given a panel of its own. To draw both on one"
+          " panel: pj/overlay for the axis the panel already has"
+          (when (series-route-open? disagreements data)
+            (str ", or one lay-" layer-name " call naming "
+                 (pr-str [standing incoming]) " on " axis
+                 " in place of the two calls, to read them as series"))
+          "."))))
+
+(defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
    Composite + position: the layer lands on the last leaf whose
@@ -2005,6 +2326,12 @@
                                 :when (and pos-v leaf-v
                                            (not= pos-v leaf-v))]
                             [k pos-v leaf-v])]
+        (when (and (seq disagreements) (not overlay?))
+          (report-panel-split (layer-type-name layer-type-key) disagreements
+                              ;; The dataset a series call written here
+                              ;; would read, which is the layer's own
+                              ;; where it brings one.
+                              (or (:data bare-layer) (:data fr))))
         (if (and (seq disagreements) (not overlay?))
           ;; Stamp the leaf's position onto each bare layer before
           ;; promotion so promote-leaf treats them as panel-origin
@@ -2086,6 +2413,21 @@
       :else
       (update fr :layers (fnil conj []) bare-layer))))
 
+(defn- lay-on-pose
+  "`lay-on-pose*`, with a series expanded first.
+
+   Every `lay-*` arity funnels through here, so several columns written
+   where one goes are pivoted into two ordinary ones before anything
+   else reads the call: the column-reference checks, the identity rule
+   that decides which leaf the layer joins, and the panel split all see
+   the columns the pivot invented rather than the ones the writer
+   named."
+  [fr layer-type-key position-mapping opts]
+  (let [[fr position-mapping opts]
+        (expand-series (str "pj/lay-" (layer-type-name layer-type-key))
+                       fr layer-type-key position-mapping opts)]
+    (lay-on-pose* fr layer-type-key position-mapping opts)))
+
 (defn- lay-layer-type
   "Shared implementation for all lay-* functions.
 
@@ -2155,6 +2497,17 @@
   ([layer-type-key pose-or-data x y-or-opts]
    (let [fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
      (cond
+       ;; Several columns in one positional slot beside a single column
+       ;; in the other: the several are read as several series of one
+       ;; layer. Before the parallel-vector branch, which reads two
+       ;; sequentials of the same length as paired panels.
+       (and (series-mapping? y-or-opts) (not (sequential? x)))
+       (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil)
+
+       (and (series-mapping? x) (not (sequential? y-or-opts)) (some? y-or-opts)
+            (not (map? y-or-opts)))
+       (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil)
+
        ;; Parallel vectors -> build a multi-panel composite via pj/pose
        ;; with paired x/y, then attach the bare layer at the root so it
        ;; flows to every panel.
@@ -3602,24 +3955,24 @@
 ;; ---- Multi-Plot Composition ----
 
 (defn- coerce-arrange-input
-  "Turn one pj/arrange input into a leaf-pose plain map. Accepts
-   pose-shaped leaf maps (passed through). Anything else throws with
-   a message tailored to the actual type -- nil, composite pose,
-   plain map, hiccup vector, plain vector -- so the user sees what
-   went wrong without re-reading the same hiccup advice for every
-   non-pose input."
+  "Turn one pj/arrange input into a pose-shaped plain map. Accepts a
+   leaf pose, and a composite pose, which nests. Anything else throws
+   with a message tailored to the actual type -- nil, plain map,
+   hiccup vector, plain vector -- so the user sees what went wrong
+   without re-reading the same hiccup advice for every non-pose
+   input."
   [p idx]
   (let [prefix (str "pj/arrange input at index " idx)]
     (cond
       (and (pose? p) (pose/leaf? p)) p
 
-      (and (pose? p) (pose/composite? p))
-      (throw (ex-info (str prefix " is a composite pose. "
-                           nested-composite-rejection-msg)
-                      {:index idx}))
+      ;; A composite cell nests: the row it lands in becomes a composite
+      ;; holding a composite, which is what `pj/arrange` already builds
+      ;; for more than one row.
+      (and (pose? p) (pose/composite? p)) p
 
       (nil? p)
-      (throw (ex-info (str prefix " is nil. Each input must be a leaf "
+      (throw (ex-info (str prefix " is nil. Each input must be a "
                            "pose -- e.g. (pj/lay-point data :x :y). "
                            "If you have an optional cell, drop it from "
                            "the input sequence rather than passing nil.")
@@ -3628,14 +3981,14 @@
       (and (vector? p) (keyword? (first p)))
       (throw (ex-info (str prefix " looks like rendered hiccup (head: "
                            (pr-str (first p)) "). pj/arrange takes "
-                           "leaf poses, not pre-rendered output; pass "
+                           "poses, not pre-rendered output; pass "
                            "the pose itself, or build your own [:div ...] "
                            "if you want raw hiccup composition.")
                       {:index idx :head (first p)}))
 
       (vector? p)
       (throw (ex-info (str prefix " is a plain vector. pj/arrange takes "
-                           "leaf poses; if you have a sequence of poses, "
+                           "poses; if you have a sequence of poses, "
                            "splice them in (e.g. (apply pj/arrange poses)) "
                            "or use the nested form for an explicit grid: "
                            "(pj/arrange [[a b] [c d]]).")
@@ -3643,12 +3996,12 @@
 
       (map? p)
       (throw (ex-info (str prefix " is a map but not a pose (no :layers "
-                           "or :poses key). Build a leaf pose first via "
+                           "or :poses key). Build a pose first via "
                            "pj/pose / pj/lay-* and pass that.")
                       {:index idx :type (type p)}))
 
       :else
-      (throw (ex-info (str prefix " must be a leaf pose. Got: "
+      (throw (ex-info (str prefix " must be a pose. Got: "
                            (pr-str (type p)) ".")
                       {:index idx :type (type p)})))))
 
@@ -3666,11 +4019,12 @@
       (plot composite))))
 
 (defn arrange
-  "Arrange multiple leaf poses in a grid. Returns a composite pose
+  "Arrange multiple poses in a grid. Returns a composite pose
    that renders through the compositor via membrane -- so `:svg`,
    `:bufimg`, and any other membrane target work uniformly.
 
-   Inputs must be leaf poses. Pre-rendered hiccup is not accepted;
+   Each input is a pose, leaf or composite. A composite input becomes a
+   cell holding its own grid. Pre-rendered hiccup is not accepted;
    build your own `[:div ...]` if you need to combine already-rendered
    values outside the library.
 

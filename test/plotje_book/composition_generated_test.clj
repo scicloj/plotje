@@ -528,7 +528,7 @@
 
 
 (def
- v65_l592
+ v65_l593
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -539,7 +539,7 @@
 
 
 (deftest
- t66_l598
+ t66_l599
  (is
   ((fn
     [v]
@@ -561,4 +561,23 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v65_l592)))
+   v65_l593)))
+
+
+(def
+ v68_l614
+ (pj/arrange
+  [(pj/arrange
+    [(->
+      (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width))
+     (->
+      (rdatasets/datasets-iris)
+      (pj/lay-point :petal-length :petal-width))]
+    {:cols 1})
+   (-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length))]))
+
+
+(deftest
+ t69_l624
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v68_l614)))

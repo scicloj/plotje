@@ -408,7 +408,7 @@
   (testing "(pj/arrange [nil]) names nil specifically"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"is nil\. Each input must be a leaf pose"
+         #"is nil\. Each input must be a pose"
          (pj/arrange [nil]))))
 
   (testing "(pj/arrange [non-pose-map]) names the missing :layers/:poses"
@@ -427,7 +427,7 @@
   (testing "(pj/arrange [scalar]) names the actual type"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"must be a leaf pose\. Got: java.lang.Long"
+         #"must be a pose\. Got: java.lang.Long"
          (pj/arrange [42]))))
 
   (testing "plain vector inside an explicit grid hits the plain-vector branch"

@@ -2873,10 +2873,17 @@
   ;; against mapping keys alone reported every option as a typo.
   (let [data {:x [1 2 3] :y [10 20 30] :z [5 6 7]}]
     (testing "an option the layer type accepts stays quiet"
-      (is (= "" (with-out-str
+      ;; The two histograms name different columns, so the panel split
+      ;; notes itself -- that is this call saying what it did, not a
+      ;; complaint about `:bins`. What must not appear is an option
+      ;; warning.
+      (let [out (with-out-str
                   (-> data
                       (pj/lay-histogram :x {:bins 3})
-                      (pj/lay-histogram :z))))))
+                      (pj/lay-histogram :z)))]
+        (is (not (re-find #"(?i)warning" out)))
+        (is (not (re-find #":bins" out)))
+        (is (re-find #"panel of its own" out))))
 
     (testing "a typo on a layer still warns"
       (let [out (with-out-str

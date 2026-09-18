@@ -82,6 +82,51 @@
                          vs)))))
      layers)))
 
+(defn- finite-number?
+  "A value a total can be summed from. A NaN would propagate through a
+   cumulative sum and corrupt every place after it, so it counts for
+   nothing in both the stack and the fill."
+  [v]
+  (and (number? v) (not (Double/isNaN (double v)))))
+
+(defn- fill-share
+  "One value's share of the total at its place -- the single rule both
+   layer shapes normalize by. A total of zero or less leaves a zero
+   share rather than dividing by it, which is the only reading a fill
+   has where nothing was measured at that place."
+  [value total]
+  (if (pos? (double total))
+    (/ (double value) (double total))
+    0.0))
+
+(defn- group-x-map
+  "One group's x values summed by x, and the order its x values arrived
+   in. Duplicate x values within a group are summed rather than dropped."
+  [{:keys [xs ys]}]
+  (reduce (fn [{:keys [m order] :as acc} [x y]]
+            (if (finite-number? y)
+              {:m (update m x (fnil + 0.0) (double y))
+               :order (if (contains? m x) order (conj order x))}
+              acc))
+          {:m {} :order []}
+          (map vector xs ys)))
+
+(defn- stacking-x-order
+  "The x values a stack is laid out along, across every group.
+
+   A numerical or temporal axis is sorted, since an area is drawn by
+   joining its points in x order and nothing else says what that order
+   is. A categorical axis is left in the order its values arrived,
+   which is the order the axis carries them in -- sorting there put
+   month names in dictionary order while the axis drew them in data
+   order, so a stacked area over categories came out a scrambled
+   polygon."
+  [group-maps]
+  (let [seen (vec (distinct (mapcat :order group-maps)))]
+    (if (every? number? seen)
+      (vec (sort seen))
+      seen)))
+
 ;; ---- Stack ----
 
 (defn- stack-rect-layer
@@ -129,20 +174,13 @@
    (x, y) pair for each x."
   [layer]
   (let [{:keys [groups]} layer
-        finite? (fn [v] (and (number? v) (not (Double/isNaN (double v)))))
-        group-maps (mapv (fn [{:keys [xs ys]}]
-                           (reduce (fn [m [x y]]
-                                     (if (finite? y)
-                                       (update m x (fnil + 0.0) (double y))
-                                       m))
-                                   (sorted-map)
-                                   (map vector xs ys)))
-                         groups)
-        all-xs (vec (sort (distinct (mapcat keys group-maps))))
+        group-maps (mapv group-x-map groups)
+        all-xs (stacking-x-order group-maps)
         {:keys [adjusted-groups]}
         (reduce
          (fn [{:keys [adjusted-groups cum]} [group gm]]
-           (let [y0s (mapv #(get cum % 0.0) all-xs)
+           (let [gm (:m gm)
+                 y0s (mapv #(get cum % 0.0) all-xs)
                  ys (mapv #(+ (get cum % 0.0) (get gm % 0.0)) all-xs)
                  new-cum (into cum (map vector all-xs ys))]
              {:adjusted-groups (cons (assoc group
@@ -182,22 +220,50 @@
                            (update g :counts
                                    (fn [counts]
                                      (mapv (fn [{:keys [category count]}]
-                                             (let [total (get cat-totals category 1)]
-                                               {:category category
-                                                :count (if (pos? total)
-                                                         (/ (double count) (double total))
-                                                         0.0)}))
+                                             {:category category
+                                              :count (fill-share
+                                                      count
+                                                      (get cat-totals category 1))})
                                            counts))))
                          groups)]
     (assoc layer :groups normalized)))
 
+(defn- normalize-fill-groups
+  "Rewrite each group's y values as its share of the total at that x, so
+   the groups of one layer sum to 1.0 at every x.
+
+   This is the `:groups` shape's half of `:fill`, and without it the
+   shape had none: a bar layer carrying an explicit y column, and every
+   area, went to `stack-area-layer` alone, which stacks and does not
+   normalize. The panel's y domain is set to [0, 1] either way, so the
+   marks were drawn thousands of drawing units above the panel and the
+   upper series was invisible under a correct axis."
+  [layer]
+  (let [groups (:groups layer)
+        totals (reduce (fn [acc g] (merge-with + acc (:m (group-x-map g))))
+                       {}
+                       groups)]
+    (assoc layer :groups
+           (mapv (fn [{:keys [xs ys] :as g}]
+                   (assoc g :ys
+                          (mapv (fn [x y]
+                                  (if (finite-number? y)
+                                    (fill-share y (get totals x 0.0))
+                                    y))
+                                xs ys)))
+                 groups))))
+
 (defmethod apply-position :fill [_ layers]
   ;; Fill normalizes to [0, 1] -- the cached :y-domain is always stale after
   ;; this transform. Strip it (same reasoning as :stack).
+  ;;
+  ;; Each shape normalizes and then stacks, in that order: the shares sum
+  ;; to 1.0 at every place, and stacking turns them into the bounds a
+  ;; mark is drawn between.
   (mapv (fn [layer]
           (cond
             (:categories layer) (dissoc (-> layer normalize-fill-rect stack-rect-layer) :y-domain)
-            (:groups layer) (dissoc (stack-area-layer layer) :y-domain)
+            (:groups layer) (dissoc (-> layer normalize-fill-groups stack-area-layer) :y-domain)
             :else layer))
         layers))
 

@@ -67,18 +67,20 @@ my-pose
 ;; `:poses` plus an optional `:layout`. Created by `pj/arrange`. Its
 ;; leaves render independently and are tiled into the final plot.
 ;;
-;; Some features are not yet exposed through `pj/arrange` -- unequal
-;; weights and nested composite cells. To use them, build the
-;; composite as a literal map; `pj/pose` accepts the literal form.
+;; A composite may hold a composite: a cell that is itself a composite
+;; draws its own grid. Unequal cell weights are the one layout feature
+;; `pj/arrange` does not expose -- build the composite as a literal map
+;; with `:weights` and pass the map to `pj/pose`.
 
 ;; ## Arrange
 ;;
 ;; `pj/arrange` builds a composite pose from a sequence of poses.
 ;; Each input becomes one of the composite's `:poses`; the
 ;; composite tiles them via `:layout`. It accepts `:cols`, `:title`,
-;; `:width`, `:height`, and `:share-scales`. For features it does
-;; not yet expose -- unequal weights and nested composite cells --
-;; pass a literal map to `pj/pose`.
+;; `:width`, `:height`, and `:share-scales`. An input may be a
+;; composite, which becomes a cell drawing its own grid. For unequal
+;; cell weights, which `pj/arrange` does not expose, pass a literal
+;; map to `pj/pose`.
 
 ;; ## Layer Type
 ;;

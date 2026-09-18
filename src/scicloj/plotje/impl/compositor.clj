@@ -299,9 +299,16 @@
    N+1 issue from the round-2 internals review)."
   [composite-draft]
   (let [{:keys [width height sub-drafts chrome-spec layout]} composite-draft
+        ;; `:opts` rides along so the render stage can read what the
+        ;; cell asked for. Plan-stage options already reach the cell
+        ;; through `draft->plan` here; render-stage ones -- `:theme`
+        ;; above all -- are resolved where the drawables are made, and
+        ;; the composite used to hand every cell its own options there,
+        ;; so a per-cell `{:theme {:bg ...}}` was accepted and dropped.
         plan-sub (fn [{:keys [path rect draft opts]}]
                    {:path path
                     :rect rect
+                    :opts opts
                     :plan (plan/draft->plan draft opts)})
         first-pass (mapv plan-sub sub-drafts)
         ;; Aligning drawing areas takes a second pass, because the pad a
