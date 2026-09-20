@@ -541,6 +541,23 @@
     :else (mod (long (Math/round (* (double i) (/ (double (dec p)) (double (dec n))))))
                p)))
 
+(declare fmt-category-label)
+
+(defn- same-category?
+  "Whether two category values name the same category once displayed.
+
+   A categorical axis column is rewritten to its display labels before
+   it reaches the palette (`format-category-column` in `impl/stat.clj`),
+   while the category list and a map palette's keys keep the values as
+   written. Comparing the display form of both sides is what lets a
+   column mapped to an axis and to `:color` find its colour:
+   `:sepal-length` arrives here as \"sepal length\", and
+   `fmt-category-label` is the rule that put it in that form. Reusing
+   that rule also covers the keyword and string spellings of one value,
+   which display alike."
+  [a b]
+  (or (= a b) (= (fmt-category-label a) (fmt-category-label b))))
+
 (defn color-for
   "Look up the color for a categorical value from the palette.
    Returns [r g b a] in 0-1 range.
@@ -560,19 +577,19 @@
   ([categories val]
    (color-for categories val nil))
   ([categories val palette]
-   (let [;; Match the value in either spelling, as the map-palette branch
-         ;; below does. A categorical axis column is rewritten to display
-         ;; strings before it reaches here, while the category list keeps
-         ;; the raw values, so a keyword column mapped to both the axis
-         ;; and to :color missed on every lookup and every mark took the
-         ;; first palette entry.
+   (let [;; Match on the value as written first, and on the display form
+         ;; second, as the map-palette branch below does. A categorical
+         ;; axis column is rewritten to display strings before it reaches
+         ;; here, while the category list keeps the raw values, so a
+         ;; keyword column mapped to both the axis and to :color missed
+         ;; on every lookup and every mark took the first palette entry.
          raw-idx (if categories
                    (let [i (.indexOf ^java.util.List categories val)]
                      (if (neg? i)
-                       (.indexOf ^java.util.List categories
-                                 (cond (keyword? val) (name val)
-                                       (string? val)  (keyword val)
-                                       :else          val))
+                       (or (first (keep-indexed
+                                   (fn [idx cat] (when (same-category? cat val) idx))
+                                   categories))
+                           -1)
                        i))
                    -1)
          idx (if (neg? raw-idx) 0 raw-idx)]
@@ -583,7 +600,10 @@
                     (cond
                       (keyword? val) (get palette (name val))
                       (string? val) (get palette (keyword val))
-                      :else nil))]
+                      :else nil)
+                    ;; A key written as the column holds it, against a
+                    ;; value the axis has already put in display form.
+                    (some (fn [[k c]] (when (same-category? k val) c)) palette))]
          (if cv
            (hex->rgba cv)
            (let [pal (resolve-palette default-palette-name)]

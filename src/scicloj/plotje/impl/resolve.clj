@@ -17,6 +17,27 @@
   [v]
   (or (keyword? v) (string? v)))
 
+(defn scaled-color-column?
+  "True of a resolved draft layer whose `:color` names a column that
+   passes through the color scale.
+
+   A column drawn as it stands holds colors, not categories: it takes
+   no palette entry and explains no scale, so it belongs in neither
+   the category list nor the legend title. Left in, its values took
+   palette slots away from a scaled layer beside it -- so a two-layer
+   plot drew its categories in the wrong colors -- and earned legend
+   rows pairing `#00FF00` with the palette blue that drew nothing.
+
+   Two readers ask this, and they have to agree: `impl/plan.clj`
+   collects the category list from the layers it answers for, and
+   `impl/extract.clj` gives a group a palette colour only for those
+   layers. Where they disagreed, a layer grouped by `:group` alone
+   drew every group in the palette's first colour while contributing
+   no category and no legend."
+  [resolved-layer]
+  (and (column-ref? (:color resolved-layer))
+       (not (:color-drawn? resolved-layer))))
+
 (def positional-aesthetics
   "The aesthetics whose literal value becomes a constant column before
    anything else reads the mapping. Derived from

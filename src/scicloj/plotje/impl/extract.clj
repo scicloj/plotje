@@ -78,10 +78,17 @@
       fixed-color (if (vector? fixed-color) fixed-color (defaults/hex->rgba fixed-color))
       (and (:color-drawn? draft-layer) (some? color-val))
       (defaults/hex->rgba color-val)
-      (some? color-val) (defaults/color-for
-                         all-colors color-val
-                         (defaults/scale-setting
-                          :color :values (:color-scale draft-layer) cfg))
+      ;; A group value is a colour only where the layer names a colour
+      ;; column. `:group` on its own splits the marks and the split
+      ;; value rides in this slot -- it labels the group and keys the
+      ;; dodge -- but it contributes no category to the palette and no
+      ;; legend row, and sending it to the palette anyway drew every
+      ;; group in the first colour.
+      (and (some? color-val) (resolve/scaled-color-column? draft-layer))
+      (defaults/color-for
+       all-colors color-val
+       (defaults/scale-setting
+        :color :values (:color-scale draft-layer) cfg))
       :else (defaults/hex->rgba (:default-color cfg)))))
 
 (defn fill-spec

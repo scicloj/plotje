@@ -1091,20 +1091,6 @@
         plan-layers (position/apply-positions ordered rank)]
     {:resolved resolved :stat-results stat-results :layers plan-layers}))
 
-(defn- scaled-color-column?
-  "True of a resolved draft layer whose `:color` names a column that
-   passes through the color scale.
-
-   A column drawn as it stands holds colors, not categories: it takes
-   no palette entry and explains no scale, so it belongs in neither
-   the category list nor the legend title. Left in, its values took
-   palette slots away from a scaled layer beside it -- so a two-layer
-   plot drew its categories in the wrong colors -- and earned legend
-   rows pairing `#00FF00` with the palette blue that drew nothing."
-  [resolved-layer]
-  (and (resolve/column-ref? (:color resolved-layer))
-       (not (:color-drawn? resolved-layer))))
-
 (defn- categorical-domain
   "The order a `:domain` on a scale spec supplies for a categorical
    aesthetic.
@@ -1267,7 +1253,7 @@
         tagged-draft-layers (mapv (fn [v rv] (assoc v :__resolved rv)) draft-layers resolved-all)
         numeric-color? (some #(= :numerical (:color-type %)) resolved-all)
         all-colors (when-not numeric-color?
-                     (let [color-draft-layers (filter #(and (scaled-color-column? %)
+                     (let [color-draft-layers (filter #(and (resolve/scaled-color-column? %)
                                                             (:data %)) resolved-all)]
                        (when (seq color-draft-layers)
                          (let [observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color)
@@ -1279,7 +1265,7 @@
                            (if domain
                              (order-by-domain observed domain)
                              observed)))))
-        color-cols (distinct (keep #(when (scaled-color-column? %) (:color %)) resolved-all))]
+        color-cols (distinct (keep #(when (resolve/scaled-color-column? %) (:color %)) resolved-all))]
     {:resolved-all resolved-all
      :numeric-color? numeric-color?
      :all-colors all-colors
@@ -1470,7 +1456,7 @@
    counted."
   [aesthetic draft-layer]
   (if (= :color aesthetic)
-    (and (scaled-color-column? draft-layer)
+    (and (resolve/scaled-color-column? draft-layer)
          (= :numerical (:color-type draft-layer))
          (:data draft-layer))
     (varies-aesthetic? aesthetic draft-layer)))
@@ -1663,7 +1649,7 @@
   (let [title (or opts-title (first color-cols))]
     (cond
       numeric-color?
-      (let [color-draft-layers (filter #(and (scaled-color-column? %)
+      (let [color-draft-layers (filter #(and (resolve/scaled-color-column? %)
                                              (:data %)) resolved-all)]
         (when-let [[c-lo c-hi] (plot-aesthetic-extent resolved-all :color)]
           (let [spec (some :color-scale color-draft-layers)
@@ -2267,7 +2253,7 @@
                  (reads-per-row? :size (:mark %)))]
     [:alpha #(and (resolve/column-ref? (:alpha %))
                   (reads-per-row? :alpha (:mark %)))]
-    [:color scaled-color-column?]
+    [:color resolve/scaled-color-column?]
     [:fill #(resolve/column-ref? (:fill %))]]))
 
 (defn- warn-conflicting-specs

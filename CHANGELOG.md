@@ -21,6 +21,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 - **Every plot with `{:position :fill}` on a bar carrying a value column, or on an area.** The marks are drawn as proportions of the total at each place, between zero and one. The value axis already read `0` to `1`; the marks were the raw cumulative sum, so every series but the last was drawn far above the panel and could not be seen.
 - **Every stacked area over a categorical axis.** The bands follow the order the axis carries. They used to be sorted, so an area over month names drew a polygon zig-zagging between them. A numerical axis is still sorted.
 - **Every arranged plot where a cell sets its own `:theme`.** The cell is drawn with it. A per-cell theme used to be accepted and then dropped.
+- **Every plot mapping one categorical column to an axis and to `:color`, where its values are keywords holding a hyphen or an underscore.** Each category is drawn in its own colour. Every mark used to take the palette's first colour, under a legend naming all of them.
+- **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, which is what `:group` naming two columns already drew. One grouping column used to take the palette's first colour.
 
 ### Added
 
@@ -41,6 +43,10 @@ Several columns where one goes are read as several series. A dataset carrying on
 - A stacked area draws its bands in the order its axis carries them. The x values used to be sorted, which on a categorical axis is dictionary order rather than the order the axis draws.
 
 - A render-stage option set on one cell of a composite reaches that cell. `:theme` is resolved where the drawables are made, and the composite handed every cell its own options there.
+
+- A category drawn on an axis and given a colour keeps its colour. A categorical axis is rewritten to the labels it displays, and the palette now matches a value in that form as well as as written -- so a keyword category whose separator becomes a space, `:sepal-length` drawn as "sepal length", finds its own entry rather than falling back to the first. A palette written as a map of category to colour reads the same way.
+
+- `:group` separates marks without colouring them, whether its key names one column or several. A grouping column that names no colour contributes no category and no legend, and its groups are drawn in the plot's default colour.
 
 ## [0.14.0 - 2026-09-18]
 
