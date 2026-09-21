@@ -349,6 +349,36 @@
 
 ;; ---- Geometry Extraction (stat -> layer descriptors) ----
 
+(defn stamp-group-keys
+  "Put each drawn group's `:group-key` on it, read from the stat
+   points the groups were built from.
+
+   A group's `:label` is the colour column's value, which is what a
+   legend prints; where the grouping unites several columns the key
+   that separated the rows is the whole tuple, and only the stat
+   knows it. Stamped here rather than in each `extract-layer` method
+   because there are several of those and they build their groups
+   differently -- a key added to one of them and not the rest is how a
+   dodge came to read the label in the first place.
+
+   Stamped only where the collection and the stat points line up one
+   for one, which is the case the groups were built from; a mark whose
+   stat emits something else keeps what it had."
+  [plan-layer stat]
+  (let [points (:points stat)
+        stamp (fn [coll]
+                (if (and (seq points) (= (count coll) (count points)))
+                  (mapv (fn [g p]
+                          (if (contains? p :group-key)
+                            (assoc g :group-key (:group-key p))
+                            g))
+                        coll points)
+                  coll))]
+    (cond-> plan-layer
+      (seq (:groups plan-layer)) (update :groups stamp)
+      (seq (:boxes plan-layer)) (update :boxes stamp)
+      (seq (:violins plan-layer)) (update :violins stamp))))
+
 (defmulti extract-layer
   "Extract data-space geometry from a resolved draft layer and its stat result.
    Returns a layer descriptor map."

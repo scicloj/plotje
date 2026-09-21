@@ -12,6 +12,18 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 ### Plots that look different after upgrading
 
+- **Every dodged plot whose grouping names more than one column.** Each combination the grouping names gets a slot of its own, so `{:color :part :group :dimension :position :dodge}` on two parts and two dimensions draws four bars per band. The cohort used to key on a group's legend label, which is the colour column's value alone, so the four groups shared two slots and the bars were drawn two to a place. A grouping of one column is unchanged.
+
+- **Every faceted plot whose panels share an axis holding categories in one panel and numbers in another.** The plot reports that the panels disagree, and names `:scales :free-x` or `:free-y` as the way to draw each panel to its own domain. The shared domain used to be read from the first panel alone, so the categories and the range endpoints were concatenated into one domain and drawn as a band axis.
+
+- **Every `{:color {:column [:a :b]}}`, and the same written out under any aesthetic that draws one thing.** The mapping reports that several columns were given where one goes, which is what the bare `{:color [:a :b]}` already reported. The written-out form used to reach the renderer and draw a single mark in the default colour, under a warning about a numeric colour.
+
+- **Every `{:col [:a :b]}` or `{:row [:a :b]}` written in a mapping.** The columns unite into a compound key and a panel is drawn per combination the data holds, which is what `(pj/facet my-pose [:a :b])` draws. The bare vector used to be reported while the same request through `pj/facet` and through `{:column [...]}` both drew.
+
+- **Every hand-built pose map carrying a mapping and no layers.** The map is a pose, and a layer is inferred for it. It used to be read as a dataset -- a map with neither `:layers` nor `:poses` was data -- so `{:mapping {:x :a :y :b} :data ds}` drew two points from a two-column table whose columns were `:mapping` and `:data`. A dataset written as a map of columns that holds a column called `:mapping` is still data: the value decides, a column being a sequence and a mapping a map.
+
+- **Every `pj/marginal` on a faceted pose.** Each strip label is drawn once, at the top of its column. Stacked, the marginal and the main panel were both divided by the column and both drew the labels, so each name appeared twice.
+
 - **Every `pj/facet` or `pj/facet-grid` on a composite pose.** Every cell of the composite is divided, so a two-cell arrangement faceted by a three-value column draws six panels. Both calls used to report that a composite was not supported and draw nothing.
 
 - **Every `pj/facet` or `pj/facet-grid` on a pose whose layers draw more than one panel.** Each of those panels is drawn once per value the column holds, the facet being the outer division. Both calls used to report that the two divisions would cross and draw nothing.
@@ -33,6 +45,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 - **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, which is what `:group` naming two columns already drew. One grouping column used to take the palette's first colour.
 
 ### Added
+
+- `:compound-key?` in the aesthetic registry says which aesthetics unite several columns into one distinction -- `:group`, `:col` and `:row` today. The check that reports several columns where one goes reads that rather than a list of its own, and reads the three spellings of a vector alike: bare, `{:series [...]}` and `{:column [...]}`.
 
 - `:col` and `:row` are aesthetics: a column written under either gives each of its values a panel of its own. `pj/facet` and `pj/facet-grid` write them. A vector under one unites the columns into a compound key, drawing a panel per combination the data holds and labelling it by each column's value in turn -- which `pj/facet-grid` does not, since it crosses two distinctions and fills the rectangle. `pj/panel-aesthetic-docs` describes them, and `pj/aesthetic-categories` says which destination each aesthetic sends a distinction to.
 

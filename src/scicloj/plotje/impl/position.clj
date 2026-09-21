@@ -19,6 +19,37 @@
     (:violins layer) (keep (comp str :color-category) (:violins layer))
     :else nil))
 
+(defn cohort-key
+  "What tells one dodged group from another.
+
+   A group's `:label` is what the legend prints, and where the
+   grouping unites several columns it is only the colour column's
+   value -- so two groups that a compound key separated read as one
+   label. `:group-key` is that key, kept whole. Reading the label
+   instead gave `{:color :part :group :dimension}` two dodge slots for
+   four groups, and the four bars were drawn at two places.
+
+   Boxes and violins carry no key of their own, so their category
+   stands in, which is what they dodged by before."
+  [g]
+  (if (contains? g :group-key)
+    (:group-key g)
+    (or (:label g) (some-> (:color-category g) str))))
+
+(defn- layer-cohort-entries
+  "One entry per drawn group of a layer: the key that tells it apart
+   and the label its order is ranked by."
+  [layer]
+  (let [entries (fn [gs] (mapv (fn [g] {:key (cohort-key g)
+                                        :label (or (:label g)
+                                                   (some-> (:color-category g) str))})
+                               gs))]
+    (cond
+      (:groups layer) (entries (:groups layer))
+      (:boxes layer) (entries (:boxes layer))
+      (:violins layer) (entries (:violins layer))
+      :else nil)))
+
 ;; ---- Multimethod ----
 
 (defmulti apply-position
@@ -45,12 +76,17 @@
         ;; Without it the index followed whichever group the stat
         ;; happened to emit first.
         rank (some :__category-order layers)
-        observed (vec (distinct (mapcat layer-group-labels layers)))
-        all-labels (if rank
-                     (vec (sort-by #(get rank % Long/MAX_VALUE) observed))
-                     observed)
-        n-groups (max 1 (count all-labels))
-        label->idx (zipmap all-labels (range))
+        observed (vec (distinct (mapcat layer-cohort-entries layers)))
+        ;; Ranked by the label, because that is what the legend orders
+        ;; and what `:__category-order` names; told apart by the key,
+        ;; because that is what separated the rows. Where a compound
+        ;; key gives several groups one label they tie, and `sort-by`
+        ;; is stable, so they keep the order the stat emitted.
+        ordered (if rank
+                  (vec (sort-by #(get rank (:label %) Long/MAX_VALUE) observed))
+                  observed)
+        n-groups (max 1 (count ordered))
+        label->idx (zipmap (map :key ordered) (range))
         dodge-ctx {:n-groups n-groups}
         dodge-compatible? (fn [layer]
                             (or (:groups layer) (:boxes layer) (:violins layer)))]
@@ -66,19 +102,19 @@
          (update :groups
                  (fn [gs]
                    (mapv #(assoc % :dodge-idx
-                                 (get label->idx (:label %) 0))
+                                 (get label->idx (cohort-key %) 0))
                          gs)))
          (:boxes layer)
          (update :boxes
                  (fn [bs]
                    (mapv #(assoc % :dodge-idx
-                                 (get label->idx (str (:color-category %)) 0))
+                                 (get label->idx (cohort-key %) 0))
                          bs)))
          (:violins layer)
          (update :violins
                  (fn [vs]
                    (mapv #(assoc % :dodge-idx
-                                 (get label->idx (str (:color-category %)) 0))
+                                 (get label->idx (cohort-key %) 0))
                          vs)))))
      layers)))
 

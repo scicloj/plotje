@@ -335,6 +335,14 @@
             point-group (fn [ds group-val]
                           (cond-> {:xs (ds x) :ys (if x-only? (zero-ys ds) (ds y))
                                    :row-indices (ds :__row-idx)}
+                            ;; What separated these rows, kept whole.
+                            ;; `:color` is the colour column's value
+                            ;; alone, which is what the legend prints;
+                            ;; where the grouping is compound the two
+                            ;; differ, and a cohort reading the colour
+                            ;; put every group sharing a colour in one
+                            ;; slot.
+                            (some? group-val) (assoc :group-key group-val)
                             (some? group-val) (assoc :color (extract-color group-val))
                             (or numeric-color? color-drawn?)
                             (assoc :color-values (ds color))

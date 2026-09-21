@@ -26,13 +26,23 @@
 ;; ---- Structural predicates ----
 
 (defn pose?
-  "True if x looks pose-shaped: a map carrying at least one of
-   :layers or :poses. Permissive by design -- schema-level validation
-   lives in impl.pose-schema."
+  "True if x looks pose-shaped: a map carrying :layers, :poses, or a
+   map-valued :mapping. Permissive by design -- schema-level
+   validation lives in impl.pose-schema.
+
+   A pose carrying only a mapping draws, a layer being inferred for
+   it, and is completed later by `api/with-data`. Read as data instead
+   -- which is what a map with none of these keys is -- it became a
+   dataset whose columns were :mapping and :data, and drew that.
+
+   The :mapping value is tested rather than the key, because a dataset
+   written as a map of columns may hold a column called :mapping. Its
+   value is then the column, a sequence, and not a mapping."
   [x]
   (and (map? x)
        (or (contains? x :layers)
-           (contains? x :poses))))
+           (contains? x :poses)
+           (map? (:mapping x)))))
 
 (defn leaf?
   "A leaf pose has no sub-poses. (An empty :poses vector also

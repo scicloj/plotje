@@ -708,8 +708,8 @@
                          :columns cols})))))
 
 (defn pose?
-  "Return true if x is a pose-shaped plain map (a map carrying at
-   least one of `:layers` or `:poses`)."
+  "Return true if x is a pose-shaped plain map: one carrying
+   `:layers`, `:poses`, or a map-valued `:mapping`."
   [x]
   (pose/pose? x))
 
@@ -1408,8 +1408,8 @@
    - `(pj/pose fr {:data X :color :c})` -- extend mapping AND replace the
      top-level data with X.
 
-   **On a hand-built pose-shaped map (1-arity, input has `:layers` or
-   `:poses`):** the map is validated and tagged with Kindly auto-render
+   **On a hand-built pose-shaped map (1-arity, input has `:layers`,
+   `:poses`, or a map-valued `:mapping`):** the map is validated and tagged with Kindly auto-render
    metadata, but its keys are not reordered and its `:data` is not
    coerced -- the typed shape is preserved verbatim. A composite is
    supported at any depth: a sub-pose that itself has `:poses` nests,
@@ -1788,6 +1788,24 @@
                              "column.")
                         {:option k :value v}))))))
 
+(defn- several-columns-named
+  "The columns a mapping value names, where it names more than one,
+   and nil otherwise.
+
+   Three spellings reach here and they say the same thing: a bare
+   vector, `{:series [...]}`, and `{:column [...]}`. Reading only the
+   first two let the written-out form past every check that exists for
+   it -- `{:color {:column [:a :b]}}` drew one grey mark under a
+   warning about a numeric colour, where `{:color [:a :b]}` was
+   reported."
+  [v]
+  (or (:cols (series-mapping v))
+      (let [source (pose/mapping-source v)]
+        (when (and (sequential? source)
+                   (seq source)
+                   (every? resolve/column-ref? source))
+          (vec source)))))
+
 (defn- check-column-ref-types
   "Throw a helpful error if any aesthetic mapping carries a symbol --
    a common typo from omitting the colon on a keyword (`'x` instead
@@ -1804,14 +1822,18 @@
   ;; aesthetic nor the value.
   (doseq [[k v] mapping
           ;; `:x` and `:y` read a vector as a series, so it is expanded
-          ;; before this. `:group` reads one jointly, as a compound key.
-          ;; `:tooltip` takes hiccup, where a vector is markup and its
-          ;; elements look like column references without being any.
+          ;; before this. `:tooltip` takes hiccup, where a vector is
+          ;; markup and its elements look like column references
+          ;; without being any. Which aesthetics unite a vector into a
+          ;; compound key is the registry's answer rather than a list
+          ;; kept here, so adding one does not leave this behind.
+          :let [several (several-columns-named v)]
           :when (and (contains? defaults/column-keys k)
-                     (not (#{:x :y :group :tooltip} k))
-                     (series-mapping? v))]
+                     (not (#{:x :y :tooltip} k))
+                     (not (defaults/compound-key-aesthetics k))
+                     several)]
     (throw (ex-info (str context " " k " was given several columns, "
-                         (pr-str (:cols (series-mapping v)))
+                         (pr-str several)
                          ". Several columns where one goes"
                          " are read as several series, which belongs on :x"
                          " or :y -- the aesthetics that name what a mark is"

@@ -63,6 +63,14 @@
     ;; a panel holding no rows.
     (is (= [:col :fill :group :row] defaults/column-only-aesthetics))
     (is (= #{:col :row} defaults/panel-aesthetics))
+    ;; The aesthetics that unite several columns into one distinction.
+    ;; `check-column-ref-types` reports a vector everywhere else, and
+    ;; reads this set rather than keeping a list of its own.
+    (is (= #{:group :col :row} defaults/compound-key-aesthetics))
+    ;; Every aesthetic that unites a vector must accept categories --
+    ;; a compound key is made of the values the columns hold.
+    (is (every? #(:categorical-column? (defaults/aesthetic-registry %))
+                defaults/compound-key-aesthetics))
     (is (= #{:color :size :alpha :shape} defaults/legend-bearing-aesthetics))
     ;; Every aesthetic with a scale holds it under `<channel>-scale`.
     ;; `:color` was the exception until 0.9.0, when the configuration

@@ -2160,6 +2160,115 @@
                             #"Available: \(:g :x :y\)"
                             (-> data (pj/lay-point :x :y {:color :typo}) pj/plan))))))
 
+(deftest compound-key-spellings-agree-test
+  ;; One request, three spellings, one answer. The written-out form
+  ;; used to escape the guard the bare form trips: `{:color {:column
+  ;; [:a :b]}}` drew a single grey mark under a warning about a
+  ;; numeric colour, while `{:color [:a :b]}` was reported.
+  (let [data {:t [1 2 1] :v [1.0 2.0 3.0]
+              :part ["sepal" "sepal" "petal"]
+              :dimension ["length" "width" "length"]}]
+    (testing "an aesthetic that unites a vector reads both spellings alike"
+      (is (= 3 (-> data (pj/pose {:x :t :y :v :col [:part :dimension]})
+                   pj/lay-point pj/plan :panels count)))
+      (is (= 3 (-> data (pj/pose {:x :t :y :v :col {:column [:part :dimension]}})
+                   pj/lay-point pj/plan :panels count)))
+      (is (= 3 (-> data (pj/lay-point :t :v) (pj/facet [:part :dimension])
+                   pj/plan :panels count))))
+
+    (testing "an aesthetic that does not unite a vector reports both spellings alike"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #":color was given several columns"
+                            (-> data (pj/lay-point :t :v {:color [:part :dimension]})
+                                pj/plan)))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #":color was given several columns"
+                            (-> data (pj/lay-point :t :v {:color {:column [:part :dimension]}})
+                                pj/plan))))))
+
+(deftest mapping-only-map-is-a-pose-test
+  ;; A map carrying a map-valued :mapping is a pose. Read as data --
+  ;; which a map with neither :layers nor :poses used to be -- it
+  ;; became a dataset whose columns were :mapping and :data, and drew
+  ;; two points of nonsense under a mapping of {:x :mapping :y :data}.
+  (let [data {:quarter [1 2 3 4] :revenue [10 12 14 13]}]
+    (testing "a hand-built pose needs no :layers to be recognized"
+      (let [fr (pj/pose {:mapping {:x :quarter :y :revenue} :data data})]
+        (is (= {:x :quarter :y :revenue} (:mapping fr)))
+        (is (= 4 (:points (pj/svg-summary fr))))))
+
+    (testing "a mapping-only template is completed by pj/with-data"
+      (is (= 4 (-> (pj/pose {:mapping {:x :quarter :y :revenue}})
+                   (pj/with-data data)
+                   pj/svg-summary
+                   :points))))
+
+    (testing "a dataset holding a column called :mapping is still data"
+      ;; The value decides, not the key: a column is a sequence and a
+      ;; mapping is a map.
+      (is (= 3 (:points (pj/svg-summary
+                         (pj/lay-point {:mapping [1 2 3] :v [4.0 5.0 6.0]}
+                                       :mapping :v))))))))
+
+(deftest dodge-cohort-reads-the-group-key-test
+  ;; A dodge slot per combination the grouping names, not per legend
+  ;; entry. The cohort used to key on a group's :label -- the colour
+  ;; column's value alone -- so a compound key of two parts and two
+  ;; dimensions got two slots, and the twelve bars were drawn at six
+  ;; places, two to a place. ggplot2 on the same shape draws twelve
+  ;; bars at twelve centres (measured with ggplot_build).
+  (let [data {:part      (mapcat #(repeat 3 %) ["sepal" "sepal" "petal" "petal"])
+              :dimension (mapcat #(repeat 3 %) ["length" "width" "length" "width"])
+              :t         (vec (flatten (repeat 4 ["a" "b" "c"])))
+              :v         [1.0 2.0 3.0 1.5 2.5 3.5 2.0 3.0 4.0 2.5 3.5 4.5]}
+        layer-of (fn [fr] (-> fr pj/plan :panels first :layers first))]
+
+    (testing "a compound grouping gets a slot per combination"
+      (let [lay (layer-of (pj/lay-bar data :t :v {:color :part
+                                                  :group :dimension
+                                                  :position :dodge}))]
+        (is (= 4 (count (:groups lay))))
+        (is (= 4 (:n-groups (:dodge-ctx lay))))
+        (is (= [0 1 2 3] (mapv :dodge-idx (:groups lay))))))
+
+    (testing "a colour alone is unchanged"
+      (let [lay (layer-of (pj/lay-bar data :t :v {:color :part :position :dodge}))]
+        (is (= 2 (count (:groups lay))))
+        (is (= 2 (:n-groups (:dodge-ctx lay))))
+        (is (= [0 1] (mapv :dodge-idx (:groups lay))))))
+
+    (testing "writing the second distinction changes the picture"
+      ;; The plots used to be byte-identical, which is what made the
+      ;; defect silent.
+      (is (not= (pj/plot (pj/lay-bar data :t :v {:color :part
+                                                 :group :dimension
+                                                 :position :dodge}))
+                (pj/plot (pj/lay-bar data :t :v {:color :part
+                                                 :position :dodge})))))))
+
+(deftest panels-disagreeing-about-an-axis-report-test
+  ;; Sharing a scale across panels read the first panel's domain to
+  ;; decide whether the axis held numbers, then took the categorical
+  ;; branch for the rest -- concatenating a category list with a range
+  ;; into ["a" "b" 0.85 4.15] and drawing it as a band axis.
+  (let [data {:t [1 2 3 4] :species ["a" "b" "a" "b"] :len [1.0 2.0 3.0 4.0]}
+        mixed (-> data (pj/lay-point :t [:species :len]) (pj/facet :series))]
+
+    (testing "a categorical panel beside a numeric one is reported"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"disagree about what the y axis holds"
+                            (pj/plan mixed))))
+
+    (testing "and draws once the panels stop sharing that axis"
+      (is (= [["a" "b"] [0.85 4.15]]
+             (mapv :y-domain (:panels (pj/plan (pj/options mixed {:scales :free-y})))))))
+
+    (testing "panels that agree still share"
+      (is (= [[0.9 4.1] [0.9 4.1]]
+             (mapv :y-domain (:panels (pj/plan (-> data
+                                                   (pj/lay-point :t :len)
+                                                   (pj/facet :species))))))))))
+
 (deftest facet-validation-test
   ;; persona-16 B3. Closes P9-R2 F9, Skept-R4 F7, P3-R2 Footgun 5.
   (let [data {:x [1 2 3 4 5 6] :y [10 20 30 40 50 60]

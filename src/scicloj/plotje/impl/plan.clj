@@ -1066,7 +1066,9 @@
   (let [resolved (or resolved (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) panel-draft-layers))
         stat-results (mapv #(stat/compute-stat (assoc % :cfg (merge cfg (:cfg %)))) resolved)
         raw-plan-layers (vec (map (fn [rv sr]
-                                    (-> (resolve/map->PlanLayer (extract/extract-layer rv sr all-colors cfg))
+                                    (-> (extract/stamp-group-keys
+                                         (extract/extract-layer rv sr all-colors cfg) sr)
+                                        resolve/map->PlanLayer
                                         (assoc :y-domain (:y-domain sr)
                                                :x-domain (:x-domain sr))
                                         (cond-> shape-map (assoc :shape-map shape-map))
@@ -2369,12 +2371,33 @@
   (let [scales (or scales-opt :shared)
         share-x? (#{:shared :free-y} scales)
         share-y? (#{:shared :free-x} scales)
+        axis-name (fn [k] (if (= k :x-dom) "x" "y"))
+        free-opt (fn [k] (if (= k :x-dom) ":free-x" ":free-y"))
         agg (fn [k]
-              (let [doms (keep k panel-domains)]
+              (let [doms (filter seq (keep k panel-domains))]
                 (when (seq doms)
-                  (let [numeric? (and (seq (first doms))
-                                      (number? (first (first doms))))]
-                    (if numeric?
+                  (let [numeric? #(number? (first %))
+                        kinds (group-by numeric? doms)]
+                    ;; Every panel has to agree what kind of axis this
+                    ;; is. Read from the first panel alone, a
+                    ;; categorical domain beside a numeric one took the
+                    ;; categorical branch and concatenated the two --
+                    ;; the categories followed by the range endpoints,
+                    ;; drawn as a band axis with no word said.
+                    (when (and (seq (get kinds true)) (seq (get kinds false)))
+                      (throw (ex-info
+                              (str "The panels disagree about what the " (axis-name k)
+                                   " axis holds, so they cannot share it: "
+                                   (pr-str (first (get kinds false)))
+                                   " holds categories and "
+                                   (pr-str (first (get kinds true)))
+                                   " holds numbers. Draw each panel to its own"
+                                   " domain with " (free-opt k)
+                                   ", or give the panels a column of one type.")
+                              {:axis (axis-name k)
+                               :categorical (vec (get kinds false))
+                               :numerical (vec (get kinds true))})))
+                    (if (numeric? (first doms))
                       [(reduce min (map first doms))
                        (reduce max (map second doms))]
                       (vec (distinct (mapcat seq doms))))))))

@@ -135,6 +135,14 @@
      rather than a silence for the same reason `:value?` is: **one
      entry says what a reading would mean and another says whether it
      exists, and a gate needs both.** See `dev-notes/backlog.md`.
+   - `:compound-key?` -- whether several columns under this aesthetic
+     are one distinction, united. A vector there is a **compound
+     key**: one drawn thing per combination the data holds. Where it
+     is false, several columns are reported, because the aesthetic
+     has one thing to draw and a list of columns does not say which.
+     `:x` and `:y` are false and read a vector as a series instead,
+     which is a different reading again and is expanded before any
+     check sees it.
    - `:categorical-column?` -- whether the column it names may hold
      categories. False on the three column-bearing aesthetics that
      encode a magnitude and have no categorical counterpart --
@@ -186,9 +194,9 @@
    :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
    :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
    :tooltip {:category :appearance :column? true :value? true :numeric? false :categorical-column? true :scale-default :never :drawn-column? true}
-   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}
-   :row   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}
-   :col   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}})
+   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}
+   :row   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}
+   :col   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}})
 
 (defn aesthetics-where
   "The aesthetics whose registry entry satisfies `pred`, in a stable
@@ -204,6 +212,11 @@
   "Aesthetics whose column values are numeric -- subject to finite-value
    filtering. Derived from aesthetic-registry."
   (aesthetics-where #(and (:numeric? %) (:column? %))))
+
+(def compound-key-aesthetics
+  "The aesthetics that read several columns as one distinction,
+   united. Every other column-bearing aesthetic reports a vector."
+  (set (aesthetics-where :compound-key?)))
 
 (def panel-aesthetics
   "The aesthetics that send a column's values to panels of their own.
