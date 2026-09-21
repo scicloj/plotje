@@ -2308,6 +2308,36 @@
       (is (= 2 (:points (pj/svg-summary
                          (pj/lay-point [{:x 1 :y 2.0} {:x 2 :y 3.0}] :x :y))))))))
 
+(deftest arrange-takes-data-first-test
+  ;; `(-> data (pj/arrange cells) (pj/lay-point))` is the natural
+  ;; spelling once a cell may be a mapping, and it used to fail: the
+  ;; dataset was read as the cell list and its first column reported
+  ;; as rendered hiccup. The second argument decides -- a sequential
+  ;; one is the cells, a map is the options.
+  (let [d {:sepal-length [1.0 2.0 3.0] :sepal-width [4.0 5.0 6.0]
+           :petal-length [7.0 8.0 9.0] :petal-width [1.5 2.5 3.5]}
+        cells [{:x :sepal-length :y :sepal-width}
+               {:x :petal-length :y :petal-width}]
+        summary (fn [fr] (select-keys (pj/svg-summary fr) [:panels :points]))]
+
+    (testing "data first, then cells"
+      (is (= {:panels 2 :points 6}
+             (summary (-> d (pj/arrange cells) (pj/lay-point))))))
+
+    (testing "data first, then cells and options"
+      (is (= {:panels 2 :points 6}
+             (summary (-> d (pj/arrange cells {:cols 1}) (pj/lay-point))))))
+
+    (testing "the older arities are unchanged"
+      (let [poses [(pj/pose d :sepal-length :sepal-width)
+                   (pj/pose d :petal-length :petal-width)]]
+        (is (= {:panels 2 :points 6} (summary (-> (pj/arrange poses) (pj/lay-point)))))
+        (is (= {:panels 2 :points 6}
+               (summary (-> (pj/arrange poses {:cols 1}) (pj/lay-point)))))
+        (is (= {:panels 2 :points 6}
+               (summary (-> (pj/arrange [[(first poses)] [(second poses)]])
+                            (pj/lay-point)))))))))
+
 (deftest facet-validation-test
   ;; persona-16 B3. Closes P9-R2 F9, Skept-R4 F7, P3-R2 Footgun 5.
   (let [data {:x [1 2 3 4 5 6] :y [10 20 30 40 50 60]

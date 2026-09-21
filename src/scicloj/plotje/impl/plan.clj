@@ -1388,25 +1388,26 @@
    the `:x-label` / `:y-label` plot options on a pose. The innermost
    wins, as it does for every other scale setting, so a spec beats an
    option; with neither, the column name is inferred."
-  [x-vars y-vars x-scale-spec y-scale-spec
+  [x-vars y-vars x-overlay-vars y-overlay-vars x-scale-spec y-scale-spec
    title x-label y-label auto-label?]
-  (let [;; Every column the axis draws, not the first of them.
-        ;; Overlaid layers that disagree share an axis, and naming one
-        ;; of their columns titled the axis after whichever layer came
-        ;; first while the rest were drawn under it unnamed.
-        axis-name (fn [vars]
-                    (let [names (vec (distinct (keep identity vars)))]
+  (let [;; The column an axis draws, and the others drawn on it by
+        ;; layers overlaid on one panel. An ordinary multi-panel plot
+        ;; passes none of the second, so its axis keeps one name and
+        ;; each panel's strip names its own column.
+        axis-name (fn [vars overlay-vars]
+                    (let [names (vec (distinct (keep identity
+                                                     (cons (first vars) overlay-vars))))]
                       (when (seq names)
                         (str/join ", " (map defaults/fmt-name names)))))]
     {:eff-title title
      :eff-x-label (or (:label x-scale-spec)
                       x-label
-                      (when auto-label? (axis-name x-vars)))
+                      (when auto-label? (axis-name x-vars x-overlay-vars)))
      :eff-y-label (or (:label y-scale-spec)
                       y-label
                       (when auto-label?
                         (when (not= (first y-vars) (first x-vars))
-                          (axis-name y-vars))))}))
+                          (axis-name y-vars y-overlay-vars))))}))
 
 (defn- finite-vals
   "Concatenate a seq of column buffers into a single Clojure vector with
@@ -2355,17 +2356,17 @@
     {:grid-cols max-col
      :grid-rows max-row
      :layout-type layout-type
-     ;; One var per panel group, which is the column that group draws.
-     ;; The exception is a set of layers overlaid on a panel whose
-     ;; columns disagree: they share an axis, and naming the first of
-     ;; them titled the axis after whichever layer came first while
-     ;; the rest were drawn under it unnamed. `:overlay-labelled` is
-     ;; stamped on exactly those, so an annotation placed in drawing
-     ;; space and a layer the writer has coloured leave it alone.
-     :x-vars (vec (distinct (map :x (concat first-draft-layers
-                                            overlay-labelled))))
-     :y-vars (vec (distinct (map :y (concat first-draft-layers
-                                            overlay-labelled))))
+     :x-vars (vec (distinct (map :x first-draft-layers)))
+     :y-vars (vec (distinct (map :y first-draft-layers)))
+     ;; The columns drawn by layers overlaid on one panel whose
+     ;; columns disagree. They share an axis, so the axis has to name
+     ;; all of them -- naming the first titled it after whichever
+     ;; layer came first while the rest were drawn under it unnamed.
+     ;; Kept apart from `:x-vars` because those differ per panel in an
+     ;; ordinary multi-panel plot, where each panel's own strip
+     ;; already names its column and the axis should not list them.
+     :x-overlay-vars (vec (distinct (map :x overlay-labelled)))
+     :y-overlay-vars (vec (distinct (map :y overlay-labelled)))
      :facet-col-vals (when has-facet-col? col-vals)
      :facet-row-vals (when has-facet-row? row-vals)
      :panels panels}))
@@ -2916,7 +2917,7 @@
                 (update :panels (fn [ps]
                                   (mapv #(assoc % :col-label nil :row-label nil)
                                         ps))))
-         {:keys [layout-type x-vars y-vars]} grid
+         {:keys [layout-type x-vars y-vars x-overlay-vars y-overlay-vars]} grid
          grid-rows-n (:grid-rows grid)
          grid-cols-n (:grid-cols grid)
 
@@ -3041,7 +3042,8 @@
          multi? (and (= layout-type :multi-variable) (> grid-cols-n 1) (> grid-rows-n 1))
          auto-label? (and (not multi?) (coord/show-ticks? rep-coord))
          {:keys [eff-title eff-x-label eff-y-label]}
-         (resolve-labels x-vars y-vars rep-x-scale rep-y-scale
+         (resolve-labels x-vars y-vars x-overlay-vars y-overlay-vars
+                         rep-x-scale rep-y-scale
                          title x-label y-label auto-label?)
          swap-labels? (or (= rep-coord :flip) has-ridgeline?)
          [eff-x-label eff-y-label] (if swap-labels?

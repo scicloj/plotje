@@ -4164,6 +4164,8 @@
         (plot composite))
       (plot composite))))
 
+(declare arrange*)
+
 (defn arrange
   "Arrange multiple poses in a grid. Returns a composite pose
    that renders through the compositor via membrane -- so `:svg`,
@@ -4194,8 +4196,30 @@
      -- a column of cells whose x axes line up.
    - `(arrange [fr-a fr-b])` -- 1x2 row.
    - `(arrange [fr-a fr-b fr-c] {:cols 2 :width 900})` -- 2x2 grid (wraps).
-   - `(arrange [[fr-a fr-b] [fr-c fr-d]])` -- explicit 2x2 grid."
+   - `(arrange [[fr-a fr-b] [fr-c fr-d]])` -- explicit 2x2 grid.
+
+   **Given data first**, the cells are drawn from it, so a cell need
+   say no more than which columns its panel draws and the layers are
+   added once at the root:
+
+   - `(-> data (arrange [{:x :a :y :b} {:x :c :y :d}]) (lay-point))`
+   - `(-> data (arrange cells {:cols 2}) (lay-point))`
+
+   The arity is decided by the second argument: a sequential one is
+   the cell list, so the first is data; a map is the options, so the
+   first is the cells."
   ([plots] (arrange plots {}))
+  ([plots-or-data opts-or-cells]
+   (if (sequential? opts-or-cells)
+     (arrange plots-or-data opts-or-cells {})
+     (arrange* plots-or-data opts-or-cells)))
+  ([data cells opts]
+   (-> (arrange* cells opts)
+       (with-data data))))
+
+(defn- arrange*
+  "Build the composite from a cell list and options. `pj/arrange` is
+   the public face and decides which of its arguments is data."
   ([plots opts]
    (let [cfg (defaults/config)
          {:keys [cols title share-scales align-panels]

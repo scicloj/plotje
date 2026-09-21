@@ -121,7 +121,16 @@
     (testing "an annotation placed in drawing space does not rename the axis"
       (let [annotated (-> d (pj/lay-point :quarter :revenue)
                           (pj/lay-text {:x 10 :y 10 :text "n" :in :drawing-area}))]
-        (is (= "quarter" (:x-label (pj/plan annotated))))))))
+        (is (= "quarter" (:x-label (pj/plan annotated))))))
+
+    (testing "the same layers in panels of their own keep one axis name"
+      ;; Each panel's strip names the column it draws, so listing them
+      ;; on the shared axis as well says the same thing twice. Only
+      ;; layers sharing a panel put more than one name on an axis.
+      (let [split (-> d (pj/lay-point :quarter :revenue)
+                      (pj/lay-point :quarter :cost))]
+        (is (= 2 (:panels (pj/svg-summary split))))
+        (is (= "revenue" (:y-label (pj/plan split))))))))
 
 (deftest overlay-is-read-at-draft-time-test
   ;; `:overlay` used to be read where the layer was added, and the pose

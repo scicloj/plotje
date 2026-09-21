@@ -119,6 +119,33 @@
       (is (= [[0] [1]] (mapv (fn [l] (mapv :dodge-idx (:groups l))) ls))
           "and each takes a slot of its own"))))
 
+(deftest which-marks-draw-a-dodge-test
+  ;; Pins what `known_limitations.clj` says about `:position :dodge`
+  ;; per mark, which had drifted from the code: it claimed the request
+  ;; was dropped at construction on `lay-bar` and `lay-summary` and
+  ;; that `lay-point` drew no offset. Measured, the request survives
+  ;; construction on all four, `lay-point` does draw an offset, and
+  ;; `lay-bar` dodges whether or not it is asked.
+  (let [d {:q ["a" "b" "a" "b"] :v [1.0 2.0 3.0 4.0] :g ["x" "x" "y" "y"]}
+        plan-position (fn [mk opts]
+                        (-> (mk d :q :v opts) pj/plan :panels first :layers first :position))]
+
+    (testing "the request survives construction on every mark"
+      (doseq [mk [pj/lay-bar pj/lay-point pj/lay-line pj/lay-summary]]
+        (is (= :dodge (:position (first (:layers (mk d :q :v {:color :g
+                                                              :position :dodge}))))))))
+
+    (testing "a bar dodges whether or not it is asked"
+      (is (= :dodge (plan-position pj/lay-bar {:color :g})))
+      (is (= :dodge (plan-position pj/lay-bar {:color :g :position :dodge}))))
+
+    (testing "a point and a line carry it to the plan"
+      (is (= :dodge (plan-position pj/lay-point {:color :g :position :dodge})))
+      (is (= :dodge (plan-position pj/lay-line {:color :g :position :dodge}))))
+
+    (testing "a summary loses it between the pose and the plan"
+      (is (nil? (plan-position pj/lay-summary {:color :g :position :dodge}))))))
+
 (deftest every-adjustment-reaches-a-series-test
   (testing "a dodge divides the band into abutting slots"
     (let [spans (bar-spans (-> sales (pj/lay-bar :quarter [:revenue :cost]

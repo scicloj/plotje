@@ -167,12 +167,13 @@
 ;;   one-line note in the surrounding prose if the chart's flipped
 ;;   state is non-obvious.
 ;;
-;; - `:position :dodge` is ignored at render-time on several marks.
-;;   The request fails in one of two ways: on `lay-bar` and
-;;   `lay-summary` the dodge request is dropped at construction; on
-;;   `lay-point` and `lay-line` the dodge metadata reaches the plan
-;;   but no geometric offset is applied. Workaround: pre-compute
-;;   dodge offsets via `tc/group-by`.
+;; - `:position :dodge` draws no offset on `lay-line`, and is dropped
+;;   between the pose and the plan on `lay-summary`. `lay-point`
+;;   honours it, and `lay-bar` dodges by default, so asking for it
+;;   there changes nothing rather than failing. Workaround for the
+;;   two that do not draw it: pre-compute the offsets with
+;;   `tc/group-by`, or use `:dx` to shift a layer by a fraction of
+;;   its band.
 ;;
 ;; - Polar plots for bar-family marks don't auto-emit category
 ;;   labels -- rose charts currently render with zero text.

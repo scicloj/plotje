@@ -522,7 +522,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__11193#] (-> p1__11193# :plan :panels first))
+       (fn* [p1__75341#] (-> p1__75341# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))

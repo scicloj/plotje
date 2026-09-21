@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__11193#]
+      [p1__76329#]
       (+
-       (Math/sin (* p1__11193# 0.2))
+       (Math/sin (* p1__76329# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -411,7 +411,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__11194#] (-> p1__11194# :plan :panels first))
+       (fn* [p1__76330#] (-> p1__76330# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
