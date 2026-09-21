@@ -12,6 +12,10 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 ### Plots that look different after upgrading
 
+- **Every overlay whose layers disagree about a column.** Each layer takes a colour of its own and a legend entry naming the column it draws, and the axis names every column drawn on it. The marks used to be drawn in one colour, under an axis titled after whichever layer came first, with nothing naming the rest -- so the plot showed less than was asked for and said nothing about it. A writer who has coloured the layers, a layer placed in drawing space, and layers that draw one place are all unaffected.
+
+- **Every `:position :dodge` on overlaid layers that disagree about a column.** Each layer takes a slot of its own in the band. The cohort divides by the label a legend prints, which overlaid layers did not have, so the dodge had one slot, was inert, and drew the two sets of marks at the same places. `:stack` and `:fill` still do nothing there: they accumulate values across the groups of one layer, and two layers have no group in common.
+
 - **Every dodged plot whose grouping names more than one column.** Each combination the grouping names gets a slot of its own, so `{:color :part :group :dimension :position :dodge}` on two parts and two dimensions draws four bars per band. The cohort used to key on a group's legend label, which is the colour column's value alone, so the four groups shared two slots and the bars were drawn two to a place. A grouping of one column is unchanged.
 
 - **Every faceted plot whose panels share an axis holding categories in one panel and numbers in another.** The plot reports that the panels disagree, and names `:scales :free-x` or `:free-y` as the way to draw each panel to its own domain. The shared domain used to be read from the first panel alone, so the categories and the range endpoints were concatenated into one domain and drawn as a band axis.

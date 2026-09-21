@@ -51,9 +51,11 @@
       (is (= 4 (:polygons (pj/svg-summary pose))))
       (is (= {:x :tax :y :cohort}
              (:mapping (second (:layers pose)))))))
-  (testing "the axis covers every column drawn on it"
-    ;; reading spans 10-12 and humidity 40-55; the shared axis is ticked
-    ;; over both, and named for the column the panel already had.
+  (testing "the axis covers every column drawn on it, and names them all"
+    ;; reading spans 10-12 and humidity 40-55; the shared axis is
+    ;; ticked over both. It used to be named for the column the panel
+    ;; already had, so humidity was drawn and never named anywhere --
+    ;; in the axis title, in a legend, or in a colour of its own.
     (let [texts (->> (tree-seq vector? seq
                                (pj/plot (-> weather
                                             pj/overlay
@@ -64,9 +66,62 @@
                      (map last)
                      (filter string?)
                      set)]
-      (is (contains? texts "reading"))
       (is (contains? texts "55"))
-      (is (not (contains? texts "humidity"))))))
+      (is (contains? texts "reading, humidity")
+          "the axis names both columns it draws")
+      (is (contains? texts "humidity")
+          "and the legend names the layer drawing it"))))
+
+(deftest an-overlay-says-how-its-marks-are-told-apart-test
+  ;; Overlaid layers that disagree about a column used to be drawn in
+  ;; one colour, with nothing naming the second: the axis was titled
+  ;; after whichever layer came first, there was no legend, and the
+  ;; picture showed less than was asked for without saying so. The
+  ;; ceremony was attached to the better outcome -- a series drew the
+  ;; readable picture and an overlay the unreadable one.
+  (let [d {:quarter [1 2 3 4] :revenue [10 12 14 13] :cost [7 8 9 8]}
+        texts (fn [fr] (->> (pj/plot fr) (tree-seq vector? seq)
+                            (filter string?) set))
+        overlaid (-> d
+                     (pj/lay-point :quarter :revenue)
+                     (pj/lay-point :quarter :cost)
+                     pj/overlay)]
+
+    (testing "each layer earns a palette colour and a legend entry"
+      (let [t (texts overlaid)]
+        (is (contains? t "revenue"))
+        (is (contains? t "cost")))
+      (is (= 2 (count (filter #(re-find #"^rgb" %)
+                              (:colors (pj/svg-summary overlaid)))))))
+
+    (testing "the axis names every column it draws"
+      (is (= "revenue, cost" (:y-label (pj/plan overlaid)))))
+
+    (testing "the legend takes no title of its own, the entries naming the columns"
+      (is (= "" (:title (:legend (pj/plan overlaid))))))
+
+    (testing "a title the writer sets is left alone"
+      (is (= "Measure" (:title (:legend (pj/plan (pj/scale overlaid :color
+                                                           {:label "Measure"})))))))
+
+    (testing "a writer who has coloured the layers is left alone"
+      ;; Nothing is synthesized, and the axis keeps the single name.
+      (let [own (-> d
+                    (pj/lay-point :quarter :revenue {:color "#377eb8"})
+                    (pj/lay-point :quarter :cost {:color "#e6550d"})
+                    pj/overlay)]
+        (is (= "revenue" (:y-label (pj/plan own))))))
+
+    (testing "layers drawing one place are untouched"
+      (let [same (-> d (pj/lay-point :quarter :revenue)
+                     (pj/lay-line :quarter :revenue) pj/overlay)]
+        (is (nil? (:legend (pj/plan same))))
+        (is (= "revenue" (:y-label (pj/plan same))))))
+
+    (testing "an annotation placed in drawing space does not rename the axis"
+      (let [annotated (-> d (pj/lay-point :quarter :revenue)
+                          (pj/lay-text {:x 10 :y 10 :text "n" :in :drawing-area}))]
+        (is (= "quarter" (:x-label (pj/plan annotated))))))))
 
 (deftest overlay-is-read-at-draft-time-test
   ;; `:overlay` used to be read where the layer was added, and the pose

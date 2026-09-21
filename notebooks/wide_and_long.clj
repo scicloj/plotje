@@ -187,11 +187,13 @@ sales-long
 ;; than a fact. Collapsing the two settings under one default would
 ;; break whichever side lost.
 
-;; ## The missing side is always the wide one, and always for one reason
+;; ## What the wide side can and cannot do
 
 ;; A position adjustment divides a band among **labelled**
-;; competitors. Two layers over wide data carry column names, not
-;; labels:
+;; competitors. Two layers over wide data are labelled by the column
+;; each draws -- overlaid, they disagree about a column, so they are
+;; told apart by a colour and a legend, and that label is what the
+;; dodge divides by:
 
 (-> sales-wide
     pj/overlay
@@ -206,14 +208,51 @@ sales-long
                     :labels (mapv :label (:groups l))})))
 
 (kind/test-last
- ;; The label is the empty string, not a missing one. `println` renders
- ;; [""] as [], so the type has to be read rather than looked at.
- [(fn [ls] (= [{:n-groups 1 :labels [""]} {:n-groups 1 :labels [""]}] ls))])
+ [(fn [ls] (= [{:n-groups 2 :labels ["revenue"]}
+               {:n-groups 2 :labels ["cost"]}] ls))])
 
-;; So the dodge has one slot to divide the band into, and asking for it
-;; changes nothing. Grouping and position adjustment are both
-;; long-side only, and that is one fact rather than two: **the long
-;; side is where labels are, and labels are what both need.**
+;; `:stack` and `:fill` are a different matter, and the wide side
+;; cannot do them. A dodge is an annotation: it records which slot of
+;; a band each mark takes, and the slots are counted across every
+;; layer that dodges, so two layers can share them. Stacking and
+;; filling rewrite the values themselves, accumulating each group's
+;; on top of the one before it -- and that accumulation runs within
+;; one layer, over its own groups. Two layers have no group in common
+;; to accumulate across, so each is piled on itself and nothing moves.
+;;
+;; The bar tops each adjustment produces, wide against long:
+
+(kind/table
+ {:column-names [:adjustment :overlaid-layers :one-series]
+  :row-vectors
+  (let [tops (fn [fr] (->> (pj/plan fr) :panels first :layers
+                           (mapcat :groups)
+                           (mapcat (fn [g] (seq (:ys g))))
+                           (mapv double)))]
+    (vec (for [adj [:dodge :stack :fill]]
+           [adj
+            (pr-str (tops (-> sales-wide pj/overlay
+                              (pj/lay-bar :quarter :revenue {:position adj})
+                              (pj/lay-bar :quarter :cost {:position adj}))))
+            (pr-str (tops (-> sales-wide
+                              (pj/lay-bar :quarter [:revenue :cost]
+                                          {:position adj}))))])))})
+
+(kind/test-last
+ [(fn [rows]
+    (let [by (into {} (map (fn [[adj wide long]] [adj [wide long]])) (:row-vectors rows))]
+      (and ;; A dodge leaves the values alone on both sides, so the two agree.
+       (= (first (by :dodge)) (second (by :dodge)))
+           ;; A stack accumulates on the long side and not on the wide one.
+       (not= (first (by :stack)) (second (by :stack)))
+           ;; A fill normalizes each wide layer against itself, so every
+           ;; bar fills its band and the picture says nothing.
+       (= "[1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0]" (first (by :fill))))))])
+
+;; So the two sides differ in what an adjustment can reach, not in
+;; whether the marks are labelled: **a dodge divides labelled
+;; competitors wherever they are, and a stack needs their values in
+;; one layer.**
 
 ;; ## The pivot is invertible on the data and not on the plot
 

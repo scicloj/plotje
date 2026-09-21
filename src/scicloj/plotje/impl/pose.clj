@@ -1893,6 +1893,44 @@
         all   (vec (distinct (if own (cons own named) named)))]
     (if (seq all) all [nil])))
 
+(defn overlay-labels
+  "What tells each overlaid layer apart, as a vector aligned with
+   `(:layers leaf)`, or nil where nothing does.
+
+   Layers that disagree about a column take a panel each, and the
+   panels name the columns. Overlaid, they share a panel and nothing
+   names them: the marks are drawn in one colour under an axis titled
+   after whichever layer came first, which is a picture that shows
+   less than the writer asked for and says nothing about it.
+
+   The label is the column a layer draws where the layers disagree.
+   Answered nil where the writer has said how the marks are told apart
+   -- any layer mapping `:color` -- and where nothing distinguishes
+   them, which is the ordinary case of layers drawing one place."
+  [leaf]
+  (let [layers (vec (:layers leaf))
+        leaf-mapping (:mapping leaf)
+        places (mapv #(layer-position-key leaf-mapping %
+                                          (or (:data %) (:data leaf)))
+                     layers)
+        overlaid? (mapv #(layer-overlays? leaf %) layers)
+        ;; Only the layers that share the panel, and only where they
+        ;; name a place of their own: a layer naming none draws on
+        ;; every panel and is not one of the things being told apart.
+        relevant (keep-indexed (fn [i p] (when (and (nth overlaid? i) p) i)) places)
+        sources (fn [axis] (vec (distinct (keep #(nth (nth places %) axis nil) relevant))))
+        colored? (some #(contains? (or (:mapping %) {}) :color) layers)]
+    (when (and (seq relevant) (not colored?))
+      (let [disagreeing (vec (keep (fn [axis] (when (< 1 (count (sources axis))) axis))
+                                   [0 1]))]
+        (when (seq disagreeing)
+          (mapv (fn [i place]
+                  (when (and (nth overlaid? i) place)
+                    (str/join " / " (map #(defaults/fmt-name (nth place % nil))
+                                         disagreeing))))
+                (range (count layers))
+                places))))))
+
 (defn layer-panel-indices
   "The panels each layer of a leaf is drawn on, as a vector of index
    vectors aligned with `(:layers leaf)`.
@@ -1956,8 +1994,8 @@
             " its own. To draw both on one panel: pj/overlay for the axis the"
             " pose already names"
             (when series?
-              (str ", or one lay-* call naming " (pr-str [standing incoming])
-                   " on " axis " in place of the two calls, to read them as"
+              (str ", or " (pr-str [standing incoming]) " on " axis " in one"
+                   " lay-* call, or in the pose's mapping, to read them as"
                    " series"))
             ".")))))
 
@@ -2053,14 +2091,34 @@
         ;; the split -- a faceted leaf has many panels and no disagreement
         ;; to report.
         _            (when (and (> n-panels 1) (seq (:layers leaf)))
-                       (report-panel-split panel-keys leaf-data))]
+                       (report-panel-split panel-keys leaf-data))
+        ;; What tells the overlaid layers apart, where they disagree
+        ;; about a column and the writer has not said. Written as a
+        ;; value read through the scale, which is the form that draws
+        ;; one palette colour and earns a legend entry -- the same
+        ;; route `{:color {:value "Model A" :scale true}}` takes.
+        ov-labels    (overlay-labels leaf)
+        overlay-legend-titled? (boolean
+                                (some->> (:color leaf-mapping)
+                                         (#(when (map? %) (:scale %)))
+                                         (#(when (map? %) (contains? % :label)))))]
     (vec
      (for [[variant-idx variant] (map-indexed vector variants)
            [layer-idx layer] (map-indexed vector applicable)
            panel-idx (nth panel-idxs layer-idx)]
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
-             layer-mapping    (report-panel-aesthetic-on-layer
-                               (or (:mapping layer) {}))
+             layer-mapping    (cond-> (report-panel-aesthetic-on-layer
+                                       (or (:mapping layer) {}))
+                                (and ov-labels (nth ov-labels layer-idx nil))
+                                (assoc :color
+                                       (cond-> {:value (nth ov-labels layer-idx)
+                                                :scale true}
+                                         ;; The entries name the columns, so a
+                                         ;; legend titled "color" says nothing
+                                         ;; the reader cannot already see. A
+                                         ;; title the writer set is left alone.
+                                         (not overlay-legend-titled?)
+                                         (assoc :scale {:label ""}))))
              layer-structural (select-keys layer [:stat :position :mark])
              ;; Explicit mappings are unwrapped before anything reads
              ;; the merged map, so every check and every later stage
@@ -2095,6 +2153,13 @@
              (merge (layer-scale-specs resolved))
              (cond->
               coord-type  (assoc :coord coord-type)
+              ;; Marks this layer as one of a set overlaid on a panel
+              ;; whose columns disagree, so the axis can name all of
+              ;; them. Only these: an annotation placed in drawing
+              ;; space, or a layer the writer has already coloured,
+              ;; leaves the axis title alone.
+              (and ov-labels (nth ov-labels layer-idx nil))
+              (assoc :overlay-labelled true)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))
               (:facet-row variant) (assoc :facet-row (:facet-row variant)))
              (cond-> (= :infer (:mark resolved))

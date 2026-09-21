@@ -1390,17 +1390,23 @@
    option; with neither, the column name is inferred."
   [x-vars y-vars x-scale-spec y-scale-spec
    title x-label y-label auto-label?]
-  {:eff-title title
-   :eff-x-label (or (:label x-scale-spec)
-                    x-label
-                    (when auto-label?
-                      (when-let [x (first x-vars)] (defaults/fmt-name x))))
-   :eff-y-label (or (:label y-scale-spec)
-                    y-label
-                    (when auto-label?
-                      (when-let [y (first y-vars)]
-                        (when (not= y (first x-vars))
-                          (defaults/fmt-name y)))))})
+  (let [;; Every column the axis draws, not the first of them.
+        ;; Overlaid layers that disagree share an axis, and naming one
+        ;; of their columns titled the axis after whichever layer came
+        ;; first while the rest were drawn under it unnamed.
+        axis-name (fn [vars]
+                    (let [names (vec (distinct (keep identity vars)))]
+                      (when (seq names)
+                        (str/join ", " (map defaults/fmt-name names)))))]
+    {:eff-title title
+     :eff-x-label (or (:label x-scale-spec)
+                      x-label
+                      (when auto-label? (axis-name x-vars)))
+     :eff-y-label (or (:label y-scale-spec)
+                      y-label
+                      (when auto-label?
+                        (when (not= (first y-vars) (first x-vars))
+                          (axis-name y-vars))))}))
 
 (defn- finite-vals
   "Concatenate a seq of column buffers into a single Clojure vector with
@@ -2283,6 +2289,8 @@
   [panel-groups {:keys [grid-cols grid-rows] :as user-grid}]
   (let [;; Detect faceting: check if any panel group has :facet-col or :facet-row
         first-draft-layers (mapv #(first (:draft-layers %)) panel-groups)
+        overlay-labelled (filterv :overlay-labelled
+                                  (mapcat :draft-layers panel-groups))
         has-facet-col? (some :facet-col first-draft-layers)
         has-facet-row? (some :facet-row first-draft-layers)
         faceted? (or has-facet-col? has-facet-row?)
@@ -2347,8 +2355,17 @@
     {:grid-cols max-col
      :grid-rows max-row
      :layout-type layout-type
-     :x-vars (vec (distinct (map :x first-draft-layers)))
-     :y-vars (vec (distinct (map :y first-draft-layers)))
+     ;; One var per panel group, which is the column that group draws.
+     ;; The exception is a set of layers overlaid on a panel whose
+     ;; columns disagree: they share an axis, and naming the first of
+     ;; them titled the axis after whichever layer came first while
+     ;; the rest were drawn under it unnamed. `:overlay-labelled` is
+     ;; stamped on exactly those, so an annotation placed in drawing
+     ;; space and a layer the writer has coloured leave it alone.
+     :x-vars (vec (distinct (map :x (concat first-draft-layers
+                                            overlay-labelled))))
+     :y-vars (vec (distinct (map :y (concat first-draft-layers
+                                            overlay-labelled))))
      :facet-col-vals (when has-facet-col? col-vals)
      :facet-row-vals (when has-facet-row? row-vals)
      :panels panels}))

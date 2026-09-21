@@ -103,15 +103,21 @@
       (is (= ["revenue" "cost"] (mapv :label (:groups l))))
       (is (= [0 1] (mapv :dodge-idx (:groups l))))))
 
-  (testing "two overlaid layers carry no label, so a dodge has nothing to divide"
+  (testing "two overlaid layers are labelled by the column each draws, so a dodge divides them"
+    ;; Overlaid layers that disagree about a column are told apart by a
+    ;; colour and a legend, and the label that legend prints is what
+    ;; the dodge divides by. Both labels used to be the empty string,
+    ;; so the cohort saw one group, the dodge was inert, and the two
+    ;; sets of bars were drawn at the same places.
     (let [ls (-> (pj/plan (-> sales
                               pj/overlay
                               (pj/lay-bar :quarter :revenue {:position :dodge})
                               (pj/lay-bar :quarter :cost {:position :dodge})))
                  :panels first :layers)]
-      (is (= [[1 [""]] [1 [""]]]
-             (mapv (fn [l] [(:n-groups (:dodge-ctx l)) (mapv :label (:groups l))]) ls))
-          "the label is the empty string, not a missing one"))))
+      (is (= [[2 ["revenue"]] [2 ["cost"]]]
+             (mapv (fn [l] [(:n-groups (:dodge-ctx l)) (mapv :label (:groups l))]) ls)))
+      (is (= [[0] [1]] (mapv (fn [l] (mapv :dodge-idx (:groups l))) ls))
+          "and each takes a slot of its own"))))
 
 (deftest every-adjustment-reaches-a-series-test
   (testing "a dodge divides the band into abutting slots"
