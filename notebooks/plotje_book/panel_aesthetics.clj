@@ -20,9 +20,10 @@
 ;; A distinction is a set of things to tell apart, and it is made of
 ;; columns. Every aesthetic answers two questions about the
 ;; distinction it is given: where the marks go, and how a reader tells
-;; them apart. The answer is the aesthetic's **role**, and there are
-;; four. A role is not a category -- a category is a value a
-;; categorical column holds, which is what a role is given.
+;; them apart. The answer is the aesthetic's
+;; [**role**](./plotje_book.glossary.html#role), and there are four. A
+;; role is not a category -- a category is a value a categorical
+;; column holds, which is what a role is given.
 
 (kind/table
  {:column-names [:aesthetic :role]
@@ -247,6 +248,7 @@ measures
 ;; ## See Also
 ;;
 ;; - [**Faceting**](./plotje_book.faceting.html) -- the pictures a facet draws, and the options that shape them
+;; - [**Glossary**](./plotje_book.glossary.html#role) -- role, and the two roles that are not written as aesthetics
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- the scope rules a panel aesthetic obeys
 ;; - [**Composition**](./plotje_book.composition.html) -- composite poses, shared scales, and arbitrary layouts
 

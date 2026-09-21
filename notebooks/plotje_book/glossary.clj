@@ -148,6 +148,10 @@ my-pose
 ;; the layer options.
 ;; When multiple layers share `:position :dodge`, they are coordinated
 ;; together -- error bars automatically align with bars.
+;;
+;; A position adjustment is one of the [roles](#role) a distinction
+;; can be given -- a slot within a band, or a place in a pile -- and
+;; the only one written as a layer option rather than as a mapping.
 ;; See the [Layer Types](./plotje_book.layer_types.html#positions) chapter for
 ;; a table of all built-in positions.
 
@@ -223,15 +227,17 @@ my-pose
 ;; ## Mapping
 ;;
 ;; A **mapping** maps a column (or a written value) to an
-;; aesthetic. Aesthetics come in three groups:
+;; aesthetic. Each aesthetic has a [role](#role), and there are four:
 ;;
 ;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:x-min`,
 ;;   `:x-max`, `:y-min`, `:y-max` for marks that need them) place
 ;;   each mark.
 ;; - **Appearance aesthetics** (`:color`, `:size`, `:alpha`, `:shape`,
-;;   `:text`, `:fill`) shape how each mark looks.
+;;   `:text`, `:tooltip`, `:fill`) shape how each mark looks.
 ;; - **Grouping aesthetic** (`:group`) splits the data and draws
 ;;   nothing of its own.
+;; - **Panel aesthetics** (`:col`, `:row`) give each value a panel of
+;;   its own. `pj/facet` and `pj/facet-grid` write them.
 ;;
 ;; A mapping can be written in full, saying which of its two readings
 ;; -- the column or the value -- it means, and which side of the scale
@@ -248,8 +254,9 @@ my-pose
 ;; ## Aesthetic
 ;;
 ;; An **aesthetic** is a property of a mark that can be mapped to a
-;; data column or fixed to a written value. Plotje supports three
-;; groups:
+;; data column or fixed to a written value. Each one has a
+;; [role](#role) -- what a distinction given to it is put to work as
+;; -- and there are four:
 ;;
 ;; **Positional aesthetics** -- where the mark sits:
 ;;
@@ -277,6 +284,13 @@ my-pose
 ;; | Key | Controls | Column type |
 ;; |:----|:---------|:------------|
 ;; | `:group` | Splits the layer into one drawn group per value | Categorical |
+;;
+;; **Panel aesthetics** -- which panel a row is drawn in:
+;;
+;; | Key | Controls | Column type |
+;; |:----|:---------|:------------|
+;; | `:col` | A panel per value, laid out across | Categorical, or a vector of columns united into one key |
+;; | `:row` | A panel per value, laid out down | The same |
 ;;
 ;; The layer's data decides: a value naming one of its columns is a
 ;; column reference, and anything else is the value itself --
@@ -306,6 +320,50 @@ my-pose
            ;; :alpha 0.7 is a written value -- every point gets the
            ;; same opacity, so the rendered set has a single alpha.
            (= #{0.7} (:alphas s)))))])
+
+;; ## Role
+;;
+;; A **distinction** is a set of things to tell apart, and it is made
+;; of columns -- one column's values, or several columns united into
+;; one key. A distinction's **role** is what it is put to work as: it
+;; answers where the separated marks go, and how a reader tells them
+;; apart. Every aesthetic carries one, and `pj/aesthetic-roles` says
+;; which:
+
+(kind/table
+ {:column-names [:aesthetic :role]
+  :row-vectors (->> (pj/aesthetic-roles)
+                    (sort-by (comp str key))
+                    (mapv (fn [[k role]] [k role])))})
+
+(kind/test-last
+ [(fn [_] (= #{:positional :appearance :grouping :panel}
+             (set (vals (pj/aesthetic-roles)))))])
+
+;; | Role | Where the marks go | How they are told apart |
+;; |:--|:--|:--|
+;; | `:positional` | at the value, along an axis | by where they sit |
+;; | `:appearance` | in one place | by a colour, a size, a shape, under a legend |
+;; | `:grouping` | in one place | not at all -- the split is in the data, not in the picture |
+;; | `:panel` | a panel each | by a strip label |
+;;
+;; A role is not a category: a **category** is a value a categorical
+;; column holds, which is the thing a role is given.
+;;
+;; Two roles are not written as aesthetics, and are named here so the
+;; set is complete rather than tidy:
+;;
+;; - A [position](#position) adjustment -- `:dodge`, `:stack`,
+;;   `:fill` -- gives a distinction a slot within a band, or a place
+;;   in a pile. It is written as a layer option, and it tells the
+;;   marks apart only by whatever aesthetic is also mapped.
+;; - [`pj/arrange`](#arrange) gives each of several poses a plot of
+;;   its own. It is written as a call, and what it separates is poses
+;;   rather than a column's values.
+;;
+;; So the same question -- what becomes of a distinction -- is
+;; answered in a mapping for four roles, in a layer option for one,
+;; and in a call for another.
 
 ;; ## Group
 ;;
@@ -1265,7 +1323,8 @@ annotated
 ;; | Stat | Data transform: identity, bin, count, linear-model, density, ... | Key in layer-type map |
 ;; | Position | How overlapping marks are placed: identity, dodge, stack, fill | Key in layer-type map |
 ;; | Inference | Auto-choosing mark/stat from column types | When `pj/lay-*` is omitted |
-;; | Aesthetic | Mark property bindable to a column: positional (x, y, ...) or appearance (color, size, alpha, ...) | Key in mapping or layer |
+;; | Aesthetic | Mark property bindable to a column, each carrying a role | Key in mapping or layer |
+;; | Role | What a distinction given to an aesthetic is put to work as: positional, appearance, grouping, panel | `pj/aesthetic-roles` |
 ;; | Group | Subset of data rendered together | From `:color` or `:group` |
 ;; | Plan | Fully resolved plot description | `pj/plan` |
 ;; | Panel | One plotting area (domain, ticks, layers) | One or more per plan |
