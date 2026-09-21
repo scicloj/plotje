@@ -241,6 +241,7 @@
 
 ;; ## See Also
 ;;
+;; - [**Panel Aesthetics**](./plotje_book.panel_aesthetics.html) -- `:col` and `:row` as mappings: faceting a composite, overriding a facet per cell, and faceting by a compound key
 ;; - [**Composition**](./plotje_book.composition.html) -- composite poses, shared scales, and arbitrary layouts
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- mapping scope as it flows through faceted panels
 
