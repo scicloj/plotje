@@ -870,8 +870,9 @@ two-panel
                            (and (= 3 (:panels s))
                                 (= 150 (:points s)))))])
 
-;; Printed, the facet column lives in `:opts` as `:facet-col` --
-;; the pose itself is not split until render time:
+;; Printed, the facet column lives in the mapping under `:col`, beside
+;; `:x` and `:y`. Faceting is a mapping like any other -- the pose
+;; itself is not split until render time:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)
@@ -880,7 +881,7 @@ two-panel
     (pj/lay-smooth {:stat :linear-model})
     kind/pprint)
 
-(kind/test-last [(fn [v] (= :species (get-in v [:opts :facet-col])))])
+(kind/test-last [(fn [v] (= :species (get-in v [:mapping :col])))])
 
 ;; A vector of column names creates one panel per variable:
 

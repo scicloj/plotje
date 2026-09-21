@@ -124,16 +124,29 @@
 
 (def
  v28_l151
- (try
-  (->
-   measurements
-   (pj/lay-point :height :weight)
-   (pj/lay-point :depth :weight)
-   (pj/facet :species)
-   pj/plot)
-  (catch Exception e (ex-message e))))
+ (->
+  measurements
+  (pj/lay-point :height :weight)
+  (pj/lay-point :depth :weight)
+  (pj/facet :species)))
 
 
 (deftest
- t29_l159
- (is ((fn [m] (re-find #"draw on more than one panel" m)) v28_l151)))
+ t29_l156
+ (is
+  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:panels s)))) v28_l151)))
+
+
+(def
+ v31_l165
+ (->
+  (pj/arrange
+   [(pj/pose measurements :height :weight)
+    (pj/pose measurements :depth :weight)])
+  (pj/lay-point)
+  (pj/facet :species)))
+
+
+(deftest
+ t32_l170
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v31_l165)))

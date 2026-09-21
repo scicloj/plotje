@@ -246,7 +246,14 @@
     ;; `:group` is neither: it draws nothing of its own, it splits a
     ;; layer into one drawn group per value. Several grouping columns
     ;; are allowed beside a single one.
-    :group [:or ColumnRef [:sequential ColumnRef] ExplicitMapping]}))
+    :group [:or ColumnRef [:sequential ColumnRef] ExplicitMapping]
+    ;; The panel aesthetics read a column the way `:group` does -- for
+    ;; the values it holds, several columns united into one key -- and
+    ;; send each value to a panel of its own rather than to a drawn
+    ;; group. A written value would name a panel with no rows in it,
+    ;; so there is no value reading.
+    :col   [:or ColumnRef [:sequential ColumnRef] ExplicitMapping]
+    :row   [:or ColumnRef [:sequential ColumnRef] ExplicitMapping]}))
 
 (def ColumnTypeOverride
   "A `:x-type` / `:y-type` / `:color-type` value: the classification

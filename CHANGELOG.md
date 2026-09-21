@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+Faceting is a mapping. `pj/facet` and `pj/facet-grid` write the columns they divide by into the pose's `:mapping`, under the aesthetics `:col` and `:row`, so faceting follows the scope rules every other mapping follows: written on a pose it reaches every layer and every sub-pose below, and a sub-pose that writes its own overrides it. A composite can be faceted, one cell of a composite can be faceted differently from another, and a pose whose layers already draw several panels draws each of them once per value the column holds.
+
 Several columns where one goes are read as several series. A dataset carrying one measure per column can be drawn without reshaping it by hand: `(pj/lay-bar :quarter [:revenue :cost] {:position :dodge})` pivots the columns, maps the key column it invents to `:color`, and draws the measures as groups of one layer -- so `:dodge`, `:stack` and `:fill` place them against each other, which two layers cannot do.
 
 `pj/overlay` says the same thing wherever in a pipeline it is written. It is read where the panels are decided rather than where a layer is added, so writing it after the layers draws what writing it before them draws. Every other mapping already read that way.
 
 ### Plots that look different after upgrading
+
+- **Every `pj/facet` or `pj/facet-grid` on a composite pose.** Every cell of the composite is divided, so a two-cell arrangement faceted by a three-value column draws six panels. Both calls used to report that a composite was not supported and draw nothing.
+
+- **Every `pj/facet` or `pj/facet-grid` on a pose whose layers draw more than one panel.** Each of those panels is drawn once per value the column holds, the facet being the outer division. Both calls used to report that the two divisions would cross and draw nothing.
+
+- **Every pose read for its faceting column.** The column is at `[:mapping :col]`, or `[:mapping :row]`, where it used to be at `[:opts :facet-col]` and `[:opts :facet-row]`. The plot is unchanged; a hand-built pose that carries the older spelling in its `:opts` is still faceted by it.
 
 - **Every plot where two layers name different columns on one axis.** The layers still get a panel each, and the split now says so, naming the ways to ask for one panel instead: `pj/overlay`, always, and the single call that reads the two columns as series where one dataset carries both and only one axis disagrees. Plots are unchanged; what is new is a note on standard output, said when the pose is drawn rather than when a layer is added.
 
@@ -25,6 +33,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 - **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, which is what `:group` naming two columns already drew. One grouping column used to take the palette's first colour.
 
 ### Added
+
+- `:col` and `:row` are aesthetics: a column written under either gives each of its values a panel of its own. `pj/facet` and `pj/facet-grid` write them. A vector under one unites the columns into a compound key, drawing a panel per combination the data holds and labelling it by each column's value in turn -- which `pj/facet-grid` does not, since it crosses two distinctions and fills the rectangle. `pj/panel-aesthetic-docs` describes them, and `pj/aesthetic-categories` says which destination each aesthetic sends a distinction to.
 
 - Several columns written where one column goes are read as several series of one layer. The pivot invents a key column, whose name titles the legend and is `:series` unless given, and a `:value` column, which titles the value axis and is renamed with `:x-label` or `:y-label`. Write `{:series [:revenue :cost] :as :measure}` in full to name the key column, and add `:scale` there to read the value column through a scale, as any other mapping map takes one. A key a series does not take is reported. A series is read in a `lay-*` call, and `pj/pose` given one says so. The columns the series reads are consumed; the rest of the dataset comes through untouched. The key column is mapped to `:color`, and to `:group` where the layer maps `:color` itself, so the series stay separate marks either way.
 

@@ -1684,49 +1684,92 @@
                       {:role role :column ref :available (sort-by str col-names)})))
     fname))
 
+(def facet-label-separator
+  "What joins the parts of a compound facet label. A panel faceted by
+   several columns is labelled by each column's value in turn, and this
+   is what stands between them."
+  " / ")
+
+(defn- facet-columns
+  "The columns a facet aesthetic names, as a vector, or nil where it
+   names none.
+
+   One column is the one-column case of several, which is the rule
+   `resolve/infer-grouping` already applies to `:group`: a distinction
+   read by value is made of one or more columns, united."
+  [v]
+  (cond
+    (resolve/column-ref? v) [v]
+    (and (sequential? v) (seq v) (every? resolve/column-ref? v)) (vec v)
+    :else nil))
+
+(defn- facet-keys
+  "The facet key of every row, as a vector aligned with the dataset --
+   each entry the tuple of values the facet columns hold in that row.
+
+   Read column by column rather than row by row: one column is the
+   one-column case, so the tuple is built by zipping the columns the
+   aesthetic names."
+  [ds role refs]
+  (let [names (mapv #(resolve-facet-col ds role %) refs)
+        cols  (mapv #(ds %) names)]
+    (apply mapv vector cols)))
+
+(defn- facet-label
+  "What a facet key prints as: each column's value in turn, through the
+   same formatter a category label goes through anywhere else."
+  [key-tuple]
+  (str/join facet-label-separator (map defaults/fmt-category-label key-tuple)))
+
+(defn- rows-where
+  "The indices at which `ks` equals `k`. `tc/select-rows` takes them
+   directly, so no row map is built to ask a question about a column."
+  [ks k]
+  (into [] (keep-indexed (fn [i v] (when (= v k) i))) ks))
+
 (defn- facet-variants
   "Build one (data + labels) variant per facet-value combination.
    Returns a vector of maps {:data ds-subset, :facet-col <label>?, :facet-row <label>?}.
    When neither axis is faceted, returns a single-element vector carrying the
-   input dataset unchanged and no labels."
+   input dataset unchanged and no labels.
+
+   A facet aesthetic may name several columns, which are united into a
+   compound key -- one panel per combination the data holds, labelled
+   by each column's value in turn. That is the same reading `:group`
+   and `:color` give a vector, and it differs from `pj/facet-grid`,
+   which crosses two distinctions and fills the rectangle whether the
+   data holds a combination or not."
   [data facet-col facet-row]
-  (when (and facet-col (sequential? facet-col))
-    (throw (ex-info (str "Facet column must be a single keyword or string, got vector: " (pr-str facet-col)
-                         ". For 2D grids use (pj/facet-grid pose col-col row-col).")
-                    {:facet-col facet-col})))
-  (when (and facet-row (sequential? facet-row))
-    (throw (ex-info (str "Facet row must be a single keyword or string, got vector: " (pr-str facet-row)
-                         ". For 2D grids use (pj/facet-grid pose col-col row-col).")
-                    {:facet-row facet-row})))
-  (let [nc? (resolve/column-ref? facet-col)
-        nr? (resolve/column-ref? facet-row)
-        ds  (coerce-dataset data)]
+  (let [ds    (coerce-dataset data)
+        crefs (facet-columns facet-col)
+        rrefs (facet-columns facet-row)]
     (cond
-      (not (or nc? nr?))
+      (not (or crefs rrefs))
       [{:data ds}]
 
-      (and nc? nr?)
-      (let [fcol (resolve-facet-col ds :facet-col facet-col)
-            frow (resolve-facet-col ds :facet-row facet-row)]
+      (and crefs rrefs)
+      (let [ck (facet-keys ds :facet-col crefs)
+            rk (facet-keys ds :facet-row rrefs)
+            both (mapv vector ck rk)]
         (vec
-         (for [cv (distinct (ds fcol)) rv (distinct (ds frow))]
-           {:data (tc/select-rows ds (fn [r] (and (= (r fcol) cv) (= (r frow) rv))))
-            :facet-col (defaults/fmt-category-label cv)
-            :facet-row (defaults/fmt-category-label rv)})))
+         (for [cv (distinct ck) rv (distinct rk)]
+           {:data (tc/select-rows ds (rows-where both [cv rv]))
+            :facet-col (facet-label cv)
+            :facet-row (facet-label rv)})))
 
-      nc?
-      (let [fcol (resolve-facet-col ds :facet-col facet-col)]
+      crefs
+      (let [ck (facet-keys ds :facet-col crefs)]
         (vec
-         (for [cv (distinct (ds fcol))]
-           {:data (tc/select-rows ds (fn [r] (= (r fcol) cv)))
-            :facet-col (defaults/fmt-category-label cv)})))
+         (for [cv (distinct ck)]
+           {:data (tc/select-rows ds (rows-where ck cv))
+            :facet-col (facet-label cv)})))
 
-      nr?
-      (let [frow (resolve-facet-col ds :facet-row facet-row)]
+      rrefs
+      (let [rk (facet-keys ds :facet-row rrefs)]
         (vec
-         (for [rv (distinct (ds frow))]
-           {:data (tc/select-rows ds (fn [r] (= (r frow) rv)))
-            :facet-row (defaults/fmt-category-label rv)}))))))
+         (for [rv (distinct rk)]
+           {:data (tc/select-rows ds (rows-where rk rv))
+            :facet-row (facet-label rv)}))))))
 
 (defn- mapping-scale-spec
   "The scale spec a mapping states, or nil where it states none.
@@ -1908,6 +1951,26 @@
                    " series"))
             ".")))))
 
+(defn report-panel-aesthetic-on-layer
+  "Report a panel aesthetic written on a layer.
+
+   `:row` and `:col` send a distinction to panels, and a facet
+   multiplies the whole leaf rather than one layer of it, so a panel
+   aesthetic on a layer names a division the draft cannot build. It is
+   reported here rather than dropped, which is what a mapping key with
+   no reading used to do."
+  [layer-mapping]
+  (let [panel-keys (filter layer-mapping [:col :row])]
+    (when (seq panel-keys)
+      (throw (ex-info (str "A panel aesthetic " (vec panel-keys) " was written on a"
+                           " layer. A facet divides every layer of the pose, so"
+                           " write it on the pose: (pj/facet my-pose "
+                           (pr-str (get layer-mapping (first panel-keys)))
+                           "), or put it in the pose's mapping.")
+                      {:layer-mapping layer-mapping
+                       :panel-aesthetics (vec panel-keys)}))))
+  layer-mapping)
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -1949,7 +2012,15 @@
                        (seq layers) layers
                        (seq leaf-mapping) [{:layer-type :infer}]
                        :else [])
-        variants     (facet-variants leaf-data (:facet-col opts) (:facet-row opts))
+        ;; The panel aesthetics are read here and stripped before
+        ;; anything downstream sees the mapping: a panel is a
+        ;; destination for a distinction, not something a mark draws.
+        ;; `:opts` is the older spelling `pj/facet` used to write, kept
+        ;; so a hand-built pose carrying it still faceted.
+        facet-col    (or (mapping-source (:col leaf-mapping)) (:facet-col opts))
+        facet-row    (or (mapping-source (:row leaf-mapping)) (:facet-row opts))
+        leaf-mapping (dissoc leaf-mapping :col :row)
+        variants     (facet-variants leaf-data facet-col facet-row)
         ;; The places this leaf draws at, and which of them each layer
         ;; lands on. An empty :layers stands in as one placeholder layer,
         ;; which names no place and so draws on the leaf's own.
@@ -1978,7 +2049,8 @@
            [layer-idx layer] (map-indexed vector applicable)
            panel-idx (nth panel-idxs layer-idx)]
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
-             layer-mapping    (or (:mapping layer) {})
+             layer-mapping    (report-panel-aesthetic-on-layer
+                               (or (:mapping layer) {}))
              layer-structural (select-keys layer [:stat :position :mark])
              ;; Explicit mappings are unwrapped before anything reads
              ;; the merged map, so every check and every later stage

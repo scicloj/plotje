@@ -136,6 +136,30 @@
    Maps each key to a description string."
   layer-type/layer-option-docs)
 
+(defn aesthetic-categories
+  "Which destination each aesthetic sends a distinction to, as a map
+   from aesthetic to category.
+
+   - `:positional` -- the mark is placed by the value.
+   - `:appearance` -- the marks share a place and are told apart by how
+     they look, and a legend says which is which.
+   - `:grouping` -- the marks share a place and are not told apart.
+   - `:panel` -- each value gets a panel of its own, told apart by a
+     strip label. `pj/facet` and `pj/facet-grid` write these.
+
+   A function rather than a value, as `pj/shape-symbols` is: the
+   registry grows from one release to the next."
+  []
+  (into {} (map (fn [[k entry]] [k (:category entry)]))
+        defaults/aesthetic-registry))
+
+(def panel-aesthetic-docs
+  "Documentation for the panel aesthetics -- the mapping keys that send
+   each value of a distinction to a panel of its own. Written on a
+   pose, not on a layer, and `pj/facet` and `pj/facet-grid` are sugar
+   for writing one. Maps each key to a description string."
+  defaults/panel-aesthetic-docs)
+
 (def aesthetic-scales
   "What each aesthetic's scale accepts, one entry per aesthetic that
    has a scale, in display order.
@@ -1387,10 +1411,10 @@
    **On a hand-built pose-shaped map (1-arity, input has `:layers` or
    `:poses`):** the map is validated and tagged with Kindly auto-render
    metadata, but its keys are not reordered and its `:data` is not
-   coerced -- the typed shape is preserved verbatim. A flat composite
-   (`:poses` of leaf maps) is supported; literal nested composites
-   (any sub-pose itself has `:poses`) are rejected, matching
-   `pj/arrange`'s rule that its elements must be leaves.
+   coerced -- the typed shape is preserved verbatim. A composite is
+   supported at any depth: a sub-pose that itself has `:poses` nests,
+   which is the shape `pj/arrange` builds and the shape it accepts
+   among its own inputs.
 
    **Writing a mapping out in full.** Any mapping value may be written
    as a map naming its source, and optionally which side of the scale
@@ -1566,13 +1590,18 @@
     (prepare-pose (assoc fr :data ds))))
 
 (defn- check-facet-keys
-  "Throw a helpful error if a mapping or layer-options map contains
-   :facet-col / :facet-row / :facet-x / :facet-y. Faceting is
-   plot-level and is set via pj/facet or pj/facet-grid, never via
-   a sub-pose or layer options map -- the silent-strip behaviour on
-   such keys confused users (user-report-2 Issue 5)."
+  "Throw a helpful error if a mapping or layer-options map contains a
+   panel aesthetic, or one of the older `:facet-*` spellings of one.
+
+   A facet divides every layer of the pose alike, so it is written on
+   the pose and never in a sub-pose or layer options map. Both
+   spellings are caught here so they report the same thing: `:col` in
+   a layer's options map used to be dropped with a warning naming no
+   route, which is the silent-strip behaviour this check exists to
+   prevent (user-report-2 Issue 5)."
   [context m]
-  (let [fk (select-keys m [:facet-col :facet-row :facet-x :facet-y])]
+  (let [fk (select-keys m (into [:facet-col :facet-row :facet-x :facet-y]
+                                defaults/panel-aesthetics))]
     (when (seq fk)
       (throw (ex-info (str "Faceting is plot-level, not " context "-level. "
                            "Use (pj/facet pose col) or (pj/facet-grid pose col-col row-col) "
@@ -3188,29 +3217,6 @@
                            " between.")
                       {:caller caller :value v})))))
 
-(defn- reject-composite-for-facet
-  "Throw where the facet grid would cross a grid the pose already has.
-
-   Two shapes do that. A composite pose has the composite layout. And a
-   leaf whose layers draw at more than one place has a panel per place,
-   which faceting would multiply -- a shape `lay-*` used to build as a
-   composite, refused here, and refused here still."
-  [fr]
-  (when (pose? fr)
-    (when (pose/composite? fr)
-      (throw (ex-info (str "pj/facet and pj/facet-grid are not yet supported on composite poses. "
-                           "The facet grid would cross the composite layout. "
-                           "Flatten to a single leaf.")
-                      {:pose-kind :composite})))
-    (when (< 1 (count (pose/leaf-panel-keys fr)))
-      (throw (ex-info (str "pj/facet and pj/facet-grid are not yet supported on a pose"
-                           " whose layers draw on more than one panel. The facet grid"
-                           " would cross the panels the layers already make. Draw one"
-                           " place per pose and arrange them, or use pj/overlay to put"
-                           " the layers on one panel.")
-                      {:pose-kind :multi-panel-leaf
-                       :panels (count (pose/leaf-panel-keys fr))})))))
-
 (defn overlay
   "Mark a pose so that its layers are drawn on one panel, instead of a
    layer naming columns the panel does not draw taking a panel of its
@@ -3251,14 +3257,64 @@
        (assoc fr :overlay true)
        (dissoc fr :overlay)))))
 
+(defn- update-mapping
+  "Update the root :mapping of a pose. Non-pose inputs are coerced via
+   ->pose first. resolve-tree merges a parent's :mapping into every
+   descendant, child keys overriding parent keys, so a root-level write
+   reaches every leaf and a cell can override it."
+  [pose-or-data f & args]
+  (apply update (if (pose? pose-or-data) pose-or-data (->pose pose-or-data))
+         :mapping f args))
+
+(defn- report-refacet
+  "Report a second facet written in the same direction.
+
+   Two `pj/facet` calls with the same direction used to leave only the
+   second, with no word said. A panel aesthetic obeys the mapping scope
+   rules, so overriding one lower down is a legitimate thing to do --
+   but writing both at the same level is not a scope override, it is
+   two answers to one question."
+  [pose aesthetic col]
+  (when-let [existing (get (:mapping pose) aesthetic)]
+    (when (not= existing col)
+      (throw (ex-info (str "pj/facet was given " (pr-str col) " for " aesthetic
+                           ", which this pose already facets by "
+                           (pr-str existing) ". A pose divides its panels once"
+                           " per direction: use the other direction, or"
+                           " pj/facet-grid for both at once, or facet a"
+                           " compound key -- (pj/facet my-pose ["
+                           (pr-str existing) " " (pr-str col) "]).")
+                      {:caller "pj/facet"
+                       :aesthetic aesthetic
+                       :existing existing
+                       :given col}))))
+  pose)
+
 (defn facet
-  "Facet a pose by a column.
-   `direction` is `:col` (default, horizontal row) or `:row` (vertical
-   column). Faceting is plot-level -- every panel is faceted the same way.
-   Composite poses are not supported yet."
+  "Facet a pose by a column: one panel per value the column holds.
+
+   `direction` is `:col` (default, panels across) or `:row` (panels
+   down).
+
+   Faceting is a mapping. `(pj/facet my-pose :species)` writes
+   `{:col :species}` into the pose's mapping, so it follows the same
+   scope rules as `:color` or `:size` -- written on a pose it reaches
+   every layer and every sub-pose below, and a sub-pose that writes its
+   own `:col` overrides it. This is what lets a composite be faceted,
+   and lets one cell of a composite be faceted differently from
+   another.
+
+   `:col` and `:row` are aesthetics like any other, so the mapping may
+   be written out in full, and a distinction made of several columns
+   reaches them the way it reaches `:color`:
+
+   - `(pj/facet my-pose :species)` -- one panel per species.
+   - `(pj/facet my-pose [:part :dimension])` -- one panel per observed
+     combination, which is a compound key. `pj/facet-grid` fills the
+     rectangle instead.
+   - `{:col {:column :species}}` -- the same as the first, written out."
   ([pose col] (facet pose col :col))
   ([pose col direction]
-   (reject-composite-for-facet pose)
    (when-not (#{:col :row} direction)
      (throw (ex-info (str "pj/facet direction must be :col or :row, got: "
                           (pr-str direction) ".")
@@ -3266,18 +3322,24 @@
                       :direction direction
                       :accepted #{:col :row}})))
    (let [col (column-argument "pj/facet" col)
-         k (case direction :col :facet-col :row :facet-row)]
-     (update-opts pose assoc k col))))
+         fr  (->pose pose "pj/facet")]
+     (report-refacet fr direction col)
+     (update-mapping fr assoc direction col))))
 
 (defn facet-grid
-  "Facet a pose by two columns (2D grid).
-   Faceting is plot-level -- every panel is faceted the same way.
-   Composite poses are not supported yet."
+  "Facet a pose by two columns: a panel for every row-and-column pair,
+   whether or not the data holds one.
+
+   Like `pj/facet`, this is a mapping -- it writes `{:col ... :row ...}`
+   -- so it scopes downward and reaches a composite's cells.
+
+   `pj/facet-grid` fills the rectangle; `(pj/facet my-pose [:a :b])`
+   draws only the combinations the data holds."
   [pose col-col row-col]
-  (reject-composite-for-facet pose)
-  (update-opts pose assoc
-               :facet-col (column-argument "pj/facet-grid" col-col)
-               :facet-row (column-argument "pj/facet-grid" row-col)))
+  (let [fr (->pose pose "pj/facet-grid")]
+    (update-mapping fr assoc
+                    :col (column-argument "pj/facet-grid" col-col)
+                    :row (column-argument "pj/facet-grid" row-col))))
 
 (def ^:private aesthetic->scale-key
   "Aesthetic keyword to the opts key holding its scale spec. Derived
@@ -3607,7 +3669,12 @@
           ;; no way to know what it'll accept until then.
           :when (seq (layers-in-subtree p))]
     (let [accepted (accepted-keys-in-subtree p)
-          unused (vec (remove accepted (keys (:mapping p))))]
+          ;; A panel aesthetic is consumed at the draft stage rather
+          ;; than by a layer -- it divides the leaf into panels and is
+          ;; stripped before any layer sees the mapping -- so no layer
+          ;; declares it and it is live wherever it is written.
+          unused (vec (remove (some-fn accepted defaults/panel-aesthetics)
+                              (keys (:mapping p))))]
       (when (seq unused)
         (let [strict-val (:strict (defaults/config))
               scope (if (= p root) "the root pose" "a sub-pose")
@@ -4217,11 +4284,29 @@
          suppress (if right?
                     {:suppress-y-ticks true :suppress-y-label true}
                     {:suppress-x-ticks true :suppress-x-label true})
+         ;; A panel aesthetic says how the whole plot is divided, and
+         ;; the marginal is part of that plot -- a faceted main panel
+         ;; wants a marginal above each of its panels, not one above
+         ;; the lot. Carried across explicitly because the marginal is
+         ;; a fresh leaf rather than a descendant of `pose`, so the
+         ;; mapping scope rules never reach it.
+         panels-mapping (select-keys (:mapping pose) defaults/panel-aesthetics)
+         ;; A faceted pose divides both cells alike, so the strip
+         ;; labels would be drawn once per cell. Stacked, the two sets
+         ;; stand in the same column and the lower one repeats the
+         ;; upper; side by side they name different columns and both
+         ;; are read, so only the stacked case drops a set. The upper
+         ;; cell keeps them, which puts them at the top of the column
+         ;; where a strip label belongs.
+         main-pose (cond-> pose
+                     (and (seq panels-mapping) (not right?))
+                     (update :opts assoc :suppress-strip-labels true))
          marginal-leaf (cond-> (lay-marginal (:data pose) col)
                          ;; A density or histogram draws its column
                          ;; along x. On the right it has to run up the
                          ;; panel instead, which is what a flip does.
                          right? (coord :flip)
+                         (seq panels-mapping) (update :mapping merge panels-mapping)
                          true   (update :opts merge suppress))
          ;; The marginal's own column carries the shared axis, and a
          ;; flip means the two cells name that column on different
@@ -4237,7 +4322,7 @@
      ;; key order from its neighbours and lost a surrounding
      ;; `pj/with-config`.
      (prepare-pose
-      {:poses (if right? [pose marginal-leaf] [marginal-leaf pose])
+      {:poses (if right? [pose marginal-leaf] [marginal-leaf main-pose])
        :layout {:direction (if right? :horizontal :vertical)
                 :weights (if right?
                            [(- 1.0 size) size]

@@ -2170,10 +2170,23 @@
                             #"Facet column :speices.*not found"
                             (-> data (pj/lay-point :x :y) (pj/facet :speices) pj/plan))))
 
-    (testing "vector facet spec is rejected, points at facet-grid"
+    (testing "a vector facet is a compound key: one panel per observed combination"
+      ;; :g and :h move together in this data, so only two of the four
+      ;; combinations occur. That is the whole difference between a
+      ;; compound facet and pj/facet-grid, which fills the rectangle --
+      ;; asserted together so neither can drift into the other.
+      (is (= 2 (-> data (pj/lay-point :x :y) (pj/facet [:g :h]) pj/plan :panels count)))
+      (is (= 4 (-> data (pj/lay-point :x :y) (pj/facet-grid :g :h) pj/plan :panels count))))
+
+    (testing "a compound facet labels a panel by each column's value in turn"
+      (is (= ["a / x" "b / y"]
+             (mapv :col-label (-> data (pj/lay-point :x :y) (pj/facet [:g :h])
+                                  pj/plan :panels)))))
+
+    (testing "a typoed column inside a compound facet is reported"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"facet-grid"
-                            (-> data (pj/lay-point :x :y) (pj/facet [:g :h]) pj/plan))))
+                            #"Facet column :speices.*not found"
+                            (-> data (pj/lay-point :x :y) (pj/facet [:g :speices]) pj/plan))))
 
     (testing "valid facet column still works"
       (is (= 2 (-> data (pj/lay-point :x :y) (pj/facet :g) pj/plan :panels count))))

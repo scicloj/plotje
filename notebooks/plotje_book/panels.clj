@@ -143,23 +143,32 @@
 
 ;; ## Where the two do not combine
 
-;; Faceting applies to a pose that draws one panel. A pose that already
-;; draws more than one -- from either of the ways above -- cannot also
-;; be faceted, because the facet grid and the panels the pose already
-;; has would each want to be the plot's grid:
+;; Faceting multiplies the panels a pose already draws, rather than
+;; replacing them. A pose whose layers name different columns draws a
+;; panel each; faceting that pose by a column draws every one of those
+;; panels once per value the column holds:
 
-(try
-  (-> measurements
-      (pj/lay-point :height :weight)
-      (pj/lay-point :depth :weight)
-      (pj/facet :species)
-      pj/plot)
-  (catch Exception e (ex-message e)))
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/lay-point :depth :weight)
+    (pj/facet :species))
 
 (kind/test-last
- [(fn [m] (re-find #"draw on more than one panel" m))])
+ [(fn [v] (let [s (pj/svg-summary v)]
+            ;; Two places named by the layers, crossed with the two
+            ;; species: the facet is the outer division.
+            (= 4 (:panels s))))])
 
-;; Facet each pose before arranging them, rather than arranging first.
+;; The same holds for a composite. `:col` and `:row` are aesthetics, so
+;; a facet written on an arranged pose reaches every cell:
+
+(-> (pj/arrange [(pj/pose measurements :height :weight)
+                 (pj/pose measurements :depth :weight)])
+    (pj/lay-point)
+    (pj/facet :species))
+
+(kind/test-last
+ [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
 ;; ## See Also
 ;;

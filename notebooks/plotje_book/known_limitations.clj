@@ -100,13 +100,6 @@
 ;;   and another to its right has to be written out as a composite by
 ;;   hand.
 ;;
-;; - A `pj/marginal` on a faceted pose draws each facet's strip label
-;;   twice, once over the marginal row and once over the row below it.
-;;   Faceting lives in the pose's `:opts`, which the marginal copies
-;;   onto the composite it builds, so both rows facet and each marginal
-;;   describes its own facet. Only the repeated label is wrong, and
-;;   there is no workaround for it.
-;;
 ;; - `(pj/marginal pose :top :histogram)` draws its tallest bar close to
 ;;   the top of the marginal panel. The value axis is padded by the same
 ;;   fraction any axis is, and the strip is a quarter of the height, so

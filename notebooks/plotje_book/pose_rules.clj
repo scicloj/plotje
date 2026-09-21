@@ -63,12 +63,11 @@
 ;; A **composite pose** has `:poses`, and a sub-pose may itself be a
 ;; composite: `pj/arrange` wraps its cells in a row per line of the
 ;; grid, so the composite it returns holds rows and each row holds
-;; cells. What no route accepts is a composite the caller supplies --
-;; `pj/arrange` given one among its inputs, `pj/facet` called on one,
-;; and a nested map written out and handed to `pj/pose` are each
-;; reported. So a grid of grids cannot be written directly. The one
-;; way to put a grid inside a grid is a leaf that `pj/facet` has
-;; already divided, used as a cell of a `pj/arrange`. A **layer**
+;; cells. A composite the caller supplies is accepted the same way:
+;; `pj/arrange` given one among its inputs nests it (Rule C8),
+;; `pj/facet` called on one divides every cell of it (Rule O3), and a
+;; nested map written out and handed to `pj/pose` is read as written.
+;; So a grid inside a grid can be written directly. A **layer**
 ;; is a map with `:layer-type` and an optional `:mapping`, plus sibling
 ;; keys `:stat`, `:position`, `:mark` when the user provides them.
 ;;
@@ -393,6 +392,22 @@ composite-pose
          ;; rows, each row's :poses is cells
          (= 1 (count (:poses pose)))
          (= 2 (count (:poses (first (:poses pose)))))))])
+
+;; A cell may itself be a composite, and nests rather than being
+;; flattened -- which is the shape `pj/arrange` builds for itself, one
+;; row per line of the grid:
+
+(-> (pj/arrange [(pj/arrange [(pj/pose iris :sepal-length :sepal-width)
+                              (pj/pose iris :petal-length :petal-width)])
+                 (pj/pose iris :sepal-length :petal-length)])
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [pose]
+    (and (= 3 (:panels (pj/svg-summary pose)))
+         ;; The supplied composite is still a composite where it
+         ;; landed: root -> row -> the cell it was given as.
+         (seq (:poses (first (:poses (first (:poses pose))))))))])
 
 ;; Opts (`:cols`, `:title`, `:width`, `:height`, `:share-scales`)
 ;; route into the composite's `:opts` / `:layout`:
@@ -1144,12 +1159,15 @@ s2-tree
          (= {:type :log} (-> pose pj/plan :panels first :layers first
                              :size-scale))))])
 
-;; ### Rule O3: `pj/facet` writes the faceting column to `:opts`
+;; ### Rule O3: `pj/facet` writes the faceting column to the mapping
 ;;
-;; `pj/facet` and `pj/facet-grid` store facet columns in `:opts`
-;; as `:facet-col` (and `:facet-row` for a grid). The layout
-;; effect -- splitting each leaf's panel into a group of panels --
-;; happens at render time.
+;; `pj/facet` and `pj/facet-grid` write the faceting column into the
+;; pose's `:mapping` under `:col` (and `:row` for a grid). These are
+;; aesthetics, so they follow the scope rules every other mapping
+;; follows: written on a pose they reach every layer and every
+;; sub-pose below, and a sub-pose that writes its own overrides them.
+;; The layout effect -- splitting each leaf's panel into a group of
+;; panels -- happens at render time.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -1157,7 +1175,7 @@ s2-tree
     (pj/facet :species))
 
 (kind/test-last
- [(fn [pose] (= :species (get-in pose [:opts :facet-col])))])
+ [(fn [pose] (= :species (get-in pose [:mapping :col])))])
 
 ;; A 2D grid uses both keys:
 
@@ -1168,8 +1186,30 @@ s2-tree
 
 (kind/test-last
  [(fn [pose]
-    (and (= :species (get-in pose [:opts :facet-col]))
-         (= :species (get-in pose [:opts :facet-row]))))])
+    (and (= :species (get-in pose [:mapping :col]))
+         (= :species (get-in pose [:mapping :row]))))])
+
+;; Because the faceting column is a mapping, a facet written on a
+;; composite reaches every cell of it, and a cell that writes its own
+;; overrides what it inherits:
+
+(-> (pj/arrange [(pj/pose iris :sepal-length :sepal-width)
+                 (pj/pose iris :petal-length :petal-width)])
+    pj/lay-point
+    (pj/facet :species))
+
+(kind/test-last
+ [(fn [pose] (= 6 (:panels (pj/svg-summary pose))))])
+
+(-> (pj/arrange [(-> (pj/pose iris :sepal-length :sepal-width)
+                     (pj/facet :species))
+                 (pj/pose iris :petal-length :petal-width)])
+    pj/lay-point)
+
+(kind/test-last
+ ;; Three panels in the cell that facets, one in the cell that does
+ ;; not -- the inherited :col reaches only where none is written.
+ [(fn [pose] (= 4 (:panels (pj/svg-summary pose))))])
 
 ;; ### Rule O4: `pj/lay-rule-*` and `pj/lay-band-*` are layers
 ;;

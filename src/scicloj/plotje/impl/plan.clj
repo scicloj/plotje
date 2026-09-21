@@ -2867,6 +2867,15 @@
                           (cond-> {}
                             grid-cols (assoc :grid-cols grid-cols)
                             grid-rows (assoc :grid-rows grid-rows)))
+         ;; The panels keep their grid places and lose their strip
+         ;; labels. Written by `pj/marginal`, where two cells of one
+         ;; composite are divided by the same column and stacked, so
+         ;; the lower cell would repeat the labels standing above it.
+         grid (cond-> grid
+                (:suppress-strip-labels opts)
+                (update :panels (fn [ps]
+                                  (mapv #(assoc % :col-label nil :row-label nil)
+                                        ps))))
          {:keys [layout-type x-vars y-vars]} grid
          grid-rows-n (:grid-rows grid)
          grid-cols-n (:grid-cols grid)

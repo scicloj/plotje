@@ -78,8 +78,15 @@
 
    - `:category` -- `:positional` places a mark, `:appearance` decides
      how it looks, `:grouping` splits the data and draws nothing of its
-     own. The glossary's Aesthetic entry teaches the same three, under
-     those names.
+     own, `:panel` sends each of the distinction's values to a panel of
+     its own. The glossary's Aesthetic entry teaches the first three
+     under those names.
+
+     The four categories are four destinations for one distinction:
+     drawn in the same place and told apart by an appearance, drawn in
+     the same place and not told apart, or drawn in a panel each and
+     told apart by a strip label. Which category an aesthetic carries
+     is which destination it sends a column to.
    - `:column?` -- whether the aesthetic can name a dataset column at
      all. `:x-min` and `:x-max` cannot: only `lay-band-v` reads them,
      and it reads a value straight from the mapping. `:y-min` and
@@ -179,7 +186,9 @@
    :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
    :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
    :tooltip {:category :appearance :column? true :value? true :numeric? false :categorical-column? true :scale-default :never :drawn-column? true}
-   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}})
+   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}
+   :row   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}
+   :col   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false}})
 
 (defn aesthetics-where
   "The aesthetics whose registry entry satisfies `pred`, in a stable
@@ -195,6 +204,21 @@
   "Aesthetics whose column values are numeric -- subject to finite-value
    filtering. Derived from aesthetic-registry."
   (aesthetics-where #(and (:numeric? %) (:column? %))))
+
+(def panel-aesthetics
+  "The aesthetics that send a column's values to panels of their own.
+   `pj/facet` and `pj/facet-grid` are sugar over these."
+  (set (aesthetics-where #(= :panel (:category %)))))
+
+(def panel-aesthetic-docs
+  "Documentation for the panel aesthetics, the counterpart of
+   `layer-type/layer-option-docs` for keys a layer does not accept.
+
+   A panel aesthetic is written on a pose rather than on a layer,
+   because it divides every layer of that pose alike. `pj/facet` and
+   `pj/facet-grid` are sugar for writing one."
+  {:col "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out across. A vector unites the columns into a compound key, so a panel is drawn for each combination the data holds. Written by pj/facet, and by pj/facet-grid for the across direction."
+   :row "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out down. The same readings as :col. Written by (pj/facet my-pose col :row), and by pj/facet-grid for the down direction."})
 
 (def positional-aesthetics
   "The aesthetics that place a mark, and so may be given as a value.

@@ -28,7 +28,7 @@
 
   (testing "the properties take the values the derived sets read"
     (doseq [[k {:keys [category scale-default]}] defaults/aesthetic-registry]
-      (is (contains? #{:positional :appearance :grouping} category)
+      (is (contains? #{:positional :appearance :grouping :panel} category)
           (str k " has an unknown category"))
       (is (contains? #{:always :by-source :by-value :never nil} scale-default)
           (str k " has an unknown scale default"))))
@@ -50,7 +50,7 @@
 (deftest derived-sets-test
   (testing "the sets other namespaces read are the ones they expect"
     (is (= #{:x :y :x-end :y-min :y-max :color :size :alpha :fill :shape :text
-             :tooltip :group}
+             :tooltip :group :col :row}
            defaults/column-keys))
     (is (= [:x :x-end :y]
            (vec (sort-by str resolve/positional-aesthetics)))
@@ -59,7 +59,10 @@
     ;; `:shape` left this set when it gained a written-value reading --
     ;; one symbol for a whole layer. `:group` will not: it splits the
     ;; data and draws nothing of its own.
-    (is (= [:fill :group] defaults/column-only-aesthetics))
+    ;; The panel aesthetics join them: a written value there would name
+    ;; a panel holding no rows.
+    (is (= [:col :fill :group :row] defaults/column-only-aesthetics))
+    (is (= #{:col :row} defaults/panel-aesthetics))
     (is (= #{:color :size :alpha :shape} defaults/legend-bearing-aesthetics))
     ;; Every aesthetic with a scale holds it under `<channel>-scale`.
     ;; `:color` was the exception until 0.9.0, when the configuration
@@ -80,10 +83,24 @@
       (is (contains? defaults/aesthetic-registry k)
           (str k " is used as an aesthetic but has no registry entry")))))
 
-(deftest every-aesthetic-is-documented-as-a-layer-option-test
-  (testing "the user-facing option docs cover every aesthetic"
+(deftest every-aesthetic-is-documented-test
+  (testing "the user-facing option docs cover every aesthetic a layer accepts"
     ;; `layer-type/layer-option-docs` is what the book renders. An
     ;; aesthetic missing from it is an aesthetic no reader can look up.
-    (doseq [k (keys defaults/aesthetic-registry)]
+    (doseq [k (remove defaults/panel-aesthetics
+                      (keys defaults/aesthetic-registry))]
       (is (contains? layer-type/layer-option-docs k)
-          (str k " has no entry in layer-option-docs")))))
+          (str k " has no entry in layer-option-docs"))))
+
+  (testing "a panel aesthetic is documented where it is written"
+    ;; A panel aesthetic is written on a pose and refused by every
+    ;; `lay-*`, so `layer-option-docs` is the wrong table for it and
+    ;; `defaults/panel-aesthetic-docs` is the right one. The two tables
+    ;; must not overlap, or a reader would find one key described twice.
+    (doseq [k defaults/panel-aesthetics]
+      (is (contains? defaults/panel-aesthetic-docs k)
+          (str k " has no entry in panel-aesthetic-docs"))
+      (is (not (contains? layer-type/layer-option-docs k))
+          (str k " is documented as a layer option, which no lay-* accepts")))
+    (is (= defaults/panel-aesthetics (set (keys defaults/panel-aesthetic-docs)))
+        "panel-aesthetic-docs describes exactly the panel aesthetics")))

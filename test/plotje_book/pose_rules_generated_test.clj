@@ -21,7 +21,7 @@
    (:layers pose)
    (update
     :layers
-    (partial mapv (fn* [p1__11199#] (dissoc p1__11199# :data))))
+    (partial mapv (fn* [p1__11193#] (dissoc p1__11193# :data))))
    (:poses pose)
    (update :poses (partial mapv strip-data)))))
 
@@ -35,21 +35,21 @@
   (kind/pprint (strip-data pose))))
 
 
-(def v8_l92 (-> iris (pj/pose :sepal-length :sepal-width)))
+(def v8_l91 (-> iris (pj/pose :sepal-length :sepal-width)))
 
 
 (deftest
- t9_l95
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v8_l92)))
+ t9_l94
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v8_l91)))
 
 
 (def
- v10_l97
+ v10_l96
  (-> iris (pj/pose :sepal-length :sepal-width) pose-summary))
 
 
 (deftest
- t11_l101
+ t11_l100
  (is
   ((fn
     [pose]
@@ -57,39 +57,39 @@
      (= {:x :sepal-length, :y :sepal-width} (:mapping pose))
      (= [] (:layers pose))
      (not (contains? pose :poses))))
-   v10_l97)))
+   v10_l96)))
 
 
-(def v13_l111 (-> iris (pj/pose {:color :species}) pose-summary))
+(def v13_l110 (-> iris (pj/pose {:color :species}) pose-summary))
 
 
 (deftest
- t14_l115
+ t14_l114
  (is
   ((fn
     [pose]
     (and
      (= {:color :species} (:mapping pose))
      (not (contains? pose :poses))))
-   v13_l111)))
+   v13_l110)))
 
 
-(def v16_l127 (-> iris pj/pose (pj/pose :sepal-length :sepal-width)))
+(def v16_l126 (-> iris pj/pose (pj/pose :sepal-length :sepal-width)))
 
 
 (deftest
- t17_l131
+ t17_l130
  (is
   ((fn
     [pose]
     (and
      (= {:x :sepal-length, :y :sepal-width} (:mapping pose))
      (not (contains? pose :poses))))
-   v16_l127)))
+   v16_l126)))
 
 
 (def
- v19_l138
+ v19_l137
  (->
   iris
   (pj/pose {:color :species})
@@ -97,18 +97,18 @@
 
 
 (deftest
- t20_l142
+ t20_l141
  (is
   ((fn
     [pose]
     (=
      {:x :sepal-length, :y :sepal-width, :color :species}
      (:mapping pose)))
-   v19_l138)))
+   v19_l137)))
 
 
 (def
- v22_l150
+ v22_l149
  (=
   (->
    iris
@@ -118,11 +118,11 @@
   (pj/pose iris :sepal-length :sepal-width {:color :species})))
 
 
-(deftest t23_l156 (is (true? v22_l150)))
+(deftest t23_l155 (is (true? v22_l149)))
 
 
 (def
- v25_l167
+ v25_l166
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -130,7 +130,7 @@
 
 
 (deftest
- t26_l171
+ t26_l170
  (is
   ((fn
     [pose]
@@ -142,11 +142,11 @@
      (=
       {:x :petal-length, :y :petal-width}
       (:mapping (second (:poses pose))))))
-   v25_l167)))
+   v25_l166)))
 
 
 (def
- v28_l183
+ v28_l182
  (->
   iris
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -154,7 +154,7 @@
 
 
 (def
- v29_l187
+ v29_l186
  (->
   iris
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -163,7 +163,7 @@
 
 
 (deftest
- t30_l192
+ t30_l191
  (is
   ((fn
     [pose]
@@ -175,11 +175,11 @@
      (=
       {:x :petal-length, :y :petal-width}
       (:mapping (second (:poses pose))))))
-   v29_l187)))
+   v29_l186)))
 
 
 (def
- v32_l204
+ v32_l203
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -188,7 +188,7 @@
 
 
 (def
- v34_l212
+ v34_l211
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -198,18 +198,18 @@
 
 
 (deftest
- t35_l218
+ t35_l217
  (is
   ((fn
     [pose]
     (and
      (= "Iris" (get-in pose [:opts :title]))
      (not (contains? (first (:poses pose)) :opts))))
-   v34_l212)))
+   v34_l211)))
 
 
 (def
- v37_l231
+ v37_l230
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -217,7 +217,7 @@
 
 
 (deftest
- t38_l235
+ t38_l234
  (is
   ((fn
     [pose]
@@ -227,11 +227,11 @@
      (=
       {:x :sepal-length, :y :sepal-width}
       (:mapping (first (:poses pose))))))
-   v37_l231)))
+   v37_l230)))
 
 
 (def
- v40_l248
+ v40_l247
  (=
   (->
    iris
@@ -244,11 +244,11 @@
    (pj/pose :petal-length :petal-width))))
 
 
-(deftest t41_l256 (is (true? v40_l248)))
+(deftest t41_l255 (is (true? v40_l247)))
 
 
 (def
- v43_l267
+ v43_l266
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -257,7 +257,7 @@
 
 
 (deftest
- t44_l272
+ t44_l271
  (is
   ((fn
     [pose]
@@ -267,11 +267,11 @@
      (= 2 (count (:poses pose)))
      (= [] (:layers (first (:poses pose))))
      (= [] (:layers (second (:poses pose))))))
-   v43_l267)))
+   v43_l266)))
 
 
 (def
- v46_l285
+ v46_l284
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -280,7 +280,7 @@
 
 
 (deftest
- t47_l290
+ t47_l289
  (is
   ((fn
     [pose]
@@ -288,11 +288,11 @@
      (or (not (contains? pose :layers)) (= [] (:layers pose)))
      (= 1 (count (:layers (first (:poses pose)))))
      (= [] (:layers (second (:poses pose))))))
-   v46_l285)))
+   v46_l284)))
 
 
 (def
- v49_l306
+ v49_l305
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -301,7 +301,7 @@
 
 
 (deftest
- t50_l311
+ t50_l310
  (is
   ((fn
     [pose]
@@ -312,11 +312,11 @@
        {:x :petal-length, :y :petal-width}
        {:x :sepal-length, :y :petal-length}]
       (mapv :mapping (:poses pose)))))
-   v49_l306)))
+   v49_l305)))
 
 
 (def
- v52_l322
+ v52_l321
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -325,7 +325,7 @@
 
 
 (def
- v53_l327
+ v53_l326
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -335,7 +335,7 @@
 
 
 (deftest
- t54_l333
+ t54_l332
  (is
   ((fn
     [pose]
@@ -345,28 +345,28 @@
      (=
       {:x :sepal-length, :y :sepal-width}
       (:mapping (first (:poses pose))))))
-   v53_l327)))
+   v53_l326)))
 
 
 (def
- v56_l348
+ v56_l347
  (def leaf-pose (-> iris (pj/pose :sepal-length :sepal-width))))
 
 
-(def v57_l350 leaf-pose)
+(def v57_l349 leaf-pose)
 
 
-(def v58_l352 (pose-summary leaf-pose))
+(def v58_l351 (pose-summary leaf-pose))
 
 
-(def v60_l356 (= leaf-pose (pj/pose leaf-pose)))
+(def v60_l355 (= leaf-pose (pj/pose leaf-pose)))
 
 
-(deftest t61_l358 (is (true? v60_l356)))
+(deftest t61_l357 (is (true? v60_l355)))
 
 
 (def
- v63_l362
+ v63_l361
  (def
   composite-pose
   (->
@@ -375,27 +375,27 @@
    (pj/pose :petal-length :petal-width))))
 
 
-(def v64_l367 composite-pose)
+(def v64_l366 composite-pose)
 
 
-(def v65_l369 (pose-summary composite-pose))
+(def v65_l368 (pose-summary composite-pose))
 
 
-(def v67_l373 (= composite-pose (pj/pose composite-pose)))
+(def v67_l372 (= composite-pose (pj/pose composite-pose)))
 
 
-(deftest t68_l375 (is (true? v67_l373)))
+(deftest t68_l374 (is (true? v67_l372)))
 
 
 (def
- v70_l384
+ v70_l383
  (pj/arrange
   [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)
    (-> iris (pj/pose :petal-length :petal-width) pj/lay-point)]))
 
 
 (deftest
- t71_l388
+ t71_l387
  (is
   ((fn
     [pose]
@@ -404,11 +404,33 @@
      (= :vertical (get-in pose [:layout :direction]))
      (= 1 (count (:poses pose)))
      (= 2 (count (:poses (first (:poses pose)))))))
-   v70_l384)))
+   v70_l383)))
 
 
 (def
  v73_l400
+ (->
+  (pj/arrange
+   [(pj/arrange
+     [(pj/pose iris :sepal-length :sepal-width)
+      (pj/pose iris :petal-length :petal-width)])
+    (pj/pose iris :sepal-length :petal-length)])
+  pj/lay-point))
+
+
+(deftest
+ t74_l405
+ (is
+  ((fn
+    [pose]
+    (and
+     (= 3 (:panels (pj/svg-summary pose)))
+     (seq (:poses (first (:poses (first (:poses pose))))))))
+   v73_l400)))
+
+
+(def
+ v76_l415
  (pj/arrange
   [(pj/pose iris :sepal-length :sepal-width)
    (pj/pose iris :petal-length :petal-width)]
@@ -416,18 +438,18 @@
 
 
 (deftest
- t74_l406
+ t77_l421
  (is
   ((fn
     [pose]
     (and
      (= "Arranged" (get-in pose [:opts :title]))
      (= #{:y} (get-in pose [:opts :share-scales]))))
-   v73_l400)))
+   v76_l415)))
 
 
 (def
- v76_l422
+ v79_l437
  (->
   iris
   (pj/pose
@@ -436,7 +458,7 @@
 
 
 (deftest
- t77_l427
+ t80_l442
  (is
   ((fn
     [pose]
@@ -444,13 +466,13 @@
      (= {:color :species} (:mapping pose))
      (= 2 (count (:poses pose)))
      (every?
-      (fn* [p1__11200#] (= 2 (count (:poses p1__11200#))))
+      (fn* [p1__11194#] (= 2 (count (:poses p1__11194#))))
       (:poses pose))))
-   v76_l422)))
+   v79_l437)))
 
 
 (def
- v79_l436
+ v82_l451
  (let
   [a
    (->
@@ -471,16 +493,16 @@
   (= a b)))
 
 
-(deftest t80_l446 (is (true? v79_l436)))
+(deftest t83_l461 (is (true? v82_l451)))
 
 
 (def
- v82_l472
+ v85_l487
  (-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point))
 
 
 (deftest
- t83_l476
+ t86_l491
  (is
   ((fn
     [pose]
@@ -488,11 +510,11 @@
      (= 1 (count (:layers pose)))
      (= :point (:layer-type (first (:layers pose))))
      (empty? (or (:mapping (first (:layers pose))) {}))))
-   v82_l472)))
+   v85_l487)))
 
 
 (def
- v85_l485
+ v88_l500
  (->
   (pj/arrange
    [(pj/pose iris :sepal-length :sepal-width)
@@ -501,7 +523,7 @@
 
 
 (def
- v86_l490
+ v89_l505
  (->
   (pj/arrange
    [(pj/pose iris :sepal-length :sepal-width)
@@ -511,7 +533,7 @@
 
 
 (deftest
- t87_l496
+ t90_l511
  (is
   ((fn
     [pose]
@@ -519,11 +541,11 @@
      (contains? pose :poses)
      (= 1 (count (:layers pose)))
      (= :point (:layer-type (first (:layers pose))))))
-   v86_l490)))
+   v89_l505)))
 
 
 (def
- v89_l508
+ v92_l523
  (let
   [before
    (pj/arrange
@@ -538,11 +560,11 @@
   [(count (or (:layers before) [])) (count (or (:layers after) []))]))
 
 
-(deftest t90_l518 (is ((fn [counts] (= [0 1] counts)) v89_l508)))
+(deftest t93_l533 (is ((fn [counts] (= [0 1] counts)) v92_l523)))
 
 
 (def
- v92_l533
+ v95_l548
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -551,7 +573,7 @@
 
 
 (deftest
- t93_l538
+ t96_l553
  (is
   ((fn
     [pose]
@@ -560,11 +582,11 @@
      (= 1 (count (:layers (first (:poses pose)))))
      (= 0 (count (:layers (second (:poses pose)))))
      (= :point (:layer-type (first (:layers (first (:poses pose))))))))
-   v92_l533)))
+   v95_l548)))
 
 
 (def
- v95_l554
+ v98_l569
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -572,7 +594,7 @@
 
 
 (deftest
- t96_l558
+ t99_l573
  (is
   ((fn
     [fr]
@@ -583,11 +605,11 @@
       [{:x :petal-length, :y :petal-width}]
       (mapv :mapping (:layers fr)))
      (= 2 (:panels (pj/svg-summary fr)))))
-   v95_l554)))
+   v98_l569)))
 
 
 (def
- v98_l579
+ v101_l594
  (->
   {:X [1 2 3 4 5], :Y [1 2 3 4 5], :Z [1 4 9 16 25]}
   (pj/pose :X)
@@ -596,7 +618,7 @@
 
 
 (deftest
- t99_l584
+ t102_l599
  (is
   ((fn
     [pose]
@@ -604,11 +626,11 @@
      (nil? (:poses pose))
      (= [{:y :Y} {:x :X, :y :Z}] (mapv :mapping (:layers pose)))
      (= 2 (:panels (pj/svg-summary pose)))))
-   v98_l579)))
+   v101_l594)))
 
 
 (def
- v101_l596
+ v104_l611
  (->
   {:X [1 2 3 4 5], :Y [1 2 3 4 5], :Z [1 4 9 16 25]}
   (pj/lay-point :X :Y)
@@ -616,14 +638,14 @@
 
 
 (deftest
- t102_l600
+ t105_l615
  (is
   ((fn [pose] (and (nil? (:poses pose)) (= 2 (count (:layers pose)))))
-   v101_l596)))
+   v104_l611)))
 
 
 (def
- v104_l617
+ v107_l632
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -632,7 +654,7 @@
 
 
 (deftest
- t105_l622
+ t108_l637
  (is
   ((fn
     [pose]
@@ -642,11 +664,11 @@
       {:x :sepal-length, :y :petal-length}
       (:mapping (nth (:poses pose) 2)))
      (= 1 (count (:layers (nth (:poses pose) 2))))))
-   v104_l617)))
+   v107_l632)))
 
 
 (def
- v107_l636
+ v110_l651
  (let
   [via-lay
    (->
@@ -669,7 +691,7 @@
 
 
 (deftest
- t108_l650
+ t111_l665
  (is
   ((fn
     [m]
@@ -677,11 +699,11 @@
      (= (:via-lay-drawn m) (:via-pose-drawn m))
      (= :leaf (:via-lay-shape m))
      (= :composite (:via-pose-shape m))))
-   v107_l636)))
+   v110_l651)))
 
 
 (def
- v110_l664
+ v113_l679
  (try
   (->
    iris
@@ -691,7 +713,7 @@
 
 
 (deftest
- t111_l671
+ t114_l686
  (is
   ((fn
     [msg]
@@ -699,11 +721,11 @@
      (string? msg)
      (re-find #"doesn't exist in the data" msg)
      (re-find #"new sub-pose" msg)))
-   v110_l664)))
+   v113_l679)))
 
 
 (def
- v113_l680
+ v116_l695
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -714,7 +736,7 @@
 
 
 (deftest
- t114_l685
+ t117_l700
  (is
   ((fn
     [fr]
@@ -722,25 +744,25 @@
      (nil? (:poses fr))
      (= [{:x :foo, :y :bar}] (mapv :mapping (:layers fr)))
      (= 2 (:panels (pj/svg-summary fr)))))
-   v113_l680)))
+   v116_l695)))
 
 
-(def v116_l700 (def tiny {:a [1 2 3 4 5], :b [2 4 3 5 4]}))
+(def v119_l715 (def tiny {:a [1 2 3 4 5], :b [2 4 3 5 4]}))
 
 
-(def v117_l704 (-> tiny (pj/lay-point :a :b)))
-
-
-(deftest
- t118_l707
- (is ((fn [v] (= 5 (:points (pj/svg-summary v)))) v117_l704)))
-
-
-(def v120_l711 (-> tiny (pj/pose :a :b) pj/lay-point pose-summary))
+(def v120_l719 (-> tiny (pj/lay-point :a :b)))
 
 
 (deftest
- t121_l716
+ t121_l722
+ (is ((fn [v] (= 5 (:points (pj/svg-summary v)))) v120_l719)))
+
+
+(def v123_l726 (-> tiny (pj/pose :a :b) pj/lay-point pose-summary))
+
+
+(deftest
+ t124_l731
  (is
   ((fn
     [pose]
@@ -748,11 +770,11 @@
      (= {:x :a, :y :b} (:mapping pose))
      (= 1 (count (:layers pose)))
      (not (contains? pose :poses))))
-   v120_l711)))
+   v123_l726)))
 
 
 (def
- v123_l733
+ v126_l748
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -762,7 +784,7 @@
 
 
 (deftest
- t124_l739
+ t127_l754
  (is
   ((fn
     [v]
@@ -779,11 +801,11 @@
       (contains? (:colors s) "rgb(55,126,184)")
       (contains? (:colors s) "rgb(230,85,13)")
       (= #{"sepal length" "sepal width"} (set axis-titles)))))
-   v123_l733)))
+   v126_l748)))
 
 
 (def
- v126_l759
+ v129_l774
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -794,7 +816,7 @@
 
 
 (deftest
- t127_l766
+ t130_l781
  (is
   ((fn
     [pose]
@@ -805,11 +827,11 @@
       [{:color "#377eb8", :x :sepal-length, :y :sepal-width}
        {:color "#e6550d", :x :petal-length, :y :petal-width}]
       (mapv :mapping (:layers pose)))))
-   v126_l759)))
+   v129_l774)))
 
 
 (def
- v129_l779
+ v132_l794
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -821,7 +843,7 @@
 
 
 (deftest
- t130_l787
+ t133_l802
  (is
   ((fn
     [v]
@@ -833,11 +855,11 @@
       (=
        #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
        (disj (:colors s) "none")))))
-   v129_l779)))
+   v132_l794)))
 
 
 (def
- v132_l800
+ v135_l815
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -850,7 +872,7 @@
 
 
 (deftest
- t133_l809
+ t136_l824
  (is
   ((fn
     [pose]
@@ -863,11 +885,11 @@
       [{:color "#e6550d"}
        {:color "#4daf4a", :x :sepal-width, :y :petal-width}]
       (mapv :mapping (:layers (second (:poses pose)))))))
-   v132_l800)))
+   v135_l815)))
 
 
 (def
- v135_l822
+ v138_l837
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -880,18 +902,18 @@
 
 
 (deftest
- t136_l828
+ t139_l843
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v135_l822)))
+   v138_l837)))
 
 
 (def
- v138_l835
+ v141_l850
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -902,18 +924,18 @@
 
 
 (deftest
- t139_l842
+ t142_l857
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v138_l835)))
+   v141_l850)))
 
 
 (def
- v141_l854
+ v144_l869
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -925,7 +947,7 @@
 
 
 (deftest
- t142_l862
+ t145_l877
  (is
   ((fn
     [pose]
@@ -935,11 +957,11 @@
      (=
       [{:x :petal-length, :y :petal-width, :color "#e6550d"}]
       (mapv :mapping (rest (:layers pose))))))
-   v141_l854)))
+   v144_l869)))
 
 
 (def
- v144_l872
+ v147_l887
  [(->
    iris
    pj/overlay
@@ -956,11 +978,11 @@
    :panels)])
 
 
-(deftest t145_l885 (is ((fn [v] (= [1 1] v)) v144_l872)))
+(deftest t148_l900 (is ((fn [v] (= [1 1] v)) v147_l887)))
 
 
 (def
- v147_l913
+ v150_l928
  (->
   (tc/dataset
    {:height [1 2 3], :weight [4 5 6], :species ["a" "b" "a"]})
@@ -968,12 +990,12 @@
 
 
 (deftest
- t148_l916
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v147_l913)))
+ t151_l931
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v150_l928)))
 
 
 (def
- v150_l921
+ v153_l936
  (try
   (->
    (tc/dataset {:a [1 2], :b [3 4], :c [5 6], :d [7 8]})
@@ -982,12 +1004,12 @@
 
 
 (deftest
- t151_l927
- (is ((fn [msg] (re-find #"Cannot auto-infer columns" msg)) v150_l921)))
+ t154_l942
+ (is ((fn [msg] (re-find #"Cannot auto-infer columns" msg)) v153_l936)))
 
 
 (def
- v153_l948
+ v156_l963
  (def
   s1-composite
   (pj/pose
@@ -1000,11 +1022,11 @@
     :data iris})))
 
 
-(def v154_l957 s1-composite)
+(def v157_l972 s1-composite)
 
 
 (deftest
- t155_l959
+ t158_l974
  (is
   ((fn
     [pose]
@@ -1016,11 +1038,11 @@
      (every?
       (fn [pp] (= 3 (count (:groups (first (:layers (first pp)))))))
       panels)))
-   v154_l957)))
+   v157_l972)))
 
 
 (def
- v157_l971
+ v160_l986
  (def
   s1-siblings
   (pj/pose
@@ -1032,11 +1054,11 @@
     :data iris})))
 
 
-(def v158_l979 s1-siblings)
+(def v161_l994 s1-siblings)
 
 
 (deftest
- t159_l981
+ t162_l996
  (is
   ((fn
     [pose]
@@ -1051,11 +1073,11 @@
          (:groups (first (:layers (first (-> sp :plan :panels)))))))
        sub-plots)]
      (= [1 3] panel-groups)))
-   v158_l979)))
+   v161_l994)))
 
 
 (def
- v161_l999
+ v164_l1014
  (def
   s2-tree
   (pj/pose
@@ -1068,11 +1090,11 @@
     :data iris})))
 
 
-(def v162_l1008 s2-tree)
+(def v165_l1023 s2-tree)
 
 
 (deftest
- t163_l1010
+ t166_l1025
  (is
   ((fn
     [pose]
@@ -1096,11 +1118,11 @@
          count))
        sub-plots)]
      (= [150 3] counts)))
-   v162_l1008)))
+   v165_l1023)))
 
 
 (def
- v165_l1027
+ v168_l1042
  (->
   iris
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -1109,18 +1131,18 @@
 
 
 (deftest
- t166_l1032
+ t169_l1047
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 1 (:lines s)))))
-   v165_l1027)))
+   v168_l1042)))
 
 
 (def
- v168_l1046
+ v171_l1061
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1129,18 +1151,18 @@
 
 
 (deftest
- t169_l1051
+ t172_l1066
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 1 (:lines s)))))
-   v168_l1046)))
+   v171_l1061)))
 
 
 (def
- v171_l1072
+ v174_l1087
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1149,12 +1171,12 @@
 
 
 (deftest
- t172_l1077
- (is ((fn [pose] (= "Iris" (get-in pose [:opts :title]))) v171_l1072)))
+ t175_l1092
+ (is ((fn [pose] (= "Iris" (get-in pose [:opts :title]))) v174_l1087)))
 
 
 (def
- v174_l1082
+ v177_l1097
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1164,18 +1186,18 @@
 
 
 (deftest
- t175_l1088
+ t178_l1103
  (is
   ((fn
     [pose]
     (and
      (= "Two" (get-in pose [:opts :title]))
      (= "Sub" (get-in pose [:opts :subtitle]))))
-   v174_l1082)))
+   v177_l1097)))
 
 
 (def
- v177_l1107
+ v180_l1122
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1185,18 +1207,18 @@
 
 
 (deftest
- t178_l1113
+ t181_l1128
  (is
   ((fn
     [pose]
     (and
      (= {:type :log} (get-in pose [:mapping :x :scale]))
      (= :flip (get-in pose [:opts :coord]))))
-   v177_l1107)))
+   v180_l1122)))
 
 
 (def
- v180_l1123
+ v183_l1138
  (->
   iris
   (pj/pose :sepal-length :sepal-width {:size :petal-length})
@@ -1205,18 +1227,18 @@
 
 
 (deftest
- t181_l1128
+ t184_l1143
  (is
   ((fn
     [pose]
     (=
      {:from :petal-length, :scale {:type :log}}
      (get-in pose [:mapping :size])))
-   v180_l1123)))
+   v183_l1138)))
 
 
 (def
- v183_l1136
+ v186_l1151
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1225,7 +1247,7 @@
 
 
 (deftest
- t184_l1141
+ t187_l1156
  (is
   ((fn
     [pose]
@@ -1234,11 +1256,11 @@
      (=
       {:type :log}
       (-> pose pj/plan :panels first :layers first :size-scale))))
-   v183_l1136)))
+   v186_l1151)))
 
 
 (def
- v186_l1154
+ v189_l1172
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1247,14 +1269,13 @@
 
 
 (deftest
- t187_l1159
+ t190_l1177
  (is
-  ((fn [pose] (= :species (get-in pose [:opts :facet-col])))
-   v186_l1154)))
+  ((fn [pose] (= :species (get-in pose [:mapping :col]))) v189_l1172)))
 
 
 (def
- v189_l1164
+ v192_l1182
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1263,18 +1284,47 @@
 
 
 (deftest
- t190_l1169
+ t193_l1187
  (is
   ((fn
     [pose]
     (and
-     (= :species (get-in pose [:opts :facet-col]))
-     (= :species (get-in pose [:opts :facet-row]))))
-   v189_l1164)))
+     (= :species (get-in pose [:mapping :col]))
+     (= :species (get-in pose [:mapping :row]))))
+   v192_l1182)))
 
 
 (def
- v192_l1183
+ v195_l1196
+ (->
+  (pj/arrange
+   [(pj/pose iris :sepal-length :sepal-width)
+    (pj/pose iris :petal-length :petal-width)])
+  pj/lay-point
+  (pj/facet :species)))
+
+
+(deftest
+ t196_l1201
+ (is ((fn [pose] (= 6 (:panels (pj/svg-summary pose)))) v195_l1196)))
+
+
+(def
+ v197_l1204
+ (->
+  (pj/arrange
+   [(-> (pj/pose iris :sepal-length :sepal-width) (pj/facet :species))
+    (pj/pose iris :petal-length :petal-width)])
+  pj/lay-point))
+
+
+(deftest
+ t198_l1209
+ (is ((fn [pose] (= 4 (:panels (pj/svg-summary pose)))) v197_l1204)))
+
+
+(def
+ v200_l1223
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1283,7 +1333,7 @@
 
 
 (deftest
- t193_l1188
+ t201_l1228
  (is
   ((fn
     [pose]
@@ -1293,15 +1343,15 @@
       rule
       (some
        (fn*
-        [p1__11201#]
-        (when (= :rule-h (:layer-type p1__11201#)) p1__11201#))
+        [p1__11195#]
+        (when (= :rule-h (:layer-type p1__11195#)) p1__11195#))
        layers)]
      (and (some? rule) (= 3.0 (get-in rule [:mapping :y-intercept])))))
-   v192_l1183)))
+   v200_l1223)))
 
 
 (def
- v195_l1198
+ v203_l1238
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1310,7 +1360,7 @@
 
 
 (deftest
- t196_l1203
+ t204_l1243
  (is
   ((fn
     [pose]
@@ -1321,11 +1371,11 @@
      (=
       :rule-h
       (:layer-type (first (:layers (first (:poses pose))))))))
-   v195_l1198)))
+   v203_l1238)))
 
 
 (def
- v198_l1224
+ v206_l1264
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1335,7 +1385,7 @@
 
 
 (deftest
- t199_l1231
+ t207_l1271
  (is
   ((fn
     [pose]
@@ -1347,11 +1397,11 @@
        (fn [sp] (count (:layers (first (-> sp :plan :panels)))))
        (:sub-plots plan))]
      (= [2 1] panel-layer-counts)))
-   v198_l1224)))
+   v206_l1264)))
 
 
 (def
- v201_l1248
+ v209_l1288
  (->
   iris
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -1359,7 +1409,7 @@
 
 
 (deftest
- t202_l1252
+ t210_l1292
  (is
   ((fn
     [_]
@@ -1382,11 +1432,11 @@
         (= :species (:color d))
         (= :point (:mark d))
         (= 150 (tc/row-count (:data d))))))))
-   v201_l1248)))
+   v209_l1288)))
 
 
 (def
- v204_l1282
+ v212_l1322
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1395,18 +1445,18 @@
 
 
 (deftest
- t205_l1287
+ t213_l1327
  (is
   ((fn
     [pose]
     (let
      [plan (pj/plan pose)]
      (and (:composite? plan) (= 2 (count (:sub-plots plan))))))
-   v204_l1282)))
+   v212_l1322)))
 
 
 (def
- v207_l1295
+ v215_l1335
  (->
   iris
   (pj/lay-point :sepal-length :sepal-width)
@@ -1414,16 +1464,16 @@
 
 
 (deftest
- t208_l1299
+ t216_l1339
  (is
   ((fn
     [pose]
     (and (nil? (:poses pose)) (= 2 (:panels (pj/svg-summary pose)))))
-   v207_l1295)))
+   v215_l1335)))
 
 
 (def
- v210_l1312
+ v218_l1352
  (->
   iris
   (pj/pose :sepal-length :sepal-width {:color :species})
@@ -1432,18 +1482,18 @@
 
 
 (deftest
- t211_l1317
+ t219_l1357
  (is
   ((fn
     [pose]
     (let
      [plan (pj/plan pose) panel (first (:panels plan))]
      (and (= 1 (count (:panels plan))) (= 2 (count (:layers panel))))))
-   v210_l1312)))
+   v218_l1352)))
 
 
 (def
- v213_l1330
+ v221_l1370
  (->
   iris
   (pj/pose :sepal-length :sepal-width)
@@ -1452,12 +1502,12 @@
 
 
 (deftest
- t214_l1335
- (is ((fn [pose] (= 3 (count (:panels (pj/plan pose))))) v213_l1330)))
+ t222_l1375
+ (is ((fn [pose] (= 3 (count (:panels (pj/plan pose))))) v221_l1370)))
 
 
 (def
- v216_l1355
+ v224_l1395
  (def
   l4-shared
   (pj/arrange
@@ -1466,11 +1516,11 @@
    {:share-scales #{:x}})))
 
 
-(def v217_l1361 l4-shared)
+(def v225_l1401 l4-shared)
 
 
 (deftest
- t218_l1363
+ t226_l1403
  (is
   ((fn
     [pose]
@@ -1480,8 +1530,8 @@
        [p]
        (mapv
         (fn*
-         [p1__11202#]
-         (get-in p1__11202# [:plan :panels 0 :x-domain]))
+         [p1__11196#]
+         (get-in p1__11196# [:plan :panels 0 :x-domain]))
         (:sub-plots (pj/plan p))))
       domains
       (x-domains pose)
@@ -1492,13 +1542,13 @@
         [(->
           iris
           (tc/select-rows
-           (fn* [p1__11203#] (= "setosa" (:species p1__11203#))))
+           (fn* [p1__11197#] (= "setosa" (:species p1__11197#))))
           (pj/pose :sepal-length :sepal-width)
           pj/lay-point)
          (->
           iris
           (tc/select-rows
-           (fn* [p1__11204#] (= "virginica" (:species p1__11204#))))
+           (fn* [p1__11198#] (= "virginica" (:species p1__11198#))))
           (pj/pose :sepal-length :petal-width)
           pj/lay-point)]
         (if share {:share-scales #{:x}} {})))]
@@ -1508,11 +1558,11 @@
       (apply = domains)
       (apply = (x-domains (cells true)))
       (apply not= (x-domains (cells false))))))
-   v217_l1361)))
+   v225_l1401)))
 
 
 (def
- v220_l1423
+ v228_l1463
  (->
   iris
   (pj/pose
@@ -1521,7 +1571,7 @@
 
 
 (deftest
- t221_l1428
+ t229_l1468
  (is
   ((fn
     [pose]
@@ -1530,7 +1580,7 @@
      (= #{:y :x} (get-in pose [:opts :share-scales]))
      (= 2 (count (:poses pose)))
      (every?
-      (fn* [p1__11205#] (= 2 (count (:poses p1__11205#))))
+      (fn* [p1__11199#] (= 2 (count (:poses p1__11199#))))
       (:poses pose))
      (= {:color :species} (:mapping pose))
      (=
@@ -1539,14 +1589,14 @@
        [{:x :sepal-length, :y :petal-width}
         {:x :sepal-width, :y :petal-width}]]
       (mapv (fn [row] (mapv :mapping (:poses row))) (:poses pose)))))
-   v220_l1423)))
+   v228_l1463)))
 
 
-(def v223_l1457 (pj/cross [:a :b] [:c :d]))
+(def v231_l1497 (pj/cross [:a :b] [:c :d]))
 
 
 (deftest
- t224_l1459
+ t232_l1499
  (is
   ((fn [pairs] (= [[:a :c] [:a :d] [:b :c] [:b :d]] pairs))
-   v223_l1457)))
+   v231_l1497)))

@@ -308,14 +308,21 @@
     (pj/options {:width 900 :height 480}))
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                ;; One strip label per column, not one per cell: the
+                ;; lower row is divided by species and draws none, so
+                ;; three of the six panels carry a label.
+                labelled (->> (pj/plan v) :sub-plots
+                              (mapcat (comp :panels :plan))
+                              (keep :col-label))]
             (and (= 6 (:panels s))
-                 (= 150 (:points s)))))])
+                 (= 150 (:points s))
+                 (= ["setosa" "versicolor" "virginica"] (vec labelled)))))])
 
-;; Faceting lives in the pose's options, which the marginal copies onto
-;; the composite it builds, so both rows facet -- and each species name
-;; is drawn over both of them, noted in
-;; [Known Limitations](./plotje_book.known_limitations.html).
+;; `:col` is a mapping, and the marginal carries it across to the
+;; distribution it builds, so both rows are divided by species. The
+;; strip label is drawn once, at the top of each column, above the
+;; marginal.
 
 ;; ## Scatter Plot Matrix (SPLOM)
 ;;
