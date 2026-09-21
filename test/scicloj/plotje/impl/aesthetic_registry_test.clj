@@ -17,7 +17,7 @@
   "Every entry answers all of these. A new aesthetic that leaves one
    out fails here rather than falling through a derived set in
    silence."
-  [:category :column? :value? :numeric? :categorical-column? :scale-default])
+  [:role :column? :value? :numeric? :categorical-column? :scale-default])
 
 (deftest every-entry-is-fully-described-test
   (testing "each aesthetic answers every property"
@@ -27,9 +27,9 @@
           (str k " does not say " p))))
 
   (testing "the properties take the values the derived sets read"
-    (doseq [[k {:keys [category scale-default]}] defaults/aesthetic-registry]
-      (is (contains? #{:positional :appearance :grouping :panel} category)
-          (str k " has an unknown category"))
+    (doseq [[k {:keys [role scale-default]}] defaults/aesthetic-registry]
+      (is (contains? #{:positional :appearance :grouping :panel} role)
+          (str k " has an unknown role"))
       (is (contains? #{:always :by-source :by-value :never nil} scale-default)
           (str k " has an unknown scale default"))))
 

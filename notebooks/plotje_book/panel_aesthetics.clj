@@ -15,28 +15,29 @@
    [scicloj.plotje.api :as pj]
    [tablecloth.api :as tc]))
 
-;; ## Where a distinction goes
+;; ## What a distinction is put to work as
 
 ;; A distinction is a set of things to tell apart, and it is made of
 ;; columns. Every aesthetic answers two questions about the
 ;; distinction it is given: where the marks go, and how a reader tells
-;; them apart. The answer is the aesthetic's category, and there are
-;; four.
+;; them apart. The answer is the aesthetic's **role**, and there are
+;; four. A role is not a category -- a category is a value a
+;; categorical column holds, which is what a role is given.
 
 (kind/table
- {:column-names [:aesthetic :category]
-  :row-vectors (->> (pj/aesthetic-categories)
+ {:column-names [:aesthetic :role]
+  :row-vectors (->> (pj/aesthetic-roles)
                     (sort-by (comp str key))
-                    (mapv (fn [[k category]] [k category])))})
+                    (mapv (fn [[k role]] [k role])))})
 
 (kind/test-last
  [(fn [_] (= #{:positional :appearance :grouping :panel}
-             (set (vals (pj/aesthetic-categories)))))])
+             (set (vals (pj/aesthetic-roles)))))])
 
-;; `:color` sends a distinction to one place and tells the marks apart
-;; by colour, under a legend. `:group` sends it to one place and tells
-;; them apart not at all. The panel aesthetics send each value to a
-;; panel of its own, told apart by a strip label.
+;; `:color` puts a distinction in one place and tells the marks apart
+;; by colour, under a legend. `:group` puts it in one place and tells
+;; them apart not at all. The panel aesthetics give each value a panel
+;; of its own, told apart by a strip label.
 ;;
 ;; They are documented where they are written, rather than beside the
 ;; layer options, because no `pj/lay-*` call accepts one.

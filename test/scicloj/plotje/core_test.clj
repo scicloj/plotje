@@ -2269,6 +2269,45 @@
                                                    (pj/lay-point :t :len)
                                                    (pj/facet :species))))))))))
 
+(deftest a-mapping-is-a-pose-test
+  ;; A map naming aesthetics is a mapping, and lifts to a leaf
+  ;; carrying it. Read as data -- which every keyword-keyed map used
+  ;; to be -- `{:x :mpg :y :cyl}` became a two-column table whose
+  ;; columns were :x and :y, holding the column names as values.
+  (let [iris-ish {:sepal-length [1.0 2.0 3.0] :sepal-width [4.0 5.0 6.0]
+                  :petal-length [7.0 8.0 9.0] :petal-width [1.5 2.5 3.5]}]
+
+    (testing "a mapping lifts to a leaf with no data"
+      (let [fr (pj/pose {:x :sepal-length :y :sepal-width})]
+        (is (= {:x :sepal-length :y :sepal-width} (:mapping fr)))
+        (is (nil? (:data fr)))))
+
+    (testing "and is completed by pj/with-data"
+      (is (= 3 (:points (pj/svg-summary
+                         (-> (pj/pose {:x :sepal-length :y :sepal-width})
+                             (pj/with-data iris-ish)))))))
+
+    (testing "a pj/arrange cell may be a mapping"
+      ;; The cell says which columns its panel draws; data and layers
+      ;; come from the pose it is arranged into.
+      (let [fr (-> (pj/arrange [{:x :sepal-length :y :sepal-width}
+                                {:x :petal-length :y :petal-width}])
+                   (pj/with-data iris-ish)
+                   (pj/lay-point))
+            s (pj/svg-summary fr)]
+        (is (= 2 (:panels s)))
+        (is (= 6 (:points s)))))
+
+    (testing "a map of columns is still data"
+      ;; The values decide: a column is a sequence, a column reference
+      ;; is a keyword or a string.
+      (is (= 3 (:points (pj/svg-summary
+                         (pj/lay-point {:x [1 2 3] :y [4.0 5.0 6.0]} :x :y))))))
+
+    (testing "a vector of row maps is still data"
+      (is (= 2 (:points (pj/svg-summary
+                         (pj/lay-point [{:x 1 :y 2.0} {:x 2 :y 3.0}] :x :y))))))))
+
 (deftest facet-validation-test
   ;; persona-16 B3. Closes P9-R2 F9, Skept-R4 F7, P3-R2 Footgun 5.
   (let [data {:x [1 2 3 4 5 6] :y [10 20 30 40 50 60]

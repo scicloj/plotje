@@ -355,17 +355,17 @@ sales-long
 ;; in the registry -- the one that splits the data and draws nothing of
 ;; its own:
 
-(md-table ["category" "aesthetics"]
+(md-table ["role" "aesthetics"]
           (->> defaults/aesthetic-registry
-               (mapv (fn [[k v]] [k (:category v)]))
+               (mapv (fn [[k v]] [k (:role v)]))
                (group-by second)
                (sort-by key)
-               (mapv (fn [[cat ks]] [(str cat) (pr-str (vec (sort (map first ks))))]))))
+               (mapv (fn [[role ks]] [(str role) (pr-str (vec (sort (map first ks))))]))))
 
 (kind/test-last
  [(fn [_] (= [:group]
              (->> defaults/aesthetic-registry
-                  (filter (fn [[_ v]] (= :grouping (:category v))))
+                  (filter (fn [[_ v]] (= :grouping (:role v))))
                   (mapv first))))])
 
 ;; ## What is refused, and what the message says

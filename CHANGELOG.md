@@ -20,6 +20,10 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every `{:col [:a :b]}` or `{:row [:a :b]}` written in a mapping.** The columns unite into a compound key and a panel is drawn per combination the data holds, which is what `(pj/facet my-pose [:a :b])` draws. The bare vector used to be reported while the same request through `pj/facet` and through `{:column [...]}` both drew.
 
+- **Every `pj/pose` given several columns on `:x` or `:y`.** The columns are read as a series and pivoted, the pose carrying the invented columns to every layer below. Both spellings used to be reported, naming the `lay-*` call as the place a series is read.
+
+- **Every `(pj/pose {:x :a :y :b})` on a map naming aesthetics, and every such map passed to `pj/arrange`.** The map is a mapping, and lifts to a leaf carrying it. It used to be read as a dataset, so the pose drew a two-column table whose columns were `:x` and `:y` holding the column names as values, and `pj/arrange` reported the map as rendered hiccup.
+
 - **Every hand-built pose map carrying a mapping and no layers.** The map is a pose, and a layer is inferred for it. It used to be read as a dataset -- a map with neither `:layers` nor `:poses` was data -- so `{:mapping {:x :a :y :b} :data ds}` drew two points from a two-column table whose columns were `:mapping` and `:data`. A dataset written as a map of columns that holds a column called `:mapping` is still data: the value decides, a column being a sequence and a mapping a map.
 
 - **Every `pj/marginal` on a faceted pose.** Each strip label is drawn once, at the top of its column. Stacked, the marginal and the main panel were both divided by the column and both drew the labels, so each name appeared twice.
@@ -46,9 +50,15 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 ### Added
 
+- `pj/pose` reads a series. Several columns written where one goes on `:x` or `:y` are pivoted when a layer is added, and the invented columns reach every layer below -- which is what scope does for every other mapping. `(-> data (pj/pose {:x :quarter :y {:series [:revenue :cost] :as :measure} :col :measure}) pj/lay-line)` draws one panel per measure. A series in a `lay-*` call on a pose that already reads one is two reshapes of one dataset and is reported.
+
+- A map naming aesthetics is read as a mapping and lifts to a leaf pose carrying it. `(pj/pose {:x :mpg :y :cyl})` is a pose with that mapping and no data, completed later by `pj/with-data`, and a `pj/arrange` cell may be written the same way -- `{:x :mpg :y :cyl}` says which columns its panel draws, taking data and layers from the pose it is arranged into. A dataset written as a map of columns is unchanged: the values decide, a column being a sequence and a column reference a keyword or a string.
+
+- `:role` in the aesthetic registry says what a distinction given to an aesthetic is put to work as -- `:positional`, `:appearance`, `:grouping` or `:panel` -- and answers two questions at once: where the separated marks go, and how a reader tells them apart. It was `:category`, which collided with the book's own meaning for that word, a value a categorical column holds. `pj/aesthetic-roles` publishes it.
+
 - `:compound-key?` in the aesthetic registry says which aesthetics unite several columns into one distinction -- `:group`, `:col` and `:row` today. The check that reports several columns where one goes reads that rather than a list of its own, and reads the three spellings of a vector alike: bare, `{:series [...]}` and `{:column [...]}`.
 
-- `:col` and `:row` are aesthetics: a column written under either gives each of its values a panel of its own. `pj/facet` and `pj/facet-grid` write them. A vector under one unites the columns into a compound key, drawing a panel per combination the data holds and labelling it by each column's value in turn -- which `pj/facet-grid` does not, since it crosses two distinctions and fills the rectangle. `pj/panel-aesthetic-docs` describes them, and `pj/aesthetic-categories` says which destination each aesthetic sends a distinction to.
+- `:col` and `:row` are aesthetics: a column written under either gives each of its values a panel of its own. `pj/facet` and `pj/facet-grid` write them. A vector under one unites the columns into a compound key, drawing a panel per combination the data holds and labelling it by each column's value in turn -- which `pj/facet-grid` does not, since it crosses two distinctions and fills the rectangle. `pj/panel-aesthetic-docs` describes them, and `pj/aesthetic-roles` says what a distinction given to each aesthetic is put to work as.
 
 - Several columns written where one column goes are read as several series of one layer. The pivot invents a key column, whose name titles the legend and is `:series` unless given, and a `:value` column, which titles the value axis and is renamed with `:x-label` or `:y-label`. Write `{:series [:revenue :cost] :as :measure}` in full to name the key column, and add `:scale` there to read the value column through a scale, as any other mapping map takes one. A key a series does not take is reported. A series is read in a `lay-*` call, and `pj/pose` given one says so. The columns the series reads are consumed; the rest of the dataset comes through untouched. The key column is mapped to `:color`, and to `:group` where the layer maps `:color` itself, so the series stay separate marks either way.
 

@@ -197,18 +197,33 @@ sales-by-region
 
 ;; ## Where a series is written
 
-;; `:x` and `:y` are often written on the pose, and a series is the
-;; exception. The pivot reshapes the dataset the pose carries, so
-;; `pj/pose` reports instead, and names the call to write the series in:
+;; A series goes wherever a column goes. Written on the pose it
+;; reaches every layer below it, which is what scope does for every
+;; other mapping -- the pivot reshapes the dataset the pose carries,
+;; and each layer then reads the columns it invented:
+
+(-> sales
+    (pj/pose :quarter [:revenue :cost])
+    pj/lay-line
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:panels s)) (= 2 (:lines s)) (= 8 (:points s)))))])
+
+;; One pivot per plot, though. A series written in a `lay-*` call on a
+;; pose that already reads one is two reshapes of one dataset, and the
+;; second would name columns the first consumed, so it is reported:
 
 (try
   (-> sales
-      (pj/pose :quarter [:revenue :cost]))
+      (pj/pose {:x :quarter :y [:revenue :cost]})
+      (pj/lay-line :quarter [:revenue :tax]))
   (catch clojure.lang.ExceptionInfo e
     (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"lay-\* call's :y instead" msg))])
+ [(fn [msg] (re-find #"two pivots have no shared shape" msg))])
 
 ;; Within the lay-* call a series goes wherever a column goes -- as an
 ;; argument, or written under `:x` or `:y` in a map. The two spellings

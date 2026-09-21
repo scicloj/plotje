@@ -221,20 +221,43 @@
 
 ;; ---- Where a series may be written ----
 
-(deftest a-series-is-read-in-a-lay-call-test
-  ;; pj/pose used to answer a series with the general message for a
-  ;; value it cannot place, which advised adding a column holding the
-  ;; vector as a constant -- advice that draws one mark at a place named
-  ;; by a list of columns, and never a series.
-  (testing "pj/pose names the lay-* call, in both spellings"
+(deftest a-series-may-be-written-on-a-pose-test
+  ;; A series on a pose reaches the layers below it, which is what
+  ;; scope does for every other mapping. `pj/pose` used to report one
+  ;; and name the lay-* call.
+  (testing "pj/pose reads a series, in both spellings"
     (doseq [written [[:revenue :cost] {:series [:revenue :cost] :as :measure}]]
-      (is (thrown-with-msg? Exception #"a lay-\* call is where a series is read"
-                            (pj/pose sales {:x :quarter :y written}))
+      (is (= {:panels 1 :lines 2}
+             (select-keys (pj/svg-summary
+                           (-> sales (pj/pose {:x :quarter :y written}) pj/lay-line))
+                          [:panels :lines]))
           (pr-str written))))
 
   (testing "the positional arity says the same"
-    (is (thrown-with-msg? Exception #"a lay-\* call is where a series is read"
-                          (pj/pose sales :quarter [:revenue :cost]))))
+    (is (= {:panels 1 :lines 2}
+           (select-keys (pj/svg-summary
+                         (-> sales (pj/pose :quarter [:revenue :cost]) pj/lay-line))
+                        [:panels :lines]))))
+
+  (testing "every layer below the pose reads it"
+    (is (= {:panels 1 :lines 2 :points 8}
+           (select-keys (pj/svg-summary
+                         (-> sales (pj/pose {:x :quarter :y [:revenue :cost]})
+                             pj/lay-line pj/lay-point))
+                        [:panels :lines :points]))))
+
+  (testing "the invented key column can then be faceted"
+    (is (= 2 (:panels (pj/svg-summary
+                       (-> sales (pj/pose {:x :quarter :y [:revenue :cost]})
+                           pj/lay-line (pj/facet :series)))))))
+
+  (testing "a series at the call and one on the pose are two pivots, and reported"
+    ;; The pivot consumes the columns it reads, so the second would
+    ;; name columns the first had taken -- the same rule that refuses
+    ;; two series in one call.
+    (is (thrown-with-msg? Exception #"two pivots have no shared shape"
+                          (-> with-target (pj/pose {:x :quarter :y [:revenue :cost]})
+                              (pj/lay-line :quarter [:revenue :target])))))
 
   ;; The capability a series on pj/pose would add is already reachable:
   ;; the first lay-* pivots onto the pose, so every later layer reads

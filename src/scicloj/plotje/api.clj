@@ -136,9 +136,9 @@
    Maps each key to a description string."
   layer-type/layer-option-docs)
 
-(defn aesthetic-categories
-  "Which destination each aesthetic sends a distinction to, as a map
-   from aesthetic to category.
+(defn aesthetic-roles
+  "What a distinction given to each aesthetic is put to work as, as a
+   map from aesthetic to role.
 
    - `:positional` -- the mark is placed by the value.
    - `:appearance` -- the marks share a place and are told apart by how
@@ -147,10 +147,13 @@
    - `:panel` -- each value gets a panel of its own, told apart by a
      strip label. `pj/facet` and `pj/facet-grid` write these.
 
+   A role is not a category: a category is a value a categorical
+   column holds, which is what a role is given.
+
    A function rather than a value, as `pj/shape-symbols` is: the
    registry grows from one release to the next."
   []
-  (into {} (map (fn [[k entry]] [k (:category entry)]))
+  (into {} (map (fn [[k entry]] [k (:role entry)]))
         defaults/aesthetic-registry))
 
 (def panel-aesthetic-docs
@@ -716,7 +719,30 @@
 (declare prepare-pose pose-kind validate-pose-shape
          check-position-mapping check-column-ref-types
          check-explicit-mappings check-mapping-in-map-slot
-         check-pose-shape!)
+         check-pose-shape! pose-mapping-keys)
+
+(defn- mapping-map?
+  "True of a map that names aesthetics rather than holding columns of
+   data: every key is one a pose mapping takes, and at least one
+   aesthetic names a column.
+
+   A mapping is nearly a pose already -- it is what `pj/pose`'s second
+   argument holds -- and reading it as one is what lets a cell of
+   `pj/arrange` be written `{:x :mpg :y :cyl}`. The collision it has
+   to clear is with data, since a dataset written as a map of columns
+   is also a keyword-keyed map. The values decide: a column of data is
+   a sequence, and a column reference is a keyword or a string. So
+   `{:x [1 2 3] :y [4 5 6]}` is data and `{:x :mpg :y :cyl}` is a
+   mapping, which is the reading each already has everywhere else."
+  [x]
+  (and (map? x)
+       (seq x)
+       (not (pose? x))
+       (every? #(contains? pose-mapping-keys %) (keys x))
+       (some (fn [[k v]]
+               (and (contains? defaults/column-keys k)
+                    (resolve/column-ref? v)))
+             x)))
 
 (defn ->pose
   "Lift the input to a pose. The first atomic step of the pipeline.
@@ -739,11 +765,20 @@
    \"pj/->pose\".
 
    - `(->pose data)` -- raw dataset becomes a leaf pose
-   - `(->pose pose)` -- already a pose; idempotent lift"
+   - `(->pose pose)` -- already a pose; idempotent lift
+   - `(->pose {:x :a :y :b})` -- a mapping becomes a leaf carrying it,
+     with no data, to be completed by `pj/with-data` or by the pose it
+     is placed in"
   ([x] (->pose x "pj/->pose"))
   ([x caller]
-   (if (pose? x)
-     (pose-kind x)
+   (cond
+     (pose? x) (pose-kind x)
+     (mapping-map? x)
+     (let [d (:data x)
+           mapping (dissoc x :data)]
+       (prepare-pose (cond-> {:layers [] :mapping mapping}
+                       d (assoc :data (coerce-dataset d)))))
+     :else
      (do (validate-pose-input! caller x)
          (let [d (coerce-dataset x)]
            (prepare-pose (cond-> {:layers []} d (assoc :data d))))))))
@@ -1720,15 +1755,15 @@
       ;; general message, which advised adding a column holding the
       ;; vector as a constant -- advice that draws one mark at a place
       ;; named by a list of columns, and never a series.
-      (when (series-mapping? v)
-        (throw (ex-info (str context " " k " was given several columns, "
-                             (pr-str (:cols (series-mapping v)))
-                             ". Several columns where one goes are read as"
-                             " several series, and a lay-* call is where a"
-                             " series is read. Write the columns in the"
-                             " lay-* call's " k " instead.")
-                        {:option k :value v :accepted-in "lay-*"})))
-      (when-not (or (keyword? v) (string? v)
+      ;; A series passes: several columns on a positional aesthetic are
+      ;; read by name and pivoted, and `expand-series` has done that
+      ;; before this check runs on a `lay-*` call. Written on a pose it
+      ;; is expanded when a layer is added, so it reaches here
+      ;; unexpanded and is let through -- a pose carries a series into
+      ;; every layer below it, which is what scope does for every other
+      ;; mapping.
+      (when-not (or (series-mapping? v)
+                    (keyword? v) (string? v)
                     (pose/explicit-mapping? v)
                     (resolve/literal-position? v))
         (throw (ex-info (str context " " k " must be a column reference or a"
@@ -2095,20 +2130,47 @@
   #{:x :y})
 
 (defn- find-series
-  "The aesthetic a series is written under, looking in both of a `lay-*`
-   call's map slots. Nil where there is none."
-  [caller position-mapping opts]
+  "Where a series is written, as `[aesthetic source]`, or nil where
+   none is. `source` is `:call` for either of a `lay-*` call's map
+   slots and `:pose` for the pose's own mapping.
+
+   A series on the pose is read the way every other mapping written
+   there is read: it reaches the layers below it. The call is searched
+   first, so a layer naming its own series overrides the one it would
+   inherit, which is the scope rule for every aesthetic."
+  [caller fr position-mapping opts]
   (let [in (fn [m] (keep (fn [[k v]] (when (and (series-slots k) (series-mapping? v)) k)) m))
-        found (vec (concat (in position-mapping) (in opts)))]
-    (when (seq found)
-      (when (next found)
-        (throw (ex-info (str caller " was given a series on more than one"
-                             " aesthetic -- " (pr-str found) ". A series"
-                             " pivots the data into one value column, and"
-                             " two pivots have no shared shape, so write"
-                             " one series per layer.")
-                        {:caller caller :aesthetics found})))
-      (first found))))
+        at-call (vec (concat (in position-mapping) (in opts)))
+        on-pose (vec (in (:mapping fr)))
+        report (fn [found]
+                 (throw (ex-info (str caller " was given a series on more than one"
+                                      " aesthetic -- " (pr-str found) ". A series"
+                                      " pivots the data into one value column, and"
+                                      " two pivots have no shared shape, so write"
+                                      " one series per layer.")
+                                 {:caller caller :aesthetics found})))]
+    (when (next at-call) (report at-call))
+    (when (next on-pose) (report on-pose))
+    ;; A series at the call and a series on the pose are two pivots of
+    ;; one dataset, and the same rule refuses them as refuses two in
+    ;; one call: the pivot consumes the columns it reads, so the second
+    ;; would name columns the first had already taken. The layer cannot
+    ;; override the pose here the way another mapping would, because
+    ;; what it would override has already reshaped the data.
+    (when (and (seq at-call) (seq on-pose))
+      (throw (ex-info (str caller " was given a series on " (pr-str (first at-call))
+                           ", and the pose it is added to already reads one on "
+                           (pr-str (first on-pose)) ". A series pivots the data"
+                           " into one value column, and two pivots have no"
+                           " shared shape. Read one of them: drop the series"
+                           " from the " caller " call to use the pose's, or"
+                           " build the layer on a pose of its own.")
+                      {:caller caller
+                       :at-call (first at-call)
+                       :on-pose (first on-pose)})))
+    (cond
+      (seq at-call) [(first at-call) :call]
+      (seq on-pose) [(first on-pose) :pose])))
 
 (defn- pivot-series
   "Pivot the columns a series names into a key column and a value
@@ -2194,8 +2256,10 @@
    `:group` where the layer maps `:color` itself, so the series stay
    separate marks either way."
   [caller fr layer-type-key position-mapping opts]
-  (if-let [k (find-series caller position-mapping opts)]
-    (let [written (or (get position-mapping k) (get opts k))
+  (if-let [[k source] (find-series caller fr position-mapping opts)]
+    (let [written (if (= :pose source)
+                    (get (:mapping fr) k)
+                    (or (get position-mapping k) (get opts k)))
           _ (check-series-keys! caller written)
           spec (series-mapping written)
           cols (:cols spec)
@@ -2231,7 +2295,9 @@
                                " of its columns.")
                           {:caller caller :columns (vec cols)
                            :conflicts (vec hits)})))
-        (let [group-key (if (contains? (or opts {}) :color) :group :color)
+        (let [group-key (if (contains? (if (= :pose source) (:mapping fr) (or opts {}))
+                                       :color)
+                          :group :color)
               ;; `:from` rather than `:column`, so that a series reading
               ;; through a scale is the same position as one reading
               ;; plainly -- identity is decided on `pose/mapping-source`,
@@ -2239,11 +2305,20 @@
               value-mapping (if-let [sc (:scale spec)]
                               {:from series-value-column :scale sc}
                               series-value-column)]
-          [(assoc fr :data pivoted)
-           (assoc (or position-mapping {}) k value-mapping)
-           (-> (or opts {})
-               (dissoc k :data)
-               (assoc group-key label))])))
+          (if (= :pose source)
+            ;; Written on the pose, rewritten on the pose: the layers
+            ;; below it then read ordinary columns, and a second layer
+            ;; added later reads the same ones.
+            [(-> fr
+                 (assoc :data pivoted)
+                 (update :mapping assoc k value-mapping group-key label))
+             position-mapping
+             opts]
+            [(assoc fr :data pivoted)
+             (assoc (or position-mapping {}) k value-mapping)
+             (-> (or opts {})
+                 (dissoc k :data)
+                 (assoc group-key label))]))))
     [fr position-mapping opts]))
 
 (defn- lay-on-pose*
@@ -4034,6 +4109,13 @@
       ;; holding a composite, which is what `pj/arrange` already builds
       ;; for more than one row.
       (and (pose? p) (pose/composite? p)) p
+
+      ;; A mapping is a cell written at the detail a cell needs: which
+      ;; columns this panel draws, and nothing about data or layers,
+      ;; both of which come from the pose it is arranged into. Lifted
+      ;; rather than special-cased, so `{:x :mpg :y :cyl}` here means
+      ;; what it means everywhere else.
+      (mapping-map? p) (->pose p "pj/arrange")
 
       (nil? p)
       (throw (ex-info (str prefix " is nil. Each input must be a "

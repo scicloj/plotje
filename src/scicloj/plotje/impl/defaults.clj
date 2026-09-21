@@ -76,17 +76,21 @@
    aesthetic, each carrying everything any consumer needs to know about
    it, so a new aesthetic is added here and nowhere else.
 
-   - `:category` -- `:positional` places a mark, `:appearance` decides
-     how it looks, `:grouping` splits the data and draws nothing of its
-     own, `:panel` sends each of the distinction's values to a panel of
-     its own. The glossary's Aesthetic entry teaches the first three
-     under those names.
+   - `:role` -- what a distinction given to this aesthetic is put to
+     work as. `:positional` places a mark, `:appearance` decides how it
+     looks, `:grouping` splits the data and draws nothing of its own,
+     `:panel` gives each of the distinction's values a panel of its
+     own. The glossary's Aesthetic entry teaches the first three under
+     those names.
 
-     The four categories are four destinations for one distinction:
-     drawn in the same place and told apart by an appearance, drawn in
-     the same place and not told apart, or drawn in a panel each and
-     told apart by a strip label. Which category an aesthetic carries
-     is which destination it sends a column to.
+     A role answers two questions at once: where the separated marks
+     go, and how a reader tells them apart. `:appearance` puts them in
+     one place and tells them apart by a legend, `:grouping` puts them
+     in one place and tells them apart not at all, `:panel` gives each
+     a panel and a strip label. It is a role rather than a category
+     because a **category** is already a value a categorical column
+     holds -- the thing a role is given, not the name for what is done
+     with it.
    - `:column?` -- whether the aesthetic can name a dataset column at
      all. `:x-min` and `:x-max` cannot: only `lay-band-v` reads them,
      and it reads a value straight from the mapping. `:y-min` and
@@ -117,7 +121,7 @@
      **The split is by category, not by aesthetic.** Every appearance
      aesthetic is `:by-source` and every positional one is `:always`,
      which is the same distinction the glossary draws and the
-     `:category` entry above records. The reason the two differ is
+     `:role` entry above records. The reason the two differ is
      that position already has a second vocabulary for page geometry
      and appearance does not: `{:in :drawing-area}` says \"these
      coordinates are drawing units\", so a bare `{:x 6.5}` is free to
@@ -180,23 +184,23 @@
    the layer. Either may be a string or a hiccup vector. Neither passes
    through a scale -- what the writer put in the column is what is
    shown."
-  {:x     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
-   :y     {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
-   :x-end {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
-   :y-min {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
-   :y-max {:category :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
-   :x-min {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
-   :x-max {:category :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
-   :color {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale :legend? true}
-   :size  {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
-   :alpha {:category :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
-   :fill  {:category :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
-   :shape {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
-   :text  {:category :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
-   :tooltip {:category :appearance :column? true :value? true :numeric? false :categorical-column? true :scale-default :never :drawn-column? true}
-   :group {:category :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}
-   :row   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}
-   :col   {:category :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}})
+  {:x     {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
+   :y     {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
+   :x-end {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
+   :y-min {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
+   :y-max {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
+   :x-min {:role :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
+   :x-max {:role :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}
+   :color {:role :appearance :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :by-source :drawn-column? true  :scale-key :color-scale :legend? true}
+   :size  {:role :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :size-scale  :legend? true}
+   :alpha {:role :appearance :column? true  :value? true  :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? true :scale-key :alpha-scale :legend? true}
+   :fill  {:role :appearance :column? true  :value? false :numeric? true  :categorical-column? false :scale-default :by-source :drawn-column? false  :scale-key :fill-scale}
+   :shape {:role :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :by-source :drawn-column? false  :scale-key :shape-scale :legend? true}
+   :text  {:role :appearance :column? true  :value? true  :numeric? false :categorical-column? true  :scale-default :never :drawn-column? true}
+   :tooltip {:role :appearance :column? true :value? true :numeric? false :categorical-column? true :scale-default :never :drawn-column? true}
+   :group {:role :grouping   :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}
+   :row   {:role :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}
+   :col   {:role :panel      :column? true  :value? false :numeric? false :categorical-column? true  :scale-default nil :drawn-column? false :compound-key? true}})
 
 (defn aesthetics-where
   "The aesthetics whose registry entry satisfies `pred`, in a stable
@@ -221,7 +225,7 @@
 (def panel-aesthetics
   "The aesthetics that send a column's values to panels of their own.
    `pj/facet` and `pj/facet-grid` are sugar over these."
-  (set (aesthetics-where #(= :panel (:category %)))))
+  (set (aesthetics-where #(= :panel (:role %)))))
 
 (def panel-aesthetic-docs
   "Documentation for the panel aesthetics, the counterpart of
@@ -237,7 +241,7 @@
   "The aesthetics that place a mark, and so may be given as a value.
    Named for the glossary's sake: `:position` there is the dodge /
    stack / fill adjustment, which these have nothing to do with."
-  (aesthetics-where #(= :positional (:category %))))
+  (aesthetics-where #(= :positional (:role %))))
 
 (def literal-to-column-aesthetics
   "The aesthetics whose literal value becomes a constant column in the

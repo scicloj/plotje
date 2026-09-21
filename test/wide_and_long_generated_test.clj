@@ -480,14 +480,16 @@
 (def
  v50_l358
  (md-table
-  ["category" "aesthetics"]
+  ["role" "aesthetics"]
   (->>
    defaults/aesthetic-registry
-   (mapv (fn [[k v]] [k (:category v)]))
+   (mapv (fn [[k v]] [k (:role v)]))
    (group-by second)
    (sort-by key)
    (mapv
-    (fn [[cat ks]] [(str cat) (pr-str (vec (sort (map first ks))))])))))
+    (fn
+     [[role ks]]
+     [(str role) (pr-str (vec (sort (map first ks))))])))))
 
 
 (deftest
@@ -499,7 +501,7 @@
      [:group]
      (->>
       defaults/aesthetic-registry
-      (filter (fn [[_ v]] (= :grouping (:category v))))
+      (filter (fn [[_ v]] (= :grouping (:role v))))
       (mapv first))))
    v50_l358)))
 
