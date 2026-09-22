@@ -32,6 +32,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every `pj/marginal` on a faceted pose.** Each strip label is drawn once, at the top of its column. Stacked, the marginal and the main panel were both divided by the column and both drew the labels, so each name appeared twice.
 
+- **Every `pj/facet-grid` on a pose that already facets in one of the two directions.** The call reports that the pose divides its panels once per direction, which is what a second `pj/facet` in one direction already reported. `pj/facet-grid` used to replace whatever was written on `:col` or `:row` with nothing said, so the earlier division was lost.
+
 - **Every `pj/facet` or `pj/facet-grid` on a composite pose.** Every cell of the composite is divided, so a two-cell arrangement faceted by a three-value column draws six panels. Both calls used to report that a composite was not supported and draw nothing.
 
 - **Every `pj/facet` or `pj/facet-grid` on a pose whose layers draw more than one panel.** Each of those panels is drawn once per value the column holds, the facet being the outer division. Both calls used to report that the two divisions would cross and draw nothing.
@@ -53,6 +55,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 - **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, which is what `:group` naming two columns already drew. One grouping column used to take the palette's first colour.
 
 ### Added
+
+- `{:grammar ...}` chooses what a bare vector of column names under an aesthetic means. `:layered`, the default, reads one on `:x` or `:y` as a series drawn as layers on one panel, and one on `:group`, `:col` or `:row` as a compound key. `:paneled` draws that series as a panel per column, labelled by the column it draws, which `pj/overlay` puts back on one panel. `:written-out` reports a bare vector under those five aesthetics and names the form to write instead -- `{:series [...]}` for the columns read by name, `{:column [...]}` for them united into one key. It decides how a call reads its arguments, so it is written before the calls it governs, and a grammar written after a call that has already read a combination -- on the pose or on any cell below it -- is reported rather than reaching half the pipeline.
 
 - `pj/pose` reads a series. Several columns written where one goes on `:x` or `:y` are pivoted when a layer is added, and the invented columns reach every layer below -- which is what scope does for every other mapping. `(-> data (pj/pose {:x :quarter :y {:series [:revenue :cost] :as :measure} :col :measure}) pj/lay-line)` draws one panel per measure. A series in a `lay-*` call on a pose that already reads one is two reshapes of one dataset and is reported.
 

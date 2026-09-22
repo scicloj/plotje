@@ -1277,7 +1277,7 @@ plan1
 
 (count pj/plot-option-docs)
 
-(kind/test-last [(fn [n] (= 15 n))])
+(kind/test-last [(fn [n] (= 16 n))])
 
 (kind/doc #'pj/layer-option-docs)
 

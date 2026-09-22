@@ -77,7 +77,7 @@
 
 
 (def
- v12_l80
+ v12_l87
  (kind/table
   {:column-names ["Key" "Category" "Description"],
    :row-maps
@@ -92,118 +92,118 @@
        "Description" desc})))}))
 
 
-(deftest t13_l90 (is ((fn [t] (= 15 (count (:row-maps t)))) v12_l80)))
+(deftest t13_l97 (is ((fn [t] (= 16 (count (:row-maps t)))) v12_l87)))
 
 
-(def v15_l100 (select-keys (pj/config) [:width :height]))
-
-
-(deftest
- t16_l102
- (is ((fn [m] (= {:width 600, :height 400} m)) v15_l100)))
-
-
-(def v17_l104 (-> (base-plot) (pj/options {:width 900, :height 250})))
+(def v15_l107 (select-keys (pj/config) [:width :height]))
 
 
 (deftest
- t18_l107
+ t16_l109
+ (is ((fn [m] (= {:width 600, :height 400} m)) v15_l107)))
+
+
+(def v17_l111 (-> (base-plot) (pj/options {:width 900, :height 250})))
+
+
+(deftest
+ t18_l114
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (> (:width s) 800))))
-   v17_l104)))
+   v17_l111)))
 
 
-(def v20_l116 (-> (base-plot) (pj/options {:theme {:bg "#FFFFFF"}})))
-
-
-(deftest
- t21_l119
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v20_l116)))
-
-
-(def v23_l125 (-> (base-plot) (pj/options {:color-values :dark2})))
+(def v20_l123 (-> (base-plot) (pj/options {:theme {:bg "#FFFFFF"}})))
 
 
 (deftest
- t24_l128
+ t21_l126
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v20_l123)))
+
+
+(def v23_l132 (-> (base-plot) (pj/options {:color-values :dark2})))
+
+
+(deftest
+ t24_l135
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s)))) v23_l125)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s)))) v23_l132)))
 
 
-(def v26_l140 (pj/set-config! {:width 800}))
+(def v26_l147 (pj/set-config! {:width 800}))
 
 
-(def v27_l142 (select-keys (pj/config) [:width :height]))
-
-
-(deftest
- t28_l144
- (is ((fn [m] (= {:width 800, :height 400} m)) v27_l142)))
-
-
-(def v29_l146 (-> (base-plot)))
-
-
-(def v31_l150 (pj/set-config! nil))
-
-
-(def v32_l152 (select-keys (pj/config) [:width :height]))
+(def v27_l149 (select-keys (pj/config) [:width :height]))
 
 
 (deftest
- t33_l154
- (is ((fn [m] (= {:width 600, :height 400} m)) v32_l152)))
+ t28_l151
+ (is ((fn [m] (= {:width 800, :height 400} m)) v27_l149)))
+
+
+(def v29_l153 (-> (base-plot)))
+
+
+(def v31_l157 (pj/set-config! nil))
+
+
+(def v32_l159 (select-keys (pj/config) [:width :height]))
+
+
+(deftest
+ t33_l161
+ (is ((fn [m] (= {:width 600, :height 400} m)) v32_l159)))
 
 
 (def
- v35_l165
+ v35_l172
  (pj/with-config
   {:theme {:bg "#1a1a2e", :grid "#16213e", :font-size 8}}
   (-> (base-plot) (pj/options {:title "Dark Theme via with-config"}))))
 
 
 (deftest
- t36_l169
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v35_l165)))
+ t36_l176
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v35_l172)))
 
 
 (def
- v38_l176
+ v38_l183
  (pj/with-config
   {:theme {:bg "#F5F5DC"}}
   (-> (base-plot) (pj/options {:title "Partial Theme Override"}))))
 
 
 (deftest
- t39_l180
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v38_l176)))
+ t39_l187
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v38_l183)))
 
 
-(def v41_l186 (select-keys (pj/config) [:width :height]))
+(def v41_l193 (select-keys (pj/config) [:width :height]))
 
 
 (deftest
- t42_l188
- (is ((fn [m] (= {:width 600, :height 400} m)) v41_l186)))
+ t42_l195
+ (is ((fn [m] (= {:width 600, :height 400} m)) v41_l193)))
 
 
-(def v44_l204 (:point-radius (pj/config)))
+(def v44_l211 (:point-radius (pj/config)))
 
 
-(deftest t45_l206 (is ((fn [v] (= 3.0 v)) v44_l204)))
+(deftest t45_l213 (is ((fn [v] (= 3.0 v)) v44_l211)))
 
 
 (def
- v47_l210
+ v47_l217
  (pj/set-config! {:width 800, :height 350, :point-radius 5.0}))
 
 
 (def
- v49_l216
+ v49_l223
  (def
   precedence-plot
   (pj/with-config
@@ -211,11 +211,11 @@
    (pj/plot (-> (base-plot) (pj/options {:width 900}))))))
 
 
-(def v50_l223 precedence-plot)
+(def v50_l230 precedence-plot)
 
 
 (deftest
- t51_l225
+ t51_l232
  (is
   ((fn
     [v]
@@ -225,11 +225,11 @@
       (= 150 (:points s))
       (= 900.0 (double (:width s)))
       (= 500.0 (double (:height s))))))
-   v50_l223)))
+   v50_l230)))
 
 
 (def
- v53_l239
+ v53_l246
  (def
   precedence-point-radius
   (pj/with-config
@@ -237,40 +237,40 @@
    (:point-radius (pj/config)))))
 
 
-(def v54_l243 precedence-point-radius)
+(def v54_l250 precedence-point-radius)
 
 
-(deftest t55_l245 (is ((fn [v] (= 5.0 v)) v54_l243)))
+(deftest t55_l252 (is ((fn [v] (= 5.0 v)) v54_l250)))
 
 
-(def v57_l249 (pj/set-config! nil))
+(def v57_l256 (pj/set-config! nil))
 
 
-(def v58_l251 (select-keys (pj/config) [:width :height :point-radius]))
+(def v58_l258 (select-keys (pj/config) [:width :height :point-radius]))
 
 
 (deftest
- t59_l253
+ t59_l260
  (is
   ((fn [m] (= {:width 600, :height 400, :point-radius 3.0} m))
-   v58_l251)))
+   v58_l258)))
 
 
-(def v61_l291 (set (keys (:theme (pj/config)))))
+(def v61_l298 (set (keys (:theme (pj/config)))))
 
 
 (deftest
- t62_l293
- (is ((fn [s] (= #{:font-size :grid :bg} s)) v61_l291)))
+ t62_l300
+ (is ((fn [s] (= #{:font-size :grid :bg} s)) v61_l298)))
 
 
 (def
- v64_l302
+ v64_l309
  (-> (base-plot) (pj/options {:theme {:bg "#F5F5DC"}}) pj/plot))
 
 
 (deftest
- t65_l306
+ t65_l313
  (is
   ((fn
     [v]
@@ -279,11 +279,11 @@
      (and
       (clojure.string/includes? s "rgb(245,245,220)")
       (clojure.string/includes? s "rgb(245,245,245)"))))
-   v64_l302)))
+   v64_l309)))
 
 
 (def
- v67_l316
+ v67_l323
  (->
   (base-plot)
   (pj/options
@@ -293,16 +293,16 @@
 
 
 (deftest
- t68_l321
+ t68_l328
  (is
   ((fn
     [v]
     (let [s (str v)] (clojure.string/includes? s "rgb(45,45,45)")))
-   v67_l316)))
+   v67_l323)))
 
 
 (def
- v70_l331
+ v70_l338
  (pj/arrange
   [(->
     (base-plot)
@@ -321,36 +321,36 @@
 
 
 (deftest
- t71_l341
+ t71_l348
  (is
   ((fn
     [v]
     (and (pj/pose? v) (= 2 (count (:poses (first (:poses v)))))))
-   v70_l331)))
+   v70_l338)))
 
 
-(def v73_l369 (-> (base-plot) (pj/options {:color-values :tableau-10})))
+(def v73_l376 (-> (base-plot) (pj/options {:color-values :tableau-10})))
 
 
 (deftest
- t74_l372
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v73_l369)))
+ t74_l379
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v73_l376)))
 
 
 (def
- v76_l377
+ v76_l384
  (->
   (base-plot)
   (pj/options {:color-values ["#E74C3C" "#3498DB" "#2ECC71"]})))
 
 
 (deftest
- t77_l380
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v76_l377)))
+ t77_l387
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v76_l384)))
 
 
 (def
- v79_l385
+ v79_l392
  (->
   (base-plot)
   (pj/options
@@ -361,46 +361,46 @@
 
 
 (deftest
- t80_l390
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v79_l385)))
+ t80_l397
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v79_l392)))
 
 
-(def v82_l395 (pj/set-config! {:color-values :pastel1}))
+(def v82_l402 (pj/set-config! {:color-values :pastel1}))
 
 
-(def v83_l397 (-> (base-plot)))
-
-
-(deftest
- t84_l399
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v83_l397)))
-
-
-(def v85_l402 (pj/set-config! nil))
-
-
-(def v87_l406 (pj/with-config {:color-values :accent} (-> (base-plot))))
+(def v83_l404 (-> (base-plot)))
 
 
 (deftest
- t88_l409
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v87_l406)))
+ t84_l406
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v83_l404)))
+
+
+(def v85_l409 (pj/set-config! nil))
+
+
+(def v87_l413 (pj/with-config {:color-values :accent} (-> (base-plot))))
+
+
+(deftest
+ t88_l416
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v87_l413)))
 
 
 (def
- v90_l421
+ v90_l428
  (->
   {:x (range 50), :y (range 50), :c (range 50)}
   (pj/lay-point :x :y {:color :c})))
 
 
 (deftest
- t91_l424
- (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v90_l421)))
+ t91_l431
+ (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v90_l428)))
 
 
 (def
- v93_l430
+ v93_l437
  (->
   {:x (range 50), :y (range 50), :c (range 50)}
   (pj/lay-point :x :y {:color :c})
@@ -408,7 +408,7 @@
 
 
 (deftest
- t94_l434
+ t94_l441
  (is
   ((fn
     [v]
@@ -424,11 +424,11 @@
       (= 50 (:points (pj/svg-summary v)))
       (= :inferno (:color-range leg))
       (= :continuous (:type leg)))))
-   v93_l430)))
+   v93_l437)))
 
 
 (def
- v96_l445
+ v96_l452
  (pj/with-config
   {:color-range :plasma}
   (->
@@ -437,46 +437,46 @@
 
 
 (deftest
- t97_l449
- (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v96_l445)))
+ t97_l456
+ (is ((fn [v] (= 50 (:points (pj/svg-summary v)))) v96_l452)))
 
 
-(def v99_l471 (pj/plan (base-plot)))
-
-
-(deftest
- t100_l473
- (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v99_l471)))
-
-
-(def v102_l480 (-> (base-plot)))
+(def v99_l478 (pj/plan (base-plot)))
 
 
 (deftest
- t103_l482
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v102_l480)))
+ t100_l480
+ (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v99_l478)))
 
 
-(def v105_l491 (def good-plan (pj/plan (base-plot) {:validate false})))
+(def v102_l487 (-> (base-plot)))
 
 
-(def v106_l493 (pj/valid-plan? good-plan))
+(deftest
+ t103_l489
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v102_l487)))
 
 
-(deftest t107_l495 (is ((fn [v] (true? v)) v106_l493)))
+(def v105_l498 (def good-plan (pj/plan (base-plot) {:validate false})))
 
 
-(def v109_l500 (def bad-plan (assoc good-plan :width "not-a-number")))
+(def v106_l500 (pj/valid-plan? good-plan))
 
 
-(def v110_l502 (pj/valid-plan? bad-plan))
+(deftest t107_l502 (is ((fn [v] (true? v)) v106_l500)))
 
 
-(deftest t111_l504 (is ((fn [v] (false? v)) v110_l502)))
+(def v109_l507 (def bad-plan (assoc good-plan :width "not-a-number")))
+
+
+(def v110_l509 (pj/valid-plan? bad-plan))
+
+
+(deftest t111_l511 (is ((fn [v] (false? v)) v110_l509)))
 
 
 (def
- v113_l511
+ v113_l518
  (->
   (pj/explain-plan bad-plan)
   :errors
@@ -485,14 +485,14 @@
 
 
 (deftest
- t114_l516
+ t114_l523
  (is
   ((fn [m] (and (= [:width] (:in m)) (= "not-a-number" (:value m))))
-   v113_l511)))
+   v113_l518)))
 
 
 (def
- v116_l525
+ v116_l532
  (try
   (let
    [plan
@@ -510,26 +510,26 @@
 
 
 (deftest
- t117_l536
+ t117_l543
  (is
   ((fn
     [m]
     (and
      (:caught m)
      (= "Plan does not conform to schema" (:message m))))
-   v116_l525)))
+   v116_l532)))
 
 
-(def v119_l545 (pj/plan (base-plot) {:validate false}))
+(def v119_l552 (pj/plan (base-plot) {:validate false}))
 
 
 (deftest
- t120_l547
- (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v119_l545)))
+ t120_l554
+ (is ((fn [plan] (and (map? plan) (= 600 (:width plan)))) v119_l552)))
 
 
 (def
- v122_l571
+ v122_l578
  (pj/with-config
   {:strict false}
   (->
@@ -539,12 +539,12 @@
 
 
 (deftest
- t123_l576
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v122_l571)))
+ t123_l583
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v122_l578)))
 
 
 (def
- v125_l580
+ v125_l587
  (pj/with-config
   {:strict true}
   (try
@@ -557,7 +557,7 @@
 
 
 (deftest
- t126_l588
+ t126_l595
  (is
   ((fn [msg] (and (string? msg) (re-find #"does not recognize" msg)))
-   v125_l580)))
+   v125_l587)))

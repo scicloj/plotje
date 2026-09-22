@@ -76,6 +76,13 @@
 ;; (Other plot options -- axis scales, coordinate system, facets --
 ;; are set by their dedicated functions and live in the same `:opts`
 ;; field.)
+;;
+;; One of them is read earlier than the rest. `:grammar` decides how a
+;; `pj/pose` or `pj/lay-*` call reads a vector of column names in its
+;; arguments, so it has to be written before those calls -- through
+;; `pj/options`, and not through `pj/plan` or `pj/plot`, which are
+;; reached once the calls have been made. Written too late, it reports
+;; rather than taking effect halfway.
 
 (kind/table
  {:column-names ["Key" "Category" "Description"]
@@ -87,7 +94,7 @@
                 "Category" cat
                 "Description" desc})))})
 
-(kind/test-last [(fn [t] (= 15 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 16 (count (:row-maps t))))])
 
 ;; ## Using Plot Options
 ;;
