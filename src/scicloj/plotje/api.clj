@@ -3682,6 +3682,29 @@
                         :given col}))))
    pose))
 
+(defn- facet-direction
+  "Write one panel aesthetic into a pose's mapping: lift the pose,
+   check the grammar, read the column, report a second answer in the
+   same direction, and write it.
+
+   `pj/facet` is one of these steps and `pj/facet-grid` is two, and
+   each used to carry its own copy of the four parts. Two copies of
+   one rule diverge: the grid form went without the second-facet
+   report, so it replaced whatever was already on `:col` or `:row`
+   with nothing said, which under `{:grammar :paneled}` threw away the
+   series the pose had just been given and drew one unlabelled group
+   per panel.
+
+   `caller` names the function the writer called, so a report still
+   names it."
+  [pose col direction caller]
+  (let [fr  (->pose pose caller)
+        _   (check-written-out-grammar! caller (pose-grammar fr)
+                                        {direction col})
+        col (column-argument caller col)]
+    (report-refacet fr direction col caller)
+    (update-mapping fr assoc direction col)))
+
 (defn facet
   "Facet a pose by a column: one panel per value the column holds.
 
@@ -3713,12 +3736,7 @@
                      {:caller "pj/facet"
                       :direction direction
                       :accepted #{:col :row}})))
-   (let [fr  (->pose pose "pj/facet")
-         _   (check-written-out-grammar! "pj/facet" (pose-grammar fr)
-                                         {direction col})
-         col (column-argument "pj/facet" col)]
-     (report-refacet fr direction col)
-     (update-mapping fr assoc direction col))))
+   (facet-direction pose col direction "pj/facet")))
 
 (defn facet-grid
   "Facet a pose by two columns: a panel for every row-and-column pair,
@@ -3726,24 +3744,16 @@
 
    Like `pj/facet`, this is a mapping -- it writes `{:col ... :row ...}`
    -- so it scopes downward and reaches a composite's cells.
+   `(pj/facet-grid my-pose :a :b)` writes the same mapping as
+   `(pj/facet my-pose :a)` followed by `(pj/facet my-pose :b :row)`,
+   and is made of those two steps.
 
    `pj/facet-grid` fills the rectangle; `(pj/facet my-pose [:a :b])`
    draws only the combinations the data holds."
   [pose col-col row-col]
-  (let [fr  (->pose pose "pj/facet-grid")
-        _   (check-written-out-grammar! "pj/facet-grid" (pose-grammar fr)
-                                        {:col col-col :row row-col})
-        col (column-argument "pj/facet-grid" col-col)
-        row (column-argument "pj/facet-grid" row-col)]
-    ;; Held to the same rule `pj/facet` is: a pose divides its panels
-    ;; once per direction, and writing a second answer at the same level
-    ;; is not a scope override. Without this the call replaced whatever
-    ;; was already on `:col` or `:row` with nothing said, which under
-    ;; `{:grammar :paneled}` threw away the series the pose had just
-    ;; been given and drew one unlabelled group per panel.
-    (report-refacet fr :col col "pj/facet-grid")
-    (report-refacet fr :row row "pj/facet-grid")
-    (update-mapping fr assoc :col col :row row)))
+  (-> pose
+      (facet-direction col-col :col "pj/facet-grid")
+      (facet-direction row-col :row "pj/facet-grid")))
 
 (def ^:private aesthetic->scale-key
   "Aesthetic keyword to the opts key holding its scale spec. Derived
