@@ -428,14 +428,16 @@
 
 ;; ## Faceting Keys in a Layer's Options Map
 ;;
-;; **Symptom**: An error like
-;; `"Faceting is plot-level, not layer-level. Use (pj/facet pose col) ..."`
-;; when you put `:facet-col`, `:facet-row`, `:facet-x`, or
-;; `:facet-y` inside a `pj/lay-*` options map.
+;; **Symptom**: An error naming the panel aesthetic that was written
+;; in a layer's options map, when you put `:col`, `:row`, or one of
+;; the older `:facet-col`, `:facet-row`, `:facet-x`, `:facet-y`
+;; spellings inside a `pj/lay-*` options map.
 ;;
-;; **Cause**: Faceting configures the plot as a whole, not a single
-;; layer. Putting these keys in a layer's options map is rejected
-;; with a guidance message.
+;; **Cause**: `:col` and `:row` are panel aesthetics, and a panel
+;; aesthetic is read from a pose's mapping and not from a layer's. A
+;; facet divides every layer of the pose, so a division named on one
+;; layer is a division the draft cannot build, and it is reported
+;; rather than dropped.
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -445,10 +447,14 @@
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"Faceting is plot-level" msg))])
+ [(fn [msg] (and (re-find #"panel aesthetic" msg)
+                 (re-find #"read from a pose's mapping" msg)))])
 
-;; **Fix**: Use `pj/facet` (single-axis) or `pj/facet-grid`
-;; (two-axis) as a top-level step in the pipeline:
+;; **Fix**: write the panel aesthetic on the pose -- with `pj/facet`
+;; for one direction, `pj/facet-grid` for both, or `:col` and `:row`
+;; in the pose's mapping. Faceting is a mapping and obeys the scope
+;; rules, so on a composite it goes on the cell whose panels it
+;; divides:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)

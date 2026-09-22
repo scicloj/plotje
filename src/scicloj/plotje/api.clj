@@ -1700,16 +1700,29 @@
    spellings are caught here so they report the same thing: `:col` in
    a layer's options map used to be dropped with a warning naming no
    route, which is the silent-strip behaviour this check exists to
-   prevent (user-report-2 Issue 5)."
+   prevent (user-report-2 Issue 5).
+
+   The message says what is refused and why, and no longer says that
+   faceting is plot-level: faceting is a mapping and obeys the scope
+   rules, so a composite can be faceted and one cell can be faceted
+   differently from its neighbour.
+   `pose/report-panel-aesthetic-on-layer` refuses the same thing at
+   draft time, for a pose built by hand, and the two messages are kept
+   saying the same thing."
   [context m]
   (let [fk (select-keys m (into [:facet-col :facet-row :facet-x :facet-y]
                                 defaults/panel-aesthetics))]
     (when (seq fk)
-      (throw (ex-info (str "Faceting is plot-level, not " context "-level. "
-                           "Use (pj/facet pose col) or (pj/facet-grid pose col-col row-col) "
-                           "instead of putting "
+      (throw (ex-info (str "A panel aesthetic "
                            (str/join " / " (map name (keys fk)))
-                           " in a " context "'s options map.")
+                           " was written in a " context "'s options map. A facet"
+                           " divides every layer of the pose, and a panel"
+                           " aesthetic is read from a pose's mapping and not"
+                           " from a layer's, so write it on the pose:"
+                           " (pj/facet pose col), (pj/facet-grid pose col-col"
+                           " row-col), or in the pose's mapping."
+                           " On a composite, write it on the cell whose panels"
+                           " it divides.")
                       fk)))))
 
 (defn- layer-type-name

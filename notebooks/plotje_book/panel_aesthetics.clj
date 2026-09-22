@@ -217,9 +217,11 @@ measures
 
 ;; ## Where it is refused
 
-;; A facet divides every layer of the pose alike, so a panel aesthetic
-;; belongs on the pose. Written in a `pj/lay-*` options map it is
-;; reported, and the report names the call to use instead.
+;; A facet divides every layer of the pose alike, and a panel aesthetic
+;; is read from a pose's mapping and not from a layer's, so a panel
+;; aesthetic belongs on the pose. Written in a `pj/lay-*` options map
+;; it is reported, and the report names the places to write it
+;; instead.
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -228,7 +230,13 @@ measures
   (catch Exception e (ex-message e)))
 
 (kind/test-last
- [(fn [m] (and (string? m) (re-find #"Faceting is plot-level" m)))])
+ ;; The message names the aesthetic and says where a panel aesthetic is
+ ;; read from. It used to say "Faceting is plot-level, not
+ ;; layer-level", which this chapter's own subject made false --
+ ;; faceting is a mapping and obeys the scope rules.
+ [(fn [m] (and (string? m)
+               (re-find #"panel aesthetic" m)
+               (re-find #"read from a pose's mapping" m)))])
 
 ;; Two facets in the same direction on one pose are two answers to one
 ;; question, and the second is reported rather than quietly replacing
