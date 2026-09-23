@@ -569,11 +569,11 @@
         pj/plan
         :size-legend
         :entries
-        (mapv (fn* [p1__73573#] (* 2 (:magnitude p1__73573#))))))
+        (mapv (fn* [p1__72993#] (* 2 (:magnitude p1__72993#))))))
       (every?
        (fn*
-        [p1__73574#]
-        (re-find #":values does not recognize" (refusal p1__73574#)))
+        [p1__72994#]
+        (re-find #":values does not recognize" (refusal p1__72994#)))
        [(fn*
          []
          (->
@@ -639,3 +639,25 @@
 (deftest
  t98_l739
  (is ((fn [m] (re-find #":text has no scale to set" m)) v97_l734)))
+
+
+(def
+ v100_l755
+ (kind/table
+  {:column-names [:aesthetic :role],
+   :row-vectors
+   (->>
+    (pj/aesthetic-roles)
+    (sort-by (comp str key))
+    (mapv (fn [[k role]] [k role])))}))
+
+
+(deftest
+ t101_l761
+ (is
+  ((fn
+    [_]
+    (=
+     #{:grouping :panel :positional :appearance}
+     (set (vals (pj/aesthetic-roles)))))
+   v100_l755)))

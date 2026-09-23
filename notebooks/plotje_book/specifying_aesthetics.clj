@@ -742,6 +742,32 @@ integer-named
 ;; Both still take the full form's source key, which is what settles a
 ;; column name that could be read as a value.
 
+;; ## What a distinction is put to work as
+
+;; A distinction is a set of things to tell apart, and it is made of
+;; columns. Every aesthetic answers two questions about the
+;; distinction it is given: where the marks go, and how a reader tells
+;; them apart. The answer is the aesthetic's
+;; [**role**](./plotje_book.glossary.html#role), and an aesthetic has
+;; one of four. A role is not a category -- a category is a value a
+;; categorical column holds, which is what a role is given.
+
+(kind/table
+ {:column-names [:aesthetic :role]
+  :row-vectors (->> (pj/aesthetic-roles)
+                    (sort-by (comp str key))
+                    (mapv (fn [[k role]] [k role])))})
+
+(kind/test-last
+ [(fn [_] (= #{:positional :appearance :grouping :panel}
+             (set (vals (pj/aesthetic-roles)))))])
+
+;; `:color` puts a distinction in one place and tells the marks apart
+;; by colour, under a legend. `:group` puts it in one place and tells
+;; them apart not at all. The panel aesthetics `:col` and `:row` give
+;; each value a panel of its own, told apart by a strip label -- see
+;; [Faceting](./plotje_book.faceting.html).
+
 ;; ## See Also
 ;;
 ;; - [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers)
