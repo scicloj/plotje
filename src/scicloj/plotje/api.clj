@@ -24,6 +24,7 @@
             [clojure.set :as set]
             [clojure.string :as str]
             [tablecloth.api :as tc]
+            [tech.v3.datatype :as dtype]
             [scicloj.kindly.v4.kind :as kind]))
 
 ;; ---- Type predicates ----
@@ -2490,6 +2491,40 @@
                  (mapcat (fn [l] (hits "a layer already on this pose" (:mapping l)))
                          (:layers fr))))))
 
+(defn- series-colour-type
+  "`{:color-type :categorical}` where the key column the pivot invents
+   would otherwise be read as a continuous colour, and `nil` where it
+   would not.
+
+   `tc/pivot->longer` reads a column name that looks like a number as
+   one, so a wide table of years gives an `:int64` key column. The
+   column holds column names whatever its type, and a colour infers
+   continuous or categorical from the type, so the years were drawn as
+   a gradient: one group, no legend entries, and every measure in one
+   colour. The pivot knows what the column holds and says so here,
+   rather than leaving the colour to infer it from values that no
+   longer mean what they look like.
+
+   Two guards. It is written only where the column really is numeric,
+   so an ordinary series carries no `:color-type` and a reader
+   inspecting that pose sees only what they wrote. And only where the
+   writer has said nothing about the colour's type at either scope --
+   the pivot writes into a layer's mapping, which outranks a pose's, so
+   writing unconditionally would override an explicit `:color-type` on
+   the pose.
+
+   `:group` and `:col` need none of this: a grouping and a panel
+   aesthetic divide by value whatever the type."
+  [fr pivoted label group-key written opts]
+  (when (and (= :color group-key)
+             (not (contains? (:mapping fr) :color-type))
+             (not (contains? (or written {}) :color-type))
+             (not (contains? (or opts {}) :color-type))
+             (let [col (get pivoted label)]
+               (and col (not (contains? #{:string :keyword}
+                                        (dtype/elemwise-datatype col))))))
+    {:color-type :categorical}))
+
 (defn- expand-series
   "Rewrite a `lay-*` call that reads several columns as several series,
    so the rest of the pipeline reads an ordinary call naming ordinary
@@ -2552,6 +2587,8 @@
         (let [group-key (if (contains? (if (= :pose source) (:mapping fr) (or opts {}))
                                        :color)
                           :group :color)
+              colour-type (series-colour-type fr pivoted label group-key
+                                              position-mapping opts)
               ;; `:from` rather than `:column`, so that a series reading
               ;; through a scale is the same position as one reading
               ;; plainly -- identity is decided on `pose/mapping-source`,
@@ -2614,7 +2651,8 @@
             [(-> fr
                  (assoc :data pivoted)
                  (vary-meta assoc ::series-grammar :layered)
-                 (update :mapping assoc k value-mapping group-key label))
+                 (update :mapping merge {k value-mapping group-key label}
+                         colour-type))
              position-mapping
              opts]
 
@@ -2625,7 +2663,7 @@
              (assoc (or position-mapping {}) k value-mapping)
              (-> (or opts {})
                  (dissoc k :data)
-                 (assoc group-key label))]))))
+                 (merge {group-key label} colour-type))]))))
     [fr position-mapping opts]))
 
 (defn- lay-on-pose*

@@ -454,6 +454,46 @@ sales-by-region
             (and (= 1 (:panels (pj/svg-summary v)))
                  (contains? texts "measure"))))])
 
+;; ## Column names that look like numbers
+
+;; A wide table often names its measures by year. `tc/pivot->longer`
+;; reads a column name that looks like a number as one, so the key
+;; column comes out holding numbers rather than text -- and the pivot
+;; says that it holds column names, by writing `:color-type
+;; :categorical` beside the colour it maps them to. Without that the
+;; colour read the years as a quantity and drew one gradient over the
+;; lot, with every measure in one colour and no legend entry naming
+;; either year.
+
+(-> {"country" ["a" "b" "c"]
+     "2019"    [10 20 30]
+     "2020"    [12 25 28]}
+    (pj/lay-line "country" ["2019" "2020"]))
+
+(kind/test-last
+ [(fn [v] (= ["2019" "2020"]
+             (mapv :label (:entries (:legend (pj/plan v))))))])
+
+;; The written `:color-type` is visible on the layer, and a writer who
+;; wants the gradient after all asks for it with the same key:
+
+(-> {"country" ["a" "b" "c"]
+     "2019"    [10 20 30]
+     "2020"    [12 25 28]}
+    (pj/lay-line "country" ["2019" "2020"])
+    :layers
+    first
+    :mapping)
+
+(kind/test-last
+ [(fn [m] (= {:color :series :color-type :categorical} m))])
+
+;; A series whose columns are named in words needs none of this, and
+;; carries no `:color-type`. The dataset the pose holds is what
+;; `tc/pivot->longer` returns either way -- the key column keeps the
+;; type Tablecloth gave it, and what changed is only how the colour
+;; reads it.
+
 ;; ## A measure with no value
 
 ;; A cell left empty in the wide table has no value to pivot, so that
