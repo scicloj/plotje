@@ -433,50 +433,6 @@
    pivot to draw."
   #{:x :y})
 
-;; ---- The grammar: what a bare vector under an aesthetic means ----
-
-(def ^:private valid-grammar-values
-  "Enum of values accepted by `:grammar` -- the three answers to what a
-   bare vector of column names under an aesthetic means. `pj/options`
-   validates against it at the call, and `pose-grammar` again for a
-   pose built by hand, which reaches no call."
-  #{:layered :paneled :written-out})
-
-(defn- pose-grammar
-  "Which reading a bare vector of column names gets on this pose.
-
-   Three answers, set with `(pj/options {:grammar ...})` and listed in
-   `defaults/plot-option-docs`:
-
-   - `:layered`, the default. A bare vector on `:x` or `:y` is a
-     series, pivoted and drawn as layers on one panel; on `:group`,
-     `:col` or `:row` it is a compound key.
-   - `:paneled`. The same readings, except that a series draws a panel
-     per column. `pj/overlay` puts those panels back on one.
-   - `:written-out`. A bare vector under an aesthetic names no
-     distinction at all, and is reported where it is written. The
-     distinction is written `{:series [...]}` or `{:column [...]}`.
-
-   Read from the pose the call is made on. It is **not** a plan-stage
-   option like `:scales`: it decides how a call reads its arguments, so
-   it has to be written before the calls it governs, and a grammar
-   written on a composite root does not reach a cell that was built
-   before it. `check-grammar-after-layers!` reports both of those
-   rather than letting half a pipeline read one grammar.
-
-   A pose built by hand reaches no `pj/options` call, so the value is
-   checked here as well."
-  [fr]
-  (let [g (get-in fr [:opts :grammar])]
-    (when (and (some? g) (not (contains? valid-grammar-values g)))
-      (throw (ex-info (str "A pose carries {:grammar " (pr-str g) "}, which"
-                           " is not one of " (vec (sort valid-grammar-values))
-                           ".")
-                      {:option :grammar
-                       :value g
-                       :accepted valid-grammar-values})))
-    (or g :layered)))
-
 ;; ---- Pipeline Internals ----
 
 (defn draft->plan
@@ -791,8 +747,7 @@
 (declare prepare-pose pose-kind validate-pose-shape
          check-position-mapping check-column-ref-types
          check-explicit-mappings check-mapping-in-map-slot
-         check-pose-shape! pose-mapping-keys
-         check-written-out-grammar! check-grammar-after-layers!)
+         check-pose-shape! pose-mapping-keys)
 
 (defn- mapping-map?
   "True of a map that names aesthetics rather than holding columns of
@@ -1184,16 +1139,6 @@
    the same safety net the typed pj/pose arities provide."
   [fr context]
   (warn-unknown-pose-keys fr)
-  ;; A map written by hand reaches no `pj/options` call, so the grammar
-  ;; it carries is checked here -- both that the value is one of the
-  ;; three, and that the mappings below it keep to it. Without this the
-  ;; same pose threw from a typed arity and drew from a literal map.
-  (let [grammar (pose-grammar fr)]
-    (when-let [m (:mapping fr)]
-      (check-written-out-grammar! context grammar m))
-    (doseq [layer (:layers fr)]
-      (when-let [lm (:mapping layer)]
-        (check-written-out-grammar! (str context " layer") grammar lm))))
   (when-let [m (:mapping fr)]
     (warn-unknown-mapping-keys m context)
     (check-column-ref-types context m)
@@ -1571,7 +1516,6 @@
                            {})
              data-over (:data opts)
              mapping   (dissoc opts :data)]
-         (check-written-out-grammar! "pj/pose" (pose-grammar x) mapping)
          (check-column-ref-types "pj/pose" mapping)
          (check-explicit-mappings "pj/pose" mapping)
          (check-position-mapping "pj/pose" mapping)
@@ -1580,7 +1524,6 @@
              data-over (with-data data-over))
            (prepare-pose (pose-from-data (or data-over x) mapping))))
        (let [mapping {:x y}]
-         (check-written-out-grammar! "pj/pose" (pose-grammar x) mapping)
          (check-column-ref-types "pj/pose" mapping)
          (check-explicit-mappings "pj/pose" mapping)
          (check-position-mapping "pj/pose" mapping)
@@ -1602,7 +1545,6 @@
            opts      (warn-and-strip-unknown-opts "pj/pose" z pose-mapping-keys)
            data-over (:data opts)
            mapping   (-> opts (dissoc :data) (merge {:x y}))]
-       (check-written-out-grammar! "pj/pose" (pose-grammar x) mapping)
        (check-column-ref-types "pj/pose" mapping)
        (check-explicit-mappings "pj/pose" mapping)
        (check-position-mapping "pj/pose" mapping)
@@ -1613,7 +1555,6 @@
 
      :else
      (let [mapping {:x y :y z}]
-       (check-written-out-grammar! "pj/pose" (pose-grammar x) mapping)
        (check-column-ref-types "pj/pose" mapping)
        (check-explicit-mappings "pj/pose" mapping)
        (check-position-mapping "pj/pose" mapping)
@@ -1633,7 +1574,6 @@
    (let [opts      (warn-and-strip-unknown-opts "pj/pose" opts pose-mapping-keys)
          data-over (:data opts)
          mapping   (-> opts (dissoc :data) (merge {:x y :y z}))]
-     (check-written-out-grammar! "pj/pose" (pose-grammar x) mapping)
      (check-column-ref-types "pj/pose" mapping)
      (check-explicit-mappings "pj/pose" mapping)
      (check-position-mapping "pj/pose" mapping)
@@ -1941,160 +1881,6 @@
                    (seq source)
                    (every? resolve/column-ref? source))
           (vec source)))))
-
-(defn- written-out-form
-  "The form `{:grammar :written-out}` asks for on this aesthetic, as
-   `[key description]`, or nil where a bare vector means nothing there
-   in any grammar.
-
-   Which aesthetics read a vector is the registry's answer, not a list
-   kept here: `series-slots` says where a series may be written, and
-   `defaults/compound-key-aesthetics` says which aesthetics unite
-   several columns into one key. Everywhere else a bare vector is a
-   mistake in every grammar, and `check-column-ref-types` reports it
-   with a message that names the aesthetic and says several columns
-   belong on `:x` or `:y`. Answering nil here leaves that message
-   standing -- the first version of this guard fired on all fourteen
-   column-bearing aesthetics and told nine of them to write
-   `{:column [...]}`, which they then refused."
-  [k]
-  (cond
-    (series-slots k)
-    [:series "reads the columns by name, one series each"]
-
-    (defaults/compound-key-aesthetics k)
-    [:column (str "unites the columns into one key, one distinction"
-                  " per combination the data holds")]))
-
-(defn- bare-column-vector
-  "The columns a mapping value names where it is a bare vector of column
-   references under an aesthetic that reads one, and nil otherwise.
-
-   This is the form `{:grammar :written-out}` refuses, so it reads the
-   value **as written** -- `{:column [...]}` and `{:series [...]}` are
-   the written-out forms and answer nil here. That is the difference
-   from `several-columns-named`, which asks a different question: how
-   many columns a value names in any of its three spellings.
-
-   `written-out-form` decides which aesthetics are in scope, which
-   leaves out `:tooltip` (it takes hiccup, where a vector is markup
-   whose elements look like column references without being any) and
-   every aesthetic that draws one thing."
-  [k v]
-  (when (and (written-out-form k)
-             (sequential? v)
-             (not (map? v))
-             (seq v)
-             (every? resolve/column-ref? v))
-    (vec v)))
-
-(defn- bare-vector-aesthetics
-  "The aesthetics a pose already reads a bare vector of column names
-   under -- its own mapping, each of its layers', and the same again
-   for every sub-pose, however deep. One entry per hit, as
-   `[where aesthetic columns]`.
-
-   The recursion is what makes the report true of a composite: written
-   on an arrange root, `{:grammar :written-out}` used to pass in
-   silence over a cell that had already written a bare vector, while
-   the same option on the cell alone reported. `validate-pose-shape`
-   and `column-refs-in-pose` walk `:poses` for the same reason."
-  [fr]
-  (let [hits (fn [where m]
-               (keep (fn [[k v]]
-                       (when-let [cols (bare-column-vector k v)]
-                         [where k cols]))
-                     m))]
-    (vec (concat (hits "this pose's mapping" (:mapping fr))
-                 (mapcat #(hits "a layer on this pose" (:mapping %))
-                         (:layers fr))
-                 (mapcat (fn [sub]
-                           (map (fn [[_ k cols]] ["a cell of this pose" k cols])
-                                (bare-vector-aesthetics sub)))
-                         (:poses fr))))))
-
-(defn- series-grammar-already-read
-  "The grammar a series on this pose, or on any pose below it, was
-   already read under -- and nil where none was.
-
-   A cell of a composite is where a series is pivoted, since
-   `expand-series` refuses a composite outright, so reading the root
-   alone made the report blind to exactly the shape that needs it."
-  [fr]
-  (or (::series-grammar (meta fr))
-      (some series-grammar-already-read (:poses fr))))
-
-(defn- check-grammar-after-layers!
-  "Report a `:grammar` written on a pose that has already read a
-   combination under a different one.
-
-   The grammar decides how a bare vector of column names is read, and a
-   series is pivoted where the `lay-*` call is written -- so a grammar
-   written after that call cannot reach it. Rather than let half a
-   pipeline read one grammar and half another, say so and name the
-   edit. `pj/overlay` has no such order to it: it is read where the
-   panels are decided, so it says the same thing wherever it is
-   written."
-  [fr grammar]
-  (when-let [already (series-grammar-already-read fr)]
-    (when (not= already grammar)
-      (throw (ex-info (str "pj/options was given {:grammar " (pr-str grammar)
-                           "}, and this pose has already read a series under "
-                           (pr-str already) ". A series is pivoted where the"
-                           " lay-* call is written, so a grammar written after"
-                           " that call cannot reach it. Write"
-                           " (pj/options {:grammar " (pr-str grammar) "})"
-                           " before the layers.")
-                      {:caller "pj/options"
-                       :option :grammar
-                       :given grammar
-                       :already already}))))
-  (when (= :written-out grammar)
-    (when-let [hits (seq (bare-vector-aesthetics fr))]
-      (let [[where k cols] (first hits)]
-        (throw (ex-info (str "pj/options was given {:grammar :written-out},"
-                             " and " where " already names " (pr-str cols)
-                             " on " k " as a bare vector -- the form that"
-                             " grammar refuses. Write (pj/options {:grammar"
-                             " :written-out}) before the mapping, or write"
-                             " the distinction out where it is named.")
-                        {:caller "pj/options"
-                         :option :grammar
-                         :given :written-out
-                         :aesthetic k
-                         :value cols
-                         :where where})))))
-  fr)
-
-(defn- check-written-out-grammar!
-  "Report a bare vector of column names under an aesthetic, which is
-   what `{:grammar :written-out}` asks for.
-
-   Under that grammar a bare vector names no distinction at all: a
-   vector is a list of things to lay out, and a distinction is written
-   out, so `{:series [...]}` reads the columns by name and
-   `{:column [...]}` unites them into one key. Reported where the
-   vector is written, naming the form to write instead.
-
-   `bare-column-vector` is the one reading of what that form is, shared
-   with `bare-vector-aesthetics`, which asks the same question of a
-   pose already built."
-  [context grammar mapping]
-  (when (= :written-out grammar)
-    (doseq [[k v] mapping
-            :let [several (bare-column-vector k v)]
-            :when several]
-      (let [[form what] (written-out-form k)]
-        (throw (ex-info (str context " " k " was given a bare vector of column"
-                             " names, " (pr-str several) ", and this pose"
-                             " reads {:grammar :written-out}, where a bare"
-                             " vector names no distinction. Write it out: {"
-                             form " " (pr-str several) "} " what ".")
-                        {:context context
-                         :aesthetic k
-                         :value several
-                         :written-out-key form
-                         :grammar :written-out}))))))
 
 (defn- check-column-ref-types
   "Throw a helpful error if any aesthetic mapping carries a symbol --
@@ -2638,71 +2424,18 @@
               ;; which unwraps both to the invented column.
               value-mapping (if-let [sc (:scale spec)]
                               {:from series-value-column :scale sc}
-                              series-value-column)
-              paneled? (= :paneled (pose-grammar fr))]
-          (when paneled?
-            (when-let [existing (get (:mapping fr) :col)]
-              ;; A `:col` already naming the column the pivot is about to
-              ;; invent is the writer asking for exactly what `:paneled`
-              ;; supplies -- `{:y {:series [:a :b] :as :measure}
-              ;; :col :measure}` -- so it agrees rather than conflicts.
-              (when-not (= (pose/mapping-source existing) label)
-                (throw (ex-info (str caller " reads " (pr-str (vec cols))
-                                     " as series, and under {:grammar :paneled}"
-                                     " a series draws a panel per column -- but"
-                                     " this pose already facets across by "
-                                     (pr-str existing) ". A pose divides its"
-                                     " panels once per direction: facet down"
-                                     " instead, or read the series as layers"
-                                     " with pj/overlay.")
-                                {:caller caller
-                                 :columns (vec cols)
-                                 :existing existing})))))
-          (cond
-            ;; `:paneled` -- the key column the pivot invents is a panel
-            ;; aesthetic, so the series draws a panel per column. It goes
-            ;; on the pose in both branches, because `:col` is read from
-            ;; a leaf's own mapping at draft time and not from a layer's;
-            ;; `series-panels-key` records which column it was and where
-            ;; it goes when collapsed, so that `pj/overlay` can read it
-            ;; back as a colour where the panels are decided rather than
-            ;; where the layer was added.
-            paneled?
-            ;; `group-key` is the one decision about where the key column
-            ;; goes when the panels are collapsed -- `:color`, or `:group`
-            ;; where the layer already maps `:color` itself. It is carried
-            ;; rather than worked out again at draft time, because working
-            ;; it out there from the leaf alone lost the layer's own
-            ;; `:color` and two of the four groups with it.
-            (let [fr (-> fr
-                         (assoc :data pivoted)
-                         (update :mapping assoc :col label)
-                         (update :opts assoc
-                                 pose/series-panels-key {:column label
-                                                         :as group-key})
-                         (vary-meta assoc ::series-grammar :paneled))]
-              (if (= :pose source)
-                [(update fr :mapping assoc k value-mapping) position-mapping opts]
-                [fr
-                 (assoc (or position-mapping {}) k value-mapping)
-                 (-> (or opts {}) (dissoc k :data))]))
-
-            ;; Written on the pose, rewritten on the pose: the layers
-            ;; below it then read ordinary columns, and a second layer
-            ;; added later reads the same ones.
-            (= :pose source)
+                              series-value-column)]
+          ;; Written on the pose, rewritten on the pose: the layers below
+          ;; it then read ordinary columns, and a second layer added later
+          ;; reads the same ones.
+          (if (= :pose source)
             [(-> fr
                  (assoc :data pivoted)
-                 (vary-meta assoc ::series-grammar :layered)
                  (update :mapping merge {k value-mapping group-key label}
                          colour-type))
              position-mapping
              opts]
-
-            :else
-            [(-> fr
-                 (assoc :data pivoted)
-                 (vary-meta assoc ::series-grammar :layered))
+            [(assoc fr :data pivoted)
              (assoc (or position-mapping {}) k value-mapping)
              (-> (or opts {})
                  (dissoc k :data)
@@ -2894,9 +2627,6 @@
    named."
   [fr layer-type-key position-mapping opts]
   (let [caller (str "pj/lay-" (layer-type-name layer-type-key))
-        grammar (pose-grammar fr)
-        _ (check-written-out-grammar! caller grammar position-mapping)
-        _ (check-written-out-grammar! caller grammar opts)
         [fr position-mapping opts]
         (expand-series caller fr layer-type-key position-mapping opts)]
     (lay-on-pose* fr layer-type-key position-mapping opts)))
@@ -3682,17 +3412,6 @@
                            :option :scales
                            :value v
                            :accepted valid-scales-values})))))
-    (when (contains? opts :grammar)
-      (let [v (:grammar opts)]
-        (when-not (contains? valid-grammar-values v)
-          (throw (ex-info (str "pj/options :grammar must be one of "
-                               (vec (sort valid-grammar-values))
-                               ", got: " (pr-str v) ".")
-                          {:caller "pj/options"
-                           :option :grammar
-                           :value v
-                           :accepted valid-grammar-values})))
-        (check-grammar-after-layers! fr v)))
     (update-opts fr deep-merge opts)))
 
 (defn- column-argument
@@ -3791,24 +3510,20 @@
    pose))
 
 (defn- facet-direction
-  "Write one panel aesthetic into a pose's mapping: lift the pose,
-   check the grammar, read the column, report a second answer in the
-   same direction, and write it.
+  "Write one panel aesthetic into a pose's mapping: lift the pose, read
+   the column, report a second answer in the same direction, and write
+   it.
 
    `pj/facet` is one of these steps and `pj/facet-grid` is two, and
-   each used to carry its own copy of the four parts. Two copies of
+   each used to carry its own copy of the three parts. Two copies of
    one rule diverge: the grid form went without the second-facet
    report, so it replaced whatever was already on `:col` or `:row`
-   with nothing said, which under `{:grammar :paneled}` threw away the
-   series the pose had just been given and drew one unlabelled group
-   per panel.
+   with nothing said.
 
    `caller` names the function the writer called, so a report still
    names it."
   [pose col direction caller]
   (let [fr  (->pose pose caller)
-        _   (check-written-out-grammar! caller (pose-grammar fr)
-                                        {direction col})
         col (column-argument caller col)]
     (report-refacet fr direction col caller)
     (update-mapping fr assoc direction col)))

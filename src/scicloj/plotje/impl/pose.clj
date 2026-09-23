@@ -1860,27 +1860,6 @@
       (let [m (merge-mappings (or leaf-mapping {}) cols)]
         [(mapping-source (:x m)) (mapping-source (:y m))]))))
 
-(def series-panels-key
-  "Where a `:paneled` series records the key column it wrote to `:col`,
-   and the aesthetic that column goes back to when `pj/overlay`
-   collapses the panels -- `{:column <name> :as :color|:group}`.
-
-   It has to live on `:opts`, because `leaf->draft` reads it: that is
-   what lets `pj/overlay` collapse the panels where the panels are
-   decided rather than where the layer was added. Namespaced so that it
-   reads as library plumbing beside the plot options a writer wrote,
-   and so that no one writes it by hand and is silently obeyed.
-
-   `:facet-col` and `:suppress-x-label` are the same kind of key. The
-   reason this one is spelled differently is that those are written
-   onto cells the library builds, while this one is written onto the
-   pose the writer built and prints.
-
-   Defined here rather than in `api`, which writes it, because two
-   auto-resolved `::series-panels` in two namespaces are two different
-   keywords."
-  ::series-panels)
-
 (defn layer-overlays?
   "Whether a layer joins the panel the leaf's own mapping names, rather
    than taking one of its own.
@@ -2088,28 +2067,7 @@
         ;; so a hand-built pose carrying it still faceted.
         facet-col    (or (mapping-source (:col leaf-mapping)) (:facet-col opts))
         facet-row    (or (mapping-source (:row leaf-mapping)) (:facet-row opts))
-        ;; Under `{:grammar :paneled}` a series puts the key column the
-        ;; pivot invented on `:col`, so the columns draw a panel each.
-        ;; `pj/overlay` puts them back on one panel, and it is read here
-        ;; -- where the panels are decided -- so that it says the same
-        ;; thing written before the layers as written after them.
-        ;;
-        ;; The record names the column the series wrote, which is what
-        ;; keeps the collapse off a `pj/facet` the writer asked for, and
-        ;; the aesthetic it goes back to, which `api/expand-series`
-        ;; decided when it pivoted. Reading `layer-overlays?` rather than
-        ;; the leaf's `:overlay` alone is what makes `{:overlay true}` on
-        ;; the layer say here what `pj/overlay` on the pose says, which
-        ;; is what the option's own docstring promises.
-        series-panels (get opts series-panels-key)
-        collapse-series? (and (some? series-panels)
-                              (= (:column series-panels) facet-col)
-                              (boolean (some #(layer-overlays? leaf %)
-                                             applicable)))
-        facet-col    (when-not collapse-series? facet-col)
-        leaf-mapping (cond-> (dissoc leaf-mapping :col :row)
-                       collapse-series?
-                       (assoc (:as series-panels) (:column series-panels)))
+        leaf-mapping (dissoc leaf-mapping :col :row)
         variants     (facet-variants leaf-data facet-col facet-row)
         ;; The places this leaf draws at, and which of them each layer
         ;; lands on. An empty :layers stands in as one placeholder layer,

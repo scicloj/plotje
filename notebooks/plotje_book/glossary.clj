@@ -1259,7 +1259,7 @@ annotated
 
 (kind/test-last
  [(fn [ks]
-    (and (= 16 (count ks))
+    (and (= 15 (count ks))
          (some #{:title :subtitle :caption :x-label :y-label} ks)))])
 
 ;; ## Layer Options

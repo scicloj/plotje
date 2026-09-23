@@ -1123,7 +1123,6 @@
    :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
    :scales ["Layout" "Facet scale coordination -- :shared (default), :free, :free-x, :free-y"]
    :share-scales ["Layout" "Composite scale coordination -- set of axes (#{:x}, #{:y}, or #{:x :y}) shared across composite cells"]
-   :grammar ["Behavior" "What a bare vector of column names under an aesthetic means. :layered (the default) reads one on :x or :y as a series, pivoted and drawn as layers on one panel, and one on :group, :col or :row as a compound key. :paneled draws that series as a panel per column, which pj/overlay puts back on one. :written-out reports a bare vector under any of those five aesthetics and names the form to write instead. It decides how a call reads its arguments, so unlike the other plot options it is written before the calls it governs"]
    :config ["Config" "Nested config map merged into resolved config"]})
 
 (defn config
