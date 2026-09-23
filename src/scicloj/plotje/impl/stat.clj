@@ -258,7 +258,16 @@
   (let [{:keys [data x y color color-type color-drawn? size alpha shape
                 text-col tooltip-col x-type y-type group mark y-min y-max
                 x-end fill bar-width]} draft-layer
-        x-only? (or (nil? y) (= x y))
+        ;; A layer with no `:y` of its own: a histogram, a density, a
+        ;; rug. The stat computes what the other axis draws, so the ys
+        ;; buffer is synthesized further down.
+        ;;
+        ;; This used to read `(or (nil? y) (= x y))`, so a layer naming
+        ;; one column for both axes was taken to have no `:y` and every
+        ;; y came out 0.0 -- a y = x reference diagonal drawn flat along
+        ;; the axis, with nothing said. Naming the same column twice is
+        ;; a request, not an omission.
+        x-only? (nil? y)
         data-idx (tc/add-column data :__row-idx (range (tc/row-count data)))
         ds-cols (set (tc/column-names data-idx))
         col-ref? (fn [v] (and v (or (keyword? v) (string? v)) (contains? ds-cols v)))

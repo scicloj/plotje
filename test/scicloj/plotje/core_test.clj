@@ -3531,3 +3531,29 @@
         (is (< (second alone) 1.0))
         (is (= alone with-rule))))))
 
+(deftest one-column-on-both-axes-test
+  ;; `prepare-points` read "y names the column x names" as "this layer
+  ;; has no y", which is what a histogram or a rug means, and
+  ;; synthesized a zero for every y. A y = x reference diagonal was
+  ;; drawn flat along the axis, with nothing said. Shipped in v0.14.0
+  ;; and earlier.
+  (let [ds {:a [1 2 3 4] :b [10 20 30 40]}
+        ys-of (fn [pose]
+                (->> (pj/plan pose) :panels first :layers
+                     (mapcat :groups) (mapcat :ys) (mapv double)))]
+    (testing "the values drawn are the column's own, not zeros"
+      (is (= [1.0 2.0 3.0 4.0] (ys-of (pj/lay-point ds :a :a))))
+      (is (= [10.0 20.0 30.0 40.0] (ys-of (pj/lay-point ds :b :b)))))
+
+    (testing "the domain covers those values"
+      (let [panel (first (:panels (pj/plan (pj/lay-point ds :a :a))))]
+        (is (= [0.85 4.15] (mapv double (:y-domain panel))))))
+
+    (testing "every mark that reads a y draws it"
+      (doseq [lay [pj/lay-point pj/lay-line pj/lay-area]]
+        (is (= [1.0 2.0 3.0 4.0] (ys-of (lay ds :a :a)))
+            (str "drawn by " lay))))
+
+    (testing "a layer with no y of its own still has one synthesized"
+      ;; The other half of the same flag, which is what it is for.
+      (is (= 1 (count (:panels (pj/plan (pj/lay-rug ds :a)))))))))
