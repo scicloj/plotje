@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased]
+## [0.15.0 - 2026-09-23]
 
 Faceting is a mapping: `:col` and `:row` are aesthetics, so a facet follows the scope rules every other mapping follows. Several columns written where one goes are read as a series, drawn as groups of one layer, so they can be dodged, stacked or filled against each other. `pj/overlay` applies to the whole pose wherever it is written, and overlaid layers that draw different columns are told apart by colour.
 
