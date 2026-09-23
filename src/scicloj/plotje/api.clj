@@ -2427,8 +2427,21 @@
                            (pr-str missing) ". Available columns: "
                            available ".")
                       {:caller caller :missing missing :columns available})))
+    ;; Reported before the clash check below, whose set literal held
+    ;; both names and threw a bare `Duplicate key: :value` when `:as`
+    ;; named the value column -- the guard meant to report the
+    ;; collision dying on it, naming neither `:as` nor the call.
+    (when (= label series-value-column)
+      (throw (ex-info (str caller " was given :as " (pr-str label)
+                           ", which is the name the pivot gives the value"
+                           " column it invents. The key column needs a name"
+                           " of its own -- {:series " (pr-str (vec cols))
+                           " :as :measure}.")
+                      {:caller caller
+                       :as label
+                       :value-column series-value-column})))
     (let [remaining (remove (set cols) present)
-          clashes (vec (filter #{label series-value-column} remaining))]
+          clashes (vec (filter (set [label series-value-column]) remaining))]
       (when (seq clashes)
         (throw (ex-info (str caller " cannot pivot these columns: the pivot"
                              " invents " (pr-str [label series-value-column])

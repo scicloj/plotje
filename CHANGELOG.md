@@ -22,7 +22,7 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every `{:color {:column [:a :b]}}`, and the same written out under any aesthetic that draws one thing.** The mapping reports that several columns were given where one goes, which is what the bare `{:color [:a :b]}` already reported. The written-out form used to reach the renderer and draw a single mark in the default colour, under a warning about a numeric colour.
 
-- **Every `{:col [:a :b]}` or `{:row [:a :b]}` written in a mapping.** The columns unite into a compound key and a panel is drawn per combination the data holds, which is what `(pj/facet my-pose [:a :b])` draws. The bare vector used to be reported while the same request through `pj/facet` and through `{:column [...]}` both drew.
+- **Every `{:col [:a :b]}` or `{:row [:a :b]}` written in a mapping.** The columns unite into a compound key and a panel is drawn per combination the data holds, which is what `(pj/facet my-pose [:a :b])` draws. `:col` and `:row` used to be unrecognized in a mapping: written there they warned and were dropped, and the plot came out with one panel, while `pj/facet` refused a vector outright.
 
 - **Every `pj/pose` given several columns on `:x` or `:y`.** The columns are read as a series and pivoted, the pose carrying the invented columns to every layer below. Both spellings used to be reported, naming the `lay-*` call as the place a series is read.
 
@@ -32,7 +32,7 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every `pj/marginal` on a faceted pose.** Each strip label is drawn once, at the top of its column. Stacked, the marginal and the main panel were both divided by the column and both drew the labels, so each name appeared twice.
 
-- **Every `pj/facet-grid` on a pose that already facets in one of the two directions.** The call reports that the pose divides its panels once per direction, which is what a second `pj/facet` in one direction already reported. `pj/facet-grid` used to replace whatever was written on `:col` or `:row` with nothing said, so the earlier division was lost.
+- **Every `pj/facet` or `pj/facet-grid` on a pose that already facets in one of the two directions.** The call reports that a pose divides its panels once per direction, and names the other direction, `pj/facet-grid`, and a compound key as the ways to ask for more. Both calls used to replace whatever was already written for that direction with nothing said, so the earlier division was lost.
 
 - **Every `pj/facet` or `pj/facet-grid` on a composite pose.** Every cell of the composite is divided, so a two-cell arrangement faceted by a three-value column draws six panels. Both calls used to report that a composite was not supported and draw nothing.
 

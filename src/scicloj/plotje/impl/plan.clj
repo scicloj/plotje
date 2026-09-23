@@ -2390,7 +2390,13 @@
         share-x? (#{:shared :free-y} scales)
         share-y? (#{:shared :free-x} scales)
         axis-name (fn [k] (if (= k :x-dom) "x" "y"))
-        free-opt (fn [k] (if (= k :x-dom) ":free-x" ":free-y"))
+        ;; The whole option, not the value on its own. `:free-x` written
+        ;; where this message put it reports "pj/options does not
+        ;; recognize option(s): [:free-x]", so the message named a
+        ;; spelling that does not work and never named `:scales`.
+        free-opt (fn [k] (if (= k :x-dom)
+                           "{:scales :free-x}"
+                           "{:scales :free-y}"))
         agg (fn [k]
               (let [doms (filter seq (keep k panel-domains))]
                 (when (seq doms)
@@ -2410,8 +2416,8 @@
                                    " holds categories and "
                                    (pr-str (first (get kinds true)))
                                    " holds numbers. Draw each panel to its own"
-                                   " domain with " (free-opt k)
-                                   ", or give the panels a column of one type.")
+                                   " domain with (pj/options " (free-opt k)
+                                   "), or give the panels a column of one type.")
                               {:axis (axis-name k)
                                :categorical (vec (get kinds false))
                                :numerical (vec (get kinds true))})))
