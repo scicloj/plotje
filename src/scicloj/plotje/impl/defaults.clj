@@ -5,6 +5,25 @@
             [clojure2d.color :as c]
             [scicloj.kindly.v4.api :as kindly]))
 
+(defn report-removed-rows!
+  "Say that rows were removed before the plot was drawn, and why.
+
+   Plotje drops a row it cannot place -- no number on an axis, no
+   category to belong to, no room on a log scale, no value to read as a
+   series -- and every one of those is reported in the same sentence,
+   counted in rows, with `reason` completing it. The `drawn_rows`
+   chapter teaches the set, so a new reason belongs both here and
+   there.
+
+   `reason` completes \"Removed N rows \": no leading space, no
+   trailing full stop. Nothing is printed for a count of zero.
+
+   Marks dropped at render time -- a bar with no height on a log scale
+   -- are counted in bars rather than rows and say so themselves."
+  [n reason]
+  (when (pos? n)
+    (println (str "Warning: Removed " n " rows " reason "."))))
+
 ;; ---- Palette and Theme ----
 
 (defn c2d->rgba

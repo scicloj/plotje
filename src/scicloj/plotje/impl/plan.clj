@@ -948,7 +948,9 @@
             removed (- n-before n-after)]
         (when (pos? removed)
           (let [where (str/join " and " (map (fn [[_ col]] (str col)) pairs))]
-            (println (str "Warning: Removed " removed " rows containing non-positive values (log scale on " where ")."))))
+            (defaults/report-removed-rows!
+             removed
+             (str "containing non-positive values (log scale on " where ")"))))
         (if (pos? removed)
           (assoc rv :data ds)
           rv)))))
@@ -1011,8 +1013,9 @@
           (let [parts (cond-> []
                         (pos? n-missing) (conj (str n-missing " missing (nil/NaN)"))
                         (pos? n-infinite) (conj (str n-infinite " non-finite (Inf/-Inf)")))]
-            (println (str "Warning: Removed " removed " rows with non-finite values: "
-                          (str/join ", " parts) "."))))
+            (defaults/report-removed-rows!
+             removed
+             (str "with non-finite values: " (str/join ", " parts)))))
         (if (pos? removed)
           (assoc rv :data ds)
           rv)))))

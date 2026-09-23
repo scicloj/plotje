@@ -2452,9 +2452,23 @@
                              " data.")
                         {:caller caller :clashes clashes
                          :invents [label series-value-column]}))))
-    (tc/pivot->longer ds (set cols)
-                      {:target-columns label
-                       :value-column-name series-value-column})))
+    ;; `tc/pivot->longer` drops a row whose value is missing, and the
+    ;; dataset it returns is what a reader finds on the pose's `:data`,
+    ;; so its defaults are kept rather than overridden -- a Tablecloth
+    ;; user comparing the two should find them the same. What is said
+    ;; about the drop is Plotje's own contract: a row that does not
+    ;; reach the plot is named, and written long by hand the same rows
+    ;; are reported by `filter-infinities`. Counted from the pivot's own
+    ;; effect -- one row per original row and pivoted column, less what
+    ;; came back -- rather than predicted from the source columns.
+    (let [pivoted (tc/pivot->longer ds (set cols)
+                                    {:target-columns label
+                                     :value-column-name series-value-column})]
+      (defaults/report-removed-rows!
+       (- (* (tc/row-count ds) (count cols)) (tc/row-count pivoted))
+       (str "with a missing value among the columns read as series ("
+            (str/join ", " (map pr-str cols)) ")"))
+      pivoted)))
 
 (defn- series-consumers
   "Where the pose already names a column the pivot would consume. A

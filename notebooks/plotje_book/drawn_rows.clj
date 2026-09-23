@@ -88,6 +88,28 @@
 ;; `(tc/replace-missing ds :species :value "unknown")` keeps those rows
 ;; and names them.
 
+;; ## Dropped: a measure with no value to read as a series
+
+;; Several columns written where one goes are read as several series:
+;; the columns are pivoted into a key column naming the measure and a
+;; value column holding the number. A cell left empty in the wide table
+;; has no value to pivot, so its observation is dropped like any other
+;; unplaceable one:
+;; `Warning: Removed 1 rows with a missing value among the columns read
+;; as series (:height, :weight)`. Three rows and two measures are six
+;; observations, and five are drawn:
+
+(-> {:step [1 2 3] :height [1 nil 3] :weight [4 5 6]}
+    (pj/lay-point :step [:height :weight]))
+
+(kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
+
+;; The pivot is `tc/pivot->longer` with Tablecloth's own defaults, so
+;; the dataset the pose carries is what Tablecloth gives for the same
+;; columns. The message is Plotje naming the observations that are not
+;; on the plot, which the long spelling of the same data reports at a
+;; later stage and in its own words.
+
 ;; ## Clipped: a value outside a domain you set
 
 ;; Narrowing an axis with `pj/scale` does not remove anything. The

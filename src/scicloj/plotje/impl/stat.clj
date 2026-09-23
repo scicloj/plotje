@@ -100,9 +100,11 @@
             ;; :size, say -- is missing a value, and calling that a
             ;; category would name something the data never had.
             categories? (fn [col] (some #(or (string? %) (keyword? %)) (ds col)))]
-        (println (str "Warning: Removed " removed " rows with a missing "
-                      (if (every? categories? culprits) "category" "value")
-                      " in " (str/join ", " (map pr-str culprits)) "."))))
+        (defaults/report-removed-rows!
+         removed
+         (str "with a missing "
+              (if (every? categories? culprits) "category" "value")
+              " in " (str/join ", " (map pr-str culprits))))))
     out))
 
 (defn group-by-columns

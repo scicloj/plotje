@@ -78,17 +78,29 @@
 (def
  v18_l102
  (->
+  {:step [1 2 3], :height [1 nil 3], :weight [4 5 6]}
+  (pj/lay-point :step [:height :weight])))
+
+
+(deftest
+ t19_l105
+ (is ((fn [v] (= 5 (:points (pj/svg-summary v)))) v18_l102)))
+
+
+(def
+ v21_l124
+ (->
   {:height [1 2 3 4], :weight [1 2 3 40]}
   (pj/lay-point :height :weight)
   (pj/scale :y {:domain [0 5]})))
 
 
 (deftest
- t19_l106
+ t22_l128
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 1 (:clips s)))))
-   v18_l102)))
+   v21_l124)))

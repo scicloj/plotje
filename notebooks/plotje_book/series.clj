@@ -454,6 +454,27 @@ sales-by-region
             (and (= 1 (:panels (pj/svg-summary v)))
                  (contains? texts "measure"))))])
 
+;; ## A measure with no value
+
+;; A cell left empty in the wide table has no value to pivot, so that
+;; observation is not drawn, and Plotje says how many went:
+;; `Warning: Removed 1 rows with a missing value among the columns read
+;; as series (:revenue, :cost)`. Two quarters and two measures are four
+;; observations, and three are drawn:
+
+(-> {:quarter ["Q1" "Q2"]
+     :revenue [120 nil]
+     :cost    [90 100]}
+    (pj/lay-point :quarter [:revenue :cost]))
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
+;; The pivot is `tc/pivot->longer` with Tablecloth's own defaults, so
+;; the dataset the pose carries is what Tablecloth gives for the same
+;; columns, and a row with no value is not in it. Writing the data long
+;; by hand reaches the same plot, and Plotje reports the same
+;; observations at a later stage and in its own words.
+
 ;; ## One series per pose
 
 ;; The pivot leaves its two columns on the pose, so a second series on
