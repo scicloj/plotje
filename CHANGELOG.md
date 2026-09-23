@@ -4,95 +4,59 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-Faceting is a mapping. `pj/facet` and `pj/facet-grid` write the columns they divide by into the pose's `:mapping`, under the aesthetics `:col` and `:row`, so faceting follows the scope rules every other mapping follows: written on a pose it reaches every layer and every sub-pose below, and a sub-pose that writes its own overrides it. A composite can be faceted, one cell of a composite can be faceted differently from another, and a pose whose layers already draw several panels draws each of them once per value the column holds.
-
-Several columns where one goes are read as several series. A dataset carrying one measure per column can be drawn without reshaping it by hand: `(pj/lay-bar :quarter [:revenue :cost] {:position :dodge})` pivots the columns, maps the key column it invents to `:color`, and draws the measures as groups of one layer -- so `:stack` and `:fill` accumulate across them, which two layers cannot do.
-
-`pj/overlay` says the same thing wherever in a pipeline it is written. It is read where the panels are decided rather than where a layer is added, so writing it after the layers draws what writing it before them draws. Every other mapping already read that way.
+Faceting is a mapping: `:col` and `:row` are aesthetics, so a facet follows the scope rules every other mapping follows. Several columns written where one goes are read as a series, drawn as groups of one layer, so they can be dodged, stacked or filled against each other. `pj/overlay` applies to the whole pose wherever it is written, and overlaid layers that draw different columns are told apart by colour.
 
 ### Plots that look different after upgrading
 
-- **Every overlay where each disagreeing layer asks to overlay** -- `pj/overlay` on the pose, or `{:overlay true}` written on each of them. Each layer takes a colour of its own and a legend entry naming the column it draws, and the axis names every column drawn on it. The marks used to be drawn in one colour, under an axis titled after whichever layer came first, with nothing naming the rest. A writer who has coloured the layers, a layer placed in drawing space, layers that draw one place, and an overlay only some of the disagreeing layers ask for are all unaffected.
+- **Overlaid layers that draw different columns.** Each layer takes a colour and a legend entry naming its column, the axis title names every column drawn on it, and `:position :dodge` gives each layer a slot of its own. Layers the writer has coloured, and an overlay only some of the disagreeing layers ask for, are unaffected.
 
-- **Every `:position :dodge` on overlaid layers that disagree about a column.** Each layer takes a slot of its own in the band. The cohort divides by the label a legend prints, which overlaid layers did not have, so the dodge had one slot, was inert, and drew the two sets of marks at the same places. `:stack` and `:fill` still do nothing there: they accumulate values across the groups of one layer, and two layers have no group in common.
+- **`pj/overlay` written after the layers, or turned off with `(pj/overlay pose false)`.** The setting applies to the whole pose, wherever in the pipeline it is written. To put one layer on the panel while the others take their own, write `{:overlay true}` in that layer's options map.
 
-- **Every layer naming one column for both `:x` and `:y`.** The column's values are drawn on both axes, so `(pj/lay-point my-pose :a :a)` gives the y = x diagonal. The layer used to be read as one with no `:y` at all -- which is what a histogram, a density or a rug is -- and every y was drawn as zero, so the diagonal lay flat along the axis and a bar drew nothing, with no word said.
+- **Layers that name different columns on one pose.** The pose stays a leaf and draws a panel per pair of columns, in one grid. An axis carries a title only where every panel draws the same column on it, and each panel's strip names the column it draws. Faceting such a pose keeps both divisions, and each drawn column keeps a domain of its own.
 
-- **Every plot whose panels draw different columns.** An axis carries a title only where every panel draws the same column on it, and each panel's strip names the column it draws. A plot whose panels differ on one axis alone used to title that axis after whichever column came first, so a panel drawing `:cost` was labelled `revenue`. Faceting such a pose keeps both divisions: the facet names one direction of the grid and the drawn columns name the other, where the facet used to take both and the columns went unnamed. Each drawn column keeps a domain of its own, shared across the facet's values so its slices stay comparable, where one domain used to span every column and drew the smaller-valued ones flat along the axis.
+- **Faceting a composite, or a pose that already draws several panels.** Every cell or panel is drawn once per value of the facet column. `pj/marginal` on a faceted pose draws each strip label once, at the top.
 
-- **Every dodged plot whose grouping names more than one column.** Each combination the grouping names gets a slot of its own, so `{:color :part :group :dimension :position :dodge}` on two parts and two dimensions draws four bars per band. The cohort used to key on a group's legend label, which is the colour column's value alone, so the four groups shared two slots and the bars were drawn two to a place. A grouping of one column is unchanged.
+- **`{:col [:a :b]}` or `{:row [:a :b]}` in a mapping, and `(pj/facet my-pose [:a :b])`.** The columns unite into one compound key, and a panel is drawn per combination the data holds.
 
-- **Every faceted plot whose panels share an axis holding categories in one panel and numbers in another.** The plot reports that the panels disagree, and names `(pj/options {:scales :free-x})`, or `:free-y`, as the way to draw each panel to its own domain. The shared domain used to be read from the first panel alone, so the categories and the range endpoints were concatenated into one domain and drawn as a band axis.
+- **A dodge whose grouping names more than one column.** Each combination gets a slot of its own, so `{:color :part :group :dimension :position :dodge}` draws a bar per part and dimension.
 
-- **Every `{:color {:column [:a :b]}}`, and the same written out under any aesthetic that draws one thing.** The mapping reports that several columns were given where one goes, as the bare `{:color [:a :b]}` does. The written-out form used to reach the renderer and draw a single mark in the default colour, under a warning about a numeric colour.
+- **A map naming aesthetics, such as `{:x :a :y :b}`.** The map is a mapping, and lifts to a pose in `pj/pose`, `pj/with-data`, `pj/lay-*` and a `pj/arrange` cell. A hand-built pose map with a `:mapping` and no `:layers` is a pose too, and a layer is inferred for it. A dataset written as a map of columns is still data: a column is a sequence, a mapping a map.
 
-- **Every `{:col [:a :b]}` or `{:row [:a :b]}` written in a mapping.** The columns unite into a compound key and a panel is drawn per combination the data holds, which is what `(pj/facet my-pose [:a :b])` draws. `:col` and `:row` used to be unrecognized in a mapping: written there they warned and were dropped, and the plot came out with one panel, while `pj/facet` refused a vector outright.
+- **One column on both `:x` and `:y`.** Its values are drawn on both axes, so `(pj/lay-point my-pose :a :a)` draws the y = x diagonal.
 
-- **Every `pj/pose` given several columns on `:x` or `:y`.** The columns are read as a series and pivoted, the pose carrying the invented columns to every layer below. Both spellings used to be reported, naming the `lay-*` call as the place a series is read.
+- **`{:position :fill}` on a bar with a value column, or on an area.** The marks are drawn as shares of the total at each place, between zero and one, and a total of zero leaves a share of zero.
 
-- **Every `(pj/pose {:x :a :y :b})` on a map naming aesthetics, and every such map passed to `pj/arrange`.** The map is a mapping, and lifts to a leaf carrying it. It used to be read as a dataset, so the pose drew a two-column table whose columns were `:x` and `:y` holding the column names as values, and `pj/arrange` reported the map as rendered hiccup.
+- **A stacked area over a categorical axis.** The bands follow the order the axis draws its categories in.
 
-- **Every hand-built pose map carrying a mapping and no layers.** The map is a pose, and a layer is inferred for it. It used to be read as a dataset -- a map with neither `:layers` nor `:poses` was data -- so `{:mapping {:x :a :y :b} :data ds}` drew two points from a two-column table whose columns were `:mapping` and `:data`. A dataset written as a map of columns that holds a column called `:mapping` is still data: the value decides, a column being a sequence and a mapping a map.
+- **A cell of `pj/arrange` with its own `:theme`.** The cell is drawn with that theme.
 
-- **Every `pj/marginal` on a faceted pose.** Each strip label is drawn once, at the top of its column. Stacked, the marginal and the main panel were both divided by the column and both drew the labels, so each name appeared twice.
+- **Keyword categories holding a hyphen or an underscore, on an axis and on `:color`.** Each category is drawn in its own colour, including under a palette written as a map of category to colour.
 
-- **Every `pj/facet` or `pj/facet-grid` on a pose that already facets in one of the two directions.** The call reports that a pose divides its panels once per direction, and names the other direction, `pj/facet-grid`, and a compound key as the ways to ask for more. Both calls used to replace whatever was already written for that direction with nothing said, so the earlier division was lost.
+- **`:group` with no `:color`.** The marks are drawn in the default colour, whether `:group` names one column or several.
 
-- **Every `pj/facet` or `pj/facet-grid` on a composite pose.** Every cell of the composite is divided, so a two-cell arrangement faceted by a three-value column draws six panels. Both calls used to report that a composite was not supported and draw nothing.
+- **`pj/lay-tile` with a `:fill` column and a categorical `:x` or `:y`.** Each row draws one cell, centred on its category and reaching halfway to its neighbours, so the cells meet. This covers text and keyword columns, and a numeric column read with `{:x-type :categorical}`.
 
-- **Every `pj/facet` or `pj/facet-grid` on a pose whose layers draw more than one panel.** Each of those panels is drawn once per value the column holds, the facet being the outer division. Both calls used to report that the two divisions would cross and draw nothing.
+- **A scatterplot matrix or an arrangement with no `:width` or `:height` of its own.** The size comes from the configuration when the plot is drawn, so `pj/set-config!` and `pj/with-config` size it as they size a single plot. (Closes #56) - thanks, @behrica
 
-- **Every plot where `pj/overlay` is written after the layers it covers.** The layers are drawn on one panel. `pj/overlay` used to apply only to layers added after it, so written at the end it did nothing.
-
-- **Every plot where `(pj/overlay pose false)` follows a `pj/overlay` on the same pose.** The pose does not overlay: the later call turns it off for the whole pose rather than for the layers after it, so layers added while it was on take a panel each as well. Write `{:overlay true}` in a layer's own options map to put that layer on the panel while others take their own.
-
-- **Every `pj/lay-*` whose columns match no panel of a leaf.** The pose stays a leaf holding the layer, where it used to become a composite of two sub-poses, so code reading `:poses` after a `lay-*` call sees `:layers` instead. The panels are drawn as one grid rather than as a sub-plot each, which is what the entry on panels drawing different columns describes.
-
-- **Every plot with `{:position :fill}` on a bar carrying a value column, or on an area.** The marks are drawn as proportions of the total at each place, between zero and one, as a counted bar already was, and a total of zero leaves a zero share rather than dividing by it. The value axis already read `0` to `1`; the marks were the raw cumulative sum, so every series but the last was drawn far above the panel and could not be seen.
-
-- **Every stacked area over a categorical axis.** The bands follow the order the axis carries. The x values used to be sorted, which on a categorical axis is dictionary order rather than the order the axis draws, so an area over month names drew a polygon zig-zagging between them. A numerical axis is still sorted.
-
-- **Every arranged plot where a cell sets its own `:theme`.** The cell is drawn with it. `:theme` is resolved where the drawables are made, and the composite handed every cell its own options only after that, so a per-cell theme was accepted and then dropped.
-
-- **Every plot mapping one categorical column to an axis and to `:color`, where its values are keywords holding a hyphen or an underscore.** Each category is drawn in its own colour. A categorical axis is rewritten to the labels it displays, and the palette matches a value in that form as well as as written, so `:sepal-length` drawn as "sepal length" finds its own entry; a palette written as a map of category to colour reads the same way. Every mark used to take the palette's first colour, under a legend naming all of them.
-
-- **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, whether the key names one column or several, which is what `:group` naming two columns already drew: a grouping column that names no colour contributes no category and no legend. One grouping column used to take the palette's first colour.
-
-- **Every `pj/lay-tile` given a `:fill` column and a categorical `:x` or `:y`.** Each row draws one cell centred on its category and reaching halfway to the next category on either side, so neighbouring cells meet. This includes string and keyword columns and a numeric column read with `{:x-type :categorical}`. These plots used to fail with a `ClassCastException` from `extract/min-step`.
-
-- **Every scatterplot matrix and every arrangement drawn without a `:width` or `:height` of its own.** The size comes from the configuration when the plot is drawn, as a single plot's does, so `pj/set-config!` and `pj/with-config` size a composite, including one built before the configuration was set. A scatterplot matrix used to draw at 600 by 400 whatever the configuration said, and `pj/arrange` kept the size configured when it was called. (Closes #56) - thanks, @behrica
+- **Mistakes that now report an error.** Several columns on an aesthetic that draws one thing, such as `:color`, `:size` or `:alpha`, report an error naming the aesthetic, in any of the three spellings: bare, `{:series [...]}` or `{:column [...]}`. A second facet in a direction the pose already divides reports an error naming the other ways to ask. Faceted panels whose shared axis holds categories in one panel and numbers in another report an error naming `(pj/options {:scales :free-x})`.
 
 ### Added
 
-- `pj/pose` reads a series. Several columns written where one goes on `:x` or `:y` are pivoted when a layer is added, and the invented columns reach every layer below -- which is what scope does for every other mapping. `(-> data (pj/pose {:x :quarter :y {:series [:revenue :cost] :as :measure} :col :measure}) pj/lay-line)` draws one panel per measure. A series in a `lay-*` call on a pose that already reads one is two reshapes of one dataset and is reported.
+- Several columns written where one column goes are read as a series of one layer, in a `lay-*` call or on the pose. The columns are pivoted into a key column, named `:series` unless `{:series [...] :as ...}` names it, and a `:value` column. The key column is mapped to `:color`, or to `:group` where the layer maps `:color` itself. Column names that look like numbers, such as years, still get one colour each, and an observation with no value is dropped with a warning.
 
-- `pj/arrange` takes data first: `(-> data (pj/arrange cells) (pj/lay-point))`, and `(pj/arrange data cells opts)` beside it. The cells are drawn from that data, so a cell need say no more than which columns its panel draws and the layers are added once at the root. The second argument decides which arity is meant -- a sequential one is the cell list, a map is the options -- so every existing call is unchanged.
+- `:col` and `:row` are aesthetics. `pj/facet` and `pj/facet-grid` write them into the pose's mapping, where they reach every layer and sub-pose below, and a sub-pose may write its own. `pj/panel-aesthetic-docs` describes them.
 
-- A map naming aesthetics is read as a mapping and lifts to a leaf pose carrying it. It needs no data and no `pj/pose` -- `(-> {:x :mpg :y :cyl} (pj/with-data mtcars) pj/lay-point)` draws -- and a `pj/arrange` cell may be written the same way -- `{:x :mpg :y :cyl}` says which columns its panel draws, taking data and layers from the pose it is arranged into. A dataset written as a map of columns is unchanged: the values decide, a column being a sequence and a column reference a keyword or a string.
+- `pj/arrange` takes data first: `(-> data (pj/arrange [{:x :a :y :b} {:x :c :y :d}]) pj/lay-point)`. Each cell says which columns its panel draws, and the layers are added once, at the root. A composite may hold a composite.
 
-- `:role` in the aesthetic registry says what a distinction given to an aesthetic is put to work as -- `:positional`, `:appearance`, `:grouping` or `:panel` -- and answers two questions at once: where the separated marks go, and how a reader tells them apart. `pj/aesthetic-roles` publishes it.
-
-- `:compound-key?` in the aesthetic registry says which aesthetics unite several columns into one distinction -- `:group`, `:col` and `:row` today. The check that reports several columns where one goes reads that rather than a list of its own, and reads the three spellings of a vector alike: bare, `{:series [...]}` and `{:column [...]}`. `pj/compound-key-aesthetics` publishes the set, so a table of what accepts a vector is built from what enforces it.
-
-- `:col` and `:row` are aesthetics: a column written under either gives each of its values a panel of its own. `pj/facet` and `pj/facet-grid` write them. A vector under one unites the columns into a compound key, drawing a panel per combination the data holds and labelling it by each column's value in turn -- which `pj/facet-grid` does not, since it crosses two distinctions and fills the rectangle. `pj/panel-aesthetic-docs` describes them, and `pj/aesthetic-roles` says what a distinction given to each aesthetic is put to work as.
-
-- Several columns written where one column goes are read as several series of one layer. The pivot invents a key column, whose name titles the legend and is `:series` unless given, and a `:value` column, which titles the value axis and is renamed with `:x-label` or `:y-label`. Write `{:series [:revenue :cost] :as :measure}` in full to name the key column, and add `:scale` there to read the value column through a scale, as any other mapping map takes one. A key a series does not take is reported. The columns the series reads are consumed; the rest of the dataset comes through untouched. The key column is mapped to `:color`, and to `:group` where the layer maps `:color` itself, so the series stay separate marks either way.
-
-- A series whose columns are named for numbers is told apart by colour all the same. `tc/pivot->longer` reads a column name that looks like a number as one, so a wide table of years gives a numeric key column, which a colour would otherwise read as a quantity: one gradient over every measure, drawn in one colour, with no legend entry naming a year. The pivot says what the column holds by writing `:color-type :categorical` beside the colour it maps it to, where the writer has not written a `:color-type` of their own. The dataset the pose carries is what `tc/pivot->longer` returns -- the key column keeps the type Tablecloth gave it.
-
-- An observation a series cannot draw is reported: `Removed 2 rows with a missing value among the columns read as series (:revenue, :cost)`, alongside the four reasons a row already reports. The pivot keeps Tablecloth's own defaults, so the dataset the pose carries is exactly what `tc/pivot->longer` returns for those columns, and the plot is the one the same data written long by hand draws.
-
-- A composite pose may hold a composite. `pj/pose` and `pj/arrange` used to refuse the shape, which the layout already drew correctly at any depth and which `pj/arrange` builds itself for more than one row.
-
-- Several columns written on an appearance aesthetic report an error naming the aesthetic and the value, and say that several columns belong on `:x` or `:y`. `:color`, `:size` and `:alpha` used to report only that the plan did not conform to a schema. A vector on `:group` is still one compound key, and a vector on `:tooltip` is still hiccup.
+- The aesthetic registry records each aesthetic's `:role` (`:positional`, `:appearance`, `:grouping` or `:panel`) and whether it unites several columns into one key. `pj/aesthetic-roles` and `pj/compound-key-aesthetics` publish them.
 
 ### Changed
 
-- A pose's faceting column is at `[:mapping :col]`, or `[:mapping :row]`, where it was at `[:opts :facet-col]` and `[:opts :facet-row]`. Plots are unchanged, and a hand-built pose that carries the older spelling in its `:opts` is still faceted by it.
+- `:overlay` is read where a leaf's panels are decided, rather than where a layer is added. `pj/lay-*` no longer builds a composite; `pj/pose` with a position on a positioned leaf still does.
 
-- Where two layers name different columns on one axis, the layers still get a panel each, and a note on standard output says so when the pose is drawn. It names the ways to ask for one panel instead: `pj/overlay`, always, and the single call that reads the two columns as series where one dataset carries both, only one axis disagrees, and the pose reads no series already.
+- A pose's facet columns are at `[:mapping :col]` and `[:mapping :row]`, rather than `[:opts :facet-col]` and `[:opts :facet-row]`. A hand-built pose with the older keys is still faceted by them.
 
-- `:overlay` is read where a leaf's panels are decided rather than where a layer is added, and a layer's own `:overlay` is carried on the layer for that reading. A leaf draws one panel per place its layers name, as it already drew one per facet value, so `pj/lay-*` no longer builds a composite. `pj/pose` with a position on a positioned leaf still builds one.
+- Where two layers name different columns on one axis, a note on standard output says each got a panel of its own, and names `pj/overlay` and, where it would draw, reading the columns as a series.
 
 
 ## [0.14.0 - 2026-09-18]
