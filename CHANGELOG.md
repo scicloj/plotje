@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 Faceting is a mapping: `:col` and `:row` are aesthetics, so a facet follows the scope rules every other mapping follows. Several columns written where one goes are read as a series, drawn as groups of one layer, so they can be dodged, stacked or filled against each other. `pj/overlay` applies to the whole pose wherever it is written, and overlaid layers that draw different columns are told apart by colour.
 
+Thanks, @timothypratley, for the thoughtful discussion behind the main changes in this release.
+
 ### Plots that look different after upgrading
 
 - **Overlaid layers that draw different columns.** Each layer takes a colour and a legend entry naming its column, the axis title names every column drawn on it, and `:position :dodge` gives each layer a slot of its own. Layers the writer has coloured, and an overlay only some of the disagreeing layers ask for, are unaffected.
