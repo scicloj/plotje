@@ -161,11 +161,17 @@
 
 ;; ## A vector is a compound key
 
-;; Under a categorical aesthetic, several columns in a vector are one
+;; Under some aesthetics, several columns in a vector are one
 ;; distinction made of those columns united -- a compound key. That is
-;; what `{:color [:a :b]}` and `{:group [:a :b]}` mean, and the panel
-;; aesthetics read a vector the same way.
-;;
+;; what `{:group [:a :b]}` means, and the panel aesthetics read a vector
+;; the same way. `pj/compound-key-aesthetics` names the set, and it is
+;; the set the check reads, so an aesthetic outside it reports several
+;; columns where one goes rather than uniting them:
+
+(pj/compound-key-aesthetics)
+
+(kind/test-last [(fn [s] (= #{:group :col :row} s))])
+
 ;; The table below holds three of the four combinations of `:part` and
 ;; `:dimension`: there is no petal width row.
 
@@ -176,6 +182,18 @@
                :v         [1.0 2.0 1.5 2.5 2.0 3.0]}))
 
 measures
+
+;; `:color` is outside the set, because a mark has one colour. A vector
+;; written there is reported rather than united:
+
+(try
+  (-> measures
+      (pj/lay-point :t :v {:color [:part :dimension]}))
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #":color was given several columns" msg))])
 
 ;; A compound facet draws one panel per combination the data holds,
 ;; labelled by each column's value in turn.

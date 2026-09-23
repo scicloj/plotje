@@ -157,6 +157,26 @@
   (into {} (map (fn [[k entry]] [k (:role entry)]))
         defaults/aesthetic-registry))
 
+(defn compound-key-aesthetics
+  "The aesthetics that read several columns as one distinction, united,
+   as a set. Every other aesthetic that takes a column reports a vector
+   as several columns where one goes.
+
+   `{:group [:part :dimension]}` is one grouping keyed on the pair, and
+   `{:col [:part :dimension]}` draws a panel per combination the data
+   holds -- while `{:color [:part :dimension]}` is reported, because a
+   mark has one colour. The three spellings of a vector read alike:
+   bare, `{:series [...]}` and `{:column [...]}`.
+
+   The same set the check reads, so a table built from this cannot
+   drift from what is enforced. Use it as `pj/aesthetic-scales` is
+   used.
+
+   A function rather than a value, as `pj/aesthetic-roles` is: the
+   registry grows from one release to the next."
+  []
+  defaults/compound-key-aesthetics)
+
 (def panel-aesthetic-docs
   "Documentation for the panel aesthetics -- the mapping keys that send
    each value of a distinction to a panel of its own. Written on a
