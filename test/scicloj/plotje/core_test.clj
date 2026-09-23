@@ -950,6 +950,34 @@
       (is (string? (:grid theme)))
       (is (number? (:font-size theme))))))
 
+(deftest the-configuration-sizes-a-composite-test
+  ;; Issue #56: a composite with no :width/:height of its own drew at a
+  ;; 600 by 400 written in the compositor, ignoring set-config! and
+  ;; with-config; and pj/arrange copied the configured size into the
+  ;; pose when it was called, so a set-config! after it did not apply.
+  (let [iris (rdatasets/datasets-iris)
+        cols [:sepal-length :sepal-width]
+        size (fn [pose] (let [s (pj/svg-summary pose)] [(:width s) (:height s)]))
+        matrix (fn [] (pj/pose iris (pj/cross cols cols)))
+        arranged (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
+                              (pj/lay-point iris :petal-length :petal-width)])]
+    (try
+      (defaults/set-config! {:width 1024 :height 1024})
+      (testing "set-config! sizes a scatterplot matrix"
+        (is (= [1024 1024] (size (matrix)))))
+      (testing "and an arrangement built before it"
+        (is (= [1024 1024] (size arranged))))
+      (testing "a size written on the composite still wins"
+        (is (= [500 300] (size (pj/options (matrix) {:width 500 :height 300}))))
+        (is (= [500 300] (size (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)]
+                                           {:width 500 :height 300})))))
+      (finally
+        (defaults/set-config! nil)))
+    (testing "with-config sizes a scatterplot matrix"
+      (is (= [900 700] (pj/with-config {:width 900 :height 700} (size (matrix))))))
+    (testing "the configuration's own default is unchanged"
+      (is (= [600 400] (size (matrix)))))))
+
 (deftest set-config!-test
   (testing "set-config! overrides specific keys"
     (try
@@ -3611,3 +3639,12 @@
     (testing "a layer with no y of its own still has one synthesized"
       ;; The other half of the same flag, which is what it is for.
       (is (= 1 (count (:panels (pj/plan (pj/lay-rug ds :a)))))))))
+
+(deftest arrange-given-a-pose-where-data-goes-test
+  ;; Read as a dataset, the pose's keys were reported as its columns.
+  (let [pose (pj/lay-point {:a [1 2] :b [3 4]} :a :b)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/arrange was given a pose where the data goes"
+                          (pj/arrange pose [{:x :a :y :b}])))
+    (testing "the form the message names draws"
+      (is (= 2 (:panels (pj/svg-summary (pj/arrange [pose pose]))))))))

@@ -4346,6 +4346,15 @@
      (arrange plots-or-data opts-or-cells {})
      (arrange* plots-or-data opts-or-cells)))
   ([data cells opts]
+   ;; A pose here was read as a dataset whose columns are its keys, and
+   ;; the report that followed named `:data`, `:layers` and `:mapping`
+   ;; as the available columns.
+   (when (pose? data)
+     (throw (ex-info (str "pj/arrange was given a pose where the data goes."
+                          " Data first means a dataset the cells are drawn"
+                          " from; to arrange a pose beside others, put it in"
+                          " the cell list: (pj/arrange [my-pose other-pose]).")
+                     {:caller "pj/arrange"})))
    (-> (arrange* cells opts)
        (with-data data))))
 
@@ -4366,8 +4375,6 @@
                               :option :share-scales
                               :value share-scales
                               :accepted #{:x :y}})))
-         width  (or (:width opts)  (:width cfg))
-         height (or (:height opts) (:height cfg))
          nested? (and (sequential? plots)
                       (sequential? (first plots))
                       (not (keyword? (ffirst plots))))
@@ -4408,8 +4415,13 @@
                            {:layout {:direction :horizontal}
                             :poses (vec row)})
                          row-partitions)
-         composite {:opts (cond-> {:width  (long (Math/round (double width)))
-                                   :height (long (Math/round (double height)))}
+         ;; The size is written only where the caller gave one. The
+         ;; configuration's is read when the composite is drawn
+         ;; (`compositor/outer-dimensions`), as a leaf's is, so a
+         ;; `pj/set-config!` after this call still applies.
+         composite {:opts (cond-> {}
+                            (:width opts) (assoc :width (long (Math/round (double (:width opts)))))
+                            (:height opts) (assoc :height (long (Math/round (double (:height opts)))))
                             title (assoc :title title)
                             (seq share-scales) (assoc :share-scales (set share-scales))
                             align-panels (assoc :align-panels true))

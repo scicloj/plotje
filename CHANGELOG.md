@@ -60,6 +60,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every `pj/lay-tile` given a `:fill` column and a categorical `:x` or `:y`.** Each row draws one cell centred on its category and reaching halfway to the next category on either side, so neighbouring cells meet. This includes string and keyword columns and a numeric column read with `{:x-type :categorical}`. These plots used to fail with a `ClassCastException` from `extract/min-step`.
 
+- **Every scatterplot matrix and every arrangement drawn without a `:width` or `:height` of its own.** The size comes from the configuration when the plot is drawn, as a single plot's does, so `pj/set-config!` and `pj/with-config` size a composite, including one built before the configuration was set. A scatterplot matrix used to draw at 600 by 400 whatever the configuration said, and `pj/arrange` kept the size configured when it was called. (Closes #56) - thanks, @behrica
+
 ### Added
 
 - `pj/pose` reads a series. Several columns written where one goes on `:x` or `:y` are pivoted when a layer is added, and the invented columns reach every layer below -- which is what scope does for every other mapping. `(-> data (pj/pose {:x :quarter :y {:series [:revenue :cost] :as :measure} :col :measure}) pj/lay-line)` draws one panel per measure. A series in a `lay-*` call on a pose that already reads one is two reshapes of one dataset and is reported.

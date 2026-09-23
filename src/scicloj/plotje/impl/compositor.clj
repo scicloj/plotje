@@ -19,9 +19,6 @@
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]))
 
-(def ^:private default-width 600)
-(def ^:private default-height 400)
-
 (defn- long-or [x default]
   (long (Math/round (double (or x default)))))
 
@@ -52,13 +49,20 @@
                           (keep-dom :y :y-scale-domain)))))
 
 (defn- outer-dimensions
+  "The composite's total `[width height]`: its own `:width`/`:height`,
+   and otherwise the configuration's, resolved at draw time the way
+   `plan/draft->plan` resolves a leaf's -- so `pj/set-config!` and
+   `pj/with-config` size a composite as they size a single plot. The
+   fallback used to be 600 by 400 written here, which a composite built
+   by `pj/pose` from `pj/cross` always drew at."
   [pose]
-  (let [opts (or (:opts pose) {})]
-    [(long-or (:width opts) default-width)
-     (long-or (:height opts) default-height)]))
+  (let [opts (or (:opts pose) {})
+        cfg (defaults/resolve-config opts)]
+    [(long-or (:width opts) (:width cfg))
+     (long-or (:height opts) (:height cfg))]))
 
 (def ^:private title-band-h
-  "Pixel height reserved at the top of a composite when :title is set."
+  "Height reserved at the top of a composite when :title is set."
   30)
 
 (def ^:private composite-chrome-opt-keys
