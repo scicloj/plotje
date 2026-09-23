@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. This change
 
 Faceting is a mapping. `pj/facet` and `pj/facet-grid` write the columns they divide by into the pose's `:mapping`, under the aesthetics `:col` and `:row`, so faceting follows the scope rules every other mapping follows: written on a pose it reaches every layer and every sub-pose below, and a sub-pose that writes its own overrides it. A composite can be faceted, one cell of a composite can be faceted differently from another, and a pose whose layers already draw several panels draws each of them once per value the column holds.
 
-Several columns where one goes are read as several series. A dataset carrying one measure per column can be drawn without reshaping it by hand: `(pj/lay-bar :quarter [:revenue :cost] {:position :dodge})` pivots the columns, maps the key column it invents to `:color`, and draws the measures as groups of one layer -- so `:dodge`, `:stack` and `:fill` place them against each other, which two layers cannot do.
+Several columns where one goes are read as several series. A dataset carrying one measure per column can be drawn without reshaping it by hand: `(pj/lay-bar :quarter [:revenue :cost] {:position :dodge})` pivots the columns, maps the key column it invents to `:color`, and draws the measures as groups of one layer -- so `:stack` and `:fill` accumulate across them, which two layers cannot do.
 
 `pj/overlay` says the same thing wherever in a pipeline it is written. It is read where the panels are decided rather than where a layer is added, so writing it after the layers draws what writing it before them draws. Every other mapping already read that way.
 
@@ -18,15 +18,11 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every layer naming one column for both `:x` and `:y`.** The column's values are drawn on both axes, so `(pj/lay-point my-pose :a :a)` gives the y = x diagonal. The layer used to be read as one with no `:y` at all -- which is what a histogram, a density or a rug is -- and every y was drawn as zero, so the diagonal lay flat along the axis and a bar drew nothing, with no word said.
 
-- **Every plot reading several columns whose names look like numbers as series.** The measures are told apart by colour and named in the legend. `tc/pivot->longer` reads a column name that looks like a number as one, so a wide table of years gave a numeric key column, and the colour read it as a quantity: one gradient over every measure, drawn in one colour, with no legend entry naming a year. The pivot now says what the column holds by writing `:color-type :categorical` beside the colour it maps it to, where the writer has not said otherwise; `:color-type :numerical` still asks for the gradient. The dataset the pose carries is unchanged -- the key column keeps the type Tablecloth gave it.
-
-- **Every plot reading several columns as series where one of their values is missing.** The observations that cannot be drawn are reported -- `Removed 2 rows with a missing value among the columns read as series (:revenue, :cost)` -- alongside the four reasons a row already reports. The plot is unchanged, and the dataset the pose carries is still exactly what `tc/pivot->longer` returns for those columns, since the pivot keeps Tablecloth's own defaults. Writing the same data long by hand reached the same plot and reported the same observations; the wide spelling said nothing.
-
 - **Every plot whose panels draw different columns.** An axis carries a title only where every panel draws the same column on it, and each panel's strip names the column it draws. A plot whose panels differ on one axis alone used to title that axis after whichever column came first, so a panel drawing `:cost` was labelled `revenue`; a plot whose panels differ on both already carried no titles. Faceting such a pose keeps both divisions: the facet names one direction of the grid and the drawn columns name the other, where the facet used to take both and the columns went unnamed. Each drawn column keeps a domain of its own, shared across the facet's values so its slices stay comparable, where one domain used to span every column and drew the smaller-valued ones flat along the axis.
 
 - **Every dodged plot whose grouping names more than one column.** Each combination the grouping names gets a slot of its own, so `{:color :part :group :dimension :position :dodge}` on two parts and two dimensions draws four bars per band. The cohort used to key on a group's legend label, which is the colour column's value alone, so the four groups shared two slots and the bars were drawn two to a place. A grouping of one column is unchanged.
 
-- **Every faceted plot whose panels share an axis holding categories in one panel and numbers in another.** The plot reports that the panels disagree, and names `:scales :free-x` or `:free-y` as the way to draw each panel to its own domain. The shared domain used to be read from the first panel alone, so the categories and the range endpoints were concatenated into one domain and drawn as a band axis.
+- **Every faceted plot whose panels share an axis holding categories in one panel and numbers in another.** The plot reports that the panels disagree, and names `(pj/options {:scales :free-x})`, or `:free-y`, as the way to draw each panel to its own domain. The shared domain used to be read from the first panel alone, so the categories and the range endpoints were concatenated into one domain and drawn as a band axis.
 
 - **Every `{:color {:column [:a :b]}}`, and the same written out under any aesthetic that draws one thing.** The mapping reports that several columns were given where one goes, which is what the bare `{:color [:a :b]}` already reported. The written-out form used to reach the renderer and draw a single mark in the default colour, under a warning about a numeric colour.
 
@@ -54,13 +50,17 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every plot where `(pj/overlay pose false)` follows a `pj/overlay` on the same pose.** The pose does not overlay: the later call turns it off for the whole pose rather than for the layers after it, so layers added while it was on take a panel each as well. Write `{:overlay true}` in a layer's own options map to put that layer on the panel while others take their own.
 
-- **Every `pj/lay-*` whose columns match no panel of a leaf.** The pose stays a leaf holding the layer, where it used to become a composite of two sub-poses, and code reading `:poses` after a `lay-*` call sees `:layers` instead. The panels are drawn as one grid, each with a strip naming the column it draws and one set of axes below and beside the grid, where the composite drew a sub-plot per column with a full set of axis labels each.
+- **Every `pj/lay-*` whose columns match no panel of a leaf.** The pose stays a leaf holding the layer, where it used to become a composite of two sub-poses, so code reading `:poses` after a `lay-*` call sees `:layers` instead. The panels are drawn as one grid rather than as a sub-plot each, which is what the entry on panels drawing different columns describes.
 
-- **Every plot with `{:position :fill}` on a bar carrying a value column, or on an area.** The marks are drawn as proportions of the total at each place, between zero and one. The value axis already read `0` to `1`; the marks were the raw cumulative sum, so every series but the last was drawn far above the panel and could not be seen.
-- **Every stacked area over a categorical axis.** The bands follow the order the axis carries. They used to be sorted, so an area over month names drew a polygon zig-zagging between them. A numerical axis is still sorted.
-- **Every arranged plot where a cell sets its own `:theme`.** The cell is drawn with it. A per-cell theme used to be accepted and then dropped.
-- **Every plot mapping one categorical column to an axis and to `:color`, where its values are keywords holding a hyphen or an underscore.** Each category is drawn in its own colour. Every mark used to take the palette's first colour, under a legend naming all of them.
-- **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, which is what `:group` naming two columns already drew. One grouping column used to take the palette's first colour.
+- **Every plot with `{:position :fill}` on a bar carrying a value column, or on an area.** The marks are drawn as proportions of the total at each place, between zero and one, as a counted bar already was, and a total of zero leaves a zero share rather than dividing by it. The value axis already read `0` to `1`; the marks were the raw cumulative sum, so every series but the last was drawn far above the panel and could not be seen.
+
+- **Every stacked area over a categorical axis.** The bands follow the order the axis carries. The x values used to be sorted, which on a categorical axis is dictionary order rather than the order the axis draws, so an area over month names drew a polygon zig-zagging between them. A numerical axis is still sorted.
+
+- **Every arranged plot where a cell sets its own `:theme`.** The cell is drawn with it. `:theme` is resolved where the drawables are made, and the composite handed every cell its own options only after that, so a per-cell theme was accepted and then dropped.
+
+- **Every plot mapping one categorical column to an axis and to `:color`, where its values are keywords holding a hyphen or an underscore.** Each category is drawn in its own colour. A categorical axis is rewritten to the labels it displays, and the palette matches a value in that form as well as as written, so `:sepal-length` drawn as "sepal length" finds its own entry; a palette written as a map of category to colour reads the same way. Every mark used to take the palette's first colour, under a legend naming all of them.
+
+- **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, whether the key names one column or several, which is what `:group` naming two columns already drew: a grouping column that names no colour contributes no category and no legend. One grouping column used to take the palette's first colour.
 
 ### Added
 
@@ -82,6 +82,10 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - Several columns written where one column goes are read as several series of one layer. The pivot invents a key column, whose name titles the legend and is `:series` unless given, and a `:value` column, which titles the value axis and is renamed with `:x-label` or `:y-label`. Write `{:series [:revenue :cost] :as :measure}` in full to name the key column, and add `:scale` there to read the value column through a scale, as any other mapping map takes one. A key a series does not take is reported. A series is read in a `lay-*` call, and `pj/pose` given one says so. The columns the series reads are consumed; the rest of the dataset comes through untouched. The key column is mapped to `:color`, and to `:group` where the layer maps `:color` itself, so the series stay separate marks either way.
 
+- A series whose columns are named for numbers is told apart by colour all the same. `tc/pivot->longer` reads a column name that looks like a number as one, so a wide table of years gives a numeric key column, which a colour would otherwise read as a quantity: one gradient over every measure, drawn in one colour, with no legend entry naming a year. The pivot says what the column holds by writing `:color-type :categorical` beside the colour it maps it to, where the writer has not said otherwise, and `:color-type :numerical` asks for the gradient. The dataset the pose carries is what `tc/pivot->longer` returns -- the key column keeps the type Tablecloth gave it.
+
+- An observation a series cannot draw is reported: `Removed 2 rows with a missing value among the columns read as series (:revenue, :cost)`, alongside the four reasons a row already reports. The pivot keeps Tablecloth's own defaults, so the dataset the pose carries is exactly what `tc/pivot->longer` returns for those columns, and the plot is the one the same data written long by hand draws.
+
 - A composite pose may hold a composite. `pj/pose` and `pj/arrange` used to refuse the shape, which `pose/compute-layout` has always drawn correctly at any depth and which `pj/arrange` builds itself for more than one row.
 
 - Several columns written on an appearance aesthetic report an error naming the aesthetic and the value, and say that several columns belong on `:x` or `:y`. `:color`, `:size` and `:alpha` used to report only that the plan did not conform to a schema. A vector on `:group` is still one compound key, and a vector on `:tooltip` is still hiccup.
@@ -90,17 +94,6 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - `:overlay` is read where a leaf's panels are decided rather than where a layer is added, and a layer's own `:overlay` is carried on the layer for that reading. A leaf draws one panel per place its layers name, as it already drew one per facet value, so `pj/lay-*` no longer builds a composite. `pj/pose` with a position on a positioned leaf still builds one.
 
-### Fixed
-
-- `{:position :fill}` normalizes a bar carrying a value column, and an area, as it already normalized a counted bar. Both shapes read one rule for a value's share of the total at its place, and a total of zero leaves a zero share rather than dividing by it.
-
-- A stacked area draws its bands in the order its axis carries them. The x values used to be sorted, which on a categorical axis is dictionary order rather than the order the axis draws.
-
-- A render-stage option set on one cell of a composite reaches that cell. `:theme` is resolved where the drawables are made, and the composite handed every cell its own options there.
-
-- A category drawn on an axis and given a colour keeps its colour. A categorical axis is rewritten to the labels it displays, and the palette now matches a value in that form as well as as written -- so a keyword category whose separator becomes a space, `:sepal-length` drawn as "sepal length", finds its own entry rather than falling back to the first. A palette written as a map of category to colour reads the same way.
-
-- `:group` separates marks without colouring them, whether its key names one column or several. A grouping column that names no colour contributes no category and no legend, and its groups are drawn in the plot's default colour.
 
 ## [0.14.0 - 2026-09-18]
 
