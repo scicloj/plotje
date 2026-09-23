@@ -6,6 +6,11 @@
 ;; a row holds and a value column holding the number, and maps the key
 ;; column to `:color`. Because the measures are labelled, they can be
 ;; placed against each other by a position adjustment.
+;;
+;; The sections up to Examples teach the main ideas in order: what a
+;; series is, what the pivot makes of the columns it reads, where a
+;; series may be written, how the measures are placed against each
+;; other, and the limits a series has.
 
 (ns plotje-book.series
   (:require
@@ -55,55 +60,6 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
-;; ## Placing the measures against each other
-
-;; `:identity` draws every series at the same place, so the bars
-;; overlap. It is the one that differs from the bar's own default.
-;; Three partly transparent bars drawn from zero make a third tone
-;; wherever they cross, which reads as a stack -- the axis is what
-;; tells the two apart, since here it reaches the largest measure and
-;; under `:stack` below it reaches their total:
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :identity}))
-
-(kind/test-last
- ;; The axis reaches the largest measure (190) and stops short of the
- ;; largest total (338), which `:stack` reaches.
- [(fn [v] (let [top (fn [pose] (second (:y-domain (first (:panels (pj/plan pose))))))
-                stacked (-> sales (pj/lay-bar :quarter [:revenue :cost :tax]
-                                              {:position :stack}))]
-            (and (not= (pj/plot v)
-                       (pj/plot (-> sales (pj/lay-bar :quarter [:revenue :cost :tax]))))
-                 (<= 190 (top v) 338)
-                 (<= 338 (top stacked)))))])
-
-;; `:dodge` gives each series a slot of the band, which is what a bar
-;; does without being asked:
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))
-
-(kind/test-last
- [(fn [v] (= (pj/plot v)
-             (pj/plot (-> sales (pj/lay-bar :quarter [:revenue :cost :tax])))))])
-
-;; `:stack` piles the series, so the band's height is their total:
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack}))
-
-(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
-
-;; `:fill` piles them and normalizes, so each band reads as shares
-;; between zero and one:
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :fill}))
-
-(kind/test-last
- [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :y-domain))))])
-
 ;; ## The same plot from long data
 
 ;; A series is the wide-side spelling of something the long shape
@@ -122,21 +78,9 @@ sales-by-region
                           (pj/lay-bar :quarter [:revenue :cost :tax]
                                       {:position :dodge})))))])
 
-;; That equality is what makes the adjustments above work. An
+;; That equality is what makes the adjustments below work. An
 ;; adjustment divides a band between labelled competitors, and the
 ;; pivot is what gives the measures labels.
-
-;; ## Lines and points
-
-(-> sales
-    (pj/lay-line :quarter [:revenue :cost :tax]))
-
-(kind/test-last [(fn [v] (pos? (:lines (pj/svg-summary v))))])
-
-(-> sales
-    (pj/lay-point :quarter [:revenue :cost :tax]))
-
-(kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
 ;; ## Naming the key column
 
@@ -154,29 +98,6 @@ sales-by-region
             (and (contains? texts "measure")
                  (contains? texts "Euros"))))])
 
-;; ## A scale on the value axis
-
-(-> sales
-    (pj/lay-point :quarter {:series [:revenue :cost :tax]
-                            :scale {:type :log}}))
-
-(kind/test-last
- [(fn [v] (= :log (-> v pj/plan :panels first :y-scale :type)))])
-
-;; `pj/scale` on the axis the series is written on says the same thing,
-;; so the scale can go in either place:
-
-(-> sales
-    (pj/lay-point :quarter [:revenue :cost :tax])
-    (pj/scale :y {:type :log}))
-
-(kind/test-last
- [(fn [v] (= (pj/plot v)
-             (pj/plot (-> sales
-                          (pj/lay-point :quarter
-                                        {:series [:revenue :cost :tax]
-                                         :scale {:type :log}})))))])
-
 ;; ## The keys a series takes
 
 ;; A series written out takes three keys: `:series` for the columns it
@@ -193,14 +114,6 @@ sales-by-region
 
 (kind/test-last
  [(fn [msg] (re-find #"unexpected key\(s\): \[:label\]" msg))])
-
-;; ## Sideways
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
-    (pj/coord :flip))
-
-(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
 ;; ## Where a series is written
 
@@ -265,164 +178,58 @@ sales-by-region
                                         :quarter)))))])
 
 ;; For bars, write the series on `:y` and turn the plot with
-;; `pj/coord` as the section above does. A bar drawn from a category on
-;; `:y` is supported less fully -- see
+;; `pj/coord` as the Sideways example below does. A bar drawn from a
+;; category on `:y` is supported less fully -- see
 ;; [Known Limitations](./plotje_book.known_limitations.html#marks).
 
-;; ## Areas and steps
+;; ## Placing the measures against each other
+
+;; `:identity` draws every series at the same place, so the bars
+;; overlap. It is the one that differs from the bar's own default.
+;; Three partly transparent bars drawn from zero make a third tone
+;; wherever they cross, which reads as a stack -- the axis is what
+;; tells the two apart, since here it reaches the largest measure and
+;; under `:stack` below it reaches their total:
 
 (-> sales
-    (pj/lay-area :quarter [:revenue :cost :tax] {:position :stack}))
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :identity}))
 
-(kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
+(kind/test-last
+ ;; The axis reaches the largest measure (190) and stops short of the
+ ;; largest total (338), which `:stack` reaches.
+ [(fn [v] (let [top (fn [pose] (second (:y-domain (first (:panels (pj/plan pose))))))
+                stacked (-> sales (pj/lay-bar :quarter [:revenue :cost :tax]
+                                              {:position :stack}))]
+            (and (not= (pj/plot v)
+                       (pj/plot (-> sales (pj/lay-bar :quarter [:revenue :cost :tax]))))
+                 (<= 190 (top v) 338)
+                 (<= 338 (top stacked)))))])
+
+;; `:dodge` gives each series a slot of the band, which is what a bar
+;; does without being asked:
 
 (-> sales
-    (pj/lay-step :quarter [:revenue :cost]))
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))
 
-(kind/test-last [(fn [v] (pos? (:lines (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v] (= (pj/plot v)
+             (pj/plot (-> sales (pj/lay-bar :quarter [:revenue :cost :tax])))))])
 
-;; An area normalizes under `:fill` the way a bar does, so each
-;; quarter reads as shares between zero and one:
+;; `:stack` piles the series, so the band's height is their total:
 
 (-> sales
-    (pj/lay-area :quarter [:revenue :cost :tax] {:position :fill}))
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack}))
+
+(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+
+;; `:fill` piles them and normalizes, so each band reads as shares
+;; between zero and one:
+
+(-> sales
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :fill}))
 
 (kind/test-last
  [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :y-domain))))])
-
-;; ## Marks that take a series
-
-;; Any mark drawing from a value column takes a series. The five above
-;; are bars, lines, points, areas and steps; a lollipop is another:
-
-(-> sales
-    (pj/lay-lollipop :quarter [:revenue :cost]))
-
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
-            (and (= 8 (:points s))
-                 (= 8 (:lines s)))))])
-
-;; The pivot does not change what a mark's stat requires. A mark
-;; needing a numeric axis column -- a density, a histogram, a smooth --
-;; reports when it is drawn, since the quarter column is categorical
-;; whether the measures are pivoted or not:
-
-(try
-  (pj/plot (-> sales (pj/lay-density :quarter [:revenue :cost])))
-  (catch clojure.lang.ExceptionInfo e
-    (ex-message e)))
-
-(kind/test-last
- [(fn [msg] (re-find #"requires a numeric column" msg))])
-
-;; ## A stat over a series
-
-;; A stat runs after the pivot, so it reads one series at a time. Each
-;; measure of each quarter has a row per region in `sales-by-region`,
-;; and `pj/lay-summary` draws the mean of those rows with a
-;; standard-error bar around it -- one mean per quarter per measure:
-
-(-> sales-by-region
-    (pj/lay-summary :quarter [:revenue :cost]))
-
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
-            (and (= 8 (:points s))
-                 (= 8 (:lines s)))))])
-
-;; ## A series along a date axis
-
-;; The pivot reshapes the measures and leaves the axis column as it
-;; was, so a date axis stays a date axis. Two columns of the economics
-;; dataset hold counts of people in thousands -- the population and the
-;; number of them unemployed -- which a log scale brings onto one axis:
-
-(-> (rdatasets/ggplot2-economics)
-    (pj/lay-line :date {:series [:pop :unemploy] :scale {:type :log}}))
-
-(kind/test-last
- [(fn [v] (and (= 2 (:lines (pj/svg-summary v)))
-               (= :log (-> v pj/plan :panels first :y-scale :type))))])
-
-;; A stat needing a numeric axis column runs here where it reported on
-;; the quarters above, since a date is not a category -- one smooth per
-;; measure:
-
-(-> (rdatasets/ggplot2-economics)
-    (pj/lay-smooth :date {:series [:pop :unemploy] :scale {:type :log}}))
-
-(kind/test-last [(fn [v] (= 2 (:lines (pj/svg-summary v))))])
-
-;; ## Choosing the colours
-
-(-> sales
-    (pj/lay-line :quarter [:revenue :cost :tax])
-    (pj/scale :color {:values ["#377eb8" "#e6550d" "#4daf4a"]}))
-
-(kind/test-last
- [(fn [v] (= #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
-             (disj (:colors (pj/svg-summary v)) "none")))])
-
-;; A scale set on the pose carries down to every panel, so the same
-;; three colours are used in each:
-
-(-> sales-by-region
-    (pj/lay-line :quarter [:revenue :cost :tax])
-    (pj/scale :color {:values ["#377eb8" "#e6550d" "#4daf4a"]})
-    (pj/facet :region))
-
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
-            (and (= 2 (:panels s))
-                 (= 6 (:lines s))
-                 (= #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
-                    (disj (:colors s) "none")))))])
-
-;; ## The order of the series
-
-;; The order the measures are drawn in -- the legend's order, the order
-;; of the slots in a dodged band, and the order a stack piles them --
-;; follows the dataset's columns rather than the order they are written
-;; in. Writing the same three measures in another order draws the same
-;; plot:
-
-(-> sales
-    (pj/lay-bar :quarter [:tax :revenue :cost] {:position :stack}))
-
-(kind/test-last
- [(fn [v] (and (= (pj/plot v)
-                  (pj/plot (-> sales
-                               (pj/lay-bar :quarter [:revenue :cost :tax]
-                                           {:position :stack}))))
-               ;; the dodged band is the other half of the claim above,
-               ;; and it is invariant the same way.
-               (= (pj/plot (-> sales
-                               (pj/lay-bar :quarter [:tax :revenue :cost]
-                                           {:position :dodge})))
-                  (pj/plot (-> sales
-                               (pj/lay-bar :quarter [:revenue :cost :tax]
-                                           {:position :dodge}))))))])
-
-;; A `:domain` on the colour scale sets the order, since the key column
-;; is the column the colour reads:
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
-    (pj/scale :color {:domain [:tax :revenue :cost]}))
-
-(kind/test-last
- [(fn [v] (= ["tax" "revenue" "cost"]
-             (mapv :label (-> v pj/plan :panels first :layers first :groups))))])
-
-;; ## A domain on the value axis
-
-(-> sales
-    (pj/lay-point :quarter [:revenue :cost])
-    (pj/scale :y {:domain [0 250]}))
-
-(kind/test-last
- [(fn [v] (= [0 250] (-> v pj/plan :panels first :y-domain vec)))])
 
 ;; ## The columns the pivot invents
 
@@ -462,7 +269,239 @@ sales-by-region
             (and (= 1 (:panels (pj/svg-summary v)))
                  (contains? texts "measure"))))])
 
-;; ## Column names that look like numbers
+;; ## One series per pose
+
+;; The pivot leaves its two columns on the pose, so a second series on
+;; the same pose meets them:
+
+(try
+  (-> sales
+      (pj/lay-bar :quarter [:revenue :cost])
+      (pj/lay-line :quarter [:tax :units]))
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"the data already has a :value column" msg)
+                 (re-find #"the data has as well" msg)))])
+
+;; Both columns clash here, and neither is a column of the original
+;; data: the first series put them on the pose. So neither `:as` nor a
+;; rename in the data separates the two series. Give each series a pose
+;; of its own and arrange the poses:
+
+(pj/arrange
+ [(-> sales
+      (pj/lay-bar :quarter [:revenue :cost] {:position :dodge}))
+  (-> sales
+      (pj/lay-line :quarter [:tax :units]))])
+
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+
+;; ## Examples
+
+;; Each example below combines a series with one more thing -- another
+;; mark, a scale, the key column in another role, panels, another
+;; layer, a composite. The last group lists what a series refuses, and
+;; the vectors that are not series at all.
+
+;; ### Other marks
+
+;; #### Lines and points
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax]))
+
+(kind/test-last [(fn [v] (pos? (:lines (pj/svg-summary v))))])
+
+(-> sales
+    (pj/lay-point :quarter [:revenue :cost :tax]))
+
+(kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
+
+;; #### Areas and steps
+
+(-> sales
+    (pj/lay-area :quarter [:revenue :cost :tax] {:position :stack}))
+
+(kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
+
+(-> sales
+    (pj/lay-step :quarter [:revenue :cost]))
+
+(kind/test-last [(fn [v] (pos? (:lines (pj/svg-summary v))))])
+
+;; An area normalizes under `:fill` the way a bar does, so each
+;; quarter reads as shares between zero and one:
+
+(-> sales
+    (pj/lay-area :quarter [:revenue :cost :tax] {:position :fill}))
+
+(kind/test-last
+ [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :y-domain))))])
+
+;; #### Marks that take a series
+
+;; Any mark drawing from a value column takes a series. The five above
+;; are bars, lines, points, areas and steps; a lollipop is another:
+
+(-> sales
+    (pj/lay-lollipop :quarter [:revenue :cost]))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 8 (:points s))
+                 (= 8 (:lines s)))))])
+
+;; The pivot does not change what a mark's stat requires. A mark
+;; needing a numeric axis column -- a density, a histogram, a smooth --
+;; reports when it is drawn, since the quarter column is categorical
+;; whether the measures are pivoted or not:
+
+(try
+  (pj/plot (-> sales (pj/lay-density :quarter [:revenue :cost])))
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #"requires a numeric column" msg))])
+
+;; #### A stat over a series
+
+;; A stat runs after the pivot, so it reads one series at a time. Each
+;; measure of each quarter has a row per region in `sales-by-region`,
+;; and `pj/lay-summary` draws the mean of those rows with a
+;; standard-error bar around it -- one mean per quarter per measure:
+
+(-> sales-by-region
+    (pj/lay-summary :quarter [:revenue :cost]))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 8 (:points s))
+                 (= 8 (:lines s)))))])
+
+;; #### A series along a date axis
+
+;; The pivot reshapes the measures and leaves the axis column as it
+;; was, so a date axis stays a date axis. Two columns of the economics
+;; dataset hold counts of people in thousands -- the population and the
+;; number of them unemployed -- which a log scale brings onto one axis:
+
+(-> (rdatasets/ggplot2-economics)
+    (pj/lay-line :date {:series [:pop :unemploy] :scale {:type :log}}))
+
+(kind/test-last
+ [(fn [v] (and (= 2 (:lines (pj/svg-summary v)))
+               (= :log (-> v pj/plan :panels first :y-scale :type))))])
+
+;; A stat needing a numeric axis column runs here where it reported on
+;; the quarters above, since a date is not a category -- one smooth per
+;; measure:
+
+(-> (rdatasets/ggplot2-economics)
+    (pj/lay-smooth :date {:series [:pop :unemploy] :scale {:type :log}}))
+
+(kind/test-last [(fn [v] (= 2 (:lines (pj/svg-summary v))))])
+
+;; ### Scales and colours
+
+;; #### A scale on the value axis
+
+(-> sales
+    (pj/lay-point :quarter {:series [:revenue :cost :tax]
+                            :scale {:type :log}}))
+
+(kind/test-last
+ [(fn [v] (= :log (-> v pj/plan :panels first :y-scale :type)))])
+
+;; `pj/scale` on the axis the series is written on says the same thing,
+;; so the scale can go in either place:
+
+(-> sales
+    (pj/lay-point :quarter [:revenue :cost :tax])
+    (pj/scale :y {:type :log}))
+
+(kind/test-last
+ [(fn [v] (= (pj/plot v)
+             (pj/plot (-> sales
+                          (pj/lay-point :quarter
+                                        {:series [:revenue :cost :tax]
+                                         :scale {:type :log}})))))])
+
+;; #### A domain on the value axis
+
+(-> sales
+    (pj/lay-point :quarter [:revenue :cost])
+    (pj/scale :y {:domain [0 250]}))
+
+(kind/test-last
+ [(fn [v] (= [0 250] (-> v pj/plan :panels first :y-domain vec)))])
+
+;; #### Choosing the colours
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/scale :color {:values ["#377eb8" "#e6550d" "#4daf4a"]}))
+
+(kind/test-last
+ [(fn [v] (= #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
+             (disj (:colors (pj/svg-summary v)) "none")))])
+
+;; A scale set on the pose carries down to every panel, so the same
+;; three colours are used in each:
+
+(-> sales-by-region
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/scale :color {:values ["#377eb8" "#e6550d" "#4daf4a"]})
+    (pj/facet :region))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 2 (:panels s))
+                 (= 6 (:lines s))
+                 (= #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
+                    (disj (:colors s) "none")))))])
+
+;; #### The order of the series
+
+;; The order the measures are drawn in -- the legend's order, the order
+;; of the slots in a dodged band, and the order a stack piles them --
+;; follows the dataset's columns rather than the order they are written
+;; in. Writing the same three measures in another order draws the same
+;; plot:
+
+(-> sales
+    (pj/lay-bar :quarter [:tax :revenue :cost] {:position :stack}))
+
+(kind/test-last
+ [(fn [v] (and (= (pj/plot v)
+                  (pj/plot (-> sales
+                               (pj/lay-bar :quarter [:revenue :cost :tax]
+                                           {:position :stack}))))
+               ;; the dodged band is the other half of the claim above,
+               ;; and it is invariant the same way.
+               (= (pj/plot (-> sales
+                               (pj/lay-bar :quarter [:tax :revenue :cost]
+                                           {:position :dodge})))
+                  (pj/plot (-> sales
+                               (pj/lay-bar :quarter [:revenue :cost :tax]
+                                           {:position :dodge}))))))])
+
+;; A `:domain` on the colour scale sets the order, since the key column
+;; is the column the colour reads:
+
+(-> sales
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
+    (pj/scale :color {:domain [:tax :revenue :cost]}))
+
+(kind/test-last
+ [(fn [v] (= ["tax" "revenue" "cost"]
+             (mapv :label (-> v pj/plan :panels first :layers first :groups))))])
+
+;; ### Column names and missing values
+
+;; #### Column names that look like numbers
 
 ;; A wide table often names its measures by year. `tc/pivot->longer`
 ;; reads a column name that looks like a number as one, so the key
@@ -502,7 +541,7 @@ sales-by-region
 ;; type Tablecloth gave it, and what changed is only how the colour
 ;; reads it.
 
-;; ## A measure with no value
+;; #### A measure with no value
 
 ;; A cell left empty in the wide table has no value to pivot, so that
 ;; observation is not drawn. Two quarters and two measures are four
@@ -540,70 +579,9 @@ sales-by-region
 
 (kind/test-last [(fn [s] (re-find #"Removed 1 rows" s))])
 
-;; ## One series per pose
+;; ### The key column elsewhere
 
-;; The pivot leaves its two columns on the pose, so a second series on
-;; the same pose meets them:
-
-(try
-  (-> sales
-      (pj/lay-bar :quarter [:revenue :cost])
-      (pj/lay-line :quarter [:tax :units]))
-  (catch clojure.lang.ExceptionInfo e
-    (ex-message e)))
-
-(kind/test-last
- [(fn [msg] (and (re-find #"the data already has a :value column" msg)
-                 (re-find #"the data has as well" msg)))])
-
-;; Both columns clash here, and neither is a column of the original
-;; data: the first series put them on the pose. So neither `:as` nor a
-;; rename in the data separates the two series. Give each series a pose
-;; of its own and arrange the poses:
-
-(pj/arrange
- [(-> sales
-      (pj/lay-bar :quarter [:revenue :cost] {:position :dodge}))
-  (-> sales
-      (pj/lay-line :quarter [:tax :units]))])
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-;; ## Two marks over one series
-
-;; The pivot happens on the pose, so a second layer reads the columns it
-;; invented -- `:value` for the number and `:series` for the key -- and
-;; draws the same series in another mark. The key column is mapped to
-;; `:color` on the layer that asked for the series, so a second layer
-;; names it to be coloured the same way.
-
-(-> sales
-    (pj/lay-line :quarter [:revenue :cost :tax])
-    (pj/lay-point :quarter :value {:color :series}))
-
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
-            (and (= 1 (:panels s)) (pos? (:points s)) (pos? (:lines s)))))])
-
-;; A layer naming no columns draws at the same place in the default
-;; colour. The key column is mapped on the layer that asked for the
-;; series, and a layer added afterwards reads the pose rather than that
-;; layer, so the twelve points come out one colour:
-
-(-> sales
-    (pj/lay-line :quarter [:revenue :cost :tax])
-    (pj/lay-point))
-
-(kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)
-                points (second (:layers (first (:panels (pj/plan v)))))]
-            (and (= 12 (:points s))
-                 (= 3 (:lines s))
-                 ;; the point layer is one group, in one colour
-                 (= :point (:mark points))
-                 (= 1 (count (:groups points))))))])
-
-;; ## Panels from the key column
+;; #### Panels from the key column
 
 ;; The key column is an ordinary column of the pivoted dataset, so
 ;; `pj/facet` reads it as it reads any other: one panel per measure.
@@ -628,7 +606,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
-;; ## The key column on the axis
+;; #### The key column on the axis
 
 ;; Naming the key column on an axis draws the measures against each
 ;; other rather than along the quarters. The pivot runs before the axis
@@ -647,7 +625,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 3 (:polygons (pj/svg-summary v))))])
 
-;; ## Another aesthetic from the key column
+;; #### Another aesthetic from the key column
 
 ;; The layer that asks for a series may map the key column again. Shape
 ;; beside colour separates the measures twice over, which survives
@@ -700,21 +678,9 @@ sales-by-region
                                (catch clojure.lang.ExceptionInfo e
                                  (ex-message e))))))])
 
-;; ## Series in panels
+;; ### Another column beside the series
 
-(-> sales-by-region
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
-    (pj/facet :region))
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-(-> sales-by-region
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
-    (pj/facet-grid :region :outlet))
-
-(kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
-
-;; ## Series and a grouping column
+;; #### Series and a grouping column
 
 ;; A grouping column keeps its own marks separate, so each measure is
 ;; drawn once per region: two measures across two regions give four
@@ -744,7 +710,7 @@ sales-by-region
 ;; Facet on the column instead, as the panel sections below do, so each
 ;; region's bars are labelled by a strip.
 
-;; ## Colouring by another column
+;; #### Colouring by another column
 
 ;; The pivot maps the key column to `:color`, which is what gives each
 ;; measure a colour of its own. Where the layer maps `:color` itself,
@@ -793,7 +759,31 @@ sales-by-region
              (pj/plot (-> sales-by-region
                           (pj/lay-line :quarter [:revenue :cost])))))])
 
-;; ## Series in each panel, drawn as lines
+;; ### Panels and turned plots
+
+;; #### Sideways
+
+(-> sales
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
+    (pj/coord :flip))
+
+(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+
+;; #### Series in panels
+
+(-> sales-by-region
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
+    (pj/facet :region))
+
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+
+(-> sales-by-region
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
+    (pj/facet-grid :region :outlet))
+
+(kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
+
+;; #### Series in each panel, drawn as lines
 
 ;; Each region has all four quarters, so each panel draws a line per
 ;; measure across the whole axis. Faceting on region and outlet
@@ -814,7 +804,7 @@ sales-by-region
                                         (sales-by-region :region)
                                         (sales-by-region :outlet)))))))])
 
-;; ## Dodged series, drawn sideways, in panels
+;; #### Dodged series, drawn sideways, in panels
 
 (-> sales-by-region
     (pj/lay-bar :quarter [:revenue :cost] {:position :dodge})
@@ -823,7 +813,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; ## Shares, drawn sideways
+;; #### Shares, drawn sideways
 
 ;; Normalizing and turning the plot compose, so each quarter becomes a
 ;; bar of shares running left to right:
@@ -835,7 +825,7 @@ sales-by-region
 (kind/test-last
  [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :x-domain))))])
 
-;; ## A named series, scaled and in panels
+;; #### A named series, scaled and in panels
 
 ;; The written-out form composes with the rest. Here the key column is
 ;; named, the value column is read through a log scale, the value axis
@@ -856,7 +846,43 @@ sales-by-region
                  (contains? (set (:texts s)) "Euros")
                  (= :log (-> v pj/plan :panels first :y-scale :type)))))])
 
-;; ## Series beside a layer that keeps its own panel
+;; ### Other layers beside a series
+
+;; #### Two marks over one series
+
+;; The pivot happens on the pose, so a second layer reads the columns it
+;; invented -- `:value` for the number and `:series` for the key -- and
+;; draws the same series in another mark. The key column is mapped to
+;; `:color` on the layer that asked for the series, so a second layer
+;; names it to be coloured the same way.
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/lay-point :quarter :value {:color :series}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:panels s)) (pos? (:points s)) (pos? (:lines s)))))])
+
+;; A layer naming no columns draws at the same place in the default
+;; colour. The key column is mapped on the layer that asked for the
+;; series, and a layer added afterwards reads the pose rather than that
+;; layer, so the twelve points come out one colour:
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/lay-point))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)
+                points (second (:layers (first (:panels (pj/plan v)))))]
+            (and (= 12 (:points s))
+                 (= 3 (:lines s))
+                 ;; the point layer is one group, in one colour
+                 (= :point (:mark points))
+                 (= 1 (count (:groups points))))))])
+
+;; #### Series beside a layer that keeps its own panel
 
 ;; A layer naming a column the pivot did not consume takes a panel of
 ;; its own, and `pj/overlay` puts it on the series panel instead.
@@ -890,7 +916,7 @@ sales-by-region
                  (re-find #"pj/overlay" out)
                  (not (re-find #"as series" out))))])
 
-;; ## A rule across every panel of a series
+;; #### A rule across every panel of a series
 
 ;; A layer naming no columns of its own is drawn on every panel.
 
@@ -905,7 +931,9 @@ sales-by-region
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 2 (:panels s)) (= 2 (:lines s)))))])
 
-;; ## Nested poses
+;; ### Composites
+
+;; #### Nested poses
 
 ;; `pj/arrange` places poses side by side. Each input is a pose, so a
 ;; series pose goes in a cell like any other.
@@ -933,7 +961,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
-;; ## Sub-plots of faceted panels of series
+;; #### Sub-plots of faceted panels of series
 
 (pj/arrange
  [(-> sales-by-region
@@ -945,7 +973,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
-;; ## Sub-plots read against one axis
+;; #### Sub-plots read against one axis
 
 (pj/arrange
  (vec (for [r ["EU" "AS"]]
@@ -958,7 +986,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; ## A written-out composite of series
+;; #### A written-out composite of series
 
 (pj/pose
  {:layout {:direction :vertical :weights [2 1]}
@@ -969,7 +997,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; ## Three levels of nesting
+;; #### Three levels of nesting
 
 (pj/arrange
  [(pj/arrange
@@ -988,7 +1016,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
-;; ## A titled grid of series
+;; #### A titled grid of series
 
 (pj/arrange
  (vec (for [pos [:identity :dodge :stack :fill]]
@@ -999,7 +1027,7 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
-;; ## A grid of panels of series
+;; #### A grid of panels of series
 
 ;; One combination has no spelling. A grid of panels built from pairs
 ;; of columns is a composite whose cells share one dataset, and a
@@ -1022,7 +1050,9 @@ sales-by-region
 ;; series poses where it does not -- which is what the sub-plot
 ;; sections above do.
 
-;; ## What a series refuses
+;; ### Refusals and look-alikes
+
+;; #### What a series refuses
 
 ;; The sections above work through the refusals a writer meets most
 ;; often. The rest of the set, with the message each one gives:
@@ -1078,7 +1108,7 @@ sales-by-region
                         #(-> sales-by-region
                              (pj/lay-bar :quarter [:revenue :outlet]))])))])
 
-;; ## What is not a series
+;; #### What is not a series
 
 ;; A vector of `[x y]` pairs is the multi-panel form, one panel per
 ;; pair:
