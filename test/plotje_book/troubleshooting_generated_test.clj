@@ -885,51 +885,49 @@
 
 
 (def
- v149_l941
+ v149_l939
  (try
   (->
    {:x ["a" "b" "c"], :y ["a" "b" "c"], :v [1 2 3]}
-   (pj/lay-tile :x :y {:fill :v})
+   (pj/lay-tile :x :y)
    pj/plan)
-  (catch Throwable t (.getMessage t))))
+  (catch Throwable t (ex-message t))))
 
 
 (deftest
- t150_l947
+ t150_l945
  (is
-  ((fn [msg] (re-find #"String cannot be cast to.*Number" msg))
-   v149_l941)))
+  ((fn [msg] (re-find #"requires a numeric column for :x" msg))
+   v149_l939)))
 
 
 (def
- v152_l954
+ v152_l952
  (->
   (for
-   [day (range 1 8) hour (range 0 24)]
+   [[i day]
+    (map-indexed vector ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"])
+    hour
+    (range 0 24)]
    {:day day,
     :hour hour,
-    :v (+ (* 0.3 (Math/sin (* 0.5 hour))) (* 0.2 (mod day 3)))})
-  (pj/lay-tile :day :hour {:fill :v})
-  (pj/scale
-   :x
-   {:type :linear,
-    :breaks [1 2 3 4 5 6 7],
-    :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]})))
+    :v (+ (* 0.3 (Math/sin (* 0.5 hour))) (* 0.2 (mod i 3)))})
+  (pj/lay-tile :day :hour {:fill :v})))
 
 
 (deftest
- t153_l962
+ t153_l958
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v152_l954)))
+   v152_l952)))
 
 
 (def
- v155_l981
+ v155_l972
  (try
   (->
    {:group [], :measurement []}
@@ -939,16 +937,16 @@
 
 
 (deftest
- t156_l987
+ t156_l978
  (is
   ((fn
     [msg]
     (re-find #"requires a categorical column.*has no rows" msg))
-   v155_l981)))
+   v155_l972)))
 
 
 (def
- v158_l994
+ v158_l985
  (try
   (->
    {:group [nil nil], :measurement [nil nil]}
@@ -958,24 +956,24 @@
 
 
 (deftest
- t159_l1000
- (is ((fn [msg] (re-find #"has no values" msg)) v158_l994)))
+ t159_l991
+ (is ((fn [msg] (re-find #"has no values" msg)) v158_l985)))
 
 
 (def
- v161_l1019
+ v161_l1010
  (try
   (-> {:x [1 2], :y [1 2]} (pj/lay-text :x :y {:text :nope}) pj/plot)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t162_l1025
- (is ((fn [msg] (re-find #"not a label either" msg)) v161_l1019)))
+ t162_l1016
+ (is ((fn [msg] (re-find #"not a label either" msg)) v161_l1010)))
 
 
 (def
- v164_l1042
+ v164_l1033
  (try
   (->
    {:height [1 2 3], :weight [1 2 3]}
@@ -986,7 +984,7 @@
 
 
 (deftest
- t165_l1049
+ t165_l1040
  (is
   ((fn [msg] (re-find #"not a pair of two finite numbers" msg))
-   v164_l1042)))
+   v164_l1033)))

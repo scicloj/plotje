@@ -2435,6 +2435,60 @@
                      (pj/pose :x :y {:color :g})
                      pj/lay-density-2d pj/plan))))))
 
+(defn- tile-cells
+  "Every heatmap cell a pose draws, as its column and row in the grid, the
+   share of the panel's width and height it covers, and its fill. Shares
+   rather than drawing units, because the axis labels decide how wide the
+   panel is. A cell's rect sits a few groups below its translate. The
+   legend's gradient steps are 12 wide, so they do not pass the filter."
+  [pose]
+  (let [nodes (tree-seq vector? seq (pj/plot pose {:format :svg}))
+        first-rect (fn [n] (first (filter #(and (vector? %) (= :rect (first %)))
+                                          (tree-seq vector? seq n))))
+        bg (some #(when (and (vector? %) (= :rect (first %))
+                             (= "rgb(232,232,232)" (:fill (second %))))
+                    (second %))
+                 nodes)
+        cells (keep (fn [n]
+                      (when (and (vector? n) (= :g (first n)) (:transform (second n)))
+                        (let [{:keys [fill width height]} (second (first-rect (nth n 2 nil)))]
+                          (when (and fill (not= fill "rgb(232,232,232)")
+                                     (> (double width) 20))
+                            (let [[tx ty] (map parse-double
+                                               (re-seq #"[-\d.]+" (:transform (second n))))]
+                              {:tx tx :ty ty :w width :h height :fill fill})))))
+                    nodes)
+        rank (fn [k] (zipmap (sort (distinct (map k cells))) (range)))
+        col (rank :tx)
+        row (rank :ty)
+        share (fn [a b] (/ (Math/round (* 100.0 (/ (double a) (double b)))) 100.0))]
+    (set (for [{:keys [tx ty w h fill]} cells]
+           [(col tx) (row ty) (share w (:width bg)) (share h (:height bg)) fill]))))
+
+(deftest tile-categorical-axes-test
+  ;; Through v0.14.0 a tile read each row's cell as its value plus or
+  ;; minus half the smallest step, and a category has no step: every
+  ;; named axis died with a ClassCastException in extract/min-step.
+  (let [values [0.1 0.5 0.9 -0.2]
+        numeric {:a [1 1 2 2] :b [1 2 1 2] :v values}
+        cells (fn [data & {:keys [flip? opts]}]
+                (tile-cells (cond-> (pj/lay-tile data :a :b (merge {:fill :v} opts))
+                              flip? (pj/coord :flip))))
+        expected (cells numeric)]
+    (testing "the numeric grid draws four cells, the reference below"
+      (is (= 4 (count expected))))
+    (testing "named axes draw the cells a numeric grid of the same shape draws"
+      (doseq [[nm data] {"strings" {:a ["p" "p" "q" "q"] :b ["u" "v" "u" "v"] :v values}
+                         "keywords" {:a [:p :p :q :q] :b [:u :v :u :v] :v values}
+                         "one of each" {:a ["p" "p" "q" "q"] :b [1 2 1 2] :v values}}]
+        (is (= expected (cells data)) nm)))
+    (testing "a numeric column declared categorical"
+      (is (= expected (cells {:a [10 10 20 20] :b [1 2 1 2] :v values}
+                             :opts {:x-type :categorical}))))
+    (testing "under a flip, a category is placed on the axis that draws it"
+      (is (= (cells numeric :flip? true)
+             (cells {:a ["p" "p" "q" "q"] :b [1 2 1 2] :v values} :flip? true))))))
+
 (deftest mixed-type-column-test
   ;; persona-skeptical-round-4 F5: a column whose values are heterogeneous
   ;; (number + string + keyword) used to crash with a multi-KB Malli

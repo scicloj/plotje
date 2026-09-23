@@ -62,6 +62,8 @@ Several columns where one goes are read as several series. A dataset carrying on
 
 - **Every plot where `:group` names one column and nothing names `:color`.** The marks are drawn in the plot's default colour, whether the key names one column or several, which is what `:group` naming two columns already drew: a grouping column that names no colour contributes no category and no legend. One grouping column used to take the palette's first colour.
 
+- **Every `pj/lay-tile` given a `:fill` column and a categorical `:x` or `:y`.** Each row draws one cell centred on its category and reaching halfway to the next category on either side, so neighbouring cells meet. This includes string and keyword columns and a numeric column read with `{:x-type :categorical}`. These plots used to fail with a `ClassCastException` from `extract/min-step`.
+
 ### Added
 
 - `{:grammar ...}` chooses what a bare vector of column names under an aesthetic means. `:layered`, the default, reads one on `:x` or `:y` as a series drawn as layers on one panel, and one on `:group`, `:col` or `:row` as a compound key. `:paneled` draws that series as a panel per column, labelled by the column it draws, which `pj/overlay` puts back on one panel. `:written-out` reports a bare vector under those five aesthetics and names the form to write instead -- `{:series [...]}` for the columns read by name, `{:column [...]}` for them united into one key. It decides how a call reads its arguments, so it is written before the calls it governs, and a grammar written after a call that has already read a combination -- on the pose or on any cell below it -- is reported rather than reaching half the pipeline.

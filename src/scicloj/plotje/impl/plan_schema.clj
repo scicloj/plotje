@@ -134,13 +134,22 @@
    [:dodge-idx {:optional true} int?]])
 
 (def TileEntry
-  "A single tile (heatmap cell) with bounds and fill color."
-  [:map
-   [:x-lo number?]
-   [:x-hi number?]
-   [:y-lo number?]
-   [:y-hi number?]
-   [:color Color]])
+  "A single tile (heatmap cell) with bounds and fill color.
+   On a numeric axis the tile carries its bounds (`:x-lo`/`:x-hi`); on a
+   categorical axis it carries its category (`:x`) instead, which the
+   renderer places once the panel's scale orders the categories."
+  [:and
+   [:map
+    [:x-lo {:optional true} number?]
+    [:x-hi {:optional true} number?]
+    [:x {:optional true} any?]
+    [:y-lo {:optional true} number?]
+    [:y-hi {:optional true} number?]
+    [:y {:optional true} any?]
+    [:color Color]]
+   [:fn {:error/message "a tile needs :x-lo and :x-hi, or :x; and :y-lo and :y-hi, or :y"}
+    (fn [t] (and (or (contains? t :x) (and (:x-lo t) (:x-hi t)))
+                 (or (contains? t :y) (and (:y-lo t) (:y-hi t)))))]])
 
 ;; ---- PlanLayer ----
 

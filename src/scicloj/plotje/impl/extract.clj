@@ -816,20 +816,28 @@
                                    spec
                                    (when (seq fill-vals) (dfn/reduce-min fill-vals))
                                    (when (seq fill-vals) (dfn/reduce-max fill-vals)))
-                      all-xs (mapcat :xs (:points stat))
-                      all-ys (mapcat :ys (:points stat))
-                      x-half (/ (min-step all-xs) 2.0)
-                      y-half (/ (min-step all-ys) 2.0)
-                      ;; Build a dataset from the parallel buffers
                       all-x-vals (vec (mapcat :xs (:points stat)))
                       all-y-vals (vec (mapcat :ys (:points stat)))
+                      x-cat? (= (:x-type draft-layer) :categorical)
+                      y-cat? (= (:y-type draft-layer) :categorical)
                       pt-ds (tc/dataset {:x all-x-vals :y all-y-vals})
-                      ;; Derive tile bounds as columns
-                      with-bounds (-> pt-ds
-                                      (tc/add-column :x-lo (dfn/- (pt-ds :x) x-half))
-                                      (tc/add-column :x-hi (dfn/+ (pt-ds :x) x-half))
-                                      (tc/add-column :y-lo (dfn/- (pt-ds :y) y-half))
-                                      (tc/add-column :y-hi (dfn/+ (pt-ds :y) y-half)))
+                      ;; On a numeric axis a tile spans half the smallest
+                      ;; step either side of its value. On a categorical
+                      ;; axis the value is a category, which has no number
+                      ;; until the panel's scale places it, so the tile
+                      ;; keeps the category and `render.mark` spans it
+                      ;; there, from half a place below to half above.
+                      with-bounds (cond-> pt-ds
+                                    (not x-cat?)
+                                    (as-> ds (let [x-half (/ (min-step all-x-vals) 2.0)]
+                                               (-> ds
+                                                   (tc/add-column :x-lo (dfn/- (ds :x) x-half))
+                                                   (tc/add-column :x-hi (dfn/+ (ds :x) x-half)))))
+                                    (not y-cat?)
+                                    (as-> ds (let [y-half (/ (min-step all-y-vals) 2.0)]
+                                               (-> ds
+                                                   (tc/add-column :y-lo (dfn/- (ds :y) y-half))
+                                                   (tc/add-column :y-hi (dfn/+ (ds :y) y-half))))))
                       ;; Derive color column
                       with-color (tc/add-column with-bounds :color
                                                 (fn [ds]
@@ -842,7 +850,9 @@
                                                     (vec (repeat (tc/row-count ds)
                                                                  (grad-fn 0.5))))))]
                   (vec (tc/rows (tc/select-columns with-color
-                                                   [:x-lo :x-hi :y-lo :y-hi :color])
+                                                   (concat (if x-cat? [:x] [:x-lo :x-hi])
+                                                           (if y-cat? [:y] [:y-lo :y-hi])
+                                                           [:color]))
                                 :as-maps))))]
     {:mark :tile
      :style {:opacity (or (:fixed-alpha draft-layer) 1.0)}

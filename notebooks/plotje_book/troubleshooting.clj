@@ -929,44 +929,35 @@
 
 ;; ## Heatmap with Categorical Axes
 ;;
-;; **Symptom**: `"class java.lang.String cannot be cast to class
-;; java.lang.Number"` when passing a string column to
-;; `pj/lay-tile`.
+;; **Symptom**: `"Stat :bin2d requires a numeric column for :x, but :x
+;; is categorical"` when passing a string column to `pj/lay-tile`.
 ;;
-;; **Cause**: `pj/lay-tile` (and the underlying `:bin2d` stat)
-;; requires numeric x and y columns -- the tile boundaries are
-;; numeric intervals. Categorical axes are not yet supported for
-;; tile.
+;; **Cause**: Without `:fill`, `pj/lay-tile` counts the rows that fall
+;; in each cell of a two-dimensional grid of bins, and a bin is an
+;; interval of numbers, so both columns have to be numeric.
 
 (try
   (-> {:x ["a" "b" "c"] :y ["a" "b" "c"] :v [1 2 3]}
-      (pj/lay-tile :x :y {:fill :v})
+      (pj/lay-tile :x :y)
       pj/plan)
-  (catch Throwable t (.getMessage t)))
+  (catch Throwable t (ex-message t)))
 
 (kind/test-last
- [(fn [msg] (re-find #"String cannot be cast to.*Number" msg))])
+ [(fn [msg] (re-find #"requires a numeric column for :x" msg))])
 
-;; **Fix**: render a numeric-indexed grid (1-N integers in place of
-;; the categorical column) and pair `:breaks` with `:tick-labels` on the
-;; axis so the tick text shows the original category names:
+;; **Fix**: map the column holding each cell's value to `:fill`. The
+;; tile then draws one cell per row instead of counting rows, and a
+;; categorical axis gives each category one cell:
 
-(-> (for [day (range 1 8) hour (range 0 24)]
+(-> (for [[i day] (map-indexed vector ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"])
+          hour (range 0 24)]
       {:day day :hour hour :v (+ (* 0.3 (Math/sin (* 0.5 hour)))
-                                 (* 0.2 (mod day 3)))})
-    (pj/lay-tile :day :hour {:fill :v})
-    (pj/scale :x {:type :linear
-                  :breaks [1 2 3 4 5 6 7]
-                  :tick-labels ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"]}))
+                                 (* 0.2 (mod i 3)))})
+    (pj/lay-tile :day :hour {:fill :v}))
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
             (every? texts ["Mon" "Sun"])))])
-
-;; If a true categorical *axis* (with binning over labels rather
-;; than numeric intervals) is what you need, that is tracked in
-;; `CHANGELOG.md` Known limitations. The integer-plus-`:tick-labels`
-;; pattern above covers most heatmap-with-categorical-axis cases.
 
 ;; ## Empty or All-Missing Column on a Grouping Layer
 ;;

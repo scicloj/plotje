@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [membrane.ui :as ui]
             [scicloj.plotje.render.dash :as dash]
+            [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.impl.scale :as scale]
@@ -821,10 +822,22 @@
 
 ;; ---- Tile (heatmap) ----
 
+(defn- category-span
+  "The `[lo hi]` a tile on a categorical axis spans, as places `scale/forward`
+   reads: half a place either side of the category's own, so neighbouring
+   tiles meet with no gap, as they do on a numeric axis. Nil when `sc` does
+   not carry `category`."
+  [sc category]
+  (when-let [idx (scale/category-index sc category)]
+    [(- idx 0.5) (+ idx 0.5)]))
+
 (defmethod layer->membrane :tile [layer ctx]
   (let [{:keys [style tiles]} layer
         {:keys [coord-fn panel-width panel-height margin]} ctx
         {:keys [opacity]} style
+        ;; A category is looked up in the scale that reads its data axis,
+        ;; which a flip swaps -- see `coord/data-axis-scales`.
+        [dsx dsy] (coord/data-axis-scales (:coord-type ctx) (:sx ctx) (:sy ctx))
         m (double (or margin 0))
         ;; Drawing area bounds for clamping
         x-lo-clip m
@@ -832,7 +845,15 @@
         x-hi-clip (- (double panel-width) m)
         y-hi-clip (- (double panel-height) m)]
     (vec
-     (for [{:keys [x-lo x-hi y-lo y-hi color]} tiles
+     (for [tile tiles
+           :let [[x-lo x-hi] (if (contains? tile :x)
+                               (category-span dsx (:x tile))
+                               [(:x-lo tile) (:x-hi tile)])
+                 [y-lo y-hi] (if (contains? tile :y)
+                               (category-span dsy (:y tile))
+                               [(:y-lo tile) (:y-hi tile)])
+                 color (:color tile)]
+           :when (and x-lo y-lo)
            :let [[px1 py1] (coord-fn x-lo y-lo)
                  [px2 py2] (coord-fn x-hi y-hi)
                  ;; Clamp to drawing area
