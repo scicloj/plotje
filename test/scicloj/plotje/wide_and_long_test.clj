@@ -224,9 +224,20 @@
                           (-> sales (pj/lay-bar :quarter {:series [:revenue]})))))
 
   (testing "the invented columns are not written over in silence"
-    (is (thrown-with-msg? Exception #"already has \[:value\]"
-                          (-> (assoc sales :value [1 2 3 4])
-                              (pj/lay-bar :quarter [:revenue :cost])))))
+    ;; Each clash names only the column that clashed, and the remedy
+    ;; that moves it: :as renames the key column, never the value one.
+    (let [msg (fn [data spec]
+                (try (pj/lay-bar data :quarter spec) nil
+                     (catch Exception e (ex-message e))))
+          value-msg (msg (assoc sales :value [1 2 3 4]) [:revenue :cost])
+          key-msg (msg (assoc sales :series [1 2 3 4]) [:revenue :cost])
+          as-msg (msg (assoc sales :region [1 2 3 4])
+                      {:series [:revenue :cost] :as :region})]
+      (is (re-find #"value column :value, and the data already has a :value column" value-msg))
+      (is (not (re-find #":as|:series" value-msg)))
+      (is (re-find #"key column :series, and the data already has a :series column" key-msg))
+      (is (not (re-find #":value" key-msg)))
+      (is (re-find #":as names the key column :region" as-msg))))
 
   (testing "a mapping already naming a consumed column is named, not broken"
     (is (thrown-with-msg? Exception #"consumes the columns it reads"

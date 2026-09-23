@@ -2461,18 +2461,41 @@
                       {:caller caller
                        :as label
                        :value-column series-value-column})))
-    (let [remaining (remove (set cols) present)
-          clashes (vec (filter (set [label series-value-column]) remaining))]
-      (when (seq clashes)
-        (throw (ex-info (str caller " cannot pivot these columns: the pivot"
-                             " invents " (pr-str [label series-value-column])
-                             " and the data already has " (pr-str clashes)
-                             ". Name the key column something else --"
-                             " {:series " (pr-str (vec cols))
-                             " :as :measure} -- or rename the column in the"
-                             " data.")
-                        {:caller caller :clashes clashes
-                         :invents [label series-value-column]}))))
+    ;; Each clash is named on its own, with the remedy that moves it:
+    ;; `:as` renames the key column and cannot rename the value column,
+    ;; so a clash on the value column is offered only a rename in the
+    ;; data. The value clash is reported first, because `:as` cannot
+    ;; clear it.
+    (let [remaining (set (remove (set cols) present))
+          key-clash? (contains? remaining label)
+          value-clash? (contains? remaining series-value-column)
+          key-named (if (= label default-series-label)
+                      (str "the pivot names its key column " (pr-str label))
+                      (str ":as names the key column " (pr-str label)))]
+      (when (or key-clash? value-clash?)
+        (throw (ex-info (str caller " cannot pivot these columns: "
+                             (if value-clash?
+                               (str "the pivot names its value column "
+                                    (pr-str series-value-column)
+                                    ", and the data already has a "
+                                    (pr-str series-value-column) " column."
+                                    " Rename that column in the data."
+                                    (when key-clash?
+                                      (str " Also, " key-named
+                                           ", which the data has as well --"
+                                           " name the key column something"
+                                           " else with :as.")))
+                               (str key-named ", and the data already has a "
+                                    (pr-str label) " column. Name the key"
+                                    " column something else -- {:series "
+                                    (pr-str (vec cols)) " :as :measure} -- or"
+                                    " rename the column in the data.")))
+                        {:caller caller
+                         :clashes (vec (cond-> []
+                                         key-clash? (conj label)
+                                         value-clash? (conj series-value-column)))
+                         :key-column label
+                         :value-column series-value-column}))))
     ;; `tc/pivot->longer` drops a row whose value is missing, and the
     ;; dataset it returns is what a reader finds on the pose's `:data`,
     ;; so its defaults are kept rather than overridden -- a Tablecloth

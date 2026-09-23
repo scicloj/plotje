@@ -437,7 +437,8 @@ sales-by-region
     (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"the data already has \[:series\]" msg))])
+ [(fn [msg] (and (re-find #"key column :series, and the data already has a :series column" msg)
+                 (not (re-find #":value" msg))))])
 
 ;; `:as` gives the key column a name the data does not use. A data
 ;; column named `:value` has to be renamed in the data instead, since
@@ -528,11 +529,13 @@ sales-by-region
     (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"the data already has \[:series :value\]" msg))])
+ [(fn [msg] (and (re-find #"the data already has a :value column" msg)
+                 (re-find #"the data has as well" msg)))])
 
-;; The message names `:as`, which renames the key column -- but
-;; `:value` clashes as well, so a new name for the key column does not
-;; clear it. Give each series a pose of its own and arrange the poses:
+;; Both columns clash here, and neither is a column of the original
+;; data: the first series put them on the pose. So neither `:as` nor a
+;; rename in the data separates the two series. Give each series a pose
+;; of its own and arrange the poses:
 
 (pj/arrange
  [(-> sales
