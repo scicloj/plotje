@@ -21,8 +21,8 @@
 ;; columns. Every aesthetic answers two questions about the
 ;; distinction it is given: where the marks go, and how a reader tells
 ;; them apart. The answer is the aesthetic's
-;; [**role**](./plotje_book.glossary.html#role), and there are four. A
-;; role is not a category -- a category is a value a categorical
+;; [**role**](./plotje_book.glossary.html#role), and an aesthetic has
+;; one of four. A role is not a category -- a category is a value a categorical
 ;; column holds, which is what a role is given.
 
 (kind/table
@@ -117,7 +117,9 @@
     (pj/options {:width 700 :height 560}))
 
 (kind/test-last
- [(fn [fr] (= 4 (:panels (pj/svg-summary fr))))])
+ [(fn [fr] (and (= 4 (:panels (pj/svg-summary fr)))
+                (= [3 1] (mapv #(count (:panels (:plan %)))
+                               (:sub-plots (pj/plan fr))))))])
 
 ;; Three panels in the top row and one in the bottom row.
 
@@ -254,7 +256,11 @@ measures
  ;; faceting is a mapping and obeys the scope rules.
  [(fn [m] (and (string? m)
                (re-find #"panel aesthetic" m)
-               (re-find #"read from a pose's mapping" m)))])
+               (re-find #"read from a pose's mapping" m)
+               ;; and the places to write it instead
+               (re-find #"pj/facet pose" m)
+               (re-find #"pj/facet-grid" m)
+               (re-find #"in the pose's mapping" m)))])
 
 ;; Two facets in the same direction on one pose are two answers to one
 ;; question, and the second is reported rather than quietly replacing

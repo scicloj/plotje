@@ -542,8 +542,8 @@
 ;; When a layer carries its own `:data` and the pose's position
 ;; columns are absent from that data, the error names the source
 ;; (inherited from the pose's mapping) and offers two paths: rename
-;; the column for an overlay, or set the axis on the layer call for
-;; a separate sub-pose. This is the diagnostic for the common
+;; the column for an overlay, or set the axis on the layer call so the
+;; layer draws a panel of its own. This is the diagnostic for the common
 ;; ggplot2-trained reflex of attaching a second layer with a fresh
 ;; dataset whose columns don't align with the panel's axes.
 

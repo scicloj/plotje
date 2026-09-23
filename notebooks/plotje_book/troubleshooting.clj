@@ -663,7 +663,7 @@
 
 ;; A future opt-in option (e.g. `(pj/coord :flip
 ;; {:reverse-categorical true})`) would remove the need to pre-sort.
-;; Tracked in `CHANGELOG.md` Known limitations.
+;; Listed in [Known Limitations](./plotje_book.known_limitations.html).
 
 ;; ## Point Sizes Changed From an Earlier Release
 ;;
@@ -852,18 +852,19 @@
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 3 (:points s)) (pos? (:lines s)))))])
 
-;; ## Dodge Has No Effect on Point Layers
+;; ## Dodge Has No Effect on Points Over Numbers
 
-;; **Symptom**: Adding `:position :dodge` to `pj/lay-point` (or other
-;; non-bar marks) does not spread points apart by group -- the plot
-;; looks identical to the version without `:position :dodge`.
+;; **Symptom**: Adding `:position :dodge` to `pj/lay-point` on a
+;; numeric x does not spread points apart by group -- the plot looks
+;; identical to the version without `:position :dodge`.
 ;;
-;; **Cause**: `:position :dodge` is implemented for the bar mark
-;; (`pj/lay-bar`). On point/line/jitter and
-;; several other marks the option is accepted but silently ignored.
+;; **Cause**: A dodge divides a category's band among the groups, and a
+;; numeric axis has no bands. On a numeric x the option is accepted and
+;; ignored. The marks that do not draw a dodge on any axis are listed
+;; in [Known Limitations](./plotje_book.known_limitations.html).
 ;;
 ;; The two plans below produce identical x-coordinates for the
-;; rendered points -- `:position :dodge` has no effect on points:
+;; rendered points -- `:position :dodge` has no effect here:
 
 (def points-data
   {:x [1 1 2 2 3 3] :y [10 15 20 25 30 35] :group ["A" "B" "A" "B" "A" "B"]})
@@ -877,19 +878,21 @@
 
 (kind/test-last [(fn [v] (true? v))])
 
-;; **Fix for now**: For grouped categorical layouts use
-;; `pj/lay-bar` (counting with x only, or using a y column as height);
-;; dodge works there. To distinguish overlapping points by group on a
-;; numeric x, encode the group with `:color`, `:shape`, or
-;; pre-compute small offsets in the data. A proper dodge for points
-;; is tracked in `CHANGELOG.md` Known limitations.
+;; **Fix**: Where the x values are categories, read them as categories
+;; -- a column of text is read that way already, and `{:x-type
+;; :categorical}` reads a numeric column that way. The points are then
+;; dodged within each band:
 
-(-> {:cat   ["A" "A" "B" "B" "C" "C"]
-     :y     [10 20 30 40 50 60]
-     :group ["a" "b" "a" "b" "a" "b"]}
-    (pj/lay-bar :cat :y {:color :group :position :dodge}))
+(-> points-data
+    (pj/lay-point :x :y {:color :group :position :dodge :x-type :categorical}))
 
-(kind/test-last [(fn [v] (= 6 (:polygons (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v] (not= (pj/plot v)
+                (pj/plot (-> points-data
+                             (pj/lay-point :x :y {:color :group :x-type :categorical})))))])
+
+;; Where x is a true quantity, distinguish the groups with `:color` or
+;; `:shape`, or pre-compute small offsets in the data.
 
 ;; ## Polar Bar Chart Has No Category Labels
 
@@ -916,8 +919,8 @@
 
 ;; **Fix for now**: Drop `(pj/coord :polar)` for the labeled view, or
 ;; combine the polar plot with a separate Cartesian-coord version
-;; for the legend. A proper rose-chart label pass is tracked in
-;; `CHANGELOG.md` Known limitations.
+;; for the legend. The missing rose-chart labels are listed in
+;; [Known Limitations](./plotje_book.known_limitations.html).
 
 (-> (rdatasets/datasets-chickwts)
     (pj/pose :feed)

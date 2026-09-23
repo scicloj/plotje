@@ -1111,13 +1111,21 @@ full-layout-pose
 ;; Layout type is also inferred from the pose structure:
 ;;
 ;; - A single panel is `:single`
-;; - A facet grid (`:facet-row` or `:facet-col`) is `:facet-grid`
-;; - Multiple x-y pairs (scatter plot matrix) are `:multi-variable`
+;; - A faceted pose -- one mapping `:col` or `:row` -- is `:facet-grid`
+;; - Any other pose drawing several panels is `:multi-variable`: a
+;;   scatter plot matrix, or layers that name different columns
 
 scatter-pose
 
 (kind/test-last
- [(fn [_] (= :single (:layout-type (pj/plan scatter-pose))))])
+ [(fn [_] (let [iris (rdatasets/datasets-iris)]
+            (and (= :single (:layout-type (pj/plan scatter-pose)))
+                 (= :facet-grid (:layout-type (pj/plan (-> iris
+                                                           (pj/lay-point :sepal-length :sepal-width)
+                                                           (pj/facet :species)))))
+                 (= :multi-variable (:layout-type (pj/plan (-> iris
+                                                               (pj/lay-point :sepal-length :sepal-width)
+                                                               (pj/lay-point :petal-length :petal-width))))))))])
 
 ;; ## Coordinate Flipping
 ;;

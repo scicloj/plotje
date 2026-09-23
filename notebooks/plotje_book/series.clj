@@ -68,8 +68,15 @@ sales-by-region
     (pj/lay-bar :quarter [:revenue :cost :tax] {:position :identity}))
 
 (kind/test-last
- [(fn [v] (not= (pj/plot v)
-                (pj/plot (-> sales (pj/lay-bar :quarter [:revenue :cost :tax])))))])
+ ;; The axis reaches the largest measure (190) and stops short of the
+ ;; largest total (338), which `:stack` reaches.
+ [(fn [v] (let [top (fn [pose] (second (:y-domain (first (:panels (pj/plan pose))))))
+                stacked (-> sales (pj/lay-bar :quarter [:revenue :cost :tax]
+                                              {:position :stack}))]
+            (and (not= (pj/plot v)
+                       (pj/plot (-> sales (pj/lay-bar :quarter [:revenue :cost :tax]))))
+                 (<= 190 (top v) 338)
+                 (<= 338 (top stacked)))))])
 
 ;; `:dodge` gives each series a slot of the band, which is what a bar
 ;; does without being asked:
@@ -461,9 +468,9 @@ sales-by-region
 ;; reads a column name that looks like a number as one, so the key
 ;; column comes out holding numbers rather than text -- and the pivot
 ;; says that it holds column names, by writing `:color-type
-;; :categorical` beside the colour it maps them to. Without that the
-;; colour read the years as a quantity and drew one gradient over the
-;; lot, with every measure in one colour and no legend entry naming
+;; :categorical` beside the colour it maps them to. Without it, the
+;; colour would read the years as a quantity and draw one gradient over
+;; the lot, with every measure in one colour and no legend entry naming
 ;; either year.
 
 (-> {"country" ["a" "b" "c"]
@@ -498,9 +505,7 @@ sales-by-region
 ;; ## A measure with no value
 
 ;; A cell left empty in the wide table has no value to pivot, so that
-;; observation is not drawn, and Plotje says how many went:
-;; `Warning: Removed 1 rows with a missing value among the columns read
-;; as series (:revenue, :cost)`. Two quarters and two measures are four
+;; observation is not drawn. Two quarters and two measures are four
 ;; observations, and three are drawn:
 
 (-> {:quarter ["Q1" "Q2"]
@@ -510,11 +515,30 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
+;; Plotje says how many went, naming the columns read as series:
+
+(with-out-str
+  (pj/plan (-> {:quarter ["Q1" "Q2"]
+                :revenue [120 nil]
+                :cost    [90 100]}
+               (pj/lay-point :quarter [:revenue :cost]))))
+
+(kind/test-last
+ [(fn [s] (re-find #"Removed 1 rows with a missing value among the columns read as series \(:revenue, :cost\)" s))])
+
 ;; The pivot is `tc/pivot->longer` with Tablecloth's own defaults, so
 ;; the dataset the pose carries is what Tablecloth gives for the same
 ;; columns, and a row with no value is not in it. Writing the data long
 ;; by hand reaches the same plot, and Plotje reports the same
-;; observations at a later stage and in its own words.
+;; observation at a later stage and in its own words:
+
+(with-out-str
+  (pj/plan (-> {:quarter ["Q1" "Q1" "Q2" "Q2"]
+                :measure ["revenue" "cost" "revenue" "cost"]
+                :value   [120 90 nil 100]}
+               (pj/lay-point :quarter :value {:color :measure}))))
+
+(kind/test-last [(fn [s] (re-find #"Removed 1 rows" s))])
 
 ;; ## One series per pose
 
@@ -571,9 +595,13 @@ sales-by-region
     (pj/lay-point))
 
 (kind/test-last
- [(fn [v] (let [s (pj/svg-summary v)]
+ [(fn [v] (let [s (pj/svg-summary v)
+                points (second (:layers (first (:panels (pj/plan v)))))]
             (and (= 12 (:points s))
-                 (= 3 (:lines s)))))])
+                 (= 3 (:lines s))
+                 ;; the point layer is one group, in one colour
+                 (= :point (:mark points))
+                 (= 1 (count (:groups points))))))])
 
 ;; ## Panels from the key column
 
@@ -697,12 +725,24 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 4 (:lines (pj/svg-summary v))))])
 
-;; A bar is the case to be careful with. A band is divided between
-;; labelled competitors, and a series has already taken the one label a
-;; bar divides by, so a grouping column beside a series draws its marks
-;; at the same place rather than beside each other. Facet on the column
-;; instead, as the panel sections below do, or draw a mark that needs
-;; no slot.
+;; A bar is the case to be careful with. A dodge gives every
+;; combination of the measure and the grouping column a slot of its
+;; own, so each quarter draws four bars -- but the grouping column
+;; draws no legend, so the two bars of one measure share its colour
+;; and nothing says which region each is:
+
+(-> sales-by-region
+    (pj/lay-bar :quarter [:revenue :cost] {:group :region}))
+
+(kind/test-last
+ ;; Four groups in four slots, in two colours.
+ [(fn [v] (let [groups (:groups (first (:layers (first (:panels (pj/plan v))))))]
+            (and (= 4 (count groups))
+                 (= 4 (count (distinct (map :dodge-idx groups))))
+                 (= 2 (count (distinct (map :color groups)))))))])
+
+;; Facet on the column instead, as the panel sections below do, so each
+;; region's bars are labelled by a strip.
 
 ;; ## Colouring by another column
 
@@ -722,6 +762,8 @@ sales-by-region
                  ;; region, not the measure, which is what separates
                  ;; this section from the one above it.
                  (= 2 (count (disj (:colors s) "none")))
+                 (contains? (:colors s) "rgb(228,26,28)")
+                 (contains? (:colors s) "rgb(55,126,184)")
                  (contains? (set (:texts s)) "region"))))])
 
 ;; The same layer in panels, one per outlet:
@@ -763,7 +805,14 @@ sales-by-region
     (pj/facet :region)
     (pj/options {:title "Measures by region"}))
 
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+(kind/test-last
+ ;; Two panels; and every region-and-outlet pair in the data holds two
+ ;; quarters, which is the two-point line the prose warns of.
+ [(fn [v] (and (= 2 (:panels (pj/svg-summary v)))
+               (every? #{2} (vals (frequencies
+                                   (map vector
+                                        (sales-by-region :region)
+                                        (sales-by-region :outlet)))))))])
 
 ;; ## Dodged series, drawn sideways, in panels
 
@@ -825,8 +874,11 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
-;; Drawing the first of those two says what it did, and names both ways
-;; on: `pj/overlay`, and reading the two columns as one series.
+;; Drawing the first of those two says what it did, and names
+;; `pj/overlay` as the way to one panel. The note does not offer reading
+;; the columns as one series here, as it does beside two plain columns:
+;; the pose already reads a series, and a second one would write over
+;; the columns the first invented.
 
 (with-out-str
   (pj/plot (-> sales
@@ -836,7 +888,7 @@ sales-by-region
 (kind/test-last
  [(fn [out] (and (re-find #"panel of its own" out)
                  (re-find #"pj/overlay" out)
-                 (re-find #"as series" out)))])
+                 (not (re-find #"as series" out))))])
 
 ;; ## A rule across every panel of a series
 
@@ -847,7 +899,11 @@ sales-by-region
     (pj/facet :region)
     (pj/lay-rule-h {:y-intercept 120}))
 
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+(kind/test-last
+ ;; Two panels and a rule on each: the bars are polygons, so the two
+ ;; lines are the rules.
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 2 (:panels s)) (= 2 (:lines s)))))])
 
 ;; ## Nested poses
 
@@ -946,9 +1002,9 @@ sales-by-region
 ;; ## A grid of panels of series
 
 ;; One combination has no spelling. A grid of panels built from pairs
-;; of columns reads the dataset wide, and a series reads it long, so a
-;; grid whose cells each carry several series asks the dataset to be
-;; both shapes at once:
+;; of columns is a composite whose cells share one dataset, and a
+;; series pivots the dataset of the pose it is added to, so a series
+;; added to the whole grid is reported:
 
 (try
   (-> sales
@@ -958,7 +1014,8 @@ sales-by-region
     (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"composite pose" msg))])
+ [(fn [msg] (and (re-find #"composite pose" msg)
+                 (re-find #"before arranging" msg)))])
 
 ;; Both routes to the same picture are on the long side. `pj/facet`
 ;; reaches it where the split comes from a column, and `pj/arrange` of

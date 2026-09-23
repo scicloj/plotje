@@ -352,16 +352,9 @@
 
 ;; ---- Series: the wide-side reading of a grouping ----
 
-(def ^:private default-series-label
-  "The name the invented key column takes when the writer does not give
-   one. It titles the legend, so it is a word a reader can read there."
-  :series)
+(def ^:private default-series-label pose/default-series-label)
 
-(def ^:private series-value-column
-  "The name the invented value column takes. It titles the value axis,
-   which `:x-label` and `:y-label` already rename, so it needs no
-   second spelling of its own."
-  :value)
+(def ^:private series-value-column pose/series-value-column)
 
 (defn series-mapping
   "The series a mapping value asks for, as `{:cols [...] :as label}`, or
@@ -1695,15 +1688,15 @@
     (name (:layer-type layer-type))
     :else "*"))
 
-(defn- check-new-sub-pose-columns
-  "Safety check fired when `lay-*` would create a new sub-pose
-   (LP2 promotion of a leaf-with-position, or LP3 miss on a
-   composite). Verify each non-nil column in `position-mapping`
-   exists in the data the new sub-pose will see: the layer's own
-   `:data` if it has one, otherwise `fallback-data` (the existing
-   leaf's or composite's data the new sub-pose would inherit). A
-   focused error here saves the user from a deep plan-stage
-   'column not found' on a column they likely typo'd."
+(defn- check-new-panel-columns
+  "Safety check fired when a `lay-*` names columns no panel draws, so the
+   layer would take a panel of its own: LP2 on a leaf, where the leaf
+   draws one more panel, or LP3 on a composite, where a new leaf is
+   appended. Verify each non-nil column in `position-mapping` exists in
+   the data that layer will draw from: its own `:data` if it has one,
+   otherwise `fallback-data`, the pose's. A focused error here saves the
+   user from a deep plan-stage 'column not found' on a column they
+   likely typo'd."
   [layer-type position-mapping layer fallback-data]
   (when-let [d (or (:data layer) fallback-data)]
     (let [col-names (set (tc/column-names d))]
@@ -1716,17 +1709,16 @@
                 (str "lay-" (layer-type-name layer-type)
                      " " k " " (pr-str col)
                      " names a column that doesn't exist in the data"
-                     " the new sub-pose would use. Available columns: "
+                     " the layer would draw from. Available columns: "
                      (vec (sort col-names))
-                     ". The " k " differs from the column the"
-                     " receiving pose draws, so this layer would land"
-                     " on a new sub-pose -- but that sub-pose has no"
-                     " column " (pr-str col) " to map to. If you meant"
-                     " to draw this layer on the existing panel, write"
-                     " pj/overlay before it, or {:overlay true} in its"
-                     " own options map. If you meant a separate"
-                     " sub-pose, pass `:data` on this lay-* call with"
-                     " the new columns.")
+                     ". The " k " differs from the column the pose"
+                     " draws, so this layer would take a panel of its"
+                     " own -- but its data has no column " (pr-str col)
+                     ". If you meant to draw this layer on the panel"
+                     " the pose already draws, write pj/overlay on the"
+                     " pose, or {:overlay true} in its own options map."
+                     " If you meant another dataset, pass `:data` on"
+                     " this lay-* call.")
                 {:caller (str "pj/lay-" (layer-type-name layer-type))
                  :key k :column col :available (sort col-names)}))))))
 
@@ -1734,7 +1726,7 @@
   "Walk the composite depth-first and append the layer to the last
    leaf whose effective :x/:y (after ancestor-merge) match
    `position-mapping`. On miss, append a fresh leaf at the root level
-   (LP3) after firing the new-sub-pose column-existence safety check."
+   (LP3) after firing the new-panel column-existence safety check."
   ([fr position-mapping layer]
    (add-leaf-layer-to-composite fr position-mapping layer false))
   ([fr position-mapping layer overlay?]
@@ -1752,7 +1744,7 @@
                                    (and overlay? (nil? match-path))
                                    (update :mapping (fnil merge {}) position-mapping)))
        (do
-         (check-new-sub-pose-columns (:layer-type layer)
+         (check-new-panel-columns (:layer-type layer)
                                      position-mapping layer (:data fr))
          (update fr :poses (fnil conj [])
                  {:mapping position-mapping :layers [layer]}))))))
@@ -2252,9 +2244,9 @@
     ;; so a clash on the value column is offered only a rename in the
     ;; data. The value clash is reported first, because `:as` cannot
     ;; clear it.
-    (let [remaining (set (remove (set cols) present))
-          key-clash? (contains? remaining label)
-          value-clash? (contains? remaining series-value-column)
+    (let [clashes (pose/series-clashes cols label present)
+          key-clash? (some? (:key clashes))
+          value-clash? (some? (:value clashes))
           key-named (if (= label default-series-label)
                       (str "the pivot names its key column " (pr-str label))
                       (str ":as names the key column " (pr-str label)))]
@@ -2459,11 +2451,10 @@
    downstream partitioning treats it as panel-origin.
 
    Leaf whose own :mapping already has position, called with a
-   non-matching position: promote the leaf into a composite, then
-   attach the layer to the new sub-pose -- mirroring LP3 for the
-   composite case. The Identity rule applies symmetrically: non-
-   matching columns create a new leaf, whether the receiver is a
-   leaf or a composite.
+   non-matching position: append the layer carrying its own columns,
+   and the leaf draws a panel for it at draft time -- the leaf stays a
+   leaf. A composite receiving non-matching columns appends a new leaf
+   instead (LP3).
 
    No position (leaf or composite + aesthetic-only): append the
    bare / aesthetic layer to :layers."
@@ -2597,7 +2588,7 @@
                                            (get leaf-mapping %))
                                          [:x :y])))]
         (when (seq disagreements)
-          (check-new-sub-pose-columns layer-type-key position-mapping
+          (check-new-panel-columns layer-type-key position-mapping
                                       bare-layer (:data fr)))
         (cond-> stamped
           (seq adopt)
@@ -3542,9 +3533,10 @@
    and lets one cell of a composite be faceted differently from
    another.
 
-   `:col` and `:row` are aesthetics like any other, so the mapping may
-   be written out in full, and a distinction made of several columns
-   reaches them the way it reaches `:color`:
+   `:col` and `:row` are aesthetics, so the mapping may be written out
+   in full, and several columns under either unite into one compound
+   key, as they do under `:group` -- `pj/compound-key-aesthetics` lists
+   the three:
 
    - `(pj/facet my-pose :species)` -- one panel per species.
    - `(pj/facet my-pose [:part :dimension])` -- one panel per observed

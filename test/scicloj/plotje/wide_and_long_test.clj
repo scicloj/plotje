@@ -519,3 +519,48 @@
       (is (= ["rgb(255,255,255)" "rgb(232,232,232)"]
              (fills (pj/plot (pj/arrange [themed (pj/lay-point sales :quarter :cost)]
                                          {:width 500 :height 200}))))))))
+
+(deftest the-split-note-offers-a-series-only-where-it-draws-test
+  ;; The note named `[:value :units]` after a series -- the pivot's own
+  ;; column -- and following it reached the clash report.
+  (let [note (fn [pose] (with-out-str (pj/plan pose)))]
+    (testing "beside two plain columns, the series route is named"
+      (is (re-find #"as series" (note (-> sales
+                                          (pj/lay-line :quarter :revenue)
+                                          (pj/lay-point :quarter :cost))))))
+    (testing "on a pose already reading a series, it is not"
+      (let [s (note (-> (assoc sales :units [1 2 3 4])
+                        (pj/lay-line :quarter [:revenue :cost])
+                        (pj/lay-point :quarter :units)))]
+        (is (re-find #"pj/overlay" s))
+        (is (not (re-find #"as series" s)))))))
+
+(deftest a-series-no-layer-reads-is-reported-test
+  ;; A series is pivoted when a layer is added to the pose carrying it.
+  ;; A cell of pj/arrange written as a mapping takes its layers from
+  ;; above, and a bare pj/pose has none: the series reached the plan
+  ;; unread, as a schema error or an index out of bounds.
+  (testing "a cell of a data-first arrangement"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"as a series, and no layer was added"
+         (-> (pj/arrange sales [{:x :quarter :y [:revenue :cost]}
+                                {:x :quarter :y :revenue}])
+             pj/lay-point
+             pj/plan))))
+  (testing "a pose given a series and no layer"
+    (is (thrown-with-msg?
+         clojure.lang.ExceptionInfo #"as a series, and no layer was added"
+         (pj/plan (pj/pose sales {:x :quarter :y [:revenue :cost]})))))
+  (testing "the route the report names draws"
+    (is (= 1 (:panels (pj/svg-summary
+                       (-> sales
+                           (pj/pose {:x :quarter :y [:revenue :cost]})
+                           pj/lay-line)))))))
+
+(deftest a-layer-on-a-new-panel-checks-its-columns-test
+  ;; The message spoke of a new sub-pose, which a leaf no longer builds.
+  (let [msg (try (-> sales (pj/lay-point :quarter :revenue) (pj/lay-point :nope :nada))
+                 nil
+                 (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+    (is (re-find #"panel of its own" msg))
+    (is (not (re-find #"sub-pose" msg)))))

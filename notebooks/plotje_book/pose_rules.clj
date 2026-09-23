@@ -56,7 +56,7 @@
 ;; | `:layers` | pose | per-scope layers |
 ;; | `:poses` | composite only | sub-poses |
 ;; | `:layout` | composite | direction + weights |
-;; | `:overlay` | leaf or composite | whether a later `lay-*` joins a panel rather than starting one (Rule LP5) |
+;; | `:overlay` | leaf or composite | whether a `lay-*` naming other columns joins the panel rather than taking one of its own, wherever in the pipeline it is written (Rule LP5) |
 ;; | `:opts` | root | plot-level options (incl. composite-level keys like `:share-scales`) |
 ;;
 ;; A **leaf pose** has `:data`, `:mapping`, `:layers`; no `:poses`.
@@ -626,8 +626,8 @@ composite-pose
 ;; matching effective `:x`/`:y`, a new leaf is appended at the
 ;; composite's root `:poses`. Its `:mapping` carries the call's
 ;; position; a single layer with matching position attaches to it.
-;; The same rule applies to leaf input (see LP2 above) -- a leaf
-;; with non-matching position is promoted to a composite first.
+;; A leaf given non-matching columns stays a leaf instead, and draws a
+;; panel for them -- see LP2 above.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -667,11 +667,11 @@ composite-pose
                (= :leaf (:via-lay-shape m))
                (= :composite (:via-pose-shape m))))])
 
-;; **Property: column-existence safety check on the new sub-pose.**
-;; When LP2 or LP3 would create a new sub-pose for a non-matching
-;; position, `lay-*` first checks that the new position columns
-;; exist in the data the sub-pose would use -- the layer's own
-;; `:data` if present, otherwise the inherited data. A missing
+;; **Property: column-existence safety check on the new panel.**
+;; When LP2 or LP3 would give a layer naming other columns a panel of
+;; its own, `lay-*` first checks that those columns exist in the data
+;; the layer would draw from -- the layer's own `:data` if present,
+;; otherwise the inherited data. A missing
 ;; column is almost always a typo or a column name mismatch; the
 ;; check raises a focused error at the call site rather than
 ;; deferring to a generic "column not found" at plan time.
@@ -687,7 +687,7 @@ composite-pose
  [(fn [msg]
     (and (string? msg)
          (re-find #"doesn't exist in the data" msg)
-         (re-find #"new sub-pose" msg)))])
+         (re-find #"panel of its own" msg)))])
 
 ;; Supplying `:data` on the lay-* call satisfies the safety check
 ;; -- the new panel has its own data with the new columns.
@@ -736,14 +736,17 @@ composite-pose
 
 ;; ### Rule LP5: `:overlay` keeps a non-matching `lay-*` on the panel
 ;;
-;; Under LP2 and LP3, a `lay-*` whose effective `:x`/`:y` match no leaf
-;; goes to a leaf of its own. With `:overlay` it joins the panel it is
+;; Under LP2 a `lay-*` whose effective `:x`/`:y` match no panel the
+;; leaf draws takes a panel of its own, and under LP3 a composite
+;; appends a leaf for it. With `:overlay` it joins the panel it is
 ;; added to instead. Its `:x` and `:y` stay on the layer's own
-;; `:mapping`, and the leaf's `:mapping` is left as it was, so the axis
-;; keeps the name of the panel's own column.
+;; `:mapping`, and the leaf's `:mapping` is left as it was.
 ;;
-;; Each layer below is given a written colour, so which marks came from
-;; which call can be read off the picture.
+;; Where the writer has not told the layers apart, the overlay does: each
+;; layer takes a colour and a legend entry naming its column, and the
+;; axis names every column drawn on it. Each layer below is given a
+;; written colour, so the overlay adds nothing, and the axes keep the
+;; titles of the leaf's own columns.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -762,8 +765,11 @@ composite-pose
                  (contains? (:colors s) "rgb(55,126,184)")
                  (contains? (:colors s) "rgb(230,85,13)")
                  ;; The axes are titled for the leaf's own columns, not
-                 ;; for the ones the second layer brought in.
-                 (= #{"sepal length" "sepal width"} (set axis-titles)))))])
+                 ;; for the ones the second layer brought in -- no text
+                 ;; names a petal column, which a combined title
+                 ;; ("sepal width, petal width") would.
+                 (= #{"sepal length" "sepal width"} (set axis-titles))
+                 (not-any? #(re-find #"petal" %) (:texts s)))))])
 
 ;; One panel with the blue sepal points and the orange petal points on
 ;; it, the axes titled for the leaf's own columns, and their domains

@@ -169,8 +169,9 @@
 ;;
 ;; - `:position :dodge` draws no offset on `lay-line`, and is dropped
 ;;   between the pose and the plan on `lay-summary`. `lay-point`
-;;   honours it, and `lay-bar` dodges by default, so asking for it
-;;   there changes nothing rather than failing. Workaround for the
+;;   honours it on a categorical x, and ignores it on a numeric x,
+;;   which has no bands to divide. `lay-bar` dodges by default, so
+;;   asking for it there changes nothing rather than failing. Workaround for the
 ;;   two that do not draw it: pre-compute the offsets with
 ;;   `tc/group-by`, or use `:dx` to shift a layer by a fraction of
 ;;   its band.
@@ -182,16 +183,12 @@
 ;;   all-positive data works, but mixed-sign data stacks
 ;;   incorrectly.
 ;;
-;; - `pj/lay-tile` (and the underlying `:bin2d` stat) requires
-;;   numeric x and y columns. Passing a categorical axis throws a
-;;   clear "Stat :bin2d requires a numeric column" error at plan
-;;   time. The recommended workaround is to render a numeric-indexed
-;;   grid (1-N integers in place of the categorical column) and
-;;   pair `:breaks` with `:tick-labels` on the axis -- see Customization
-;;   and Troubleshooting for a worked example. For a true categorical
-;;   axis (binning over labels rather than numeric intervals),
-;;   `pj/lay-bar` with a `y` column and `{:color :value}` gives a
-;;   categorical "heatmap" look.
+;; - `pj/lay-tile` without `:fill` counts rows in two-dimensional bins
+;;   (the `:bin2d` stat), which needs numeric x and y columns; a
+;;   categorical axis reports "Stat :bin2d requires a numeric column".
+;;   Given `:fill`, a tile draws one cell per row and takes categorical
+;;   axes -- see
+;;   [Troubleshooting](./plotje_book.troubleshooting.html#heatmap-with-categorical-axes).
 ;;
 ;; - Horizontal value bars (`pj/lay-bar` with the category on `:y`)
 ;;   support plain and dodged layouts, but not `:position :stack` or

@@ -411,7 +411,7 @@ dashboard
 ;; values in its data.
 ;;
 ;; That rule gives two patterns -- "overlay on the same panel"
-;; and "this layer on a separate sub-pose" -- with different
+;; and "this layer on a panel of its own" -- with different
 ;; mechanics. Knowing which one you want determines the call
 ;; shape.
 ;;
@@ -484,7 +484,7 @@ dashboard
 ;; another name, and use `pj/overlay` when they are a different
 ;; quantity you want read against the same axes.
 ;;
-;; ### Separate sub-pose for the new layer
+;; ### A panel of its own for the new layer
 ;;
 ;; To put the new layer on its own panel, name the layer's
 ;; columns directly. When the new layer's columns do not match the

@@ -528,12 +528,13 @@
 
 (defn- effective-axis-col
   "The column ref this resolved leaf uses for `axis`. Layer-level
-   mappings take precedence over the leaf's own :mapping. Layers
-   that would disagree with the leaf's position are redirected
-   upstream by lay-on-pose (Pose Rule LP2: distinct positional
-   aesthetics mean distinct poses, so the non-matching layer lands
-   on a separate sub-pose), so by the time this function runs, all
-   layer mappings either match the leaf's column or are absent."
+   mappings take precedence over the leaf's own :mapping, and the first
+   layer naming `axis` answers.
+
+   A leaf whose layers disagree about `axis` draws a panel for each
+   place they name (Pose Rule LP2), and this reads only the first of
+   them -- so for such a leaf it answers for one of its panels, not
+   all."
   [leaf axis]
   (or (some (fn [layer] (mapping-source (get-in layer [:mapping axis])))
             (:layers leaf))
@@ -1017,7 +1018,7 @@
    When the layer carries its own :data and the failing key was
    inherited from the pose, surface that asymmetry and offer two
    fixes (`pj/overlay` to keep it on the panel, or override on
-   the layer to create a separate sub-pose).
+   the layer so it draws a panel of its own).
 
    `explicit-column?` marks a reference the writer wrote as
    `{:column ...}`. The drawn-value sentence is dropped there: they
@@ -1032,8 +1033,8 @@
            " absent from this layer's :data. Available columns: "
            (vec (sort-by str col-names))
            ". To draw this layer on the existing panel, write"
-           " pj/overlay before it, or {:overlay true} in its own"
-           " options map. To draw it on a separate sub-pose, set "
+           " pj/overlay on the pose, or {:overlay true} in its own"
+           " options map. To draw it on a panel of its own, set "
            k " on the layer call to a column that exists in :data.")
       ;; Default: simple "not found" with the available columns
       (str "Column " col " (from " k ") not found in dataset."
@@ -1953,6 +1954,34 @@
                           0)]))
           (:layers leaf))))
 
+(def default-series-label
+  "The name the key column a series invents takes when the writer does
+   not give one. It titles the legend, so it is a word a reader can read
+   there."
+  :series)
+
+(def series-value-column
+  "The name the value column a series invents takes. It titles the
+   value axis, which `:x-label` and `:y-label` already rename, so it
+   needs no second spelling of its own."
+  :value)
+
+(defn series-clashes
+  "The columns a series reading `cols`, with its key column named
+   `label`, would write over in data whose columns are `column-names`,
+   as `{:key <label or nil> :value <value column or nil>}`.
+
+   The pivot drops the columns it reads and writes the two it invents,
+   so only the columns it leaves are at risk. One rule for both places
+   that ask: `api/pivot-series` reports a clash, and
+   `report-panel-split` offers a series only where there is none --
+   offering it where the pivot would then refuse sent a writer from one
+   message straight into another."
+  [cols label column-names]
+  (let [remaining (set (remove (set cols) column-names))]
+    {:key (when (contains? remaining label) label)
+     :value (when (contains? remaining series-value-column) series-value-column)}))
+
 (defn ^:dynamic report-panel-split
   "Say that a leaf drew more than one panel, and name the ways to ask
    for one instead.
@@ -1973,20 +2002,28 @@
    `pj/overlay` puts the layers on the panel the leaf's own mapping
    names and always applies. Several columns in one slot pivot them into
    series that can be dodged, piled or normalized against each other,
-   which needs one dataset carrying both columns and one axis
-   disagreeing -- a call takes one series, so a second disagreement
-   would be left standing."
+   which needs one dataset carrying both columns, one axis disagreeing
+   -- a call takes one series, so a second disagreement would be left
+   standing -- and no column the pivot would write over, which is what
+   a pose already reading a series has."
   [panel-keys data]
   (let [[[x0 y0] [x1 y1]] panel-keys
         [axis standing incoming] (cond
                                    (not= x0 x1) [:x x0 x1]
                                    (not= y0 y1) [:y y0 y1])
-        both-there? (and axis data
-                         (let [cols (set (tc/column-names (tc/dataset data)))]
-                           (and (cols standing) (cols incoming))))
+        names (when (and axis data) (tc/column-names (tc/dataset data)))
+        both-there? (let [cols (set names)]
+                      (and (cols standing) (cols incoming)))
+        ;; A pose that already reads a series carries the columns that
+        ;; pivot invented, and a second pivot would write over them --
+        ;; the route is named only where the pivot would draw.
+        clear? (every? nil? (vals (series-clashes [standing incoming]
+                                                  default-series-label
+                                                  names)))
         series? (and (= 2 (count panel-keys))
                      (if (= axis :x) (= y0 y1) (= x0 x1))
-                     both-there?)]
+                     both-there?
+                     clear?)]
     (when axis
       (println
        (str "Note: a layer names " (pr-str incoming) " where this pose draws "
@@ -2019,6 +2056,35 @@
                        :panel-aesthetics (vec panel-keys)}))))
   layer-mapping)
 
+(defn report-unread-series
+  "Report a series still standing in a leaf's mapping when it is drafted.
+
+   A series is pivoted when a layer is added to the pose that carries
+   it -- that is the only place the pivot happens. A cell of a composite
+   written as a mapping map, `{:x :quarter :y [:revenue :cost]}`, takes
+   its layers from the pose it is arranged into, so no layer is ever
+   added to the cell itself and its series reaches the plan unread,
+   where it failed with a bare schema error naming nothing written. A
+   `pj/pose` given a series and no layer at all failed the same way,
+   with an index out of bounds."
+  [leaf-mapping]
+  (doseq [k [:x :y]
+          :let [v (get leaf-mapping k)
+                cols (cond
+                       (and (map? v) (sequential? (:series v))) (:series v)
+                       (and (sequential? v) (seq v)
+                            (every? #(or (keyword? %) (string? %)) v)) v)]
+          :when cols]
+    (throw (ex-info (str "A pose reads " (pr-str (vec cols)) " on " k " as a"
+                         " series, and no layer was added to that pose, so the"
+                         " series was never read. A series is pivoted when a"
+                         " layer is added to the pose that carries it: (-> data"
+                         " (pj/pose " (pr-str (assoc (select-keys leaf-mapping [:x :y]) k (vec cols)))
+                         ") pj/lay-line). A cell of pj/arrange takes its layers"
+                         " from the pose it is arranged into, so build such a"
+                         " cell that way before arranging it.")
+                    {:aesthetic k :columns (vec cols)}))))
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -2049,6 +2115,7 @@
    of them."
   [leaf]
   (let [leaf-mapping (or (:mapping leaf) {})
+        _            (report-unread-series leaf-mapping)
         leaf-data    (:data leaf)
         opts         (or (:opts leaf) {})
         coord-type   (:coord opts)
