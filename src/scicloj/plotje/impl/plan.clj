@@ -1389,7 +1389,7 @@
    wins, as it does for every other scale setting, so a spec beats an
    option; with neither, the column name is inferred."
   [x-vars y-vars x-overlay-vars y-overlay-vars x-scale-spec y-scale-spec
-   title x-label y-label auto-label?]
+   title x-label y-label auto-x-label? auto-y-label?]
   (let [;; The column an axis draws, and the others drawn on it by
         ;; layers overlaid on one panel. An ordinary multi-panel plot
         ;; passes none of the second, so its axis keeps one name and
@@ -1402,10 +1402,10 @@
     {:eff-title title
      :eff-x-label (or (:label x-scale-spec)
                       x-label
-                      (when auto-label? (axis-name x-vars x-overlay-vars)))
+                      (when auto-x-label? (axis-name x-vars x-overlay-vars)))
      :eff-y-label (or (:label y-scale-spec)
                       y-label
-                      (when auto-label?
+                      (when auto-y-label?
                         (when (not= (first y-vars) (first x-vars))
                           (axis-name y-vars y-overlay-vars))))}))
 
@@ -2297,44 +2297,57 @@
         faceted? (or has-facet-col? has-facet-row?)
 
         ;; Collect grid axis values
-        col-vals (if faceted?
-                   (vec (distinct (keep :facet-col first-draft-layers)))
-                   (or grid-cols (vec (distinct (map :x first-draft-layers)))))
-        row-vals (if faceted?
-                   (vec (distinct (keep :facet-row first-draft-layers)))
-                   (or grid-rows (vec (distinct (map :y first-draft-layers)))))
-        ;; For non-faceted with single x/y, use nil sentinels
-        col-vals (if (empty? col-vals) [nil] col-vals)
-        row-vals (if (empty? row-vals) [nil] row-vals)
+        ;; What distinguishes the panels in each direction of the grid.
+        ;; Two things can divide a pose at once: a facet, which slices
+        ;; one column's values, and the columns the layers draw. A
+        ;; facet claims the direction it was written for. The columns
+        ;; claim `:x` across and `:y` down, and where a facet has taken
+        ;; that direction they move to the other one if it is free.
+        ;;
+        ;; Read per direction. `faceted?`, true when either direction
+        ;; is faceted, sent both directions down the facet branch, so a
+        ;; pose faceted across and divided by column down looked for
+        ;; facet-row values, found none, and lost the columns that were
+        ;; labelling its rows.
+        x-varies? (> (count (distinct (map :x first-draft-layers))) 1)
+        y-varies? (> (count (distinct (map :y first-draft-layers))) 1)
+        col-key (cond has-facet-col? :facet-col
+                      (and has-facet-row? y-varies? (not x-varies?)) :y
+                      :else :x)
+        row-key (cond has-facet-row? :facet-row
+                      (and has-facet-col? x-varies? (not y-varies?)) :x
+                      :else :y)
+        facet-key? #{:facet-col :facet-row}
+        ;; One reading for both directions. The two used to be written
+        ;; out separately and had drifted: only the column branch
+        ;; guarded its label on there being more than one value.
+        axis-vals (fn [k user-grid-vals]
+                    (let [vals (if (facet-key? k)
+                                 (vec (distinct (keep k first-draft-layers)))
+                                 (or user-grid-vals
+                                     (vec (distinct (map k first-draft-layers)))))]
+                      ;; A direction that divides nothing still needs one
+                      ;; slot, and nil is the sentinel standing in it.
+                      (if (empty? vals) [nil] vals)))
+        col-vals (axis-vals col-key grid-cols)
+        row-vals (axis-vals row-key grid-rows)
+        place (fn [k vals v]
+                (let [val (get v k)
+                      i (.indexOf ^java.util.List vals val)]
+                  [(max 0 i)
+                   (cond (nil? val) nil
+                         (facet-key? k) (str val)
+                         ;; A single column needs no strip -- the axis
+                         ;; title already names it.
+                         (> (count vals) 1) (defaults/fmt-name val))]))
 
         ;; Position each panel
         stack-counts (atom {})
         panels (vec
                 (for [pg panel-groups
                       :let [v (first (:draft-layers pg))
-                            ;; Determine grid position
-                            [ci col-label]
-                            (if has-facet-col?
-                              (let [fc (:facet-col v)
-                                    i (.indexOf ^java.util.List col-vals fc)]
-                                [(max 0 i) (str fc)])
-                              (let [xv (:x v)
-                                    i (.indexOf ^java.util.List col-vals xv)
-                                    ;; Only show col-label when multiple columns exist
-                                    ;; (avoids redundant x-label on single-column layouts)
-                                    show-label? (> (count col-vals) 1)]
-                                [(max 0 i) (when (and xv show-label?) (defaults/fmt-name xv))]))
-                            [ri row-label]
-                            (if has-facet-row?
-                              (let [fr (:facet-row v)
-                                    i (.indexOf ^java.util.List row-vals fr)]
-                                [(max 0 i) (str fr)])
-                              (let [yv (:y v)
-                                    i (.indexOf ^java.util.List row-vals yv)
-                                    ;; Only show row-label when multiple rows exist
-                                    ;; (avoids redundant y-label on single-row facets)
-                                    show-label? (> (count row-vals) 1)]
-                                [(max 0 i) (when (and yv show-label?) (defaults/fmt-name yv))]))
+                            [ci col-label] (place col-key col-vals v)
+                            [ri row-label] (place row-key row-vals v)
                             ;; Stacking: when multiple panel groups share the same
                             ;; grid position, offset each by one row below the base.
                             ;; sub=0 -> base position; sub>0 -> stacked below.
@@ -2381,10 +2394,16 @@
      :free-x           -- coordinate y only (x per-panel)
      :free             -- no coordination (per-panel)
 
-   Only applied when the layout is `:facet-grid` -- multi-variable
-   layouts (where panels carry different x/y vars) keep per-panel
-   domains because aggregating across different columns is
-   meaningless."
+   Only applied when the layout is `:facet-grid`, and aggregated among
+   the panels drawing the same column, which `:x-var` and `:y-var`
+   name. A facet shares a scale across the slices of one column, and
+   panels holding different columns are not slices of one another --
+   aggregating across them merges a count with a temperature. A pose
+   faceted across and divided by column down is both faceted and
+   multi-variable, so the layout alone cannot say which panels belong
+   together; grouping by the column says it for every layout at once,
+   and where each panel draws its own column every group holds one
+   panel and nothing is merged."
   [panel-domains scales-opt]
   (let [scales (or scales-opt :shared)
         share-x? (#{:shared :free-y} scales)
@@ -2397,8 +2416,8 @@
         free-opt (fn [k] (if (= k :x-dom)
                            "{:scales :free-x}"
                            "{:scales :free-y}"))
-        agg (fn [k]
-              (let [doms (filter seq (keep k panel-domains))]
+        agg (fn [k pds]
+              (let [doms (filter seq (keep k pds))]
                 (when (seq doms)
                   (let [numeric? #(number? (first %))
                         kinds (group-by numeric? doms)]
@@ -2425,12 +2444,21 @@
                       [(reduce min (map first doms))
                        (reduce max (map second doms))]
                       (vec (distinct (mapcat seq doms))))))))
-        x-agg (when share-x? (agg :x-dom))
-        y-agg (when share-y? (agg :y-dom))]
+        ;; One aggregate per column drawn on the axis, keyed by that
+        ;; column, so a panel reads the aggregate of the panels it is a
+        ;; slice of.
+        aggs-by-column (fn [dom-k var-k]
+                         (into {}
+                               (map (fn [[column pds]] [column (agg dom-k pds)]))
+                               (group-by var-k panel-domains)))
+        x-aggs (when share-x? (aggs-by-column :x-dom :x-var))
+        y-aggs (when share-y? (aggs-by-column :y-dom :y-var))]
     (mapv (fn [pd]
-            (cond-> pd
-              x-agg (assoc :x-dom x-agg)
-              y-agg (assoc :y-dom y-agg)))
+            (let [x-agg (get x-aggs (:x-var pd))
+                  y-agg (get y-aggs (:y-var pd))]
+              (cond-> pd
+                x-agg (assoc :x-dom x-agg)
+                y-agg (assoc :y-dom y-agg))))
           panel-domains)))
 
 ;; ---- Fitting text marks into the panel ----
@@ -2927,6 +2955,18 @@
          grid-rows-n (:grid-rows grid)
          grid-cols-n (:grid-cols grid)
 
+         ;; Whether every panel draws the same column on an axis. The
+         ;; grid already carries the distinct columns per axis, and
+         ;; three decisions below need this one answer: whether a
+         ;; shared axis title is correct, and whether two panels'
+         ;; domains may be merged. Each used to work it out again from
+         ;; the grid's shape -- `(> grid-cols 1)` and `(> grid-rows 1)`
+         ;; for the title, `layout-type` for the domains -- and neither
+         ;; shape can say that a pose is divided by slice and by column
+         ;; at once.
+         one-column? (fn [vars] (< (count (remove nil? vars)) 2))
+         mergeable {:x (one-column? x-vars) :y (one-column? y-vars)}
+
          ;; Colors + warnings
          {:keys [resolved-all numeric-color? all-colors color-cols tagged-draft-layers]}
          (collect-colors draft-layers)
@@ -3012,12 +3052,20 @@
          _ (warn-undrawn-varies! panel-data)
 
          ;; --- Phase 2: per-panel domains (still no pixel math) ---
+         ;; `:x-var` and `:y-var` name the column each panel draws, which
+         ;; is what tells the panels that are slices of one column from
+         ;; the panels that hold different columns. Read from the first
+         ;; draft layer, as the grid reads it.
          panel-domains (vec
                         (for [pd panel-data
-                              :when (seq (:draft-layers pd))]
-                          (resolve-panel-domains pd default-x-scale default-y-scale default-coord
-                                                 (:domain-padding cfg)
-                                                 shared-domains)))
+                              :when (seq (:draft-layers pd))
+                              :let [v (first (:draft-layers pd))]]
+                          (assoc (resolve-panel-domains pd default-x-scale default-y-scale
+                                                        default-coord
+                                                        (:domain-padding cfg)
+                                                        shared-domains)
+                                 :x-var (:x v)
+                                 :y-var (:y v))))
 
          ;; Ridgeline swap: categories go on y, density on x. Swap
          ;; per-panel domains/scales/temporal extents before anything
@@ -3027,6 +3075,7 @@
                          (mapv (fn [d]
                                  (-> d
                                      (assoc :x-dom (:y-dom d) :y-dom (:x-dom d)
+                                            :x-var (:y-var d) :y-var (:x-var d)
                                             :x-scale (:y-scale d) :y-scale (:x-scale d)
                                             :x-informed? (:y-informed? d)
                                             :y-informed? (:x-informed? d)
@@ -3045,12 +3094,24 @@
                          panel-domains)
 
          ;; --- Phase 3: labels, legends, and the three layout fns ---
-         multi? (and (= layout-type :multi-variable) (> grid-cols-n 1) (> grid-rows-n 1))
-         auto-label? (and (not multi?) (coord/show-ticks? rep-coord))
+         ;; An axis carries a shared title only where every panel draws
+         ;; the same column on it; where the panels differ, each one's
+         ;; strip names its own column and a shared title would name
+         ;; one of them over all of them. Asked per axis, because a
+         ;; plot can share its x column across panels that disagree
+         ;; about y.
+         show-ticks? (coord/show-ticks? rep-coord)
+         ;; Kept for the margin below, which is the one thing that does
+         ;; want the grid's shape: a two-dimensional multi-variable
+         ;; grid is drawn with tighter margins than a single panel.
+         multi? (and (= layout-type :multi-variable)
+                     (> grid-cols-n 1) (> grid-rows-n 1))
          {:keys [eff-title eff-x-label eff-y-label]}
          (resolve-labels x-vars y-vars x-overlay-vars y-overlay-vars
                          rep-x-scale rep-y-scale
-                         title x-label y-label auto-label?)
+                         title x-label y-label
+                         (and show-ticks? (:x mergeable))
+                         (and show-ticks? (:y mergeable)))
          swap-labels? (or (= rep-coord :flip) has-ridgeline?)
          [eff-x-label eff-y-label] (if swap-labels?
                                      [eff-y-label eff-x-label]

@@ -123,14 +123,20 @@
                           (pj/lay-text {:x 10 :y 10 :text "n" :in :drawing-area}))]
         (is (= "quarter" (:x-label (pj/plan annotated))))))
 
-    (testing "the same layers in panels of their own keep one axis name"
+    (testing "the same layers in panels of their own take no shared axis name"
       ;; Each panel's strip names the column it draws, so listing them
       ;; on the shared axis as well says the same thing twice. Only
       ;; layers sharing a panel put more than one name on an axis.
+      ;; Naming one of the two was worse than naming neither: the axis
+      ;; read "revenue" over a panel drawing cost. The x axis, which
+      ;; every panel does agree about, keeps its name.
       (let [split (-> d (pj/lay-point :quarter :revenue)
                       (pj/lay-point :quarter :cost))]
         (is (= 2 (:panels (pj/svg-summary split))))
-        (is (= "revenue" (:y-label (pj/plan split))))))))
+        (is (nil? (:y-label (pj/plan split))))
+        (is (= "quarter" (:x-label (pj/plan split))))
+        (is (= ["revenue" "cost"]
+               (mapv :row-label (:panels (pj/plan split)))))))))
 
 (deftest overlay-is-read-at-draft-time-test
   ;; `:overlay` used to be read where the layer was added, and the pose
