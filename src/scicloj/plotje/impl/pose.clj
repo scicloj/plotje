@@ -854,12 +854,22 @@
    the nearest-ancestor dataset, threaded through so a leaf can
    predict whether its layers' y axis is stat-driven (count/density)
    and skip the shared y-domain stamp on such leaves -- e.g., the
-   diagonal histogram cells of a SPLOM."
+   diagonal histogram cells of a SPLOM. `inherited-layers` carries the
+   ancestors' layers, which render on every descendant leaf.
+
+   A leaf's context is merged the way `resolve-tree` merges it, because
+   the buckets are built from `resolve-tree`'s leaves: a leaf judged on
+   its own layers alone answers a different question from its bucket.
+   A histogram added to a grid of pairs lives on the composite, so its
+   cells, judged on their own empty layers, predicted points and were
+   stamped a data extent on the count axis -- every bar ran off the
+   panel."
   ([pose]
-   (inject-shared-scales pose {} {} nil))
-  ([pose inherited-domains inherited-mapping inherited-data]
-   (let [my-mapping  (merge inherited-mapping (:mapping pose))
+   (inject-shared-scales pose {} {} nil []))
+  ([pose inherited-domains inherited-mapping inherited-data inherited-layers]
+   (let [my-mapping  (merge-mappings inherited-mapping (:mapping pose))
          my-data     (or (:data pose) inherited-data)
+         my-layers   (into (vec inherited-layers) (:layers pose))
          my-shares   (or (get-in pose [:opts :share-scales])
                          (:share-scales pose))
          new-domains (when (and my-shares (seq (:poses pose)))
@@ -894,7 +904,8 @@
                                    new-domains)]
      (if (leaf? pose)
        (if (seq child-domains)
-         (let [pose-ctx (assoc pose :mapping my-mapping :data my-data)
+         (let [pose-ctx (assoc pose :mapping my-mapping :data my-data
+                               :layers my-layers)
                ;; A leaf whose panels read several columns on an axis
                ;; is stamped an extent per column, and each panel reads
                ;; the one for the column it draws.
@@ -913,7 +924,7 @@
                ;; Drop the y-domain when this leaf's y-axis is
                ;; stat-driven (count/density) -- the shared-data
                ;; bucket value would clip the bars / curve.
-               stat-driven? (y-axis-stat-driven? (:layers pose) my-mapping my-data)
+               stat-driven? (y-axis-stat-driven? my-layers my-mapping my-data)
                y-dom (when-not stat-driven? y-dom)
                y-cols (when-not stat-driven? y-cols)]
            (if (or x-dom y-dom x-cols y-cols)
@@ -927,7 +938,8 @@
          pose)
        (update pose :poses
                (fn [children]
-                 (mapv #(inject-shared-scales % child-domains my-mapping my-data)
+                 (mapv #(inject-shared-scales % child-domains my-mapping
+                                              my-data my-layers)
                        children)))))))
 
 ;; ---- Leaf-to-draft ----

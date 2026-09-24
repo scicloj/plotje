@@ -437,6 +437,40 @@
       (is (= 2 (count (first stamped))))
       (is (every? number? (first stamped))))))
 
+(deftest inject-shared-scales-reads-ancestor-layers-test
+  (testing "a layer on the composite counts for each leaf it renders on"
+    (let [ds (tc/dataset {:a [1.0 2.0 3.0]
+                          :b [10.0 20.0 30.0]})
+          ;; The shape of a grid of pairs given a histogram afterwards:
+          ;; the layer lives on the composite and the cells carry only
+          ;; their mapping. Each cell's y axis is a count, so it must
+          ;; not be stamped the :a extent -- judged on its own empty
+          ;; layers, the off-diagonal cell predicted a scatter.
+          tree {:data ds
+                :share-scales #{:y}
+                :layers [{:layer-type :histogram}]
+                :poses [{:mapping {:x :a :y :a} :layers []}
+                        {:mapping {:x :b :y :a} :layers []}]}
+          [diag off] (pose/resolve-tree (pose/inject-shared-scales tree))]
+      (is (nil? (:y-scale-domain (:opts diag))))
+      (is (nil? (:y-scale-domain (:opts off)))
+          "a histogram inherited from the composite has a count axis")))
+  (testing "a scale set on the composite keeps the leaf's column in its bucket"
+    (let [ds (tc/dataset {:a [1.0 2.0 3.0]
+                          :b [10.0 20.0 30.0]})
+          ;; The parent names the column and the leaf adds only a
+          ;; scale: a plain merge replaced the column with the scale,
+          ;; so the leaf found no bucket and went unshared.
+          tree {:data ds
+                :share-scales #{:x}
+                :mapping {:x :a}
+                :poses [{:mapping {:y :b} :layers [{:layer-type :point}]}
+                        {:mapping {:x {:scale {:type :linear}} :y :b}
+                         :layers [{:layer-type :point}]}]}
+          [l1 l2] (pose/resolve-tree (pose/inject-shared-scales tree))]
+      (is (= [1.0 3.0] (:x-scale-domain (:opts l1))))
+      (is (= [1.0 3.0] (:x-scale-domain (:opts l2)))))))
+
 (deftest inject-shared-scales-explicit-density-stat-test
   (testing "explicit :stat :density triggers the exemption"
     (let [ds (tc/dataset {:a [1.0 2.0 3.0]

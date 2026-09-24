@@ -187,7 +187,7 @@
      :tickets [462 181 92 30]}
     (pj/lay-bar :violation :tickets)
     (pj/coord :flip)
-    (pj/lay-segment {:x 3.6 :y 300 :x-end 3 :y-end 150 :arrow :end})
+    (pj/lay-segment {:x 3.6 :y 300 :x-end 3 :y-end 100 :arrow :end})
     (pj/lay-text {:x 3.6 :y 300 :text "Parking ends a tier"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

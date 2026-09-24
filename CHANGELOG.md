@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file. This change
 
 - **`:share-scales` across a cell that draws several columns on the shared axis.** Each panel of the cell shares the extent of the column it draws, with the cells that draw that column.
 
+- **A histogram or density added to a grid of pairs**, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`. Every cell draws its count or density on a y axis of its own, fitted to its bars. A layer added to a composite is read, for `:share-scales`, as part of each cell it draws on.
+
 ### Added
 
 - `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on `:end`, `:start` or `:both` ends, and on a categorical axis a written number is a place counted from one, so a segment can point at a category. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica

@@ -103,8 +103,8 @@
    :value
    (map
     (fn*
-     [p1__74891#]
-     (+ 100.0 (* 30.0 (Math/sin (* (double p1__74891#) 0.12)))))
+     [p1__11193#]
+     (+ 100.0 (* 30.0 (Math/sin (* (double p1__11193#) 0.12)))))
     (range 52))}))
 
 
@@ -251,7 +251,7 @@
    :tickets [462 181 92 30]}
   (pj/lay-bar :violation :tickets)
   (pj/coord :flip)
-  (pj/lay-segment {:x 3.6, :y 300, :x-end 3, :y-end 150, :arrow :end})
+  (pj/lay-segment {:x 3.6, :y 300, :x-end 3, :y-end 100, :arrow :end})
   (pj/lay-text {:x 3.6, :y 300, :text "Parking ends a tier"})))
 
 
@@ -546,7 +546,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__74892#] (= :text (:mark p1__74892#))))
+       (filter (fn* [p1__11194#] (= :text (:mark p1__11194#))))
        first)]
      (= :right (-> text-layer :style :align-x))))
    v75_l376)))
@@ -573,7 +573,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__74893#] (= :text (:mark p1__74893#))))
+      (filter (fn* [p1__11195#] (= :text (:mark p1__11195#))))
       first
       :groups
       first
@@ -605,7 +605,7 @@
        [mark]
        (->>
         layers
-        (filter (fn* [p1__74894#] (= mark (:mark p1__74894#))))
+        (filter (fn* [p1__11196#] (= mark (:mark p1__11196#))))
         first
         :groups
         (mapv (juxt :label :dodge-idx))))]
@@ -662,8 +662,8 @@
  (->
   {:x (range 20),
    :y
-   (map (fn* [p1__74895#] (Math/sin (/ p1__74895# 3.0))) (range 20)),
-   :change (map (fn* [p1__74896#] (- p1__74896# 10)) (range 20))}
+   (map (fn* [p1__11197#] (Math/sin (/ p1__11197# 3.0))) (range 20)),
+   :change (map (fn* [p1__11198#] (- p1__11198# 10)) (range 20))}
   (pj/lay-point :x :y {:color :change})
   (pj/options
    {:color-range :diverging,
@@ -859,9 +859,9 @@
    (rdatasets/gapminder-gapminder)
    (tc/select-rows
     (fn*
-     [p1__74897#]
+     [p1__11199#]
      (#{"Cambodia" "Botswana" "Japan" "Rwanda" "China"}
-      (:country p1__74897#))))
+      (:country p1__11199#))))
    (tc/select-columns [:country :year :life-exp]))))
 
 
@@ -888,7 +888,7 @@
    {:data
     (tc/select-rows
      life-tracks
-     (fn* [p1__74898#] (= 2007 (:year p1__74898#)))),
+     (fn* [p1__11200#] (= 2007 (:year p1__11200#)))),
     :x :year,
     :y :life-exp,
     :text :country,
@@ -921,7 +921,7 @@
  (->
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
-   (fn* [p1__74899#] (= "Rwanda" (:country p1__74899#))))
+   (fn* [p1__11201#] (= "Rwanda" (:country p1__11201#))))
   (pj/lay-line :year :life-exp {:color "#4477aa"})
   (pj/lay-point
    {:data {:year [1992], :life-exp [23.599]},
@@ -983,7 +983,7 @@
   ends-highest
   (->
    life-history
-   (tc/select-rows (fn* [p1__74900#] (= 2007 (:year p1__74900#))))
+   (tc/select-rows (fn* [p1__11202#] (= 2007 (:year p1__11202#))))
    (tc/order-by :life-exp :desc)
    (tc/rows :as-maps)
    first
@@ -1052,7 +1052,7 @@
    chosen
    (tc/select-rows
     life-history
-    (fn* [p1__74901#] (named (:country p1__74901#))))]
+    (fn* [p1__11203#] (named (:country p1__11203#))))]
   (->
    life-history
    (pj/lay-line :year :life-exp {:group :country, :color "#d0d0d0"})
@@ -1062,7 +1062,7 @@
     {:data
      (tc/select-rows
       chosen
-      (fn* [p1__74902#] (= 2007 (:year p1__74902#)))),
+      (fn* [p1__11204#] (= 2007 (:year p1__11204#)))),
      :x :year,
      :y :life-exp,
      :text :country,
@@ -1112,11 +1112,11 @@
       (every? (set (:texts s)) ["Japan" "Oman" "Rwanda"])
       (some
        (fn*
-        [p1__74903#]
-        (re-find #"^Rwanda, 1992: a fall of 20 years" p1__74903#))
+        [p1__11205#]
+        (re-find #"^Rwanda, 1992: a fall of 20 years" p1__11205#))
        (:texts s))
       (some
-       (fn* [p1__74904#] (= "142 countries, 1952-2007" p1__74904#))
+       (fn* [p1__11206#] (= "142 countries, 1952-2007" p1__11206#))
        (:texts s)))))
    v135_l775)))
 
@@ -1131,8 +1131,8 @@
    ys
    (map
     (fn*
-     [p1__74905#]
-     (+ (* 3 p1__74905#) 5 (* 2 (- (rng/drandom r) 0.5))))
+     [p1__11207#]
+     (+ (* 3 p1__11207#) 5 (* 2 (- (rng/drandom r) 0.5))))
     xs)]
   (->
    {:x xs, :y ys}
@@ -1492,7 +1492,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__74906#] (bit-and p1__74906# 255)) (vec bs))))))
+    (mapv (fn* [p1__11208#] (bit-and p1__11208# 255)) (vec bs))))))
 
 
 (deftest
