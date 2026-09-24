@@ -10,7 +10,19 @@ All notable changes to this project will be documented in this file. This change
 
 - **An overlay that only one of the disagreeing layers asks for.** `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))` draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
 
+- **Two vectors of columns in a `lay-*` call's positional slots**, such as `(pj/lay-point data [:t1 :t2] [:v1 :v2])`. They are read as a series on each axis, paired in order, and drawn on one panel. To draw each pair on a panel of its own, write the pairs: `(pj/pose data [[:t1 :v1] [:t2 :v2]])`.
+
+- **A gradient legend on a linear scale.** The bar is labelled at ticks picked and formatted the way the axis's ticks are, such as -0.5, 0, 0.5 and 1, rather than at the data's two ends. A log scale's legend is labelled at its decades, as before.
+
+- **`:breaks []` on an axis.** The axis is drawn with no ticks, no tick labels and no grid lines along it; its title stays.
+
 - **`:share-scales` across a cell that draws several columns on the shared axis.** Each panel of the cell shares the extent of the column it draws, with the cells that draw that column.
+
+### Added
+
+- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on `:end`, `:start` or `:both` ends, and on a categorical axis a written number is a place counted from one, so a segment can point at a category. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
+
+- A series on `:x` and a series on `:y` are read together, in pairs: `{:x [:t1 :t2] :y [:v1 :v2]}` draws the series `t1 / v1` and `t2 / v2` on one panel, whether it is written in a `lay-*` call or in `pj/pose`. The pivot names its two value columns `:x-value` and `:y-value`, and `:as` on either series names the key column.
 
 ### Fixed
 
@@ -19,8 +31,6 @@ All notable changes to this project will be documented in this file. This change
 - A map given as data that holds a map, such as `{:opts {...} :panels [...]}`, reports an error naming the keys and describing what makes a map a pose. A plan or a draft given where a pose goes reports an error too.
 
 - A tile reading a numeric `:color` draws its gradient with no warning.
-
-- A pose that reads a series on both `:x` and `:y` reports an error naming the pose rather than the `lay-*` call, and, where the two series have the same length, offers the pairs as panels: `(pj/pose data [[:a :c] [:b :d]])`.
 
 ## [0.15.0 - 2026-09-23]
 

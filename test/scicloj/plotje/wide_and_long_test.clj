@@ -175,8 +175,8 @@
                        (-> sales (pj/lay-point [[:quarter :revenue]
                                                 [:quarter :cost]])))))))
 
-  (testing "two parallel vectors are still paired panels"
-    (is (= 2 (:panels (pj/svg-summary
+  (testing "two parallel vectors of columns are series in pairs, on one panel"
+    (is (= 1 (:panels (pj/svg-summary
                        (-> with-target (pj/lay-point [:revenue :cost]
                                                      [:target :target])))))))
 
@@ -207,37 +207,39 @@
                                                     {k [:revenue :cost]})))
           (str k))))
 
-  (testing "two series in one call have no shared shape"
-    ;; Reachable only from the options map: two vectors in the two
-    ;; positional slots are the older paired-panels form, and that
-    ;; branch is read first.
-    (is (thrown-with-msg? Exception #"more than one"
-                          (-> sales (pj/lay-point {:x [:revenue :cost]
-                                                   :y [:cost :revenue]})))))
+  (testing "a series on each axis is read in pairs, however it is written"
+    ;; The four spellings -- positional, a mapping map on the call, a
+    ;; pose's mapping map, and pj/pose's positional slots -- draw the
+    ;; same single panel, one series per pair.
+    (let [d {:t1 [1 2 3] :t2 [1.5 2.5 3.5] :v1 [5 6 7] :v2 [1 1 2]}
+          seen (fn [p] (let [s (pj/svg-summary p)]
+                         [(:panels s) (:points s) (set (:texts s))]))
+          one (seen (pj/lay-point d [:t1 :t2] [:v1 :v2]))]
+      (is (= 1 (first one)))
+      (is (= 6 (second one)))
+      (is (every? (nth one 2) ["t1 / v1" "t2 / v2" "x value" "y value"]))
+      (is (= one (seen (pj/lay-point d {:x [:t1 :t2] :y [:v1 :v2]}))))
+      (is (= one (seen (-> d (pj/pose {:x [:t1 :t2] :y [:v1 :v2]}) pj/lay-point))))
+      (is (= one (seen (-> (pj/pose d [:t1 :t2] [:v1 :v2]) pj/lay-point))))
+      (testing "the rows pair the columns in order"
+        (let [ds (:data (pj/lay-point d [:t1 :t2] [:v1 :v2]))]
+          (is (= [1.0 2.0 3.0 1.5 2.5 3.5] (mapv double (ds :x-value))))
+          (is (= [5 6 7 1 1 2] (vec (ds :y-value))))))
+      (testing ":as on either series names the key column"
+        (is (contains? (nth (seen (pj/lay-point d {:x {:series [:t1 :t2] :as :run}
+                                                   :y [:v1 :v2]}))
+                            2)
+                       "run")))))
 
-  (testing "a pose reading two series is reported as the pose's, with the pairs"
-    ;; The pose's own mapping, reached through a layer and with no
-    ;; layer at all. Both were reported under the wrong subject: the
-    ;; first blamed the lay-* call, and the second offered a fix that
-    ;; failed the same way.
-    (let [pairs #"\(pj/pose data \[\[:revenue :cost\] \[:cost :target\]\]\)"]
-      (is (thrown-with-msg? Exception #"^The pose pj/lay-point is added to reads a series on more than one"
-                            (-> with-target
-                                (pj/pose {:x [:revenue :cost] :y [:cost :target]})
-                                pj/lay-point)))
-      (is (thrown-with-msg? Exception pairs
-                            (pj/plot (pj/pose with-target {:x [:revenue :cost]
-                                                           :y [:cost :target]}))))
-      (is (thrown-with-msg? Exception #"^A pose reads a series on more than one"
-                            (pj/plot (pj/pose with-target [:revenue :cost] [:cost :target])))))
-    (testing "the pairs offered draw a panel each"
-      (is (= 2 (:panels (pj/svg-summary
-                         (pj/pose with-target [[:revenue :cost] [:cost :target]]))))))
-    (testing "series of different lengths make no pairs to offer"
-      (is (not (re-find #"write the pairs"
-                        (try (pj/lay-point with-target {:x [:revenue :cost]
-                                                        :y [:cost :target :quarter]})
-                             (catch Exception e (ex-message e))))))))
+  (testing "series of different lengths cannot be paired"
+    (is (thrown-with-msg? Exception #"as many columns each"
+                          (pj/lay-point with-target {:x [:revenue :cost]
+                                                     :y [:cost :target :quarter]}))))
+
+  (testing "a pose reading a series on each axis with no layer names both"
+    (is (thrown-with-msg? Exception #"reads \[:revenue :cost\] on :x and \[:cost :target\] on :y as series"
+                          (pj/plot (pj/pose with-target {:x [:revenue :cost]
+                                                         :y [:cost :target]})))))
 
   (testing "a column the data does not have is named, with the ones it does"
     (is (thrown-with-msg? Exception #"does not have \[:nope\]"
@@ -408,13 +410,16 @@
       (is (not (re-find #"series" out))
           "neither dataset carries both columns, so a series reports rather than draws")))
 
-  (testing "the series route is not offered where both axes disagree"
-    (let [wide (assoc sales :units [3 4 5 6])
+  (testing "where both axes disagree, the route offered is series in pairs, and it draws"
+    (let [wide (assoc sales :x2 [1 2 3 4] :units [3 4 5 6] :rev2 [1 2 3 4])
+          wide (dissoc wide :quarter)
           out (note-of (-> wide (pj/lay-point :revenue :cost)
-                           (pj/lay-point :quarter :units)))]
+                           (pj/lay-point :x2 :units)))]
       (is (re-find #"panel of its own" out))
-      (is (not (re-find #"series" out))
-          "a call takes one series, so the second disagreement would stand")))
+      (is (re-find #"\{:x \[:revenue :x2\], :y \[:cost :units\]\}" out))
+      (is (re-find #"series in pairs" out))
+      (is (= 1 (:panels (pj/svg-summary
+                         (pj/lay-point wide {:x [:revenue :x2] :y [:cost :units]})))))))
 
   (testing "the route the note names is the one that draws"
     (is (= 1 (:panels (pj/svg-summary

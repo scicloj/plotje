@@ -562,26 +562,30 @@ sales-long
 
 (kind/test-last [(fn [outs] (= ["" "" ""] outs))])
 
-;; The series route has two conditions, and the note leaves it out
-;; where either fails. The pivot reads one dataset, so where the layer
-;; brings data of its own neither dataset carries both columns. And a
-;; call takes one series, so where both axes disagree the second
-;; disagreement would be left standing.
+;; The series route needs one dataset carrying the columns, so where
+;; the layer brings data of its own the note leaves it out:
 
-[(note-of
-  (-> {:fitted [1 2 3] :residual [1 2 3]}
-      (pj/lay-point :fitted :residual)
-      (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))
- (note-of
-  (-> (assoc sales :units [3 4 5 6])
-      (pj/lay-point :revenue :cost)
-      (pj/lay-point :quarter :units)))]
+(note-of
+ (-> {:fitted [1 2 3] :residual [1 2 3]}
+     (pj/lay-point :fitted :residual)
+     (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))
 
 (kind/test-last
- [(fn [outs] (every? (fn [out] (and (re-find #"panel of its own" out)
-                                    (re-find #"pj/overlay" out)
-                                    (not (re-find #"series" out))))
-                     outs))])
+ [(fn [out] (and (re-find #"panel of its own" out)
+                 (re-find #"pj/overlay" out)
+                 (not (re-find #"series" out))))])
+
+;; Where both axes disagree, the route it names is a series on each
+;; axis, which is read in pairs:
+
+(note-of
+ (-> (assoc sales :units [3 4 5 6] :rank [1 2 3 4])
+     (pj/lay-point :revenue :cost)
+     (pj/lay-point :rank :units)))
+
+(kind/test-last
+ [(fn [out] (and (re-find #"panel of its own" out)
+                 (re-find #"series in pairs" out)))])
 
 ;; ## Composites nest
 

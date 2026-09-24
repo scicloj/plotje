@@ -176,6 +176,26 @@
 
 (kind/test-last [(fn [v] (= 152 (:points (pj/svg-summary v))))])
 
+;; ### An annotation arrow
+;;
+;; A segment written as values rather than read from columns draws one
+;; arrow, and a text layer beside it writes the note. On a categorical
+;; axis a number is a place counted from one, so `3` is the third
+;; category and `3.6` sits most of the way to the fourth.
+
+(-> {:violation ["Meter" "Over time" "Parking" "Bus zone"]
+     :tickets [462 181 92 30]}
+    (pj/lay-bar :violation :tickets)
+    (pj/coord :flip)
+    (pj/lay-segment {:x 3.6 :y 300 :x-end 3 :y-end 150 :arrow :end})
+    (pj/lay-text {:x 3.6 :y 300 :text "Parking ends a tier"}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           ;; four bars and one arrow head
+                           (and (= 5 (:polygons s))
+                                (= 1 (:lines s))
+                                (contains? (set (:texts s)) "Parking ends a tier"))))])
+
 ;; ### Points with [error bars](https://en.wikipedia.org/wiki/Error_bar)
 ;;
 ;; Combining `point` and `errorbar` layers shows measurements

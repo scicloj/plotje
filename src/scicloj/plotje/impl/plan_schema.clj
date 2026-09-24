@@ -287,7 +287,7 @@
     ;; color scale is log (build-fill-fallback-legend, plan.clj). Both
     ;; need to be declared optional so the plan validates.
     [:scale-type {:optional true} [:enum :linear :log]]
-    [:ticks {:optional true} [:vector [:map [:value number?] [:t number?]]]]
+    [:ticks {:optional true} [:vector [:map [:value number?] [:t number?] [:label string?]]]]
     [:stops [:vector GradientStop]]]])
 
 (def SizeLegendEntry

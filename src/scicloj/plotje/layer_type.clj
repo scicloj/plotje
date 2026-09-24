@@ -87,7 +87,9 @@
    :x-intercept "Numeric or temporal x value a vertical reference line is drawn at. The same two shapes as :y-intercept"
    :x-min "Lower x bound of a vertical shaded band, as a number or a date. Only lay-band-v reads it, and it reads the value straight from the mapping, so this names no column; {:value 1.5} says the same thing at more length"
    :x-max "Upper x bound of a vertical shaded band. The same two shapes as :x-min"
-   :x-end "A column of the layer's data, or a number, for the right edge of a horizontal interval bar. A written value places every bar's right edge alike"
+   :x-end "A column of the layer's data, or a written value, for where a mark ends on x: the right edge of a horizontal interval bar, or the x a segment is drawn to. A written value ends every mark alike. On a segment, leaving it out ends each segment at its own x"
+   :y-end "A column of the layer's data, or a written value, for the y a segment is drawn to. A written value ends every segment alike, so {:y-end 0} draws stems from the zero line. Leaving it out ends each segment at its own y"
+   :arrow "Which ends of a segment carry an arrow head: :end, :start or :both. true means :end"
    :interval-thickness "Fraction (0.0-1.0) of the categorical band that an interval bar fills (default 0.7)"
    :bar-width "How wide a bar is drawn, in the unit its axis offers. On a categorical axis, the fraction (0.0-1.0) of the category band the bar fills, as :box-width is for a box; defaults to 0.8. On a numeric or temporal axis, where there is no band, a width in data units; defaults to 0.9 of the smallest gap between adjacent x values."
    :bins "Number of histogram bins, overriding the :bin-method estimate"
@@ -347,7 +349,7 @@
    :boxplot :violin :ridgeline
    :summary :errorbar :lollipop
    :text :label :rug
-   :interval-h
+   :interval-h :segment
    :rule-h :rule-v :band-h :band-v])
 
 ;; ---- Built-in layer types ----
@@ -380,6 +382,11 @@
 (register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :box :dx :dy :align-x :align-y] :doc "Text -- data-driven labels, optionally on a background box."})
 (register! :label {:mark :text :stat :identity :defaults {:box true} :accepts [:text :font-size :font-weight :font-style :box :dx :dy :align-x :align-y] :doc "Label -- text on a background box. The :text mark with :box preset on."})
 (register! :rug {:mark :rug :stat :identity :x-only true :accepts [:side :length] :doc "Rug -- axis-margin tick marks."})
+(register! :segment {:mark :segment :stat :identity :accepts [:x-end :y-end :arrow :size :stroke-dash]
+                     ;; One straight line per row; there is no band to
+                     ;; divide between rows, so no adjustment applies.
+                     :rejects [:position]
+                     :doc "Segment -- a straight line from (x, y) to (x-end, y-end), one per row, optionally with arrow heads."})
 (register! :interval-h {:mark :interval-h :stat :identity :accepts [:x-end :interval-thickness]
                         ;; Dodge/stack/fill don't compose with interval-h yet -- a Gantt
                         ;; row may have multiple non-overlapping or overlapping intervals

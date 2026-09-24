@@ -82,17 +82,15 @@
                             (ui/with-style ::ui/style-fill
                               (ui/rectangle bar-w (/ bar-h n-stops))))))
           (if (seq ticks)
-            ;; Log scale: label every tick value at its t-position,
-            ;; through the same formatter the log axis uses.
-            (map (fn [{:keys [t]} label]
+            ;; Each tick at its place on the bar, labelled as the plan
+            ;; formatted it -- by the same rules as the axis.
+            (map (fn [{:keys [t label]}]
                    (let [ty (+ y (* (- 1.0 (double t)) bar-h) -4)]
                      (ui/translate (+ x bar-w 4) ty
                                    (ui/with-color title-color
-                                     (ui/label (defaults/fmt-number label seps)
-                                               (ui/font nil 10))))))
-                 ticks
-                 (scale/format-log-ticks (map :value ticks)))
-            ;; Linear scale: just the two ends.
+                                     (ui/label label (ui/font nil 10))))))
+                 ticks)
+            ;; Too few ticks inside the bar: the two ends.
             (let [[lo-label hi-label] (scale/format-range-endpoints min max seps)]
               [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
                              (ui/with-color title-color

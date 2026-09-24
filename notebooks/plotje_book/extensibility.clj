@@ -504,7 +504,7 @@ graph LR
        (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
                       "Output" (pj/mark-doc k)})))})
 
-(kind/test-last [(fn [t] (= 21 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 22 (count (:row-maps t))))])
 
 ;; A plan layer looks like this. Starting from a familiar iris
 ;; scatter:
@@ -544,7 +544,7 @@ graph LR
        (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
                       "Membrane output" (pj/membrane-mark-doc k)})))})
 
-(kind/test-last [(fn [t] (= 21 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 22 (count (:row-maps t))))])
 ;;
 ;; ### Drawing an aesthetic the layer type declares it varies
 ;;

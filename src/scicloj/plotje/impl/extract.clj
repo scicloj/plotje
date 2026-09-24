@@ -403,6 +403,7 @@
 (defmethod extract-layer [:text :doc] [_ _ _ _] "Data-driven label, optionally on a background box")
 (defmethod extract-layer [:rug :doc] [_ _ _ _] "Axis-margin tick marks")
 (defmethod extract-layer [:interval-h :doc] [_ _ _ _] "Horizontal bars from x to x-end at categorical y")
+(defmethod extract-layer [:segment :doc] [_ _ _ _] "Straight lines from (x, y) to (x-end, y-end)")
 (defmethod extract-layer [:rule-h :doc] [_ _ _ _] "Horizontal reference line at a written y")
 (defmethod extract-layer [:rule-v :doc] [_ _ _ _] "Vertical reference line at a written x")
 (defmethod extract-layer [:band-h :doc] [_ _ _ _] "Horizontal shaded band between two written y values")
@@ -1079,6 +1080,49 @@
      :style {:opacity (or (:fixed-alpha draft-layer) 0.85)
              :interval-thickness (or (:interval-thickness draft-layer) 0.7)}
      :x-temporal? (boolean (:x-temporal? draft-layer))
+     :groups groups}))
+
+(defn- segment-arrow
+  "The ends of a segment that carry an arrow head, as a set drawn from
+   `#{:start :end}`, from the layer's `:arrow` option."
+  [arrow]
+  (case arrow
+    (nil false) #{}
+    (true :end) #{:end}
+    :start #{:start}
+    :both #{:start :end}
+    (throw (ex-info (str "lay-segment :arrow " (pr-str arrow) " is not one of"
+                         " :end, :start, :both, true or false. It says which"
+                         " ends of a segment carry an arrow head.")
+                    {:mark :segment :arrow arrow}))))
+
+(defmethod extract-layer :segment [draft-layer stat all-colors cfg]
+  (let [numeric-color? (= (:color-type draft-layer) :numerical)
+        [lo hi] (when numeric-color? (color-extent draft-layer stat))
+        [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)
+        dash (resolve-dash (:stroke-dash draft-layer))
+        groups (vec
+                (for [{:keys [color xs ys x-ends y-ends color-values row-indices tooltips]} (:points stat)
+                      :let [colors (per-row-colors draft-layer color-values
+                                                   true c-min c-max cfg)]]
+                  ;; An end left out is the start's own value, so a
+                  ;; segment given only `:y-end` is vertical and one
+                  ;; given only `:x-end` is horizontal.
+                  (cond-> {:color (resolve-color all-colors color draft-layer cfg)
+                           :xs xs :ys ys
+                           :x-ends (or x-ends xs)
+                           :y-ends (or y-ends ys)}
+                    tooltips (assoc :tooltips tooltips)
+                    row-indices (assoc :row-indices row-indices)
+                    (some? color) (assoc :label (defaults/fmt-category-label color))
+                    colors (assoc :colors colors))))]
+    {:mark :segment
+     ;; Thinner than a line by default: a stem plot draws one segment
+     ;; per row, often a hundred or more side by side.
+     :style (cond-> {:stroke-width (or (:fixed-size draft-layer) 1.0)
+                     :opacity (or (:fixed-alpha draft-layer) 1.0)
+                     :arrow (segment-arrow (:arrow draft-layer))}
+              dash (assoc :dash dash))
      :groups groups}))
 
 ;; ---- Rules and bands ----

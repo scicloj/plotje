@@ -49,6 +49,10 @@
         user-breaks (:breaks scale-spec)
         user-labels (:tick-labels scale-spec)]
     (cond
+      ;; No ticks, as `plan/compute-ticks` answers for an empty `:breaks`.
+      (and (sequential? user-breaks) (empty? user-breaks))
+      {:values [] :labels []}
+
       (and user-breaks (sequential? user-breaks) (seq user-breaks))
       (let [vs (vec user-breaks)
             _ (when-not temporal-extent
@@ -187,8 +191,10 @@
         ;; than the fixed default. A standalone shape legend sits in
         ;; the same column, so its labels count too.
         title-chars (fn [l] (count (str (some-> l :title name))))
+        ;; A gradient legend's tick labels sit in the same column as
+        ;; a categorical legend's entries, so they count too.
         entry-max-chars (fn [l] (reduce max 0 (map #(count (str (:label %)))
-                                                   (:entries l))))
+                                                   (concat (:entries l) (:ticks l)))))
         widest-text (fn [& ls]
                       (reduce max 0 (mapcat (fn [l] [(title-chars l)
                                                      (entry-max-chars l)])

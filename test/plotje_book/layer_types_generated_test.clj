@@ -54,7 +54,7 @@
      "Presets" (if-let [d (:defaults m)] (kind/code (pr-str d)) "")})}))
 
 
-(deftest t7_l78 (is ((fn [t] (= 25 (count (:row-maps t)))) v6_l67)))
+(deftest t7_l78 (is ((fn [t] (= 26 (count (:row-maps t)))) v6_l67)))
 
 
 (def v9_l89 (:varies (layer-type/lookup :point)))
@@ -69,9 +69,9 @@
  v12_l105
  (mapv
   (fn*
-   [p1__75151#]
+   [p1__75373#]
    (select-keys
-    (layer-type/lookup p1__75151#)
+    (layer-type/lookup p1__75373#)
     [:mark :stat :defaults]))
   [:text :label]))
 
@@ -100,7 +100,7 @@
      "Used by" (used-by :mark mk)})}))
 
 
-(deftest t16_l139 (is ((fn [t] (= 21 (count (:row-maps t)))) v15_l131)))
+(deftest t16_l139 (is ((fn [t] (= 22 (count (:row-maps t)))) v15_l131)))
 
 
 (def

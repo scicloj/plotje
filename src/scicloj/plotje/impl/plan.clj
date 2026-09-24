@@ -770,7 +770,9 @@
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
            user-labels (:tick-labels scale-spec)]
-       (if (and user-breaks (sequential? user-breaks) (seq user-breaks))
+       ;; An empty `:breaks` asks for no ticks, and the match below
+       ;; keeps none, as ggplot2's `breaks = NULL` does.
+       (if (and user-breaks (sequential? user-breaks))
          ;; Explicit category subset -- :breaks wins over :n-ticks. Match
          ;; each break to a category by displayed label, keep them in the
          ;; user's order, and relabel with :tick-labels when given.
@@ -804,6 +806,12 @@
            user-breaks (:breaks scale-spec)
            user-labels (:tick-labels scale-spec)]
        (cond
+         ;; An empty `:breaks` asks for an axis with no ticks, as
+         ;; ggplot2's `breaks = NULL` does. It is the one way to hide
+         ;; them, and the automatic ticks it gave before said nothing.
+         (and (sequential? user-breaks) (empty? user-breaks))
+         {:values [] :labels [] :categorical? false}
+
          ;; User-supplied breaks override everything -- use the exact values
          ;; they asked for. Labels come from user-supplied :tick-labels when
          ;; provided, otherwise from the same format the scale uses.
@@ -1595,35 +1603,58 @@
              "outline (point edge, line).")))
 
 (defn- continuous-legend-ticks
-  "Tick values for a log-scaled gradient bar, each with the fraction of
-   the bar it sits at.
+  "Tick values for a gradient bar, each with the fraction of the bar it
+   sits at and the label printed beside it.
 
-   A linear gradient bar is labelled at its two ends and needs none of
-   this. A log one has to say where the decades fall, or the bar cannot
-   be read back to a value.
+   Picked and formatted by the axis's own rules, so a legend reads the
+   way the axis beside it reads: a linear bar through `compute-ticks`,
+   a log bar through `scale/log-ticks-drawn` and `format-log-ticks`. A
+   linear bar used to print its two ends as they stood, so a column
+   reaching -0.606646 was labelled -0.606646 rather than at -0.5, 0,
+   0.5 and 1.
 
    Stated once because both continuous legends need it: the fill legend
-   had it and the colour legend did not, so `pj/scale :color :log`
-   spaced the marks and left the legend describing a linear scale.
+   had log ticks and the colour legend did not, so `pj/scale :color
+   :log` spaced the marks and left the legend describing a linear
+   scale.
 
-   Only the ticks inside the domain, by `scale/ticks-inside-domain`.
-   The generator reaches a little past the domain -- on an axis a
-   bounding power of ten just outside the data is an ordinary tick --
-   and a bar has no room past its own ends: on gapminder's gross
-   domestic product per capita the tick at 100000 was drawn at 1.14 of
-   a bar that stops at 1.0, over the legend's title. Where fewer than
-   two survive, no ticks are returned and the renderer labels the bar's
-   two ends instead, which is what a linear bar carries."
-  [lo hi whole?]
-  (let [lo-l (Math/log10 (max 1e-300 (double lo)))
-        hi-l (Math/log10 (max 1e-300 (double hi)))
-        span (max 1e-6 (- hi-l lo-l))]
-    (vec (for [v (:values (scale/log-ticks-drawn [lo hi] 5 whole?))]
-           {:value v
-            ;; Where on the bar, read in log space whether or not the
-            ;; value came from the fallback: that is where the colour
-            ;; for it sits.
-            :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)}))))
+   Only the ticks inside the domain. A generator may reach a little
+   past it -- on an axis a bounding tick just outside the data is
+   ordinary -- and a bar has no room past its own ends: on gapminder's
+   gross domestic product per capita the tick at 100000 was drawn at
+   1.14 of a bar that stops at 1.0, over the legend's title. Where fewer
+   than two survive, no ticks are returned and the renderer labels the
+   bar's two ends instead."
+  [lo hi scale-type whole? cfg]
+  (let [seps (defaults/number-separators cfg)
+        lo (double lo)
+        hi (double hi)]
+    (when (< lo hi)
+      (let [ticks (if (= :log scale-type)
+                    (let [lo-l (Math/log10 (max 1e-300 lo))
+                          hi-l (Math/log10 (max 1e-300 hi))
+                          span (max 1e-6 (- hi-l lo-l))
+                          vs (vec (:values (scale/log-ticks-drawn [lo hi] 5 whole?)))]
+                      (map (fn [v label]
+                             ;; Where on the bar, read in log space: that
+                             ;; is where the colour for the value sits.
+                             {:value v
+                              :t (/ (- (Math/log10 (max 1e-300 (double v))) lo-l) span)
+                              :label (defaults/fmt-number label seps)})
+                           vs (scale/format-log-ticks vs)))
+                    ;; The bar is 120 drawing units tall, and a tick every
+                    ;; 30 of them gives about the five an axis that
+                    ;; long would carry.
+                    (let [{:keys [values labels]}
+                          (compute-ticks [lo hi] [0.0 120.0] {:type :linear} 30
+                                         nil seps whole?)]
+                      (map (fn [v label]
+                             {:value v :t (/ (- (double v) lo) (- hi lo)) :label label})
+                           values labels)))
+            eps 1e-9
+            inside (vec (filter #(<= (- eps) (:t %) (+ 1.0 eps)) ticks))]
+        (when (<= 2 (count inside))
+          inside)))))
 
 (defn- gradient-stops
   "The colours along a continuous legend's bar, low end first.
@@ -1681,7 +1712,11 @@
                 ;; The midpoint the marks were drawn around, read the
                 ;; way they read it, so the bar is centred where they
                 ;; are.
-                midpoint (defaults/scale-setting :color :midpoint spec cfg)]
+                midpoint (defaults/scale-setting :color :midpoint spec cfg)
+                ticks (continuous-legend-ticks
+                       c-min c-max scale-type
+                       (whole-aesthetic-values? color-draft-layers :color spec)
+                       cfg)]
             (cond-> {:title title
                      :type :continuous
                      :min c-min :max c-max
@@ -1689,10 +1724,7 @@
                      :color-range (defaults/scale-setting :color :range spec cfg)
                      :range-from-spec? (contains? spec :range)
                      :stops (gradient-stops grad-fn scale-type c-min c-max midpoint)}
-              (= :log scale-type)
-              (assoc :ticks (continuous-legend-ticks
-                             c-min c-max
-                             (whole-aesthetic-values? color-draft-layers :color spec)))))))
+              ticks (assoc :ticks ticks)))))
       (seq all-colors)
       {:title title
        :entries (vec (for [cat all-colors]
@@ -2922,11 +2954,11 @@
                         :else (or tile-fill-column :fill)))
             log? (= :log scale-type)
             stops (gradient-stops grad-fn scale-type f-lo f-hi midpoint)
-            ticks (when log?
-                    (continuous-legend-ticks
-                     f-lo f-hi
-                     (whole-aesthetic-values? (when fill-draft-layer [fill-draft-layer])
-                                              :fill spec)))]
+            ticks (continuous-legend-ticks
+                   f-lo f-hi scale-type
+                   (whole-aesthetic-values? (when fill-draft-layer [fill-draft-layer])
+                                            :fill spec)
+                   cfg)]
         (cond-> {:title title
                  :type :continuous
                  :min f-lo :max f-hi

@@ -2156,28 +2156,24 @@
           (select-keys mapping [:x :y]))))
 
 (defn- find-series
-  "Where a series is written, as `[aesthetic source]`, or nil where
-   none is. `source` is `:call` for either of a `lay-*` call's map
-   slots and `:pose` for the pose's own mapping.
+  "Where a series is written, as `[aesthetics source]`, or nil where
+   none is. `aesthetics` is `[:x]`, `[:y]` or `[:x :y]` -- a series on
+   each axis is read as pairs -- and `source` is `:call` for either of a
+   `lay-*` call's map slots and `:pose` for the pose's own mapping.
 
    A series on the pose is read the way every other mapping written
    there is read: it reaches the layers below it. The call is searched
    first, so a layer naming its own series overrides the one it would
    inherit, which is the scope rule for every aesthetic."
   [caller fr position-mapping opts]
-  (let [in (fn [m] (keep (fn [[k v]] (when (and (series-slots k) (series-mapping? v)) k)) m))
-        at-call (vec (concat (in position-mapping) (in opts)))
-        on-pose (vec (in (:mapping fr)))]
-    (pose/report-series-on-both! (str caller " was given")
-                                 (merge position-mapping opts))
-    (pose/report-series-on-both! (str "The pose " caller " is added to reads")
-                                 (:mapping fr))
+  (let [in (fn [m] (filterv #(series-mapping? (get m %)) pose/series-aesthetics))
+        at-call (in (merge position-mapping opts))
+        on-pose (in (:mapping fr))]
     ;; A series at the call and a series on the pose are two pivots of
-    ;; one dataset, and the same rule refuses them as refuses two in
-    ;; one call: the pivot consumes the columns it reads, so the second
-    ;; would name columns the first had already taken. The layer cannot
-    ;; override the pose here the way another mapping would, because
-    ;; what it would override has already reshaped the data.
+    ;; one dataset: the pivot consumes the columns it reads, so the
+    ;; second would name columns the first had already taken. The layer
+    ;; cannot override the pose here the way another mapping would,
+    ;; because what it would override has already reshaped the data.
     (when (and (seq at-call) (seq on-pose))
       (throw (ex-info (str caller " was given a series on " (pr-str (first at-call))
                            ", and the pose it is added to already reads one on "
@@ -2190,16 +2186,16 @@
                        :at-call (first at-call)
                        :on-pose (first on-pose)})))
     (cond
-      (seq at-call) [(first at-call) :call]
-      (seq on-pose) [(first on-pose) :pose])))
+      (seq at-call) [at-call :call]
+      (seq on-pose) [on-pose :pose])))
 
-(defn- pivot-series
-  "Pivot the columns a series names into a key column and a value
-   column. Returns the new dataset."
-  [caller data spec]
-  (let [{cols :cols label :as} spec
-        ds (tc/dataset data)
-        available (vec (sort-by str (tc/column-names ds)))
+(defn- check-series-columns!
+  "Throw where the columns a series names cannot be pivoted: fewer than
+   two, one that is not a column reference, or one the data does not
+   have. Shared by a series on one aesthetic and by the pairs two
+   series on `:x` and `:y` make."
+  [caller ds cols]
+  (let [available (vec (sort-by str (tc/column-names ds)))
         present (set available)
         missing (vec (remove present cols))]
     (when (< (count cols) 2)
@@ -2220,7 +2216,16 @@
                            " series, and the data does not have "
                            (pr-str missing) ". Available columns: "
                            available ".")
-                      {:caller caller :missing missing :columns available})))
+                      {:caller caller :missing missing :columns available})))))
+
+(defn- pivot-series
+  "Pivot the columns a series names into a key column and a value
+   column. Returns the new dataset."
+  [caller data spec]
+  (let [{cols :cols label :as} spec
+        ds (tc/dataset data)
+        present (set (tc/column-names ds))]
+    (check-series-columns! caller ds cols)
     ;; Reported before the clash check below, whose set literal held
     ;; both names and threw a bare `Duplicate key: :value` when `:as`
     ;; named the value column -- the guard meant to report the
@@ -2286,6 +2291,75 @@
        (str "with a missing value among the columns read as series ("
             (str/join ", " (map pr-str cols)) ")"))
       pivoted)))
+
+(defn- pivot-series-pairs
+  "Pivot a series on `:x` and a series on `:y` together, pairing their
+   columns in order: the first `:x` column with the first `:y` column,
+   and so on. Each pair becomes a group of rows labelled with both
+   names, `\"a / c\"`, holding the pair's values in two value columns.
+   Returns the new dataset.
+
+   The key column is named by `:as` on either series; the two may not
+   name different ones."
+  [caller data x-spec y-spec]
+  (let [ds (tc/dataset data)
+        {xs :cols} x-spec
+        {ys :cols} y-spec
+        _ (check-series-columns! caller ds xs)
+        _ (check-series-columns! caller ds ys)
+        named (distinct (remove #(= % default-series-label)
+                                [(:as x-spec) (:as y-spec)]))
+        _ (when (next named)
+            (throw (ex-info (str caller " was given a series on :x named :as "
+                                 (pr-str (:as x-spec)) " and a series on :y"
+                                 " named :as " (pr-str (:as y-spec)) ". The"
+                                 " two are pivoted together into one key"
+                                 " column, so name it once.")
+                            {:caller caller :as (vec named)})))
+        label (or (first named) default-series-label)
+        {xv :x yv :y} pose/series-pair-value-columns
+        _ (when (not= (count xs) (count ys))
+            (throw (ex-info (str caller " was given " (count xs) " columns on"
+                                 " :x, " (pr-str (vec xs)) ", and " (count ys)
+                                 " on :y, " (pr-str (vec ys)) ". Two series"
+                                 " are read in pairs, the first :x column"
+                                 " with the first :y column, so they take"
+                                 " as many columns each.")
+                            {:caller caller :x (vec xs) :y (vec ys)})))
+        consumed (set (concat xs ys))
+        remaining (vec (remove consumed (tc/column-names ds)))
+        clashes (filterv (set remaining) [label xv yv])
+        _ (when (seq clashes)
+            (throw (ex-info (str caller " cannot pivot these columns in pairs:"
+                                 " the pivot names its key column "
+                                 (pr-str label) " and its value columns "
+                                 (pr-str xv) " and " (pr-str yv) ", and the"
+                                 " data already has " (pr-str clashes) "."
+                                 " Rename that column in the data"
+                                 (when (some #{label} clashes)
+                                   ", or name the key column with :as")
+                                 ".")
+                            {:caller caller :clashes clashes})))
+        n (tc/row-count ds)
+        ;; Through the formatter the legend gives a single series' key
+        ;; column, so `:time-a` reads `time a` in both legends.
+        col-label defaults/fmt-category-label
+        kept (tc/select-columns ds remaining)
+        parts (mapv (fn [x y]
+                      (-> kept
+                          (tc/add-column label (vec (repeat n (str (col-label x) " / " (col-label y)))))
+                          (tc/add-column xv (ds x))
+                          (tc/add-column yv (ds y))))
+                    xs ys)
+        joined (apply tc/concat parts)
+        ;; A pair missing either value has no place to be drawn. The
+        ;; drop is named, as the single-series pivot names its own.
+        pivoted (tc/drop-missing joined [xv yv])]
+    (defaults/report-removed-rows!
+     (- (tc/row-count joined) (tc/row-count pivoted))
+     (str "with a missing value among the columns read as series in pairs ("
+          (str/join ", " (map pr-str (concat xs ys))) ")"))
+    pivoted))
 
 (defn- series-consumers
   "Where the pose already names a column the pivot would consume. A
@@ -2361,14 +2435,21 @@
    `:group` where the layer maps `:color` itself, so the series stay
    separate marks either way."
   [caller fr layer-type-key position-mapping opts]
-  (if-let [[k source] (find-series caller fr position-mapping opts)]
-    (let [written (if (= :pose source)
-                    (get (:mapping fr) k)
-                    (or (get position-mapping k) (get opts k)))
-          _ (check-series-keys! caller written)
-          spec (series-mapping written)
-          cols (:cols spec)
-          label (:as spec)
+  (if-let [[ks source] (find-series caller fr position-mapping opts)]
+    (let [written-at (fn [k] (if (= :pose source)
+                               (get (:mapping fr) k)
+                               (or (get opts k) (get position-mapping k))))
+          _ (doseq [k ks] (check-series-keys! caller (written-at k)))
+          specs (into {} (map (fn [k] [k (series-mapping (written-at k))])) ks)
+          pairs? (next ks)
+          k (first ks)
+          written (written-at k)
+          spec (get specs k)
+          cols (vec (mapcat :cols (vals specs)))
+          label (if pairs?
+                  (or (first (remove #(= % default-series-label) (map :as (vals specs))))
+                      default-series-label)
+                  (:as spec))
           data (or (:data opts) (:data fr))]
       ;; The composite check comes first: a composite built by
       ;; `pj/arrange` carries no data at its root, so the nil-data
@@ -2387,7 +2468,9 @@
                              " data to the " caller " call, or put it on the"
                              " pose with pj/pose first.")
                         {:caller caller :aesthetic k})))
-      (let [pivoted (pivot-series caller data spec)]
+      (let [pivoted (if pairs?
+                      (pivot-series-pairs caller data (:x specs) (:y specs))
+                      (pivot-series caller data spec))]
         (when-let [hits (seq (series-consumers fr cols))]
           (throw (ex-info (str caller " reads " (pr-str (vec cols))
                                " as series, and " (ffirst hits) " names "
@@ -2409,23 +2492,27 @@
               ;; through a scale is the same position as one reading
               ;; plainly -- identity is decided on `pose/mapping-source`,
               ;; which unwraps both to the invented column.
-              value-mapping (if-let [sc (:scale spec)]
-                              {:from series-value-column :scale sc}
-                              series-value-column)]
+              value-mapping (fn [k]
+                              (let [col (if pairs?
+                                          (get pose/series-pair-value-columns k)
+                                          series-value-column)]
+                                (if-let [sc (:scale (get specs k))]
+                                  {:from col :scale sc}
+                                  col)))
+              values (into {} (map (fn [k] [k (value-mapping k)])) ks)]
           ;; Written on the pose, rewritten on the pose: the layers below
           ;; it then read ordinary columns, and a second layer added later
           ;; reads the same ones.
           (if (= :pose source)
             [(-> fr
                  (assoc :data pivoted)
-                 (update :mapping merge {k value-mapping group-key label}
+                 (update :mapping merge values {group-key label}
                          colour-type))
              position-mapping
              opts]
             [(assoc fr :data pivoted)
-             (assoc (or position-mapping {}) k value-mapping)
-             (-> (or opts {})
-                 (dissoc k :data)
+             (merge (or position-mapping {}) values)
+             (-> (apply dissoc (or opts {}) :data ks)
                  (merge {group-key label} colour-type))]))))
     [fr position-mapping opts]))
 
@@ -2695,6 +2782,11 @@
 
        (and (series-mapping? x) (not (sequential? y-or-opts)) (some? y-or-opts)
             (not (map? y-or-opts)))
+       (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil)
+
+       ;; A series in each slot: read in pairs, as one layer. The same
+       ;; reading `pj/pose` and a mapping map give the two vectors.
+       (and (series-mapping? x) (series-mapping? y-or-opts))
        (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil)
 
        ;; Parallel vectors -> build a multi-panel composite via pj/pose
@@ -3253,6 +3345,24 @@
   ([pose-or-data x-or-opts] (lay-layer-type :rug pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :rug pose-or-data x y-or-opts))
   ([pose-or-data x y opts] (lay-layer-type :rug pose-or-data x y opts)))
+
+(defn lay-segment
+  "Add `:segment` layer type -- a straight line from (x, y) to
+   (x-end, y-end), one per row.
+
+   `:x-end` and `:y-end` each take a column or a written value, and an
+   end left out is the start's own value. So `{:y-end 0}` draws a stem
+   from each point down to the zero line -- a stem plot, a lollipop
+   without its dot -- and `{:x-end :x1 :y-end :y1}` draws each row's
+   segment between two points. `:arrow` puts an arrow head on `:end`,
+   `:start` or `:both` ends.
+
+   - `(lay-segment data :index :distance {:y-end 0})` -- stems.
+   - `(lay-segment data :x0 :y0 {:x-end :x1 :y-end :y1 :arrow :end})`"
+  ([pose-or-data] (lay-layer-type :segment pose-or-data))
+  ([pose-or-data x-or-opts] (lay-layer-type :segment pose-or-data x-or-opts))
+  ([pose-or-data x y-or-opts] (lay-layer-type :segment pose-or-data x y-or-opts))
+  ([pose-or-data x y opts] (lay-layer-type :segment pose-or-data x y opts)))
 
 (defn lay-interval-h
   "Add `:interval-h` layer type -- horizontal bar from x to x-end at categorical y.

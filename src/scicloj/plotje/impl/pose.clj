@@ -2059,30 +2059,11 @@
    pivot to draw."
   [:x :y])
 
-(defn report-series-on-both!
-  "Throw where `mapping` reads a series on more than one aesthetic.
-   `where` names what carries the mapping, as the message's subject.
-
-   The pivot makes one value column, so one of `:x` and `:y` has to
-   name a column. Both places a series can be found -- a `lay-*` call
-   and a leaf drafted with its series unread -- call this, so the
-   message and the pointer to the panel form are written once."
-  [where mapping]
-  (let [found (filterv #(series-mapping (get mapping %)) series-aesthetics)]
-    (when (next found)
-      (let [cols (mapv #(:cols (series-mapping (get mapping %))) found)
-            pairs (when (apply = (map count cols))
-                    (apply mapv vector cols))]
-        (throw (ex-info (str where " a series on more than one aesthetic -- "
-                             (pr-str found) ": " (pr-str (first cols)) " and "
-                             (pr-str (second cols)) ". A series pivots the data"
-                             " into one value column, so the other aesthetic"
-                             " has to name a single column."
-                             (when pairs
-                               (str " To draw each pair on a panel of its"
-                                    " own, write the pairs:"
-                                    " (pj/pose data " (pr-str pairs) ").")))
-                        {:aesthetics found :columns cols}))))))
+(def series-pair-value-columns
+  "The names the two value columns take where a series on `:x` and a
+   series on `:y` are pivoted together as pairs. Each titles its axis,
+   which `:x-label` and `:y-label` rename."
+  {:x :x-value :y :y-value})
 
 (defn series-clashes
   "The columns a series reading `cols`, with its key column named
@@ -2120,38 +2101,46 @@
    `pj/overlay` puts the layers on the panel the leaf's own mapping
    names and always applies. Several columns in one slot pivot them into
    series that can be dodged, piled or normalized against each other,
-   which needs one dataset carrying both columns, one axis disagreeing
-   -- a call takes one series, so a second disagreement would be left
-   standing -- and no column the pivot would write over, which is what
-   a pose already reading a series has."
+   which needs two panels, one dataset carrying the columns, and no
+   column the pivot would write over, which is what a pose already
+   reading a series has. Where both axes disagree, a series on each is
+   read in pairs, and that is the route offered."
   [panel-keys data]
   (let [[[x0 y0] [x1 y1]] panel-keys
+        x-differs? (not= x0 x1)
+        y-differs? (not= y0 y1)
         [axis standing incoming] (cond
-                                   (not= x0 x1) [:x x0 x1]
-                                   (not= y0 y1) [:y y0 y1])
+                                   x-differs? [:x x0 x1]
+                                   y-differs? [:y y0 y1])
         names (when (and axis data) (tc/column-names (tc/dataset data)))
-        both-there? (let [cols (set names)]
-                      (and (cols standing) (cols incoming)))
+        present (set names)
+        pairs? (and x-differs? y-differs?)
+        consumed (if pairs? [x0 x1 y0 y1] [standing incoming])
         ;; A pose that already reads a series carries the columns that
         ;; pivot invented, and a second pivot would write over them --
         ;; the route is named only where the pivot would draw.
-        clear? (every? nil? (vals (series-clashes [standing incoming]
-                                                  default-series-label
-                                                  names)))
+        clear? (if pairs?
+                 (not-any? (set (remove (set consumed) names))
+                           (cons default-series-label (vals series-pair-value-columns)))
+                 (every? nil? (vals (series-clashes consumed default-series-label names))))
         series? (and (= 2 (count panel-keys))
-                     (if (= axis :x) (= y0 y1) (= x0 x1))
-                     both-there?
-                     clear?)]
+                     (every? present consumed)
+                     clear?)
+        route (if pairs?
+                (str (pr-str {:x [x0 x1] :y [y0 y1]}) " in one lay-* call, or"
+                     " in the pose's mapping, to read them as series in pairs")
+                (str (pr-str [standing incoming]) " on " axis " in one"
+                     " lay-* call, or in the pose's mapping, to read them as"
+                     " series"))]
     (when axis
       (println
        (str "Note: a layer names " (pr-str incoming) " where this pose draws "
-            (pr-str standing) " on " axis ", so the layer was given a panel of"
+            (pr-str standing) " on " axis
+            (when pairs? (str ", and " (pr-str y1) " where it draws " (pr-str y0) " on :y"))
+            ", so the layer was given a panel of"
             " its own. To draw both on one panel: pj/overlay for the axis the"
             " pose already names"
-            (when series?
-              (str ", or " (pr-str [standing incoming]) " on " axis " in one"
-                   " lay-* call, or in the pose's mapping, to read them as"
-                   " series"))
+            (when series? (str ", or " route))
             ".")))))
 
 (defn report-panel-aesthetic-on-layer
@@ -2186,19 +2175,22 @@
    `pj/pose` given a series and no layer at all failed the same way,
    with an index out of bounds."
   [leaf-mapping]
-  (report-series-on-both! "A pose reads" leaf-mapping)
-  (doseq [k series-aesthetics
-          :let [cols (:cols (series-mapping (get leaf-mapping k)))]
-          :when cols]
-    (throw (ex-info (str "A pose reads " (pr-str (vec cols)) " on " k " as a"
-                         " series, and no layer was added to that pose, so the"
-                         " series was never read. A series is pivoted when a"
-                         " layer is added to the pose that carries it: (-> data"
-                         " (pj/pose " (pr-str (assoc (select-keys leaf-mapping [:x :y]) k (vec cols)))
-                         ") pj/lay-line). A cell of pj/arrange takes its layers"
-                         " from the pose it is arranged into, so build such a"
-                         " cell that way before arranging it.")
-                    {:aesthetic k :columns (vec cols)}))))
+  (let [found (filterv #(series-mapping (get leaf-mapping %)) series-aesthetics)]
+    (when (seq found)
+      (let [written (into {} (map (fn [k] [k (:cols (series-mapping (get leaf-mapping k)))]))
+                          found)]
+        (throw (ex-info (str "A pose reads "
+                             (str/join " and " (map (fn [k] (str (pr-str (get written k)) " on " k))
+                                                    found))
+                             " as " (if (next found) "series" "a series")
+                             ", and no layer was added to that pose, so the"
+                             " series was never read. A series is pivoted when a"
+                             " layer is added to the pose that carries it: (-> data"
+                             " (pj/pose " (pr-str (merge (select-keys leaf-mapping [:x :y]) written))
+                             ") pj/lay-line). A cell of pj/arrange takes its layers"
+                             " from the pose it is arranged into, so build such a"
+                             " cell that way before arranging it.")
+                        {:aesthetics found :columns written}))))))
 
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per

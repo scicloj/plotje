@@ -173,58 +173,53 @@
       (is (contains? texts "2024"))
       (is (not (contains? texts "2,024"))))))
 
-;; ---- what a continuous legend prints at the ends of its bar ----
+;; ---- what a continuous legend prints beside its bar ----
 ;;
-;; These two labels were formatted with `%.4g`, four significant digits.
-;; Java's `%g` abandons plain notation once the exponent reaches the
-;; precision, so a legend for a count read 1.235e+05 beside an axis
-;; reading 100,000; below that it padded rather than truncated, so a
-;; span of 0.1 to 2.5 read 0.1000 and 2.500. Six significant digits in
-;; plain notation replace it.
+;; A linear gradient bar is labelled at ticks picked and formatted by
+;; the axis's own rules. Its two ends are printed only where fewer than
+;; two ticks fit inside the bar, through `scale/format-range-endpoints`,
+;; whose rules are tested directly below.
 
-(defn- legend-ends
-  "The two numbers a continuous colour legend draws, low then high."
-  ([lo hi] (legend-ends lo hi {}))
+(defn- legend-labels
+  "The tick labels a continuous colour legend prints, low to high."
+  ([lo hi] (legend-labels lo hi {}))
   ([lo hi opts]
    (->> (-> {:height [1 2] :weight [1 2] :score [lo hi]}
             (pj/lay-point :height :weight {:color :score})
             (pj/options opts)
-            pj/plot
-            pj/svg-summary
-            :texts)
-        (drop 3)
-        (take 2)
-        vec)))
+            pj/plan
+            :legend
+            :ticks)
+        (mapv :label))))
 
-(deftest a-continuous-legend-does-not-fall-back-to-scientific-notation
-  (testing "at and above the exponent %.4g gave up at"
-    (is (= ["1" "10000"] (legend-ends 1 10000)))
-    (is (= ["1" "123456"] (legend-ends 1 123456))))
-  (testing "and it keeps enough digits to tell its two ends apart"
-    (is (= ["123456" "123999"] (legend-ends 123456 123999))
-        "both read 1.235e+05 before")))
+(deftest a-continuous-legend-is-ticked-like-an-axis
+  (testing "round values, in plain notation"
+    (is (= ["2000" "4000" "6000" "8000" "10000"] (legend-labels 1 10000)))
+    (is (= ["123500" "123600" "123700" "123800" "123900"] (legend-labels 123456 123999)))
+    (is (= ["0.5" "1.0" "1.5" "2.0" "2.5"] (legend-labels 0.1 2.5))))
+  (testing "floating-point noise does not reach a label"
+    (is (= ["0.5" "1.0" "1.5" "2.0" "2.5"] (legend-labels 0.10000000000000009 2.5))))
+  (testing "a small span keeps its decimals"
+    (is (= ["0.001" "0.002" "0.003" "0.004" "0.005"] (legend-labels 0.001 0.005))))
+  (testing "the separators reach the labels"
+    (is (= ["20,000" "40,000" "60,000" "80,000" "100,000"]
+           (legend-labels 1000 100000 {:thousands-separator ","})))
+    (is (= ["2.000" "4.000" "6.000" "8.000"]
+           (legend-labels 1234.5 9876.5 {:thousands-separator "."
+                                         :decimal-separator ","})))))
 
-(deftest a-continuous-legend-does-not-pad-with-trailing-zeros
-  (is (= ["0.1" "2.5"] (legend-ends 0.1 2.5)) "read 0.1000 and 2.500 before")
-  (is (= ["0" "100"] (legend-ends 0 100)))
-  (testing "floating-point noise does not reach the label"
-    (is (= ["0.1" "2.5"] (legend-ends 0.10000000000000009 2.5)))))
-
-(deftest a-continuous-legend-keeps-a-small-end-of-a-wide-span
-  (testing "precision follows each value, not the distance between them"
-    ;; Deriving it from the span would round the low end to 0 here.
-    (is (= ["0.001" "1000"] (legend-ends 0.001 1000)))
-    (is (= ["0.001" "0.005"] (legend-ends 0.001 0.005)))))
-
-(deftest a-continuous-legend-reads-the-way-the-axis-beside-it-reads
-  (testing "the separators reach both ends"
-    (is (= ["1,000" "100,000"]
-           (legend-ends 1000 100000 {:thousands-separator ","}))
-        "the case the 0.7.0 CHANGELOG claimed and %.4g broke")
-    (is (= ["1.234,5" "9.876,5"]
-           (legend-ends 1234.5 9876.5 {:thousands-separator "."
-                                       :decimal-separator ","}))
-        "%.4g rounded these to 1235 and 9877 before grouping them")))
+(deftest the-fallback-ends-do-not-fall-back-to-scientific-notation
+  ;; `%.4g` switched to scientific notation at 10000 and padded below
+  ;; it; six significant digits in plain notation replaced it.
+  (let [ends (fn ([lo hi] (scale/format-range-endpoints lo hi {}))
+               ([lo hi seps] (scale/format-range-endpoints lo hi seps)))]
+    (is (= ["1" "123456"] (ends 1 123456)))
+    (is (= ["123456" "123999"] (ends 123456 123999)) "both read 1.235e+05 before")
+    (is (= ["0.1" "2.5"] (ends 0.1 2.5)) "read 0.1000 and 2.500 before")
+    (is (= ["0.1" "2.5"] (ends 0.10000000000000009 2.5)))
+    (is (= ["0.001" "1000"] (ends 0.001 1000))
+        "precision follows each value, not the span")
+    (is (= ["1,000" "100,000"] (ends 1000 100000 {:thousands ","})))))
 
 (deftest a-log-fill-legend-labels-every-tick-cleanly
   (testing "sub-1 log ticks are not padded to four significant digits"

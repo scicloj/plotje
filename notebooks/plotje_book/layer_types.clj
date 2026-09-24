@@ -77,7 +77,7 @@
 
 (kind/test-last
  [(fn [t]
-    (= 25 (count (:row-maps t))))])
+    (= 26 (count (:row-maps t))))])
 
 ;; A layer type carries one more field the table leaves out, because
 ;; only one built-in layer type has it. `:varies` names the appearance
@@ -138,7 +138,7 @@
 
 (kind/test-last
  [(fn [t]
-    (= 21 (count (:row-maps t))))])
+    (= 22 (count (:row-maps t))))])
 
 ;; ## Stats
 ;;

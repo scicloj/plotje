@@ -257,7 +257,7 @@
   [draft-layer]
   (let [{:keys [data x y color color-type color-drawn? size alpha shape
                 text-col tooltip-col x-type y-type group mark y-min y-max
-                x-end fill bar-width]} draft-layer
+                x-end y-end fill bar-width]} draft-layer
         ;; A layer with no `:y` of its own: a histogram, a density, a
         ;; rug. The stat computes what the other axis draws, so the ys
         ;; buffer is synthesized further down.
@@ -279,10 +279,16 @@
                          (col-ref? y-min)  (conj y-min)
                          (col-ref? y-max)  (conj y-max)
                          (col-ref? x-end)  (conj x-end)
+                         (col-ref? y-end)  (conj y-end)
                          (col-ref? fill)  (conj fill))
         drop-cols (vec (distinct (concat (if x-only? [x] [x y]) aesthetic-cols)))
         clean (cond-> (drop-missing-reported data-idx drop-cols)
                 (= x-type :categorical) (format-category-column x)
+                ;; An end column on a categorical axis names categories
+                ;; too, formatted as the column it ends is.
+                (and (= x-type :categorical) (col-ref? x-end)) (format-category-column x-end)
+                (and (not x-only?) (= y-type :categorical) (col-ref? y-end))
+                (format-category-column y-end)
                 ;; Format the categorical axis whichever side it is on, so a
                 ;; horizontal value bar's category labels (on y) match its band
                 ;; scale -- keyword/number categories become display strings.
@@ -305,7 +311,7 @@
                             (some-> (min-adjacent-gap xs-col) (* 0.9))
                             1.0)))
             x-dom (if cat-x?
-                    (distinct xs-col)
+                    (distinct (concat xs-col (when (col-ref? x-end) (clean x-end))))
                     (let [[lo hi] (numeric-extent xs-col)]
                       (cond
                         (col-ref? x-end)
@@ -323,7 +329,11 @@
                         :else [lo hi])))
             y-dom (cond
                     x-only? nil
-                    cat-y? (distinct ys-col)
+                    cat-y? (distinct (concat ys-col (when (col-ref? y-end) (clean y-end))))
+                    (col-ref? y-end)
+                    (let [[lo hi] (numeric-extent ys-col)
+                          [lo2 hi2] (numeric-extent (clean y-end))]
+                      [(min lo lo2) (max hi hi2)])
                     :else (let [[lo hi] (numeric-extent ys-col)]
                             (if (= mark :rect) [(min 0 lo) (max 0 hi)]
                                 ;; Extend domain to include y-min/y-max if present
@@ -364,7 +374,8 @@
                             tooltip-col (assoc :tooltips (ds tooltip-col))
                             y-min (assoc :ymins (ds y-min))
                             y-max (assoc :ymaxs (ds y-max))
-                            (col-ref? x-end) (assoc :x-ends (ds x-end))))
+                            (col-ref? x-end) (assoc :x-ends (ds x-end))
+                            (col-ref? y-end) (assoc :y-ends (ds y-end))))
             groups (group-by-columns clean (or group []) point-group)]
         (cond-> {:points groups :x-domain x-dom :y-domain y-dom}
           numeric-bar? (assoc :bar-width w))))))

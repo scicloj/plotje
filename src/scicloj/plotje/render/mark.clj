@@ -360,6 +360,7 @@
 (defmethod layer->membrane [:ridgeline :doc] [_ _] "Overlapping filled density curves")
 (defmethod layer->membrane [:rug :doc] [_ _] "Short stroked tick marks at axis margins")
 (defmethod layer->membrane [:interval-h :doc] [_ _] "Filled rectangles spanning x to x-end at categorical y")
+(defmethod layer->membrane [:segment :doc] [_ _] "Straight lines from (x, y) to (x-end, y-end), with optional arrow heads")
 (defmethod layer->membrane [:step :doc] [_ _] "Stroked step polylines")
 (defmethod layer->membrane [:pointrange :doc] [_ _] "Point at mean + vertical SE line")
 (defmethod layer->membrane [:contour :doc] [_ _] "Stroked iso-density polylines")
@@ -1357,6 +1358,61 @@
     (layer->membrane-value-bars layer ctx)))
 
 ;; ---- Interval-h (Gantt-style horizontal bars) ----
+
+(defn- arrow-head
+  "A filled triangle with its tip at `[tx ty]`, pointing away from
+   `[fx fy]`, sized from the stroke width. Answers the triangle and the
+   point where the stroke should stop, so the line ends inside the head
+   rather than poking through its tip."
+  [[fx fy] [tx ty] stroke-width]
+  (let [dx (- (double tx) (double fx))
+        dy (- (double ty) (double fy))
+        len (Math/sqrt (+ (* dx dx) (* dy dy)))]
+    (when (pos? len)
+      (let [ux (/ dx len) uy (/ dy len)
+            head (min (* 0.9 len) (max 7.0 (* 4.0 (double stroke-width))))
+            half (* 0.45 head)
+            bx (- (double tx) (* head ux))
+            by (- (double ty) (* head uy))]
+        {:triangle [[tx ty]
+                    [(+ bx (* half uy)) (- by (* half ux))]
+                    [(- bx (* half uy)) (+ by (* half ux))]]
+         :stop [(+ bx (* 0.5 head ux)) (+ by (* 0.5 head uy))]}))))
+
+(defmethod layer->membrane :segment [layer ctx]
+  (let [{:keys [style groups]} layer
+        {:keys [coord-fn tooltip]} ctx
+        {:keys [stroke-width opacity dash arrow]} style
+        sw (or stroke-width 1.5)
+        op (or opacity 1.0)]
+    (vec
+     (for [{:keys [color colors xs ys x-ends y-ends row-indices label] :as group} groups
+           i (range (clojure.core/count xs))
+           :let [p1 (coord-fn (xs i) (ys i))
+                 p2 (coord-fn (x-ends i) (y-ends i))
+                 [cr cg cb _] (if colors (colors i) color)
+                 end-head (when (contains? arrow :end) (arrow-head p1 p2 sw))
+                 start-head (when (contains? arrow :start) (arrow-head p2 p1 sw))
+                 a (or (:stop start-head) p1)
+                 b (or (:stop end-head) p2)]]
+       (-> (ui/translate 0 0
+                         (into [(maybe-dash dash
+                                            (ui/with-color [cr cg cb op]
+                                              (ui/with-stroke-width sw
+                                                (ui/with-style ::ui/style-stroke
+                                                  (ui/path a b)))))]
+                               (for [h [start-head end-head]
+                                     :when h]
+                                 (ui/with-color [cr cg cb op]
+                                   (ui/with-style ::ui/style-fill
+                                     (apply ui/path (conj (:triangle h) (first (:triangle h)))))))))
+           (cond->
+            row-indices (assoc :row-idx (row-indices i))
+            tooltip (as-> $ (if-let [t (tooltip-value
+                                        group layer i
+                                        #(make-tooltip ctx (xs i) (ys i) label))]
+                              (assoc $ :tooltip t)
+                              $))))))))
 
 (defmethod layer->membrane :interval-h [layer ctx]
   (let [{:keys [style groups x-temporal?]} layer

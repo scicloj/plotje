@@ -206,6 +206,7 @@
   {:x     {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :x-scale}
    :y     {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true :scale-key :y-scale}
    :x-end {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
+   :y-end {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true    :literal->column? true}
    :y-min {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
    :y-max {:role :positional :column? true  :value? true  :numeric? true  :categorical-column? true  :scale-default :always :drawn-column? true}
    :x-min {:role :positional :column? false :value? true  :numeric? true  :categorical-column? false :scale-default :always :drawn-column? true}

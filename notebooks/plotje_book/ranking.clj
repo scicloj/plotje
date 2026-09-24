@@ -239,6 +239,34 @@
                                 ;; one distinct interior color per region
                                 (= 2 (count fills)))))])
 
+;; ### Without the dot
+
+;; `pj/lay-segment` draws the stem alone. A segment runs from each row's
+;; `:x` and `:y` to its `:x-end` and `:y-end`; an end left out keeps the
+;; start's value, so `{:y-end 0}` draws each stem from the value down
+;; to the zero line:
+
+(-> sales
+    (pj/lay-segment :product :revenue {:y-end 0}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 4 (:lines s))
+                                (zero? (:points s)))))])
+
+;; The x axis can hold numbers as well as categories. One stem per
+;; observation over its index is a stem plot, the shape of a
+;; residual or Cook's distance diagnostic:
+
+(-> {:index (range 1 41)
+     :residual (map #(* (Math/sin %) (Math/exp (- (/ % 30.0)))) (range 1 41))}
+    (pj/lay-segment :index :residual {:y-end 0})
+    (pj/lay-rule-h {:y-intercept 0}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                ;; 40 stems and the zero line
+                                (= 41 (:lines s)))))])
+
 ;; ## See Also
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- mappings and aesthetic vocabulary

@@ -41,7 +41,7 @@
         (some? (get (:data layer) v)))))
 
 (def PositionalAestheticsNameColumns
-  "In a draft layer that carries data, `:x`, `:y` and `:x-end` all name
+  "In a draft layer that carries data, `:x`, `:y`, `:x-end` and `:y-end` all name
    columns. `impl.pose/resolve-positional-values` gets them there: a
    literal value beside a column becomes a constant column, and a layer
    where every one of them is a literal becomes a one-row dataset. So
@@ -51,7 +51,7 @@
    add a column to, so `{:x :some-column :y 5}` keeps its 5 and
    resolves to nothing downstream, as the column reference beside it
    does."
-  [:fn {:error/message "each of :x, :y and :x-end should name a column of :data"}
+  [:fn {:error/message "each of :x, :y, :x-end and :y-end should name a column of :data"}
    (fn [layer]
      (or (nil? (:data layer))
          (every? (partial names-column? layer)

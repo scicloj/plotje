@@ -477,6 +477,16 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:polygons s))))])
 
+(kind/doc #'pj/lay-segment)
+
+(-> {:x0 [1 2 4] :y0 [1 3 2] :x1 [3 3 5] :y1 [2 1 4]}
+    (pj/lay-segment :x0 :y0 {:x-end :x1 :y-end :y1 :arrow :end}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           ;; a line and an arrow head per row
+                           (and (= 3 (:lines s))
+                                (= 3 (:polygons s)))))])
+
 ;; ## Reference Lines and Bands
 
 ;; Reference lines and shaded bands are regular layers. Where each one
@@ -1283,7 +1293,7 @@ plan1
 
 (count pj/layer-option-docs)
 
-(kind/test-last [(fn [n] (= 56 n))])
+(kind/test-last [(fn [n] (= 58 n))])
 
 ;; ## Layer Type Registry
 
@@ -1298,7 +1308,7 @@ plan1
 
 (count (pj/registered-layer-types))
 
-(kind/test-last [(fn [n] (= 25 n))])
+(kind/test-last [(fn [n] (= 26 n))])
 
 (first (pj/registered-layer-types))
 

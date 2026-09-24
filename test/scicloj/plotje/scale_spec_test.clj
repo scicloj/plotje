@@ -407,7 +407,8 @@
   ;; its two end labels, so nothing said the scale was logarithmic.
   (let [d {:x [1 2 3 4] :y [1 2 3 4] :n [1 10 100 1000]}
         legend #(-> % pj/plan :legend)]
-    (is (empty? (:ticks (legend (-> d (pj/lay-point :x :y {:color :n}))))))
+    (is (not= [1.0 10.0 100.0 1000.0]
+              (mapv :value (:ticks (legend (-> d (pj/lay-point :x :y {:color :n})))))))
     (let [lg (legend (-> d (pj/lay-point :x :y {:color :n}) (pj/scale :color :log)))]
       (is (= :log (:scale-type lg)))
       (is (= [1.0 10.0 100.0 1000.0] (mapv :value (:ticks lg)))))))
@@ -1177,3 +1178,24 @@
     (testing "nil :breaks and :n-ticks are automatic, and good values still draw"
       (is (nil? (msg {:breaks nil :n-ticks nil})))
       (is (nil? (msg {:breaks [2 4 8] :n-ticks 3 :tick-spacing 40}))))))
+
+(deftest empty-breaks-draw-an-axis-with-no-ticks-test
+  ;; ggplot2's `breaks = NULL`, measured: no ticks, no labels, no grid
+  ;; lines on that axis. Before, `[]` gave the automatic ticks with no
+  ;; message, and there was no way to hide an axis's ticks.
+  (let [d {:a [1 2 3 4] :b [2 5 3 9] :c ["p" "q" "p" "q"]}
+        ticks (fn [p axis] (get-in (pj/plan p) [:panels 0 axis :values]))]
+    (testing "a numeric axis"
+      (let [p (-> d (pj/lay-point :a :b) (pj/scale :y {:breaks []}))]
+        (is (= [] (ticks p :y-ticks)))
+        (is (seq (ticks p :x-ticks)) "the other axis keeps its ticks")
+        (is (contains? (set (:texts (pj/svg-summary p))) "b") "and the title stays")))
+    (testing "a categorical axis"
+      (is (= [] (ticks (-> d (pj/lay-point :c :b) (pj/scale :x {:breaks []})) :x-ticks))))
+    (testing "a log axis"
+      (is (= [] (ticks (-> d (pj/lay-point :a :b) (pj/scale :y {:type :log :breaks []})) :y-ticks))))
+    (testing "no grid line is drawn along the axis"
+      (let [grid (fn [p] (->> (pj/plot p) (tree-seq coll? seq) (filter map?)
+                              (filter #(= "rgb(245,245,245)" (:stroke %))) count))]
+        (is (< (grid (-> d (pj/lay-point :a :b) (pj/scale :y {:breaks []})))
+               (grid (pj/lay-point d :a :b))))))))

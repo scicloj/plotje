@@ -334,9 +334,9 @@
   scatter-stat
   :points
   first
-  (update :xs (fn* [p1__83281#] (vec (take 3 p1__83281#))))
-  (update :ys (fn* [p1__83282#] (vec (take 3 p1__83282#))))
-  (update :row-indices (fn* [p1__83283#] (vec (take 3 p1__83283#))))))
+  (update :xs (fn* [p1__75563#] (vec (take 3 p1__75563#))))
+  (update :ys (fn* [p1__75564#] (vec (take 3 p1__75564#))))
+  (update :row-indices (fn* [p1__75565#] (vec (take 3 p1__75565#))))))
 
 
 (deftest
@@ -415,7 +415,7 @@
        "Output" (pj/mark-doc k)})))}))
 
 
-(deftest t67_l507 (is ((fn [t] (= 21 (count (:row-maps t)))) v66_l496)))
+(deftest t67_l507 (is ((fn [t] (= 22 (count (:row-maps t)))) v66_l496)))
 
 
 (def
@@ -470,7 +470,7 @@
        "Membrane output" (pj/membrane-mark-doc k)})))}))
 
 
-(deftest t76_l547 (is ((fn [t] (= 21 (count (:row-maps t)))) v75_l536)))
+(deftest t76_l547 (is ((fn [t] (= 22 (count (:row-maps t)))) v75_l536)))
 
 
 (def
@@ -534,7 +534,7 @@
 
 (deftest
  t86_l687
- (is ((fn* [p1__83284#] (= :drawing-area p1__83284#)) v85_l685)))
+ (is ((fn* [p1__75566#] (= :drawing-area p1__75566#)) v85_l685)))
 
 
 (def v87_l689 (mark/mark-clip-region :rug))
@@ -542,7 +542,7 @@
 
 (deftest
  t88_l691
- (is ((fn* [p1__83285#] (= :panel-box p1__83285#)) v87_l689)))
+ (is ((fn* [p1__75567#] (= :panel-box p1__75567#)) v87_l689)))
 
 
 (def
@@ -555,7 +555,7 @@
 
 (deftest
  t92_l705
- (is ((fn* [p1__83286#] (= :panel-box p1__83286#)) v91_l703)))
+ (is ((fn* [p1__75568#] (= :panel-box p1__75568#)) v91_l703)))
 
 
 (def v94_l709 (remove-method mark/mark-clip-region :margin-glyph))

@@ -49,12 +49,12 @@
 
 (deftest derived-sets-test
   (testing "the sets other namespaces read are the ones they expect"
-    (is (= #{:x :y :x-end :y-min :y-max :color :size :alpha :fill :shape :text
+    (is (= #{:x :y :x-end :y-end :y-min :y-max :color :size :alpha :fill :shape :text
              :tooltip :group :col :row}
            defaults/column-keys))
-    (is (= [:x :x-end :y]
+    (is (= [:x :x-end :y :y-end]
            (vec (sort-by str resolve/positional-aesthetics)))
-        "only these three have a literal turned into a column")
+        "only these four have a literal turned into a column")
     (is (= [:alpha :fill :size] defaults/continuous-column-aesthetics))
     ;; `:shape` left this set when it gained a written-value reading --
     ;; one symbol for a whole layer. `:group` will not: it splits the

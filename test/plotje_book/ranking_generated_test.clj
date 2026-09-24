@@ -278,3 +278,42 @@
      [s (pj/svg-summary v) fills (disj (:colors s) "none")]
      (and (= 6 (:points s)) (= 2 (count fills)))))
    v41_l231)))
+
+
+(def v44_l249 (-> sales (pj/lay-segment :product :revenue {:y-end 0})))
+
+
+(deftest
+ t45_l252
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 4 (:lines s)) (zero? (:points s)))))
+   v44_l249)))
+
+
+(def
+ v47_l260
+ (->
+  {:index (range 1 41),
+   :residual
+   (map
+    (fn*
+     [p1__11193#]
+     (* (Math/sin p1__11193#) (Math/exp (- (/ p1__11193# 30.0)))))
+    (range 1 41))}
+  (pj/lay-segment :index :residual {:y-end 0})
+  (pj/lay-rule-h {:y-intercept 0})))
+
+
+(deftest
+ t48_l265
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 1 (:panels s)) (= 41 (:lines s)))))
+   v47_l260)))

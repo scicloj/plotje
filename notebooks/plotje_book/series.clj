@@ -10,7 +10,8 @@
 ;; The sections up to Examples teach the main ideas in order: what a
 ;; series is, what the pivot makes of the columns it reads, where a
 ;; series may be written, how the measures are placed against each
-;; other, and the limits a series has.
+;; other, how a series on each axis is read in pairs, and the limits a
+;; series has.
 
 (ns plotje-book.series
   (:require
@@ -268,6 +269,43 @@ sales-by-region
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
             (and (= 1 (:panels (pj/svg-summary v)))
                  (contains? texts "measure"))))])
+
+;; ## A series on each axis
+
+;; Measures taken at different places along the x axis each bring an x
+;; column of their own. A series written on `:x` and another on `:y`
+;; are read in pairs: the first `:x` column with the first `:y` column,
+;; the second with the second, and so on. Each pair is one series of
+;; the layer, labelled with both column names, and the pivot invents
+;; two value columns, `:x-value` and `:y-value`, one for each axis.
+
+(-> {:time-a    [0 1 2 3]
+     :time-b    [0.5 1.5 2.5 3.5]
+     :reading-a [2 3 5 4]
+     :reading-b [1 2 2 3]}
+    (pj/lay-line [:time-a :time-b] [:reading-a :reading-b]))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)
+                texts (set (:texts s))]
+            (and (= 1 (:panels s))
+                 (= 2 (:lines s))
+                 (contains? texts "time a / reading a")
+                 (contains? texts "time b / reading b")
+                 (contains? texts "x value")
+                 (contains? texts "y value"))))])
+
+;; The two series take as many columns each, since each `:x` column
+;; needs a `:y` column to be paired with:
+
+(try
+  (-> {:time-a [0 1] :time-b [2 3] :reading-a [1 2] :reading-b [3 4]}
+      (pj/lay-line [:time-a :time-b] [:reading-a :reading-b :time-a]))
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #"as many columns each" msg))])
 
 ;; ## One series per pose
 
@@ -1066,8 +1104,6 @@ sales-by-region
                 (catch Throwable e (first (str/split (ex-message e) #"\. "))))])
         [["{:color [:revenue :cost :tax]}"
           #(-> sales (pj/lay-point :quarter :revenue {:color [:revenue :cost :tax]}))]
-         ["(pj/lay-point {:series [:revenue :cost]} {:series [:tax :units]})"
-          #(-> sales (pj/lay-point {:series [:revenue :cost]} {:series [:tax :units]}))]
          ["{:series [:revenue]}"
           #(-> sales (pj/lay-bar :quarter {:series [:revenue]}))]
          ["[:revenue 42]"
@@ -1091,10 +1127,9 @@ sales-by-region
 ;; the calls again rather than reading the table.
 
 (kind/test-last
- [(fn [t] (and (= 10 (count (:row-vectors t)))
+ [(fn [t] (and (= 9 (count (:row-vectors t)))
                (every? (fn [f] (try (pj/plot (f)) false (catch Throwable _ true)))
                        [#(-> sales (pj/lay-point :quarter :revenue {:color [:revenue :cost :tax]}))
-                        #(-> sales (pj/lay-point {:series [:revenue :cost]} {:series [:tax :units]}))
                         #(-> sales (pj/lay-bar :quarter {:series [:revenue]}))
                         #(-> sales (pj/lay-bar :quarter {:series [:revenue 42]}))
                         #(-> sales (pj/lay-bar :quarter [:revenue :nope]))

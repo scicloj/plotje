@@ -42,16 +42,16 @@
           [xs
            (->>
             (str/split (str/trim (str (:points attrs))) #"[\s,]+")
-            (map (fn* [p1__11193#] (Double/parseDouble p1__11193#)))
+            (map (fn* [p1__73464#] (Double/parseDouble p1__73464#)))
             (partition 2)
             (map first))]
           [[(+ dx (apply min xs)) (+ dx (apply max xs))]]))]
        (into
         (vec own)
-        (mapcat (fn* [p1__11194#] (walk p1__11194# (+ dx tx))))
+        (mapcat (fn* [p1__73465#] (walk p1__73465# (+ dx tx))))
         kids))
       (sequential? node)
-      (into [] (mapcat (fn* [p1__11195#] (walk p1__11195# dx))) node)
+      (into [] (mapcat (fn* [p1__73466#] (walk p1__73466# dx))) node)
       :else
       []))]
    (vec (sort (walk (pj/plot pose {:width 600, :height 400}) 0.0))))))
@@ -157,7 +157,7 @@
   y-ticks
   [pose]
   (filterv
-   (fn* [p1__11196#] (re-matches #"\d+" p1__11196#))
+   (fn* [p1__73467#] (re-matches #"\d+" p1__73467#))
    (:texts (pj/svg-summary pose)))))
 
 
@@ -808,52 +808,60 @@
 
 
 (def
- v88_l571
- [(note-of
-   (->
-    {:fitted [1 2 3], :residual [1 2 3]}
-    (pj/lay-point :fitted :residual)
-    (pj/lay-point
-     :x
-     :y
-     {:data (tc/dataset {:x [1 2 3], :y [1 2 3]})})))
-  (note-of
-   (->
-    (assoc sales :units [3 4 5 6])
-    (pj/lay-point :revenue :cost)
-    (pj/lay-point :quarter :units)))])
+ v88_l568
+ (note-of
+  (->
+   {:fitted [1 2 3], :residual [1 2 3]}
+   (pj/lay-point :fitted :residual)
+   (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3], :y [1 2 3]})}))))
 
 
 (deftest
- t89_l580
+ t89_l573
  (is
   ((fn
-    [outs]
-    (every?
-     (fn
-      [out]
-      (and
-       (re-find #"panel of its own" out)
-       (re-find #"pj/overlay" out)
-       (not (re-find #"series" out))))
-     outs))
-   v88_l571)))
+    [out]
+    (and
+     (re-find #"panel of its own" out)
+     (re-find #"pj/overlay" out)
+     (not (re-find #"series" out))))
+   v88_l568)))
 
 
 (def
- v91_l594
+ v91_l581
+ (note-of
+  (->
+   (assoc sales :units [3 4 5 6] :rank [1 2 3 4])
+   (pj/lay-point :revenue :cost)
+   (pj/lay-point :rank :units))))
+
+
+(deftest
+ t92_l586
+ (is
+  ((fn
+    [out]
+    (and
+     (re-find #"panel of its own" out)
+     (re-find #"series in pairs" out)))
+   v91_l581)))
+
+
+(def
+ v94_l598
  (pj/arrange
   [(pj/arrange [(pj/lay-point sales :quarter :revenue)])
    (pj/lay-point sales :quarter :cost)]))
 
 
 (deftest
- t92_l597
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v91_l594)))
+ t95_l601
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v94_l598)))
 
 
 (def
- v94_l601
+ v97_l605
  {:opts {:width 800, :height 560},
   :layout {:direction :vertical},
   :poses
@@ -868,12 +876,12 @@
 
 
 (deftest
- t95_l610
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v94_l601)))
+ t98_l614
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v97_l605)))
 
 
 (def
- v97_l621
+ v100_l625
  (def
   valued
   {:k ["a" "a" "a" "b" "b" "b"],
@@ -882,7 +890,7 @@
 
 
 (def
- v98_l624
+ v101_l628
  (def
   over-t
   {:t [1 2 3 1 2 3 1 2 3],
@@ -891,17 +899,17 @@
 
 
 (def
- v99_l628
+ v102_l632
  (-> valued (pj/lay-bar :k :v {:color :g, :position :fill})))
 
 
 (def
- v100_l630
+ v103_l634
  (-> over-t (pj/lay-area :t :v {:color :s, :position :fill})))
 
 
 (deftest
- t101_l632
+ t104_l636
  (is
   ((fn
     [_]
@@ -933,11 +941,11 @@
          (->
           over-t
           (pj/lay-area :t :v {:color :s, :position :fill}))))))))
-   v100_l630)))
+   v103_l634)))
 
 
 (def
- v103_l653
+ v106_l657
  (def
   months
   {:month
@@ -982,14 +990,14 @@
 
 
 (def
- v104_l663
+ v107_l667
  (->
   months
   (pj/lay-area :month :value {:color :reading, :position :stack})))
 
 
 (def
- v105_l665
+ v108_l669
  (->>
   (pj/plan
    (->
@@ -1004,16 +1012,16 @@
 
 
 (deftest
- t106_l670
+ t109_l674
  (is
   ((fn
     [rows]
     (= ["Jan" "Feb" "Mar" "Apr" "May" "Jun"] (second (first rows))))
-   v105_l665)))
+   v108_l669)))
 
 
 (def
- v108_l679
+ v111_l683
  (pj/arrange
   [(->
     (pj/lay-point sales :quarter :revenue)
@@ -1023,7 +1031,7 @@
 
 
 (deftest
- t109_l684
+ t112_l688
  (is
   ((fn
     [v]
@@ -1033,22 +1041,22 @@
        (tree-seq sequential? seq (pj/plot v))
        (filter
         (fn*
-         [p1__11197#]
+         [p1__73468#]
          (and
-          (vector? p1__11197#)
-          (= :rect (first p1__11197#))
-          (map? (second p1__11197#))
-          (number? (:width (second p1__11197#)))
-          (> (:width (second p1__11197#)) 100))))
-       (keep (fn* [p1__11198#] (:fill (second p1__11198#))))
+          (vector? p1__73468#)
+          (= :rect (first p1__73468#))
+          (map? (second p1__73468#))
+          (number? (:width (second p1__73468#)))
+          (> (:width (second p1__73468#)) 100))))
+       (keep (fn* [p1__73469#] (:fill (second p1__73469#))))
        distinct
        vec)]
      (= ["rgb(255,255,255)" "rgb(232,232,232)"] fills)))
-   v108_l679)))
+   v111_l683)))
 
 
 (def
- v111_l705
+ v114_l709
  (def
   tooltip-slots
   (mapv
@@ -1063,20 +1071,20 @@
       first
       :groups
       (mapv
-       (fn* [p1__11199#] (vec (take 2 (:tooltips p1__11199#))))))])
+       (fn* [p1__73470#] (vec (take 2 (:tooltips p1__73470#))))))])
    [["a column" {:tooltip :units}]
     ["valid hiccup" {:tooltip [:b "a note"]}]])))
 
 
-(def v112_l713 tooltip-slots)
+(def v115_l717 tooltip-slots)
 
 
 (deftest
- t113_l715
+ t116_l719
  (is
   ((fn
     [rows]
     (and
      (seq (first (second (first rows))))
      (empty? (first (second (second rows))))))
-   v112_l713)))
+   v115_l717)))

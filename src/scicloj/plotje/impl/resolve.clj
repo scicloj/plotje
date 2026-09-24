@@ -382,19 +382,24 @@
                                  (if (= x-res y-res)
                                    x-type
                                    (column-type ds y-res))))
-        ;; If :x-end is given, it must share an axis with :x: same column type
-        ;; (both numerical or both temporal) and same data-type family. Catch
-        ;; mismatches early so the user does not see a downstream NaN/cast crash.
-        x-end-type (when x-end-res (column-type ds x-end-res))
-        _ (when (and x-end-type (not= x-end-type x-type))
-            (throw (ex-info (str ":x-end column " (pr-str (:x-end v))
-                                 " has type " x-end-type
-                                 " but :x " (pr-str (:x v))
-                                 " has type " x-type
-                                 ". They must share the same axis type "
-                                 "(both numerical or both temporal).")
-                            {:x (:x v) :x-end (:x-end v)
-                             :x-type x-type :x-end-type x-end-type})))
+        ;; An end column (`:x-end`, `:y-end`) shares an axis with the
+        ;; column it ends, so it has the same column type. Caught here so
+        ;; the writer does not see a downstream NaN or cast crash.
+        y-end-res (resolve-col-name ds (:y-end v))
+        check-end! (fn [end-k end-res axis-k axis-type]
+                     (let [end-type (when end-res (column-type ds end-res))]
+                       (when (and end-type (not= end-type axis-type))
+                         (throw (ex-info (str end-k " column " (pr-str (get v end-k))
+                                              " has type " end-type
+                                              " but " axis-k " " (pr-str (get v axis-k))
+                                              " has type " axis-type
+                                              ". They must share the same axis type "
+                                              "(both numerical, both temporal or both"
+                                              " categorical).")
+                                         {axis-k (get v axis-k) end-k (get v end-k)
+                                          :axis-type axis-type :end-type end-type})))))
+        _ (check-end! :x-end x-end-res :x x-type)
+        _ (check-end! :y-end y-end-res :y y-type)
         x-temporal? (= x-type :temporal)
         y-temporal? (= y-type :temporal)
         ;; If x is temporal, x-end (when present) is implicitly temporal too --
@@ -406,11 +411,18 @@
                             [(jt/min (first xe) (first xee))
                              (jt/max (second xe) (second xee))]
                             xe)))
-        y-temp-extent (when y-temporal? (temporal-extent ds y-res))
+        y-temp-extent (when y-temporal?
+                        (let [ye (temporal-extent ds y-res)
+                              yee (when y-end-res (temporal-extent ds y-end-res))]
+                          (if (and ye yee)
+                            [(jt/min (first ye) (first yee))
+                             (jt/max (second ye) (second yee))]
+                            ye)))
         ds (cond-> ds
              x-temporal? (temporalize-column x-res)
              (and x-temporal? x-end-res) (temporalize-column x-end-res)
-             y-temporal? (temporalize-column y-res))]
+             y-temporal? (temporalize-column y-res)
+             (and y-temporal? y-end-res) (temporalize-column y-end-res))]
     {:ds ds
      :x-type (if x-temporal? :numerical x-type)
      :y-type (if y-temporal? :numerical y-type)
@@ -688,7 +700,9 @@
                                          (get-in v [:__source :shape]))))
               (-> (assoc :fixed-shape (:shape v)) (dissoc :shape))
               (and (:x-end v) (column-ref? (:x-end v)))
-              (assoc :x-end (resolve-col-name resolved-ds (:x-end v))))
+              (assoc :x-end (resolve-col-name resolved-ds (:x-end v)))
+              (and (:y-end v) (column-ref? (:y-end v)))
+              (assoc :y-end (resolve-col-name resolved-ds (:y-end v))))
           _ (validate-continuous-aesthetics resolved-ds v)
           {:keys [color color-type color-drawn? fixed-color
                   size size-drawn? fixed-size
