@@ -3233,7 +3233,12 @@
 (defn lay-tile
   "Add `:tile` layer type -- colored grid cells (heatmap).
    With `:fill` option: pre-computed tile colors from a column.
-   Without `:fill`: auto-binned 2D histogram (stat `:bin2d`)."
+   Without `:fill`: auto-binned 2D histogram (stat `:bin2d`).
+
+   A numeric `:color` column is read as the fill. Either way the cells
+   and their legend read the fill settings: a `:fill` scale spec, then
+   a `:color` one, then the `:fill-*` plot options, then the `:color-*`
+   ones -- `:fill-label` before `:color-label` for the legend title."
   ([pose-or-data] (lay-layer-type :tile pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :tile pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :tile pose-or-data x y-or-opts))

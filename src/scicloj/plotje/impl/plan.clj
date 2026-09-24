@@ -1678,6 +1678,39 @@
                      g (+ lo-t (* t (- hi-t lo-t)))]]
            {:t t :gradient-t g :color (grad-fn g)}))))
 
+(defn- warn-unread-legend-options!
+  "Warn about a colour or fill plot option written on this plot that
+   nothing on it reads.
+
+   Each was accepted and did nothing, with no message: `:fill-label`
+   beside a legend built from `:color`, `:fill-range` on a plot with no
+   tile, `:color-values` beside a gradient. Only options written on the
+   plot are read here -- a configuration default applies to every plot
+   and is not a request about this one -- and a plot whose legend is
+   suppressed is not asked, since a composite draws that legend.
+
+   `:color-label` titles a fill legend too, as the end of the fill
+   chain, so it is unread only where there is no legend at all."
+  [opts legend resolved-all all-colors]
+  (let [fill-drawn? (some #(contains? fill-drawing-marks (:mark %)) resolved-all)
+        unread (cond-> []
+                 (and (contains? opts :color-label) (nil? legend))
+                 (conj [:color-label "titles a colour or fill legend, and this plot draws none"])
+
+                 (and (contains? opts :fill-label) (not fill-drawn?))
+                 (conj [:fill-label "titles the legend of a mark drawn in a fill -- a tile, a 2D density or a 2D histogram -- and this plot has none; :color-label titles its legend"])
+
+                 (and (contains? opts :fill-range) (not fill-drawn?))
+                 (conj [:fill-range "is the gradient of a mark drawn in a fill, and this plot has none; :color-range sets the gradient its marks read"])
+
+                 (and (contains? opts :fill-midpoint) (not fill-drawn?))
+                 (conj [:fill-midpoint "centres the gradient of a mark drawn in a fill, and this plot has none; :color-midpoint centres the gradient its marks read"])
+
+                 (and (contains? opts :color-values) (empty? all-colors))
+                 (conj [:color-values "is the palette categories are drawn in, and this plot colours no categories; :color-range sets a gradient"]))]
+    (doseq [[k why] unread]
+      (println (str "Warning: " k " " (pr-str (get opts k)) " " why ".")))))
+
 (defn- build-legend
   "Build legend from resolved draft layers and color info. Returns nil when the
    legend would be empty (no data, or all nil/NaN in the color column).
@@ -1701,18 +1734,36 @@
       (let [color-draft-layers (filter #(and (resolve/scaled-color-column? %)
                                              (:data %)) resolved-all)]
         (when-let [[c-lo c-hi] (plot-aesthetic-extent resolved-all :color)]
-          (let [spec (some :color-scale color-draft-layers)
+          (let [;; A tile reads a numeric `:color` as its fill, and its
+                ;; cells are painted through the fill settings -- the
+                ;; `:fill` spec, then the `:color` one, then the plot
+                ;; options. The bar reads the same chain, or a
+                ;; `:fill-range :viridis` painted viridis cells beside a
+                ;; bar in the default blues.
+                fill-layer (first (filter #(contains? fill-drawing-marks (:mark %))
+                                          color-draft-layers))
+                spec (if fill-layer
+                       (extract/fill-spec fill-layer)
+                       (some :color-scale color-draft-layers))
+                color-range (if fill-layer
+                              (extract/fill-setting :range fill-layer cfg)
+                              (defaults/scale-setting :color :range spec cfg))
                 ;; Through the same function the marks read, so the bar
                 ;; a reader matches a colour against spans what the
                 ;; marks were drawn against.
-                grad-fn (defaults/scale-gradient-fn :color spec cfg)
+                grad-fn (if fill-layer
+                          (defaults/resolve-gradient-fn color-range)
+                          (defaults/scale-gradient-fn :color spec cfg))
                 [c-min c-max] (scale/numeric-color-domain spec c-lo c-hi)
-                scale-type (or (some #(:type (:color-scale %)) color-draft-layers)
+                scale-type (or (:type spec)
+                               (some #(:type (:color-scale %)) color-draft-layers)
                                :linear)
                 ;; The midpoint the marks were drawn around, read the
                 ;; way they read it, so the bar is centred where they
                 ;; are.
-                midpoint (defaults/scale-setting :color :midpoint spec cfg)
+                midpoint (if fill-layer
+                           (extract/fill-setting :midpoint fill-layer cfg)
+                           (defaults/scale-setting :color :midpoint spec cfg))
                 ticks (continuous-legend-ticks
                        c-min c-max scale-type
                        (whole-aesthetic-values? color-draft-layers :color spec)
@@ -1721,8 +1772,10 @@
                      :type :continuous
                      :min c-min :max c-max
                      :scale-type scale-type
-                     :color-range (defaults/scale-setting :color :range spec cfg)
-                     :range-from-spec? (contains? spec :range)
+                     :color-range color-range
+                     :range-from-spec? (if fill-layer
+                                         (extract/fill-setting-from-spec? :range fill-layer cfg)
+                                         (contains? spec :range))
                      :stops (gradient-stops grad-fn scale-type c-min c-max midpoint)}
               ticks (assoc :ticks ticks)))))
       (seq all-colors)
@@ -2882,10 +2935,11 @@
    When the scale the marks read is {:type :log}, the gradient
    stops sample colors in log-space and the legend carries log-spaced
    ticks for the renderer to label.
-   `opts-title` (from a user-supplied `:fill-label` plot option)
-   overrides the inferred title (`:count`, `:relative-density`, or
-   the name of the column a tile fills from)."
-  [panel-data resolved-all cfg opts-title]
+   `opts` is the plot's own options, where `:fill-label` and
+   `:color-label` are written. A title written there or in a scale spec
+   overrides the inferred one (`:count`, `:relative-density`, or the
+   name of the column a tile fills from)."
+  [panel-data resolved-all cfg opts]
   (let [fill-stat (some (fn [pd]
                           (some #(when (:fill-range %) %) (:stat-results pd)))
                         panel-data)
@@ -2947,7 +3001,15 @@
                           [data-lo data-hi]))]
     (when f-lo
       (let [grad-fn (defaults/resolve-gradient-fn color-range)
-            title (or opts-title
+            ;; The title is read through the aesthetic the marks were
+            ;; drawn through, as the range and the midpoint are: the
+            ;; fill chain for a tile, which ends at `:color-label`, and
+            ;; the colour settings for a contour, whose levels are
+            ;; coloured from `:color`.
+            written-title (if fill-mark?
+                            (extract/fill-setting :label fill-draft-layer opts)
+                            (defaults/scale-setting :color :label spec opts))
+            title (or written-title
                       (cond
                         (= stat-kind :bin2d) :count
                         (= stat-kind :density-2d) :relative-density
@@ -3214,13 +3276,24 @@
                          aesthetic :label
                          (some (defaults/channel->scale-key aesthetic) resolved-all)
                          opts))
+         ;; A tile reading a numeric `:color` paints its cells through
+         ;; the fill settings, so its legend is titled through them too
+         ;; -- `:fill-label` before `:color-label`, as the range is read.
+         colour-fill-layer (when numeric-color?
+                             (first (filter #(and (contains? fill-drawing-marks (:mark %))
+                                                  (resolve/scaled-color-column? %)
+                                                  (:data %))
+                                            resolved-all)))
          legend (when-not suppress-color?
                   (build-legend resolved-all numeric-color? all-colors color-cols cfg
-                                (legend-title :color)))
+                                (if colour-fill-layer
+                                  (extract/fill-setting :label colour-fill-layer opts)
+                                  (legend-title :color))))
          legend (or legend
                     (when-not suppress-color?
-                      (build-fill-fallback-legend panel-data resolved-all cfg
-                                                  (legend-title :fill))))
+                      (build-fill-fallback-legend panel-data resolved-all cfg opts)))
+         _ (when-not suppress-color?
+             (warn-unread-legend-options! opts legend resolved-all all-colors))
          size-legend (when-not suppress-size?
                        (build-size-legend resolved-all (legend-title :size) height))
          alpha-legend (when-not suppress-alpha?

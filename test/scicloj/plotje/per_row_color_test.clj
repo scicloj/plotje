@@ -140,3 +140,41 @@
   (let [d {:x ["a" "b" "a" "b"] :y ["p" "p" "q" "q"] :corr [1.0 -0.6 0.33 0.9]}]
     (is (not (re-find #"do not read the column as a gradient"
                       (with-out-str (pj/plan (pj/lay-tile d :x :y {:color :corr}))))))))
+
+(deftest a-fill-legend-reads-the-fill-chain-test
+  ;; #58: the title of a legend drawn in a fill falls back the way its
+  ;; range and midpoint already did -- a `:fill` spec, a `:color` spec,
+  ;; `:fill-label`, then `:color-label`.
+  (let [d {:x ["a" "b" "a" "b"] :y ["p" "p" "q" "q"] :corr [1.0 -0.6 0.33 0.9]}
+        title (fn [p] (get-in (pj/plan p) [:legend :title]))]
+    (is (= "CL" (title (-> (pj/lay-tile d :x :y {:fill :corr}) (pj/options {:color-label "CL"})))))
+    (is (= "FL" (title (-> (pj/lay-tile d :x :y {:fill :corr})
+                           (pj/options {:color-label "CL" :fill-label "FL"})))))
+    (is (= "SC" (title (-> (pj/lay-tile d :x :y {:fill :corr}) (pj/scale :color {:label "SC"})))))
+    (testing "a tile reading :color is titled and painted through the same chain"
+      (is (= "FL" (title (-> (pj/lay-tile d :x :y {:color :corr}) (pj/options {:fill-label "FL"})))))
+      ;; The cells were viridis and the bar the default blues.
+      (let [stops #(mapv :color (get-in (pj/plan %) [:legend :stops]))]
+        (is (= (stops (-> (pj/lay-tile d :x :y {:fill :corr}) (pj/options {:fill-range :viridis})))
+               (stops (-> (pj/lay-tile d :x :y {:color :corr}) (pj/options {:fill-range :viridis})))))))
+    (testing "a contour is coloured through :color, and titled through it"
+      (let [iris {:a [1 2 3 2 1 3 2 2] :b [1 3 2 2 1 3 1 3]}]
+        (is (= "CL" (title (-> (pj/lay-contour iris :a :b) (pj/options {:color-label "CL"})))))
+        (is (not= "SF" (title (-> (pj/lay-contour iris :a :b) (pj/scale :fill {:label "SF"})))))))))
+
+(deftest a-colour-option-nothing-reads-warns-test
+  (let [d {:x ["a" "b"] :y ["p" "q"] :v [1.0 2.0]}
+        out (fn [p] (with-out-str (pj/plan p)))]
+    (is (re-find #":fill-label \"FL\" titles the legend of a mark drawn in a fill"
+                 (out (-> (pj/lay-point d :x :y {:color :v}) (pj/options {:fill-label "FL"})))))
+    (is (re-find #":fill-range :viridis is the gradient of a mark drawn in a fill"
+                 (out (-> (pj/lay-point d :x :y {:color :v}) (pj/options {:fill-range :viridis})))))
+    (is (re-find #":color-values .* colours no categories"
+                 (out (-> (pj/lay-point d :x :y {:color :v}) (pj/options {:color-values ["red"]})))))
+    (is (re-find #":color-label \"CL\" titles a colour or fill legend, and this plot draws none"
+                 (out (-> (pj/lay-point d :x :y) (pj/options {:color-label "CL"})))))
+    (testing "an option something reads says nothing"
+      (is (not (re-find #"Warning"
+                        (out (-> (pj/lay-tile d :x :y {:fill :v})
+                                 (pj/options {:fill-label "FL" :fill-range :viridis
+                                              :color-label "CL"})))))))))

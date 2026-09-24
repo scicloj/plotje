@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Plots that look different after upgrading
 
-- **A tile filled from a column.** The gradient legend is titled with the column's name. `:fill-label` and a `:label` in the `:fill` scale spec still replace it. Reported in [#58](https://github.com/scicloj/plotje/issues/58) - thanks, @behrica
+- **The legend of a tile, a 2D density or a 2D histogram.** Its title is read the way its gradient is: a `:label` in the `:fill` scale spec, then in the `:color` one, then `:fill-label`, then `:color-label`, and otherwise the name of the column a tile fills from. A tile reading `:color` is titled and coloured through the same settings, so `:fill-range` reaches its legend as well as its cells. A contour is coloured through `:color`, and its legend is titled through `:color` too. Reported in [#58](https://github.com/scicloj/plotje/issues/58) - thanks, @behrica
 
 - **An overlay that only one of the disagreeing layers asks for.** `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))` draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
 
@@ -31,6 +31,8 @@ All notable changes to this project will be documented in this file. This change
 - A map given as data that holds a map, such as `{:opts {...} :panels [...]}`, reports an error naming the keys and describing what makes a map a pose. A plan or a draft given where a pose goes reports an error too.
 
 - A tile reading a numeric `:color` draws its gradient with no warning.
+
+- A colour or fill option written on a plot that nothing on it reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, and `:color-label` with no legend.
 
 ## [0.15.0 - 2026-09-23]
 

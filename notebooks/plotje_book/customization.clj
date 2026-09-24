@@ -142,6 +142,17 @@
                            (and (some #{"Score"} (:texts s))
                                 (pos? (:visible-tiles s)))))])
 
+;; A fill's settings fall back to the colour ones -- a tile with no
+;; `:fill-range` is drawn in the `:color-range` gradient -- and the
+;; title reads the same way, so where no `:fill-label` is given,
+;; `:color-label` titles the tile's legend:
+
+(-> {:x [1 2 3 1 2 3] :y [1 1 1 2 2 2] :z [10 20 30 40 50 60]}
+    (pj/lay-tile :x :y {:fill :z})
+    (pj/options {:color-label "Score"}))
+
+(kind/test-last [(fn [v] (some #{"Score"} (:texts (pj/svg-summary v))))])
+
 ;; **Coming from ggplot2.** ggplot's `colour=` (stroke) and `fill=`
 ;; (interior) split is partial in Plotje today. On filled marks like
 ;; `lay-bar`, `lay-area`, and `lay-violin`, the `:color` aesthetic
