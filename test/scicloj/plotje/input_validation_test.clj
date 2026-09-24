@@ -1299,3 +1299,30 @@
           "a swapped pair still reports the swap, not the equality")
       (is (some? (pj/lay-band-h base {:y-min 3 :y-max 5}))
           "an ordinary band is accepted"))))
+
+(deftest a-map-holding-a-map-is-not-data-test
+  ;; A pose written by hand without :layers, :poses or a :mapping map
+  ;; was read as a map of columns, and its keys were drawn as data.
+  (testing "a hand-written pose map is reported, naming the map-valued keys"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"holds a map under \[:opts\].*Its keys: \[:opts :panels\]"
+                          (pj/pose {:opts {:title "x"} :panels [1 2]})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"holds a map under \[:data\]"
+                          (pj/plot {:data {:a [1 2] :b [3 4]} :layer [{:layer-type :point}]}))))
+  (testing "a map of columns still draws, with a scalar broadcast"
+    (is (= 2 (:points (pj/svg-summary (pj/pose {:a [1 2] :b 3})))))))
+
+(deftest a-plan-or-a-draft-is-not-a-pose-test
+  ;; Given where a pose goes, a plan died on a protocol error from
+  ;; inside tech.v3.datatype.
+  (let [p (pj/lay-point {:a [1 2] :b [3 4]} :a :b)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"^pj/pose expects a pose or data, not a plan"
+                          (pj/pose (pj/plan p))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"^pj/lay-point expects a pose or data, not a plan"
+                          (pj/lay-point (pj/plan p))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"^pj/pose expects a pose or data, not a draft"
+                          (pj/pose (pj/draft p))))))

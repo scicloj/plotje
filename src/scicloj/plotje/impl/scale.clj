@@ -488,7 +488,20 @@
   ;; their legend -- so a pair of numbers is not the shape to demand
   ;; there.
   (when (contains? channel-bounds channel)
-    (validate-bounds-pair! channel spec :domain where)))
+    (validate-bounds-pair! channel spec :domain where))
+  ;; An axis domain is a pair of numbers or dates, or a list of
+  ;; categories, and which one it has to be waits for the column's type.
+  ;; Something that is neither shape can be refused now: a keyword or a
+  ;; function reached the domain arithmetic and died there on
+  ;; `Unable to convert ... to Object[]`.
+  (when (and (#{:x :y} channel) (some? (:domain spec))
+             (not (sequential? (:domain spec))))
+    (throw (ex-info (str where " " channel " :domain " (pr-str (:domain spec))
+                         " is not a collection. It is a pair such as "
+                         (pr-str [0 100]) " on an axis reading numbers or"
+                         " dates, and a list of categories such as "
+                         (pr-str ["a" "b"]) " on one reading categories.")
+                    {:caller where :channel channel :domain (:domain spec)}))))
 
 (defn validate-spec-values!
   "Throw when a scale spec's `:breaks`, `:tick-labels` or `:values`
@@ -507,6 +520,34 @@
   [channel spec where]
   (let [breaks (:breaks spec)
         labels (:tick-labels spec)]
+    ;; A function, a number, a set or a map under `:breaks` was ignored
+    ;; with no message and the axis kept its automatic ticks. The set is
+    ;; refused too: the ticks are drawn in the order written.
+    (when (and (some? breaks) (not (sequential? breaks)))
+      (throw (ex-info (str where " " channel " :breaks " (pr-str breaks) " is not a"
+                           " sequence of tick values, as " (pr-str [0 5 10])
+                           " is. It names the values a tick is drawn at.")
+                      {:caller where :channel channel :breaks breaks})))
+    ;; A count of zero or less drew an axis with no ticks at all, and a
+    ;; count that is not a number died on a cast naming neither.
+    (when (some? (:n-ticks spec))
+      (let [n (:n-ticks spec)]
+        (when-not (and (integer? n) (pos? n))
+          (throw (ex-info (str where " " channel " :n-ticks " (pr-str n) " is not a"
+                               " positive whole number. It asks for about that"
+                               " many ticks.")
+                          {:caller where :channel channel :n-ticks n})))))
+    ;; Zero divided by zero, and anything not a number died on a cast.
+    ;; Nil included: a spec naming a key means that value, with no
+    ;; fallback to the plot option (`defaults/scale-setting`), and a nil
+    ;; spacing died on a NullPointerException.
+    (when (contains? spec :tick-spacing)
+      (let [s (:tick-spacing spec)]
+        (when-not (and (number? s) (Double/isFinite (double s)) (pos? s))
+          (throw (ex-info (str where " " channel " :tick-spacing " (pr-str s) " is not"
+                               " a positive number. It asks for about that much"
+                               " room between ticks, in drawing units.")
+                          {:caller where :channel channel :tick-spacing s})))))
     (when (and (some? labels) (not (sequential? labels)))
       (throw (ex-info (str where " " channel " :tick-labels " (pr-str labels) " is not a"
                            " sequence of tick texts. It draws one text per"
@@ -1100,6 +1141,22 @@
        (sort-by :rank)
        first
        :ticks))
+
+(defn check-numeric-breaks!
+  "Throw where `breaks`, written for an axis reading numbers, holds
+   something that is not a finite number.
+
+   Two places read `:breaks` -- `plan/compute-ticks` draws them and
+   `layout/ticks-at-budget` measures their labels first -- so both call
+   this. A string died on a cast inside the label formatter, naming
+   neither `:breaks` nor the axis, and NaN was drawn as a tick labelled
+   `NaN`."
+  [breaks]
+  (when-let [bad (seq (remove #(and (number? %) (Double/isFinite (double %))) breaks))]
+    (throw (ex-info (str "pj/scale :breaks " (vec breaks) " include " (vec bad)
+                         ", which the axis cannot place: it reads numbers, so"
+                         " each break is a finite number.")
+                    {:caller "pj/plan" :breaks (vec breaks) :bad (vec bad)}))))
 
 (defn tick-count
   "How many ticks an axis asks for across `pixel-range` drawing units.

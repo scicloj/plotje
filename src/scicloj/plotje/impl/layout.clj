@@ -51,6 +51,8 @@
     (cond
       (and user-breaks (sequential? user-breaks) (seq user-breaks))
       (let [vs (vec user-breaks)
+            _ (when-not temporal-extent
+                (scale/check-numeric-breaks! vs))
             labels (cond
                      (and user-labels (sequential? user-labels))
                      (mapv str user-labels)

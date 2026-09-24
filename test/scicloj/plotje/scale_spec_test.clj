@@ -704,7 +704,7 @@
                      (catch clojure.lang.ExceptionInfo _ false)))
         sample {:range [1 2] :by :linear :from-zero true :midpoint 0
                 :include 0
-                :breaks [1 2] :tick-labels ["a" "b"] :n-ticks 3
+                :breaks [1 2] :tick-labels ["a" "b"] :n-ticks 3 :tick-spacing 50
                 :label "t" :values [(first (pj/shape-symbols))]}
         ;; Some keys carry a constraint the capability table does not
         ;; describe, and a value has to respect it to test acceptance
@@ -1144,3 +1144,36 @@
                (pj/lay-point {:size {:column :p :scale :log}})
                (pj/lay-point {:size {:column :p :scale :linear}})
                pj/plan))))))
+
+;; ---- What a tick key may hold ----
+
+(deftest tick-keys-report-a-value-they-cannot-read-test
+  ;; Each of these was ignored with no message, drew an axis with no
+  ;; ticks, or died on a cast naming neither the key nor the axis.
+  (let [d {:x [1 2 3 4] :y [2 5 3 9]}
+        msg (fn [spec]
+              (try (pj/plot (-> d (pj/lay-point :x :y) (pj/scale :y spec)))
+                   nil
+                   (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+    (testing ":breaks is a sequence of values, not a function or a scalar"
+      (doseq [v [(fn [_] [0 5 10]) 5 #{2 4} {:a 1} "p"]]
+        (is (re-find #":y :breaks .* is not a sequence of tick values" (str (msg {:breaks v})))
+            (pr-str v))))
+    (testing "a break on a numeric axis is a finite number"
+      (is (re-find #"include \[\"a\"\]" (str (msg {:breaks [1 "a"]}))))
+      (is (re-find #"include \[##NaN\]" (str (msg {:breaks [##NaN 2]})))))
+    (testing ":n-ticks is a positive whole number"
+      (doseq [v [0 -3 2.5 "5" inc]]
+        (is (re-find #":n-ticks .* is not a positive whole number" (str (msg {:n-ticks v})))
+            (pr-str v))))
+    (testing ":tick-spacing is a positive number"
+      (doseq [v [0 -10 "x" inc nil]]
+        (is (re-find #":tick-spacing .* is not a positive number" (str (msg {:tick-spacing v})))
+            (pr-str v))))
+    (testing "an axis :domain is a collection"
+      (doseq [v [:foo (fn [_] [0 10])]]
+        (is (re-find #":domain .* is not a collection" (str (msg {:domain v})))
+            (pr-str v))))
+    (testing "nil :breaks and :n-ticks are automatic, and good values still draw"
+      (is (nil? (msg {:breaks nil :n-ticks nil})))
+      (is (nil? (msg {:breaks [2 4 8] :n-ticks 3 :tick-spacing 40}))))))

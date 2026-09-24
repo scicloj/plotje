@@ -540,6 +540,41 @@
             (:layers leaf))
       (mapping-source (get-in leaf [:mapping axis]))))
 
+(declare leaf-panel-keys)
+
+(defn- split-axis-cols
+  "The columns the panels of a leaf draw on `axis`, where they differ
+   -- nil where every panel of the leaf reads one column, which is the
+   case `effective-axis-col` answers for.
+
+   A leaf whose layers disagree about `axis` draws a panel for each
+   place (Pose Rule LP2), and a shared scale is decided per column, so
+   each of those panels belongs to the bucket of the column it draws."
+  [leaf axis]
+  (let [i (case axis :x 0 :y 1)
+        cols (vec (distinct (keep #(when % (nth % i nil)) (leaf-panel-keys leaf))))]
+    (when (< 1 (count cols)) cols)))
+
+(defn- axis-buckets
+  "The leaves of `subtree` grouped by the column they draw on `axis`,
+   as `{col [leaf ...]}` -- the buckets a shared scale is decided in.
+
+   A leaf whose panels read several columns is placed in the bucket of
+   each. Every reader of the buckets goes through this, so the check,
+   the union and the stamp agree about which leaves share. Grouping by
+   `effective-axis-col` alone placed such a leaf in its first column's
+   bucket, and the panel reading the second column was stamped the
+   first column's extent: its marks were drawn off the panel, with
+   nothing said."
+  [subtree axis]
+  (reduce (fn [m [col leaf]] (update m col (fnil conj []) leaf))
+          {}
+          (mapcat (fn [leaf]
+                    (if-let [cols (split-axis-cols leaf axis)]
+                      (map #(vector % leaf) cols)
+                      [[(effective-axis-col leaf axis) leaf]]))
+                  subtree)))
+
 (def ^:private stat-driven-y-stats
   "Stats whose y-axis output is a count or density rather than a
    function of the y-mapped data column. Leaves whose every layer
@@ -655,13 +690,12 @@
    KDE / count layer) are not target-axis comparable for y-sharing;
    the existing :y-axis-stat-driven? path skips the y-stamp entirely
    for those leaves, so they are also exempt here."
-  [leaf axis]
+  [leaf axis col]
   (let [coord (or (get-in leaf [:opts :coord]) :cartesian)
         ;; The mapping is where a scale lives, whether it was written
         ;; there or set with `pj/scale`.
         scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
                        :linear)
-        col (effective-axis-col leaf axis)
         ds (:data leaf)
         type-temporal (when (and ds col)
                         (try
@@ -693,7 +727,7 @@
    ex-info naming the conflict."
   [subtree axes]
   (doseq [axis axes
-          [col leaves-in-bucket] (group-by #(effective-axis-col % axis) subtree)
+          [col leaves-in-bucket] (axis-buckets subtree axis)
           :when col
           :let [filtered (if (= axis :y)
                            (remove (fn [l]
@@ -702,7 +736,7 @@
                                                           (:data l)))
                                    leaves-in-bucket)
                            leaves-in-bucket)
-                keys-set (set (map #(leaf-share-key % axis) filtered))]
+                keys-set (set (map #(leaf-share-key % axis col) filtered))]
           :when (> (count keys-set) 1)]
     (throw (ex-info
             (str ":share-scales " axis " refused: column "
@@ -754,7 +788,7 @@
    setting the writer had not written."
   [subtree axes]
   (doseq [axis axes
-          [col leaves-in-bucket] (group-by #(effective-axis-col % axis) subtree)
+          [col leaves-in-bucket] (axis-buckets subtree axis)
           :when col
           :let [filtered (if (= axis :y)
                            (remove (fn [l]
@@ -763,9 +797,7 @@
                                                           (:data l)))
                                    leaves-in-bucket)
                            leaves-in-bucket)
-                vals (mapcat #(col-values (:data %)
-                                          (effective-axis-col % axis))
-                             filtered)]
+                vals (mapcat #(col-values (:data %) col) filtered)]
           :when (and (< 1 (count filtered)) (seq vals)
                      (not-any? #(or (number? %) (resolve/temporal-value? %)) vals))]
     (throw (ex-info
@@ -841,16 +873,14 @@
                          (into {}
                                (keep
                                 (fn [axis]
-                                  (let [by-col (group-by #(effective-axis-col % axis)
-                                                         subtree)
+                                  (let [by-col (axis-buckets subtree axis)
                                         col->dom (into {}
                                                        (keep
                                                         (fn [[col leaves]]
                                                           (when col
                                                             (when-let [d (numeric-domain
                                                                           (concat
-                                                                           (mapcat #(col-values (:data %)
-                                                                                                (effective-axis-col % axis))
+                                                                           (mapcat #(col-values (:data %) col)
                                                                                    leaves)
                                                                            (mapcat #(written-axis-values % axis)
                                                                                    leaves)))]
@@ -864,23 +894,35 @@
                                    new-domains)]
      (if (leaf? pose)
        (if (seq child-domains)
-         (let [pose-ctx {:mapping my-mapping :layers (:layers pose)}
-               x-col (effective-axis-col pose-ctx :x)
-               y-col (effective-axis-col pose-ctx :y)
-               x-dom (get-in child-domains [:x x-col])
-               y-dom (get-in child-domains [:y y-col])
+         (let [pose-ctx (assoc pose :mapping my-mapping :data my-data)
+               ;; A leaf whose panels read several columns on an axis
+               ;; is stamped an extent per column, and each panel reads
+               ;; the one for the column it draws.
+               by-column (fn [axis]
+                           (when-let [cols (split-axis-cols pose-ctx axis)]
+                             (not-empty
+                              (into {} (keep #(when-let [d (get-in child-domains [axis %])]
+                                                [% d]))
+                                    cols))))
+               x-cols (by-column :x)
+               y-cols (by-column :y)
+               x-dom (when-not x-cols
+                       (get-in child-domains [:x (effective-axis-col pose-ctx :x)]))
+               y-dom (when-not y-cols
+                       (get-in child-domains [:y (effective-axis-col pose-ctx :y)]))
                ;; Drop the y-domain when this leaf's y-axis is
                ;; stat-driven (count/density) -- the shared-data
                ;; bucket value would clip the bars / curve.
-               y-dom (when-not (y-axis-stat-driven? (:layers pose)
-                                                    my-mapping
-                                                    my-data)
-                       y-dom)]
-           (if (or x-dom y-dom)
+               stat-driven? (y-axis-stat-driven? (:layers pose) my-mapping my-data)
+               y-dom (when-not stat-driven? y-dom)
+               y-cols (when-not stat-driven? y-cols)]
+           (if (or x-dom y-dom x-cols y-cols)
              (update pose :opts merge
                      (cond-> {}
                        x-dom (assoc :x-scale-domain x-dom)
-                       y-dom (assoc :y-scale-domain y-dom)))
+                       y-dom (assoc :y-scale-domain y-dom)
+                       x-cols (assoc :x-scale-domain-by-column x-cols)
+                       y-cols (assoc :y-scale-domain-by-column y-cols)))
              pose))
          pose)
        (update pose :poses
@@ -1894,44 +1936,6 @@
         all   (vec (distinct (if own (cons own named) named)))]
     (if (seq all) all [nil])))
 
-(defn overlay-labels
-  "What tells each overlaid layer apart, as a vector aligned with
-   `(:layers leaf)`, or nil where nothing does.
-
-   Layers that disagree about a column take a panel each, and the
-   panels name the columns. Overlaid, they share a panel and nothing
-   names them: the marks are drawn in one colour under an axis titled
-   after whichever layer came first, which is a picture that shows
-   less than the writer asked for and says nothing about it.
-
-   The label is the column a layer draws where the layers disagree.
-   Answered nil where the writer has said how the marks are told apart
-   -- any layer mapping `:color` -- and where nothing distinguishes
-   them, which is the ordinary case of layers drawing one place."
-  [leaf]
-  (let [layers (vec (:layers leaf))
-        leaf-mapping (:mapping leaf)
-        places (mapv #(layer-position-key leaf-mapping %
-                                          (or (:data %) (:data leaf)))
-                     layers)
-        overlaid? (mapv #(layer-overlays? leaf %) layers)
-        ;; Only the layers that share the panel, and only where they
-        ;; name a place of their own: a layer naming none draws on
-        ;; every panel and is not one of the things being told apart.
-        relevant (keep-indexed (fn [i p] (when (and (nth overlaid? i) p) i)) places)
-        sources (fn [axis] (vec (distinct (keep #(nth (nth places %) axis nil) relevant))))
-        colored? (some #(contains? (or (:mapping %) {}) :color) layers)]
-    (when (and (seq relevant) (not colored?))
-      (let [disagreeing (vec (keep (fn [axis] (when (< 1 (count (sources axis))) axis))
-                                   [0 1]))]
-        (when (seq disagreeing)
-          (mapv (fn [i place]
-                  (when (and (nth overlaid? i) place)
-                    (str/join " / " (map #(defaults/fmt-name (nth place % nil))
-                                         disagreeing))))
-                (range (count layers))
-                places))))))
-
 (defn layer-panel-indices
   "The panels each layer of a leaf is drawn on, as a vector of index
    vectors aligned with `(:layers leaf)`.
@@ -1954,6 +1958,56 @@
                           0)]))
           (:layers leaf))))
 
+(defn overlay-labels
+  "What tells each overlaid layer apart, as a vector aligned with
+   `(:layers leaf)`, or nil where nothing does.
+
+   Layers that disagree about a column take a panel each, and the
+   panels name the columns. Overlaid, they share a panel and nothing
+   names them: the marks are drawn in one colour under an axis titled
+   after whichever layer came first, which is a picture that shows
+   less than the writer asked for and says nothing about it.
+
+   The label is the column a layer draws where the layers disagree.
+   Answered nil where the writer has said how the marks are told apart
+   -- any layer mapping `:color` -- and where nothing distinguishes
+   them, which is the ordinary case of layers drawing one place."
+  [leaf]
+  (let [layers (vec (:layers leaf))
+        leaf-mapping (:mapping leaf)
+        panel-keys (leaf-panel-keys leaf)
+        single? (= 1 (count panel-keys))
+        ;; A layer naming no place draws at the place of each panel it is
+        ;; on. Where the leaf draws one panel that is one place, so the
+        ;; layer is told apart like any other; where it draws several,
+        ;; one label could not name all of them.
+        places (mapv #(or (layer-position-key leaf-mapping %
+                                              (or (:data %) (:data leaf)))
+                          (when single? (first panel-keys)))
+                     layers)
+        overlaid? (mapv #(layer-overlays? leaf %) layers)
+        ;; The layers that land on the joined panel -- panel 0, which an
+        ;; overlaying layer joins -- whether they declared an overlay or
+        ;; named that panel's place without one. Reading only the layers
+        ;; that declared missed the case where one layer declares: `(->
+        ;; d (lay-line :t :a) (lay-line :t :b {:overlay true}))` drew
+        ;; both lines in one colour under an axis titled `a`.
+        joined? (mapv #(= [0] %) (layer-panel-indices leaf panel-keys))
+        relevant (when (some true? overlaid?)
+                   (keep-indexed (fn [i p] (when (and p (nth joined? i)) i)) places))
+        sources (fn [axis] (vec (distinct (keep #(nth (nth places %) axis nil) relevant))))
+        colored? (some #(contains? (or (:mapping %) {}) :color) layers)]
+    (when (and (seq relevant) (not colored?))
+      (let [disagreeing (vec (keep (fn [axis] (when (< 1 (count (sources axis))) axis))
+                                   [0 1]))]
+        (when (seq disagreeing)
+          (mapv (fn [i place]
+                  (when (and place (nth joined? i))
+                    (str/join " / " (map #(defaults/fmt-name (nth place % nil))
+                                         disagreeing))))
+                (range (count layers))
+                places))))))
+
 (def default-series-label
   "The name the key column a series invents takes when the writer does
    not give one. It titles the legend, so it is a word a reader can read
@@ -1965,6 +2019,70 @@
    value axis, which `:x-label` and `:y-label` already rename, so it
    needs no second spelling of its own."
   :value)
+
+(defn series-mapping
+  "The series a mapping value asks for, as `{:cols [...] :as label}`, or
+   nil where it asks for none.
+
+   Two spellings, one meaning. A vector of columns on a positional
+   aesthetic is the short one; `{:series [...] :as :measure}` is the
+   same thing written out, and the only reason to write it is to name
+   the key column the pivot invents.
+
+   A vector of pairs is not a series -- that is the multi-panel form
+   `pj/pose` reads -- so a vector whose elements are themselves
+   sequential answers nil and is left to it."
+  [v]
+  (cond
+    ;; Every element a column reference, which is what keeps a dash
+    ;; pattern, a colour range and a list of breaks from being read as
+    ;; columns to pivot.
+    (and (sequential? v)
+         (not (map? v))
+         (seq v)
+         (every? resolve/column-ref? v))
+    {:cols (vec v) :as default-series-label}
+
+    (and (map? v) (contains? v :series))
+    (cond-> {:cols (vec (:series v)) :as (get v :as default-series-label)}
+      ;; The scale rides along, so the value column the pivot invents is
+      ;; read through it. Without this the `:scale` was accepted and
+      ;; dropped, and the axis came out linear with no word said.
+      (contains? v :scale) (assoc :scale (:scale v)))
+
+    :else nil))
+
+(def series-aesthetics
+  "The aesthetics a series may be written under. A series names the
+   columns a mark is drawn from, so it belongs where a column goes on
+   an axis; on an appearance aesthetic there would be nothing for the
+   pivot to draw."
+  [:x :y])
+
+(defn report-series-on-both!
+  "Throw where `mapping` reads a series on more than one aesthetic.
+   `where` names what carries the mapping, as the message's subject.
+
+   The pivot makes one value column, so one of `:x` and `:y` has to
+   name a column. Both places a series can be found -- a `lay-*` call
+   and a leaf drafted with its series unread -- call this, so the
+   message and the pointer to the panel form are written once."
+  [where mapping]
+  (let [found (filterv #(series-mapping (get mapping %)) series-aesthetics)]
+    (when (next found)
+      (let [cols (mapv #(:cols (series-mapping (get mapping %))) found)
+            pairs (when (apply = (map count cols))
+                    (apply mapv vector cols))]
+        (throw (ex-info (str where " a series on more than one aesthetic -- "
+                             (pr-str found) ": " (pr-str (first cols)) " and "
+                             (pr-str (second cols)) ". A series pivots the data"
+                             " into one value column, so the other aesthetic"
+                             " has to name a single column."
+                             (when pairs
+                               (str " To draw each pair on a panel of its"
+                                    " own, write the pairs:"
+                                    " (pj/pose data " (pr-str pairs) ").")))
+                        {:aesthetics found :columns cols}))))))
 
 (defn series-clashes
   "The columns a series reading `cols`, with its key column named
@@ -2068,12 +2186,9 @@
    `pj/pose` given a series and no layer at all failed the same way,
    with an index out of bounds."
   [leaf-mapping]
-  (doseq [k [:x :y]
-          :let [v (get leaf-mapping k)
-                cols (cond
-                       (and (map? v) (sequential? (:series v))) (:series v)
-                       (and (sequential? v) (seq v)
-                            (every? #(or (keyword? %) (string? %)) v)) v)]
+  (report-series-on-both! "A pose reads" leaf-mapping)
+  (doseq [k series-aesthetics
+          :let [cols (:cols (series-mapping (get leaf-mapping k)))]
           :when cols]
     (throw (ex-info (str "A pose reads " (pr-str (vec cols)) " on " k " as a"
                          " series, and no layer was added to that pose, so the"

@@ -46,7 +46,9 @@
                      o))]
     (assoc leaf :opts (-> opts
                           (keep-dom :x :x-scale-domain)
-                          (keep-dom :y :y-scale-domain)))))
+                          (keep-dom :y :y-scale-domain)
+                          (keep-dom :x :x-scale-domain-by-column)
+                          (keep-dom :y :y-scale-domain-by-column)))))
 
 (defn- outer-dimensions
   "The composite's total `[width height]`: its own `:width`/`:height`,

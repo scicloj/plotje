@@ -192,3 +192,22 @@
                    (pj/pose :day :reading)
                    (pj/pose :day :humidity))]
       (is (= 2 (panels (-> base pj/overlay (pj/lay-point :day :humidity))))))))
+
+(deftest one-declaring-layer-is-told-apart-like-two-test
+  ;; The labels read only the layers that declared an overlay, so a
+  ;; layer joining panel 0 without declaring one was not told apart:
+  ;; one colour, no legend, and an axis titled after the first column.
+  (let [d {:t [1 2 3 4] :a [1 3 2 4] :b [2 2 5 1]}
+        seen (fn [p] (let [s (pj/svg-summary p)]
+                       [(:panels s) (:lines s) (set (:texts s))
+                        (->> (pj/plot p) (tree-seq coll? seq) (filter map?)
+                             (keep :stroke) (filter #(re-find #"^rgb" %)) set)]))
+        both (seen (-> d pj/overlay (pj/lay-line :t :a) (pj/lay-line :t :b)))]
+    (is (= both (seen (-> d (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true})))))
+    (is (= both (seen (-> d (pj/pose :t :a) pj/lay-line (pj/lay-line :t :b {:overlay true})))))
+    (is (contains? (nth both 2) "a, b"))
+    (testing "layers agreeing about the joined panel's place are left alone"
+      (is (not (contains? (set (:texts (pj/svg-summary
+                                        (-> d (pj/lay-line :t :a) (pj/lay-line :t :b)
+                                            (pj/lay-point :t :a {:overlay true})))))
+                          "a, b"))))))

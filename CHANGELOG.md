@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
+### Plots that look different after upgrading
+
+- **A tile filled from a column.** The gradient legend is titled with the column's name. `:fill-label` and a `:label` in the `:fill` scale spec still replace it. Reported in [#58](https://github.com/scicloj/plotje/issues/58) - thanks, @behrica
+
+- **An overlay that only one of the disagreeing layers asks for.** `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))` draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
+
+- **`:share-scales` across a cell that draws several columns on the shared axis.** Each panel of the cell shares the extent of the column it draws, with the cells that draw that column.
+
+### Fixed
+
+- `pj/scale` reports an error on an axis where `:breaks` is not a sequence, such as a function or a set, where a numeric axis is given a break that is not a finite number, where `:n-ticks` is not a positive whole number, where `:tick-spacing` is not a positive number, and where `:domain` is not a collection. The message names the key and the value.
+
+- A map given as data that holds a map, such as `{:opts {...} :panels [...]}`, reports an error naming the keys and describing what makes a map a pose. A plan or a draft given where a pose goes reports an error too.
+
+- A tile reading a numeric `:color` draws its gradient with no warning.
+
+- A pose that reads a series on both `:x` and `:y` reports an error naming the pose rather than the `lay-*` call, and, where the two series have the same length, offers the pairs as panels: `(pj/pose data [[:a :c] [:b :d]])`.
+
 ## [0.15.0 - 2026-09-23]
 
 Faceting is a mapping: `:col` and `:row` are aesthetics, so a facet follows the scope rules every other mapping follows. Several columns written where one goes are read as a series, drawn as groups of one layer, so they can be dodged, stacked or filled against each other. `pj/overlay` applies to the whole pose wherever it is written, and overlaid layers that draw different columns are told apart by colour.

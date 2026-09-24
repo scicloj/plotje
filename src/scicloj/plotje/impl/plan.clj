@@ -816,6 +816,8 @@
          (let [vs (if temporal-extent
                     (mapv resolve/temporal->epoch-ms user-breaks)
                     (vec user-breaks))
+               _ (when-not temporal-extent
+                   (scale/check-numeric-breaks! vs))
                _ (warn-out-of-range-breaks! vs domain)
                labels (cond
                         (and user-labels (sequential? user-labels))
@@ -1535,12 +1537,16 @@
    literal that named thirteen marks and went stale the moment six of
    them learned to read the buffer."
   [resolved-all panels]
-  (let [;; Two shapes carry a per-row color: a `:colors` buffer beside the
-        ;; group's `:xs`, and -- where a mark draws from bar maps rather
-        ;; than from parallel buffers -- a `:color` on each bar.
+  (let [;; Three shapes carry a per-row color: a `:colors` buffer beside
+        ;; the group's `:xs`; a `:color` on each bar, where a mark draws
+        ;; from bar maps rather than from parallel buffers; and a
+        ;; `:color` on each tile, where a tile layer has no groups. The
+        ;; third was missed, so a tile reading a numeric `:color` was
+        ;; warned about while it drew the gradient.
         varies? (fn [layer]
-                  (some (fn [g] (or (:colors g) (some :color (:bars g))))
-                        (:groups layer)))]
+                  (or (some :color (:tiles layer))
+                      (some (fn [g] (or (:colors g) (some :color (:bars g))))
+                            (:groups layer))))]
     (when (and (some #(= :numerical (:color-type %)) resolved-all)
                (not-any? varies? (mapcat :layers panels)))
       (let [marks (vec (sort (distinct (keep #(when (= :numerical (:color-type %))
@@ -2614,6 +2620,20 @@
       (scale/check-places "pj/plan" aesthetic domain
                           (resolve/written-values layer aesthetic)))))
 
+(defn- panel-shared-domains
+  "The shared extents one panel is drawn against: the leaf's own, and,
+   where the leaf's panels read several columns on an axis, the extent
+   `inject-shared-scales` stamped for the column this panel draws --
+   read from `draft-layer`, the panel's first, as the grid reads it."
+  [shared-domains opts draft-layer]
+  (let [pick (fn [sd axis k]
+               (if-let [d (get-in opts [k (get draft-layer axis)])]
+                 (assoc (or sd {}) axis d)
+                 sd))]
+    (-> shared-domains
+        (pick :x :x-scale-domain-by-column)
+        (pick :y :y-scale-domain-by-column))))
+
 (defn- resolve-panel-domains
   "Given a panel-data map (with :stat-results, :layers, and :draft-layers),
    compute the oriented x/y domains, scale specs, and temporal extents.
@@ -2832,7 +2852,7 @@
    ticks for the renderer to label.
    `opts-title` (from a user-supplied `:fill-label` plot option)
    overrides the inferred title (`:count`, `:relative-density`, or
-   `:fill`)."
+   the name of the column a tile fills from)."
   [panel-data resolved-all cfg opts-title]
   (let [fill-stat (some (fn [pd]
                           (some #(when (:fill-range %) %) (:stat-results pd)))
@@ -2843,13 +2863,18 @@
                             (when (#{:bin2d :density-2d} (:stat rv))
                               (:stat rv)))
                           resolved-all))
-        draft-layer-fill-range (when-not stat-fill-range
-                                 (some (fn [rv]
-                                         (when (and (= :tile (:mark rv)) (:fill rv) (:data rv))
-                                           (let [vals ((:data rv) (:fill rv))]
-                                             (when (seq vals)
-                                               [(dfn/reduce-min vals) (dfn/reduce-max vals)]))))
-                                       resolved-all))
+        ;; The tile that gave the range also names the column, which
+        ;; titles the bar the way a colour column titles a colour
+        ;; legend. The title was the word `fill` wherever a tile read a
+        ;; column of its own.
+        [tile-fill-column draft-layer-fill-range]
+        (when-not stat-fill-range
+          (some (fn [rv]
+                  (when (and (= :tile (:mark rv)) (:fill rv) (:data rv))
+                    (let [vals ((:data rv) (:fill rv))]
+                      (when (seq vals)
+                        [(:fill rv) [(dfn/reduce-min vals) (dfn/reduce-max vals)]]))))
+                resolved-all))
         [data-lo data-hi] (or stat-fill-range draft-layer-fill-range)
         ;; Which aesthetic the marks read decides which the bar reads.
         fill-mark? (boolean (some #(contains? fill-drawing-marks (:mark %))
@@ -2894,7 +2919,7 @@
                       (cond
                         (= stat-kind :bin2d) :count
                         (= stat-kind :density-2d) :relative-density
-                        :else :fill))
+                        :else (or tile-fill-column :fill)))
             log? (= :log scale-type)
             stops (gradient-stops grad-fn scale-type f-lo f-hi midpoint)
             ticks (when log?
@@ -3066,7 +3091,7 @@
                           (assoc (resolve-panel-domains pd default-x-scale default-y-scale
                                                         default-coord
                                                         (:domain-padding cfg)
-                                                        shared-domains)
+                                                        (panel-shared-domains shared-domains opts v))
                                  :x-var (:x v)
                                  :y-var (:y v))))
 

@@ -99,12 +99,26 @@
                                 ;; A written colour per layer, so which
                                 ;; call drew which marks is readable.
                                 (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
-                                   (disj (:colors s) "none")))))])
+                                   (disj (:colors s) "none"))
+                                ;; The prose below: the axis is named
+                                ;; for the panel's own column only.
+                                (some #{"height"} (:texts s))
+                                (not-any? #{"height, depth"} (:texts s))
+                                ;; And without the written colours,
+                                ;; for every column drawn on it.
+                                (some #{"height, depth"}
+                                      (:texts (pj/svg-summary
+                                               (-> measurements
+                                                   pj/overlay
+                                                   (pj/lay-point :height :weight)
+                                                   (pj/lay-point :depth :weight))))))))])
 
 ;; The layer keeps its own columns; they are drawn against the axes the
-;; panel already has, and each axis covers every column drawn on it. An
-;; axis is named for the panel's own column, so overlaying two columns
-;; with different names leaves the axis named for the first.
+;; panel already has, and each axis covers every column drawn on it.
+;; Here each layer writes its own colour, so the axis is named for the
+;; panel's own column, `height`. Without a written colour, each layer
+;; takes a colour and a legend entry naming its column, and the axis
+;; title names every column drawn on it.
 
 ;; To join a single layer without changing where later layers go,
 ;; write `{:overlay true}` in that layer's own options map.

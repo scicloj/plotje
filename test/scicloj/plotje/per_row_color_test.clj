@@ -120,3 +120,23 @@
            #"cannot read one.*drop the :scale"
            (pj/plot (pj/lay-line drawn :v :v {:color {:column :c :scale false}})
                     {:format :svg}))))))
+
+(deftest a-tile-fill-legend-is-titled-by-its-column-test
+  ;; #58: the bar was titled `fill` wherever a tile read a column.
+  (let [d {:x ["a" "b" "a" "b"] :y ["p" "p" "q" "q"] :corr [1.0 -0.6 0.33 0.9]}
+        texts #(set (:texts (pj/svg-summary %)))]
+    (is (contains? (texts (pj/lay-tile d :x :y {:fill :corr})) "corr"))
+    (is (not (contains? (texts (pj/lay-tile d :x :y {:fill :corr})) "fill")))
+    (is (contains? (texts (-> (pj/lay-tile d :x :y {:fill :corr})
+                              (pj/options {:fill-label "Correlation"})))
+                   "Correlation"))
+    (is (contains? (texts (-> (pj/lay-tile d :x :y {:fill :corr})
+                              (pj/scale :fill {:label "L"})))
+                   "L"))))
+
+(deftest a-tile-reading-a-numeric-color-is-not-warned-about-test
+  ;; A tile carries its colour on each of its `:tiles`, a shape the
+  ;; monochrome check did not read, so it warned while the gradient drew.
+  (let [d {:x ["a" "b" "a" "b"] :y ["p" "p" "q" "q"] :corr [1.0 -0.6 0.33 0.9]}]
+    (is (not (re-find #"do not read the column as a gradient"
+                      (with-out-str (pj/plan (pj/lay-tile d :x :y {:color :corr}))))))))

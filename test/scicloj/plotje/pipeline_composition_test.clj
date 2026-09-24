@@ -470,3 +470,23 @@
     (let [mapped (pj/lay-point tiny :x :y)]
       (is (= (pj/svg-summary (pj/plot mapped))
              (pj/svg-summary (pj/plot (pj/pose mapped))))))))
+
+(deftest a-cell-drawing-two-columns-shares-each-by-its-column-test
+  ;; A leaf whose layers disagree about :y draws a panel per column,
+  ;; and the share buckets grouped it by its first column only. The
+  ;; panel drawing :b was given :a's extent and its marks fell off the
+  ;; panel with nothing said.
+  (let [d  {:t [1 2 3 4] :a [1 3 2 4] :b [100 200 150 300]}
+        d2 {:t [1 2 3 4] :a [0 5 1 2] :b [50 900 100 200]}
+        split (fn [data] (-> data (pj/lay-point :t :a) (pj/lay-point :t :b)))
+        y-domains (fn [p] (->> (pj/plan p) :sub-plots
+                               (mapv (fn [sp] (mapv :y-domain (:panels (:plan sp)))))))]
+    (testing "the :b panel reads :b's extent, not :a's"
+      (let [[[a-dom b-dom]] (y-domains (pj/arrange [(split d) (pj/lay-point d :t :a)]
+                                                   {:share-scales #{:y}}))]
+        (is (< (second a-dom) 10))
+        (is (<= (first b-dom) 100 300 (second b-dom)))))
+    (testing "two split cells share each column with the other"
+      (let [[c1 c2] (y-domains (pj/arrange [(split d) (split d2)] {:share-scales #{:y}}))]
+        (is (= c1 c2))
+        (is (<= (first (second c1)) 50 900 (second (second c1))))))))

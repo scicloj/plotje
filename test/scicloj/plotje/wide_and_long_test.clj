@@ -215,6 +215,30 @@
                           (-> sales (pj/lay-point {:x [:revenue :cost]
                                                    :y [:cost :revenue]})))))
 
+  (testing "a pose reading two series is reported as the pose's, with the pairs"
+    ;; The pose's own mapping, reached through a layer and with no
+    ;; layer at all. Both were reported under the wrong subject: the
+    ;; first blamed the lay-* call, and the second offered a fix that
+    ;; failed the same way.
+    (let [pairs #"\(pj/pose data \[\[:revenue :cost\] \[:cost :target\]\]\)"]
+      (is (thrown-with-msg? Exception #"^The pose pj/lay-point is added to reads a series on more than one"
+                            (-> with-target
+                                (pj/pose {:x [:revenue :cost] :y [:cost :target]})
+                                pj/lay-point)))
+      (is (thrown-with-msg? Exception pairs
+                            (pj/plot (pj/pose with-target {:x [:revenue :cost]
+                                                           :y [:cost :target]}))))
+      (is (thrown-with-msg? Exception #"^A pose reads a series on more than one"
+                            (pj/plot (pj/pose with-target [:revenue :cost] [:cost :target])))))
+    (testing "the pairs offered draw a panel each"
+      (is (= 2 (:panels (pj/svg-summary
+                         (pj/pose with-target [[:revenue :cost] [:cost :target]]))))))
+    (testing "series of different lengths make no pairs to offer"
+      (is (not (re-find #"write the pairs"
+                        (try (pj/lay-point with-target {:x [:revenue :cost]
+                                                        :y [:cost :target :quarter]})
+                             (catch Exception e (ex-message e))))))))
+
   (testing "a column the data does not have is named, with the ones it does"
     (is (thrown-with-msg? Exception #"does not have \[:nope\]"
                           (-> sales (pj/lay-bar :quarter [:revenue :nope])))))

@@ -356,37 +356,10 @@
 
 (def ^:private series-value-column pose/series-value-column)
 
-(defn series-mapping
+(def series-mapping
   "The series a mapping value asks for, as `{:cols [...] :as label}`, or
-   nil where it asks for none.
-
-   Two spellings, one meaning. A vector of columns on a positional
-   aesthetic is the short one; `{:series [...] :as :measure}` is the
-   same thing written out, and the only reason to write it is to name
-   the key column the pivot invents.
-
-   A vector of pairs is not a series -- that is the multi-panel form
-   `pj/pose` reads -- so a vector whose elements are themselves
-   sequential answers nil and is left to it."
-  [v]
-  (cond
-    ;; Every element a column reference, which is what keeps a dash
-    ;; pattern, a colour range and a list of breaks from being read as
-    ;; columns to pivot.
-    (and (sequential? v)
-         (not (map? v))
-         (seq v)
-         (every? resolve/column-ref? v))
-    {:cols (vec v) :as default-series-label}
-
-    (and (map? v) (contains? v :series))
-    (cond-> {:cols (vec (:series v)) :as (get v :as default-series-label)}
-      ;; The scale rides along, so the value column the pivot invents is
-      ;; read through it. Without this the `:scale` was accepted and
-      ;; dropped, and the axis came out linear with no word said.
-      (contains? v :scale) (assoc :scale (:scale v)))
-
-    :else nil))
+   nil where it asks for none. See `pose/series-mapping`."
+  pose/series-mapping)
 
 (def ^:private series-mapping-keys
   "The keys a series written out may carry: the columns it reads, the
@@ -420,11 +393,8 @@
   (some? (series-mapping v)))
 
 (def ^:private series-slots
-  "The aesthetics a series may be written under. A series names the
-   columns a mark is drawn from, so it belongs where a column goes on
-   an axis; on an appearance aesthetic there would be nothing for the
-   pivot to draw."
-  #{:x :y})
+  "The aesthetics a series may be written under, as a set."
+  (set pose/series-aesthetics))
 
 ;; ---- Pipeline Internals ----
 
@@ -608,6 +578,20 @@
   (cond
     (nil? d)         nil
     (tc/dataset? d)  d
+    ;; A map whose value is itself a map is not a map of columns. It is
+    ;; nearly always a pose written by hand without the key that marks
+    ;; one -- `{:opts {...} :panels [...]}` -- and Tablecloth read it as
+    ;; a column holding map entries, so the plot drew the keys as data
+    ;; with nothing said.
+    (and (map? d) (some map? (vals d)))
+    (let [ks (vec (keep (fn [[k v]] (when (map? v) k)) d))]
+      (throw (ex-info (str "The map given as data holds a map under " ks
+                           ", and a column of data is a sequence of values."
+                           " If the map is meant as a pose, it is recognized"
+                           " by :layers, :poses or a :mapping map -- for"
+                           " example {:data {:a [1 2]} :mapping {:x :a}"
+                           " :layers []}. Its keys: " (vec (keys d)) ".")
+                      {:keys (vec (keys d)) :map-valued ks})))
     (value-column-seq? d) (tc/dataset {:value (vec d)})
     (or (map? d) (sequential? d)) (tc/dataset d)
     :else            (throw (ex-info
@@ -630,6 +614,19 @@
    directly."
   [caller x]
   (cond
+    (plan? x)
+    (throw (ex-info (str caller " expects a pose or data, not a plan. A plan"
+                         " is the resolved geometry produced by pj/plan;"
+                         " pass the original pose, or render the plan with"
+                         " pj/plan->plot.")
+                    {:caller caller :got :plan}))
+
+    (draft? x)
+    (throw (ex-info (str caller " expects a pose or data, not a draft. A draft"
+                         " is the intermediate stage produced by pj/draft;"
+                         " pass the original pose.")
+                    {:caller caller :got :draft}))
+
     (nil? x)
     (throw (ex-info
             (str caller " requires data, but got nil. Pass a"
@@ -793,6 +790,9 @@
   ([x] (->pose x "pj/->pose"))
   ([x caller]
    (cond
+     ;; Ahead of `pose?`, which a draft answers yes to by carrying
+     ;; `:layers`; the draft then reached the pipeline as a pose.
+     (draft? x) (validate-pose-input! caller x)
      (pose? x) (pose-kind x)
      (mapping-map? x)
      (let [d (:data x)
@@ -1745,7 +1745,7 @@
                                    (update :mapping (fnil merge {}) position-mapping)))
        (do
          (check-new-panel-columns (:layer-type layer)
-                                     position-mapping layer (:data fr))
+                                  position-mapping layer (:data fr))
          (update fr :poses (fnil conj [])
                  {:mapping position-mapping :layers [layer]}))))))
 
@@ -2167,16 +2167,11 @@
   [caller fr position-mapping opts]
   (let [in (fn [m] (keep (fn [[k v]] (when (and (series-slots k) (series-mapping? v)) k)) m))
         at-call (vec (concat (in position-mapping) (in opts)))
-        on-pose (vec (in (:mapping fr)))
-        report (fn [found]
-                 (throw (ex-info (str caller " was given a series on more than one"
-                                      " aesthetic -- " (pr-str found) ". A series"
-                                      " pivots the data into one value column, and"
-                                      " two pivots have no shared shape, so write"
-                                      " one series per layer.")
-                                 {:caller caller :aesthetics found})))]
-    (when (next at-call) (report at-call))
-    (when (next on-pose) (report on-pose))
+        on-pose (vec (in (:mapping fr)))]
+    (pose/report-series-on-both! (str caller " was given")
+                                 (merge position-mapping opts))
+    (pose/report-series-on-both! (str "The pose " caller " is added to reads")
+                                 (:mapping fr))
     ;; A series at the call and a series on the pose are two pivots of
     ;; one dataset, and the same rule refuses them as refuses two in
     ;; one call: the pivot consumes the columns it reads, so the second
@@ -2589,7 +2584,7 @@
                                          [:x :y])))]
         (when (seq disagreements)
           (check-new-panel-columns layer-type-key position-mapping
-                                      bare-layer (:data fr)))
+                                   bare-layer (:data fr)))
         (cond-> stamped
           (seq adopt)
           (update :mapping #(pose/merge-mappings (or % {}) adopt))
