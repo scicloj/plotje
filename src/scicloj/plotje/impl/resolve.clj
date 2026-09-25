@@ -820,14 +820,22 @@
           ;; Accepting :color keeps lay-tile friendly for users who
           ;; reach for :color by habit from the other marks. :fill wins
           ;; when both are set.
+          ;;
+          ;; A categorical :color also draws one cell per row, coloured
+          ;; from the palette of the cell's group, as every mark reads a
+          ;; categorical colour. Only a numeric one is a magnitude, so
+          ;; only a numeric one becomes :fill: promoting a column of
+          ;; categories died in extract, taking the minimum of strings.
           tile-override? (and (= (:mark resolved) :tile)
                               (= (:stat resolved) :bin2d)
                               (or (:fill resolved) (:color resolved)))
           resolved (if tile-override?
                      (cond-> (assoc resolved :stat :identity)
-                       ;; Promote :color to :fill when :fill is absent so
-                       ;; the downstream extract path finds the data.
-                       (and (not (:fill resolved)) (:color resolved))
+                       ;; Promote a numeric :color to :fill when :fill is
+                       ;; absent so the downstream extract path finds
+                       ;; the data.
+                       (and (not (:fill resolved)) (:color resolved)
+                            (= :numerical (:color-type resolved)))
                        (assoc :fill (:color resolved)))
                      resolved)]
       resolved)))

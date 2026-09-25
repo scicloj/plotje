@@ -3235,6 +3235,9 @@
    With `:fill` option: pre-computed tile colors from a column.
    Without `:fill`: auto-binned 2D histogram (stat `:bin2d`).
 
+   A categorical `:color` column colors each cell from the palette,
+   one color per category, as it colors any mark.
+
    A numeric `:color` column is read as the fill. Either way the cells
    and their legend read the fill settings: a `:fill` scale spec, then
    a `:color` one, then the `:fill-*` plot options, then the `:color-*`

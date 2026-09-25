@@ -40,6 +40,8 @@ All notable changes to this project will be documented in this file. This change
 
 - A tile reading a numeric `:color` draws its gradient with no warning.
 
+- `pj/lay-tile` with a categorical `:color` colors each cell from the palette, one color per category, with a legend of the categories and `:values` honored. It reported a `ClassCastException`. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
+
 - A colour or fill option written on a plot that nothing on it reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, and `:color-label` with no legend.
 
 ## [0.15.0 - 2026-09-23]

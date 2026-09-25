@@ -2449,6 +2449,35 @@
     (testing "the tiles span half the step either side of their values"
       (is (= [-0.5 0.5] ((juxt :x-lo :x-hi) (first tiles)))))))
 
+(deftest tile-categorical-color-test
+  ;; Issue #40: `:fill` refuses a column of categories and suggests
+  ;; `:color`, and a tile given a categorical `:color` died in extract
+  ;; with a ClassCastException -- the column was renamed to `:fill`
+  ;; and its minimum taken. Through v0.15.0.
+  (let [d {:hour [1 2 3 1 2 3] :day [1 1 1 2 2 2]
+           :shift ["early" "late" "early" "late" "early" "late"]}
+        rgb (fn [[r g b]] [(Math/round (* 255.0 r)) (Math/round (* 255.0 g)) (Math/round (* 255.0 b))])
+        cells (fn [plan] (->> plan :panels first :layers first :tiles
+                              (map (juxt :x-lo :y-lo (comp rgb :color)))
+                              (sort-by (juxt second first))))]
+    (testing "each cell takes its row's category colour, and the legend names both"
+      (let [plan (-> d (pj/lay-tile :hour :day {:color :shift}) pj/plan)
+            early [228 26 28]
+            late [55 126 184]]
+        (is (= [[0.5 0.5 early] [1.5 0.5 late] [2.5 0.5 early]
+                [0.5 1.5 late] [1.5 1.5 early] [2.5 1.5 late]]
+               (cells plan)))
+        (is (= ["early" "late"] (mapv :label (-> plan :legend :entries))))))
+    (testing "a palette written with :values is used"
+      (let [plan (-> d
+                     (pj/lay-tile :hour :day {:color :shift})
+                     (pj/scale :color {:values {"early" "#FF0000" "late" "#0000FF"}})
+                     pj/plan)]
+        (is (= #{[255 0 0] [0 0 255]} (set (map last (cells plan)))))))
+    (testing ":fill still refuses categories, and names :color"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"map the column to :color"
+                            (-> d (pj/lay-tile :hour :day {:fill :shift}) pj/plan))))))
+
 (deftest tile-color-synonym-test
   ;; persona-11-R2 F8: lay-tile used to silently paint every tile the
   ;; midpoint color when the user passed {:color :value} instead of

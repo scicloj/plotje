@@ -771,9 +771,20 @@
   (let [;; Accept :color as a synonym for :fill on tiles -- users coming
         ;; from the other marks reach for :color by default. If both are
         ;; set, :fill wins (explicit).
+        ;; A categorical :color is not a synonym: it colours each cell
+        ;; from its group's palette entry, below.
         fill-col (or (:fill draft-layer)
-                     (when (let [c (:color draft-layer)] (and c (or (keyword? c) (string? c))))
+                     (when (let [c (:color draft-layer)]
+                             (and c (or (keyword? c) (string? c))
+                                  (= :numerical (:color-type draft-layer))))
                        (:color draft-layer)))
+        category-colors (when (and (not fill-col)
+                                   (= :categorical (:color-type draft-layer)))
+                          (vec (mapcat (fn [g]
+                                         (repeat (count (:xs g))
+                                                 (resolve-color all-colors (:color g)
+                                                                draft-layer cfg)))
+                                       (:points stat))))
         grad-fn (defaults/resolve-gradient-fn (fill-setting :range draft-layer cfg))
         midpoint (fill-setting :midpoint draft-layer cfg)
         ;; The :fill spec over the :color one, key by key, since a tile
@@ -833,12 +844,18 @@
                       ;; Derive color column
                       with-color (tc/add-column with-bounds :color
                                                 (fn [ds]
-                                                  (if fill-vals
+                                                  (cond
+                                                    category-colors
+                                                    category-colors
+
+                                                    fill-vals
                                                     (mapv (fn [f]
                                                             (grad-fn (defaults/normalize-continuous
                                                                       fill-scale-type
                                                                       f (or f-lo 0) (or f-hi 1) midpoint)))
                                                           fill-vals)
+
+                                                    :else
                                                     (vec (repeat (tc/row-count ds)
                                                                  (grad-fn 0.5))))))]
                   (vec (tc/rows (tc/select-columns with-color

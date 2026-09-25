@@ -1187,6 +1187,20 @@ gapminder-2007
 (kind/test-last
  [(fn [m] (re-find #":fill needs a numeric column" m))])
 
+;; On a tile, the same column on `:color` colors each cell from the
+;; palette, one color per category, with a legend naming them:
+
+(-> {:hour [1 2 3 1 2 3]
+     :day [1 1 1 2 2 2]
+     :shift ["early" "late" "early" "late" "early" "late"]}
+    (pj/lay-tile :hour :day {:color :shift}))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 6 (:visible-tiles s))
+                 (= #{"none" "rgb(228,26,28)" "rgb(55,126,184)"} (:colors s))
+                 (= ["early" "late"] (mapv :label (:entries (:legend (pj/plan v))))))))])
+
 ;; A palette is a vector of colors, a map from category to color, or
 ;; the name of a built-in one. It is assigned in domain order, so
 ;; [a `:domain`](#ordering-categories) moves the colors together with
