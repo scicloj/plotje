@@ -218,7 +218,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__73129#] (Math/sin (* p1__73129# 0.3))) (range 30))}))
+   (map (fn* [p1__73475#] (Math/sin (* p1__73475# 0.3))) (range 30))}))
 
 
 (def v45_l175 (-> wave (pj/lay-line :x :y)))
@@ -426,9 +426,9 @@
     :y
     (mapv
      (fn*
-      [p1__73130#]
+      [p1__73476#]
       (+
-       (Math/sin (* p1__73130# 0.2))
+       (Math/sin (* p1__73476# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1276,7 +1276,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__73131#] (-> p1__73131# :plan :panels first))
+       (fn* [p1__73477#] (-> p1__73477# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))
@@ -1508,7 +1508,7 @@
    (:canvas f)
    boxes
    (mapv
-    (fn* [p1__73132#] (-> p1__73132# :frames :panel-box))
+    (fn* [p1__73478#] (-> p1__73478# :frames :panel-box))
     (:panels f))
    inside?
    (fn
@@ -1519,7 +1519,7 @@
    :every-box-inside-the-canvas (every? inside? boxes),
    :panel-rectangle-keys
    (mapv
-    (fn* [p1__73133#] (vec (keys (:frames p1__73133#))))
+    (fn* [p1__73479#] (vec (keys (:frames p1__73479#))))
     (:panels f))}))
 
 
@@ -1534,7 +1534,7 @@
      (apply not= (map first (:panel-boxes m)))
      (true? (:every-box-inside-the-canvas m))
      (every?
-      (fn* [p1__73134#] (= [:panel-box :drawing-area] p1__73134#))
+      (fn* [p1__73480#] (= [:panel-box :drawing-area] p1__73480#))
       (:panel-rectangle-keys m))))
    v295_l1022)))
 
@@ -1576,7 +1576,7 @@
   (->>
    (pj/to-drawing panel 2 5)
    (apply pj/to-data panel)
-   (mapv (fn* [p1__73135#] (Math/round (double p1__73135#)))))))
+   (mapv (fn* [p1__73481#] (Math/round (double p1__73481#)))))))
 
 
 (deftest t307_l1071 (is ((fn [v] (= [2 5] v)) v306_l1066)))
@@ -1837,7 +1837,7 @@
 (def v383_l1282 (count pj/config-key-docs))
 
 
-(deftest t384_l1284 (is ((fn [n] (= 43 n)) v383_l1282)))
+(deftest t384_l1284 (is ((fn [n] (= 44 n)) v383_l1282)))
 
 
 (def v385_l1286 (kind/doc #'pj/plot-option-docs))
@@ -1973,7 +1973,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__73136#] (bit-and p1__73136# 255)) (vec bs))))))
+    (mapv (fn* [p1__73482#] (bit-and p1__73482# 255)) (vec bs))))))
 
 
 (deftest
@@ -1994,7 +1994,7 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__73137#] (bit-and p1__73137# 255)) (vec bs))))))
+    (mapv (fn* [p1__73483#] (bit-and p1__73483# 255)) (vec bs))))))
 
 
 (deftest t429_l1399 (is ((fn [bs] (= [137 80 78 71] bs)) v428_l1390)))

@@ -18,9 +18,15 @@ All notable changes to this project will be documented in this file. This change
 
 - **`:share-scales` across a cell that draws several columns on the shared axis.** Each panel of the cell shares the extent of the column it draws, with the cells that draw that column.
 
+- **`pj/lay-tile` on a numeric `:x` or `:y`.** The axis reaches the outer edges of the tiles, so every row and column is drawn at full size, and the axis is padded past them as any numeric axis is. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
+
+- **Rotated x-tick labels.** The room below the panel is worked out from the angle and the length of the longest label, so long labels are not cut off at the bottom of the plot or drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
+
 - **A histogram or density added to a grid of pairs**, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`. Every cell draws its count or density on a y axis of its own, fitted to its bars. A layer added to a composite is read, for `:share-scales`, as part of each cell it draws on.
 
 ### Added
+
+- `:y-tick-angle` rotates the y-axis tick labels, as `:x-tick-angle` does for x. At 90 or -90 each label runs along the axis, centred on its tick, and the room beside the panel is worked out from the angle. Asked for in [#51](https://github.com/scicloj/plotje/issues/51) - thanks, @behrica
 
 - `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on `:end`, `:start` or `:both` ends, and on a categorical axis a written number is a place counted from one, so a segment can point at a category. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
 

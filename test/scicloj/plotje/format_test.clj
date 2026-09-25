@@ -190,6 +190,52 @@
       (is (png? path))
       (.delete (java.io.File. path)))))
 
+(deftest x-tick-angle-reserves-room-for-long-labels-test
+  ;; Issue #57: the room below the panel for rotated x-tick labels was a
+  ;; fixed 50 drawing units times the sine of the angle, whatever the
+  ;; labels' length, so long labels ran off the bottom of the plot and
+  ;; under the axis title.
+  (let [pad (fn [cats angle]
+              (-> {:cat cats :n (range (count cats))}
+                  (pj/lay-bar :cat :n)
+                  (pj/options {:x-tick-angle angle})
+                  pj/plan :layout :x-label-pad))
+        short-cats ["a" "b" "c" "d"]
+        long-cats (mapv #(str ":passenger-density-sepal-length-" %) (range 4))]
+    (testing "short labels keep the room they had: label-offset, 50 x sin, and 8"
+      (is (= (+ 38 (long (* 50 (Math/sin (Math/toRadians 45)))) 8)
+             (pad short-cats -45))))
+    (testing "long labels get room for their rotated reach"
+      ;; each character at half an 11-unit font, turned upright; the
+      ;; label offset already holds one unrotated line of 11
+      (is (= (+ 38 (long (- (* (count (first long-cats)) 5.5) 11)) 8)
+             (pad long-cats 90)))
+      (is (< (pad short-cats 90) (pad long-cats 90))))))
+
+(deftest y-tick-angle-test
+  ;; Issue #51: :y-tick-angle is the y axis's counterpart of :x-tick-angle.
+  (let [d {:grp ["alpha-group" "beta-group" "gamma-group"] :v [3 5 2]}
+        pose (fn [angle] (-> d
+                             (pj/lay-bar :grp :v)
+                             (pj/coord :flip)
+                             (pj/options {:y-tick-angle angle})))
+        pad (fn [angle] (-> (pose angle) pj/plan :layout :y-label-pad))]
+    (testing "the y-tick labels are rotated in the SVG"
+      (let [path "/tmp/_plotje_ytick_angle.svg"]
+        (pj/save (pose 90) path)
+        (is (.contains ^String (slurp path) "rotate(90"))
+        (.delete (java.io.File. path))))
+    (testing "and in the PNG"
+      (let [path "/tmp/_plotje_ytick_angle.png"]
+        (pj/save (pose 90) path)
+        (is (png? path))
+        (.delete (java.io.File. path))))
+    (testing "labels along the axis take less room beside it than level ones"
+      (is (< (pad 90) (pad 0)))
+      (is (< (pad 90) (pad -45) (pad 0))))
+    (testing "no angle leaves the layout as it was"
+      (is (= (pad 0) (-> d (pj/lay-bar :grp :v) (pj/coord :flip) pj/plan :layout :y-label-pad))))))
+
 (deftest save-translates-bufimg-from-pose-opts
   (testing "pj/save translates legacy :bufimg from pose opts to :png"
     (let [path "/tmp/_plotje_save_format_bufimg_alias.png"

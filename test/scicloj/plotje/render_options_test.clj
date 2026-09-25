@@ -124,6 +124,7 @@
    :default-color       "#0000ff"
    :point-stroke        "#00ff00"
    :x-tick-angle        45
+   :y-tick-angle        45
    :x-tick-label-pad    8})
 
 (def unprobed

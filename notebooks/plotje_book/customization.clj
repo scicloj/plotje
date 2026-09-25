@@ -186,7 +186,8 @@
                               (.contains ^String (pr-str (pj/plot v)) "rotate(-45")))])
 
 ;; Plotje reserves extra vertical space below the panel for the
-;; angled labels, scaled by the angle. When that automatic estimate
+;; angled labels, worked out from the angle and the length of the
+;; longest label. When that automatic estimate
 ;; reserves too much or too little, set `:x-tick-label-pad` (in
 ;; drawing units) to control the reserved height directly:
 
@@ -202,6 +203,19 @@
 ;; tick. Very long names can run past the left edge of the plotting
 ;; area; see
 ;; [Known Limitations](./plotje_book.known_limitations.html#layout-and-visuals).
+;;
+;; `:y-tick-angle` turns the y-axis tick labels the same way. At 90 or
+;; -90 each label runs along the axis, centred on its tick, which
+;; leaves room for long category names beside a horizontal bar chart:
+
+(-> {:team ["Operations" "Research" "Customer support"]
+     :headcount [42 17 29]}
+    (pj/lay-bar :team :headcount)
+    (pj/coord :flip)
+    (pj/options {:y-tick-angle -90}))
+
+(kind/test-last [(fn [v] (and (= 3 (:polygons (pj/svg-summary v)))
+                              (.contains ^String (pr-str (pj/plot v)) "rotate(-90")))])
 
 ;; ## Grouping digits in large numbers
 

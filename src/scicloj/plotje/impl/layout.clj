@@ -260,6 +260,19 @@
   (get-in cfg [:theme :font-size]
           (get-in defaults/defaults [:theme :font-size])))
 
+(defn- x-tick-text-width
+  "Over-estimate of the widest x-tick label, the counterpart of
+   `y-tick-text-width`, run at a budget of `:width`."
+  [{:keys [coord-type panel-x-domains x-scale-spec x-temporal]} cfg opts]
+  (if (= coord-type :polar)
+    0.0
+    (max-label-pixel-width-over-panels
+     panel-x-domains x-scale-spec x-temporal
+     (double (:width opts))
+     (:x-tick-spacing cfg)
+     (tick-font-size cfg)
+     (defaults/number-separators cfg))))
+
 (defn- pad-x-label
   "Vertical space reserved below the bottom row of panels. When a
    global x-label is shown, `:label-offset` covers both the x-axis
@@ -277,14 +290,28 @@
    labels need: this is a floor, never a ceiling, so it cannot clip a
    label. Without a floor the computed value is returned as it was, so
    a caller comparing it with `=` against a config integer still
-   matches."
-  [{:keys [x-label?]} cfg opts]
+   matches.
+
+   A rotated tick label reaches below the axis by its width times the
+   sine of the angle, plus its height times the cosine; the base
+   already holds one unrotated line, so the rest is added. A floor of
+   50 drawing units times the sine keeps short labels where they were
+   before labels were measured."
+  [{:keys [x-label?] :as scene} cfg opts]
   (let [base (cond x-label? (:label-offset cfg)
                    :else (+ (tick-font-size cfg) 6))
         angle (get cfg :x-tick-angle 0)
         extra (or (:x-tick-label-pad cfg)
-                  (+ (long (* 50 (Math/abs (Math/sin (Math/toRadians (double angle))))))
-                     (if (zero? angle) 0 8)))
+                  (if (zero? angle)
+                    0
+                    (let [rad (Math/toRadians (double angle))
+                          sin (Math/abs (Math/sin rad))
+                          cos (Math/abs (Math/cos rad))
+                          fsize (double (tick-font-size cfg))
+                          reach (+ (* (x-tick-text-width scene cfg opts) sin)
+                                   (* fsize cos))]
+                      (+ (long (max (* 50 sin) (- reach fsize)))
+                         8))))
         computed (+ base extra)]
     (if-let [floor (:min-x-label-pad opts)]
       (max (double computed) (double floor))
@@ -318,9 +345,19 @@
    cannot clip a label."
   [scene cfg opts]
   (let [{:keys [coord-type y-label?]} scene
+        angle (get cfg :y-tick-angle 0)
         computed (if (= coord-type :polar)
                    0.0
-                   (let [tick-w (y-tick-text-width scene cfg opts)]
+                   (let [w (y-tick-text-width scene cfg opts)
+                         ;; A rotated label reaches left of the axis by
+                         ;; its width times the cosine of the angle, plus
+                         ;; its height times the sine.
+                         tick-w (if (zero? angle)
+                                  w
+                                  (let [rad (Math/toRadians (double angle))]
+                                    (+ (* w (Math/abs (Math/cos rad)))
+                                       (* (double (tick-font-size cfg))
+                                          (Math/abs (Math/sin rad))))))]
                      (if y-label?
                        (+ (double (:label-offset cfg))
                           (max 0.0 (- tick-w 12.0)))

@@ -767,17 +767,6 @@
                           :densities (:densities v)}
                    (:color v) (assoc :color-category (:color v)))))}))
 
-(defn- min-step
-  "Minimum step between sorted distinct values in a sequence."
-  [vals]
-  (let [sorted (vec (sort (distinct vals)))
-        n (count sorted)]
-    (if (<= n 1)
-      1.0
-      (reduce min (map #(- (double (sorted (inc %)))
-                           (double (sorted %)))
-                       (range (dec n)))))))
-
 (defmethod extract-layer :tile [draft-layer stat all-colors cfg]
   (let [;; Accept :color as a synonym for :fill on tiles -- users coming
         ;; from the other marks reach for :color by default. If both are
@@ -823,19 +812,21 @@
                       y-cat? (= (:y-type draft-layer) :categorical)
                       pt-ds (tc/dataset {:x all-x-vals :y all-y-vals})
                       ;; On a numeric axis a tile spans half the smallest
-                      ;; step either side of its value. On a categorical
+                      ;; step either side of its value -- the half-step
+                      ;; the stat widened the domain by, read from it so
+                      ;; the tiles and the axis agree. On a categorical
                       ;; axis the value is a category, which has no number
                       ;; until the panel's scale places it, so the tile
                       ;; keeps the category and `render.mark` spans it
                       ;; there, from half a place below to half above.
                       with-bounds (cond-> pt-ds
                                     (not x-cat?)
-                                    (as-> ds (let [x-half (/ (min-step all-x-vals) 2.0)]
+                                    (as-> ds (let [x-half (or (:tile-half-x stat) 0.5)]
                                                (-> ds
                                                    (tc/add-column :x-lo (dfn/- (ds :x) x-half))
                                                    (tc/add-column :x-hi (dfn/+ (ds :x) x-half)))))
                                     (not y-cat?)
-                                    (as-> ds (let [y-half (/ (min-step all-y-vals) 2.0)]
+                                    (as-> ds (let [y-half (or (:tile-half-y stat) 0.5)]
                                                (-> ds
                                                    (tc/add-column :y-lo (dfn/- (ds :y) y-half))
                                                    (tc/add-column :y-hi (dfn/+ (ds :y) y-half))))))

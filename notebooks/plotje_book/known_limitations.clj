@@ -324,8 +324,8 @@
 ;;   other keys. Named theme presets (`theme_minimal`, `theme_bw`,
 ;;   `theme_classic`), panel borders, strip text styling, and
 ;;   `legend.position` by coordinate are not yet exposed. Rotating
-;;   the x-axis tick labels is available, but as the `:x-tick-angle`
-;;   plot option rather than through the theme -- see
+;;   tick labels is available, but as the `:x-tick-angle` and
+;;   `:y-tick-angle` plot options rather than through the theme -- see
 ;;   [Customization](./plotje_book.customization.html#rotating-tick-labels).
 ;;
 ;; - Per-layer `data`, `guides()` for per-aesthetic legend control,

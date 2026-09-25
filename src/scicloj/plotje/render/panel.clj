@@ -129,12 +129,36 @@
                                     (membrane.ui.Rotate. (double angle)
                                                          (assoc (ui/label label (ui/font nil fsize))
                                                                 :text-anchor (if (neg? angle) "end" "start")))))))
-                (let [py (scale t)]
-                  (ui/translate (- (double m) 3)
-                                (- (double py) (/ fsize 2.0))
-                                (ui/with-color tick-color
-                                  (assoc (ui/label label (ui/font nil fsize))
-                                         :text-anchor "end"))))))
+                (let [py (scale t)
+                      angle (get cfg :y-tick-angle 0)
+                      lbl (ui/label label (ui/font nil fsize))]
+                  (cond
+                    (zero? angle)
+                    (ui/translate (- (double m) 3)
+                                  (- (double py) (/ fsize 2.0))
+                                  (ui/with-color tick-color
+                                    (assoc lbl :text-anchor "end")))
+
+                    ;; Along the axis: the label is centred on its tick,
+                    ;; and its band of one font size is set just left of
+                    ;; the axis, as an unrotated label's is.
+                    (== 90 (Math/abs (double angle)))
+                    (ui/translate (- (double m) 3 (/ fsize 2.0))
+                                  (double py)
+                                  (ui/with-color tick-color
+                                    (membrane.ui.Rotate. (double angle)
+                                                         (ui/translate 0 (- (/ fsize 2.0))
+                                                                       (assoc lbl :text-anchor "middle")))))
+
+                    ;; Any other angle turns the label about its end,
+                    ;; which stays where an unrotated label ends.
+                    :else
+                    (ui/translate (- (double m) 3)
+                                  (double py)
+                                  (ui/with-color tick-color
+                                    (membrane.ui.Rotate. (double angle)
+                                                         (ui/translate 0 (- (/ fsize 2.0))
+                                                                       (assoc lbl :text-anchor "end")))))))))
             values labels)))))
 
 (defn- shift-data-value

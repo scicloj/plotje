@@ -2430,6 +2430,25 @@
     (testing "4+ column with explicit x/y still works"
       (is (= 1 (-> four-col (pj/lay-point :a :b) pj/plan :panels count))))))
 
+(deftest valued-tile-domain-reaches-outer-edges-test
+  ;; Issue #59: a tile on a numeric axis spans half a step either side
+  ;; of its value, and the domain was read from the values alone, so
+  ;; the outer rows and columns were cut to a fraction of the others.
+  (let [plan (-> (for [i (range 5) j (range 5)] {:xi i :yi j :r (* i j)})
+                 (pj/lay-tile :xi :yi {:fill :r})
+                 pj/plan)
+        panel (-> plan :panels first)
+        tiles (-> panel :layers first :tiles)
+        [x-lo x-hi] (:x-domain panel)
+        [y-lo y-hi] (:y-domain panel)]
+    (testing "the domain holds every tile's edges"
+      (is (<= x-lo (reduce min (map :x-lo tiles))))
+      (is (>= x-hi (reduce max (map :x-hi tiles))))
+      (is (<= y-lo (reduce min (map :y-lo tiles))))
+      (is (>= y-hi (reduce max (map :y-hi tiles)))))
+    (testing "the tiles span half the step either side of their values"
+      (is (= [-0.5 0.5] ((juxt :x-lo :x-hi) (first tiles)))))))
+
 (deftest tile-color-synonym-test
   ;; persona-11-R2 F8: lay-tile used to silently paint every tile the
   ;; midpoint color when the user passed {:color :value} instead of
@@ -2499,9 +2518,18 @@
   ;; named axis died with a ClassCastException in extract/min-step.
   (let [values [0.1 0.5 0.9 -0.2]
         numeric {:a [1 1 2 2] :b [1 2 1 2] :v values}
+        ;; Where each cell sits and what colour it is. The share of the
+        ;; panel a cell spans is asserted separately below, because it
+        ;; differs by axis kind: a numeric axis is padded past the
+        ;; tiles' edges, as every numeric axis is, and a band axis is
+        ;; not.
         cells (fn [data & {:keys [flip? opts]}]
-                (tile-cells (cond-> (pj/lay-tile data :a :b (merge {:fill :v} opts))
-                              flip? (pj/coord :flip))))
+                (set (map (fn [[c r _ _ fill]] [c r fill])
+                          (tile-cells (cond-> (pj/lay-tile data :a :b (merge {:fill :v} opts))
+                                        flip? (pj/coord :flip))))))
+        spans (fn [data & {:keys [opts]}]
+                (set (map (fn [[_ _ w h _]] [w h])
+                          (tile-cells (pj/lay-tile data :a :b (merge {:fill :v} opts))))))
         expected (cells numeric)]
     (testing "the numeric grid draws four cells, the reference below"
       (is (= 4 (count expected))))
@@ -2515,7 +2543,13 @@
                              :opts {:x-type :categorical}))))
     (testing "under a flip, a category is placed on the axis that draws it"
       (is (= (cells numeric :flip? true)
-             (cells {:a ["p" "p" "q" "q"] :b [1 2 1 2] :v values} :flip? true))))))
+             (cells {:a ["p" "p" "q" "q"] :b [1 2 1 2] :v values} :flip? true))))
+    (testing "every cell is the same size: a band of two, or a step padded 5% each side"
+      ;; 1 / 2.2 of the panel on a numeric axis (#59: the outer cells
+      ;; used to be clipped), one half on a band axis.
+      (is (= #{[0.45 0.45]} (spans numeric)))
+      (is (= #{[0.5 0.5]} (spans {:a ["p" "p" "q" "q"] :b ["u" "v" "u" "v"] :v values})))
+      (is (= #{[0.5 0.45]} (spans {:a ["p" "p" "q" "q"] :b [1 2 1 2] :v values}))))))
 
 (deftest mixed-type-column-test
   ;; persona-skeptical-round-4 F5: a column whose values are heterogeneous
