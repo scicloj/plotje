@@ -295,6 +295,26 @@ sales-by-region
                  (contains? texts "x value")
                  (contains? texts "y value"))))])
 
+;; The same pairs can be written in the pose's mapping, as
+;; `{:x [...] :y [...]}`, and there `:as` names the key column -- here
+;; `:sensor`, which titles the legend:
+
+(-> {:time-a    [0 1 2 3]
+     :time-b    [0.5 1.5 2.5 3.5]
+     :reading-a [2 3 5 4]
+     :reading-b [1 2 2 3]}
+    (pj/pose {:x [:time-a :time-b]
+              :y {:series [:reading-a :reading-b] :as :sensor}})
+    pj/lay-line)
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)
+                texts (set (:texts s))]
+            (and (= 1 (:panels s))
+                 (= 2 (:lines s))
+                 (contains? texts "sensor")
+                 (contains? texts "time a / reading a"))))])
+
 ;; The two series take as many columns each, since each `:x` column
 ;; needs a `:y` column to be paired with:
 
@@ -391,13 +411,13 @@ sales-by-region
             (and (= 8 (:points s))
                  (= 8 (:lines s)))))])
 
-;; The pivot does not change what a mark's stat requires. A mark
-;; needing a numeric axis column -- a density, a histogram, a smooth --
-;; reports when it is drawn, since the quarter column is categorical
-;; whether the measures are pivoted or not:
+;; The pivot does not change what a mark's stat requires. A smooth
+;; needs a numeric x column and reports when it is drawn, since the
+;; quarter column is categorical whether the measures are pivoted or
+;; not:
 
 (try
-  (pj/plot (-> sales (pj/lay-density :quarter [:revenue :cost])))
+  (pj/plot (-> sales (pj/lay-smooth :quarter [:revenue :cost])))
   (catch clojure.lang.ExceptionInfo e
     (ex-message e)))
 

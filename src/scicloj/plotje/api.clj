@@ -2292,6 +2292,27 @@
             (str/join ", " (map pr-str cols)) ")"))
       pivoted)))
 
+(defn- check-pair-column-kinds!
+  "Throw where the columns one side of a pair of series names hold
+   different kinds of value. They become one value column, which holds
+   one kind; checked here so the message names the columns written, not
+   the value column the pivot invents."
+  [caller ds cols]
+  (let [numerical (set (tc/column-names ds :type/numerical))
+        temporal (set (tc/column-names ds :type/datetime))
+        kind (fn [c] (cond (numerical c) :numerical
+                           (temporal c) :temporal
+                           :else :categorical))
+        kinds (into {} (map (juxt identity kind)) cols)]
+    (when (next (distinct (vals kinds)))
+      (throw (ex-info (str caller " was given " (pr-str (vec cols))
+                           " to read as series in pairs, and their values are"
+                           " of different kinds: " (pr-str kinds) ". The"
+                           " columns become one value column, so they must"
+                           " all be numerical, all temporal or all"
+                           " categorical.")
+                      {:caller caller :columns (vec cols) :kinds kinds})))))
+
 (defn- pivot-series-pairs
   "Pivot a series on `:x` and a series on `:y` together, pairing their
    columns in order: the first `:x` column with the first `:y` column,
@@ -2305,8 +2326,18 @@
   (let [ds (tc/dataset data)
         {xs :cols} x-spec
         {ys :cols} y-spec
+        _ (when (not= (count xs) (count ys))
+            (throw (ex-info (str caller " was given " (count xs) " columns on"
+                                 " :x, " (pr-str (vec xs)) ", and " (count ys)
+                                 " on :y, " (pr-str (vec ys)) ". Two series"
+                                 " are read in pairs, the first :x column"
+                                 " with the first :y column, so they take"
+                                 " as many columns each.")
+                            {:caller caller :x (vec xs) :y (vec ys)})))
         _ (check-series-columns! caller ds xs)
         _ (check-series-columns! caller ds ys)
+        _ (check-pair-column-kinds! caller ds xs)
+        _ (check-pair-column-kinds! caller ds ys)
         named (distinct (remove #(= % default-series-label)
                                 [(:as x-spec) (:as y-spec)]))
         _ (when (next named)
@@ -2318,14 +2349,6 @@
                             {:caller caller :as (vec named)})))
         label (or (first named) default-series-label)
         {xv :x yv :y} pose/series-pair-value-columns
-        _ (when (not= (count xs) (count ys))
-            (throw (ex-info (str caller " was given " (count xs) " columns on"
-                                 " :x, " (pr-str (vec xs)) ", and " (count ys)
-                                 " on :y, " (pr-str (vec ys)) ". Two series"
-                                 " are read in pairs, the first :x column"
-                                 " with the first :y column, so they take"
-                                 " as many columns each.")
-                            {:caller caller :x (vec xs) :y (vec ys)})))
         consumed (set (concat xs ys))
         remaining (vec (remove consumed (tc/column-names ds)))
         clashes (filterv (set remaining) [label xv yv])
@@ -2772,6 +2795,11 @@
        (lay-on-pose fr layer-type-key nil nil))))
   ([layer-type-key pose-or-data x y-or-opts]
    (let [fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
+     ;; Checked before any reading of the y slot, so a series written
+     ;; there is refused as a single column is.
+     (when (and (x-only? layer-type-key) (some? y-or-opts) (not (map? y-or-opts)))
+       (throw (ex-info (str "lay-" (name layer-type-key) " uses only the x column; do not pass a y column")
+                       {:layer-type layer-type-key :x x :y y-or-opts})))
      (cond
        ;; Several columns in one positional slot beside a single column
        ;; in the other: the several are read as several series of one
@@ -2809,10 +2837,7 @@
        ;; passed on as the options map, so a scalar y failed as
        ;; "find not supported on type: java.lang.Long".
        (some? y-or-opts)
-       (do (when (x-only? layer-type-key)
-             (throw (ex-info (str "lay-" (name layer-type-key) " uses only the x column; do not pass a y column")
-                             {:layer-type layer-type-key :x x :y y-or-opts})))
-           (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil))
+       (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil)
 
        :else
        (lay-on-pose fr layer-type-key {:x x} nil))))
@@ -3232,8 +3257,8 @@
 
 (defn lay-tile
   "Add `:tile` layer type -- colored grid cells (heatmap).
-   With `:fill` option: pre-computed tile colors from a column.
-   Without `:fill`: auto-binned 2D histogram (stat `:bin2d`).
+   With `:fill` or `:color`: one cell per row, colored from a column.
+   With neither: auto-binned 2D histogram (stat `:bin2d`).
 
    A categorical `:color` column colors each cell from the palette,
    one color per category, as it colors any mark.
@@ -3553,9 +3578,10 @@
    - `(-> data pj/overlay (pj/lay-bar :growth :cohort) (pj/lay-bar :tax :cohort))`
 
    The layer keeps its own columns; they are drawn against the axes the
-   panel already has, and each axis covers every column drawn on it. An
-   axis is named for the panel's own column, so overlaying two
-   differently named columns leaves the axis named for the first.
+   panel already has, and each axis covers every column drawn on it.
+   Each layer takes a colour and a legend entry naming its column, and
+   an axis title names every column drawn on it. Where each layer writes
+   its own colour, the axis is named for the panel's own column.
 
    `pj/overlay` says the same thing wherever in a pipeline it is
    written. It is read where the panels are decided rather than where a
@@ -3736,7 +3762,8 @@
      the extent the data gives where `:domain` replaces it, so the two
      are not written together, and it is a set of values where a
      `:domain` is an ordered pair.
-   - `:x` and `:y` take `:breaks` (explicit tick locations),
+   - `:x` and `:y` take `:breaks` (explicit tick locations; `[]`
+     draws the axis with no ticks, tick labels or grid lines),
      `:tick-labels` (custom tick text paired with `:breaks`),
      `:n-ticks` (about this many ticks) and `:tick-spacing` (about
      this much room in drawing units per tick). A numeric axis reads

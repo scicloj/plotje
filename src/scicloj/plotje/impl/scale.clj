@@ -2,6 +2,7 @@
   (:require [wadogo.scale :as ws]
             [java-time.api :as jt]
             [clojure.string :as str]
+            [tech.v3.datatype.functional :as dfn]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]))
 
@@ -713,7 +714,7 @@
   [sx ticks]
   (if (every? #(== (Math/floor %) %) ticks)
     ;; All whole numbers -- strip the .0
-    (mapv #(str (long %)) ticks)
+    (mapv defaults/whole-str ticks)
     ;; Float ticks -- determine decimal places from step
     (let [n (count ticks)]
       (if (< n 2)
@@ -808,6 +809,30 @@
                               separators)
         [lo hi]))
 
+(defn tile-span
+  "How far a tile reaches either side of its value on a numeric axis:
+   half the smallest step between adjacent distinct values, measured on
+   the axis's own scale. On a log axis the step is taken between the
+   values' logarithms, so every tile spans the same factor and none
+   reaches zero. Returns `{:half h :log? l}`; one value alone spans a
+   half of one unit (of one decade on a log axis)."
+  [col log?]
+  (let [vs (sort (distinct (map double (remove nil? col))))
+        vs (if log? (map #(Math/log10 %) (filter pos? vs)) vs)
+        gap (when (next vs) (reduce min (map - (rest vs) vs)))]
+    {:half (/ (double (or gap 1.0)) 2.0) :log? (boolean log?)}))
+
+(defn tile-edges
+  "The low and high edges of tiles centred on `vs` (a number or a
+   buffer), for a span from `tile-span`. The stat widens the axis
+   domain with this and `extract` draws the tiles with it, so the two
+   always agree."
+  [vs {:keys [half log?]}]
+  (if log?
+    (let [f (Math/pow 10.0 half)]
+      [(dfn// vs f) (dfn/* vs f)])
+    [(dfn/- vs half) (dfn/+ vs half)]))
+
 (defn format-log-ticks
   "Format log scale tick values. The 1-2-5 breaks a log axis picks for
    itself are clean multiples of powers of ten, so a value of one or
@@ -830,7 +855,7 @@
               (plain-significant v endpoint-significant-digits)
 
               (and (>= v 1.0) (== v (Math/floor v)))
-              (str (long v))
+              (defaults/whole-str v)
 
               (< v 1.0)
               (let [exp (long (Math/ceil (- (Math/log10 v))))]

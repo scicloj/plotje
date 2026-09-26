@@ -976,6 +976,17 @@
   (cond-> (fmt-category-label v)
     (number? v) (fmt-number separators)))
 
+
+(defn whole-str
+  "A whole number as a string with no decimal point. A value past the
+   range of a long -- a colour column in the 1e20s -- is written out in
+   full rather than cast, which threw \"Value out of range for long\"."
+  [v]
+  (let [d (double v)]
+    (if (< (Math/abs d) 9.0E18)
+      (str (long d))
+      (.toPlainString (.stripTrailingZeros (java.math.BigDecimal/valueOf d))))))
+
 (defn fmt-legend-number
   "Format a legend's numeric value: an integral value loses its trailing
    .0, and the digits are grouped per `:thousands-separator`, so a legend
@@ -987,7 +998,7 @@
    nothing and the column was sized as if the numbers were not there."
   [v cfg]
   (let [d (double v)
-        s (if (== d (Math/floor d)) (str (long d)) (str v))]
+        s (if (== d (Math/floor d)) (whole-str d) (str v))]
     (fmt-number s (number-separators cfg))))
 
 ;; ---- Configuration Precedence Chain ----
@@ -1085,7 +1096,7 @@
    :y-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the y axis"]
    :x-tick-angle ["Ticks" "Rotation angle for x-axis tick labels in degrees (0 = horizontal, -45 = common diagonal)"]
    :y-tick-angle ["Ticks" "Rotation angle for y-axis tick labels in degrees (0 = horizontal, 90 or -90 = along the axis)"]
-   :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, auto-computed from :x-tick-angle. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
+   :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, computed from :x-tick-angle and the widest x-tick label, up to 30% of :height. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
    :label-offset ["Labels" "Pixel offset for axis labels from the axis"]

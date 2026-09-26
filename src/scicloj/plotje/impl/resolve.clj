@@ -389,7 +389,11 @@
         check-end! (fn [end-k end-res axis-k axis-type]
                      (let [end-type (when end-res (column-type ds end-res))]
                        (when (and end-type (not= end-type axis-type))
-                         (throw (ex-info (str end-k " column " (pr-str (get v end-k))
+                         (throw (ex-info (str (if (= (get v end-k) end-k)
+                                                ;; A written value is broadcast
+                                                ;; into a column named after its key.
+                                                (str "The value written for " end-k)
+                                                (str end-k " column " (pr-str (get v end-k))))
                                               " has type " end-type
                                               " but " axis-k " " (pr-str (get v axis-k))
                                               " has type " axis-type

@@ -76,11 +76,14 @@
                       ;; A midpoint parts the two.
                       c (if override? (grad-fn gradient-t) color)
                       [cr cg cb _] c
-                      ry (+ y (* (- 1.0 t) bar-h))]]
+                      ;; n cells of bar-h/n, spaced by the same, so they
+                      ;; tile the bar with no gap and no overhang.
+                      cell-h (/ (double bar-h) n-stops)
+                      ry (+ y (* (- 1.0 t) (- bar-h cell-h)))]]
             (ui/translate x ry
                           (ui/with-color [cr cg cb 1.0]
                             (ui/with-style ::ui/style-fill
-                              (ui/rectangle bar-w (/ bar-h n-stops))))))
+                              (ui/rectangle bar-w cell-h)))))
           (if (seq ticks)
             ;; Each tick at its place on the bar, labelled as the plan
             ;; formatted it -- by the same rules as the axis.
@@ -116,6 +119,50 @@
                                             (ui/label label (ui/font nil fsize))))])
              :legend true))))))))
 
+(defn- render-gradient-horizontal
+  "A gradient legend laid left to right, for a legend placed at the top
+   or the bottom: the title, then the bar, with each tick labelled under
+   its place. The vertical bar is 120 units tall and ran off a band
+   reserved for one row. Painted from the plan's stops and labelled
+   from its ticks, as the vertical bar is; a render-time `:color-range`
+   repaints a legend built from an option there, and does here too."
+  [legend x y cfg]
+  (let [{:keys [title min max stops color-range range-from-spec? ticks]} legend
+        seps (defaults/number-separators cfg)
+        render-range (:color-range cfg)
+        override? (and render-range
+                       (not range-from-spec?)
+                       (not= render-range color-range))
+        grad-fn (when override? (defaults/resolve-gradient-fn render-range))
+        title-color [0.2 0.2 0.2 1.0]
+        title-w (if title (* (count (defaults/fmt-name title)) 6) 0)
+        bar-x (+ x (if title (+ title-w 8) 0))
+        bar-w 160 bar-h 10
+        n-stops (count stops)
+        label-at (fn [t label]
+                   (ui/translate (+ bar-x (* (double t) bar-w)
+                                    (- (* 2.5 (count label))))
+                                 (+ y bar-h 2)
+                                 (ui/with-color title-color
+                                   (ui/label label (ui/font nil 10)))))]
+    (vec
+     (concat
+      (when title
+        [(ui/translate x (- y 1)
+                       (ui/with-color title-color
+                         (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
+      (for [i (range n-stops)
+            :let [{:keys [t gradient-t color]} (nth stops i)
+                  [cr cg cb _] (if override? (grad-fn gradient-t) color)]]
+        (ui/translate (+ bar-x (* (double t) (- bar-w (/ bar-w n-stops)))) y
+                      (ui/with-color [cr cg cb 1.0]
+                        (ui/with-style ::ui/style-fill
+                          (ui/rectangle (/ (double bar-w) n-stops) bar-h)))))
+      (if (seq ticks)
+        (map (fn [{:keys [t label]}] (label-at t label)) ticks)
+        (let [[lo-label hi-label] (scale/format-range-endpoints min max seps)]
+          [(label-at 0.0 lo-label) (label-at 1.0 hi-label)]))))))
+
 (defn- render-legend-horizontal
   "Render a horizontal legend (for :top or :bottom positioning).
    Keys and labels laid out left to right in a single row."
@@ -124,8 +171,7 @@
         fsize 10
         title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
-      ;; For continuous legends, fall back to vertical rendering
-      (render-legend-from-plan legend x y cfg)
+      (render-gradient-horizontal legend x y cfg)
       ;; The same, laid out left to right
       (let [title-w (if title (* (count (defaults/fmt-name title)) 6) 0)
             start-x (if title (+ title-w 8) 0)]
@@ -537,8 +583,11 @@
             (or row-strips [])
             ;; Caption
             (when caption
+              ;; A label hangs from its y, and a 9-unit font needs
+              ;; about 11 units of line: placed 6 above the edge, its
+              ;; glyphs ran 3 past the canvas.
               [(ui/translate (+ y-label-pad (* grid-cols pw) -10)
-                             (- total-height 6)
+                             (- total-height 13)
                              (ui/with-color [0.5 0.5 0.5 1.0]
                                (assoc (ui/label caption (ui/font nil 9))
                                       :text-anchor "end")))])))]

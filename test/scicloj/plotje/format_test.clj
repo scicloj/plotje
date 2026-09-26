@@ -201,7 +201,8 @@
                   (pj/options {:x-tick-angle angle})
                   pj/plan :layout :x-label-pad))
         short-cats ["a" "b" "c" "d"]
-        long-cats (mapv #(str ":passenger-density-sepal-length-" %) (range 4))]
+        long-cats (mapv #(str ":density-length-" %) (range 4))
+        very-long-cats (mapv #(str (apply str (repeat 80 "a")) %) (range 3))]
     (testing "short labels keep the room they had: label-offset, 50 x sin, and 8"
       (is (= (+ 38 (long (* 50 (Math/sin (Math/toRadians 45)))) 8)
              (pad short-cats -45))))
@@ -210,7 +211,12 @@
       ;; label offset already holds one unrotated line of 11
       (is (= (+ 38 (long (- (* (count (first long-cats)) 5.5) 11)) 8)
              (pad long-cats 90)))
-      (is (< (pad short-cats 90) (pad long-cats 90))))))
+      (is (< (pad short-cats 90) (pad long-cats 90))))
+    (testing "the room stops at 30% of the height, so a very long label is clipped rather than refused"
+      ;; 64 characters at -90 once left a panel 13 units tall and
+      ;; `pj/plan` threw "panel-height is too small"
+      (is (= (+ 38 (long (* 0.3 400)) 8) (pad very-long-cats -90)))
+      (is (= (+ 38 (long (* 0.3 400)) 8) (pad very-long-cats -45))))))
 
 (deftest y-tick-angle-test
   ;; Issue #51: :y-tick-angle is the y axis's counterpart of :x-tick-angle.
@@ -269,3 +275,34 @@
          clojure.lang.ExceptionInfo
          #"opts map as the third"
          (pj/save (pj/lay-point tiny :x :y) "/tmp/_x.svg" [:not :a :map])))))
+
+(deftest tick-angle-must-be-a-finite-number-test
+  ;; A string angle failed as a bare ClassCastException, and NaN drew
+  ;; the plot in pieces with no message.
+  (let [p (pj/lay-point {:a [1 2] :b ["p" "q"]} :a :b)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #":x-tick-angle is \"45\""
+                          (pj/plan (pj/options p {:x-tick-angle "45"}))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #":y-tick-angle is ##NaN"
+                          (pj/plan (pj/options p {:y-tick-angle ##NaN}))))
+    (is (= 1 (count (:panels (pj/plan (pj/options p {:y-tick-angle 45}))))))))
+
+(deftest numbers-past-the-long-range-are-printed-test
+  ;; The formatter cast a whole number to a long, so a colour legend
+  ;; or an axis on values past ~9.2e18 threw "Value out of range for
+  ;; long".
+  (let [plan (pj/plan (pj/lay-point {:x [1 2 3] :y [1e19 2e20 6e23] :c [1e19 2e20 6e23]}
+                                    :x :y {:color :c}))]
+    (is (some #{"100000000000000000000000"} (-> plan :panels first :y-ticks :labels)))
+    (is (some #{"200000000000000000000000"} (map :label (-> plan :legend :ticks))))))
+
+(deftest caption-inside-the-canvas-test
+  ;; A label hangs from its y; at 6 above the edge a 9-unit caption
+  ;; ran 3 units past the canvas.
+  (let [s (pr-str (pj/plot (-> (pj/lay-point {:a [1 2] :b [1 2]} :a :b)
+                               (pj/options {:caption "CAPTIONX"}))))
+        y (some->> s
+                   (re-find #"translate\([\d.]+,([\d.]+)\)\"\} \[:g \[:text \{[^}]*\} \"CAPTIONX\"")
+                   second
+                   parse-double)]
+    (is (some? y))
+    (is (<= (+ y 11) 400))))

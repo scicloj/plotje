@@ -97,3 +97,23 @@
   (testing "a position adjustment is refused, as there is no band to divide"
     (is (re-find #"position"
                  (with-out-str (pj/lay-segment pts :x0 :y0 {:y-end 0 :position :dodge}))))))
+
+(deftest shared-axis-reaches-segment-ends-test
+  ;; The shared extent read only the axis column, so a segment's far end
+  ;; -- a column or a written value -- was clipped at the panel edge.
+  (let [ydom (fn [cells] (->> (pj/plan (pj/arrange cells {:share-scales #{:y}}))
+                              :sub-plots (map #(-> % :plan :panels first :y-domain))))
+        [lo hi] (first (ydom [(pj/lay-segment {:t [1 2] :a [1 2] :e [50 60]} :t :a {:y-end :e})
+                              (pj/lay-point {:t [1 2] :a [1 2]} :t :a)]))]
+    (is (<= lo 1 60 hi))
+    (let [[lo _] (first (ydom [(pj/lay-segment {:t [1 2] :b [90 95]} :t :b {:y-end 0})
+                               (pj/lay-point {:t [1 2] :b [90 95]} :t :b)]))]
+      (is (<= lo 0)))))
+
+(deftest segment-with-no-end-warns-test
+  (is (re-find #"neither :x-end nor :y-end"
+               (with-out-str (pj/plan (pj/lay-segment {:a [1 2] :b [1 2]} :a :b))))))
+
+(deftest written-end-named-as-a-value-test
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"The value written for :x-end"
+                        (pj/plan (pj/lay-segment {:x ["a" "b"] :y [1 2]} :x :y {:x-end 3})))))

@@ -935,7 +935,7 @@
 ;; **Symptom**: `"Stat :bin2d requires a numeric column for :x, but :x
 ;; is categorical"` when passing a string column to `pj/lay-tile`.
 ;;
-;; **Cause**: Without `:fill`, `pj/lay-tile` counts the rows that fall
+;; **Cause**: Without `:fill` or `:color`, `pj/lay-tile` counts the rows that fall
 ;; in each cell of a two-dimensional grid of bins, and a bin is an
 ;; interval of numbers, so both columns have to be numeric.
 

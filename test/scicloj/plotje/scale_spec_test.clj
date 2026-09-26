@@ -1199,3 +1199,14 @@
                               (filter #(= "rgb(245,245,245)" (:stroke %))) count))]
         (is (< (grid (-> d (pj/lay-point :a :b) (pj/scale :y {:breaks []})))
                (grid (pj/lay-point d :a :b))))))))
+
+(deftest empty-breaks-give-back-the-label-room-test
+  ;; The categorical branch of the label measure never read :breaks, and
+  ;; under a flip the scene read the other axis's spec, so an axis with
+  ;; no labels kept the room of its longest one.
+  (let [pose (pj/lay-bar {:c ["aaaaaaaaaaaaaaaaaaaaaaaa" "b"] :v [1 2]} :c :v)
+        layout (fn [p] (:layout (pj/plan p)))]
+    (is (< (:x-label-pad (layout (-> pose (pj/scale :x {:breaks []}) (pj/options {:x-tick-angle -45}))))
+           (:x-label-pad (layout (-> pose (pj/options {:x-tick-angle -45}))))))
+    (is (< (:y-label-pad (layout (-> pose (pj/scale :x {:breaks []}) (pj/coord :flip))))
+           (:y-label-pad (layout (-> pose (pj/coord :flip))))))))

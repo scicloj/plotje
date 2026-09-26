@@ -112,6 +112,10 @@
     (nil? domain)
     0.0
 
+    ;; No tick labels are drawn, so none need room.
+    (let [b (:breaks scale-spec)] (and (sequential? b) (empty? b)))
+    0.0
+
     (scale/categorical-domain? domain)
     (let [max-chars (reduce max 0 (map fmt-category-label-count domain))]
       (* (double font-size) 0.5 max-chars))
@@ -183,6 +187,10 @@
         ;; count reserving its height has to consider both.
         legend-entry-count (cond
                              (:entries legend) (count (:entries legend))
+                             ;; A gradient is drawn as a bar: 120 units
+                             ;; tall at the side, one row with its tick
+                             ;; labels under it at the top or bottom
+                             ;; (`pad-legend-h` reads `:legend-continuous?`).
                              (= :continuous (:type legend)) 5
                              (:entries shape-legend) (count (:entries shape-legend))
                              :else 0)
@@ -221,6 +229,7 @@
      :y-temporal y-temporal
      :legend-present? (boolean (or legend size-legend alpha-legend shape-legend))
      :legend-entry-count legend-entry-count
+     :legend-continuous? (= :continuous (:type legend))
      :legend-max-chars legend-max-chars
      :size-legend-entry-count (count (:entries size-legend))
      ;; Carried rather than derived from the count, because the writer
@@ -296,21 +305,25 @@
    sine of the angle, plus its height times the cosine; the base
    already holds one unrotated line, so the rest is added. A floor of
    50 drawing units times the sine keeps short labels where they were
-   before labels were measured."
+   before labels were measured. A ceiling of 30% of `:height` keeps a
+   very long label from taking the panel's room: past it the label is
+   clipped at the canvas edge rather than the plot refusing to draw.
+   An axis with no tick labels (`:breaks []`) gets no rotation room."
   [{:keys [x-label?] :as scene} cfg opts]
   (let [base (cond x-label? (:label-offset cfg)
                    :else (+ (tick-font-size cfg) 6))
         angle (get cfg :x-tick-angle 0)
+        text-w (when-not (zero? angle) (x-tick-text-width scene cfg opts))
         extra (or (:x-tick-label-pad cfg)
-                  (if (zero? angle)
+                  (if (or (zero? angle) (zero? text-w))
                     0
                     (let [rad (Math/toRadians (double angle))
                           sin (Math/abs (Math/sin rad))
                           cos (Math/abs (Math/cos rad))
                           fsize (double (tick-font-size cfg))
-                          reach (+ (* (x-tick-text-width scene cfg opts) sin)
-                                   (* fsize cos))]
-                      (+ (long (max (* 50 sin) (- reach fsize)))
+                          reach (+ (* text-w sin) (* fsize cos))
+                          ceiling (* 0.3 (double (:height opts)))]
+                      (+ (long (max (* 50 sin) (min ceiling (- reach fsize))))
                          8))))
         computed (+ base extra)]
     (if-let [floor (:min-x-label-pad opts)]
@@ -477,16 +490,30 @@
    (default 18) replace the old magic numbers."
   [legend-pos scene cfg]
   (if (#{:top :bottom} legend-pos)
-    (let [{:keys [legend-entry-count size-legend size-legend-entry-count
-                  alpha-legend-entry-count]} scene
+    (let [{:keys [legend-entry-count legend-continuous? size-legend
+                  size-legend-entry-count alpha-legend-entry-count]} scene
           header (double (:legend-header-pad cfg 20))
           row-h  (double (:legend-entry-height cfg 18))
           size-row-h (if size-legend (size-legend-row-h size-legend cfg) row-h)]
       (+ header
-         (* row-h (max 1 legend-entry-count))
+         ;; A gradient laid across: the bar and the labels under it.
+         (* row-h (if legend-continuous? 2 (max 1 legend-entry-count)))
          (* size-row-h size-legend-entry-count)
          (* row-h alpha-legend-entry-count)))
     0.0))
+
+(defn- check-tick-angles!
+  "A tick angle is a finite number of degrees. Anything else failed far
+   from the option -- a string as a bare ClassCastException, NaN as a
+   plot drawn in pieces with no message."
+  [cfg]
+  (doseq [k [:x-tick-angle :y-tick-angle]
+          :let [v (get cfg k)]
+          :when (and (some? v)
+                     (not (and (number? v) (Double/isFinite (double v)))))]
+    (throw (ex-info (str k " is " (pr-str v) ", and a tick angle is a finite"
+                         " number of degrees, such as -45 or 90.")
+                    {:key k :value v}))))
 
 (defn compute-padding
   "Pure function from scene + cfg + opts to padding map. Depends only
@@ -497,6 +524,7 @@
    pixel budget rather than the (unknown) real panel height. This is
    the key trick that breaks the `panel-width <-> y-label-pad` cycle."
   [scene cfg opts]
+  (check-tick-angles! cfg)
   (let [legend-pos (resolved-legend-position scene cfg opts)
         legend-h (pad-legend-h legend-pos scene cfg)
         top-pad (if (= legend-pos :top) legend-h 0.0)

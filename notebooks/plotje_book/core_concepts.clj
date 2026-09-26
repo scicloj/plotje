@@ -424,9 +424,11 @@ two-panel
                                 (= 6 (:polygons s)))))])
 
 ;; Both bars are drawn against the panel's axes. Those axes cover every
-;; column drawn on them, and they keep the name of the panel's own
-;; column, so the axis below reads `growth` even though it also carries
-;; `tax`.
+;; column drawn on them. Each bar layer here writes its own colour, so
+;; the axis keeps the name of the panel's own column and reads `growth`
+;; even though it also carries `tax`. Without the written colours, each
+;; layer would take a colour and a legend entry, and the axis title
+;; would name both columns.
 ;;
 ;; To make a single layer join without changing where later layers go,
 ;; write `{:overlay true}` in that layer's own options map.

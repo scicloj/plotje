@@ -3711,3 +3711,48 @@
                           (pj/arrange pose [{:x :a :y :b}])))
     (testing "the form the message names draws"
       (is (= 2 (:panels (pj/svg-summary (pj/arrange [pose pose]))))))))
+
+(deftest tile-grouped-fill-follows-its-row-test
+  ;; The fill values were read in row order and the tile bounds in group
+  ;; order, so a grouped tile painted each group's cells with another
+  ;; row's value. A dropped row shifted every value after it.
+  (let [cells (fn [pose]
+                (->> (pj/plan pose) :panels first :layers first :tiles
+                     (sort-by :x-lo)
+                     (mapv #(second (:color %)))))
+        data {:x [1 2 3 4] :y [1 1 1 1] :f [0 1 2 3] :g ["b" "a" "b" "a"]}
+        plain (cells (pj/lay-tile data :x :y {:fill :f}))]
+    (is (apply < plain) "brightness follows :f from left to right")
+    (is (= plain (cells (pj/lay-tile data :x :y {:fill :f :group :g}))))
+    (is (= plain (cells (pj/lay-tile data :x :y {:fill :f :color :g}))))
+    (testing "a missing fill drops its row without shifting the others"
+      (let [[lo hi] (cells (pj/lay-tile {:x [1 2 3] :y [1 1 1] :f [1 nil 3]} :x :y {:fill :f}))]
+        (is (< lo hi))))))
+
+(deftest tile-on-a-log-axis-test
+  ;; The half-step was taken before the transform, so x = 1, 10, 100
+  ;; reached -3.5 and the log scale refused the plot. On a log axis a
+  ;; tile spans the same factor either side of its value.
+  (let [plan (pj/plan (-> (pj/lay-tile {:x [1 10 100] :y [1 1 1] :f [1 2 3]} :x :y {:fill :f})
+                          (pj/scale :x :log)))
+        tiles (-> plan :panels first :layers first :tiles)
+        ratios (map #(/ (:x-hi %) (:x-lo %)) tiles)]
+    (is (every? #(< (Math/abs (- % 10.0)) 1e-9) ratios))
+    (is (pos? (first (-> plan :panels first :x-domain))))))
+
+(deftest bin2d-legend-is-labelled-in-whole-counts-test
+  ;; A 2D histogram's fill has no column for the whole-number check to
+  ;; read, and its legend was labelled 0.0, 0.5, 1.0, 1.5, 2.0.
+  (is (= ["0" "1" "2"]
+         (->> (pj/plan (pj/lay-tile {:x [1 1 2 3] :y [1 1 2 3]} :x :y))
+              :legend :ticks (map :label)))))
+
+(deftest composite-warns-only-where-no-cell-reads-the-option-test
+  ;; The composite's options reach every cell, so a plain cell warned
+  ;; about a :color-label its coloured neighbour's legend reads.
+  (let [colored (pj/lay-point {:a [1 2] :b [1 2] :g ["x" "y"]} :a :b {:color :g})
+        plain (pj/lay-point {:a [1 2] :b [1 2]} :a :b)
+        out (fn [cells] (with-out-str
+                          (pj/plan (pj/options (pj/arrange cells) {:color-label "GT"}))))]
+    (is (not (str/includes? (out [colored plain]) ":color-label")))
+    (is (= 1 (count (re-seq #":color-label" (out [plain plain])))))))

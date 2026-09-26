@@ -6,43 +6,47 @@ All notable changes to this project will be documented in this file. This change
 
 ### Plots that look different after upgrading
 
-- **The legend of a tile, a 2D density or a 2D histogram.** Its title is read the way its gradient is: a `:label` in the `:fill` scale spec, then in the `:color` one, then `:fill-label`, then `:color-label`, and otherwise the name of the column a tile fills from. A tile reading `:color` is titled and coloured through the same settings, so `:fill-range` reaches its legend as well as its cells. A contour is coloured through `:color`, and its legend is titled through `:color` too. Reported in [#58](https://github.com/scicloj/plotje/issues/58) - thanks, @behrica
+- **The legend of a tile, a 2D density or a 2D histogram** is titled from the same settings as its gradient: a `:label` in the `:fill` or `:color` scale spec, `:fill-label` or `:color-label`, and otherwise the name of the column the tile fills from. A contour's legend is titled through `:color`. Reported in [#58](https://github.com/scicloj/plotje/issues/58) - thanks, @behrica
 
-- **An overlay that only one of the disagreeing layers asks for.** `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))` draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
+- **A gradient legend on a linear scale** is labelled at ticks chosen and formatted as the axis's are, such as -0.5, 0.0, 0.5 and 1.0, rather than at the data's two ends. A log scale's legend is labelled at its decades, as before.
 
-- **Two vectors of columns in a `lay-*` call's positional slots**, such as `(pj/lay-point data [:t1 :t2] [:v1 :v2])`. They are read as a series on each axis, paired in order, and drawn on one panel. To draw each pair on a panel of its own, write the pairs: `(pj/pose data [[:t1 :v1] [:t2 :v2]])`.
+- **An overlay asked for by only one of the disagreeing layers**, as in `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))`, draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
 
-- **A gradient legend on a linear scale.** The bar is labelled at ticks picked and formatted the way the axis's ticks are, such as -0.5, 0, 0.5 and 1, rather than at the data's two ends. A log scale's legend is labelled at its decades, as before.
+- **A series on `:x` together with a series on `:y`**, such as `{:x [:t1 :t2] :y [:v1 :v2]}` in `pj/pose` or `[:t1 :t2] [:v1 :v2]` in a `lay-*` call, is read in pairs and drawn on one panel as the series `t1 / v1` and `t2 / v2`. The pivot names its value columns `:x-value` and `:y-value`, and `:as` names the key column. To draw each pair on a panel of its own, write the pairs: `(pj/pose data [[:t1 :v1] [:t2 :v2]])`.
 
-- **`:breaks []` on an axis.** The axis is drawn with no ticks, no tick labels and no grid lines along it; its title stays.
+- **`:breaks []` on an axis** draws the axis with no ticks, tick labels or grid lines; its title stays.
 
-- **`:share-scales` across a cell that draws several columns on the shared axis.** Each panel of the cell shares the extent of the column it draws, with the cells that draw that column.
+- **`pj/lay-tile` on a numeric `:x` or `:y`**: the axis reaches the outer edges of the tiles, so the outer rows and columns are drawn at full size. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
 
-- **`pj/lay-tile` on a numeric `:x` or `:y`.** The axis reaches the outer edges of the tiles, so every row and column is drawn at full size, and the axis is padded past them as any numeric axis is. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
+- **Rotated x-tick labels** get room below the panel worked out from the angle and the longest label, up to 30% of the plot's height, so long labels are neither cut off at the bottom nor drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
 
-- **Rotated x-tick labels.** The room below the panel is worked out from the angle and the length of the longest label, so long labels are not cut off at the bottom of the plot or drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
-
-- **A histogram or density added to a grid of pairs**, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`. Every cell draws its count or density on a y axis of its own, fitted to its bars. A layer added to a composite is read, for `:share-scales`, as part of each cell it draws on.
+- **`:share-scales` in a grid.** A cell that draws several columns on the shared axis shares each column's extent with the cells that draw that column. A histogram or density added to a grid of pairs, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`, gives every cell a count or density axis fitted to its own bars. A shared axis also reaches the far ends of segments and intervals and the outer edges of tiles.
 
 ### Added
 
-- `:y-tick-angle` rotates the y-axis tick labels, as `:x-tick-angle` does for x. At 90 or -90 each label runs along the axis, centred on its tick, and the room beside the panel is worked out from the angle. Asked for in [#51](https://github.com/scicloj/plotje/issues/51) - thanks, @behrica
+- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on the `:end`, the `:start` or `:both`. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
 
-- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on `:end`, `:start` or `:both` ends, and on a categorical axis a written number is a place counted from one, so a segment can point at a category. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
-
-- A series on `:x` and a series on `:y` are read together, in pairs: `{:x [:t1 :t2] :y [:v1 :v2]}` draws the series `t1 / v1` and `t2 / v2` on one panel, whether it is written in a `lay-*` call or in `pj/pose`. The pivot names its two value columns `:x-value` and `:y-value`, and `:as` on either series names the key column.
+- `:y-tick-angle` rotates the y-axis tick labels, as `:x-tick-angle` does for x. At 90 or -90 each label runs along the axis, centred on its tick. Asked for in [#51](https://github.com/scicloj/plotje/issues/51) - thanks, @behrica
 
 ### Fixed
 
-- `pj/scale` reports an error on an axis where `:breaks` is not a sequence, such as a function or a set, where a numeric axis is given a break that is not a finite number, where `:n-ticks` is not a positive whole number, where `:tick-spacing` is not a positive number, and where `:domain` is not a collection. The message names the key and the value.
+- `pj/lay-tile` with `:group`, or with a `:color` column beside `:fill`, paints each cell from its own row's value.
 
-- A map given as data that holds a map, such as `{:opts {...} :panels [...]}`, reports an error naming the keys and describing what makes a map a pose. A plan or a draft given where a pose goes reports an error too.
+- A gradient legend at `:legend-position :top` or `:bottom` is drawn as a horizontal bar with its tick labels underneath, inside the canvas.
 
-- A tile reading a numeric `:color` draws its gradient with no warning.
+- A plot's caption is drawn wholly inside the canvas.
 
-- `pj/lay-tile` with a categorical `:color` colors each cell from the palette, one color per category, with a legend of the categories and `:values` honored. It reported a `ClassCastException`. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
+- A number beyond about 9.2e18 on an axis or a colour legend is printed in full.
 
-- A colour or fill option written on a plot that nothing on it reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, and `:color-label` with no legend.
+- `:x-tick-angle` or `:y-tick-angle` that is not a finite number reports an error naming the option and the value.
+
+- `pj/lay-tile` reads `:color` as it reads `:fill`, through the same scale settings and legend. A numeric `:color` draws a gradient with no warning; a categorical one colours each cell from the palette, with a legend of the categories and `:values` honoured. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
+
+- A colour or fill option that nothing on the plot reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, and `:color-label` with no legend.
+
+- `pj/scale` reports an error, naming the key and the value, when an axis setting has the wrong kind of value -- for example `:breaks` given a function, or `:n-ticks` that is not a positive whole number.
+
+- A map given as data that itself holds a map, such as `{:data {...} :panels [...]}`, reports an error naming the keys and describing what makes a map a pose. So does a plan or a draft given where a pose goes.
 
 ## [0.15.0 - 2026-09-23]
 

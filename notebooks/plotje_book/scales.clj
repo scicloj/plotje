@@ -605,6 +605,18 @@ gapminder-2007
  [(fn [fr] (= [40.0 50.0 60.0 70.0 80.0]
               (->> fr pj/plan :panels first :y-ticks :values (mapv double))))])
 
+;; An empty `:breaks` draws the axis with no ticks, no tick labels and
+;; no grid lines, and keeps its title -- ggplot2's `breaks = NULL`:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp)
+    (pj/scale :y {:breaks []}))
+
+(kind/test-last
+ [(fn [fr] (let [plan (pj/plan fr)]
+             (and (empty? (-> plan :panels first :y-ticks :values))
+                  (contains? (set (:texts (pj/svg-summary fr))) "life exp"))))])
+
 ;; `:tick-labels` pairs custom text with those breaks, one label each. It is
 ;; how an axis that is numerically indexed gets worded labels -- days
 ;; of the week along a heatmap indexed 1 to 7, for instance. That case

@@ -593,3 +593,21 @@
                  (catch clojure.lang.ExceptionInfo e (ex-message e)))]
     (is (re-find #"panel of its own" msg))
     (is (not (re-find #"sub-pose" msg)))))
+
+(deftest series-pairs-refused-on-an-x-only-mark-test
+  ;; The pair branch ran before the "uses only the x column" check, so a
+  ;; histogram drew a count axis titled "y value" beside unused y columns.
+  (let [w {:t1 [1 2 3] :t2 [2 3 4] :v1 [10 20 30] :v2 [15 25 35]}]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"uses only the x column"
+                          (pj/lay-histogram w [:t1 :t2] [:v1 :v2])))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"uses only the x column"
+                          (pj/lay-histogram w :t1 [:v1 :v2])))))
+
+(deftest series-pairs-errors-name-the-written-columns-test
+  (let [w {:t1 [1 2] :t2 ["a" "b"] :v1 [1 2] :v2 [3 4]}]
+    (testing "unequal pairs get the pairs message, not the one-column one"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"as many columns each"
+                            (pj/plan (pj/lay-line w [:t1 :t2] [:v1])))))
+    (testing "mixed kinds name the columns written, not the pivot's :x-value"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"\[:t1 :t2\] to read as series in pairs"
+                            (pj/plan (pj/lay-line w [:t1 :t2] [:v1 :v2])))))))

@@ -14,7 +14,8 @@
    of the grid; the per-leaf opts get :suppress-legend true so each
    cell hides its own legend, and the rendering side (render/
    composite.clj) draws ONE shared legend in the reserved strip."
-  (:require [scicloj.plotje.impl.pose :as pose]
+  (:require [clojure.set]
+            [scicloj.plotje.impl.pose :as pose]
             [scicloj.plotje.impl.plan :as plan]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]))
@@ -316,7 +317,14 @@
                     :rect rect
                     :opts opts
                     :plan (plan/draft->plan draft opts)})
-        first-pass (mapv plan-sub sub-drafts)
+        ;; Each cell's unread-option warnings are collected rather
+        ;; than printed, and a line is printed only where every cell
+        ;; raised it -- see `plan/*unread-option-warnings*`. The
+        ;; second, aligning pass would raise them all again, so its
+        ;; are dropped.
+        warnings (atom [])
+        first-pass (binding [plan/*unread-option-warnings* warnings]
+                     (mapv plan-sub sub-drafts))
         ;; Aligning drawing areas takes a second pass, because the pad a
         ;; cell needs is only known once that cell has been planned.
         ;; Pass one measures every cell's pads; pass two re-plans them
@@ -341,9 +349,10 @@
                        (not= direction :vertical)
                        (assoc :min-x-label-pad (widest :x-label-pad)))
         sub-plots (if (:align-panels composite-draft)
-                    (mapv (fn [sub]
-                            (plan-sub (update sub :opts merge align-floors)))
-                          sub-drafts)
+                    (binding [plan/*unread-option-warnings* (atom [])]
+                      (mapv (fn [sub]
+                              (plan-sub (update sub :opts merge align-floors)))
+                            sub-drafts))
                     first-pass)
         shared-legend (when (:shared? chrome-spec)
                         (when-let [first-sub (first sub-drafts)]
@@ -354,9 +363,12 @@
                                              (as-> $ (reduce #(dissoc %1 %2)
                                                              $ shared-suppress-keys))
                                              (assoc :width 600 :height 400))
-                                rep-plan (plan/draft->plan (:draft first-sub) rep-opts)
+                                rep-plan (binding [plan/*unread-option-warnings* warnings]
+                                           (plan/draft->plan (:draft first-sub) rep-opts))
                                 shared-keys (mapv aesthetic->legend-plan-key shared-aes)]
                             (select-keys rep-plan shared-keys))))
+        _ (when (seq (deref warnings))
+            (run! println (sort (reduce clojure.set/intersection (deref warnings)))))
         chrome (-> chrome-spec
                    (dissoc :shared?)
                    (assoc :shared-legend shared-legend)

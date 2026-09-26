@@ -19,12 +19,6 @@
 ;; - Histograms, stacked bars, step plots, and other stat-derived
 ;;   marks do not default to a `"count"` or `"density"` y-label.
 ;;
-;; - Linear continuous color legends (numeric `:color` mapping with
-;;   `:linear` scale) label only the endpoint tick marks on the
-;;   gradient bar. Intermediate values are unlabeled, making it hard
-;;   to map interior colors back to data values. Log-scaled color and
-;;   fill legends do carry intermediate ticks.
-;;
 ;; - SPLOMs with 6+ variables at the default 600x400 have tight
 ;;   panels. Increase `:width`/`:height` or pin
 ;;   `:panel-width`/`:panel-height`.
@@ -61,12 +55,11 @@
 ;;   rather than a bar in a band of its own. Workaround: none -- a mark
 ;;   between two bands would need a band the axis does not have.
 ;;
-;; - A line has no arrowhead. `pj/lay-line` draws a plain stroke, with
-;;   `:stroke-dash` for dashed and dotted styles, so a leader line
-;;   pointing from a note to the mark it describes ends bluntly.
-;;   Workaround: end the line on a small `pj/lay-point` marker, as the
-;;   callout recipe in the
-;;   [Cookbook](./plotje_book.cookbook.html#callout-with-a-leader-line) does.
+;; - Only a straight segment carries an arrow head. `pj/lay-segment`
+;;   takes `:arrow`, as the
+;;   [Cookbook](./plotje_book.cookbook.html#an-annotation-arrow) shows;
+;;   `pj/lay-line`, which runs through several points, draws a plain
+;;   stroke and ends bluntly.
 ;;
 ;; - Nothing moves a label out of the way of another label. Two text
 ;;   marks at nearby positions are drawn on top of each other, and
@@ -183,11 +176,11 @@
 ;;   all-positive data works, but mixed-sign data stacks
 ;;   incorrectly.
 ;;
-;; - `pj/lay-tile` without `:fill` counts rows in two-dimensional bins
-;;   (the `:bin2d` stat), which needs numeric x and y columns; a
-;;   categorical axis reports "Stat :bin2d requires a numeric column".
-;;   Given `:fill`, a tile draws one cell per row and takes categorical
-;;   axes -- see
+;; - `pj/lay-tile` with neither `:fill` nor `:color` counts rows in
+;;   two-dimensional bins (the `:bin2d` stat), which needs numeric x and
+;;   y columns; a categorical axis reports "Stat :bin2d requires a
+;;   numeric column". Given `:fill` or `:color`, a tile draws one cell
+;;   per row and takes categorical axes -- see
 ;;   [Troubleshooting](./plotje_book.troubleshooting.html#heatmap-with-categorical-axes).
 ;;
 ;; - Horizontal value bars (`pj/lay-bar` with the category on `:y`)
@@ -249,9 +242,6 @@
 ;; - The `:width` key on a `pj/plan` result preserves the user's
 ;;   original request even when `:panel-width` pins the real size --
 ;;   inspect `:total-width`/`:total-height` for the rendered canvas.
-;;
-;; - `pj/plan` called on a plan or on a hiccup value now throws a
-;;   clear error. Call `pj/plan` only on poses.
 
 ;; ## Mixing Keyword and String Column References
 ;;
@@ -292,7 +282,7 @@
 ;; ## ggplot2 Features Not Yet Implemented
 ;;
 ;; - The `:fill` aesthetic is currently consumed only by `lay-tile`
-;;   (and the `:bin2d` output beneath `lay-density-2d`). On filled
+;;   (and the `:density-2d` output beneath `lay-density-2d`). On filled
 ;;   marks like `lay-bar`, `lay-area`, and `lay-violin`, `:color`
 ;;   paints the interior; there is no separate stroke aesthetic.
 ;;

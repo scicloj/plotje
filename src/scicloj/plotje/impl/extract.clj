@@ -812,7 +812,13 @@
                                 :as-maps)))
                 ;; identity path -- derive tile bounds from point coordinates
                 (let [data (:data draft-layer)
-                      fill-vals (when fill-col (data fill-col))
+                      ;; Read through each group's row indices, so the
+                      ;; values come in the order the bounds below do --
+                      ;; group by group, without the rows the stat dropped.
+                      fill-vals (when fill-col
+                                  (dtype/indexed-buffer
+                                   (vec (mapcat :row-indices (:points stat)))
+                                   (data fill-col)))
                       [f-lo f-hi] (scale/numeric-color-domain
                                    spec
                                    (when (seq fill-vals) (dfn/reduce-min fill-vals))
@@ -832,15 +838,19 @@
                       ;; there, from half a place below to half above.
                       with-bounds (cond-> pt-ds
                                     (not x-cat?)
-                                    (as-> ds (let [x-half (or (:tile-half-x stat) 0.5)]
+                                    (as-> ds (let [[lo hi] (scale/tile-edges
+                                                            (ds :x)
+                                                            (or (:tile-half-x stat) {:half 0.5}))]
                                                (-> ds
-                                                   (tc/add-column :x-lo (dfn/- (ds :x) x-half))
-                                                   (tc/add-column :x-hi (dfn/+ (ds :x) x-half)))))
+                                                   (tc/add-column :x-lo lo)
+                                                   (tc/add-column :x-hi hi))))
                                     (not y-cat?)
-                                    (as-> ds (let [y-half (or (:tile-half-y stat) 0.5)]
+                                    (as-> ds (let [[lo hi] (scale/tile-edges
+                                                            (ds :y)
+                                                            (or (:tile-half-y stat) {:half 0.5}))]
                                                (-> ds
-                                                   (tc/add-column :y-lo (dfn/- (ds :y) y-half))
-                                                   (tc/add-column :y-hi (dfn/+ (ds :y) y-half))))))
+                                                   (tc/add-column :y-lo lo)
+                                                   (tc/add-column :y-hi hi)))))
                       ;; Derive color column
                       with-color (tc/add-column with-bounds :color
                                                 (fn [ds]
@@ -1105,6 +1115,10 @@
                     {:mark :segment :arrow arrow}))))
 
 (defmethod extract-layer :segment [draft-layer stat all-colors cfg]
+  (when (and (nil? (:x-end draft-layer)) (nil? (:y-end draft-layer)))
+    (println (str "Warning: lay-segment was given neither :x-end nor :y-end,"
+                  " so each segment ends where it starts and nothing is drawn."
+                  " Write :x-end, :y-end or both, as a column or a value.")))
   (let [numeric-color? (= (:color-type draft-layer) :numerical)
         [lo hi] (when numeric-color? (color-extent draft-layer stat))
         [c-min c-max] (scale/numeric-color-domain (:color-scale draft-layer) lo hi)

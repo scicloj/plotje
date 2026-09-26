@@ -283,9 +283,10 @@
     ;; repaint over.
     [:color-range {:optional true} [:maybe [:or keyword? map? fn?]]]
     [:range-from-spec? {:optional true} boolean?]
-    ;; :scale-type and :ticks are added by the legend builder when the
-    ;; color scale is log (build-fill-fallback-legend, plan.clj). Both
-    ;; need to be declared optional so the plan validates.
+    ;; :scale-type and :ticks are added by the legend builder
+    ;; (build-fill-fallback-legend, plan.clj): :ticks are a log scale's
+    ;; decades or a linear scale's axis-style ticks, and are left out
+    ;; where fewer than two fall inside the bar. Both are optional.
     [:scale-type {:optional true} [:enum :linear :log]]
     [:ticks {:optional true} [:vector [:map [:value number?] [:t number?] [:label string?]]]]
     [:stops [:vector GradientStop]]]])

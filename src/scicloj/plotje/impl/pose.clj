@@ -826,14 +826,38 @@
 
    A layer is still `{:layer-type k :mapping m}` here -- the mark and
    the written value only come together at draft time -- so this puts
-   the two back together for `resolve/written-values` to read."
+   the two back together for `resolve/written-values` to read.
+
+   A segment's or an interval's far end (`:x-end`, `:y-end`) reaches the
+   axis too, whether written as a value or named as a column: the stat
+   widens an unshared axis to it, and a shared axis built without it
+   clipped every segment at the panel edge."
   [leaf axis]
   (mapcat (fn [layer]
             (let [lt-key (:layer-type layer)
                   lt-info (when (and lt-key (keyword? lt-key) (not= :infer lt-key))
                             (layer-type/lookup lt-key))
-                  mark (or (:mark layer) (:mark lt-info))]
-              (resolve/written-values (assoc (:mapping layer) :mark mark) axis)))
+                  mark (or (:mark layer) (:mark lt-info))
+                  end (get (:mapping layer) (if (= axis :x) :x-end :y-end))]
+              (concat
+               (resolve/written-values (assoc (:mapping layer) :mark mark) axis)
+               (cond
+                 (number? end) [end]
+                 (some? end) (col-values (:data leaf) end))
+               ;; A tile drawn one cell per row -- reading `:fill` or
+               ;; `:color` -- reaches half a step past its outer values
+               ;; on a numeric axis, as the identity stat widens an
+               ;; unshared axis. A binned or density tile does not.
+               (when (and (= lt-key :tile)
+                          (let [m (merge (:mapping leaf) (:mapping layer))]
+                            (or (:fill m) (:color m))))
+                 (let [a (get (merge (:mapping leaf) (:mapping layer)) axis)
+                       col (if (map? a) (:from a) a)
+                       vs (filter number? (col-values (:data leaf) col))]
+                   (when (seq vs)
+                     (let [span (scale/tile-span vs (= :log (get-in a [:scale :type])))]
+                       [(first (scale/tile-edges (reduce min vs) span))
+                        (second (scale/tile-edges (reduce max vs) span))])))))))
           (:layers leaf)))
 
 (defn inject-shared-scales

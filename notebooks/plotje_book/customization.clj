@@ -130,7 +130,7 @@
 ;; dots, lines, bar interiors, area fills, violins, lollipops -- all
 ;; styled with `:color` and named via `:color-label` in the legend.
 ;; The separate `:fill` aesthetic is currently reserved for the heatmap
-;; family: `lay-tile` (and the `:bin2d` output beneath
+;; family: `lay-tile` (and the `:density-2d` output beneath
 ;; `lay-density-2d`) reads the encoded value as a continuous fill,
 ;; with its own legend title override `:fill-label`:
 

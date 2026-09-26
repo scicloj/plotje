@@ -112,3 +112,19 @@
     (testing (str channel)
       (is (empty? (texts-reading (elements (scatter channel {:legend-position :none}))
                                  category-texts))))))
+
+(deftest gradient-legend-at-top-or-bottom-is-horizontal-test
+  ;; A gradient at :top or :bottom fell back to the 120-unit vertical
+  ;; bar, which ran off the canvas below the band reserved for it. It
+  ;; is laid across now, in a band of a header and two rows.
+  (let [pose (pj/lay-point {:a [1 2 3] :b [1 2 3] :c [1.0 5.0 9.0]} :a :b {:color :c})]
+    (doseq [where [:top :bottom]]
+      (testing (str where)
+        (let [plan (pj/plan (pj/options pose {:legend-position where}))
+              ;; Legend pieces are placed by top-level translates in
+              ;; canvas units; every one of them has to start inside.
+              ys (->> (pr-str (pj/plot (pj/options pose {:legend-position where})))
+                      (re-seq #"translate\((-?[\d.]+),(-?[\d.]+)\)")
+                      (map (comp parse-double last)))]
+          (is (= 56.0 (double (get-in plan [:layout :legend-h]))))
+          (is (every? #(< % 400.0) ys)))))))

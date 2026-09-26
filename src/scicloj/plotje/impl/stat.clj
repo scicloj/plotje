@@ -311,12 +311,17 @@
                             (some-> (min-adjacent-gap xs-col) (* 0.9))
                             1.0)))
             ;; A tile spans half the smallest step either side of its
-            ;; value on a numeric axis. The domain has to reach the
-            ;; outer tiles' edges, and `extract` draws the tiles with
-            ;; the same half-step, which it reads from here.
-            tile-half (fn [col] (/ (or (min-adjacent-gap col) 1.0) 2.0))
-            tile-half-x (when (and (= mark :tile) (not cat-x?)) (tile-half xs-col))
-            tile-half-y (when (and (= mark :tile) (not x-only?) (not cat-y?)) (tile-half ys-col))
+            ;; value on a numeric axis (`scale/tile-span`). The domain
+            ;; has to reach the outer tiles' edges, and `extract` draws
+            ;; the tiles with the same span, which it reads from here.
+            log-axis? (fn [k] (= :log (get-in draft-layer [k :type])))
+            tile-half-x (when (and (= mark :tile) (not cat-x?))
+                          (scale/tile-span xs-col (log-axis? :x-scale)))
+            tile-half-y (when (and (= mark :tile) (not x-only?) (not cat-y?))
+                          (scale/tile-span ys-col (log-axis? :y-scale)))
+            widen-tiles (fn [[lo hi] span]
+                          [(first (scale/tile-edges lo span))
+                           (second (scale/tile-edges hi span))])
             x-dom (if cat-x?
                     (distinct (concat xs-col (when (col-ref? x-end) (clean x-end))))
                     (let [[lo hi] (numeric-extent xs-col)]
@@ -334,7 +339,7 @@
                         numeric-bar?
                         [(- lo (/ w 2.0)) (+ hi (/ w 2.0))]
                         tile-half-x
-                        [(- lo tile-half-x) (+ hi tile-half-x)]
+                        (widen-tiles [lo hi] tile-half-x)
                         :else [lo hi])))
             y-dom (cond
                     x-only? nil
@@ -344,8 +349,7 @@
                           [lo2 hi2] (numeric-extent (clean y-end))]
                       [(min lo lo2) (max hi hi2)])
                     tile-half-y
-                    (let [[lo hi] (numeric-extent ys-col)]
-                      [(- lo tile-half-y) (+ hi tile-half-y)])
+                    (widen-tiles (numeric-extent ys-col) tile-half-y)
                     :else (let [[lo hi] (numeric-extent ys-col)]
                             (if (= mark :rect) [(min 0 lo) (max 0 hi)]
                                 ;; Extend domain to include y-min/y-max if present

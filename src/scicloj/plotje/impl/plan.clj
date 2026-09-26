@@ -1678,6 +1678,15 @@
                      g (+ lo-t (* t (- hi-t lo-t)))]]
            {:t t :gradient-t g :color (grad-fn g)}))))
 
+(def ^:dynamic *unread-option-warnings*
+  "Where a composite collects its cells' unread-option warnings, as an
+   atom of one set of lines per plan. Nil for a plot on its own, which
+   prints them. A composite's options reach every cell, so a cell that
+   draws no legend would warn about a `:color-label` its neighbour's
+   legend reads; `compositor/composite-draft->plan` prints only the
+   lines every cell raised."
+  nil)
+
 (defn- warn-unread-legend-options!
   "Warn about a colour or fill plot option written on this plot that
    nothing on it reads.
@@ -1708,8 +1717,11 @@
 
                  (and (contains? opts :color-values) (empty? all-colors))
                  (conj [:color-values "is the palette categories are drawn in, and this plot colours no categories; :color-range sets a gradient"]))]
-    (doseq [[k why] unread]
-      (println (str "Warning: " k " " (pr-str (get opts k)) " " why ".")))))
+    (let [lines (mapv (fn [[k why]] (str "Warning: " k " " (pr-str (get opts k)) " " why "."))
+                      unread)]
+      (if-let [sink *unread-option-warnings*]
+        (swap! sink conj (set lines))
+        (run! println lines)))))
 
 (defn- build-legend
   "Build legend from resolved draft layers and color info. Returns nil when the
@@ -3018,8 +3030,14 @@
             stops (gradient-stops grad-fn scale-type f-lo f-hi midpoint)
             ticks (continuous-legend-ticks
                    f-lo f-hi scale-type
-                   (whole-aesthetic-values? (when fill-draft-layer [fill-draft-layer])
-                                            :fill spec)
+                   ;; A stat's fill has no column to read: a count is
+                   ;; whole, as a histogram's count axis is, and a
+                   ;; density is not.
+                   (case stat-kind
+                     :bin2d true
+                     :density-2d false
+                     (whole-aesthetic-values? (when fill-draft-layer [fill-draft-layer])
+                                              :fill spec))
                    cfg)]
         (cond-> {:title title
                  :type :continuous
@@ -3323,8 +3341,12 @@
                          :coord-type rep-coord
                          :panel-x-domains (mapv :x-dom pds)
                          :panel-y-domains (mapv :y-dom pds)
-                         :x-scale-spec rep-x-scale
-                         :y-scale-spec rep-y-scale
+                         ;; The panel domains above are the drawn axes,
+                         ;; which a flip swaps, so the specs follow them:
+                         ;; `:breaks []` on data x empties the vertical
+                         ;; axis's labels under `:coord :flip`.
+                         :x-scale-spec (if (= rep-coord :flip) rep-y-scale rep-x-scale)
+                         :y-scale-spec (if (= rep-coord :flip) rep-x-scale rep-y-scale)
                          :x-temporal (some :x-te pds)
                          :y-temporal (some :y-te pds)
                          :panel-row-labels (mapv :row-label pds)
