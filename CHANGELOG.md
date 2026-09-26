@@ -4,31 +4,37 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+Most of this release is about colour: gradient legends, tiles, and composite poses whose cells now agree on one colour, size or symbol per value. It also adds `pj/lay-segment`, for lines and arrows between two points.
+
 ### Plots that look different after upgrading
+
+- **Cells of a composite pose -- `pj/arrange`, `pj/marginal`, a grid of pairs, a composite map -- that map the same column to `:color`, `:size`, `:alpha` or `:shape`** share one scale for it, covering the categories or the range of values of every cell. A category is drawn in the same colour or symbol, and a value at the same shade or size, in every cell; the one legend lists every category. A cell that writes its own scale for the aesthetic keeps it, and each cell then draws its own legend.
+
+- **`:share-scales` in a grid.** A cell that draws several columns on the shared axis shares each column's extent with the cells that draw that column. A histogram or density added to a grid of pairs, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`, gives each cell a count or density axis fitted to its own bars. A shared axis reaches the far ends of segments and intervals and the outer edges of tiles.
+
+- **Gradient legends.** On a linear scale the legend is labelled at ticks chosen and formatted as the axis's are, such as -0.5, 0.0, 0.5 and 1.0; on a log scale, at its decades. At `:legend-position :top` or `:bottom` it is a horizontal bar with its labels underneath. A column holding one value is labelled once, and the bar is drawn without seams between its colours.
+
+- **A gradient written as `{:low ... :high ...}`** runs straight from one colour to the other. A `:mid` is drawn only where it is written, as a third stop.
 
 - **The legend of a tile, a 2D density or a 2D histogram** is titled from the same settings as its gradient: a `:label` in the `:fill` or `:color` scale spec, `:fill-label` or `:color-label`, and otherwise the name of the column the tile fills from. A contour's legend is titled through `:color`. Reported in [#58](https://github.com/scicloj/plotje/issues/58) - thanks, @behrica
 
-- **A gradient legend on a linear scale** is labelled at ticks chosen and formatted as the axis's are, such as -0.5, 0.0, 0.5 and 1.0, rather than at the data's two ends. A log scale's legend is labelled at its decades, as before.
+- **`pj/lay-tile` on a numeric `:x` or `:y`.** The axis reaches the outer edges of the tiles, so the outer rows and columns are drawn at full size, and a missing value is left as a gap rather than closed by its neighbours. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
+
+- **The colour of a tile.** A numeric `:color` is read as `:fill` is, through the same scale settings and legend. A categorical `:color` colours each cell from the palette, with a legend of the categories, and the fill settings warn. Given both `:fill` and `:color`, the tile is painted from `:fill` and warns that `:color` is not drawn; with `:group`, each cell is painted from its own row's value.
+
+- **`pj/lay-contour` and `pj/lay-density-2d`.** Contour lines are coloured through the settings the legend reads, so `:color-midpoint`, and a `:domain` or `:type` in the `:color` scale spec, move the lines as well as the legend. Given a `:color` column, both keep their density legend and warn that the colour is not drawn, since one density is computed from all the rows. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
+
+- **A `:color` column on a rule or a band** is not drawn and adds nothing to the legend. Written on the rule or band itself, it warns.
 
 - **An overlay asked for by only one of the disagreeing layers**, as in `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))`, draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
 
-- **A series on `:x` together with a series on `:y`**, such as `{:x [:t1 :t2] :y [:v1 :v2]}` in `pj/pose` or `[:t1 :t2] [:v1 :v2]` in a `lay-*` call, is read in pairs and drawn on one panel as the series `t1 / v1` and `t2 / v2`. The pivot names its value columns `:x-value` and `:y-value`, and `:as` names the key column. To draw each pair on a panel of its own, write the pairs: `(pj/pose data [[:t1 :v1] [:t2 :v2]])`.
+- **A series on `:x` together with a series on `:y`**, such as `{:x [:t1 :t2] :y [:v1 :v2]}`, is read in pairs and drawn on one panel as the series `t1 / v1` and `t2 / v2`. The pivot names its value columns `:x-value` and `:y-value`, and `:as` names the key column. To draw each pair on a panel of its own, write the pairs: `(pj/pose data [[:t1 :v1] [:t2 :v2]])`.
+
+- **Rotated tick labels** get room worked out from the angle and the label lengths, below the panel and at the ends of each axis, up to 30% of the plot's size, so long labels are not cut off at the canvas edge or drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
 
 - **`:breaks []` on an axis** draws the axis with no ticks, tick labels or grid lines; its title stays.
 
-- **`pj/lay-tile` on a numeric `:x` or `:y`**: the axis reaches the outer edges of the tiles, so the outer rows and columns are drawn at full size. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
-
-- **Rotated tick labels** get room worked out from the angle and the label lengths: below the panel from the longest x label, and at the ends of each axis from the first and last labels, each up to 30% of the plot's size. Long labels are neither cut off at the canvas edge nor drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
-
-- **`:share-scales` in a grid.** A cell that draws several columns on the shared axis shares each column's extent with the cells that draw that column. A histogram or density added to a grid of pairs, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`, gives every cell a count or density axis fitted to its own bars. A shared axis also reaches the far ends of segments and intervals and the outer edges of tiles.
-
-- **Cells of a composite pose -- `pj/arrange`, `pj/marginal`, a grid of pairs, a composite map -- that map the same column to `:color`, `:size`, `:alpha` or `:shape`** share one scale for it: the categories of all the cells, or the range of all their values. A category is the same colour or symbol, and a value the same shade or size, in every cell, and the one legend lists every category. A cell that writes its own scale for the aesthetic keeps it, and each cell then draws its own legend.
-
-- **A gradient written as `{:low … :high …}`** runs straight from one colour to the other. A `:mid` is drawn only where it is written, as a third stop.
-
-- **A tile next to a missing value** keeps its width: the step between tiles is measured on every row that has a place, so the missing cell is left as a gap rather than closed by its neighbours.
-
-- **Arrow heads and triangle markers** are drawn with smooth edges, and a gradient legend bar has no seams between its colours.
+- **Arrow heads and triangle markers** are drawn with smooth edges.
 
 ### Added
 
@@ -38,37 +44,23 @@ All notable changes to this project will be documented in this file. This change
 
 - `:band-color` sets the colour a band draws in where its layer names none, beside `:rule-color` and `:band-opacity`.
 
+- `:values` in a `:shape` scale spec may be a map from category to symbol, as it may for `:color`.
+
+### Warnings and errors
+
+- A colour or fill setting that nothing on the plot reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, `:color-range` or `:color-midpoint` with no gradient drawn, `:color-label` with no legend, and the same `:range`, `:midpoint` and `:values` in a scale spec. So does a written colour on a tile with no `:fill`, such as `{:color "red"}`.
+
+- An unrecognized option that differs from an accepted one only by hyphens, underscores or case is named in the warning, as in "Did you mean :x-end for :xend?".
+
+- These report an error naming the value: a date column on `:color`; a column name as an area's `:stroke`; an axis setting in `pj/scale` with the wrong kind of value, such as `:breaks` given a function; an `:x-tick-angle` or `:y-tick-angle` that is not a finite number; and a map holding a map given as data, or a plan or a draft given where a pose goes.
+
 ### Fixed
 
-- A `:color` column on a rule or a band is not drawn and adds nothing to the legend; written on the rule or band itself, it warns.
-
-- A gradient legend for a column holding one value labels that value once.
-
-- `pj/lay-tile` with `:group`, or with a `:color` column beside `:fill`, paints each cell from its own row's value.
-
-- A gradient legend at `:legend-position :top` or `:bottom` is drawn as a horizontal bar with its tick labels underneath, inside the canvas.
+- A colour name such as `"black"` or `"red"` is read wherever a colour is written, including `:point-stroke` and the `:low`/`:mid`/`:high` of a gradient.
 
 - A plot's caption is drawn wholly inside the canvas.
 
 - A number beyond about 9.2e18 on an axis or a colour legend is printed in full.
-
-- `:x-tick-angle` or `:y-tick-angle` that is not a finite number reports an error naming the option and the value.
-
-- `pj/lay-tile` reads a numeric `:color` as it reads `:fill`, through the same scale settings and legend, with no warning. A categorical `:color` colours each cell from the palette, as it colours any mark, with a legend of the categories; `:color-values` and `:color-label` apply to it, and the fill settings warn. Given both `:fill` and `:color`, a tile is painted from `:fill`, with its gradient legend, and warns that `:color` is not drawn. A written colour on a tile with no `:fill`, such as `{:color "red"}`, warns that it is not drawn.
-
-- A contour's lines are coloured through the settings its legend reads: `:color-midpoint`, and a `:domain` or `:type` in the `:color` scale spec, move the lines as well as the legend.
-
-- `pj/lay-density-2d` and `pj/lay-contour` given a `:color` keep their density legend and warn that the colour is not drawn: one density is computed from all the rows. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
-
-- A colour or fill setting that nothing on the plot reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, `:color-range` or `:color-midpoint` with no gradient drawn, and `:color-label` with no legend -- and the same `:range`, `:midpoint` and `:values` written in a `:color` scale spec. `pj/scale :fill` on a plot with no mark drawn in a fill warns once.
-
-- A colour name such as `"black"` or `"red"` is read wherever a colour is written, including `:point-stroke` and the `:low`/`:mid`/`:high` of a gradient.
-
-- A date column on `:color`, and a column name given as an area's `:stroke`, report an error naming the column.
-
-- `pj/scale` reports an error, naming the key and the value, when an axis setting has the wrong kind of value -- for example `:breaks` given a function, or `:n-ticks` that is not a positive whole number.
-
-- A map given as data that itself holds a map, such as `{:data {...} :panels [...]}`, reports an error naming the keys and describing what makes a map a pose. So does a plan or a draft given where a pose goes.
 
 ## [0.15.0 - 2026-09-23]
 

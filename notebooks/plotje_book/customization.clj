@@ -633,6 +633,28 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
 
+;; A band with no `:color` of its own is drawn in `:band-color`, mid
+;; grey by default:
+
+(:band-color (pj/config))
+
+(kind/test-last [(fn [v] (= "#7F7F7F" v))])
+
+;; Like `:rule-color`, it can be set for one plot in `pj/options`, or for
+;; every plot in the configuration:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-band-v {:x-min 5.5 :x-max 6.5})
+    (pj/options {:band-color "#2a9d8f"}))
+
+(kind/test-last [(fn [v] (let [band (->> (pj/plan v) :panels first :layers
+                                         (filter #(= :band-v (:mark %)))
+                                         first)]
+                           ;; #2a9d8f is 42, 157, 143 out of 255
+                           (= [(/ 42 255.0) (/ 157 255.0) (/ 143 255.0) 1.0]
+                              (:color band))))])
+
 ;; Note: an intercept and a band edge must be written values
 ;; (numbers, or temporal values on a time axis) in this release. A
 ;; faceted plot with a different reference value per panel
@@ -764,6 +786,21 @@
     (pj/options {:legend-position :top}))
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+
+;; A gradient legend at the top or the bottom is drawn as a horizontal
+;; bar, with its tick labels underneath:
+
+(-> {:x [1 2 3 1 2 3] :y [1 1 1 2 2 2] :z [10 20 30 40 50 60]}
+    (pj/lay-tile :x :y {:fill :z})
+    (pj/options {:legend-position :bottom}))
+
+(kind/test-last
+ [(fn [v]
+    (let [layout (:layout (pj/plan v))]
+      ;; The legend takes a band of height below the panel and no
+      ;; column beside it.
+      (and (pos? (:legend-h layout))
+           (zero? (:legend-w layout)))))])
 
 ;; No legend at all -- useful when the color encoding is documented
 ;; in the title or caption rather than a separate legend. The panel

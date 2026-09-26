@@ -267,6 +267,31 @@
                                 ;; 40 stems and the zero line
                                 (= 41 (:lines s)))))])
 
+;; ## Dumbbell
+;;
+;; A dumbbell chart compares two values for each category -- a score
+;; before and after a change -- by joining them with a line. Both ends
+;; of the segment can name columns: `:x` is where the segment starts
+;; and `:x-end` where it stops. A point layer on each column marks the
+;; two ends. The second point layer draws a different `:x` column, so
+;; `{:overlay true}` puts it on the same panel, and each point layer
+;; takes a colour and a legend entry of its own:
+
+(-> {:team ["Ops" "Sales" "Support" "Research"]
+     :before [62 48 71 55]
+     :after [74 66 69 81]}
+    (pj/lay-segment :before :team {:x-end :after})
+    (pj/lay-point :before :team)
+    (pj/lay-point :after :team {:overlay true}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               p (pj/plan v)]
+                           (and (= 1 (:panels s))
+                                (= 4 (:lines s))
+                                (= 8 (:points s))
+                                (= ["before" "after"]
+                                   (mapv :label (:entries (:legend p)))))))])
+
 ;; ## See Also
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- mappings and aesthetic vocabulary

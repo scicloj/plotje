@@ -144,6 +144,13 @@
 ;;   once for many rows, pre-bin the column into categories, or draw the
 ;;   quantity with a mark that stands for one row.
 ;;
+;; - **A 2D density is computed from all the rows.** `lay-density-2d`
+;;   and `lay-contour` draw one density per panel, coloured by its own
+;;   level. Given a `:color` column, they warn that the colour is not
+;;   drawn and keep the density legend. Workaround: facet by the column,
+;;   as in `(pj/facet my-pose :species)`, so that each panel draws the
+;;   density of one group.
+;;
 ;; - **Interaction reaches a reader only through SVG.** A tooltip and a
 ;;   brush are behaviours a browser runs over the figure, so a plot
 ;;   rendered to `:bufimg`, or saved as a PNG, carries neither. The

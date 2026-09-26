@@ -1444,6 +1444,22 @@ gapminder-2007
        (mapv (juxt :label :shape)
              (:entries (:shape-legend (pj/plan fr))))))])
 
+;; `:values` may also be a map from category to symbol, as a `:color`
+;; palette may. The map pairs each category with its symbol directly,
+;; so the order of the categories does not matter:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:shape :species})
+    (pj/scale :shape {:values {"setosa" :square
+                               "versicolor" :triangle
+                               "virginica" :diamond}}))
+
+(kind/test-last
+ [(fn [fr]
+    (= [["setosa" :square] ["versicolor" :triangle] ["virginica" :diamond]]
+       (mapv (juxt :label :shape)
+             (:entries (:shape-legend (pj/plan fr))))))])
+
 ;; ## Titling a scale
 ;;
 ;; A scale is explained to the reader by something drawn beside the
