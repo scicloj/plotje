@@ -155,9 +155,10 @@
 
 ;; **Coming from ggplot2.** ggplot's `colour=` (stroke) and `fill=`
 ;; (interior) split is partial in Plotje today. On filled marks like
-;; `lay-bar`, `lay-area`, and `lay-violin`, the `:color` aesthetic
-;; paints the interior; there is no separate stroke aesthetic, and
-;; `:fill` is not accepted. A `lay-bar` styled with `{:color :species}`
+;; `lay-bar` and `lay-area` the `:color` aesthetic paints the interior,
+;; and on `lay-violin` and `lay-boxplot` it paints the interior and the
+;; outline both; there is no separate stroke aesthetic, and `:fill` is
+;; not accepted. A `lay-bar` styled with `{:color :species}`
 ;; produces one filled polygon per category:
 
 (-> (rdatasets/datasets-iris)

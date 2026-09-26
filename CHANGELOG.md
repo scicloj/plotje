@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **`:share-scales` in a grid.** A cell that draws several columns on the shared axis shares each column's extent with the cells that draw that column. A histogram or density added to a grid of pairs, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`, gives every cell a count or density axis fitted to its own bars. A shared axis also reaches the far ends of segments and intervals and the outer edges of tiles.
 
-- **Cells of `pj/arrange` that map the same column to `:color`, `:size`, `:alpha` or `:shape`** share one scale for it: the categories of all the cells, or the range of all their values. A category is the same colour or symbol, and a value the same shade or size, in every cell, and the one legend lists every category. A cell that writes its own scale for the aesthetic keeps it, and each cell then draws its own legend.
+- **Cells of a composite pose -- `pj/arrange`, `pj/marginal`, a grid of pairs, a composite map -- that map the same column to `:color`, `:size`, `:alpha` or `:shape`** share one scale for it: the categories of all the cells, or the range of all their values. A category is the same colour or symbol, and a value the same shade or size, in every cell, and the one legend lists every category. A cell that writes its own scale for the aesthetic keeps it, and each cell then draws its own legend.
 
 ### Added
 
@@ -48,7 +48,11 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/lay-density-2d` and `pj/lay-contour` given a `:color` keep their density legend and warn that the colour is not drawn: one density is computed from all the rows. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
 
-- A colour or fill option that nothing on the plot reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, and `:color-label` with no legend.
+- A colour or fill setting that nothing on the plot reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, `:color-range` or `:color-midpoint` with no gradient drawn, and `:color-label` with no legend -- and the same `:range`, `:midpoint` and `:values` written in a `:color` scale spec. `pj/scale :fill` on a plot with no mark drawn in a fill warns once.
+
+- A colour name such as `"black"` or `"red"` is read wherever a colour is written, including `:point-stroke` and the `:low`/`:mid`/`:high` of a gradient.
+
+- A date column on `:color`, and a column name given as an area's `:stroke`, report an error naming the column.
 
 - `pj/scale` reports an error, naming the key and the value, when an axis setting has the wrong kind of value -- for example `:breaks` given a function, or `:n-ticks` that is not a positive whole number.
 

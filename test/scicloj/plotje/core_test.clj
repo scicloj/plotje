@@ -3828,3 +3828,42 @@
                                         {:color-midpoint 0.01}))))
     (is (not= plain (colors (-> (pj/lay-contour d :x :y)
                                 (pj/scale :color {:domain [0 100]})))))))
+
+(deftest colour-names-read-everywhere-test
+  ;; `:point-stroke` and a gradient's stops read colours directly, so a
+  ;; CSS name was taken for hex digits and failed.
+  (let [d {:x [1 2 3] :y [1 2 3] :n [1.0 2.0 3.0]}]
+    (is (vector? (pj/plot (pj/options (pj/lay-point d :x :y) {:config {:point-stroke "black" :point-stroke-width 1}}))))
+    (is (vector? (pj/plot (pj/options (pj/lay-point d :x :y {:color :n}) {:color-range {:low "red" :high "blue"}}))))))
+
+(deftest area-stroke-is-a-written-colour-test
+  ;; A column name passed `pj/plan` and crashed at `pj/plot` naming nothing.
+  (let [d {:x [1 2 3] :y [1 2 3] :g ["a" "b" "a"]}]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"one written colour"
+                          (pj/plan (pj/lay-area d :x :y {:stroke :g}))))
+    (is (vector? (pj/plot (pj/lay-area d :x :y {:stroke :red}))))))
+
+(deftest date-column-on-color-reports-test
+  (let [d {:x [1 2] :y [1 2] :t [(java.time.LocalDate/of 2020 1 1) (java.time.LocalDate/of 2021 1 1)]}]
+    (doseq [opts [{:color :t} {:color :t :color-type :categorical}]]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"does not read dates yet"
+                            (pj/plan (pj/lay-point d :x :y opts)))))))
+
+(deftest unread-colour-gradient-and-palette-settings-warn-test
+  (let [d {:x [1 2 3] :y [1 2 3] :g ["a" "b" "a"] :n [1.0 2.0 3.0]}
+        out (fn [pose] (with-out-str (pj/plan pose)))]
+    (is (str/includes? (out (pj/options (pj/lay-point d :x :y {:color :g}) {:color-range :viridis})) ":color-range"))
+    (is (str/includes? (out (pj/scale (pj/lay-point d :x :y {:color :g}) :color {:range :viridis})) ":range shapes a gradient"))
+    (is (str/includes? (out (pj/scale (pj/lay-point d :x :y {:color :n}) :color {:values ["red" "blue"]})) ":values is the palette"))
+    (testing "read settings do not warn"
+      (is (not (str/includes? (out (pj/options (pj/lay-point d :x :y {:color :n}) {:color-range :viridis})) "Warning")))
+      (is (not (str/includes? (out (pj/options (pj/lay-tile {:x [1 2] :y [1 1] :f [1 2]} :x :y {:fill :f}) {:color-range :viridis})) "Warning"))))))
+
+(deftest scale-fill-warns-once-and-truly-test
+  ;; `pj/scale :fill` on a point warned twice, and on a 2D density, which
+  ;; reads it, warned falsely.
+  (let [out (with-out-str (pj/plan (pj/scale (pj/lay-point {:x [1 2] :y [1 2]} :x :y) :fill {:label "F"})))]
+    (is (= 1 (count (re-seq #"Warning" out))))
+    (is (str/includes? out "did you mean :color")))
+  (is (not (str/includes? (with-out-str (pj/plan (pj/scale (pj/lay-density-2d {:x [1 2 3 4 2 3] :y [2 1 4 3 3 2]} :x :y) :fill {:label "F"})))
+                          "Warning"))))

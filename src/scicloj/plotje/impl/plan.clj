@@ -1612,10 +1612,11 @@
   (when (and (some (defaults/channel->scale-key :fill) resolved-all)
              (not-any? #(or (:fill %) (contains? fill-drawing-marks (:mark %)))
                        resolved-all))
-    (println "Warning: pj/scale :fill set but no descendant layer uses"
-             ":fill -- did you mean :color? :fill paints interior of"
-             "tile/density-2d/bin2d marks; :color paints stroke or"
-             "outline (point edge, line).")))
+    (println (str "Warning: pj/scale :fill is set, and no mark on this plot is"
+                  " drawn in a fill -- did you mean :color? :fill colours the"
+                  " cells of a tile, a 2D density or a 2D histogram; every"
+                  " other mark, a contour's lines included, is coloured"
+                  " through :color."))))
 
 (defn- continuous-legend-ticks
   "Tick values for a gradient bar, each with the fraction of the bar it
@@ -1723,6 +1724,12 @@
                                 (not (and (nil? (:fill %))
                                           (= :categorical (:color-type %)))))
                           resolved-all)
+        ;; A colour gradient is read where a numeric colour is drawn, by
+        ;; a mark drawn in a fill (its settings fall back to the colour
+        ;; ones), and by a contour's lines.
+        gradient? (or fill-drawn?
+                      (some #(or (= :numerical (:color-type %)) (= :contour (:mark %)))
+                            resolved-all))
         unread (cond-> []
                  (and (contains? opts :color-label) (nil? legend))
                  (conj [:color-label "titles a colour or fill legend, and this plot draws none"])
@@ -1737,9 +1744,26 @@
                  (conj [:fill-midpoint "centres the gradient of a mark drawn in a fill, and this plot has none; :color-midpoint centres the gradient its marks read"])
 
                  (and (contains? opts :color-values) (empty? all-colors))
-                 (conj [:color-values "is the palette categories are drawn in, and this plot colours no categories; :color-range sets a gradient"]))]
-    (let [lines (mapv (fn [[k why]] (str "Warning: " k " " (pr-str (get opts k)) " " why "."))
-                      unread)]
+                 (conj [:color-values "is the palette categories are drawn in, and this plot colours no categories; :color-range sets a gradient"])
+
+                 (and (contains? opts :color-range) (not gradient?))
+                 (conj [:color-range "is the gradient a numeric colour is read through, and this plot draws no gradient; :color-values sets the palette its categories are drawn in"])
+
+                 (and (contains? opts :color-midpoint) (not gradient?))
+                 (conj [:color-midpoint "centres the gradient a numeric colour is read through, and this plot draws no gradient"]))
+        ;; The same settings written in a `:color` scale spec, which
+        ;; the option-only checks above cannot see.
+        spec-unread (let [specs (keep :color-scale resolved-all)]
+                      (cond-> []
+                        (and (not gradient?) (some #(contains? % :range) specs))
+                        (conj "a :color scale spec's :range shapes a gradient, and this plot draws none; :values sets the palette its categories are drawn in")
+                        (and (not gradient?) (some #(contains? % :midpoint) specs))
+                        (conj "a :color scale spec's :midpoint centres a gradient, and this plot draws none")
+                        (and (empty? all-colors) (some #(contains? % :values) specs))
+                        (conj "a :color scale spec's :values is the palette categories are drawn in, and this plot colours no categories; :range sets a gradient")))]
+    (let [lines (into (mapv (fn [[k why]] (str "Warning: " k " " (pr-str (get opts k)) " " why "."))
+                            unread)
+                      (map #(str "Warning: " % ".") spec-unread))]
       (if-let [sink *unread-option-warnings*]
         (swap! sink conj (set lines))
         (run! println lines)))))

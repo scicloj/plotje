@@ -706,9 +706,15 @@
     (cond-> {:mark :area
              :style (cond-> {:opacity (or (:fixed-alpha draft-layer) 0.5)}
                       ;; Optional outline on the top curve (opt-in via :stroke).
-                      stroke (assoc :stroke-color (if (string? stroke)
-                                                    (defaults/hex->rgba stroke)
-                                                    stroke)
+                      stroke (assoc :stroke-color
+                                    (cond
+                                      (vector? stroke) stroke
+                                      (defaults/names-a-color? stroke) (defaults/hex->rgba stroke)
+                                      ;; A column name reached the renderer
+                                      ;; and crashed there, naming nothing.
+                                      :else (throw (ex-info (str "An area's :stroke is one written colour, such as \"black\" or \"#333333\", and "
+                                                                 (pr-str stroke) " is not one. The outline is drawn in a single colour; it does not read a column.")
+                                                            {:stroke stroke})))
                                     :stroke-width (or (:stroke-width draft-layer)
                                                       (:line-width cfg)))
                       dash (assoc :dash dash))

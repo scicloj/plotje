@@ -486,6 +486,17 @@
         c-type (when color-is-col?
                  (check-type-override! :color-type (:color-type v) ds color-val)
                  (or (:color-type v) (column-type ds color-val)))
+        ;; A colour reads a number as a place on a gradient and anything
+        ;; else as a category; a date is neither yet, and failed on a
+        ;; cast naming neither the aesthetic nor the column.
+        _ (when (and color-is-col? (not color-drawn?)
+                     (= :temporal (column-type ds color-val)))
+            (throw (ex-info (str ":color names the date column " (pr-str color-val)
+                                 ", and a colour does not read dates yet. For one colour"
+                                 " per date, convert the column to strings; for a"
+                                 " gradient, map a numeric column derived from it,"
+                                 " such as the year.")
+                            {:aesthetic :color :column color-val :column-type :temporal})))
         fixed-color (when (and color-val (not color-is-col?)) color-val)
         size-val (:size v)
         size-is-col? (column? :size size-val)

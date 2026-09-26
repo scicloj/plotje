@@ -558,6 +558,23 @@
 
 ;; ---- Color Helpers ----
 
+(defn ->c2d-color
+  "A written colour as a clojure2d colour: a hex string (with or without
+   `#`), a CSS name as a string or a keyword, or anything
+   `clojure2d.color/to-color` reads. The one reader every written colour
+   goes through -- `hex->rgba`, a gradient's `:low`/`:mid`/`:high`, a
+   point's `:point-stroke` -- so a name that works in one place works in
+   all of them. Read directly, `\"black\"` was taken for hex digits."
+  [color]
+  (if (and (string? color) (not (.startsWith ^String color "#")))
+    ;; Non-# string: try as hex first, then as a named colour keyword
+    (or (try (c/to-color color) (catch NumberFormatException _ nil))
+        (c/to-color (keyword color))
+        (throw (ex-info (str "Unknown color: \"" color
+                             "\". Use a hex string like \"#FF0000\" or a CSS color name like \"red\".")
+                        {:color color})))
+    (c/to-color color)))
+
 (defn hex->rgba
   "Convert any color representation to [r g b a] in 0-1 range.
    Accepts hex strings (#RGB, #RRGGBB, #RRGGBBAA, or without #),
@@ -569,19 +586,7 @@
    bare hex this function accepts, because a three-letter string is a
    mistyped column name more often than it is a shade."
   [color]
-  (if (and (string? color) (not (.startsWith ^String color "#")))
-    ;; Non-# string: try as hex first, then as named color keyword
-    (let [cc (try (c/to-color color)
-                  (catch NumberFormatException _ nil))]
-      (if cc
-        (c2d->rgba cc)
-        (let [cc (c/to-color (keyword color))]
-          (if cc
-            (c2d->rgba cc)
-            (throw (ex-info (str "Unknown color: \"" color
-                                 "\". Use a hex string like \"#FF0000\" or a CSS color name like \"red\".")
-                            {:color color}))))))
-    (c2d->rgba color)))
+  (c2d->rgba (->c2d-color color)))
 
 (defn- spread-idx
   "Map category index `i` of `n` categories into a palette index across
@@ -780,7 +785,7 @@
     (gradient-map? gradient)
     (let [{:keys [low mid high]
            :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} gradient
-          g (c/gradient [(c/to-color low) (c/to-color mid) (c/to-color high)])]
+          g (c/gradient [(->c2d-color low) (->c2d-color mid) (->c2d-color high)])]
       (wrap-gradient g))
     (map? gradient)
     (throw (ex-info (str "A colour :range map names at least one of :low,"

@@ -401,7 +401,7 @@
         {:keys [coord-fn tooltip sx sy]} ctx
         {:keys [opacity radius jitter stroke stroke-width]
          layer-shape :shape} style
-        stroke-rgba (when stroke (defaults/c2d->rgba stroke))
+        stroke-rgba (when stroke (defaults/hex->rgba stroke))
         stroke-w (when stroke (or stroke-width 1))
         ;; Detect if x-axis is categorical (band scale) for smarter jitter
         x-bandwidth (try (ws/data sx :bandwidth) (catch Exception _ nil))

@@ -3818,7 +3818,7 @@
    A `:domain` has two readings, and the domain itself decides which:
    two numbers are a range, and anything else is a list of categories.
 
-   On a categorical `:color`, `:fill` or `:shape` column it gives the
+   On a categorical `:color` or `:shape` column it gives the
    order the categories are placed in, which the legend and the palette
    both follow. A category the list leaves out is still drawn, ordered
    after the ones listed, with a warning. On `:shape`, `:values`
@@ -4047,7 +4047,16 @@
           ;; than by a layer -- it divides the leaf into panels and is
           ;; stripped before any layer sees the mapping -- so no layer
           ;; declares it and it is live wherever it is written.
-          unused (vec (remove (some-fn accepted defaults/panel-aesthetics)
+          ;; A `:fill` entry holding only a scale spec -- what
+          ;; `pj/scale :fill` writes -- is read by a 2D density, a 2D
+          ;; histogram or a tile without any layer naming `:fill`, and
+          ;; where nothing reads it `plan` warns with the fill-versus-
+          ;; colour guidance. Warned here too, it printed twice, and
+          ;; falsely on a 2D density.
+          scale-only-fill? (fn [k] (and (= k :fill)
+                                        (let [v (get (:mapping p) k)]
+                                          (and (map? v) (not (:from v)) (not (:column v))))))
+          unused (vec (remove (some-fn accepted defaults/panel-aesthetics scale-only-fill?)
                               (keys (:mapping p))))]
       (when (seq unused)
         (let [strict-val (:strict (defaults/config))
