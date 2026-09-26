@@ -3756,3 +3756,22 @@
                           (pj/plan (pj/options (pj/arrange cells) {:color-label "GT"}))))]
     (is (not (str/includes? (out [colored plain]) ":color-label")))
     (is (= 1 (count (re-seq #":color-label" (out [plain plain])))))))
+
+(deftest categorical-tile-colour-does-not-read-fill-settings-test
+  ;; A categorical :color on a tile draws palette colours, as on any
+  ;; mark: :color-label titles it, and a fill setting, which shapes a
+  ;; gradient, is unread and warns. A numeric :color is the fill, and
+  ;; reads them.
+  (let [data {:x [1 2] :y [1 1] :g ["a" "b"] :z [1.0 2.0]}
+        run (fn [color opts]
+              (let [out (java.io.StringWriter.)
+                    plan (binding [*out* out]
+                           (pj/plan (pj/options (pj/lay-tile data :x :y {:color color}) opts)))]
+                [(-> plan :legend :title) (str out)]))]
+    (let [[title out] (run :g {:fill-label "F"})]
+      (is (= :g title))
+      (is (str/includes? out ":fill-label")))
+    (is (= "C" (first (run :g {:color-label "C"}))))
+    (let [[title out] (run :z {:fill-label "F"})]
+      (is (= "F" title))
+      (is (not (str/includes? out ":fill-label"))))))

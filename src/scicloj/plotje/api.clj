@@ -3261,12 +3261,14 @@
    With neither: auto-binned 2D histogram (stat `:bin2d`).
 
    A categorical `:color` column colors each cell from the palette,
-   one color per category, as it colors any mark.
+   one color per category, as it colors any mark: `:color-values` and
+   `:color-label` apply, and the fill settings, which shape a gradient,
+   do not.
 
-   A numeric `:color` column is read as the fill. Either way the cells
-   and their legend read the fill settings: a `:fill` scale spec, then
-   a `:color` one, then the `:fill-*` plot options, then the `:color-*`
-   ones -- `:fill-label` before `:color-label` for the legend title."
+   A numeric `:color` column is read as the fill. Its cells and their
+   legend read the fill settings: a `:fill` scale spec, then a `:color`
+   one, then the `:fill-*` plot options, then the `:color-*` ones --
+   `:fill-label` before `:color-label` for the legend title."
   ([pose-or-data] (lay-layer-type :tile pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :tile pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :tile pose-or-data x y-or-opts))

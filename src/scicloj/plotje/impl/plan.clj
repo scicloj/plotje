@@ -1701,7 +1701,13 @@
    `:color-label` titles a fill legend too, as the end of the fill
    chain, so it is unread only where there is no legend at all."
   [opts legend resolved-all all-colors]
-  (let [fill-drawn? (some #(contains? fill-drawing-marks (:mark %)) resolved-all)
+  (let [;; A tile coloured by a categorical `:color` and no `:fill`
+        ;; draws palette colours, as a categorical colour does on any
+        ;; mark, and has no gradient for a fill setting to shape.
+        fill-drawn? (some #(and (contains? fill-drawing-marks (:mark %))
+                                (not (and (nil? (:fill %))
+                                          (= :categorical (:color-type %)))))
+                          resolved-all)
         unread (cond-> []
                  (and (contains? opts :color-label) (nil? legend))
                  (conj [:color-label "titles a colour or fill legend, and this plot draws none"])
