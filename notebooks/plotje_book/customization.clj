@@ -173,9 +173,11 @@
 
 ;; When a categorical x-axis has many categories, or long category
 ;; names, the tick labels run into each other and become hard to
-;; read. Rotate them with `:x-tick-angle`, given in degrees. A value
-;; of -45 is a common diagonal that keeps the text legible while
-;; saving horizontal room.
+;; read. Rotate them with `:x-tick-angle`, given in degrees. A positive
+;; angle turns a label clockwise on screen, so a value of -45 is the
+;; common diagonal that reads upward from left to right, keeping the
+;; text legible while saving horizontal room. ggplot2 turns the other
+;; way: its `element_text(angle = 45)` draws what -45 draws here.
 
 (-> {:product (map #(str "Product " %) (range 12))
      :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}

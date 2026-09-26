@@ -359,11 +359,12 @@
 ;; ### Contour
 ;; Source: [R Graph Gallery: 2D Density Chart](https://r-graph-gallery.com/2d-density-chart.html)
 
-;; Contour lines on iris sepal dimensions, colored by species:
+;; Contour lines of the density of all the iris flowers, over their
+;; points colored by species:
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose :sepal-length :sepal-width {:color :species})
-    pj/lay-point
+    (pj/pose :sepal-length :sepal-width)
+    (pj/lay-point {:color :species})
     pj/lay-contour
     (pj/options {:title "Iris Sepal Dimensions (contour)"
                  :x-label "Sepal Length"
@@ -1984,9 +1985,9 @@
 ;; Source: [Python Graph Gallery: 2D Density](https://python-graph-gallery.com/2d-density-plot-with-ggplot2/)
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose :sepal-length :sepal-width {:color :species})
+    (pj/pose :sepal-length :sepal-width)
     pj/lay-density-2d
-    (pj/options {:title "Iris: 2D Density by Species"
+    (pj/options {:title "Iris: 2D Density"
                  :x-label "Sepal Length"
                  :y-label "Sepal Width"}))
 

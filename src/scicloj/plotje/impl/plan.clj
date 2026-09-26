@@ -2210,6 +2210,37 @@
                   ". For one " (name channel) " over the layer, write the value"
                   " itself; the column is ignored and earns no legend."))))
 
+(defn- warn-undrawn-tile-color
+  "Warn, once per plot, about a colour a tile does not draw: `:color`
+   beside `:fill`, where the cells are painted from `:fill` and
+   `resolve` dropped the `:color`, or a written colour with no `:fill`,
+   where the tile bins. `resolve` marks either with
+   `:undrawn-tile-color`."
+  [resolved-all]
+  (doseq [[fill color] (distinct (keep :undrawn-tile-color resolved-all))]
+    (println
+     (if fill
+       (str "Warning: lay-tile was given :fill " (pr-str fill)
+            " and :color " (pr-str color) ". The cells are painted"
+            " from :fill, and :color is not drawn on a tile that"
+            " has one.")
+       (str "Warning: lay-tile was given the colour " (pr-str color)
+            " as :color, and a written colour is not drawn on a tile."
+            " A tile's cells are coloured from :fill, from a :color"
+            " column, or, with neither, by the count of rows in each bin.")))))
+
+(defn- warn-undrawn-density-color
+  "Warn, once per plot, about a `:color` on a 2D density or a contour.
+   The density is computed from all rows together, so the colour
+   changes nothing drawn; `resolve` dropped it and marked the layer
+   with `:undrawn-density-color`."
+  [resolved-all]
+  (doseq [[lt color] (distinct (keep :undrawn-density-color resolved-all))]
+    (println (str "Warning: lay-" (name (or lt :density-2d)) " was given :color "
+                  (pr-str color) ", and it is not drawn: one density is"
+                  " computed from all the rows, and it is coloured by its"
+                  " own level."))))
+
 (defn- warn-unread-tooltip-mappings
   "Warn when a `:tooltip` mapping reaches no mark that draws hover text.
 
@@ -3158,6 +3189,8 @@
          _ (validate-unscaled-axis-marks resolved-all)
          _ (validate-drawn-channel-marks resolved-all)
          _ (warn-unread-channel-columns resolved-all)
+         _ (warn-undrawn-tile-color resolved-all)
+         _ (warn-undrawn-density-color resolved-all)
          _ (warn-conflicting-specs draft-layers)
          _ (validate-axis-spec-agreement resolved-all)
          resolved-all (settle-channel-specs resolved-all)

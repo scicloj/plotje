@@ -3785,3 +3785,33 @@
     (is (= [1.0 2.0 3.0] (mapv double (-> panel :x-ticks :values))))
     (is (= [1.0 2.0] (mapv double (-> panel :y-ticks :values))))
     (is (= [0.35 3.65] (:x-domain panel)) "the domain still reaches the tile edges")))
+
+(deftest tile-color-beside-fill-is-not-drawn-test
+  ;; With both, the cells are painted from :fill. The :color used to
+  ;; build a legend of palette colours no cell used, in place of the
+  ;; fill's gradient legend, with no message.
+  (let [d {:x [1 2] :y [1 1] :f [0 1] :g ["a" "b"]}
+        run (fn [opts] (let [out (java.io.StringWriter.)
+                             plan (binding [*out* out] (pj/plan (pj/lay-tile d :x :y opts)))]
+                         [(select-keys (:legend plan) [:title :type]) (str out)]))]
+    (doseq [color [:g "white"]]
+      (let [[legend out] (run {:fill :f :color color})]
+        (is (= {:title :f :type :continuous} legend))
+        (is (= 1 (count (re-seq #"not drawn on a tile" out))))))))
+
+(deftest tile-written-color-warns-test
+  ;; A written colour on a tile with no :fill was dropped with no
+  ;; message; the tile binned as it does with neither.
+  (let [out (with-out-str (pj/plan (pj/lay-tile {:x [1 2 3] :y [1 2 3]} :x :y {:color "red"})))]
+    (is (= 1 (count (re-seq #"a written colour is not drawn on a tile" out))))))
+
+(deftest density-2d-color-is-not-drawn-test
+  ;; One density is computed from all rows, so a :color changed nothing
+  ;; on the panel, yet it replaced the density legend with one of
+  ;; palette colours nothing used.
+  (let [d {:x [1 2 3 4 5 6 2 3] :y [2 1 4 3 6 5 3 2] :g ["a" "b" "a" "b" "a" "b" "a" "b"]}]
+    (doseq [lay [pj/lay-density-2d pj/lay-contour]]
+      (let [out (java.io.StringWriter.)
+            plan (binding [*out* out] (pj/plan (lay d :x :y {:color :g})))]
+        (is (= :relative-density (-> plan :legend :title)))
+        (is (= 1 (count (re-seq #"is not drawn: one density" (str out)))))))))

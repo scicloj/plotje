@@ -833,6 +833,44 @@
           tile-override? (and (= (:mark resolved) :tile)
                               (= (:stat resolved) :bin2d)
                               (or (:fill resolved) (:color resolved)))
+          ;; `:color` beside `:fill` on a tile is not drawn: the cells
+          ;; are painted from `:fill`. Kept, it grouped the cells and
+          ;; built a legend of palette colours no cell used, in place of
+          ;; the gradient legend of the fill. Cell borders drawn from
+          ;; `:color` are planned (the backlog's `:fill` as an interior
+          ;; override).
+          both? (and tile-override? (:fill resolved)
+                     (or (:color resolved) (:fixed-color resolved)))
+          ;; The warning is printed once per plot by
+          ;; `plan/warn-undrawn-tile-color`, which reads this marker: a
+          ;; layer is resolved once per panel.
+          ;; A written colour and no `:fill`: the tile bins as it would
+          ;; with neither, and the colour is not drawn. Marked for the
+          ;; same once-per-plot warning.
+          resolved (if (and (= (:mark resolved) :tile)
+                            (= (:stat resolved) :bin2d)
+                            (not (:fill resolved)) (not (:color resolved))
+                            (:fixed-color resolved))
+                     (assoc resolved :undrawn-tile-color [nil (:fixed-color resolved)])
+                     resolved)
+          ;; A 2D density and its contours are computed from all rows
+          ;; together, so a `:color` changes nothing drawn; kept, it
+          ;; replaced the density legend with one describing nothing on
+          ;; the panel. Per-group densities are in the backlog.
+          resolved (if (and (= (:stat resolved) :density-2d)
+                            (or (:color resolved) (:fixed-color resolved)))
+                     (-> resolved
+                         (assoc :undrawn-density-color
+                                [(:layer-type resolved)
+                                 (or (:color resolved) (:fixed-color resolved))])
+                         (dissoc :color :color-type :fixed-color :color-drawn?))
+                     resolved)
+          resolved (if both?
+                     (-> resolved
+                         (assoc :undrawn-tile-color
+                                [(:fill resolved) (or (:color resolved) (:fixed-color resolved))])
+                         (dissoc :color :color-type :fixed-color :color-drawn?))
+                     resolved)
           resolved (if tile-override?
                      (cond-> (assoc resolved :stat :identity)
                        ;; Promote a numeric :color to :fill when :fill is

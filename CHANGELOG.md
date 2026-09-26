@@ -40,7 +40,9 @@ All notable changes to this project will be documented in this file. This change
 
 - `:x-tick-angle` or `:y-tick-angle` that is not a finite number reports an error naming the option and the value.
 
-- `pj/lay-tile` reads a numeric `:color` as it reads `:fill`, through the same scale settings and legend, with no warning. A categorical `:color` colours each cell from the palette, as it colours any mark, with a legend of the categories; `:color-values` and `:color-label` apply to it, and the fill settings warn. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
+- `pj/lay-tile` reads a numeric `:color` as it reads `:fill`, through the same scale settings and legend, with no warning. A categorical `:color` colours each cell from the palette, as it colours any mark, with a legend of the categories; `:color-values` and `:color-label` apply to it, and the fill settings warn. Given both `:fill` and `:color`, a tile is painted from `:fill`, with its gradient legend, and warns that `:color` is not drawn. A written colour on a tile with no `:fill`, such as `{:color "red"}`, warns that it is not drawn.
+
+- `pj/lay-density-2d` and `pj/lay-contour` given a `:color` keep their density legend and warn that the colour is not drawn: one density is computed from all the rows. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
 
 - A colour or fill option that nothing on the plot reads warns: `:fill-label`, `:fill-range` or `:fill-midpoint` with no mark drawn in a fill, `:color-values` with no categories coloured, and `:color-label` with no legend.
 
