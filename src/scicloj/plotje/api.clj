@@ -990,7 +990,19 @@
             (throw (ex-info msg {:caller caller :renamed from :to to}))
             (println (str "Warning: " msg)))))
       (if (seq unknown)
-        (let [msg (str caller " does not recognize option(s): " (vec unknown) "."
+        (let [;; `:xend` for `:x-end`, as ggplot2 spells it: a key that
+              ;; differs from an accepted one only by hyphens,
+              ;; underscores and case is named, so it need not be found
+              ;; in the list below.
+              squash #(str/lower-case (str/replace (name %) #"[-_]" ""))
+              by-squash (group-by squash (filter keyword? accepted))
+              near (for [k unknown
+                         :when (keyword? k)
+                         :let [m (first (get by-squash (squash k)))]
+                         :when m]
+                     (str "\n  Did you mean " m " for " k "?"))
+              msg (str caller " does not recognize option(s): " (vec unknown) "."
+                       (apply str near)
                        (option-home-lines caller unknown)
                        "\n  Accepted: " (vec (sort accepted)))]
           (if strict-val
@@ -3393,10 +3405,14 @@
    from each point down to the zero line -- a stem plot, a lollipop
    without its dot -- and `{:x-end :x1 :y-end :y1}` draws each row's
    segment between two points. `:arrow` puts an arrow head on `:end`,
-   `:start` or `:both` ends.
+   `:start` or `:both` ends. A bare name is read as a column, as it is
+   on `:x`, so a category is written as a value: `{:x-end {:value
+   \"Q4\"}}`.
 
    - `(lay-segment data :index :distance {:y-end 0})` -- stems.
-   - `(lay-segment data :x0 :y0 {:x-end :x1 :y-end :y1 :arrow :end})`"
+   - `(lay-segment data :x0 :y0 {:x-end :x1 :y-end :y1 :arrow :end})`
+   - `(lay-segment data :quarter :sales {:x-end {:value \"Q4\"}})` --
+     each row's segment runs to the Q4 category."
   ([pose-or-data] (lay-layer-type :segment pose-or-data))
   ([pose-or-data x-or-opts] (lay-layer-type :segment pose-or-data x-or-opts))
   ([pose-or-data x y-or-opts] (lay-layer-type :segment pose-or-data x y-or-opts))

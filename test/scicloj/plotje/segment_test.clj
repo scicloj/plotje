@@ -4,6 +4,7 @@
    left out keeps the start's value -- which is what makes a stem plot
    one call (#50) and an annotation arrow one call (#17)."
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.string :as str]
             [java-time.api :as jt]
             [scicloj.plotje.api :as pj]))
 
@@ -117,3 +118,19 @@
 (deftest written-end-named-as-a-value-test
   (is (thrown-with-msg? clojure.lang.ExceptionInfo #"The value written for :x-end"
                         (pj/plan (pj/lay-segment {:x ["a" "b"] :y [1 2]} :x :y {:x-end 3})))))
+
+(deftest a-category-end-is-written-as-a-value-test
+  ;; A bare name is a column, as on :x; the error names the value form,
+  ;; which the docs did not show.
+  (let [d {:q ["a" "b" "c"] :v [1 2 3]}]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"write \{:x-end \{:value \"c\"\}\}"
+                          (pj/plan (pj/lay-segment d :q :v {:x-end "c"}))))
+    (is (= ["c" "c" "c"]
+           (->> (pj/plan (pj/lay-segment d :q :v {:x-end {:value "c"}}))
+                :panels first :layers first :groups first :x-ends (mapv str))))))
+
+(deftest ggplot2-spelling-is-named-test
+  ;; `:xend` differs from `:x-end` only by a hyphen; the warning named
+  ;; neither, and the segments drew at zero length.
+  (let [out (with-out-str (pj/plan (pj/lay-segment {:a [1 2] :b [1 2] :c [3 4]} :a :b {:xend :c})))]
+    (is (str/includes? out "Did you mean :x-end for :xend?"))))

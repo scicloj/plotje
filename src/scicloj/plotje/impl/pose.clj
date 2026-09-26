@@ -1118,7 +1118,12 @@
       (str "Column " col " (from " k ") not found in dataset."
            " Available: " (sort-by str col-names)
            (when-not explicit-column?
-             (also-not-drawable-sentence k col))))))
+             (also-not-drawable-sentence k col))
+           ;; A slot that places a mark reads a bare name as a column,
+           ;; strictly, so a category or a place is written as a value.
+           (when (and (not explicit-column?) (#{:x :y :x-end :y-end} k))
+             (str " To place the mark at " (pr-str col) " itself rather than"
+                  " read a column, write {" k " {:value " (pr-str col) "}}."))))))
 
 (def ^:private column-only-accepts
   "What to tell the user each column-only aesthetic takes. The set
