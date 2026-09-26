@@ -135,6 +135,12 @@
    quartile falls between two -- a mark sitting between ticks rather
    than a mark drawn wrongly.
 
+   A tile's stat widens its domain by half a step so the outer tiles
+   are drawn whole, and reports the extent before that as
+   `:x-data-extent` / `:y-data-extent`. The half-step is padding for
+   this purpose, so that extent is read instead: a grid at 1 and 2 is
+   ticked 1, 2 rather than 0.4, 0.6, ... 2.6.
+
    A `:domain` the writer set is read too: it is where the axis ends,
    so a fractional one is a fractional axis whatever the data does.
 
@@ -144,8 +150,9 @@
    is ticked as it always was."
   [stat-results extent-key points-key spec]
   (let [written (:domain spec)
+        data-extent-key ({:x-domain :x-data-extent :y-domain :y-data-extent} extent-key)
         extents (for [sr stat-results
-                      :let [d (extent-key sr)]
+                      :let [d (or (get sr data-extent-key) (extent-key sr))]
                       :when (and (sequential? d) (= 2 (count d)) (number? (first d)))]
                   d)
         ;; Read by the first value rather than by the column's type: a

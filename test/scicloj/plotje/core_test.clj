@@ -3775,3 +3775,13 @@
     (let [[title out] (run :z {:fill-label "F"})]
       (is (= "F" title))
       (is (not (str/includes? out ":fill-label"))))))
+
+(deftest tile-of-whole-numbers-is-ticked-at-whole-numbers-test
+  ;; The half-step that draws the outer tiles whole widened the extent
+  ;; the wholeness rule reads, so a grid at 1 and 2 was ticked 0.4, 0.6,
+  ;; ... 2.6. The half-step is padding for that rule.
+  (let [panel (-> (pj/lay-tile {:x [1 2 3 1 2 3] :y [1 1 1 2 2 2] :f [1 2 3 4 5 6]} :x :y {:fill :f})
+                  pj/plan :panels first)]
+    (is (= [1.0 2.0 3.0] (mapv double (-> panel :x-ticks :values))))
+    (is (= [1.0 2.0] (mapv double (-> panel :y-ticks :values))))
+    (is (= [0.35 3.65] (:x-domain panel)) "the domain still reaches the tile edges")))

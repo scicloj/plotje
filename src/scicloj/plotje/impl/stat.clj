@@ -395,8 +395,13 @@
             groups (group-by-columns clean (or group []) point-group)]
         (cond-> {:points groups :x-domain x-dom :y-domain y-dom}
           numeric-bar? (assoc :bar-width w)
-          tile-half-x (assoc :tile-half-x tile-half-x)
-          tile-half-y (assoc :tile-half-y tile-half-y))))))
+          tile-half-x (assoc :tile-half-x tile-half-x
+                             ;; The extent before the half-step, which
+                             ;; is padding for the axis: `plan` judges
+                             ;; whole-number ticks on it.
+                             :x-data-extent (numeric-extent xs-col))
+          tile-half-y (assoc :tile-half-y tile-half-y
+                             :y-data-extent (numeric-extent ys-col)))))))
 
 ;; ---- compute-stat multimethod ----
 
