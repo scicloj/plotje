@@ -2360,6 +2360,20 @@
          (validate-column-only-aesthetics resolved d)
          (validate-unscaled-channel-options resolved opts)
          (-> resolved
+             ;; A rule or a band is drawn once, from written values, so a
+             ;; colour column has no row to colour it by. Kept, the
+             ;; column drew a legend of colours nothing used. Inherited
+             ;; from the pose it is meant for the other layers and is
+             ;; dropped here without a word; written on the rule itself
+             ;; it is marked for `plan`'s warning.
+             (as-> r (let [c (:color r)]
+                       (if (and (resolve/written-position-marks (:mark r))
+                                (resolve/column-ref? c)
+                                d (contains? (set (tc/column-names d)) c))
+                         (cond-> (dissoc r :color :color-type)
+                           (contains? layer-mapping :color)
+                           (assoc :undrawn-rule-color [(:layer-type layer) c]))
+                         r)))
              (assoc :data d
                     ;; The facet variant is the outer division and the
                     ;; place the inner one, so panels of one variant stay

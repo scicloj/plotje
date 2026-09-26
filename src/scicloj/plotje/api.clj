@@ -3784,7 +3784,9 @@
      are not written together, and it is a set of values where a
      `:domain` is an ordered pair.
    - `:x` and `:y` take `:breaks` (explicit tick locations; `[]`
-     draws the axis with no ticks, tick labels or grid lines),
+     draws the axis with no ticks, tick labels or grid lines, as
+     ggplot2's `breaks = NULL` does, while `nil` leaves the default
+     ticks),
      `:tick-labels` (custom tick text paired with `:breaks`),
      `:n-ticks` (about this many ticks) and `:tick-spacing` (about
      this much room in drawing units per tick). A numeric axis reads
@@ -3903,6 +3905,18 @@
     (when-not (or (nil? type-kw) (valid-types type-kw))
       (throw (ex-info
               (cond
+                ;; `:color` draws categories too; what it has no scale
+                ;; type for is reading numbers as categories, which a
+                ;; layer option does.
+                (and (= aesthetic :color) (= type-kw :categorical))
+                (str "A :color scale has no :categorical type; its types are "
+                     (vec (sort valid-types)) ". A column of categories is"
+                     " coloured as categories already. To colour each"
+                     " distinct number of a numeric column as a category of"
+                     " its own, write :color-type :categorical on the layer,"
+                     " for example (pj/lay-point data :x :y {:color :cyl"
+                     " :color-type :categorical}).")
+
                 (and cont-visual? (= type-kw :categorical))
                 (str "The aesthetic " aesthetic " is continuous and does not"
                      " support a :categorical scale. Supported: "

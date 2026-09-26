@@ -1034,7 +1034,18 @@
              removed
              (str "with non-finite values: " (str/join ", " parts)))))
         (if (pos? removed)
-          (assoc rv :data ds)
+          (cond-> (assoc rv :data ds)
+            ;; A tile's width is half the step between the places the
+            ;; data holds, so the places of the rows dropped here for a
+            ;; missing fill are kept for the stat to measure the step
+            ;; on; otherwise a missing cell widened its neighbours.
+            (= :tile (:mark rv))
+            (assoc :tile-places
+                   (let [orig (:data rv)
+                         col (fn [k] (let [c (get rv k)]
+                                       (when (and c (contains? (set (tc/column-names orig)) c))
+                                         (vec (remove nil? (orig c))))))]
+                     {:x (col :x) :y (col :y)})))
           rv)))))
 
 (defn- category-rank
@@ -2261,6 +2272,17 @@
             " A tile's cells are coloured from :fill, from a :color"
             " column, or, with neither, by the count of rows in each bin.")))))
 
+(defn- warn-undrawn-rule-color
+  "Warn, once per plot, about a colour column written on a rule or a
+   band, which is drawn once from written values; `pose` dropped the
+   column and marked the layer with `:undrawn-rule-color`."
+  [resolved-all]
+  (doseq [[lt col] (distinct (keep :undrawn-rule-color resolved-all))]
+    (println (str "Warning: lay-" (name (or lt :rule)) " was given the column "
+                  (pr-str col) " as :color, and it is not drawn: a rule or a band"
+                  " is drawn once, from written values, so :color takes a"
+                  " written colour such as \"red\"."))))
+
 (defn- warn-undrawn-density-color
   "Warn, once per plot, about a `:color` on a 2D density or a contour.
    The density is computed from all rows together, so the colour
@@ -3224,6 +3246,7 @@
          _ (warn-unread-channel-columns resolved-all)
          _ (warn-undrawn-tile-color resolved-all)
          _ (warn-undrawn-density-color resolved-all)
+         _ (warn-undrawn-rule-color resolved-all)
          _ (warn-conflicting-specs draft-layers)
          _ (validate-axis-spec-agreement resolved-all)
          resolved-all (settle-channel-specs resolved-all)

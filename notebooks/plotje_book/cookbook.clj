@@ -181,13 +181,15 @@
 ;; A segment written as values rather than read from columns draws one
 ;; arrow, and a text layer beside it writes the note. On a categorical
 ;; axis a number is a place counted from one, so `3` is the third
-;; category and `3.6` sits most of the way to the fourth.
+;; category and `3.6` sits most of the way to the fourth. The arrow
+;; starts at `3.45`, a little short of the note, so its line does not
+;; run into the text.
 
 (-> {:violation ["Meter" "Over time" "Parking" "Bus zone"]
      :tickets [462 181 92 30]}
     (pj/lay-bar :violation :tickets)
     (pj/coord :flip)
-    (pj/lay-segment {:x 3.6 :y 300 :x-end 3 :y-end 100 :arrow :end})
+    (pj/lay-segment {:x 3.45 :y 300 :x-end 3 :y-end 100 :arrow :end})
     (pj/lay-text {:x 3.6 :y 300 :text "Parking ends a tier"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

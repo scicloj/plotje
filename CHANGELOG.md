@@ -24,13 +24,25 @@ All notable changes to this project will be documented in this file. This change
 
 - **Cells of a composite pose -- `pj/arrange`, `pj/marginal`, a grid of pairs, a composite map -- that map the same column to `:color`, `:size`, `:alpha` or `:shape`** share one scale for it: the categories of all the cells, or the range of all their values. A category is the same colour or symbol, and a value the same shade or size, in every cell, and the one legend lists every category. A cell that writes its own scale for the aesthetic keeps it, and each cell then draws its own legend.
 
+- **A gradient written as `{:low … :high …}`** runs straight from one colour to the other. A `:mid` is drawn only where it is written, as a third stop.
+
+- **A tile next to a missing value** keeps its width: the step between tiles is measured on every row that has a place, so the missing cell is left as a gap rather than closed by its neighbours.
+
+- **Arrow heads and triangle markers** are drawn with smooth edges, and a gradient legend bar has no seams between its colours.
+
 ### Added
 
-- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on the `:end`, the `:start` or `:both`. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
+- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on the `:end`, the `:start` or `:both`, and `:dx`/`:dy` move the whole segment. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
 
 - `:y-tick-angle` rotates the y-axis tick labels, as `:x-tick-angle` does for x. At 90 or -90 each label runs along the axis, centred on its tick. Asked for in [#51](https://github.com/scicloj/plotje/issues/51) - thanks, @behrica
 
+- `:band-color` sets the colour a band draws in where its layer names none, beside `:rule-color` and `:band-opacity`.
+
 ### Fixed
+
+- A `:color` column on a rule or a band is not drawn and adds nothing to the legend; written on the rule or band itself, it warns.
+
+- A gradient legend for a column holding one value labels that value once.
 
 - `pj/lay-tile` with `:group`, or with a `:color` column beside `:fill`, paints each cell from its own row's value.
 

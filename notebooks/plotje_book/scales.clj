@@ -390,7 +390,7 @@ gapminder-2007
     (ex-message e)))
 
 (kind/test-last
- [(fn [m] (re-find #"does not support a :categorical scale" m))])
+ [(fn [m] (re-find #"has no :categorical type; its types are \[:linear :log\]" m))])
 
 ;; That refusal is about the scale type, not about the column: a
 ;; categorical column mapped to `:color` is drawn from a palette
@@ -606,7 +606,9 @@ gapminder-2007
               (->> fr pj/plan :panels first :y-ticks :values (mapv double))))])
 
 ;; An empty `:breaks` draws the axis with no ticks, no tick labels and
-;; no grid lines, and keeps its title -- ggplot2's `breaks = NULL`:
+;; no grid lines, and keeps its title -- ggplot2's `breaks = NULL`.
+;; `{:breaks nil}` is not the same: `nil` means the setting was not
+;; given, as it does across Clojure, so the default ticks are drawn:
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)
@@ -615,7 +617,10 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (let [plan (pj/plan fr)]
              (and (empty? (-> plan :panels first :y-ticks :values))
-                  (contains? (set (:texts (pj/svg-summary fr))) "life exp"))))])
+                  (contains? (set (:texts (pj/svg-summary fr))) "life exp")
+                  ;; `nil` in place of `[]`: the default ticks.
+                  (seq (-> fr (pj/scale :y {:breaks nil}) pj/plan
+                           :panels first :y-ticks :values)))))])
 
 ;; `:tick-labels` pairs custom text with those breaks, one label each. It is
 ;; how an axis that is numerically indexed gets worded labels -- days
@@ -1260,8 +1265,24 @@ gapminder-2007
  [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
              (-> v pj/plan :legend :color-range)))])
 
-;; The same gradient written as a function, opaque throughout and
-;; running blue to red:
+;; Left without `:mid`, the map runs straight from one end to the
+;; other, with no middle colour of its own -- here from blue to red,
+;; through purple:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :petal-length})
+    (pj/scale :color {:range {:low "blue" :high "red"}}))
+
+(kind/test-last
+ [(fn [v]
+    (let [stops (-> v pj/plan :legend :stops)
+          [r g b] (:color (nth stops (quot (count stops) 2)))]
+      ;; The middle of the bar is a mix of the two ends -- red and
+      ;; blue, and next to no green -- rather than a grey stop.
+      (and (< g 0.2) (> r 0.2) (> b 0.2))))])
+
+;; The same two-stop gradient written as a function, opaque throughout
+;; and running blue to red:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :petal-length})

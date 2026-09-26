@@ -382,7 +382,7 @@
 (register! :text {:mark :text :stat :identity :accepts [:text :font-size :font-weight :font-style :box :dx :dy :align-x :align-y] :doc "Text -- data-driven labels, optionally on a background box."})
 (register! :label {:mark :text :stat :identity :defaults {:box true} :accepts [:text :font-size :font-weight :font-style :box :dx :dy :align-x :align-y] :doc "Label -- text on a background box. The :text mark with :box preset on."})
 (register! :rug {:mark :rug :stat :identity :x-only true :accepts [:side :length] :doc "Rug -- axis-margin tick marks."})
-(register! :segment {:mark :segment :stat :identity :accepts [:x-end :y-end :arrow :size :stroke-dash]
+(register! :segment {:mark :segment :stat :identity :accepts [:x-end :y-end :arrow :size :stroke-dash :dx :dy]
                      ;; One straight line per row; there is no band to
                      ;; divide between rows, so no adjustment applies.
                      :rejects [:position]

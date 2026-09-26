@@ -165,6 +165,7 @@
    three group shapes:
      - polyline groups with :xs/:ys (and optional :ymins/:ymaxs)
      - line-segment groups with :x1/:y1/:x2/:y2 (from :lm regression)
+     - segment groups with :x-ends/:y-ends beside :xs/:ys
      - any group with any subset of the above
 
    Previously, `:lm` and `:loess` listed the shift in their `:accepts`
@@ -195,6 +196,9 @@
                 (mapv (fn [g]
                         (cond-> g
                           (and nx (:xs g))    (update :xs dfn/+ nx)
+                          ;; A segment moves whole: its ends with its starts.
+                          (and nx (:x-ends g)) (update :x-ends dfn/+ nx)
+                          (and ny (:y-ends g)) (update :y-ends dfn/+ ny)
                           (and ny (:ys g))    (update :ys dfn/+ ny)
                           (and ny (:ymins g)) (update :ymins dfn/+ ny)
                           (and ny (:ymaxs g)) (update :ymaxs dfn/+ ny)
@@ -1155,14 +1159,15 @@
                     row-indices (assoc :row-indices row-indices)
                     (some? color) (assoc :label (defaults/fmt-category-label color))
                     colors (assoc :colors colors))))]
-    {:mark :segment
-     ;; Thinner than a line by default: a stem plot draws one segment
-     ;; per row, often a hundred or more side by side.
-     :style (cond-> {:stroke-width (or (:fixed-size draft-layer) 1.0)
-                     :opacity (or (:fixed-alpha draft-layer) 1.0)
-                     :arrow (segment-arrow (:arrow draft-layer))}
-              dash (assoc :dash dash))
-     :groups groups}))
+    (-> {:mark :segment
+         ;; Thinner than a line by default: a stem plot draws one segment
+         ;; per row, often a hundred or more side by side.
+         :style (cond-> {:stroke-width (or (:fixed-size draft-layer) 1.0)
+                         :opacity (or (:fixed-alpha draft-layer) 1.0)
+                         :arrow (segment-arrow (:arrow draft-layer))}
+                  dash (assoc :dash dash))
+         :groups groups}
+        (apply-shift draft-layer))))
 
 ;; ---- Rules and bands ----
 ;;
@@ -1203,12 +1208,6 @@
   [draft-layer cfg]
   {:opacity (or (:fixed-alpha draft-layer) (:band-opacity cfg))})
 
-(def ^:private band-fill
-  "What a band fills with where its layer names no color. Mid grey,
-   which is what a shaded region has always been drawn in -- the
-   `:rule-color` default belongs to the lines."
-  [0.5 0.5 0.5 1.0])
-
 (defmethod extract-layer :rule-h [draft-layer _stat _all-colors cfg]
   {:mark :rule-h
    :style (rule-style draft-layer)
@@ -1224,14 +1223,18 @@
 (defmethod extract-layer :band-h [draft-layer _stat _all-colors cfg]
   {:mark :band-h
    :style (band-style draft-layer cfg)
-   :color (written-color draft-layer band-fill)
+   ;; `:band-color`, mid grey by default -- the `:rule-color` default
+   ;; belongs to the lines.
+   :color (written-color draft-layer (defaults/hex->rgba (:band-color cfg)))
    :y-min (:y-min draft-layer)
    :y-max (:y-max draft-layer)})
 
 (defmethod extract-layer :band-v [draft-layer _stat _all-colors cfg]
   {:mark :band-v
    :style (band-style draft-layer cfg)
-   :color (written-color draft-layer band-fill)
+   ;; `:band-color`, mid grey by default -- the `:rule-color` default
+   ;; belongs to the lines.
+   :color (written-color draft-layer (defaults/hex->rgba (:band-color cfg)))
    :x-min (:x-min draft-layer)
    :x-max (:x-max draft-layer)})
 

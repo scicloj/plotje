@@ -295,6 +295,22 @@ sales-by-region
                  (contains? texts "x value")
                  (contains? texts "y value"))))])
 
+;; The axis titles name the two invented columns. Titles of your own
+;; are written with `:x-label` and `:y-label`:
+
+(-> {:time-a    [0 1 2 3]
+     :time-b    [0.5 1.5 2.5 3.5]
+     :reading-a [2 3 5 4]
+     :reading-b [1 2 2 3]}
+    (pj/lay-line [:time-a :time-b] [:reading-a :reading-b])
+    (pj/options {:x-label "Time (s)" :y-label "Reading"}))
+
+(kind/test-last
+ [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
+            (and (contains? texts "Time (s)")
+                 (contains? texts "Reading")
+                 (not (contains? texts "x value")))))])
+
 ;; The same pairs can be written in the pose's mapping, as
 ;; `{:x [...] :y [...]}`, and there `:as` names the key column -- here
 ;; `:sensor`, which titles the legend:

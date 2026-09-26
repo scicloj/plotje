@@ -80,10 +80,14 @@
                       ;; tile the bar with no gap and no overhang.
                       cell-h (/ (double bar-h) n-stops)
                       ry (+ y (* (- 1.0 t) (- bar-h cell-h)))]]
-            (ui/translate x ry
-                          (ui/with-color [cr cg cb 1.0]
-                            (ui/with-style ::ui/style-fill
-                              (ui/rectangle bar-w cell-h)))))
+            ;; Each cell but the top one reaches half a unit up into the
+            ;; cell above, as in the horizontal bar, so no seam shows
+            ;; and nothing reaches past the bar's ends.
+            (let [over (if (< (double t) 1.0) 0.5 0.0)]
+              (ui/translate x (- ry over)
+                            (ui/with-color [cr cg cb 1.0]
+                              (ui/with-style ::ui/style-fill
+                                (ui/rectangle bar-w (+ cell-h over)))))))
           (if (seq ticks)
             ;; Each tick at its place on the bar, labelled as the plan
             ;; formatted it -- by the same rules as the axis.
@@ -93,14 +97,20 @@
                                    (ui/with-color title-color
                                      (ui/label label (ui/font nil 10))))))
                  ticks)
-            ;; Too few ticks inside the bar: the two ends.
+            ;; Too few ticks inside the bar: the two ends -- or, for a
+            ;; column holding one value, that value once, at the middle
+            ;; of a bar drawn in its one colour.
             (let [[lo-label hi-label] (scale/format-range-endpoints min max seps)]
-              [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
-                             (ui/with-color title-color
-                               (ui/label lo-label (ui/font nil 10))))
-               (ui/translate (+ x bar-w 4) (+ y 6)
-                             (ui/with-color title-color
-                               (ui/label hi-label (ui/font nil 10))))])))))
+              (if (== (double min) (double max))
+                [(ui/translate (+ x bar-w 4) (+ y (/ bar-h 2.0) -6)
+                               (ui/with-color title-color
+                                 (ui/label lo-label (ui/font nil 10))))]
+                [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
+                               (ui/with-color title-color
+                                 (ui/label lo-label (ui/font nil 10))))
+                 (ui/translate (+ x bar-w 4) (+ y 6)
+                               (ui/with-color title-color
+                                 (ui/label hi-label (ui/font nil 10))))]))))))
       ;; Categorical legend: a colored key beside each label
       (let [{:keys [entries]} legend]
         (vec
@@ -157,11 +167,18 @@
         (ui/translate (+ bar-x (* (double t) (- bar-w (/ bar-w n-stops)))) y
                       (ui/with-color [cr cg cb 1.0]
                         (ui/with-style ::ui/style-fill
-                          (ui/rectangle (/ (double bar-w) n-stops) bar-h)))))
+                          ;; Each cell but the last reaches half a unit
+                          ;; into the next: cells at fractional places
+                          ;; left an anti-aliased seam between them.
+                          (ui/rectangle (+ (/ (double bar-w) n-stops)
+                                           (if (< (double t) 1.0) 0.5 0.0))
+                                        bar-h)))))
       (if (seq ticks)
         (map (fn [{:keys [t label]}] (label-at t label)) ticks)
         (let [[lo-label hi-label] (scale/format-range-endpoints min max seps)]
-          [(label-at 0.0 lo-label) (label-at 1.0 hi-label)]))))))
+          (if (== (double min) (double max))
+            [(label-at 0.5 lo-label)]
+            [(label-at 0.0 lo-label) (label-at 1.0 hi-label)])))))))
 
 (defn- render-legend-horizontal
   "Render a horizontal legend (for :top or :bottom positioning).

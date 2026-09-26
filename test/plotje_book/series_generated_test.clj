@@ -345,7 +345,32 @@
 
 
 (def
- v57_l302
+ v57_l301
+ (->
+  {:time-a [0 1 2 3],
+   :time-b [0.5 1.5 2.5 3.5],
+   :reading-a [2 3 5 4],
+   :reading-b [1 2 2 3]}
+  (pj/lay-line [:time-a :time-b] [:reading-a :reading-b])
+  (pj/options {:x-label "Time (s)", :y-label "Reading"})))
+
+
+(deftest
+ t58_l308
+ (is
+  ((fn
+    [v]
+    (let
+     [texts (set (:texts (pj/svg-summary v)))]
+     (and
+      (contains? texts "Time (s)")
+      (contains? texts "Reading")
+      (not (contains? texts "x value")))))
+   v57_l301)))
+
+
+(def
+ v60_l318
  (->
   {:time-a [0 1 2 3],
    :time-b [0.5 1.5 2.5 3.5],
@@ -358,7 +383,7 @@
 
 
 (deftest
- t58_l310
+ t61_l326
  (is
   ((fn
     [v]
@@ -369,11 +394,11 @@
       (= 2 (:lines s))
       (contains? texts "sensor")
       (contains? texts "time a / reading a"))))
-   v57_l302)))
+   v60_l318)))
 
 
 (def
- v60_l321
+ v63_l337
  (try
   (->
    {:time-a [0 1], :time-b [2 3], :reading-a [1 2], :reading-b [3 4]}
@@ -382,12 +407,12 @@
 
 
 (deftest
- t61_l327
- (is ((fn [msg] (re-find #"as many columns each" msg)) v60_l321)))
+ t64_l343
+ (is ((fn [msg] (re-find #"as many columns each" msg)) v63_l337)))
 
 
 (def
- v63_l335
+ v66_l351
  (try
   (->
    sales
@@ -397,142 +422,142 @@
 
 
 (deftest
- t64_l342
+ t67_l358
  (is
   ((fn
     [msg]
     (and
      (re-find #"the data already has a :value column" msg)
      (re-find #"the data has as well" msg)))
-   v63_l335)))
+   v66_l351)))
 
 
 (def
- v66_l351
+ v69_l367
  (pj/arrange
   [(-> sales (pj/lay-bar :quarter [:revenue :cost] {:position :dodge}))
    (-> sales (pj/lay-line :quarter [:tax :units]))]))
 
 
 (deftest
- t67_l357
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v66_l351)))
-
-
-(def v69_l370 (-> sales (pj/lay-line :quarter [:revenue :cost :tax])))
-
-
-(deftest
  t70_l373
- (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v69_l370)))
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v69_l367)))
 
 
-(def v71_l375 (-> sales (pj/lay-point :quarter [:revenue :cost :tax])))
+(def v72_l386 (-> sales (pj/lay-line :quarter [:revenue :cost :tax])))
 
 
 (deftest
- t72_l378
- (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v71_l375)))
+ t73_l389
+ (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v72_l386)))
+
+
+(def v74_l391 (-> sales (pj/lay-point :quarter [:revenue :cost :tax])))
+
+
+(deftest
+ t75_l394
+ (is ((fn [v] (pos? (:points (pj/svg-summary v)))) v74_l391)))
 
 
 (def
- v74_l382
+ v77_l398
  (->
   sales
   (pj/lay-area :quarter [:revenue :cost :tax] {:position :stack})))
 
 
 (deftest
- t75_l385
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v74_l382)))
+ t78_l401
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v77_l398)))
 
 
-(def v76_l387 (-> sales (pj/lay-step :quarter [:revenue :cost])))
+(def v79_l403 (-> sales (pj/lay-step :quarter [:revenue :cost])))
 
 
 (deftest
- t77_l390
- (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v76_l387)))
+ t80_l406
+ (is ((fn [v] (pos? (:lines (pj/svg-summary v)))) v79_l403)))
 
 
 (def
- v79_l395
+ v82_l411
  (->
   sales
   (pj/lay-area :quarter [:revenue :cost :tax] {:position :fill})))
 
 
 (deftest
- t80_l398
+ t83_l414
  (is
   ((fn
     [v]
     (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :y-domain))))
-   v79_l395)))
+   v82_l411)))
 
 
-(def v82_l406 (-> sales (pj/lay-lollipop :quarter [:revenue :cost])))
+(def v85_l422 (-> sales (pj/lay-lollipop :quarter [:revenue :cost])))
 
 
 (deftest
- t83_l409
+ t86_l425
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 8 (:points s)) (= 8 (:lines s)))))
-   v82_l406)))
+   v85_l422)))
 
 
 (def
- v85_l419
+ v88_l435
  (try
   (pj/plot (-> sales (pj/lay-smooth :quarter [:revenue :cost])))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t86_l424
- (is ((fn [msg] (re-find #"requires a numeric column" msg)) v85_l419)))
+ t89_l440
+ (is ((fn [msg] (re-find #"requires a numeric column" msg)) v88_l435)))
 
 
 (def
- v88_l434
+ v91_l450
  (-> sales-by-region (pj/lay-summary :quarter [:revenue :cost])))
 
 
 (deftest
- t89_l437
+ t92_l453
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 8 (:points s)) (= 8 (:lines s)))))
-   v88_l434)))
+   v91_l450)))
 
 
 (def
- v91_l449
+ v94_l465
  (->
   (rdatasets/ggplot2-economics)
   (pj/lay-line :date {:series [:pop :unemploy], :scale {:type :log}})))
 
 
 (deftest
- t92_l452
+ t95_l468
  (is
   ((fn
     [v]
     (and
      (= 2 (:lines (pj/svg-summary v)))
      (= :log (-> v pj/plan :panels first :y-scale :type))))
-   v91_l449)))
+   v94_l465)))
 
 
 (def
- v94_l460
+ v97_l476
  (->
   (rdatasets/ggplot2-economics)
   (pj/lay-smooth
@@ -541,12 +566,12 @@
 
 
 (deftest
- t95_l463
- (is ((fn [v] (= 2 (:lines (pj/svg-summary v)))) v94_l460)))
+ t98_l479
+ (is ((fn [v] (= 2 (:lines (pj/svg-summary v)))) v97_l476)))
 
 
 (def
- v97_l469
+ v100_l485
  (->
   sales
   (pj/lay-point
@@ -555,14 +580,14 @@
 
 
 (deftest
- t98_l473
+ t101_l489
  (is
   ((fn [v] (= :log (-> v pj/plan :panels first :y-scale :type)))
-   v97_l469)))
+   v100_l485)))
 
 
 (def
- v100_l479
+ v103_l495
  (->
   sales
   (pj/lay-point :quarter [:revenue :cost :tax])
@@ -570,7 +595,7 @@
 
 
 (deftest
- t101_l483
+ t104_l499
  (is
   ((fn
     [v]
@@ -582,11 +607,11 @@
        (pj/lay-point
         :quarter
         {:series [:revenue :cost :tax], :scale {:type :log}})))))
-   v100_l479)))
+   v103_l495)))
 
 
 (def
- v103_l492
+ v106_l508
  (->
   sales
   (pj/lay-point :quarter [:revenue :cost])
@@ -594,14 +619,14 @@
 
 
 (deftest
- t104_l496
+ t107_l512
  (is
   ((fn [v] (= [0 250] (-> v pj/plan :panels first :y-domain vec)))
-   v103_l492)))
+   v106_l508)))
 
 
 (def
- v106_l501
+ v109_l517
  (->
   sales
   (pj/lay-line :quarter [:revenue :cost :tax])
@@ -609,18 +634,18 @@
 
 
 (deftest
- t107_l505
+ t110_l521
  (is
   ((fn
     [v]
     (=
      #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
      (disj (:colors (pj/svg-summary v)) "none")))
-   v106_l501)))
+   v109_l517)))
 
 
 (def
- v109_l512
+ v112_l528
  (->
   sales-by-region
   (pj/lay-line :quarter [:revenue :cost :tax])
@@ -629,7 +654,7 @@
 
 
 (deftest
- t110_l517
+ t113_l533
  (is
   ((fn
     [v]
@@ -641,18 +666,18 @@
       (=
        #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
        (disj (:colors s) "none")))))
-   v109_l512)))
+   v112_l528)))
 
 
 (def
- v112_l532
+ v115_l548
  (->
   sales
   (pj/lay-bar :quarter [:tax :revenue :cost] {:position :stack})))
 
 
 (deftest
- t113_l535
+ t116_l551
  (is
   ((fn
     [v]
@@ -681,11 +706,11 @@
          :quarter
          [:revenue :cost :tax]
          {:position :dodge}))))))
-   v112_l532)))
+   v115_l548)))
 
 
 (def
- v115_l552
+ v118_l568
  (->
   sales
   (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
@@ -693,34 +718,34 @@
 
 
 (deftest
- t116_l556
+ t119_l572
  (is
   ((fn
     [v]
     (=
      ["tax" "revenue" "cost"]
      (mapv :label (-> v pj/plan :panels first :layers first :groups))))
-   v115_l552)))
+   v118_l568)))
 
 
 (def
- v118_l573
+ v121_l589
  (->
   {"country" ["a" "b" "c"], "2019" [10 20 30], "2020" [12 25 28]}
   (pj/lay-line "country" ["2019" "2020"])))
 
 
 (deftest
- t119_l578
+ t122_l594
  (is
   ((fn
     [v]
     (= ["2019" "2020"] (mapv :label (:entries (:legend (pj/plan v))))))
-   v118_l573)))
+   v121_l589)))
 
 
 (def
- v121_l585
+ v124_l601
  (->
   {"country" ["a" "b" "c"], "2019" [10 20 30], "2020" [12 25 28]}
   (pj/lay-line "country" ["2019" "2020"])
@@ -730,26 +755,26 @@
 
 
 (deftest
- t122_l593
+ t125_l609
  (is
   ((fn [m] (= {:color :series, :color-type :categorical} m))
-   v121_l585)))
+   v124_l601)))
 
 
 (def
- v124_l608
+ v127_l624
  (->
   {:quarter ["Q1" "Q2"], :revenue [120 nil], :cost [90 100]}
   (pj/lay-point :quarter [:revenue :cost])))
 
 
 (deftest
- t125_l613
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v124_l608)))
+ t128_l629
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v127_l624)))
 
 
 (def
- v127_l617
+ v130_l633
  (with-out-str
   (pj/plan
    (->
@@ -758,18 +783,18 @@
 
 
 (deftest
- t128_l623
+ t131_l639
  (is
   ((fn
     [s]
     (re-find
      #"Removed 1 rows with a missing value among the columns read as series \(:revenue, :cost\)"
      s))
-   v127_l617)))
+   v130_l633)))
 
 
 (def
- v130_l632
+ v133_l648
  (with-out-str
   (pj/plan
    (->
@@ -780,12 +805,12 @@
 
 
 (deftest
- t131_l638
- (is ((fn [s] (re-find #"Removed 1 rows" s)) v130_l632)))
+ t134_l654
+ (is ((fn [s] (re-find #"Removed 1 rows" s)) v133_l648)))
 
 
 (def
- v133_l649
+ v136_l665
  (->
   sales
   (pj/lay-line :quarter [:revenue :cost :tax])
@@ -793,7 +818,7 @@
 
 
 (deftest
- t134_l653
+ t137_l669
  (is
   ((fn
     [v]
@@ -806,11 +831,11 @@
         (map
          (fn [panel] (mapv double (:y-domain panel)))
          (:panels (pj/plan v))))))))
-   v133_l649)))
+   v136_l665)))
 
 
 (def
- v136_l661
+ v139_l677
  (->
   sales
   (pj/lay-line :quarter {:series [:revenue :cost :tax], :as :measure})
@@ -818,57 +843,57 @@
 
 
 (deftest
- t137_l665
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v136_l661)))
+ t140_l681
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v139_l677)))
 
 
 (def
- v139_l674
+ v142_l690
  (-> sales-by-region (pj/lay-boxplot :series [:revenue :cost :tax])))
 
 
 (deftest
- t140_l677
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v139_l674)))
+ t143_l693
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v142_l690)))
 
 
 (def
- v142_l681
+ v145_l697
  (-> sales-by-region (pj/lay-violin :series [:revenue :cost :tax])))
 
 
 (deftest
- t143_l684
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v142_l681)))
+ t146_l700
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v145_l697)))
 
 
 (def
- v145_l692
+ v148_l708
  (->
   sales
   (pj/lay-point :quarter [:revenue :cost :tax] {:shape :series})))
 
 
 (deftest
- t146_l695
+ t149_l711
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 8 (:points s)) (= 4 (:polygons s)))))
-   v145_l692)))
+   v148_l708)))
 
 
 (def
- v148_l706
+ v151_l722
  (->
   sales
   (pj/lay-point :quarter [:revenue :cost :tax] {:tooltip :series})))
 
 
 (deftest
- t149_l709
+ t152_l725
  (is
   ((fn
     [v]
@@ -879,11 +904,11 @@
       (mapv
        (fn [group] (vec (distinct (:tooltips group))))
        (-> v pj/plan :panels first :layers first :groups)))))
-   v148_l706)))
+   v151_l722)))
 
 
 (def
- v151_l718
+ v154_l734
  (try
   (pj/plot
    (->
@@ -893,7 +918,7 @@
 
 
 (deftest
- t152_l725
+ t155_l741
  (is
   ((fn
     [msg]
@@ -912,30 +937,30 @@
            {:alpha :series})))
         "")
        (catch clojure.lang.ExceptionInfo e (ex-message e))))))
-   v151_l718)))
+   v154_l734)))
 
 
 (def
- v154_l747
+ v157_l763
  (->
   sales-by-region
   (pj/lay-line :quarter [:revenue :cost] {:group :region})))
 
 
 (deftest
- t155_l750
- (is ((fn [v] (= 4 (:lines (pj/svg-summary v)))) v154_l747)))
+ t158_l766
+ (is ((fn [v] (= 4 (:lines (pj/svg-summary v)))) v157_l763)))
 
 
 (def
- v157_l758
+ v160_l774
  (->
   sales-by-region
   (pj/lay-bar :quarter [:revenue :cost] {:group :region})))
 
 
 (deftest
- t158_l761
+ t161_l777
  (is
   ((fn
     [v]
@@ -945,18 +970,18 @@
       (= 4 (count groups))
       (= 4 (count (distinct (map :dodge-idx groups))))
       (= 2 (count (distinct (map :color groups)))))))
-   v157_l758)))
+   v160_l774)))
 
 
 (def
- v160_l779
+ v163_l795
  (->
   sales-by-region
   (pj/lay-line :quarter [:revenue :cost] {:color :region})))
 
 
 (deftest
- t161_l782
+ t164_l798
  (is
   ((fn
     [v]
@@ -968,25 +993,6 @@
       (contains? (:colors s) "rgb(228,26,28)")
       (contains? (:colors s) "rgb(55,126,184)")
       (contains? (set (:texts s)) "region"))))
-   v160_l779)))
-
-
-(def
- v163_l795
- (->
-  sales-by-region
-  (pj/lay-line :quarter [:revenue :cost] {:color :region})
-  (pj/facet :outlet)))
-
-
-(deftest
- t164_l799
- (is
-  ((fn
-    [v]
-    (let
-     [s (pj/svg-summary v)]
-     (and (= 2 (:panels s)) (= 8 (:lines s)))))
    v163_l795)))
 
 
@@ -994,8 +1000,8 @@
  v166_l811
  (->
   sales-by-region
-  (pj/pose {:color :region})
-  (pj/lay-line :quarter [:revenue :cost])))
+  (pj/lay-line :quarter [:revenue :cost] {:color :region})
+  (pj/facet :outlet)))
 
 
 (deftest
@@ -1003,15 +1009,34 @@
  (is
   ((fn
     [v]
-    (=
-     (pj/plot v)
-     (pj/plot
-      (-> sales-by-region (pj/lay-line :quarter [:revenue :cost])))))
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 2 (:panels s)) (= 8 (:lines s)))))
    v166_l811)))
 
 
 (def
- v169_l824
+ v169_l827
+ (->
+  sales-by-region
+  (pj/pose {:color :region})
+  (pj/lay-line :quarter [:revenue :cost])))
+
+
+(deftest
+ t170_l831
+ (is
+  ((fn
+    [v]
+    (=
+     (pj/plot v)
+     (pj/plot
+      (-> sales-by-region (pj/lay-line :quarter [:revenue :cost])))))
+   v169_l827)))
+
+
+(def
+ v172_l840
  (->
   sales
   (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
@@ -1019,12 +1044,12 @@
 
 
 (deftest
- t170_l828
- (is ((fn [v] (= 1 (:panels (pj/svg-summary v)))) v169_l824)))
+ t173_l844
+ (is ((fn [v] (= 1 (:panels (pj/svg-summary v)))) v172_l840)))
 
 
 (def
- v172_l832
+ v175_l848
  (->
   sales-by-region
   (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
@@ -1032,12 +1057,12 @@
 
 
 (deftest
- t173_l836
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v172_l832)))
+ t176_l852
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v175_l848)))
 
 
 (def
- v174_l838
+ v177_l854
  (->
   sales-by-region
   (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
@@ -1045,12 +1070,12 @@
 
 
 (deftest
- t175_l842
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v174_l838)))
+ t178_l858
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v177_l854)))
 
 
 (def
- v177_l851
+ v180_l867
  (->
   sales-by-region
   (pj/lay-line :quarter [:revenue :cost :tax])
@@ -1059,7 +1084,7 @@
 
 
 (deftest
- t178_l856
+ t181_l872
  (is
   ((fn
     [v]
@@ -1073,11 +1098,11 @@
          vector
          (sales-by-region :region)
          (sales-by-region :outlet)))))))
-   v177_l851)))
+   v180_l867)))
 
 
 (def
- v180_l867
+ v183_l883
  (->
   sales-by-region
   (pj/lay-bar :quarter [:revenue :cost] {:position :dodge})
@@ -1086,12 +1111,12 @@
 
 
 (deftest
- t181_l872
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v180_l867)))
+ t184_l888
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v183_l883)))
 
 
 (def
- v183_l879
+ v186_l895
  (->
   sales
   (pj/lay-bar :quarter [:revenue :cost :tax] {:position :fill})
@@ -1099,16 +1124,16 @@
 
 
 (deftest
- t184_l883
+ t187_l899
  (is
   ((fn
     [v]
     (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :x-domain))))
-   v183_l879)))
+   v186_l895)))
 
 
 (def
- v186_l892
+ v189_l908
  (->
   sales-by-region
   (pj/lay-point
@@ -1119,7 +1144,7 @@
 
 
 (deftest
- t187_l899
+ t190_l915
  (is
   ((fn
     [v]
@@ -1131,11 +1156,11 @@
       (contains? (set (:texts s)) "measure")
       (contains? (set (:texts s)) "Euros")
       (= :log (-> v pj/plan :panels first :y-scale :type)))))
-   v186_l892)))
+   v189_l908)))
 
 
 (def
- v189_l917
+ v192_l933
  (->
   sales
   (pj/lay-line :quarter [:revenue :cost :tax])
@@ -1143,23 +1168,23 @@
 
 
 (deftest
- t190_l921
+ t193_l937
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:points s)) (pos? (:lines s)))))
-   v189_l917)))
+   v192_l933)))
 
 
 (def
- v192_l930
+ v195_l946
  (-> sales (pj/lay-line :quarter [:revenue :cost :tax]) (pj/lay-point)))
 
 
 (deftest
- t193_l934
+ t196_l950
  (is
   ((fn
     [v]
@@ -1173,11 +1198,11 @@
       (= 3 (:lines s))
       (= :point (:mark points))
       (= 1 (count (:groups points))))))
-   v192_l930)))
+   v195_l946)))
 
 
 (def
- v195_l948
+ v198_l964
  (->
   sales
   (pj/lay-bar :quarter [:revenue :cost] {:position :stack})
@@ -1185,12 +1210,12 @@
 
 
 (deftest
- t196_l952
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v195_l948)))
+ t199_l968
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v198_l964)))
 
 
 (def
- v197_l954
+ v200_l970
  (->
   sales
   (pj/lay-bar :quarter [:revenue :cost] {:position :stack})
@@ -1199,12 +1224,12 @@
 
 
 (deftest
- t198_l959
- (is ((fn [v] (= 1 (:panels (pj/svg-summary v)))) v197_l954)))
+ t201_l975
+ (is ((fn [v] (= 1 (:panels (pj/svg-summary v)))) v200_l970)))
 
 
 (def
- v200_l967
+ v203_l983
  (with-out-str
   (pj/plot
    (->
@@ -1214,7 +1239,7 @@
 
 
 (deftest
- t201_l972
+ t204_l988
  (is
   ((fn
     [out]
@@ -1222,11 +1247,11 @@
      (re-find #"panel of its own" out)
      (re-find #"pj/overlay" out)
      (not (re-find #"as series" out))))
-   v200_l967)))
+   v203_l983)))
 
 
 (def
- v203_l981
+ v206_l997
  (->
   sales-by-region
   (pj/lay-bar :quarter [:revenue :cost] {:position :dodge})
@@ -1235,18 +1260,18 @@
 
 
 (deftest
- t204_l986
+ t207_l1002
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 2 (:lines s)))))
-   v203_l981)))
+   v206_l997)))
 
 
 (def
- v206_l999
+ v209_l1015
  (pj/arrange
   [(->
     sales
@@ -1255,12 +1280,12 @@
 
 
 (deftest
- t207_l1005
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v206_l999)))
+ t210_l1021
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v209_l1015)))
 
 
 (def
- v209_l1010
+ v212_l1026
  (pj/arrange
   [(pj/arrange
     [(->
@@ -1274,12 +1299,12 @@
 
 
 (deftest
- t210_l1020
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v209_l1010)))
+ t213_l1036
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v212_l1026)))
 
 
 (def
- v212_l1024
+ v215_l1040
  (pj/arrange
   [(->
     sales-by-region
@@ -1292,12 +1317,12 @@
 
 
 (deftest
- t213_l1032
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v212_l1024)))
+ t216_l1048
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v215_l1040)))
 
 
 (def
- v215_l1036
+ v218_l1052
  (pj/arrange
   (vec
    (for
@@ -1311,12 +1336,12 @@
 
 
 (deftest
- t216_l1045
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v215_l1036)))
+ t219_l1061
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v218_l1052)))
 
 
 (def
- v218_l1049
+ v221_l1065
  (pj/pose
   {:layout {:direction :vertical, :weights [2 1]},
    :poses
@@ -1327,12 +1352,12 @@
 
 
 (deftest
- t219_l1056
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v218_l1049)))
+ t222_l1072
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v221_l1065)))
 
 
 (def
- v221_l1060
+ v224_l1076
  (pj/arrange
   [(pj/arrange
     [(->
@@ -1350,12 +1375,12 @@
 
 
 (deftest
- t222_l1075
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v221_l1060)))
+ t225_l1091
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v224_l1076)))
 
 
 (def
- v224_l1079
+ v227_l1095
  (pj/arrange
   (vec
    (for
@@ -1368,12 +1393,12 @@
 
 
 (deftest
- t225_l1086
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v224_l1079)))
+ t228_l1102
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v227_l1095)))
 
 
 (def
- v227_l1095
+ v230_l1111
  (try
   (->
    sales
@@ -1383,18 +1408,18 @@
 
 
 (deftest
- t228_l1102
+ t231_l1118
  (is
   ((fn
     [msg]
     (and
      (re-find #"composite pose" msg)
      (re-find #"before arranging" msg)))
-   v227_l1095)))
+   v230_l1111)))
 
 
 (def
- v230_l1118
+ v233_l1134
  (kind/table
   {:column-names ["written" "what it reports"],
    :row-vectors
@@ -1452,7 +1477,7 @@
 
 
 (deftest
- t232_l1149
+ t235_l1165
  (is
   ((fn
     [t]
@@ -1495,11 +1520,11 @@
         (->
          sales-by-region
          (pj/lay-bar :quarter [:revenue :outlet])))])))
-   v230_l1118)))
+   v233_l1134)))
 
 
 (def
- v234_l1171
+ v237_l1187
  (->
   sales
   (pj/pose [[:quarter :revenue] [:quarter :cost]])
@@ -1507,41 +1532,41 @@
 
 
 (deftest
- t235_l1175
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v234_l1171)))
+ t238_l1191
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v237_l1187)))
 
 
-(def v237_l1181 (-> sales (pj/lay-histogram [:revenue :cost])))
+(def v240_l1197 (-> sales (pj/lay-histogram [:revenue :cost])))
 
 
 (deftest
- t238_l1184
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v237_l1181)))
+ t241_l1200
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v240_l1197)))
 
 
 (def
- v240_l1190
+ v243_l1206
  (->
   sales-by-region
   (pj/lay-line :quarter :revenue {:group [:region :outlet]})))
 
 
 (deftest
- t241_l1193
- (is ((fn [v] (= 4 (:lines (pj/svg-summary v)))) v240_l1190)))
+ t244_l1209
+ (is ((fn [v] (= 4 (:lines (pj/svg-summary v)))) v243_l1206)))
 
 
 (def
- v243_l1199
+ v246_l1215
  (-> sales (pj/lay-line :quarter :revenue {:stroke-dash [5 5]})))
 
 
 (deftest
- t244_l1202
+ t247_l1218
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 1 (count (:dash-patterns s))))))
-   v243_l1199)))
+   v246_l1215)))

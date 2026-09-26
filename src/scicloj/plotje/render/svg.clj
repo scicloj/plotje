@@ -117,14 +117,21 @@
 
    So the rule is by extent, not by mark: any filled shape at least
    `crisp-edges-min-extent` in both directions is snapped, and anything
-   thinner is left to anti-alias. Diagonal and curved fills are unaffected
-   either way -- measured in the same run, an anti-aliased slope and a
-   `crispEdges` one differ by one shade over a two-pixel band, because
-   the snapping applies to axis-aligned edges."
+   thinner is left to anti-alias. A long diagonal or curved fill differs
+   little either way -- measured in the same run, an anti-aliased slope
+   and a `crispEdges` one differ by one shade over a two-pixel band.
+
+   A triangle is the exception, and is never snapped. It shares no edge
+   with a neighbour, so it has no seam to remove, and at the size of an
+   arrow head or a triangle marker -- a few units across, every edge
+   diagonal -- snapping draws it as a block of whole pixels: measured
+   2026-09-26, an arrow head ten times enlarged was a jagged block beside
+   the smooth line it ends."
   [pts]
   (let [xs (map first pts)
         ys (map second pts)]
     (and (seq pts)
+         (> (count (distinct pts)) 3)
          (>= (- (double (apply max xs)) (double (apply min xs)))
              crisp-edges-min-extent)
          (>= (- (double (apply max ys)) (double (apply min ys)))

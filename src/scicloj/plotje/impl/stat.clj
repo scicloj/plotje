@@ -315,10 +315,18 @@
             ;; has to reach the outer tiles' edges, and `extract` draws
             ;; the tiles with the same span, which it reads from here.
             log-axis? (fn [k] (= :log (get-in draft-layer [k :type])))
+            ;; The step is read from every row that has a place, before
+            ;; rows with a missing fill are dropped: read after, a
+            ;; missing cell widened its neighbours to close the gap, and
+            ;; the heatmap looked complete.
+            ;; `plan/filter-infinities` drops those rows first and keeps
+            ;; their places as `:tile-places`.
+            placed (fn [axis col] (or (get-in draft-layer [:tile-places axis])
+                                      (remove nil? (data-idx col))))
             tile-half-x (when (and (= mark :tile) (not cat-x?))
-                          (scale/tile-span xs-col (log-axis? :x-scale)))
+                          (scale/tile-span (placed :x x) (log-axis? :x-scale)))
             tile-half-y (when (and (= mark :tile) (not x-only?) (not cat-y?))
-                          (scale/tile-span ys-col (log-axis? :y-scale)))
+                          (scale/tile-span (placed :y y) (log-axis? :y-scale)))
             widen-tiles (fn [[lo hi] span]
                           [(first (scale/tile-edges lo span))
                            (second (scale/tile-edges hi span))])

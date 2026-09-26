@@ -121,6 +121,7 @@
   {:thousands-separator ","
    :decimal-separator   "."
    :rule-color         "#0000ff"
+   :band-color         "#0000ff"
    :default-color       "#0000ff"
    :point-stroke        "#00ff00"
    :x-tick-angle        45

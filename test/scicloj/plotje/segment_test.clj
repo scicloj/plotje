@@ -134,3 +134,15 @@
   ;; neither, and the segments drew at zero length.
   (let [out (with-out-str (pj/plan (pj/lay-segment {:a [1 2] :b [1 2] :c [3 4]} :a :b {:xend :c})))]
     (is (str/includes? out "Did you mean :x-end for :xend?"))))
+
+(deftest a-segment-shifts-whole-test
+  ;; :dx moves the whole segment, its end with its start.
+  (let [g (-> (pj/lay-segment {:x [1 2] :y [1 2]} :x :y {:y-end 0 :dx 0.25})
+              pj/plan :panels first :layers first :groups first)]
+    (is (= [1.25 2.25] (vec (:xs g)) (vec (:x-ends g)))))
+  (testing "on a band axis the shift is applied where the band is placed"
+    (let [xs (fn [pose] (->> (pr-str (pj/plot pose)) (re-seq #":points \"([\d.]+),[\d.]+ ([\d.]+),") (map rest) last))
+          plain (xs (pj/lay-segment {:q ["a" "b"] :v [1 2]} :q :v {:y-end 0}))
+          moved (xs (pj/lay-segment {:q ["a" "b"] :v [1 2]} :q :v {:y-end 0 :dx 0.25}))]
+      (is (apply = moved) "start and end moved together")
+      (is (not= plain moved)))))

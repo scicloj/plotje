@@ -72,7 +72,7 @@
    ;; Bars and lines
    :bar-opacity 0.85 :line-width 2.5 :grid-stroke-width 0.6
    ;; Rules and bands
-   :rule-color "#333" :band-opacity 0.15
+   :rule-color "#333" :band-color "#7F7F7F" :band-opacity 0.15
    ;; Statistics
    :bin-method :sturges
    :domain-padding 0.05
@@ -763,7 +763,7 @@
    nil or :sequential -> dark blue to light blue (ggplot2 default).
    :diverging -> RdBu.
    keyword -> clojure2d gradient name (:inferno, :viridis/plasma, etc.).
-   map {:low hex :mid hex :high hex} -> custom 3-stop gradient.
+   map {:low hex :high hex} -> a two-stop gradient; with :mid, three stops.
    function -> used directly.
    Throws on an unrecognized keyword, and on a map naming none of the
    three stops -- that map is a whole scale spec written where a
@@ -783,9 +783,14 @@
                            " or :sequential / :diverging.")
                       {:range gradient})))
     (gradient-map? gradient)
+    ;; Two stops, `:low` to `:high`, unless a `:mid` is written: a
+    ;; written middle is what makes a gradient diverge. An end left out
+    ;; takes the red-blue default's end. A middle used to be filled in
+    ;; with light grey, so `{:low "red" :high "blue"}` passed through
+    ;; near-white on its way from one to the other.
     (let [{:keys [low mid high]
-           :or {low "#B2182B" mid "#F7F7F7" high "#2166AC"}} gradient
-          g (c/gradient [(->c2d-color low) (->c2d-color mid) (->c2d-color high)])]
+           :or {low "#B2182B" high "#2166AC"}} gradient
+          g (c/gradient (mapv ->c2d-color (if mid [low mid high] [low high])))]
       (wrap-gradient g))
     (map? gradient)
     (throw (ex-info (str "A colour :range map names at least one of :low,"
@@ -1096,6 +1101,7 @@
    :line-width ["Bars & Lines" "Default line stroke width"]
    :grid-stroke-width ["Bars & Lines" "Grid line stroke width"]
    :rule-color ["Rules & Bands" "Stroke color a rule draws in where its layer names none"]
+   :band-color ["Rules & Bands" "Fill color a band draws in where its layer names none"]
    :band-opacity ["Rules & Bands" "Fill opacity a band draws at where its layer names none"]
    :x-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the x axis"]
    :y-tick-spacing ["Ticks" "Target spacing, in drawing units, between ticks on the y axis"]
@@ -1114,7 +1120,7 @@
    :strict ["Behavior" "When true, throw on unknown option keys instead of warning and stripping"]
    :default-color ["Behavior" "Fallback color when no color mapping is set"]
    :color-values ["Color" "The colours a categorical :color column is drawn in, as a palette name, a vector of colours, or a map from category to colour. The outermost scope of :values in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
-   :color-range ["Color" "The gradient a numeric :color column is read through -- :sequential, :diverging, a gradient name, a {:low :mid :high} map, or a function. The outermost scope of :range in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
+   :color-range ["Color" "The gradient a numeric :color column is read through -- :sequential, :diverging, a gradient name, a {:low :high} map (two stops, or three with :mid), or a function. The outermost scope of :range in a :color scale spec, so a spec written on a mapping or a layer wins over it"]
    :color-midpoint ["Color" "The value the middle of the :color gradient is drawn at, which centres a diverging gradient there rather than halfway along the data. The outermost scope of :midpoint in a :color scale spec"]
    :fill-range ["Color" "The gradient a numeric :fill column is read through, in the same forms as :color-range. The outermost scope of :range in a :fill scale spec"]
    :fill-midpoint ["Color" "The value the middle of the :fill gradient is drawn at. The outermost scope of :midpoint in a :fill scale spec"]
