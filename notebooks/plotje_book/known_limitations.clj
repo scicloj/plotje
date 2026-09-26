@@ -41,12 +41,13 @@
 ;;   `(pj/scale pose :size {:range [3 20]})` -- reaches past it.
 ;;   Workaround: widen the domain with `pj/scale`.
 ;;
-;; - Rotated x-tick labels (`:x-tick-angle`) reserve extra vertical
-;;   space below the panel, but not extra horizontal space. A long
-;;   label rotated to a diagonal extends to the left of its tick, so
-;;   very long category names on the leftmost tick can run past the
-;;   left edge of the plotting area. Workaround: shorten the labels,
-;;   reduce the angle, or widen the plot with `:width`.
+;; - Rotated tick labels are given room at the canvas edges, but not
+;;   room from one another. Y-tick labels at 90 or -90 (`:y-tick-angle`)
+;;   run along the axis, and a label longer than the space between two
+;;   ticks is drawn over its neighbours. The room a rotated label is
+;;   given stops at 30% of the plot's size, so a label longer than that
+;;   is clipped at the edge. Workaround: shorten the labels, choose
+;;   another angle, or thin the ticks with `:n-ticks`.
 ;;
 ;; - A mark that occupies a band cannot be drawn at a place between two
 ;;   categories. `pj/lay-boxplot` and `pj/lay-violin` require a category

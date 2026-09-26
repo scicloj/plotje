@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **`pj/lay-tile` on a numeric `:x` or `:y`**: the axis reaches the outer edges of the tiles, so the outer rows and columns are drawn at full size. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
 
-- **Rotated x-tick labels** get room below the panel worked out from the angle and the longest label, up to 30% of the plot's height, so long labels are neither cut off at the bottom nor drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
+- **Rotated tick labels** get room worked out from the angle and the label lengths: below the panel from the longest x label, and at the ends of each axis from the first and last labels, each up to 30% of the plot's size. Long labels are neither cut off at the canvas edge nor drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
 
 - **`:share-scales` in a grid.** A cell that draws several columns on the shared axis shares each column's extent with the cells that draw that column. A histogram or density added to a grid of pairs, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`, gives every cell a count or density axis fitted to its own bars. A shared axis also reaches the far ends of segments and intervals and the outer edges of tiles.
 

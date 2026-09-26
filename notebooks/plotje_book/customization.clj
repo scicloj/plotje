@@ -200,13 +200,14 @@
 (kind/test-last [(fn [v] (= 12 (:polygons (pj/svg-summary v))))])
 
 ;; A label rotated this way extends down and to the left of its
-;; tick. Very long names can run past the left edge of the plotting
-;; area; see
-;; [Known Limitations](./plotje_book.known_limitations.html#layout-and-visuals).
+;; tick, and the plot widens its left margin as far as the first label
+;; reaches, so that label stays on the canvas.
 ;;
 ;; `:y-tick-angle` turns the y-axis tick labels the same way. At 90 or
 ;; -90 each label runs along the axis, centred on its tick, which
-;; leaves room for long category names beside a horizontal bar chart:
+;; leaves room for long category names beside a horizontal bar chart,
+;; as long as each name fits the space between two ticks -- see
+;; [Known Limitations](./plotje_book.known_limitations.html#layout-and-visuals):
 
 (-> {:team ["Operations" "Research" "Customer support"]
      :headcount [42 17 29]}

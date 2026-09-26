@@ -306,3 +306,21 @@
                    parse-double)]
     (is (some? y))
     (is (<= (+ y 11) 400))))
+
+(deftest rotated-end-labels-get-room-at-the-canvas-edge-test
+  ;; Room was reserved across the axis only, so a long end label ran off
+  ;; the left (x at -45), the right (x at +45) or the top (y at 45).
+  (let [cats {:cat ["a very long first category name" "b" "c" "d" "e"
+                    "f" "g" "h" "the last category, also long"]
+              :v (range 1 10)}
+        layout (fn [pose opts] (:layout (pj/plan (pj/options pose opts))))
+        bars (pj/lay-bar cats :cat :v)
+        hbars (pj/lay-bar cats :v :cat)
+        plain (layout bars {})]
+    (is (> (:y-label-pad (layout bars {:x-tick-angle -45})) (:y-label-pad plain)))
+    (is (> (:legend-w (layout bars {:x-tick-angle 45})) (:legend-w plain)))
+    (is (> (:title-pad (layout hbars {:y-tick-angle 45})) (:title-pad (layout hbars {}))))
+    (testing "short labels keep their pads"
+      (let [short (pj/lay-bar {:cat ["a" "b" "c"] :v [1 2 3]} :cat :v)]
+        (is (= (select-keys (layout short {}) [:y-label-pad :legend-w :title-pad])
+               (select-keys (layout short {:x-tick-angle -45}) [:y-label-pad :legend-w :title-pad])))))))

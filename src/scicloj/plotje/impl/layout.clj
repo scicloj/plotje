@@ -502,6 +502,80 @@
          (* row-h alpha-legend-entry-count)))
     0.0))
 
+(defn- end-label-reach
+  "How far each end label of an axis reaches along the axis from its
+   tick, before rotation: `[first-w last-w inset]` in drawing units,
+   the largest over `domains`. `inset` is how far the end ticks sit
+   inside the panel -- half a band on a categorical axis, estimated
+   from `budget` (the plot's own size along the axis) since the panel
+   size is not known yet, and nothing on a numeric one, whose end tick
+   can sit at the edge."
+  [domains scale-spec temporal budget spacing fsize separators]
+  (let [empty-breaks? (let [b (:breaks scale-spec)] (and (sequential? b) (empty? b)))
+        per (for [d domains
+                  :when (and (sequential? d) (seq d) (not empty-breaks?))]
+              (if (scale/categorical-domain? d)
+                [(fmt-category-label-count (first d))
+                 (fmt-category-label-count (last d))
+                 (/ (* 0.7 (double budget)) (* 2.0 (count d)))]
+                (let [labels (:labels (ticks-at-budget d scale-spec temporal
+                                                       budget spacing separators))]
+                  [(count (str (first labels))) (count (str (last labels))) 0.0])))
+        w (fn [chars] (* (double fsize) 0.5 chars))]
+    (if (seq per)
+      [(w (reduce max (map first per)))
+       (w (reduce max (map second per)))
+       (reduce min (map #(nth % 2) per))]
+      [0.0 0.0 0.0])))
+
+(defn- end-label-overhang
+  "Room a rotated tick label needs past the ends of the panel, along
+   its axis: `{:left :right}` for x labels, `{:top :bottom}` for y.
+
+   An x label turned by a negative angle hangs from its end down and to
+   the left, so the first label reaches left by its width times the
+   cosine; a positive angle hangs the last label to the right. A y label
+   at 90 or -90 is centred on its tick and reaches half its width each
+   way; at another angle it turns about its end, up for a positive angle
+   and down for a negative one. Which category ends at the top depends
+   on the axis, so both y ends are measured by the wider label.
+
+   Each is less the inset of the end tick, and capped, as the room
+   across the axis is, at 30% of the plot's size along it: past that
+   the label is clipped at the canvas edge rather than the panel
+   shrinking to nothing."
+  [scene cfg opts]
+  (let [fsize (double (tick-font-size cfg))
+        seps (defaults/number-separators cfg)
+        polar? (= :polar (:coord-type scene))
+        xa (double (get cfg :x-tick-angle 0))
+        ya (double (get cfg :y-tick-angle 0))
+        past (fn [reach inset cap] (min cap (max 0.0 (- reach inset))))
+        x (when-not (or polar? (zero? xa))
+            (let [width (double (:width opts))
+                  [fw lw inset] (end-label-reach (:panel-x-domains scene) (:x-scale-spec scene)
+                                                 (:x-temporal scene)
+                                                 (/ width (max 1 (:grid-cols scene 1)))
+                                                 (:x-tick-spacing cfg) fsize seps)
+                  cos (Math/abs (Math/cos (Math/toRadians xa)))]
+              (if (neg? xa)
+                {:left (past (* fw cos) inset (* 0.3 width))}
+                {:right (past (* lw cos) inset (* 0.3 width))})))
+        y (when-not (or polar? (zero? ya))
+            (let [height (double (:height opts))
+                  [fw lw inset] (end-label-reach (:panel-y-domains scene) (:y-scale-spec scene)
+                                                 (:y-temporal scene)
+                                                 (/ height (max 1 (:grid-rows scene 1)))
+                                                 (:y-tick-spacing cfg) fsize seps)
+                  w (max fw lw)
+                  cap (* 0.3 height)]
+              (cond
+                (== 90.0 (Math/abs ya)) {:top (past (/ w 2.0) inset cap)
+                                         :bottom (past (/ w 2.0) inset cap)}
+                (pos? ya) {:top (past (* w (Math/abs (Math/sin (Math/toRadians ya)))) inset cap)}
+                :else {:bottom (past (* w (Math/abs (Math/sin (Math/toRadians ya)))) inset cap)})))]
+    (merge {:left 0.0 :right 0.0 :top 0.0 :bottom 0.0} x y)))
+
 (defn- check-tick-angles!
   "A tick angle is a finite number of degrees. Anything else failed far
    from the option -- a string as a bare ClassCastException, NaN as a
@@ -528,15 +602,23 @@
   (let [legend-pos (resolved-legend-position scene cfg opts)
         legend-h (pad-legend-h legend-pos scene cfg)
         top-pad (if (= legend-pos :top) legend-h 0.0)
-        bot-pad (if (= legend-pos :bottom) legend-h 0.0)]
-    {:title-pad          (pad-title scene cfg)
+        bot-pad (if (= legend-pos :bottom) legend-h 0.0)
+        ;; A rotated end label's reach past the panel is taken from the
+        ;; pad already on that side: the left one holds the y labels,
+        ;; the right one the legend column, the top one the title, the
+        ;; bottom one the x labels. Nothing changes where nothing
+        ;; overhangs, so an unrotated plot keeps its exact pads.
+        {:keys [left right top bottom]} (end-label-overhang scene cfg opts)
+        grow (fn [pad need] (if (> need (double pad)) need pad))
+        title-pad (pad-title scene cfg)]
+    {:title-pad          (if (pos? top) (+ title-pad top) title-pad)
      :subtitle-pad       (pad-subtitle scene cfg)
      :caption-pad        (pad-caption scene cfg)
-     :x-label-pad        (pad-x-label scene cfg opts)
-     :y-label-pad        (pad-y-label scene cfg opts)
+     :x-label-pad        (grow (pad-x-label scene cfg opts) bottom)
+     :y-label-pad        (grow (pad-y-label scene cfg opts) left)
      :strip-h            (pad-strip-h scene cfg)
      :strip-w            (pad-strip-w scene cfg)
-     :legend-w           (pad-legend-w legend-pos scene cfg opts)
+     :legend-w           (grow (pad-legend-w legend-pos scene cfg opts) right)
      :legend-h           legend-h
      :legend-position    legend-pos
      :top-legend-pad     top-pad
