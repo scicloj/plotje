@@ -154,6 +154,29 @@
           :when (some? v)]
       v)))
 
+(defn- leaf-scale-kinds
+  "How the columns mapped to `a` in a resolved leaf are read, as the
+   plan reads them: a set of `:categorical` and `:numerical`. A shape
+   is always a set of categories; a colour follows
+   `resolve/color-column-type`, so a numeric column written
+   `{:color-type :categorical}` is categories; a size or an alpha is
+   numeric when its values are numbers."
+  [leaf a]
+  (set
+   (for [[m ds] (cons [(:mapping leaf) (:data leaf)]
+                      (map (fn [l] [(merge (:mapping leaf) (:mapping l))
+                                    (or (:data l) (:data leaf))])
+                           (:layers leaf)))
+         :let [c (mapping-column (get m a))]
+         :when (and (resolve/column-ref? c) ds
+                    (contains? (set (tc/column-names ds)) c))]
+     (case a
+       :shape :categorical
+       :color (if (= :categorical (resolve/color-column-type (:color-type m) ds c))
+                :categorical
+                :numerical)
+       (if (every? number? (remove nil? (ds c))) :numerical :categorical)))))
+
 (defn- stamp-scale
   "Give leaf a scale spec for `a` beneath whatever it wrote: a key the
    leaf wrote wins, unless `force-keys` names it."
@@ -176,12 +199,16 @@
   [leaves a cfg]
   (let [per-leaf (mapv #(vec (leaf-aesthetic-data % a)) leaves)
         all (apply concat per-leaf)
-        written (mapv #(written-scale % a) leaves)]
+        written (mapv #(written-scale % a) leaves)
+        ;; Numeric or categorical is decided as the plan decides it,
+        ;; not from the values: a column of numbers written
+        ;; `:color-type :categorical` is shared as categories.
+        kinds (apply clojure.set/union (map #(leaf-scale-kinds % a) leaves))]
     (cond
       ;; Sharing is between cells: one cell keeps the scale it has.
       (or (empty? all) (< (count (filter seq per-leaf)) 2)) {:leaves leaves}
 
-      (every? number? all)
+      (and (= kinds #{:numerical}) (every? number? all))
       (when (#{:color :size :alpha} a)
         (let [free (keep-indexed (fn [i vs] (when-not (:domain (written i)) vs)) per-leaf)
               vs (apply concat free)
@@ -193,7 +220,7 @@
           (when (apply = (map #(:domain (written-scale % a)) leaves'))
             {:leaves leaves'})))
 
-      (not-any? number? all)
+      (= kinds #{:categorical})
       (when (#{:color :shape} a)
         (let [domain (some #(let [d (:domain %)] (when (sequential? d) d)) written)
               union (vec (distinct all))

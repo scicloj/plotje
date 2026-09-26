@@ -535,3 +535,37 @@
                           (pj/lay-point cell-b :x :y {:shape :g})])]
     (is (= [["a" :circle] ["b" :square] ["c" :triangle]]
            (mapv (juxt :label :shape) (-> plan :chrome :shared-legend :shape-legend :entries))))))
+
+;; A numeric column read as categories -- `:color-type :categorical`, or
+;; any numeric column on `:shape` -- is shared as categories, as the
+;; plan reads it. Deciding from the values alone gave the cells a
+;; numeric `:domain`, which the plan then read as a category list: a
+;; category was warned as omitted, and every colour moved.
+
+(def ^:private cyl-cell-a {:x [1 2 3] :y [1 1 1] :cyl [6 4 8]})
+(def ^:private cyl-cell-b {:x [1 2 3] :y [2 2 2] :cyl [6 4 8]})
+
+(deftest numeric-column-declared-categorical-shares-categories-test
+  (let [pose-a (pj/lay-point cyl-cell-a :x :y {:color :cyl :color-type :categorical})
+        pose-b (pj/lay-point cyl-cell-b :x :y {:color :cyl :color-type :categorical})
+        groups (fn [plan] (mapv (juxt :label :color)
+                                (-> plan :panels first :layers first :groups)))
+        plan (atom nil)
+        out (with-out-str (reset! plan (cells-plan [pose-a pose-b])))]
+    (is (= "" out))
+    (is (= #{:color} (-> @plan :chrome :shared-aesthetics)))
+    ;; Each category keeps the colour it has in the pose drawn alone.
+    (is (= (groups (pj/plan pose-a))
+           (groups (-> @plan :sub-plots first :plan))
+           (groups (-> @plan :sub-plots second :plan))))))
+
+(deftest numeric-column-on-shape-shares-categories-test
+  (let [plan (cells-plan [(pj/lay-point (assoc cyl-cell-a :cyl [6 8 8]) :x :y {:shape :cyl})
+                          (pj/lay-point (assoc cyl-cell-b :cyl [4 8 8]) :x :y {:shape :cyl})])
+        ;; The symbols a layer draws are on its `:shape-map`, keyed by
+        ;; the column's raw values.
+        shapes (fn [i] (-> plan :sub-plots (nth i) :plan :panels first :layers first :shape-map))]
+    (is (= #{:shape} (-> plan :chrome :shared-aesthetics)))
+    (is (= ["6" "8" "4"] (mapv :label (-> plan :chrome :shared-legend :shape-legend :entries))))
+    (is (some? (get (shapes 0) 8)))
+    (is (= (get (shapes 0) 8) (get (shapes 1) 8)))))

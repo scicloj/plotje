@@ -222,6 +222,16 @@
           (every? number? (take 100 c)) :numerical
           :else :categorical)))))
 
+(defn color-column-type
+  "How a `:color` column is read: the `:color-type` written beside it
+   where there is one, otherwise the column's own type. A
+   `:categorical` reading draws a palette, anything else a gradient.
+   The plan and a composite's shared colour scale both ask this, so a
+   numeric column written `{:color-type :categorical}` is a set of
+   categories in both."
+  [written-type ds col]
+  (or written-type (column-type ds col)))
+
 (def type-override-values
   "What `:x-type`, `:y-type` and `:color-type` accept."
   #{:categorical :numerical :temporal})
@@ -485,7 +495,7 @@
         ;; group's color comes from.
         c-type (when color-is-col?
                  (check-type-override! :color-type (:color-type v) ds color-val)
-                 (or (:color-type v) (column-type ds color-val)))
+                 (color-column-type (:color-type v) ds color-val))
         ;; A colour reads a number as a place on a gradient and anything
         ;; else as a category; a date is neither yet, and failed on a
         ;; cast naming neither the aesthetic nor the column.
