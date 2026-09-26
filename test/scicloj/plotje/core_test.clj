@@ -3815,3 +3815,16 @@
             plan (binding [*out* out] (pj/plan (lay d :x :y {:color :g})))]
         (is (= :relative-density (-> plan :legend :title)))
         (is (= 1 (count (re-seq #"is not drawn: one density" (str out)))))))))
+
+(deftest contour-lines-read-the-legend-settings-test
+  ;; The lines were coloured by each level's share of the densest cell
+  ;; and read only the range, so a midpoint, a domain or a log type
+  ;; moved the legend bar and left the lines as they were.
+  (let [d {:x [1 2 3 4 5 6 2 3 4 5] :y [2 1 4 3 6 5 3 2 4 4]}
+        colors (fn [pose] (->> (pj/plan pose) :panels first :layers first :levels (mapv :color)))
+        plain (colors (pj/lay-contour d :x :y))]
+    (is (seq plain))
+    (is (not= plain (colors (pj/options (pj/lay-contour d :x :y)
+                                        {:color-midpoint 0.01}))))
+    (is (not= plain (colors (-> (pj/lay-contour d :x :y)
+                                (pj/scale :color {:domain [0 100]})))))))

@@ -573,7 +573,9 @@
   ;; legend that disagrees with its own marks.
   (when-let [values (:values spec)]
     (when (= channel :shape)
-      (when-let [unknown (seq (remove (set (defaults/drawable-shapes)) values))]
+      ;; A vector of symbols, or a map of category to symbol.
+      (when-let [unknown (seq (remove (set (defaults/drawable-shapes))
+                                      (if (map? values) (vals values) values)))]
         (throw (ex-info (str where " " channel " :values does not recognize "
                              (vec unknown) ". Supported symbols: "
                              (defaults/drawable-shapes) ".")

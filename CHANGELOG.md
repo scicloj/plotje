@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file. This change
 
 - **`:share-scales` in a grid.** A cell that draws several columns on the shared axis shares each column's extent with the cells that draw that column. A histogram or density added to a grid of pairs, such as `(-> data (pj/pose (pj/cross cols cols)) pj/lay-histogram)`, gives every cell a count or density axis fitted to its own bars. A shared axis also reaches the far ends of segments and intervals and the outer edges of tiles.
 
+- **Cells of `pj/arrange` that map the same column to `:color`, `:size`, `:alpha` or `:shape`** share one scale for it: the categories of all the cells, or the range of all their values. A category is the same colour or symbol, and a value the same shade or size, in every cell, and the one legend lists every category. A cell that writes its own scale for the aesthetic keeps it, and each cell then draws its own legend.
+
 ### Added
 
 - `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on the `:end`, the `:start` or `:both`. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
@@ -41,6 +43,8 @@ All notable changes to this project will be documented in this file. This change
 - `:x-tick-angle` or `:y-tick-angle` that is not a finite number reports an error naming the option and the value.
 
 - `pj/lay-tile` reads a numeric `:color` as it reads `:fill`, through the same scale settings and legend, with no warning. A categorical `:color` colours each cell from the palette, as it colours any mark, with a legend of the categories; `:color-values` and `:color-label` apply to it, and the fill settings warn. Given both `:fill` and `:color`, a tile is painted from `:fill`, with its gradient legend, and warns that `:color` is not drawn. A written colour on a tile with no `:fill`, such as `{:color "red"}`, warns that it is not drawn.
+
+- A contour's lines are coloured through the settings its legend reads: `:color-midpoint`, and a `:domain` or `:type` in the `:color` scale spec, move the lines as well as the legend.
 
 - `pj/lay-density-2d` and `pj/lay-contour` given a `:color` keep their density legend and warn that the colour is not drawn: one density is computed from all the rows. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
 

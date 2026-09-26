@@ -490,3 +490,48 @@
       (let [[c1 c2] (y-domains (pj/arrange [(split d) (split d2)] {:share-scales #{:y}}))]
         (is (= c1 c2))
         (is (<= (first (second c1)) 50 900 (second (second c1))))))))
+
+;; ---- One scale behind a shared legend ----
+;;
+;; Cells mapping the same column shared one legend, taken from the first
+;; cell, while each cell scaled its own data: a category took another
+;; colour in the next cell, and a numeric column's gradient restarted.
+
+(defn- cells-plan [cells] (pj/plan (pj/arrange cells)))
+(def ^:private cell-a {:x [1 2] :y [1 1] :g ["a" "b"] :n [0 10]})
+(def ^:private cell-b {:x [1 2] :y [1 1] :g ["b" "c"] :n [100 110]})
+
+(deftest shared-legend-categories-one-colour-per-category-test
+  (let [plan (cells-plan [(pj/lay-point cell-a :x :y {:color :g})
+                          (pj/lay-point cell-b :x :y {:color :g})])
+        colour (fn [i label] (some #(when (= label (:label %)) (:color %))
+                                   (-> plan :sub-plots (nth i) :plan :panels first :layers first :groups)))]
+    (is (= ["a" "b" "c"] (mapv :label (-> plan :chrome :shared-legend :legend :entries))))
+    (is (= (colour 0 "b") (colour 1 "b")))
+    (is (not= (colour 1 "b") (colour 1 "c")))))
+
+(deftest shared-legend-numeric-one-range-test
+  (let [plan (cells-plan [(pj/lay-point cell-a :x :y {:color :n})
+                          (pj/lay-point cell-b :x :y {:color :n})])]
+    (is (= [0.0 110.0] (mapv double ((juxt :min :max) (-> plan :chrome :shared-legend :legend)))))))
+
+(deftest a-cell-with-its-own-scale-keeps-it-test
+  (let [plan (cells-plan [(pj/lay-point cell-a :x :y {:color :n})
+                          (-> (pj/lay-point cell-b :x :y {:color :n})
+                              (pj/scale :color {:domain [100 200]}))])]
+    (is (empty? (-> plan :chrome :shared-aesthetics)))
+    (is (= [[0.0 10.0] [100.0 200.0]]
+           (mapv #(mapv double ((juxt :min :max) (-> % :plan :legend))) (:sub-plots plan))))))
+
+(deftest numbers-in-one-cell-categories-in-another-test
+  (let [out (with-out-str
+              (let [plan (cells-plan [(pj/lay-point cell-a :x :y {:color :g})
+                                      (pj/lay-point (assoc cell-b :g [1 2]) :x :y {:color :g})])]
+                (is (empty? (-> plan :chrome :shared-aesthetics)))))]
+    (is (re-find #"cannot share one color scale" out))))
+
+(deftest shared-legend-shapes-one-symbol-per-category-test
+  (let [plan (cells-plan [(pj/lay-point cell-a :x :y {:shape :g})
+                          (pj/lay-point cell-b :x :y {:shape :g})])]
+    (is (= [["a" :circle] ["b" :square] ["c" :triangle]]
+           (mapv (juxt :label :shape) (-> plan :chrome :shared-legend :shape-legend :entries))))))

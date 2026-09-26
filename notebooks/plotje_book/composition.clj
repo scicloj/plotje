@@ -573,13 +573,20 @@ dashboard
 ;;   they apply to every cell that does not set them. This is also the
 ;;   way around a limitation within one pose -- two layers cannot read
 ;;   one aesthetic through different scales, but two cells can.
-;; - **Legends merge when sibling sub-poses agree on an aesthetic.**
-;;   If every leaf maps the same aesthetic identically (e.g.,
-;;   `:color :species` in all cells), the compositor renders a
-;;   single shared legend at composite level. When the mappings
-;;   disagree -- or when only some leaves carry the aesthetic, as
-;;   in the dashboard above -- each leaf with that aesthetic
-;;   renders its own legend.
+;; - **Cells that map the same column share one scale and one
+;;   legend.** If every leaf maps an aesthetic to the same column
+;;   (e.g., `:color :species` in all cells), each cell is given one
+;;   scale for it -- the categories of all the cells together, or the
+;;   range of all their values -- and a single legend is drawn for the
+;;   composite. A category is then the same colour, and a value the
+;;   same shade, in every cell, even where the cells hold different
+;;   data. A legend is drawn once, so its scale has to hold in every
+;;   cell; an axis is labelled in each cell, which is why axes stay
+;;   independent unless `:share-scales` names them. A cell that writes
+;;   its own scale for the aesthetic keeps it, and each cell then
+;;   draws its own legend. When the mappings disagree -- or when only
+;;   some leaves carry the aesthetic, as in the dashboard above --
+;;   each leaf with that aesthetic draws its own legend.
 ;; - **Multi-row layouts go through `pj/arrange`.** A row of rows is
 ;;   built by passing nested vectors of poses to `pj/arrange` (the
 ;;   dashboard example above shows the shape). A cell may be a
@@ -608,6 +615,31 @@ dashboard
                       (-> (rdatasets/datasets-iris)
                           (pj/lay-point :petal-length :petal-width {:color :species}))])
                     pj/plan :chrome :shared-aesthetics))))])
+
+;; The cells need not hold the same rows. Below, the left cell holds
+;; setosa and versicolor and the right cell versicolor and virginica.
+;; Versicolor is drawn in the same colour in both, and the one legend
+;; lists all three species:
+
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (tc/select-rows #(not= "virginica" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width {:color :species}))
+  (-> (rdatasets/datasets-iris)
+      (tc/select-rows #(not= "setosa" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width {:color :species}))])
+
+(kind/test-last
+ [(fn [v]
+    (let [plan (pj/plan v)
+          ;; each cell's colour for versicolor, read off its plan
+          versicolor (fn [sp] (some #(when (= "versicolor" (:label %)) (:color %))
+                                    (-> sp :plan :panels first :layers first :groups)))
+          [left right] (:sub-plots plan)]
+      (and (= ["setosa" "versicolor" "virginica"]
+              (mapv :label (-> plan :chrome :shared-legend :legend :entries)))
+           (some? (versicolor left))
+           (= (versicolor left) (versicolor right)))))])
 
 ;; A cell that is itself a composite draws its own grid. Here the left
 ;; cell holds two panels of its own and the right cell holds one, so

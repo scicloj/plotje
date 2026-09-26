@@ -1024,6 +1024,18 @@
             thresholds (vec (for [i (range n-levels)]
                               (let [frac (+ 0.05 (* 0.9 (/ (double i) (max 1 (dec n-levels)))))]
                                 (* max-d frac))))
+            ;; A level's colour is read as the legend reads it
+            ;; (`plan/build-fill-fallback-legend`): the :color spec's
+            ;; range, midpoint and type, over the domain `fill-domain`
+            ;; answers. Read from the threshold's share of the densest
+            ;; cell instead, the lines ignored a midpoint, a domain and
+            ;; a log type that moved the legend bar.
+            spec (:color-scale draft-layer)
+            scale-type (or (:type spec) :linear)
+            [f-lo f-hi] (fill-domain stat spec scale-type)
+            midpoint (defaults/scale-setting :color :midpoint spec cfg)
+            grad-fn (defaults/resolve-gradient-fn
+                     (defaults/scale-setting :color :range spec cfg))
             levels (vec (for [threshold thresholds
                               :let [t (/ threshold max-d)
                                     segments (marching-squares-segments
@@ -1033,9 +1045,8 @@
                               :when (seq polylines)]
                           {:threshold threshold
                            :t t
-                           :color ((defaults/scale-gradient-fn
-                                    :color (:color-scale draft-layer) cfg)
-                                   t)
+                           :color (grad-fn (defaults/normalize-continuous
+                                            scale-type threshold f-lo f-hi midpoint))
                            :polylines (vec polylines)}))]
         {:mark :contour
          :levels levels

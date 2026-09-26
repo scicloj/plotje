@@ -1324,7 +1324,12 @@
     (when (seq shape-draft-layers)
       (let [scale (some :shape-scale shape-draft-layers)
             domain (seq (categorical-domain scale))
-            syms (or (seq (:values scale)) (defaults/shape-palette))
+            ;; `:values` is a vector of symbols given in category
+            ;; order, or a map of category to symbol -- the form a
+            ;; composite hands its cells so a category keeps one symbol
+            ;; in every cell.
+            by-category (when (map? (:values scale)) (:values scale))
+            syms (or (when-not by-category (seq (:values scale))) (defaults/shape-palette))
             observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
                                                          shape-draft-layers))))
             all-shapes (if domain
@@ -1333,11 +1338,14 @@
         (when (seq all-shapes)
           (when domain
             (warn-category-domain-mismatch! :shape observed domain))
-          (warn-shape-wrap! all-shapes syms)
+          (when-not by-category (warn-shape-wrap! all-shapes syms))
           {:all-shapes all-shapes
            :shape-cols (distinct (keep #(when (resolve/column-ref? (:shape %)) (:shape %))
                                        resolved-all))
-           :shape-map (zipmap all-shapes (cycle syms))})))))
+           :shape-map (let [cycled (zipmap all-shapes (cycle syms))]
+                        (if by-category
+                          (into {} (map (fn [c] [c (get by-category c (cycled c))]) all-shapes))
+                          cycled))})))))
 
 (defn- warn-palette-wrap!
   "Warn if:
@@ -3029,7 +3037,8 @@
                              {})
         ;; Through the same resolver the marks were drawn with: a tile
         ;; reads :color as a synonym for :fill, a contour reads :color
-        ;; alone. The provenance is that resolver's own answer, so
+        ;; alone (its lines read the same spec, range, midpoint and
+        ;; `fill-domain` in `extract-layer :contour`). The provenance is that resolver's own answer, so
         ;; render-time configuration repaints a bar built from a plot
         ;; option and leaves one the spec decided.
         spec (if fill-mark?

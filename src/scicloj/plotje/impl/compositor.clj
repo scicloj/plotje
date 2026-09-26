@@ -15,6 +15,7 @@
    cell hides its own legend, and the rendering side (render/
    composite.clj) draws ONE shared legend in the reserved strip."
   (:require [clojure.set]
+            [tablecloth.api :as tc]
             [scicloj.plotje.impl.pose :as pose]
             [scicloj.plotje.impl.plan :as plan]
             [scicloj.plotje.impl.defaults :as defaults]
@@ -115,6 +116,122 @@
                  (and (every? seq vss) (apply = vss))))
              legend-bearing-aesthetics))))
 
+;; ---- One scale behind a shared legend ----
+;;
+;; A shared legend is drawn once for every cell, so it is only true if
+;; every cell encodes the column the same way. Each cell used to scale
+;; its own data: a numeric column stretched the gradient over the
+;; cell's own range, and categories took palette entries in the cell's
+;; own order. The legend, taken from the first cell, then misdescribed
+;; the others -- ggpubr's `ggarrange(common.legend = TRUE)` does the
+;; same. Here the cells sharing a column are given one scale: the union
+;; of their ranges, or one colour (or symbol) per category of their
+;; union. A cell that writes its own scale keeps it, and the legend is
+;; then drawn per cell rather than shared.
+
+(defn- mapping-column [v]
+  (if (map? v) (or (:from v) (:column v)) v))
+
+(defn- written-scale
+  "The scale spec written for aesthetic `a` on a resolved leaf -- on the
+   leaf's mapping or on one of its layers' -- or nil."
+  [leaf a]
+  (or (let [v (get-in leaf [:mapping a])] (when (map? v) (:scale v)))
+      (some #(let [v (get-in % [:mapping a])] (when (map? v) (:scale v)))
+            (:layers leaf))))
+
+(defn- leaf-aesthetic-data
+  "Every non-nil value the columns mapped to `a` take in a resolved leaf."
+  [leaf a]
+  (let [cols (distinct (keep #(when-let [c (mapping-column %)]
+                                (when (resolve/column-ref? c) c))
+                             (cons (get-in leaf [:mapping a])
+                                   (map #(get-in % [:mapping a]) (:layers leaf)))))]
+    (for [c cols
+          ds (distinct (keep identity (cons (:data leaf) (map :data (:layers leaf)))))
+          :when (contains? (set (tc/column-names ds)) c)
+          v (ds c)
+          :when (some? v)]
+      v)))
+
+(defn- stamp-scale
+  "Give leaf a scale spec for `a` beneath whatever it wrote: a key the
+   leaf wrote wins, unless `force-keys` names it."
+  [leaf a spec force-keys]
+  (update leaf :mapping
+          (fn [m]
+            (let [v (get m a)
+                  put (fn [written] (merge spec (apply dissoc written force-keys)))]
+              (assoc m a (cond (map? v) (update v :scale #(put (or % {})))
+                               (some? v) {:from v :scale spec}
+                               :else {:scale spec}))))))
+
+(defn- rgba->hex [[r g b a]]
+  (let [c #(long (Math/round (* 255.0 (double %))))]
+    (format "#%02X%02X%02X%02X" (c r) (c g) (c b) (c (or a 1.0)))))
+
+(defn- unify-one
+  "One scale for `a` over `leaves`, or nil where the cells cannot share
+   one. Returns {:leaves :categories}."
+  [leaves a cfg]
+  (let [per-leaf (mapv #(vec (leaf-aesthetic-data % a)) leaves)
+        all (apply concat per-leaf)
+        written (mapv #(written-scale % a) leaves)]
+    (cond
+      ;; Sharing is between cells: one cell keeps the scale it has.
+      (or (empty? all) (< (count (filter seq per-leaf)) 2)) {:leaves leaves}
+
+      (every? number? all)
+      (when (#{:color :size :alpha} a)
+        (let [free (keep-indexed (fn [i vs] (when-not (:domain (written i)) vs)) per-leaf)
+              vs (apply concat free)
+              leaves' (if (seq vs)
+                        (let [dom [(reduce min vs) (reduce max vs)]]
+                          (mapv (fn [leaf w] (if (:domain w) leaf (stamp-scale leaf a {:domain dom} [])))
+                                leaves written))
+                        leaves)]
+          (when (apply = (map #(:domain (written-scale % a)) leaves'))
+            {:leaves leaves'})))
+
+      (not-any? number? all)
+      (when (#{:color :shape} a)
+        (let [domain (some #(let [d (:domain %)] (when (sequential? d) d)) written)
+              union (vec (distinct all))
+              union (if domain
+                      (vec (concat (filter (set union) domain) (remove (set domain) union)))
+                      union)
+              own-map (fn [w] (map? (:values w)))
+              palette (some #(let [v (:values %)] (when (and v (not (map? v))) v)) written)
+              values (if (= a :color)
+                       (let [pal (or palette (defaults/scale-setting :color :values nil cfg))]
+                         (into {} (map (fn [c] [c (rgba->hex (defaults/color-for union c pal))]) union)))
+                       (zipmap union (cycle (or (seq palette) (defaults/shape-palette)))))
+              leaves' (mapv (fn [leaf w] (if (own-map w) leaf (stamp-scale leaf a {:values values} [:values])))
+                            leaves written)]
+          (when (apply = (map #(:values (written-scale % a)) leaves'))
+            {:leaves leaves' :categories union})))
+
+      :else
+      (do (println (str "Warning: the cells of this composite map " a
+                        " to a column that holds numbers in some cells and"
+                        " categories in others, so they cannot share one "
+                        (name a) " scale, and each cell draws its own legend."))
+          nil))))
+
+(defn- unify-legend-scales
+  "Give the cells of a composite one scale for each aesthetic whose
+   legend they would share. Returns {:leaves :shared :categories}: the
+   aesthetics that could not be unified are dropped from `shared`, so
+   each cell keeps its own legend for them."
+  [leaves shared cfg]
+  (reduce (fn [acc a]
+            (if-let [{ls :leaves cats :categories} (unify-one (:leaves acc) a cfg)]
+              (cond-> (assoc acc :leaves ls)
+                cats (assoc-in [:categories a] cats))
+              (update acc :shared disj a)))
+          {:leaves leaves :shared (set shared) :categories {}}
+          (filter #{:color :size :alpha :shape} shared)))
+
 (def ^:private aesthetic->suppress-key
   {:color :suppress-color-legend
    :size :suppress-size-legend
@@ -172,6 +289,11 @@
         ;; composite level. Aesthetics that disagree (or are absent)
         ;; render per-leaf as before.
         shared-aesthetics (shared-aesthetics-by-leaves composite)
+        ;; One scale behind each shared legend; an aesthetic whose
+        ;; cells cannot share one is dropped, and drawn per cell.
+        {leaves :leaves shared-aesthetics :shared shared-categories :categories}
+        (unify-legend-scales (pose/resolve-tree injected) shared-aesthetics
+                             (defaults/resolve-config opts))
         shared? (boolean (seq shared-aesthetics))
         legend-w (if shared? shared-legend-strip-w 0)
         ;; Grid-composite (rows-of-cols SPLOM) stamps :grid-strip-labels
@@ -200,7 +322,6 @@
                    (double grid-w)
                    (double (- h top-pad strip-h))]
         layout (pose/compute-layout injected grid-rect)
-        leaves (pose/resolve-tree injected)
         ;; In matrix layout, the strip labels at the top carry the
         ;; column's x-col name and the strip labels on the left carry
         ;; the row's y-col name. Suppress the per-leaf x-label /
@@ -235,6 +356,7 @@
      :layout layout
      :shared? shared?
      :shared-aesthetics shared-aesthetics
+     :shared-categories shared-categories
      :chrome chrome}))
 
 (defn composite-pose->draft
@@ -257,7 +379,7 @@
    first-class field on the CompositeDraft so downstream stages do
    not need to recompute layout from the original pose tree."
   [composite]
-  (let [{:keys [width height leaves layout shared? shared-aesthetics chrome]}
+  (let [{:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)
         ;; When the composite carries its own title/subtitle/caption,
@@ -288,7 +410,8 @@
                          leaves)
         chrome-spec (-> chrome
                         (assoc :shared? shared?)
-                        (assoc :shared-aesthetics shared-aesthetics))]
+                        (assoc :shared-aesthetics shared-aesthetics)
+                        (assoc :shared-categories shared-categories))]
     (cond-> (resolve/->CompositeDraft width height sub-drafts chrome-spec layout)
       (get-in composite [:opts :align-panels])
       ;; The direction as the composite wrote it, not as the computed
@@ -363,10 +486,43 @@
                                              (as-> $ (reduce #(dissoc %1 %2)
                                                              $ shared-suppress-keys))
                                              (assoc :width 600 :height 400))
+                                plan-legends (fn [sub]
+                                               (plan/draft->plan (:draft sub)
+                                                                 (merge (:opts sub) (select-keys rep-opts [:width :height]))))
                                 rep-plan (binding [plan/*unread-option-warnings* warnings]
                                            (plan/draft->plan (:draft first-sub) rep-opts))
-                                shared-keys (mapv aesthetic->legend-plan-key shared-aes)]
-                            (select-keys rep-plan shared-keys))))
+                                shared-keys (mapv aesthetic->legend-plan-key shared-aes)
+                                ;; The first cell's legend lists only the
+                                ;; categories it holds. Where the cells
+                                ;; hold more between them, every cell's
+                                ;; entries are gathered, in the order of
+                                ;; the union their colours were given by.
+                                cats (:shared-categories chrome-spec)
+                                merge-entries
+                                (fn [legends k]
+                                  (let [legend (get rep-plan k)
+                                        aes ({:legend :color :shape-legend :shape} k)
+                                        n (count (get cats aes))]
+                                    (if (and (:entries legend) (> n (count (:entries legend))))
+                                      (let [all (binding [plan/*unread-option-warnings* (atom [])]
+                                                  (mapv #(get (plan-legends
+                                                               (update % :opts
+                                                                       (fn [o] (reduce dissoc (dissoc o :suppress-legend)
+                                                                                       shared-suppress-keys))))
+                                                              k)
+                                                        sub-drafts))]
+                                        (assoc legends k
+                                               (assoc legend :entries
+                                                      (:out (reduce (fn [{:keys [seen] :as acc} e]
+                                                                      (if (seen (:label e))
+                                                                        acc
+                                                                        (-> acc
+                                                                            (update :seen conj (:label e))
+                                                                            (update :out conj e))))
+                                                                    {:seen #{} :out []}
+                                                                    (mapcat :entries all))))))
+                                      legends)))]
+                            (reduce merge-entries (select-keys rep-plan shared-keys) shared-keys))))
         _ (when (seq (deref warnings))
             (run! println (sort (reduce clojure.set/intersection (deref warnings)))))
         chrome (-> chrome-spec
