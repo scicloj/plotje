@@ -595,9 +595,8 @@ dashboard
 ;;   layout feature `pj/arrange` does not reach: write `:weights` in
 ;;   a literal composite map and pass the map to `pj/pose`.
 
-;; The legend note is the one to see rather than take on trust. Both
-;; cells below map `:color` to the same column, so the two legends
-;; collapse into a single one drawn for the composite as a whole:
+;; Both cells below map `:color` to the same column, so the composite
+;; draws one legend for both:
 
 (pj/arrange
  [(-> (rdatasets/datasets-iris)
