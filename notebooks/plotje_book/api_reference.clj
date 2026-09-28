@@ -498,10 +498,10 @@
 ;; width. Without x/y columns they attach at the root (every panel);
 ;; with x/y columns they attach to one matching leaf.
 ;;
-;; They paint in the order they were added, like any other layer, so a
-;; rule written before a scatter sits under its points. The axis the
-;; value is written on reaches that value, so a rule written outside
-;; everything the data covers widens that axis rather than
+;; They are drawn in the order they were added, like any other layer,
+;; so a rule written before a scatter sits under its points. The axis
+;; the value is written on reaches that value, so a rule written
+;; outside everything the data covers widens that axis rather than
 ;; disappearing; a `:domain` written with `pj/scale` replaces what the
 ;; data covers and pins the axis where the rule cannot widen it.
 ;;
@@ -1138,8 +1138,8 @@ plan1
 ;; Resolve a pose into a `PlotjeMembrane` -- a format-agnostic
 ;; Membrane UI component (a record implementing `IOrigin`, `IBounds`,
 ;; `IChildren`). Useful for exploring rendering targets beyond the
-;; SVG and Java2D backends Plotje wires in today, and for composing
-;; Plotje plots into larger Membrane interfaces. The
+;; SVG and Java2D backends Plotje provides, and for composing Plotje
+;; plots into larger Membrane interfaces. The
 ;; [Membranes](./plotje_book.membranes.html#anatomy) chapter walks the
 ;; record's anatomy and the protocols.
 

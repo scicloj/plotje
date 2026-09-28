@@ -1,9 +1,7 @@
 ;; # Pose Rules
 ;;
-;; Poses gave the mental picture; this chapter proves it. Each of
-;; the 30 rules below carries a rendered pose and a tested
-;; assertion, with the printed structure shown where the shape is
-;; the point, so the model claims are verified on every run.
+;; Each rule below states one behaviour and shows it on a rendered
+;; pose, with the printed structure where the shape is the point.
 ;;
 ;; The rules are organized into seven sections (Construction, Layer
 ;; Placement, Leaf Identity, Scope, Options, Assembly, Layout) and
@@ -11,9 +9,8 @@
 ;; `pj/overlay`, `pj/options`, `pj/scale`, `pj/coord`, `pj/facet`, and
 ;; `pj/cross`.
 ;;
-;; Read [Poses](./plotje_book.pose_model.html) first -- this
-;; chapter is the proof layer, not a teaching chapter. On a first
-;; read through the book you can skim or skip it, and return when
+;; Read [Poses](./plotje_book.pose_model.html) first. On a first read
+;; through the book you can skim or skip this chapter, and return when
 ;; you want the precise rule behind a behavior.
 
 (ns plotje-book.pose-rules
@@ -70,10 +67,6 @@
 ;; So a grid inside a grid can be written directly. A **layer**
 ;; is a map with `:layer-type` and an optional `:mapping`, plus sibling
 ;; keys `:stat`, `:position`, `:mark` when the user provides them.
-;;
-;; The rules below assume some familiarity with these shapes. If this
-;; is new, [Poses](./plotje_book.pose_model.html) shows
-;; them in use before we formalize them here.
 
 ;; ---
 ;; ## Construction
@@ -469,13 +462,13 @@ composite-pose
 ;; case, and the `:overlay` key that reverses the non-matching
 ;; outcome.
 ;;
-;; **Position storage (ratified 2026-04-23):** when a `lay-*` call
-;; carries position, the position lives on the **layer's own
-;; `:mapping`**. The leaf being attached to (or created for) also
-;; carries position in its own `:mapping` where appropriate -- both
-;; resolve to the same effective `:x`/`:y` via scope merge. The
-;; layer's own `:mapping` is the authoritative record of what the
-;; user typed and is what C5 inspects at promotion.
+;; **Position storage:** when a `lay-*` call carries position, the
+;; position lives on the **layer's own `:mapping`**. The leaf being
+;; attached to (or created for) also carries position in its own
+;; `:mapping` where appropriate -- both resolve to the same effective
+;; `:x`/`:y` via scope merge. The layer's own `:mapping` is the
+;; authoritative record of what the user typed and is what C5 inspects
+;; at promotion.
 
 ;; ### Rule LP1: bare `lay-*` attaches at the current pose's root
 ;;
@@ -585,8 +578,8 @@ composite-pose
 ;; `(pj/lay-line pose :sepal-length :petal-width)` and
 ;; `(pj/lay-line pose {:x :sepal-length :y :petal-width})` land on the
 ;; same leaf. A written value is not a column -- it places a mark on the
-;; panel the layer is added to and asks for no panel of its own -- and
-;; the layer's data answers which of the two a value is.
+;; panel the layer is added to and adds no panel of its own -- and the
+;; layer's data decides which of the two a value is.
 ;;
 ;; Two lines over one `:x`, each naming its own `:y` in an options map,
 ;; therefore draw two panels:
@@ -742,11 +735,11 @@ composite-pose
 ;; added to instead. Its `:x` and `:y` stay on the layer's own
 ;; `:mapping`, and the leaf's `:mapping` is left as it was.
 ;;
-;; Where the writer has not told the layers apart, the overlay does: each
-;; layer takes a colour and a legend entry naming its column, and the
-;; axis names every column drawn on it. Each layer below is given a
-;; written colour, so the overlay adds nothing, and the axes keep the
-;; titles of the leaf's own columns.
+;; Where nothing written distinguishes the layers, each overlaid layer
+;; takes a colour and a legend entry naming its column, and the axis
+;; names every column drawn on it. Each layer below is given a written
+;; colour, so the overlay adds nothing, and the axes keep the titles
+;; of the leaf's own columns.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -814,9 +807,8 @@ composite-pose
                  (= #{"rgb(55,126,184)" "rgb(230,85,13)" "rgb(77,175,74)"}
                     (disj (:colors s) "none")))))])
 
-;; The green marks landed on the orange panel rather than on a third
-;; one of their own. Printed, the third layer is on the second
-;; sub-pose:
+;; The green marks are drawn on the orange panel, not on a third panel
+;; of their own. Printed, the third layer is on the second sub-pose:
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -865,12 +857,12 @@ composite-pose
             (and (= 2 (:panels s))
                  (= 300 (:points s)))))])
 
-;; What it does beyond the layer-level form is remove the key from the
-;; pose, so no layer of the pose reads it. The key says where a layer
-;; goes rather than what it draws, and it is read where the panels are
-;; decided rather than where a layer is written -- so a layer's own
-;; `:overlay` is kept on the layer for that reading, while the pose here
-;; carries none:
+;; Unlike the layer-level form, `(pj/overlay pose false)` removes the
+;; key from the pose, so no layer of the pose reads the key. The key
+;; says where a layer goes rather than what it draws, and it is read
+;; where the panels are decided rather than where a layer is written
+;; -- so a layer's own `:overlay` is kept on the layer for that
+;; reading, while the pose here carries none:
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -1061,8 +1053,8 @@ s2-tree
 ;;
 ;; A mapping written in a layer's own `:mapping` (aesthetic mappings
 ;; passed to `lay-*`) scopes to that layer only. Other layers --
-;; even on the same leaf -- do not see it. This is the terminal
-;; case of S1: the layer's mapping is innermost in the merge.
+;; even on the same leaf -- do not read that mapping. This is the
+;; terminal case of S1: the layer's mapping is innermost in the merge.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -1511,5 +1503,4 @@ l4-shared
 ;;   how Plotje fills in defaults (column types, marks, stats,
 ;;   scales) when you do not specify them
 ;; - [**Layer Types**](./plotje_book.layer_types.html) -- the
-;;   registry of mark + stat + position combinations the rules
-;;   above orchestrate
+;;   registry of mark + stat + position combinations

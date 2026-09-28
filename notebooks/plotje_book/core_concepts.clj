@@ -44,9 +44,8 @@
 ;; four **numerical** measurements (in centimeters) and one
 ;; **categorical** column (the species name -- one of three strings).
 ;;
-;; This distinction matters: Plotje treats numerical and
-;; categorical columns differently when choosing axes, colors, and
-;; statistical transforms.
+;; Plotje treats numerical and categorical columns differently when
+;; choosing axes, colors, and statistical transforms.
 ;;
 ;; Here is a scatter plot of sepal dimensions, colored by species:
 
@@ -495,14 +494,12 @@ two-panel
 
 ;; ## Inference
 ;;
-;; Plotje tries to make small poses work without you having
-;; to specify everything. You give it what you know -- a dataset,
-;; perhaps a column or two -- and it fills in the rest by
-;; inspecting the data.
+;; Plotje makes small poses work without you having to specify
+;; everything. You give it what you know -- a dataset, perhaps a
+;; column or two -- and it fills in the rest by inspecting the data.
 ;;
-;; The underlying principle is short: wherever you make a choice
-;; it wins; wherever you don't, the library picks something
-;; sensible.
+;; Wherever you make a choice it wins; wherever you don't, the library
+;; picks something sensible.
 ;;
 ;; **Column inference** applies when a dataset has up to three
 ;; columns and you call `pj/pose` (or a `pj/lay-*`) without
@@ -622,9 +619,8 @@ two-panel
                                 (= 2 (:lines s)))))])
 
 ;; `pj/with-data` validates at attach time: if the dataset is
-;; missing a column the pose references, you get a clear error
-;; naming the missing columns -- no cryptic failure deep in the
-;; rendering path.
+;; missing a column the pose references, it reports an error naming
+;; the missing columns.
 
 ;; ## Color and Grouping
 ;;
@@ -689,9 +685,9 @@ two-panel
                                colors (disj (:colors s) "none")]
                            (= #{"rgb(0,0,255)"} colors)))])
 
-;; Categorical color does more than set colors -- it creates
-;; **groups**. Each group is processed independently: it gets its
-;; own regression line, density curve, or boxplot:
+;; A categorical color also creates **groups**. Each group is
+;; processed independently: it gets its own regression line, density
+;; curve, or boxplot:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-density :sepal-length {:color :species}))
@@ -759,13 +755,11 @@ two-panel
 
 ;; ## Plot Options and Reference Lines
 ;;
-;; So far you've seen mappings, layers, and data -- all scoped at
-;; pose or layer level. The functions in this section set
-;; **plot-level options** instead: values that describe a plot
-;; rather than a layer. They are written on a pose and reach
-;; everything beneath it: written on the pose you are building they
-;; describe the whole plot, and written on one cell of a composite,
-;; that cell. See
+;; The functions in this section set **plot-level options**: values
+;; that describe a plot rather than a layer. They are written on a
+;; pose and reach everything beneath it: written on the pose you are
+;; building they describe the whole plot, and written on one cell of a
+;; composite, that cell. See
 ;; [Options and Scopes](./plotje_book.options_and_scopes.html#plot-options)
 ;; for the full picture.
 ;;

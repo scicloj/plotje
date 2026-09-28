@@ -97,10 +97,9 @@
 ;; [Extensibility](./plotje_book.extensibility.html#compute-stat)
 ;; for declaring it on a layer type of your own.
 
-;; The "Presets" column is what separates two layer types that would
-;; otherwise look identical here -- `:text` and `:label` share a mark, a
-;; stat, and a position, and differ only in that a label starts with its
-;; box switched on:
+;; `:text` and `:label` share a mark, a stat, and a position; the
+;; "Presets" column shows that a label starts with its box switched
+;; on:
 
 (mapv #(select-keys (layer-type/lookup %) [:mark :stat :defaults])
       [:text :label])

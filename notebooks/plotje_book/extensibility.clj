@@ -91,19 +91,18 @@ graph LR
 
 ;; ### A stat from end to end
 ;;
-;; Before any reference material, one complete stat. It computes a running
-;; maximum -- for each group, the largest y seen so far, which is the shape
-;; of a record-to-date line. Everything a stat has to do is here: read the
-;; layer it is handed, return the geometry, and declare what the axes must
-;; cover.
+;; The stat below computes a running maximum -- for each group, the
+;; largest y seen so far, which is the shape of a record-to-date line.
+;; Everything a stat has to do is here: read the layer it is handed,
+;; return the geometry, and declare what the axes must cover.
 ;;
-;; It is written the way the numeric code in this library is written. The x
-;; column passes through untouched, because a dataset column is already a
-;; buffer the renderer can read. `dfn/cummax` performs the scan as one
-;; vectorized operation instead of a sequence walk. The domains come from
-;; `dfn/reduce-min` and `dfn/reduce-max` over the concatenated buffers. A
-;; stat that copied its columns into Clojure vectors on the way through
-;; would work, and would allocate a second copy of every value for nothing.
+;; The x column passes through untouched, because a dataset column is
+;; already a buffer the renderer can read. `dfn/cummax` performs the
+;; scan as one vectorized operation instead of a sequence walk. The
+;; domains come from `dfn/reduce-min` and `dfn/reduce-max` over the
+;; concatenated buffers. A stat that copied its columns into Clojure
+;; vectors on the way through would work, and would allocate a second
+;; copy of every value for nothing.
 
 (defmethod stat/compute-stat :running-max [{:keys [data x y group]}]
   (let [subsets (if (seq group)
@@ -127,7 +126,7 @@ graph LR
   "Running maximum -- the largest y seen so far")
 
 ;; Nothing else is needed -- no mark, no extractor, no renderer.
-;; `pj/lay-line` already knows how to draw a group of `:xs` and `:ys`.
+;; `pj/lay-line` already draws a group of `:xs` and `:ys`.
 ;;
 ;; (These examples end in `pj/plot` rather than leaving a pose to render
 ;; itself. A pose renders lazily, and this stat is removed a few forms
@@ -171,8 +170,7 @@ graph LR
 ;; ### Where a layer's stat comes from
 ;;
 ;; `compute-stat` dispatches on a layer's `:stat`, which is settled before
-;; it is called. Three cases decide it, and reading them as one rule
-;; explains a behaviour that otherwise looks arbitrary.
+;; it is called. Three cases decide it.
 ;;
 ;; This helper reports what a pose's first layer resolves to:
 
@@ -262,9 +260,8 @@ graph LR
 
 ;; Choosing it explicitly is how a caller says "do not aggregate this".
 ;; That is the case a bar chart of pre-computed totals is in -- and it is
-;; what `pj/lay-bar` resolves to on its own as soon as a y column is
-;; present, which is the rule from a few forms above seen from the other
-;; side.
+;; what `pj/lay-bar` resolves to on its own when a y column is
+;; present.
 
 ;; (The other fields in those lookups belong to the layer type rather
 ;; than to the stat: `:x-only` says the layer type works from an x column
@@ -337,8 +334,8 @@ graph LR
 ;; - `:y-domain` -- the same for y
 ;;
 ;; Alongside them the stat returns at least one **geometry shape**: a key
-;; whose value follows a structure that some `extract-layer` method knows
-;; how to read. The shape, not the stat's name, is what decides which marks
+;; whose value follows a structure that some `extract-layer` method
+;; reads. The shape, not the stat's name, is what decides which marks
 ;; can draw the result.
 
 ;; | Shape | Carries | Produced by | Read by |
@@ -377,10 +374,10 @@ graph LR
 
 ;; ### The `:points` shape
 ;;
-;; Most stats speak `:points` and most marks read it. It is a **vector of
-;; groups** -- one per combination of the grouping columns, so three
-;; species give three groups -- and each group is a map of parallel
-;; sequences.
+;; Most stats produce `:points` and most marks read it. It is a
+;; **vector of groups** -- one per combination of the grouping
+;; columns, so three species give three groups -- and each group is a
+;; map of parallel sequences.
 
 (count (:points scatter-stat))
 
@@ -628,8 +625,8 @@ graph LR
 ;;
 ;; Users can then call `(lay-waterfall data :category :amount)`.
 ;;
-;; Note: if your custom mark is not one of the built-in marks, you also
-;; need a `layer->membrane` defmethod for the SVG renderer. Without one,
+;; If your custom mark is not one of the built-in marks, you also need
+;; a `layer->membrane` defmethod for the SVG renderer. Without one,
 ;; the library throws an error explaining which defmethod to add.
 
 ;; ### A mark placed at a written value
@@ -640,12 +637,12 @@ graph LR
 ;; in the order they were written, and they have the two defmethods this
 ;; chapter has been describing.
 ;;
-;; What differs is the stat. `stat/written-extent` reports the extent
-;; the mark covers -- the written value on the axis the mark names, and
-;; the layer's column on the axis it spans -- instead of grouping rows
-;; into `:points`. Its `extract-layer` method then reads the written
-;; value straight off the draft layer, so the plan layer carries a
-;; number rather than a group of buffers:
+;; `stat/written-extent` reports the extent the mark covers -- the
+;; written value on the axis the mark names, and the layer's column on
+;; the axis it spans -- instead of grouping rows into `:points`. Its
+;; `extract-layer` method then reads the written value straight off
+;; the draft layer, so the plan layer carries a number rather than a
+;; group of buffers:
 
 (let [layer (-> (rdatasets/datasets-iris)
                 (pj/lay-point :sepal-length :sepal-width)
@@ -726,11 +723,11 @@ graph LR
 ;; | `:svg` | plan, then membrane, then `membrane->plot :svg` |
 ;; | `:bufimg` | plan, then membrane, then `membrane->plot :bufimg` (raster image) |
 ;;
-;; Note that `pj/save`'s `:png` file format is not a separate
-;; dispatch value -- it routes through the `:bufimg` path internally
-;; and encodes the resulting `BufferedImage` as PNG bytes on disk.
-;; The save-side keyword names the file format; the dispatch-side
-;; keyword names the JVM render target.
+;; `pj/save`'s `:png` file format is not a separate dispatch value --
+;; it routes through the `:bufimg` path internally and encodes the
+;; resulting `BufferedImage` as PNG bytes on disk. The save-side
+;; keyword names the file format; the dispatch-side keyword names the
+;; JVM render target.
 
 ;; Using `plan->plot` directly:
 
@@ -961,7 +958,7 @@ graph LR
 ;;
 ;; If you skip the `[:key :doc]` defmethod, the table still renders --
 ;; the description falls back to "(no description)" instead of
-;; throwing an error. Let us remove the doc defmethod and verify:
+;; throwing an error. With the doc defmethod removed:
 
 (remove-method stat/compute-stat [:quantile :doc])
 

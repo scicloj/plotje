@@ -2,9 +2,9 @@
 ;;
 ;; The [Architecture](./plotje_book.architecture.html#pipeline-overview) chapter
 ;; introduced the five-stage pipeline that turns a pose into a
-;; rendered plot. This notebook zooms into one of those stages --
-;; the **plan** -- walking through it step by step to build
-;; intuition for what `pj/plan` produces for different poses.
+;; rendered plot. This chapter takes one of those stages -- the
+;; **plan** -- step by step, showing what `pj/plan` produces for
+;; different poses.
 ;;
 ;; You would explore plans when:
 ;;
@@ -62,7 +62,7 @@ tiny-plan
                               (= "y" (:y-label m))
                               (nil? (:legend m))))])
 
-;; Notice:
+;; In this plan:
 ;;
 ;; - Dimensions are 600x400 drawing units, with a margin of 10
 ;; - Labels `"x"` and `"y"` are inferred from column names
@@ -104,8 +104,8 @@ tiny-plan
                               (vector? (:labels t))
                               (= (count (:values t)) (count (:labels t)))))])
 
-;; These are the actual numbers that will appear on the axis.
-;; They are in data space -- not drawing units.
+;; These are the numbers that will appear on the axis. They are in
+;; data space -- not drawing units.
 
 ;; ### The layer
 ;;
@@ -125,8 +125,8 @@ tiny-layer
 
 (kind/test-last [(fn [n] (= 1 n))])
 
-;; The group contains the actual data -- x/y coordinates in data space,
-;; plus a resolved RGBA color:
+;; The group contains the data -- x/y coordinates in data space, plus
+;; a resolved RGBA color:
 
 (first (:groups tiny-layer))
 
@@ -155,7 +155,7 @@ tiny-layer
                    (pj/lay-point :sepal-length :sepal-width {:color :species})
                    pj/plan))
 
-;; Here is the full plan -- notice the legend and three groups:
+;; Here is the full plan, with a legend and three groups:
 
 iris-plan
 

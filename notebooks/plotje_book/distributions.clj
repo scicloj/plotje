@@ -144,8 +144,8 @@
 ;; Each curve is estimated across every species' values, not just its
 ;; own, so all three share one interval and each falls away to nothing at
 ;; both ends. Pass `{:trim true}` to estimate each species over its own
-;; values instead. That shows where each group's data actually lies, at
-;; the cost of cutting each curve off at its extremes.
+;; values instead. Trimming shows where each group's data lies, at the
+;; cost of cutting each curve off at its extremes.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-density :sepal-length {:color :species :trim true}))
@@ -258,9 +258,8 @@
 (-> (rdatasets/datasets-iris)
     (pj/lay-boxplot :species :sepal-width))
 
-;; The 1.5-times-IQR claim is structural: each whisker stays within the
-;; Tukey fence `[Q1 - 1.5*IQR, Q3 + 1.5*IQR]`, and every outlier
-;; falls outside it.
+;; Each whisker stays within the Tukey fence
+;; `[Q1 - 1.5*IQR, Q3 + 1.5*IQR]`, and every outlier falls outside it.
 
 (kind/test-last
  [(fn [v]

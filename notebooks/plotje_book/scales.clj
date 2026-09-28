@@ -369,8 +369,7 @@ gapminder-2007
 ;;   same part of the range wherever in the domain it falls.
 ;; - A `:log` type maps equal ratios in the data to equal differences in
 ;;   what is drawn, so each factor of ten covers the same part of the
-;;   range. This is what makes a column spanning orders of magnitude
-;;   readable.
+;;   range. A column spanning orders of magnitude is then readable.
 ;; - A `:categorical` type has no arithmetic to preserve. It gives each
 ;;   distinct value in the domain a place of its own: a band on an axis,
 ;;   one color from a palette, or one symbol.
@@ -841,10 +840,9 @@ gapminder-2007
 ;; A name the data does not hold is the other side of the same
 ;; comparison, and is reported too: a `:domain` orders the categories
 ;; the data holds and adds none to them, so the extra name is dropped
-;; and no band is drawn for it. ggplot2's `scale_x_discrete(limits =
-;; ...)` draws an empty band there instead, so the report is worth
-;; reading rather than a formality. The axis below carries two bands,
-;; not three:
+;; and no band is drawn for it. ggplot2's
+;; `scale_x_discrete(limits = ...)` draws an empty band there instead.
+;; The axis below carries two bands, not three:
 
 (with-out-str
   (-> {:team ["red" "green"] :score [3 5]}
@@ -882,11 +880,11 @@ gapminder-2007
                 (boolean (re-find #"past the ends of this axis"
                                   (ex-message e)))))))])
 
-;; This is what a number written for such an axis is counted against. A
-;; place is counted among the bands an axis carries, so the axis above
-;; ends half a place past the second band, and `3` is past that end
-;; whatever the `:domain` lists. [Placing
-;; Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
+;; A number written for such an axis is a place, counted among the
+;; bands the axis carries, so the axis above ends half a place past
+;; the second band, and `3` is past that end whatever the `:domain`
+;; lists.
+;; [Placing Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
 ;; covers places.
 
 ;; ### On an appearance aesthetic
@@ -1499,10 +1497,10 @@ gapminder-2007
 ;; [Not supported yet](#not-supported-yet) below.
 ;;
 ;; A swatch is also drawn in the shape of the quantity it explains. One
-;; column mapped to both `:size` and `:alpha` earns two legends over
-;; the same values, and they look nothing alike: a radius is explained
-;; by graduated circles, an opacity by squares of one size at graduated
-;; opacities.
+;; column mapped to both `:size` and `:alpha` is drawn with two
+;; legends over the same values, and the two legends look nothing
+;; alike: a radius is explained by graduated circles, an opacity by
+;; squares of one size at graduated opacities.
 
 (-> squares
     (pj/lay-point :step :row {:size :n :alpha :n})

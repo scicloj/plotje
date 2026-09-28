@@ -163,10 +163,10 @@
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
-;; What the data decides is which of two readings a number takes: a
-;; number the data carries as a column name is that column, and any
-;; other number is a value to place a mark at. So the same code can
-;; mean different things on differently named data --
+;; The data decides which of two readings a number takes: a number the
+;; data carries as a column name is that column, and any other number
+;; is a value to place a mark at. So the same code can mean different
+;; things on differently named data --
 ;; [Known Limitations](./plotje_book.known_limitations.html#integer-column-names)
 ;; has the detail, and `{:x {:column 0}}` or `{:x {:value 0}}` settles
 ;; it in place. Renaming the columns is the other remedy:

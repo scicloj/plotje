@@ -70,8 +70,8 @@
 ;;   is designed but not implemented.
 ;;
 ;; - A long label at the right edge of a panel costs axis range.
-;;   `:fit-text-domain` makes room for it by widening the domain,
-;;   which is the only lever available -- there is no way to reserve
+;;   `:fit-text-domain` makes room for the label by widening the
+;;   domain, and nothing else can -- there is no way to reserve
 ;;   drawing-space room for labels outside the drawing area. Several
 ;;   sentence-length labels at the line ends can push the axis well
 ;;   past the data. Workarounds: shorten the end labels and put the
@@ -273,15 +273,14 @@
 ;;   `(pj/pose ds {:x 0 :y 1})` all plot those two columns, and the
 ;;   derived axis titles read as the names.
 ;;
-;;   What remains is that a number has two possible readings on `:x`
-;;   and `:y`, and the data decides between them: a number the data
-;;   carries as a column name is that column, and any other number is a
-;;   value to place a mark at. So the same code can change meaning on a
-;;   dataset whose column names differ. Where that matters, write the
-;;   mapping out in full -- `{:x {:column 0}}` and `{:x {:value 0}}`
-;;   are each unambiguous -- or rename with
-;;   `(tc/rename-columns ds [:x :y])` as shown in the
-;;   [Datasets](./plotje_book.datasets.html#column-names) chapter.
+;; A number has two possible readings on `:x` and `:y`, and the data
+;;   decides between them: a number the data carries as a column name
+;;   is that column, and any other number is a value to place a mark
+;;   at. So the same code can change meaning on a dataset whose column
+;;   names differ. Where that matters, write the mapping out in full
+;;   -- `{:x {:column 0}}` and `{:x {:value 0}}` are each unambiguous
+;;   -- or rename with `(tc/rename-columns ds [:x :y])` as shown in
+;;   the [Datasets](./plotje_book.datasets.html#column-names) chapter.
 ;;
 ;;   The appearance aesthetics work the same way. `{:size 1}` reads
 ;;   column 1 where the data has one, and is a radius where it does
@@ -304,10 +303,9 @@
 ;;   facet column. ggplot2 divides a layer's data the same way it
 ;;   divides the plot's, so `geom_hline(data = means, aes(yintercept =
 ;;   m))` puts one line in each panel where Plotje puts all of them in
-;;   each. Nothing errors; the picture simply shows every group's mark
-;;   in every panel. Workaround: build the panels with `pj/arrange`
-;;   rather than `pj/facet`, so each cell is its own pose with its own
-;;   layer data.
+;;   each. Nothing errors; every panel shows every group's mark.
+;;   Workaround: build the panels with `pj/arrange` rather than
+;;   `pj/facet`, so each cell is its own pose with its own layer data.
 ;;
 ;; - No `after_stat()` analog. ggplot2 idioms like
 ;;   `geom_bar(aes(label=after_stat(count)))` and

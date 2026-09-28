@@ -141,13 +141,12 @@ my-pose
 ;; or normalized to fill `[0, 1]` proportions (`:fill`).
 ;; Position runs between stat computation and rendering. `:stack`
 ;; and `:fill` rewrite values in **data space**, before the scales
-;; see them; `:dodge` leaves values untouched and records which slot
-;; each mark takes in its band, which becomes a position in
-;; **drawing space** when the mark is drawn.
-;; You can override the default position by passing `:position` in
-;; the layer options.
-;; When multiple layers share `:position :dodge`, they are coordinated
-;; together -- error bars automatically align with bars.
+;; read them; `:dodge` leaves values untouched and records which slot
+;; each mark takes in its band, which becomes an offset in **drawing
+;; space** when the mark is drawn. You can override the default
+;; position by passing `:position` in the layer options. When multiple
+;; layers share `:position :dodge`, they are coordinated together --
+;; error bars automatically align with bars.
 ;;
 ;; A position adjustment is one of the [roles](#role) a distinction
 ;; can be given -- a slot within a band, or a place in a pile -- and
@@ -350,8 +349,7 @@ my-pose
 ;; A role is not a category: a **category** is a value a categorical
 ;; column holds, which is the thing a role is given.
 ;;
-;; Two roles are not written as aesthetics, and are named here so the
-;; set is complete rather than tidy:
+;; Two roles are not written as aesthetics:
 ;;
 ;; - A [position](#position) adjustment -- `:dodge`, `:stack`,
 ;;   `:fill` -- gives a distinction a slot within a band, or a place
@@ -827,7 +825,7 @@ my-pose
 ;; a time, with the `:scale` key:
 ;;
 ;; - `{:color {:column :hex :scale false}}` draws the column's values
-;;   as they stand. They inform no domain and earn no legend, since a
+;;   as they stand. They inform no domain and get no legend, since a
 ;;   legend explains a scale.
 ;; - `{:color {:value "Model A" :scale true}}` sends a written value
 ;;   through the scale as though it were a column of one distinct
@@ -1054,14 +1052,14 @@ annotated
 ;; is the scale rather than the mapping -- so a legend appears exactly
 ;; where a scale was applied.
 ;;
-;; That means a column read through its scale earns one, and a written
-;; value read through its scale earns a one-entry legend naming the
-;; value. A mapping given `{:scale false}` earns none, since its
-;; values were drawn as they stand and nothing was decided that a
-;; reader would need explaining. Neither does an aesthetic the mark
-;; cannot vary from row to row: `:size` on `pj/lay-line` draws one
-;; width for the whole layer, so a legend pairing values with radii
-;; would explain an encoding the panel does not carry.
+;; A column read through its scale gets a legend, and a written value
+;; read through its scale gets a one-entry legend naming the value. A
+;; mapping given `{:scale false}` gets no legend, since its values
+;; were drawn as they stand and nothing was decided that a reader
+;; would need explaining. Neither does an aesthetic the mark cannot
+;; vary from row to row: `:size` on `pj/lay-line` draws one width for
+;; the whole layer, so a legend pairing values with radii would
+;; explain an encoding the panel does not carry.
 ;;
 ;; A legend appears in the plan under the key named for its aesthetic
 ;; -- `:legend` for color, holding entries with labels and colors, and

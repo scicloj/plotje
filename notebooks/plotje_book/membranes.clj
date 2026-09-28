@@ -72,8 +72,8 @@ iris-pose
 ;; `pj/membrane` is the shortcut. The same membrane also comes out of
 ;; the explicit two-step route -- `pj/pose->draft` followed by
 ;; `pj/draft->membrane`. Options set on the pose with `pj/options`,
-;; including the title, the axis labels, and the theme, ride on the
-;; draft's options and reach the membrane stage on either route.
+;; including the title, the axis labels, and the theme, are carried in
+;; the draft's options and reach the membrane stage on either route.
 ;;
 ;; Here is a themed pose, rendered so the theme is visible:
 
@@ -151,24 +151,23 @@ iris-membrane
 ;; - `IChildren` -- the sub-elements for traversal. Returns the
 ;;   underlying `:drawables` vector.
 ;;
-;; Why these three and not more? Membrane's protocols partition into
-;; "what every UI element supports" (origin, bounds, children) and
-;; "what the element does" (drawing, mouse events, key events, ...).
-;; Plotje implements the first set so a `PlotjeMembrane` participates
-;; in every Membrane consumer that walks a tree generically. Drawing
-;; is delegated to the children: when a Membrane backend draws our
-;; record, the default `IDraw` impl walks `(children record)` and
-;; draws each child individually -- the existing `Translate`,
-;; `WithColor`, `Path`, `Label` primitives already have per-backend
-;; draw implementations.
+;; Membrane's protocols partition into "what every UI element
+;; supports" (origin, bounds, children) and "what the element does"
+;; (drawing, mouse events, key events, ...). Plotje implements the
+;; first set so a `PlotjeMembrane` participates in every Membrane
+;; consumer that walks a tree generically. Drawing is delegated to the
+;; children: when a Membrane backend draws our record, the default
+;; `IDraw` impl walks `(children record)` and draws each child
+;; individually -- the existing `Translate`, `WithColor`, `Path`,
+;; `Label` primitives already have per-backend draw implementations.
 
 ;; ## Title and namespaced attributes
 ;;
-;; The plot title rides as `:plotje/title` -- not a defrecord field
-;; but a namespaced map entry assoc'd onto the record. This keeps the
-;; record's arity stable as we add per-membrane attributes in the
-;; future. A pose without a title produces a membrane without that
-;; key:
+;; The plot title is stored as `:plotje/title` -- not a defrecord
+;; field but a namespaced map entry assoc'd onto the record. This
+;; keeps the record's arity stable as we add per-membrane attributes
+;; in the future. A pose without a title produces a membrane without
+;; that key:
 
 (:plotje/title (pj/membrane (-> (rdatasets/datasets-iris)
                                 (pj/lay-point :sepal-length :sepal-width))))
@@ -185,8 +184,7 @@ iris-membrane
 ;; ## Composing with other Membrane components
 ;;
 ;; Because a `PlotjeMembrane` is a Membrane UI component, you can
-;; drop it into any Membrane layout. Two Plotje plots side by side
-;; is one line:
+;; drop it into any Membrane layout. Two Plotje plots side by side:
 
 (def two-up
   (ui/horizontal-layout
@@ -215,9 +213,9 @@ iris-membrane
 
 ;; The combined component is no longer a `PlotjeMembrane` (it is
 ;; whatever `horizontal-layout` chose to return -- here, a vector of
-;; the two children), but it speaks the same protocol vocabulary, so
-;; any Membrane backend can render it. To produce a raster image we
-;; bypass `pj/membrane->plot` (which validates a `PlotjeMembrane`
+;; the two children), but it implements the same protocols, so any
+;; Membrane backend can render it. To produce a raster image we bypass
+;; `pj/membrane->plot` (which validates a `PlotjeMembrane`
 ;; specifically) and call Membrane's Java2D backend directly:
 
 (def two-up-png

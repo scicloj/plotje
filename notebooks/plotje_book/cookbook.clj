@@ -368,8 +368,8 @@ longest-per-species
 ;;
 ;; To print a value on each bar, overlay a `lay-text` layer added after
 ;; the bar so it paints on top. Use `:align-x :right` so the label's
-;; right edge sits at the bar's end, tucking the text inside the fill
-;; (extending leftward) rather than spilling past the bar.
+;; right edge sits at the bar's end, so the text extends leftward
+;; inside the bar rather than past its end.
 
 (def species-share
   {:species ["setosa" "versicolor" "virginica"]
@@ -539,7 +539,7 @@ longest-per-species
 ;;
 ;; These recipes place text and marks that explain a plot: names on the
 ;; lines instead of a legend, a note beside the shape it describes, a
-;; caption in a corner. The options they lean on -- offsets, values for
+;; caption in a corner. The options they use -- offsets, values for
 ;; `:x` and `:y`, and `:in :drawing-area` -- are taught in
 ;; [Placing Marks](./plotje_book.placing_marks.html#shifting-a-mark-by-a-distance-on-the-page).
 ;;

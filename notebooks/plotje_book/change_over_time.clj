@@ -262,8 +262,7 @@ temp-pose
 ;; `:share-scales #{:x}` pools the date column across the cells. The
 ;; pooled range is the union of both, so each series occupies the part
 ;; of the axis it covers, and both panels carry the same tick labels.
-;; One above the other, that is something to look at rather than to
-;; check: a month is at the same place in both panels.
+;; A month is at the same place in both panels.
 
 (pj/arrange cities {:cols 1 :share-scales #{:x}})
 

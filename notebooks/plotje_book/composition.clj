@@ -163,12 +163,12 @@ shared-x
 
 ;; ### Cells That Line Up
 ;;
-;; Sharing a scale is not enough on its own. Each cell reserves the
-;; room its own y labels need, so a cell labelled in single digits
-;; comes out wider than a cell labelled in millions, and the axis the
-;; two share covers a different extent in each. `:align-panels`
-;; reserves the widest y-label pad and legend column any cell needs on
-;; all of them, so every cell gets the same drawing area:
+;; Each cell reserves the room its own y labels need, so a cell
+;; labelled in single digits comes out wider than a cell labelled in
+;; millions, and the axis the two share covers a different extent in
+;; each. `:align-panels` reserves the widest y-label pad and legend
+;; column any cell needs on all of them, so every cell gets the same
+;; drawing area:
 
 (def readings
   {:t [1 2 3 4 5]
@@ -404,11 +404,10 @@ dashboard
 ;;
 ;; A layer can carry its own `:data` via the layer options map.
 ;; This is how reference lines, prediction overlays, and small
-;; annotation datasets attach to a plot. The wrinkle is what the
-;; layer's columns must refer to: a panel has one x-axis and one
-;; y-axis, both identified by their column ref, so a layer that
-;; renders on a panel uses the panel's column refs to look up
-;; values in its data.
+;; annotation datasets attach to a plot. A panel has one x-axis and
+;; one y-axis, both identified by their column ref, so a layer that
+;; renders on a panel uses the panel's column refs to look up values
+;; in its data.
 ;;
 ;; That rule gives two patterns -- "overlay on the same panel"
 ;; and "this layer on a panel of its own" -- with different
@@ -546,8 +545,7 @@ dashboard
 
 ;; ## Notes on the Current Implementation
 ;;
-;; A few details about how composition renders today, in case they
-;; matter for a layout you're sketching:
+;; A few details about how composition renders today:
 ;;
 ;; - **Each leaf draws its own axes, labels, and ticks.** Shared
 ;;   scales align the data ranges across panels, but these
@@ -563,9 +561,9 @@ dashboard
 ;;   since each leaf reserves its own padding for axes and labels --
 ;;   two sub-poses with different label lengths, or one drawing a
 ;;   legend that its neighbour does not, produce visibly different
-;;   panel widths. `pj/marginal` is the one construction that
-;;   answers this today: it plans its two cells against a common
-;;   floor for both the y-label pad and the legend column.
+;;   panel widths. `:align-panels` on `pj/arrange` plans the cells
+;;   against a common floor for both the y-label pad and the legend
+;;   column, and `pj/marginal` turns it on (see Cells That Line Up).
 ;; - **Each cell has its own plot options.** A cell is a pose, so
 ;;   `pj/options`, `pj/scale` and `pj/coord` written on it apply to
 ;;   that cell: one cell can be log-scaled and its neighbour linear,

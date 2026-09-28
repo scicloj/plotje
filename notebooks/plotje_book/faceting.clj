@@ -259,9 +259,9 @@ measures
                 (= ["sepal / length" "sepal / width" "petal / length"]
                    (mapv :col-label (:panels (pj/plan fr))))))])
 
-;; `pj/facet-grid` asks a different question. It crosses two
-;; distinctions and fills the rectangle, so the combination the data
-;; does not hold is drawn as an empty panel.
+;; `pj/facet-grid` crosses two distinctions and fills the rectangle,
+;; so the combination the data does not hold is drawn as an empty
+;; panel.
 
 (-> measures
     (pj/lay-point :t :v)
@@ -321,9 +321,7 @@ measures
 ;; `:scales` frees the axes, and the axes alone. A `:size` or `:alpha`
 ;; column is read against every value the plot holds, whichever panel a
 ;; mark sits in, so one value is one size everywhere and the legend
-;; explains every panel at once. Comparing panels is what faceting is
-;; for, and a size that meant something different in each would take
-;; that away.
+;; explains every panel at once.
 ;;
 ;; Below, the left panel's values run from 1 to 3 and the right panel's
 ;; from 4 to 10, so every mark on the left is smaller than every mark
@@ -353,9 +351,8 @@ measures
        (= [[1 2 3] [4 7 10]]
           (mapv (fn [l] (vec (mapcat :sizes (:groups l)))) layers)))))])
 
-;; A `:domain` sets that one extent rather than working around it. Given
-;; more room than the data needs, no mark reaches either end of the
-;; range:
+;; A `:domain` sets that one extent. Given more room than the data
+;; needs, no mark reaches either end of the range:
 
 (-> per-panel
     (pj/lay-point :x :y {:size :n})
@@ -404,10 +401,9 @@ measures
                (re-find #"pj/facet-grid" m)
                (re-find #"in the pose's mapping" m)))])
 
-;; Two facets in the same direction on one pose are two answers to one
-;; question, and the second is reported rather than quietly replacing
-;; the first. Overriding one further down a composite is a different
-;; thing, and is what the scope rules are for.
+;; A second facet in the same direction on one pose is reported rather
+;; than replacing the first. A facet written on a cell of a composite
+;; overrides the facet the cell inherits, by the scope rules.
 
 (try
   (-> (rdatasets/datasets-iris)

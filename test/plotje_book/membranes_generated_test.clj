@@ -111,7 +111,7 @@
 
 
 (def
- v29_l173
+ v29_l172
  (:plotje/title
   (pj/membrane
    (->
@@ -119,11 +119,11 @@
     (pj/lay-point :sepal-length :sepal-width)))))
 
 
-(deftest t30_l176 (is (nil? v29_l173)))
+(deftest t30_l175 (is (nil? v29_l172)))
 
 
 (def
- v32_l191
+ v32_l189
  (def
   two-up
   (ui/horizontal-layout
@@ -141,18 +141,18 @@
       {:title "Sepal length vs petal length", :y-label "petal"}))))))
 
 
-(def v34_l208 {:width (ui/width two-up), :height (ui/height two-up)})
+(def v34_l206 {:width (ui/width two-up), :height (ui/height two-up)})
 
 
 (deftest
- t35_l211
+ t35_l209
  (is
   ((fn [info] (and (= 1201 (:width info)) (= 400 (:height info))))
-   v34_l208)))
+   v34_l206)))
 
 
 (def
- v37_l223
+ v37_l221
  (def
   two-up-png
   ((requiring-resolve 'membrane.java2d/draw-to-image)
@@ -160,31 +160,31 @@
    [(ui/width two-up) (ui/height two-up)])))
 
 
-(def v38_l228 (instance? java.awt.image.BufferedImage two-up-png))
+(def v38_l226 (instance? java.awt.image.BufferedImage two-up-png))
 
 
-(deftest t39_l230 (is (true? v38_l228)))
+(deftest t39_l228 (is (true? v38_l226)))
 
 
-(def v41_l234 two-up-png)
+(def v41_l232 two-up-png)
 
 
-(def v43_l248 (pj/membrane->plot iris-membrane :svg {}))
+(def v43_l246 (pj/membrane->plot iris-membrane :svg {}))
 
 
-(deftest t44_l250 (is ((fn [v] (= :svg (first v))) v43_l248)))
+(deftest t44_l248 (is ((fn [v] (= :svg (first v))) v43_l246)))
 
 
-(def v46_l256 (pj/membrane->plot iris-membrane :bufimg {}))
+(def v46_l254 (pj/membrane->plot iris-membrane :bufimg {}))
 
 
 (deftest
- t47_l258
- (is ((fn [v] (instance? java.awt.image.BufferedImage v)) v46_l256)))
+ t47_l256
+ (is ((fn [v] (instance? java.awt.image.BufferedImage v)) v46_l254)))
 
 
 (def
- v49_l287
+ v49_l285
  (def
   clipped-membrane
   (->
@@ -197,36 +197,36 @@
 
 
 (def
- v51_l300
+ v51_l298
  (->>
   (ui/children clipped-membrane)
   (tree-seq coll? seq)
   (filter
-   (fn* [p1__83181#] (instance? membrane.ui.ScissorView p1__83181#)))
-  (mapv (fn* [p1__83182#] (select-keys p1__83182# [:offset :bounds])))))
+   (fn* [p1__80113#] (instance? membrane.ui.ScissorView p1__80113#)))
+  (mapv (fn* [p1__80114#] (select-keys p1__80114# [:offset :bounds])))))
 
 
 (deftest
- t52_l305
+ t52_l303
  (is
   ((fn
     [rects]
     (and
      (= 2 (count rects))
-     (some (fn* [p1__83183#] (= [0 0] (:offset p1__83183#))) rects)
+     (some (fn* [p1__80115#] (= [0 0] (:offset p1__80115#))) rects)
      (some
-      (fn* [p1__83184#] (every? pos? (:offset p1__83184#)))
+      (fn* [p1__80116#] (every? pos? (:offset p1__80116#)))
       rects)))
-   v51_l300)))
+   v51_l298)))
 
 
-(def v54_l321 (pj/valid-membrane? iris-membrane))
+(def v54_l319 (pj/valid-membrane? iris-membrane))
 
 
-(deftest t55_l323 (is (true? v54_l321)))
+(deftest t55_l321 (is (true? v54_l319)))
 
 
-(def v57_l328 (some? (pj/explain-membrane {:not :a-membrane})))
+(def v57_l326 (some? (pj/explain-membrane {:not :a-membrane})))
 
 
-(deftest t58_l330 (is (true? v57_l328)))
+(deftest t58_l328 (is (true? v57_l326)))

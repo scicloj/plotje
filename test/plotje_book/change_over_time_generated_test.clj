@@ -13,7 +13,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__76006#] (Math/sin (* p1__76006# 0.3))) (range 30))}))
+   (map (fn* [p1__75362#] (Math/sin (* p1__75362# 0.3))) (range 30))}))
 
 
 (def v4_l21 (-> wave (pj/lay-line :x :y)))
@@ -37,10 +37,10 @@
   (tc/dataset
    {:x (range 30),
     :sin
-    (map (fn* [p1__76007#] (Math/sin (* p1__76007# 0.3))) (range 30)),
+    (map (fn* [p1__75363#] (Math/sin (* p1__75363# 0.3))) (range 30)),
     :cos
     (map
-     (fn* [p1__76008#] (Math/cos (* p1__76008# 0.3)))
+     (fn* [p1__75364#] (Math/cos (* p1__75364# 0.3)))
      (range 30))})))
 
 
@@ -181,7 +181,7 @@
  (->
   {:x (range 30),
    :y
-   (map (fn* [p1__76009#] (Math/sin (* p1__76009# 0.3))) (range 30))}
+   (map (fn* [p1__75365#] (Math/sin (* p1__75365# 0.3))) (range 30))}
   (pj/lay-area :x :y)))
 
 
@@ -256,7 +256,7 @@
       (= 6 (:points s))
       (= 1 (:lines s))
       (some
-       (fn* [p1__76010#] (re-find #"[A-Z][a-z]{2}" p1__76010#))
+       (fn* [p1__75366#] (re-find #"[A-Z][a-z]{2}" p1__75366#))
        tick-labels))))
    v35_l178)))
 
@@ -366,7 +366,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__76011#] (-> p1__76011# :plan :panels first))
+       (fn* [p1__75367#] (-> p1__75367# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -375,36 +375,36 @@
       (apply
        not=
        (mapv
-        (fn* [p1__76012#] (:labels (:x-ticks p1__76012#)))
+        (fn* [p1__75368#] (:labels (:x-ticks p1__75368#)))
         panels)))))
    v48_l251)))
 
 
-(def v51_l268 (pj/arrange cities {:cols 1, :share-scales #{:x}}))
+(def v51_l267 (pj/arrange cities {:cols 1, :share-scales #{:x}}))
 
 
 (deftest
- t52_l270
+ t52_l269
  (is
   ((fn
     [v]
     (let
      [panels
       (mapv
-       (fn* [p1__76013#] (-> p1__76013# :plan :panels first))
+       (fn* [p1__75369#] (-> p1__75369# :plan :panels first))
        (:sub-plots (pj/plan v)))
       widths
       (->>
        (tree-seq vector? seq (pj/plot v))
        (filter
         (fn*
-         [p1__76014#]
+         [p1__75370#]
          (and
-          (vector? p1__76014#)
-          (= :rect (first p1__76014#))
-          (= "rgb(232,232,232)" (:fill (second p1__76014#))))))
+          (vector? p1__75370#)
+          (= :rect (first p1__75370#))
+          (= "rgb(232,232,232)" (:fill (second p1__75370#))))))
        (mapv
-        (fn* [p1__76015#] (double (:width (second p1__76015#))))))]
+        (fn* [p1__75371#] (double (:width (second p1__75371#))))))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
       (= 12 (:points (pj/svg-summary v)))
@@ -412,14 +412,14 @@
       (apply
        =
        (mapv
-        (fn* [p1__76016#] (:labels (:x-ticks p1__76016#)))
+        (fn* [p1__75372#] (:labels (:x-ticks p1__75372#)))
         panels))
       (apply = widths))))
-   v51_l268)))
+   v51_l267)))
 
 
 (def
- v54_l305
+ v54_l304
  (def
   sightings
   {:date
@@ -439,7 +439,7 @@
 
 
 (def
- v55_l312
+ v55_l311
  (->
   sightings
   (pj/lay-point :date :count)
@@ -447,7 +447,7 @@
 
 
 (deftest
- t56_l316
+ t56_l315
  (is
   ((fn
     [v]
@@ -456,7 +456,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__76017#] (-> p1__76017# :plan :panels first))
+       (fn* [p1__75373#] (-> p1__75373# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))
@@ -464,11 +464,11 @@
       (= 5 (:polygons s))
       (apply = (mapv :x-domain panels))
       (= [] (:values (:x-ticks (first panels)))))))
-   v55_l312)))
+   v55_l311)))
 
 
 (def
- v58_l337
+ v58_l336
  (->
   {:date
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -490,18 +490,18 @@
 
 
 (deftest
- t59_l346
+ t59_l345
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 2 (:lines s)))))
-   v58_l337)))
+   v58_l336)))
 
 
 (def
- v61_l361
+ v61_l360
  (->
   {:t (range 12), :delta [-3 -1 -2 0 2 4 -1 3 5 -2 1 4]}
   (pj/lay-line :t :delta)
@@ -510,11 +510,11 @@
 
 
 (deftest
- t62_l367
+ t62_l366
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 12 (:points s)) (= 2 (:lines s)))))
-   v61_l361)))
+   v61_l360)))

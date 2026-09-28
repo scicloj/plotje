@@ -79,9 +79,9 @@ sales-by-region
                           (pj/lay-bar :quarter [:revenue :cost :tax]
                                       {:position :dodge})))))])
 
-;; That equality is what makes the adjustments below work. An
-;; adjustment divides a band between labelled competitors, and the
-;; pivot is what gives the measures labels.
+;; An adjustment divides a band between labelled competitors, and the
+;; pivot gives the measures their labels, so the adjustments below
+;; apply to a series.
 
 ;; ## Naming the key column
 
@@ -611,9 +611,9 @@ sales-by-region
 
 ;; A series whose columns are named in words needs none of this, and
 ;; carries no `:color-type`. The dataset the pose holds is what
-;; `tc/pivot->longer` returns either way -- the key column keeps the
-;; type Tablecloth gave it, and what changed is only how the colour
-;; reads it.
+;; `tc/pivot->longer` returns either way : the key column keeps the
+;; type Tablecloth gave it, and `:color-type` changes only how the
+;; colour reads the key column.
 
 ;; #### A measure with no value
 
@@ -765,11 +765,10 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 4 (:lines (pj/svg-summary v))))])
 
-;; A bar is the case to be careful with. A dodge gives every
-;; combination of the measure and the grouping column a slot of its
-;; own, so each quarter draws four bars -- but the grouping column
-;; draws no legend, so the two bars of one measure share its colour
-;; and nothing says which region each is:
+;; On a bar, a dodge gives every combination of the measure and the
+;; grouping column a slot of its own, so each quarter draws four bars
+;; -- but the grouping column draws no legend, so the two bars of one
+;; measure share its colour and nothing says which region each is:
 
 (-> sales-by-region
     (pj/lay-bar :quarter [:revenue :cost] {:group :region}))
@@ -861,8 +860,8 @@ sales-by-region
 
 ;; Each region has all four quarters, so each panel draws a line per
 ;; measure across the whole axis. Faceting on region and outlet
-;; together would leave two quarters per panel, and a line of two points
-;; says less than a bar of two does.
+;; together would leave two quarters per panel, so each line would
+;; join only two points.
 
 (-> sales-by-region
     (pj/lay-line :quarter [:revenue :cost :tax])
@@ -1159,10 +1158,9 @@ sales-by-region
          ["[:revenue :outlet]"
           #(-> sales-by-region (pj/lay-bar :quarter [:revenue :outlet]))]])})
 
-;; The table renders the messages as strings, so the assertion reads
-;; the calls again rather than reading the table.
-
 (kind/test-last
+ ;; The table renders the messages as strings, so the assertion reads
+ ;; the calls again rather than reading the table.
  [(fn [t] (and (= 9 (count (:row-vectors t)))
                (every? (fn [f] (try (pj/plot (f)) false (catch Throwable _ true)))
                        [#(-> sales (pj/lay-point :quarter :revenue {:color [:revenue :cost :tax]}))

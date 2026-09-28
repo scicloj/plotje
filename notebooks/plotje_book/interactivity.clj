@@ -86,7 +86,7 @@ sales
 
 sales-labelled
 
-;; Mapping that column is the whole of it:
+;; Map that column to `:tooltip`:
 
 (-> sales-labelled
     (pj/lay-point :margin :revenue {:tooltip :hover})
@@ -213,10 +213,10 @@ sales-rich
 ;; ## Cross-panel linked highlighting
 ;;
 ;; Because brush selection is keyed by `data-row-idx` (a stable
-;; integer attached to each rendered shape at extract time), the
-;; same selection lights up matching rows in every panel of a
-;; faceted pose. Drag in one species panel; the corresponding
-;; rows in the other two species panels respond immediately.
+;; integer attached to each rendered shape at extract time), the same
+;; selection highlights matching rows in every panel of a faceted
+;; pose. Drag in one species panel; the corresponding rows in the
+;; other two species panels respond immediately.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)

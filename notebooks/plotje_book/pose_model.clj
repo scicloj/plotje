@@ -164,10 +164,12 @@ multi-layer
 
 ;; The same rule lets a value label sit on a bar: add the label after
 ;; the bar so it paints on top, and use `:align-x :right` so the label
-;; tucks inside the bar's end rather than spilling past it. (Bars and
-;; `pj/coord` are covered later; anchoring is in
-;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark), and the
-;; [Cookbook](./plotje_book.cookbook.html#value-labels-inside-bars) has a value-labels recipe.)
+;; sits inside the bar's end rather than past it. (Bars and `pj/coord`
+;; are covered later; anchoring is in
+;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark),
+;; and the
+;; [Cookbook](./plotje_book.cookbook.html#value-labels-inside-bars)
+;; has a value-labels recipe.)
 
 (-> {:species ["setosa" "versicolor" "virginica"]
      :pct     [33.3 33.3 33.3]}
@@ -182,8 +184,7 @@ multi-layer
 
 ;; Swapping the two calls swaps which layer paints on top -- paint
 ;; order follows the order layers were added, not the layer type. Ask
-;; for the text first and the bars paint over it, washing the labels
-;; out under the fill instead of letting them read crisply on top:
+;; for the text first and the bars are drawn over the labels:
 
 (-> {:species ["setosa" "versicolor" "virginica"]
      :pct     [33.3 33.3 33.3]}

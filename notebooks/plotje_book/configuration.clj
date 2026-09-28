@@ -250,8 +250,8 @@ precedence-plot
            ;; since plot options did not specify height).
            (= 500.0 (double (:height s))))))])
 
-;; We can verify point-radius too -- only set-config! touched it, so it
-;; wins over the library default shown above:
+;; Only set-config! sets point-radius, so the set-config! value wins
+;; over the library default shown above:
 
 (def precedence-point-radius
   (pj/with-config {:width 1200 :height 500}
@@ -520,10 +520,10 @@ precedence-point-radius
 
 (kind/test-last [(fn [v] (false? v))])
 
-;; `pj/explain-plan` pinpoints the problem.  The `:errors` key in
-;; the returned map shows exactly which path failed and why.  The
-;; `:in` key is the value-path (where in the plan the bad value
-;; lives); `:value` is the offending value:
+;; `pj/explain-plan` reports the problem. The `:errors` key in the
+;; returned map shows which path failed and why. The `:in` key is the
+;; value-path (where in the plan the bad value lives); `:value` is the
+;; offending value:
 
 (-> (pj/explain-plan bad-plan)
     :errors
@@ -535,9 +535,8 @@ precedence-point-radius
     (and (= [:width] (:in m))
          (= "not-a-number" (:value m))))])
 
-;; With validation enabled (the default), `pj/plan` would throw
-;; an exception for such a malformed plan.  We can verify this
-;; by catching the exception:
+;; With validation enabled (the default), `pj/plan` throws an
+;; exception for such a malformed plan. Here the exception is caught:
 
 (try
   (let [plan (pj/plan (base-plot) {:validate false})
@@ -582,8 +581,8 @@ precedence-point-radius
 ;; in tests or pipelines where a typo should fail loudly rather
 ;; than silently render a default plot.
 
-;; Default behavior: warn and continue. The plot renders normally,
-;; the unknown key is silently dropped:
+;; Default behavior: warn and continue. The plot renders normally, and
+;; the unknown key is dropped with a warning:
 
 (pj/with-config {:strict false}
   (-> (rdatasets/datasets-iris)

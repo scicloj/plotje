@@ -461,13 +461,12 @@ cars
                                  :sepal-length :sepal-width))
               (dom fr)))))])
 
-;; This is what the two spaces are for. A number in data space is a data
-;; value, so it widens the domain if it falls outside it. A number in
-;; drawing space is a measurement of the page, so it must not affect the
-;; domain at all. The x domains below come from the same plot three
-;; times: without a note, with the note at `{:x 12 :y 12}` in data space,
-;; and with it at the same numbers in drawing space. Only the data-space
-;; note moves the axis:
+;; A number in data space is a data value, so it widens the domain if
+;; it falls outside it. A number in drawing space is a measurement of
+;; the page, so it must not affect the domain at all. The x domains
+;; below come from the same plot three times: without a note, with the
+;; note at `{:x 12 :y 12}` in data space, and with it at the same
+;; numbers in drawing space. Only the data-space note moves the axis:
 
 (let [base       (pj/lay-point (rdatasets/datasets-iris)
                                :sepal-length :sepal-width)
@@ -542,9 +541,9 @@ scatter
 ;; dataset records that; two separate sequences would leave it to the
 ;; caller to keep them in step.
 
-;; These functions can answer the question the `:dx` section left open:
-;; how far does a `:dx` of 0.08 actually move a label on each of those
-;; two axes? Ask each panel where 0.08 of its own units comes to:
+;; These functions measure how far a `:dx` of 0.08 moves a label on
+;; each of the two axes in the `:dx` section. Each panel reports where
+;; 0.08 of its own units comes to:
 
 (let [shift (fn [column]
               (let [panel (-> cars
@@ -766,7 +765,7 @@ scatter
  [(fn [m] (> (:fitted m) (:unfitted m)))])
 
 ;; Remove the labels and the two settings agree again, because an axis is
-;; only widened for text that is actually drawn on it:
+;; only widened for text that is drawn on it:
 
 (let [top-end (fn [opts]
                 (-> tickets-by-violation

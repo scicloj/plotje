@@ -3,9 +3,7 @@
 ;; Plotje infers many parameters automatically so you can write
 ;; less and get reasonable defaults. This notebook walks each rule
 ;; with a worked example: a small pose, the rendered plot, and a
-;; description of what was inferred. Every rule is also checked
-;; against the resolved plot on every run, so the claims here stay
-;; honest as the library evolves.
+;; description of what was inferred.
 ;;
 ;; This chapter is a reference: each rule with its default and its
 ;; override. For the conceptual overview, read [Poses](./plotje_book.pose_model.html)
@@ -67,7 +65,7 @@ scatter-pose
            (= 1 (count (:groups (first (:layers p)))))
            (= explicit-default-color (:color g)))))])
 
-;; Notice what was inferred:
+;; Plotje inferred:
 ;;
 ;; - The x-axis label `"x"` and y-axis label `"y"`, taken from
 ;;   the column keywords
@@ -85,8 +83,8 @@ scatter-pose
 ;; ## Overrides at a Glance
 ;;
 ;; Every inference rule has an explicit override. The table below
-;; lists them all -- scan it to find what you need, then jump to the
-;; matching section for the details and worked examples.
+;; lists them all, and each row has a section below with worked
+;; examples.
 ;;
 ;; | What is inferred | Default | Override |
 ;; |:-----------------|:--------|:---------|
@@ -186,12 +184,12 @@ two-col-pose
 ;;
 ;; - `(pj/lay-* data)` throws with a message listing the available
 ;;   columns, asking you to pass explicit `:x` and `:y`.
-;; - `(pj/pose data)` is gentler -- it builds a pose with the data
+;; - `(pj/pose data)` does not throw -- it builds a pose with the data
 ;;   attached but no mapping, so you can add one downstream with
-;;   `(pj/pose pose :col-a :col-b)` or `(pj/lay-point pose :col-a :col-b)`.
+;;   `(pj/pose pose :col-a :col-b)` or
+;;   `(pj/lay-point pose :col-a :col-b)`.
 ;;
-;; When you provide explicit columns, inference is skipped -- you
-;; are in full control:
+;; When you provide explicit columns, inference is skipped:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :petal-length :petal-width {:color :species}))
@@ -308,10 +306,10 @@ temporal-pose
 ;; ### Overriding inferred types with `:x-type` / `:y-type`
 ;;
 ;; Sometimes a numeric column is really categorical -- for example,
-;; hours of the day, years, or subject IDs. The inference system sees
-;; numbers and treats them as numerical, but you may want discrete
-;; categorical bands. Pass `:x-type :categorical` (or `:y-type`) to
-;; the pose or layer options to override:
+;; hours of the day, years, or subject IDs. Inference treats a column
+;; of numbers as numerical, but you may want discrete categorical
+;; bands. Pass `:x-type :categorical` (or `:y-type`) to the pose or
+;; layer options to override:
 
 (def hour-bar-pose
   (-> {:hour [9 10 11 12] :count [5 8 12 7]}
@@ -402,9 +400,9 @@ fixed-color-pose
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
-;; This raises a question: since `:color` also accepts column names
-;; (like `"species"` or `:species`), how does the system decide whether
-;; `"red"` means the column `red` or the color red?
+;; `:color` also accepts column names (like `"species"` or
+;; `:species`), so `"red"` could mean the column `red` or the color
+;; red.
 ;;
 ;; The rule is: **check the dataset first**. If the value names a
 ;; column of the layer's data, it is a column reference. Otherwise it
@@ -424,9 +422,9 @@ fixed-color-pose
 ;;    to name is the column.
 ;;
 ;; A keyword and a string are asked the same two questions, in the same
-;; order. What differs is what each can match -- matching is strict, so
-;; `:species` finds a keyword-named column and `"species"` finds a
-;; string-named one -- and how much the error says.
+;; order. Matching is strict: `:species` finds a keyword-named column
+;; and `"species"` finds a string-named one. The errors for the two
+;; differ in how much they say.
 ;;
 ;; Hex without its `#` is **not** a color. clojure2d reads a bare `abc`
 ;; as `#aabbcc`, which would make `"beef"` and `"fff"` colors -- far
@@ -438,7 +436,7 @@ fixed-color-pose
 ;; which you mean: `{:color {:column "red"}}` reads the column and
 ;; `{:color {:value "red"}}` draws the color.
 
-;; Verify: `"red"` is a fixed color when the dataset has no `red` column:
+;; `"red"` is a fixed color when the dataset has no `red` column:
 
 (def red-color-pose
   (-> five-points
@@ -541,9 +539,6 @@ numeric-color-pose
 ;; treats numeric columns as continuous, but you want discrete
 ;; groups. Setting `:color-type :categorical` overrides this so
 ;; the column is treated as categorical despite its numeric dtype.
-;;
-;; **Inference provides good defaults, but the user can always
-;; override.**
 
 (def study-data
   {:subject [1 1 1 2 2 2 3 3 3]
@@ -1252,11 +1247,12 @@ graph TD
 ")
 
 ;; Column types and aesthetic classification are the starting
-;; points; everything else flows from them. Statistics and domains
-;; together set the geometry; labels, legends, and layout round out
-;; the surrounding plot.
+;; points; every other inference depends on them. Statistics and
+;; domains together set the geometry; labels, legends, and layout fill
+;; the plot around the panels.
 
 ;; ## What's Next
 ;;
 ;; - [**Layer Types**](./plotje_book.layer_types.html) -- the full registry of marks, stats, and positions that inference selects from
-;; - [**Relationships**](./plotje_book.relationships.html) -- see inference in action on scatter, regression, and SPLOM
+;; - [**Relationships**](./plotje_book.relationships.html) --
+;;   inference applied to scatter, regression, and SPLOM

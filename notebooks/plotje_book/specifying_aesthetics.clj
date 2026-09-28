@@ -73,8 +73,8 @@
 
 plants
 
-;; The `:shade` column is there because it is the awkward case: its
-;; values are colors, and it is still a column of data like any other.
+;; The `:shade` column holds colors, and it is still a column of data
+;; like any other.
 
 ;; ## A mapping written in full
 ;;
@@ -138,7 +138,7 @@ plants
 ;; codes, so each mark is drawn in the color its own row carries.
 ;;
 ;; No legend appears. A legend explains a scale, and there is no scale
-;; here -- nothing was decided that a reader would need explaining.
+;; here.
 
 (-> plants
     (pj/lay-point :height :weight {:color {:column :shade :scale false}
@@ -303,10 +303,8 @@ plants
 
 ;; ## The short form
 ;;
-;; Writing every mapping in full would be tiring, and most mappings are
-;; one of the four for an obvious reason. So a mapping may be written
-;; short -- a bare column name, or the bare thing to be drawn -- and
-;; Plotje supplies the two answers.
+;; A mapping may be written short -- a bare column name, or the bare
+;; thing to be drawn -- and Plotje supplies the two answers.
 
 ;; ### How the source is decided
 ;;
@@ -605,9 +603,9 @@ integer-named
  [(fn [fr] (= [-1.0 1.0] (-> fr pj/plan :panels first :x-domain)))])
 
 ;; So the same code means different things on differently named data.
-;; Where that matters, write the mapping in full and the data has no
-;; say. `{:column 0}` reads the column even where one exists only by
-;; accident:
+;; Where that matters, write the mapping in full, and the data does
+;; not decide the source. `{:column 0}` reads the column even where
+;; one exists only by accident:
 
 (-> integer-named
     (pj/lay-point {:x {:column 0} :y 1}))
@@ -682,9 +680,8 @@ integer-named
 ;; key -- so a pose that sets a range and a mapping that names a type
 ;; give a plot with both.
 ;;
-;; `true` is not an opinion about which scale. It says the value passes
-;; through whatever scale the aesthetic has, so a `pj/scale` above it
-;; still decides the type.
+;; `:scale true` passes the value through whatever scale the aesthetic
+;; has, so a `pj/scale` above the mapping still decides the type.
 ;;
 ;; Each aesthetic gets its own: `(pj/scale pose :x :log)` and
 ;; `(pj/scale pose :size :log)` are separate decisions, and either can
@@ -781,9 +778,8 @@ integer-named
 
 ;; ## Appendix: the same four in ggplot2
 ;;
-;; Readers coming from R may find it useful to see that the four
-;; combinations are not new. ggplot2 has all four and reaches them through
-;; different syntax, using `:size` as the example:
+;; ggplot2 has all four combinations and reaches them through
+;; different syntax. The table uses `:size` as the example:
 ;;
 ;; | Plotje | ggplot2 |
 ;; |:--|:--|

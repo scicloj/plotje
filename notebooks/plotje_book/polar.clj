@@ -6,11 +6,11 @@
 ;; a polar plane. The angular spread is set by the x-column's range,
 ;; so a narrow range produces a wedge cluster rather than a full
 ;; circle. Supported marks today are `:point`, `:bar`, `:rect`,
-;; `:text`, and `:rug`; other marks raise a clear error. Tick labels
-;; and axis labels are not yet rendered under `:polar`, but legends
-;; render as they would on Cartesian coords -- a `:color` mapping
-;; produces a normal legend that can be repositioned via
-;; `:legend-position` (see [Customization](./plotje_book.customization.html#legend-position)).
+;; `:text`, and `:rug`; other marks report an error. Tick labels and
+;; axis labels are not yet rendered under `:polar`, but legends render
+;; as they would on Cartesian coords -- a `:color` mapping produces a
+;; normal legend that can be repositioned via `:legend-position` (see
+;; [Customization](./plotje_book.customization.html#legend-position)).
 
 (ns plotje-book.polar
   (:require

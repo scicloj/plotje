@@ -149,7 +149,7 @@ graph LR
 ;; flows through unchanged (idempotent). This is the structural lift
 ;; that lets every downstream function accept either raw data or a
 ;; pose. It stops there -- it sets no mapping. The default mapping
-;; that makes a bare dataset actually render is added separately by
+;; that makes a bare dataset render is added separately by
 ;; `pj/infer-mapping` (see "Where Inference Happens" below).
 ;;
 ;; The example traced through every stage is iris petal
@@ -593,8 +593,8 @@ composite-pose
 
 ;; `pj/membrane` returns a `PlotjeMembrane` whose `:drawables` carry
 ;; one `Translate` per leaf plus composite framing (column strip
-;; labels, shared legend, title if any). Plan-derived width and height ride as
-;; record fields and the title as `:plotje/title`.
+;; labels, shared legend, title if any). Plan-derived width and height
+;; are record fields, and the title is `:plotje/title`.
 
 (pj/membrane composite-pose)
 

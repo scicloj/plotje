@@ -17,11 +17,11 @@
 ;;   across every plot you render; any one plot can override a
 ;;   configuration key.
 ;;
-;; The distinguishing test is simple: **can this kind of value
-;; meaningfully have a cross-plot default?** A title cannot --
-;; each plot needs its own. A palette can -- a whole project can
-;; share one. A layer's color mapping is per-layer, but when
-;; several layers should share it, you lift it to a wider scope.
+;; The distinguishing test: **can this kind of value meaningfully have
+;; a cross-plot default?** A title cannot -- each plot needs its own.
+;; A palette can -- a whole project can share one. A layer's color
+;; mapping is per-layer, but when several layers should share the
+;; mapping, you set it at a wider scope.
 
 ;; ## Setup
 
@@ -180,8 +180,7 @@
 ;; single-panel plot like this one they describe the whole plot;
 ;; written on one cell of a composite they would describe that cell.
 ;;
-;; A note on faceted plots: a scale has two parts that behave
-;; differently across panels.
+;; On a faceted plot, a scale has two parts:
 ;;
 ;; - Scale **type** (log, categorical, linear, etc.) is shared
 ;;   across all panels -- if you set `pj/scale :x :log` on a
@@ -200,14 +199,13 @@
 ;; type that varies across the panels of a facet: those panels come
 ;; from one pose, so they share it.
 ;;
-;; A note on terminology: other chapters call these values
-;; *plot-level options*. Be aware that *plot-level* here names a
-;; category, while *pose-level* (used for layer options) names a
-;; place in a scope hierarchy -- the shared word "level"
+;; Other chapters call these values *plot-level options*. *Plot-level*
+;; here names a category, while *pose-level* (used for layer options)
+;; names a place in a scope hierarchy -- the shared word "level"
 ;; refers to different things. Putting a plot option inside a
-;; `pj/lay-*` options map -- for example `{:title "Growth"}`
-;; -- is a category mistake: plot options belong in `:opts` via
-;; their dedicated functions above.
+;; `pj/lay-*` options map -- for example `{:title "Growth"}` -- is a
+;; category mistake: plot options belong in `:opts` via their
+;; dedicated functions above.
 ;;
 ;; A scale is not a plot option at all. `pj/scale` writes the
 ;; mapping the scale reads, so neither `{:x-scale {:type :log}}`
@@ -231,11 +229,11 @@
 ;;    Plotje.
 ;;
 ;; Sources 2-5 sit outside any specific pose and carry across
-;; every plot you render. Source 1 is how a specific pose dips
-;; into the chain to override a configuration key for itself --
+;; every plot you render. Source 1 lets a specific pose override a
+;; configuration key for itself --
 ;; `(pj/options {:color-values :dark2})` sets `:color-values` on one
-;; pose, and at render time wins over any palette set through
-;; the other four sources.
+;; pose, and at render time wins over any palette set through the
+;; other four sources.
 ;;
 ;; The [Configuration](./plotje_book.configuration.html)
 ;; chapter covers each source in depth and lists every

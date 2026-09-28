@@ -655,13 +655,12 @@
                            (= [(/ 42 255.0) (/ 157 255.0) (/ 143 255.0) 1.0]
                               (:color band))))])
 
-;; Note: an intercept and a band edge must be written values
-;; (numbers, or temporal values on a time axis) in this release. A
-;; faceted plot with a different reference value per panel
-;; (column-mapped intercept, ggplot2's
-;; `geom_hline(aes(yintercept=...))`) is on the post-alpha roadmap.
-;; Today, a rule added once with the same intercept appears on every
-;; panel of the faceted pose.
+;; An intercept and a band edge must be written values (numbers, or
+;; temporal values on a time axis) in this release. A faceted plot
+;; with a different reference value per panel (column-mapped
+;; intercept, ggplot2's `geom_hline(aes(yintercept=...))`) is on the
+;; post-alpha roadmap. Today, a rule added once with the same
+;; intercept appears on every panel of the faceted pose.
 ;;
 ;; Giving a line layer its own two-point dataset does not stand in for
 ;; it: a layer's own `:data` is not split by `pj/facet` either, so each

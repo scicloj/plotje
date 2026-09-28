@@ -204,7 +204,7 @@
 
 ;; ### Stacked bar -- single group
 
-;; Stack with only one color value -- no actual stacking needed.
+;; Stack with only one color value, so nothing is stacked.
 
 (-> {:category ["a" "b" "c"]
      :count [10 20 15]}
@@ -442,11 +442,11 @@
 
 ;; ### A size scale anchored at zero, on data holding a negative
 ;;
-;; Anchored at zero it is the distance from zero that decides the ink,
-;; so a value of -5 is drawn the size a value of 5 is drawn. The mark
-;; stays on the panel and keeps its place on the axis; only its size
-;; stops distinguishing the two directions. Where the sign matters,
-;; map it to another aesthetic -- `:color` splits the two apart.
+;; Anchored at zero, the distance from zero decides the size, so a
+;; value of -5 is drawn the size a value of 5 is drawn. The mark stays
+;; on the panel and keeps its place on the axis; only its size stops
+;; distinguishing the two directions. Where the sign matters, map it
+;; to another aesthetic -- `:color` splits the two apart.
 
 (-> {:x [1 2 3] :y [1 2 3] :n [-5 5 10]}
     (pj/lay-point :x :y {:size :n})
@@ -513,7 +513,7 @@
                            (and (= 9 (:panels s))
                                 (seq (filter col-label? texts)))))])
 ;; ## Error Messages
-;; Plotje produces clear error messages for common mistakes.
+;; Plotje reports an error for these common mistakes.
 
 ;; ### Non-existent column
 
@@ -543,9 +543,9 @@
 ;; columns are absent from that data, the error names the source
 ;; (inherited from the pose's mapping) and offers two paths: rename
 ;; the column for an overlay, or set the axis on the layer call so the
-;; layer draws a panel of its own. This is the diagnostic for the common
-;; ggplot2-trained reflex of attaching a second layer with a fresh
-;; dataset whose columns don't align with the panel's axes.
+;; layer draws a panel of its own. This error covers a second layer
+;; attached with its own dataset whose columns do not match the
+;; panel's axes, a pattern common in ggplot2.
 
 (try
   (-> (tc/dataset {:fitted [1 2 3] :residual [1 2 3]})
@@ -590,9 +590,9 @@
 ;; ### x-only layer type with y column
 ;;
 ;; Layer types that use only the x column (histogram, bar, density,
-;; rug) reject a y column with a clear message.
+;; rug) report an error for a y column.
 
-;; Histogram uses only the x column. Passing a y column is now an error:
+;; Histogram uses only the x column. Passing a y column is an error:
 
 (try
   (-> {:x [1 2 3] :y [4 5 6]}

@@ -79,8 +79,7 @@
 ;; The text labels read horizontally, which keeps them legible.
 ;; When several events fall close together on the time axis, giving
 ;; each event a different y spreads the labels apart vertically.
-;; Here we apply that technique to the same five milestones to
-;; demonstrate the layout pattern.
+;; The plot below gives the same five milestones different y values.
 
 (def with-staggered-y
   (assoc computing-milestones :y [2 1 1.5 2 1]))
@@ -137,8 +136,7 @@
 ;; [dot-com recession](https://en.wikipedia.org/wiki/Early_2000s_recession)
 ;; (March 2001) and the
 ;; [Lehman Brothers collapse](https://en.wikipedia.org/wiki/Bankruptcy_of_Lehman_Brothers)
-;; (September 2008). The line shape relative to the rules tells
-;; the recession story without any prose.
+;; (September 2008).
 
 ;; ## Gantt chart with `lay-interval-h`
 ;;

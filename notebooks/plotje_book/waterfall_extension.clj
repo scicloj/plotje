@@ -66,8 +66,7 @@
      :x-domain categories
      :y-domain [y-min y-max]}))
 
-;; Test the stat in isolation -- always a good idea before wiring
-;; into the full pipeline:
+;; Test the stat in isolation:
 
 (stat/compute-stat {:stat :waterfall :data (tc/dataset pnl-data) :x :category :y :amount :x-type :categorical})
 

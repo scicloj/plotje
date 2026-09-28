@@ -23,8 +23,8 @@
 ;; only, and `"foo"` matches string column `"foo"` only. The two
 ;; forms do not interchange. Three common triggers:
 ;;
-;; **1. Typo.** A misspelled column name. Always check the spelling
-;; against the dataset's actual columns:
+;; **1. Typo.** A misspelled column name. Check the spelling against
+;; the dataset's columns:
 
 (tc/column-names (rdatasets/datasets-iris))
 
@@ -60,12 +60,11 @@
 (kind/test-last
  [(fn [msg] (re-find #"Column :sepal-\w+.*not found" msg))])
 
-;; Note that `:key-fn keyword` on `"sepal length"` produces
-;; `:sepal length` -- a keyword whose printed form contains a
-;; space, not the hyphenated form a Clojure reader would normally
-;; produce. Spaces and other special characters in CSV headers
-;; usually need a custom `:key-fn`, e.g.
-;; `(comp keyword #(clojure.string/replace % " " "-"))`.
+;; `:key-fn keyword` on `"sepal length"` produces `:sepal length` -- a
+;; keyword whose printed form contains a space, not the hyphenated
+;; form a Clojure reader would normally produce. Spaces and other
+;; special characters in CSV headers usually need a custom `:key-fn`,
+;; e.g. `(comp keyword #(clojure.string/replace % " " "-"))`.
 
 ;; ## Wrong Chart Type from Inference
 ;;
@@ -99,9 +98,9 @@
 ;; numbers (e.g., 1, 2, 3), but instead of discrete colored groups you
 ;; get a single continuous gradient.
 ;;
-;; **Cause**: The inference system sees a numeric column and treats it
-;; as continuous. Continuous color means no grouping -- all data stays
-;; in one group with a gradient legend.
+;; **Cause**: Inference treats a numeric column as continuous.
+;; Continuous color means no grouping -- all data stays in one group
+;; with a gradient legend.
 
 (def subject-scores
   {:day     [1 2 3 4 1 2 3 4 1 2 3 4]
@@ -185,8 +184,9 @@
 ;; **Cause**: A number written for a categorical axis is a place among
 ;; the categories rather than one of them, counted from one. On an axis
 ;; built from the years 2020, 2021 and 2022 the number `2021` is a place
-;; far past the third and last category, which is what the refusal
-;; names. [Placing Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
+;; far past the third and last category, which is what the error
+;; names.
+;; [Placing Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
 ;; teaches the reading in full.
 
 (try
@@ -240,9 +240,10 @@
        (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
 
 ;; To place a label relative to its own point, anchor it with
-;; `:align-x`/`:align-y` -- `:align-x :right` tucks the label
-;; inside a bar's end. (To spread overlapping marks on a categorical
-;; axis, use `:jitter` or `:position :dodge`.)
+;; `:align-x`/`:align-y` -- `:align-x :right` puts the label's right
+;; edge at the bar's end, so the text sits inside the bar. (To spread
+;; overlapping marks on a categorical axis, use `:jitter` or
+;; `:position :dodge`.)
 
 (-> {:species ["setosa" "versicolor" "virginica"] :pct [33.3 33.3 33.3]}
     (pj/lay-bar :species :pct {:color "#a6cee3"})
@@ -399,7 +400,7 @@
 ;;
 ;; **A second cause**: the plot was rendered to a format that draws no
 ;; interaction. Both are drawn by a browser reading the figure, so SVG
-;; is the only format that answers them; `{:format :bufimg}` and
+;; is the only format that draws them; `{:format :bufimg}` and
 ;; `pj/save` to a PNG report that the request draws nothing and name
 ;; the formats that do. Read the message the plot printed before
 ;; looking at the viewer.
@@ -901,9 +902,9 @@
 ;; around the wedges.
 ;;
 ;; **Cause**: Polar coord does not currently emit angular tick labels
-;; for bar-family marks -- the underlying axis machinery places
-;; labels along Cartesian axes that polar replaces with a circular
-;; layout, and the equivalent angular ticks are not yet implemented.
+;; for bar-family marks -- the axis code places labels along Cartesian
+;; axes, which polar replaces with a circular layout, and angular
+;; ticks are not yet implemented.
 ;;
 ;; The polar version shows the wedges sized by category, but the
 ;; category names are absent:
