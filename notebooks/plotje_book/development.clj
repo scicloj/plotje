@@ -67,7 +67,7 @@
 ;; ```
 ;;
 ;; `kind/test-last` forms are invisible in rendered output -- they only
-;; generate test assertions. Do not add comments to them.
+;; generate test assertions.
 ;;
 ;; ## Regenerating Tests
 ;;
