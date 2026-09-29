@@ -1316,11 +1316,11 @@ gapminder-2007
 ;; a midpoint that centre falls halfway along the data rather than
 ;; where the reader expects it:
 
-(-> {:region ["n" "s" "e" "w" "c"]
-     :year [1 2 3 4 5]
+(-> {:year [1 2 3 4 5]
      :change [-40 -10 5 30 60]}
-    (pj/lay-point :year :change {:color :change})
-    (pj/scale :color {:range :diverging :midpoint 0}))
+    (pj/lay-point :year :change {:color :change :size 6 :alpha 1})
+    (pj/scale :color {:range :diverging :midpoint 0})
+    (pj/options {:point-stroke "grey" :point-stroke-width 1}))
 
 (kind/test-last
  [(fn [v]
@@ -1332,11 +1332,11 @@ gapminder-2007
        ;; the middle of -40 to 60, so the marks are drawn in different
        ;; colors than they would be without the midpoint.
        (not= (colors v)
-             (colors (-> {:region ["n" "s" "e" "w" "c"]
-                          :year [1 2 3 4 5]
+             (colors (-> {:year [1 2 3 4 5]
                           :change [-40 -10 5 30 60]}
-                         (pj/lay-point :year :change {:color :change})
-                         (pj/scale :color {:range :diverging}))))
+                         (pj/lay-point :year :change {:color :change :size 6 :alpha 1})
+                         (pj/scale :color {:range :diverging})
+                         (pj/options {:point-stroke "grey" :point-stroke-width 1}))))
        ;; The two ends of the bar are the two ends of the data, and the
        ;; place in the gradient each is drawn at is what the prose
        ;; below states: a sixth of the way along, and all the way.
@@ -1349,7 +1349,10 @@ gapminder-2007
 ;; Sixty is further from zero than -40 is, so sixty takes the extreme
 ;; color and -40 is drawn a sixth of the way along the gradient rather
 ;; than at its other end. The bar beside the panel spans the same
-;; stretch, so a color read off it is a color some mark carries.
+;; stretch, so a color read off it is a color some mark carries. The
+;; points are drawn opaque, with `:alpha 1`, so that their colors are
+;; the bar's colors, and with a grey border, so that the points near
+;; the centre, drawn close to white, stay visible on the panel.
 
 ;; Each of the three has a plot option of the same name, one scope
 ;; further out: `:color-values`, `:color-range` and `:color-midpoint`,
@@ -1461,9 +1464,21 @@ gapminder-2007
 ;; ## Titling a scale
 ;;
 ;; A scale is explained to the reader by something drawn beside the
-;; marks: an axis for `:x` and `:y`, a legend for the rest. `:label`
-;; titles that thing, and every aesthetic with a scale reads it. Where
-;; none is written, the column's name is drawn.
+;; marks: an axis for `:x` and `:y`, a legend for the rest. In the plot
+;; below, the `:x` scale is explained by the horizontal axis -- its
+;; ticks, its tick labels and its title, `gdp percap` -- and the
+;; `:color` scale by the legend on the right, titled `continent`. Where
+;; no title is written, the column's name is drawn.
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :continent}))
+
+(kind/test-last
+ [(fn [fr] (let [texts (set (:texts (pj/svg-summary fr)))]
+             (every? texts ["gdp percap" "life exp" "continent"])))])
+
+;; `:label` in a scale spec titles the axis or the legend, and every
+;; aesthetic with a scale reads it:
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -1478,7 +1493,20 @@ gapminder-2007
 ;; `:x-label` and `:y-label` for the axes, and `:color-label`,
 ;; `:fill-label`, `:size-label`, `:alpha-label` and `:shape-label` for
 ;; the legends. They title the whole plot where a spec titles one
-;; mapping or one layer, and the spec wins where both are written.
+;; mapping or one layer. Here `:x-label` titles the horizontal axis and
+;; `:color-label` the legend:
+
+(-> gapminder-2007
+    (pj/lay-point :gdp-percap :life-exp {:color :continent})
+    (pj/options {:x-label "GDP per capita" :color-label "Continent"}))
+
+(kind/test-last
+ [(fn [fr] (let [p (pj/plan fr)]
+             (and (= "GDP per capita" (:x-label p))
+                  (= "Continent" (:title (:legend p))))))])
+
+;; Where both are written, the spec wins. The legend below is titled
+;; `From the spec`, and `From the options` is drawn nowhere:
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp {:color :continent})
@@ -1486,7 +1514,9 @@ gapminder-2007
     (pj/scale :color {:label "From the spec"}))
 
 (kind/test-last
- [(fn [fr] (= "From the spec" (-> fr pj/plan :legend :title)))])
+ [(fn [fr] (let [texts (set (:texts (pj/svg-summary fr)))]
+             (and (= "From the spec" (-> fr pj/plan :legend :title))
+                  (not (texts "From the options")))))])
 
 ;; ## One legend per aesthetic
 ;;
