@@ -272,12 +272,14 @@ sales-by-region
 
 ;; ## A series on each axis
 
-;; Measures taken at different places along the x axis each bring an x
-;; column of their own. A series written on `:x` and another on `:y`
-;; are read in pairs: the first `:x` column with the first `:y` column,
-;; the second with the second, and so on. Each pair is one series of
-;; the layer, labelled with both column names, and the pivot invents
-;; two value columns, `:x-value` and `:y-value`, one for each axis.
+;; Two measures recorded at different times each have a time column of
+;; their own. Below, `:reading-a` was taken at the times in `:time-a`,
+;; and `:reading-b` at the times in `:time-b`. To draw both on one
+;; panel, write a series on `:x` and another on `:y`. They are read in
+;; pairs: the first `:x` column with the first `:y` column, the second
+;; with the second, and so on. Each pair is one series of the layer,
+;; labelled with both column names, and the pivot invents two value
+;; columns, `:x-value` and `:y-value`, one for each axis.
 
 (-> {:time-a    [0 1 2 3]
      :time-b    [0.5 1.5 2.5 3.5]
