@@ -345,6 +345,32 @@ sales-by-region
 (kind/test-last
  [(fn [msg] (re-find #"as many columns each" msg))])
 
+;; Every `:x` column against every `:y` column is the product of the two
+;; lists. It is useful where the columns share units, so that each pair
+;; can be compared on one set of axes. `pj/cross` returns the product
+;; as a vector of pairs, `(apply map vector)` turns the pairs into the
+;; list of `:x` columns and the list of `:y` columns, and `apply` passes
+;; the two lists to the `lay-*` call. Here the two lengths of an iris
+;; flower are drawn against its two widths, all in centimetres:
+
+(->> (pj/cross [:sepal-length :petal-length] [:sepal-width :petal-width])
+     (apply map vector)
+     (apply pj/lay-point (rdatasets/datasets-iris)))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:panels s))
+                 ;; four pairs, each drawing all 150 rows
+                 (= 600 (:points s))
+                 (= ["sepal length / sepal width" "sepal length / petal width"
+                     "petal length / sepal width" "petal length / petal width"]
+                    (mapv :label (:entries (:legend (pj/plan v))))))))])
+
+;; The same pairs given to `pj/pose` draw a panel for each pair instead,
+;; as the scatter plot matrix in
+;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
+;; does.
+
 ;; ## One series per pose
 
 ;; The pivot leaves its two columns on the pose, so a second series on
