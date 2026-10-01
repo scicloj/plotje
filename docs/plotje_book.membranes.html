@@ -563,7 +563,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="options-flow-through-the-explicit-route" class="level2">
 <h2 class="anchored" data-anchor-id="options-flow-through-the-explicit-route">Options flow through the explicit route</h2>
-<p><code>pj/membrane</code> is the shortcut. The same membrane also comes out of the explicit two-step route – <code>pj/pose-&gt;draft</code> followed by <code>pj/draft-&gt;membrane</code>. Options set on the pose with <code>pj/options</code>, including the title, the axis labels, and the theme, ride on the draft’s options and reach the membrane stage on either route.</p>
+<p><code>pj/membrane</code> is the shortcut. The same membrane also comes out of the explicit two-step route – <code>pj/pose-&gt;draft</code> followed by <code>pj/draft-&gt;membrane</code>. Options set on the pose with <code>pj/options</code>, including the title, the axis labels, and the theme, are carried in the draft’s options and reach the membrane stage on either route.</p>
 <p>Here is a themed pose, rendered so the theme is visible:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> themed-pose</span></span>
@@ -3102,11 +3102,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><code>IBounds</code> – the component’s <code>[width height]</code>. Read directly via <code>(membrane.ui/width m)</code> and <code>(membrane.ui/height m)</code>, both of which derive from <code>(membrane.ui/bounds m)</code>.</p></li>
 <li><p><code>IChildren</code> – the sub-elements for traversal. Returns the underlying <code>:drawables</code> vector.</p></li>
 </ul>
-<p>Why these three and not more? Membrane’s protocols partition into “what every UI element supports” (origin, bounds, children) and “what the element does” (drawing, mouse events, key events, …). Plotje implements the first set so a <code>PlotjeMembrane</code> participates in every Membrane consumer that walks a tree generically. Drawing is delegated to the children: when a Membrane backend draws our record, the default <code>IDraw</code> impl walks <code>(children record)</code> and draws each child individually – the existing <code>Translate</code>, <code>WithColor</code>, <code>Path</code>, <code>Label</code> primitives already have per-backend draw implementations.</p>
+<p>Membrane’s protocols partition into “what every UI element supports” (origin, bounds, children) and “what the element does” (drawing, mouse events, key events, …). Plotje implements the first set so a <code>PlotjeMembrane</code> participates in every Membrane consumer that walks a tree generically. Drawing is delegated to the children: when a Membrane backend draws our record, the default <code>IDraw</code> impl walks <code>(children record)</code> and draws each child individually – the existing <code>Translate</code>, <code>WithColor</code>, <code>Path</code>, <code>Label</code> primitives already have per-backend draw implementations.</p>
 </section>
 <section id="title-and-namespaced-attributes" class="level2">
 <h2 class="anchored" data-anchor-id="title-and-namespaced-attributes">Title and namespaced attributes</h2>
-<p>The plot title rides as <code>:plotje/title</code> – not a defrecord field but a namespaced map entry assoc’d onto the record. This keeps the record’s arity stable as we add per-membrane attributes in the future. A pose without a title produces a membrane without that key:</p>
+<p>The plot title is stored as <code>:plotje/title</code> – not a defrecord field but a namespaced map entry assoc’d onto the record. This keeps the record’s arity stable as we add per-membrane attributes in the future. A pose without a title produces a membrane without that key:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>(<span class="at">:plotje/title</span> (pj/membrane (<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                                (pj/lay-point <span class="at">:sepal-length</span> <span class="at">:sepal-width</span>))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -3118,7 +3118,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="composing-with-other-membrane-components" class="level2">
 <h2 class="anchored" data-anchor-id="composing-with-other-membrane-components">Composing with other Membrane components</h2>
-<p>Because a <code>PlotjeMembrane</code> is a Membrane UI component, you can drop it into any Membrane layout. Two Plotje plots side by side is one line:</p>
+<p>Because a <code>PlotjeMembrane</code> is a Membrane UI component, you can drop it into any Membrane layout. Two Plotje plots side by side:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> two-up</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  (ui/horizontal-layout</span>
@@ -3141,7 +3141,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="printedClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>{<span class="at">:width</span> <span class="dv">1201</span>, <span class="at">:height</span> <span class="dv">400</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The combined component is no longer a <code>PlotjeMembrane</code> (it is whatever <code>horizontal-layout</code> chose to return – here, a vector of the two children), but it speaks the same protocol vocabulary, so any Membrane backend can render it. To produce a raster image we bypass <code>pj/membrane-&gt;plot</code> (which validates a <code>PlotjeMembrane</code> specifically) and call Membrane’s Java2D backend directly:</p>
+<p>The combined component is no longer a <code>PlotjeMembrane</code> (it is whatever <code>horizontal-layout</code> chose to return – here, a vector of the two children), but it implements the same protocols, so any Membrane backend can render it. To produce a raster image we bypass <code>pj/membrane-&gt;plot</code> (which validates a <code>PlotjeMembrane</code> specifically) and call Membrane’s Java2D backend directly:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> two-up-png</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  ((requiring-resolve <span class="at">'membrane.java2d/draw-to-image</span>)</span>

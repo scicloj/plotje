@@ -577,7 +577,7 @@ graph LR
 <p>Each transition is its own public function. Walk the example below to see what enters and what leaves at each step. The per-function reference (arities, arguments, return types) lives in the <a href="./plotje_book.api_reference.html#pipeline">API Reference</a>.</p>
 <section id="step-1-pj-pose" class="level3">
 <h3 class="anchored" data-anchor-id="step-1-pj-pose">Step 1: pj/-&gt;pose</h3>
-<p>Lift raw data (or a pose) to a pose. Polymorphic on input: a dataset becomes a leaf pose with <code>:data</code> set; an existing pose flows through unchanged (idempotent). This is the structural lift that lets every downstream function accept either raw data or a pose. It stops there – it sets no mapping. The default mapping that makes a bare dataset actually render is added separately by <code>pj/infer-mapping</code> (see “Where Inference Happens” below).</p>
+<p>Lift raw data (or a pose) to a pose. Polymorphic on input: a dataset becomes a leaf pose with <code>:data</code> set; an existing pose flows through unchanged (idempotent). This is the structural lift that lets every downstream function accept either raw data or a pose. It stops there – it sets no mapping. The default mapping that makes a bare dataset render is added separately by <code>pj/infer-mapping</code> (see “Where Inference Happens” below).</p>
 <p>The example traced through every stage is iris petal measurements, with a scatter and per-species regression line. Pose-level <code>:x</code>, <code>:y</code>, and <code>:color</code> mappings; two layers on top of that mapping.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> trace-pose</span></span>
@@ -6100,107 +6100,132 @@ graph LR
 <span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a> [{<span class="at">:path</span> [<span class="dv">0</span>],</span>
 <span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>   <span class="at">:rect</span> [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>],</span>
 <span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>   <span class="at">:draft</span></span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>   [{<span class="at">:color</span> <span class="at">:species</span>,</span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>     <span class="at">:x</span> <span class="at">:petal-length</span>,</span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>     <span class="at">:y</span> <span class="at">:petal-width</span>,</span>
-<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>     <span class="at">:mark</span> <span class="at">:point</span>,</span>
-<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>     <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>     <span class="at">:layer-type</span> <span class="at">:point</span>,</span>
-<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>     <span class="at">:data</span></span>
-<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>     https<span class="at">://vincentarelbundock.github.io/Rdatasets/csv/datasets/iris.csv</span> [<span class="dv">150</span> <span class="dv">6</span>]:</span>
-<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>| <span class="at">:rownames</span> | <span class="at">:sepal-length</span> | <span class="at">:sepal-width</span> | <span class="at">:petal-length</span> | <span class="at">:petal-width</span> |  <span class="at">:species</span> |</span>
-<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>|----------:|--------------:|-------------:|--------------:|-------------:|-----------|</span>
-<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">1</span> |           <span class="fl">5.1</span> |          <span class="fl">3.5</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">2</span> |           <span class="fl">4.9</span> |          <span class="fl">3.0</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">3</span> |           <span class="fl">4.7</span> |          <span class="fl">3.2</span> |           <span class="fl">1.3</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">4</span> |           <span class="fl">4.6</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">5</span> |           <span class="fl">5.0</span> |          <span class="fl">3.6</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">6</span> |           <span class="fl">5.4</span> |          <span class="fl">3.9</span> |           <span class="fl">1.7</span> |          <span class="fl">0.4</span> |    setosa |</span>
-<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">7</span> |           <span class="fl">4.6</span> |          <span class="fl">3.4</span> |           <span class="fl">1.4</span> |          <span class="fl">0.3</span> |    setosa |</span>
-<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">8</span> |           <span class="fl">5.0</span> |          <span class="fl">3.4</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">9</span> |           <span class="fl">4.4</span> |          <span class="fl">2.9</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>|        <span class="dv">10</span> |           <span class="fl">4.9</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.1</span> |    setosa |</span>
-<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>|       ... |           ... |          ... |           ... |          ... |       ... |</span>
-<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">140</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.4</span> |          <span class="fl">2.1</span> | virginica |</span>
-<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">141</span> |           <span class="fl">6.7</span> |          <span class="fl">3.1</span> |           <span class="fl">5.6</span> |          <span class="fl">2.4</span> | virginica |</span>
-<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">142</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.1</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">143</span> |           <span class="fl">5.8</span> |          <span class="fl">2.7</span> |           <span class="fl">5.1</span> |          <span class="fl">1.9</span> | virginica |</span>
-<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">144</span> |           <span class="fl">6.8</span> |          <span class="fl">3.2</span> |           <span class="fl">5.9</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">145</span> |           <span class="fl">6.7</span> |          <span class="fl">3.3</span> |           <span class="fl">5.7</span> |          <span class="fl">2.5</span> | virginica |</span>
-<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">146</span> |           <span class="fl">6.7</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">147</span> |           <span class="fl">6.3</span> |          <span class="fl">2.5</span> |           <span class="fl">5.0</span> |          <span class="fl">1.9</span> | virginica |</span>
-<span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">148</span> |           <span class="fl">6.5</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.0</span> | virginica |</span>
-<span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">149</span> |           <span class="fl">6.2</span> |          <span class="fl">3.4</span> |           <span class="fl">5.4</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">150</span> |           <span class="fl">5.9</span> |          <span class="fl">3.0</span> |           <span class="fl">5.1</span> |          <span class="fl">1.8</span> | virginica |</span>
-<span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a>,</span>
-<span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a>     :__panel-idx <span class="dv">0</span>}],</span>
-<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a>   <span class="at">:opts</span></span>
-<span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:suppress-x-label</span> <span class="va">true</span>,</span>
-<span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-y-label</span> <span class="va">true</span>,</span>
-<span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">:width</span> <span class="dv">198</span>,</span>
-<span id="cb28-46"><a href="#cb28-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">:height</span> <span class="dv">190</span>,</span>
-<span id="cb28-47"><a href="#cb28-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-color-legend</span> <span class="va">true</span>}}</span>
-<span id="cb28-48"><a href="#cb28-48" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:path</span> [<span class="dv">1</span>],</span>
-<span id="cb28-49"><a href="#cb28-49" aria-hidden="true" tabindex="-1"></a>   <span class="at">:rect</span> [<span class="fl">282.5</span> <span class="fl">210.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>],</span>
-<span id="cb28-50"><a href="#cb28-50" aria-hidden="true" tabindex="-1"></a>   <span class="at">:draft</span></span>
-<span id="cb28-51"><a href="#cb28-51" aria-hidden="true" tabindex="-1"></a>   [{<span class="at">:color</span> <span class="at">:species</span>,</span>
-<span id="cb28-52"><a href="#cb28-52" aria-hidden="true" tabindex="-1"></a>     <span class="at">:x</span> <span class="at">:sepal-length</span>,</span>
-<span id="cb28-53"><a href="#cb28-53" aria-hidden="true" tabindex="-1"></a>     <span class="at">:y</span> <span class="at">:sepal-width</span>,</span>
-<span id="cb28-54"><a href="#cb28-54" aria-hidden="true" tabindex="-1"></a>     <span class="at">:mark</span> <span class="at">:point</span>,</span>
-<span id="cb28-55"><a href="#cb28-55" aria-hidden="true" tabindex="-1"></a>     <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb28-56"><a href="#cb28-56" aria-hidden="true" tabindex="-1"></a>     <span class="at">:layer-type</span> <span class="at">:point</span>,</span>
-<span id="cb28-57"><a href="#cb28-57" aria-hidden="true" tabindex="-1"></a>     <span class="at">:data</span></span>
-<span id="cb28-58"><a href="#cb28-58" aria-hidden="true" tabindex="-1"></a>     https<span class="at">://vincentarelbundock.github.io/Rdatasets/csv/datasets/iris.csv</span> [<span class="dv">150</span> <span class="dv">6</span>]:</span>
-<span id="cb28-59"><a href="#cb28-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb28-60"><a href="#cb28-60" aria-hidden="true" tabindex="-1"></a>| <span class="at">:rownames</span> | <span class="at">:sepal-length</span> | <span class="at">:sepal-width</span> | <span class="at">:petal-length</span> | <span class="at">:petal-width</span> |  <span class="at">:species</span> |</span>
-<span id="cb28-61"><a href="#cb28-61" aria-hidden="true" tabindex="-1"></a>|----------:|--------------:|-------------:|--------------:|-------------:|-----------|</span>
-<span id="cb28-62"><a href="#cb28-62" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">1</span> |           <span class="fl">5.1</span> |          <span class="fl">3.5</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-63"><a href="#cb28-63" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">2</span> |           <span class="fl">4.9</span> |          <span class="fl">3.0</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-64"><a href="#cb28-64" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">3</span> |           <span class="fl">4.7</span> |          <span class="fl">3.2</span> |           <span class="fl">1.3</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-65"><a href="#cb28-65" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">4</span> |           <span class="fl">4.6</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-66"><a href="#cb28-66" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">5</span> |           <span class="fl">5.0</span> |          <span class="fl">3.6</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-67"><a href="#cb28-67" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">6</span> |           <span class="fl">5.4</span> |          <span class="fl">3.9</span> |           <span class="fl">1.7</span> |          <span class="fl">0.4</span> |    setosa |</span>
-<span id="cb28-68"><a href="#cb28-68" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">7</span> |           <span class="fl">4.6</span> |          <span class="fl">3.4</span> |           <span class="fl">1.4</span> |          <span class="fl">0.3</span> |    setosa |</span>
-<span id="cb28-69"><a href="#cb28-69" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">8</span> |           <span class="fl">5.0</span> |          <span class="fl">3.4</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-70"><a href="#cb28-70" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">9</span> |           <span class="fl">4.4</span> |          <span class="fl">2.9</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
-<span id="cb28-71"><a href="#cb28-71" aria-hidden="true" tabindex="-1"></a>|        <span class="dv">10</span> |           <span class="fl">4.9</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.1</span> |    setosa |</span>
-<span id="cb28-72"><a href="#cb28-72" aria-hidden="true" tabindex="-1"></a>|       ... |           ... |          ... |           ... |          ... |       ... |</span>
-<span id="cb28-73"><a href="#cb28-73" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">140</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.4</span> |          <span class="fl">2.1</span> | virginica |</span>
-<span id="cb28-74"><a href="#cb28-74" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">141</span> |           <span class="fl">6.7</span> |          <span class="fl">3.1</span> |           <span class="fl">5.6</span> |          <span class="fl">2.4</span> | virginica |</span>
-<span id="cb28-75"><a href="#cb28-75" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">142</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.1</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-76"><a href="#cb28-76" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">143</span> |           <span class="fl">5.8</span> |          <span class="fl">2.7</span> |           <span class="fl">5.1</span> |          <span class="fl">1.9</span> | virginica |</span>
-<span id="cb28-77"><a href="#cb28-77" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">144</span> |           <span class="fl">6.8</span> |          <span class="fl">3.2</span> |           <span class="fl">5.9</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-78"><a href="#cb28-78" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">145</span> |           <span class="fl">6.7</span> |          <span class="fl">3.3</span> |           <span class="fl">5.7</span> |          <span class="fl">2.5</span> | virginica |</span>
-<span id="cb28-79"><a href="#cb28-79" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">146</span> |           <span class="fl">6.7</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-80"><a href="#cb28-80" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">147</span> |           <span class="fl">6.3</span> |          <span class="fl">2.5</span> |           <span class="fl">5.0</span> |          <span class="fl">1.9</span> | virginica |</span>
-<span id="cb28-81"><a href="#cb28-81" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">148</span> |           <span class="fl">6.5</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.0</span> | virginica |</span>
-<span id="cb28-82"><a href="#cb28-82" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">149</span> |           <span class="fl">6.2</span> |          <span class="fl">3.4</span> |           <span class="fl">5.4</span> |          <span class="fl">2.3</span> | virginica |</span>
-<span id="cb28-83"><a href="#cb28-83" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">150</span> |           <span class="fl">5.9</span> |          <span class="fl">3.0</span> |           <span class="fl">5.1</span> |          <span class="fl">1.8</span> | virginica |</span>
-<span id="cb28-84"><a href="#cb28-84" aria-hidden="true" tabindex="-1"></a>,</span>
-<span id="cb28-85"><a href="#cb28-85" aria-hidden="true" tabindex="-1"></a>     :__panel-idx <span class="dv">0</span>}],</span>
-<span id="cb28-86"><a href="#cb28-86" aria-hidden="true" tabindex="-1"></a>   <span class="at">:opts</span></span>
-<span id="cb28-87"><a href="#cb28-87" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:suppress-x-label</span> <span class="va">true</span>,</span>
-<span id="cb28-88"><a href="#cb28-88" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-y-label</span> <span class="va">true</span>,</span>
-<span id="cb28-89"><a href="#cb28-89" aria-hidden="true" tabindex="-1"></a>    <span class="at">:width</span> <span class="dv">198</span>,</span>
-<span id="cb28-90"><a href="#cb28-90" aria-hidden="true" tabindex="-1"></a>    <span class="at">:height</span> <span class="dv">190</span>,</span>
-<span id="cb28-91"><a href="#cb28-91" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-color-legend</span> <span class="va">true</span>}}],</span>
-<span id="cb28-92"><a href="#cb28-92" aria-hidden="true" tabindex="-1"></a> <span class="at">:chrome-spec</span></span>
-<span id="cb28-93"><a href="#cb28-93" aria-hidden="true" tabindex="-1"></a> {<span class="at">:legend-w</span> <span class="dv">120</span>,</span>
-<span id="cb28-94"><a href="#cb28-94" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-labels</span> [<span class="st">"petal width"</span> <span class="st">"sepal width"</span>],</span>
-<span id="cb28-95"><a href="#cb28-95" aria-hidden="true" tabindex="-1"></a>  <span class="at">:layout</span> {[<span class="dv">0</span>] [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>], [<span class="dv">1</span>] [<span class="fl">282.5</span> <span class="fl">210.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>]},</span>
-<span id="cb28-96"><a href="#cb28-96" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared-aesthetics</span> #{<span class="at">:color</span>},</span>
-<span id="cb28-97"><a href="#cb28-97" aria-hidden="true" tabindex="-1"></a>  <span class="at">:matrix</span>? <span class="va">true</span>,</span>
-<span id="cb28-98"><a href="#cb28-98" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title</span> <span class="va">nil</span>,</span>
-<span id="cb28-99"><a href="#cb28-99" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-cols</span> <span class="dv">2</span>,</span>
-<span id="cb28-100"><a href="#cb28-100" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-rows</span> <span class="dv">2</span>,</span>
-<span id="cb28-101"><a href="#cb28-101" aria-hidden="true" tabindex="-1"></a>  <span class="at">:col-labels</span> [<span class="st">"petal length"</span> <span class="st">"sepal length"</span>],</span>
-<span id="cb28-102"><a href="#cb28-102" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-h</span> <span class="dv">20</span>,</span>
-<span id="cb28-103"><a href="#cb28-103" aria-hidden="true" tabindex="-1"></a>  <span class="at">:grid-rect</span> [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">395.0</span> <span class="fl">380.0</span>],</span>
-<span id="cb28-104"><a href="#cb28-104" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared</span>? <span class="va">true</span>,</span>
-<span id="cb28-105"><a href="#cb28-105" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-w</span> <span class="dv">85</span>,</span>
-<span id="cb28-106"><a href="#cb28-106" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title-band-h</span> <span class="dv">0</span>},</span>
-<span id="cb28-107"><a href="#cb28-107" aria-hidden="true" tabindex="-1"></a> <span class="at">:layout</span> {[<span class="dv">0</span>] [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>], [<span class="dv">1</span>] [<span class="fl">282.5</span> <span class="fl">210.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>]}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>   [{<span class="at">:y</span> <span class="at">:petal-width</span>,</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>     <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>     <span class="at">:color</span> <span class="at">:species</span>,</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>     :__panel-idx <span class="dv">0</span>,</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>     <span class="at">:mark</span> <span class="at">:point</span>,</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>     <span class="at">:color-scale</span></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:values</span></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>      {<span class="st">"setosa"</span> <span class="st">"#E41A1CFF"</span>,</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>       <span class="st">"versicolor"</span> <span class="st">"#377EB8FF"</span>,</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>       <span class="st">"virginica"</span> <span class="st">"#4DAF4AFF"</span>},</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>      <span class="at">:type</span> <span class="at">:linear</span>},</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>     <span class="at">:layer-type</span> <span class="at">:point</span>,</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>     :__scale</span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:color</span></span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>      {<span class="at">:values</span></span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>       {<span class="st">"setosa"</span> <span class="st">"#E41A1CFF"</span>,</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">"versicolor"</span> <span class="st">"#377EB8FF"</span>,</span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>        <span class="st">"virginica"</span> <span class="st">"#4DAF4AFF"</span>}}},</span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>     <span class="at">:x</span> <span class="at">:petal-length</span>,</span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>     <span class="at">:data</span></span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>     https<span class="at">://vincentarelbundock.github.io/Rdatasets/csv/datasets/iris.csv</span> [<span class="dv">150</span> <span class="dv">6</span>]:</span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>| <span class="at">:rownames</span> | <span class="at">:sepal-length</span> | <span class="at">:sepal-width</span> | <span class="at">:petal-length</span> | <span class="at">:petal-width</span> |  <span class="at">:species</span> |</span>
+<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>|----------:|--------------:|-------------:|--------------:|-------------:|-----------|</span>
+<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">1</span> |           <span class="fl">5.1</span> |          <span class="fl">3.5</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">2</span> |           <span class="fl">4.9</span> |          <span class="fl">3.0</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">3</span> |           <span class="fl">4.7</span> |          <span class="fl">3.2</span> |           <span class="fl">1.3</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">4</span> |           <span class="fl">4.6</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">5</span> |           <span class="fl">5.0</span> |          <span class="fl">3.6</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">6</span> |           <span class="fl">5.4</span> |          <span class="fl">3.9</span> |           <span class="fl">1.7</span> |          <span class="fl">0.4</span> |    setosa |</span>
+<span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">7</span> |           <span class="fl">4.6</span> |          <span class="fl">3.4</span> |           <span class="fl">1.4</span> |          <span class="fl">0.3</span> |    setosa |</span>
+<span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">8</span> |           <span class="fl">5.0</span> |          <span class="fl">3.4</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">9</span> |           <span class="fl">4.4</span> |          <span class="fl">2.9</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a>|        <span class="dv">10</span> |           <span class="fl">4.9</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.1</span> |    setosa |</span>
+<span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a>|       ... |           ... |          ... |           ... |          ... |       ... |</span>
+<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">140</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.4</span> |          <span class="fl">2.1</span> | virginica |</span>
+<span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">141</span> |           <span class="fl">6.7</span> |          <span class="fl">3.1</span> |           <span class="fl">5.6</span> |          <span class="fl">2.4</span> | virginica |</span>
+<span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">142</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.1</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">143</span> |           <span class="fl">5.8</span> |          <span class="fl">2.7</span> |           <span class="fl">5.1</span> |          <span class="fl">1.9</span> | virginica |</span>
+<span id="cb28-46"><a href="#cb28-46" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">144</span> |           <span class="fl">6.8</span> |          <span class="fl">3.2</span> |           <span class="fl">5.9</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-47"><a href="#cb28-47" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">145</span> |           <span class="fl">6.7</span> |          <span class="fl">3.3</span> |           <span class="fl">5.7</span> |          <span class="fl">2.5</span> | virginica |</span>
+<span id="cb28-48"><a href="#cb28-48" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">146</span> |           <span class="fl">6.7</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-49"><a href="#cb28-49" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">147</span> |           <span class="fl">6.3</span> |          <span class="fl">2.5</span> |           <span class="fl">5.0</span> |          <span class="fl">1.9</span> | virginica |</span>
+<span id="cb28-50"><a href="#cb28-50" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">148</span> |           <span class="fl">6.5</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.0</span> | virginica |</span>
+<span id="cb28-51"><a href="#cb28-51" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">149</span> |           <span class="fl">6.2</span> |          <span class="fl">3.4</span> |           <span class="fl">5.4</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-52"><a href="#cb28-52" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">150</span> |           <span class="fl">5.9</span> |          <span class="fl">3.0</span> |           <span class="fl">5.1</span> |          <span class="fl">1.8</span> | virginica |</span>
+<span id="cb28-53"><a href="#cb28-53" aria-hidden="true" tabindex="-1"></a>}],</span>
+<span id="cb28-54"><a href="#cb28-54" aria-hidden="true" tabindex="-1"></a>   <span class="at">:opts</span></span>
+<span id="cb28-55"><a href="#cb28-55" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:suppress-x-label</span> <span class="va">true</span>,</span>
+<span id="cb28-56"><a href="#cb28-56" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-y-label</span> <span class="va">true</span>,</span>
+<span id="cb28-57"><a href="#cb28-57" aria-hidden="true" tabindex="-1"></a>    <span class="at">:width</span> <span class="dv">198</span>,</span>
+<span id="cb28-58"><a href="#cb28-58" aria-hidden="true" tabindex="-1"></a>    <span class="at">:height</span> <span class="dv">190</span>,</span>
+<span id="cb28-59"><a href="#cb28-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-color-legend</span> <span class="va">true</span>}}</span>
+<span id="cb28-60"><a href="#cb28-60" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:path</span> [<span class="dv">1</span>],</span>
+<span id="cb28-61"><a href="#cb28-61" aria-hidden="true" tabindex="-1"></a>   <span class="at">:rect</span> [<span class="fl">282.5</span> <span class="fl">210.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>],</span>
+<span id="cb28-62"><a href="#cb28-62" aria-hidden="true" tabindex="-1"></a>   <span class="at">:draft</span></span>
+<span id="cb28-63"><a href="#cb28-63" aria-hidden="true" tabindex="-1"></a>   [{<span class="at">:y</span> <span class="at">:sepal-width</span>,</span>
+<span id="cb28-64"><a href="#cb28-64" aria-hidden="true" tabindex="-1"></a>     <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb28-65"><a href="#cb28-65" aria-hidden="true" tabindex="-1"></a>     <span class="at">:color</span> <span class="at">:species</span>,</span>
+<span id="cb28-66"><a href="#cb28-66" aria-hidden="true" tabindex="-1"></a>     :__panel-idx <span class="dv">0</span>,</span>
+<span id="cb28-67"><a href="#cb28-67" aria-hidden="true" tabindex="-1"></a>     <span class="at">:mark</span> <span class="at">:point</span>,</span>
+<span id="cb28-68"><a href="#cb28-68" aria-hidden="true" tabindex="-1"></a>     <span class="at">:color-scale</span></span>
+<span id="cb28-69"><a href="#cb28-69" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:values</span></span>
+<span id="cb28-70"><a href="#cb28-70" aria-hidden="true" tabindex="-1"></a>      {<span class="st">"setosa"</span> <span class="st">"#E41A1CFF"</span>,</span>
+<span id="cb28-71"><a href="#cb28-71" aria-hidden="true" tabindex="-1"></a>       <span class="st">"versicolor"</span> <span class="st">"#377EB8FF"</span>,</span>
+<span id="cb28-72"><a href="#cb28-72" aria-hidden="true" tabindex="-1"></a>       <span class="st">"virginica"</span> <span class="st">"#4DAF4AFF"</span>},</span>
+<span id="cb28-73"><a href="#cb28-73" aria-hidden="true" tabindex="-1"></a>      <span class="at">:type</span> <span class="at">:linear</span>},</span>
+<span id="cb28-74"><a href="#cb28-74" aria-hidden="true" tabindex="-1"></a>     <span class="at">:layer-type</span> <span class="at">:point</span>,</span>
+<span id="cb28-75"><a href="#cb28-75" aria-hidden="true" tabindex="-1"></a>     :__scale</span>
+<span id="cb28-76"><a href="#cb28-76" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:color</span></span>
+<span id="cb28-77"><a href="#cb28-77" aria-hidden="true" tabindex="-1"></a>      {<span class="at">:values</span></span>
+<span id="cb28-78"><a href="#cb28-78" aria-hidden="true" tabindex="-1"></a>       {<span class="st">"setosa"</span> <span class="st">"#E41A1CFF"</span>,</span>
+<span id="cb28-79"><a href="#cb28-79" aria-hidden="true" tabindex="-1"></a>        <span class="st">"versicolor"</span> <span class="st">"#377EB8FF"</span>,</span>
+<span id="cb28-80"><a href="#cb28-80" aria-hidden="true" tabindex="-1"></a>        <span class="st">"virginica"</span> <span class="st">"#4DAF4AFF"</span>}}},</span>
+<span id="cb28-81"><a href="#cb28-81" aria-hidden="true" tabindex="-1"></a>     <span class="at">:x</span> <span class="at">:sepal-length</span>,</span>
+<span id="cb28-82"><a href="#cb28-82" aria-hidden="true" tabindex="-1"></a>     <span class="at">:data</span></span>
+<span id="cb28-83"><a href="#cb28-83" aria-hidden="true" tabindex="-1"></a>     https<span class="at">://vincentarelbundock.github.io/Rdatasets/csv/datasets/iris.csv</span> [<span class="dv">150</span> <span class="dv">6</span>]:</span>
+<span id="cb28-84"><a href="#cb28-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-85"><a href="#cb28-85" aria-hidden="true" tabindex="-1"></a>| <span class="at">:rownames</span> | <span class="at">:sepal-length</span> | <span class="at">:sepal-width</span> | <span class="at">:petal-length</span> | <span class="at">:petal-width</span> |  <span class="at">:species</span> |</span>
+<span id="cb28-86"><a href="#cb28-86" aria-hidden="true" tabindex="-1"></a>|----------:|--------------:|-------------:|--------------:|-------------:|-----------|</span>
+<span id="cb28-87"><a href="#cb28-87" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">1</span> |           <span class="fl">5.1</span> |          <span class="fl">3.5</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-88"><a href="#cb28-88" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">2</span> |           <span class="fl">4.9</span> |          <span class="fl">3.0</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-89"><a href="#cb28-89" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">3</span> |           <span class="fl">4.7</span> |          <span class="fl">3.2</span> |           <span class="fl">1.3</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-90"><a href="#cb28-90" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">4</span> |           <span class="fl">4.6</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-91"><a href="#cb28-91" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">5</span> |           <span class="fl">5.0</span> |          <span class="fl">3.6</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-92"><a href="#cb28-92" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">6</span> |           <span class="fl">5.4</span> |          <span class="fl">3.9</span> |           <span class="fl">1.7</span> |          <span class="fl">0.4</span> |    setosa |</span>
+<span id="cb28-93"><a href="#cb28-93" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">7</span> |           <span class="fl">4.6</span> |          <span class="fl">3.4</span> |           <span class="fl">1.4</span> |          <span class="fl">0.3</span> |    setosa |</span>
+<span id="cb28-94"><a href="#cb28-94" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">8</span> |           <span class="fl">5.0</span> |          <span class="fl">3.4</span> |           <span class="fl">1.5</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-95"><a href="#cb28-95" aria-hidden="true" tabindex="-1"></a>|         <span class="dv">9</span> |           <span class="fl">4.4</span> |          <span class="fl">2.9</span> |           <span class="fl">1.4</span> |          <span class="fl">0.2</span> |    setosa |</span>
+<span id="cb28-96"><a href="#cb28-96" aria-hidden="true" tabindex="-1"></a>|        <span class="dv">10</span> |           <span class="fl">4.9</span> |          <span class="fl">3.1</span> |           <span class="fl">1.5</span> |          <span class="fl">0.1</span> |    setosa |</span>
+<span id="cb28-97"><a href="#cb28-97" aria-hidden="true" tabindex="-1"></a>|       ... |           ... |          ... |           ... |          ... |       ... |</span>
+<span id="cb28-98"><a href="#cb28-98" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">140</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.4</span> |          <span class="fl">2.1</span> | virginica |</span>
+<span id="cb28-99"><a href="#cb28-99" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">141</span> |           <span class="fl">6.7</span> |          <span class="fl">3.1</span> |           <span class="fl">5.6</span> |          <span class="fl">2.4</span> | virginica |</span>
+<span id="cb28-100"><a href="#cb28-100" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">142</span> |           <span class="fl">6.9</span> |          <span class="fl">3.1</span> |           <span class="fl">5.1</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-101"><a href="#cb28-101" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">143</span> |           <span class="fl">5.8</span> |          <span class="fl">2.7</span> |           <span class="fl">5.1</span> |          <span class="fl">1.9</span> | virginica |</span>
+<span id="cb28-102"><a href="#cb28-102" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">144</span> |           <span class="fl">6.8</span> |          <span class="fl">3.2</span> |           <span class="fl">5.9</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-103"><a href="#cb28-103" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">145</span> |           <span class="fl">6.7</span> |          <span class="fl">3.3</span> |           <span class="fl">5.7</span> |          <span class="fl">2.5</span> | virginica |</span>
+<span id="cb28-104"><a href="#cb28-104" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">146</span> |           <span class="fl">6.7</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-105"><a href="#cb28-105" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">147</span> |           <span class="fl">6.3</span> |          <span class="fl">2.5</span> |           <span class="fl">5.0</span> |          <span class="fl">1.9</span> | virginica |</span>
+<span id="cb28-106"><a href="#cb28-106" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">148</span> |           <span class="fl">6.5</span> |          <span class="fl">3.0</span> |           <span class="fl">5.2</span> |          <span class="fl">2.0</span> | virginica |</span>
+<span id="cb28-107"><a href="#cb28-107" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">149</span> |           <span class="fl">6.2</span> |          <span class="fl">3.4</span> |           <span class="fl">5.4</span> |          <span class="fl">2.3</span> | virginica |</span>
+<span id="cb28-108"><a href="#cb28-108" aria-hidden="true" tabindex="-1"></a>|       <span class="dv">150</span> |           <span class="fl">5.9</span> |          <span class="fl">3.0</span> |           <span class="fl">5.1</span> |          <span class="fl">1.8</span> | virginica |</span>
+<span id="cb28-109"><a href="#cb28-109" aria-hidden="true" tabindex="-1"></a>}],</span>
+<span id="cb28-110"><a href="#cb28-110" aria-hidden="true" tabindex="-1"></a>   <span class="at">:opts</span></span>
+<span id="cb28-111"><a href="#cb28-111" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:suppress-x-label</span> <span class="va">true</span>,</span>
+<span id="cb28-112"><a href="#cb28-112" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-y-label</span> <span class="va">true</span>,</span>
+<span id="cb28-113"><a href="#cb28-113" aria-hidden="true" tabindex="-1"></a>    <span class="at">:width</span> <span class="dv">198</span>,</span>
+<span id="cb28-114"><a href="#cb28-114" aria-hidden="true" tabindex="-1"></a>    <span class="at">:height</span> <span class="dv">190</span>,</span>
+<span id="cb28-115"><a href="#cb28-115" aria-hidden="true" tabindex="-1"></a>    <span class="at">:suppress-color-legend</span> <span class="va">true</span>}}],</span>
+<span id="cb28-116"><a href="#cb28-116" aria-hidden="true" tabindex="-1"></a> <span class="at">:chrome-spec</span></span>
+<span id="cb28-117"><a href="#cb28-117" aria-hidden="true" tabindex="-1"></a> {<span class="at">:legend-w</span> <span class="dv">120</span>,</span>
+<span id="cb28-118"><a href="#cb28-118" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-labels</span> [<span class="st">"petal width"</span> <span class="st">"sepal width"</span>],</span>
+<span id="cb28-119"><a href="#cb28-119" aria-hidden="true" tabindex="-1"></a>  <span class="at">:layout</span> {[<span class="dv">0</span>] [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>], [<span class="dv">1</span>] [<span class="fl">282.5</span> <span class="fl">210.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>]},</span>
+<span id="cb28-120"><a href="#cb28-120" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared-aesthetics</span> #{<span class="at">:color</span>},</span>
+<span id="cb28-121"><a href="#cb28-121" aria-hidden="true" tabindex="-1"></a>  <span class="at">:matrix</span>? <span class="va">true</span>,</span>
+<span id="cb28-122"><a href="#cb28-122" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title</span> <span class="va">nil</span>,</span>
+<span id="cb28-123"><a href="#cb28-123" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-cols</span> <span class="dv">2</span>,</span>
+<span id="cb28-124"><a href="#cb28-124" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared-categories</span> {<span class="at">:color</span> [<span class="st">"setosa"</span> <span class="st">"versicolor"</span> <span class="st">"virginica"</span>]},</span>
+<span id="cb28-125"><a href="#cb28-125" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-rows</span> <span class="dv">2</span>,</span>
+<span id="cb28-126"><a href="#cb28-126" aria-hidden="true" tabindex="-1"></a>  <span class="at">:col-labels</span> [<span class="st">"petal length"</span> <span class="st">"sepal length"</span>],</span>
+<span id="cb28-127"><a href="#cb28-127" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-h</span> <span class="dv">20</span>,</span>
+<span id="cb28-128"><a href="#cb28-128" aria-hidden="true" tabindex="-1"></a>  <span class="at">:grid-rect</span> [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">395.0</span> <span class="fl">380.0</span>],</span>
+<span id="cb28-129"><a href="#cb28-129" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared</span>? <span class="va">true</span>,</span>
+<span id="cb28-130"><a href="#cb28-130" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-w</span> <span class="dv">85</span>,</span>
+<span id="cb28-131"><a href="#cb28-131" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title-band-h</span> <span class="dv">0</span>},</span>
+<span id="cb28-132"><a href="#cb28-132" aria-hidden="true" tabindex="-1"></a> <span class="at">:layout</span> {[<span class="dv">0</span>] [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>], [<span class="dv">1</span>] [<span class="fl">282.5</span> <span class="fl">210.0</span> <span class="fl">197.5</span> <span class="fl">190.0</span>]}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p><code>pj/plan</code> returns a <code>CompositePlan</code>:</p>
 <div class="sourceClojure">
@@ -6441,34 +6466,35 @@ graph LR
 <span id="cb30-232"><a href="#cb30-232" aria-hidden="true" tabindex="-1"></a>  <span class="at">:matrix</span>? <span class="va">true</span>,</span>
 <span id="cb30-233"><a href="#cb30-233" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title</span> <span class="va">nil</span>,</span>
 <span id="cb30-234"><a href="#cb30-234" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-cols</span> <span class="dv">2</span>,</span>
-<span id="cb30-235"><a href="#cb30-235" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-rows</span> <span class="dv">2</span>,</span>
-<span id="cb30-236"><a href="#cb30-236" aria-hidden="true" tabindex="-1"></a>  <span class="at">:col-labels</span> [<span class="st">"petal length"</span> <span class="st">"sepal length"</span>],</span>
-<span id="cb30-237"><a href="#cb30-237" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-h</span> <span class="dv">20</span>,</span>
-<span id="cb30-238"><a href="#cb30-238" aria-hidden="true" tabindex="-1"></a>  <span class="at">:grid-rect</span> [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">395.0</span> <span class="fl">380.0</span>],</span>
-<span id="cb30-239"><a href="#cb30-239" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-w</span> <span class="dv">85</span>,</span>
-<span id="cb30-240"><a href="#cb30-240" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared-legend</span></span>
-<span id="cb30-241"><a href="#cb30-241" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:legend</span></span>
-<span id="cb30-242"><a href="#cb30-242" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:title</span> <span class="at">:species</span>,</span>
-<span id="cb30-243"><a href="#cb30-243" aria-hidden="true" tabindex="-1"></a>    <span class="at">:entries</span></span>
-<span id="cb30-244"><a href="#cb30-244" aria-hidden="true" tabindex="-1"></a>    [{<span class="at">:label</span> <span class="st">"setosa"</span>,</span>
-<span id="cb30-245"><a href="#cb30-245" aria-hidden="true" tabindex="-1"></a>      <span class="at">:color</span></span>
-<span id="cb30-246"><a href="#cb30-246" aria-hidden="true" tabindex="-1"></a>      [<span class="fl">0.8941176470588236</span> <span class="fl">0.10196078431372549</span> <span class="fl">0.10980392156862745</span> <span class="fl">1.0</span>]}</span>
-<span id="cb30-247"><a href="#cb30-247" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:label</span> <span class="st">"versicolor"</span>,</span>
-<span id="cb30-248"><a href="#cb30-248" aria-hidden="true" tabindex="-1"></a>      <span class="at">:color</span></span>
-<span id="cb30-249"><a href="#cb30-249" aria-hidden="true" tabindex="-1"></a>      [<span class="fl">0.21568627450980393</span> <span class="fl">0.49411764705882355</span> <span class="fl">0.7215686274509804</span> <span class="fl">1.0</span>]}</span>
-<span id="cb30-250"><a href="#cb30-250" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:label</span> <span class="st">"virginica"</span>,</span>
-<span id="cb30-251"><a href="#cb30-251" aria-hidden="true" tabindex="-1"></a>      <span class="at">:color</span></span>
-<span id="cb30-252"><a href="#cb30-252" aria-hidden="true" tabindex="-1"></a>      [<span class="fl">0.30196078431372547</span></span>
-<span id="cb30-253"><a href="#cb30-253" aria-hidden="true" tabindex="-1"></a>       <span class="fl">0.6862745098039216</span></span>
-<span id="cb30-254"><a href="#cb30-254" aria-hidden="true" tabindex="-1"></a>       <span class="fl">0.2901960784313726</span></span>
-<span id="cb30-255"><a href="#cb30-255" aria-hidden="true" tabindex="-1"></a>       <span class="fl">1.0</span>]}]}},</span>
-<span id="cb30-256"><a href="#cb30-256" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title-band-h</span> <span class="dv">0</span>},</span>
-<span id="cb30-257"><a href="#cb30-257" aria-hidden="true" tabindex="-1"></a> <span class="at">:composite</span>? <span class="va">true</span>,</span>
-<span id="cb30-258"><a href="#cb30-258" aria-hidden="true" tabindex="-1"></a> <span class="at">:total-width</span> <span class="dv">600</span>,</span>
-<span id="cb30-259"><a href="#cb30-259" aria-hidden="true" tabindex="-1"></a> <span class="at">:total-height</span> <span class="dv">400</span>,</span>
-<span id="cb30-260"><a href="#cb30-260" aria-hidden="true" tabindex="-1"></a> <span class="at">:title</span> <span class="va">nil</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb30-235"><a href="#cb30-235" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared-categories</span> {<span class="at">:color</span> [<span class="st">"setosa"</span> <span class="st">"versicolor"</span> <span class="st">"virginica"</span>]},</span>
+<span id="cb30-236"><a href="#cb30-236" aria-hidden="true" tabindex="-1"></a>  <span class="at">:n-rows</span> <span class="dv">2</span>,</span>
+<span id="cb30-237"><a href="#cb30-237" aria-hidden="true" tabindex="-1"></a>  <span class="at">:col-labels</span> [<span class="st">"petal length"</span> <span class="st">"sepal length"</span>],</span>
+<span id="cb30-238"><a href="#cb30-238" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-h</span> <span class="dv">20</span>,</span>
+<span id="cb30-239"><a href="#cb30-239" aria-hidden="true" tabindex="-1"></a>  <span class="at">:grid-rect</span> [<span class="fl">85.0</span> <span class="fl">20.0</span> <span class="fl">395.0</span> <span class="fl">380.0</span>],</span>
+<span id="cb30-240"><a href="#cb30-240" aria-hidden="true" tabindex="-1"></a>  <span class="at">:strip-w</span> <span class="dv">85</span>,</span>
+<span id="cb30-241"><a href="#cb30-241" aria-hidden="true" tabindex="-1"></a>  <span class="at">:shared-legend</span></span>
+<span id="cb30-242"><a href="#cb30-242" aria-hidden="true" tabindex="-1"></a>  {<span class="at">:legend</span></span>
+<span id="cb30-243"><a href="#cb30-243" aria-hidden="true" tabindex="-1"></a>   {<span class="at">:title</span> <span class="at">:species</span>,</span>
+<span id="cb30-244"><a href="#cb30-244" aria-hidden="true" tabindex="-1"></a>    <span class="at">:entries</span></span>
+<span id="cb30-245"><a href="#cb30-245" aria-hidden="true" tabindex="-1"></a>    [{<span class="at">:label</span> <span class="st">"setosa"</span>,</span>
+<span id="cb30-246"><a href="#cb30-246" aria-hidden="true" tabindex="-1"></a>      <span class="at">:color</span></span>
+<span id="cb30-247"><a href="#cb30-247" aria-hidden="true" tabindex="-1"></a>      [<span class="fl">0.8941176470588236</span> <span class="fl">0.10196078431372549</span> <span class="fl">0.10980392156862745</span> <span class="fl">1.0</span>]}</span>
+<span id="cb30-248"><a href="#cb30-248" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:label</span> <span class="st">"versicolor"</span>,</span>
+<span id="cb30-249"><a href="#cb30-249" aria-hidden="true" tabindex="-1"></a>      <span class="at">:color</span></span>
+<span id="cb30-250"><a href="#cb30-250" aria-hidden="true" tabindex="-1"></a>      [<span class="fl">0.21568627450980393</span> <span class="fl">0.49411764705882355</span> <span class="fl">0.7215686274509804</span> <span class="fl">1.0</span>]}</span>
+<span id="cb30-251"><a href="#cb30-251" aria-hidden="true" tabindex="-1"></a>     {<span class="at">:label</span> <span class="st">"virginica"</span>,</span>
+<span id="cb30-252"><a href="#cb30-252" aria-hidden="true" tabindex="-1"></a>      <span class="at">:color</span></span>
+<span id="cb30-253"><a href="#cb30-253" aria-hidden="true" tabindex="-1"></a>      [<span class="fl">0.30196078431372547</span></span>
+<span id="cb30-254"><a href="#cb30-254" aria-hidden="true" tabindex="-1"></a>       <span class="fl">0.6862745098039216</span></span>
+<span id="cb30-255"><a href="#cb30-255" aria-hidden="true" tabindex="-1"></a>       <span class="fl">0.2901960784313726</span></span>
+<span id="cb30-256"><a href="#cb30-256" aria-hidden="true" tabindex="-1"></a>       <span class="fl">1.0</span>]}]}},</span>
+<span id="cb30-257"><a href="#cb30-257" aria-hidden="true" tabindex="-1"></a>  <span class="at">:title-band-h</span> <span class="dv">0</span>},</span>
+<span id="cb30-258"><a href="#cb30-258" aria-hidden="true" tabindex="-1"></a> <span class="at">:composite</span>? <span class="va">true</span>,</span>
+<span id="cb30-259"><a href="#cb30-259" aria-hidden="true" tabindex="-1"></a> <span class="at">:total-width</span> <span class="dv">600</span>,</span>
+<span id="cb30-260"><a href="#cb30-260" aria-hidden="true" tabindex="-1"></a> <span class="at">:total-height</span> <span class="dv">400</span>,</span>
+<span id="cb30-261"><a href="#cb30-261" aria-hidden="true" tabindex="-1"></a> <span class="at">:title</span> <span class="va">nil</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p><code>pj/membrane</code> returns a <code>PlotjeMembrane</code> whose <code>:drawables</code> carry one <code>Translate</code> per leaf plus composite framing (column strip labels, shared legend, title if any). Plan-derived width and height ride as record fields and the title as <code>:plotje/title</code>.</p>
+<p><code>pj/membrane</code> returns a <code>PlotjeMembrane</code> whose <code>:drawables</code> carry one <code>Translate</code> per leaf plus composite framing (column strip labels, shared legend, title if any). Plan-derived width and height are record fields, and the title is <code>:plotje/title</code>.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>(pj/membrane composite-pose)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>

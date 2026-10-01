@@ -77,7 +77,7 @@
       (= 1 (:panels s))
       (pos? (:polygons s))
       (some
-       (fn* [p1__77604#] (= "Distribution of Total Bill" p1__77604#))
+       (fn* [p1__76435#] (= "Distribution of Total Bill" p1__76435#))
        (:texts s)))))
    v12_l53)))
 
@@ -100,8 +100,8 @@
       (pj/svg-summary v)
       domain
       (fn*
-       [p1__77605#]
-       (-> p1__77605# pj/plan :panels first :x-domain))]
+       [p1__76436#]
+       (-> p1__76436# pj/plan :panels first :x-domain))]
      (and
       (= 1 (:panels s))
       (= 10 (:polygons s))
@@ -292,8 +292,8 @@
       (pj/svg-summary v)
       domain
       (fn*
-       [p1__77606#]
-       (-> p1__77606# pj/plan :panels first :x-domain))]
+       [p1__76437#]
+       (-> p1__76437# pj/plan :panels first :x-domain))]
      (and
       (= 1 (:panels s))
       (= 1 (:polygons s))
@@ -367,7 +367,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__77607#] (= :boxplot (:mark p1__77607#))))
+       (filter (fn* [p1__76438#] (= :boxplot (:mark p1__76438#))))
        first
        :boxes)
       within-fences?
@@ -418,7 +418,7 @@
       box-layer
       (first
        (filter
-        (fn* [p1__77608#] (= :boxplot (:mark p1__77608#)))
+        (fn* [p1__76439#] (= :boxplot (:mark p1__76439#)))
         (:layers (first (:panels plan)))))]
      (and
       (= 1 (:panels s))
@@ -502,7 +502,7 @@
       viol-layer
       (first
        (filter
-        (fn* [p1__77609#] (= :violin (:mark p1__77609#)))
+        (fn* [p1__76440#] (= :violin (:mark p1__76440#)))
         (:layers (first (:panels plan)))))]
      (and
       (= 1 (:panels s))

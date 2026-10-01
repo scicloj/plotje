@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-Most of this release is about colour: gradient legends, tiles, and composite poses whose cells now agree on one colour, size or symbol per value. It also adds `pj/lay-segment`, for lines and arrows between two points.
+## [0.16.0 - 2026-10-02]
+
+Most of this release is about colour: gradient legends, tiles, and composite poses whose cells agree on one colour, size or symbol per value. It also adds `pj/lay-segment`, for lines and arrows between two points.
 
 ### Plots that look different after upgrading
 
@@ -20,17 +22,17 @@ Most of this release is about colour: gradient legends, tiles, and composite pos
 
 - **`pj/lay-tile` on a numeric `:x` or `:y`.** The axis reaches the outer edges of the tiles, so the outer rows and columns are drawn at full size, and a missing value is left as a gap rather than closed by its neighbours. Reported in [#59](https://github.com/scicloj/plotje/issues/59) - thanks, @behrica
 
-- **The colour of a tile.** A numeric `:color` is read as `:fill` is, through the same scale settings and legend. A categorical `:color` colours each cell from the palette, with a legend of the categories, and the fill settings warn. Given both `:fill` and `:color`, the tile is painted from `:fill` and warns that `:color` is not drawn; with `:group`, each cell is painted from its own row's value.
+- **The colour of a tile.** A numeric `:color` is read as `:fill` is, through the same scale settings and legend. A categorical `:color` colours each cell from the palette, with a legend of the categories, and the fill settings warn. Given both `:fill` and `:color`, the tile is painted from `:fill` and warns that `:color` is not drawn; with `:group`, each cell is painted from its own row's value. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
 
-- **`pj/lay-contour` and `pj/lay-density-2d`.** Contour lines are coloured through the settings the legend reads, so `:color-midpoint`, and a `:domain` or `:type` in the `:color` scale spec, move the lines as well as the legend. Given a `:color` column, both keep their density legend and warn that the colour is not drawn, since one density is computed from all the rows. Reported in [#40](https://github.com/scicloj/plotje/issues/40)
+- **`pj/lay-contour` and `pj/lay-density-2d`.** Contour lines are coloured through the settings the legend reads, so `:color-midpoint`, and a `:domain` or `:type` in the `:color` scale spec, move the lines as well as the legend. Given a `:color` column, both keep their density legend and warn that the colour is not drawn, since one density is computed from all the rows.
 
-- **A `:color` column on a rule or a band** is not drawn and adds nothing to the legend. Written on the rule or band itself, it warns.
+- **A `:color` column written on a rule or a band** adds nothing to the legend, and warns that it is not drawn: a rule or a band is drawn once, from written values.
 
 - **An overlay asked for by only one of the disagreeing layers**, as in `(-> data (pj/lay-line :t :a) (pj/lay-line :t :b {:overlay true}))`, draws what `pj/overlay` draws: a colour and a legend entry per layer, and an axis title naming both columns.
 
 - **A series on `:x` together with a series on `:y`**, such as `{:x [:t1 :t2] :y [:v1 :v2]}`, is read in pairs and drawn on one panel as the series `t1 / v1` and `t2 / v2`. The pivot names its value columns `:x-value` and `:y-value`, and `:as` names the key column. To draw each pair on a panel of its own, write the pairs: `(pj/pose data [[:t1 :v1] [:t2 :v2]])`.
 
-- **Rotated tick labels** get room worked out from the angle and the label lengths, below the panel and at the ends of each axis, up to 30% of the plot's size, so long labels are not cut off at the canvas edge or drawn under the axis title. Short labels keep the room they had. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
+- **Long rotated tick labels** get room worked out from the angle and the label lengths, below the panel and at the ends of each axis, up to 30% of the plot's size, so long labels are not cut off at the canvas edge or drawn under the axis title. Reported in [#57](https://github.com/scicloj/plotje/issues/57) - thanks, @behrica
 
 - **`:breaks []` on an axis** draws the axis with no ticks, tick labels or grid lines; its title stays.
 
@@ -38,7 +40,7 @@ Most of this release is about colour: gradient legends, tiles, and composite pos
 
 ### Added
 
-- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on the `:end`, the `:start` or `:both`, and `:dx`/`:dy` move the whole segment. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) and [#17](https://github.com/scicloj/plotje/issues/17) - thanks, @behrica
+- `pj/lay-segment` draws a straight line per row from `:x` and `:y` to `:x-end` and `:y-end`, each a column or a written value. An end left out keeps the start's value, so `(pj/lay-segment data :index :distance {:y-end 0})` draws a stem plot. `:arrow` puts an arrow head on the `:end`, the `:start` or `:both`, and `:dx`/`:dy` move the whole segment. Asked for in [#50](https://github.com/scicloj/plotje/issues/50) - thanks, @behrica. The arrow heads cover the straight case of [#17](https://github.com/scicloj/plotje/issues/17).
 
 - `:y-tick-angle` rotates the y-axis tick labels, as `:x-tick-angle` does for x. At 90 or -90 each label runs along the axis, centred on its tick. Asked for in [#51](https://github.com/scicloj/plotje/issues/51) - thanks, @behrica
 

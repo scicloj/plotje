@@ -566,7 +566,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>     <span class="at">:x-domain</span> categories</span>
 <span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>     <span class="at">:y-domain</span> [y-min y-max]}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Test the stat in isolation – always a good idea before wiring into the full pipeline:</p>
+<p>Test the stat in isolation:</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>(stat/compute-stat {<span class="at">:stat</span> <span class="at">:waterfall</span> <span class="at">:data</span> (tc/dataset pnl-data) <span class="at">:x</span> <span class="at">:category</span> <span class="at">:y</span> <span class="at">:amount</span> <span class="at">:x-type</span> <span class="at">:categorical</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -720,37 +720,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat <span class="at">:waterfall</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x32b11b16</span> <span class="st">"clojure.lang.MultiFn@32b11b16"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0xff5ad44</span> <span class="st">"clojure.lang.MultiFn@ff5ad44"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> stat/compute-stat [<span class="at">:waterfall</span> <span class="at">:doc</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x32b11b16</span> <span class="st">"clojure.lang.MultiFn@32b11b16"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0xff5ad44</span> <span class="st">"clojure.lang.MultiFn@ff5ad44"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> extract/extract-layer <span class="at">:waterfall</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x2bd00afe</span> <span class="st">"clojure.lang.MultiFn@2bd00afe"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x70fc9d0a</span> <span class="st">"clojure.lang.MultiFn@70fc9d0a"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> extract/extract-layer [<span class="at">:waterfall</span> <span class="at">:doc</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x2bd00afe</span> <span class="st">"clojure.lang.MultiFn@2bd00afe"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x70fc9d0a</span> <span class="st">"clojure.lang.MultiFn@70fc9d0a"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> mark/layer-&gt;membrane <span class="at">:waterfall</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x5dbbc5c4</span> <span class="st">"clojure.lang.MultiFn@5dbbc5c4"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x1403a96b</span> <span class="st">"clojure.lang.MultiFn@1403a96b"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">remove-method</span> mark/layer-&gt;membrane [<span class="at">:waterfall</span> <span class="at">:doc</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x5dbbc5c4</span> <span class="st">"clojure.lang.MultiFn@5dbbc5c4"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>#object[clojure.lang.MultiFn <span class="bn">0x1403a96b</span> <span class="st">"clojure.lang.MultiFn@1403a96b"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">swap!</span> @(<span class="kw">resolve</span> <span class="at">'scicloj.plotje.layer-type/registry*</span>) <span class="kw">dissoc</span> <span class="at">:waterfall</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -837,91 +837,98 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb32-79"><a href="#cb32-79" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
 <span id="cb32-80"><a href="#cb32-80" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:stroke-dash</span> <span class="at">:dx</span> <span class="at">:dy</span>],</span>
 <span id="cb32-81"><a href="#cb32-81" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Line -- connects data points in order."</span>},</span>
-<span id="cb32-82"><a href="#cb32-82" aria-hidden="true" tabindex="-1"></a> <span class="at">:label</span></span>
-<span id="cb32-83"><a href="#cb32-83" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>,</span>
+<span id="cb32-82"><a href="#cb32-82" aria-hidden="true" tabindex="-1"></a> <span class="at">:segment</span></span>
+<span id="cb32-83"><a href="#cb32-83" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:segment</span>,</span>
 <span id="cb32-84"><a href="#cb32-84" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-85"><a href="#cb32-85" aria-hidden="true" tabindex="-1"></a>  <span class="at">:defaults</span> {<span class="at">:box</span> <span class="va">true</span>},</span>
-<span id="cb32-86"><a href="#cb32-86" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span></span>
-<span id="cb32-87"><a href="#cb32-87" aria-hidden="true" tabindex="-1"></a>  [<span class="at">:text</span></span>
-<span id="cb32-88"><a href="#cb32-88" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-size</span></span>
-<span id="cb32-89"><a href="#cb32-89" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-weight</span></span>
-<span id="cb32-90"><a href="#cb32-90" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-style</span></span>
-<span id="cb32-91"><a href="#cb32-91" aria-hidden="true" tabindex="-1"></a>   <span class="at">:box</span></span>
-<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dx</span></span>
-<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dy</span></span>
-<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-x</span></span>
-<span id="cb32-95"><a href="#cb32-95" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-y</span>],</span>
-<span id="cb32-96"><a href="#cb32-96" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span></span>
-<span id="cb32-97"><a href="#cb32-97" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Label -- text on a background box. The :text mark with :box preset on."</span>},</span>
-<span id="cb32-98"><a href="#cb32-98" aria-hidden="true" tabindex="-1"></a> <span class="at">:band-v</span></span>
-<span id="cb32-99"><a href="#cb32-99" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:band-v</span>,</span>
-<span id="cb32-100"><a href="#cb32-100" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-101"><a href="#cb32-101" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:x-min</span> <span class="at">:x-max</span>],</span>
-<span id="cb32-102"><a href="#cb32-102" aria-hidden="true" tabindex="-1"></a>  <span class="at">:rejects</span> [<span class="at">:position</span> <span class="at">:group</span> <span class="at">:x-type</span> <span class="at">:y-type</span> <span class="at">:color-type</span> <span class="at">:overlay</span>],</span>
-<span id="cb32-103"><a href="#cb32-103" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Vertical shaded band between x = x-min and x = x-max."</span>},</span>
-<span id="cb32-104"><a href="#cb32-104" aria-hidden="true" tabindex="-1"></a> <span class="at">:violin</span></span>
-<span id="cb32-105"><a href="#cb32-105" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:violin</span>,</span>
-<span id="cb32-106"><a href="#cb32-106" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:violin</span>,</span>
-<span id="cb32-107"><a href="#cb32-107" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:bandwidth</span> <span class="at">:trim</span> <span class="at">:size</span>],</span>
-<span id="cb32-108"><a href="#cb32-108" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Violin -- mirrored density curve per category."</span>},</span>
-<span id="cb32-109"><a href="#cb32-109" aria-hidden="true" tabindex="-1"></a> <span class="at">:point</span></span>
-<span id="cb32-110"><a href="#cb32-110" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:point</span>,</span>
-<span id="cb32-111"><a href="#cb32-111" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-112"><a href="#cb32-112" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:shape</span> <span class="at">:jitter</span> <span class="at">:dx</span> <span class="at">:dy</span>],</span>
-<span id="cb32-113"><a href="#cb32-113" aria-hidden="true" tabindex="-1"></a>  <span class="at">:varies</span> {<span class="at">:size</span> <span class="at">:radius</span>, <span class="at">:alpha</span> <span class="at">:opacity</span>},</span>
-<span id="cb32-114"><a href="#cb32-114" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Scatter -- individual data points."</span>},</span>
-<span id="cb32-115"><a href="#cb32-115" aria-hidden="true" tabindex="-1"></a> <span class="at">:area</span></span>
-<span id="cb32-116"><a href="#cb32-116" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:area</span>,</span>
-<span id="cb32-117"><a href="#cb32-117" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-118"><a href="#cb32-118" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:stroke</span> <span class="at">:stroke-width</span> <span class="at">:stroke-dash</span>],</span>
-<span id="cb32-119"><a href="#cb32-119" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Area -- filled region under a line."</span>},</span>
-<span id="cb32-120"><a href="#cb32-120" aria-hidden="true" tabindex="-1"></a> <span class="at">:contour</span></span>
-<span id="cb32-121"><a href="#cb32-121" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:contour</span>,</span>
-<span id="cb32-122"><a href="#cb32-122" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:density-2d</span>,</span>
-<span id="cb32-123"><a href="#cb32-123" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:levels</span> <span class="at">:size</span>],</span>
-<span id="cb32-124"><a href="#cb32-124" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Contour -- iso-density contour lines."</span>},</span>
-<span id="cb32-125"><a href="#cb32-125" aria-hidden="true" tabindex="-1"></a> <span class="at">:density</span></span>
-<span id="cb32-126"><a href="#cb32-126" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:area</span>,</span>
-<span id="cb32-127"><a href="#cb32-127" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:density</span>,</span>
-<span id="cb32-128"><a href="#cb32-128" aria-hidden="true" tabindex="-1"></a>  <span class="at">:x-only</span> <span class="va">true</span>,</span>
-<span id="cb32-129"><a href="#cb32-129" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:bandwidth</span> <span class="at">:trim</span> <span class="at">:stroke</span> <span class="at">:stroke-width</span> <span class="at">:stroke-dash</span>],</span>
-<span id="cb32-130"><a href="#cb32-130" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Density -- KDE (kernel density estimation) as filled area."</span>},</span>
-<span id="cb32-131"><a href="#cb32-131" aria-hidden="true" tabindex="-1"></a> <span class="at">:density-2d</span></span>
-<span id="cb32-132"><a href="#cb32-132" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:tile</span>,</span>
-<span id="cb32-133"><a href="#cb32-133" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:density-2d</span>,</span>
-<span id="cb32-134"><a href="#cb32-134" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:density-2d-grid</span>],</span>
-<span id="cb32-135"><a href="#cb32-135" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span></span>
-<span id="cb32-136"><a href="#cb32-136" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2D density -- kernel density estimation (KDE) smoothed heatmap."</span>},</span>
-<span id="cb32-137"><a href="#cb32-137" aria-hidden="true" tabindex="-1"></a> <span class="at">:step</span></span>
-<span id="cb32-138"><a href="#cb32-138" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:step</span>,</span>
-<span id="cb32-139"><a href="#cb32-139" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-140"><a href="#cb32-140" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:stroke-dash</span>],</span>
-<span id="cb32-141"><a href="#cb32-141" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Step -- horizontal-then-vertical connected points."</span>},</span>
-<span id="cb32-142"><a href="#cb32-142" aria-hidden="true" tabindex="-1"></a> <span class="at">:boxplot</span></span>
-<span id="cb32-143"><a href="#cb32-143" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:boxplot</span>,</span>
-<span id="cb32-144"><a href="#cb32-144" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:boxplot</span>,</span>
-<span id="cb32-145"><a href="#cb32-145" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:box-width</span>],</span>
-<span id="cb32-146"><a href="#cb32-146" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Boxplot -- median, quartiles, whiskers, outliers."</span>},</span>
-<span id="cb32-147"><a href="#cb32-147" aria-hidden="true" tabindex="-1"></a> <span class="at">:rug</span></span>
-<span id="cb32-148"><a href="#cb32-148" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:rug</span>,</span>
-<span id="cb32-149"><a href="#cb32-149" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-150"><a href="#cb32-150" aria-hidden="true" tabindex="-1"></a>  <span class="at">:x-only</span> <span class="va">true</span>,</span>
-<span id="cb32-151"><a href="#cb32-151" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:side</span> <span class="at">:length</span>],</span>
-<span id="cb32-152"><a href="#cb32-152" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Rug -- axis-margin tick marks."</span>},</span>
-<span id="cb32-153"><a href="#cb32-153" aria-hidden="true" tabindex="-1"></a> <span class="at">:text</span></span>
-<span id="cb32-154"><a href="#cb32-154" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>,</span>
-<span id="cb32-155"><a href="#cb32-155" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
-<span id="cb32-156"><a href="#cb32-156" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span></span>
-<span id="cb32-157"><a href="#cb32-157" aria-hidden="true" tabindex="-1"></a>  [<span class="at">:text</span></span>
-<span id="cb32-158"><a href="#cb32-158" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-size</span></span>
-<span id="cb32-159"><a href="#cb32-159" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-weight</span></span>
-<span id="cb32-160"><a href="#cb32-160" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-style</span></span>
-<span id="cb32-161"><a href="#cb32-161" aria-hidden="true" tabindex="-1"></a>   <span class="at">:box</span></span>
-<span id="cb32-162"><a href="#cb32-162" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dx</span></span>
-<span id="cb32-163"><a href="#cb32-163" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dy</span></span>
-<span id="cb32-164"><a href="#cb32-164" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-x</span></span>
-<span id="cb32-165"><a href="#cb32-165" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-y</span>],</span>
-<span id="cb32-166"><a href="#cb32-166" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Text -- data-driven labels, optionally on a background box."</span>}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb32-85"><a href="#cb32-85" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:x-end</span> <span class="at">:y-end</span> <span class="at">:arrow</span> <span class="at">:size</span> <span class="at">:stroke-dash</span> <span class="at">:dx</span> <span class="at">:dy</span>],</span>
+<span id="cb32-86"><a href="#cb32-86" aria-hidden="true" tabindex="-1"></a>  <span class="at">:rejects</span> [<span class="at">:position</span>],</span>
+<span id="cb32-87"><a href="#cb32-87" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span></span>
+<span id="cb32-88"><a href="#cb32-88" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Segment -- a straight line from (x, y) to (x-end, y-end), one per row, optionally with arrow heads."</span>},</span>
+<span id="cb32-89"><a href="#cb32-89" aria-hidden="true" tabindex="-1"></a> <span class="at">:label</span></span>
+<span id="cb32-90"><a href="#cb32-90" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>,</span>
+<span id="cb32-91"><a href="#cb32-91" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a>  <span class="at">:defaults</span> {<span class="at">:box</span> <span class="va">true</span>},</span>
+<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span></span>
+<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a>  [<span class="at">:text</span></span>
+<span id="cb32-95"><a href="#cb32-95" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-size</span></span>
+<span id="cb32-96"><a href="#cb32-96" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-weight</span></span>
+<span id="cb32-97"><a href="#cb32-97" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-style</span></span>
+<span id="cb32-98"><a href="#cb32-98" aria-hidden="true" tabindex="-1"></a>   <span class="at">:box</span></span>
+<span id="cb32-99"><a href="#cb32-99" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dx</span></span>
+<span id="cb32-100"><a href="#cb32-100" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dy</span></span>
+<span id="cb32-101"><a href="#cb32-101" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-x</span></span>
+<span id="cb32-102"><a href="#cb32-102" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-y</span>],</span>
+<span id="cb32-103"><a href="#cb32-103" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span></span>
+<span id="cb32-104"><a href="#cb32-104" aria-hidden="true" tabindex="-1"></a>  <span class="st">"Label -- text on a background box. The :text mark with :box preset on."</span>},</span>
+<span id="cb32-105"><a href="#cb32-105" aria-hidden="true" tabindex="-1"></a> <span class="at">:band-v</span></span>
+<span id="cb32-106"><a href="#cb32-106" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:band-v</span>,</span>
+<span id="cb32-107"><a href="#cb32-107" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-108"><a href="#cb32-108" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:x-min</span> <span class="at">:x-max</span>],</span>
+<span id="cb32-109"><a href="#cb32-109" aria-hidden="true" tabindex="-1"></a>  <span class="at">:rejects</span> [<span class="at">:position</span> <span class="at">:group</span> <span class="at">:x-type</span> <span class="at">:y-type</span> <span class="at">:color-type</span> <span class="at">:overlay</span>],</span>
+<span id="cb32-110"><a href="#cb32-110" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Vertical shaded band between x = x-min and x = x-max."</span>},</span>
+<span id="cb32-111"><a href="#cb32-111" aria-hidden="true" tabindex="-1"></a> <span class="at">:violin</span></span>
+<span id="cb32-112"><a href="#cb32-112" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:violin</span>,</span>
+<span id="cb32-113"><a href="#cb32-113" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:violin</span>,</span>
+<span id="cb32-114"><a href="#cb32-114" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:bandwidth</span> <span class="at">:trim</span> <span class="at">:size</span>],</span>
+<span id="cb32-115"><a href="#cb32-115" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Violin -- mirrored density curve per category."</span>},</span>
+<span id="cb32-116"><a href="#cb32-116" aria-hidden="true" tabindex="-1"></a> <span class="at">:point</span></span>
+<span id="cb32-117"><a href="#cb32-117" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:point</span>,</span>
+<span id="cb32-118"><a href="#cb32-118" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-119"><a href="#cb32-119" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:shape</span> <span class="at">:jitter</span> <span class="at">:dx</span> <span class="at">:dy</span>],</span>
+<span id="cb32-120"><a href="#cb32-120" aria-hidden="true" tabindex="-1"></a>  <span class="at">:varies</span> {<span class="at">:size</span> <span class="at">:radius</span>, <span class="at">:alpha</span> <span class="at">:opacity</span>},</span>
+<span id="cb32-121"><a href="#cb32-121" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Scatter -- individual data points."</span>},</span>
+<span id="cb32-122"><a href="#cb32-122" aria-hidden="true" tabindex="-1"></a> <span class="at">:area</span></span>
+<span id="cb32-123"><a href="#cb32-123" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:area</span>,</span>
+<span id="cb32-124"><a href="#cb32-124" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-125"><a href="#cb32-125" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:stroke</span> <span class="at">:stroke-width</span> <span class="at">:stroke-dash</span>],</span>
+<span id="cb32-126"><a href="#cb32-126" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Area -- filled region under a line."</span>},</span>
+<span id="cb32-127"><a href="#cb32-127" aria-hidden="true" tabindex="-1"></a> <span class="at">:contour</span></span>
+<span id="cb32-128"><a href="#cb32-128" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:contour</span>,</span>
+<span id="cb32-129"><a href="#cb32-129" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:density-2d</span>,</span>
+<span id="cb32-130"><a href="#cb32-130" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:levels</span> <span class="at">:size</span>],</span>
+<span id="cb32-131"><a href="#cb32-131" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Contour -- iso-density contour lines."</span>},</span>
+<span id="cb32-132"><a href="#cb32-132" aria-hidden="true" tabindex="-1"></a> <span class="at">:density</span></span>
+<span id="cb32-133"><a href="#cb32-133" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:area</span>,</span>
+<span id="cb32-134"><a href="#cb32-134" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:density</span>,</span>
+<span id="cb32-135"><a href="#cb32-135" aria-hidden="true" tabindex="-1"></a>  <span class="at">:x-only</span> <span class="va">true</span>,</span>
+<span id="cb32-136"><a href="#cb32-136" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:bandwidth</span> <span class="at">:trim</span> <span class="at">:stroke</span> <span class="at">:stroke-width</span> <span class="at">:stroke-dash</span>],</span>
+<span id="cb32-137"><a href="#cb32-137" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Density -- KDE (kernel density estimation) as filled area."</span>},</span>
+<span id="cb32-138"><a href="#cb32-138" aria-hidden="true" tabindex="-1"></a> <span class="at">:density-2d</span></span>
+<span id="cb32-139"><a href="#cb32-139" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:tile</span>,</span>
+<span id="cb32-140"><a href="#cb32-140" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:density-2d</span>,</span>
+<span id="cb32-141"><a href="#cb32-141" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:density-2d-grid</span>],</span>
+<span id="cb32-142"><a href="#cb32-142" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span></span>
+<span id="cb32-143"><a href="#cb32-143" aria-hidden="true" tabindex="-1"></a>  <span class="st">"2D density -- kernel density estimation (KDE) smoothed heatmap."</span>},</span>
+<span id="cb32-144"><a href="#cb32-144" aria-hidden="true" tabindex="-1"></a> <span class="at">:step</span></span>
+<span id="cb32-145"><a href="#cb32-145" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:step</span>,</span>
+<span id="cb32-146"><a href="#cb32-146" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-147"><a href="#cb32-147" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:stroke-dash</span>],</span>
+<span id="cb32-148"><a href="#cb32-148" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Step -- horizontal-then-vertical connected points."</span>},</span>
+<span id="cb32-149"><a href="#cb32-149" aria-hidden="true" tabindex="-1"></a> <span class="at">:boxplot</span></span>
+<span id="cb32-150"><a href="#cb32-150" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:boxplot</span>,</span>
+<span id="cb32-151"><a href="#cb32-151" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:boxplot</span>,</span>
+<span id="cb32-152"><a href="#cb32-152" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:size</span> <span class="at">:box-width</span>],</span>
+<span id="cb32-153"><a href="#cb32-153" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Boxplot -- median, quartiles, whiskers, outliers."</span>},</span>
+<span id="cb32-154"><a href="#cb32-154" aria-hidden="true" tabindex="-1"></a> <span class="at">:rug</span></span>
+<span id="cb32-155"><a href="#cb32-155" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:rug</span>,</span>
+<span id="cb32-156"><a href="#cb32-156" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-157"><a href="#cb32-157" aria-hidden="true" tabindex="-1"></a>  <span class="at">:x-only</span> <span class="va">true</span>,</span>
+<span id="cb32-158"><a href="#cb32-158" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span> [<span class="at">:side</span> <span class="at">:length</span>],</span>
+<span id="cb32-159"><a href="#cb32-159" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Rug -- axis-margin tick marks."</span>},</span>
+<span id="cb32-160"><a href="#cb32-160" aria-hidden="true" tabindex="-1"></a> <span class="at">:text</span></span>
+<span id="cb32-161"><a href="#cb32-161" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>,</span>
+<span id="cb32-162"><a href="#cb32-162" aria-hidden="true" tabindex="-1"></a>  <span class="at">:stat</span> <span class="at">:identity</span>,</span>
+<span id="cb32-163"><a href="#cb32-163" aria-hidden="true" tabindex="-1"></a>  <span class="at">:accepts</span></span>
+<span id="cb32-164"><a href="#cb32-164" aria-hidden="true" tabindex="-1"></a>  [<span class="at">:text</span></span>
+<span id="cb32-165"><a href="#cb32-165" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-size</span></span>
+<span id="cb32-166"><a href="#cb32-166" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-weight</span></span>
+<span id="cb32-167"><a href="#cb32-167" aria-hidden="true" tabindex="-1"></a>   <span class="at">:font-style</span></span>
+<span id="cb32-168"><a href="#cb32-168" aria-hidden="true" tabindex="-1"></a>   <span class="at">:box</span></span>
+<span id="cb32-169"><a href="#cb32-169" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dx</span></span>
+<span id="cb32-170"><a href="#cb32-170" aria-hidden="true" tabindex="-1"></a>   <span class="at">:dy</span></span>
+<span id="cb32-171"><a href="#cb32-171" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-x</span></span>
+<span id="cb32-172"><a href="#cb32-172" aria-hidden="true" tabindex="-1"></a>   <span class="at">:align-y</span>],</span>
+<span id="cb32-173"><a href="#cb32-173" aria-hidden="true" tabindex="-1"></a>  <span class="at">:doc</span> <span class="st">"Text -- data-driven labels, optionally on a background box."</span>}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Verify cleanup:</p>
 <div class="sourceClojure">

@@ -908,10 +908,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
-<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-h</code></pre>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:segment</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td><div class="code-copy-outer-scaffold"><div>
-<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-h</code></pre>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:segment</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
@@ -923,10 +923,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
-<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-v</code></pre>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td><div class="code-copy-outer-scaffold"><div>
-<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-v</code></pre>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
@@ -938,6 +938,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-v</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-v</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:band-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td><div class="code-copy-outer-scaffold"><div>
@@ -951,7 +966,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:band-v</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
@@ -972,20 +987,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>A layer type carries one more field the table leaves out, because only one built-in layer type has it. <code>:varies</code> names the appearance aesthetics its mark varies from row to row, and the quantity it draws each as. <code>:point</code> is the one that has it: it draws <code>:size</code> as a radius and <code>:alpha</code> as an opacity. The plan reads this to decide whether a column mapped to an aesthetic is drawn at all:</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb106"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a>(<span class="at">:varies</span> (layer-type/lookup <span class="at">:point</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb110"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>(<span class="at">:varies</span> (layer-type/lookup <span class="at">:point</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb107"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb107-1"><a href="#cb107-1" aria-hidden="true" tabindex="-1"></a>{<span class="at">:size</span> <span class="at">:radius</span>, <span class="at">:alpha</span> <span class="at">:opacity</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb111"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a>{<span class="at">:size</span> <span class="at">:radius</span>, <span class="at">:alpha</span> <span class="at">:opacity</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Every other mark draws one size and one opacity for the whole layer, so a column mapped to those aesthetics changes nothing, and Plotje warns. See <a href="./plotje_book.extensibility.html#compute-stat">Extensibility</a> for declaring it on a layer type of your own.</p>
-<p>The “Presets” column is what separates two layer types that would otherwise look identical here – <code>:text</code> and <code>:label</code> share a mark, a stat, and a position, and differ only in that a label starts with its box switched on:</p>
+<p><code>:text</code> and <code>:label</code> share a mark, a stat, and a position; the “Presets” column shows that a label starts with its box switched on:</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb108"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">mapv</span> #(<span class="kw">select-keys</span> (layer-type/lookup <span class="va">%</span>) [<span class="at">:mark</span> <span class="at">:stat</span> <span class="at">:defaults</span>])</span>
-<span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a>      [<span class="at">:text</span> <span class="at">:label</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb112"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">mapv</span> #(<span class="kw">select-keys</span> (layer-type/lookup <span class="va">%</span>) [<span class="at">:mark</span> <span class="at">:stat</span> <span class="at">:defaults</span>])</span>
+<span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a>      [<span class="at">:text</span> <span class="at">:label</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="printedClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb109"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb109-1"><a href="#cb109-1" aria-hidden="true" tabindex="-1"></a>[{<span class="at">:mark</span> <span class="at">:text</span>, <span class="at">:stat</span> <span class="at">:identity</span>}</span>
-<span id="cb109-2"><a href="#cb109-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>, <span class="at">:stat</span> <span class="at">:identity</span>, <span class="at">:defaults</span> {<span class="at">:box</span> <span class="va">true</span>}}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb113"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb113-1"><a href="#cb113-1" aria-hidden="true" tabindex="-1"></a>[{<span class="at">:mark</span> <span class="at">:text</span>, <span class="at">:stat</span> <span class="at">:identity</span>}</span>
+<span id="cb113-2"><a href="#cb113-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>, <span class="at">:stat</span> <span class="at">:identity</span>, <span class="at">:defaults</span> {<span class="at">:box</span> <span class="va">true</span>}}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The “Position” column shows each layer-type’s registered default. A few marks (<code>:bar</code>, <code>:lollipop</code>, <code>:boxplot</code>, <code>:violin</code>) carry no registered default and the table therefore lists <code>:identity</code> for them, but they apply <code>:dodge</code> at extract time when a categorical color or group splits the data into multiple sub-bars per category. So a colored <code>(pj/lay-bar :species {:color :group})</code> produces dodged bars even though the table shows <code>:identity</code> for <code>:bar</code>. To force a different layout, pass <code>:position</code> explicitly in the layer options.</p>
 </section>
@@ -993,13 +1008,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="marks">Marks</h2>
 <p>A <strong>mark</strong> is the visual shape shown for each data point or group. Several layer types may share the same mark – for instance, <code>tile</code> and <code>density-2d</code> both produce tiles, and <code>lm</code> (linear model) and <code>loess</code> (local regression) both produce lines.</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb110"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
-<span id="cb110-2"><a href="#cb110-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Mark"</span> <span class="st">"Shape"</span> <span class="st">"Used by"</span>]</span>
-<span id="cb110-3"><a href="#cb110-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
-<span id="cb110-4"><a href="#cb110-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [mk (distinct-in-order <span class="at">:mark</span>)]</span>
-<span id="cb110-5"><a href="#cb110-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Mark"</span> (kind/code (<span class="kw">pr-str</span> mk))</span>
-<span id="cb110-6"><a href="#cb110-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Shape"</span> (pj/mark-doc mk)</span>
-<span id="cb110-7"><a href="#cb110-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Used by"</span> (used-by <span class="at">:mark</span> mk)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb114"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
+<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Mark"</span> <span class="st">"Shape"</span> <span class="st">"Used by"</span>]</span>
+<span id="cb114-3"><a href="#cb114-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
+<span id="cb114-4"><a href="#cb114-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [mk (distinct-in-order <span class="at">:mark</span>)]</span>
+<span id="cb114-5"><a href="#cb114-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Mark"</span> (kind/code (<span class="kw">pr-str</span> mk))</span>
+<span id="cb114-6"><a href="#cb114-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Shape"</span> (pj/mark-doc mk)</span>
+<span id="cb114-7"><a href="#cb114-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Used by"</span> (used-by <span class="at">:mark</span> mk)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="clay-table">
 <div class="table-responsive">
@@ -1138,26 +1153,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:segment</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td>Straight lines from (x, y) to (x-end, y-end)</td>
+<td>segment</td>
+</tr>
+<tr class="odd">
+<td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Horizontal reference line at a written y</td>
 <td>rule-h</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-v</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Vertical reference line at a written x</td>
 <td>rule-v</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:band-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Horizontal shaded band between two written y values</td>
 <td>band-h</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:band-v</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
@@ -1173,13 +1195,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="stats">Stats</h2>
 <p>A <strong>stat</strong> (statistical transform) processes raw data before rendering. Each stat takes data-space inputs and produces the geometry that its mark will show.</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb132"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb132-1"><a href="#cb132-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
-<span id="cb132-2"><a href="#cb132-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Stat"</span> <span class="st">"What it computes"</span> <span class="st">"Used by"</span>]</span>
-<span id="cb132-3"><a href="#cb132-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
-<span id="cb132-4"><a href="#cb132-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [st (distinct-in-order <span class="at">:stat</span>)]</span>
-<span id="cb132-5"><a href="#cb132-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Stat"</span> (kind/code (<span class="kw">pr-str</span> st))</span>
-<span id="cb132-6"><a href="#cb132-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"What it computes"</span> (pj/stat-doc st)</span>
-<span id="cb132-7"><a href="#cb132-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Used by"</span> (used-by <span class="at">:stat</span> st)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb137"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb137-1"><a href="#cb137-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
+<span id="cb137-2"><a href="#cb137-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Stat"</span> <span class="st">"What it computes"</span> <span class="st">"Used by"</span>]</span>
+<span id="cb137-3"><a href="#cb137-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
+<span id="cb137-4"><a href="#cb137-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [st (distinct-in-order <span class="at">:stat</span>)]</span>
+<span id="cb137-5"><a href="#cb137-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Stat"</span> (kind/code (<span class="kw">pr-str</span> st))</span>
+<span id="cb137-6"><a href="#cb137-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"What it computes"</span> (pj/stat-doc st)</span>
+<span id="cb137-7"><a href="#cb137-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Used by"</span> (used-by <span class="at">:stat</span> st)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="clay-table">
 <div class="table-responsive">
@@ -1202,7 +1224,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Pass-through -- no transform</td>
-<td>area, band-h, band-v, bar, errorbar, interval-h, label, line, lollipop, point, rug, rule-h, rule-v, step, text</td>
+<td>area, band-h, band-v, bar, errorbar, interval-h, label, line, lollipop, point, rug, rule-h, rule-v, segment, step, text</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -1276,13 +1298,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="positions">Positions</h2>
 <p>A <strong>position</strong> adjustment determines how groups share a categorical axis slot. Position runs between stat computation and rendering.</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb143"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb143-1"><a href="#cb143-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
-<span id="cb143-2"><a href="#cb143-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Position"</span> <span class="st">"What it does"</span> <span class="st">"Used by"</span>]</span>
-<span id="cb143-3"><a href="#cb143-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
-<span id="cb143-4"><a href="#cb143-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [pos [<span class="at">:identity</span> <span class="at">:dodge</span> <span class="at">:stack</span> <span class="at">:fill</span>]]</span>
-<span id="cb143-5"><a href="#cb143-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Position"</span> (kind/code (<span class="kw">pr-str</span> pos))</span>
-<span id="cb143-6"><a href="#cb143-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"What it does"</span> (pj/position-doc pos)</span>
-<span id="cb143-7"><a href="#cb143-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Used by"</span> (used-by <span class="at">:position</span> pos)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb148"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb148-1"><a href="#cb148-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
+<span id="cb148-2"><a href="#cb148-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Position"</span> <span class="st">"What it does"</span> <span class="st">"Used by"</span>]</span>
+<span id="cb148-3"><a href="#cb148-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
+<span id="cb148-4"><a href="#cb148-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [pos [<span class="at">:identity</span> <span class="at">:dodge</span> <span class="at">:stack</span> <span class="at">:fill</span>]]</span>
+<span id="cb148-5"><a href="#cb148-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Position"</span> (kind/code (<span class="kw">pr-str</span> pos))</span>
+<span id="cb148-6"><a href="#cb148-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"What it does"</span> (pj/position-doc pos)</span>
+<span id="cb148-7"><a href="#cb148-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Used by"</span> (used-by <span class="at">:position</span> pos)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="clay-table">
 <div class="table-responsive">
@@ -1305,7 +1327,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:identity</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Plot at exact data coordinates (groups overlap)</td>
-<td>area, band-h, band-v, bar, boxplot, contour, density, density-2d, errorbar, histogram, interval-h, label, line, lollipop, point, ridgeline, rug, rule-h, rule-v, smooth, step, summary, text, tile, violin</td>
+<td>area, band-h, band-v, bar, boxplot, contour, density, density-2d, errorbar, histogram, interval-h, label, line, lollipop, point, ridgeline, rug, rule-h, rule-v, segment, smooth, step, summary, text, tile, violin</td>
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
@@ -1341,12 +1363,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="universal-options">Universal options</h3>
 <p>Accepted by every layer type:</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb148"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb148-1"><a href="#cb148-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
-<span id="cb148-2"><a href="#cb148-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Option"</span> <span class="st">"Description"</span>]</span>
-<span id="cb148-3"><a href="#cb148-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
-<span id="cb148-4"><a href="#cb148-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [k layer-type/universal-layer-options]</span>
-<span id="cb148-5"><a href="#cb148-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Option"</span> (kind/code (<span class="kw">pr-str</span> k))</span>
-<span id="cb148-6"><a href="#cb148-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Description"</span> (<span class="kw">get</span> layer-type/layer-option-docs k)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb153"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
+<span id="cb153-2"><a href="#cb153-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Option"</span> <span class="st">"Description"</span>]</span>
+<span id="cb153-3"><a href="#cb153-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
+<span id="cb153-4"><a href="#cb153-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [k layer-type/universal-layer-options]</span>
+<span id="cb153-5"><a href="#cb153-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Option"</span> (kind/code (<span class="kw">pr-str</span> k))</span>
+<span id="cb153-6"><a href="#cb153-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Description"</span> (<span class="kw">get</span> layer-type/layer-option-docs k)})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="clay-table">
 <div class="table-responsive">
@@ -1473,15 +1495,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="layer-type-specific-options">Layer-type-specific options</h3>
 <p>Some layer types accept additional keys beyond the universal set. Layer types not listed here accept only the universal options above.</p>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb166"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb166-1"><a href="#cb166-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
-<span id="cb166-2"><a href="#cb166-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Layer type"</span> <span class="st">"Additional options"</span>]</span>
-<span id="cb166-3"><a href="#cb166-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
-<span id="cb166-4"><a href="#cb166-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [k layer-type/layer-type-order</span>
-<span id="cb166-5"><a href="#cb166-5" aria-hidden="true" tabindex="-1"></a>        <span class="at">:let</span> [m (layer-type/lookup k)</span>
-<span id="cb166-6"><a href="#cb166-6" aria-hidden="true" tabindex="-1"></a>              accepts (<span class="at">:accepts</span> m)]</span>
-<span id="cb166-7"><a href="#cb166-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">:when</span> (<span class="kw">seq</span> accepts)]</span>
-<span id="cb166-8"><a href="#cb166-8" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Layer type"</span> (kind/code (<span class="kw">pr-str</span> k))</span>
-<span id="cb166-9"><a href="#cb166-9" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Additional options"</span> accepts})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb171"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb171-1"><a href="#cb171-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
+<span id="cb171-2"><a href="#cb171-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Layer type"</span> <span class="st">"Additional options"</span>]</span>
+<span id="cb171-3"><a href="#cb171-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
+<span id="cb171-4"><a href="#cb171-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [k layer-type/layer-type-order</span>
+<span id="cb171-5"><a href="#cb171-5" aria-hidden="true" tabindex="-1"></a>        <span class="at">:let</span> [m (layer-type/lookup k)</span>
+<span id="cb171-6"><a href="#cb171-6" aria-hidden="true" tabindex="-1"></a>              accepts (<span class="at">:accepts</span> m)]</span>
+<span id="cb171-7"><a href="#cb171-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">:when</span> (<span class="kw">seq</span> accepts)]</span>
+<span id="cb171-8"><a href="#cb171-8" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Layer type"</span> (kind/code (<span class="kw">pr-str</span> k))</span>
+<span id="cb171-9"><a href="#cb171-9" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Additional options"</span> accepts})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="clay-table">
 <div class="table-responsive">
@@ -1690,13 +1712,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:segment</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure printed-clojure code-with-copy"><code>[:x-end :y-end :arrow :size :stroke-dash :dx :dy]</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+</tr>
+<tr class="odd">
+<td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure printed-clojure code-with-copy"><code>[:y-intercept :stroke-dash :size]</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:rule-v</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
@@ -1704,7 +1734,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre class="sourceCode language-clojure printed-clojure code-with-copy"><code>[:x-intercept :stroke-dash :size]</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:band-h</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
@@ -1712,7 +1742,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre class="sourceCode language-clojure printed-clojure code-with-copy"><code>[:y-min :y-max]</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:band-v</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
@@ -1728,12 +1758,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="all-layer-option-keys" class="level3">
 <h3 class="anchored" data-anchor-id="all-layer-option-keys">All layer option keys</h3>
 <div class="sourceClojure">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb217"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb217-1"><a href="#cb217-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
-<span id="cb217-2"><a href="#cb217-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Option"</span> <span class="st">"Description"</span>]</span>
-<span id="cb217-3"><a href="#cb217-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
-<span id="cb217-4"><a href="#cb217-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [[k desc] (<span class="kw">sort-by</span> <span class="kw">key</span> layer-type/layer-option-docs)]</span>
-<span id="cb217-5"><a href="#cb217-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Option"</span> (kind/code (<span class="kw">pr-str</span> k))</span>
-<span id="cb217-6"><a href="#cb217-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Description"</span> desc})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb224"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb224-1"><a href="#cb224-1" aria-hidden="true" tabindex="-1"></a>(kind/table</span>
+<span id="cb224-2"><a href="#cb224-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:column-names</span> [<span class="st">"Option"</span> <span class="st">"Description"</span>]</span>
+<span id="cb224-3"><a href="#cb224-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">:row-maps</span></span>
+<span id="cb224-4"><a href="#cb224-4" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">for</span> [[k desc] (<span class="kw">sort-by</span> <span class="kw">key</span> layer-type/layer-option-docs)]</span>
+<span id="cb224-5"><a href="#cb224-5" aria-hidden="true" tabindex="-1"></a>    {<span class="st">"Option"</span> (kind/code (<span class="kw">pr-str</span> k))</span>
+<span id="cb224-6"><a href="#cb224-6" aria-hidden="true" tabindex="-1"></a>     <span class="st">"Description"</span> desc})})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="clay-table">
 <div class="table-responsive">
@@ -1769,297 +1799,309 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:arrow</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td>Which ends of a segment carry an arrow head: :end, :start or :both. true means :end</td>
+</tr>
+<tr class="odd">
+<td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:bandwidth</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Smoothing bandwidth for density and LOESS methods</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:bar-width</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>How wide a bar is drawn, in the unit its axis offers. On a categorical axis, the fraction (0.0-1.0) of the category band the bar fills, as :box-width is for a box; defaults to 0.8. On a numeric or temporal axis, where there is no band, a width in data units; defaults to 0.9 of the smallest gap between adjacent x values.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:bins</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Number of histogram bins, overriding the :bin-method estimate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:binwidth</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Width of one histogram bin in data units, an alternative to :bins</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:bootstrap-resamples</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Number of bootstrap resamples for a LOESS confidence ribbon (default 200)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:box</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Background box behind text -- true for the default box, false or absent for none, or a map of box properties: {:corner-radius n} in drawing units (default 3, 0 for square corners). pj/lay-label is pj/lay-text with the box on</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:box-width</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Fraction (0.0-1.0) of the categorical band that a box fills (default 0.6)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:cap-width</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Width of an errorbar's end caps in drawing units</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:color</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>A column of the layer's data, or a color -- a hex string with its #, a CSS name, or a keyword naming one. The data decides: a column called blue wins over the color of that name, and {:value "blue"} or {:column "blue"} insists. A column always passes through the color scale; {:color {:column :hex :scale false}} draws the colors it holds</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:color-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Read the color column as a type other than its own. :categorical gives a numeric column one color per distinct value instead of a gradient. Same rule as :x-type: only :categorical can be asked of a column holding something else</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:confidence-band</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>true to show a standard-error confidence ribbon around the fitted line</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:data</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Dataset or plain data for this layer alone, overriding the pose's</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:density-2d-grid</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>2D density grid resolution -- number of bins per axis (default 25)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:dx</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Shift all x-coordinates by this amount in the axis's own units -- a data value on a numerical or temporal axis, one band on a categorical one, where 0.5 is half a band along. The unit is whatever :x is measured in, which is why the name says a change in x without naming a unit; for a shift measured on the page, see :offset-x</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:dy</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Shift all y-coordinates by this amount in the axis's own units. See :dx</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:fill</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>A column of the layer's data holding tile fill values (pre-computed heatmap)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:font-size</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Text height in drawing units for a text or label mark (default 10)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:font-style</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Draws the text italic -- :normal (default) or :italic</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:font-weight</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Draws the text bold -- :normal (default) or :bold</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:group</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>A column of the layer's data, or a vector of them, grouping without color</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:in</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>The space this layer's :x and :y are in -- :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). It does not widen to the other aesthetics; to take one axis off its scale on its own, write {:y {:column :b :scale false}}. An unscaled layer is placed on the panel rather than in the data, so it does not move the axis domains</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:interval-thickness</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Fraction (0.0-1.0) of the categorical band that an interval bar fills (default 0.7)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:jitter</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>true or an amount in drawing units -- random offset to reduce overplotting</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:length</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Length of a rug tick in drawing units</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:level</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Confidence level of a smooth's ribbon (default 0.95)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:levels</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Number of contour iso-levels (default 5)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:mark</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Override the mark the layer type draws with -- the shape on the panel</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:normalize</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Histogram normalization -- :density (area integrates to 1) or nil</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:offset-x</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Shift the whole layer right by this many drawing units, after the scales. Unlike :dx the amount is a distance on the page rather than in the axis's units, so it means the same on every axis and does not move the axis domain -- use it to clear a label of the mark it labels</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:offset-y</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Shift the whole layer down by this many drawing units, after the scales. See :offset-x</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:overlay</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own -- whether those columns are written in the argument slots or here in the options map. A written value in :x or :y names no panel, so a layer placed at one joins without asking. `pj/overlay` sets the same thing for every layer of the pose, wherever in a pipeline it is written.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:position</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Position adjustment keyword -- how overlapping groups are arranged (see pj/position-doc)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:shape</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>A column of the layer's data, one symbol per category; or one symbol for the whole layer, from the list pj/shape-symbols gives</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:side</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Which axis margin a rug's ticks are drawn in -- :x (default), :y, or :both</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:size</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>A column of the layer's data, or a positive number -- point radius or stroke width. A column is scaled and a written number is drawn; {:size {:column :r :scale false}} reads the column as radii, {:size {:value 7 :scale true}} sends the number through the scale</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:stat</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Override the statistic the layer type computes -- e.g. {:stat :count} on a text layer labels counted bars</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:stroke</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Outline color for an area or density curve -- the fill still comes from :color</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:stroke-dash</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Dash pattern for a line, step, smooth, reference line, or area outline -- :dashed, :dotted, :solid, or a raw [dash gap ...] pattern in drawing units</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:stroke-width</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Width of that outline in drawing units</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:text</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>A column of the layer's data, or a string, which labels every row with itself</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:tooltip</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>What a mark says on hover: a column of the layer's data, one value per row, or one value every mark of the layer shows. A string is shown as it stands, so format it in the data language before plotting -- a currency sign, a thousands separator, a value from a column the layer does not draw -- and a newline in it breaks the line. A hiccup vector is drawn as markup, for a label carrying a heading or an emphasis; a string that spells out a tag is shown as that text. Writing it turns tooltips on, so `{:tooltip true}` in pj/options is not also needed. Read by the point and interval-h marks; a tooltip written on any other layer type is reported and draws none</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:trim</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Whether a density curve is estimated only over its own group's values. Density defaults to false (every group spans the whole layer's range); violin and ridgeline default to true (each body ends at its category's values)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Column keyword or string naming the column drawn along the x axis, or a value to draw at that x. A value beside a column :y broadcasts over the layer's data; values for both :x and :y draw one mark</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-end</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
-<td>A column of the layer's data, or a number, for the right edge of a horizontal interval bar. A written value places every bar's right edge alike</td>
+<td>A column of the layer's data, or a written value, for where a mark ends on x: the right edge of a horizontal interval bar, or the x a segment is drawn to. A written value ends every mark alike; a bare name is read as a column, so a category is written {:x-end {:value "Q4"}}. On a segment, leaving it out ends each segment at its own x</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-intercept</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Numeric or temporal x value a vertical reference line is drawn at. The same two shapes as :y-intercept</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-max</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Upper x bound of a vertical shaded band. The same two shapes as :x-min</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-min</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Lower x bound of a vertical shaded band, as a number or a date. Only lay-band-v reads it, and it reads the value straight from the mapping, so this names no column; {:value 1.5} says the same thing at more length</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:x-type</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Read the x column as a type other than its own -- :categorical, :numerical or :temporal. Only :categorical can be asked of a column holding something else, because every value can name a group: it puts numbers (hours, years, identifiers) or dates on a categorical axis, which a bar or a boxplot needs. The other two are accepted where they name the column's own type and refused where they do not</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
 <pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:y</code></pre>
 </div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
 <td>Column keyword or string naming the column drawn along the y axis, or a value to draw at that y. The same two shapes as :x</td>
+</tr>
+<tr class="even">
+<td><div class="code-copy-outer-scaffold"><div>
+<pre class="sourceCode language-clojure source-clojure bg-light code-with-copy"><code>:y-end</code></pre>
+</div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></td>
+<td>A column of the layer's data, or a written value, for the y a segment is drawn to. A written value ends every segment alike, so {:y-end 0} draws stems from the zero line; a bare name is read as a column, so a category is written {:y-end {:value "high"}}. Leaving it out ends each segment at its own y</td>
 </tr>
 <tr class="odd">
 <td><div class="code-copy-outer-scaffold"><div>
