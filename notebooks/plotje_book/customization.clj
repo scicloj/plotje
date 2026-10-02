@@ -131,8 +131,18 @@
 ;; styled with `:color` and named via `:color-label` in the legend.
 ;; The separate `:fill` aesthetic is currently reserved for the heatmap
 ;; family: `lay-tile` (and the `:density-2d` output beneath
-;; `lay-density-2d`) reads the encoded value as a continuous fill,
-;; with its own legend title override `:fill-label`:
+;; `lay-density-2d`) reads the encoded value as a continuous fill.
+;; The tile's legend is titled with the name of the column the tile
+;; fills from -- `z` here:
+
+(-> {:x [1 2 3 1 2 3] :y [1 1 1 2 2 2] :z [10 20 30 40 50 60]}
+    (pj/lay-tile :x :y {:fill :z}))
+
+(kind/test-last [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
+                           (and (texts "z")
+                                (not (texts "fill")))))])
+
+;; `:fill-label` gives the legend a title of your own:
 
 (-> {:x [1 2 3 1 2 3] :y [1 1 1 2 2 2] :z [10 20 30 40 50 60]}
     (pj/lay-tile :x :y {:fill :z})
