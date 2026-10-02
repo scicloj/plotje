@@ -771,7 +771,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="mapping">Mapping</h2>
 <p>A <strong>mapping</strong> maps a column (or a written value) to an aesthetic. Each aesthetic has a <a href="#role">role</a>, and there are four:</p>
 <ul>
-<li><p><strong>Positional aesthetics</strong> (<code>:x</code>, <code>:y</code>, plus <code>:x-end</code>, <code>:x-min</code>, <code>:x-max</code>, <code>:y-min</code>, <code>:y-max</code> for marks that need them) place each mark.</p></li>
+<li><p><strong>Positional aesthetics</strong> (<code>:x</code>, <code>:y</code>, plus <code>:x-end</code>, <code>:y-end</code>, <code>:x-min</code>, <code>:x-max</code>, <code>:y-min</code>, <code>:y-max</code> for marks that need them) place each mark.</p></li>
 <li><p><strong>Appearance aesthetics</strong> (<code>:color</code>, <code>:size</code>, <code>:alpha</code>, <code>:shape</code>, <code>:text</code>, <code>:tooltip</code>, <code>:fill</code>) shape how each mark looks.</p></li>
 <li><p><strong>Grouping aesthetic</strong> (<code>:group</code>) splits the data and draws nothing of its own.</p></li>
 <li><p><strong>Panel aesthetics</strong> (<code>:col</code>, <code>:row</code>) give each value a panel of its own. <code>pj/facet</code> and <code>pj/facet-grid</code> write them.</p></li>
@@ -808,9 +808,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">Numerical, temporal, or categorical</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;"><code>:x-end</code></td>
-<td style="text-align: left;">Right edge of an interval bar</td>
-<td style="text-align: left;">Same type as <code>:x</code></td>
+<td style="text-align: left;"><code>:x-end</code>, <code>:y-end</code></td>
+<td style="text-align: left;">The far end of a segment; <code>:x-end</code> is also the right edge of an interval bar</td>
+<td style="text-align: left;">Same type as <code>:x</code> or <code>:y</code>, or a written value</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><code>:x-min</code>, <code>:x-max</code></td>

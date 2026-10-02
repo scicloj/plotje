@@ -592,7 +592,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="scales" class="level2">
 <h2 class="anchored" data-anchor-id="scales">Scales</h2>
 <ul>
-<li><p>One pose reads an aesthetic through one scale. Two layers asking for different scales on <code>:size</code>, <code>:alpha</code>, <code>:color</code> or <code>:fill</code> are refused rather than drawn, since a plot has one legend per aesthetic. Two layers naming different scales for <code>:x</code> or <code>:y</code> are refused as well, because a panel has one of each axis. Workaround in every case: put the layers in separate poses with <code>pj/arrange</code>, where each cell has its own scales and its own legend.</p></li>
+<li><p>One pose reads an aesthetic through one scale. Two layers asking for different scales on <code>:size</code>, <code>:alpha</code>, <code>:color</code> or <code>:fill</code> are refused rather than drawn, since a plot has one legend per aesthetic. Two layers naming different scales for <code>:x</code> or <code>:y</code> are refused as well, because a panel has one of each axis. Workaround in every case: put the layers in separate poses with <code>pj/arrange</code>, and write each cell’s scale on that cell. A cell that writes its own scale keeps it and draws its own legend; cells that map the same column and write no scale share one scale and one legend.</p></li>
 <li><p>Facet panels share their scale <em>types</em>. <code>{:scales :free}</code> gives each panel its own domain, but there is no equivalent for giving one panel a log axis and another a linear one. Workaround: <code>pj/arrange</code> again.</p></li>
 </ul>
 </section>

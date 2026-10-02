@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+## [0.16.1 - 2026-10-02]
+
+### Added
+
+- `nil` in `pj/arrange` is a cell left empty: it keeps its place in the layout and draws nothing, also when the composite carries data and layers, so `(pj/arrange [[a nil] [b c]])` leaves the top-right cell blank. An empty cell does not keep the other cells from sharing a legend.
+
 ### Warnings and errors
 
 - These report an error naming the option and the value: `:dx` or `:dy` given a column, and a value written before a rule's or a band's options map that is not a column of the data, such as the `7` in `(pj/lay-rule-v pose 7 {:x-intercept 2})`. A layer naming a column that a series on the same pose has already read reports that the series pivoted it, and suggests passing the original data with `:data`.

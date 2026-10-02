@@ -640,7 +640,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="heatmap-pre-computed" class="level2">
 <h2 class="anchored" data-anchor-id="heatmap-pre-computed">Heatmap (Pre-Computed)</h2>
-<p>Use a numeric column for tile color.</p>
+<p>Use a numeric column for tile color. On a numeric axis, the axis reaches the outer edges of the tiles, so the first and last rows and columns are drawn at full size.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> grid-data</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">let</span> [r (rng/rng <span class="at">:jdk</span> <span class="dv">99</span>)]</span>

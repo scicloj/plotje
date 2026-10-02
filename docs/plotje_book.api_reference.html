@@ -1526,7 +1526,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><code>[plots-or-data opts-or-cells]</code></p>
 <p><code>[data cells opts]</code></p>
 <p>Arrange multiple poses in a grid. Returns a composite pose that renders through the compositor via membrane – so <code>:svg</code>, <code>:bufimg</code>, and any other membrane target work uniformly.</p>
-<p>Each input is a pose, leaf or composite. A composite input becomes a cell holding its own grid. Pre-rendered hiccup is not accepted; build your own <code>[:div ...]</code> if you need to combine already-rendered values outside the library.</p>
+<p>Each input is a pose, leaf or composite. A composite input becomes a cell holding its own grid. <code>nil</code> is a cell left empty: it keeps its place in the layout and draws nothing, whatever data and layers the composite carries. Pre-rendered hiccup is not accepted; build your own <code>[:div ...]</code> if you need to combine already-rendered values outside the library.</p>
 <p>Opts:</p>
 <ul>
 <li><p><code>:cols</code> – explicit column count (default: min(4, n-plots)).</p></li>
