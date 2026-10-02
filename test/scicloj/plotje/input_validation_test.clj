@@ -405,10 +405,10 @@
     (is (pj/pose? (pj/options (pj/lay-point tiny :x :y) {:title "ok"})))))
 
 (deftest arrange-rejection-branches-on-type
-  (testing "(pj/arrange [nil]) names nil specifically"
+  (testing "(pj/arrange [nil]) -- every cell empty -- says there is nothing to draw"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"is nil\. Each input must be a pose"
+         #"given 1 cell, and every one is nil, a cell left empty"
          (pj/arrange [nil]))))
 
   (testing "(pj/arrange [non-pose-map]) names the missing :layers/:poses"

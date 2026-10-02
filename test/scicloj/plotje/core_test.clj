@@ -3915,3 +3915,30 @@
                                           (pj/lay-point 0 1)
                                           (pj/lay-rule-v 0 1 {:x-intercept 2}))))))
     (is (some? (pj/lay-rule-v (pj/pose) 7 {:x-intercept 2})))))
+
+(deftest arrange-nil-is-an-empty-cell-test
+  ;; nil was refused with advice to drop the cell, which in a grid moves
+  ;; every later cell along. It is a cell left empty: it keeps its slot
+  ;; and draws nothing, also when the composite carries data and layers.
+  (let [iris (rdatasets/datasets-iris)
+        slots (fn [v] (mapv first (vals (into (sorted-map) (-> v pj/plan :chrome :layout)))))
+        poses (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width) nil
+                           (pj/lay-point iris :petal-length :petal-width)] {:cols 3})
+        data-first (-> iris
+                       (pj/arrange [{:x :sepal-length :y :sepal-width} nil
+                                    {:x :petal-length :y :petal-width}] {:cols 3})
+                       pj/lay-point)
+        coloured (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width {:color :species}) nil
+                              (pj/lay-point iris :petal-length :petal-width {:color :species})])]
+    (is (= [0.0 200.0 400.0] (slots poses)))
+    (is (= {:panels 2 :points 300} (select-keys (pj/svg-summary poses) [:panels :points])))
+    (is (= {:panels 2 :points 300} (select-keys (pj/svg-summary data-first) [:panels :points])))
+    ;; An empty cell neither agrees nor disagrees about a legend.
+    (is (= #{:color} (-> coloured pj/plan :chrome :shared-aesthetics)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"every one is nil"
+                          (pj/arrange [nil nil])))))
+
+(deftest series-pairs-count-message-test
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"was given 1 column on :x, \[:t\], and 2 on :y"
+                        (pj/lay-line {:t [1 2] :a [1 2] :b [2 3]} [:t] [:a :b]))))

@@ -48,7 +48,35 @@
 
 
 (def
- v9_l67
+ v9_l55
+ (pj/arrange
+  [[(->
+     (rdatasets/datasets-iris)
+     (pj/lay-point :sepal-length :sepal-width {:color :species}))
+    nil]
+   [(->
+     (rdatasets/datasets-iris)
+     (pj/lay-point :petal-length :sepal-width {:color :species}))
+    (->
+     (rdatasets/datasets-iris)
+     (pj/lay-point :petal-length :petal-width {:color :species}))]]))
+
+
+(deftest
+ t10_l61
+ (is
+  ((fn
+    [v]
+    (let
+     [layout (-> v pj/plan :chrome :layout)]
+     (and
+      (= 3 (:panels (pj/svg-summary v)))
+      (= #{[0 0] [1 0] [1 1] [0 1]} (set (keys layout))))))
+   v9_l55)))
+
+
+(def
+ v12_l83
  (def
   weighted
   (pj/pose
@@ -61,36 +89,36 @@
     :data (rdatasets/datasets-iris)})))
 
 
-(def v11_l79 weighted)
+(def v14_l95 weighted)
 
 
 (deftest
- t12_l81
+ t15_l97
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v11_l79)))
+   v14_l95)))
 
 
-(def v14_l89 (kind/pprint weighted))
+(def v17_l105 (kind/pprint weighted))
 
 
 (deftest
- t15_l91
+ t18_l107
  (is
   ((fn
     [pose]
     (and
      (= [2 1] (get-in pose [:layout :weights]))
      (= 2 (count (:poses pose)))))
-   v14_l89)))
+   v17_l105)))
 
 
 (def
- v17_l108
+ v20_l124
  (def
   shared-x
   (pj/pose
@@ -104,63 +132,63 @@
     :data (rdatasets/datasets-iris)})))
 
 
-(def v18_l118 shared-x)
+(def v21_l134 shared-x)
 
 
 (deftest
- t19_l120
+ t22_l136
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v18_l118)))
+   v21_l134)))
 
 
-(def v21_l141 (def limit 8.5))
+(def v24_l157 (def limit 8.5))
 
 
 (def
- v22_l143
+ v25_l159
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__74552#] (= "setosa" (:species p1__74552#))))
+     (fn* [p1__11193#] (= "setosa" (:species p1__11193#))))
     (pj/lay-point :sepal-length :sepal-width)
     (pj/lay-rule-v {:x-intercept limit, :color "firebrick"}))
    (->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__74553#] (= "virginica" (:species p1__74553#))))
+     (fn* [p1__11194#] (= "virginica" (:species p1__11194#))))
     (pj/lay-point :sepal-length :sepal-width))]
   {:share-scales #{:x}}))
 
 
 (deftest
- t23_l153
+ t26_l169
  (is
   ((fn
     [v]
     (let
      [panels
       (mapcat
-       (fn* [p1__74554#] (:panels (:plan p1__74554#)))
+       (fn* [p1__11195#] (:panels (:plan p1__11195#)))
        (:sub-plots (pj/plan v)))
       domains
       (mapv
-       (fn* [p1__74555#] (mapv double (:x-domain p1__74555#)))
+       (fn* [p1__11196#] (mapv double (:x-domain p1__11196#)))
        panels)]
      (and
       (= 2 (count domains))
       (apply = domains)
       (< limit (second (first domains))))))
-   v22_l143)))
+   v25_l159)))
 
 
 (def
- v25_l173
+ v28_l189
  (def
   readings
   {:t [1 2 3 4 5],
@@ -169,7 +197,7 @@
 
 
 (def
- v26_l178
+ v29_l194
  (pj/arrange
   [(-> readings (pj/lay-line :t :rate))
    (-> readings (pj/lay-line :t :total))]
@@ -177,7 +205,7 @@
 
 
 (deftest
- t27_l183
+ t30_l199
  (is
   ((fn
     [v]
@@ -187,8 +215,8 @@
        [pose]
        (mapv
         (fn*
-         [p1__74556#]
-         (get-in p1__74556# [:plan :layout :y-label-pad]))
+         [p1__11197#]
+         (get-in p1__11197# [:plan :layout :y-label-pad]))
         (:sub-plots (pj/plan pose))))
       plain
       (pads-of
@@ -200,11 +228,11 @@
       (= 2 (:panels (pj/svg-summary v)))
       (apply == (pads-of v))
       (not (apply == plain)))))
-   v26_l178)))
+   v29_l194)))
 
 
 (def
- v29_l213
+ v32_l229
  (def
   marginal
   (->
@@ -213,11 +241,11 @@
    (pj/marginal :top))))
 
 
-(def v30_l218 marginal)
+(def v33_l234 marginal)
 
 
 (deftest
- t31_l220
+ t34_l236
  (is
   ((fn
     [v]
@@ -227,7 +255,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal)))
       panels
-      (mapv (fn* [p1__74557#] (-> p1__74557# :panels first)) plans)
+      (mapv (fn* [p1__11198#] (-> p1__11198# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)
       [d-y s-y]
@@ -243,18 +271,18 @@
       (apply
        ==
        (map
-        (fn* [p1__74558#] (get-in p1__74558# [:layout :y-label-pad]))
+        (fn* [p1__11199#] (get-in p1__11199# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__74559#] (get-in p1__74559# [:layout :legend-w]))
+        (fn* [p1__11200#] (get-in p1__11200# [:layout :legend-w]))
         plans)))))
-   v30_l218)))
+   v33_l234)))
 
 
 (def
- v33_l258
+ v36_l274
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -262,18 +290,18 @@
 
 
 (deftest
- t34_l262
+ t37_l278
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 150 (:points s)))))
-   v33_l258)))
+   v36_l274)))
 
 
 (def
- v36_l274
+ v39_l290
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -281,7 +309,7 @@
 
 
 (deftest
- t37_l278
+ t40_l294
  (is
   ((fn
     [v]
@@ -291,7 +319,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan v)))
       panels
-      (mapv (fn* [p1__74560#] (-> p1__74560# :panels first)) plans)]
+      (mapv (fn* [p1__11201#] (-> p1__11201# :panels first)) plans)]
      (and
       (= 2 (:panels s))
       (= 150 (:points s))
@@ -301,13 +329,13 @@
       (apply
        ==
        (map
-        (fn* [p1__74561#] (get-in p1__74561# [:layout :x-label-pad]))
+        (fn* [p1__11202#] (get-in p1__11202# [:layout :x-label-pad]))
         plans)))))
-   v36_l274)))
+   v39_l290)))
 
 
 (def
- v39_l312
+ v42_l328
  (def
   marginal-by-hand
   (pj/pose
@@ -322,11 +350,11 @@
     :data (rdatasets/datasets-iris)})))
 
 
-(def v40_l323 marginal-by-hand)
+(def v43_l339 marginal-by-hand)
 
 
 (deftest
- t41_l325
+ t44_l341
  (is
   ((fn
     [v]
@@ -336,7 +364,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal-by-hand)))
       panels
-      (mapv (fn* [p1__74562#] (-> p1__74562# :panels first)) plans)
+      (mapv (fn* [p1__11203#] (-> p1__11203# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)]
      (and
@@ -346,16 +374,16 @@
       (=
        [0 102]
        (mapv
-        (fn* [p1__74563#] (get-in p1__74563# [:layout :legend-w]))
+        (fn* [p1__11204#] (get-in p1__11204# [:layout :legend-w]))
         plans)))))
-   v40_l323)))
+   v43_l339)))
 
 
-(def v43_l354 (assoc-in marginal-by-hand [:opts :align-panels] true))
+(def v46_l370 (assoc-in marginal-by-hand [:opts :align-panels] true))
 
 
 (deftest
- t44_l356
+ t47_l372
  (is
   ((fn
     [v]
@@ -366,18 +394,18 @@
       (apply
        ==
        (map
-        (fn* [p1__74564#] (get-in p1__74564# [:layout :y-label-pad]))
+        (fn* [p1__11205#] (get-in p1__11205# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__74565#] (get-in p1__74565# [:layout :legend-w]))
+        (fn* [p1__11206#] (get-in p1__11206# [:layout :legend-w]))
         plans)))))
-   v43_l354)))
+   v46_l370)))
 
 
 (def
- v46_l381
+ v49_l397
  (def
   dashboard
   (pj/arrange
@@ -393,11 +421,11 @@
       (pj/lay-density :petal-length {:color :species}))]])))
 
 
-(def v47_l388 dashboard)
+(def v50_l404 dashboard)
 
 
 (deftest
- t48_l390
+ t51_l406
  (is
   ((fn
     [v]
@@ -406,19 +434,19 @@
      (and
       (= 4 (:panels (pj/svg-summary v)))
       (= #{} (:shared-aesthetics chrome)))))
-   v47_l388)))
+   v50_l404)))
 
 
-(def v50_l426 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
+(def v53_l442 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
 
 
 (def
- v51_l430
+ v54_l446
  (def overlay-other (tc/dataset {:x [0.5 1.5 2.5], :y [1.5 2.5 3.5]})))
 
 
 (def
- v52_l434
+ v55_l450
  (->
   overlay-base
   (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -431,18 +459,18 @@
 
 
 (deftest
- t53_l441
+ t56_l457
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 6 (:points s)))))
-   v52_l434)))
+   v55_l450)))
 
 
 (def
- v55_l459
+ v58_l475
  (->
   overlay-base
   (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -451,7 +479,7 @@
 
 
 (deftest
- t56_l464
+ t59_l480
  (is
   ((fn
     [v]
@@ -474,11 +502,11 @@
       (= 1 (:panels s))
       (= 6 (:points s))
       (= (pj/plot renamed) (pj/plot v)))))
-   v55_l459)))
+   v58_l475)))
 
 
 (def
- v58_l500
+ v61_l516
  (->
   overlay-base
   (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -486,7 +514,7 @@
 
 
 (deftest
- t59_l504
+ t62_l520
  (is
   ((fn
     [v]
@@ -499,11 +527,11 @@
       (=
        #{"rgb(55,126,184)" "rgb(230,85,13)"}
        (disj (:colors s) "none")))))
-   v58_l500)))
+   v61_l516)))
 
 
 (def
- v61_l534
+ v64_l550
  (def
   bounded
   (->
@@ -513,22 +541,22 @@
    (pj/scale :y {:type :linear, :domain [0 30]}))))
 
 
-(def v62_l540 (pj/arrange [bounded bounded] {:cols 1}))
+(def v65_l556 (pj/arrange [bounded bounded] {:cols 1}))
 
 
 (deftest
- t63_l542
+ t66_l558
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 2 (:clips s)))))
-   v62_l540)))
+   v65_l556)))
 
 
 (def
- v65_l599
+ v68_l615
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -539,7 +567,7 @@
 
 
 (deftest
- t66_l605
+ t69_l621
  (is
   ((fn
     [v]
@@ -561,26 +589,26 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v65_l599)))
+   v68_l615)))
 
 
 (def
- v68_l621
+ v71_l637
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__74566#] (not= "virginica" (:species p1__74566#))))
+     (fn* [p1__11207#] (not= "virginica" (:species p1__11207#))))
     (pj/lay-point :sepal-length :sepal-width {:color :species}))
    (->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__74567#] (not= "setosa" (:species p1__74567#))))
+     (fn* [p1__11208#] (not= "setosa" (:species p1__11208#))))
     (pj/lay-point :sepal-length :sepal-width {:color :species}))]))
 
 
 (deftest
- t69_l629
+ t72_l645
  (is
   ((fn
     [v]
@@ -592,10 +620,10 @@
        [sp]
        (some
         (fn*
-         [p1__74568#]
+         [p1__11209#]
          (when
-          (= "versicolor" (:label p1__74568#))
-          (:color p1__74568#)))
+          (= "versicolor" (:label p1__11209#))
+          (:color p1__11209#)))
         (-> sp :plan :panels first :layers first :groups)))
       [left right]
       (:sub-plots plan)]
@@ -605,11 +633,11 @@
        (mapv :label (-> plan :chrome :shared-legend :legend :entries)))
       (some? (versicolor left))
       (= (versicolor left) (versicolor right)))))
-   v68_l621)))
+   v71_l637)))
 
 
 (def
- v71_l645
+ v74_l661
  (pj/arrange
   [(pj/arrange
     [(->
@@ -623,5 +651,5 @@
 
 
 (deftest
- t72_l655
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v71_l645)))
+ t75_l671
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v74_l661)))

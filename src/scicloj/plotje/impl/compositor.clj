@@ -109,11 +109,13 @@
    per-channel suppresses only those aesthetics on each leaf --
    legends for non-unanimous aesthetics keep rendering per-leaf."
   [composite]
-  (let [leaves (pose/resolve-tree composite)]
+  (let [;; An empty cell draws no legend, so it neither agrees nor
+        ;; disagrees with the cells that do.
+        leaves (remove :plotje/empty-cell (pose/resolve-tree composite))]
     (set
      (filter (fn [a]
                (let [vss (mapv #(leaf-aesthetic-values % a) leaves)]
-                 (and (every? seq vss) (apply = vss))))
+                 (and (seq vss) (every? seq vss) (apply = vss))))
              legend-bearing-aesthetics))))
 
 ;; ---- One scale behind a shared legend ----
@@ -214,10 +216,10 @@
               vs (apply concat free)
               leaves' (if (seq vs)
                         (let [dom [(reduce min vs) (reduce max vs)]]
-                          (mapv (fn [leaf w] (if (:domain w) leaf (stamp-scale leaf a {:domain dom} [])))
+                          (mapv (fn [leaf w] (if (or (:domain w) (:plotje/empty-cell leaf)) leaf (stamp-scale leaf a {:domain dom} [])))
                                 leaves written))
                         leaves)]
-          (when (apply = (map #(:domain (written-scale % a)) leaves'))
+          (when (apply = (map #(:domain (written-scale % a)) (remove :plotje/empty-cell leaves')))
             {:leaves leaves'})))
 
       (= kinds #{:categorical})
@@ -233,9 +235,9 @@
                        (let [pal (or palette (defaults/scale-setting :color :values nil cfg))]
                          (into {} (map (fn [c] [c (rgba->hex (defaults/color-for union c pal))]) union)))
                        (zipmap union (cycle (or (seq palette) (defaults/shape-palette)))))
-              leaves' (mapv (fn [leaf w] (if (own-map w) leaf (stamp-scale leaf a {:values values} [:values])))
+              leaves' (mapv (fn [leaf w] (if (or (own-map w) (:plotje/empty-cell leaf)) leaf (stamp-scale leaf a {:values values} [:values])))
                             leaves written)]
-          (when (apply = (map #(:values (written-scale % a)) leaves'))
+          (when (apply = (map #(:values (written-scale % a)) (remove :plotje/empty-cell leaves')))
             {:leaves leaves' :categories union})))
 
       :else

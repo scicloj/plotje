@@ -48,6 +48,22 @@
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
+;; A vector of vectors gives one row per inner vector. `nil` in place
+;; of a pose is a cell left empty: it keeps its place in the layout and
+;; draws nothing, so the other cells stay where they are.
+
+(pj/arrange
+ [[(-> (rdatasets/datasets-iris) (pj/lay-point :sepal-length :sepal-width {:color :species}))
+   nil]
+  [(-> (rdatasets/datasets-iris) (pj/lay-point :petal-length :sepal-width {:color :species}))
+   (-> (rdatasets/datasets-iris) (pj/lay-point :petal-length :petal-width {:color :species}))]])
+
+(kind/test-last
+ [(fn [v] (let [layout (-> v pj/plan :chrome :layout)]
+            (and (= 3 (:panels (pj/svg-summary v)))
+                 ;; four slots, the empty one included
+                 (= #{[0 0] [0 1] [1 0] [1 1]} (set (keys layout))))))])
+
 ;; `pj/arrange` divides space equally among its sub-poses. For
 ;; unequal splits (e.g., give the first panel twice the space of the
 ;; second), construct the composite as an explicit map; the next

@@ -2369,8 +2369,9 @@
         {xs :cols} x-spec
         {ys :cols} y-spec
         _ (when (not= (count xs) (count ys))
-            (throw (ex-info (str caller " was given " (count xs) " columns on"
-                                 " :x, " (pr-str (vec xs)) ", and " (count ys)
+            (throw (ex-info (str caller " was given " (count xs)
+                                 (if (= 1 (count xs)) " column" " columns")
+                                 " on :x, " (pr-str (vec xs)) ", and " (count ys)
                                  " on :y, " (pr-str (vec ys)) ". Two series"
                                  " are read in pairs, the first :x column"
                                  " with the first :y column, so they take"
@@ -4465,9 +4466,9 @@
 
 (defn- coerce-arrange-input
   "Turn one pj/arrange input into a pose-shaped plain map. Accepts a
-   leaf pose, and a composite pose, which nests. Anything else throws
-   with a message tailored to the actual type -- nil, plain map,
-   hiccup vector, plain vector -- so the user sees what went wrong
+   leaf pose, a composite pose, which nests, and `nil`, a cell left
+   empty. Anything else throws with a message tailored to the actual
+   type -- plain map, hiccup vector, plain vector -- so the user sees what went wrong
    without re-reading the same hiccup advice for every non-pose
    input."
   [p idx]
@@ -4487,12 +4488,10 @@
       ;; what it means everywhere else.
       (mapping-map? p) (->pose p "pj/arrange")
 
-      (nil? p)
-      (throw (ex-info (str prefix " is nil. Each input must be a "
-                           "pose -- e.g. (pj/lay-point data :x :y). "
-                           "If you have an optional cell, drop it from "
-                           "the input sequence rather than passing nil.")
-                      {:index idx}))
+      ;; `nil` is a cell left empty: it keeps its place in the layout
+      ;; and draws nothing, whatever data and layers the composite
+      ;; carries (see `pose/resolve-tree`).
+      (nil? p) (assoc (pose) :plotje/empty-cell true)
 
       (and (vector? p) (keyword? (first p)))
       (throw (ex-info (str prefix " looks like rendered hiccup (head: "
@@ -4542,7 +4541,9 @@
    `:bufimg`, and any other membrane target work uniformly.
 
    Each input is a pose, leaf or composite. A composite input becomes a
-   cell holding its own grid. Pre-rendered hiccup is not accepted;
+   cell holding its own grid. `nil` is a cell left empty: it keeps its
+   place in the layout and draws nothing, whatever data and layers the
+   composite carries. Pre-rendered hiccup is not accepted;
    build your own `[:div ...]` if you need to combine already-rendered
    values outside the library.
 
@@ -4622,6 +4623,12 @@
          _ (when (zero? n-plots)
              (throw (ex-info "pj/arrange requires at least one plot." {:plots plots})))
          leaves (vec (map-indexed (fn [i p] (coerce-arrange-input p i)) flat-plots))
+         _ (when (every? :plotje/empty-cell leaves)
+             (throw (ex-info (str "pj/arrange was given " n-plots
+                                  (if (= 1 n-plots) " cell" " cells")
+                                  ", and every one is nil, a cell left empty,"
+                                  " so there is nothing to draw.")
+                             {:caller "pj/arrange" :plots plots})))
          _ (when (= 1 n-plots)
              (let [leaf-opts (:opts (first leaves))
                    leaf-w (:width leaf-opts)

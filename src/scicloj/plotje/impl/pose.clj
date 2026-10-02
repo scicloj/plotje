@@ -244,11 +244,18 @@
   ([pose]
    (resolve-tree pose {} []))
   ([pose parent-ctx path]
-   (let [ctx {:data    (or (:data pose) (:data parent-ctx))
-              :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
-              :layers  (into (vec (:layers parent-ctx))
-                             (:layers pose))
-              :opts    (merge {} (:opts parent-ctx) (:opts pose))}]
+   (let [ctx (if (:plotje/empty-cell pose)
+               ;; A cell left empty -- `nil` in `pj/arrange` -- takes
+               ;; nothing from above but the options, so it draws no
+               ;; mark: inheriting the root's data and layers, it would
+               ;; be an ordinary cell asked to draw with no columns.
+               {:data nil :mapping {} :layers []
+                :opts (merge {} (:opts parent-ctx) (:opts pose))}
+               {:data    (or (:data pose) (:data parent-ctx))
+                :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
+                :layers  (into (vec (:layers parent-ctx))
+                               (:layers pose))
+                :opts    (merge {} (:opts parent-ctx) (:opts pose))})]
      (if (leaf? pose)
        (let [structural-keys #{:data :mapping :layers :poses :layout
                                :opts :share-scales}
