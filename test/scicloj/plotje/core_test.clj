@@ -3867,3 +3867,51 @@
     (is (str/includes? out "did you mean :color")))
   (is (not (str/includes? (with-out-str (pj/plan (pj/scale (pj/lay-density-2d {:x [1 2 3 4 2 3] :y [2 1 4 3 3 2]} :x :y) :fill {:label "F"})))
                           "Warning"))))
+
+;; ---- Three messages found on Zulip after 0.16.0 ----
+
+(deftest shift-given-a-column-names-the-option-test
+  ;; A column on :dx failed as a raw ClassCastException naming Keyword
+  ;; and Number, and neither the option nor the layer.
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"lay-point :dx must be a number in the units of the :x axis, but got :d"
+                        (pj/lay-point {:x [1 2] :y [1 2] :d [0.1 0.2]} :x :y {:dx :d})))
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                        #"lay-label :dy must be a number in the units of the :y axis"
+                        (pj/lay-label {:x [1 2] :y [1 2] :t ["a" "b"] :d [1 2]} :x :y {:text :t :dy :d})))
+  (is (= 2 (:points (pj/svg-summary (pj/lay-point {:x [1 2] :y [1 2]} :x :y {:dx 0.5}))))))
+
+(deftest column-read-by-a-series-is-named-as-such-test
+  ;; The column was pivoted away by the series, so the old message's
+  ;; advice -- pj/overlay -- could not bring it back.
+  (let [data {:x [1 2 3] :a [1 2 3] :b [2 3 4] :c [3 4 5]}
+        msg (fn [f] (try (f) nil (catch clojure.lang.ExceptionInfo e (ex-message e))))
+        series-msg (msg #(-> data (pj/lay-line :x [:a :b :c]) (pj/lay-point :x :c)))
+        plain-msg (msg #(-> data (pj/lay-line :x :a) (pj/lay-point :x :zz)))]
+    (is (re-find #"a series on this pose has already read" series-msg))
+    (is (re-find #"\{:data data\}" series-msg))
+    (is (not (re-find #"pj/overlay" series-msg)))
+    (is (re-find #"doesn't exist in the data" plain-msg))
+    ;; The way out the message names draws.
+    (is (= {:panels 1 :lines 3 :points 3}
+           (select-keys (pj/svg-summary (-> data (pj/lay-line :x [:a :b :c])
+                                            (pj/lay-point :x :c {:data data :overlay true})))
+                        [:panels :lines :points])))))
+
+(deftest rule-or-band-given-a-value-before-its-options-test
+  ;; (pj/lay-rule-v pose 7 {:x-intercept 2}) read 7 as a written value:
+  ;; the x axis stretched to 7 with no warning, and the rule drew at 2.
+  (let [pose (pj/lay-point {:x [1 2 3] :y [1 2 3]} :x :y)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"lay-rule-v was given 7 before its options map.*\{:x-intercept \.\.\.\}"
+                          (pj/lay-rule-v pose 7 {:x-intercept 2})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"lay-band-h was given 1 before its options map"
+                          (pj/lay-band-h pose 1 2 {:y-min 1 :y-max 2})))
+    ;; Columns there still pick the panel, a number naming a column
+    ;; included, and a pose with no data yet cannot be checked.
+    (is (= 1 (:panels (pj/svg-summary (pj/lay-rule-v pose :x :y {:x-intercept 2})))))
+    (is (= 1 (:panels (pj/svg-summary (-> (tc/dataset {0 [1 2 3] 1 [1 2 3]})
+                                          (pj/lay-point 0 1)
+                                          (pj/lay-rule-v 0 1 {:x-intercept 2}))))))
+    (is (some? (pj/lay-rule-v (pj/pose) 7 {:x-intercept 2})))))

@@ -228,9 +228,9 @@ my-pose
 ;; A **mapping** maps a column (or a written value) to an
 ;; aesthetic. Each aesthetic has a [role](#role), and there are four:
 ;;
-;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:x-min`,
-;;   `:x-max`, `:y-min`, `:y-max` for marks that need them) place
-;;   each mark.
+;; - **Positional aesthetics** (`:x`, `:y`, plus `:x-end`, `:y-end`,
+;;   `:x-min`, `:x-max`, `:y-min`, `:y-max` for marks that need them)
+;;   place each mark.
 ;; - **Appearance aesthetics** (`:color`, `:size`, `:alpha`, `:shape`,
 ;;   `:text`, `:tooltip`, `:fill`) shape how each mark looks.
 ;; - **Grouping aesthetic** (`:group`) splits the data and draws
@@ -263,7 +263,7 @@ my-pose
 ;; |:----|:---------|:------------|
 ;; | `:x` | Where the mark sits horizontally | Numerical, temporal, or categorical |
 ;; | `:y` | Where the mark sits vertically | Numerical, temporal, or categorical |
-;; | `:x-end` | Right edge of an interval bar | Same type as `:x` |
+;; | `:x-end`, `:y-end` | The far end of a segment; `:x-end` is also the right edge of an interval bar | Same type as `:x` or `:y`, or a written value |
 ;; | `:x-min`, `:x-max` | Edges of a vertical band | No column -- a written value only |
 ;; | `:y-min`, `:y-max` | An errorbar's bounds, or the edges of a horizontal band | Same type as `:y`, or a written value |
 ;;

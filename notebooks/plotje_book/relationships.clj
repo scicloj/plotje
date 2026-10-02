@@ -191,7 +191,9 @@
 
 ;; ## Heatmap (Pre-Computed)
 
-;; Use a numeric column for tile color.
+;; Use a numeric column for tile color. On a numeric axis, the axis
+;; reaches the outer edges of the tiles, so the first and last rows
+;; and columns are drawn at full size.
 
 (def grid-data
   (let [r (rng/rng :jdk 99)]
@@ -202,9 +204,13 @@
 (-> grid-data
     (pj/lay-tile :x :y {:fill :value}))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               [lo hi] (:x-domain (first (:panels (pj/plan v))))]
                            (and (= 1 (:panels s))
-                                (pos? (:visible-tiles s)))))])
+                                (pos? (:visible-tiles s))
+                                ;; The outer tiles' edges, half a step
+                                ;; past 0 and 4, are inside the axis.
+                                (<= lo -0.5) (>= hi 4.5))))])
 
 ;; ## Density 2D
 

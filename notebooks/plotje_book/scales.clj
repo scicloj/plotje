@@ -1202,7 +1202,23 @@ gapminder-2007
 (kind/test-last
  [(fn [m] (re-find #":fill needs a numeric column" m))])
 
-;; On a tile, the same column on `:color` colors each cell from the
+;; On a tile, a numeric column on `:color` is read as `:fill` is,
+;; through the same gradient and the same legend:
+
+(-> {:hour [1 2 3 1 2 3]
+     :day [1 1 1 2 2 2]
+     :load [10 20 30 40 50 60]}
+    (pj/lay-tile :hour :day {:color :load}))
+
+(kind/test-last
+ [(fn [v] (let [legend (:legend (pj/plan v))]
+            ;; A gradient legend titled from the column, as a :fill
+            ;; column gives. (svg-summary counts the legend bar's cells
+            ;; as tiles too, so a tile count here would not be 6.)
+            (and (= :continuous (:type legend))
+                 (= :load (:title legend)))))])
+
+;; A categorical column on `:color` colors each cell from the
 ;; palette, one color per category, with a legend naming them:
 
 (-> {:hour [1 2 3 1 2 3]
@@ -1341,7 +1357,10 @@ gapminder-2007
        ;; place in the gradient each is drawn at is what the prose
        ;; below states: a sixth of the way along, and all the way.
        (< 0.16666 (:gradient-t (first stops)) 0.16667)
-       (== 1.0 (:gradient-t (last stops))))))])
+       (== 1.0 (:gradient-t (last stops)))
+       ;; The bar's labels, as the prose below lists them.
+       (= ["-40" "-20" "0" "20" "40" "60"]
+          (mapv :label (-> v pj/plan :legend :ticks))))))])
 
 ;; The gradient is centred on the midpoint and widened until it reaches
 ;; whichever end of the domain is further from it, so a departure of
@@ -1350,6 +1369,8 @@ gapminder-2007
 ;; color and -40 is drawn a sixth of the way along the gradient rather
 ;; than at its other end. The bar beside the panel spans the same
 ;; stretch, so a color read off it is a color some mark carries. The
+;; bar is labelled at ticks chosen and formatted as an axis's are:
+;; here -40, -20, 0, 20, 40 and 60. The
 ;; points are drawn opaque, with `:alpha 1`, so that their colors are
 ;; the bar's colors, and with a grey border, so that the points near
 ;; the centre, drawn close to white, stay visible on the panel.

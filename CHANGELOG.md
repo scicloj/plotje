@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+### Warnings and errors
+
+- These report an error naming the option and the value: `:dx` or `:dy` given a column, and a value written before a rule's or a band's options map that is not a column of the data, such as the `7` in `(pj/lay-rule-v pose 7 {:x-intercept 2})`. A layer naming a column that a series on the same pose has already read reports that the series pivoted it, and suggests passing the original data with `:data`.
+
 ## [0.16.0 - 2026-10-02]
 
 Most of this release is about colour: gradient legends, tiles, and composite poses whose cells agree on one colour, size or symbol per value. It also adds `pj/lay-segment`, for lines and arrows between two points.

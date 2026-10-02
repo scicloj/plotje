@@ -231,8 +231,10 @@
 ;;   aesthetic. Two layers naming different scales for `:x` or `:y`
 ;;   are refused as well, because a panel has one of each axis.
 ;;   Workaround in every case: put the layers in separate poses with
-;;   `pj/arrange`, where each cell has its own scales and its own
-;;   legend.
+;;   `pj/arrange`, and write each cell's scale on that cell. A cell
+;;   that writes its own scale keeps it and draws its own legend;
+;;   cells that map the same column and write no scale share one
+;;   scale and one legend.
 ;;
 ;; - Facet panels share their scale *types*. `{:scales :free}` gives
 ;;   each panel its own domain, but there is no equivalent for giving

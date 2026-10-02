@@ -1718,19 +1718,34 @@
                          (resolve/column-ref? col)
                          (not (contains? col-names col)))]
         (throw (ex-info
-                (str "lay-" (layer-type-name layer-type)
-                     " " k " " (pr-str col)
-                     " names a column that doesn't exist in the data"
-                     " the layer would draw from. Available columns: "
-                     (vec (sort col-names))
-                     ". The " k " differs from the column the pose"
-                     " draws, so this layer would take a panel of its"
-                     " own -- but its data has no column " (pr-str col)
-                     ". If you meant to draw this layer on the panel"
-                     " the pose already draws, write pj/overlay on the"
-                     " pose, or {:overlay true} in its own options map."
-                     " If you meant another dataset, pass `:data` on"
-                     " this lay-* call.")
+                (if (some #{col} (::series-columns (meta d)))
+                  ;; The column was read by a series on this pose, and the
+                  ;; pivot replaced it with a key column and a value
+                  ;; column. Drawing the layer on the pose's panel would
+                  ;; not bring it back, so `pj/overlay` is not offered.
+                  (str "lay-" (layer-type-name layer-type)
+                       " " k " " (pr-str col) " names a column that a"
+                       " series on this pose has already read: the series"
+                       " pivots " (pr-str (::series-columns (meta d)))
+                       " into the columns " (vec (sort col-names))
+                       ", so the pose's data has no column " (pr-str col)
+                       ". To draw " (pr-str col) " in a layer of its own,"
+                       " pass the original data on this lay-* call --"
+                       " {:data data}, with {:overlay true} to draw it on"
+                       " the series' panel.")
+                  (str "lay-" (layer-type-name layer-type)
+                       " " k " " (pr-str col)
+                       " names a column that doesn't exist in the data"
+                       " the layer would draw from. Available columns: "
+                       (vec (sort col-names))
+                       ". The " k " differs from the column the pose"
+                       " draws, so this layer would take a panel of its"
+                       " own -- but its data has no column " (pr-str col)
+                       ". If you meant to draw this layer on the panel"
+                       " the pose already draws, write pj/overlay on the"
+                       " pose, or {:overlay true} in its own options map."
+                       " If you meant another dataset, pass `:data` on"
+                       " this lay-* call."))
                 {:caller (str "pj/lay-" (layer-type-name layer-type))
                  :key k :column col :available (sort col-names)}))))))
 
@@ -1855,6 +1870,21 @@
                              "a column. For a data-space shift use "
                              (if (= k :offset-x) ":dx" ":dy") ".")
                         {:option k :value v})))))
+  ;; A shift is one amount in the axis's own units, applied to the whole
+  ;; layer. Given a column, the plan failed with a raw cast error naming
+  ;; Keyword and Number and neither the option nor the layer.
+  (doseq [k [:dx :dy]]
+    (when-let [v (get opts k)]
+      (when-not (number? v)
+        (let [axis (if (= k :dx) ":x" ":y")]
+          (throw (ex-info (str context " " k " must be a number in the units "
+                               "of the " axis " axis, but got " (pr-str v)
+                               ". It shifts the whole layer by one amount, so "
+                               "it takes one value rather than a column. To "
+                               "shift each row by its own amount, add the "
+                               "shift to the " axis " column in the data and "
+                               "map " axis " to the result.")
+                          {:option k :value v}))))))
   ;; How wide a mark is drawn across its band is one number for the
   ;; layer, so a column has nothing to mean. Given one, the plan failed
   ;; either with a raw cast error naming Keyword and Number, or with a
@@ -2302,7 +2332,7 @@
        (- (* (tc/row-count ds) (count cols)) (tc/row-count pivoted))
        (str "with a missing value among the columns read as series ("
             (str/join ", " (map pr-str cols)) ")"))
-      pivoted)))
+      (vary-meta pivoted assoc ::series-columns (vec cols)))))
 
 (defn- check-pair-column-kinds!
   "Throw where the columns one side of a pair of series names hold
@@ -2394,7 +2424,7 @@
      (- (tc/row-count joined) (tc/row-count pivoted))
      (str "with a missing value among the columns read as series in pairs ("
           (str/join ", " (map pr-str (concat xs ys))) ")"))
-    pivoted))
+    (vary-meta pivoted assoc ::series-columns (vec (concat xs ys)))))
 
 (defn- series-consumers
   "Where the pose already names a column the pivot would consume. A
@@ -2897,6 +2927,30 @@
     (str " Got " (pr-str (last args)) " as the last argument; did you forget"
          " to wrap it in an opts map?")))
 
+(defn- assert-panel-columns!
+  "A rule or a band takes its place from its options map. The arguments
+   written before that map name columns, and only pick the panel the
+   rule or band is drawn on. A value there that is not a column of the
+   data was read as a written value: it stretched the axis to reach it,
+   with no warning, while the rule was drawn at its intercept."
+  [layer-type-key pose-or-data cols]
+  (let [data (try (:data (->pose pose-or-data)) (catch Exception _ nil))
+        names (when data (set (tc/column-names (tc/dataset data))))
+        place ({:rule-h "{:y-intercept ...}" :rule-v "{:x-intercept ...}"
+                :band-h "{:y-min ... :y-max ...}" :band-v "{:x-min ... :x-max ...}"}
+               layer-type-key)]
+    (doseq [c cols
+            :when (and (some? c) (not (resolve/column-ref? c))
+                       names (not (contains? names c)))]
+      (throw (ex-info (str "lay-" (name layer-type-key) " was given " (pr-str c)
+                           " before its options map, and the data has no column "
+                           (pr-str c) ". The arguments written there name"
+                           " columns, which pick the panel the "
+                           (if (#{:rule-h :rule-v} layer-type-key) "rule" "band")
+                           " is drawn on. Its place is written in the options"
+                           " map: " place ".")
+                      {:caller (str "pj/lay-" (name layer-type-key)) :value c})))))
+
 (def ^:private rule-position-key
   "Per-layer-type required position key for pj/lay-rule-*."
   {:rule-h :y-intercept :rule-v :x-intercept})
@@ -3090,8 +3144,8 @@
      -- temporal intercept on a date axis."
   ([_pose-or-data] (assert-rule-1-arity! :rule-h))
   ([pose-or-data x-or-opts] (assert-rule-opts! :rule-h [x-or-opts]) (lay-layer-type :rule-h pose-or-data (coerce-rule-opts :rule-h x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-rule-opts! :rule-h [y-or-opts]) (lay-layer-type :rule-h pose-or-data x (coerce-rule-opts :rule-h y-or-opts)))
-  ([pose-or-data x y opts] (assert-rule-opts! :rule-h [opts]) (lay-layer-type :rule-h pose-or-data x y (coerce-rule-opts :rule-h opts))))
+  ([pose-or-data x y-or-opts] (assert-rule-opts! :rule-h [y-or-opts]) (assert-panel-columns! :rule-h pose-or-data [x]) (lay-layer-type :rule-h pose-or-data x (coerce-rule-opts :rule-h y-or-opts)))
+  ([pose-or-data x y opts] (assert-rule-opts! :rule-h [opts]) (assert-panel-columns! :rule-h pose-or-data [x y]) (lay-layer-type :rule-h pose-or-data x y (coerce-rule-opts :rule-h opts))))
 
 (defn lay-rule-v
   "Add `:rule-v` layer -- vertical reference line at x = x-intercept.
@@ -3118,8 +3172,8 @@
      intercept on a date axis."
   ([_pose-or-data] (assert-rule-1-arity! :rule-v))
   ([pose-or-data x-or-opts] (assert-rule-opts! :rule-v [x-or-opts]) (lay-layer-type :rule-v pose-or-data (coerce-rule-opts :rule-v x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-rule-opts! :rule-v [y-or-opts]) (lay-layer-type :rule-v pose-or-data x (coerce-rule-opts :rule-v y-or-opts)))
-  ([pose-or-data x y opts] (assert-rule-opts! :rule-v [opts]) (lay-layer-type :rule-v pose-or-data x y (coerce-rule-opts :rule-v opts))))
+  ([pose-or-data x y-or-opts] (assert-rule-opts! :rule-v [y-or-opts]) (assert-panel-columns! :rule-v pose-or-data [x]) (lay-layer-type :rule-v pose-or-data x (coerce-rule-opts :rule-v y-or-opts)))
+  ([pose-or-data x y opts] (assert-rule-opts! :rule-v [opts]) (assert-panel-columns! :rule-v pose-or-data [x y]) (lay-layer-type :rule-v pose-or-data x y (coerce-rule-opts :rule-v opts))))
 
 (defn lay-band-h
   "Add `:band-h` layer -- horizontal shaded band between y = y-min and y = y-max.
@@ -3143,8 +3197,8 @@
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-h))
   ([pose-or-data x-or-opts] (assert-band-opts! :band-h [x-or-opts]) (lay-layer-type :band-h pose-or-data (coerce-band-opts :band-h x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-band-opts! :band-h [y-or-opts]) (lay-layer-type :band-h pose-or-data x (coerce-band-opts :band-h y-or-opts)))
-  ([pose-or-data x y opts] (assert-band-opts! :band-h [opts]) (lay-layer-type :band-h pose-or-data x y (coerce-band-opts :band-h opts))))
+  ([pose-or-data x y-or-opts] (assert-band-opts! :band-h [y-or-opts]) (assert-panel-columns! :band-h pose-or-data [x]) (lay-layer-type :band-h pose-or-data x (coerce-band-opts :band-h y-or-opts)))
+  ([pose-or-data x y opts] (assert-band-opts! :band-h [opts]) (assert-panel-columns! :band-h pose-or-data [x y]) (lay-layer-type :band-h pose-or-data x y (coerce-band-opts :band-h opts))))
 
 (defn lay-band-v
   "Add `:band-v` layer -- vertical shaded band between x = x-min and x = x-max.
@@ -3168,8 +3222,8 @@
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-v))
   ([pose-or-data x-or-opts] (assert-band-opts! :band-v [x-or-opts]) (lay-layer-type :band-v pose-or-data (coerce-band-opts :band-v x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-band-opts! :band-v [y-or-opts]) (lay-layer-type :band-v pose-or-data x (coerce-band-opts :band-v y-or-opts)))
-  ([pose-or-data x y opts] (assert-band-opts! :band-v [opts]) (lay-layer-type :band-v pose-or-data x y (coerce-band-opts :band-v opts))))
+  ([pose-or-data x y-or-opts] (assert-band-opts! :band-v [y-or-opts]) (assert-panel-columns! :band-v pose-or-data [x]) (lay-layer-type :band-v pose-or-data x (coerce-band-opts :band-v y-or-opts)))
+  ([pose-or-data x y opts] (assert-band-opts! :band-v [opts]) (assert-panel-columns! :band-v pose-or-data [x y]) (lay-layer-type :band-v pose-or-data x y (coerce-band-opts :band-v opts))))
 
 (defn lay-line
   "Add `:line` layer type -- connected line through data points.
