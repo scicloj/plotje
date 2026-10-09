@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+`pj/pose` builds one pose: data or a pose, then columns, then a mapping. Panels drawn from several columns come from `pj/arrange`, which takes columns as cells, and from the new `pj/cross-matrix`. Contributed in [#61](https://github.com/scicloj/plotje/pull/61) - thanks, @timothypratley
+
+### Plots that look different after upgrading
+
+- **A `pj/pose` or `lay-*` call given a vector of columns in place of one column**, such as `(pj/lay-density data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled `value`. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
+
+### Added
+
+- `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, and a layer added afterwards reaches every panel.
+
+- `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells are appended to it.
+
+### Warnings and errors
+
+- `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/cross-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error.
+
 ## [0.16.1 - 2026-10-02]
 
 ### Added
