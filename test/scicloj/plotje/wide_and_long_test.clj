@@ -63,16 +63,17 @@
                                                 :y [:revenue :cost]
                                                 :position :dodge})))))))
 
-  (testing "the pivot happens on the pose, and everything after is ordinary"
-    (let [pose (-> sales (pj/lay-bar :quarter [:revenue :cost]))]
-      (is (= {:x :quarter :y :value}
-             (-> pose :layers first :mapping (select-keys [:x :y]))))
-      (is (= [:quarter :series :value] (vec (tc/column-names (:data pose)))))
-      (is (= 8 (tc/row-count (:data pose))))))
+  (testing "the layer keeps its series; the draft pivots it into ordinary columns"
+    (let [pose (-> sales (pj/lay-bar :quarter [:revenue :cost]))
+          drafted (-> pose pj/draft :layers first)]
+      (is (= [:revenue :cost] (-> pose :layers first :mapping :y)))
+      (is (= [:quarter :value] [(:x drafted) (:y drafted)]))
+      (is (= [:quarter :series :value] (vec (tc/column-names (:data drafted)))))
+      (is (= 8 (tc/row-count (:data drafted))))))
 
   (testing "the columns it reads are consumed; the rest come through"
     (let [pose (-> with-target (pj/lay-bar :quarter [:revenue :cost]))
-          cols (set (tc/column-names (:data pose)))]
+          cols (set (tc/column-names (-> pose pj/draft :layers first :data)))]
       (is (contains? cols :target))
       (is (not (contains? cols :revenue)))))
 
@@ -218,7 +219,7 @@
       (is (= one (seen (-> d (pj/pose {:x [:t1 :t2] :y [:v1 :v2]}) pj/lay-point))))
       (is (= one (seen (-> (pj/pose d [:t1 :t2] [:v1 :v2]) pj/lay-point))))
       (testing "the rows pair the columns in order"
-        (let [ds (:data (pj/lay-point d [:t1 :t2] [:v1 :v2]))]
+        (let [ds (-> (pj/lay-point d [:t1 :t2] [:v1 :v2]) pj/draft :layers first :data)]
           (is (= [1.0 2.0 3.0 1.5 2.5 3.5] (mapv double (ds :x-value))))
           (is (= [5 6 7 1 1 2] (vec (ds :y-value))))))
       (testing ":as on either series names the key column"
@@ -232,10 +233,12 @@
                           (pj/lay-point with-target {:x [:revenue :cost]
                                                      :y [:cost :target :quarter]}))))
 
-  (testing "a pose reading a series on each axis with no layer names both"
-    (is (thrown-with-msg? Exception #"reads \[:revenue :cost\] on :x and \[:cost :target\] on :y as series"
-                          (pj/plot (pj/pose with-target {:x [:revenue :cost]
-                                                         :y [:cost :target]})))))
+  (testing "a pose reading a series on each axis with no layer draws them"
+    ;; The draft pivots the pose's series and infers a layer for it.
+    (is (= {:panels 1 :points 8}
+           (select-keys (pj/svg-summary (pj/pose with-target {:x [:revenue :cost]
+                                                              :y [:cost :target]}))
+                        [:panels :points]))))
 
   (testing "a column the data does not have is named, with the ones it does"
     (is (thrown-with-msg? Exception #"does not have \[:nope\]"
@@ -262,7 +265,7 @@
       (is (re-find #":as names the key column :region" as-msg))))
 
   (testing "a mapping already naming a consumed column is named, not broken"
-    (is (thrown-with-msg? Exception #"consumes the columns it reads"
+    (is (thrown-with-msg? Exception #"a series on this pose has already read"
                           (-> sales (pj/pose :quarter :revenue)
                               (pj/lay-bar :quarter [:revenue :cost])))))
 
@@ -560,23 +563,21 @@
         (is (re-find #"pj/overlay" s))
         (is (not (re-find #"as series" s)))))))
 
-(deftest a-series-no-layer-reads-is-reported-test
-  ;; A series is pivoted when a layer is added to the pose carrying it.
-  ;; A cell of pj/arrange written as a mapping takes its layers from
-  ;; above, and a bare pj/pose has none: the series reached the plan
-  ;; unread, as a schema error or an index out of bounds.
+(deftest a-series-no-layer-is-added-to-is-drawn-test
+  ;; The draft pivots a series wherever it is written, so a series on a
+  ;; pose that no layer was added to is drawn: a cell of pj/arrange
+  ;; written as a mapping, which takes its layers from above, and a bare
+  ;; pj/pose, which takes an inferred one.
   (testing "a cell of a data-first arrangement"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo #"as a series, and no layer was added"
-         (-> (pj/arrange sales [{:x :quarter :y [:revenue :cost]}
-                                {:x :quarter :y :revenue}])
-             pj/lay-point
-             pj/plan))))
+    (is (= {:panels 2 :points 12}
+           (select-keys (pj/svg-summary
+                         (-> (pj/arrange sales [{:x :quarter :y [:revenue :cost]}
+                                                {:x :quarter :y :revenue}])
+                             pj/lay-point))
+                        [:panels :points]))))
   (testing "a pose given a series and no layer"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo #"as a series, and no layer was added"
-         (pj/plan (pj/pose sales {:x :quarter :y [:revenue :cost]})))))
-  (testing "the route the report names draws"
+    (is (= 1 (:panels (pj/svg-summary (pj/pose sales {:x :quarter :y [:revenue :cost]}))))))
+  (testing "and with a layer added"
     (is (= 1 (:panels (pj/svg-summary
                        (-> sales
                            (pj/pose {:x :quarter :y [:revenue :cost]})

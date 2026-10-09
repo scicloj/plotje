@@ -5,6 +5,8 @@
 
 (ns pr61-unify-examples
   (:require
+   ;; Tablecloth -- dataset manipulation
+   [tablecloth.api :as tc]
    ;; Rdatasets -- standard datasets
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Kindly -- notebook rendering protocol
@@ -255,3 +257,51 @@ raw-scatter
 (kind/test-last [(fn [v] (and (nil? (:mapping v))
                               (= {:x :height :y :weight} (:mapping (pj/infer-mapping v)))
                               (= 3 (:points (pj/svg-summary v)))))])
+
+;; ## Step 3 (b): the series pivot happens at draft
+
+(def sales
+  {:quarter ["Q1" "Q2" "Q3" "Q4"]
+   :revenue [120 150 140 190]
+   :cost    [90 100 115 120]})
+
+;; ### The layer keeps its series
+
+;; The pose's data is the data written; the draft pivots it.
+
+(def series-line
+  (pj/lay-line sales :quarter [:revenue :cost]))
+
+series-line
+
+(kind/pprint series-line)
+
+(kind/test-last [(fn [v] (and (= [:revenue :cost] (-> v :layers first :mapping :y))
+                              (= [:quarter :revenue :cost] (vec (tc/column-names (:data v))))
+                              (= [:quarter :value :series]
+                                 ((juxt :x :y :color) (-> v pj/draft :layers first)))))])
+
+;; ### Two layers writing the same series share one pivot
+
+;; On 0.16.1 the second call met the columns the first had pivoted away.
+
+(def line-and-points
+  (-> sales
+      (pj/lay-line :quarter [:revenue :cost])
+      (pj/lay-point :quarter [:revenue :cost])))
+
+line-and-points
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s)) (= 8 (:points s)) (= 2 (:lines s)))))])
+
+;; ### A series on a pose that no layer is added to is drawn
+
+;; On 0.16.1 this reported that no layer was added to read the series.
+
+(def series-no-layer
+  (pj/pose sales {:x :quarter :y [:revenue :cost]}))
+
+series-no-layer
+
+(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])

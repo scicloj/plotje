@@ -2167,6 +2167,437 @@
     {:key (when (contains? remaining label) label)
      :value (when (contains? remaining series-value-column) series-value-column)}))
 
+;; ---- The series pivot ----
+
+(defn- check-series-columns!
+  "Throw where the columns a series names cannot be pivoted: fewer than
+   two, one that is not a column reference, or one the data does not
+   have. Shared by a series on one aesthetic and by the pairs two
+   series on `:x` and `:y` make."
+  [caller ds cols]
+  (let [available (vec (sort-by str (tc/column-names ds)))
+        present (set available)
+        missing (vec (remove present cols))]
+    (when (< (count cols) 2)
+      (throw (ex-info (str caller " was given " (count cols) " column in a"
+                           " slot where several are read as several series: "
+                           (pr-str (vec cols)) ". Name the column on its own"
+                           " where there is one.")
+                      {:caller caller :columns (vec cols)})))
+    (doseq [c cols]
+      (when-not (resolve/column-ref? c)
+        (throw (ex-info (str caller " was given " (pr-str (vec cols))
+                             ", and " (pr-str c) " is not a column reference"
+                             " -- a keyword or a string naming a column of"
+                             " the data.")
+                        {:caller caller :column c :columns (vec cols)}))))
+    (when (seq missing)
+      (throw (ex-info (str caller " was given several columns to read as"
+                           " series, and the data does not have "
+                           (pr-str missing) ". Available columns: "
+                           available ".")
+                      {:caller caller :missing missing :columns available})))))
+
+(defn- check-single-series!
+  "Throw where one series cannot be pivoted out of `ds`: its columns
+   (see `check-series-columns!`), an `:as` naming the value column, or
+   a key or value column the data already has."
+  [caller ds spec]
+  (let [{cols :cols label :as} spec
+        present (set (tc/column-names ds))]
+    (check-series-columns! caller ds cols)
+    ;; Reported before the clash check below, whose set literal held
+    ;; both names and threw a bare `Duplicate key: :value` when `:as`
+    ;; named the value column.
+    (when (= label series-value-column)
+      (throw (ex-info (str caller " was given :as " (pr-str label)
+                           ", which is the name the pivot gives the value"
+                           " column it invents. The key column needs a name"
+                           " of its own -- {:series " (pr-str (vec cols))
+                           " :as :measure}.")
+                      {:caller caller
+                       :as label
+                       :value-column series-value-column})))
+    ;; Each clash is named on its own, with the remedy that moves it:
+    ;; `:as` renames the key column and cannot rename the value column,
+    ;; so a clash on the value column is offered only a rename in the
+    ;; data. The value clash is reported first, because `:as` cannot
+    ;; clear it.
+    (let [clashes (series-clashes cols label present)
+          key-clash? (some? (:key clashes))
+          value-clash? (some? (:value clashes))
+          key-named (if (= label default-series-label)
+                      (str "the pivot names its key column " (pr-str label))
+                      (str ":as names the key column " (pr-str label)))]
+      (when (or key-clash? value-clash?)
+        (throw (ex-info (str caller " cannot pivot these columns: "
+                             (if value-clash?
+                               (str "the pivot names its value column "
+                                    (pr-str series-value-column)
+                                    ", and the data already has a "
+                                    (pr-str series-value-column) " column."
+                                    " Rename that column in the data."
+                                    (when key-clash?
+                                      (str " Also, " key-named
+                                           ", which the data has as well --"
+                                           " name the key column something"
+                                           " else with :as.")))
+                               (str key-named ", and the data already has a "
+                                    (pr-str label) " column. Name the key"
+                                    " column something else -- {:series "
+                                    (pr-str (vec cols)) " :as :measure} -- or"
+                                    " rename the column in the data.")))
+                        {:caller caller
+                         :clashes (vec (cond-> []
+                                         key-clash? (conj label)
+                                         value-clash? (conj series-value-column)))
+                         :key-column label
+                         :value-column series-value-column}))))))
+
+(defn- pivot-series
+  "Pivot the columns a series names into a key column and a value
+   column. Returns the new dataset. Checked by `check-single-series!`."
+  [ds spec]
+  (let [{cols :cols label :as} spec]
+    ;; `tc/pivot->longer` drops a row whose value is missing, and its
+    ;; defaults are kept rather than overridden -- a Tablecloth user
+    ;; comparing the two should find them the same. What is said about
+    ;; the drop is Plotje's own contract: a row that does not reach the
+    ;; plot is named. Counted from the pivot's own effect -- one row per
+    ;; original row and pivoted column, less what came back.
+    (let [pivoted (tc/pivot->longer ds (set cols)
+                                    {:target-columns label
+                                     :value-column-name series-value-column})]
+      (defaults/report-removed-rows!
+       (- (* (tc/row-count ds) (count cols)) (tc/row-count pivoted))
+       (str "with a missing value among the columns read as series ("
+            (str/join ", " (map pr-str cols)) ")"))
+      pivoted)))
+
+(defn- check-pair-column-kinds!
+  "Throw where the columns one side of a pair of series names hold
+   different kinds of value. They become one value column, which holds
+   one kind; checked here so the message names the columns written, not
+   the value column the pivot invents."
+  [caller ds cols]
+  (let [numerical (set (tc/column-names ds :type/numerical))
+        temporal (set (tc/column-names ds :type/datetime))
+        kind (fn [c] (cond (numerical c) :numerical
+                           (temporal c) :temporal
+                           :else :categorical))
+        kinds (into {} (map (juxt identity kind)) cols)]
+    (when (next (distinct (vals kinds)))
+      (throw (ex-info (str caller " was given " (pr-str (vec cols))
+                           " to read as series in pairs, and their values are"
+                           " of different kinds: " (pr-str kinds) ". The"
+                           " columns become one value column, so they must"
+                           " all be numerical, all temporal or all"
+                           " categorical.")
+                      {:caller caller :columns (vec cols) :kinds kinds})))))
+
+(defn- series-pairs-label
+  "The key column a pair of series names: the `:as` either names, or the
+   default."
+  [x-spec y-spec]
+  (or (first (remove #(= % default-series-label) [(:as x-spec) (:as y-spec)]))
+      default-series-label))
+
+(defn- check-series-pairs!
+  "Throw where a series on `:x` and a series on `:y` cannot be pivoted
+   together out of `ds`: different numbers of columns, columns that are
+   missing or hold different kinds of value, two different `:as` names,
+   or invented columns the data already has."
+  [caller ds x-spec y-spec]
+  (let [{xs :cols} x-spec
+        {ys :cols} y-spec]
+    (when (not= (count xs) (count ys))
+      (throw (ex-info (str caller " was given " (count xs)
+                           (if (= 1 (count xs)) " column" " columns")
+                           " on :x, " (pr-str (vec xs)) ", and " (count ys)
+                           " on :y, " (pr-str (vec ys)) ". Two series"
+                           " are read in pairs, the first :x column"
+                           " with the first :y column, so they take"
+                           " as many columns each.")
+                      {:caller caller :x (vec xs) :y (vec ys)})))
+    (check-series-columns! caller ds xs)
+    (check-series-columns! caller ds ys)
+    (check-pair-column-kinds! caller ds xs)
+    (check-pair-column-kinds! caller ds ys)
+    (let [named (distinct (remove #(= % default-series-label)
+                                  [(:as x-spec) (:as y-spec)]))]
+      (when (next named)
+        (throw (ex-info (str caller " was given a series on :x named :as "
+                             (pr-str (:as x-spec)) " and a series on :y"
+                             " named :as " (pr-str (:as y-spec)) ". The"
+                             " two are pivoted together into one key"
+                             " column, so name it once.")
+                        {:caller caller :as (vec named)}))))
+    (let [label (series-pairs-label x-spec y-spec)
+          {xv :x yv :y} series-pair-value-columns
+          consumed (set (concat xs ys))
+          remaining (vec (remove consumed (tc/column-names ds)))
+          clashes (filterv (set remaining) [label xv yv])]
+      (when (seq clashes)
+        (throw (ex-info (str caller " cannot pivot these columns in pairs:"
+                             " the pivot names its key column "
+                             (pr-str label) " and its value columns "
+                             (pr-str xv) " and " (pr-str yv) ", and the"
+                             " data already has " (pr-str clashes) "."
+                             " Rename that column in the data"
+                             (when (some #{label} clashes)
+                               ", or name the key column with :as")
+                             ".")
+                        {:caller caller :clashes clashes}))))))
+
+(defn- pivot-series-pairs
+  "Pivot a series on `:x` and a series on `:y` together, pairing their
+   columns in order: the first `:x` column with the first `:y` column,
+   and so on. Each pair becomes a group of rows labelled with both
+   names, `\"a / c\"`, holding the pair's values in two value columns.
+   Returns the new dataset. Checked by `check-series-pairs!`."
+  [ds x-spec y-spec]
+  (let [{xs :cols} x-spec
+        {ys :cols} y-spec
+        label (series-pairs-label x-spec y-spec)
+        {xv :x yv :y} series-pair-value-columns
+        consumed (set (concat xs ys))
+        remaining (vec (remove consumed (tc/column-names ds)))
+        n (tc/row-count ds)
+        ;; Through the formatter the legend gives a single series' key
+        ;; column, so `:time-a` reads `time a` in both legends.
+        col-label defaults/fmt-category-label
+        kept (tc/select-columns ds remaining)
+        parts (mapv (fn [x y]
+                      (-> kept
+                          (tc/add-column label (vec (repeat n (str (col-label x) " / " (col-label y)))))
+                          (tc/add-column xv (ds x))
+                          (tc/add-column yv (ds y))))
+                    xs ys)
+        joined (apply tc/concat parts)
+        ;; A pair missing either value has no place to be drawn. The
+        ;; drop is named, as the single-series pivot names its own.
+        pivoted (tc/drop-missing joined [xv yv])]
+    (defaults/report-removed-rows!
+     (- (tc/row-count joined) (tc/row-count pivoted))
+     (str "with a missing value among the columns read as series in pairs ("
+          (str/join ", " (map pr-str (concat xs ys))) ")"))
+    pivoted))
+
+(defn check-series!
+  "Throw where the series written in mapping `m` cannot be pivoted out
+   of `data` -- the checks the pivot makes, without pivoting. Run by a
+   `lay-*` call that has the data, so the error names the call, and by
+   the draft before it pivots."
+  [caller data m]
+  (let [ks (filterv #(series-mapping (get m %)) series-aesthetics)
+        specs (into {} (map (fn [k] [k (series-mapping (get m k))])) ks)
+        ds (coerce-dataset data)]
+    (cond
+      (next ks) (check-series-pairs! caller ds (:x specs) (:y specs))
+      (seq ks) (check-single-series! caller ds (get specs (first ks))))))
+
+(defn- series-colour-type
+  "`{:color-type :categorical}` where the key column the pivot invents
+   would otherwise be read as a continuous colour, and `nil` where it
+   would not.
+
+   `tc/pivot->longer` reads a column name that looks like a number as
+   one, so a wide table of years gives an `:int64` key column. The
+   column holds column names whatever its type, and a colour infers
+   continuous or categorical from the type, so the years were drawn as
+   a gradient. The pivot knows what the column holds and says so here.
+
+   Written only where the column is numeric, so an ordinary series
+   carries no `:color-type`, and only where the writer has said nothing
+   about the colour's type in the leaf's mapping or the layer's."
+  [leaf-mapping layer-mapping pivoted label group-key]
+  (when (and (= :color group-key)
+             (not (contains? leaf-mapping :color-type))
+             (not (contains? (or layer-mapping {}) :color-type))
+             (let [col (get pivoted label)]
+               (and col (not (contains? #{:string :keyword}
+                                        (dtype/elemwise-datatype col))))))
+    {:color-type :categorical}))
+
+(defn- series-in
+  "The aesthetics of mapping `m` that hold a series."
+  [m]
+  (filterv #(series-mapping (get m %)) series-aesthetics))
+
+(defn- pivot-mapping
+  "Pivot the series written in `m` out of `data`. Returns `{:data
+   pivoted :values {aesthetic column} :label key-column :cols [...]}`."
+  [caller data m]
+  (let [ks (series-in m)
+        specs (into {} (map (fn [k] [k (series-mapping (get m k))])) ks)
+        pairs? (next ks)
+        label (if pairs?
+                (or (first (remove #(= % default-series-label) (map :as (vals specs))))
+                    default-series-label)
+                (:as (get specs (first ks))))
+        ds (coerce-dataset data)
+        _ (check-series! caller ds m)
+        pivoted (if pairs?
+                  (pivot-series-pairs ds (:x specs) (:y specs))
+                  (pivot-series ds (get specs (first ks))))
+        ;; `:from` rather than `:column`, so that a series reading
+        ;; through a scale names the invented column as a plain one does.
+        value-mapping (fn [k]
+                        (let [col (if pairs?
+                                    (get series-pair-value-columns k)
+                                    series-value-column)]
+                          (if-let [sc (:scale (get specs k))]
+                            {:from col :scale sc}
+                            col)))]
+    {:data pivoted
+     :values (into {} (map (fn [k] [k (value-mapping k)])) ks)
+     :label label
+     :cols (vec (mapcat :cols (vals specs)))}))
+
+(defn- layer-series-caller
+  [l]
+  (let [t (:layer-type l)]
+    (if (keyword? t) (str "pj/lay-" (name t)) "pj/lay")))
+
+(defn- leaf-series
+  "What pivots the leaf's own data, as `{:from :pose|:layers :cols [...]
+   :idxs [...]}` -- the series on the leaf's mapping, or the series the
+   layers drawing from the leaf's data write -- or nil where nothing
+   does. Throws where two series would pivot one dataset: a series on
+   the pose and one on a layer, or two layers writing different series.
+   Two layers writing the same series share one pivot."
+  [leaf]
+  (let [leaf-mapping (or (:mapping leaf) {})
+        layers (vec (or (:layers leaf) []))
+        on-leaf (series-in leaf-mapping)
+        on-layers (vec (keep-indexed (fn [i l] (when (and (seq (series-in (:mapping l)))
+                                                          (nil? (:data l)))
+                                                 i))
+                                     layers))
+        spec-of (fn [m] (select-keys m (series-in m)))
+        cols-of (fn [m] (vec (mapcat #(:cols (series-mapping (get m %))) (series-in m))))]
+    (cond
+      (and (seq on-leaf) (seq on-layers))
+      (throw (ex-info (str (layer-series-caller (layers (first on-layers)))
+                           " reads a series on "
+                           (pr-str (first (series-in (:mapping (layers (first on-layers))))))
+                           ", and the pose it is on already reads one on "
+                           (pr-str (first on-leaf)) ". A series pivots the data"
+                           " into one value column, and two pivots have no"
+                           " shared shape. Read one of them, or build the"
+                           " layer on a pose of its own.")
+                      {:on-pose (first on-leaf)}))
+
+      (seq on-leaf)
+      {:from :pose :cols (cols-of leaf-mapping)}
+
+      (seq on-layers)
+      (let [specs (distinct (map #(spec-of (:mapping (layers %))) on-layers))]
+        (when (next specs)
+          (throw (ex-info (str (layer-series-caller (layers (last on-layers)))
+                               " reads " (pr-str (cols-of (:mapping (layers (last on-layers)))))
+                               " as series, and a layer on the same pose already reads "
+                               (pr-str (cols-of (:mapping (layers (first on-layers)))))
+                               ". A series pivots the pose's data into one value"
+                               " column, and two pivots have no shared shape. Give"
+                               " each series a pose of its own and arrange the"
+                               " poses.")
+                          {:series (vec specs)})))
+        {:from :layers :cols (cols-of (:mapping (layers (first on-layers)))) :idxs on-layers}))))
+
+(defn check-series-leaf!
+  "Throw where the series on a leaf cannot be pivoted together with the
+   rest of it: two series pivoting one dataset (see `leaf-series`), or a
+   mapping elsewhere on the leaf naming a column the pivot consumes.
+   Run by every `lay-*` call on a leaf, so the call that makes the
+   conflict is the one that reports it, and by the draft."
+  [leaf]
+  (when-let [{:keys [from cols idxs]} (leaf-series leaf)]
+    (let [consumed (set cols)
+          series-idx (set idxs)
+          named (concat (when (= :layers from)
+                          [["this pose's mapping" (or (:mapping leaf) {})]])
+                        (when (= :pose from)
+                          [["this pose's mapping" (dissoc (:mapping leaf) :x :y)]])
+                        (keep-indexed (fn [i l]
+                                        (when (and (not (series-idx i)) (nil? (:data l)))
+                                          [(str (layer-series-caller l) " on this pose")
+                                           (:mapping l)]))
+                                      (:layers leaf)))
+          hits (vec (for [[what mapping] named
+                          [k v] mapping
+                          :let [src (mapping-source v)]
+                          :when (and (not (map? src)) (consumed src))]
+                      [what k src]))]
+      (when (seq hits)
+        (let [[what k col] (first hits)]
+          (throw (ex-info (str what " names " (pr-str col) " on " k ", a column that"
+                               " a series on this pose has already read: the series"
+                               " pivots " (pr-str cols) " into a key column and a"
+                               " value column, so the pose's data has no column "
+                               (pr-str col) ". To draw " (pr-str col) " in a layer"
+                               " of its own, pass the original data on that layer --"
+                               " {:data data}, with {:overlay true} to draw it on the"
+                               " series' panel -- or drop the mapping that names it.")
+                          {:columns cols :conflicts hits})))))))
+
+(defn pivot-leaf-series
+  "A leaf whose series are pivoted: the columns a series reads become a
+   key column and a value column, and the mapping that wrote the series
+   names those two instead -- the key column on `:color`, or on `:group`
+   where that mapping writes `:color` itself, so the series stay
+   separate marks either way.
+
+   A series on the leaf's mapping is read by every layer below it; a
+   series on a layer is that layer's. The pivoted data replaces the data
+   the series was read from: the leaf's, or the layer's own `:data`.
+   Checked first by `check-series-leaf!`.
+
+   `leaf` carries its full context, as `elaborate-leaf` receives it.
+   Idempotent: a pivoted leaf names no series."
+  [leaf]
+  (check-series-leaf! leaf)
+  (let [leaf-mapping (or (:mapping leaf) {})
+        layers (vec (or (:layers leaf) []))
+        no-data (fn [k]
+                  (ex-info (str "A pose reads several columns on " (pr-str k)
+                                " as series and has no data to pivot. Pass"
+                                " the data to the lay-* call, or put it on"
+                                " the pose with pj/pose.")
+                           {:aesthetic k}))
+        rewrite (fn [m {:keys [data values label]} outer]
+                  (let [group-key (if (contains? m :color) :group :color)]
+                    (merge (apply dissoc m (series-in m))
+                           values {group-key label}
+                           (series-colour-type (or outer m) (when outer m) data label group-key))))
+        ;; A layer with data of its own pivots that data.
+        layers (mapv (fn [l]
+                       (if (and (:data l) (seq (series-in (:mapping l))))
+                         (let [pv (pivot-mapping (layer-series-caller l) (:data l) (:mapping l))]
+                           (assoc l :data (:data pv) :mapping (rewrite (:mapping l) pv leaf-mapping)))
+                         l))
+                     layers)
+        leaf (assoc leaf :layers layers)]
+    (if-let [{:keys [from idxs]} (leaf-series leaf)]
+      (if (= :pose from)
+        (let [pv (pivot-mapping "pj/pose"
+                                (or (:data leaf) (throw (no-data (first (series-in leaf-mapping)))))
+                                leaf-mapping)]
+          (assoc leaf
+                 :data (:data pv)
+                 :mapping (rewrite leaf-mapping pv nil)))
+        (let [first-l (layers (first idxs))
+              pv (pivot-mapping (layer-series-caller first-l)
+                                (or (:data leaf)
+                                    (throw (no-data (first (series-in (:mapping first-l))))))
+                                (:mapping first-l))]
+          (assoc leaf
+                 :data (:data pv)
+                 :layers (reduce (fn [ls i]
+                                   (update-in ls [i :mapping] rewrite pv leaf-mapping))
+                                 layers idxs))))
+      leaf)))
+
 (defn ^:dynamic report-panel-split
   "Say that a leaf drew more than one panel, and name the ways to ask
    for one instead.
@@ -2285,39 +2716,10 @@
                   " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")))
   pose)
 
-(defn report-unread-series
-  "Report a series still standing in a leaf's mapping when it is drafted.
-
-   A series is pivoted when a layer is added to the pose that carries
-   it -- that is the only place the pivot happens. A cell of a composite
-   written as a mapping map, `{:x :quarter :y [:revenue :cost]}`, takes
-   its layers from the pose it is arranged into, so no layer is ever
-   added to the cell itself and its series reaches the plan unread,
-   where it failed with a bare schema error naming nothing written. A
-   `pj/pose` given a series and no layer at all failed the same way,
-   with an index out of bounds."
-  [leaf-mapping]
-  (let [found (filterv #(series-mapping (get leaf-mapping %)) series-aesthetics)]
-    (when (seq found)
-      (let [written (into {} (map (fn [k] [k (:cols (series-mapping (get leaf-mapping k)))]))
-                          found)]
-        (throw (ex-info (str "A pose reads "
-                             (str/join " and " (map (fn [k] (str (pr-str (get written k)) " on " k))
-                                                    found))
-                             " as " (if (next found) "series" "a series")
-                             ", and no layer was added to that pose, so the"
-                             " series was never read. A series is pivoted when a"
-                             " layer is added to the pose that carries it: (-> data"
-                             " (pj/pose " (pr-str (merge (select-keys leaf-mapping [:x :y]) written))
-                             ") pj/lay-line). A cell of pj/arrange takes its layers"
-                             " from the pose it is arranged into, so build such a"
-                             " cell that way before arranging it.")
-                        {:aesthetics found :columns written}))))))
-
 ;; ---- Elaboration ----
 ;;
-;; The choices the draft makes for a pose, written into the pose: the
-;; default mapping of raw data, and a concrete layer type wherever one
+;; The choices the draft makes for a pose, written into the pose: series
+;; pivoted, the default mapping of raw data, and a concrete layer type wherever one
 ;; was left to inference. Internal; a pose to a pose, so that everything
 ;; downstream -- shared scales, panels, the draft -- reads a layer type
 ;; rather than predicting one.
@@ -2412,6 +2814,7 @@
   "A leaf with the draft's choices written in. `leaf` carries its full
    context -- a top-level leaf, or one `resolve-tree` resolved.
 
+   - Series pivoted -- see `pivot-leaf-series`.
    - The data's default mapping, where the leaf needs one -- see
      `infer-default-mapping`.
    - A leaf with a place and no layers draws one layer, of the type the
@@ -2425,7 +2828,9 @@
 
    Idempotent: a second call finds nothing left to choose."
   [leaf]
-  (let [leaf (infer-default-mapping leaf)
+  (let [leaf (-> leaf
+                 pivot-leaf-series
+                 infer-default-mapping)
         own-mapping (select-keys (or (:mapping leaf) {}) [:x :y])
         own-place (position-mapping-key (:mapping leaf))
         layers (vec (or (:layers leaf) []))
@@ -2473,6 +2878,15 @@
 
      (leaf? pose)
      (let [anc-layers (vec (:layers parent-ctx))
+           _ (when-let [l (first (filter #(seq (series-in (:mapping %))) anc-layers))]
+               (throw (ex-info (str "A layer added to a composite pose reads "
+                                    (pr-str (vec (mapcat #(:cols (series-mapping (get (:mapping l) %)))
+                                                         (series-in (:mapping l)))))
+                                    " as series. The pivot reshapes the dataset the"
+                                    " series is read from, and a composite's cells share"
+                                    " one, so every cell would be reshaped. Add the layer"
+                                    " to a cell before arranging the cells.")
+                               {:layer-type (:layer-type l)})))
            resolved {:data (or (:data pose) (:data parent-ctx))
                      :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                      :layers (into anc-layers (:layers pose))
@@ -2482,8 +2896,14 @@
            done (elaborate-leaf resolved)
            own-layers (subvec (:layers done) (count anc-layers))]
        (cond-> pose
+         (not (identical? (:data resolved) (:data done)))
+         (assoc :data (:data done))
+
          (not= (:mapping resolved) (:mapping done))
-         (assoc :mapping (merge-mappings (:mapping done) (:mapping pose)))
+         ;; The elaborated mapping already holds the leaf's own keys over
+         ;; its ancestors', with its choices -- a default mapping, a
+         ;; pivoted series -- written in.
+         (assoc :mapping (:mapping done))
 
          (not= own-layers (vec (or (:layers pose) [])))
          (assoc :layers own-layers)))
@@ -2528,7 +2948,6 @@
   [leaf]
   (let [leaf         (elaborate-leaf leaf)
         leaf-mapping (or (:mapping leaf) {})
-        _            (report-unread-series leaf-mapping)
         leaf-data    (:data leaf)
         opts         (or (:opts leaf) {})
         coord-type   (:coord opts)

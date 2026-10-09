@@ -373,8 +373,8 @@ sales-by-region
 
 ;; ## One series per pose
 
-;; The pivot leaves its two columns on the pose, so a second series on
-;; the same pose meets them:
+;; A series pivots the data of the pose it is on, so a second, different
+;; series on the same pose is reported at the call that adds it:
 
 (try
   (-> sales
@@ -384,13 +384,10 @@ sales-by-region
     (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (and (re-find #"the data already has a :value column" msg)
-                 (re-find #"the data has as well" msg)))])
+ [(fn [msg] (and (re-find #"lay-line reads \[:tax :units\] as series" msg)
+                 (re-find #"already reads \[:revenue :cost\]" msg)))])
 
-;; Both columns clash here, and neither is a column of the original
-;; data: the first series put them on the pose. So neither `:as` nor a
-;; rename in the data separates the two series. Give each series a pose
-;; of its own and arrange the poses:
+;; Give each series a pose of its own and arrange the poses:
 
 (pj/arrange
  [(-> sales
@@ -623,19 +620,21 @@ sales-by-region
  [(fn [v] (= ["2019" "2020"]
              (mapv :label (:entries (:legend (pj/plan v))))))])
 
-;; The written `:color-type` is visible on the layer, and a writer who
-;; wants the gradient after all asks for it with the same key:
+;; The pivot happens when the pose is drawn, so the `:color-type` it
+;; writes is visible in the draft. A writer who wants the gradient after
+;; all asks for it with the same key:
 
 (-> {"country" ["a" "b" "c"]
      "2019"    [10 20 30]
      "2020"    [12 25 28]}
     (pj/lay-line "country" ["2019" "2020"])
+    pj/draft
     :layers
     first
-    :mapping)
+    (select-keys [:color :color-type]))
 
 (kind/test-last
- [(fn [m] (= {:x "country" :y :value :color :series :color-type :categorical} m))])
+ [(fn [m] (= {:color :series :color-type :categorical} m))])
 
 ;; A series whose columns are named in words needs none of this, and
 ;; carries no `:color-type`. The dataset the pose holds is what
@@ -951,8 +950,8 @@ sales-by-region
 
 ;; #### Two marks over one series
 
-;; The pivot happens on the pose, so a second layer reads the columns it
-;; invented -- `:value` for the number and `:series` for the key -- and
+;; The pivot replaces the pose's data when the pose is drawn, so a
+;; second layer reads the columns it invented -- `:value` for the number and `:series` for the key -- and
 ;; draws the same series in another mark. The key column is mapped to
 ;; `:color` on the layer that asked for the series, so a second layer
 ;; names it to be coloured the same way.

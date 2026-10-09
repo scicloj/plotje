@@ -304,13 +304,15 @@ sales-long
 
 (kind/test-last [(fn [v] (= 12 (:polygons (pj/svg-summary v))))])
 
-;; The pivot happens on the pose, so everything after it reads an
-;; ordinary pose -- one dataset, one mapping per aesthetic:
+;; The layer keeps the series it was given. The pivot happens when the
+;; pose is drawn, so everything after it reads ordinary columns -- one
+;; dataset, one mapping per aesthetic:
 
 (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax]) kind/pprint)
 
-(kind/test-last [(fn [pose] (= {:x :quarter :y :value}
-                               (-> pose :layers first :mapping (select-keys [:x :y]))))])
+(kind/test-last [(fn [pose] (and (= [:revenue :cost :tax] (-> pose :layers first :mapping :y))
+                                 (= [:quarter :value]
+                                    ((juxt :x :y) (-> pose pj/draft :layers first)))))])
 
 ;; ## Every adjustment reaches them
 

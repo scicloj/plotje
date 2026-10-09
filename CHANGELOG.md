@@ -26,6 +26,11 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/cross-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error.
 
+### Fixed
+
+- A series written on a pose that no layer is added to is drawn: a cell of `pj/arrange` written as a mapping, such as `{:x :quarter :y [:revenue :cost]}`, takes the layers of the pose it is arranged into, and `(pj/pose data {:x :quarter :y [:revenue :cost]})` takes an inferred one. Two layers on one pose that write the same series draw it together.
+
+
 ## [0.16.1 - 2026-10-02]
 
 ### Added

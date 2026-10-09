@@ -88,13 +88,12 @@ mapping-only
 
 ;; ## `pj/pose` no longer reads a vector as panels
 
-;; A vector in the column slot is a series on `:x`; with no layer, an error.
+;; A vector in the column slot is a series on `:x`; with no layer, the
+;; draft pivots it and infers one -- a histogram of the pooled values.
 
-(try
-  (pj/plot (pj/pose (rdatasets/datasets-iris) [:sepal-length :sepal-width]))
-  (catch Exception e (ex-message e)))
+(pj/pose (rdatasets/datasets-iris) [:sepal-length :sepal-width])
 
-(kind/test-last [(fn [s] (and (string? s) (re-find #"as a series" s)))])
+(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
 ;; ## `pj/pose` on a pose
 
@@ -313,8 +312,9 @@ two-poses
 
 ;; ## `lay-*` with a vector of columns
 
-;; A series: one panel, a density per column. It is pivoted when the layer
-;; is added -- the pose holds the long data and `{:x :value :color :series}`.
+;; A series: one panel, a density per column. The vector is written on
+;; the pose's mapping, as `pj/pose` writes it; the draft pivots it into
+;; long data read as `{:x :value :color :series}`.
 
 (def density-series
   (pj/lay-density (rdatasets/datasets-iris) [:sepal-length :sepal-width :petal-length]))
@@ -324,8 +324,11 @@ density-series
 (kind/pprint density-series)
 
 (kind/test-last [(fn [v] (and (= 1 (:panels (pj/svg-summary v)))
-                              (= {:x :value :color :series} (:mapping v))
-                              (= 450 (tc/row-count (:data v)))))])
+                              (= {:x [:sepal-length :sepal-width :petal-length]}
+                                 (:mapping v))
+                              (let [l (-> v pj/draft :layers first)]
+                                (and (= [:value :series] [(:x l) (:color l)])
+                                     (= 450 (tc/row-count (:data l)))))))])
 
 ;; With a written `:color`, the colour follows that column; the columns are pooled.
 
