@@ -143,3 +143,21 @@
   (let [p (pj/plan (-> (rdatasets/ggplot2-mpg) (pj/pose {:y :hwy}) pj/lay-histogram))]
     (is (= 1 (count (:panels p))))
     (is (= :flip (-> p :panels first :coord)))))
+
+(deftest a-matrix-is-labelled-by-its-columns-test
+  (let [v (-> (rdatasets/datasets-iris) (pj/pose {:color :species})
+              (pj/facet {:col {:x [:sepal-length :sepal-width]}
+                         :row {:y [:sepal-length :sepal-width]}})
+              pj/lay-point pj/lay-density)
+        texts (:texts (pj/svg-summary v))]
+    (testing "strips name the columns, once each way, and the cells drop those titles"
+      (is (= 2 (count (filter #{"sepal length"} texts))))
+      (is (= 2 (count (filter #{"sepal width"} texts)))))))
+
+(deftest ticks-are-dropped-only-above-a-cell-that-lines-up-test
+  (testing "a wider panel below, reading the same x column, does not take the cell's ticks"
+    (let [plans (->> (pj/plan (-> (rdatasets/datasets-iris)
+                                  (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+                                  (pj/lay-point :sepal-length :petal-length)))
+                     :sub-plots (mapv :plan))]
+      (is (seq (:values (:x-ticks (first (:panels (first plans))))))))))

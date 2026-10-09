@@ -2794,15 +2794,17 @@
 
 (defn- infer-axis-chrome
   "Where the cells all draw one column on an axis, that axis is titled
-   once beside the grid (`:grid-axis-titles`). Where they also share it,
-   it is ticked only on the cells with no cell that has rows below them
-   (x) or to their left (y) -- read from where the layout places the
-   cells, so a row, a column, a grid and a matrix are treated alike. An
-   axis left free keeps its ticks in every cell, since each cell has its
-   own scale, but its title is still one column's name. A cell left
+   once beside the grid (`:grid-axis-titles`). On a shared axis, a cell
+   drops its tick labels where a cell with rows below it (x) or to its
+   left (y) draws the same column on that axis -- read from where the
+   layout places the cells, so a row, a column, a grid and a matrix are
+   treated alike: a facet ticks its outer panels, a scatter plot matrix
+   ticks its bottom row and left column. An axis left free keeps its
+   ticks in every cell, since each cell has its own scale. A cell left
    empty draws nothing and is skipped. A written `:grid-axis-titles` is
    kept as written; a cell's own `:suppress-*` options win over the
-   inferred ones."
+   inferred ones. A cell below or beside counts only where it lines up:
+   the same extent across (x) or down (y)."
   [composite]
   (if (contains? composite :grid-axis-titles)
     composite
@@ -2810,31 +2812,39 @@
           leaves (resolve-tree composite)
           once-x? (unanimous-column leaves :x)
           once-y? (unanimous-column leaves :y)
-          tick-x? (and once-x? (axes :x))
-          tick-y? (and once-y? (axes :y))]
-      (if-not (or once-x? once-y?)
-        composite
-        (let [rects (compute-layout composite [0 0 1000 1000])
-              live (keep #(when-not (:plotje/empty-cell %) (rects (:path %))) leaves)
-              overlaps? (fn [a0 a1 b0 b1] (and (< b0 a1) (< a0 b1)))
-              below? (fn [[x y w _] [x2 y2 w2 _]]
-                       (and (> y2 y) (overlaps? x (+ x w) x2 (+ x2 w2))))
-              left? (fn [[x y _ h] [x2 y2 _ h2]]
-                      (and (< x2 x) (overlaps? y (+ y h) y2 (+ y2 h2))))
-              chrome (fn [rect]
-                       (cond-> {}
-                         once-x? (assoc :suppress-x-label true)
-                         (and tick-x? (some #(below? rect %) live)) (assoc :suppress-x-ticks true)
-                         once-y? (assoc :suppress-y-label true)
-                         (and tick-y? (some #(left? rect %) live)) (assoc :suppress-y-ticks true)))]
-          (-> (reduce (fn [c {:keys [path] :as leaf}]
-                        (if (:plotje/empty-cell leaf)
-                          c
-                          (update-in c (vec (interleave (repeat :poses) path))
-                                     update :opts #(merge (chrome (rects path)) %))))
+          rects (compute-layout composite [0 0 1000 1000])
+          live (vec (for [leaf leaves
+                          :when (not (:plotje/empty-cell leaf))
+                          :let [cols (leaf-columns leaf)]]
+                      {:rect (rects (:path leaf)) :x (:x cols) :y (:y cols)}))
+          ;; Only a cell in the same column of the grid -- the same
+          ;; horizontal extent -- carries ticks a cell above it can read;
+          ;; a wider panel below, whose axis does not line up, does not.
+          same? (fn [a b] (< (Math/abs (- (double a) (double b))) 1e-6))
+          below? (fn [[x y w _] [x2 y2 w2 _]]
+                   (and (> y2 y) (same? x x2) (same? w w2)))
+          left? (fn [[x y _ h] [x2 y2 _ h2]]
+                  (and (< x2 x) (same? y y2) (same? h h2)))
+          chrome (fn [leaf]
+                   (let [rect (rects (:path leaf))
+                         {cx :x cy :y} (leaf-columns leaf)]
+                     (cond-> {}
+                       once-x? (assoc :suppress-x-label true)
+                       (and (axes :x) cx (some #(and (= cx (:x %)) (below? rect (:rect %))) live))
+                       (assoc :suppress-x-ticks true)
+                       once-y? (assoc :suppress-y-label true)
+                       (and (axes :y) cy (some #(and (= cy (:y %)) (left? rect (:rect %))) live))
+                       (assoc :suppress-y-ticks true))))]
+      (cond-> (reduce (fn [c leaf]
+                        (let [ch (when-not (:plotje/empty-cell leaf) (chrome leaf))]
+                          (if (seq ch)
+                            (update-in c (vec (interleave (repeat :poses) (:path leaf)))
+                                       update :opts #(merge ch %))
+                            c)))
                       composite
                       leaves)
-              (assoc :grid-axis-titles (cond-> #{} once-x? (conj :x) once-y? (conj :y)))))))))
+        (or once-x? once-y?)
+        (assoc :grid-axis-titles (cond-> #{} once-x? (conj :x) once-y? (conj :y)))))))
 
 (defn- cell-grid
   "The cells of a composite as rows of cells, for the two shapes strips
@@ -2859,9 +2869,16 @@
    its cells hold in common, and a row likewise, leaving out the values
    every cell holds -- so a row of species cells is labelled by species,
    and a grid by one value across the top and the other down the side.
-   Labels are formatted as a facet's are (`facet-label`). Cells told
-   apart by their columns rather than by filters get no strip: their
-   axis titles name them. A written `:grid-strip-labels` is kept."
+   Labels are formatted as a facet's are (`facet-label`).
+
+   In a grid -- several rows and several columns of cells, none empty or
+   drawn on its side -- a side the filters do not label is labelled by
+   the column the cells draw on its axis, where every cell of a grid
+   column draws one `:x` column and they differ across the grid (the
+   matrix's strips), and likewise rows by `:y`; the cells then drop that
+   axis title, which the strip carries. A single row or column of cells
+   told apart by their columns gets no strip: its axis titles name them.
+   A written `:grid-strip-labels` is kept."
   [composite]
   (if (contains? composite :grid-strip-labels)
     composite
@@ -2883,11 +2900,50 @@
                          (mapv (fn [ci] (label (map #(nth % ci) grid))) (range n-cols)))
             row-labels (when (> n-rows 1)
                          (mapv label grid))
+            ;; The matrix's strips: the column each grid column draws on
+            ;; `:x`, and each grid row on `:y`.
+            flat? (every? #(not (:poses %)) (:poses composite))
+            path-of (fn [r c] (if flat?
+                                (if (= 1 n-rows) [c] [r])
+                                [r c]))
+            by-path (into {} (map (juxt :path identity)) (resolve-tree composite))
+            leaf-at (fn [r c] (by-path (path-of r c)))
+            regular? (and (> n-rows 1) (> n-cols 1)
+                          (every? (fn [[r c]]
+                                    (let [l (leaf-at r c)]
+                                      (and l (not (:plotje/empty-cell l))
+                                           (nil? (get-in l [:opts :coord])))))
+                                  (for [r (range n-rows) c (range n-cols)] [r c])))
+            axis-labels (fn [axis groups]
+                          ;; A cell naming no column on the axis -- the
+                          ;; matrix's diagonal, drawing one column's
+                          ;; density -- does not vote.
+                          (let [cols (mapv (fn [g] (let [cs (set (keep #(get (leaf-columns (apply leaf-at %)) axis) g))]
+                                                     (when (= 1 (count cs))
+                                                       (first cs))))
+                                           groups)]
+                            (when (and (every? some? cols) (< 1 (count (distinct cols))))
+                              (mapv defaults/fmt-name cols))))
+            x-strips (when (and regular? (not-any? some? col-labels))
+                       (axis-labels :x (for [c (range n-cols)] (for [r (range n-rows)] [r c]))))
+            y-strips (when (and regular? (not-any? some? row-labels))
+                       (axis-labels :y (for [r (range n-rows)] (for [c (range n-cols)] [r c]))))
             labels (cond-> {}
                      (some some? col-labels) (assoc :col-labels col-labels)
-                     (some some? row-labels) (assoc :row-labels row-labels))]
+                     (some some? row-labels) (assoc :row-labels row-labels)
+                     x-strips (assoc :col-labels x-strips)
+                     y-strips (assoc :row-labels y-strips))
+            suppress (cond-> {}
+                       x-strips (assoc :suppress-x-label true)
+                       y-strips (assoc :suppress-y-label true))]
         (cond-> composite
-          (seq labels) (assoc :grid-strip-labels labels)))
+          (seq labels) (assoc :grid-strip-labels labels)
+          (seq suppress)
+          (as-> c (reduce (fn [c [r cc]]
+                            (update-in c (vec (interleave (repeat :poses) (path-of r cc)))
+                                       update :opts #(merge suppress %)))
+                          c
+                          (for [r (range n-rows) cc (range n-cols)] [r cc])))))
       composite)))
 
 (defn infer-chrome
