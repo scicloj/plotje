@@ -186,9 +186,10 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
 
-;; A vector of columns creates one panel:
+;; Several columns in the mapping, `{:x [...]}`, are read as a series
+;; on one panel, a colour per column:
 
-(pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width])
+(pj/lay-histogram (rdatasets/datasets-iris) {:x [:sepal-length :sepal-width]})
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))

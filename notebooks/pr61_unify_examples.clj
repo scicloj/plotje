@@ -1,7 +1,4 @@
 ;; # PR 61 Unify Examples
-;;
-;; Work in progress on branch `pr61-unify`, on top of Timothy's
-;; `simplify-pose`. One section per step. Each pose is drawn, then printed.
 
 (ns pr61-unify-examples
   (:require
@@ -17,8 +14,6 @@
 ;; ## Step 1: `pj/pose` writes one mapping
 
 ;; ### A different position replaces the old one
-
-;; A pose returned by a function, pointed at other columns.
 
 (defn trend-plot [data]
   (-> data
@@ -38,9 +33,6 @@ moved
                               (= {:x :petal-length :y :petal-width} (:mapping v))
                               (= [{:layer-type :point} {:layer-type :smooth}] (:layers v))))])
 
-;; A layer that names its own columns keeps them. Until the identity rule
-;; retires, the pose's new columns draw a panel of their own beside it.
-
 (def own-columns
   (-> (rdatasets/datasets-iris)
       pj/pose
@@ -54,8 +46,6 @@ own-columns
 (kind/test-last [(fn [v] (and (= {:x :sepal-length :y :sepal-width}
                                  (get-in v [:layers 0 :mapping]))
                               (= 2 (:panels (pj/svg-summary v)))))])
-
-;; Panels side by side: `pj/arrange`.
 
 (def side-by-side
   (-> (rdatasets/datasets-iris)
@@ -97,8 +87,6 @@ colored-scatter
                                  (:mapping v))
                               (= [{:layer-type :point}] (:layers v))))])
 
-;; The same pose as writing the aesthetic in the first call.
-
 (= colored-scatter
    (-> (rdatasets/datasets-iris)
        (pj/pose :sepal-length :sepal-width {:color :species})
@@ -107,8 +95,6 @@ colored-scatter
 (kind/test-last [true?])
 
 ;; ### Laws
-
-;; `(pj/pose p)` is `p`; `(pj/pose p {})` is `p`; writing twice is writing once.
 
 (= colored-scatter
    (pj/pose colored-scatter)
@@ -123,8 +109,6 @@ colored-scatter
 
 ;; ### On a composite
 
-;; An aesthetic merges into the root and reaches every cell.
-
 (def colored-side-by-side
   (pj/pose side-by-side {:color :species}))
 
@@ -134,9 +118,6 @@ colored-side-by-side
 
 (kind/test-last [(fn [v] (and (= {:color :species} (:mapping v))
                               (= 2 (:panels (pj/svg-summary v)))))])
-
-;; A position goes to the root. Cells that map their own override it,
-;; and drawing warns that it is not drawn.
 
 (def unread-position
   (pj/pose side-by-side :sepal-length :petal-length))
@@ -150,8 +131,6 @@ unread-position
 
 ;; ### `pj/cross-matrix` is unchanged
 
-;; It built its cells through promotion; it builds the same composite directly.
-
 (def matrix
   (pj/cross-matrix (rdatasets/datasets-iris) [:sepal-length :sepal-width] {:color :species}))
 
@@ -161,8 +140,6 @@ matrix
 
 (kind/test-last [(fn [v] (and (= 4 (:panels (pj/svg-summary v)))
                               (= {:color :species} (:mapping v))))])
-
-;; A 1xN matrix is a flat composite of N cells.
 
 (def matrix-row
   (pj/cross-matrix (rdatasets/datasets-iris) [:sepal-length] [:sepal-width :petal-length :petal-width]))
@@ -177,9 +154,6 @@ matrix-row
 ;; ## Step 3: a `lay-*` call keeps its columns; the draft infers
 
 ;; ### The columns are on the layer
-
-;; The pose carries no mapping; each layer carries the columns its call
-;; named.
 
 (def two-layers
   (-> (rdatasets/datasets-iris)
@@ -198,9 +172,6 @@ two-layers
 
 ;; ### A layer naming no columns reads each panel's columns
 
-;; The smooth is drawn on both panels, fitted to that panel's points. On
-;; 0.16.1 the petal panel's smooth was fitted to the sepal columns.
-
 (def smooth-per-panel
   (-> two-layers
       pj/lay-smooth))
@@ -215,8 +186,6 @@ smooth-per-panel
                                  (filter #(= :smooth (:layer-type %)))
                                  (mapv (juxt :__panel-idx :x :y)))))])
 
-;; Written between the two point layers, the smooth draws the same.
-
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
     pj/lay-smooth
@@ -229,9 +198,6 @@ smooth-per-panel
                                  (mapv (juxt :__panel-idx :x :y)))))])
 
 ;; ### A later `pj/pose` reaches the layers that name no columns
-
-;; The point layer named its columns, so it keeps them, and the pose's
-;; own `:x` keeps a panel of its own.
 
 (def pose-after-lay
   (-> (rdatasets/datasets-iris)
@@ -267,8 +233,6 @@ raw-scatter
 
 ;; ### The layer keeps its series
 
-;; The pose's data is the data written; the draft pivots it.
-
 (def series-line
   (pj/lay-line sales :quarter [:revenue :cost]))
 
@@ -283,8 +247,6 @@ series-line
 
 ;; ### Two layers writing the same series share one pivot
 
-;; On 0.16.1 the second call met the columns the first had pivoted away.
-
 (def line-and-points
   (-> sales
       (pj/lay-line :quarter [:revenue :cost])
@@ -297,11 +259,35 @@ line-and-points
 
 ;; ### A series on a pose that no layer is added to is drawn
 
-;; On 0.16.1 this reported that no layer was added to read the series.
-
 (def series-no-layer
   (pj/pose sales {:x :quarter :y [:revenue :cost]}))
 
 series-no-layer
 
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+
+;; ## Step 2: vectors in `lay-*`
+
+;; ### A lone vector of columns: a panel each, with a warning
+
+(def lone-vector
+  (pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width]))
+
+lone-vector
+
+(kind/test-last [(fn [v] (and (= 2 (:panels (pj/svg-summary v)))
+                              (re-find #"\(pj/arrange \[:sepal-length :sepal-width\]\)"
+                                       (with-out-str
+                                         (pj/lay-histogram (rdatasets/datasets-iris)
+                                                           [:sepal-length :sepal-width])))))])
+
+;; ### Pairs: an error naming `pj/arrange` and `pj/cross-matrix`
+
+(try
+  (pj/lay-point (rdatasets/datasets-iris) [[:sepal-length :sepal-width]
+                                           [:petal-length :petal-width]])
+  (catch Exception e (ex-message e)))
+
+(kind/test-last [(fn [msg] (and (re-find #"pj/lay-point was given pairs of columns" msg)
+                                (re-find #"pj/arrange" msg)
+                                (re-find #"pj/cross-matrix" msg)))])

@@ -259,7 +259,7 @@
   setosa
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__134079#] (= "setosa" (:species p1__134079#))))))
+   (fn* [p1__75466#] (= "setosa" (:species p1__75466#))))))
 
 
 (def
@@ -268,7 +268,7 @@
   versicolor
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__134080#] (= "versicolor" (:species p1__134080#))))))
+   (fn* [p1__75467#] (= "versicolor" (:species p1__75467#))))))
 
 
 (def
@@ -914,14 +914,14 @@
 
 
 (def
- v169_l881
+ v169_l882
  (->
   (rdatasets/datasets-iris)
-  (pj/lay-histogram [:sepal-length :sepal-width :petal-length])))
+  (pj/lay-histogram {:x [:sepal-length :sepal-width :petal-length]})))
 
 
 (def
- v171_l886
+ v171_l887
  (->
   (rdatasets/datasets-iris)
   (pj/arrange [:sepal-length :sepal-width :petal-length])
@@ -929,12 +929,12 @@
 
 
 (deftest
- t172_l890
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v171_l886)))
+ t172_l891
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v171_l887)))
 
 
 (def
- v174_l894
+ v174_l895
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -945,5 +945,5 @@
 
 
 (deftest
- t175_l900
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v174_l894)))
+ t175_l901
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v174_l895)))

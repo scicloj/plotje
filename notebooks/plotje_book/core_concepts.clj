@@ -876,10 +876,11 @@ two-panel
 
 (kind/test-last [(fn [v] (= :species (get-in v [:mapping :col])))])
 
-;; A vector of column names creates one panel:
+;; Several columns in the mapping, `{:x [...]}`, are read as a series
+;; on one panel:
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-histogram [:sepal-length :sepal-width :petal-length]))
+    (pj/lay-histogram {:x [:sepal-length :sepal-width :petal-length]}))
 
 ;; Use arrange to create one panel per variable:
 

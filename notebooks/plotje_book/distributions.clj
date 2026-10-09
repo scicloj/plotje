@@ -401,11 +401,12 @@
 
 ;; ## Comparing Multiple Columns
 ;;
-;; Pass a vector of column names to `pj/lay-histogram` (or any
-;; `lay-*` function) to create layers on one panel.
+;; Name several columns in the mapping, `{:x [...]}`, to read them as a
+;; series on one panel, a colour per column -- with `pj/lay-histogram`
+;; or any `lay-*` function.
 
 (pj/lay-histogram (rdatasets/datasets-iris)
-                  [:sepal-length :sepal-width :petal-length])
+                  {:x [:sepal-length :sepal-width :petal-length]})
 
 ;; Use `pj/arrange` to create one panel per column.
 ;; This is useful for comparing the shape of different variables side by side.

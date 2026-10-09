@@ -2624,11 +2624,18 @@
    read in pairs, and that is the route offered."
   [panel-keys data]
   (let [[[x0 y0] [x1 y1]] panel-keys
-        x-differs? (not= x0 x1)
-        y-differs? (not= y0 y1)
+        ;; An axis disagrees where both places name a column on it and
+        ;; the columns differ. An axis the pose names nothing on is
+        ;; described as such, never as a nil column.
+        differs? (fn [a b] (and a b (not= a b)))
+        x-differs? (differs? x0 x1)
+        y-differs? (differs? y0 y1)
         [axis standing incoming] (cond
                                    x-differs? [:x x0 x1]
-                                   y-differs? [:y y0 y1])
+                                   y-differs? [:y y0 y1]
+                                   (not= x0 x1) [:x x0 x1]
+                                   (not= y0 y1) [:y y0 y1])
+        draws (fn [col] (if col (str "draws " (pr-str col)) "draws no column"))
         names (when (and axis data) (tc/column-names (tc/dataset data)))
         present (set names)
         pairs? (and x-differs? y-differs?)
@@ -2651,9 +2658,9 @@
                      " series"))]
     (when axis
       (println
-       (str "Note: a layer names " (pr-str incoming) " where this pose draws "
-            (pr-str standing) " on " axis
-            (when pairs? (str ", and " (pr-str y1) " where it draws " (pr-str y0) " on :y"))
+       (str "Note: a layer names " (pr-str incoming) " where this pose "
+            (draws standing) " on " axis
+            (when pairs? (str ", and " (pr-str y1) " where it " (draws y0) " on :y"))
             ", so the layer was given a panel of"
             " its own. To draw both on one panel: pj/overlay for the axis the"
             " pose already names"

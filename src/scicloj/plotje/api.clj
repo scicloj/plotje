@@ -1725,6 +1725,16 @@
   [context opts]
   (doseq [k [:x :y]]
     (when-let [v (get opts k)]
+      ;; Pairs of columns, or a cross, ask for a panel each -- what
+      ;; `pj/arrange` and `pj/cross-matrix` draw.
+      (when (and (sequential? v) (seq v) (every? sequential? v))
+        (throw (ex-info (str context " was given pairs of columns, "
+                             (pr-str (vec v)) ". A pose draws one panel."
+                             " For a panel per pair, write (pj/arrange data "
+                             (pr-str (vec (map vec v))) "); for every :x"
+                             " column against every :y column, write"
+                             " (pj/cross-matrix data xs ys).")
+                        {:option k :value v})))
       ;; A series passes: several columns on a positional aesthetic are
       ;; read by name, and the draft pivots them -- on a layer for that
       ;; layer, on a pose for every layer below it, which is what scope
@@ -2271,6 +2281,25 @@
       (pose/check-series-leaf! result))
     result))
 
+(declare arrange)
+
+(defn- panel-per-column
+  "A `lay-*` call given a lone vector of columns, `(pj/lay-histogram
+   data [:a :b :c])`: for this release it draws a panel per column, as
+   0.16 did, and warns that the next release reads the vector as a
+   series on one panel. Returns the pose the layer is added to -- the
+   cells `pj/arrange` builds from the columns."
+  [layer-type-key fr cols]
+  (let [lay (str "pj/lay-" (layer-type-name layer-type-key))]
+    (println (str "Warning: " lay " was given a vector of columns, "
+                  (pr-str (vec cols)) ", and drew a panel for each. In the"
+                  " next release a vector of columns in a lay-* call is read"
+                  " as a series, drawn on one panel. For a panel per column,"
+                  " write (-> data (pj/arrange " (pr-str (vec cols)) ") " lay
+                  "); for one panel, write (" lay " data {:x "
+                  (pr-str (vec cols)) "}).")))
+  (arrange fr cols))
+
 (defn- lay-layer-type
   "Shared implementation for all lay-* functions.
 
@@ -2322,8 +2351,13 @@
        ;; Sequential -> build a multi-panel composite via pj/pose, then
        ;; attach the layer at the root so it flows to every panel via
        ;; resolve-tree.
+       (and (sequential? x-or-opts) (series-mapping? x-or-opts))
+       (lay-on-pose (panel-per-column layer-type-key fr x-or-opts)
+                    layer-type-key nil nil)
+
        (sequential? x-or-opts)
-       (lay-on-pose (pose fr x-or-opts) layer-type-key nil nil)
+       (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x-or-opts})
+           (lay-on-pose (pose fr x-or-opts) layer-type-key nil nil))
 
        ;; Anything else in the x slot is a column reference. A value that
        ;; is not one reaches lay-on-pose and is named there; it used to be
@@ -2366,8 +2400,13 @@
 
        ;; Sequential + opts -> build a multi-panel composite via pj/pose,
        ;; then attach a layer with opts at the root.
+       (and (sequential? x) (series-mapping? x) (map? y-or-opts))
+       (lay-on-pose (panel-per-column layer-type-key fr x)
+                    layer-type-key nil y-or-opts)
+
        (and (sequential? x) (map? y-or-opts))
-       (lay-on-pose (pose fr x) layer-type-key nil y-or-opts)
+       (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x})
+           (lay-on-pose (pose fr x) layer-type-key nil y-or-opts))
 
        (map? y-or-opts)
        (lay-on-pose fr layer-type-key {:x x} y-or-opts)

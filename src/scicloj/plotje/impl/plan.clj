@@ -2620,8 +2620,12 @@
         free-opt (fn [k] (if (= k :x-dom)
                            "{:scales :free-x}"
                            "{:scales :free-y}"))
+        ;; A panel with no domain of its own -- a facet cell with no
+        ;; rows, drawn on the `[0 1]` fallback -- does not vote, so it
+        ;; does not pull the shared domain to zero.
         agg (fn [k pds]
-              (let [doms (filter seq (keep k pds))]
+              (let [votes-k (if (= k :x-dom) :x-votes? :y-votes?)
+                    doms (filter seq (keep #(when (get % votes-k true) (k %)) pds))]
                 (when (seq doms)
                   (let [numeric? #(number? (first %))
                         kinds (group-by numeric? doms)]
@@ -2932,12 +2936,15 @@
                       (whole-axis-values? local-srs :x-domain :xs x-scale-spec))
         y-whole? (and (not fills?)
                       (whole-axis-values? local-srs-y :y-domain :ys y-scale-spec))
-        x-dom (or (axis-domain :x x-scale-spec
-                               (collect-domain local-srs :x-domain x-scale-spec padding
-                                               (some? x-temp-ext) (:x shared-domains))
-                               (some? x-temp-ext))
-                  [0 1])
-        y-dom (or (axis-domain :y y-scale-spec
+        ;; Nil where nothing on the panel gives the axis a domain -- a
+        ;; facet cell with no rows -- which then falls back to `[0 1]`.
+        ;; Such a panel does not vote on a shared facet domain.
+        x-found (axis-domain :x x-scale-spec
+                             (collect-domain local-srs :x-domain x-scale-spec padding
+                                             (some? x-temp-ext) (:x shared-domains))
+                             (some? x-temp-ext))
+        x-dom (or x-found [0 1])
+        y-found (axis-domain :y y-scale-spec
                                (or (compute-global-y-domain domain-layers y-scale-spec padding
                                                             (some? y-temp-ext)
                                                             (:y shared-domains))
@@ -2949,7 +2956,7 @@
                                                      (some? y-temp-ext)
                                                      (:y shared-domains))))
                                (some? y-temp-ext))
-                  [0 1])
+        y-dom (or y-found [0 1])
         ;; Whether anything on this panel gives the axis a meaning in
         ;; the data. Where nothing does, the `[0 1]` fallback above is
         ;; a coordinate function and nothing more -- drawing ticks off
@@ -2966,6 +2973,18 @@
         [x-dom' y-dom'] (if (= coord-type :flip)
                           [y-dom x-dom]
                           [x-dom y-dom])
+        ;; A facet cell with no rows reads a domain at zero off its
+        ;; empty stat, and the `[0 1]` fallback where it reads none;
+        ;; neither is a domain of the data, so the cell does not vote.
+        ;; A domain written with `pj/scale` always votes.
+        has-rows? (boolean (some #(when-let [d (:data %)]
+                                    (pos? (tc/row-count d)))
+                                 resolved-draft-layers))
+        x-votes (boolean (or (:domain x-scale-spec) (and has-rows? x-found)))
+        y-votes (boolean (or (:domain y-scale-spec) (and has-rows? y-found)))
+        [x-votes? y-votes?] (if (= coord-type :flip)
+                              [y-votes x-votes]
+                              [x-votes y-votes])
         [x-informed?' y-informed?'] (if (= coord-type :flip)
                                       [y-informed? x-informed?]
                                       [x-informed? y-informed?])
@@ -2987,6 +3006,8 @@
      :y-dom y-dom'
      :x-informed? x-informed?'
      :y-informed? y-informed?'
+     :x-votes? x-votes?
+     :y-votes? y-votes?
      :x-scale x-sspec'
      :y-scale y-sspec'
      :coord coord-type
