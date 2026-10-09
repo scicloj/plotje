@@ -411,7 +411,7 @@
      ;; we still need to recurse into any nested composites that aren't
      ;; themselves matrix. For now we only support flat matrix
      ;; composites (children are leaves), since that's all
-     ;; extend-or-promote / multi-pair-pose produce. Nested matrix-
+     ;; multi-pair-pose produces. Nested matrix-
      ;; in-matrix is reserved for a future iteration.
      (let [cell-rects (compute-matrix-layout pose [x y w h])]
        (into {}
@@ -2210,6 +2210,42 @@
                       {:layer-mapping layer-mapping
                        :panel-aesthetics (vec panel-keys)}))))
   layer-mapping)
+
+(defn unread-positions
+  "The `:x` and `:y` that a composite in `pose`'s tree writes in its own
+   `:mapping` and that no leaf below reads, because each leaf, or a pose
+   between, writes its own. Returns `[[path k] ...]`, `path` the composite's
+   `:poses` indices from the root."
+  [pose]
+  (letfn [(reaches? [node k]
+            (cond (nil? node) false
+                  (contains? (:mapping node) k) false
+                  (composite? node) (boolean (some #(reaches? % k) (:poses node)))
+                  :else true))
+          (walk [node path]
+            (when (composite? node)
+              (concat
+               (for [k [:x :y]
+                     :when (and (contains? (:mapping node) k)
+                                (not-any? #(reaches? % k) (:poses node)))]
+                 [path k])
+               (mapcat (fn [i child] (walk child (conj path i)))
+                       (range) (:poses node)))))]
+    (vec (walk pose []))))
+
+(defn report-unread-positions!
+  "Warn about an `:x` or `:y` written on a composite that no cell reads.
+   `pj/pose` writes the composite's own mapping, and a cell that maps its
+   own `:x` or `:y` overrides it, so without this the write changes
+   nothing and says nothing."
+  [pose]
+  (doseq [[path k] (unread-positions pose)]
+    (println (str "Warning: a composite pose maps " k " to "
+                  (pr-str (mapping-source (get-in pose (concat (mapcat (fn [i] [:poses i]) path) [:mapping k]))))
+                  ", and every cell below it maps its own " k
+                  ", so it is not drawn. To change the columns of the cells,"
+                  " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")))
+  pose)
 
 (defn report-unread-series
   "Report a series still standing in a leaf's mapping when it is drafted.

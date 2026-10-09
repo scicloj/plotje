@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file. This change
 
 - **A `pj/pose` or `lay-*` call given a vector of columns in place of one column**, such as `(pj/lay-density data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled `value`. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
+- **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`, and a pose returned by a function can be pointed at other columns; layers that name their own columns keep them. On a composite the mapping goes to the root, and a position there that every cell overrides warns that it is not drawn. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`. `(pj/pose p)` and `(pj/pose p {})` return `p`.
+
 ### Added
 
 - `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, and a layer added afterwards reaches every panel.

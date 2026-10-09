@@ -1218,72 +1218,51 @@
     [(vec (or root []))
      (vec (or panel []))]))
 
-(defn- promote-leaf
-  "Promote a leaf to a composite, folding a new incoming-mapping into
-   the result. The leaf's position part + panel-origin layers become
-   sub-pose 1; the leaf's aesthetic part + root-origin layers + the
-   leaf's :opts move to the composite root; the incoming mapping
-   splits the same way (aesthetic -> root, position -> sub-pose 2).
-   When the incoming mapping carries no position, no new sub-pose
-   is added."
-  [leaf incoming-mapping]
-  (let [[root-layers panel-layers] (partition-layers-by-position (:layers leaf))
-        leaf-pos        (position-mapping (:mapping leaf))
-        leaf-aesth      (aesthetic-mapping (:mapping leaf))
-        incoming-pos    (position-mapping incoming-mapping)
-        incoming-aesth  (aesthetic-mapping incoming-mapping)
-        root-aesth      (merge leaf-aesth incoming-aesth)
-        leaf-opts       (:opts leaf)
-        panel-1         (cond-> {:layers panel-layers}
-                          (seq leaf-pos) (assoc :mapping leaf-pos))
-        panel-2         (when (seq incoming-pos)
-                          {:mapping incoming-pos :layers []})
-        poses          (filterv some? [panel-1 panel-2])]
-    (cond-> {:poses poses
-             ;; Threaded `(pj/pose fr :x :y)` over a leaf-with-position
-             ;; promotes into a composite. By default the layout is
-             ;; matrix: distinct x-cols become grid columns, distinct
-             ;; y-cols become grid rows, leaves land at their (x, y)
-             ;; intersection. The user can override later with
-             ;; (pj/options fr {:layout {:direction :horizontal}}).
-             :layout {:direction :matrix}}
-      (:data leaf)      (assoc :data (:data leaf))
-      (seq root-aesth)  (assoc :mapping root-aesth)
-      (seq root-layers) (assoc :layers root-layers)
-      (seq leaf-opts)   (assoc :opts leaf-opts))))
-
-(defn- extend-leaf
-  "Extend a leaf that carries no position yet, merging incoming-mapping
-   into its :mapping. Used when neither the leaf's :mapping nor its
-   layers carry :x or :y."
-  [leaf incoming-mapping]
-  (let [merged (merge (:mapping leaf) incoming-mapping)]
-    (cond-> leaf
-      (seq merged)   (assoc :mapping merged)
+(defn- extend-mapping-of
+  "Merge `incoming-mapping` into the pose's own `:mapping` -- the root's,
+   for a composite. Writing the same mapping twice gives the same pose,
+   and an empty mapping changes nothing."
+  [fr incoming-mapping]
+  (let [merged (merge (:mapping fr) incoming-mapping)]
+    (cond-> fr
+      (seq merged)    (assoc :mapping merged)
       (empty? merged) (dissoc :mapping))))
 
-(defn- extend-composite
-  "Extend a composite. Aesthetic part of incoming-mapping merges into
-   the root :mapping; position part appends a new sub-pose."
-  [composite incoming-mapping]
-  (let [incoming-pos   (position-mapping incoming-mapping)
-        incoming-aesth (aesthetic-mapping incoming-mapping)
-        with-aesth (if (seq incoming-aesth)
-                     (update composite :mapping (fnil merge {}) incoming-aesth)
-                     composite)]
-    (if (seq incoming-pos)
-      (update with-aesth :poses conj {:mapping incoming-pos :layers []})
-      with-aesth)))
+(defn- add-cells
+  "One sub-pose per mapping in `ms`, for `multi-pair-pose`. Appended to
+   a composite; on a leaf, the leaf's own position and the layers that
+   name one become the first cell, and its aesthetics, other layers,
+   data and options go to the composite's root. A single mapping on a
+   leaf with no position is merged into it."
+  [base ms]
+  (let [cell (fn [m] {:mapping m :layers []})]
+    (cond
+      (pose/composite? base)
+      (update base :poses (fnil into []) (map cell ms))
 
-(defn- extend-or-promote
-  "Dispatch `(pj/pose existing-pose incoming-mapping)`: composite
-   inputs extend in place; leaves extend or promote depending on
-   whether they already carry position."
+      (and (= 1 (count ms)) (not (leaf-has-position? base)))
+      (extend-mapping-of base (first ms))
+
+      :else
+      (let [[root-layers panel-layers] (partition-layers-by-position (:layers base))
+            leaf-pos   (position-mapping (:mapping base))
+            leaf-aesth (aesthetic-mapping (:mapping base))
+            own        (when (leaf-has-position? base)
+                         [(cond-> {:layers panel-layers}
+                            (seq leaf-pos) (assoc :mapping leaf-pos))])]
+        (cond-> {:poses (into (vec own) (map cell ms))
+                 :layout {:direction :matrix}}
+          (:data base)      (assoc :data (:data base))
+          (seq leaf-aesth)  (assoc :mapping leaf-aesth)
+          (seq root-layers) (assoc :layers root-layers)
+          (seq (:opts base)) (assoc :opts (:opts base)))))))
+
+(defn- extend-pose
+  "`(pj/pose existing-pose incoming-mapping)`: the mapping is merged into
+   the pose's own -- the root's, on a composite. A new `:x` or `:y`
+   replaces the one the pose had; `pj/pose` never adds a panel."
   [fr incoming-mapping]
-  (cond
-    (pose/composite? fr)    (extend-composite fr incoming-mapping)
-    (leaf-has-position? fr)  (promote-leaf fr incoming-mapping)
-    :else                    (extend-leaf fr incoming-mapping)))
+  (extend-mapping-of fr incoming-mapping))
 
 (defn- pose-from-data
   "Build a leaf-pose map from raw data and an already-normalized
@@ -1424,13 +1403,13 @@
     (cond
       ;; Univariate -- columns
       (or (keyword? first-el) (string? first-el))
-      (reduce (fn [fr col] (pose fr col)) base items)
+      (prepare-pose (add-cells base (mapv (fn [col] {:x col}) items)))
 
       ;; Pairs -- check for rectangular grid before falling back
       (sequential? first-el)
       (if-let [rows (pairs->rows items)]
         (grid-composite base rows)
-        (reduce (fn [fr [a b]] (pose fr a b)) base items))
+        (prepare-pose (add-cells base (mapv (fn [[a b]] {:x a :y b}) items))))
 
       :else
       (throw (ex-info
@@ -1449,7 +1428,7 @@
     (check-explicit-mappings "pj/pose" mapping)
     (check-position-mapping "pj/pose" mapping)
     (if (pose? p)
-      (cond-> (prepare-pose (extend-or-promote p mapping))
+      (cond-> (prepare-pose (extend-pose p mapping))
         data-over (with-data data-over))
       (prepare-pose (pose-from-data (or data-over p) mapping)))))
 
@@ -1467,20 +1446,22 @@
    - `(pj/pose data :x-col {:color :c})` -- univariate x with opts.
    - `(pj/pose data :x-col :y-col)` -- leaf with `:x` and `:y`.
    - `(pj/pose data :x-col :y-col {:color :c})` -- positional x/y with opts.
-   - `(pj/pose data (pj/cross cols cols) {:color :c})` -- multi-pair plus
-     aesthetic mapping at the composite root.
 
    **Threaded over an existing pose (first argument is a pose):**
 
    - `(pj/pose fr)` -- pass-through; lifts a literal map for notebook
      auto-render if it is not already tagged.
-   - `(pj/pose fr :x-col :y-col)` -- extend a leaf-without-position, or
-     promote a leaf-with-position into a 2-panel composite, or append a
-     panel to a composite.
-   - `(pj/pose fr :x-col :y-col {:color :c})` -- same, with aesthetic
-     routed to the composite root on promote.
-   - `(pj/pose fr {:color :c})` -- aesthetic-only: extend mapping or
-     (on leaf-with-position) promote.
+   - `(pj/pose fr :x-col :y-col)` -- merge `:x` and `:y` into the
+     pose's mapping (the root's, on a composite), replacing the ones it
+     had. Layers that name no columns of their own read the new ones.
+     `pj/pose` does not add panels; for panels side by side, use
+     `pj/arrange`.
+   - `(pj/pose fr :x-col :y-col {:color :c})` -- same, with the
+     aesthetic merged too.
+   - `(pj/pose fr {:color :c})` -- aesthetic-only: merge into the
+     mapping.
+   - `(pj/pose fr {})` is `fr`, and writing the same mapping twice gives
+     the same pose.
    - `(pj/pose fr {:data X :color :c})` -- extend mapping AND replace the
      top-level data with X.
 

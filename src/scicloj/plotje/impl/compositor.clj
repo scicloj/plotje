@@ -408,6 +408,7 @@
    first-class field on the CompositeDraft so downstream stages do
    not need to recompute layout from the original pose tree."
   [composite]
+  (pose/report-unread-positions! composite)
   (let [{:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)

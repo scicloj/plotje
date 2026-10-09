@@ -960,8 +960,7 @@
 
   (testing "composite with data at root + mapping-only sub-poses is plannable"
     (is (some? (pj/plan (-> tiny
-                            (pj/pose :x :y)
-                            (pj/pose :y :x)
+                            (pj/arrange [[:x :y] [:y :x]])
                             pj/lay-point))))))
 
 (deftest lay-2arity-opts-map-auto-infers-from-raw-data

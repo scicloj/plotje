@@ -182,15 +182,11 @@
 
 (deftest overlay-on-a-composite-test
   (testing "a miss appends a panel without it, and joins the last leaf with it"
-    (let [base (-> weather
-                   (pj/pose :day :reading)
-                   (pj/pose :day :humidity))]
+    (let [base (pj/arrange weather [[:day :reading] [:day :humidity]])]
       (is (= 3 (panels (pj/lay-point base :day :other))))
       (is (= 2 (panels (-> base pj/overlay (pj/lay-point :day :other)))))))
   (testing "a hit still lands on the matching leaf, overlay or not"
-    (let [base (-> weather
-                   (pj/pose :day :reading)
-                   (pj/pose :day :humidity))]
+    (let [base (pj/arrange weather [[:day :reading] [:day :humidity]])]
       (is (= 2 (panels (-> base pj/overlay (pj/lay-point :day :humidity))))))))
 
 (deftest one-declaring-layer-is-told-apart-like-two-test

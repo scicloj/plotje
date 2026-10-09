@@ -43,9 +43,9 @@
 ;; transitions. Its 1-arity is `(-> x pj/->pose pj/infer-mapping)` --
 ;; the same lift-and-default-map the other shortcuts (`pj/draft`,
 ;; `pj/plan`, `pj/membrane`, `pj/plot`, `pj/save`) apply on the way
-;; in -- but its typed arities add positional column-arg parsing,
-;; multi-pair composite construction, and pose extend-or-promote on
-;; top of `pj/->pose`. The examples below walk each shape.
+;; in -- but its typed arities add positional column-arg parsing and
+;; merging a mapping into an existing pose on top of `pj/->pose`. The
+;; examples below walk each shape.
 
 (kind/doc #'pj/pose)
 
