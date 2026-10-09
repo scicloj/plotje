@@ -196,7 +196,9 @@
     (let [ds (tc/dataset {:x [1 2 3] :y [1 2 3]})
           composite {:data ds
                      :mapping {:x :x :y :y}
-                     :opts {:width 600 :height 400}
+                     ;; Unshared, so no axis title band takes room
+                     ;; from the cells: this tests the weights alone.
+                     :opts {:width 600 :height 400 :share-scales #{}}
                      :layout {:direction :horizontal :weights [1 1]}
                      :poses [{:layers [{:layer-type :point}]}
                              {:layers [{:layer-type :point}]}]}

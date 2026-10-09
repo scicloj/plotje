@@ -227,14 +227,32 @@
                :species      ["a" "a" "b" "b" "c"]}))
 
 (deftest inject-shared-scales-no-share-test
-  (testing "composite without :share-scales leaves leaves untouched"
+  (testing "composite with :share-scales #{} leaves leaves untouched"
     (let [tree {:data iris-like
+                :share-scales #{}
                 :poses [{:layers [{:layer-type :point
                                    :mapping {:x :sepal-length}}]}
                         {:layers [{:layer-type :point
                                    :mapping {:x :sepal-length}}]}]}
           injected (pose/inject-shared-scales tree)
           leaves (pose/resolve-tree injected)]
+      (is (every? #(nil? (:x-scale-domain (:opts %))) leaves)))))
+
+(deftest inject-shared-scales-declared-split-test
+  (testing "cells drawing parts of the composite's data share with nothing written"
+    (let [tree {:data iris-like
+                :poses [{:where {:species "a"}
+                         :layers [{:layer-type :point :mapping {:x :sepal-length}}]}
+                        {:where {:species "c"}
+                         :layers [{:layer-type :point :mapping {:x :sepal-length}}]}]}
+          leaves (pose/resolve-tree (pose/inject-shared-scales (pose/elaborate tree)))]
+      (is (= [[4.0 8.0] [4.0 8.0]] (mapv #(:x-scale-domain (:opts %)) leaves)))))
+  (testing "cells bringing data of their own do not"
+    (let [tree {:poses [{:data (tc/dataset {:sepal-length [1.0 2.0]})
+                         :layers [{:layer-type :point :mapping {:x :sepal-length}}]}
+                        {:data (tc/dataset {:sepal-length [10.0 20.0]})
+                         :layers [{:layer-type :point :mapping {:x :sepal-length}}]}]}
+          leaves (pose/resolve-tree (pose/inject-shared-scales tree))]
       (is (every? #(nil? (:x-scale-domain (:opts %))) leaves)))))
 
 (deftest inject-shared-scales-same-column-test

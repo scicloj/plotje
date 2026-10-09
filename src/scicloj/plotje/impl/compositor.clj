@@ -458,7 +458,9 @@
         ;; concrete layer type for every inferred layer -- so sharing,
         ;; layout and the leaf drafts read layer types rather than
         ;; predicting them.
-        composite (pose/elaborate composite)
+        composite (-> composite
+                      pose/elaborate
+                      pose/infer-chrome)
         {:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)

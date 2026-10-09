@@ -3,6 +3,7 @@
    laws it is meant to hold: a generated pose draws what its expansion
    draws."
   (:require [clojure.test :refer [deftest testing is]]
+            [tablecloth.api :as tc]
             [scicloj.plotje.api :as pj]
             [scicloj.plotje.impl.pose :as pose]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]))
@@ -18,7 +19,9 @@
   (let [e (pose/expand-variation scatter :species)]
     (is (= [{:species "setosa"} {:species "versicolor"} {:species "virginica"}]
            (mapv :where (-> e :poses first :poses))))
-    (is (= ["setosa" "versicolor" "virginica"] (get-in e [:grid-strip-labels :col-labels])))
+    (testing "the strips are read from the cells' filters, not written"
+      (is (nil? (:grid-strip-labels e)))
+      (is (every? (set (:texts (pj/svg-summary e))) ["setosa" "versicolor" "virginica"])))
     (is (= (drawn (pj/facet scatter :species)) (drawn e)))
     (testing "the listed cells share both axes, titled once, as the facet does"
       (let [texts (:texts (pj/svg-summary e))]
@@ -43,6 +46,18 @@
     (testing "a combination with no rows is an empty cell"
       (is (= 9 (:panels (pj/svg-summary e)))))))
 
-(deftest the-expansion-writes-the-sharing-arrange-does-not-test
-  (is (= #{:x :y} (:share-scales (pose/expand-variation scatter :species))))
-  (is (nil? (get-in (pj/arrange [scatter scatter]) [:opts :share-scales]))))
+(deftest the-cells-of-one-split-share-separate-plots-do-not-test
+  (testing "the expansion writes no sharing; its cells, parts of one split, share"
+    (let [e (pose/expand-variation scatter :species)
+          x-domains (->> (pj/plan e) :sub-plots (map #(-> % :plan :panels first :x-domain)))]
+      (is (not (contains? e :share-scales)))
+      (is (apply = x-domains))))
+  (testing "plots handed to pj/arrange with data of their own do not share"
+    (let [a (-> (tc/select-rows (rdatasets/datasets-iris) (range 50))
+                (pj/lay-point :sepal-length :sepal-width))
+          b (-> (tc/select-rows (rdatasets/datasets-iris) (range 100 150))
+                (pj/lay-point :sepal-length :sepal-width))
+          x-domains (->> (pj/plan (pj/arrange [a b])) :sub-plots
+                         (map #(-> % :plan :panels first :x-domain)))]
+      (is (nil? (get-in (pj/arrange [a b]) [:opts :share-scales])))
+      (is (apply not= x-domains)))))

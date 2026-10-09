@@ -2373,7 +2373,7 @@
               :h ["x" "y" "x" "y" "x" "y"]}]
     (testing "typoed facet column throws with available columns"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Facet column :speices.*not found"
+                            #"Column :speices \(from :col\) not found"
                             (-> data (pj/lay-point :x :y) (pj/facet :speices) pj/plan))))
 
     (testing "a vector facet is a compound key: one panel per observed combination"
@@ -2391,7 +2391,7 @@
 
     (testing "a typoed column inside a compound facet is reported"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Facet column :speices.*not found"
+                            #"Column :speices \(from :col\) not found"
                             (-> data (pj/lay-point :x :y) (pj/facet [:g :speices]) pj/plan))))
 
     (testing "valid facet column still works"
@@ -2402,7 +2402,7 @@
 
     (testing "typoed facet-grid column throws"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Facet column :speices.*not found"
+                            #"Column :speices \(from :col\) not found"
                             (-> data (pj/lay-point :x :y) (pj/facet-grid :speices :h) pj/plan))))))
 
 (deftest lay-method-auto-infer-test

@@ -87,10 +87,13 @@
    (vec
     (for [ci (range n-cols)
           :let [label (nth col-labels ci nil)
-                rect  (get layout [0 ci])]
+                ;; Rows of cells, as `pj/arrange` builds them, or one
+                ;; flat row of cells.
+                path  (if (get layout [0 ci]) [0 ci] [ci])
+                rect  (get layout path)]
           :when (and label rect)]
       (let [[x _ w _] rect
-            p (get plan-of [0 ci])
+            p (get plan-of path)
             pad (get-in p [:layout :y-label-pad])
             pw (:panel-width p)
             cx (if (and pad pw)
@@ -110,7 +113,7 @@
     (vec
      (for [ri (range n-rows)
            :let [label (nth row-labels ri nil)
-                 rect  (get layout [ri 0])]
+                 rect  (or (get layout [ri 0]) (get layout [ri]))]
            :when (and label rect)]
        (let [[_ y _ h] rect
              cy (+ (double y) (/ (double h) 2.0))]

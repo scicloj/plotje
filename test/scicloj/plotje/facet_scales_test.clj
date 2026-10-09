@@ -209,7 +209,7 @@
   (let [d (tc/dataset {0 [1 2 3 4] 1 [1 2 3 4] 2 ["a" "b" "a" "b"]})]
     (is (= 2 (:panels (pj/svg-summary (-> d (pj/lay-point 0 1) (pj/facet 2)))))))
   (testing "a facet naming no column of the data is reported"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Facet column :nope \(from :facet-col\) not found"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Column :nope \(from :col\) not found"
                           (pj/plan (-> {:a [1 2] :b [3 4]} (pj/lay-point :a :b) (pj/facet :nope)))))))
 
 (deftest too-many-panels-says-so-in-drawing-terms-test
