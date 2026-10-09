@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Plots that look different after upgrading
 
+- **A series written as several columns** lists its legend entries, and orders its groups, in the order the columns are written: `[:cost :revenue]` lists `cost` first.
+
 - **A `pj/pose` call given a vector of columns in place of one column**, such as `(pj/pose data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled `value`. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
 - **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`, and a pose returned by a function can be pointed at other columns; layers that name their own columns keep them. On a composite the mapping goes to the root, and an `:x` or `:y` there that every cell overrides warns that it is not drawn. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`. `(pj/pose p)` and `(pj/pose p {})` return `p`.
@@ -24,11 +26,15 @@ All notable changes to this project will be documented in this file. This change
 
 ### Warnings and errors
 
+- Panels too small to draw report an error stating the size each panel would have and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`.
+
 - `lay-*` given a vector of columns alone, such as `(pj/lay-density data [:a :b :c])`, draws a panel per column and warns that the next release reads the vector as a series on one panel. The warning names `(pj/arrange [:a :b :c])` for a panel per column and `{:x [:a :b :c]}` for one panel.
 
 - `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/cross-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error.
 
 ### Fixed
+
+- `pj/facet` reads a column name the data holds whatever its type, so `(pj/facet pose 2)` on a dataset whose columns are integers draws a panel per value of column 2.
 
 - A `pj/facet-grid` cell with no rows takes the shared axes of the cells that hold data, which cover the data drawn: `(pj/facet-grid :drv :cyl)` on mpg starts its x axis near the smallest displacement rather than at zero.
 

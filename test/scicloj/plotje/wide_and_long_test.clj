@@ -608,3 +608,10 @@
     (testing "mixed kinds name the columns written, not the pivot's :x-value"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"\[:t1 :t2\] to read as series in pairs"
                             (pj/plan (pj/lay-line w [:t1 :t2] [:v1 :v2])))))))
+
+(deftest a-series-keeps-the-written-column-order-test
+  ;; The pivot read the columns as a set, so the legend listed them in
+  ;; the data's order whatever order they were written in.
+  (let [labels (fn [cols] (mapv :label (:entries (:legend (pj/plan (pj/lay-line sales :quarter cols))))))]
+    (is (= ["revenue" "cost"] (labels [:revenue :cost])))
+    (is (= ["cost" "revenue"] (labels [:cost :revenue])))))

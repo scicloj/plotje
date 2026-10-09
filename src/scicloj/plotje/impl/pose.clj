@@ -1779,12 +1779,18 @@
 
    One column is the one-column case of several, which is the rule
    `resolve/infer-grouping` already applies to `:group`: a distinction
-   read by value is made of one or more columns, united."
+   read by value is made of one or more columns, united.
+
+   Any value is passed on as a column reference: the data decides what
+   names a column, as it does for every other mapping, so an integer
+   names column 2 of a dataset whose columns are integers.
+   `resolve-facet-col` reports a reference the data does not have --
+   filtered out here by type, an integer drew one panel and no message."
   [v]
   (cond
-    (resolve/column-ref? v) [v]
-    (and (sequential? v) (seq v) (every? resolve/column-ref? v)) (vec v)
-    :else nil))
+    (nil? v) nil
+    (sequential? v) (when (seq v) (vec v))
+    :else [v]))
 
 (defn- facet-keys
   "The facet key of every row, as a vector aligned with the dataset --
@@ -2265,7 +2271,7 @@
     ;; the drop is Plotje's own contract: a row that does not reach the
     ;; plot is named. Counted from the pivot's own effect -- one row per
     ;; original row and pivoted column, less what came back.
-    (let [pivoted (tc/pivot->longer ds (set cols)
+    (let [pivoted (tc/pivot->longer ds (vec cols)
                                     {:target-columns label
                                      :value-column-name series-value-column})]
       (defaults/report-removed-rows!
@@ -2723,6 +2729,136 @@
                   " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")))
   pose)
 
+;; ---- Sharing and chrome decided from the listed cells ----
+;;
+;; Provisional (step 5 of the PR #61 plan; rule 1 is open): which axis
+;; titles and tick labels a composite draws once is read from its listed
+;; cells alone -- however the cells were written. Sharing is written: by
+;; the writer, or by `expand-variation` for generated cells.
+
+(defn default-share-axes
+  "The axes the cells of a composite can share -- every bucket of cells
+   reading one column has an extent, and its cells agree on the kind of
+   scale. `expand-variation` writes them as the listed pose's
+   `:share-scales`, as a facet shares its panels' axes. Sharing is by
+   column, so cells reading different columns on an axis keep their own
+   extents. An axis the cells cannot share is left alone, with no
+   message: the writer did not ask for it."
+  [composite]
+  (let [subtree (vec (remove :plotje/empty-cell (resolve-tree composite)))]
+    (set (filter (fn [axis]
+                   (try (validate-share-bucket-compatibility! subtree #{axis})
+                        (assert-share-bucket-has-extent! subtree #{axis})
+                        true
+                        (catch clojure.lang.ExceptionInfo _ false)))
+                 [:x :y]))))
+
+(defn unanimous-column
+  "The column every cell of `leaves` draws on `axis`, or nil where they
+   do not all draw the same one. Cells left empty do not vote."
+  [leaves axis]
+  (let [cols (map #(get (leaf-columns %) axis)
+                  (remove :plotje/empty-cell leaves))]
+    (when (and (seq cols) (every? some? cols) (apply = cols))
+      (first cols))))
+
+;; ---- Expansion of a variation into listed cells ----
+
+(declare expand-variation*)
+
+(defn expand-variation
+  "A pose with cells generated from a variation, written as the listed
+   pose they expand to. Provisional prototype (step 7 of the PR #61
+   plan; the verb and whether this is published are open).
+
+   - A column of the data -- `:species` -- is a category: one cell per
+     value the column holds, in the order the data holds them, each the
+     full data with a written row filter, `{:where {:species v}}`,
+     titled by the value.
+   - `{:x [:a :b]}` or `{:y [...]}` names columns: one cell per column,
+     each writing its column on that axis, as `pj/pose` would.
+   - `{:col c :row r}` crosses two categories into a grid, a row per
+     value of `r`; a combination the data does not hold is a filter that
+     keeps no rows, which draws as an empty cell.
+
+   The cells inherit the pose's data, mapping and layers, as cells of a
+   composite do. What the expansion knows is written into the listed
+   pose: it shares each axis its cells can share (`default-share-axes`)
+   and gives them one drawing area, as a facet does."
+  [pose variation]
+  (let [listed (expand-variation* pose variation)
+        axes (default-share-axes listed)]
+    (cond-> listed
+      (seq axes) (assoc :share-scales axes)
+      (seq axes) (assoc-in [:opts :align-panels] true))))
+
+(defn- expand-variation*
+  [pose variation]
+  (let [ds (coerce-dataset (:data pose))
+        values (fn [col] (vec (distinct (ds col))))
+        title (fn [& vs] (facet-label vs))]
+    (cond
+      (and (map? variation) (or (contains? variation :col) (contains? variation :row)))
+      (let [{c :col r :row} variation
+            cvs (if c (values c) [nil])
+            rvs (if r (values r) [nil])
+            cell (fn [cv rv]
+                   {:where (cond-> {} c (assoc c cv) r (assoc r rv))
+                    :opts {:title (apply title (remove nil? [cv rv]))}})]
+        (assoc pose
+               :layout {:direction :vertical}
+               :poses (vec (for [rv rvs]
+                             {:layout {:direction :horizontal}
+                              :poses (vec (for [cv cvs] (cell cv rv)))}))))
+
+      (map? variation)
+      (let [[k cols] (first variation)]
+        (-> pose
+            (update :mapping #(not-empty (dissoc % k)))
+            (assoc :layout {:direction :horizontal}
+                   :poses (vec (for [c cols] {:mapping {k c}})))))
+
+      :else
+      (assoc pose
+             :layout {:direction :horizontal}
+             :poses (vec (for [v (values variation)]
+                           {:where {variation v}
+                            :opts {:title (title v)}}))))))
+
+;; ---- Row filter ----
+
+(defn apply-where
+  "A pose whose written row filter, `:where`, is applied to its data:
+   `{:where {:species \"setosa\"}}` keeps the rows whose `:species` is
+   \"setosa\". Several keys must all match; a set is any of its values.
+   The filter is consumed, so the result carries the filtered data and
+   no `:where`. A pose with no data keeps its filter for the data it
+   is given later.
+
+   A cell generated from a category keeps the full data and writes its
+   filter, so the listed pose says that its cells split one dataset.
+   The spelling `:where` is provisional."
+  [pose]
+  (let [w (:where pose)]
+    (if (and (map? w) (some? (:data pose)))
+      (let [ds (coerce-dataset (:data pose))
+            names (set (tc/column-names ds))
+            missing (vec (remove names (keys w)))
+            _ (when (seq missing)
+                (throw (ex-info (str "A row filter names " (pr-str missing)
+                                     ", which the data does not have. Available"
+                                     " columns: " (vec (sort-by str names)) ".")
+                                {:where w :missing missing})))
+            keep? (fn [row]
+                    (every? (fn [[c v]]
+                              (let [x (get row c)]
+                                (if (set? v) (contains? v x) (= v x))))
+                            w))]
+        (-> pose
+            (assoc :data (tc/select-rows ds keep?))
+            (dissoc :where)))
+      pose)))
+
 ;; ---- Elaboration ----
 ;;
 ;; The choices the draft makes for a pose, written into the pose: series
@@ -2821,6 +2957,7 @@
   "A leaf with the draft's choices written in. `leaf` carries its full
    context -- a top-level leaf, or one `resolve-tree` resolved.
 
+   - The row filter applied -- see `apply-where`.
    - Series pivoted -- see `pivot-leaf-series`.
    - The data's default mapping, where the leaf needs one -- see
      `infer-default-mapping`.
@@ -2836,6 +2973,7 @@
    Idempotent: a second call finds nothing left to choose."
   [leaf]
   (let [leaf (-> leaf
+                 apply-where
                  pivot-leaf-series
                  infer-default-mapping)
         own-mapping (select-keys (or (:mapping leaf) {}) [:x :y])
@@ -2895,6 +3033,7 @@
                                     " to a cell before arranging the cells.")
                                {:layer-type (:layer-type l)})))
            resolved {:data (or (:data pose) (:data parent-ctx))
+                     :where (:where pose)
                      :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                      :layers (into anc-layers (:layers pose))
                      :overlay (if (contains? pose :overlay)
@@ -2902,8 +3041,15 @@
                                 (:overlay parent-ctx))}
            done (elaborate-leaf resolved)
            own-layers (subvec (:layers done) (count anc-layers))]
-       (cond-> pose
-         (not (identical? (:data resolved) (:data done)))
+       (if (and (:where pose) (:data done) (zero? (tc/row-count (:data done))))
+         ;; A cell whose filter leaves no rows is an empty cell: it keeps
+         ;; its place, draws nothing, and does not vote on sharing.
+         {:layers [] :opts (:opts pose) :plotje/empty-cell true}
+       (cond-> (dissoc pose :where)
+         ;; A filter above the leaf narrowed the data it inherits, which
+         ;; `resolve-tree` would otherwise hand it unfiltered.
+         (or (:filtered? parent-ctx)
+             (not (identical? (:data resolved) (:data done))))
          (assoc :data (:data done))
 
          (not= (:mapping resolved) (:mapping done))
@@ -2913,16 +3059,20 @@
          (assoc :mapping (:mapping done))
 
          (not= own-layers (vec (or (:layers pose) [])))
-         (assoc :layers own-layers)))
+         (assoc :layers own-layers))))
 
      :else
-     (let [ctx {:data (or (:data pose) (:data parent-ctx))
+     (let [ctx {:filtered? (boolean (or (:filtered? parent-ctx) (:where pose)))
+                :data (:data (apply-where {:data (or (:data pose) (:data parent-ctx))
+                                         :where (:where pose)}))
                 :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                 :layers (into (vec (:layers parent-ctx)) (:layers pose))
                 :overlay (if (contains? pose :overlay)
                            (:overlay pose)
                            (:overlay parent-ctx))}]
-       (update pose :poses (fn [ps] (mapv #(elaborate % ctx) ps)))))))
+       (-> pose
+           (dissoc :where)
+           (update :poses (fn [ps] (mapv #(elaborate % ctx) ps))))))))
 
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per

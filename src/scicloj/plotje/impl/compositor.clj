@@ -414,8 +414,49 @@
         ;; layout and the leaf drafts read layer types rather than
         ;; predicting them.
         composite (pose/elaborate composite)
+        shares (set (or (get-in composite [:opts :share-scales])
+                        (:share-scales composite)))
         {:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
+        ;; Where every cell draws one column on a shared axis, the axis is
+        ;; titled and ticked once, as a facet does: the y axis on the
+        ;; leftmost column of cells, the x axis on the bottom row.
+        leaves (if (:matrix? chrome)
+                 leaves
+                 (let [rect-of #(get layout (:path %))
+                       drawn (remove :plotje/empty-cell leaves)
+                       min-x (when (seq drawn) (reduce min (map #(first (rect-of %)) drawn)))
+                       max-bottom (when (seq drawn)
+                                    (reduce max (map #(let [[_ y _ h] (rect-of %)] (+ y h)) drawn)))
+                       once-x? (and (shares :x) (pose/unanimous-column leaves :x))
+                       once-y? (and (shares :y) (pose/unanimous-column leaves :y))
+                       near? (fn [a b] (< (Math/abs (- (double a) (double b))) 0.5))
+                       ;; The title goes on the edge cell nearest the
+                       ;; middle of the grid, where a facet centres it.
+                       centre (fn [f cells]
+                                (when (seq cells)
+                                  (let [mid (/ (+ (reduce min (map f cells))
+                                                  (reduce max (map f cells))) 2.0)]
+                                    (:path (apply min-key #(Math/abs (- (double (f %)) mid)) cells)))))
+                       left-col (filter #(near? (first (rect-of %)) min-x) drawn)
+                       bottom-row (filter #(let [[_ y _ h] (rect-of %)] (near? (+ y h) max-bottom)) drawn)
+                       y-title-at (centre #(let [[_ y _ h] (rect-of %)] (+ y (/ h 2.0))) left-col)
+                       x-title-at (centre #(let [[x _ w _] (rect-of %)] (+ x (/ w 2.0))) bottom-row)]
+                   (mapv (fn [leaf]
+                           (if-let [[x y _ h] (rect-of leaf)]
+                             (update leaf :opts
+                                     (fn [o]
+                                       (cond-> (or o {})
+                                         (and once-y? (not (near? x min-x)))
+                                         (assoc :suppress-y-ticks true)
+                                         (and once-y? (not= (:path leaf) y-title-at))
+                                         (assoc :suppress-y-label true)
+                                         (and once-x? (not (near? (+ y h) max-bottom)))
+                                         (assoc :suppress-x-ticks true)
+                                         (and once-x? (not= (:path leaf) x-title-at))
+                                         (assoc :suppress-x-label true))))
+                             leaf))
+                         leaves)))
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)
         ;; When the composite carries its own title/subtitle/caption,
         ;; suppress the same keys on each leaf so they don't double-

@@ -384,16 +384,11 @@ composite-pose
     (and (= "Arranged" (get-in pose [:opts :title]))
          (= #{:y} (get-in pose [:opts :share-scales]))))])
 
-;; ### Rule C9: 3-arity `pj/pose` with a pair sequence and opts folds aesthetic-attach into multi-pair
+;; ### Rule C9: `pj/cross-matrix` writes a mapping on the composite's root
 ;;
-;; When `pj/pose` receives three arguments where the second is a
-;; pair sequence (a vector of `[x y]` pairs, typically the output
-;; of `pj/cross`) and the third is an options map, the call is
-;; equivalent to two chained calls: the opts mapping is attached to
-;; the base first (Rule C2 or C4), then the pair sequence is
-;; processed on top (Rule L5 for rectangular grids, otherwise a
-;; flat one-panel-per-pair composite). The aesthetic lands on the
-;; composite root and flows to every cell.
+;; `pj/cross-matrix` given columns draws one cell for every pair of
+;; them. Given a mapping as well, it writes that mapping on the
+;; composite's root, so it reaches every cell.
 
 (-> iris
     (pj/cross-matrix [:sepal-length :sepal-width]
@@ -405,8 +400,8 @@ composite-pose
          (= 2 (count (:poses pose)))
          (every? #(= 2 (count (:poses %))) (:poses pose))))])
 
-;; **Property P-C9 -- multi-pair fold.** The 3-arity form is
-;; structurally equal to the two-call form.
+;; **Property P-C9 -- the mapping can come first or last.** A mapping
+;; written with `pj/pose` before `pj/cross-matrix` gives an equal pose.
 
 (let [a (-> iris
             (pj/pose {:color :species})

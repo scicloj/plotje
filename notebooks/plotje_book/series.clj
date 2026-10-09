@@ -566,26 +566,14 @@ sales-by-region
 
 ;; The order the measures are drawn in -- the legend's order, the order
 ;; of the slots in a dodged band, and the order a stack piles them --
-;; follows the dataset's columns rather than the order they are written
-;; in. Writing the same three measures in another order draws the same
-;; plot:
+;; is the order they are written in:
 
 (-> sales
     (pj/lay-bar :quarter [:tax :revenue :cost] {:position :stack}))
 
 (kind/test-last
- [(fn [v] (and (= (pj/plot v)
-                  (pj/plot (-> sales
-                               (pj/lay-bar :quarter [:revenue :cost :tax]
-                                           {:position :stack}))))
-               ;; the dodged band is the other half of the claim above,
-               ;; and it is invariant the same way.
-               (= (pj/plot (-> sales
-                               (pj/lay-bar :quarter [:tax :revenue :cost]
-                                           {:position :dodge})))
-                  (pj/plot (-> sales
-                               (pj/lay-bar :quarter [:revenue :cost :tax]
-                                           {:position :dodge}))))))])
+ [(fn [v] (= ["tax" "revenue" "cost"]
+             (mapv :label (:entries (:legend (pj/plan v))))))])
 
 ;; A `:domain` on the colour scale sets the order, since the key column
 ;; is the column the colour reads:

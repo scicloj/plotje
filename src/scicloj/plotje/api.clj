@@ -992,7 +992,7 @@
    outer-scope :mapping inherits downward and merges with each
    descendant's own mapping."
   #{:data :mapping :layers :opts :poses :layout :share-scales
-    :grid-strip-labels :overlay})
+    :grid-strip-labels :overlay :where})
 
 (def ^:private pose-print-order
   "Key order used by pj/prepare-pose to make printed pose maps
@@ -1000,7 +1000,7 @@
    each level's data stays visually bound to its own siblings rather
    than trailing past its children; :poses last since children can
    be heavy."
-  [:opts :mapping :overlay :share-scales :grid-strip-labels :layout :layers :data :poses])
+  [:opts :where :mapping :overlay :share-scales :grid-strip-labels :layout :layers :data :poses])
 
 (defn- warn-unknown-pose-keys
   "Warn once about top-level keys in fr that are not in pose-keys.
@@ -4260,7 +4260,9 @@
                             (:width opts) (assoc :width (long (Math/round (double (:width opts)))))
                             (:height opts) (assoc :height (long (Math/round (double (:height opts)))))
                             title (assoc :title title)
-                            (seq share-scales) (assoc :share-scales (set share-scales))
+                            ;; Written, even empty: `#{}` turns off the
+                            ;; sharing a composite has by default.
+                            (contains? opts :share-scales) (assoc :share-scales (set share-scales))
                             align-panels (assoc :align-panels true))
                     :layout {:direction :vertical}
                     :poses row-poses}]

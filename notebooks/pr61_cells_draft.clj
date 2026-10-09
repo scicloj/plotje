@@ -9,7 +9,9 @@
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
    ;; Plotje -- composable plotting
-   [scicloj.plotje.api :as pj]))
+   [scicloj.plotje.api :as pj]
+   ;; The provisional expansion, internal while its publishing is open
+   [scicloj.plotje.impl.pose :as pose]))
 
 ;; ## Two paths to the same panels, today
 
@@ -69,29 +71,67 @@ by-hand
 
 ;; ## One expansion for categories and columns
 
-(defn expand
-  [pose variation]
-  (if (map? variation)
-    (let [[k cols] (first variation)]
-      (vec (for [c cols]
-             (-> pose
-                 (pj/pose {k c})))))
-    (vec (for [v (distinct ((:data pose) variation))]
-           (-> pose
-               (update :data tc/select-rows #(= v (get % variation)))
-               (pj/options {:title (str v)}))))))
+(def expand pose/expand-variation)
 
-(pj/arrange (expand scatter :species))
+(expand scatter :species)
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 3 (:panels s)) (= 150 (:points s)))))])
 
-(pj/arrange (expand scatter {:x [:sepal-length :petal-length :petal-width]}))
+(-> (expand scatter :species)
+    (update :poses #(mapv (fn [c] (dissoc c :opts)) %))
+    (dissoc :data :layers)
+    kind/pprint)
+
+(expand scatter {:x [:sepal-length :petal-length :petal-width]})
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 3 (:panels s)) (= 450 (:points s)))))])
+
+;; ### A grid of two categories
+
+(def mpg-points (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy))
+
+(pj/facet-grid mpg-points :drv :cyl)
+
+(expand mpg-points {:col :drv :row :cyl})
+
+(kind/test-last
+ [(fn [v] (= (:points (pj/svg-summary v))
+             (:points (pj/svg-summary (pj/facet-grid mpg-points :drv :cyl)))))])
+
+;; ## Category cells as written filters
+
+(def listed-with-filters
+  (-> scatter
+      (assoc :layout {:direction :horizontal}
+             :share-scales #{:x :y}
+             :poses [{:where {:species "setosa"}}
+                     {:where {:species "versicolor"}}
+                     {:where {:species "virginica"}}])))
+
+listed-with-filters
+
+(kind/test-last
+ [(fn [v] (let [titles (fn [p] (frequencies (filter #{"sepal length" "sepal width"}
+                                                   (:texts (pj/svg-summary p)))))]
+            (and (= (select-keys (pj/svg-summary v) [:panels :points])
+                    (select-keys (pj/svg-summary by-facet) [:panels :points]))
+                 (= (titles by-facet) (titles v)))))])
+
+;; ### A filter that keeps no rows is an empty cell
+
+(-> scatter
+    (assoc :layout {:direction :horizontal}
+           :poses [{:where {:species "setosa"}}
+                   {:where {:species "no such species"}}
+                   {:where {:species #{"versicolor" "virginica"}}}]))
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 2 (:panels s)) (= 150 (:points s)))))])
 
 ;; ## What the listed pose would hold
 
