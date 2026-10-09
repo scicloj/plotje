@@ -41,16 +41,18 @@ my-pose
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; A pose is a plain Clojure value -- printed, the same value reveals
-;; its underlying map shape with `:data`, `:mapping`, `:layers`, and
-;; `:opts`:
+;; its underlying map shape with `:data`, `:layers`, and `:opts`. The
+;; columns are on the layer, because the `pj/lay-point` call named them;
+;; a mapping written with `pj/pose` sits on the pose's own `:mapping`:
 
 (kind/pprint my-pose)
 
 (kind/test-last
  [(fn [pose]
     (and (some? (:data pose))
-         (= :sepal-length (get-in pose [:mapping :x]))
-         (= :sepal-width (get-in pose [:mapping :y]))
+         (nil? (:mapping pose))
+         (= :sepal-length (get-in pose [:layers 0 :mapping :x]))
+         (= :sepal-width (get-in pose [:layers 0 :mapping :y]))
          (= :species (get-in pose [:layers 0 :mapping :color]))
          (= "Iris" (get-in pose [:opts :title]))))])
 
@@ -101,15 +103,18 @@ my-pose
 ;; Layers attach to poses in three ways, depending on what you
 ;; pass to `pj/lay-*`:
 ;;
-;; - **Bare** -- `pj/lay-*` without columns attaches the layer
-;;   using the current pose's mapping (inherited from `pj/pose`
-;;   or a prior `pj/lay-*`).
+;; - **Bare** -- `pj/lay-*` without columns attaches a layer that is
+;;   drawn on every panel of the pose, reading that panel's columns --
+;;   the ones `pj/pose` wrote, or the ones a prior `pj/lay-*` named.
 ;; - **Matching columns** -- `pj/lay-*` with columns that match the
 ;;   most recent matching leaf reuses that leaf, so the new layer
 ;;   joins the existing panel.
-;; - **Non-matching columns** -- `pj/lay-*` with columns that do not
-;;   match any existing leaf creates a fresh leaf pose with the
-;;   layer attached.
+;; - **Non-matching columns** -- on a leaf, the layer keeps the
+;;   columns it names and the leaf draws a panel for them; on a
+;;   composite, a new leaf is appended with the layer attached.
+;;
+;; In each case the columns a `pj/lay-*` call names are written on the
+;; layer's own mapping, never on the pose's.
 
 (-> my-pose :layers first :layer-type)
 

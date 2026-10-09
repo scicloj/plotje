@@ -83,9 +83,16 @@
       (is (= 1 (count draft))))))
 
 (deftest no-mapping-no-layers-yields-empty-draft-test
-  (testing "a bare leaf with data only produces no draft"
-    (is (empty? (pose/leaf->draft {:data iris :layers []}))
-        "nothing to infer from -- let plan produce a minimal placeholder.")))
+  (testing "a bare leaf on data too wide for a default mapping produces no draft"
+    (is (empty? (pose/leaf->draft {:data (tc/add-column iris :c [1 2 3])
+                                   :layers []}))
+        "nothing to infer from -- let plan produce a minimal placeholder."))
+  (testing "a bare leaf on 1-3 columns takes the default mapping at draft"
+    ;; The draft infers for every leaf, so a leaf no `pj/infer-mapping`
+    ;; reached -- a cell of a composite -- draws too.
+    (let [[e :as draft] (pose/leaf->draft {:data iris :layers []})]
+      (is (= 1 (count draft)))
+      (is (= [:a :b :species] [(:x e) (:y e) (:color e)])))))
 
 (deftest plot-level-opts-stamped-on-every-entry-test
   (testing "the mapping's scales and the leaf's :coord stamp on each draft entry"

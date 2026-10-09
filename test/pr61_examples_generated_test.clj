@@ -17,84 +17,86 @@
    [:sepal-length :sepal-width :species])))
 
 
-(def v4_l24 (def inferred (pj/pose iris3)))
+(def v4_l25 (def inferred (pj/pose iris3)))
 
 
-(def v5_l26 inferred)
+(def v5_l27 inferred)
 
 
-(def v6_l28 (kind/pprint inferred))
+(def v6_l29 (kind/pprint inferred))
 
 
 (deftest
- t7_l30
+ t7_l31
  (is
   ((fn
     [v]
-    (=
-     {:x :sepal-length, :y :sepal-width, :color :species}
-     (:mapping v)))
-   v6_l28)))
+    (and
+     (nil? (:mapping v))
+     (=
+      {:x :sepal-length, :y :sepal-width, :color :species}
+      (:mapping (pj/infer-mapping v)))))
+   v6_l29)))
 
 
 (def
- v9_l35
+ v9_l37
  (def one-column (pj/pose (rdatasets/datasets-iris) :sepal-length)))
 
 
-(def v10_l37 one-column)
+(def v10_l39 one-column)
 
 
-(def v11_l39 (kind/pprint one-column))
+(def v11_l41 (kind/pprint one-column))
 
 
 (deftest
- t12_l41
- (is ((fn [v] (= {:x :sepal-length} (:mapping v))) v11_l39)))
+ t12_l43
+ (is ((fn [v] (= {:x :sepal-length} (:mapping v))) v11_l41)))
 
 
 (def
- v14_l45
+ v14_l47
  (def
   one-column-mapped
   (pj/pose (rdatasets/datasets-iris) :sepal-length {:color :species})))
 
 
-(def v15_l47 one-column-mapped)
+(def v15_l49 one-column-mapped)
 
 
-(def v16_l49 (kind/pprint one-column-mapped))
+(def v16_l51 (kind/pprint one-column-mapped))
 
 
 (deftest
- t17_l51
+ t17_l53
  (is
   ((fn [v] (= {:x :sepal-length, :color :species} (:mapping v)))
-   v16_l49)))
+   v16_l51)))
 
 
 (def
- v19_l55
+ v19_l57
  (def
   two-columns
   (pj/pose (rdatasets/datasets-iris) :sepal-length :sepal-width)))
 
 
-(def v20_l57 two-columns)
+(def v20_l59 two-columns)
 
 
-(def v21_l59 (kind/pprint two-columns))
+(def v21_l61 (kind/pprint two-columns))
 
 
 (deftest
- t22_l61
+ t22_l63
  (is
   ((fn [v] (= {:x :sepal-length, :y :sepal-width} (:mapping v)))
-   v21_l59)))
+   v21_l61)))
 
 
 (def
- v24_l65
+ v24_l67
  (def
   two-columns-mapped
   (pj/pose
@@ -104,25 +106,25 @@
    {:color :species})))
 
 
-(def v25_l68 two-columns-mapped)
+(def v25_l70 two-columns-mapped)
 
 
-(def v26_l70 (kind/pprint two-columns-mapped))
+(def v26_l72 (kind/pprint two-columns-mapped))
 
 
 (deftest
- t27_l72
+ t27_l74
  (is
   ((fn
     [v]
     (=
      {:x :sepal-length, :y :sepal-width, :color :species}
      (:mapping v)))
-   v26_l70)))
+   v26_l72)))
 
 
 (def
- v29_l77
+ v29_l79
  (def
   mapping-only
   (pj/pose
@@ -130,25 +132,25 @@
    {:x :sepal-length, :y :sepal-width, :color :species})))
 
 
-(def v30_l80 mapping-only)
+(def v30_l82 mapping-only)
 
 
-(def v31_l82 (kind/pprint mapping-only))
+(def v31_l84 (kind/pprint mapping-only))
 
 
 (deftest
- t32_l84
+ t32_l86
  (is
   ((fn
     [v]
     (=
      {:x :sepal-length, :y :sepal-width, :color :species}
      (:mapping v)))
-   v31_l82)))
+   v31_l84)))
 
 
 (def
- v34_l91
+ v34_l93
  (try
   (pj/plot
    (pj/pose (rdatasets/datasets-iris) [:sepal-length :sepal-width]))
@@ -156,12 +158,12 @@
 
 
 (deftest
- t35_l95
- (is ((fn [s] (and (string? s) (re-find #"as a series" s))) v34_l91)))
+ t35_l97
+ (is ((fn [s] (and (string? s) (re-find #"as a series" s))) v34_l93)))
 
 
 (def
- v37_l105
+ v37_l107
  (def
   matrix-3
   (pj/cross-matrix
@@ -169,19 +171,19 @@
    [:sepal-length :sepal-width :petal-length])))
 
 
-(def v38_l108 matrix-3)
+(def v38_l110 matrix-3)
 
 
-(def v39_l110 (kind/pprint matrix-3))
+(def v39_l112 (kind/pprint matrix-3))
 
 
 (deftest
- t40_l112
- (is ((fn [v] (= 9 (:panels (pj/svg-summary v)))) v39_l110)))
+ t40_l114
+ (is ((fn [v] (= 9 (:panels (pj/svg-summary v)))) v39_l112)))
 
 
 (def
- v42_l117
+ v42_l119
  (def
   matrix-mapped
   (pj/cross-matrix
@@ -190,14 +192,14 @@
    {:color :species})))
 
 
-(def v43_l120 matrix-mapped)
+(def v43_l122 matrix-mapped)
 
 
-(def v44_l122 (kind/pprint matrix-mapped))
+(def v44_l124 (kind/pprint matrix-mapped))
 
 
 (deftest
- t45_l124
+ t45_l126
  (is
   ((fn
     [v]
@@ -207,11 +209,11 @@
      (=
       ["sepal-length" "sepal-width"]
       (get-in v [:grid-strip-labels :col-labels]))))
-   v44_l122)))
+   v44_l124)))
 
 
 (def
- v47_l131
+ v47_l133
  (def
   matrix-2x2
   (pj/cross-matrix
@@ -220,19 +222,19 @@
    [:petal-length :petal-width])))
 
 
-(def v48_l136 matrix-2x2)
+(def v48_l138 matrix-2x2)
 
 
-(def v49_l138 (kind/pprint matrix-2x2))
+(def v49_l140 (kind/pprint matrix-2x2))
 
 
 (deftest
- t50_l140
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v49_l138)))
+ t50_l142
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v49_l140)))
 
 
 (def
- v52_l146
+ v52_l148
  (def
   matrix-2x3
   (pj/cross-matrix
@@ -242,19 +244,19 @@
    {:color :species})))
 
 
-(def v53_l152 matrix-2x3)
+(def v53_l154 matrix-2x3)
 
 
-(def v54_l154 (kind/pprint matrix-2x3))
+(def v54_l156 (kind/pprint matrix-2x3))
 
 
 (deftest
- t55_l156
- (is ((fn [v] (= 6 (:panels (pj/svg-summary v)))) v54_l154)))
+ t55_l158
+ (is ((fn [v] (= 6 (:panels (pj/svg-summary v)))) v54_l156)))
 
 
 (def
- v57_l160
+ v57_l162
  (def
   matrix-all
   (->
@@ -263,19 +265,19 @@
    pj/cross-matrix)))
 
 
-(def v58_l165 matrix-all)
+(def v58_l167 matrix-all)
 
 
-(def v59_l167 (kind/pprint matrix-all))
+(def v59_l169 (kind/pprint matrix-all))
 
 
 (deftest
- t60_l169
- (is ((fn [v] (= 9 (:panels (pj/svg-summary v)))) v59_l167)))
+ t60_l171
+ (is ((fn [v] (= 9 (:panels (pj/svg-summary v)))) v59_l169)))
 
 
 (def
- v62_l173
+ v62_l175
  (def
   matrix-points
   (->
@@ -286,25 +288,25 @@
    pj/lay-point)))
 
 
-(def v63_l178 matrix-points)
+(def v63_l180 matrix-points)
 
 
-(def v64_l180 (kind/pprint matrix-points))
+(def v64_l182 (kind/pprint matrix-points))
 
 
 (deftest
- t65_l182
+ t65_l184
  (is
   ((fn
     [v]
     (and
      (= 4 (:panels (pj/svg-summary v)))
      (= [{:layer-type :point}] (:layers v))))
-   v64_l180)))
+   v64_l182)))
 
 
 (def
- v67_l189
+ v67_l191
  (def
   arranged-columns
   (pj/arrange
@@ -312,19 +314,19 @@
    [:sepal-length :sepal-width :petal-length])))
 
 
-(def v68_l192 arranged-columns)
+(def v68_l194 arranged-columns)
 
 
-(def v69_l194 (kind/pprint arranged-columns))
+(def v69_l196 (kind/pprint arranged-columns))
 
 
 (deftest
- t70_l196
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v69_l194)))
+ t70_l198
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v69_l196)))
 
 
 (def
- v72_l200
+ v72_l202
  (def
   arranged-pairs
   (pj/arrange
@@ -332,19 +334,19 @@
    [[:sepal-length :sepal-width] [:petal-length :petal-width]])))
 
 
-(def v73_l204 arranged-pairs)
+(def v73_l206 arranged-pairs)
 
 
-(def v74_l206 (kind/pprint arranged-pairs))
+(def v74_l208 (kind/pprint arranged-pairs))
 
 
 (deftest
- t75_l208
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v74_l206)))
+ t75_l210
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v74_l208)))
 
 
 (def
- v77_l212
+ v77_l214
  (def
   arranged-two-columns
   (pj/arrange
@@ -353,19 +355,19 @@
    {:cols 2})))
 
 
-(def v78_l217 arranged-two-columns)
+(def v78_l219 arranged-two-columns)
 
 
-(def v79_l219 (kind/pprint arranged-two-columns))
+(def v79_l221 (kind/pprint arranged-two-columns))
 
 
 (deftest
- t80_l221
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v79_l219)))
+ t80_l223
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v79_l221)))
 
 
 (def
- v82_l225
+ v82_l227
  (def
   arranged-densities
   (->
@@ -374,19 +376,19 @@
    (pj/lay-density {:color :species}))))
 
 
-(def v83_l230 arranged-densities)
+(def v83_l232 arranged-densities)
 
 
-(def v84_l232 (kind/pprint arranged-densities))
+(def v84_l234 (kind/pprint arranged-densities))
 
 
 (deftest
- t85_l234
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v84_l232)))
+ t85_l236
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v84_l234)))
 
 
 (def
- v87_l240
+ v87_l242
  (def
   arranged-from-pose
   (->
@@ -397,14 +399,14 @@
     [[:sepal-length :sepal-width] [:petal-length :petal-width]]))))
 
 
-(def v88_l246 arranged-from-pose)
+(def v88_l248 arranged-from-pose)
 
 
-(def v89_l248 (kind/pprint arranged-from-pose))
+(def v89_l250 (kind/pprint arranged-from-pose))
 
 
 (deftest
- t90_l250
+ t90_l252
  (is
   ((fn
     [v]
@@ -413,11 +415,11 @@
       {:panels 2, :points 300}
       (select-keys (pj/svg-summary v) [:panels :points]))
      (= {:color :species} (:mapping v))))
-   v89_l248)))
+   v89_l250)))
 
 
 (def
- v92_l256
+ v92_l258
  (def
   arranged-twice
   (->
@@ -427,19 +429,19 @@
    pj/lay-point)))
 
 
-(def v93_l262 arranged-twice)
+(def v93_l264 arranged-twice)
 
 
-(def v94_l264 (kind/pprint arranged-twice))
+(def v94_l266 (kind/pprint arranged-twice))
 
 
 (deftest
- t95_l266
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v94_l264)))
+ t95_l268
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v94_l266)))
 
 
 (def
- v97_l270
+ v97_l272
  (try
   (->
    (rdatasets/datasets-iris)
@@ -449,12 +451,12 @@
 
 
 (deftest
- t98_l276
- (is ((fn [s] (and (string? s) (re-find #"not used" s))) v97_l270)))
+ t98_l278
+ (is ((fn [s] (and (string? s) (re-find #"not used" s))) v97_l272)))
 
 
 (def
- v100_l283
+ v100_l285
  (def
   sepal-scatter
   (->
@@ -464,7 +466,7 @@
 
 
 (def
- v101_l288
+ v101_l290
  (def
   mixed
   (pj/arrange
@@ -474,19 +476,19 @@
     [[:sepal-length :petal-length]]])))
 
 
-(def v102_l294 mixed)
+(def v102_l296 mixed)
 
 
-(def v103_l296 (kind/pprint mixed))
+(def v103_l298 (kind/pprint mixed))
 
 
 (deftest
- t104_l298
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v103_l296)))
+ t104_l300
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v103_l298)))
 
 
 (def
- v106_l302
+ v106_l304
  (def
   two-poses
   (pj/arrange
@@ -494,19 +496,19 @@
     (pj/lay-histogram (rdatasets/datasets-iris) :petal-length)])))
 
 
-(def v107_l306 two-poses)
+(def v107_l308 two-poses)
 
 
-(def v108_l308 (kind/pprint two-poses))
+(def v108_l310 (kind/pprint two-poses))
 
 
 (deftest
- t109_l310
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v108_l308)))
+ t109_l312
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v108_l310)))
 
 
 (def
- v111_l317
+ v111_l319
  (def
   density-series
   (pj/lay-density
@@ -514,14 +516,14 @@
    [:sepal-length :sepal-width :petal-length])))
 
 
-(def v112_l320 density-series)
+(def v112_l322 density-series)
 
 
-(def v113_l322 (kind/pprint density-series))
+(def v113_l324 (kind/pprint density-series))
 
 
 (deftest
- t114_l324
+ t114_l326
  (is
   ((fn
     [v]
@@ -529,11 +531,11 @@
      (= 1 (:panels (pj/svg-summary v)))
      (= {:x :value, :color :series} (:mapping v))
      (= 450 (tc/row-count (:data v)))))
-   v113_l322)))
+   v113_l324)))
 
 
 (def
- v116_l330
+ v116_l332
  (def
   density-series-colored
   (pj/lay-density
@@ -542,14 +544,14 @@
    {:color :species})))
 
 
-(def v117_l335 density-series-colored)
+(def v117_l337 density-series-colored)
 
 
-(def v118_l337 (kind/pprint density-series-colored))
+(def v118_l339 (kind/pprint density-series-colored))
 
 
 (deftest
- t119_l339
+ t119_l341
  (is
   ((fn
     [v]
@@ -558,11 +560,11 @@
       {:panels 1, :polygons 3}
       (select-keys (pj/svg-summary v) [:panels :polygons]))
      (= :species (-> v pj/plan :legend :title))))
-   v118_l337)))
+   v118_l339)))
 
 
 (def
- v121_l354
+ v121_l357
  (def
   where-layer-things-go
   (pj/lay-histogram
@@ -571,21 +573,21 @@
    {:bins 8, :alpha 0.5, :color :species, :position :stack})))
 
 
-(def v122_l359 where-layer-things-go)
+(def v122_l362 where-layer-things-go)
 
 
-(def v123_l361 (kind/pprint where-layer-things-go))
+(def v123_l364 (kind/pprint where-layer-things-go))
 
 
 (deftest
- t124_l363
+ t124_l366
  (is
   ((fn
     [v]
     (and
-     (= {:x :sepal-length} (:mapping v))
+     (nil? (:mapping v))
      (=
-      {:bins 8, :alpha 0.5, :color :species}
+      {:x :sepal-length, :bins 8, :alpha 0.5, :color :species}
       (get-in v [:layers 0 :mapping]))
      (= :stack (get-in v [:layers 0 :position]))
      (=
@@ -595,11 +597,11 @@
         (rdatasets/datasets-iris)
         :sepal-length
         {:bins 8, :alpha 0.5, :color :species})))))
-   v123_l361)))
+   v123_l364)))
 
 
 (def
- v125_l373
+ v125_l376
  (def
   where-stat-goes
   (pj/lay-smooth
@@ -609,20 +611,20 @@
    {:stat :linear-model})))
 
 
-(def v126_l376 where-stat-goes)
+(def v126_l379 where-stat-goes)
 
 
-(def v127_l378 (kind/pprint where-stat-goes))
+(def v127_l381 (kind/pprint where-stat-goes))
 
 
 (deftest
- t128_l380
+ t128_l383
  (is
-  ((fn [v] (= :linear-model (get-in v [:layers 0 :stat]))) v127_l378)))
+  ((fn [v] (= :linear-model (get-in v [:layers 0 :stat]))) v127_l381)))
 
 
 (def
- v130_l384
+ v130_l387
  (def
   where-type-goes
   (->
@@ -631,20 +633,20 @@
    pj/lay-boxplot)))
 
 
-(def v131_l389 where-type-goes)
+(def v131_l392 where-type-goes)
 
 
-(def v132_l391 (kind/pprint where-type-goes))
+(def v132_l394 (kind/pprint where-type-goes))
 
 
 (deftest
- t133_l393
+ t133_l396
  (is
-  ((fn [v] (= :categorical (get-in v [:mapping :x-type]))) v132_l391)))
+  ((fn [v] (= :categorical (get-in v [:mapping :x-type]))) v132_l394)))
 
 
 (def
- v135_l397
+ v135_l402
  (def
   where-scale-goes
   (->
@@ -653,25 +655,26 @@
    (pj/scale :x {:type :log}))))
 
 
-(def v136_l402 where-scale-goes)
+(def v136_l407 where-scale-goes)
 
 
-(def v137_l404 (kind/pprint where-scale-goes))
+(def v137_l409 (kind/pprint where-scale-goes))
 
 
 (deftest
- t138_l406
+ t138_l411
  (is
   ((fn
     [v]
-    (=
-     {:from :sepal-length, :scale {:type :log}}
-     (get-in v [:mapping :x])))
-   v137_l404)))
+    (and
+     (= {:scale {:type :log}} (get-in v [:mapping :x]))
+     (= :sepal-length (get-in v [:layers 0 :mapping :x]))
+     (= :log (-> v pj/plan :panels first :x-scale :type))))
+   v137_l409)))
 
 
 (def
- v140_l411
+ v140_l417
  (def
   where-facet-goes
   (->
@@ -680,19 +683,19 @@
    (pj/facet :species))))
 
 
-(def v141_l416 where-facet-goes)
+(def v141_l422 where-facet-goes)
 
 
-(def v142_l418 (kind/pprint where-facet-goes))
+(def v142_l424 (kind/pprint where-facet-goes))
 
 
 (deftest
- t143_l420
- (is ((fn [v] (= :species (get-in v [:mapping :col]))) v142_l418)))
+ t143_l426
+ (is ((fn [v] (= :species (get-in v [:mapping :col]))) v142_l424)))
 
 
 (def
- v145_l424
+ v145_l430
  (def
   where-options-go
   (->
@@ -703,14 +706,14 @@
    (pj/coord :flip))))
 
 
-(def v146_l430 where-options-go)
+(def v146_l436 where-options-go)
 
 
-(def v147_l432 (kind/pprint where-options-go))
+(def v147_l438 (kind/pprint where-options-go))
 
 
 (deftest
- t148_l434
+ t148_l440
  (is
   ((fn
     [v]
@@ -720,11 +723,11 @@
       :width 400,
       :coord :flip}
      (:opts v)))
-   v147_l432)))
+   v147_l438)))
 
 
 (def
- v150_l440
+ v150_l446
  (def
   where-composite-things-go
   (->
@@ -735,25 +738,25 @@
    pj/lay-point)))
 
 
-(def v151_l446 where-composite-things-go)
+(def v151_l452 where-composite-things-go)
 
 
-(def v152_l448 (kind/pprint where-composite-things-go))
+(def v152_l454 (kind/pprint where-composite-things-go))
 
 
 (deftest
- t153_l450
+ t153_l456
  (is
   ((fn
     [v]
     (and
      (= {:color :species} (:mapping v))
      (= [{:layer-type :point}] (:layers v))))
-   v152_l448)))
+   v152_l454)))
 
 
 (def
- v155_l458
+ v155_l464
  (def
   bins-on-the-pose
   (->
@@ -762,25 +765,25 @@
    pj/lay-histogram)))
 
 
-(def v156_l463 bins-on-the-pose)
+(def v156_l469 bins-on-the-pose)
 
 
-(def v157_l465 (kind/pprint bins-on-the-pose))
+(def v157_l471 (kind/pprint bins-on-the-pose))
 
 
 (deftest
- t158_l467
+ t158_l473
  (is
   ((fn
     [v]
     (and
      (not (contains? (:mapping v) :bins))
      (= 9 (:polygons (pj/svg-summary v)))))
-   v157_l465)))
+   v157_l471)))
 
 
 (def
- v160_l472
+ v160_l478
  (def
   label-on-a-layer
   (pj/lay-point
@@ -790,19 +793,19 @@
    {:x-label "D"})))
 
 
-(def v161_l475 label-on-a-layer)
+(def v161_l481 label-on-a-layer)
 
 
-(def v162_l477 (kind/pprint label-on-a-layer))
+(def v162_l483 (kind/pprint label-on-a-layer))
 
 
 (deftest
- t163_l479
- (is ((fn [v] (not (contains? (:opts v) :x-label))) v162_l477)))
+ t163_l485
+ (is ((fn [v] (not (contains? (:opts v) :x-label))) v162_l483)))
 
 
 (def
- v165_l483
+ v165_l489
  (try
   (pj/lay-point
    (rdatasets/datasets-iris)
@@ -811,13 +814,13 @@
 
 
 (deftest
- t166_l488
+ t166_l494
  (is
-  ((fn [s] (and (string? s) (re-find #"unexpected key" s))) v165_l483)))
+  ((fn [s] (and (string? s) (re-find #"unexpected key" s))) v165_l489)))
 
 
 (def
- v168_l499
+ v168_l505
  (comment
   {:data iris,
    :mapping

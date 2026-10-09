@@ -19,7 +19,8 @@
 
 ;; ## `pj/pose`: one pose, mapping last
 
-;; Data only -- the mapping is inferred from the first columns.
+;; Data only -- the pose carries no mapping; one is inferred from the
+;; first columns when the pose is drawn (`pj/infer-mapping` shows it).
 
 (def inferred (pj/pose iris3))
 
@@ -27,8 +28,9 @@ inferred
 
 (kind/pprint inferred)
 
-(kind/test-last [(fn [v] (= {:x :sepal-length :y :sepal-width :color :species}
-                            (:mapping v)))])
+(kind/test-last [(fn [v] (and (nil? (:mapping v))
+                              (= {:x :sepal-length :y :sepal-width :color :species}
+                                 (:mapping (pj/infer-mapping v)))))])
 
 ;; One column.
 
@@ -345,9 +347,10 @@ density-series-colored
 ;; A leaf pose: `:data`, `:mapping`, `:layers`, `:opts`.
 ;; A composite pose: also `:poses` and `:layout`.
 
-;; The first `lay-*` writes its columns into the pose's `:mapping`.
-;; A layer's own aesthetics and settings such as `:bins` go into the
-;; layer's `:mapping`; `:position` and `:stat` sit on the layer itself.
+;; A `lay-*` call writes its columns into its layer's `:mapping`, beside
+;; the layer's own aesthetics and settings such as `:bins`; the pose's
+;; `:mapping` is what `pj/pose` writes. `:position` and `:stat` sit on
+;; the layer itself.
 ;; Observed: `:position :stack` on this histogram draws the same as without
 ;; it, on 0.16.1 too.
 
@@ -360,8 +363,8 @@ where-layer-things-go
 
 (kind/pprint where-layer-things-go)
 
-(kind/test-last [(fn [v] (and (= {:x :sepal-length} (:mapping v))
-                              (= {:bins 8 :alpha 0.5 :color :species}
+(kind/test-last [(fn [v] (and (nil? (:mapping v))
+                              (= {:x :sepal-length :bins 8 :alpha 0.5 :color :species}
                                  (get-in v [:layers 0 :mapping]))
                               (= :stack (get-in v [:layers 0 :position]))
                               ;; Records the defect: remove when stacking applies.
@@ -392,7 +395,9 @@ where-type-goes
 
 (kind/test-last [(fn [v] (= :categorical (get-in v [:mapping :x-type])))])
 
-;; A scale is written in the mapping, beside its column.
+;; A scale is written in the pose's mapping. Here the column is on the
+;; layer, so the pose's `:x` carries the scale alone, and the two meet
+;; when the pose is drawn.
 
 (def where-scale-goes
   (-> (rdatasets/datasets-iris)
@@ -403,8 +408,9 @@ where-scale-goes
 
 (kind/pprint where-scale-goes)
 
-(kind/test-last [(fn [v] (= {:from :sepal-length :scale {:type :log}}
-                            (get-in v [:mapping :x])))])
+(kind/test-last [(fn [v] (and (= {:scale {:type :log}} (get-in v [:mapping :x]))
+                              (= :sepal-length (get-in v [:layers 0 :mapping :x]))
+                              (= :log (-> v pj/plan :panels first :x-scale :type))))])
 
 ;; A facet is written in the mapping, as `:col` or `:row`.
 

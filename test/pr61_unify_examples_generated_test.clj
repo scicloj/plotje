@@ -273,3 +273,134 @@
     [v]
     (and (= 3 (:panels (pj/svg-summary v))) (= 3 (count (:poses v)))))
    v55_l170)))
+
+
+(def
+ v58_l182
+ (def
+  two-layers
+  (->
+   (rdatasets/datasets-iris)
+   (pj/lay-point :sepal-length :sepal-width)
+   (pj/lay-point :petal-length :petal-width))))
+
+
+(def v59_l187 two-layers)
+
+
+(def v60_l189 (kind/pprint two-layers))
+
+
+(deftest
+ t61_l191
+ (is
+  ((fn
+    [v]
+    (and
+     (nil? (:mapping v))
+     (=
+      [{:x :sepal-length, :y :sepal-width}
+       {:x :petal-length, :y :petal-width}]
+      (mapv :mapping (:layers v)))
+     (= 2 (:panels (pj/svg-summary v)))))
+   v60_l189)))
+
+
+(def v63_l202 (def smooth-per-panel (-> two-layers pj/lay-smooth)))
+
+
+(def v64_l206 smooth-per-panel)
+
+
+(def v65_l208 (kind/pprint smooth-per-panel))
+
+
+(deftest
+ t66_l210
+ (is
+  ((fn
+    [v]
+    (=
+     [[0 :sepal-length :sepal-width] [1 :petal-length :petal-width]]
+     (->>
+      (pj/draft v)
+      :layers
+      (filter (fn* [p1__11193#] (= :smooth (:layer-type p1__11193#))))
+      (mapv (juxt :__panel-idx :x :y)))))
+   v65_l208)))
+
+
+(def
+ v68_l218
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width)
+  pj/lay-smooth
+  (pj/lay-point :petal-length :petal-width)))
+
+
+(deftest
+ t69_l223
+ (is
+  ((fn
+    [v]
+    (=
+     [[0 :sepal-length :sepal-width] [1 :petal-length :petal-width]]
+     (->>
+      (pj/draft v)
+      :layers
+      (filter (fn* [p1__11194#] (= :smooth (:layer-type p1__11194#))))
+      (mapv (juxt :__panel-idx :x :y)))))
+   v68_l218)))
+
+
+(def
+ v71_l234
+ (def
+  pose-after-lay
+  (->
+   (rdatasets/datasets-iris)
+   (pj/lay-point :sepal-length :sepal-width)
+   (pj/pose {:x :petal-length}))))
+
+
+(def v72_l239 pose-after-lay)
+
+
+(def v73_l241 (kind/pprint pose-after-lay))
+
+
+(deftest
+ t74_l243
+ (is
+  ((fn
+    [v]
+    (and
+     (= {:x :petal-length} (:mapping v))
+     (= 2 (:panels (pj/svg-summary v)))))
+   v73_l241)))
+
+
+(def
+ v76_l248
+ (def
+  raw-scatter
+  (pj/lay-point {:height [170 180 165], :weight [70 80 65]})))
+
+
+(def v77_l251 raw-scatter)
+
+
+(def v78_l253 (kind/pprint raw-scatter))
+
+
+(deftest
+ t79_l255
+ (is
+  ((fn
+    [v]
+    (and
+     (nil? (:mapping v))
+     (= {:x :height, :y :weight} (:mapping (pj/infer-mapping v)))
+     (= 3 (:points (pj/svg-summary v)))))
+   v78_l253)))

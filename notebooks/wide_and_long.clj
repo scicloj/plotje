@@ -309,7 +309,8 @@ sales-long
 
 (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax]) kind/pprint)
 
-(kind/test-last [(fn [pose] (= {:x :quarter :y :value} (:mapping pose)))])
+(kind/test-last [(fn [pose] (= {:x :quarter :y :value}
+                               (-> pose :layers first :mapping (select-keys [:x :y]))))])
 
 ;; ## Every adjustment reaches them
 

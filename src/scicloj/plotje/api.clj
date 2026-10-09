@@ -693,28 +693,13 @@
                  " (template; attach data later via pj/with-data).")
             {:caller caller :value x :type (type x)}))))
 
-(defn- try-infer-mapping
-  "Infer a position/color mapping from the first 1-3 columns of a
-   dataset. Returns nil if the dataset has 0 or 4+ columns -- callers
-   decide whether to throw or fall through."
-  [d]
-  (let [cols (vec (tc/column-names d))
-        n (count cols)]
-    (case n
-      1 {:x (cols 0)}
-      2 {:x (cols 0) :y (cols 1)}
-      3 {:x (cols 0) :y (cols 1) :color (cols 2)}
-      nil)))
-
-(defn- auto-infer-mapping
-  "Auto-infer a position/color mapping from the first 1-3 columns of
-   a dataset. Throws if the dataset has 4+ columns -- the user must
-   pass explicit x/y.
-
-   Applied when 1-arity (pj/lay-* data) lands on a fresh leaf-pose
-   with data but no :mapping."
+(defn- check-columns-inferable
+  "Throw where a dataset has too many columns for the default mapping
+   to read -- 4 or more -- so the user must pass explicit x/y. Run where
+   `(pj/lay-* data)` names no column on raw data; the mapping itself is
+   inferred at draft time, by `infer-mapping`."
   [layer-type-key d]
-  (or (try-infer-mapping d)
+  (when-not (pose/default-mapping d)
       (let [cols (sort (tc/column-names d))
             x-only? (:x-only (layer-type/lookup layer-type-key))
             example (if x-only?
@@ -804,19 +789,6 @@
          (let [d (coerce-dataset x)]
            (prepare-pose (cond-> {:layers []} d (assoc :data d))))))))
 
-(defn- fresh-data-only-leaf?
-  "True for a lifted leaf pose carrying :data but no mapping, no
-   layers, and no sub-poses -- the exact shape `->pose` produces from
-   raw data. The semantic-inference seam fires only on this shape, so
-   it is idempotent: anything `lay-*`/`pj/pose` already built (a
-   mapping, layers, or sub-poses present) is left untouched."
-  [fr]
-  (and (pose? fr)
-       (some? (:data fr))
-       (nil? (:poses fr))
-       (empty? (:mapping fr))
-       (empty? (:layers fr))))
-
 (defn infer-mapping
   "Infer and attach a default mapping to a pose that carries data but
    no mapping yet -- the fresh leaf `pj/->pose` produces from raw
@@ -824,9 +796,12 @@
    (1 column to `:x`, 2 columns to `:x` and `:y`, 3 columns add
    `:color`).
 
-   A pose that already has a mapping, has layers, is composite, or
-   has 4+ columns is returned unchanged, so the step is idempotent
-   and safe to include anywhere in a pipeline. This is the step that
+   A pose whose mapping already names an `:x` or `:y` column, that has
+   a layer naming every column it draws, that is composite, or whose
+   data has 4+ columns is returned unchanged, so the step is idempotent
+   and safe to include anywhere in a pipeline. A layer naming one
+   column keeps it, and the default supplies the rest. The draft runs
+   the same step on every leaf, cells of a composite included. This is the step that
    lets raw data render a sensible default: the user-facing entry
    points (`pj/pose` 1-arity and the shortcuts `pj/draft`, `pj/plan`,
    `pj/membrane`, `pj/plot`, `pj/save`) apply it right after
@@ -835,9 +810,8 @@
    - `(-> data pj/->pose pj/infer-mapping)` -- lift, then default map
    - `(pj/infer-mapping built-pose)` -- no-op on an already-mapped pose"
   [fr]
-  (if-let [m (and (fresh-data-only-leaf? fr)
-                  (try-infer-mapping (:data fr)))]
-    (assoc fr :mapping m)
+  (if (pose? fr)
+    (pose/infer-default-mapping fr)
     fr))
 
 (defn pose->draft
@@ -1438,9 +1412,9 @@
    **On raw data (first argument is not itself a pose):**
 
    - `(pj/pose)` -- empty leaf.
-   - `(pj/pose data)` -- leaf with data; on 1-3 column datasets the
-     mapping is auto-inferred (`:x`, then `:y`, then `:color`) so the
-     pose renders without an explicit mapping call.
+   - `(pj/pose data)` -- leaf with data and no mapping. On 1-3 column
+     datasets the draft infers one (`:x`, then `:y`, then `:color`), so
+     the pose renders without an explicit mapping call.
    - `(pj/pose data {:color :species})` -- leaf with aesthetic mapping.
    - `(pj/pose data :x-col)` -- leaf with `{:x :x-col}`.
    - `(pj/pose data :x-col {:color :c})` -- univariate x with opts.
@@ -1495,7 +1469,7 @@
    `pj/scale` for choosing a scale's type."
   ([] (prepare-pose {:layers []}))
   ([pose-or-data]
-   (-> pose-or-data (->pose "pj/pose") infer-mapping))
+   (->pose pose-or-data "pj/pose"))
   ([pose-or-data x-or-mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
@@ -1724,17 +1698,19 @@
          ;; the four-level merge in pose/leaf->draft honors over the
          ;; leaf's.
          path (or match-path (when overlay? (pose/last-leaf-path fr)))]
-     (if (some? path)
-       (update-in fr
-                  (conj (pose/path->update-in-path path) :layers)
-                  (fnil conj []) (cond-> layer
-                                   (and overlay? (nil? match-path))
-                                   (update :mapping (fnil merge {}) position-mapping)))
-       (do
-         (check-new-panel-columns (:layer-type layer)
-                                  position-mapping layer (:data fr))
-         (update fr :poses (fnil conj [])
-                 {:mapping position-mapping :layers [layer]}))))))
+     ;; The layer keeps the columns it names on its own mapping, on a
+     ;; matching cell and on a new one alike -- a cell's mapping is what
+     ;; `pj/pose` writes, and `lay-*` never writes it.
+     (let [layer (update layer :mapping #(merge position-mapping %))]
+       (if (some? path)
+         (update-in fr
+                    (conj (pose/path->update-in-path path) :layers)
+                    (fnil conj []) layer)
+         (do
+           (check-new-panel-columns (:layer-type layer)
+                                    position-mapping layer (:data fr))
+           (update fr :poses (fnil conj [])
+                   {:layers [layer]})))))))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -2545,27 +2521,21 @@
 (defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
-   Composite + position: the layer lands on the last leaf whose
+   The columns the call names are written on the layer's own
+   :mapping, and never on a pose's: the pose's :mapping is what
+   `pj/pose` writes.
+
+   Composite + columns: the layer lands on the last leaf whose
    effective :x/:y match (via add-leaf-layer-to-composite), or a
-   fresh sub-pose is appended at the root.
+   fresh sub-pose holding it is appended at the root (LP3).
 
-   Leaf whose own :mapping has no :x/:y, called with a position:
-   extend the leaf's :mapping with the position and append a bare
-   layer. A position-bearing lay-* on a bare pose sets the pose's
-   position.
+   Leaf + columns: the layer is appended, and the leaf draws one panel
+   per place its layers name, worked out at draft time -- the leaf
+   stays a leaf.
 
-   Leaf whose own :mapping already has position, called with a
-   matching position: append a layer carrying its own :mapping so
-   downstream partitioning treats it as panel-origin.
-
-   Leaf whose own :mapping already has position, called with a
-   non-matching position: append the layer carrying its own columns,
-   and the leaf draws a panel for it at draft time -- the leaf stays a
-   leaf. A composite receiving non-matching columns appends a new leaf
-   instead (LP3).
-
-   No position (leaf or composite + aesthetic-only): append the
-   bare / aesthetic layer to :layers."
+   No columns (leaf or composite + aesthetic-only): append the bare /
+   aesthetic layer to :layers; it is drawn on every panel, reading
+   that panel's columns."
   [fr layer-type-key position-mapping opts]
   ;; The positional x/y of a lay-* call reach the pose's :mapping without
   ;; passing through build-layer, so they need the same column-reference
@@ -2599,11 +2569,7 @@
                                 (identity-columns (:mapping bare-layer)
                                                   (or (:data bare-layer)
                                                       (:data fr))))
-        ;; What the mapping *names*, not how it is written: a scale
-        ;; written by `pj/scale` puts a map under `:x` that names no
-        ;; position, and a position written in full names one.
-        pose-pos? (or (pose/mapping-source (:x (:mapping fr)))
-                      (pose/mapping-source (:y (:mapping fr))))]
+]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
       ;; The resolved flag rides onto the layer: it lands on a cell whose
@@ -2614,104 +2580,30 @@
                                      overlay? (assoc :overlay true))
                                    overlay?)
 
-      (and (seq position-mapping) (not pose-pos?))
-      (-> fr
-          ;; Through merge-mappings, not merge: the pose may already
-          ;; carry a scale for this axis with no source under it --
-          ;; what `pj/scale` writes -- and a plain merge replaces that
-          ;; whole value with the column name, dropping the scale in
-          ;; silence. The position names the source; the scale set
-          ;; further out still says how to read it.
-          (update :mapping #(pose/merge-mappings (or % {}) position-mapping))
-          (update :layers (fnil conj []) bare-layer))
-
+      ;; A layer keeps the columns it names on its own mapping, and the
+      ;; pose's mapping is left as it was: a later `pj/pose` retargets
+      ;; the layers that leave their columns to the pose, and only those,
+      ;; as scope says. Which panel the layer draws on is decided at
+      ;; draft time, from every layer's columns read together.
       (seq position-mapping)
-      (let [leaf-mapping (:mapping fr)
-            disagreements (for [k [:x :y]
-                                :let [pos-v (pose/mapping-source
-                                             (get position-mapping k))
-                                      leaf-v (pose/mapping-source
-                                              (get leaf-mapping k))]
-                                :when (and pos-v leaf-v
-                                           (not= pos-v leaf-v))]
-                            [k pos-v leaf-v])
-            ;; Whether this call is the one that first divides the leaf.
-            ;; Bare layers already on it were written for the one panel it
-            ;; had, so they are stamped with that place and stay on it;
-            ;; bare layers written after this one draw on every panel,
-            ;; which is how a rule or a line added at the end annotates
-            ;; all of them.
-            splitting? (and (seq disagreements)
-                            (= 1 (count (pose/leaf-panel-keys fr))))
-            ;; A layer that names a y and no x -- which only an options
-            ;; map can write -- would draw at no x at all. Every layer type
-            ;; draws along an x, so the panel it leaves supplies one, where
-            ;; the data the new panel reads carries that column:
-            ;; `(-> data (pj/pose :X) (pj/lay-line {:y :Y})
-            ;; (pj/lay-line {:y :Z}))` gives two panels over the same `:X`.
-            ;; The mirror case is left alone, because whether a layer type
-            ;; needs a y depends on the type -- a histogram named on x
-            ;; alone wants a panel with no y.
-            new-cols (when-let [d (or (:data bare-layer) (:data fr))]
-                       (set (tc/column-names d)))
-            leaf-x-col (pose/mapping-source (:x leaf-mapping))
-            position-mapping (if (and (seq disagreements)
-                                      (pose/mapping-source (:y position-mapping))
-                                      (not (pose/mapping-source (:x position-mapping)))
-                                      leaf-x-col
-                                      (or (nil? new-cols)
-                                          (contains? new-cols leaf-x-col)))
-                               (assoc position-mapping :x (:x leaf-mapping))
-                               position-mapping)
-            leaf-pos (select-keys leaf-mapping [:x :y])
-            stamped (if splitting?
-                      ;; Through merge-mappings, and into the layer's own
-                      ;; mapping: a layer's aesthetics and its layer-type
-                      ;; options share that slot, so replacing it would
-                      ;; discard every one of them -- the colour, the
-                      ;; `:bar-width`, the `:bins`. The layer names no
-                      ;; place, which is why it is being stamped at all,
-                      ;; so nothing it carries is overridden.
-                      (update fr :layers
-                              (fn [ls]
-                                (mapv (fn [l]
-                                        (if (layer-has-position? l)
-                                          l
-                                          (update l :mapping
-                                                  #(pose/merge-mappings
-                                                    leaf-pos (or % {})))))
-                                      (or ls []))))
-                      fr)
-            ;; Where the layer names an axis the leaf does not name at
-            ;; all, the leaf takes that column, so that a later layer
-            ;; naming a different column for that axis disagrees with it
-            ;; rather than joining in silence. A layer that overlays
-            ;; leaves the leaf's mapping as it was -- the axis keeps the
-            ;; name of the panel's own column -- and so does one that
-            ;; already disagrees, which is taking a panel of its own.
-            adopt (if (or overlay? (seq disagreements))
-                    {}
-                    (select-keys position-mapping
-                                 (remove #(pose/mapping-source
-                                           (get leaf-mapping %))
-                                         [:x :y])))]
-        (when (seq disagreements)
-          (check-new-panel-columns layer-type-key position-mapping
-                                   bare-layer (:data fr)))
-        (cond-> stamped
-          (seq adopt)
-          (update :mapping #(pose/merge-mappings (or % {}) adopt))
-
-          :always
-          (update :layers (fnil conj [])
+      (do (when (some (fn [k]
+                        (let [pos-v (pose/mapping-source (get position-mapping k))
+                              leaf-v (get (pose/leaf-columns fr) k)]
+                          (and pos-v leaf-v (not= pos-v leaf-v))))
+                      [:x :y])
+            ;; The layer disagrees with the columns the pose draws, so it
+            ;; will take a panel of its own: say which column is missing
+            ;; here rather than deep in the plan.
+            (check-new-panel-columns layer-type-key position-mapping
+                                     bare-layer (:data fr)))
+          (update fr :layers (fnil conj [])
                   (elide-empty-maps
                    ;; The layer's own mapping wins: an options map may
                    ;; have written a value where the position names a
                    ;; column, and `{:x 2.0}` on a label is the place
                    ;; the label goes, not the panel's column.
                    (update bare-layer :mapping
-                           #(merge position-mapping %))))))
-
+                           #(merge position-mapping %)))))
       :else
       (update fr :layers (fnil conj []) bare-layer))))
 
@@ -2737,8 +2629,9 @@
    pass through. All dispatches then route through lay-on-pose, which
    follows the DFS-last identity rule in pose_rules.clj.
 
-   1-arity: auto-infer columns for a fresh leaf-with-data (<= 3 cols),
-            otherwise append a bare/aesthetic layer.
+   1-arity: append a bare layer; on raw data with 4+ columns, report
+            that no default mapping can be inferred (1-3 columns are
+            inferred at draft time).
    2-arity: keyword/string -> position-bearing layer;
             vector of columns/pairs -> multi-pair broadcast;
             map -> aesthetic-only layer with opts.
@@ -2750,16 +2643,12 @@
          fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))
          d (:data fr)]
      (if (and was-raw? d)
-       ;; Raw-data 1-arity: auto-infer columns from the first 1-3 columns
-       ;; so `(pj/lay-point data)` still produces a renderable plot.
-       ;; Threaded `(-> data pj/pose pj/lay-point)` works too because
-       ;; pj/pose 1-arity sets the mapping itself for 1-3 col data.
-       ;; A pose with no mapping that reaches here (e.g. iris with 7
-       ;; cols through pj/pose, or a hand-built map) stays bare so the
-       ;; "root layer flows to every panel" M4 pattern keeps working.
-       (let [mapping (auto-infer-mapping layer-type-key d)]
-         (lay-on-pose (assoc fr :mapping mapping)
-                      layer-type-key nil nil))
+       ;; Raw-data 1-arity: the columns are inferred at draft time from
+       ;; the first 1-3 columns (`infer-mapping`), so `(pj/lay-point
+       ;; data)` still produces a renderable plot. With 4 or more there
+       ;; is no default to infer, and the call says so here.
+       (do (check-columns-inferable layer-type-key d)
+           (lay-on-pose fr layer-type-key nil nil))
        (lay-on-pose fr layer-type-key nil nil))))
   ([layer-type-key pose-or-data x-or-opts]
    (let [was-raw? (not (pose? pose-or-data))
@@ -2777,9 +2666,8 @@
                        (contains? x-or-opts :x)
                        (and (contains? x-or-opts :x)
                             (contains? x-or-opts :y)))
-             fr (if (and was-raw? d (nil? (:mapping fr)) (not mapped?))
-                  (assoc fr :mapping (auto-infer-mapping layer-type-key d))
-                  fr)]
+             _ (when (and was-raw? d (nil? (:mapping fr)) (not mapped?))
+                 (check-columns-inferable layer-type-key d))]
          (lay-on-pose fr layer-type-key nil x-or-opts))
 
        ;; Sequential -> build a multi-panel composite via pj/pose, then
@@ -4759,7 +4647,7 @@
          ;; sits against: the x column above the panel, the y column
          ;; beside it.
          axis (if (= :right side) :y :x)
-         col (pose/mapping-source (get-in pose [:mapping axis]))
+         col (get (pose/leaf-columns pose) axis)
          _ (when-not col
              (throw (ex-info (str "pj/marginal needs the pose to name "
                                   (if (= :right side) "a :y" "an :x")
@@ -4771,9 +4659,10 @@
                                   ;; column to describe until a mapping
                                   ;; names one. Say so rather than
                                   ;; reporting the missing axis alone.
-                                  (when (empty? (:mapping pose))
-                                    (str " This pose carries no mapping"
-                                         " yet: give it one with pj/pose"
+                                  (when (and (empty? (:mapping pose))
+                                             (empty? (pose/leaf-columns pose)))
+                                    (str " This pose names no columns"
+                                         " yet: name them with pj/pose"
                                          " or a pj/lay-* call first.")))
                              {:caller "pj/marginal"
                               :side side

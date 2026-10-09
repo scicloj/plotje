@@ -171,3 +171,87 @@ matrix-row
 
 (kind/test-last [(fn [v] (and (= 3 (:panels (pj/svg-summary v)))
                               (= 3 (count (:poses v)))))])
+
+;; ## Step 3: a `lay-*` call keeps its columns; the draft infers
+
+;; ### The columns are on the layer
+
+;; The pose carries no mapping; each layer carries the columns its call
+;; named.
+
+(def two-layers
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/lay-point :petal-length :petal-width)))
+
+two-layers
+
+(kind/pprint two-layers)
+
+(kind/test-last [(fn [v] (and (nil? (:mapping v))
+                              (= [{:x :sepal-length :y :sepal-width}
+                                  {:x :petal-length :y :petal-width}]
+                                 (mapv :mapping (:layers v)))
+                              (= 2 (:panels (pj/svg-summary v)))))])
+
+;; ### A layer naming no columns reads each panel's columns
+
+;; The smooth is drawn on both panels, fitted to that panel's points. On
+;; 0.16.1 the petal panel's smooth was fitted to the sepal columns.
+
+(def smooth-per-panel
+  (-> two-layers
+      pj/lay-smooth))
+
+smooth-per-panel
+
+(kind/pprint smooth-per-panel)
+
+(kind/test-last [(fn [v] (= [[0 :sepal-length :sepal-width] [1 :petal-length :petal-width]]
+                            (->> (pj/draft v)
+                                 :layers
+                                 (filter #(= :smooth (:layer-type %)))
+                                 (mapv (juxt :__panel-idx :x :y)))))])
+
+;; Written between the two point layers, the smooth draws the same.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    pj/lay-smooth
+    (pj/lay-point :petal-length :petal-width))
+
+(kind/test-last [(fn [v] (= [[0 :sepal-length :sepal-width] [1 :petal-length :petal-width]]
+                            (->> (pj/draft v)
+                                 :layers
+                                 (filter #(= :smooth (:layer-type %)))
+                                 (mapv (juxt :__panel-idx :x :y)))))])
+
+;; ### A later `pj/pose` reaches the layers that name no columns
+
+;; The point layer named its columns, so it keeps them, and the pose's
+;; own `:x` keeps a panel of its own.
+
+(def pose-after-lay
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/pose {:x :petal-length})))
+
+pose-after-lay
+
+(kind/pprint pose-after-lay)
+
+(kind/test-last [(fn [v] (and (= {:x :petal-length} (:mapping v))
+                              (= 2 (:panels (pj/svg-summary v)))))])
+
+;; ### The default mapping is inferred when the pose is drawn
+
+(def raw-scatter
+  (pj/lay-point {:height [170 180 165] :weight [70 80 65]}))
+
+raw-scatter
+
+(kind/pprint raw-scatter)
+
+(kind/test-last [(fn [v] (and (nil? (:mapping v))
+                              (= {:x :height :y :weight} (:mapping (pj/infer-mapping v)))
+                              (= 3 (:points (pj/svg-summary v)))))])

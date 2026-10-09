@@ -635,7 +635,7 @@ sales-by-region
     :mapping)
 
 (kind/test-last
- [(fn [m] (= {:color :series :color-type :categorical} m))])
+ [(fn [m] (= {:x "country" :y :value :color :series :color-type :categorical} m))])
 
 ;; A series whose columns are named in words needs none of this, and
 ;; carries no `:color-type`. The dataset the pose holds is what

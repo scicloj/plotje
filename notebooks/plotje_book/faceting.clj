@@ -90,8 +90,8 @@
 (kind/test-last
  [(fn [_] (= #{:col :row} (set (keys pj/panel-aesthetic-docs))))])
 
-;; `pj/facet` writes `:col` into the pose's mapping, beside `:x` and
-;; `:y`. Here is the plot, and then the pose that draws it.
+;; `pj/facet` writes `:col` into the pose's mapping. Here is the plot,
+;; and then the pose that draws it.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)

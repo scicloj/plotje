@@ -598,57 +598,39 @@
    data axis that participates in sharing normally."
   #{:bin :count :density})
 
-(defn- predicted-stat
-  "Predict the stat that plan/draft->plan will assign to this layer
-   when emitted via leaf->draft. Mirrors the precedence used by
-   resolve/resolve-draft-layer and leaf->draft:
-     - explicit :stat                 -> use it
-     - :layer-type registered + :stat -> stat from registry
-     - :layer-type registered + :mark -> :identity
-     - explicit :mark, no :stat       -> :identity
-     - none of the above              -> infer via resolve/infer-layer-type
-   Returns nil when prediction is impossible (no data, no x/y)."
-  [layer leaf-mapping leaf-data]
-  (let [lt-key (:layer-type layer)
-        lt-info (when (and lt-key (keyword? lt-key) (not= :infer lt-key))
-                  (layer-type/lookup lt-key))]
-    (cond
-      (:stat layer)         (:stat layer)
-      (:stat lt-info)       (:stat lt-info)
-      (or (:mark layer)
-          (:mark lt-info))  :identity
-      :else
-      (let [v (merge leaf-mapping (:mapping layer))]
-        (when (and leaf-data (or (:x v) (:y v)))
-          (try
-            (let [{:keys [x-type y-type x-temporal? y-temporal?]}
-                  (resolve/infer-column-types leaf-data v)]
-              (:stat (resolve/infer-layer-type v x-type y-type
-                                               x-temporal? y-temporal?)))
-            (catch Throwable _ nil)))))))
+(declare infer-layer-type-key)
 
-(defn- effective-layers
-  "The layers that render for a leaf. When the user
-   provided layers, those. When :layers is empty but :mapping is
-   non-empty, leaf->draft synthesizes one :infer placeholder, so
-   we model that as a single empty {} layer."
-  [layers mapping]
-  (cond
-    (seq layers)  layers
-    (seq mapping) [{}]
-    :else         []))
+(defn- layer-stat
+  "The stat the plan assigns this layer. `elaborate` has written a layer
+   type in wherever one was left to inference, so this reads the layer
+   type; a layer still `:infer` -- one an ancestor carries to several
+   leaves -- takes the type the data chooses here, by the same rule.
+   The stat a fixed mark defaults to is `resolve/infer-layer-type`'s, so
+   a `:rect` with no `:y` counts. Nil where no mark can be known."
+  [layer leaf-mapping leaf-data]
+  (let [v (merge leaf-mapping (:mapping layer))
+        lt-key (if (= :infer (:layer-type layer))
+                 (infer-layer-type-key v (or (:data layer) leaf-data))
+                 (:layer-type layer))
+        lt-info (when (keyword? lt-key) (layer-type/lookup lt-key))
+        mark (or (:mark layer) (:mark lt-info))
+        stat (or (:stat layer) (:stat lt-info))]
+    (when mark
+      (:stat (resolve/infer-layer-type {:mark mark
+                                        :stat stat
+                                        :y (mapping-source (:y v))}
+                                       nil nil false false)))))
 
 (defn- y-axis-stat-driven?
-  "True if every effective layer of this leaf will resolve to a stat
-   whose y-axis is independent of the y-mapped data column. Such a
-   leaf should not be stamped with a shared y-scale-domain."
+  "True if every layer of this leaf will resolve to a stat whose y-axis
+   is independent of the y-mapped data column. Such a leaf should not
+   be stamped with a shared y-scale-domain."
   [layers mapping data]
-  (let [effective (effective-layers layers mapping)]
-    (and (seq effective)
-         (every? (fn [layer]
-                   (contains? stat-driven-y-stats
-                              (predicted-stat layer mapping data)))
-                 effective))))
+  (and (seq layers)
+       (every? (fn [layer]
+                 (contains? stat-driven-y-stats
+                            (layer-stat layer mapping data)))
+               layers)))
 
 (defn- col-values
   "Non-nil values for a column reference from a dataset. The reference
@@ -1911,9 +1893,13 @@
   "A mapping's place, as `[x-source y-source]`, or nil where it names
    neither."
   [m]
-  (let [m (or m {})]
-    (when (or (contains? m :x) (contains? m :y))
-      [(mapping-source (:x m)) (mapping-source (:y m))])))
+  (let [m (or m {})
+        x (mapping-source (:x m))
+        y (mapping-source (:y m))]
+    ;; A scale written by `pj/scale` puts a map under `:x` that names
+    ;; no column; that is not a place.
+    (when (or x y)
+      [x y])))
 
 (defn layer-position-key
   "The place a layer draws at, as `[x-source y-source]` -- what decides
@@ -1964,6 +1950,54 @@
              (:overlay layer)
              (:overlay leaf))))
 
+(defn- layer-place
+  "The place a layer of `leaf` names, or nil -- `layer-position-key`
+   read against the leaf's mapping and the data the layer draws from."
+  [leaf layer]
+  (layer-position-key (:mapping leaf) layer (or (:data layer) (:data leaf))))
+
+(defn- complete-places
+  "A map from each place in `places` to the place it draws at.
+
+   A place that leaves an axis open draws at the first place that names
+   that axis and agrees with it on the other one, so a histogram named on
+   `:a` alone shares the panel of a scatter of `:a` against `:b`, and a
+   pose naming only `:x` shares the panel its layers complete. A place
+   that no other place completes draws at itself."
+  [places]
+  (let [agrees? (fn [p q]
+                  (every? true? (map (fn [a b] (or (nil? a) (= a b))) p q)))
+        complete? (fn [p] (every? some? p))]
+    (into {}
+          (for [p places]
+            [p (if (and p (not (complete? p)))
+                 (or (first (filter #(and % (complete? %) (agrees? p %)) places))
+                     p)
+                 p)]))))
+
+(defn- leaf-places
+  "The places a leaf draws at, and how each place a layer names maps onto
+   one of them: `{:panel-keys [...] :place-of {raw-place place}}`.
+
+   The leaf's own place leads, so that it stays panel 0 -- the panel an
+   overlaying layer joins -- even where every layer that names a place of
+   its own names a different one. Where the leaf names none, the first
+   place any layer names leads instead: a layer keeps its columns on its
+   own mapping, so on a pose built by `lay-*` alone that is the place the
+   pose draws first."
+  [leaf]
+  (let [own (position-mapping-key (:mapping leaf))
+        layers (:layers leaf)
+        lead (or own (first (keep #(layer-place leaf %) layers)))
+        named (->> layers
+                   (remove #(layer-overlays? leaf %))
+                   (keep #(layer-place leaf %)))
+        raw (if lead (cons lead named) named)
+        place-of (complete-places raw)
+        all (vec (distinct (map place-of raw)))]
+    {:panel-keys (if (seq all) all [nil])
+     :place-of place-of}))
+
 (defn leaf-panel-keys
   "The places a leaf draws at, in the order its layers first name them.
    One entry per panel the leaf produces.
@@ -1971,18 +2005,23 @@
    A layer that overlays, and a layer that names no position, name no
    panel of their own -- the first joins the panel the leaf's mapping
    names, and the second draws on all of them. Where no layer names a
-   place, the leaf draws one panel, which is the leaf's own mapping."
+   place, the leaf draws one panel, which is the leaf's own mapping. A
+   place that leaves an axis open joins a place that completes it -- see
+   `complete-places`."
   [leaf]
-  (let [own   (position-mapping-key (:mapping leaf))
-        named (->> (:layers leaf)
-                   (remove #(layer-overlays? leaf %))
-                   (keep #(layer-position-key (:mapping leaf) %
-                                              (or (:data %) (:data leaf)))))
-        ;; The leaf's own place leads, so that it stays panel 0 -- the
-        ;; panel an overlaying layer joins -- even where every layer that
-        ;; names a place of its own names a different one.
-        all   (vec (distinct (if own (cons own named) named)))]
-    (if (seq all) all [nil])))
+  (:panel-keys (leaf-places leaf)))
+
+(defn leaf-columns
+  "The columns a leaf draws on `:x` and `:y` on its first panel, as
+   `{:x source :y source}` with the axes it does not name left out. The
+   leaf's own mapping where it names an axis, and otherwise the columns
+   its layers name: a `lay-*` call keeps its columns on its layer, so a
+   pose built by `lay-*` alone names them only there."
+  [leaf]
+  (let [[x y] (first (leaf-panel-keys leaf))]
+    (cond-> {}
+      x (assoc :x x)
+      y (assoc :y y))))
 
 (defn layer-panel-indices
   "The panels each layer of a leaf is drawn on, as a vector of index
@@ -1991,19 +2030,18 @@
    A layer that names a place is drawn on the panel for that place. A
    layer that overlays is drawn on the first panel, which is the one the
    leaf's own mapping names. A layer that names no place is drawn on
-   every panel -- the rule that lets a bare `lay-*` added after a split
-   annotate all of them."
+   every panel, reading that panel's columns -- the rule that lets a bare
+   `lay-*` annotate all of them."
   [leaf panel-keys]
   (let [all (vec (range (count panel-keys)))
-        index-of (zipmap panel-keys (range))]
+        index-of (zipmap panel-keys (range))
+        place-of (:place-of (leaf-places leaf))]
     (mapv (fn [layer]
-            (cond
-              (layer-overlays? leaf layer) [0]
-              (nil? (layer-position-key (:mapping leaf) layer
-                                        (or (:data layer) (:data leaf)))) all
-              :else [(get index-of (layer-position-key (:mapping leaf) layer
-                                                       (or (:data layer) (:data leaf)))
-                          0)]))
+            (let [place (layer-place leaf layer)]
+              (cond
+                (layer-overlays? leaf layer) [0]
+                (nil? place) all
+                :else [(get index-of (get place-of place place) 0)])))
           (:layers leaf))))
 
 (defn overlay-labels
@@ -2276,6 +2314,189 @@
                              " cell that way before arranging it.")
                         {:aesthetics found :columns written}))))))
 
+;; ---- Elaboration ----
+;;
+;; The choices the draft makes for a pose, written into the pose: the
+;; default mapping of raw data, and a concrete layer type wherever one
+;; was left to inference. Internal; a pose to a pose, so that everything
+;; downstream -- shared scales, panels, the draft -- reads a layer type
+;; rather than predicting one.
+
+(defn default-mapping
+  "The mapping raw data gets when nothing names a column: the first
+   1-3 columns, as `:x`, `:y` and `:color`. Nil for 0 or 4+ columns."
+  [d]
+  (let [cols (vec (tc/column-names d))]
+    (case (count cols)
+      1 {:x (cols 0)}
+      2 {:x (cols 0) :y (cols 1)}
+      3 {:x (cols 0) :y (cols 1) :color (cols 2)}
+      nil)))
+
+(def ^:private inferred-layer-types
+  "The registered layer type for each mark and stat
+   `resolve/infer-layer-type` chooses."
+  {[:point :identity]   :point
+   [:bar :bin]          :histogram
+   [:rect :count]       :bar
+   [:line :identity]    :line
+   [:boxplot :boxplot]  :boxplot})
+
+(defn- infer-layer-type-key
+  "The layer type the data chooses for a layer drawn at `mapping` --
+   the choice `resolve/infer-layer-type` makes at plan time, named as a
+   registered layer type. Nil where there is nothing to choose from (no
+   data, no column) or the columns cannot be read yet; the layer then
+   stays `:infer` and the plan chooses."
+  [mapping data]
+  (let [x (mapping-source (:x mapping))
+        y (mapping-source (:y mapping))]
+    (when (and data (or x y))
+      (try
+        (let [ds (coerce-dataset data)
+              cols (set (tc/column-names ds))
+              v (cond-> {}
+                  x (assoc :x x)
+                  y (assoc :y y))]
+          (when (every? cols (vals v))
+            (let [{:keys [x-type y-type x-temporal? y-temporal?]}
+                  (resolve/infer-column-types ds v)
+                  {:keys [mark stat]} (resolve/infer-layer-type
+                                       v x-type y-type x-temporal? y-temporal?)]
+              (inferred-layer-types [mark stat]))))
+        (catch Exception _ nil)))))
+
+(defn- infer-layer?
+  [layer]
+  (= :infer (:layer-type layer)))
+
+(defn infer-default-mapping
+  "A leaf with the columns it draws filled in where nothing names them,
+   from data of 1-3 columns.
+
+   - Where neither the leaf's mapping nor any layer names an `:x` or a
+     `:y` column, the data's `default-mapping` is written under the
+     leaf's own mapping, so a scale it already carries reads the
+     default column.
+   - Where a `:y` is named and no `:x` is, the leaf's `:x` is the first
+     column nothing names -- every layer type draws along an x, so
+     `(pj/lay-point data {:y :a})` draws `:a` against the column before
+     it. A `:y` is never filled in: whether a layer needs one depends on
+     its type, and `(pj/lay-bar data :x)` counts.
+
+   Returns the leaf unchanged otherwise, so it is idempotent."
+  [leaf]
+  (let [m (or (:mapping leaf) {})
+        mappings (cons m (map #(or (:mapping %) {}) (:layers leaf)))
+        named? (fn [k] (some #(mapping-source (get % k)) mappings))
+        d (when (and (:data leaf) (nil? (:poses leaf)))
+            (coerce-dataset (:data leaf)))
+        default (when d (default-mapping d))]
+    (cond
+      (not default) leaf
+
+      (and (not (named? :x)) (not (named? :y)))
+      (assoc leaf :mapping (merge-mappings default m))
+
+      (and (not (named? :x)) (named? :y))
+      (let [used (set (keep #(when-not (map? %) %)
+                            (mapcat #(map mapping-source (vals %)) mappings)))
+            free (first (remove used (tc/column-names d)))]
+        (if free
+          (assoc leaf :mapping (merge-mappings {:x free} m))
+          leaf))
+
+      :else leaf)))
+
+(defn elaborate-leaf
+  "A leaf with the draft's choices written in. `leaf` carries its full
+   context -- a top-level leaf, or one `resolve-tree` resolved.
+
+   - The data's default mapping, where the leaf needs one -- see
+     `infer-default-mapping`.
+   - A leaf with a place and no layers draws one layer, of the type the
+     data chooses.
+   - A place the leaf's own mapping names, where no layer draws, keeps
+     its panel, with a layer of the type the data chooses --
+     `(-> data (pj/pose :a :b) (pj/lay-point :c :d))` draws a-against-b
+     beside c-against-d.
+   - A layer written as `:infer` takes the type the data chooses for
+     the place it draws at.
+
+   Idempotent: a second call finds nothing left to choose."
+  [leaf]
+  (let [leaf (infer-default-mapping leaf)
+        own-mapping (select-keys (or (:mapping leaf) {}) [:x :y])
+        own-place (position-mapping-key (:mapping leaf))
+        layers (vec (or (:layers leaf) []))
+        layers (cond
+                 (seq layers) layers
+                 own-place [{:layer-type :infer}]
+                 :else [])
+        leaf (assoc leaf :layers layers)
+        ;; The pose's own place, where none of its layers draws.
+        orphan? (and own-place
+                     (seq (:layers leaf))
+                     (let [keys (leaf-panel-keys leaf)
+                           idxs (layer-panel-indices leaf keys)]
+                       (and (= own-place (first keys))
+                            (not (contains? (set (apply concat idxs)) 0)))))
+        leaf (cond-> leaf
+               orphan? (update :layers conj {:layer-type :infer
+                                             :mapping own-mapping}))
+        place-mapping (fn [layer]
+                        (let [k (or (layer-place leaf layer)
+                                    (first (leaf-panel-keys leaf)))]
+                          (cond-> (merge (:mapping leaf) (:mapping layer))
+                            (first k) (assoc :x (first k))
+                            (second k) (assoc :y (second k)))))]
+    (update leaf :layers
+            (fn [ls]
+              (mapv (fn [layer]
+                      (if-let [t (and (infer-layer? layer)
+                                      (infer-layer-type-key
+                                       (place-mapping layer)
+                                       (or (:data layer) (:data leaf))))]
+                        (assoc layer :layer-type t)
+                        layer))
+                    ls)))))
+
+(defn elaborate
+  "`elaborate-leaf` on every leaf of a pose, each read with the context
+   its ancestors give it, and each leaf's choices written back onto that
+   leaf. An ancestor's `:infer` layer, which reaches several leaves, is
+   left to the plan."
+  ([pose] (elaborate pose {}))
+  ([pose parent-ctx]
+   (cond
+     (:plotje/empty-cell pose) pose
+
+     (leaf? pose)
+     (let [anc-layers (vec (:layers parent-ctx))
+           resolved {:data (or (:data pose) (:data parent-ctx))
+                     :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
+                     :layers (into anc-layers (:layers pose))
+                     :overlay (if (contains? pose :overlay)
+                                (:overlay pose)
+                                (:overlay parent-ctx))}
+           done (elaborate-leaf resolved)
+           own-layers (subvec (:layers done) (count anc-layers))]
+       (cond-> pose
+         (not= (:mapping resolved) (:mapping done))
+         (assoc :mapping (merge-mappings (:mapping done) (:mapping pose)))
+
+         (not= own-layers (vec (or (:layers pose) [])))
+         (assoc :layers own-layers)))
+
+     :else
+     (let [ctx {:data (or (:data pose) (:data parent-ctx))
+                :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
+                :layers (into (vec (:layers parent-ctx)) (:layers pose))
+                :overlay (if (contains? pose :overlay)
+                           (:overlay pose)
+                           (:overlay parent-ctx))}]
+       (update pose :poses (fn [ps] (mapv #(elaborate % ctx) ps)))))))
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -2305,19 +2526,17 @@
    is emitted once per panel, which is how a bare `lay-*` annotates all
    of them."
   [leaf]
-  (let [leaf-mapping (or (:mapping leaf) {})
+  (let [leaf         (elaborate-leaf leaf)
+        leaf-mapping (or (:mapping leaf) {})
         _            (report-unread-series leaf-mapping)
         leaf-data    (:data leaf)
         opts         (or (:opts leaf) {})
         coord-type   (:coord opts)
-        layers       (or (:layers leaf) [])
-        ;; An entirely empty leaf (no mapping, no layers) has nothing
-        ;; to infer from -- emit nothing so plan produces a minimal
-        ;; placeholder instead of crashing on a mark-:infer with no x.
-        applicable   (cond
-                       (seq layers) layers
-                       (seq leaf-mapping) [{:layer-type :infer}]
-                       :else [])
+        ;; `elaborate-leaf` has written in the layer a leaf with a place
+        ;; and no layers draws, and the one the pose's own place keeps
+        ;; where no layer draws there. An entirely empty leaf emits
+        ;; nothing, so plan produces a minimal placeholder.
+        applicable   (or (:layers leaf) [])
         ;; The panel aesthetics are read here and stripped before
         ;; anything downstream sees the mapping: a panel is a
         ;; destination for a distinction, not something a mark draws.
@@ -2330,21 +2549,25 @@
         ;; The places this leaf draws at, and which of them each layer
         ;; lands on. An empty :layers stands in as one placeholder layer,
         ;; which names no place and so draws on the leaf's own.
-        panel-keys   (leaf-panel-keys (assoc leaf :layers applicable))
-        base-idxs    (layer-panel-indices (assoc leaf :layers applicable)
-                                          panel-keys)
-        ;; A pose whose own place no layer draws at keeps its panel, with
-        ;; a mark inferred for it -- `(-> data (pj/pose :a :b)
-        ;; (pj/lay-point :c :d))` draws a-against-b beside c-against-d.
-        ;; The promoted sub-pose this replaces got the same placeholder by
-        ;; being a leaf with a mapping and no layers.
-        orphan-own?  (and (position-mapping-key (:mapping leaf))
-                          (not (contains? (set (apply concat base-idxs)) 0)))
-        applicable   (cond-> applicable
-                       orphan-own? (conj {:layer-type :infer}))
-        panel-idxs   (cond-> base-idxs
-                       orphan-own? (conj [0]))
+        panel-keys   (leaf-panel-keys leaf)
+        panel-idxs   (layer-panel-indices leaf panel-keys)
         n-panels     (count panel-keys)
+        ;; The columns each panel draws, as a mapping: what a layer naming
+        ;; no place reads on that panel. Each axis keeps the value it was
+        ;; written with -- the leaf's, or that of the first layer naming
+        ;; the column -- so a scale written beside the column comes too.
+        panel-places (mapv (fn [k]
+                             (into {}
+                                   (for [[i axis] [[0 :x] [1 :y]]
+                                         :let [src (nth k i nil)]
+                                         :when src]
+                                     [axis (or (some #(let [v (get % axis)]
+                                                        (when (= src (mapping-source v)) v))
+                                                     (cons leaf-mapping
+                                                           (map :mapping applicable)))
+                                               src)])))
+                           panel-keys)
+        placeless?   (mapv #(nil? (layer-place leaf %)) applicable)
         ;; Said once per draft, and only where the leaf's own layers made
         ;; the split -- a faceted leaf has many panels and no disagreement
         ;; to report.
@@ -2383,7 +2606,9 @@
              ;; sees a plain value with the writer's two choices
              ;; recorded beside it.
              resolved (normalize-explicit-mappings
-                       (-> leaf-mapping
+                       (-> (cond-> leaf-mapping
+                             (nth placeless? layer-idx)
+                             (merge-mappings (nth panel-places panel-idx)))
                            (merge-mappings layer-type-info)
                            (merge-mappings layer-mapping)
                            (merge-mappings layer-structural)))

@@ -93,23 +93,27 @@
 
 
 (def
- v17_l165
+ v17_l164
  (def
   two-col-pose
   (pj/pose {:x [1.0 2.0 3.0 4.0 5.0], :y [1.0 4.0 9.0 16.0 25.0]})))
 
 
-(def v18_l169 two-col-pose)
+(def v18_l168 two-col-pose)
 
 
 (deftest
- t19_l171
- (is ((fn [v] (= 5 (:points (pj/svg-summary v)))) v18_l169)))
+ t19_l170
+ (is ((fn [v] (= 5 (:points (pj/svg-summary v)))) v18_l168)))
 
 
 (def
  v21_l175
- (-> two-col-pose (select-keys [:mapping :layers]) kind/pprint))
+ (->
+  two-col-pose
+  pj/infer-mapping
+  (select-keys [:mapping :layers])
+  kind/pprint))
 
 
 (deftest
@@ -246,15 +250,15 @@
     [m]
     (and
      (every?
-      (fn* [p1__135757#] (re-matches #"\d{2}:\d{2}" p1__135757#))
+      (fn* [p1__75261#] (re-matches #"\d{2}:\d{2}" p1__75261#))
       (:six-hours m))
      (every?
       (fn*
-       [p1__135758#]
-       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__135758#))
+       [p1__75262#]
+       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__75262#))
       (:three-days m))
      (every?
-      (fn* [p1__135759#] (re-matches #"\d{4}" p1__135759#))
+      (fn* [p1__75263#] (re-matches #"\d{4}" p1__75263#))
       (:nine-years m))
      (= 9 (count (:nine-years m)))))
    v39_l282)))

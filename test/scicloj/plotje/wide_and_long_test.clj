@@ -65,7 +65,8 @@
 
   (testing "the pivot happens on the pose, and everything after is ordinary"
     (let [pose (-> sales (pj/lay-bar :quarter [:revenue :cost]))]
-      (is (= {:x :quarter :y :value} (:mapping pose)))
+      (is (= {:x :quarter :y :value}
+             (-> pose :layers first :mapping (select-keys [:x :y]))))
       (is (= [:quarter :series :value] (vec (tc/column-names (:data pose)))))
       (is (= 8 (tc/row-count (:data pose))))))
 

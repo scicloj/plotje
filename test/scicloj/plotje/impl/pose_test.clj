@@ -328,7 +328,13 @@
                 :poses [{:mapping {:x :a :y :a} :layers []}      ;; diagonal: will infer :bin
                         {:mapping {:x :b :y :a}                  ;; off-diagonal: will infer scatter
                          :layers [{:layer-type :point}]}]}
-          [diag off] (pose/resolve-tree (pose/inject-shared-scales tree))]
+          ;; Elaborated first, as the compositor does: the diagonal cell
+          ;; is given a histogram layer, which is what exempts it.
+          [diag off] (-> tree
+                         pose/elaborate
+                         pose/inject-shared-scales
+                         pose/resolve-tree)]
+      (is (= [:histogram] (mapv :layer-type (:layers diag))))
       (is (nil? (:y-scale-domain (:opts diag)))
           "diagonal cell (inferred to :bin) skips the y-stamp")
       (is (= [1.0 3.0] (:y-scale-domain (:opts off)))

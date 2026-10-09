@@ -427,12 +427,11 @@ composite-pose
 ;; case, and the `:overlay` key that reverses the non-matching
 ;; outcome.
 ;;
-;; **Position storage:** when a `lay-*` call carries position, the
-;; position lives on the **layer's own `:mapping`**. The leaf being
-;; attached to (or created for) also carries position in its own
-;; `:mapping` where appropriate -- both resolve to the same effective
-;; `:x`/`:y` via scope merge. The layer's own `:mapping` is the
-;; authoritative record of what the user typed.
+;; **Where the columns are written:** the columns a `lay-*` call names
+;; are written on the **layer's own `:mapping`**, and only there; the
+;; pose's `:mapping` is what `pj/pose` writes. The two meet by scope
+;; merge when the pose is drawn: a layer that names a column overrides
+;; the pose's, and a layer that names none reads the pose's.
 
 ;; ### Rule LP1: bare `lay-*` attaches at the current pose's root
 ;;
@@ -554,10 +553,10 @@ composite-pose
 
 (kind/test-last
  [(fn [pose]
-    ;; The panel each line left supplies the `:x` the other names no
-    ;; column for, so both panels are drawn over :X.
+    ;; The pose's `:x` reaches both lines, so both panels are drawn
+    ;; over :X.
     (and (nil? (:poses pose))
-         (= [{:y :Y} {:x :X :y :Z}] (mapv :mapping (:layers pose)))
+         (= [{:y :Y} {:y :Z}] (mapv :mapping (:layers pose)))
          (= 2 (:panels (pj/svg-summary pose)))))])
 
 ;; A written value in the same slot joins instead. Here `:x` and `:y`
@@ -580,8 +579,8 @@ composite-pose
 ;;
 ;; When `lay-*` carries `:x`/`:y` and **no** descendant leaf has
 ;; matching effective `:x`/`:y`, a new leaf is appended at the
-;; composite's root `:poses`. Its `:mapping` carries the call's
-;; position; a single layer with matching position attaches to it.
+;; composite's root `:poses`. It holds the one layer, and the layer's
+;; own `:mapping` carries the columns the call named.
 ;; A leaf given non-matching columns stays a leaf instead, and draws a
 ;; panel for them -- see LP2 above.
 
@@ -592,9 +591,9 @@ composite-pose
 (kind/test-last
  [(fn [pose]
     (and (= 3 (count (cells pose)))
-         (= {:x :sepal-length :y :petal-length}
-            (:mapping (nth (cells pose) 2)))
-         (= 1 (count (:layers (nth (cells pose) 2))))))])
+         (nil? (:mapping (nth (cells pose) 2)))
+         (= [{:x :sepal-length :y :petal-length}]
+            (mapv :mapping (:layers (nth (cells pose) 2))))))])
 
 ;; **Property: LP2 and LP3 draw the same panels.**
 ;; Laying two non-matching positions on one pose (LP2) and building the
@@ -661,10 +660,9 @@ composite-pose
 ;;
 ;; `lay-*` called with a dataset as its first argument coerces the
 ;; data into a leaf pose first, then applies the layer. The result
-;; is a leaf pose equivalent to
-;; `(-> data (pj/pose :x :y) pj/lay-point)`. This keeps the
-;; convenience one-liner `(-> data (pj/lay-point :x :y))` working as
-;; the shortest path from data to plot.
+;; draws what `(-> data (pj/pose :x :y) pj/lay-point)` draws. This
+;; keeps the convenience one-liner `(-> data (pj/lay-point :x :y))`
+;; working as the shortest path from data to plot.
 
 (def tiny
   {:a [1 2 3 4 5]
@@ -675,7 +673,10 @@ composite-pose
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
-;; The explicit two-step form produces the same leaf pose:
+;; The explicit two-step form draws the same plot. The two poses differ
+;; in where the columns are written: the `lay-*` call above keeps them
+;; on its layer, and here `pj/pose` writes them on the pose, where every
+;; layer added afterwards reads them:
 
 (-> tiny
     (pj/pose :a :b)
@@ -781,9 +782,9 @@ composite-pose
 (kind/test-last
  [(fn [pose]
     (and (= 2 (count (cells pose)))
-         (= [{:color "#377eb8"}]
+         (= [{:color "#377eb8" :x :sepal-length :y :sepal-width}]
             (mapv :mapping (:layers (first (cells pose)))))
-         (= [{:color "#e6550d"}
+         (= [{:color "#e6550d" :x :petal-length :y :petal-width}
              {:color "#4daf4a" :x :sepal-width :y :petal-width}]
             (mapv :mapping (:layers (second (cells pose)))))))])
 
@@ -870,7 +871,7 @@ composite-pose
 ;;
 ;; When `lay-*` or `pj/pose` is called on a dataset without
 ;; explicit column arguments, the mapping is read off the order of
-;; the dataset's columns:
+;; the dataset's columns when the pose is drawn:
 ;;
 ;; | Columns | Inferred mapping |
 ;; |:--------|:-----------------|

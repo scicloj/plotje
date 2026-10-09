@@ -10,7 +10,11 @@ All notable changes to this project will be documented in this file. This change
 
 - **A `pj/pose` or `lay-*` call given a vector of columns in place of one column**, such as `(pj/lay-density data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled `value`. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
-- **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`, and a pose returned by a function can be pointed at other columns; layers that name their own columns keep them. On a composite the mapping goes to the root, and a position there that every cell overrides warns that it is not drawn. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`. `(pj/pose p)` and `(pj/pose p {})` return `p`.
+- **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`, and a pose returned by a function can be pointed at other columns; layers that name their own columns keep them. On a composite the mapping goes to the root, and an `:x` or `:y` there that every cell overrides warns that it is not drawn. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`. `(pj/pose p)` and `(pj/pose p {})` return `p`.
+
+- **A pose built by `lay-*` calls, or by `(pj/pose data)`,** carries the columns each `lay-*` call names on that call's layer, and no mapping of its own; the pose's mapping is what `pj/pose` writes. A later `pj/pose` changes the columns of the layers that name none. The default mapping of 1-3 column data is inferred when the pose is drawn, in every cell of a composite too, and `pj/infer-mapping` shows it.
+
+- **A layer that names no columns, on a pose that draws several panels,** is drawn on every panel and reads that panel's columns, in whatever order the `lay-*` calls are written. In `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width) pj/lay-smooth)`, the smooth on the petal panel is fitted to the petal columns.
 
 ### Added
 

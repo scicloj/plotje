@@ -784,7 +784,14 @@
 (deftest
  t128_l637
  (is
-  ((fn [m] (= {:color :series, :color-type :categorical} m))
+  ((fn
+    [m]
+    (=
+     {:x "country",
+      :y :value,
+      :color :series,
+      :color-type :categorical}
+     m))
    v127_l629)))
 
 

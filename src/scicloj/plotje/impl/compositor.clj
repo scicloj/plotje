@@ -409,7 +409,12 @@
    not need to recompute layout from the original pose tree."
   [composite]
   (pose/report-unread-positions! composite)
-  (let [{:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
+  (let [;; The draft's choices written in first -- a default mapping, a
+        ;; concrete layer type for every inferred layer -- so sharing,
+        ;; layout and the leaf drafts read layer types rather than
+        ;; predicting them.
+        composite (pose/elaborate composite)
+        {:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)
         ;; When the composite carries its own title/subtitle/caption,

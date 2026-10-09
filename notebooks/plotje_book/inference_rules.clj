@@ -154,13 +154,12 @@ scatter-pose
                            (and (= 4 (:points s))
                                 (some #{"a"} (:texts s)))))])
 
-;; ### Pose construction infers the same mapping
+;; ### The mapping is inferred when the pose is drawn
 ;;
-;; Calling `pj/pose` on raw data without explicit column arguments
-;; runs the same column-selection rule. A 1-3 column dataset gets
-;; its mapping filled in; the resulting pose carries the mapping
-;; but has no layer attached yet, so layer type inference (covered
-;; below) supplies the mark at render time.
+;; A pose built from raw data with no column named -- by `pj/pose` or
+;; by a `pj/lay-*` call -- carries no mapping. The column-selection
+;; rule runs when the pose is drawn, and layer type inference (covered
+;; below) then supplies the mark.
 
 (def two-col-pose
   (pj/pose {:x [1.0 2.0 3.0 4.0 5.0]
@@ -170,9 +169,10 @@ two-col-pose
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
-;; The inferred mapping is visible on the pose itself:
+;; `pj/infer-mapping` is the step the drawing functions run, and it
+;; shows the mapping the rule chooses:
 
-(-> two-col-pose (select-keys [:mapping :layers]) kind/pprint)
+(-> two-col-pose pj/infer-mapping (select-keys [:mapping :layers]) kind/pprint)
 
 (kind/test-last [(fn [pose] (and (= {:x :x :y :y} (:mapping pose))
                                  (empty? (:layers pose))))])
