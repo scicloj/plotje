@@ -2731,10 +2731,10 @@
 
 ;; ---- Sharing and chrome decided from the listed cells ----
 ;;
-;; Provisional (step 5 of the PR #61 plan; rule 1 is open): which axis
-;; titles and tick labels a composite draws once is read from its listed
-;; cells alone -- however the cells were written. Sharing is written: by
-;; the writer, or by `expand-variation` for generated cells.
+;; Provisional (step 5 of the PR #61 plan; rule 1 is open): sharing and
+;; the once-only titles and ticks are written into the listed pose -- by
+;; the writer, or by `expand-variation` for generated cells -- and the
+;; compositor draws what is written.
 
 (defn default-share-axes
   "The axes the cells of a composite can share -- every bucket of cells
@@ -2764,7 +2764,7 @@
 
 ;; ---- Expansion of a variation into listed cells ----
 
-(declare expand-variation*)
+(declare expand-variation* apply-where)
 
 (defn expand-variation
   "A pose with cells generated from a variation, written as the listed
@@ -2783,12 +2783,55 @@
 
    The cells inherit the pose's data, mapping and layers, as cells of a
    composite do. What the expansion knows is written into the listed
-   pose: it shares each axis its cells can share (`default-share-axes`)
-   and gives them one drawing area, as a facet does."
+   pose: it shares each axis its cells can share (`default-share-axes`),
+   gives them one drawing area, and -- where every cell draws one column
+   on a shared axis -- writes in each cell's options which of them
+   titles and ticks it, as a facet does."
   [pose variation]
   (let [listed (expand-variation* pose variation)
-        axes (default-share-axes listed)]
-    (cond-> listed
+        axes (default-share-axes listed)
+        grid? (some :poses (:poses listed))
+        rows (if grid? (mapv :poses (:poses listed)) [(:poses listed)])
+        n-rows (count rows)
+        n-cols (count (first rows))
+        leaves (resolve-tree listed)
+        ;; An axis every cell draws one column on is titled and ticked
+        ;; once, as a facet does: x along the bottom row, y down the
+        ;; leftmost column, each title on the cell nearest the middle.
+        once-x? (and (axes :x) (unanimous-column leaves :x))
+        once-y? (and (axes :y) (unanimous-column leaves :y))
+        ;; A cell whose filter keeps no rows draws nothing, so the edge
+        ;; is the outermost cell that has rows.
+        ds (coerce-dataset (:data listed))
+        has-rows? (fn [cell]
+                    (or (nil? (:where cell)) (nil? ds)
+                        (pos? (tc/row-count (:data (apply-where {:data ds :where (:where cell)}))))))
+        full (vec (for [r (range n-rows)]
+                    (vec (for [c (range n-cols)] (has-rows? (get-in rows [r c]))))))
+        cells-at (for [r (range n-rows) c (range n-cols) :when (get-in full [r c])] [r c])
+        bottom-of (fn [c] (reduce max -1 (keep (fn [[r c']] (when (= c c') r)) cells-at)))
+        left-of (fn [r] (reduce min n-cols (keep (fn [[r' c]] (when (= r r') c)) cells-at)))
+        middle (fn [xs] (when (seq xs) (nth (vec (sort xs)) (quot (dec (count xs)) 2))))
+        last-row (reduce max -1 (map first cells-at))
+        first-col (reduce min n-cols (map second cells-at))
+        x-title-at [last-row (middle (keep (fn [[r c]] (when (= r last-row) c)) cells-at))]
+        y-title-at [(middle (keep (fn [[r c]] (when (= c first-col) r)) cells-at)) first-col]
+        chrome (fn [r c]
+                 (cond-> {}
+                   (and once-x? (not= r (bottom-of c))) (assoc :suppress-x-ticks true)
+                   (and once-x? (not= [r c] x-title-at)) (assoc :suppress-x-label true)
+                   (and once-y? (not= c (left-of r))) (assoc :suppress-y-ticks true)
+                   (and once-y? (not= [r c] y-title-at)) (assoc :suppress-y-label true)))
+        rows' (vec (map-indexed
+                    (fn [r cells]
+                      (vec (map-indexed (fn [c cell]
+                                          (update cell :opts #(merge (chrome r c) %)))
+                                        cells)))
+                    rows))]
+    (cond-> (if grid?
+              (assoc listed :poses (mapv (fn [row cells] (assoc row :poses cells))
+                                         (:poses listed) rows'))
+              (assoc listed :poses (first rows')))
       (seq axes) (assoc :share-scales axes)
       (seq axes) (assoc-in [:opts :align-panels] true))))
 
