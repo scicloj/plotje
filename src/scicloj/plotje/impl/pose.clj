@@ -3120,6 +3120,162 @@
                       (update :opts #(not-empty (dissoc % :share-scales :align-panels))))
             (some? written) (assoc-in [:opts :scales] (share-axes->scales written))))))))
 
+;; ---- A facet over columns: the `:facet` node (provisional) ----
+;;
+;; `pj/facet` keeps a facet that holds columns under the pose's `:facet`
+;; (categories go in the mapping). Drawing expands it into listed cells:
+;; a part holding categories gives a cell per value, filtered by `:where`;
+;; a part holding columns gives a cell per column, writing it; a grid
+;; crosses a `:col` part with a `:row` part. `nil` in a vector of columns
+;; leaves that cell without a column on that axis -- a margin.
+
+(defn- facet-part-items
+  "The cells one part of a facet node asks for, each a map of the
+   `:where` it keeps and the `:mapping` it writes."
+  [ds part]
+  (cond
+    (nil? part) [{}]
+
+    (and (map? part) (not (contains? part :column)))
+    (let [varied (filterv #(sequential? (get part %)) [:x :y])
+          n (count (get part (first varied)))]
+      (when-not (every? #(= n (count (get part %))) varied)
+        (throw (ex-info (str "pj/facet reads vectors of columns in step, so they need one"
+                             " length; got " (pr-str part) ".")
+                        {:facet part})))
+      (for [i (range n)]
+        {:mapping (into {} (keep (fn [k] (when-let [c (nth (get part k) i)] [k c])) varied))}))
+
+    :else
+    (let [col (if (map? part) (:column part) part)
+          values (if (sequential? col)
+                   (vec (distinct (apply map vector (map ds col))))
+                   (vec (distinct (ds col))))]
+      (for [v values]
+        {:where (if (sequential? col) (zipmap col v) {col v})}))))
+
+(defn- facet-cell
+  "One listed cell from the items of a row and a column. A cell naming
+   one column on both axes -- the diagonal of a scatter plot matrix --
+   names it once, on `:x`."
+  [row-item col-item]
+  (let [w (merge (:where row-item) (:where col-item))
+        m (merge (:mapping row-item) (:mapping col-item))
+        m (if (and (:x m) (= (:x m) (:y m))) (dissoc m :y) m)]
+    (cond-> {}
+      (seq w) (assoc :where w)
+      (seq m) (assoc :mapping m))))
+
+(defn expand-facet-node
+  "A leaf holding a `:facet` node, as the listed pose it expands to;
+   any other pose as it is. A part over columns of `:y` alone stacks its
+   cells down, so they share the `:x` axis; any other single part runs
+   across; `:col` and `:row` make a grid. The leaf's series is pivoted
+   first, as for a facet over categories."
+  [pose]
+  (let [node (:facet pose)]
+    (if (or (nil? node) (composite? pose))
+      pose
+      (let [base (-> pose
+                     (dissoc :facet)
+                     (cond-> (:data pose) pivot-leaf-series))
+            ds (coerce-dataset (:data base))
+            grid? (or (contains? node :col) (contains? node :row))
+            rows (if grid?
+                   (vec (for [r (facet-part-items ds (:row node))]
+                          (mapv #(facet-cell r %) (facet-part-items ds (:col node)))))
+                   (let [items (facet-part-items ds node)
+                         down? (and (map? node) (= [:y] (filterv #(sequential? (get node %)) [:x :y])))]
+                     (if down?
+                       (mapv #(vector (facet-cell {} %)) items)
+                       [(mapv #(facet-cell {} %) items)])))]
+        (assoc base
+               :layout {:direction :vertical}
+               :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
+
+;; ---- Layers fitted to cells (decision 5, provisional) ----
+;;
+;; A layer written on a composite reaches every cell below it. Where the
+;; cells name different numbers of columns -- a scatter plot matrix, whose
+;; diagonal names one column -- a layer goes to the cells it fits: a layer
+;; type that reads one column (`:x-only`: histogram, density, rug) fits a
+;; cell naming one column, any other a cell naming two; a cell naming
+;; none fits nothing. A layer whose own
+;; mapping names a column the cell does not draw on that axis fits only
+;; the cells that draw it. A layer is left out of a cell only when it fits
+;; another cell, so a split whose cells all name the same number of
+;; columns leaves out nothing. A cell no layer fits keeps them all, unless
+;; it names no column, which draws nothing. (The prototype left such a
+;; cell empty; keeping the layers is what 0.16.1 draws.)
+
+(defn- columns-named
+  "How many distinct columns a mapping names on `:x` and `:y`."
+  [m]
+  (count (distinct (remove nil? [(mapping-source (:x m)) (mapping-source (:y m))]))))
+
+(defn- layer-fits-cell? [cell-mapping own-mapping layer]
+  (let [lm (:mapping layer)
+        other? (some (fn [k] (let [varied (mapping-source (get own-mapping k))
+                                   mine (mapping-source (get lm k))]
+                               (and varied mine (not= varied mine))))
+                     [:x :y])
+        x-only? (boolean (when (keyword? (:layer-type layer))
+                           (:x-only (layer-type/lookup (:layer-type layer)))))]
+    (and (not other?)
+         (= (if x-only? 1 2) (columns-named (merge cell-mapping lm))))))
+
+(defn- leaf-entries
+  "Every leaf below a composite, with its path, its mapping as merged
+   from the composite down (`:mapping`), and the part of it written
+   below the composite (`:own`)."
+  [pose inherited own path]
+  (if (seq (:poses pose))
+    (vec (mapcat (fn [i child]
+                   (leaf-entries child
+                                 (merge-mappings inherited (:mapping child))
+                                 (merge own (:mapping child))
+                                 (conj path i)))
+                 (range) (:poses pose)))
+    [{:path path :mapping inherited :own own :leaf pose}]))
+
+(defn fit-layers
+  "A composite whose layers are fitted to its cells, as above. Returned
+   unchanged where every layer fits every cell it reaches."
+  ([pose] (fit-layers pose {}))
+  ([pose inherited]
+   (if-not (seq (:poses pose))
+     pose
+     (let [m (merge-mappings inherited (:mapping pose))
+           layers (vec (:layers pose))
+           entries (vec (leaf-entries (dissoc pose :mapping) m {} []))
+           fits (vec (for [e entries]
+                       (mapv #(layer-fits-cell? (:mapping e) (:own e) %) layers)))
+           fit-somewhere (set (for [row fits [i f] (map-indexed vector row) :when f] i))
+           ;; A cell that no layer fits keeps them all, as if there were
+           ;; no split -- the diagonal of a matrix of points draws its
+           ;; points -- unless it names no column at all, a margin's
+           ;; corner, which draws nothing.
+           kept (vec (for [[e row] (map vector entries fits)]
+                       (cond
+                         (some true? row)
+                         (vec (keep-indexed (fn [i f] (when (or f (not (fit-somewhere i))) (layers i)))
+                                            row))
+                         (and (zero? (columns-named (:mapping e))) (nil? (:data (:leaf e))))
+                         []
+                         :else layers)))
+           changed? (and (seq layers) (some #(not= (count %) (count layers)) kept))
+           pose' (if-not changed?
+                   pose
+                   (reduce (fn [p [e ls]]
+                             (update-in p (vec (interleave (repeat :poses) (:path e)))
+                                        (fn [leaf]
+                                          (if (and (empty? ls) (empty? (:layers leaf)))
+                                            (assoc leaf :plotje/empty-cell true)
+                                            (update leaf :layers #(into (vec ls) %))))))
+                           (dissoc pose :layers)
+                           (map vector entries kept)))]
+       (update pose' :poses (fn [ps] (mapv #(fit-layers % m) ps)))))))
+
 ;; ---- Row filter ----
 
 (defn apply-where
@@ -3248,6 +3404,31 @@
 
       :else leaf)))
 
+(defn- side-on
+  "A leaf naming a column only on `:y`, whose layers each read one
+   column (histogram, density, rug), drawn on its side: the column on
+   `:x` and the coordinates flipped, so its distribution runs up the
+   `:y` axis -- the margin beside a scatter. A leaf that writes its own
+   `:coord`, or whose layers name `:x` or `:y`, is left as it is. (Read
+   on `:y` alone, such a leaf drew nothing and failed with a
+   NullPointerException.)"
+  [leaf]
+  (let [m (:mapping leaf)
+        layers (:layers leaf)]
+    (if (and (some? (:y m))
+             (nil? (:x m))
+             (seq layers)
+             (nil? (get-in leaf [:opts :coord]))
+             (every? (fn [l] (and (keyword? (:layer-type l))
+                                  (:x-only (layer-type/lookup (:layer-type l)))
+                                  (not (contains? (:mapping l) :x))
+                                  (not (contains? (:mapping l) :y))))
+                     layers))
+      (-> leaf
+          (assoc :mapping (-> m (dissoc :y) (assoc :x (:y m))))
+          (assoc-in [:opts :coord] :flip))
+      leaf)))
+
 (defn elaborate-leaf
   "A leaf with the draft's choices written in. `leaf` carries its full
    context -- a top-level leaf, or one `resolve-tree` resolved.
@@ -3295,16 +3476,18 @@
                           (cond-> (merge (:mapping leaf) (:mapping layer))
                             (first k) (assoc :x (first k))
                             (second k) (assoc :y (second k)))))]
-    (update leaf :layers
-            (fn [ls]
-              (mapv (fn [layer]
-                      (if-let [t (and (infer-layer? layer)
-                                      (infer-layer-type-key
-                                       (place-mapping layer)
-                                       (or (:data layer) (:data leaf))))]
-                        (assoc layer :layer-type t)
-                        layer))
-                    ls)))))
+    (-> leaf
+        (update :layers
+                (fn [ls]
+                  (mapv (fn [layer]
+                          (if-let [t (and (infer-layer? layer)
+                                          (infer-layer-type-key
+                                           (place-mapping layer)
+                                           (or (:data layer) (:data leaf))))]
+                            (assoc layer :layer-type t)
+                            layer))
+                        ls)))
+        side-on)))
 
 (defn elaborate
   "`elaborate-leaf` on every leaf of a pose, each read with the context
@@ -3368,7 +3551,12 @@
            (assoc :mapping (:mapping done))
 
            (not= own-layers (vec (or (:layers pose) [])))
-           (assoc :layers own-layers))))
+           (assoc :layers own-layers)
+
+           ;; A coordinate system the draft chose -- a column on `:y`
+           ;; alone drawn on its side (`side-on`).
+           (and (get-in done [:opts :coord]) (not (get-in pose [:opts :coord])))
+           (assoc-in [:opts :coord] (get-in done [:opts :coord])))))
 
      :else
      (let [ctx {:filtered? (boolean (or (:filtered? parent-ctx) (:where pose)))

@@ -88,3 +88,58 @@
                          (map #(-> % :plan :panels first :x-domain)))]
       (is (nil? (get-in (pj/arrange [a b]) [:opts :share-scales])))
       (is (apply not= x-domains)))))
+
+;; ---- pj/facet over columns (the tutorial's API, provisional) ----
+
+(defn- marks-per-cell [v]
+  (mapv (fn [sub] (set (mapcat #(map :mark (:layers %)) (:panels (:plan sub)))))
+        (:sub-plots (pj/plan v))))
+
+(deftest a-facet-over-columns-is-kept-and-expanded-test
+  (let [cars (rdatasets/ggplot2-mpg)
+        v (-> cars (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]}))]
+    (is (= {:y [:hwy :cty]} (:facet v)))
+    (is (= {:x :displ} (:mapping v)))
+    (is (= {:panels 2 :points 468} (select-keys (pj/svg-summary v) [:panels :points]))))
+  (testing "categories alone go in the mapping, as pj/facet-grid writes them"
+    (let [v (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ :y :hwy}) pj/lay-point
+                (pj/facet {:col :year :row :drv}))]
+      (is (nil? (:facet v)))
+      (is (= [:year :drv] ((juxt :col :row) (:mapping v))))))
+  (testing "a misspelled column is reported at the call"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Column :drive \(from :col\) not found"
+                          (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ :y :hwy}) (pj/facet :drive))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Column :hwyy \(from :facet\) not found"
+                          (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) (pj/facet {:y [:hwy :hwyy]}))))))
+
+(deftest layers-are-fitted-to-cells-test
+  (let [cars (rdatasets/ggplot2-mpg)
+        flowers (rdatasets/datasets-iris)]
+    (testing "a layer naming one of the facet's columns draws only in that column's cell"
+      (is (= [#{:point} #{:line}]
+             (marks-per-cell (-> cars (pj/pose {:x :displ}) (pj/lay-point {:y :hwy})
+                                 (pj/lay-smooth {:y :cty}) (pj/facet {:y [:hwy :cty]}))))))
+    (testing "a matrix: one-column layers on the diagonal, two-column layers off it"
+      (is (= [#{:area} #{:point} #{:point} #{:area}]
+             (marks-per-cell (-> flowers (pj/pose {:color :species})
+                                 (pj/facet {:col {:x [:sepal-length :sepal-width]}
+                                            :row {:y [:sepal-length :sepal-width]}})
+                                 pj/lay-point pj/lay-density)))))
+    (testing "margins: nil leaves a slot with no column; the corner draws nothing"
+      (is (= [#{:bar} #{} #{:point} #{:bar}]
+             (marks-per-cell (-> cars pj/pose pj/lay-point pj/lay-histogram
+                                 (pj/facet {:col {:x [:displ nil]} :row {:y [nil :hwy]}}))))))
+    (testing "a cell no layer fits keeps them all: a matrix of points draws its diagonal"
+      (is (= 9 (:panels (pj/svg-summary (-> (tc/dataset {:a [1 2 3] :b [3 1 2] :c [2 3 1]})
+                                             (pj/cross-matrix [:a :b :c])
+                                             pj/lay-point))))))
+    (testing "categories crossed with columns"
+      (is (= {:panels 6 :points 300}
+             (select-keys (pj/svg-summary (-> flowers (pj/pose {:x :sepal-length}) pj/lay-point
+                                              (pj/facet {:col :species :row {:y [:sepal-width :petal-length]}})))
+                          [:panels :points]))))))
+
+(deftest a-column-on-y-alone-draws-on-its-side-test
+  (let [p (pj/plan (-> (rdatasets/ggplot2-mpg) (pj/pose {:y :hwy}) pj/lay-histogram))]
+    (is (= 1 (count (:panels p))))
+    (is (= :flip (-> p :panels first :coord)))))

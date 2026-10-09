@@ -824,6 +824,7 @@
   (expect-type pose pose? "pose" "pj/pose->draft")
   (check-pose-shape! pose)
   (let [pose (cond-> pose
+               (:facet pose) pose/expand-facet-node
                pose/*expand-facets* pose/expand-facets
                true pose/collapse-regular-split)]
     (if (pose/composite? pose)
@@ -995,7 +996,7 @@
    outer-scope :mapping inherits downward and merges with each
    descendant's own mapping."
   #{:data :mapping :layers :opts :poses :layout :share-scales
-    :grid-strip-labels :grid-axis-titles :overlay :where})
+    :grid-strip-labels :grid-axis-titles :overlay :where :facet})
 
 (def ^:private pose-print-order
   "Key order used by pj/prepare-pose to make printed pose maps
@@ -1003,7 +1004,7 @@
    each level's data stays visually bound to its own siblings rather
    than trailing past its children; :poses last since children can
    be heavy."
-  [:opts :where :mapping :overlay :share-scales :grid-strip-labels :grid-axis-titles :layout :layers :data :poses])
+  [:opts :where :mapping :facet :overlay :share-scales :grid-strip-labels :grid-axis-titles :layout :layers :data :poses])
 
 (defn- warn-unknown-pose-keys
   "Warn once about top-level keys in fr that are not in pose-keys.
@@ -3256,6 +3257,46 @@
                         :given col}))))
    pose))
 
+;; ---- pj/facet with a map (provisional, PR #61: the tutorial's API) ----
+
+(defn- facet-categories?
+  "True of a facet part that names categories: a column, several
+   columns as a compound key, the written-out `{:column ..}`, or nil."
+  [v]
+  (or (nil? v)
+      (and (map? v) (contains? v :column))
+      (and (sequential? v) (every? #(not (or (map? %) (sequential? %))) v))
+      (not (or (map? v) (sequential? v)))))
+
+(defn- facet-node-columns
+  "Every column a facet node names, nil margins left out."
+  [node]
+  (letfn [(part [v] (cond (nil? v) []
+                          (and (map? v) (contains? v :column)) [(:column v)]
+                          (map? v) (mapcat #(remove nil? (get v %)) [:x :y])
+                          (sequential? v) (remove nil? v)
+                          :else [v]))]
+    (if (and (map? node) (or (contains? node :col) (contains? node :row)))
+      (concat (part (:col node)) (part (:row node)))
+      (part node))))
+
+(defn- check-facet-node!
+  "Report a column a facet node names that the pose's data does not
+   have, at the call -- with the message the draw reports, so the two
+   checks say one thing. A pose with a series is left to the draw: its
+   pivot makes the key column a facet may name (`:series`)."
+  [pose node role]
+  (when-let [data (and (not-any? pose/series-mapping
+                                 (concat (vals (:mapping pose))
+                                         (mapcat (comp vals :mapping) (:layers pose))))
+                       (:data pose))]
+    (let [have (set (tc/column-names data))]
+      (doseq [c (facet-node-columns node)
+              :when (not (contains? have c))]
+        (throw (ex-info (str "Column " c " (from " role ") not found in dataset. Available: "
+                             (sort-by str have))
+                        {:role role :column c :available (sort-by str have)}))))))
+
 (defn- facet-direction
   "Write one panel aesthetic into a pose's mapping: lift the pose, read
    the column, report a second answer in the same direction, and write
@@ -3272,8 +3313,36 @@
   [pose col direction caller]
   (let [fr  (->pose pose caller)
         col (column-argument caller col)]
+    (check-facet-node! fr col direction)
     (report-refacet fr direction col caller)
     (update-mapping fr assoc direction col)))
+
+(defn- facet-map
+  "`pj/facet` given a map. Categories on `:col` and `:row` are written
+   into the mapping, as `pj/facet-grid` writes them; a map holding
+   columns -- `{:y [:hwy :cty]}`, pairs `{:x [..] :y [..]}`, or a grid
+   whose `:col` or `:row` holds one -- is kept under the pose's `:facet`
+   and expanded into cells when the pose is drawn. Provisional (PR #61)."
+  [pose node]
+  (let [fr (->pose pose "pj/facet")
+        grid? (or (contains? node :col) (contains? node :row))
+        columns? (if grid?
+                   (not (and (facet-categories? (:col node))
+                             (facet-categories? (:row node))))
+                   (some #(sequential? (get node %)) [:x :y]))]
+    (cond
+      (and grid? (not columns?))
+      (cond-> fr
+        (:col node) (facet-direction (:col node) :col "pj/facet")
+        (:row node) (facet-direction (:row node) :row "pj/facet"))
+
+      columns?
+      (do (check-facet-node! fr node :facet)
+          (prepare-pose (assoc fr :facet node)))
+
+      ;; Any other map is read as a column argument, which reports it.
+      :else
+      (facet-direction fr node :col "pj/facet"))))
 
 (defn facet
   "Facet a pose by a column: one panel per value the column holds.
@@ -3299,7 +3368,10 @@
      combination, which is a compound key. `pj/facet-grid` fills the
      rectangle instead.
    - `{:col {:column :species}}` -- the same as the first, written out."
-  ([pose col] (facet pose col :col))
+  ([pose col]
+   (if (and (map? col) (not (contains? col :column)))
+     (facet-map pose col)
+     (facet pose col :col)))
   ([pose col direction]
    (when-not (#{:col :row} direction)
      (throw (ex-info (str "pj/facet direction must be :col or :row, got: "

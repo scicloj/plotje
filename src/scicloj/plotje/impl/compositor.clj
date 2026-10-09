@@ -459,6 +459,7 @@
         ;; layout and the leaf drafts read layer types rather than
         ;; predicting them.
         composite (-> composite
+                      pose/fit-layers
                       pose/elaborate
                       pose/infer-chrome)
         {:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
