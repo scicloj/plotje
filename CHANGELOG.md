@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Plots that look different after upgrading
 
+- **Strips above a grid of cells**, as a scatter-plot matrix draws them, are centred on each panel rather than on the whole cell, which also holds the room for the cell's y labels, and name the columns as the axis titles do: `sepal length`, not `sepal-length`.
+
 - **A series written as several columns** lists its legend entries, and orders its groups, in the order the columns are written: `[:cost :revenue]` lists `cost` first.
 
 - **A `pj/pose` call given a vector of columns in place of one column**, such as `(pj/pose data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled `value`. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
@@ -33,6 +35,8 @@ All notable changes to this project will be documented in this file. This change
 - `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/cross-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error.
 
 ### Fixed
+
+- `pj/arrange` draws `:subtitle` under its title and `:caption` under the grid. `:align-panels` on a row or a grid of cells gives every cell the same width and the same bottom edge.
 
 - `pj/facet` reads a column name the data holds whatever its type, so `(pj/facet pose 2)` on a dataset whose columns are integers draws a panel per value of column 2.
 

@@ -72,7 +72,8 @@
   ;; The column header names the x of the cells beneath it, the row
   ;; header the y of the cells beside it. The composite root carries
   ;; both lists; the compositor draws them from there.
-  (is (= ["sepal-length" "sepal-width"]
+  ;; Formatted as the axis titles are: `sepal length`, not `sepal-length`.
+  (is (= ["sepal length" "sepal width"]
          (get-in cross-2x2 [:grid-strip-labels :col-labels])))
-  (is (= ["petal-length" "petal-width"]
+  (is (= ["petal length" "petal width"]
          (get-in cross-2x2 [:grid-strip-labels :row-labels]))))

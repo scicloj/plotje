@@ -2774,7 +2774,7 @@
    - A column of the data -- `:species` -- is a category: one cell per
      value the column holds, in the order the data holds them, each the
      full data with a written row filter, `{:where {:species v}}`,
-     titled by the value.
+     labelled by the value in a strip, as a facet is.
    - `{:x [:a :b]}` or `{:y [...]}` names columns: one cell per column,
      each writing its column on that axis, as `pj/pose` would.
    - `{:col c :row r}` crosses two categories into a grid, a row per
@@ -2785,8 +2785,9 @@
    composite do. What the expansion knows is written into the listed
    pose: it shares each axis its cells can share (`default-share-axes`),
    gives them one drawing area, and -- where every cell draws one column
-   on a shared axis -- writes in each cell's options which of them
-   titles and ticks it, as a facet does."
+   on a shared axis -- titles that axis once beside the grid
+   (`:grid-axis-titles`) and writes in each cell's options which cells
+   tick it, as a facet does."
   [pose variation]
   (let [listed (expand-variation* pose variation)
         axes (default-share-axes listed)
@@ -2811,17 +2812,14 @@
         cells-at (for [r (range n-rows) c (range n-cols) :when (get-in full [r c])] [r c])
         bottom-of (fn [c] (reduce max -1 (keep (fn [[r c']] (when (= c c') r)) cells-at)))
         left-of (fn [r] (reduce min n-cols (keep (fn [[r' c]] (when (= r r') c)) cells-at)))
-        middle (fn [xs] (when (seq xs) (nth (vec (sort xs)) (quot (dec (count xs)) 2))))
-        last-row (reduce max -1 (map first cells-at))
-        first-col (reduce min n-cols (map second cells-at))
-        x-title-at [last-row (middle (keep (fn [[r c]] (when (= r last-row) c)) cells-at))]
-        y-title-at [(middle (keep (fn [[r c]] (when (= c first-col) r)) cells-at)) first-col]
+        ;; The titles are drawn once by the composite, beside the grid
+        ;; (`:grid-axis-titles`); the cells draw none.
         chrome (fn [r c]
                  (cond-> {}
                    (and once-x? (not= r (bottom-of c))) (assoc :suppress-x-ticks true)
-                   (and once-x? (not= [r c] x-title-at)) (assoc :suppress-x-label true)
+                   once-x? (assoc :suppress-x-label true)
                    (and once-y? (not= c (left-of r))) (assoc :suppress-y-ticks true)
-                   (and once-y? (not= [r c] y-title-at)) (assoc :suppress-y-label true)))
+                   once-y? (assoc :suppress-y-label true)))
         rows' (vec (map-indexed
                     (fn [r cells]
                       (vec (map-indexed (fn [c cell]
@@ -2833,7 +2831,9 @@
                                          (:poses listed) rows'))
               (assoc listed :poses (first rows')))
       (seq axes) (assoc :share-scales axes)
-      (seq axes) (assoc-in [:opts :align-panels] true))))
+      (seq axes) (assoc-in [:opts :align-panels] true)
+      (or once-x? once-y?) (assoc :grid-axis-titles
+                                  (cond-> #{} once-x? (conj :x) once-y? (conj :y))))))
 
 (defn- expand-variation*
   [pose variation]
@@ -2846,9 +2846,13 @@
             cvs (if c (values c) [nil])
             rvs (if r (values r) [nil])
             cell (fn [cv rv]
-                   {:where (cond-> {} c (assoc c cv) r (assoc r rv))
-                    :opts {:title (apply title (remove nil? [cv rv]))}})]
+                   {:where (cond-> {} c (assoc c cv) r (assoc r rv))})]
         (assoc pose
+               ;; Labelled as a facet is, by strips: the column values
+               ;; across the top, the row values down the side.
+               :grid-strip-labels (cond-> {}
+                                    c (assoc :col-labels (mapv title cvs))
+                                    r (assoc :row-labels (mapv title rvs)))
                :layout {:direction :vertical}
                :poses (vec (for [rv rvs]
                              {:layout {:direction :horizontal}
@@ -2862,11 +2866,15 @@
                    :poses (vec (for [c cols] {:mapping {k c}})))))
 
       :else
-      (assoc pose
-             :layout {:direction :horizontal}
-             :poses (vec (for [v (values variation)]
-                           {:where {variation v}
-                            :opts {:title (title v)}}))))))
+      (let [vs (values variation)]
+        ;; One row in a vertical stack, the shape `pj/arrange` builds,
+        ;; which the strips are drawn against.
+        (assoc pose
+               :grid-strip-labels {:col-labels (mapv title vs)}
+               :layout {:direction :vertical}
+               :poses [{:layout {:direction :horizontal}
+                        :poses (vec (for [v vs]
+                                      {:where {variation v}}))}])))))
 
 ;; ---- Row filter ----
 

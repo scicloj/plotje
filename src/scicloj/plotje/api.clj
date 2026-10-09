@@ -992,7 +992,7 @@
    outer-scope :mapping inherits downward and merges with each
    descendant's own mapping."
   #{:data :mapping :layers :opts :poses :layout :share-scales
-    :grid-strip-labels :overlay :where})
+    :grid-strip-labels :grid-axis-titles :overlay :where})
 
 (def ^:private pose-print-order
   "Key order used by pj/prepare-pose to make printed pose maps
@@ -1000,7 +1000,7 @@
    each level's data stays visually bound to its own siblings rather
    than trailing past its children; :poses last since children can
    be heavy."
-  [:opts :where :mapping :overlay :share-scales :grid-strip-labels :layout :layers :data :poses])
+  [:opts :where :mapping :overlay :share-scales :grid-strip-labels :grid-axis-titles :layout :layers :data :poses])
 
 (defn- warn-unknown-pose-keys
   "Warn once about top-level keys in fr that are not in pose-keys.
@@ -1311,7 +1311,9 @@
         root-l    (:layers base)
         root-o    (:opts base)
         n-rows    (count rows)
-        col->name (fn [c] (if (keyword? c) (name c) (str c)))
+        ;; One formatter for every name a reader sees -- strips, axis
+        ;; titles, legend titles: `sepal length`, not `sepal-length`.
+        col->name defaults/fmt-name
         ;; Each column shares its x column; each row shares its y
         ;; column. Strip labels live at the composite root, not on
         ;; individual cells, so cell layout stays untouched. A column
@@ -4141,6 +4143,8 @@
 
    - `:cols` -- explicit column count (default: min(4, n-plots)).
    - `:title` -- centered title band above the grid.
+   - `:subtitle` -- a line under the title; `:caption` -- a line under
+     the grid, at the right.
    - `:width` -- total composite width.
    - `:height` -- total composite height.
    - `:share-scales` -- subset of `#{:x :y}` shared across cells
@@ -4194,7 +4198,7 @@
    the public face and decides which of its arguments is data."
   ([plots opts]
    (let [cfg (defaults/config)
-         {:keys [cols title share-scales align-panels]
+         {:keys [cols title subtitle caption share-scales align-panels]
           :or {share-scales #{}}} opts
          _ (when-not (and (or (set? share-scales)
                               (sequential? share-scales))
@@ -4260,6 +4264,8 @@
                             (:width opts) (assoc :width (long (Math/round (double (:width opts)))))
                             (:height opts) (assoc :height (long (Math/round (double (:height opts)))))
                             title (assoc :title title)
+                            subtitle (assoc :subtitle subtitle)
+                            caption (assoc :caption caption)
                             ;; Written, even empty: `#{}` turns off the
                             ;; sharing a composite has by default.
                             (contains? opts :share-scales) (assoc :share-scales (set share-scales))

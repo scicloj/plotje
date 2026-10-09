@@ -17,7 +17,8 @@
 (deftest a-category-expands-into-filtered-cells-test
   (let [e (pose/expand-variation scatter :species)]
     (is (= [{:species "setosa"} {:species "versicolor"} {:species "virginica"}]
-           (mapv :where (:poses e))))
+           (mapv :where (-> e :poses first :poses))))
+    (is (= ["setosa" "versicolor" "virginica"] (get-in e [:grid-strip-labels :col-labels])))
     (is (= (drawn (pj/facet scatter :species)) (drawn e)))
     (testing "the listed cells share both axes, titled once, as the facet does"
       (let [texts (:texts (pj/svg-summary e))]
