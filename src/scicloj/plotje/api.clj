@@ -823,9 +823,12 @@
   [pose]
   (expect-type pose pose? "pose" "pj/pose->draft")
   (check-pose-shape! pose)
-  (if (pose/composite? pose)
-    (compositor/composite-pose->draft pose)
-    (resolve/->LeafDraft (pose/leaf->draft pose) (or (:opts pose) {}))))
+  (let [pose (cond-> pose
+               pose/*expand-facets* pose/expand-facets
+               true pose/collapse-regular-split)]
+    (if (pose/composite? pose)
+      (compositor/composite-pose->draft pose)
+      (resolve/->LeafDraft (pose/leaf->draft pose) (or (:opts pose) {})))))
 
 (def ^:private pose-mapping-keys
   "Keys accepted in a pose mapping (column refs + per-pose

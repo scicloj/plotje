@@ -2793,11 +2793,13 @@
       (first cols))))
 
 (defn- infer-axis-chrome
-  "Where the cells share an axis and all draw one column on it, that
-   axis is titled once beside the grid (`:grid-axis-titles`) and ticked
-   only on the cells with no cell that has rows below them (x) or to
-   their left (y) -- read from where the layout places the cells, so a
-   row, a column, a grid and a matrix are treated alike. A cell left
+  "Where the cells all draw one column on an axis, that axis is titled
+   once beside the grid (`:grid-axis-titles`). Where they also share it,
+   it is ticked only on the cells with no cell that has rows below them
+   (x) or to their left (y) -- read from where the layout places the
+   cells, so a row, a column, a grid and a matrix are treated alike. An
+   axis left free keeps its ticks in every cell, since each cell has its
+   own scale, but its title is still one column's name. A cell left
    empty draws nothing and is skipped. A written `:grid-axis-titles` is
    kept as written; a cell's own `:suppress-*` options win over the
    inferred ones."
@@ -2806,8 +2808,10 @@
     composite
     (let [axes (share-axes composite)
           leaves (resolve-tree composite)
-          once-x? (and (axes :x) (unanimous-column leaves :x))
-          once-y? (and (axes :y) (unanimous-column leaves :y))]
+          once-x? (unanimous-column leaves :x)
+          once-y? (unanimous-column leaves :y)
+          tick-x? (and once-x? (axes :x))
+          tick-y? (and once-y? (axes :y))]
       (if-not (or once-x? once-y?)
         composite
         (let [rects (compute-layout composite [0 0 1000 1000])
@@ -2820,9 +2824,9 @@
               chrome (fn [rect]
                        (cond-> {}
                          once-x? (assoc :suppress-x-label true)
-                         (and once-x? (some #(below? rect %) live)) (assoc :suppress-x-ticks true)
+                         (and tick-x? (some #(below? rect %) live)) (assoc :suppress-x-ticks true)
                          once-y? (assoc :suppress-y-label true)
-                         (and once-y? (some #(left? rect %) live)) (assoc :suppress-y-ticks true)))]
+                         (and tick-y? (some #(left? rect %) live)) (assoc :suppress-y-ticks true)))]
           (-> (reduce (fn [c {:keys [path] :as leaf}]
                         (if (:plotje/empty-cell leaf)
                           c
@@ -2930,14 +2934,23 @@
 (defn- expand-variation*
   [pose variation]
   (let [ds (coerce-dataset (:data pose))
-        values (fn [col] (vec (distinct (ds col))))]
+        ;; A category is one column, or several united into a compound
+        ;; key -- one value per combination the data holds, in the order
+        ;; the data holds them.
+        values (fn [col]
+                 (if (sequential? col)
+                   (vec (distinct (apply map vector (map ds col))))
+                   (vec (distinct (ds col)))))
+        where-of (fn [col v] (if (sequential? col) (zipmap col v) {col v}))]
     (cond
       (and (map? variation) (or (contains? variation :col) (contains? variation :row)))
       (let [{c :col r :row} variation
             cvs (if c (values c) [nil])
             rvs (if r (values r) [nil])
             cell (fn [cv rv]
-                   {:where (cond-> {} c (assoc c cv) r (assoc r rv))})]
+                   {:where (cond-> {}
+                             c (merge (where-of c cv))
+                             r (merge (where-of r rv)))})]
         (assoc pose
                :layout {:direction :vertical}
                :poses (vec (for [rv rvs]
@@ -2959,7 +2972,153 @@
                :layout {:direction :vertical}
                :poses [{:layout {:direction :horizontal}
                         :poses (vec (for [v vs]
-                                      {:where {variation v}}))}])))))
+                                      {:where (where-of variation v)}))}])))))
+
+;; ---- Facets drawn as listed cells (provisional switch) ----
+
+(def ^:dynamic *expand-facets*
+  "When true, `pj/pose->draft` draws a faceted leaf as the listed cells
+   its facet expands to (`expand-facets`), one plan per cell, rather
+   than as one plan with many panels. Provisional (PR #61, agenda item
+   \"one plan or many\"): off by default, so the two paths can be
+   compared."
+  false)
+
+(defn- scales->share-axes
+  "The axes a facet's `:scales` option shares."
+  [scales]
+  (case (or scales :shared)
+    :shared #{:x :y}
+    :free-y #{:x}
+    :free-x #{:y}
+    :free #{}))
+
+(defn expand-facets
+  "A leaf whose mapping writes `:col` or `:row`, as the listed pose its
+   facet expands to: `:col` alone is a row of cells, `:row` alone a
+   column of them, both a grid with an empty cell for each combination
+   the data does not hold (as `pj/facet-grid` draws). The facet's
+   `:scales` option becomes the listed pose's `:share-scales`. Any other
+   pose is returned as it is -- a composite, a leaf with no data of its
+   own, a grid naming one column on both sides, and a facet wrapped by
+   `:grid-cols` or `:grid-rows`, which needs a strip over each cell."
+  [pose]
+  (let [m (:mapping pose)
+        c (mapping-source (:col m))
+        r (mapping-source (:row m))
+        opts (or (:opts pose) {})]
+    (if (or (composite? pose)
+            (not (or c r))
+            (nil? (:data pose))
+            ;; A column on both sides keeps one cell per value on the
+            ;; diagonal; one filter map cannot say "this value and that",
+            ;; so such a grid stays one plan as written.
+            (and c r (some (set (if (sequential? c) c [c]))
+                           (if (sequential? r) r [r])))
+            (:grid-cols opts)
+            (:grid-rows opts))
+      pose
+      (let [;; The series is pivoted first, on the leaf (infer, pivot,
+            ;; then expand): the cells then filter the long table, and
+            ;; no layer reaches them reading a series.
+            base (-> pose
+                     pivot-leaf-series
+                     (update :mapping #(not-empty (dissoc % :col :row)))
+                     (assoc :opts (dissoc opts :scales)))
+            variation (cond (and c r) {:col c :row r}
+                            r {:row r}
+                            :else c)]
+        (cond-> (expand-variation base variation)
+          (contains? opts :scales)
+          (assoc-in [:opts :share-scales] (scales->share-axes (:scales opts))))))))
+
+;; ---- A regular split drawn as one plan ----
+;;
+;; The listed cells are what a facet means; for a regular split -- cells
+;; that differ only in which values of the facet columns they keep -- one
+;; plan is how it is drawn: the facet layout reserves the axis margins
+;; once, draws "no data" panels and fits many panels, which composing
+;; one plan per cell does not yet. So a facet and the same cells written
+;; by hand take the same path.
+
+(defn- share-axes->scales
+  "The facet `:scales` option that shares `axes`; the inverse of
+   `scales->share-axes`."
+  [axes]
+  (case (set axes)
+    #{:x :y} :shared
+    #{:x} :free-y
+    #{:y} :free-x
+    #{} :free))
+
+(defn collapse-regular-split
+  "A composite whose cells are a regular split of its data, as the
+   faceted leaf that draws it in one plan; any other pose as it is.
+
+   Regular: the composite holds the data and writes no strips or axis
+   titles of its own; each cell carries only a `:where` of single
+   values; and the cells keep exactly the values the data holds for the
+   facet columns, in the order the data holds them -- one row of cells
+   by `:col`, one column by `:row`, or a grid by both, with every
+   combination present, as `expand-variation` writes it. A written
+   `:share-scales` becomes the facet's `:scales`."
+  [pose]
+  (let [grid (when (composite? pose) (cell-grid pose))
+        cells (vec (apply concat grid))
+        n-rows (count grid)
+        n-cols (count (first grid))]
+    (if-not (and (> (count cells) 1)
+                 (some? (:data pose))
+                 (not (contains? pose :grid-strip-labels))
+                 (not (contains? pose :grid-axis-titles))
+                 (every? #(and (map? (:where %))
+                               (seq (:where %))
+                               (= #{:where} (set (keys %)))
+                               (not-any? set? (vals (:where %))))
+                         cells))
+      pose
+      (let [ds (coerce-dataset (:data pose))
+            ks (vec (keys (:where (first cells))))
+            in-data? (every? (set (tc/column-names ds)) ks)
+            values (fn [cols]
+                     (if (= 1 (count cols))
+                       (vec (distinct (ds (first cols))))
+                       (vec (distinct (apply map vector (map ds cols))))))
+            kept (fn [cols cs]
+                   (mapv #(let [w (:where %)]
+                            (if (= 1 (count cols)) (w (first cols)) (mapv w cols)))
+                         cs))
+            same-keys? (every? #(= (set ks) (set (keys (:where %)))) cells)
+            ;; In a grid, the keys that hold one value down each column,
+            ;; and those that hold one value along each row.
+            constant-in? (fn [k groups] (every? #(apply = (map (comp k :where) %)) groups))
+            columns (for [ci (range n-cols)] (map #(nth % ci) grid))
+            col-ks (filterv #(constant-in? % columns) ks)
+            row-ks (filterv #(constant-in? % grid) ks)
+            facet (cond
+                    (not (and in-data? same-keys?)) nil
+                    (= 1 n-rows)
+                    (when (= (values ks) (kept ks cells)) {:col ks})
+                    (= 1 n-cols)
+                    (when (= (values ks) (kept ks cells)) {:row ks})
+                    (and (seq col-ks) (seq row-ks)
+                         (= (set ks) (into (set col-ks) row-ks))
+                         (empty? (filter (set col-ks) row-ks))
+                         (= (values col-ks) (kept col-ks (first grid)))
+                         (= (values row-ks) (kept row-ks (map first grid))))
+                    {:col col-ks :row row-ks})
+            one-or-many (fn [cols] (if (= 1 (count cols)) (first cols) cols))
+            written (cond (contains? (:opts pose) :share-scales) (get-in pose [:opts :share-scales])
+                          (contains? pose :share-scales) (:share-scales pose))]
+        (if-not facet
+          pose
+          (cond-> (-> pose
+                      (dissoc :poses :layout :share-scales)
+                      (update :mapping #(cond-> (or % {})
+                                          (:col facet) (assoc :col (one-or-many (:col facet)))
+                                          (:row facet) (assoc :row (one-or-many (:row facet)))))
+                      (update :opts #(not-empty (dissoc % :share-scales :align-panels))))
+            (some? written) (assoc-in [:opts :scales] (share-axes->scales written))))))))
 
 ;; ---- Row filter ----
 

@@ -43,14 +43,41 @@
         e (pose/expand-variation base {:col :drv :row :cyl})
         g (pj/facet-grid base :drv :cyl)]
     (is (= (:points (pj/svg-summary g)) (:points (pj/svg-summary e))))
-    (testing "a combination with no rows is an empty cell"
-      (is (= 9 (:panels (pj/svg-summary e)))))))
+    (testing "a regular grid draws as the facet grid, a no-data panel for each empty combination"
+      (is (= (:panels (pj/svg-summary g)) (:panels (pj/svg-summary e)))))))
+
+(deftest a-regular-split-draws-as-its-facet-test
+  (testing "expanded and collapsed, every facet shape draws the same picture"
+    (let [mpg (rdatasets/ggplot2-mpg)
+          base (pj/lay-point mpg :displ :hwy)]
+      (doseq [v [(pj/facet base :drv)
+                 (pj/facet base :drv :row)
+                 (pj/facet base [:year :drv])
+                 (pj/facet-grid base :drv :cyl)
+                 (-> base (pj/facet :drv) (pj/options {:scales :free}))]]
+        (is (= (pj/plot v)
+               (binding [pose/*expand-facets* true] (pj/plot v)))))))
+  (testing "cells written by hand draw the facet's picture"
+    (is (= (pj/plot (assoc scatter
+                           :layout {:direction :horizontal}
+                           :poses [{:where {:species "setosa"}}
+                                   {:where {:species "versicolor"}}
+                                   {:where {:species "virginica"}}]))
+           (pj/plot (pj/facet scatter :species)))))
+  (testing "a subset of the categories is not the facet, and stays cells"
+    (is (pose/composite?
+         (pose/collapse-regular-split
+          (assoc scatter :poses [{:where {:species "setosa"}}
+                                 {:where {:species "virginica"}}]))))))
 
 (deftest the-cells-of-one-split-share-separate-plots-do-not-test
   (testing "the expansion writes no sharing; its cells, parts of one split, share"
     (let [e (pose/expand-variation scatter :species)
-          x-domains (->> (pj/plan e) :sub-plots (map #(-> % :plan :panels first :x-domain)))]
+          ;; A regular split is drawn as one plan, so its panels are
+          ;; the plan's own.
+          x-domains (map :x-domain (:panels (pj/plan e)))]
       (is (not (contains? e :share-scales)))
+      (is (= 3 (count x-domains)))
       (is (apply = x-domains))))
   (testing "plots handed to pj/arrange with data of their own do not share"
     (let [a (-> (tc/select-rows (rdatasets/datasets-iris) (range 50))

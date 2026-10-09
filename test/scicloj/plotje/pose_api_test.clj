@@ -196,18 +196,18 @@
     (let [ds (tc/dataset {:x [1 2 3] :y [1 2 3]})
           composite {:data ds
                      :mapping {:x :x :y :y}
-                     ;; Unshared, so no axis title band takes room
-                     ;; from the cells: this tests the weights alone.
-                     :opts {:width 600 :height 400 :share-scales #{}}
+                     :opts {:width 600 :height 400}
                      :layout {:direction :horizontal :weights [1 1]}
                      :poses [{:layers [{:layer-type :point}]}
                              {:layers [{:layer-type :point}]}]}
           p (pj/plan composite)
-          rects (map :rect (:sub-plots p))]
-      (is (= [[0.0 0.0 300.0 400.0]
-              [300.0 0.0 300.0 400.0]]
-             (vec rects))
-          "two leaves split 600-wide pose evenly left/right"))))
+          [[x1 y1 w1 h1] [x2 y2 w2 h2]] (map :rect (:sub-plots p))]
+      ;; The axis titles the two cells share are drawn once, beside the
+      ;; grid, so the cells tile what is left of the width, not all of
+      ;; it.
+      (is (and (== w1 w2) (== (+ x1 w1) x2) (== 600 (+ x2 w2))
+               (== y1 y2) (== h1 h2))
+          "two leaves split the grid evenly left/right, up to its right edge"))))
 
 (deftest composite-plan-nested-paths-test
   (testing "paths in :sub-plots match the DFS order of leaves"
