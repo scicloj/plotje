@@ -1626,7 +1626,7 @@ gapminder-2007
 ;;   scales, as just shown. Lifting this would need a plot to carry two
 ;;   legends for one aesthetic.
 ;; - Facet panels share their scale types. Their domains can already
-;;   differ: `{:scales :free}` gives each panel its own.
+;;   differ: `{:share-scales #{}}` gives each panel its own.
 
 ;; ## See Also
 ;;

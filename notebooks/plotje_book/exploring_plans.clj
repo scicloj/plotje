@@ -567,13 +567,14 @@ final-plan
 
 (kind/test-last [(fn [ds] (apply = ds))])
 
-;; With `:scales :free-y`, each panel gets its own y-domain:
+;; With `{:share-scales #{:x}}`, only `:x` is shared and each panel gets
+;; its own y-domain:
 
 (def free-y-plan
   (-> (rdatasets/datasets-iris)
       (pj/lay-point :sepal-length :sepal-width {:color :species})
       (pj/facet :species)
-      (pj/options {:scales :free-y})
+      (pj/options {:share-scales #{:x}})
       pj/plan))
 
 (mapv :y-domain (:panels free-y-plan))

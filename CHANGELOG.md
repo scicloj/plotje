@@ -18,7 +18,9 @@ All notable changes to this project will be documented in this file. This change
 
 - **A pose built by `lay-*` calls, or by `(pj/pose data)`,** carries the columns each `lay-*` call names on that call's layer, and no mapping of its own; the pose's mapping is what `pj/pose` writes. A later `pj/pose` changes the columns of the layers that name none. The default mapping of 1-3 column data is inferred when the pose is drawn, in every cell of a composite too, and `pj/infer-mapping` shows it.
 
-- **Layers of one pose that name different columns** share one panel: `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width))` draws one panel, each axis covering and titled by every column drawn on it. Where no layer writes its own colour, each layer takes a colour and a legend entry naming its columns. The pose's own `:x` and `:y` are drawn by the layers that name no columns. For a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
+- **Layers of one pose that name different columns** share one panel: `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width))` draws one panel, each axis covering and titled by every column drawn on it. Where no `:color` is specified, on the pose or on a layer, each layer takes a colour and a legend entry naming its columns by default. The pose's own `:x` and `:y` are drawn by the layers that name no columns. For a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
+
+- **Cells drawn from one pose's data with `:scales` written on that pose**, such as `(-> data (pj/arrange [[:a :b] [:a :c]]) pj/lay-point (pj/options {:scales :free}))`, now follow it: `:scales` is read as `:share-scales`, which reaches an arrangement as well as a facet.
 
 - **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column. `:x-label` and `:y-label` still set the title.
 
@@ -29,6 +31,8 @@ All notable changes to this project will be documented in this file. This change
 - `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells are appended to it. Cells that split the data of the pose they are arranged into share each axis that draws one column, title it once and label its ticks on the outer cells only; `:share-scales` overrides the sharing.
 
 - `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. A layer written above the facet is drawn in the panels whose columns it draws -- so a layer naming one of the facet's columns is drawn only in that column's panels -- and a panel no layer draws takes the layer type inferred from its columns: `(-> iris (pj/facet {:col {:x cols} :row {:y cols}}) pj/lay-point)` draws histograms on the diagonal. A column on `:y` alone under a histogram or a density is drawn on its side.
+
+- `:share-scales` says which axes panels share, on a facet and on an arrangement alike. A set names the axes: `(pj/options faceted {:share-scales #{:x}})` shares `:x` and fits `:y` to each panel, and `#{}` shares neither. A map says which columns go together on an axis, and cells whose columns go together share it: `{:y [[:hwy :cty]]}` shares `:y` between the panels drawing `:hwy` and `:cty`, `{:y :all}` between every panel, and `{:y :same-column}` between panels drawing the same column, which is what the set says. Columns that go together must be of one kind, numbers or dates.
 
 - `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. Undeclared, it is `#{1}` for an `:x-only` layer type and `#{2}` otherwise; `:bar` declares `#{1 2}`, and `layer-type/column-counts` reads it back.
 
@@ -46,6 +50,12 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/overlay` and the `:overlay` layer option warn that they are ignored, since the layers of a pose share one panel; `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`. Layers of one panel drawing a categorical and a numeric column on the same axis report an error naming the layers and the same two routes, and a count or a density beside a column on `:y` warns that the axis reads in two units.
 
+- The `:scales` option is retired: it warns and is read as the `:share-scales` value it stands for, `#{:x}` for `:free-y`, `#{:y}` for `:free-x` and `#{}` for `:free`, and `:shared` is dropped as the default. Under `:strict` it reports an error.
+
+- Numeric columns drawn on one axis, by the layers of a pose or as a series, print a Note where one of them takes less than a twentieth of that axis, as `:hwy` does beside `:year`. The Note names the columns and their extents and the `pj/facet` call that draws a panel per column. It is not printed where the axis has a `:domain` specified or a log scale.
+
+- A `:share-scales` that names an axis no two cells share warns once, naming the columns the cells draw there and the group that would share them. Cells of an arrangement that write a `:share-scales` leaving out an axis the arrangement shares are reported in one warning, whatever their number.
+
 - `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` value that appears nowhere in its column, or an empty set, warns.
 
 ### Fixed
@@ -55,6 +65,12 @@ All notable changes to this project will be documented in this file. This change
 - Facets with `{:scales :free}`, `:free-x` or `:free-y` label the ticks of every panel whose axis differs from its neighbour's, and a facet whose rows draw different `:x` columns labels each row.
 
 - A layer drawing several columns on a panel that shares an axis with other cells takes the extent of every column it draws, and the cells sharing that axis take it too. The marks of its second column were drawn outside the panel.
+
+- A fitted line, a density or a histogram grouped by one column and coloured by another, as in `(pj/lay-smooth data :x :y {:group :a :color :b})`, draws each group in the colour of its `:b` value. Every group was drawn in the first colour of the palette.
+
+- Panels of a facet over columns keep the extent their marks need on the axis whose column changes, so bars there start at zero. Each panel was given the bare extent of its column's values.
+
+- A scale set on the axis a facet over columns varies, as in `(-> pose (pj/facet {:y [:hwy :cty]}) (pj/scale :y {:domain [0 50]}))`, reaches every panel. It was ignored with no message.
 
 - A layer placed in the drawing area, `{:in :drawing-area}`, with columns of its own data is drawn on the panel it is added to.
 

@@ -809,6 +809,18 @@
     (pose/infer-default-mapping fr)
     fr))
 
+(declare retire-scales)
+
+(defn- retire-scales-in-tree
+  "A pose with the retired `:scales` option read as `:share-scales`
+   wherever a pose map carries it in `:opts` -- a map written by hand
+   does not pass through `pj/options`, where the option is otherwise
+   read (`retire-scales`)."
+  [pose]
+  (cond-> pose
+    (contains? (:opts pose) :scales) (update :opts #(retire-scales "A pose's :opts" %))
+    (seq (:poses pose)) (update :poses #(mapv retire-scales-in-tree %))))
+
 (defn pose->draft
   "Single-step transition: convert a pose into a draft. Dispatches on
    pose shape -- a leaf pose becomes a `LeafDraft` (a record carrying
@@ -823,7 +835,8 @@
   [pose]
   (expect-type pose pose? "pose" "pj/pose->draft")
   (check-pose-shape! pose)
-  (let [pose (cond-> pose
+  (let [pose (retire-scales-in-tree pose)
+        pose (cond-> pose
                (:facet pose) pose/expand-facet-node
                pose/*expand-facets* pose/expand-facets
                true pose/collapse-regular-split)]
@@ -3109,10 +3122,40 @@
    plan_schema.clj :legend-position enum."
   #{:right :bottom :top :none})
 
-(def ^:private valid-scales-values
-  "Enum of values accepted by :scales; mirrors the branches in
-   impl.plan/coordinate-facet-domains."
-  #{:shared :free :free-x :free-y})
+(defn- retire-scales
+  "`opts` with the retired `:scales` option read as the `:share-scales`
+   value it stands for (`defaults/retired-scales`), and a warning naming
+   that value -- an error under `:strict`. A `:share-scales` written
+   beside it wins. `:scales` named the axes left free; `:share-scales`
+   names the axes shared, on a facet and an arrangement alike."
+  [caller opts]
+  (if-not (and (map? opts) (contains? opts :scales))
+    opts
+    (let [v (:scales opts)
+          to (get defaults/retired-scales v)]
+      (when-not (contains? defaults/retired-scales v)
+        (throw (ex-info (str caller " :scales is retired, and " (pr-str v)
+                             " is not one of the values it took, "
+                             (vec (sort (keys defaults/retired-scales)))
+                             ". Write :share-scales with the set of axes the"
+                             " panels share, as in {:share-scales #{:x}}.")
+                        {:caller caller
+                         :option :scales
+                         :value v
+                         :accepted (set (keys defaults/retired-scales))})))
+      (let [msg (if to
+                  (str caller ": :scales is retired. {:scales " v "} is read as"
+                       " {:share-scales " (pr-str to) "} for now -- :share-scales"
+                       " names the axes the panels share. Write {:share-scales "
+                       (pr-str to) "}.")
+                  (str caller ": :scales is retired. {:scales " v "} asked for"
+                       " the default, so it is dropped. Remove it; to say which"
+                       " axes the panels share, write :share-scales."))]
+        (if (:strict (defaults/config))
+          (throw (ex-info msg {:caller caller :renamed :scales :to :share-scales}))
+          (println (str "Warning: " msg))))
+      (cond-> (dissoc opts :scales)
+        (and to (not (contains? opts :share-scales))) (assoc :share-scales to)))))
 
 (defn options
   "Set plot-level options (title, labels, width, height, etc.).
@@ -3129,6 +3172,7 @@
                          " a map, e.g. {:title \"...\" :width 800}.")
                     {:caller "pj/options" :value opts})))
   (let [fr (->pose pose "pj/options")
+        opts (retire-scales "pj/options" opts)
         opts (warn-and-strip-unknown-opts "pj/options" opts plot-options-keys)
         opts (reduce (fn [m k]
                        (if-let [v (get m k)]
@@ -3155,16 +3199,8 @@
                          :option :legend-position
                          :value pos
                          :accepted valid-legend-positions}))))
-    (when (contains? opts :scales)
-      (let [v (:scales opts)]
-        (when-not (contains? valid-scales-values v)
-          (throw (ex-info (str "pj/options :scales must be one of "
-                               (vec (sort valid-scales-values))
-                               ", got: " (pr-str v) ".")
-                          {:caller "pj/options"
-                           :option :scales
-                           :value v
-                           :accepted valid-scales-values})))))
+    (when (contains? opts :share-scales)
+      (defaults/check-share-scales! "pj/options" (:share-scales opts)))
     (update-opts fr deep-merge opts)))
 
 (defn- column-argument
@@ -3452,7 +3488,7 @@
    covers the whole plot; called on one cell before the cells are
    arranged, that cell alone, so two cells can carry different scales.
    Under faceting every panel comes from one pose, so the panels share
-   a type; `:scales :free` varies their domains.
+   a type; `{:share-scales #{}}` varies their domains.
 
    A mapping written out in full can name a scale too, for that one
    mapping: `{:size {:column :weight :scale :log}}`. Where a scale is
@@ -4248,10 +4284,15 @@
      the grid, at the right.
    - `:width` -- total composite width.
    - `:height` -- total composite height.
-   - `:share-scales` -- subset of `#{:x :y}` shared across cells. By
-     default, cells that split the data of the pose they are arranged
-     into share each axis that draws one column, and other cells share
-     nothing.
+   - `:share-scales` -- the axes the cells share. A set of axes,
+     `#{:x :y}`, shares each among the cells drawing the same column on
+     it. A map says which columns go together on an axis:
+     `{:y [[:hwy :cty]]}` shares `:y` between the cells drawing `:hwy`
+     and `:cty`, `{:y :all}` between every cell, and `{:y :same-column}`
+     is what the set says. By default, cells that split the data of the
+     pose they are arranged into share each axis that draws one column,
+     and other cells share nothing. `pj/options` takes the same option
+     for the panels of a facet.
    - `:align-panels` -- give every cell the same drawing area, by
      reserving the widest y-label pad and legend column a cell needs on
      all of them (and, for a row, the tallest x-label pad). Two cells
@@ -4303,16 +4344,7 @@
    (let [cfg (defaults/config)
          {:keys [cols title subtitle caption share-scales align-panels]
           :or {share-scales #{}}} opts
-         _ (when-not (and (or (set? share-scales)
-                              (sequential? share-scales))
-                          (every? #{:x :y} share-scales))
-             (throw (ex-info (str "pj/arrange :share-scales must be a"
-                                  " subset of #{:x :y}, got "
-                                  (pr-str share-scales) ".")
-                             {:caller "pj/arrange"
-                              :option :share-scales
-                              :value share-scales
-                              :accepted #{:x :y}})))
+         _ (defaults/check-share-scales! "pj/arrange" share-scales)
          nested? (and (sequential? plots)
                       (sequential? (first plots))
                       (not (keyword? (ffirst plots))))
@@ -4371,7 +4403,9 @@
                             caption (assoc :caption caption)
                             ;; Written, even empty: `#{}` turns off the
                             ;; sharing a composite has by default.
-                            (contains? opts :share-scales) (assoc :share-scales (set share-scales))
+                            (contains? opts :share-scales) (assoc :share-scales (if (map? share-scales)
+                                                                                 share-scales
+                                                                                 (set share-scales)))
                             align-panels (assoc :align-panels true))
                     :layout {:direction :vertical}
                     :poses row-poses}]

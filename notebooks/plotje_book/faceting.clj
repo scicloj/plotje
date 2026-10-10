@@ -41,7 +41,7 @@
           y-doms (mapv :y-domain panels)]
       (and (= 3 (:panels s))
            (= 150 (:points s))
-           ;; Default :scales is :shared -- every panel shares both
+           ;; By default every panel shares both
            ;; x-domain and y-domain.
            (apply = x-doms)
            (apply = y-doms))))])
@@ -288,53 +288,66 @@ measures
 
 ;; ## Free Scales (Independent Axis Ranges)
 ;;
-;; By default all panels share the same axis ranges. Use the `:scales`
-;; option to let axes vary per panel.
+;; By default the panels of a facet share both axis ranges, so a mark
+;; at the same height stands for the same value in every panel. The
+;; `:share-scales` option names the axes the panels share, as a set. An
+;; axis left out of the set is fitted to the rows of each panel.
 ;;
-;; Shared (default) -- all panels carry the same x and y ranges:
+;; Both axes shared -- the default, written out:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/facet :species)
-    (pj/options {:scales :shared}))
+    (pj/options {:share-scales #{:x :y}}))
 
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
-          doms (mapv :x-domain
-                     (:panels (pj/plan
-                               (-> (rdatasets/datasets-iris)
-                                   (pj/lay-point :sepal-length :sepal-width)
-                                   (pj/facet :species)))))]
+          default (-> (rdatasets/datasets-iris)
+                      (pj/lay-point :sepal-length :sepal-width {:color :species})
+                      (pj/facet :species))
+          doms (mapv (juxt :x-domain :y-domain) (:panels (pj/plan v)))]
       (and (= 3 (:panels s))
            (= 150 (:points s))
-           (apply = doms))))])
+           (apply = doms)
+           ;; writing the default changes nothing
+           (= (pj/plot v) (pj/plot default)))))])
 
-;; Free y -- each panel has its own y-range:
+;; Only `:x` shared -- each panel has its own y range:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/facet :species)
-    (pj/options {:scales :free-y}))
+    (pj/options {:share-scales #{:x}}))
 
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
-          doms (mapv :y-domain
-                     (:panels (pj/plan
-                               (-> (rdatasets/datasets-iris)
-                                   (pj/lay-point :sepal-length :sepal-width)
-                                   (pj/facet :species)
-                                   (pj/options {:scales :free-y})))))]
+          ;; [distinct x ranges, distinct y ranges] under a set of axes
+          ranges (fn [axes]
+                   (let [panels (:panels (pj/plan
+                                          (-> (rdatasets/datasets-iris)
+                                              (pj/lay-point :sepal-length :sepal-width)
+                                              (pj/facet :species)
+                                              (pj/options {:share-scales axes}))))]
+                     [(count (distinct (map :x-domain panels)))
+                      (count (distinct (map :y-domain panels)))]))]
       (and (= 3 (:panels s))
-           (= 3 (count (distinct doms))))))])
+           (= [1 3] (ranges #{:x}))
+           ;; the two sets the prose below names
+           (= [3 1] (ranges #{:y}))
+           (= [3 3] (ranges #{})))))])
 
-;; Other values: `:free-x` (x per-panel, y shared), `:free`
-;; (both axes per-panel).
+;; `#{:y}` shares `:y` and fits `:x` to each panel, and `#{}` fits both
+;; axes to each panel.
+;;
+;; `pj/arrange` takes the same option for its cells, where it can also
+;; say which columns share an axis; see
+;; [Composition](./plotje_book.composition.html#shared-scales).
 
 ;; ## Appearance Aesthetics Across Panels
 ;;
-;; `:scales` frees the axes, and the axes alone. A `:size` or `:alpha`
+;; `:share-scales` is about the axes, and the axes alone. A `:size` or `:alpha`
 ;; column is read against every value the plot holds, whichever panel a
 ;; mark sits in, so one value is one size everywhere and the legend
 ;; explains every panel at once.

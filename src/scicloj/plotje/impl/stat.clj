@@ -107,6 +107,27 @@
               " in " (str/join ", " (map pr-str culprits))))))
     out))
 
+(defn group-color
+  "The value of the colour column for the group `group-val` names, which
+   is what a group is coloured by and what its legend entry prints.
+
+   A group is split by every grouping column -- `:group`, and the
+   categorical `:color` -- so where there are several, `group-val` holds
+   one value per column and the colour is one of them; where `:color`
+   is not among them the group has no colour of its own. With a single
+   grouping column `group-val` is that column's value.
+
+   One reader for every stat. The model stats used to write the whole
+   `group-val` as the colour, so a layer grouped by one column and
+   coloured by another looked its colour up under a pair, found none,
+   and drew every group in the first colour of the palette."
+  [{:keys [group color]} group-val]
+  (cond
+    (nil? group-val) nil
+    (= 1 (count group)) group-val
+    :else (let [i (if color (.indexOf ^java.util.List group color) -1)]
+            (when (>= i 0) (nth group-val i)))))
+
 (defn group-by-columns
   "Split dataset by grouping columns, apply f to each group.
    Iterates groups in the order they first appear in the dataset, so
@@ -366,16 +387,7 @@
                                    (max hi (dfn/reduce-max (clean y-max)))]
                                   [lo hi]))))
             numeric-color? (and color (= color-type :numerical))
-            ;; Extract color value from group key when color is part of group
-            color-idx (when color (.indexOf ^java.util.List group color))
-            extract-color (fn [group-val]
-                            (cond
-                              (nil? group-val) nil
-                              ;; Single group col -- group-val is the value itself
-                              (= 1 (count group)) group-val
-                              ;; Multiple group cols -- extract color column value
-                              (and color-idx (>= color-idx 0)) (nth group-val color-idx)
-                              :else nil))
+            extract-color (fn [group-val] (group-color draft-layer group-val))
             zero-ys (fn [ds] (dtype/const-reader 0.0 (tc/row-count ds)))
             point-group (fn [ds group-val]
                           (cond-> {:xs (ds x) :ys (if x-only? (zero-ys ds) (ds y))
@@ -629,7 +641,7 @@
                                               (:bins-maps (stats/histogram (ds x) bin-arg))
                                               (:domain-padding (or cfg defaults/defaults))))]
                               (cond-> {:bin-maps bin-maps}
-                                (some? gv) (assoc :color gv)))))
+                                (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
             ;; When normalize=:density, convert counts to density (area integrates to 1)
             all-bin-data (if (= normalize :density)
                            (mapv (fn [bd]
@@ -803,7 +815,7 @@
                          (when (and (>= (tc/row-count ds) 3)
                                     (not (near-constant? (ds x))))
                            (cond-> (fit-lm-with-se (ds x) (ds y) n-grid level)
-                             (some? gv) (assoc :color gv)))))
+                             (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
               results (remove nil? results)
               lines (mapv (fn [{:keys [x1 y1 x2 y2 color]}]
                             (cond-> {:x1 x1 :y1 y1 :x2 x2 :y2 y2}
@@ -829,7 +841,7 @@
                        (when (and (>= (tc/row-count ds) 3)
                                   (not (near-constant? (ds x))))
                          (cond-> (fit-lm (ds x) (ds y))
-                           (some? gv) (assoc :color gv)))))]
+                           (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))]
           {:lines (vec (remove nil? lines))
            :x-domain (numeric-extent (clean x))
            :y-domain (numeric-extent (clean y))})))))
@@ -978,7 +990,7 @@
                                     (not (near-constant? (ds x))))
                            (cond-> (fit-loess-with-se (ds x) (ds y)
                                                       n-grid bandwidth level n-boot)
-                             (some? gv) (assoc :color gv)))))
+                             (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
               results (remove nil? results)
               curves (mapv (fn [{:keys [xs ys color]}]
                              (cond-> {:xs xs :ys ys}
@@ -1004,7 +1016,7 @@
                         (when (and (>= (tc/row-count ds) 4)
                                    (not (near-constant? (ds x))))
                           (cond-> (fit-loess (ds x) (ds y) n-grid bandwidth)
-                            (some? gv) (assoc :color gv)))))
+                            (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
               curves (remove nil? curves)
               ys-bufs (seq (map :ys curves))
               y-min (if ys-bufs (dfn/reduce-min (dtype/concat-buffers ys-bufs)) (dfn/reduce-min (clean y)))
@@ -1107,7 +1119,7 @@
                       (when (>= (tc/row-count ds) 2)
                         (cond-> (fit-kde (ds x) n-grid bandwidth
                                          (when-not trim? {:interval layer-interval}))
-                          (some? gv) (assoc :color gv)))))
+                          (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
             curves (remove nil? curves)
             ys-bufs (seq (map :ys curves))
             y-max (if ys-bufs (dfn/reduce-max (dtype/concat-buffers ys-bufs)) 1)
@@ -1316,7 +1328,7 @@
                                      :ys (mapv :mean per-cat)
                                      :ymins (mapv #(- (:mean %) (:se %)) per-cat)
                                      :ymaxs (mapv #(+ (:mean %) (:se %)) per-cat)}
-                              (some? gv) (assoc :color gv)))))
+                              (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
             all-ys (mapcat (fn [g] (concat (:ymins g) (:ymaxs g))) all-groups)
             y-min (if (seq all-ys) (reduce min all-ys) 0)
             y-max (if (seq all-ys) (reduce max all-ys) 1)]

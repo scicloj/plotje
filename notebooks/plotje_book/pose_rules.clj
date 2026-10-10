@@ -374,7 +374,7 @@ composite-pose
 
 (pj/arrange
  [(pj/pose iris :sepal-length :sepal-width)
-  (pj/pose iris :petal-length :petal-width)]
+  (pj/pose iris :petal-length :sepal-width)]
  {:title "Arranged"
   :share-scales #{:y}})
 
@@ -685,11 +685,11 @@ composite-pose
 ;; columns it names. Its `:x` and `:y` stay on the layer's own
 ;; `:mapping`, and the leaf's `:mapping` is left as it was.
 ;;
-;; Where nothing written distinguishes the layers, each layer takes a
-;; colour and a legend entry naming its columns, and each axis is
-;; titled by every column drawn on it. Each layer below is given a
-;; written colour, so nothing is added, and the axes keep the titles of
-;; the leaf's own columns.
+;; Each axis is titled by every column drawn on it. Where no `:color`
+;; is specified, on the pose or on a layer, each layer also takes a
+;; colour and a legend entry naming its columns by default. Each layer
+;; below specifies its colour, so no colour and no legend entry is
+;; added.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -706,15 +706,14 @@ composite-pose
                  ;; Both layers drew, each in its own colour.
                  (contains? (:colors s) "rgb(55,126,184)")
                  (contains? (:colors s) "rgb(230,85,13)")
-                 ;; The axes are titled for the leaf's own columns, not
-                 ;; for the ones the second layer brought in -- no text
-                 ;; names a petal column, which a combined title
-                 ;; ("sepal width, petal width") would.
-                 (= #{"sepal length" "sepal width"} (set axis-titles))
-                 (not-any? #(re-find #"petal" %) (:texts s)))))])
+                 ;; Each axis is titled by both columns drawn on it,
+                 ;; and no legend entry names a column on its own.
+                 (empty? axis-titles)
+                 (some #{"sepal length, petal length"} (:texts s))
+                 (some #{"sepal width, petal width"} (:texts s)))))])
 
 ;; One panel with the blue sepal points and the orange petal points on
-;; it, the axes titled for the leaf's own columns, and their domains
+;; it, each axis titled by both of its columns, and their domains
 ;; stretched to hold the petal values too. Printed, the leaf's
 ;; `:mapping` is untouched and the petal columns sit on the second
 ;; layer:
@@ -1252,8 +1251,9 @@ s2-tree
 ;; A composite pose carries a `:layout` map (set by `pj/arrange`
 ;; options: `:cols`, `:width`, `:height`, `:title`) controlling
 ;; the grid of its sub-poses' panel blocks. An optional
-;; `:share-scales` (subset of `#{:x :y}`) enables column-bucketed
-;; shared-scale resolution across sub-poses.
+;; `:share-scales` (a subset of `#{:x :y}`, or a map from an axis to
+;; `:same-column`, `:all`, or groups of columns) enables shared-scale
+;; resolution across sub-poses. Under a set, sharing is column-bucketed.
 ;;
 ;; **Column-bucketing**: when `:x` is shared, sub-poses whose
 ;; effective `:x` column is the same share that scale's domain;

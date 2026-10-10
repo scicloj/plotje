@@ -2592,11 +2592,10 @@
   "Replace each panel's :x-dom and/or :y-dom with the cross-panel
    aggregate so faceted layouts share scales. Numeric domains
    merge as `[min(lows), max(highs)]`; categorical domains union
-   their distinct values. Controlled by `:scales` opt:
-     :shared (default) -- coordinate both axes
-     :free-y           -- coordinate x only (y per-panel)
-     :free-x           -- coordinate y only (x per-panel)
-     :free             -- no coordination (per-panel)
+   their distinct values. Controlled by the `:share-scales` option,
+   read through `defaults/share-scales-axes`: an axis it names is
+   coordinated, an axis it leaves out is per-panel, and with nothing
+   written both are coordinated.
 
    Only applied when the layout is `:facet-grid`, and aggregated among
    the panels drawing the same column, which `:x-var` and `:y-var`
@@ -2608,18 +2607,16 @@
    together; grouping by the column says it for every layout at once,
    and where each panel draws its own column every group holds one
    panel and nothing is merged."
-  [panel-domains scales-opt]
-  (let [scales (or scales-opt :shared)
-        share-x? (#{:shared :free-y} scales)
-        share-y? (#{:shared :free-x} scales)
+  [panel-domains share-scales-opt]
+  (let [shared (or (defaults/share-scales-axes share-scales-opt) #{:x :y})
+        share-x? (contains? shared :x)
+        share-y? (contains? shared :y)
         axis-name (fn [k] (if (= k :x-dom) "x" "y"))
-        ;; The whole option, not the value on its own. `:free-x` written
-        ;; where this message put it reports "pj/options does not
-        ;; recognize option(s): [:free-x]", so the message named a
-        ;; spelling that does not work and never named `:scales`.
+        ;; The whole option, not the value on its own, and the value
+        ;; that keeps the other axis shared.
         free-opt (fn [k] (if (= k :x-dom)
-                           "{:scales :free-x}"
-                           "{:scales :free-y}"))
+                           "{:share-scales #{:y}}"
+                           "{:share-scales #{:x}}"))
         ;; A panel with no domain of its own -- a facet cell with no
         ;; rows, drawn on the `[0 1]` fallback -- does not vote, so it
         ;; does not pull the shared domain to zero.
@@ -3334,12 +3331,12 @@
 
          ;; Facet scale coordination: by default, faceted layouts share
          ;; one x-domain and one y-domain across all panels so panels
-         ;; are visually comparable. The :scales opt controls which axes
+         ;; are visually comparable. The :share-scales opt controls which axes
          ;; coordinate. Multi-variable layouts (different x/y vars per
          ;; panel) skip this -- aggregating across different columns
          ;; would be meaningless.
          panel-domains (if (= layout-type :facet-grid)
-                         (coordinate-facet-domains panel-domains (:scales opts))
+                         (coordinate-facet-domains panel-domains (:share-scales opts))
                          panel-domains)
 
          ;; --- Phase 3: labels, legends, and the three layout fns ---
@@ -3488,7 +3485,7 @@
                                                          (:ph (:dims lay)) m)
                                         pds)
                             (= layout-type :facet-grid)
-                            (coordinate-facet-domains (:scales opts)))
+                            (coordinate-facet-domains (:share-scales opts)))
                           pds)]
              (if (or (= fitted pds) (>= k 2))
                [pds lay]

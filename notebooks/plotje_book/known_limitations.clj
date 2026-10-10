@@ -236,7 +236,7 @@
 ;;   cells that map the same column and write no scale share one
 ;;   scale and one legend.
 ;;
-;; - Facet panels share their scale *types*. `{:scales :free}` gives
+;; - Facet panels share their scale *types*. `{:share-scales #{}}` gives
 ;;   each panel its own domain, but there is no equivalent for giving
 ;;   one panel a log axis and another a linear one. Workaround:
 ;;   `pj/arrange` again.

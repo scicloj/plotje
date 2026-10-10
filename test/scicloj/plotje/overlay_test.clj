@@ -83,12 +83,70 @@
       (is (= "Measure" (:title (:legend (pj/plan (pj/scale overlaid :color
                                                            {:label "Measure"})))))))
 
-    (testing "a writer who has coloured the layers is left alone"
-      ;; Nothing is synthesized, and the axis keeps the single name.
+    (testing "layers that specify a colour take no default colour, and the axis still names every column"
       (let [own (-> d
                     (pj/lay-point :quarter :revenue {:color "#377eb8"})
                     (pj/lay-point :quarter :cost {:color "#e6550d"}))]
-        (is (= "revenue" (:y-label (pj/plan own))))))
+        (is (= "revenue, cost" (:y-label (pj/plan own))))
+        (is (nil? (:legend (pj/plan own))))
+        (is (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
+               (disj (:colors (pj/svg-summary own)) "none")))))
+
+    (testing "a :color on the pose reaches the layers, so they take no default colour"
+      (let [d2 (assoc d :region ["n" "s" "n" "s"])
+            by-pose (-> d2
+                        (pj/pose {:x :quarter :color :region})
+                        (pj/lay-point {:y :revenue})
+                        (pj/lay-point {:y :cost}))
+            plan (pj/plan by-pose)]
+        (is (= :region (:title (:legend plan))))
+        (is (= ["n" "s"] (mapv :label (:entries (:legend plan)))))
+        (is (= "revenue, cost" (:y-label plan)))))
+
+    (testing "so does a constant colour, and a colour cancelled with nil"
+      (doseq [c ["#377eb8" nil]]
+        (let [p (-> d
+                    (pj/pose {:x :quarter :color c})
+                    (pj/lay-point {:y :revenue})
+                    (pj/lay-point {:y :cost}))]
+          (is (nil? (:legend (pj/plan p))))
+          (is (= "revenue, cost" (:y-label (pj/plan p)))))))
+
+    (testing "a layer placed in the drawing area names no column of an axis"
+      (let [noted (-> d
+                      (pj/lay-point :quarter :revenue)
+                      (pj/lay-point {:in :drawing-area
+                                     :data {:px [50.0] :py [50.0]}
+                                     :x :px :y :py}))
+            plan (pj/plan noted)]
+        (is (= "revenue" (:y-label plan)))
+        (is (= "quarter" (:x-label plan)))
+        (is (nil? (:legend plan)))))
+
+    (testing "another aesthetic on the pose leaves :color unspecified, so the default colours are given"
+      (let [d2 (assoc d :region ["n" "s" "n" "s"])
+            shaped (-> d2
+                       (pj/pose {:x :quarter :shape :region})
+                       (pj/lay-point {:y :revenue})
+                       (pj/lay-point {:y :cost}))
+            entries (fn [pose] (set (:texts (pj/svg-summary pose))))]
+        (is (every? (entries shaped) ["revenue" "cost" "n" "s"]))))
+
+    (testing "a fitted line grouped by one column keeps the colour of its own column"
+      (let [iris-like {:a (vec (range 12))
+                       :b (mapv #(* 2.0 %) (range 12))
+                       :c (mapv #(+ 5.0 (* 0.5 %)) (range 12))
+                       :g (vec (take 12 (cycle ["u" "v"])))}
+            grouped (-> iris-like
+                        (pj/pose {:x :a :group :g})
+                        (pj/lay-smooth {:y :b :stat :linear-model})
+                        (pj/lay-smooth {:y :c :stat :linear-model}))
+            colours (fn [layer] (set (map :color (:groups layer))))
+            [l1 l2] (:layers (first (:panels (pj/plan grouped))))]
+        (is (= 2 (count (:groups l1))))
+        (is (= 1 (count (colours l1))))
+        (is (= 1 (count (colours l2))))
+        (is (not= (colours l1) (colours l2)))))
 
     (testing "layers drawing one place are untouched"
       (let [same (-> d (pj/lay-point :quarter :revenue)

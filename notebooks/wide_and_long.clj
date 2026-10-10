@@ -151,53 +151,54 @@ sales-long
 ;; the library or the book says so. What they differ in was never
 ;; decided -- each side was built on its own.
 
-;; The second pair is the same story. `:scales` is the long-side
-;; setting, and has no effect on the wide side:
+;; The second pair is the same story from the other end. `:share-scales`
+;; names the axes panels share on both sides, and the two sides start
+;; from opposite defaults: the long side shares `:y` with nothing
+;; written, and the wide side shares it when asked to put every column
+;; together, `{:y :all}`:
 
 (defn y-ticks [pose]
   (filterv #(re-matches #"\d+" %) (:texts (pj/svg-summary pose))))
 
 (md-table
- ["shape" ":scales :free" ":scales :shared"]
+ ["shape" "nothing written" "`{:share-scales {:y :all}}`"]
  [["long side, `pj/facet`"
+   (pr-str (y-ticks (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure))))
    (pr-str (y-ticks (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure)
-                        (pj/options {:scales :free}))))
-   (pr-str (y-ticks (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure)
-                        (pj/options {:scales :shared}))))]
+                        (pj/options {:share-scales {:y :all}}))))]
   ["wide side, pairs grid"
    (pr-str (y-ticks (-> sales-wide
                         (pj/arrange [[:quarter :revenue]
                                      [:quarter :cost]
                                      [:quarter :tax]])
-                        (pj/lay-point)
-                        (pj/options {:scales :free}))))
+                        (pj/lay-point))))
    (pr-str (y-ticks (-> sales-wide
                         (pj/arrange [[:quarter :revenue]
                                      [:quarter :cost]
                                      [:quarter :tax]])
                         (pj/lay-point)
-                        (pj/options {:scales :shared}))))]])
+                        (pj/options {:share-scales {:y :all}}))))]])
 
 (kind/test-last
  [(fn [_]
-    (let [grid (fn [s] (-> sales-wide
-                           (pj/arrange [[:quarter :revenue]
-                                        [:quarter :cost]
-                                        [:quarter :tax]])
-                           (pj/lay-point)
-                           (pj/options {:scales s})))
-          facet (fn [s] (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure)
-                            (pj/options {:scales s})))]
-      ;; The setting moves the long side and does nothing on the wide one.
-      (and (not= (y-ticks (facet :free)) (y-ticks (facet :shared)))
-           (= (y-ticks (grid :free)) (y-ticks (grid :shared))))))])
+    (let [grid (fn [opts] (-> sales-wide
+                              (pj/arrange [[:quarter :revenue]
+                                           [:quarter :cost]
+                                           [:quarter :tax]])
+                              (pj/lay-point)
+                              (pj/options opts)))
+          facet (fn [opts] (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure)
+                               (pj/options opts)))]
+      ;; The long side already shares; the wide side shares when asked.
+      (and (= (y-ticks (facet {})) (y-ticks (facet {:share-scales {:y :all}})))
+           (not= (y-ticks (grid {})) (y-ticks (grid {:share-scales {:y :all}}))))))])
 
 ;; **The opposite defaults are right, which is the interesting part.**
 ;; Facet panels are one column split by a key, so their values are
 ;; commensurable by construction and sharing is safe. Pairs-grid panels
 ;; hold different columns, so sharing is a claim about the data rather
-;; than a fact. Collapsing the two settings under one default would
-;; break whichever side lost.
+;; than a fact. One setting serves both sides; one default would break
+;; whichever side lost.
 
 ;; ## What the wide side can and cannot do
 

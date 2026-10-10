@@ -383,23 +383,25 @@
     (is (pj/pose? (pj/options (pj/lay-point tiny :x :y) {:title "ok"})))))
 
 (deftest scales-enum-validates
-  (testing "non-enum :scales throws with accepted-set guidance"
+  (testing "a value the retired :scales never took throws, naming :share-scales"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #":scales must be one of"
+         #":scales is retired, and :weird is not one of the values it took.*Write :share-scales"
          (pj/options (pj/lay-point tiny :x :y) {:scales :weird}))))
 
   (testing "string is rejected -- must be a keyword from the enum"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #":scales must be one of"
+         #":scales is retired"
          (pj/options (pj/lay-point tiny :x :y) {:scales "free"}))))
 
-  (testing "all enum values pass: :shared :free :free-x :free-y"
+  (testing "the values it took are read, with a warning: :shared :free :free-x :free-y"
     (doseq [v [:shared :free :free-x :free-y]]
-      (is (pj/pose? (pj/options (pj/lay-point tiny :x :y)
-                                {:scales v}))
-          (str "scales " v " should be accepted"))))
+      (let [out (with-out-str
+                  (is (pj/pose? (pj/options (pj/lay-point tiny :x :y)
+                                            {:scales v}))
+                      (str "scales " v " should be accepted")))]
+        (is (re-find #":scales is retired" out)))))
 
   (testing "options without :scales is unaffected"
     (is (pj/pose? (pj/options (pj/lay-point tiny :x :y) {:title "ok"})))))

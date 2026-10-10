@@ -102,3 +102,48 @@
                                       :n [1 2] :v [3 4]}
                                      (pj/lay-point :t :v)
                                      (pj/lay-point :n :v))))))
+
+(deftest columns-of-different-size-note-test
+  (let [d {:t [1 2 3 4]
+           :small [12.0 20.0 31.0 44.0]
+           :big [1999.0 2002.0 2005.0 2008.0]
+           :near [10.0 25.0 30.0 40.0]}
+        printed (fn [pose] (let [out (java.io.StringWriter.)]
+                             (binding [*out* out] (pj/plan pose))
+                             (str out)))
+        layers (fn [a b] (-> d (pj/lay-point :t a) (pj/lay-point :t b)))]
+    (testing "two layers whose columns differ greatly in size print one Note naming both"
+      (let [out (printed (layers :small :big))]
+        (is (= 1 (count (re-seq #"Note:" out))))
+        (is (re-find #"on :y one axis holds :small \(12 to 44\), :big \(1999 to 2008\)" out))
+        (is (re-find #"together span 12 to 2008" out))
+        (is (re-find #"\(pj/facet pose \{:y \[:small :big\]\}\)" out))))
+    (testing "a series of the same columns prints it too, on the pose or on a layer"
+      (is (= 1 (count (re-seq #"Note: on :y" (printed (-> d (pj/pose {:x :t :y [:small :big]}) pj/lay-point))))))
+      (is (= 1 (count (re-seq #"Note: on :y" (printed (pj/lay-point d :t [:small :big])))))))
+    (testing "the :x axis is read the same way"
+      (is (re-find #"Note: on :x" (printed (-> d (pj/lay-point :small :t) (pj/lay-point :big :t))))))
+    (testing "columns of comparable size print nothing"
+      (is (= "" (printed (layers :small :near)))))
+    (testing "with a :domain specified, or a log scale, no extent is fitted on a linear axis and nothing is printed"
+      (is (= "" (printed (pj/scale (layers :small :big) :y {:domain [0 2100]}))))
+      (is (= "" (printed (pj/scale (layers :small :big) :y :log)))))
+    (testing "a column holding one value is not counted as drawn flat"
+      (is (= "" (printed (-> (assoc d :limit [30.0 30.0 30.0 30.0])
+                             (pj/lay-point :t :small)
+                             (pj/lay-line :t :limit))))))
+    (testing "a layer beside a series is counted with the series' columns, named as written"
+      (let [out (printed (-> (assoc d :mid [900.0 950.0 1000.0 1100.0])
+                             (pj/lay-line :t [:big :mid])
+                             (pj/lay-point :t :small)))]
+        (is (= 1 (count (re-seq #"Note:" out))))
+        (is (re-find #":big \(1999 to 2008\), :mid \(900 to 1100\), :small \(12 to 44\)" out))
+        (is (not (re-find #":value" out)))))
+    (testing "a layer placed in the drawing area is not a column of the axis"
+      (is (= "" (printed (-> d
+                             (pj/lay-point :t :small)
+                             (pj/lay-point {:in :drawing-area
+                                            :data {:px [300.0] :py [900.0]}
+                                            :x :px :y :py}))))))
+    (testing "a panel per column prints nothing"
+      (is (= "" (printed (-> d (pj/pose {:x :t}) pj/lay-point (pj/facet {:y [:small :big]}))))))))

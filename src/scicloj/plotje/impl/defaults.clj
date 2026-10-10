@@ -1145,8 +1145,7 @@
    :shape-label ["Content" "Shape legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:shape` scale spec, so a spec written on a mapping or a layer wins over it"]
    :panel-width ["Layout" "Pin panel width (escape hatch; :width becomes derived total)"]
    :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
-   :scales ["Layout" "Facet scale coordination -- :shared (default), :free, :free-x, :free-y"]
-   :share-scales ["Layout" "Composite scale coordination -- set of axes (#{:x}, #{:y}, or #{:x :y}) shared across composite cells"]
+   :share-scales ["Layout" "The axes the panels of a facet, or the cells of an arrangement, share -- a set of axes (#{:x :y}, #{:x}, #{:y}, #{}), or a map from an axis to :same-column, :all, or groups of columns, as in {:y [[:hwy :cty]]}"]
    :config ["Config" "Nested config map merged into resolved config"]})
 
 (defn config
@@ -1225,6 +1224,90 @@
   {:annotation-stroke {:to :rule-color :mode :drop}
    :nudge-x {:to :dx :mode :accept}
    :nudge-y {:to :dy :mode :accept}})
+
+;; ---- Which axes cells share ----
+;;
+;; `:share-scales` is read by the composite path (`pose/inject-shared-scales`)
+;; and by the facet plan (`plan/coordinate-facet-domains`). Both read it
+;; through `share-scales-spec`, so a set and a map cannot come to mean
+;; different things in the two.
+
+(defn share-scales-spec
+  "`:share-scales` in its full form: a map from an axis to which columns
+   go together on that axis. Cells whose columns go together share the
+   axis.
+
+   - `:same-column` -- every column on its own: cells drawing the same
+     column share.
+   - a vector of groups, `[[:hwy :cty]]` -- the columns of a group go
+     together; a column in no group stays on its own.
+   - `:all` -- every column together: every cell shares.
+
+   An axis the map leaves out is not shared. A set of axes, `#{:x :y}`,
+   is the short form of `:same-column` on each. Nil stays nil: nothing
+   was written."
+  [v]
+  (cond
+    (nil? v) nil
+    (map? v) v
+    :else (zipmap v (repeat :same-column))))
+
+(defn share-scales-axes
+  "The axes `:share-scales` shares in some way, as a set; nil where
+   nothing was written."
+  [v]
+  (when-some [spec (share-scales-spec v)]
+    (set (keys spec))))
+
+(defn check-share-scales!
+  "Report a `:share-scales` value that is not a set of axes or a map
+   from axis to `:same-column`, `:all` or a vector of groups of columns.
+   Returns `v`."
+  [caller v]
+  (let [fail (fn [why]
+               (throw (ex-info (str caller " :share-scales " why ", got "
+                                    (pr-str v) ". Write a set of axes, as in"
+                                    " #{:x :y}, or a map from an axis to"
+                                    " :same-column, :all, or groups of columns,"
+                                    " as in {:x :same-column :y [[:hwy :cty]]}.")
+                               {:caller caller
+                                :option :share-scales
+                                :value v
+                                :accepted #{:x :y}})))
+        group? (fn [g] (and (sequential? g)
+                            (< 1 (count g))
+                            (every? #(or (keyword? %) (string? %)) g)))]
+    (cond
+      (map? v)
+      (doseq [[axis how] v]
+        (when-not (#{:x :y} axis)
+          (fail "names an axis other than :x and :y"))
+        (when-not (or (#{:same-column :all} how)
+                      (and (sequential? how) (seq how) (every? group? how)))
+          (fail (str "says " (pr-str how) " for " axis
+                     ", which is not :same-column, :all, or a vector of"
+                     " groups of two or more columns"))))
+
+      (or (set? v) (sequential? v))
+      (when-not (every? #{:x :y} v)
+        (fail "must be a subset of #{:x :y}"))
+
+      :else (fail "must be a set of axes or a map"))
+    v))
+
+(def retired-scales
+  "The `:share-scales` value each value of the retired `:scales` option
+   stands for. `:scales` named the axes left free; `:share-scales` names
+   the axes shared.
+
+   `:shared` stands for writing nothing. It was the default, and a
+   written `#{:x :y}` is not the same request: on cells that hold a
+   categorical column it reports that the axis cannot be shared, where
+   the default leaves that axis alone."
+  {:shared nil
+   :free-y #{:x}
+   :free-x #{:y}
+   :free #{}})
 
 (defn renamed-to
   "The key `k` carries now, or nil if `k` was never renamed. One

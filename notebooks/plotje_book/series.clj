@@ -988,9 +988,12 @@ sales-by-region
     (pj/lay-bar :quarter [:revenue :cost] {:position :stack})
     (pj/lay-line :quarter :units))
 
-(kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 1 (:panels (pj/svg-summary v)))
+                              (re-find #"Note: on :y one axis holds :revenue .*:cost .*:units"
+                                       (with-out-str (pj/plan v)))))])
 
-;; Units and euros do not share a scale, so here the two belong in
+;; Units and euros do not share a scale, and Plotje prints a Note that
+;; `:units` takes a small part of the axis. Here the two belong in
 ;; panels of their own, arranged one above the other:
 
 (pj/arrange [(pj/lay-bar sales :quarter [:revenue :cost] {:position :stack})

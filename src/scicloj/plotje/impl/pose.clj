@@ -236,7 +236,10 @@
                   scale settings accumulating (see `merge-mappings`).
    - :layers   -- concatenated (ancestor layers distribute down, then
                   the leaf's own layers append).
-   - :opts     -- merged (child overrides on key collision).
+   - :opts     -- merged (child overrides on key collision). So a
+                  `:share-scales` written on a composite reaches a
+                  faceted leaf below that writes none, and its panels
+                  share the same axes.
 
    Extra keys on a leaf (anything not in
    #{:data :mapping :layers :poses :layout :opts :share-scales})
@@ -589,17 +592,31 @@
 
 (declare union-domain)
 
+(defn- share-groups
+  "The sets of columns a share spec puts together on an axis, beyond
+   each column on its own: one set of every column for `:all`, the
+   written groups for a vector of groups, none for `:same-column`."
+  [how cols]
+  (cond
+    (= :all how) [(set (remove nil? cols))]
+    (sequential? how) (mapv set how)
+    :else []))
+
 (defn- pool-drawn-together
-  "`col->dom` with the domains of columns drawn on one panel pooled: a
-   panel whose layers draw `:a` and `:b` on `axis` needs the extent of
-   both, and every cell sharing `:a` or `:b` gets that extent too, so the
-   cells still agree. Groups chain: a panel drawing `:b` and `:c` joins
-   the same group."
-  [col->dom subtree axis]
-  (let [links (keep #(some-> (drawn-axis-cols % axis) set) subtree)
+  "`col->dom` with the domains of columns that go together pooled.
+
+   Columns go together where a panel draws them together -- a panel
+   whose layers draw `:a` and `:b` on `axis` needs the extent of both,
+   and every cell sharing `:a` or `:b` gets that extent too, so the
+   cells still agree -- and where `:share-scales` says so (`how`, see
+   `defaults/share-scales-spec`). Groups chain: a panel drawing `:b` and
+   `:c` joins the same group."
+  [col->dom subtree axis how]
+  (let [links (concat (keep #(some-> (drawn-axis-cols % axis) set) subtree)
+                      (share-groups how (keys col->dom)))
         groups (reduce (fn [groups link]
                          (let [{hit true miss false} (group-by #(boolean (some link %)) groups)]
-                           (conj (vec miss) (apply into link hit))))
+                           (conj (vec miss) (reduce into link hit))))
                        []
                        links)]
     (reduce (fn [m group]
@@ -736,29 +753,54 @@
                      (str (name field) " " (vec vs))))))
          (str/join "; "))))
 
+(defn- share-buckets
+  "The cells that share `axis` under `how`, as a seq of
+   `{:cols [...] :pairs [[col leaf] ...]}` -- one entry per set of
+   columns that go together (`share-groups`), each column in no group on
+   its own. A leaf drawing a count or a density on `:y` shares no `:y`
+   and is left out. Read by both checks below, so they agree with the
+   pooling in `inject-shared-scales` about which cells share."
+  [subtree axis how]
+  (let [by-col (dissoc (axis-buckets subtree axis) nil)
+        groups (share-groups how (keys by-col))
+        grouped (reduce (fn [groups link]
+                          (let [{hit true miss false} (group-by #(boolean (some link %)) groups)]
+                            (conj (vec miss) (reduce into link hit))))
+                        (mapv hash-set (keys by-col))
+                        groups)]
+    (for [group grouped
+          :let [cols (filterv group (keys by-col))]
+          :when (seq cols)]
+      {:cols cols
+       :pairs (for [col cols
+                    leaf (get by-col col)
+                    :when (not (and (= axis :y)
+                                    (y-axis-stat-driven? (:layers leaf)
+                                                         (:mapping leaf)
+                                                         (:data leaf))))]
+                [col leaf])})))
+
+(defn- describe-share-cols
+  [cols]
+  (if (next cols)
+    (str "columns " (str/join ", " (map pr-str cols)) " have")
+    (str "column " (pr-str (first cols)) " has")))
+
 (defn- validate-share-bucket-compatibility!
-  "For each (axis, col) bucket under share-scales, refuse when leaves
-   in the same bucket have incompatible coord / scale-type / inferred
-   type. Stat-driven y-axis leaves (count/density) are exempt on
-   axis :y -- they would skip the stamp downstream anyway. Throws an
-   ex-info naming the conflict."
-  [subtree axes]
-  (doseq [axis axes
-          [col leaves-in-bucket] (axis-buckets subtree axis)
-          :when col
-          :let [filtered (if (= axis :y)
-                           (remove (fn [l]
-                                     (y-axis-stat-driven? (:layers l)
-                                                          (:mapping l)
-                                                          (:data l)))
-                                   leaves-in-bucket)
-                           leaves-in-bucket)
-                keys-set (set (map #(leaf-share-key % axis col) filtered))]
+  "For each set of cells sharing an axis under `spec`, refuse when the
+   cells disagree about coord / scale-type / inferred type. Stat-driven
+   y-axis leaves (count/density) are exempt on axis :y -- they would
+   skip the stamp downstream anyway. Throws an ex-info naming the
+   conflict."
+  [subtree spec]
+  (doseq [[axis how] spec
+          {:keys [cols pairs]} (share-buckets subtree axis how)
+          :let [keys-set (set (map (fn [[col leaf]] (leaf-share-key leaf axis col)) pairs))]
           :when (> (count keys-set) 1)]
     (throw (ex-info
-            (str ":share-scales " axis " refused: column "
-                 (pr-str col)
-                 " has incompatible scale meaning across cells ("
+            (str ":share-scales " axis " refused: "
+                 (describe-share-cols cols)
+                 " incompatible scale meaning across cells ("
                  (describe-share-conflict keys-set)
                  "). Cells targeting :share-scales must agree on"
                  " coord (e.g. cartesian vs flip), inferred column"
@@ -766,25 +808,77 @@
                  " scale type (linear / log).")
             {:caller "share-scales"
              :axis axis
-             :column col
+             :column (first cols)
+             :columns cols
              :share-keys keys-set}))))
 
 (defn- warn-share-scales-overrides-free!
-  "Warn when a sub-pose carries :scales :free / :free-x / :free-y
-   on an axis that the composite is also trying to share. The share
-   wins; the sub-pose's directive is silently dropped today."
-  [subtree axes]
-  (doseq [axis axes
-          leaf subtree
-          :let [s (get-in leaf [:opts :scales])]
-          :when (or (= s :free)
-                    (and (= axis :x) (= s :free-x))
-                    (and (= axis :y) (= s :free-y)))]
-    (println (str "Warning: composite :share-scales " axis
-                  " overrides a sub-pose's :scales " s
-                  ". The share wins; the sub-pose's :scales setting"
-                  " is ignored. Drop one of the two to remove the"
+  "Warn when faceted sub-poses write a `:share-scales` of their own that
+   leaves out an axis the composite shares. The composite's share wins:
+   the shared extent is stamped on the sub-pose, and its panels draw it.
+   One message per axis, however many sub-poses it is true of."
+  [subtree spec]
+  (doseq [axis (keys spec)
+          :let [owns (keep (fn [leaf]
+                             (let [own (get-in leaf [:opts :share-scales])]
+                               (when (and (some? own)
+                                          (not (contains? (defaults/share-scales-axes own) axis)))
+                                 own)))
+                           subtree)]
+          :when (seq owns)]
+    (println (str "Warning: a composite's :share-scales shares " axis
+                  ", and " (if (next owns)
+                             (str (count owns) " poses inside it write")
+                             "a pose inside it writes")
+                  " a :share-scales that leaves " axis " out ("
+                  (str/join ", " (distinct (map pr-str owns)))
+                  "). The composite's share wins, and the panels of "
+                  (if (next owns) "those poses" "that pose")
+                  " share " axis ". Drop one of the two to remove the"
                   " conflict."))))
+
+(declare share-buckets)
+
+(defn- warn-share-scales-without-effect!
+  "Warn where `:share-scales` names an axis and no two cells share it:
+   `:same-column` on an axis where every cell draws a column of its own,
+   or a group of which fewer than two columns are drawn. The picture is
+   the one drawn without the option, so without this the option reads as
+   ignored. Names the group that would share the columns."
+  [subtree spec]
+  (doseq [[axis how] spec
+          :let [buckets (remove (comp empty? :pairs) (share-buckets subtree axis how))
+                drawn (vec (mapcat :cols buckets))]
+          ;; Only where every column is drawn by one cell. A column two
+          ;; cells draw, one of them as a count -- the diagonal of a
+          ;; two-by-two matrix -- shares nothing either, but the option
+          ;; there is the matrix's own, and right for any larger one.
+          ;;
+          ;; Nor where a column drawn here is drawn on the other axis by
+          ;; another cell: a marginal on the right draws the panel's
+          ;; `:y` column along its own `:x` under a flip, and the two
+          ;; agree by each taking that column's extent.
+          :let [other (set (keys (dissoc (axis-buckets subtree (if (= axis :x) :y :x)) nil)))]
+          :when (and (< 1 (count buckets))
+                     (not-any? #(next (:pairs %)) buckets)
+                     (every? #(= 1 (count %))
+                             (vals (dissoc (axis-buckets subtree axis) nil)))
+                     (not-any? other drawn))]
+    (println
+     (str "Warning: :share-scales shares " axis
+          (if (sequential? how)
+            (str " between the columns of " (pr-str how)
+                 ", and the cells draw " (str/join ", " (map pr-str drawn))
+                 " there, each in one cell, so no two cells share " axis
+                 ". Name the columns the cells draw, as in {"
+                 axis " " (pr-str [drawn]) "}.")
+            (str " among the cells drawing the same column, and the cells"
+                 " draw " (str/join ", " (map pr-str drawn))
+                 " there, each in one cell, so no two cells share " axis
+                 ". To share " axis " between columns that measure one"
+                 " quantity, name them as a group: {:share-scales {"
+                 axis " " (pr-str [drawn]) "}}; {" axis
+                 " :all} shares it between every cell."))))))
 
 (defn- assert-share-bucket-has-extent!
   "Refuse :share-scales on a bucket whose data column has no extent to
@@ -803,30 +897,25 @@
    `:share-scales` itself, so a right marginal on a numeric column was
    refused because the *other* axis held dates, and the message named a
    setting the writer had not written."
-  [subtree axes]
-  (doseq [axis axes
-          [col leaves-in-bucket] (axis-buckets subtree axis)
-          :when col
-          :let [filtered (if (= axis :y)
-                           (remove (fn [l]
-                                     (y-axis-stat-driven? (:layers l)
-                                                          (:mapping l)
-                                                          (:data l)))
-                                   leaves-in-bucket)
-                           leaves-in-bucket)
-                vals (mapcat #(col-values (:data %) col) filtered)]
-          :when (and (< 1 (count filtered)) (seq vals)
+  [subtree spec]
+  (doseq [[axis how] spec
+          {:keys [cols pairs]} (share-buckets subtree axis how)
+          :let [vals (mapcat (fn [[col leaf]] (col-values (:data leaf) col)) pairs)]
+          :when (and (< 1 (count pairs)) (seq vals)
                      (not-any? #(or (number? %) (resolve/temporal-value? %)) vals))]
     (throw (ex-info
-            (str ":share-scales " axis " refused: column "
-                 (pr-str col)
-                 " is categorical across all sharing cells, so a"
+            (str ":share-scales " axis " refused: "
+                 (if (next cols)
+                   (str "columns " (str/join ", " (map pr-str cols)) " are")
+                   (str "column " (pr-str (first cols)) " is"))
+                 " categorical across all sharing cells, so a"
                  " union domain is not defined. Drop :share-scales"
                  " on this axis, or share scales only on numerical"
                  " or temporal columns.")
             {:caller "share-scales"
              :axis axis
-             :column col}))))
+             :column (first cols)
+             :columns cols}))))
 
 (defn written-axis-values
   "The values the rules and bands among a leaf's layers write on
@@ -877,7 +966,7 @@
                         (second (scale/tile-edges (reduce max vs) span))])))))))
           (:layers leaf)))
 
-(declare share-axes)
+(declare share-axes share-spec)
 
 (defn- declared-split?
   "True of a composite whose cells are the parts of one declared split:
@@ -928,7 +1017,7 @@
          my-data     (or (:data pose) inherited-data)
          my-layers   (into (vec inherited-layers) (:layers pose))
          my-shares   (when (seq (:poses pose))
-                       (not-empty (share-axes pose)))
+                       (not-empty (share-spec pose)))
          new-domains (when (and my-shares (seq (:poses pose)))
                        (let [subtree (resolve-tree pose
                                                    {:mapping inherited-mapping
@@ -937,9 +1026,10 @@
                          (validate-share-bucket-compatibility! subtree my-shares)
                          (assert-share-bucket-has-extent! subtree my-shares)
                          (warn-share-scales-overrides-free! subtree my-shares)
+                         (warn-share-scales-without-effect! subtree my-shares)
                          (into {}
                                (keep
-                                (fn [axis]
+                                (fn [[axis how]]
                                   (let [by-col (axis-buckets subtree axis)
                                         col->dom (into {}
                                                        (keep
@@ -954,7 +1044,7 @@
                                                               [col d])))
                                                         by-col))]
                                     (when (seq col->dom)
-                                      [axis (pool-drawn-together col->dom subtree axis)])))
+                                      [axis (pool-drawn-together col->dom subtree axis how)])))
                                 my-shares))))
          child-domains (merge-with (partial merge-with union-domain)
                                    inherited-domains
@@ -2020,8 +2110,16 @@
       y (assoc :y y))))
 
 (defn overlay-labels
-  "What tells each overlaid layer apart, as a vector aligned with
-   `(:layers leaf)`, or nil where nothing does.
+  "The column each layer of a panel draws where its layers disagree, as
+   a vector aligned with `(:layers leaf)`, or nil where they all draw
+   one place.
+
+   Read for two things, which do not depend on one another. The axis is
+   titled by every column drawn on it, so each labelled layer is marked
+   for the title. And the label is the default for a layer's `:color`:
+   where no layer of the panel has a `:color` specified
+   (`color-specified?`), each takes its label as a colour and a legend
+   entry.
 
    Layers that disagree about a column take a panel each, and the
    panels name the columns. Overlaid, they share a panel and nothing
@@ -2030,23 +2128,25 @@
    less than the writer asked for and says nothing about it.
 
    The label is the column a layer draws where the layers disagree.
-   Answered nil where the writer has said how the marks are told apart
-   -- any layer mapping `:color` -- and where nothing distinguishes
-   them, which is the ordinary case of layers drawing one place."
+   Answered nil where nothing distinguishes them, which is the ordinary
+   case of layers drawing one place."
   [leaf]
   (let [layers (vec (:layers leaf))
         leaf-mapping (:mapping leaf)
         ;; A layer naming no place draws at the leaf's place, so it is
         ;; told apart like any other.
         place (leaf-place leaf)
-        places (mapv #(or (layer-position-key leaf-mapping %
-                                              (or (:data %) (:data leaf)))
-                          place)
+        ;; A layer placed in the drawing area reads drawing units, not
+        ;; a column of the panel's axes, so it names nothing an axis
+        ;; title or a legend entry could.
+        places (mapv #(when-not (= :drawing-area (:in (:mapping %)))
+                        (or (layer-position-key leaf-mapping %
+                                                (or (:data %) (:data leaf)))
+                            place))
                      layers)
         relevant (keep-indexed (fn [i p] (when p i)) places)
-        sources (fn [axis] (vec (distinct (keep #(nth (nth places %) axis nil) relevant))))
-        colored? (some #(contains? (or (:mapping %) {}) :color) layers)]
-    (when (and (seq relevant) (not colored?))
+        sources (fn [axis] (vec (distinct (keep #(nth (nth places %) axis nil) relevant))))]
+    (when (seq relevant)
       (let [disagreeing (vec (keep (fn [axis] (when (< 1 (count (sources axis))) axis))
                                    [0 1]))]
         (when (seq disagreeing)
@@ -2056,6 +2156,30 @@
                                          disagreeing))))
                 (range (count layers))
                 places))))))
+
+(defn color-specified?
+  "Whether any layer of a leaf has a `:color` specified, in the mapping
+   it resolves to: the leaf's own mapping, which holds what its
+   ancestors specify and reaches every layer, or the layer's own.
+
+   The colours `overlay-labels` gives are a default, inferred only
+   where this is false. It is read from the resolved mapping because
+   that is what a layer draws: a `:color` on the pose is a mapping like
+   any other, so a layer below it has a colour and needs no default."
+  [leaf]
+  (let [specified? (fn [m]
+                   (and (contains? m :color)
+                        (let [v (:color m)]
+                          ;; A scale set with no column or value --
+                          ;; `(pj/scale pose :color {:label "Measure"})`
+                          ;; -- specifies how a colour is read and
+                          ;; leaves what is coloured unspecified, so
+                          ;; that part is still inferred. `nil`
+                          ;; specifies no colour.
+                          (or (not (map? v))
+                              (some #(contains? v %) [:from :column :value])))))]
+    (boolean (or (specified? (or (:mapping leaf) {}))
+                 (some #(specified? (or (:mapping %) {})) (:layers leaf))))))
 
 (def default-series-label
   "The name the key column a series invents takes when the writer does
@@ -2568,6 +2692,8 @@
           pv
           (:titled pv)))
 
+(declare note-columns-of-different-size!)
+
 (defn pivot-leaf-series
   "A leaf whose series are pivoted: the columns a series reads become a
    key column and a value column, and the mapping that wrote the series
@@ -2618,6 +2744,31 @@
         leaf (assoc leaf :layers layers)]
     (if-let [{:keys [from idxs cols]} (leaf-series leaf)]
       (let [wide (:data leaf)
+            ;; The columns of a series share an axis as the layers of a
+            ;; panel do, so the same Note is due before they are pivoted
+            ;; into one value column, where the columns can no longer
+            ;; be told apart.
+            ;; A layer beside the series, naming another column on that
+            ;; axis, is counted here too: after the pivot the series is
+            ;; one column, `:value`, which names nothing the writer
+            ;; wrote.
+            _ (when wide
+                (let [m (if (= :pose from) leaf-mapping (:mapping (layers (first idxs))))
+                      wide-cols (set (tc/column-names (coerce-dataset wide)))]
+                  (doseq [k (series-in m)
+                          :let [series-cols (:cols (series-mapping (get m k)))
+                                beside (for [[i l] (map-indexed vector layers)
+                                             :when (and (not (contains? (set idxs) i))
+                                                        (nil? (:data l))
+                                                        (not= :drawing-area (:in (:mapping l))))
+                                             :let [c (mapping-source (get (:mapping l) k))]
+                                             :when (and c (wide-cols c))]
+                                         c)]
+                          :when (#{:x :y} k)]
+                    (note-columns-of-different-size!
+                     k
+                     (zipmap (distinct (concat series-cols beside)) (repeat wide))
+                     (cons leaf-mapping (map :mapping layers))))))
             pivoted (if (= :pose from)
                       (let [pv (-> (pivot-mapping "pj/pose"
                                                   (or wide (throw (no-data (first (series-in leaf-mapping)))))
@@ -2677,6 +2828,60 @@
             written (get m ({:x :x-type :y :y-type} axis))]
         {:column src :type (or written (resolve/column-type data src))}))))
 
+(def ^:private small-share-of-axis
+  "The part of a shared axis below which a column counts as drawn flat:
+   a column whose own extent is less than one twentieth of the axis."
+  1/20)
+
+(defn- note-columns-of-different-size!
+  "Print a Note where numeric columns drawn together on `axis` differ so
+   much in size that one of them takes less than `small-share-of-axis`
+   of it -- highway mileage beside the model year, drawn as a flat band
+   at the foot of an axis that runs to 2008.
+
+   The columns share the axis because the layers of a pose share its
+   panel, or because a series names them together, and the picture is
+   seldom the one meant.
+
+   The Note belongs to the inference of the axis's extent: it reports
+   what fitting one linear axis to these columns gives. So it is
+   printed only where that inference runs -- not where the axis has a
+   `:domain` specified, where no extent is fitted, nor under a log
+   scale, where the columns are not compared on a linear axis
+   (`mappings` are every mapping that could carry either). It reads the
+   data and the scale specified for the axis, nothing else.
+
+   `col->data` maps each column to the dataset it is read from."
+  [axis col->data mappings]
+  (let [scale-of (fn [m] (let [v (get m axis)] (when (map? v) (:scale v))))
+        settled? (some (fn [m] (let [sc (scale-of m)]
+                                 (or (= :log sc)
+                                     (and (map? sc) (or (contains? sc :domain)
+                                                        (= :log (:type sc)))))))
+                       mappings)
+        extents (for [[col data] col->data
+                      :let [ds (coerce-dataset data)
+                            vs (when ds (filter number? (col-values ds col)))]
+                      :when (seq vs)]
+                  [col (double (reduce min vs)) (double (reduce max vs))])]
+    (when (and (not settled?) (next extents))
+      (let [lo (reduce min (map second extents))
+            hi (reduce max (map #(nth % 2) extents))
+            span (- hi lo)
+            flat (filter (fn [[_ a b]] (and (< a b) (< (- b a) (* small-share-of-axis span))))
+                         extents)
+            fmt (fn [v] (if (== v (Math/rint v)) (str (long v)) (format "%.3g" v)))]
+        (when (seq flat)
+          (println (str "Note: on " axis " one axis holds "
+                        (str/join ", " (map (fn [[c a b]] (str (pr-str c) " (" (fmt a) " to " (fmt b) ")"))
+                                            extents))
+                        ", which together span " (fmt lo) " to " (fmt hi) ", so "
+                        (str/join " and " (map (comp pr-str first) flat))
+                        (if (next flat) " are each" " is")
+                        " drawn within a small part of it. To give each column an"
+                        " axis of its own, draw a panel per column: (pj/facet pose "
+                        (pr-str {axis (mapv first extents)}) ").")))))))
+
 (defn check-shared-panel!
   "Report layers of a leaf that share its one panel and disagree about
    what an axis holds.
@@ -2687,7 +2892,9 @@
    anyway placed the numbers as category places: an error, naming the
    layers and the two ways to separate panels. A count or a density
    beside a column on `:y` can be placed, but the axis then reads in two
-   units: a Note, with the same advice."
+   units: a Note, with the same advice. Numeric columns of very different
+   size can be placed too, and one of them is then drawn flat: a Note
+   (`note-columns-of-different-size!`)."
   [leaf]
   (let [layers (:layers leaf)
         caller layer-series-caller
@@ -2726,7 +2933,24 @@
           (println (str "Note: the layers of this pose share one panel, and on " axis " "
                         (str/join ", " (map describe (concat (take 1 stats) (take 1 columns))))
                         ", so the axis reads in two units."
-                        (advice axis nil))))))))
+                        (advice axis nil)))
+
+          ;; Not where a series has been pivoted into its value column:
+          ;; `pivot-leaf-series` printed the Note for it, naming the
+          ;; columns as written. Nor for a layer placed in the drawing
+          ;; area, whose values are drawing units and not a column of
+          ;; the axis.
+          (and (next (distinct (map :column columns)))
+               (= [:numerical] (distinct (map :type columns)))
+               (not-any? #{series-value-column} (map :column columns)))
+          (note-columns-of-different-size!
+           axis
+           (into {} (for [l layers
+                          :when (not= :drawing-area (:in (:mapping l)))
+                          :let [d (layer-axis-draws leaf l axis)]
+                          :when (:column d)]
+                      [(:column d) (or (:data l) (:data leaf))]))
+           (cons (:mapping leaf) (map :mapping layers))))))))
 
 (defn report-panel-aesthetic-on-layer
   "Report a panel aesthetic written on a layer.
@@ -2763,7 +2987,9 @@
             (when (composite? node)
               (concat
                (for [k [:x :y]
-                     :when (and (contains? (:mapping node) k)
+                     ;; A scale written with no column names nothing
+                     ;; to draw; it reaches each cell's own column.
+                     :when (and (some? (mapping-source (get (:mapping node) k)))
                                 (not-any? #(reaches? % k) (:poses node)))]
                  [path k])
                (mapcat (fn [i child] (walk child (conj path i)))
@@ -2794,32 +3020,45 @@
 ;; `:share-scales`, `:grid-axis-titles` or per-cell `:suppress-*` wins.
 
 (defn default-share-axes
-  "The axes the cells of a composite can share -- every bucket of cells
-   reading one column has an extent, and its cells agree on the kind of
-   scale. Sharing is by column, so cells reading different columns on
-   an axis keep their own extents. An axis the cells cannot share is
-   left alone, with no message: the writer did not ask for it."
+  "The axes the cells of a composite do share by default -- two or more
+   cells draw one column there, every bucket of cells reading one column
+   has an extent, and its cells agree on the kind of scale. Sharing is
+   by column, so cells reading different columns on an axis keep their
+   own extents, and an axis where every cell draws a column of its own
+   is not in the default: written out, the default changes nothing and
+   draws no message (`warn-share-scales-without-effect!`). An axis the
+   cells cannot share is left alone, with no message: the writer did
+   not ask for it."
   [composite]
   (let [subtree (vec (remove :plotje/empty-cell (resolve-tree composite)))]
     (set (filter (fn [axis]
-                   (try (validate-share-bucket-compatibility! subtree #{axis})
-                        (assert-share-bucket-has-extent! subtree #{axis})
-                        true
+                   (try (validate-share-bucket-compatibility! subtree {axis :same-column})
+                        (assert-share-bucket-has-extent! subtree {axis :same-column})
+                        (boolean (some #(next (:pairs %))
+                                       (share-buckets subtree axis :same-column)))
                         (catch clojure.lang.ExceptionInfo _ false)))
                  [:x :y]))))
 
-(defn share-axes
-  "The axes a composite's cells share: the written `:share-scales` (in
-   `:opts`, or at the top of a hand-built composite), or -- where none
-   is written and the cells are the parts of one declared split -- every
-   axis they can share. Read by `inject-shared-scales` and by
-   `infer-chrome`, so the domains and the chrome agree."
+(defn share-spec
+  "How a composite's cells share each axis, as the map
+   `defaults/share-scales-spec` describes: the written `:share-scales`
+   (in `:opts`, or at the top of a hand-built composite), or -- where
+   none is written and the cells are the parts of one declared split --
+   every axis they can share, each column on its own. Read by
+   `inject-shared-scales` and by `infer-chrome`, so the domains and the
+   chrome agree."
   [pose]
   (cond
-    (contains? (:opts pose) :share-scales) (set (get-in pose [:opts :share-scales]))
-    (contains? pose :share-scales) (set (:share-scales pose))
-    (declared-split? pose) (default-share-axes pose)
-    :else #{}))
+    (contains? (:opts pose) :share-scales) (defaults/share-scales-spec (get-in pose [:opts :share-scales]))
+    (contains? pose :share-scales) (defaults/share-scales-spec (:share-scales pose))
+    (declared-split? pose) (zipmap (default-share-axes pose) (repeat :same-column))
+    :else {}))
+
+(defn share-axes
+  "The axes a composite's cells share in some way -- the axes
+   `share-spec` names."
+  [pose]
+  (set (keys (share-spec pose))))
 
 (defn unanimous-column
   "The column every cell of `leaves` draws on `axis`, or nil where they
@@ -2834,7 +3073,8 @@
   "Where the cells all draw one column on an axis, that axis is titled
    once beside the grid (`:grid-axis-titles`). On a shared axis, a cell
    drops its tick labels where a cell with rows below it (x) or to its
-   left (y) draws the same column on that axis -- read from where the
+   left (y) draws the same column on that axis, or a column
+   `:share-scales` puts together with it -- read from where the
    layout places the cells, so a row, a column, a grid and a matrix are
    treated alike: a facet ticks its outer panels, a scatter plot matrix
    ticks its bottom row and left column. An axis left free keeps its
@@ -2846,7 +3086,17 @@
   [composite]
   (if (contains? composite :grid-axis-titles)
     composite
-    (let [axes (share-axes composite)
+    (let [spec (share-spec composite)
+          ;; Two columns one scale draws: the same column, or columns
+          ;; the share spec puts together.
+          together? (fn [axis a b]
+                      (and (contains? spec axis)
+                           (or (= a b)
+                               (let [how (get spec axis)]
+                                 (cond
+                                   (= :all how) true
+                                   (sequential? how) (boolean (some #(and (some #{a} %) (some #{b} %)) how))
+                                   :else false)))))
           leaves (resolve-tree composite)
           once-x? (unanimous-column leaves :x)
           once-y? (unanimous-column leaves :y)
@@ -2868,10 +3118,10 @@
                          {cx :x cy :y} (leaf-columns leaf)]
                      (cond-> {}
                        once-x? (assoc :suppress-x-label true)
-                       (and (axes :x) cx (some #(and (= cx (:x %)) (below? rect (:rect %))) live))
+                       (and cx (some #(and (:x %) (together? :x cx (:x %)) (below? rect (:rect %))) live))
                        (assoc :suppress-x-ticks true)
                        once-y? (assoc :suppress-y-label true)
-                       (and (axes :y) cy (some #(and (= cy (:y %)) (left? rect (:rect %))) live))
+                       (and cy (some #(and (:y %) (together? :y cy (:y %)) (left? rect (:rect %))) live))
                        (assoc :suppress-y-ticks true))))]
       (cond-> (reduce (fn [c leaf]
                         (let [ch (when-not (:plotje/empty-cell leaf) (chrome leaf))]
@@ -3078,21 +3328,12 @@
    compared."
   false)
 
-(defn- scales->share-axes
-  "The axes a facet's `:scales` option shares."
-  [scales]
-  (case (or scales :shared)
-    :shared #{:x :y}
-    :free-y #{:x}
-    :free-x #{:y}
-    :free #{}))
-
 (defn expand-facets
   "A leaf whose mapping writes `:col` or `:row`, as the listed pose its
    facet expands to: `:col` alone is a row of cells, `:row` alone a
    column of them, both a grid with an empty cell for each combination
    the data does not hold (as `pj/facet-grid` draws). The facet's
-   `:scales` option becomes the listed pose's `:share-scales`. Any other
+   `:share-scales` stays where it is, on the listed pose. Any other
    pose is returned as it is -- a composite, a leaf with no data of its
    own, a grid naming one column on both sides, and a facet wrapped by
    `:grid-cols` or `:grid-rows`, which needs a strip over each cell."
@@ -3117,14 +3358,11 @@
             ;; no layer reaches them reading a series.
             base (-> pose
                      pivot-leaf-series
-                     (update :mapping #(not-empty (dissoc % :col :row)))
-                     (assoc :opts (dissoc opts :scales)))
+                     (update :mapping #(not-empty (dissoc % :col :row))))
             variation (cond (and c r) {:col c :row r}
                             r {:row r}
                             :else c)]
-        (cond-> (expand-variation base variation)
-          (contains? opts :scales)
-          (assoc-in [:opts :share-scales] (scales->share-axes (:scales opts))))))))
+        (expand-variation base variation)))))
 
 ;; ---- A regular split drawn as one plan ----
 ;;
@@ -3134,16 +3372,6 @@
 ;; once, draws "no data" panels and fits many panels, which composing
 ;; one plan per cell does not yet. So a facet and the same cells written
 ;; by hand take the same path.
-
-(defn- share-axes->scales
-  "The facet `:scales` option that shares `axes`; the inverse of
-   `scales->share-axes`."
-  [axes]
-  (case (set axes)
-    #{:x :y} :shared
-    #{:x} :free-y
-    #{:y} :free-x
-    #{} :free))
 
 (defn collapse-regular-split
   "A composite whose cells are a regular split of its data, as the
@@ -3155,7 +3383,8 @@
    facet columns, in the order the data holds them -- one row of cells
    by `:col`, one column by `:row`, or a grid by both, with every
    combination present, as `expand-variation` writes it. A written
-   `:share-scales` becomes the facet's `:scales`."
+   `:share-scales` is kept in the faceted leaf's options, where the
+   facet plan reads it."
   [pose]
   (let [grid (when (composite? pose) (cell-grid pose))
         cells (vec (apply concat grid))
@@ -3215,7 +3444,7 @@
                                           (:col facet) (assoc :col (one-or-many (:col facet)))
                                           (:row facet) (assoc :row (one-or-many (:row facet)))))
                       (update :opts #(not-empty (dissoc % :share-scales :align-panels))))
-            (some? written) (assoc-in [:opts :scales] (share-axes->scales written))))))))
+            (some? written) (assoc-in [:opts :share-scales] written)))))))
 
 ;; ---- A facet over columns: the `:facet` node (provisional) ----
 ;;
@@ -3290,10 +3519,25 @@
             ;; write: the pose's own column there is replaced in every
             ;; cell, and left on the pose it was reported as not drawn
             ;; -- or read by a matrix's diagonal, which names one column.
+            ;; A scale written there stays, with no column: it is a
+            ;; setting of the axis, not of the column, and reaches each
+            ;; cell's own column as scale settings do -- so
+            ;; `(pj/scale pose :y {:domain [0 50]})` gives every panel
+            ;; that domain.
             varied (set (mapcat (comp keys :mapping) (apply concat rows)))
+            scale-only (fn [v] (when (and (map? v) (contains? v :scale))
+                                 (select-keys v [:scale])))
             base (cond-> base
                    (seq (select-keys (:mapping base) varied))
-                   (update :mapping #(not-empty (apply dissoc % varied))))]
+                   (update :mapping
+                           (fn [m]
+                             (not-empty
+                              (reduce (fn [m k]
+                                        (if-let [kept (scale-only (get m k))]
+                                          (assoc m k kept)
+                                          (dissoc m k)))
+                                      m
+                                      varied)))))]
         (assoc base
                :layout {:direction :vertical}
                :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
@@ -3785,6 +4029,7 @@
         ;; one palette colour and earns a legend entry -- the same
         ;; route `{:color {:value "Model A" :scale true}}` takes.
         ov-labels    (overlay-labels leaf)
+        ov-colors?   (and ov-labels (not (color-specified? leaf)))
         overlay-legend-titled? (boolean
                                 (some->> (:color leaf-mapping)
                                          (#(when (map? %) (:scale %)))
@@ -3795,7 +4040,7 @@
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
              layer-mapping    (cond-> (report-panel-aesthetic-on-layer
                                        (or (:mapping layer) {}))
-                                (and ov-labels (nth ov-labels layer-idx nil))
+                                (and ov-colors? (nth ov-labels layer-idx nil))
                                 (assoc :color
                                        (cond-> {:value (nth ov-labels layer-idx)
                                                 :scale true}
@@ -3854,9 +4099,9 @@
               coord-type  (assoc :coord coord-type)
               ;; Marks this layer as one of a set overlaid on a panel
               ;; whose columns disagree, so the axis can name all of
-              ;; them. Only these: an annotation placed in drawing
-              ;; space, or a layer the writer has already coloured,
-              ;; leaves the axis title alone.
+              ;; them, whatever colours the layers are drawn in. Only
+              ;; these: an annotation placed in drawing space leaves the
+              ;; axis title alone.
               (and ov-labels (nth ov-labels layer-idx nil))
               (assoc :overlay-labelled true)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))

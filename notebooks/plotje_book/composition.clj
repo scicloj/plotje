@@ -118,8 +118,9 @@ weighted
 ;; domains. That is fine when their columns differ, but for the same
 ;; column shown twice (e.g., a marginal above a scatter, or a mosaic
 ;; of scatters all measuring the same variable) you want the axes
-;; aligned. `:share-scales` pins scales across siblings by effective
-;; column:
+;; aligned. `:share-scales` names the axes the siblings share, and the
+;; siblings drawing the same column on such an axis are given one
+;; range:
 
 (def shared-x
   (pj/pose
@@ -176,6 +177,121 @@ shared-x
             (and (= 2 (count domains))
                  (apply = domains)
                  (< limit (second (first domains))))))])
+
+;; ### Columns That Share an Axis
+;;
+;; A set of axes shares an axis among the cells that draw the same
+;; column on it. Two cells drawing different columns keep their own
+;; ranges, which is right when the columns are in different units and
+;; wrong when they measure one quantity. Highway mileage and city
+;; mileage are both in miles per gallon, and under `#{:x :y}` each
+;; panel still fits its own `:y`. Plotje prints a warning that no two
+;; cells share `:y`, naming the form shown next:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/pose {:x :displ})
+    pj/lay-point
+    (pj/facet {:y [:hwy :cty]})
+    (pj/options {:share-scales #{:x :y}}))
+
+(kind/test-last
+ [(fn [v] (let [doms (mapv #(-> % :plan :panels first :y-domain)
+                           (:sub-plots (pj/plan v)))]
+            (and (= 2 (count doms))
+                 (not= (first doms) (second doms))
+                 (re-find #"no two cells share :y"
+                          (with-out-str (pj/plan v))))))])
+
+;; The full form of `:share-scales` is a map from an axis to the columns
+;; that go together on that axis. Cells whose columns go together share
+;; the axis:
+;;
+;; - `:same-column` -- each column goes with itself only, which is what
+;;   the set says;
+;; - a vector of groups of columns, such as `[[:hwy :cty]]` -- the
+;;   columns of a group go together, and a column in no group goes with
+;;   itself only;
+;; - `:all` -- every column goes together, so every cell shares the
+;;   axis.
+;;
+;; An axis the map leaves out is not shared. Here `:x` is shared as
+;; before, and the two mileage columns share `:y`, so a point at the
+;; same height is the same mileage in both panels:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/pose {:x :displ})
+    pj/lay-point
+    (pj/facet {:y [:hwy :cty]})
+    (pj/options {:share-scales {:x :same-column
+                                :y [[:hwy :cty]]}}))
+
+(kind/test-last
+ [(fn [v] (let [doms (fn [pose] (mapv #(-> % :plan :panels first :y-domain)
+                                      (:sub-plots (pj/plan pose))))
+                [lo hi] (first (doms v))
+                all (-> (rdatasets/ggplot2-mpg)
+                        (pj/pose {:x :displ})
+                        pj/lay-point
+                        (pj/facet {:y [:hwy :cty]})
+                        (pj/options {:share-scales {:x :same-column :y :all}}))]
+            (and (apply = (doms v))
+                 ;; the one range covers both columns
+                 (<= lo (reduce min (:cty (rdatasets/ggplot2-mpg))))
+                 (>= hi (reduce max (:hwy (rdatasets/ggplot2-mpg))))
+                 ;; with two columns, :all is the same request
+                 (= (doms v) (doms all)))))])
+
+;; A group leaves the other columns alone. With engine displacement as
+;; a third panel, the mileage panels share a range and displacement
+;; keeps its own:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/pose {:x :year})
+    pj/lay-point
+    (pj/facet {:y [:hwy :cty :displ]})
+    (pj/options {:share-scales {:x :same-column
+                                :y [[:hwy :cty]]}}))
+
+(kind/test-last
+ [(fn [v] (let [[hwy cty displ] (mapv #(-> % :plan :panels first :y-domain)
+                                      (:sub-plots (pj/plan v)))]
+            (and (= hwy cty)
+                 (not= hwy displ))))])
+
+;; The columns of a group may come from different datasets, which is
+;; how two poses that name one quantity differently are read against
+;; each other:
+
+(pj/arrange
+ [(-> {:day [1 2 3] :indoor [19.0 20.5 21.0]}
+      (pj/lay-line :day :indoor))
+  (-> {:day [1 2 3] :outdoor [4.0 9.5 14.0]}
+      (pj/lay-line :day :outdoor))]
+ {:share-scales {:y [[:indoor :outdoor]]}})
+
+(kind/test-last
+ [(fn [v] (let [doms (mapv #(-> % :plan :panels first :y-domain)
+                           (:sub-plots (pj/plan v)))
+                [lo hi] (first doms)]
+            (and (apply = doms)
+                 (<= lo 4.0)
+                 (>= hi 21.0))))])
+
+;; Columns that go together have to be of one kind -- numbers with
+;; numbers, dates with dates. A group holding a numeric column and a
+;; categorical one reports an error:
+
+(try
+  (-> (rdatasets/ggplot2-mpg)
+      (pj/pose {:x :displ})
+      pj/lay-point
+      (pj/facet {:y [:hwy :drv]})
+      (pj/options {:share-scales {:y :all}})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (re-find #":share-scales :y refused: columns :hwy, :drv" msg))])
 
 ;; ### Cells That Line Up
 ;;
@@ -456,9 +572,10 @@ dashboard
 ;; [Poses](./plotje_book.pose_model.html#layer-order-is-paint-order) --
 ;; so add the layer you want on top last.
 ;;
-;; Where the incoming columns are the same quantity under another name,
-;; renaming them to the pose's columns with `tc/rename-columns` draws
-;; the same picture and says so in the data:
+;; Each axis is titled by both columns drawn on it, `fitted, x` and
+;; `residual, y`. Where the incoming columns are the same quantity under
+;; another name, renaming them to the pose's columns with
+;; `tc/rename-columns` draws the same marks under one name per axis:
 
 (-> overlay-base
     (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -469,10 +586,16 @@ dashboard
 
 (kind/test-last
  [(fn [v]
-    (= (pj/plot v)
-       (pj/plot (-> overlay-base
-                    (pj/lay-point :fitted :residual {:color "#377eb8"})
-                    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other})))))])
+    (let [unrenamed (-> overlay-base
+                        (pj/lay-point :fitted :residual {:color "#377eb8"})
+                        (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
+          titles (fn [pose] ((juxt :x-label :y-label) (pj/plan pose)))
+          domains (fn [pose] ((juxt :x-domain :y-domain) (first (:panels (pj/plan pose)))))]
+      (and (= ["fitted" "residual"] (titles v))
+           (= ["fitted, x" "residual, y"] (titles unrenamed))
+           ;; the same marks on the same axes
+           (= (domains v) (domains unrenamed))
+           (= (:points (pj/svg-summary v)) (:points (pj/svg-summary unrenamed))))))])
 
 ;; ### A panel of its own
 ;;

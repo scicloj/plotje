@@ -60,8 +60,22 @@
                            (and (= 1 (:panels s))
                                 (some #{"height, depth"} (:texts s)))))])
 
-;; A layer that writes its own colour is not given one, and the axis is
-;; then titled by the first column only.
+;; The colours per column are a default, given where no `:color` is
+;; specified on the pose or on any layer. With a `:color` on the pose,
+;; the layers are coloured by it, and the axis is still titled by every
+;; column:
+
+(-> measurements
+    (pj/pose {:color :species})
+    (pj/lay-point :height :weight)
+    (pj/lay-point :depth :weight))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (some #{"height, depth"} (:texts s))
+                                (some #{"species"} (:texts s))
+                                ;; no entry naming a column
+                                (not-any? #{"height" "depth"} (:texts s)))))])
 
 ;; ## A panel per column
 

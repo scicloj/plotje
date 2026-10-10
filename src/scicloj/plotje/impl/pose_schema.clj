@@ -51,8 +51,14 @@
    [:weights {:optional true} [:vector pos?]]])
 
 (def ShareScales
-  "Axis keys whose scale domains union across descendants of a composite."
-  [:set [:enum :x :y]])
+  "The axes cells share: a set of axes, or a map from an axis to
+   `:same-column`, `:all`, or a vector of groups of columns -- see
+   `defaults/share-scales-spec`."
+  [:or
+   [:set [:enum :x :y]]
+   [:map-of [:enum :x :y]
+    [:or [:enum :same-column :all]
+     [:sequential [:sequential [:or keyword? string?]]]]]])
 
 ;; ---- Mapping values ----
 

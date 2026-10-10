@@ -759,10 +759,10 @@ my-pose
 ;;   first appear in the data**, not alphabetical (e.g., iris
 ;;   gives `["setosa" "versicolor" "virginica"]`).
 ;;
-;; Each panel carries its own `:x-domain` and `:y-domain`. With
-;; `:scales :shared` faceting, all panels share one domain pair;
-;; with `:scales :free` (or `:free-x`/`:free-y`), each panel
-;; computes its own.
+;; Each panel carries its own `:x-domain` and `:y-domain`. The panels
+;; of a facet share one domain pair by default; `:share-scales` names
+;; the axes they share, and a panel computes its own domain on an axis
+;; left out, so under `{:share-scales #{}}` each panel computes both.
 
 (let [p (first (:panels my-plan))]
   {:x-domain (:x-domain p)
@@ -912,9 +912,10 @@ my-pose
 ;; - `pj/facet-grid` creates a row-by-column grid from two columns
 ;;
 ;; By default all panels share the same x and y domains, derived
-;; from the full dataset (`:scales :shared`). To let each panel use
-;; its own data range, set `{:scales :free}` (or `:free-x`/`:free-y`)
-;; in `pj/options`.
+;; from the full dataset. `:share-scales` in `pj/options` names the
+;; axes the panels share: `{:share-scales #{:x}}` lets each panel use
+;; its own `:y` range, and `{:share-scales #{}}` its own range on both
+;; axes.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -1258,7 +1259,7 @@ annotated
 
 (kind/test-last
  [(fn [ks]
-    (and (= 15 (count ks))
+    (and (= 14 (count ks))
          (some #{:title :subtitle :caption :x-label :y-label} ks)))])
 
 ;; ## Layer Options
@@ -1342,7 +1343,7 @@ annotated
 ;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | every layer of a pose |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
-;; | Share scales | Make sibling poses of a composite share data ranges across named axes | `:share-scales` in composite `:opts` |
+;; | Share scales | Make the panels of a facet, or the sibling poses of a composite, share data ranges across named axes | `:share-scales` in `:opts` |
 ;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
