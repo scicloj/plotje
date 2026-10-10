@@ -548,21 +548,6 @@
             (:layers leaf))
       (mapping-source (get-in leaf [:mapping axis]))))
 
-(declare leaf-panel-keys)
-
-(defn- split-axis-cols
-  "The columns the panels of a leaf draw on `axis`, where they differ
-   -- nil where every panel of the leaf reads one column, which is the
-   case `effective-axis-col` answers for.
-
-   A leaf whose layers disagree about `axis` draws a panel for each
-   place (Pose Rule LP2), and a shared scale is decided per column, so
-   each of those panels belongs to the bucket of the column it draws."
-  [leaf axis]
-  (let [i (case axis :x 0 :y 1)
-        cols (vec (distinct (keep #(when % (nth % i nil)) (leaf-panel-keys leaf))))]
-    (when (< 1 (count cols)) cols)))
-
 (defn- panel-axis-cols
   "The columns the layers of a one-panel leaf draw on `axis`, in layer
    order and without repeats: each layer's own column, or the leaf's
@@ -577,13 +562,11 @@
 
 (defn- drawn-axis-cols
   "The columns a leaf is bucketed under for a shared scale on `axis`,
-   where there are several: those of its panels where they differ
-   (`split-axis-cols`), or else those its layers draw together on its
-   one panel (`panel-axis-cols`). Nil where the leaf draws one column."
+   where its layers draw several together on its panel
+   (`panel-axis-cols`). Nil where the leaf draws one column."
   [leaf axis]
-  (or (split-axis-cols leaf axis)
-      (let [cols (panel-axis-cols leaf axis)]
-        (when (next cols) cols))))
+  (let [cols (panel-axis-cols leaf axis)]
+    (when (next cols) cols)))
 
 (defn- axis-buckets
   "The leaves of `subtree` grouped by the column they draw on `axis`,
@@ -614,10 +597,7 @@
    cells still agree. Groups chain: a panel drawing `:b` and `:c` joins
    the same group."
   [col->dom subtree axis]
-  (let [links (keep #(when-not (split-axis-cols % axis)
-                       (let [cols (panel-axis-cols % axis)]
-                         (when (next cols) (set cols))))
-                    subtree)
+  (let [links (keep #(some-> (drawn-axis-cols % axis) set) subtree)
         groups (reduce (fn [groups link]
                          (let [{hit true miss false} (group-by #(boolean (some link %)) groups)]
                            (conj (vec miss) (apply into link hit))))
@@ -984,34 +964,18 @@
        (if (seq child-domains)
          (let [pose-ctx (assoc pose :mapping my-mapping :data my-data
                                :layers my-layers)
-               ;; A leaf whose panels read several columns on an axis
-               ;; is stamped an extent per column, and each panel reads
-               ;; the one for the column it draws.
-               by-column (fn [axis]
-                           (when-let [cols (split-axis-cols pose-ctx axis)]
-                             (not-empty
-                              (into {} (keep #(when-let [d (get-in child-domains [axis %])]
-                                                [% d]))
-                                    cols))))
-               x-cols (by-column :x)
-               y-cols (by-column :y)
-               x-dom (when-not x-cols
-                       (get-in child-domains [:x (effective-axis-col pose-ctx :x)]))
-               y-dom (when-not y-cols
-                       (get-in child-domains [:y (effective-axis-col pose-ctx :y)]))
+               x-dom (get-in child-domains [:x (effective-axis-col pose-ctx :x)])
+               y-dom (get-in child-domains [:y (effective-axis-col pose-ctx :y)])
                ;; Drop the y-domain when this leaf's y-axis is
                ;; stat-driven (count/density) -- the shared-data
                ;; bucket value would clip the bars / curve.
                stat-driven? (y-axis-stat-driven? my-layers my-mapping my-data)
-               y-dom (when-not stat-driven? y-dom)
-               y-cols (when-not stat-driven? y-cols)]
-           (if (or x-dom y-dom x-cols y-cols)
+               y-dom (when-not stat-driven? y-dom)]
+           (if (or x-dom y-dom)
              (update pose :opts merge
                      (cond-> {}
                        x-dom (assoc :x-scale-domain x-dom)
-                       y-dom (assoc :y-scale-domain y-dom)
-                       x-cols (assoc :x-scale-domain-by-column x-cols)
-                       y-cols (assoc :y-scale-domain-by-column y-cols)))
+                       y-dom (assoc :y-scale-domain y-dom)))
              pose))
          pose)
        (update pose :poses
@@ -2016,77 +1980,22 @@
       (let [m (merge-mappings (or leaf-mapping {}) cols)]
         [(mapping-source (:x m)) (mapping-source (:y m))]))))
 
-(defn layer-overlays?
-  "Whether a layer joins the panel the leaf's own mapping names, rather
-   than taking one of its own: always. The layers of a pose share one
-   panel; separate panels come from a split or from `pj/arrange`.
-
-   Kept as the one reader of the rule while the places machinery below
-   (`leaf-places`, `layer-panel-indices`) still asks it per layer; with
-   every layer joining, a leaf draws one panel."
-  [_leaf _layer]
-  true)
-
 (defn- layer-place
   "The place a layer of `leaf` names, or nil -- `layer-position-key`
    read against the leaf's mapping and the data the layer draws from."
   [leaf layer]
   (layer-position-key (:mapping leaf) layer (or (:data layer) (:data leaf))))
 
-(defn- complete-places
-  "A map from each place in `places` to the place it draws at.
-
-   A place that leaves an axis open draws at the first place that names
-   that axis and agrees with it on the other one, so a histogram named on
-   `:a` alone shares the panel of a scatter of `:a` against `:b`, and a
-   pose naming only `:x` shares the panel its layers complete. A place
-   that no other place completes draws at itself."
-  [places]
-  (let [agrees? (fn [p q]
-                  (every? true? (map (fn [a b] (or (nil? a) (= a b))) p q)))
-        complete? (fn [p] (every? some? p))]
-    (into {}
-          (for [p places]
-            [p (if (and p (not (complete? p)))
-                 (or (first (filter #(and % (complete? %) (agrees? p %)) places))
-                     p)
-                 p)]))))
-
-(defn- leaf-places
-  "The places a leaf draws at, and how each place a layer names maps onto
-   one of them: `{:panel-keys [...] :place-of {raw-place place}}`.
-
-   The leaf's own place leads, so that it stays panel 0 -- the panel an
-   overlaying layer joins -- even where every layer that names a place of
-   its own names a different one. Where the leaf names none, the first
-   place any layer names leads instead: a layer keeps its columns on its
-   own mapping, so on a pose built by `lay-*` alone that is the place the
-   pose draws first."
+(defn leaf-place
+  "The place a leaf draws at, as `[x-source y-source]`, or nil where
+   neither it nor any layer names one. The leaf's own mapping where it
+   names one, and otherwise the first place a layer names: a `lay-*`
+   call keeps its columns on its layer, so a pose built by `lay-*` alone
+   names them only there. The layers of a leaf share this one panel;
+   separate panels come from a split or from `pj/arrange`."
   [leaf]
-  (let [own (position-mapping-key (:mapping leaf))
-        layers (:layers leaf)
-        lead (or own (first (keep #(layer-place leaf %) layers)))
-        named (->> layers
-                   (remove #(layer-overlays? leaf %))
-                   (keep #(layer-place leaf %)))
-        raw (if lead (cons lead named) named)
-        place-of (complete-places raw)
-        all (vec (distinct (map place-of raw)))]
-    {:panel-keys (if (seq all) all [nil])
-     :place-of place-of}))
-
-(defn leaf-panel-keys
-  "The places a leaf draws at, in the order its layers first name them.
-   One entry per panel the leaf produces.
-
-   A layer that overlays, and a layer that names no position, name no
-   panel of their own -- the first joins the panel the leaf's mapping
-   names, and the second draws on all of them. Where no layer names a
-   place, the leaf draws one panel, which is the leaf's own mapping. A
-   place that leaves an axis open joins a place that completes it -- see
-   `complete-places`."
-  [leaf]
-  (:panel-keys (leaf-places leaf)))
+  (or (position-mapping-key (:mapping leaf))
+      (first (keep #(layer-place leaf %) (:layers leaf)))))
 
 (defn leaf-columns
   "The columns a leaf draws on `:x` and `:y` on its first panel, as
@@ -2095,31 +2004,10 @@
    its layers name: a `lay-*` call keeps its columns on its layer, so a
    pose built by `lay-*` alone names them only there."
   [leaf]
-  (let [[x y] (first (leaf-panel-keys leaf))]
+  (let [[x y] (leaf-place leaf)]
     (cond-> {}
       x (assoc :x x)
       y (assoc :y y))))
-
-(defn layer-panel-indices
-  "The panels each layer of a leaf is drawn on, as a vector of index
-   vectors aligned with `(:layers leaf)`.
-
-   A layer that names a place is drawn on the panel for that place. A
-   layer that overlays is drawn on the first panel, which is the one the
-   leaf's own mapping names. A layer that names no place is drawn on
-   every panel, reading that panel's columns -- the rule that lets a bare
-   `lay-*` annotate all of them."
-  [leaf panel-keys]
-  (let [all (vec (range (count panel-keys)))
-        index-of (zipmap panel-keys (range))
-        place-of (:place-of (leaf-places leaf))]
-    (mapv (fn [layer]
-            (let [place (layer-place leaf layer)]
-              (cond
-                (layer-overlays? leaf layer) [0]
-                (nil? place) all
-                :else [(get index-of (get place-of place place) 0)])))
-          (:layers leaf))))
 
 (defn overlay-labels
   "What tells each overlaid layer apart, as a vector aligned with
@@ -2138,26 +2026,14 @@
   [leaf]
   (let [layers (vec (:layers leaf))
         leaf-mapping (:mapping leaf)
-        panel-keys (leaf-panel-keys leaf)
-        single? (= 1 (count panel-keys))
-        ;; A layer naming no place draws at the place of each panel it is
-        ;; on. Where the leaf draws one panel that is one place, so the
-        ;; layer is told apart like any other; where it draws several,
-        ;; one label could not name all of them.
+        ;; A layer naming no place draws at the leaf's place, so it is
+        ;; told apart like any other.
+        place (leaf-place leaf)
         places (mapv #(or (layer-position-key leaf-mapping %
                                               (or (:data %) (:data leaf)))
-                          (when single? (first panel-keys)))
+                          place)
                      layers)
-        overlaid? (mapv #(layer-overlays? leaf %) layers)
-        ;; The layers that land on the joined panel -- panel 0, which an
-        ;; overlaying layer joins -- whether they declared an overlay or
-        ;; named that panel's place without one. Reading only the layers
-        ;; that declared missed the case where one layer declares: `(->
-        ;; d (lay-line :t :a) (lay-line :t :b {:overlay true}))` drew
-        ;; both lines in one colour under an axis titled `a`.
-        joined? (mapv #(= [0] %) (layer-panel-indices leaf panel-keys))
-        relevant (when (some true? overlaid?)
-                   (keep-indexed (fn [i p] (when (and p (nth joined? i)) i)) places))
+        relevant (keep-indexed (fn [i p] (when p i)) places)
         sources (fn [axis] (vec (distinct (keep #(nth (nth places %) axis nil) relevant))))
         colored? (some #(contains? (or (:mapping %) {}) :color) layers)]
     (when (and (seq relevant) (not colored?))
@@ -2165,7 +2041,7 @@
                                    [0 1]))]
         (when (seq disagreeing)
           (mapv (fn [i place]
-                  (when (and place (nth joined? i))
+                  (when place
                     (str/join " / " (map #(defaults/fmt-name (nth place % nil))
                                          disagreeing))))
                 (range (count layers))
@@ -3411,12 +3287,19 @@
   [m]
   (count (distinct (remove nil? [(mapping-source (:x m)) (mapping-source (:y m))]))))
 
+(defn- names-another-column?
+  "Whether a layer's own mapping names a column on `:x` or `:y` other
+   than the one the cell's own mapping varies there."
+  [own-mapping layer]
+  (let [lm (:mapping layer)]
+    (boolean (some (fn [k] (let [varied (mapping-source (get own-mapping k))
+                                 mine (mapping-source (get lm k))]
+                             (and varied mine (not= varied mine))))
+                   [:x :y]))))
+
 (defn- layer-fits-cell? [cell-mapping own-mapping layer]
   (let [lm (:mapping layer)
-        other? (some (fn [k] (let [varied (mapping-source (get own-mapping k))
-                                   mine (mapping-source (get lm k))]
-                               (and varied mine (not= varied mine))))
-                     [:x :y])
+        other? (names-another-column? own-mapping layer)
         x-only? (boolean (when (keyword? (:layer-type layer))
                            (:x-only (layer-type/lookup (:layer-type layer)))))]
     (and (not other?)
@@ -3452,7 +3335,9 @@
            ;; A cell that no layer fits keeps them all, as if there were
            ;; no split -- the diagonal of a matrix of points draws its
            ;; points -- unless it names no column at all, a margin's
-           ;; corner, which draws nothing.
+           ;; corner, which draws nothing. A layer naming another column
+           ;; than the cell draws is not kept: in `{:y [:hwy :cty]}` a
+           ;; layer of `:hwy` drew `:hwy` in the `:cty` panel too.
            kept (vec (for [[e row] (map vector entries fits)]
                        (cond
                          (some true? row)
@@ -3460,7 +3345,7 @@
                                             row))
                          (and (zero? (columns-named (:mapping e))) (nil? (:data (:leaf e))))
                          []
-                         :else layers)))
+                         :else (filterv #(not (names-another-column? (:own e) %)) layers))))
            changed? (and (seq layers) (some #(not= (count %) (count layers)) kept))
            pose' (if-not changed?
                    pose
@@ -3468,7 +3353,16 @@
                              (update-in p (vec (interleave (repeat :poses) (:path e)))
                                         (fn [leaf]
                                           (if (and (empty? ls) (empty? (:layers leaf)))
-                                            (assoc leaf :plotje/empty-cell true)
+                                            ;; A margin's corner draws nothing; a cell
+                                            ;; whose columns no layer draws draws them
+                                            ;; as a pose with no layers does, where it
+                                            ;; names an `:x` to draw them along. (A
+                                            ;; leaf naming only `:y` and no layers
+                                            ;; does not draw -- the plan fails its
+                                            ;; schema -- so that cell is left blank.)
+                                            (if (nil? (mapping-source (get-in e [:mapping :x])))
+                                              (assoc leaf :plotje/empty-cell true)
+                                              leaf)
                                             (update leaf :layers #(into (vec ls) %))))))
                            (dissoc pose :layers)
                            (map vector entries kept)))]
@@ -3681,19 +3575,9 @@
                  own-place [{:layer-type :infer}]
                  :else [])
         leaf (assoc leaf :layers layers)
-        ;; The pose's own place, where none of its layers draws.
-        orphan? (and own-place
-                     (seq (:layers leaf))
-                     (let [keys (leaf-panel-keys leaf)
-                           idxs (layer-panel-indices leaf keys)]
-                       (and (= own-place (first keys))
-                            (not (contains? (set (apply concat idxs)) 0)))))
-        leaf (cond-> leaf
-               orphan? (update :layers conj {:layer-type :infer
-                                             :mapping own-mapping}))
         place-mapping (fn [layer]
                         (let [k (or (layer-place leaf layer)
-                                    (first (leaf-panel-keys leaf)))]
+                                    (leaf-place leaf))]
                           (cond-> (merge (:mapping leaf) (:mapping layer))
                             (first k) (assoc :x (first k))
                             (second k) (assoc :y (second k)))))]
@@ -3816,11 +3700,8 @@
    Data precedence: layer :data > leaf :data.
 
    :__panel-idx is the panel a draft entry belongs to, which plan.clj
-   groups by. A leaf draws one panel per place its layers name -- see
-   `leaf-panel-keys` -- and faceting multiplies those, so the index is
-   the facet variant crossed with the place. A layer that names no place
-   is emitted once per panel, which is how a bare `lay-*` annotates all
-   of them."
+   groups by. A leaf draws one panel -- its layers share it -- and
+   faceting multiplies it, so the index is the facet variant."
   [leaf]
   (let [leaf         (elaborate-leaf leaf)
         leaf-mapping (or (:mapping leaf) {})
@@ -3841,27 +3722,20 @@
         facet-row    (or (mapping-source (:row leaf-mapping)) (:facet-row opts))
         leaf-mapping (dissoc leaf-mapping :col :row)
         variants     (facet-variants leaf-data facet-col facet-row)
-        ;; The places this leaf draws at, and which of them each layer
-        ;; lands on. An empty :layers stands in as one placeholder layer,
-        ;; which names no place and so draws on the leaf's own.
-        panel-keys   (leaf-panel-keys leaf)
-        panel-idxs   (layer-panel-indices leaf panel-keys)
-        n-panels     (count panel-keys)
-        ;; The columns each panel draws, as a mapping: what a layer naming
-        ;; no place reads on that panel. Each axis keeps the value it was
-        ;; written with -- the leaf's, or that of the first layer naming
-        ;; the column -- so a scale written beside the column comes too.
-        panel-places (mapv (fn [k]
-                             (into {}
-                                   (for [[i axis] [[0 :x] [1 :y]]
-                                         :let [src (nth k i nil)]
-                                         :when src]
-                                     [axis (or (some #(let [v (get % axis)]
-                                                        (when (= src (mapping-source v)) v))
-                                                     (cons leaf-mapping
-                                                           (map :mapping applicable)))
-                                               src)])))
-                           panel-keys)
+        ;; The columns the panel draws, as a mapping: what a layer naming
+        ;; no place reads. Each axis keeps the value it was written with
+        ;; -- the leaf's, or that of the first layer naming the column --
+        ;; so a scale written beside the column comes too.
+        panel-place  (let [k (leaf-place leaf)]
+                       (into {}
+                             (for [[i axis] [[0 :x] [1 :y]]
+                                   :let [src (nth k i nil)]
+                                   :when src]
+                               [axis (or (some #(let [v (get % axis)]
+                                                  (when (= src (mapping-source v)) v))
+                                               (cons leaf-mapping
+                                                     (map :mapping applicable)))
+                                         src)])))
         placeless?   (mapv #(nil? (layer-place leaf %)) applicable)
         ;; Said once per draft, and only where the leaf's own layers made
         ;; the split -- a faceted leaf has many panels and no disagreement
@@ -3879,8 +3753,7 @@
                                          (#(when (map? %) (contains? % :label)))))]
     (vec
      (for [[variant-idx variant] (map-indexed vector variants)
-           [layer-idx layer] (map-indexed vector applicable)
-           panel-idx (nth panel-idxs layer-idx)]
+           [layer-idx layer] (map-indexed vector applicable)]
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
              layer-mapping    (cond-> (report-panel-aesthetic-on-layer
                                        (or (:mapping layer) {}))
@@ -3902,7 +3775,7 @@
              resolved (normalize-explicit-mappings
                        (-> (cond-> leaf-mapping
                              (nth placeless? layer-idx)
-                             (merge-mappings (nth panel-places panel-idx)))
+                             (merge-mappings panel-place))
                            (merge-mappings layer-type-info)
                            (merge-mappings layer-mapping)
                            (merge-mappings layer-structural)))
@@ -3937,10 +3810,7 @@
                            (assoc :undrawn-rule-color [(:layer-type layer) c]))
                          r)))
              (assoc :data d
-                    ;; The facet variant is the outer division and the
-                    ;; place the inner one, so panels of one variant stay
-                    ;; together and plan.clj's grid reads them in order.
-                    :__panel-idx (+ (* variant-idx n-panels) panel-idx))
+                    :__panel-idx variant-idx)
              (merge (layer-scale-specs resolved))
              (cond->
               coord-type  (assoc :coord coord-type)

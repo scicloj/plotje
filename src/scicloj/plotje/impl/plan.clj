@@ -2819,20 +2819,6 @@
       (scale/check-places "pj/plan" aesthetic domain
                           (resolve/written-values layer aesthetic)))))
 
-(defn- panel-shared-domains
-  "The shared extents one panel is drawn against: the leaf's own, and,
-   where the leaf's panels read several columns on an axis, the extent
-   `inject-shared-scales` stamped for the column this panel draws --
-   read from `draft-layer`, the panel's first, as the grid reads it."
-  [shared-domains opts draft-layer]
-  (let [pick (fn [sd axis k]
-               (if-let [d (get-in opts [k (get draft-layer axis)])]
-                 (assoc (or sd {}) axis d)
-                 sd))]
-    (-> shared-domains
-        (pick :x :x-scale-domain-by-column)
-        (pick :y :y-scale-domain-by-column))))
-
 (defn- resolve-panel-domains
   "Given a panel-data map (with :stat-results, :layers, and :draft-layers),
    compute the oriented x/y domains, scale specs, and temporal extents.
@@ -3326,7 +3312,7 @@
                           (assoc (resolve-panel-domains pd default-x-scale default-y-scale
                                                         default-coord
                                                         (:domain-padding cfg)
-                                                        (panel-shared-domains shared-domains opts v))
+                                                        shared-domains)
                                  :x-var (:x v)
                                  :y-var (:y v))))
 

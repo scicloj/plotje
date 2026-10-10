@@ -65,3 +65,15 @@
       (is (= base (pj/pose base {})))
       (let [m {:alpha 0.5}]
         (is (= (pj/pose base m) (pj/pose (pj/pose base m) m)))))))
+
+(deftest a-layer-of-one-facet-column-stays-in-its-panel-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        y-domains (fn [p] (mapv (comp :y-domain first :panels pj/plan)
+                                (:poses (pose/expand-facets p))))]
+    (testing "a layer naming :hwy is not drawn in the :cty panel"
+      (let [p (-> mpg (pj/pose {:x :displ}) (pj/lay-point {:y :hwy}) (pj/facet {:y [:hwy :cty]}))
+            summary (pj/svg-summary p)]
+        (is (= 2 (:panels summary)))
+        (is (some #{"cty"} (:texts summary)))
+        (is (= (y-domains p)
+               (y-domains (-> mpg (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]})))))))))
