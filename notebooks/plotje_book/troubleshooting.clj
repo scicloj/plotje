@@ -582,6 +582,41 @@
 ;; Separately built plots go side by side with `pj/arrange`. The
 ;; [Composition](./plotje_book.composition.html) chapter shows both.
 
+;; ### Coming from 0.16.1
+;;
+;; Plotje 0.16.1 drew a panel for each pair of columns its layers named,
+;; and printed a note saying so. The layers now share the panel and
+;; nothing is printed, so a plot written for 0.16.1 can draw something
+;; different with no message. An axis stretches to fit everything drawn
+;; on it, so the layers sharing a panel should agree on units. Check
+;; these cases:
+;;
+;; - **Columns of very different size on one axis.** The smaller one is
+;;   drawn flat against the edge of the panel. Below, `:hwy` (miles per
+;;   gallon) shares a y axis with `:year`.
+;; - **Layers that write their own colour.** No layer gets a legend
+;;   entry naming its columns, and the axis is titled by the first
+;;   column only.
+;; - **A layer beside a series, on another column.** The layer is drawn
+;;   in the default grey, and the axis title and the legend name only
+;;   the series.
+;; - **`pj/pose` called again to add a panel.** A later `pj/pose`
+;;   replaces the columns of the layers that name none, so the plot
+;;   draws the new columns twice; write the panels with `pj/arrange`.
+;;
+;; For each of the first three, split the pose with `pj/facet`, or draw
+;; the layers as separate poses with `pj/arrange`.
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/lay-point :displ :year))
+
+(kind/test-last [(fn [v] (let [[lo hi] (-> v pj/plan :panels first :y-domain)]
+                           ;; One axis holds both: the hwy points, at
+                           ;; most 44, sit at the bottom of a range
+                           ;; reaching past the year 2000.
+                           (and (< lo 50) (> hi 2000))))])
+
 ;; ## Dataset Missing Columns a Template References
 ;;
 ;; **Symptom**: An error like

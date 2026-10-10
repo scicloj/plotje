@@ -250,15 +250,15 @@
     [m]
     (and
      (every?
-      (fn* [p1__11199#] (re-matches #"\d{2}:\d{2}" p1__11199#))
+      (fn* [p1__75893#] (re-matches #"\d{2}:\d{2}" p1__75893#))
       (:six-hours m))
      (every?
       (fn*
-       [p1__11200#]
-       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__11200#))
+       [p1__75894#]
+       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__75894#))
       (:three-days m))
      (every?
-      (fn* [p1__11201#] (re-matches #"\d{4}" p1__11201#))
+      (fn* [p1__75895#] (re-matches #"\d{4}" p1__75895#))
       (:nine-years m))
      (= 9 (count (:nine-years m)))))
    v39_l282)))
@@ -683,19 +683,15 @@
 
 
 (def
- v107_l748
- (def
-  count-pose-on-y
-  (->
-   {:animal ["cat" "dog" "cat" "bird" "dog" "fish"]}
-   (pj/pose {:y :animal}))))
+ v107_l745
+ (def count-pose-on-y (-> animals (pj/pose {:y :animal}))))
 
 
-(def v108_l752 count-pose-on-y)
+(def v108_l749 count-pose-on-y)
 
 
 (deftest
- t109_l754
+ t109_l751
  (is
   ((fn
     [v]
@@ -708,17 +704,34 @@
       (= 4 (:polygons (pj/svg-summary v)))
       (= :rect (:mark layer))
       (= "animal" (:y-label plan)))))
-   v108_l752)))
+   v108_l749)))
 
 
-(def v111_l771 (def num-num-pose (-> five-points (pj/pose :x :y))))
-
-
-(def v112_l774 num-num-pose)
+(def v111_l769 (-> animals (pj/lay-point {:y :count})))
 
 
 (deftest
- t113_l776
+ t112_l772
+ (is
+  ((fn
+    [v]
+    (let
+     [plan (pj/plan v)]
+     (and
+      (= "animal" (:x-label plan))
+      (= "count" (:y-label plan))
+      (= 4 (:points (pj/svg-summary v))))))
+   v111_l769)))
+
+
+(def v114_l782 (def num-num-pose (-> five-points (pj/pose :x :y))))
+
+
+(def v115_l785 num-num-pose)
+
+
+(deftest
+ t116_l787
  (is
   ((fn
     [v]
@@ -727,11 +740,11 @@
      (and
       (= 5 (:points (pj/svg-summary v)))
       (= :point (:mark layer)))))
-   v112_l774)))
+   v115_l785)))
 
 
 (def
- v115_l785
+ v118_l796
  (def
   ts-line-pose
   (->
@@ -743,22 +756,22 @@
    (pj/pose :date :val))))
 
 
-(def v116_l790 ts-line-pose)
+(def v119_l801 ts-line-pose)
 
 
 (deftest
- t117_l792
+ t120_l803
  (is
   ((fn
     [v]
     (let
      [layer (first (:layers (first (:panels (pj/plan ts-line-pose)))))]
      (and (= 1 (:lines (pj/svg-summary v))) (= :line (:mark layer)))))
-   v116_l790)))
+   v119_l801)))
 
 
 (def
- v119_l801
+ v122_l812
  (def
   boxplot-pose
   (->
@@ -767,11 +780,11 @@
    (pj/pose :species :val))))
 
 
-(def v120_l806 boxplot-pose)
+(def v123_l817 boxplot-pose)
 
 
 (deftest
- t121_l808
+ t124_l819
  (is
   ((fn
     [v]
@@ -781,11 +794,11 @@
       (pos? (:lines (pj/svg-summary v)))
       (= :boxplot (:mark layer))
       (= 3 (count (:boxes layer))))))
-   v120_l806)))
+   v123_l817)))
 
 
 (def
- v123_l818
+ v126_l829
  (def
   horizontal-boxplot-pose
   (->
@@ -794,11 +807,11 @@
    (pj/pose :val :species))))
 
 
-(def v124_l823 horizontal-boxplot-pose)
+(def v127_l834 horizontal-boxplot-pose)
 
 
 (deftest
- t125_l825
+ t128_l836
  (is
   ((fn
     [v]
@@ -810,14 +823,14 @@
       (pos? (:lines (pj/svg-summary v)))
       (= :boxplot (:mark layer))
       (= 3 (count (:boxes layer))))))
-   v124_l823)))
+   v127_l834)))
 
 
-(def v127_l837 scatter-pose)
+(def v130_l848 scatter-pose)
 
 
 (deftest
- t128_l839
+ t131_l850
  (is
   ((fn
     [_]
@@ -826,25 +839,25 @@
      (and
       (== 0.8 (first (:x-domain p)))
       (== 5.2 (second (:x-domain p))))))
-   v127_l837)))
+   v130_l848)))
 
 
-(def v130_l860 bar-pose)
+(def v133_l871 bar-pose)
 
 
 (deftest
- t131_l862
+ t134_l873
  (is
   ((fn
     [_]
     (let
      [p (first (:panels (pj/plan bar-pose)))]
      (<= (first (:y-domain p)) 0)))
-   v130_l860)))
+   v133_l871)))
 
 
 (def
- v133_l869
+ v136_l880
  (def
   fill-pose
   (->
@@ -852,25 +865,25 @@
    (pj/lay-bar :x {:position :fill, :color :g}))))
 
 
-(def v134_l874 fill-pose)
+(def v137_l885 fill-pose)
 
 
 (deftest
- t135_l876
+ t138_l887
  (is
   ((fn
     [_]
     (let
      [d (:y-domain (first (:panels (pj/plan fill-pose))))]
      (and (== 0.0 (first d)) (== 1.0 (second d)))))
-   v134_l874)))
+   v137_l885)))
 
 
-(def v137_l908 scatter-pose)
+(def v140_l919 scatter-pose)
 
 
 (deftest
- t138_l910
+ t141_l921
  (is
   ((fn
     [_]
@@ -882,11 +895,11 @@
       (=
        ["2.0" "2.5" "3.0" "3.5" "4.0" "4.5" "5.0"]
        (:labels (:y-ticks p))))))
-   v137_l908)))
+   v140_l919)))
 
 
 (def
- v140_l923
+ v143_l934
  (def
   log-scale-pose
   (->
@@ -895,11 +908,11 @@
    (pj/scale :x :log))))
 
 
-(def v141_l929 log-scale-pose)
+(def v144_l940 log-scale-pose)
 
 
 (deftest
- t142_l931
+ t145_l942
  (is
   ((fn
     [_]
@@ -908,25 +921,25 @@
      (and
       (= [0.1 1.0 10.0 100.0 1000.0] (:values (:x-ticks p)))
       (= ["0.1" "1" "10" "100" "1000"] (:labels (:x-ticks p))))))
-   v141_l929)))
+   v144_l940)))
 
 
-(def v144_l943 bar-pose)
+(def v147_l954 bar-pose)
 
 
 (deftest
- t145_l945
+ t148_l956
  (is
   ((fn
     [_]
     (let
      [p (first (:panels (pj/plan bar-pose)))]
      (= ["cat" "dog" "bird" "fish"] (:values (:x-ticks p)))))
-   v144_l943)))
+   v147_l954)))
 
 
 (def
- v147_l961
+ v150_l972
  (def
   iris-label-pose
   (->
@@ -934,11 +947,11 @@
    (pj/lay-point :sepal-length :sepal-width))))
 
 
-(def v148_l965 iris-label-pose)
+(def v151_l976 iris-label-pose)
 
 
 (deftest
- t149_l967
+ t152_l978
  (is
   ((fn
     [_]
@@ -947,28 +960,28 @@
      (and
       (= "sepal length" (:x-label plan))
       (= "sepal width" (:y-label plan)))))
-   v148_l965)))
+   v151_l976)))
 
 
-(def v151_l977 (def x-only-pose (-> five-points (pj/pose :x))))
+(def v154_l988 (def x-only-pose (-> five-points (pj/pose :x))))
 
 
-(def v152_l980 x-only-pose)
+(def v155_l991 x-only-pose)
 
 
 (deftest
- t153_l982
+ t156_l993
  (is
   ((fn
     [_]
     (let
      [plan (pj/plan x-only-pose)]
      (and (= "x" (:x-label plan)) (nil? (:y-label plan)))))
-   v152_l980)))
+   v155_l991)))
 
 
 (def
- v155_l990
+ v158_l1001
  (def
   explicit-label-pose
   (->
@@ -977,11 +990,11 @@
    (pj/options {:x-label "Length (cm)", :y-label "Width (cm)"}))))
 
 
-(def v156_l995 explicit-label-pose)
+(def v159_l1006 explicit-label-pose)
 
 
 (deftest
- t157_l997
+ t160_l1008
  (is
   ((fn
     [_]
@@ -990,41 +1003,41 @@
      (and
       (= "Length (cm)" (:x-label plan))
       (= "Width (cm)" (:y-label plan)))))
-   v156_l995)))
+   v159_l1006)))
 
 
-(def v159_l1009 colored-pose)
+(def v162_l1020 colored-pose)
 
 
 (deftest
- t160_l1011
+ t163_l1022
  (is
   ((fn
     [_]
     (let
      [leg (:legend (pj/plan colored-pose))]
      (and (= :g (:title leg)) (= 2 (count (:entries leg))))))
-   v159_l1009)))
+   v162_l1020)))
 
 
-(def v162_l1022 scatter-pose)
-
-
-(deftest
- t163_l1024
- (is ((fn [_] (nil? (:legend (pj/plan scatter-pose)))) v162_l1022)))
-
-
-(def v165_l1029 fixed-color-pose)
+(def v165_l1033 scatter-pose)
 
 
 (deftest
- t166_l1031
- (is ((fn [_] (nil? (:legend (pj/plan fixed-color-pose)))) v165_l1029)))
+ t166_l1035
+ (is ((fn [_] (nil? (:legend (pj/plan scatter-pose)))) v165_l1033)))
+
+
+(def v168_l1040 fixed-color-pose)
+
+
+(deftest
+ t169_l1042
+ (is ((fn [_] (nil? (:legend (pj/plan fixed-color-pose)))) v168_l1040)))
 
 
 (def
- v168_l1036
+ v171_l1047
  (def
   continuous-color-pose
   (->
@@ -1032,22 +1045,22 @@
    (pj/lay-point :x :y {:color :val}))))
 
 
-(def v169_l1040 continuous-color-pose)
+(def v172_l1051 continuous-color-pose)
 
 
 (deftest
- t170_l1042
+ t173_l1053
  (is
   ((fn
     [_]
     (let
      [leg (:legend (pj/plan continuous-color-pose))]
      (and (= :continuous (:type leg)) (= 20 (count (:stops leg))))))
-   v169_l1040)))
+   v172_l1051)))
 
 
 (def
- v172_l1055
+ v175_l1066
  (def
   size-legend-pose
   (->
@@ -1055,11 +1068,11 @@
    (pj/lay-point :x :y {:size :s}))))
 
 
-(def v173_l1059 size-legend-pose)
+(def v176_l1070 size-legend-pose)
 
 
 (deftest
- t174_l1061
+ t177_l1072
  (is
   ((fn
     [_]
@@ -1069,20 +1082,20 @@
       (= :size (:type leg))
       (= :s (:title leg))
       (= 5 (count (:entries leg))))))
-   v173_l1059)))
+   v176_l1070)))
 
 
-(def v176_l1071 scatter-pose)
+(def v179_l1082 scatter-pose)
 
 
 (deftest
- t177_l1073
+ t180_l1084
  (is
-  ((fn [_] (nil? (:size-legend (pj/plan scatter-pose)))) v176_l1071)))
+  ((fn [_] (nil? (:size-legend (pj/plan scatter-pose)))) v179_l1082)))
 
 
 (def
- v179_l1082
+ v182_l1093
  (def
   alpha-legend-pose
   (->
@@ -1090,11 +1103,11 @@
    (pj/lay-point :x :y {:alpha :a}))))
 
 
-(def v180_l1086 alpha-legend-pose)
+(def v183_l1097 alpha-legend-pose)
 
 
 (deftest
- t181_l1088
+ t184_l1099
  (is
   ((fn
     [_]
@@ -1104,23 +1117,23 @@
       (= :alpha (:type leg))
       (= :a (:title leg))
       (= 4 (count (:entries leg))))))
-   v180_l1086)))
+   v183_l1097)))
 
 
-(def v183_l1097 scatter-pose)
+(def v186_l1108 scatter-pose)
 
 
 (deftest
- t184_l1099
+ t187_l1110
  (is
-  ((fn [_] (nil? (:alpha-legend (pj/plan scatter-pose)))) v183_l1097)))
+  ((fn [_] (nil? (:alpha-legend (pj/plan scatter-pose)))) v186_l1108)))
 
 
-(def v186_l1109 scatter-pose)
+(def v189_l1120 scatter-pose)
 
 
 (def
- v187_l1111
+ v190_l1122
  (def
   full-layout-pose
   (->
@@ -1129,11 +1142,11 @@
    (pj/options {:title "My Plot"}))))
 
 
-(def v188_l1118 full-layout-pose)
+(def v191_l1129 full-layout-pose)
 
 
 (deftest
- t189_l1120
+ t192_l1131
  (is
   ((fn
     [_]
@@ -1144,14 +1157,14 @@
       (pos? (get-in full [:layout :title-pad]))
       (zero? (get-in bare [:layout :legend-w]))
       (= 100 (get-in full [:layout :legend-w])))))
-   v188_l1118)))
+   v191_l1129)))
 
 
-(def v191_l1139 scatter-pose)
+(def v194_l1150 scatter-pose)
 
 
 (deftest
- t192_l1141
+ t195_l1152
  (is
   ((fn
     [_]
@@ -1175,29 +1188,29 @@
           iris
           (pj/lay-point :sepal-length :sepal-width)
           (pj/lay-point :petal-length :petal-width))))))))
-   v191_l1139)))
+   v194_l1150)))
 
 
 (def
- v194_l1157
+ v197_l1168
  (def normal-pose (-> animals (pj/lay-bar :animal :count))))
 
 
-(def v195_l1161 normal-pose)
+(def v198_l1172 normal-pose)
 
 
 (def
- v196_l1163
+ v199_l1174
  (def
   flip-pose
   (-> animals (pj/lay-bar :animal :count) (pj/coord :flip))))
 
 
-(def v197_l1168 flip-pose)
+(def v200_l1179 flip-pose)
 
 
 (deftest
- t198_l1170
+ t201_l1181
  (is
   ((fn
     [v]
@@ -1212,32 +1225,32 @@
       (not (:categorical? (:y-ticks np)))
       (not (:categorical? (:x-ticks fp)))
       (true? (:categorical? (:y-ticks fp))))))
-   v197_l1168)))
+   v200_l1179)))
 
 
 (def
- v200_l1185
+ v203_l1196
  (def
   flipped-labels-pose
   (-> five-points (pj/lay-point :x :y) (pj/coord :flip))))
 
 
-(def v201_l1190 flipped-labels-pose)
+(def v204_l1201 flipped-labels-pose)
 
 
 (deftest
- t202_l1192
+ t205_l1203
  (is
   ((fn
     [_]
     (let
      [plan (pj/plan flipped-labels-pose)]
      (and (= "y" (:x-label plan)) (= "x" (:y-label plan)))))
-   v201_l1190)))
+   v204_l1201)))
 
 
 (def
- v204_l1209
+ v207_l1220
  (def
   multi-pose
   (->
@@ -1247,11 +1260,11 @@
    (pj/lay-smooth {:stat :linear-model}))))
 
 
-(def v205_l1215 multi-pose)
+(def v208_l1226 multi-pose)
 
 
 (deftest
- t206_l1217
+ t209_l1228
  (is
   ((fn
     [v]
@@ -1261,10 +1274,10 @@
       (= 5 (:points s))
       (= 1 (:lines s))
       (= 2 (count (:layers p))))))
-   v205_l1215)))
+   v208_l1226)))
 
 
 (def
- v208_l1234
+ v211_l1245
  (kind/mermaid
   "\ngraph TD\n  POSE[\"pose + options\"]\n  POSE --> CT[\"Column types\"]\n  POSE --> AE[\"Aesthetics\"]\n  CT --> GR[\"Grouping\"]\n  AE --> GR\n  CT --> ME[\"Layer type\"]\n  GR --> STATS[\"Statistics\"]\n  ME --> STATS\n\n  STATS --> DOM[\"Domains\"]\n  DOM --> TK[\"Ticks\"]\n\n  POSE --> LBL[\"Axis labels\"]\n  AE --> LEG[\"Color legend\"]\n  AE --> SLEG[\"Size legend\"]\n  AE --> ALEG[\"Alpha legend\"]\n\n  DOM --> LAYOUT[\"Layout\"]\n  LBL --> LAYOUT\n  LEG --> LAYOUT\n  SLEG --> LAYOUT\n  ALEG --> LAYOUT\n\n  DOM --> PLOT[\"Rendered plot\"]\n  TK --> PLOT\n  LBL --> PLOT\n  LEG --> PLOT\n  SLEG --> PLOT\n  ALEG --> PLOT\n  LAYOUT --> PLOT\n  STATS --> PLOT\n\n  style POSE fill:#e8f5e9\n  style PLOT fill:#fff3e0\n  style STATS fill:#e3f2fd\n  style DOM fill:#e3f2fd\n"))

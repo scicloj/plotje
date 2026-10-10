@@ -123,8 +123,8 @@
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
-;; Every panel of a facet shares one axis range, so the panels can be
-;; read against each other. That is what makes faceting different from
+;; Every panel of a facet over categories shares one axis range, so the
+;; panels can be read against each other. That is what makes faceting different from
 ;; arranging two poses that happen to hold the same columns.
 
 ;; ## Combining them

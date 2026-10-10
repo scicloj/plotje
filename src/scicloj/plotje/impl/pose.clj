@@ -539,10 +539,9 @@
    mappings take precedence over the leaf's own :mapping, and the first
    layer naming `axis` answers.
 
-   A leaf whose layers disagree about `axis` draws a panel for each
-   place they name (Pose Rule LP2), and this reads only the first of
-   them -- so for such a leaf it answers for one of its panels, not
-   all."
+   A leaf whose layers draw several columns on `axis` draws them on its
+   one panel, and this reads only the first; `drawn-axis-cols` reads
+   them all."
   [leaf axis]
   (or (some (fn [layer] (mapping-source (get-in layer [:mapping axis])))
             (:layers leaf))
@@ -1843,6 +1842,17 @@
   [x v]
   (if (and (number? x) (number? v)) (== x v) (= x v)))
 
+(defn- same-values?
+  "Whether two sequences of values match element by element, as
+   `same-value?` matches one -- a compound key's values compared within."
+  [a b]
+  (and (= (count a) (count b))
+       (every? true? (map (fn [x y]
+                            (if (and (sequential? x) (sequential? y))
+                              (same-values? x y)
+                              (same-value? x y)))
+                          a b))))
+
 (defn- rows-where
   "The indices at which `ks` holds `k`, or one of the values of `k`
    where it is a set. `tc/select-rows` takes them directly, so no row
@@ -2659,7 +2669,13 @@
     (cond
       (and (= axis :y) (contains? stat-driven-y-stats stat)) {:stat stat}
       (and src data (contains? (set (tc/column-names data)) src))
-      {:column src :type (resolve/column-type data src)})))
+      (let [m (merge leaf-mapping (:mapping layer))
+            ;; A type the writer gave with `:x-type` or `:y-type` is the
+            ;; type the axis reads. (A categorical scale written on the
+            ;; mapping is not read here: the plan does not yet place the
+            ;; numbers of such a column among another layer's categories.)
+            written (get m ({:x :x-type :y :y-type} axis))]
+        {:column src :type (or written (resolve/column-type data src))}))))
 
 (defn check-shared-panel!
   "Report layers of a leaf that share its one panel and disagree about
@@ -2698,7 +2714,11 @@
           (throw (ex-info (str "The layers of this pose share one panel, and on " axis
                                " they draw columns of different kinds: "
                                (str/join ", " (map (comp describe first) (vals (group-by :type columns)))) ". "
-                               "One axis cannot place a category and a number together."
+                               "One axis cannot place "
+                               (str/join " and " (map {:categorical "categories" :numerical "numbers"
+                                                       :temporal "dates"}
+                                                      (distinct (map :type columns))))
+                               " together."
                                (advice axis (distinct (map :column columns))))
                           {:axis axis :draws (vec draws)}))
 
@@ -3165,21 +3185,24 @@
             same-keys? (every? #(= (set ks) (set (keys (:where %)))) cells)
             ;; In a grid, the keys that hold one value down each column,
             ;; and those that hold one value along each row.
-            constant-in? (fn [k groups] (every? #(apply = (map (comp k :where) %)) groups))
+            constant-in? (fn [k groups]
+                           (every? #(let [vs (map (comp k :where) %)]
+                                      (every? (fn [v] (same-value? (first vs) v)) vs))
+                                   groups))
             columns (for [ci (range n-cols)] (map #(nth % ci) grid))
             col-ks (filterv #(constant-in? % columns) ks)
             row-ks (filterv #(constant-in? % grid) ks)
             facet (cond
                     (not (and in-data? same-keys?)) nil
                     (= 1 n-rows)
-                    (when (= (values ks) (kept ks cells)) {:col ks})
+                    (when (same-values? (values ks) (kept ks cells)) {:col ks})
                     (= 1 n-cols)
-                    (when (= (values ks) (kept ks cells)) {:row ks})
+                    (when (same-values? (values ks) (kept ks cells)) {:row ks})
                     (and (seq col-ks) (seq row-ks)
                          (= (set ks) (into (set col-ks) row-ks))
                          (empty? (filter (set col-ks) row-ks))
-                         (= (values col-ks) (kept col-ks (first grid)))
-                         (= (values row-ks) (kept row-ks (map first grid))))
+                         (same-values? (values col-ks) (kept col-ks (first grid)))
+                         (same-values? (values row-ks) (kept row-ks (map first grid))))
                     {:col col-ks :row row-ks})
             one-or-many (fn [cols] (if (= 1 (count cols)) (first cols) cols))
             written (cond (contains? (:opts pose) :share-scales) (get-in pose [:opts :share-scales])
@@ -3262,7 +3285,15 @@
                          down? (and (map? node) (= [:y] (filterv #(sequential? (get node %)) [:x :y])))]
                      (if down?
                        (mapv #(vector (facet-cell {} %)) items)
-                       [(mapv #(facet-cell {} %) items)])))]
+                       [(mapv #(facet-cell {} %) items)])))
+            ;; An axis the facet names columns on is the cells' to
+            ;; write: the pose's own column there is replaced in every
+            ;; cell, and left on the pose it was reported as not drawn
+            ;; -- or read by a matrix's diagonal, which names one column.
+            varied (set (mapcat (comp keys :mapping) (apply concat rows)))
+            base (cond-> base
+                   (seq (select-keys (:mapping base) varied))
+                   (update :mapping #(not-empty (apply dissoc % varied))))]
         (assoc base
                :layout {:direction :vertical}
                :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
@@ -3388,11 +3419,19 @@
                               x (if (set? v) v [v])
                               :when (not (some #(same-value? % x) (ds c)))]
                           [c x]))
-            _ (when (seq absent)
+            ;; An empty set is any of no values, which selects no rows
+            ;; and names no value the check above could find absent.
+            empty-sets (vec (for [[c v] w :when (and (set? v) (empty? v))] c))
+            _ (when (or (seq absent) (seq empty-sets))
                 (let [msg (str "A row filter names "
-                               (str/join ", " (for [[c x] absent] (str (pr-str x) " on " (pr-str c))))
-                               " -- " (if (next absent) "values" "a value")
-                               " the data does not hold, which selects no rows.")]
+                               (str/join ", " (concat
+                                               (for [[c x] absent] (str (pr-str x) " on " (pr-str c)))
+                                               (for [c empty-sets] (str "an empty set on " (pr-str c)))))
+                               " -- "
+                               (cond (seq empty-sets) "no value the data holds"
+                                     (next absent) "values the data does not hold"
+                                     :else "a value the data does not hold")
+                               ", which selects no rows.")]
                   (if (:strict (defaults/config))
                     (throw (ex-info msg {:where w :absent absent}))
                     (println (str "Warning: " msg)))))
@@ -3481,11 +3520,15 @@
      `:y` column, the data's `default-mapping` is written under the
      leaf's own mapping, so a scale it already carries reads the
      default column.
-   - Where a `:y` is named and no `:x` is, the leaf's `:x` is the first
-     column nothing names -- every layer type draws along an x, so
+   - Where a `:y` is named and no `:x` is, and a layer's type draws
+     only from two columns (`layer-type/column-counts` lacks 1), the
+     leaf's `:x` is the first column nothing names, so
      `(pj/lay-point data {:y :a})` draws `:a` against the column before
-     it. A `:y` is never filled in: whether a layer needs one depends on
-     its type, and `(pj/lay-bar data :x)` counts.
+     it. A leaf with no layer, or whose layers can draw from one
+     column, keeps `:y` alone and is drawn on its side -- see
+     `side-on` -- so `(pj/pose data {:y :a})` draws the same on data of
+     any width. A `:y` is never filled in: whether a layer needs one
+     depends on its type, and `(pj/lay-bar data :x)` counts.
 
    Returns the leaf unchanged otherwise, so it is idempotent."
   [leaf]
@@ -3501,7 +3544,9 @@
       (and (not (named? :x)) (not (named? :y)))
       (assoc leaf :mapping (merge-mappings default m))
 
-      (and (not (named? :x)) (named? :y))
+      (and (not (named? :x)) (named? :y)
+           (some #(not (contains? (layer-type/column-counts (:layer-type %)) 1))
+                 (:layers leaf)))
       (let [used (set (keep #(when-not (map? %) %)
                             (mapcat #(map mapping-source (vals %)) mappings)))
             free (first (remove used (tc/column-names d)))]

@@ -89,3 +89,16 @@
       (is (= "mpg" (:y (titles (pj/options series {:y-label "mpg"}))))))
     (testing "a label written on the scale wins"
       (is (= "mpg" (:y (titles (pj/lay-point cars :displ {:series [:hwy :cty] :scale {:label "mpg"}}))))))))
+
+(deftest a-written-type-is-the-type-the-axis-reads-test
+  (let [d {:n [4 6 8] :k ["a" "b" "c"] :v [1 2 3]}]
+    (is (= 6 (:points (pj/svg-summary (-> d
+                                          (pj/lay-point :n :v {:x-type :categorical})
+                                          (pj/lay-point :k :v))))))))
+
+(deftest dates-beside-numbers-name-their-kinds-test
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"cannot place dates and numbers together"
+                        (pj/plan (-> {:t [(java.time.LocalDate/of 2020 1 1) (java.time.LocalDate/of 2020 2 1)]
+                                      :n [1 2] :v [3 4]}
+                                     (pj/lay-point :t :v)
+                                     (pj/lay-point :n :v))))))

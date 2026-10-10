@@ -3294,6 +3294,40 @@
     (report-refacet fr direction col caller)
     (update-mapping fr assoc direction col)))
 
+(defn- check-facet-columns-map!
+  "Report a `pj/facet` map of columns that cannot be drawn as written:
+   one given to a composite, which keeps it nowhere; one given to a pose
+   that already holds one, which would replace it; and one writing a
+   vector of columns on one axis beside a single column on the other,
+   which names no panel for the single column."
+  [pose node]
+  (when (seq (:poses pose))
+    (throw (ex-info (str "pj/facet was given " (pr-str node) " on a composite"
+                         " pose. A map of columns splits a pose with one panel."
+                         " Facet each cell, as in (pj/arrange data [(pj/facet"
+                         " cell " (pr-str node) ") ...]), or arrange the"
+                         " columns as cells with pj/arrange.")
+                    {:facet node})))
+  (when-let [existing (:facet pose)]
+    (when (not= existing node)
+      (throw (ex-info (str "pj/facet was given " (pr-str node) ", and this pose"
+                           " already facets over " (pr-str existing) ". A pose"
+                           " splits its columns once: write both in one map,"
+                           " as in {:col {:x [..]} :row {:y [..]}}.")
+                      {:existing existing :given node}))))
+  (when-not (or (contains? node :col) (contains? node :row))
+    (let [vec-axes (filter #(sequential? (get node %)) [:x :y])
+          one-axes (filter #(and (contains? node %) (not (sequential? (get node %)))) [:x :y])]
+      (when (and (seq vec-axes) (seq one-axes))
+        (let [one (first one-axes) many (first vec-axes)]
+          (throw (ex-info (str "pj/facet was given " (pr-str node) ": a vector of"
+                               " columns on " many " and one column on " one
+                               ". A map of columns names a panel per column,"
+                               " so write the single column on the pose: (-> pose"
+                               " (pj/pose {" one " " (pr-str (get node one)) "})"
+                               " (pj/facet {" many " " (pr-str (get node many)) "})).")
+                          {:facet node})))))))
+
 (defn- facet-map
   "`pj/facet` given a map. Categories on `:col` and `:row` are written
    into the mapping, as `pj/facet-grid` writes them; a map holding
@@ -3314,7 +3348,8 @@
         (:row node) (facet-direction (:row node) :row "pj/facet"))
 
       columns?
-      (do (check-facet-node! fr node :facet)
+      (do (check-facet-columns-map! fr node)
+          (check-facet-node! fr node :facet)
           (prepare-pose (assoc fr :facet node)))
 
       ;; Any other map is read as a column argument, which reports it.
@@ -4213,8 +4248,10 @@
      the grid, at the right.
    - `:width` -- total composite width.
    - `:height` -- total composite height.
-   - `:share-scales` -- subset of `#{:x :y}` shared across cells
-     (default: `#{}`).
+   - `:share-scales` -- subset of `#{:x :y}` shared across cells. By
+     default, cells that split the data of the pose they are arranged
+     into share each axis that draws one column, and other cells share
+     nothing.
    - `:align-panels` -- give every cell the same drawing area, by
      reserving the widest y-label pad and legend column a cell needs on
      all of them (and, for a row, the tallest x-label pad). Two cells

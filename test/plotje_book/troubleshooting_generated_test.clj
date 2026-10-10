@@ -224,7 +224,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__11193#] (= :text (:mark p1__11193#))))
+      (filter (fn* [p1__11199#] (= :text (:mark p1__11199#))))
       first
       :style
       :align-x)))
@@ -517,28 +517,47 @@
 
 
 (def
- v95_l596
+ v95_l610
+ (->
+  (rdatasets/ggplot2-mpg)
+  (pj/lay-point :displ :hwy)
+  (pj/lay-point :displ :year)))
+
+
+(deftest
+ t96_l614
+ (is
+  ((fn
+    [v]
+    (let
+     [[lo hi] (-> v pj/plan :panels first :y-domain)]
+     (and (< lo 50) (> hi 2000))))
+   v95_l610)))
+
+
+(def
+ v98_l631
  (def
   template
   (-> (pj/pose nil {:x :x, :y :y, :color :group}) pj/lay-point)))
 
 
 (def
- v96_l600
+ v99_l635
  (try
   (-> template (pj/with-data {:x [1 2 3], :y [4 5 6]}))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t97_l605
+ t100_l640
  (is
   ((fn [msg] (re-find #"\[:group\] not present in the dataset" msg))
-   v96_l600)))
+   v99_l635)))
 
 
 (def
- v99_l612
+ v102_l647
  (->
   (pj/pose nil {:x :x, :y :y})
   pj/lay-point
@@ -546,12 +565,12 @@
 
 
 (deftest
- t100_l616
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v99_l612)))
+ t103_l651
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v102_l647)))
 
 
 (def
- v102_l632
+ v105_l667
  (->
   [{:category "A", :value 100}
    {:category "B", :value 50}
@@ -561,12 +580,12 @@
 
 
 (deftest
- t103_l638
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v102_l632)))
+ t106_l673
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v105_l667)))
 
 
 (def
- v105_l644
+ v108_l679
  (->
   [{:category "A", :value 100}
    {:category "B", :value 50}
@@ -578,25 +597,25 @@
 
 
 (deftest
- t106_l652
- (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v105_l644)))
+ t109_l687
+ (is ((fn [v] (= 3 (:polygons (pj/svg-summary v)))) v108_l679)))
 
 
 (def
- v108_l670
+ v111_l705
  (->
   {:x [1 2 3 4 5 6], :y [1 1 1 1 1 1], :n [1 4 9 16 25 36]}
   (pj/lay-point :x :y {:size :n})))
 
 
 (deftest
- t109_l673
+ t112_l708
  (is
   ((fn
     [fr]
     (let
      [radii
-      (fn* [p1__11194#] (sort (:sizes (pj/svg-summary p1__11194#))))
+      (fn* [p1__11200#] (sort (:sizes (pj/svg-summary p1__11200#))))
       now
       (radii fr)
       before
@@ -607,11 +626,11 @@
       (every?
        (fn [[a b]] (> a b))
        (map vector (butlast (rest now)) (butlast (rest before)))))))
-   v108_l670)))
+   v111_l705)))
 
 
 (def
- v111_l689
+ v114_l724
  (->
   {:x [1 2 3 4 5 6], :y [1 1 1 1 1 1], :n [1 4 9 16 25 36]}
   (pj/lay-point :x :y {:size :n})
@@ -619,12 +638,12 @@
 
 
 (deftest
- t112_l693
- (is ((fn [v] (= 6 (:points (pj/svg-summary v)))) v111_l689)))
+ t115_l728
+ (is ((fn [v] (= 6 (:points (pj/svg-summary v)))) v114_l724)))
 
 
 (def
- v114_l706
+ v117_l741
  (try
   (->
    (rdatasets/datasets-iris)
@@ -634,18 +653,18 @@
 
 
 (deftest
- t115_l712
+ t118_l747
  (is
   ((fn
     [msg]
     (and
      (re-find #"requires :y-min < :y-max" msg)
      (re-find #"lay-rule-h" msg)))
-   v114_l706)))
+   v117_l741)))
 
 
 (def
- v117_l719
+ v120_l754
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -653,29 +672,29 @@
 
 
 (deftest
- t118_l723
- (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v117_l719)))
+ t121_l758
+ (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v120_l754)))
 
 
 (def
- v120_l737
+ v123_l772
  (with-out-str
   (pj/with-config {:annotation-stroke "firebrick"} (constantly nil))))
 
 
 (deftest
- t121_l740
+ t124_l775
  (is
   ((fn
     [msg]
     (and
      (re-find #"does not recognize configuration key" msg)
      (re-find #":annotation-stroke was renamed to :rule-color" msg)))
-   v120_l737)))
+   v123_l772)))
 
 
 (def
- v123_l750
+ v126_l785
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -684,12 +703,12 @@
 
 
 (deftest
- t124_l755
- (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v123_l750)))
+ t127_l790
+ (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v126_l785)))
 
 
 (def
- v126_l772
+ v129_l807
  (with-out-str
   (->
    {:team ["red" "green" "blue"], :score [3 5 4]}
@@ -699,18 +718,18 @@
 
 
 (deftest
- t127_l777
+ t130_l812
  (is
   ((fn
     [out]
     (and
      (re-find #":nudge-x was renamed to :dx" out)
      (re-find #"Write :dx" out)))
-   v126_l772)))
+   v129_l807)))
 
 
 (def
- v129_l784
+ v132_l819
  (->
   {:team ["red" "green" "blue"], :score [3 5 4]}
   (pj/lay-bar :team :score {:color "#a6cee3"})
@@ -724,7 +743,7 @@
 
 
 (deftest
- t130_l789
+ t133_l824
  (is
   ((fn
     [fr]
@@ -759,11 +778,11 @@
            :align-x :center,
            :offset-y -10,
            :text "half a band"})))))))
-   v129_l784)))
+   v132_l819)))
 
 
 (def
- v132_l836
+ v135_l871
  (->
   {:x [1 2 3], :y [2 4 3], :r [1 2 3]}
   (pj/pose :x :y)
@@ -772,18 +791,18 @@
 
 
 (deftest
- t133_l841
+ t136_l876
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:points s)) (pos? (:lines s)))))
-   v132_l836)))
+   v135_l871)))
 
 
 (def
- v135_l859
+ v138_l894
  (def
   points-data
   {:x [1 1 2 2 3 3],
@@ -792,7 +811,7 @@
 
 
 (def
- v136_l862
+ v139_l897
  (defn
   point-xs
   [pose]
@@ -808,7 +827,7 @@
 
 
 (def
- v137_l866
+ v140_l901
  (=
   (point-xs (-> points-data (pj/lay-point :x :y {:color :group})))
   (point-xs
@@ -817,11 +836,11 @@
     (pj/lay-point :x :y {:color :group, :position :dodge})))))
 
 
-(deftest t138_l869 (is ((fn [v] (true? v)) v137_l866)))
+(deftest t141_l904 (is ((fn [v] (true? v)) v140_l901)))
 
 
 (def
- v140_l876
+ v143_l911
  (->
   points-data
   (pj/lay-point
@@ -831,7 +850,7 @@
 
 
 (deftest
- t141_l879
+ t144_l914
  (is
   ((fn
     [v]
@@ -841,11 +860,11 @@
       (->
        points-data
        (pj/lay-point :x :y {:color :group, :x-type :categorical})))))
-   v140_l876)))
+   v143_l911)))
 
 
 (def
- v143_l901
+ v146_l936
  (->
   (rdatasets/datasets-chickwts)
   (pj/pose :feed)
@@ -854,7 +873,7 @@
 
 
 (deftest
- t144_l906
+ t147_l941
  (is
   ((fn
     [v]
@@ -868,16 +887,16 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v143_l901)))
+   v146_l936)))
 
 
 (def
- v146_l915
+ v149_l950
  (-> (rdatasets/datasets-chickwts) (pj/pose :feed) pj/lay-bar))
 
 
 (deftest
- t147_l919
+ t150_l954
  (is
   ((fn
     [v]
@@ -891,11 +910,11 @@
          "casein"
          "linseed"}
        (:texts (pj/svg-summary v))))))
-   v146_l915)))
+   v149_l950)))
 
 
 (def
- v149_l932
+ v152_l967
  (try
   (->
    {:x ["a" "b" "c"], :y ["a" "b" "c"], :v [1 2 3]}
@@ -905,14 +924,14 @@
 
 
 (deftest
- t150_l938
+ t153_l973
  (is
   ((fn [msg] (re-find #"requires a numeric column for :x" msg))
-   v149_l932)))
+   v152_l967)))
 
 
 (def
- v152_l945
+ v155_l980
  (->
   (for
    [[i day]
@@ -926,18 +945,18 @@
 
 
 (deftest
- t153_l951
+ t156_l986
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v152_l945)))
+   v155_l980)))
 
 
 (def
- v155_l965
+ v158_l1000
  (try
   (->
    {:group [], :measurement []}
@@ -947,16 +966,16 @@
 
 
 (deftest
- t156_l971
+ t159_l1006
  (is
   ((fn
     [msg]
     (re-find #"requires a categorical column.*has no rows" msg))
-   v155_l965)))
+   v158_l1000)))
 
 
 (def
- v158_l978
+ v161_l1013
  (try
   (->
    {:group [nil nil], :measurement [nil nil]}
@@ -966,24 +985,24 @@
 
 
 (deftest
- t159_l984
- (is ((fn [msg] (re-find #"has no values" msg)) v158_l978)))
+ t162_l1019
+ (is ((fn [msg] (re-find #"has no values" msg)) v161_l1013)))
 
 
 (def
- v161_l1003
+ v164_l1038
  (try
   (-> {:x [1 2], :y [1 2]} (pj/lay-text :x :y {:text :nope}) pj/plot)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t162_l1009
- (is ((fn [msg] (re-find #"not a label either" msg)) v161_l1003)))
+ t165_l1044
+ (is ((fn [msg] (re-find #"not a label either" msg)) v164_l1038)))
 
 
 (def
- v164_l1026
+ v167_l1061
  (try
   (->
    {:height [1 2 3], :weight [1 2 3]}
@@ -994,7 +1013,7 @@
 
 
 (deftest
- t165_l1033
+ t168_l1068
  (is
   ((fn [msg] (re-find #"not a pair of two finite numbers" msg))
-   v164_l1026)))
+   v167_l1061)))

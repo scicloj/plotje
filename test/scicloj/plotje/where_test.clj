@@ -42,3 +42,14 @@
     (is (re-find #"Warning: A row filter names \"zz\" on :g -- a value the data does not hold" out)))
   (testing "a cell generated from the data names none"
     (is (= "" (with-out-str (pj/plan (pj/facet (pj/lay-point d :x :y) :g)))))))
+
+(deftest an-empty-set-warns-test
+  (let [out (with-out-str
+              (is (zero? (:points (pj/svg-summary (-> d (pj/lay-point :x :y) (assoc :where {:g #{}})))))))]
+    (is (re-find #"an empty set on :g" out))))
+
+(deftest listed-cells-match-numbers-by-value-test
+  (let [base (pj/lay-point {:x [1 2 3 4] :y [1 2 3 4] :n [1 2 1 2]} :x :y)]
+    (is (= (pj/plot (pj/facet base :n))
+           (pj/plot (assoc base :layout {:direction :horizontal}
+                           :poses [{:where {:n 1.0}} {:where {:n 2.0}}]))))))

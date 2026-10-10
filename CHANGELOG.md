@@ -46,7 +46,7 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/overlay` and the `:overlay` layer option warn that they are ignored, since the layers of a pose share one panel; `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`. Layers of one panel drawing a categorical and a numeric column on the same axis report an error naming the layers and the same two routes, and a count or a density beside a column on `:y` warns that the axis reads in two units.
 
-- `pj/facet` given a column the data does not hold reports an error when it is called. A `:where` value that appears nowhere in its column warns.
+- `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` value that appears nowhere in its column, or an empty set, warns.
 
 ### Fixed
 
@@ -58,7 +58,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A layer placed in the drawing area, `{:in :drawing-area}`, with columns of its own data is drawn on the panel it is added to.
 
-- A pose naming a column only on `:y`, on data that places no other column on `:x` (one column, or four or more), draws on its side: with no layer, the histogram or the bar chart of counts inferred for the column, and with `lay-histogram`, `lay-density` or `lay-bar`, that layer. `(pj/pose data {:y :hwy})` and `(-> data (pj/pose {:y :class}) pj/lay-bar)` reported errors.
+- A pose naming a column only on `:y` draws on its side: with no layer, the histogram or the bar chart of counts inferred for the column, and with `lay-histogram`, `lay-density` or `lay-bar`, that layer. `(pj/pose data {:y :hwy})` and `(-> data (pj/pose {:y :class}) pj/lay-bar)` reported errors. A layer type that draws only from two columns, such as `lay-point`, takes the first other column of 1-3 column data as its `:x`, as before.
 
 - `pj/facet` reads a column name the data holds whatever its type, so `(pj/facet pose 2)` on a dataset whose columns are integers draws a panel per value of column 2.
 

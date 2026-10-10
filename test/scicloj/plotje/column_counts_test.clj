@@ -38,3 +38,13 @@
       (let [s (pj/svg-summary (pj/pose mpg {:y :class}))]
         (is (= 7 (:polygons s)))
         (is (= s (pj/svg-summary (-> mpg (pj/pose {:y :class}) pj/lay-bar))))))))
+
+(deftest an-x-is-filled-in-only-for-a-layer-that-needs-two-columns-test
+  (let [animals {:animal ["cat" "dog" "bird" "fish"] :count [12 8 15 5]}]
+    (testing "no layer: the column on its side, on data of two columns too"
+      (let [plan (pj/plan (pj/pose animals {:y :animal}))]
+        (is (= "animal" (:y-label plan)))
+        (is (= :rect (-> plan :panels first :layers first :mark)))))
+    (testing "a scatter takes the first other column as its x"
+      (let [plan (pj/plan (pj/lay-point animals {:y :count}))]
+        (is (= ["animal" "count"] [(:x-label plan) (:y-label plan)]))))))

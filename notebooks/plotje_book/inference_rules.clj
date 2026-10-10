@@ -740,13 +740,10 @@ count-pose
 
 ;; A single column written on `:y` rather than `:x` gets the same layer,
 ;; drawn on its side: the categories run up the y axis and the counts
-;; along the x axis. This holds where no other column is placed on `:x`
-;; -- on data of two or three columns, a pose naming only `:y` takes the
-;; first other column as its `:x`, so `{:y :animal}` on `animals` draws
-;; `:count` against `:animal`. On a column of its own:
+;; along the x axis.
 
 (def count-pose-on-y
-  (-> {:animal ["cat" "dog" "cat" "bird" "dog" "fish"]}
+  (-> animals
       (pj/pose {:y :animal})))
 
 count-pose-on-y
@@ -761,9 +758,23 @@ count-pose-on-y
 
 ;; A layer written with `pj/lay-*` on such a pose is drawn on its side
 ;; too, where its layer type draws from one column -- a histogram, a
-;; density, a rug or a bar. The
+;; density, a rug or a bar. A layer type that draws only from two
+;; columns, such as a scatter, needs an `:x`: on data of two or three
+;; columns it takes the first column nothing names, so
+;; `(pj/lay-point animals {:y :count})` draws `:count` against
+;; `:animal`, and on wider data it asks for one. The
 ;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from)
 ;; chapter lists how many columns each layer type draws from.
+
+(-> animals
+    (pj/lay-point {:y :count}))
+
+(kind/test-last
+ [(fn [v]
+    (let [plan (pj/plan v)]
+      (and (= "animal" (:x-label plan))
+           (= "count" (:y-label plan))
+           (= 4 (:points (pj/svg-summary v))))))])
 
 ;; Two numerical columns produce a scatter (the chapter's opening
 ;; `scatter-pose` is such a pose):
