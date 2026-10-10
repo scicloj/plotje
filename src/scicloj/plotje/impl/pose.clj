@@ -3267,20 +3267,21 @@
                :layout {:direction :vertical}
                :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
 
-;; ---- Layers fitted to cells (decision 5, provisional) ----
+;; ---- Layers fitted to cells ----
 ;;
-;; A layer written on a composite reaches every cell below it. Where the
-;; cells name different numbers of columns -- a scatter plot matrix, whose
-;; diagonal names one column -- a layer goes to the cells it fits: a layer
-;; type that reads one column (`:x-only`: histogram, density, rug) fits a
-;; cell naming one column, any other a cell naming two; a cell naming
-;; none fits nothing. A layer whose own
-;; mapping names a column the cell does not draw on that axis fits only
-;; the cells that draw it. A layer is left out of a cell only when it fits
-;; another cell, so a split whose cells all name the same number of
-;; columns leaves out nothing. A cell no layer fits keeps them all, unless
-;; it names no column, which draws nothing. (The prototype left such a
-;; cell empty; keeping the layers is what 0.16.1 draws.)
+;; A layer written above a split reaches every cell below it, and is
+;; drawn in the cells whose columns it draws: the number of columns the
+;; cell names is one its layer type draws from (`layer-type/column-counts`
+;; -- one for a histogram, two for a scatter, either for a bar), and the
+;; layer names no other column on an axis the cell's own mapping names.
+;; A cell left with no layer is a pose with no layers, so it draws what
+;; inference chooses for its columns -- the histogram on the diagonal of
+;; a matrix of points -- and a cell naming no column draws nothing.
+;;
+;; A layer that fits no cell is drawn in every cell, as written: where
+;; the cells all have one shape, the layers belong to the split as a
+;; whole, as they belong to a single pose -- a histogram written on a
+;; faceted scatter draws a histogram in each panel.
 
 (defn- columns-named
   "How many distinct columns a mapping names on `:x` and `:y`."
@@ -3289,7 +3290,7 @@
 
 (defn- names-another-column?
   "Whether a layer's own mapping names a column on `:x` or `:y` other
-   than the one the cell's own mapping varies there."
+   than the one the cell's own mapping names there."
   [own-mapping layer]
   (let [lm (:mapping layer)]
     (boolean (some (fn [k] (let [varied (mapping-source (get own-mapping k))
@@ -3298,12 +3299,9 @@
                    [:x :y]))))
 
 (defn- layer-fits-cell? [cell-mapping own-mapping layer]
-  (let [lm (:mapping layer)
-        other? (names-another-column? own-mapping layer)
-        x-only? (boolean (when (keyword? (:layer-type layer))
-                           (:x-only (layer-type/lookup (:layer-type layer)))))]
-    (and (not other?)
-         (= (if x-only? 1 2) (columns-named (merge cell-mapping lm))))))
+  (and (not (names-another-column? own-mapping layer))
+       (contains? (layer-type/column-counts (:layer-type layer))
+                  (columns-named (merge cell-mapping (:mapping layer))))))
 
 (defn- leaf-entries
   "Every leaf below a composite, with its path, its mapping as merged
@@ -3332,38 +3330,25 @@
            fits (vec (for [e entries]
                        (mapv #(layer-fits-cell? (:mapping e) (:own e) %) layers)))
            fit-somewhere (set (for [row fits [i f] (map-indexed vector row) :when f] i))
-           ;; A cell that no layer fits keeps them all, as if there were
-           ;; no split -- the diagonal of a matrix of points draws its
-           ;; points -- unless it names no column at all, a margin's
-           ;; corner, which draws nothing. A layer naming another column
-           ;; than the cell draws is not kept: in `{:y [:hwy :cty]}` a
-           ;; layer of `:hwy` drew `:hwy` in the `:cty` panel too.
-           kept (vec (for [[e row] (map vector entries fits)]
-                       (cond
-                         (some true? row)
-                         (vec (keep-indexed (fn [i f] (when (or f (not (fit-somewhere i))) (layers i)))
-                                            row))
-                         (and (zero? (columns-named (:mapping e))) (nil? (:data (:leaf e))))
-                         []
-                         :else (filterv #(not (names-another-column? (:own e) %)) layers))))
+           kept (vec (for [row fits]
+                       (vec (keep-indexed (fn [i f] (when (or f (not (fit-somewhere i))) (layers i)))
+                                          row))))
            changed? (and (seq layers) (some #(not= (count %) (count layers)) kept))
            pose' (if-not changed?
                    pose
                    (reduce (fn [p [e ls]]
                              (update-in p (vec (interleave (repeat :poses) (:path e)))
                                         (fn [leaf]
-                                          (if (and (empty? ls) (empty? (:layers leaf)))
-                                            ;; A margin's corner draws nothing; a cell
-                                            ;; whose columns no layer draws draws them
-                                            ;; as a pose with no layers does, where it
-                                            ;; names an `:x` to draw them along. (A
-                                            ;; leaf naming only `:y` and no layers
-                                            ;; does not draw -- the plan fails its
-                                            ;; schema -- so that cell is left blank.)
-                                            (if (nil? (mapping-source (get-in e [:mapping :x])))
-                                              (assoc leaf :plotje/empty-cell true)
-                                              leaf)
-                                            (update leaf :layers #(into (vec ls) %))))))
+                                          (cond
+                                            (seq ls) (update leaf :layers #(into (vec ls) %))
+                                            ;; Nothing to draw, and nothing to infer
+                                            ;; from: an empty cell, as `pj/arrange`
+                                            ;; marks a nil one.
+                                            (and (empty? (:layers leaf))
+                                                 (zero? (columns-named (:mapping e)))
+                                                 (nil? (:data leaf)))
+                                            (assoc leaf :plotje/empty-cell true)
+                                            :else leaf))))
                            (dissoc pose :layers)
                            (map vector entries kept)))]
        (update pose' :poses (fn [ps] (mapv #(fit-layers % m) ps)))))))
@@ -3466,9 +3451,16 @@
       (try
         (let [ds (coerce-dataset data)
               cols (set (tc/column-names ds))
-              v (cond-> {}
-                  x (assoc :x x)
-                  y (assoc :y y))]
+              ;; One column chooses the same type on either axis: read
+              ;; on `:y` alone it is asked as if on `:x`, and `side-on`
+              ;; then draws the choice on its side. (Asked on `:y`, a
+              ;; lone column fell to a scatter with no `:x`, and the
+              ;; plan failed its schema.)
+              v (cond
+                  (and y (nil? x)) {:x y}
+                  :else (cond-> {}
+                          x (assoc :x x)
+                          y (assoc :y y)))]
           (when (every? cols (vals v))
             (let [{:keys [x-type y-type x-temporal? y-temporal?]}
                   (resolve/infer-column-types ds v)
@@ -3520,8 +3512,9 @@
       :else leaf)))
 
 (defn- side-on
-  "A leaf naming a column only on `:y`, whose layers each read one
-   column (histogram, density, rug), drawn on its side: the column on
+  "A leaf naming a column only on `:y`, whose layers each draw from one
+   column (`layer-type/column-counts` holds 1: histogram, density, rug,
+   bar), drawn on its side: the column on
    `:x` and the coordinates flipped, so its distribution runs up the
    `:y` axis -- the margin beside a scatter. A leaf that writes its own
    `:coord`, or whose layers name `:x` or `:y`, is left as it is. (Read
@@ -3535,7 +3528,7 @@
              (seq layers)
              (nil? (get-in leaf [:opts :coord]))
              (every? (fn [l] (and (keyword? (:layer-type l))
-                                  (:x-only (layer-type/lookup (:layer-type l)))
+                                  (contains? (layer-type/column-counts (:layer-type l)) 1)
                                   (not (contains? (:mapping l) :x))
                                   (not (contains? (:mapping l) :y))))
                      layers))

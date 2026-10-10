@@ -77,3 +77,24 @@
         (is (some #{"cty"} (:texts summary)))
         (is (= (y-domains p)
                (y-domains (-> mpg (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]})))))))))
+
+(deftest a-layer-goes-to-the-cells-whose-columns-it-draws-test
+  (let [iris (rdatasets/datasets-iris)
+        cols [:sepal-length :sepal-width]
+        matrix (-> iris (pj/pose {:color :species}) (pj/facet {:col {:x cols} :row {:y cols}}))
+        diagonal-marks (fn [p] (->> (:sub-plots (pj/plan p))
+                                    (keep (fn [{:keys [path plan]}]
+                                            (when (apply = path)
+                                              (-> plan :panels first :layers first :mark))))
+                                    vec))]
+    (testing "a point layer on a matrix leaves the diagonal to inference"
+      (is (= [:bar :bar] (diagonal-marks (pj/lay-point matrix))))
+      (is (= (pj/svg-summary matrix) (pj/svg-summary (pj/lay-point matrix)))))
+    (testing "a density goes to the diagonal, the points elsewhere"
+      (is (= [:area :area] (diagonal-marks (-> matrix pj/lay-point pj/lay-density)))))
+    (testing "a layer that fits no cell is drawn in every cell"
+      (let [s (pj/svg-summary (-> iris (pj/pose {:x :sepal-length :y :sepal-width})
+                                  pj/lay-histogram (pj/facet :species)))]
+        (is (= 3 (:panels s)))
+        (is (zero? (:points s)))
+        (is (pos? (:polygons s)))))))

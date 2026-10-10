@@ -28,7 +28,9 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells are appended to it. Cells that split the data of the pose they are arranged into share each axis that draws one column, title it once and label its ticks on the outer cells only; `:share-scales` overrides the sharing.
 
-- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. A layer naming one of the facet's columns is drawn only in that column's panels, and a column on `:y` alone under a histogram or a density is drawn on its side.
+- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. A layer written above the facet is drawn in the panels whose columns it draws -- so a layer naming one of the facet's columns is drawn only in that column's panels -- and a panel no layer draws takes the layer type inferred from its columns: `(-> iris (pj/facet {:col {:x cols} :row {:y cols}}) pj/lay-point)` draws histograms on the diagonal. A column on `:y` alone under a histogram or a density is drawn on its side.
+
+- `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. Undeclared, it is `#{1}` for an `:x-only` layer type and `#{2}` otherwise; `:bar` declares `#{1 2}`, and `layer-type/column-counts` reads it back.
 
 - A layer beside a series may name one of the series' columns: `(-> sales (pj/lay-line :quarter [:revenue :cost]) (pj/lay-point :quarter :revenue))` draws the points on the revenue line, in its colour.
 
@@ -56,7 +58,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A layer placed in the drawing area, `{:in :drawing-area}`, with columns of its own data is drawn on the panel it is added to.
 
-- `(-> data (pj/pose {:y :hwy}) pj/lay-histogram)` draws the histogram on its side; it reported a null pointer error.
+- A pose naming a column only on `:y`, on data that places no other column on `:x` (one column, or four or more), draws on its side: with no layer, the histogram or the bar chart of counts inferred for the column, and with `lay-histogram`, `lay-density` or `lay-bar`, that layer. `(pj/pose data {:y :hwy})` and `(-> data (pj/pose {:y :class}) pj/lay-bar)` reported errors.
 
 - `pj/facet` reads a column name the data holds whatever its type, so `(pj/facet pose 2)` on a dataset whose columns are integers draws a panel per value of column 2.
 

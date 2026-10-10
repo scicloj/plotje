@@ -142,6 +142,32 @@
   "Atom holding keyword -> layer-type entry map."
   (atom {}))
 
+(defn- entry-column-counts
+  "The column counts an entry declares, or the ones its `:x-only` flag
+   implies where it declares none: one column for an `:x-only` layer
+   type, two otherwise."
+  [entry]
+  (or (:column-counts entry)
+      (if (:x-only entry) #{1} #{2})))
+
+(defn- check-column-counts!
+  "Throw where `entry` declares `:column-counts` that are not a set drawn
+   from 1 and 2, or that disagree with its `:x-only` flag."
+  [k entry]
+  (when (contains? entry :column-counts)
+    (let [cc (:column-counts entry)]
+      (when-not (and (set? cc) (seq cc) (every? #{1 2} cc))
+        (throw (ex-info (str "Layer type " k " declares :column-counts " (pr-str cc)
+                             ", which is not a set of the numbers of columns it"
+                             " draws from: #{1} for an x column alone, #{2} for"
+                             " x and y, #{1 2} for either.")
+                        {:layer-type k :column-counts cc})))
+      (when (and (:x-only entry) (not= #{1} cc))
+        (throw (ex-info (str "Layer type " k " declares :x-only true and"
+                             " :column-counts " (pr-str cc) ". :x-only true"
+                             " means #{1}; declare one of the two.")
+                        {:layer-type k :column-counts cc}))))))
+
 (defn register!
   "Register a layer type. `k` is a keyword, `entry` is a map with
    :mark, :stat, and optionally :position and :doc.
@@ -152,6 +178,15 @@
    by the options it starts with rather than by what it draws. `:label` is
    `:text` with `{:box true}`. Options passed at the call site win over
    these; see resolve-layer-type-info in impl/pose.clj.
+
+   :column-counts is the set of numbers of columns the layer type draws
+   from: `#{1}` for an x column alone (a histogram), `#{2}` for an x and a
+   y column (a scatter), `#{1 2}` for either (a bar counts one column and
+   takes a second as its heights). Undeclared, it is `#{1}` where the
+   entry says `:x-only true` -- the older spelling of `#{1}` -- and `#{2}`
+   otherwise. It decides which cells of a split a layer written above
+   them is drawn in, and whether a pose naming only `:y` draws the layer
+   on its side. Read it back with `column-counts`.
 
    :varies is an optional map from appearance aesthetic to the quantity
    the mark draws it as, from `quantities` -- `:point` declares
@@ -168,6 +203,7 @@
    compute, so `{:by :area}` lands as an area whether the mark draws a
    radius or a width."
   [k entry]
+  (check-column-counts! k entry)
   (when-let [v (:varies entry)]
     (when-not (map? v)
       (throw (ex-info (str "Layer type " k " declares :varies " (pr-str v)
@@ -242,7 +278,10 @@
                            " the layer type a mark of its own.")
                       {:layer-type k :other other-k :mark (:mark entry)
                        :aesthetic aesthetic :quantity quantity :theirs theirs}))))
-  (swap! registry* assoc k (resolve/map->LayerType entry))
+  (let [cc (entry-column-counts entry)]
+    (swap! registry* assoc k (resolve/map->LayerType
+                              (cond-> (assoc entry :column-counts cc)
+                                (= #{1} cc) (assoc :x-only true)))))
   k)
 
 (defn lookup
@@ -255,6 +294,20 @@
   "Return all registered layer types as a map of keyword -> entry."
   []
   @registry*)
+
+(defn column-counts
+  "The numbers of columns `layer-type` draws from, as a set drawn from 1
+   and 2 -- see `register!`. `layer-type` is a registered keyword or a
+   layer-type map. A layer whose type is still to be inferred (`:infer`)
+   can draw either, since inference chooses from the columns it is
+   given; an unregistered keyword draws two, as an entry with no
+   declaration does."
+  [layer-type]
+  (cond
+    (= :infer layer-type) #{1 2}
+    (keyword? layer-type) (entry-column-counts (or (lookup layer-type) {}))
+    (map? layer-type) (entry-column-counts layer-type)
+    :else #{2}))
 
 (defn mark-varies
   "The quantity `mark` draws `aesthetic` as from row to row, or nil where
@@ -366,7 +419,7 @@
 (register! :step {:mark :step :stat :identity :accepts [:size :stroke-dash] :doc "Step -- horizontal-then-vertical connected points."})
 (register! :area {:mark :area :stat :identity :accepts [:stroke :stroke-width :stroke-dash] :doc "Area -- filled region under a line."})
 (register! :histogram {:mark :bar :stat :bin :x-only true :accepts [:normalize :bins :binwidth] :doc "Histogram -- bins numerical data into bars."})
-(register! :bar {:mark :rect :accepts [:bar-width] :doc "Bar -- counts categories (x only), or uses y as the bar height when a y column is given."})
+(register! :bar {:mark :rect :column-counts #{1 2} :accepts [:bar-width] :doc "Bar -- counts categories (x only), or uses y as the bar height when a y column is given."})
 (register! :smooth {:mark :line :stat :loess :accepts [:confidence-band :level :bootstrap-resamples :bandwidth :size :stroke-dash :dx :dy] :doc "Smoothed trend line -- defaults to LOESS; pass {:stat :linear-model} for OLS."})
 (register! :density {:mark :area :stat :density :x-only true :accepts [:bandwidth :trim :stroke :stroke-width :stroke-dash] :doc "Density -- KDE (kernel density estimation) as filled area."})
 (register! :tile {:mark :tile :stat :bin2d :accepts [:fill :density-2d-grid] :doc "Tile/heatmap -- 2D grid binning."})

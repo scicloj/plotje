@@ -65,7 +65,7 @@
 ;; a background box preset.
 
 (kind/table
- {:column-names ["Layer type" "Mark" "Stat" "Position" "Presets"]
+ {:column-names ["Layer type" "Mark" "Stat" "Position" "Columns" "Presets"]
   :row-maps
   (for [k layer-type/layer-type-order
         :let [m (layer-type/lookup k)]]
@@ -73,11 +73,33 @@
      "Mark" (kind/code (pr-str (:mark m)))
      "Stat" (kind/code (pr-str (:stat m)))
      "Position" (kind/code (pr-str (or (:position m) :identity)))
+     "Columns" (kind/code (pr-str (layer-type/column-counts k)))
      "Presets" (if-let [d (:defaults m)] (kind/code (pr-str d)) "")})})
 
 (kind/test-last
  [(fn [t]
     (= 26 (count (:row-maps t))))])
+
+;; ### Columns a layer type draws from
+;;
+;; The "Columns" entry is the layer type's `:column-counts`: the set of
+;; numbers of columns it draws from. `#{1}` draws from an x column
+;; alone, as a histogram does; `#{2}` draws from an x column and a y
+;; column, as a scatter does; `#{1 2}` draws from either, as a bar does --
+;; it counts the categories of one column, and takes a second column as
+;; the heights of its bars:
+
+(layer-type/column-counts :bar)
+
+(kind/test-last [(fn [cc] (= #{1 2} cc))])
+
+;; Two things read it. A layer written above a split is drawn in the
+;; panels whose number of columns it draws from -- the
+;; [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
+;; is the case where the panels differ. And a pose that names a column
+;; only on `:y` draws a layer that draws from one column on its side.
+;; A layer type registered without `:column-counts` draws from two
+;; columns, or from one where it is registered `:x-only true`.
 
 ;; A layer type carries one more field the table leaves out, because
 ;; only one built-in layer type has it. `:varies` names the appearance

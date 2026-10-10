@@ -264,11 +264,15 @@ graph LR
 ;; present.
 
 ;; (The other fields in those lookups belong to the layer type rather
-;; than to the stat: `:x-only` says the layer type works from an x column
-;; alone, `:accepts` lists the layer options it takes beyond the
-;; universal ones, tabulated per layer type in
-;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options),
-;; and `:varies` names the appearance aesthetics its mark varies from row
+;; than to the stat. `:column-counts` is the set of numbers of columns
+;; the layer type draws from: `#{1}` for an x column alone, `#{2}` for an
+;; x and a y column, `#{1 2}` for either. It is listed per layer type in
+;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from),
+;; and `:x-only true` is the older way to write `#{1}`. `:accepts` lists
+;; the layer options it takes beyond the universal ones, tabulated per
+;; layer type in
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options).
+;; `:varies` names the appearance aesthetics its mark varies from row
 ;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. A
 ;; aesthetic left out of `:varies` is one the mark draws once for the
 ;; whole layer, so a column mapped to it varies nothing, and the plan

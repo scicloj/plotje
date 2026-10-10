@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__80090#]
+      [p1__74925#]
       (+
-       (Math/sin (* p1__80090# 0.2))
+       (Math/sin (* p1__74925# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -418,7 +418,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__80091#] (-> p1__80091# :plan :panels first))
+       (fn* [p1__74926#] (-> p1__74926# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -523,3 +523,57 @@
           [[r c] path mark (-> plan :panels first :layers first :mark)]
           (= mark (if (= r c) :bar :point)))))))))
    v65_l364)))
+
+
+(def
+ v68_l391
+ (->
+  (rdatasets/datasets-iris)
+  (pj/pose {:color :species})
+  (pj/facet {:col {:x small-cols}, :row {:y small-cols}})
+  pj/lay-point))
+
+
+(deftest
+ t69_l396
+ (is
+  ((fn
+    [v]
+    (->>
+     (:sub-plots (pj/plan v))
+     (every?
+      (fn
+       [{:keys [path plan]}]
+       (let
+        [[r c] path mark (-> plan :panels first :layers first :mark)]
+        (= mark (if (= r c) :bar :point)))))))
+   v68_l391)))
+
+
+(def
+ v71_l407
+ (->
+  (rdatasets/datasets-iris)
+  (pj/pose {:color :species})
+  (pj/facet {:col {:x small-cols}, :row {:y small-cols}})
+  pj/lay-point
+  pj/lay-density))
+
+
+(deftest
+ t72_l413
+ (is
+  ((fn
+    [v]
+    (->>
+     (:sub-plots (pj/plan v))
+     (every?
+      (fn
+       [{:keys [path plan]}]
+       (let
+        [[r c]
+         path
+         marks
+         (set (map :mark (-> plan :panels first :layers)))]
+        (= marks (if (= r c) #{:area} #{:point})))))))
+   v71_l407)))

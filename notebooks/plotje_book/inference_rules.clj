@@ -738,6 +738,33 @@ count-pose
 ;; The inferred layer uses a `:rect` mark fed by the `:count` stat,
 ;; which tallied each of the 4 categories.
 
+;; A single column written on `:y` rather than `:x` gets the same layer,
+;; drawn on its side: the categories run up the y axis and the counts
+;; along the x axis. This holds where no other column is placed on `:x`
+;; -- on data of two or three columns, a pose naming only `:y` takes the
+;; first other column as its `:x`, so `{:y :animal}` on `animals` draws
+;; `:count` against `:animal`. On a column of its own:
+
+(def count-pose-on-y
+  (-> {:animal ["cat" "dog" "cat" "bird" "dog" "fish"]}
+      (pj/pose {:y :animal})))
+
+count-pose-on-y
+
+(kind/test-last
+ [(fn [v]
+    (let [plan (pj/plan count-pose-on-y)
+          layer (first (:layers (first (:panels plan))))]
+      (and (= 4 (:polygons (pj/svg-summary v)))
+           (= :rect (:mark layer))
+           (= "animal" (:y-label plan)))))])
+
+;; A layer written with `pj/lay-*` on such a pose is drawn on its side
+;; too, where its layer type draws from one column -- a histogram, a
+;; density, a rug or a bar. The
+;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from)
+;; chapter lists how many columns each layer type draws from.
+
 ;; Two numerical columns produce a scatter (the chapter's opening
 ;; `scatter-pose` is such a pose):
 

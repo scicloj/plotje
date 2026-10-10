@@ -382,6 +382,45 @@
 ;; plots. All panels share the color aesthetic set on the pose.
 ;; `pj/cross-matrix` builds the same grid in one call,
 ;; `(pj/cross-matrix data cols {:color :species})`.
+
+;; A layer written on the matrix is drawn in the panels whose columns it
+;; draws. A scatter draws two columns, so `pj/lay-point` is drawn in the
+;; panels off the diagonal, and each diagonal panel, which names one
+;; column, keeps the histogram that inference gives it:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x small-cols} :row {:y small-cols}})
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v]
+    (->> (:sub-plots (pj/plan v))
+         (every? (fn [{:keys [path plan]}]
+                   (let [[r c] path
+                         mark (-> plan :panels first :layers first :mark)]
+                     (= mark (if (= r c) :bar :point)))))))])
+
+;; A density draws one column, so `pj/lay-density` is drawn on the
+;; diagonal, and the diagonal shows densities in place of histograms:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x small-cols} :row {:y small-cols}})
+    pj/lay-point
+    pj/lay-density)
+
+(kind/test-last
+ [(fn [v]
+    (->> (:sub-plots (pj/plan v))
+         (every? (fn [{:keys [path plan]}]
+                   (let [[r c] path
+                         marks (set (map :mark (-> plan :panels first :layers)))]
+                     (= marks (if (= r c) #{:area} #{:point})))))))])
+
+;; A layer that fits no panel -- a histogram written on a pose whose
+;; panels all name two columns -- is drawn in every panel, as it would be
+;; on a single pose.
 ;;
 ;; See the [Gallery](./plotje_book.gallery.html#scatter-plot-matrices)
 ;; chapter for more SPLOM variations, and the
