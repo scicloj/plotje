@@ -837,7 +837,7 @@
   (check-pose-shape! pose)
   (let [pose (retire-scales-in-tree pose)
         pose (cond-> pose
-               (:facet pose) pose/expand-facet-node
+               true pose/expand-facet-nodes
                pose/*expand-facets* pose/expand-facets
                true pose/collapse-regular-split)]
     (if (pose/composite? pose)

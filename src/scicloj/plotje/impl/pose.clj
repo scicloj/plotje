@@ -2650,15 +2650,41 @@
    with data or a series of its own, or naming no such column, is
    returned as it is. `keyed` is what the series' own layer maps to the
    key column -- `{:color label}` -- added beneath the layer's mapping,
-   so the layer's marks take the colour of the column's series."
-  [layer pv consumed wide keyed]
+   so the layer's marks take the colour of the column's series.
+
+   A layer naming a column of the data as written on every aesthetic
+   the series is on -- points on `:cyl` beside a series of `[:hwy
+   :cty]` -- draws none of the series, so it reads the data as written too: on the
+   pivoted rows each of its rows would be drawn once per series column.
+   `unkeyed` is the key column's mapping a series on the pose hands
+   down to every layer, written as `nil`, which that layer takes so
+   that it does not read a column the data as written does not hold."
+  [layer pv consumed wide keyed unkeyed]
   (let [m (:mapping layer)
         hits (into {} (for [[k v] m
                             :let [src (mapping-source v)]
                             :when (and (not (map? src)) (consumed src))]
-                        [k src]))]
-    (if (or (empty? hits) (:data layer) (seq (series-in m)) (nil? wide))
+                        [k src]))
+        ;; A column the data as written holds. A layer may instead
+        ;; name the columns the pivot invents -- `(pj/lay-point
+        ;; :quarter :value {:color :series})` -- and reads the pivoted
+        ;; rows for them.
+        wide-columns (when wide (set (tc/column-names (coerce-dataset wide))))
+        own-column? (fn [k] (let [src (mapping-source (get m k))]
+                              (and (some? src) (not (map? src))
+                                   (contains? wide-columns src))))]
+    (cond
+      (or (:data layer) (seq (series-in m)) (nil? wide))
       layer
+
+      (empty? hits)
+      (if (every? own-column? (keys (:values pv)))
+        (assoc layer
+               :data wide
+               :mapping (merge unkeyed m))
+        layer)
+
+      :else
       (let [on-series (select-keys hits (keys (:values pv)))
             col (first (vals on-series))
             label (:label pv)
@@ -2795,7 +2821,17 @@
             ;; a series on a layer keys only that layer.
             sm (when (= :layers from) (:mapping ((:layers pivoted) (first idxs))))
             keyed (merge (into {} (for [[k v] sm :when (= (mapping-source v) (:label pv))] [k v]))
-                         (select-keys sm [:color-type]))]
+                         (select-keys sm [:color-type]))
+            ;; What a series on the pose's mapping added to that mapping
+            ;; for the key column, as `nil`s.
+            unkeyed (when (= :pose from)
+                      (let [pm (:mapping pivoted)]
+                        (into {}
+                              (for [[k v] pm
+                                    :when (or (= (mapping-source v) (:label pv))
+                                              (and (= :color-type k)
+                                                   (not (contains? leaf-mapping :color-type))))]
+                                [k nil]))))]
         (-> pivoted
             (dissoc ::pivot)
             (update :layers (fn [ls]
@@ -2803,7 +2839,7 @@
                                     (fn [i l]
                                       (if (contains? (set idxs) i)
                                         l
-                                        (read-series-column l pv (set cols) wide keyed)))
+                                        (read-series-column l pv (set cols) wide keyed unkeyed)))
                                     ls))))))
       leaf)))
 
@@ -3541,6 +3577,23 @@
         (assoc base
                :layout {:direction :vertical}
                :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
+
+(defn expand-facet-nodes
+  "`expand-facet-node` on every pose of a tree that holds a `:facet`
+   node, so a pose faceted over columns draws the same panels as a cell
+   of an arrangement as it does alone. A faceted cell with no data of
+   its own is expanded with the data it inherits, which the expansion
+   reads to pivot a series and to list a category's values."
+  ([pose] (expand-facet-nodes pose nil))
+  ([pose inherited]
+   (let [data (or (:data pose) inherited)
+         pose (if (and (:facet pose) (not (composite? pose)))
+                (expand-facet-node (cond-> pose
+                                     (and data (nil? (:data pose))) (assoc :data data)))
+                pose)]
+     (cond-> pose
+       (seq (:poses pose))
+       (update :poses (fn [ps] (mapv #(expand-facet-nodes % data) ps)))))))
 
 ;; ---- Layers fitted to cells ----
 ;;

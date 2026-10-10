@@ -612,22 +612,22 @@
     first)]
   {:past-the-ends
    (try
-    (pj/to-drawing panel 200000 99)
+    (pj/to-drawing panel 300000 99)
     (catch Exception e (ex-message e))),
-   :band-middle (pj/to-drawing panel 200000 "Over Time Limit"),
-   :halfway-up (pj/to-drawing panel 200000 1.5),
-   :last-end (pj/to-drawing panel 200000 3.5),
+   :band-middle (pj/to-drawing panel 300000 "Over Time Limit"),
+   :halfway-up (pj/to-drawing panel 300000 1.5),
+   :last-end (pj/to-drawing panel 300000 3.5),
    :outside-a-band (pj/to-data panel 325.0 5.0),
-   :first-end (pj/to-drawing panel 200000 0.5),
+   :first-end (pj/to-drawing panel 300000 0.5),
    :place-read-back
-   (->> (pj/to-drawing panel 200000 1.5) (apply pj/to-data panel)),
+   (->> (pj/to-drawing panel 300000 1.5) (apply pj/to-data panel)),
    :read-back
    (->>
-    (pj/to-drawing panel 200000 "Over Time Limit")
+    (pj/to-drawing panel 300000 "Over Time Limit")
     (apply pj/to-data panel)),
    :not-a-category
    (try
-    (pj/to-drawing panel 200000 "Double Parked")
+    (pj/to-drawing panel 300000 "Double Parked")
     (catch Exception e (ex-message e)))}))
 
 
@@ -637,7 +637,7 @@
   ((fn
     [m]
     (and
-     (= [200000.0 "Over Time Limit"] (:read-back m))
+     (= [300000.0 "Over Time Limit"] (:read-back m))
      (nil? (second (:outside-a-band m)))
      (re-find #"Double Parked" (:not-a-category m))
      (re-find #"Meter Expired" (:not-a-category m))
@@ -658,7 +658,7 @@
            pj/frames
            :panels
            first)
-          200000
+          300000
           v)))]
       (<
        (abs

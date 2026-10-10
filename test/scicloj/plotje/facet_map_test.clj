@@ -28,3 +28,26 @@
         out (with-out-str (pj/svg-summary p))]
     (is (not (re-find #"not drawn" out)))
     (is (= {:panels 2 :points 468} (select-keys (pj/svg-summary p) [:panels :points])))))
+
+(deftest a-pose-faceted-over-columns-is-a-cell-of-an-arrangement-test
+  ;; The `:facet` node was expanded only on the pose handed to the
+  ;; draft, so the same pose one level down kept a layer with no `:y`
+  ;; and reported that `:point` needs both columns.
+  (let [mpg (rdatasets/ggplot2-mpg)
+        faceted (-> mpg (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]}))
+        y-domains (fn [pose]
+                    (vec (for [sp (:sub-plots (pj/plan pose)) p (:panels (:plan sp))] (:y-domain p))))]
+    (is (= {:panels 2 :points 468}
+           (select-keys (pj/svg-summary (pj/arrange [faceted])) [:panels :points])))
+    (is (= {:panels 3 :points 702}
+           (select-keys (pj/svg-summary (pj/arrange [faceted (pj/lay-point mpg :displ :cyl)]))
+                        [:panels :points])))
+    (testing "the panels draw what the pose draws alone"
+      (is (= (y-domains faceted) (y-domains (pj/arrange [faceted])))))
+    (testing "a faceted cell with no data of its own reads the data above it"
+      (is (= {:panels 2 :points 468}
+             (select-keys (pj/svg-summary {:data mpg
+                                           :poses [{:mapping {:x :displ}
+                                                    :layers [{:layer-type :point}]
+                                                    :facet {:y [:hwy :cty]}}]})
+                          [:panels :points]))))))

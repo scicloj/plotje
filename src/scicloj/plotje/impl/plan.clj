@@ -267,6 +267,25 @@
         (scale/check-places "pj/plan" aesthetic categories places)
         categorical))))
 
+(def ^:private zero-baseline-marks
+  "Marks whose visual identity anchors at zero (rectangle base, fill
+   baseline, lollipop stem). `:rect` is the categorical-bar mark (from
+   `lay-bar`, whether counting or using y heights); `:bar` is the
+   histogram mark."
+  #{:bar :rect :lollipop :area})
+
+(defn- baseline-along-x?
+  "Whether a plan layer draws a zero-baseline mark whose values run
+   along `:x`: its `:y` axis holds the categories. Such a layer anchors
+   the `:x` domain at zero, as an upright one anchors `:y`."
+  [plan-layer]
+  (boolean
+   (and (zero-baseline-marks (:mark plan-layer))
+        (let [yd (:y-domain plan-layer)
+              xd (:x-domain plan-layer)]
+          (and (seq yd) (not (number? (first yd)))
+               (seq xd) (number? (first xd)))))))
+
 (defn collect-domain
   "Collect and merge domains from stat results along axis-key.
 
@@ -281,16 +300,27 @@
    values give, and is then padded and anchored as that extent would
    be -- so a cell in a shared composite is padded exactly as it is
    alone, and every cell reaches the same padded domain because they
-   start from the same shared extent."
+   start from the same shared extent.
+
+   `baseline` is the values a mark on this axis is measured from --
+   `[0.0]` for bars drawn across, whose values run along `:x`
+   (`baseline-along-x?`) -- or nil. The `:y` axis reads its own in
+   `compute-global-y-domain`."
   ([stat-results axis-key scale-spec padding temporal?]
    (collect-domain stat-results axis-key scale-spec padding temporal? nil))
   ([stat-results axis-key scale-spec padding temporal? shared]
+   (collect-domain stat-results axis-key scale-spec padding temporal? shared nil))
+  ([stat-results axis-key scale-spec padding temporal? shared baseline]
    (let [aesthetic (if (= :x-domain axis-key) :x :y)
          parsed (parse-axis-domains aesthetic (map axis-key stat-results))]
      (when (seq parsed)
        (let [vals (mapcat :vals parsed)
              numeric? (number? (first vals))
-             anchors (include-anchors aesthetic scale-spec numeric? temporal?)]
+             ;; A baseline mark asks for zero through its mark;
+             ;; `:include` asks for values by name. One rule, as in
+             ;; `compute-global-y-domain`.
+             anchors (concat (when numeric? baseline)
+                             (include-anchors aesthetic scale-spec numeric? temporal?))]
          (if numeric?
            (pad-domain-anchored (or shared
                                     [(reduce min vals) (reduce max vals)])
@@ -325,13 +355,12 @@
                              (let [d (some :y-domain plan-layers)]
                                (boolean (and d (seq d) (not (number? (first d)))))))
          wanted (include-anchors :y scale-spec (not y-categorical?) temporal?)
-        ;; Marks whose visual identity anchors at y=0 (rectangle base, fill
-        ;; baseline, lollipop stem). :rect is the categorical-bar mark (from
-        ;; lay-bar, whether counting or using y heights); :bar is the
-        ;; histogram mark.
-         zero-baseline-marks #{:bar :rect :lollipop :area}
+        ;; A mark measured from zero whose values run along `:x` asks
+        ;; for zero on that axis instead -- see `baseline-along-x?`.
          needs-zero? (and (not log?)
-                          (some #(zero-baseline-marks (:mark %)) plan-layers))]
+                          (some #(and (zero-baseline-marks (:mark %))
+                                      (not (baseline-along-x? %)))
+                                plan-layers))]
      (cond
       ;; Fill mode: normalized to [0, 1], which `:include` may still
       ;; widen -- a proportion axis asked to reach a value outside 0 to
@@ -2924,7 +2953,11 @@
         ;; Such a panel does not vote on a shared facet domain.
         x-found (axis-domain :x x-scale-spec
                              (collect-domain local-srs :x-domain x-scale-spec padding
-                                             (some? x-temp-ext) (:x shared-domains))
+                                             (some? x-temp-ext) (:x shared-domains)
+                                             (when (and (not= :log (:type x-scale-spec))
+                                                        (some baseline-along-x?
+                                                              (filter x-informs? local-plan-layers)))
+                                               [0.0]))
                              (some? x-temp-ext))
         x-dom (or x-found [0 1])
         y-found (axis-domain :y y-scale-spec

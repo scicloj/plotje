@@ -7,11 +7,13 @@
 ;; lose nothing.
 ;;
 ;; This notebook proposes that Plotje's layout vocabulary has a
-;; wide-side reading and a long-side reading of the same questions,
-;; that most of its constructs come in pairs across that line, and that
-;; the pairs were built separately and drifted. It then shows the
-;; wide-side reading this branch adds, and the four repairs that came
-;; with it.
+;; wide-side reading and a long-side reading of the same questions, and
+;; that most of its constructs come in pairs across that line. The pairs
+;; were built separately, and two of them have since been made one:
+;; `pj/facet` reads a column's values or a list of columns, and
+;; `:share-scales` is the one sharing option on both sides. The notebook
+;; then shows the series, which is the wide-side reading of a grouped
+;; layer, and the repairs that came with it.
 ;;
 ;; It is a design document rather than a chapter. The book teaches what
 ;; exists; this argues for what should, so it is not in
@@ -99,15 +101,14 @@ sales-long
 
 ;; | the question | long side, from a column's **values** | wide side, from **column names** |
 ;; |:--|:--|:--|
-;; | several measures shown together | `:color`, `:group` | several columns in one slot |
-;; | several measures in their own panels | `pj/facet` | a vector of pairs, `pj/cross` |
-;; | whether those panels share a scale | `:scales` | `:share-scales` |
-;; | how competitors share a place | `:position` | *absent* |
+;; | several measures shown together | `:color`, `:group` | a layer per column, or several columns in one slot (a series) |
+;; | several measures in their own panels | `pj/facet` with a column | `pj/facet` with a map of columns, `pj/arrange` with columns as cells, `pj/cross-matrix` |
+;; | whether those panels share a scale | `:share-scales` | `:share-scales` |
+;; | how competitors share a place | `:position` | `:position` on a series; `:dodge` alone across layers |
 
-;; Outside the line entirely: `pj/arrange`, `:layout` and `pj/marginal`
-;; read no columns and no values. That is why `pj/arrange` is the
-;; universal escape hatch -- it works on either side because it never
-;; looks at the data.
+;; Outside the line entirely: `:layout`, and `pj/arrange` given finished
+;; poses, read no columns and no values. That is why arranging poses
+;; works for either shape of data.
 ;;
 ;; And one construct on the wide side only, rightly: an interval's
 ;; `:x-min` and `:x-max`, and an errorbar's `:y-min` and `:y-max`. A
@@ -119,17 +120,54 @@ sales-long
 
 ;; # What the pairing predicts
 
-;; ## Where both sides exist, they diverged
+;; ## Where both sides exist, one construct serves both
 
-;; The same information, drawn from each shape:
+;; The same information, drawn from each shape. From the wide table,
+;; `pj/arrange` takes a pair of columns as a cell:
 
-(-> sales-wide
-    (pj/arrange [[:quarter :revenue]
-                 [:quarter :cost]
-                 [:quarter :tax]])
-    (pj/lay-point))
+(def wide-cells
+  (-> sales-wide
+      (pj/arrange [[:quarter :revenue]
+                   [:quarter :cost]
+                   [:quarter :tax]])
+      (pj/lay-point)))
 
-(-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure))
+wide-cells
+
+(kind/pprint wide-cells)
+
+;; From the wide table again, `pj/facet` takes a map of columns and draws
+;; a panel for each column, one under the other:
+
+(def wide-facet
+  (-> sales-wide
+      (pj/pose {:x :quarter})
+      pj/lay-point
+      (pj/facet {:y [:revenue :cost :tax]})))
+
+wide-facet
+
+(kind/pprint wide-facet)
+
+(kind/test-last
+ [(fn [pose]
+    (let [s (pj/svg-summary pose)]
+      (and (= {:y [:revenue :cost :tax]} (:facet pose))
+           (= 3 (:panels s))
+           (= 12 (:points s))
+           (every? (set (:texts s)) ["revenue" "cost" "tax"]))))])
+
+;; From the long table, `pj/facet` takes the key column and draws a panel
+;; for each of its values:
+
+(def long-facet
+  (-> sales-long
+      (pj/lay-point :quarter :value)
+      (pj/facet :measure)))
+
+long-facet
+
+(kind/pprint long-facet)
 
 (kind/test-last
  [(fn [_]
@@ -147,13 +185,13 @@ sales-long
            (every? (set (:texts w)) ["revenue" "cost" "tax"])
            (every? (set (:texts l)) ["revenue" "cost" "tax"]))))])
 
-;; **The vector of pairs is faceting's wide-side twin**, and nothing in
-;; the library or the book says so. What they differ in was never
-;; decided -- each side was built on its own.
+;; **A panel per column is faceting's wide-side twin**, and `pj/facet`
+;; is the one function for both: a column splits the rows by the
+;; column's values, and a map of columns gives each column a panel.
 
-;; The second pair is the same story from the other end. `:share-scales`
-;; names the axes panels share on both sides, and the two sides start
-;; from opposite defaults: the long side shares `:y` with nothing
+;; The second pair is one option as well. `:share-scales` names the axes
+;; panels share on both sides, and the two sides start from opposite
+;; defaults: the long side shares `:y` with nothing
 ;; written, and the wide side shares it when asked to put every column
 ;; together, `{:y :all}`:
 
@@ -204,13 +242,18 @@ sales-long
 
 ;; A position adjustment divides a band among **labelled**
 ;; competitors. Two layers over wide data are labelled by the column
-;; each draws -- overlaid, they disagree about a column, so they are
-;; told apart by a colour and a legend, and that label is what the
+;; each draws: where no `:color` is specified, each layer takes a colour
+;; and a legend entry naming its column, and that label is what the
 ;; dodge divides by:
 
-(-> sales-wide
-    (pj/lay-bar :quarter :revenue {:position :dodge})
-    (pj/lay-bar :quarter :cost {:position :dodge}))
+(def dodged-layers
+  (-> sales-wide
+      (pj/lay-bar :quarter :revenue {:position :dodge})
+      (pj/lay-bar :quarter :cost {:position :dodge})))
+
+dodged-layers
+
+(kind/pprint dodged-layers)
 
 (->> (pj/plan (-> sales-wide
                   (pj/lay-bar :quarter :revenue {:position :dodge})
@@ -235,7 +278,7 @@ sales-long
 ;; The bar tops each adjustment produces, wide against long:
 
 (kind/table
- {:column-names [:adjustment :overlaid-layers :one-series]
+ {:column-names [:adjustment :a-layer-per-column :one-series]
   :row-vectors
   (let [tops (fn [fr] (->> (pj/plan fr) :panels first :layers
                            (mapcat :groups)
@@ -274,32 +317,50 @@ sales-long
 ;; **Several layers over wide data can differ in kind** -- a bar with a
 ;; line across it, different stats, different options per layer:
 
-(-> sales-wide
-    (pj/lay-bar :quarter :revenue)
-    (pj/lay-line :quarter :cost {:color "#e6550d"}))
+(def bar-and-line
+  (-> sales-wide
+      (pj/lay-bar :quarter :revenue)
+      (pj/lay-line :quarter :cost {:color "#e6550d"})))
 
-;; **One grouped layer over long data can have its groups placed
-;; relative to each other** -- which one layer type cannot do for two
-;; layers:
+bar-and-line
 
-(-> sales-long (pj/lay-bar :quarter :value {:color :measure :position :dodge}))
+(kind/pprint bar-and-line)
 
-(kind/test-last [(fn [v] (= 12 (:polygons (pj/svg-summary v))))])
+;; **One grouped layer over long data can have its groups stacked on
+;; each other** -- which the table above shows two layers cannot do:
 
-;; That is a trade, not a gap. The argument about `overlay vs panel`
-;; is not which default is backwards -- it is that the two spellings
-;; are two representations, and a writer comparing measures against
-;; each other wants the long one.
+(def stacked-long
+  (-> sales-long
+      (pj/lay-bar :quarter :value {:color :measure :position :stack})))
+
+stacked-long
+
+(kind/pprint stacked-long)
+
+(kind/test-last
+ [(fn [v]
+    (and (= 12 (:polygons (pj/svg-summary v)))
+         ;; the tallest stack is Q4: 190 + 120 + 30
+         (== 340 (->> (pj/plan v) :panels first :layers first :groups
+                      (mapcat :ys)
+                      (reduce max)))))])
+
+;; That is a trade, not a gap. The two spellings are two
+;; representations, and a writer comparing measures against each other
+;; needs the measures in one layer: the long table, or a series.
 
 ;; ---
 
-;; # The wide-side reading this branch adds
+;; # A series: the wide-side reading of a grouped layer
 
 ;; Several columns where one goes are read as several series: the
 ;; columns are pivoted, and the layer draws from the two the pivot
 ;; invents.
 
-(-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))
+(def dodged-series
+  (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})))
+
+dodged-series
 
 (kind/test-last [(fn [v] (= 12 (:polygons (pj/svg-summary v))))])
 
@@ -307,7 +368,7 @@ sales-long
 ;; pose is drawn, so everything after it reads ordinary columns -- one
 ;; dataset, one mapping per aesthetic:
 
-(-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax]) kind/pprint)
+(kind/pprint dodged-series)
 
 (kind/test-last [(fn [pose] (and (= [:revenue :cost :tax] (-> pose :layers first :mapping :y))
                                  (= [:quarter :value]
@@ -318,22 +379,40 @@ sales-long
 ;; The four below differ in one word. Read them against each other: the
 ;; data is the same in each.
 
-(-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :identity}))
+(def series-identity
+  (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :identity})))
 
-(-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))
+series-identity
 
-(-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack}))
+(kind/pprint series-identity)
 
-(-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :fill}))
+(def series-dodge
+  (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})))
+
+series-dodge
+
+(kind/pprint series-dodge)
+
+(def series-stack
+  (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})))
+
+series-stack
+
+(kind/pprint series-stack)
+
+(def series-fill
+  (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax] {:position :fill})))
+
+series-fill
+
+(kind/pprint series-fill)
 
 (kind/test-last
  [(fn [_]
     (let [l (fn [pos] (-> (pj/plan (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax]
                                                               {:position pos})))
                           :panels first :layers first))]
-      ;; Three labelled groups with a slot each, where three overlaid
-      ;; layers would have three unlabelled groups and one slot between
-      ;; them.
+      ;; Three labelled groups with a slot each.
       (and (= 3 (:n-groups (:dodge-ctx (l :dodge))))
            (= ["revenue" "cost" "tax"] (mapv :label (:groups (l :dodge))))
            (= [0 1 2] (mapv :dodge-idx (:groups (l :dodge)))))))])
@@ -362,31 +441,56 @@ sales-long
 
 ;; ## Naming
 
-;; The key column the pivot invents titles the legend, and is `:series`
-;; unless the written-out form names it. The value column is `:value`,
-;; which titles the value axis and is renamed as any axis is.
+;; The pivot invents a key column, `:series`, and a value column,
+;; `:value`, and neither name is drawn by default. The value axis is
+;; titled by the columns of the series, and the legend has no title:
 
 (-> sales-wide
-    (pj/lay-bar :quarter {:series [:revenue :cost :tax] :as :measure}
-                {:position :dodge})
-    (pj/options {:y-label "Euros"}))
+    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
+    pj/svg-summary
+    :texts)
+
+(kind/test-last
+ [(fn [texts] (let [texts (set texts)]
+                (and (contains? texts "revenue, cost, tax")
+                     (not (contains? texts "series"))
+                     (not (contains? texts "value")))))])
+
+;; The written-out form names the key column with `:as`, and that name
+;; titles the legend. `:y-label` sets the title of the value axis, as it
+;; does on any axis:
+
+(def named-series
+  (-> sales-wide
+      (pj/lay-bar :quarter {:series [:revenue :cost :tax] :as :measure}
+                  {:position :dodge})
+      (pj/options {:y-label "Euros"})))
+
+named-series
+
+(kind/pprint named-series)
 
 (kind/test-last
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
             (and (contains? texts "measure")
                  (contains? texts "Euros")
+                 (not (contains? texts "revenue, cost, tax"))
                  (not (contains? texts "series"))
                  (not (contains? texts "value")))))])
 
 ;; ## What is not a series
 
-;; A vector that is not column references is not columns:
+;; A series belongs on `:x` or on `:y`. The first row below is a series
+;; on `:x`; a vector written anywhere else is not read as columns to
+;; pivot:
 
 (md-table
  ["written" "read as"]
- [["`(pj/lay-point data [:revenue :cost :tax] :quarter)`"
+ [["`(pj/lay-bar data [:revenue :cost :tax] :quarter)`"
    (str (:polygons (pj/svg-summary (-> sales-wide (pj/lay-bar [:revenue :cost :tax] :quarter))))
-        " bars in 1 panel")]
+        " bars in "
+        (:panels (pj/svg-summary (-> sales-wide (pj/lay-bar [:revenue :cost :tax] :quarter))))
+        " panel -- a series on `:x`")]
   ["`{:stroke-dash [5 5]}`"
    (str (:panels (pj/svg-summary (-> sales-wide (pj/lay-line :quarter :revenue
                                                              {:stroke-dash [5 5]}))))
@@ -396,7 +500,8 @@ sales-long
                                                               {:group [:revenue :cost :tax]}))))
         " panel -- one compound key")]])
 
-;; `:group` is the exception, and it belongs to a *different* duality:
+;; A vector of columns under `:group` is read as columns, but it is not a
+;; series, and it belongs to a *different* duality:
 ;; a compound key relates to a single interaction column by uniting
 ;; columns, not by pivoting them. It is the only `:grouping` aesthetic
 ;; in the registry -- the one that splits the data and draws nothing of
@@ -415,7 +520,7 @@ sales-long
                   (filter (fn [[_ v]] (= :grouping (:role v))))
                   (mapv first))))])
 
-;; ## What is refused, and what the message says
+;; ## What reports an error, and what the message says
 
 (defn verdict [f]
   (try (str "draws -- " (:panels (pj/svg-summary (f))) " panel(s)")
@@ -463,44 +568,75 @@ sales-long
                :tax     [18 24 21 30 14 19 26 34]
                :units   [12 15 14 19 9 12 16 21]}))
 
-;; One panel, two series. The band is divided between them:
+;; One panel, three series. The band is divided between them:
 
-(-> sales (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))
+(def regions-in-one-panel
+  (-> sales (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})))
+
+regions-in-one-panel
+
+(kind/pprint regions-in-one-panel)
 
 (kind/test-last [(fn [v] (= 24 (:polygons (pj/svg-summary v))))])
 
-;; Two panels, two series in each. The canvas is divided by a column
+;; Two panels, three series in each. The canvas is divided by a column
 ;; and each panel's bands are divided between the measures:
 
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
-    (pj/facet :region))
+(def series-by-region
+  (-> sales
+      (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
+      (pj/facet :region)))
+
+series-by-region
+
+(kind/pprint series-by-region)
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; Four panels, two series in each, piled rather than set side by side:
+;; Four panels, three series in each, stacked rather than set side by
+;; side:
 
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
-    (pj/facet-grid :region :channel))
+(def series-by-region-and-channel
+  (-> sales
+      (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
+      (pj/facet-grid :region :channel)))
+
+series-by-region-and-channel
+
+(kind/pprint series-by-region-and-channel)
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
-;; Two sub-plots, each of two series, read against one y axis:
+;; Two sub-plots, each of three series, sharing one `:y` scale:
 
-(pj/arrange (vec (for [r ["EU" "AS"]]
-                   (-> (tc/select-rows sales (fn [row] (= r (:region row))))
-                       (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))))
-            {:share-scales #{:y} :align-panels true})
+(def regions-arranged
+  (pj/arrange (vec (for [r ["EU" "AS"]]
+                     (-> (tc/select-rows sales (fn [row] (= r (:region row))))
+                         (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge}))))
+              {:share-scales #{:y} :align-panels true}))
 
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+regions-arranged
+
+(kind/pprint regions-arranged)
+
+(kind/test-last
+ [(fn [v]
+    (and (= 2 (:panels (pj/svg-summary v)))
+         ;; one y extent in both sub-plots
+         (apply = (map #(-> % :plan :panels first :y-domain)
+                       (:sub-plots (pj/plan v))))))])
 
 ;; Sub-plots of faceted panels of series -- three levels of division,
 ;; and one sub-plot drawing something else entirely:
 
-(pj/arrange [(-> sales (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
-                 (pj/facet :region))
-             (-> sales (pj/lay-line :quarter :units) (pj/facet :region))])
+(def series-and-units
+  (pj/arrange [(-> sales (pj/lay-bar :quarter [:revenue :cost :tax] {:position :dodge})
+                   (pj/facet :region))
+               (-> sales (pj/lay-line :quarter :units) (pj/facet :region))]))
+
+series-and-units
+
+(kind/pprint series-and-units)
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
@@ -508,15 +644,16 @@ sales-long
 
 ;; ---
 
-;; # Four repairs that came with it
+;; # Repairs that came with it
 
 ;; ## Layers on other columns share the panel, and say where they disagree
 
 ;; Two layers naming different columns used to get a panel each. The
 ;; layers of a pose now share its panel, and separate panels come from
 ;; `pj/facet` over the columns or from `pj/arrange`. Two numeric columns
-;; on one axis need no report: the axis covers both and is titled by
-;; both.
+;; of similar extent on one axis need no report: the axis covers both
+;; columns and is titled by both, and where no `:color` is specified
+;; each layer takes a colour and a legend entry naming its column.
 
 (defn note-of
   "What a pose says when it is drawn."
@@ -528,6 +665,33 @@ sales-long
   [(note-of p) (:panels (pj/svg-summary p))])
 
 (kind/test-last [(fn [[out panels]] (and (= "" out) (= 1 panels)))])
+
+(-> sales
+    (pj/lay-point :quarter :revenue)
+    (pj/lay-point :quarter :cost)
+    pj/svg-summary
+    (select-keys [:texts :colors]))
+
+(kind/test-last
+ [(fn [{:keys [texts colors]}]
+    (and (contains? (set texts) "revenue, cost")
+         (= 2 (count (disj colors "none")))))])
+
+;; Where the columns differ so much that one of them takes less than a
+;; twentieth of the axis, the draw prints a Note naming the columns and
+;; the `pj/facet` call that gives each a panel. A margin, a fraction
+;; between 0 and 1, beside the revenue it is a fraction of:
+
+(note-of (-> sales
+             (tc/map-columns :margin [:revenue :cost]
+                             (fn [revenue cost] (/ (- revenue cost) (double revenue))))
+             (pj/lay-point :quarter :revenue)
+             (pj/lay-point :quarter :margin)))
+
+(kind/test-last
+ [(fn [out] (and (re-find #"Note: on :y one axis holds :revenue" out)
+                 (re-find #":margin is drawn within a small part of it" out)
+                 (re-find #"\(pj/facet pose \{:y \[:revenue :margin\]\}\)" out)))])
 
 ;; A count beside a column on `:y` can be drawn, but the axis then reads
 ;; in two units, and the draw says so:
@@ -552,26 +716,37 @@ sales-long
 ;; ## Composites nest
 
 ;; `pose/compute-layout` recurses for `:horizontal` and `:vertical` at
-;; any depth, and the cells render correctly. The refusal at the door
-;; named a limitation the renderer does not have -- and `pj/arrange` of
-;; three plots builds a composite of composites itself, so the advice
-;; the message gave produced what it refused.
+;; any depth, and the cells render correctly. `pj/arrange` used to
+;; report an error for a composite among its cells, naming a limitation
+;; the renderer does not have -- and `pj/arrange` builds a composite of
+;; composites itself, a column of rows.
 
-(pj/arrange [(pj/arrange [(pj/lay-point sales :quarter :revenue)])
-             (pj/lay-point sales :quarter :cost)])
+(def nested-arrangement
+  (pj/arrange [(pj/arrange [(pj/lay-point sales :quarter :revenue)])
+               (pj/lay-point sales :quarter :cost)]))
+
+nested-arrangement
+
+(kind/pprint nested-arrangement)
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; A tree written out, three levels deep:
+;; A tree written out, three levels deep. A map written by hand is
+;; drawn once `pj/pose` has read it, and is printed as the data it is:
 
-{:opts {:width 800 :height 560}
- :layout {:direction :vertical}
- :poses [(pj/lay-point sales :quarter :revenue)
-         {:layout {:direction :horizontal :weights [2 1]}
-          :poses [(pj/lay-point sales :quarter :cost)
-                  {:layout {:direction :vertical}
-                   :poses [(pj/lay-point sales :quarter :units)
-                           (pj/lay-bar sales :region)]}]}]}
+(def written-tree
+  {:opts {:width 800 :height 560}
+   :layout {:direction :vertical}
+   :poses [(pj/lay-point sales :quarter :revenue)
+           {:layout {:direction :horizontal :weights [2 1]}
+            :poses [(pj/lay-point sales :quarter :cost)
+                    {:layout {:direction :vertical}
+                     :poses [(pj/lay-point sales :quarter :units)
+                             (pj/lay-bar sales :region)]}]}]})
+
+(pj/pose written-tree)
+
+(kind/pprint written-tree)
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
@@ -591,9 +766,19 @@ sales-long
              :v [1 2 3 3 2 1 2 2 2]
              :s ["A" "A" "A" "B" "B" "B" "C" "C" "C"]})
 
-(-> valued (pj/lay-bar :k :v {:color :g :position :fill}))
+(def filled-bars
+  (-> valued (pj/lay-bar :k :v {:color :g :position :fill})))
 
-(-> over-t (pj/lay-area :t :v {:color :s :position :fill}))
+filled-bars
+
+(kind/pprint filled-bars)
+
+(def filled-areas
+  (-> over-t (pj/lay-area :t :v {:color :s :position :fill})))
+
+filled-areas
+
+(kind/pprint filled-areas)
 
 (kind/test-last
  [(fn [_]
@@ -626,7 +811,12 @@ sales-long
              "sun" "sun" "sun" "sun" "sun" "sun"
              "wind" "wind" "wind" "wind" "wind" "wind"]})
 
-(-> months (pj/lay-area :month :value {:color :reading :position :stack}))
+(def stacked-months
+  (-> months (pj/lay-area :month :value {:color :reading :position :stack})))
+
+stacked-months
+
+(kind/pprint stacked-months)
 
 (->> (pj/plan (-> months (pj/lay-area :month :value
                                       {:color :reading :position :stack})))
@@ -642,10 +832,15 @@ sales-long
 ;; to hand every cell its own options there, so a per-cell theme was
 ;; accepted by `pj/options` and then had no effect.
 
-(pj/arrange [(-> (pj/lay-point sales :quarter :revenue)
-                 (pj/options {:theme {:bg "#FFFFFF"}}))
-             (pj/lay-point sales :quarter :cost)]
-            {:width 700 :height 280})
+(def themed-cell
+  (pj/arrange [(-> (pj/lay-point sales :quarter :revenue)
+                   (pj/options {:theme {:bg "#FFFFFF"}}))
+               (pj/lay-point sales :quarter :cost)]
+              {:width 700 :height 280}))
+
+themed-cell
+
+(kind/pprint themed-cell)
 
 (kind/test-last
  [(fn [v]
@@ -685,36 +880,64 @@ tooltip-slots
     (and (seq (first (second (first rows))))
          (empty? (first (second (second rows))))))])
 
-;; **Two decisions this does not take.**
+;; **One decision taken since.** There is one scale-sharing option,
+;; `:share-scales`, and its default follows what produced the panels: a
+;; split by a column's values shares both axes, and panels of different
+;; columns share only the axis that draws one column in all of them.
 ;;
-;; - **One scale-sharing setting** whose default follows the side that
-;;   produced the panels. The two already disagree about whether a
-;;   categorical axis can be shared at all, one unioning the categories
-;;   and the other reporting that a union domain is undefined. It is
-;;   the largest change of the set and the only one that would move
-;;   behaviour a reader depends on.
+;; **One disagreement that remains.** The two sides still differ on
+;; whether a categorical axis can be named in `:share-scales`. Every
+;; panel below draws `:quarter` on `:x`. The long side takes
+;; `{:share-scales #{:x}}` and draws; the wide side reports an error for
+;; the same option, although with nothing specified it draws the same
+;; four quarters in every panel:
+
+(mapv (fn [pose]
+        (try (:panels (pj/svg-summary (pj/options pose {:share-scales #{:x}})))
+             (catch clojure.lang.ExceptionInfo e (ex-message e))))
+      [(-> sales-long
+           (pj/lay-point :quarter :value)
+           (pj/facet :measure))
+       (-> sales-wide
+           (pj/pose {:x :quarter})
+           pj/lay-point
+           (pj/facet {:y [:revenue :cost :tax]}))
+       (-> sales-wide
+           (pj/arrange [[:quarter :revenue]
+                        [:quarter :cost]
+                        [:quarter :tax]])
+           pj/lay-point)])
+
+(kind/test-last
+ [(fn [[long-side wide-facet wide-arrange]]
+    (and (= 3 long-side)
+         (re-find #"column :quarter is categorical across all sharing cells" wide-facet)
+         (= wide-facet wide-arrange)))])
+
+;; **One decision this does not take.**
+;;
 ;; - **A fourth `:layout` direction** for two cells sharing a canvas.
 ;;   The geometry is a few lines; what it needs is chrome -- a
-;;   transparent cell background, an axis that can draw on the right,
-;;   and the tick-suppression keys made public. It should be called
-;;   `:inset` rather than `:overlay`, with `:insets` required, because
-;;   `:overlay true` on a composite already says where a *layer* lands
-;;   rather than where a *cell* is drawn.
+;;   transparent cell background and an axis that can draw on the
+;;   right. It should be called `:inset`, with `:insets` required.
+;;   `:overlay` is a retired name for a layer option and should not
+;;   return as a name for where a cell is drawn.
 
 ;; ## The test this frame gives
 ;;
 ;; For any new layout feature: **what is this on the other side of the
 ;; pivot?**
 ;;
-;; - If there is a twin, build one thing rather than two. Both existing
-;;   twins were built separately and drifted.
+;; - If there is a twin, build one thing rather than two. Faceting and
+;;   scale sharing were each built twice, drifted, and had to be made
+;;   one afterwards.
 ;; - If there is no twin, say why. The interval endpoints have none and
 ;;   need none.
 ;; - If the twin exists and is missing, ask whether it is missing for
 ;;   the label reason. Grouping and position adjustment both were, and
 ;;   one change answered both.
 ;;
-;; Where the frame stops: it says nothing about `pj/arrange`,
-;; `:layout` or `pj/marginal`, which read neither columns nor values.
-;; That is the right silence -- those are geometry, and geometry has no
-;; wide and no long.
+;; Where the frame stops: it says nothing about `:layout`, or about
+;; `pj/arrange` given finished poses, which read neither columns nor
+;; values. That is the right silence -- those are geometry, and geometry
+;; has no wide and no long.

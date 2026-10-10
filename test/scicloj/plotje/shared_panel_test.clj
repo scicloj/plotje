@@ -147,3 +147,30 @@
                                             :x :px :y :py}))))))
     (testing "a panel per column prints nothing"
       (is (= "" (printed (-> d (pj/pose {:x :t}) pj/lay-point (pj/facet {:y [:small :big]}))))))))
+
+(deftest a-layer-beside-a-series-draws-its-own-rows-once-test
+  ;; A layer naming a column of its own on the axis a series is on
+  ;; draws none of the series. It read the pivoted rows, which hold
+  ;; each row of the data once per series column, so every mark was
+  ;; drawn twice -- once in each series' colour where the series was
+  ;; on the pose.
+  (let [groups (fn [pose]
+                 (vec (for [p (:panels (pj/plan pose)) l (:layers p)]
+                        (mapv (fn [g] [(:label g) (count (:xs g))]) (:groups l)))))]
+    (testing "a series on the pose"
+      (is (= [[["hwy" 5] ["cty" 5]] [[nil 5]]]
+             (groups (-> cars
+                         (pj/pose {:x :displ :y [:hwy :cty]})
+                         pj/lay-point
+                         (pj/lay-point {:y :displ}))))))
+    (testing "a series on a layer"
+      (is (= [[["hwy" 5] ["cty" 5]] [[nil 5]]]
+             (groups (-> cars
+                         (pj/lay-point :displ [:hwy :cty])
+                         (pj/lay-point :displ :displ))))))
+    (testing "the layer keeps a :color of its own"
+      (is (= [[["hwy" 5] ["cty" 5]] [["compact" 2] ["midsize" 1] ["suv" 2]]]
+             (groups (-> cars
+                         (pj/pose {:x :displ :y [:hwy :cty]})
+                         pj/lay-point
+                         (pj/lay-point {:y :displ :color :class}))))))))

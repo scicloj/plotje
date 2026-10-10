@@ -229,3 +229,30 @@
             out (printed (pj/arrange [free free] {:share-scales #{:y}}))]
         (is (= 1 (count (re-seq #"Warning" out))))
         (is (re-find #"2 poses inside it write" out))))))
+
+(deftest bars-drawn-across-start-at-zero-test
+  ;; A bar is measured from zero on whichever axis its values run
+  ;; along. With the values on `:x` the domain was padded below zero
+  ;; alone, and under a shared `:x` it started at the smallest value, so
+  ;; every bar was cut off there.
+  (let [a {:cohort ["a" "b" "c"] :growth [12 20 29]}
+        b {:cohort ["a" "b" "c"] :growth [15 22 25]}
+        x-domains (fn [pose]
+                    (let [plan (pj/plan pose)]
+                      (if (:sub-plots plan)
+                        (vec (for [sp (:sub-plots plan) p (:panels (:plan sp))] (:x-domain p)))
+                        (mapv :x-domain (:panels plan)))))
+        y-domains (fn [pose]
+                    (vec (for [sp (:sub-plots (pj/plan pose)) p (:panels (:plan sp))] (:y-domain p))))]
+    (testing "alone, the baseline sits on the panel edge"
+      (is (= [[0.0 30.45]] (x-domains (pj/lay-bar a :growth :cohort)))))
+    (testing "under a shared :x, as under a shared :y"
+      (is (= [[0.0 30.45] [0.0 30.45]]
+             (x-domains (pj/arrange [(pj/lay-bar a :growth :cohort) (pj/lay-bar b :growth :cohort)]
+                                    {:share-scales #{:x}}))))
+      (is (= [[0.0 30.45] [0.0 30.45]]
+             (y-domains (pj/arrange [(pj/lay-bar a :cohort :growth) (pj/lay-bar b :cohort :growth)]
+                                    {:share-scales #{:y}})))))
+    (testing "values below zero are still padded past"
+      (is (= [[-5.75 10.75]]
+             (x-domains (pj/lay-bar {:cohort ["a" "b"] :growth [-5 10]} :growth :cohort)))))))

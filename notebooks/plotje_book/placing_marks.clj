@@ -590,22 +590,22 @@ scatter
                 pj/frames
                 :panels
                 first)]
-  {:band-middle     (pj/to-drawing panel 200000 "Over Time Limit")
-   :read-back       (->> (pj/to-drawing panel 200000 "Over Time Limit")
+  {:band-middle     (pj/to-drawing panel 300000 "Over Time Limit")
+   :read-back       (->> (pj/to-drawing panel 300000 "Over Time Limit")
                          (apply pj/to-data panel))
-   :halfway-up      (pj/to-drawing panel 200000 1.5)
-   :place-read-back (->> (pj/to-drawing panel 200000 1.5)
+   :halfway-up      (pj/to-drawing panel 300000 1.5)
+   :place-read-back (->> (pj/to-drawing panel 300000 1.5)
                          (apply pj/to-data panel))
-   :first-end       (pj/to-drawing panel 200000 0.5)
-   :last-end        (pj/to-drawing panel 200000 3.5)
+   :first-end       (pj/to-drawing panel 300000 0.5)
+   :last-end        (pj/to-drawing panel 300000 3.5)
    :outside-a-band  (pj/to-data panel 325.0 5.0)
-   :not-a-category  (try (pj/to-drawing panel 200000 "Double Parked")
+   :not-a-category  (try (pj/to-drawing panel 300000 "Double Parked")
                          (catch Exception e (ex-message e)))
-   :past-the-ends   (try (pj/to-drawing panel 200000 99)
+   :past-the-ends   (try (pj/to-drawing panel 300000 99)
                          (catch Exception e (ex-message e)))})
 
 (kind/test-last
- [(fn [m] (and (= [200000.0 "Over Time Limit"] (:read-back m))
+ [(fn [m] (and (= [300000.0 "Over Time Limit"] (:read-back m))
                (nil? (second (:outside-a-band m)))
                (re-find #"Double Parked" (:not-a-category m))
                (re-find #"Meter Expired" (:not-a-category m))
@@ -629,7 +629,7 @@ scatter
                                                :tickets   [462389 181444 163294]}
                                               (pj/lay-bar :tickets :violation)
                                               pj/frames :panels first)
-                                          200000 v)))]
+                                          300000 v)))]
                  (< (abs (- (second (:halfway-up m))
                             (/ (+ (mid "Meter Expired") (mid "Over Time Limit")) 2.0)))
                     1e-9))))])
