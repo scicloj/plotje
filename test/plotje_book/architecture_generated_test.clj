@@ -76,13 +76,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__143036#] (= :petal-length (:x p1__143036#)))
+        (fn* [p1__11193#] (= :petal-length (:x p1__11193#)))
         layers)
        (every?
-        (fn* [p1__143037#] (= :petal-width (:y p1__143037#)))
+        (fn* [p1__11194#] (= :petal-width (:y p1__11194#)))
         layers)
        (every?
-        (fn* [p1__143038#] (= :species (:color p1__143038#)))
+        (fn* [p1__11195#] (= :species (:color p1__11195#)))
         layers)))
      (= {} (:opts d))))
    v14_l205)))
@@ -136,8 +136,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__143039#]
-       (.startsWith (.getName (class p1__143039#)) "membrane.ui."))
+       [p1__11196#]
+       (.startsWith (.getName (class p1__11196#)) "membrane.ui."))
       (:drawables v))))
    v27_l263)))
 
@@ -170,13 +170,13 @@
 
 
 (def
- v37_l330
+ v37_l329
  (kind/mermaid
   "\ngraph LR\n  X[\"Raw data\"] --> B[\"Pose\"] --> D[\"Draft\"] --> P[\"Plan\"] --> M[\"Membrane\"] --> F[\"Plot\"]\n  X -.->|pj/pose| B\n  X -.->|pj/draft| D\n  X -.->|pj/plan| P\n  X -.->|pj/membrane| M\n  X -.->|pj/plot| F\n  style X fill:#eee,stroke-dasharray:3 3\n  style B fill:#d1c4e9\n  style D fill:#e8f5e9\n  style P fill:#fff3e0\n  style M fill:#e3f2fd\n  style F fill:#fce4ec\n"))
 
 
 (def
- v39_l464
+ v39_l463
  (let
   [pose-with-opts
    (->
@@ -196,7 +196,7 @@
 
 
 (deftest
- t40_l480
+ t40_l479
  (is
   ((fn
     [m]
@@ -207,16 +207,16 @@
      (= "Iris Petals" (:title m))
      (= "Petal length" (:x-label m))
      (= 700 (:width m))))
-   v39_l464)))
+   v39_l463)))
 
 
 (def
- v42_l507
+ v42_l506
  (pj/pose {:x [1 2 3 4 5], :y [2 4 3 5 4], :g [:a :a :b :b :b]}))
 
 
 (deftest
- t43_l511
+ t43_l510
  (is
   ((fn
     [v]
@@ -229,13 +229,13 @@
        2
        (count
         (filter
-         (fn* [p1__143040#] (.startsWith p1__143040# "rgb"))
+         (fn* [p1__11197#] (.startsWith p1__11197# "rgb"))
          (:colors s)))))))
-   v42_l507)))
+   v42_l506)))
 
 
 (def
- v45_l565
+ v45_l564
  (def
   composite-pose
   (->
@@ -245,45 +245,45 @@
    (pj/pose {:color :species}))))
 
 
-(def v46_l571 composite-pose)
+(def v46_l570 composite-pose)
 
 
 (deftest
- t47_l573
+ t47_l572
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v46_l571)))
+   v46_l570)))
 
 
-(def v49_l581 (-> composite-pose pj/draft kind/pprint))
+(def v49_l580 (-> composite-pose pj/draft kind/pprint))
 
 
 (deftest
- t50_l583
+ t50_l582
  (is
   ((fn [d] (and (pj/composite-draft? d) (= 2 (count (:sub-drafts d)))))
-   v49_l581)))
+   v49_l580)))
 
 
-(def v52_l588 (pj/plan composite-pose))
+(def v52_l587 (pj/plan composite-pose))
 
 
 (deftest
- t53_l590
+ t53_l589
  (is
   ((fn [p] (and (pj/composite-plan? p) (= 2 (count (:sub-plots p)))))
-   v52_l588)))
+   v52_l587)))
 
 
-(def v55_l598 (pj/membrane composite-pose))
+(def v55_l597 (pj/membrane composite-pose))
 
 
 (deftest
- t56_l600
+ t56_l599
  (is
   ((fn
     [m]
@@ -292,30 +292,30 @@
      (pos? (count (:drawables m)))
      (number? (membrane.ui/width m))
      (number? (membrane.ui/height m))))
-   v55_l598)))
+   v55_l597)))
 
 
-(def v58_l609 (-> composite-pose pj/plot kind/pprint))
+(def v58_l608 (-> composite-pose pj/plot kind/pprint))
 
 
 (deftest
- t59_l611
+ t59_l610
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v58_l609)))
+   v58_l608)))
 
 
 (def
- v61_l639
+ v61_l638
  (kind/mermaid
   "\ngraph LR\n  A[\"Pose + draft\"] -->|plan| P[\"Plan\"]\n  P --> R[\"membrane + plot\"]\n  style A fill:#e8f5e9\n  style P fill:#fff3e0\n  style R fill:#e3f2fd\n"))
 
 
 (def
- v63_l730
+ v63_l729
  (kind/mermaid
   "\ngraph TD\n  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]\n  API --> RES[\"impl/resolve.clj\"]\n  API --> PL[\"impl/plan.clj\"]\n  API --> COMP[\"impl/compositor.clj\"]\n  POSE --> RES\n  COMP --> POSE\n  COMP --> PL\n  PL --> RES\n  PL --> STAT[\"impl/stat.clj\"]\n  PL --> SCALE[\"impl/scale.clj\"]\n  PL --> DEFAULTS[\"impl/defaults.clj\"]\n  PL --> PS[\"impl/plan_schema.clj\"]\n  API --> RENDER[\"impl/render.clj\"]\n  RENDER --> SVG[\"render/svg.clj\"]\n  SVG --> MEMBRANE[\"render/membrane.clj\"]\n  MEMBRANE --> PANEL[\"render/panel.clj\"]\n  PANEL --> MARK[\"render/mark.clj\"]\n  PANEL --> SCALE\n  PANEL --> COORD[\"impl/coord.clj\"]\n  API --> RC[\"render/composite.clj\"]\n  RC --> MEMBRANE\n  style API fill:#c8e6c9\n  style COMP fill:#d1c4e9\n  style PL fill:#d1c4e9\n  style SVG fill:#f8bbd0\n  style MEMBRANE fill:#f8bbd0\n  style RC fill:#f8bbd0\n"))

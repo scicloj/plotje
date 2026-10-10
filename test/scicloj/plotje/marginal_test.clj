@@ -242,10 +242,10 @@
     (testing "raw data is told it has no mapping, not just no :x"
       ;; `pj/marginal` is the one pose function that does not lift raw
       ;; data, so the error has to say which of the two is missing.
-      (is (thrown-with-msg? Exception #"carries no mapping yet"
+      (is (thrown-with-msg? Exception #"names no columns yet"
                             (pj/marginal iris :top))))
     (testing "a pose that has a mapping but not that axis is not told that"
       (let [msg (try (pj/marginal (pj/pose iris {:color :species}) :top)
                      (catch Exception e (ex-message e)))]
         (is (re-find #":x column" msg))
-        (is (not (re-find #"carries no mapping" msg)))))))
+        (is (not (re-find #"names no columns" msg)))))))

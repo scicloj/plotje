@@ -68,12 +68,6 @@
 ;;   (`:alpha 0.3`).
 ;; - **Data** -- a per-layer `:data` key, if the layer should
 ;;   use a different dataset from the rest of the pose.
-;; - **Where the layer goes** -- `:overlay`, which says whether a layer
-;;   naming columns the panel does not draw joins that panel or starts
-;;   one of its own. It says where the layer goes rather than what it
-;;   draws, and is read where the panels are decided rather than where
-;;   the layer is written. `pj/overlay` sets it for every layer of the
-;;   pose.
 ;;
 ;; The primary way to set them is in the options map of `pj/lay-*`:
 

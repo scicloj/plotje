@@ -91,7 +91,7 @@
     ;; answered with a message about PlotjeMembrane. Timothy Pratley's
     ;; #32 thread began from data written this way.
     (is (pj/pose? (pj/lay-point [[1 2] [3 4]])))
-    (is (= {:x 0 :y 1} (:mapping (pj/lay-point [[1 2] [3 4]])))
+    (is (= {:x 0 :y 1} (:mapping (pj/infer-mapping (pj/lay-point [[1 2] [3 4]]))))
         "the integer column names the coercion gives are inferred as usual")
     (is (= 3 (:points (pj/svg-summary (pj/plot (pj/lay-point [[1 2] [3 4] [5 6]]))))))
     (is (pj/pose? (pj/pose [[1 2] [3 4]] 0 1))
@@ -960,25 +960,26 @@
 
   (testing "composite with data at root + mapping-only sub-poses is plannable"
     (is (some? (pj/plan (-> tiny
-                            (pj/pose :x :y)
-                            (pj/pose :y :x)
+                            (pj/arrange [[:x :y] [:y :x]])
                             pj/lay-point))))))
 
 (deftest lay-2arity-opts-map-auto-infers-from-raw-data
   (let [small (tc/dataset {:x [1.0 2.0] :y [10.0 20.0]})
         big (tc/dataset {:a [1] :b [2] :c [3] :d [4] :e [5]})]
+    ;; The mapping is inferred at draft time; `pj/infer-mapping` is the
+    ;; step the draft entry points run.
     (testing "(lay-rule-h raw-data {:y-intercept ...}) auto-infers x/y mapping"
       (let [pose (pj/lay-rule-h small {:y-intercept 5})]
-        (is (= {:x :x :y :y} (:mapping pose)))
+        (is (= {:x :x :y :y} (:mapping (pj/infer-mapping pose))))
         (is (some? (:data pose)))))
 
     (testing "(lay-point raw-data {:color ...}) auto-infers x/y mapping"
       (is (= {:x :x :y :y}
-             (:mapping (pj/lay-point small {:color :x})))))
+             (:mapping (pj/infer-mapping (pj/lay-point small {:color :x}))))))
 
     (testing "(lay-line raw-data {:color ...}) auto-infers"
       (is (= {:x :x :y :y}
-             (:mapping (pj/lay-line small {:color :x})))))
+             (:mapping (pj/infer-mapping (pj/lay-line small {:color :x}))))))
 
     (testing "raw data with 4+ columns throws (consistent with 1-arity)"
       (is (thrown-with-msg?

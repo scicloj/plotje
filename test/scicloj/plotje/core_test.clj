@@ -2373,7 +2373,7 @@
               :h ["x" "y" "x" "y" "x" "y"]}]
     (testing "typoed facet column throws with available columns"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Facet column :speices.*not found"
+                            #"Column :speices \(from :col\) not found"
                             (-> data (pj/lay-point :x :y) (pj/facet :speices) pj/plan))))
 
     (testing "a vector facet is a compound key: one panel per observed combination"
@@ -2391,7 +2391,7 @@
 
     (testing "a typoed column inside a compound facet is reported"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Facet column :speices.*not found"
+                            #"Column :speices \(from :col\) not found"
                             (-> data (pj/lay-point :x :y) (pj/facet [:g :speices]) pj/plan))))
 
     (testing "valid facet column still works"
@@ -2402,7 +2402,7 @@
 
     (testing "typoed facet-grid column throws"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Facet column :speices.*not found"
+                            #"Column :speices \(from :col\) not found"
                             (-> data (pj/lay-point :x :y) (pj/facet-grid :speices :h) pj/plan))))))
 
 (deftest lay-method-auto-infer-test
@@ -3209,12 +3209,8 @@
   ;; against mapping keys alone reported every option as a typo.
   (let [data {:x [1 2 3] :y [10 20 30] :z [5 6 7]}]
     (testing "an option the layer type accepts stays quiet"
-      ;; The two histograms name different columns, so the panel split
-      ;; notes itself -- that is this call saying what it did, not a
-      ;; complaint about `:bins`. What must not appear is an option
-      ;; warning.
-      ;; The split note is said where the split is decided, which is at
-      ;; draft time -- capturing around the lay-* calls catches nothing.
+      ;; The two histograms share one panel and agree about both axes,
+      ;; so nothing at all is printed.
       (let [pose (-> data
                      (pj/lay-histogram :x {:bins 3})
                      (pj/lay-histogram :z))
@@ -3222,8 +3218,7 @@
             drawn (with-out-str (pj/plot pose))]
         (is (not (re-find #"(?i)warning" built)))
         (is (not (re-find #"(?i)warning" drawn)))
-        (is (not (re-find #":bins" drawn)))
-        (is (re-find #"panel of its own" drawn))))
+        (is (= "" drawn))))
 
     (testing "a typo on a layer still warns"
       (let [out (with-out-str
@@ -3890,21 +3885,42 @@
   (is (= 2 (:points (pj/svg-summary (pj/lay-point {:x [1 2] :y [1 2]} :x :y {:dx 0.5}))))))
 
 (deftest column-read-by-a-series-is-named-as-such-test
-  ;; The column was pivoted away by the series, so the old message's
-  ;; advice -- pj/overlay -- could not bring it back.
+  ;; On the pose's mapping, a column the series pivots away is refused:
+  ;; that aesthetic would apply to the pivoted rows, which no longer hold
+  ;; it. The message names the lay-* call as the way to draw it.
   (let [data {:x [1 2 3] :a [1 2 3] :b [2 3 4] :c [3 4 5]}
         msg (fn [f] (try (f) nil (catch clojure.lang.ExceptionInfo e (ex-message e))))
-        series-msg (msg #(-> data (pj/lay-line :x [:a :b :c]) (pj/lay-point :x :c)))
+        series-msg (msg #(-> data (pj/pose {:x :x :y [:a :b] :size :a}) pj/lay-line pj/plan))
         plain-msg (msg #(-> data (pj/lay-line :x :a) (pj/lay-point :x :zz)))]
     (is (re-find #"a series on this pose has already read" series-msg))
-    (is (re-find #"\{:data data\}" series-msg))
+    (is (re-find #"name it in a lay-\* call" series-msg))
     (is (not (re-find #"pj/overlay" series-msg)))
-    (is (re-find #"doesn't exist in the data" plain-msg))
-    ;; The way out the message names draws.
-    (is (= {:panels 1 :lines 3 :points 3}
-           (select-keys (pj/svg-summary (-> data (pj/lay-line :x [:a :b :c])
-                                            (pj/lay-point :x :c {:data data :overlay true})))
-                        [:panels :lines :points])))))
+    (is (re-find #"doesn't exist in the data" plain-msg))))
+
+(deftest layer-reads-a-series-own-column-test
+  ;; A layer beside a series may name one of the series' columns.
+  (let [data {:t [1 2 3] :revenue [10 20 30] :cost [5 6 7]}
+        layers (fn [p] (-> p pj/plan :panels first :layers))
+        groups (fn [l] (mapv #(-> (select-keys % [:ys :color :label]) (update :ys vec)) (:groups l)))]
+    (testing "on the series' aesthetic: that column's rows, in its series' colour"
+      (doseq [p [(-> data (pj/lay-line :t [:revenue :cost]) (pj/lay-point :t :revenue))
+                 (-> data (pj/pose {:x :t :y [:revenue :cost]}) pj/lay-line (pj/lay-point :t :revenue))]]
+        (let [[lines points] (layers p)
+              revenue-line (first (filter #(= "revenue" (:label %)) (groups lines)))]
+          (is (= 1 (count (-> p pj/plan :panels))))
+          (is (= [10 20 30] (:ys (first (groups points)))))
+          (is (= (:color revenue-line) (:color (first (groups points))))))))
+    (testing "on another aesthetic: the data as written, on the series' panel"
+      (let [p (-> data (pj/lay-line :t [:revenue :cost]) (pj/lay-point :t :revenue {:size :cost}))]
+        (is (= {:panels 1 :lines 2 :points 3}
+               (select-keys (pj/svg-summary p) [:panels :lines :points])))
+        (is (= [10 20 30] (:ys (first (groups (second (layers p)))))))))
+    (testing "series in pairs: the data as written"
+      (let [p (-> {:t1 [1 2 3] :t2 [2 3 4] :a [1 2 3] :b [3 4 5]}
+                  (pj/lay-line [:t1 :t2] [:a :b])
+                  (pj/lay-point :t1 :a))]
+        (is (= {:panels 1 :lines 2 :points 3}
+               (select-keys (pj/svg-summary p) [:panels :lines :points])))))))
 
 (deftest rule-or-band-given-a-value-before-its-options-test
   ;; (pj/lay-rule-v pose 7 {:x-intercept 2}) read 7 as a written value:

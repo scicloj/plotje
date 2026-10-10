@@ -33,11 +33,12 @@
       (is (not (contains? f :mapping)))
       (is (= [] (:layers f)))))
 
-  (testing "1-arity coerces data and auto-infers mapping on 1-3 cols"
+  (testing "1-arity coerces data and writes no mapping; the draft infers one"
     (let [f (pj/pose {:x [1 2] :y [3 4]})]
       (is (pj/pose? f))
       (is (tc/dataset? (:data f)))
-      (is (= {:x :x :y :y} (:mapping f))
+      (is (nil? (:mapping f)))
+      (is (= {:x :x :y :y} (:mapping (pj/infer-mapping f)))
           "two-column data infers {:x col0, :y col1}")))
 
   (testing "1-arity leaves mapping empty on 4+ cols (no ambiguous default)"
@@ -65,16 +66,19 @@
 ;; ============================================================
 
 (deftest few-column-inference-test
-  (testing "pj/pose 1-arity infers mapping from 1-3 columns"
-    (is (= {:x :a} (:mapping (pj/pose {:a [1 2 3]}))))
-    (is (= {:x :a :y :b} (:mapping (pj/pose {:a [1 2] :b [3 4]}))))
+  (testing "a mapping is inferred from 1-3 columns, at draft time"
+    ;; `pj/pose` writes no mapping of its own; `pj/infer-mapping` is the
+    ;; step the draft entry points run.
+    (is (nil? (:mapping (pj/pose {:a [1 2 3]}))))
+    (is (= {:x :a} (:mapping (pj/infer-mapping (pj/pose {:a [1 2 3]})))))
+    (is (= {:x :a :y :b} (:mapping (pj/infer-mapping (pj/pose {:a [1 2] :b [3 4]})))))
     (is (= {:x :a :y :b :color :c}
-           (:mapping (pj/pose {:a [1] :b [2] :c ["x"]})))))
+           (:mapping (pj/infer-mapping (pj/pose {:a [1] :b [2] :c ["x"]}))))))
 
-  (testing "threading through pj/pose preserves lay-* auto-infer"
+  (testing "threading through pj/pose gives what lay-* alone gives"
     (let [raw      (pj/lay-point {:x [1 2] :y [3 4]})
           threaded (-> {:x [1 2] :y [3 4]} pj/pose pj/lay-point)]
-      (is (= {:x :x :y :y} (:mapping threaded))
+      (is (= {:x :x :y :y} (:mapping (pj/infer-mapping threaded)))
           "(-> data pj/pose pj/lay-point) matches (pj/lay-point data)")
       (is (= (:mapping raw) (:mapping threaded)))
       (is (= (:layers raw) (:layers threaded)))))
@@ -197,11 +201,13 @@
                      :poses [{:layers [{:layer-type :point}]}
                              {:layers [{:layer-type :point}]}]}
           p (pj/plan composite)
-          rects (map :rect (:sub-plots p))]
-      (is (= [[0.0 0.0 300.0 400.0]
-              [300.0 0.0 300.0 400.0]]
-             (vec rects))
-          "two leaves split 600-wide pose evenly left/right"))))
+          [[x1 y1 w1 h1] [x2 y2 w2 h2]] (map :rect (:sub-plots p))]
+      ;; The axis titles the two cells share are drawn once, beside the
+      ;; grid, so the cells tile what is left of the width, not all of
+      ;; it.
+      (is (and (== w1 w2) (== (+ x1 w1) x2) (== 600 (+ x2 w2))
+               (== y1 y2) (== h1 h2))
+          "two leaves split the grid evenly left/right, up to its right edge"))))
 
 (deftest composite-plan-nested-paths-test
   (testing "paths in :sub-plots match the DFS order of leaves"
@@ -656,8 +662,10 @@
       (is (= 2 (count (:poses result))))
       (is (= {:x :c :y :d} (get-in result [:poses 0 :mapping]))
           "existing leaf is preserved as-is")
-      (is (= {:x :a :y :b} (get-in result [:poses 1 :mapping]))
-          "new leaf carries the lay-* position mapping")
+      (is (nil? (get-in result [:poses 1 :mapping]))
+          "new leaf has no mapping of its own")
+      (is (= {:x :a :y :b} (get-in result [:poses 1 :layers 0 :mapping]))
+          "the layer carries the lay-* columns")
       (is (= :point (get-in result [:poses 1 :layers 0 :layer-type]))))))
 
 (deftest composite-lay-miss-on-empty-poses-test
@@ -665,10 +673,11 @@
     (let [fr {:poses []}
           result (pj/lay-point fr :a :b)]
       ;; An empty :poses vector counts as a leaf per impl.pose/leaf?.
-      ;; Post-Phase-6, such a leaf stays in pose-world: the position
-      ;; call extends the leaf's :mapping and appends a bare layer.
+      ;; Such a leaf stays in pose-world: the layer is appended and
+      ;; keeps its columns on its own mapping.
       (is (pj/pose? result))
-      (is (= {:x :a :y :b} (:mapping result)))
+      (is (empty? (:mapping result)))
+      (is (= {:x :a :y :b} (-> result :layers first :mapping)))
       (is (= 1 (count (:layers result))))
       (is (= :point (-> result :layers (nth 0) :layer-type))))))
 

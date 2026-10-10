@@ -104,16 +104,23 @@ composite-pose
 (kind/test-last
  [(fn [ls] (= [{:direction :vertical} {:direction :horizontal}] ls))])
 
-;; One level further down are the leaves, each carrying the three keys
-;; the first pose in this chapter carried:
+;; One level further down are the leaves:
 
 (-> composite-pose :poses first :poses count)
 
 (kind/test-last [(fn [n] (= 2 n))])
 
+;; Each leaf carries `:data` and `:layers`, and no `:mapping`. The
+;; columns were named in the `pj/lay-*` calls, and a `lay-*` call keeps
+;; the columns it names on its own layer:
+
 (-> composite-pose :poses first :poses first keys sort vec)
 
-(kind/test-last [(fn [ks] (= [:data :layers :mapping] ks))])
+(kind/test-last [(fn [ks] (= [:data :layers] ks))])
+
+(-> composite-pose :poses first :poses first :layers first :mapping)
+
+(kind/test-last [(fn [m] (= {:x :petal-length :y :petal-width} m))])
 
 ;; ## What a mapping value may be
 
@@ -170,12 +177,13 @@ jittered-pose
 
 (kind/pprint jittered-pose)
 
-;; Three of those four options went into the layer's `:mapping`:
+;; The three options went into the layer's `:mapping`, beside the two
+;; columns the call named:
 
 (-> jittered-pose :layers first :mapping)
 
 (kind/test-last
- [(fn [m] (= {:jitter 5 :in :data :size 5} m))])
+ [(fn [m] (= {:x :petal-length :y :petal-width :jitter 5 :in :data :size 5} m))])
 
 ;; `:size` is an aesthetic; `:jitter` and `:in` are not. Nothing in the
 ;; map distinguishes them, so a reader who wants only the aesthetics
@@ -188,15 +196,14 @@ jittered-pose
 ;; `lay-band-h` reads a value in data space. One key, two readings,
 ;; and one scope rule carrying both.
 ;;
-;; The positions went elsewhere --
-;; `:petal-length` and `:petal-width` were given as arguments rather
-;; than in the options map, so they sit on the pose's own `:mapping`
-;; and flow down to every layer:
+;; The pose's own `:mapping` is empty. A `lay-*` call keeps the columns
+;; it names on its layer, whether they are written as arguments or in
+;; the options map; columns written with `pj/pose` go on the pose's
+;; mapping and reach every layer that names none of its own:
 
 (:mapping jittered-pose)
 
-(kind/test-last
- [(fn [m] (= {:x :petal-length :y :petal-width} m))])
+(kind/test-last [nil?])
 
 ;; ## A draft layer is one layer, fully situated
 

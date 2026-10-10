@@ -104,7 +104,7 @@ scatter-pose
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
 ;; | Alpha legend | ~5 graduated opacity squares (count varies with range) when `:alpha` maps to numerical column | `:alpha` mapping controls presence |
 ;; | Layout padding | adjusts for title, labels, legend | `:width`, `:height` in options |
-;; | Layout type | single, facet-grid, multi-variable | `pj/facet`, multiple x-y pairs |
+;; | Layout type | single, facet-grid | `pj/facet` |
 ;; | Coordinate system | `:cartesian` | `(pj/coord :flip)`, `(pj/coord :polar)` |
 ;;
 ;; The sections below walk each rule in detail. The order roughly
@@ -154,13 +154,12 @@ scatter-pose
                            (and (= 4 (:points s))
                                 (some #{"a"} (:texts s)))))])
 
-;; ### Pose construction infers the same mapping
+;; ### The mapping is inferred when the pose is drawn
 ;;
-;; Calling `pj/pose` on raw data without explicit column arguments
-;; runs the same column-selection rule. A 1-3 column dataset gets
-;; its mapping filled in; the resulting pose carries the mapping
-;; but has no layer attached yet, so layer type inference (covered
-;; below) supplies the mark at render time.
+;; A pose built from raw data with no column named -- by `pj/pose` or
+;; by a `pj/lay-*` call -- carries no mapping. The column-selection
+;; rule runs when the pose is drawn, and layer type inference (covered
+;; below) then supplies the mark.
 
 (def two-col-pose
   (pj/pose {:x [1.0 2.0 3.0 4.0 5.0]
@@ -170,9 +169,10 @@ two-col-pose
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
-;; The inferred mapping is visible on the pose itself:
+;; `pj/infer-mapping` is the step the drawing functions run, and it
+;; shows the mapping the rule chooses:
 
-(-> two-col-pose (select-keys [:mapping :layers]) kind/pprint)
+(-> two-col-pose pj/infer-mapping (select-keys [:mapping :layers]) kind/pprint)
 
 (kind/test-last [(fn [pose] (and (= {:x :x :y :y} (:mapping pose))
                                  (empty? (:layers pose))))])
@@ -1105,10 +1105,9 @@ full-layout-pose
 
 ;; Layout type is also inferred from the pose structure:
 ;;
-;; - A single panel is `:single`
+;; - A single panel is `:single`, also where its layers name different
+;;   columns
 ;; - A faceted pose -- one mapping `:col` or `:row` -- is `:facet-grid`
-;; - Any other pose drawing several panels is `:multi-variable`: a
-;;   scatter plot matrix, or layers that name different columns
 
 scatter-pose
 
@@ -1118,7 +1117,7 @@ scatter-pose
                  (= :facet-grid (:layout-type (pj/plan (-> iris
                                                            (pj/lay-point :sepal-length :sepal-width)
                                                            (pj/facet :species)))))
-                 (= :multi-variable (:layout-type (pj/plan (-> iris
+                 (= :single (:layout-type (pj/plan (-> iris
                                                                (pj/lay-point :sepal-length :sepal-width)
                                                                (pj/lay-point :petal-length :petal-width))))))))])
 

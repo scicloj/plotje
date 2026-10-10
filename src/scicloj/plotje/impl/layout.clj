@@ -630,21 +630,23 @@
   (double (:min-panel-size cfg 40)))
 
 (defn- too-small-error
+  "The panels would be drawn smaller than `:min-panel-size`. Sizes are
+   in drawing units, so the message names no unit, and the plot's width
+   or height is quoted as a number rather than as an option the writer
+   may not have set."
   [axis computed total horiz-overhead grid-n component-breakdown]
-  (ex-info
-   (str "Computed " (name axis) " is too small: " (Math/round (double computed)) "px. "
-        "Total :" (name (if (= axis :panel-width) :width :height)) "="
-        (Math/round (double total))
-        " minus layout overhead " (Math/round (double horiz-overhead))
-        " (" component-breakdown ")"
-        " leaves " (Math/round (double (- total horiz-overhead)))
-        "px for " grid-n " "
-        (if (= axis :panel-width) "column(s)" "row(s)")
-        ". Increase :"
-        (name (if (= axis :panel-width) :width :height))
-        ", set :" (name axis) " directly, or lower :min-panel-size "
-        "if you intended a sparkline-sized plot.")
-   {axis computed}))
+  (let [across? (= axis :panel-width)
+        dim (if across? "width" "height")]
+    (ex-info
+     (str "Each panel would be " (Math/round (double computed)) " " (if across? "wide" "high")
+          ", which is below the smallest panel size. The plot's " dim ", "
+          (Math/round (double total)) ", less " (Math/round (double horiz-overhead))
+          " for its labels and legend (" component-breakdown "), leaves "
+          (Math/round (double (- total horiz-overhead))) " for " grid-n " "
+          (if across? (if (= 1 grid-n) "column" "columns") (if (= 1 grid-n) "row" "rows"))
+          " of panels. Increase :" dim ", set :" (name axis) " directly, or lower"
+          " :min-panel-size for a sparkline-sized plot.")
+     {axis computed})))
 
 (defn compute-dims
   "Derive panel-width, panel-height, total-width, total-height from

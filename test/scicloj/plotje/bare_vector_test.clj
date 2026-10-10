@@ -25,14 +25,15 @@
 (deftest a-bare-vector-by-aesthetic
   (testing "on :y it is a series drawn as layers on one panel"
     (is (= 1 (panels (-> ds (pj/lay-line :t [:a :b])))))
-    (is (= [:series ["a" "b"]] (legend (-> ds (pj/lay-line :t [:a :b]))))))
+    ;; The legend's entries name the columns, so it has no title.
+    (is (= ["" ["a" "b"]] (legend (-> ds (pj/lay-line :t [:a :b]))))))
   (testing "on :group it is a compound key"
     (is (= 1 (panels (-> ds (pj/lay-line :t :a {:group [:part :dim]})))))))
 
 (deftest the-written-out-forms-draw-the-same
   (testing "a series"
     (is (= 1 (panels (-> ds (pj/lay-line :t {:series [:a :b]})))))
-    (is (= [:series ["a" "b"]]
+    (is (= ["" ["a" "b"]]
            (legend (-> ds (pj/lay-line :t {:series [:a :b]}))))))
   (testing "a compound key on :group"
     (is (= 1 (panels (-> ds (pj/lay-line :t :a {:group {:column [:part :dim]}}))))))

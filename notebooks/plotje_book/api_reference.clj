@@ -43,9 +43,9 @@
 ;; transitions. Its 1-arity is `(-> x pj/->pose pj/infer-mapping)` --
 ;; the same lift-and-default-map the other shortcuts (`pj/draft`,
 ;; `pj/plan`, `pj/membrane`, `pj/plot`, `pj/save`) apply on the way
-;; in -- but its typed arities add positional column-arg parsing,
-;; multi-pair composite construction, and pose extend-or-promote on
-;; top of `pj/->pose`. The examples below walk each shape.
+;; in -- but its typed arities add positional column-arg parsing and
+;; merging a mapping into an existing pose on top of `pj/->pose`. The
+;; examples below walk each shape.
 
 (kind/doc #'pj/pose)
 
@@ -186,9 +186,10 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
 
-;; A vector of columns creates one panel:
+;; Several columns in the mapping, `{:x [...]}`, are read as a series
+;; on one panel, a colour per column:
 
-(pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width])
+(pj/lay-histogram (rdatasets/datasets-iris) {:x [:sepal-length :sepal-width]})
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
@@ -746,58 +747,17 @@
 
 (kind/doc #'pj/overlay)
 
-;; A layer naming columns the panel does not draw becomes a panel of its
-;; own. `pj/overlay` says the layer was meant to join the panel it is
-;; added to, so two measures are read against one axis:
+;; The layers of a pose share one panel without it, so `pj/overlay`
+;; returns the pose unchanged and prints a warning:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    (pj/lay-bar :growth :cohort)
+    (pj/lay-bar :tax :cohort)
     pj/overlay
-    (pj/lay-bar :growth :cohort {:color "#377eb8"})
-    (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
+    pj/svg-summary
+    :panels)
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 6 (:polygons s)))))])
-
-;; `{:overlay true}` in one call's options map joins that layer alone,
-;; which is how some layers share a panel while others take one of their
-;; own -- `:tax` is drawn on the `growth` panel and `:spend` gets its
-;; own:
-
-(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4] :spend [7 9 6]}
-    (pj/lay-bar :growth :cohort {:color "#377eb8"})
-    (pj/lay-bar :tax :cohort {:color "#e6550d" :overlay true})
-    (pj/lay-bar :spend :cohort {:color "#4daf4a"}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (= 9 (:polygons s))
-                                ;; A colour per call: blue and orange
-                                ;; share the growth panel, green is on
-                                ;; its own.
-                                (= #{"rgb(55,126,184)" "rgb(230,85,13)"
-                                     "rgb(77,175,74)"}
-                                   (disj (:colors s) "none")))))])
-
-;; `pj/overlay` is read where the panels are decided rather than where a
-;; layer is written, so it says the same thing at either end of a
-;; pipeline. `(pj/overlay pose false)` turns overlaying off for the
-;; pose:
-
-[(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-     pj/overlay
-     (pj/lay-bar :growth :cohort)
-     (pj/lay-bar :tax :cohort)
-     pj/svg-summary
-     :panels)
- (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-     (pj/lay-bar :growth :cohort)
-     (pj/lay-bar :tax :cohort)
-     pj/overlay
-     pj/svg-summary
-     :panels)]
-
-(kind/test-last [(fn [v] (= [1 1] v))])
+(kind/test-last [(fn [n] (= 1 n))])
 
 (kind/doc #'pj/marginal)
 
@@ -1293,7 +1253,7 @@ plan1
 
 (count pj/layer-option-docs)
 
-(kind/test-last [(fn [n] (= 58 n))])
+(kind/test-last [(fn [n] (= 57 n))])
 
 ;; ## Layer Type Registry
 

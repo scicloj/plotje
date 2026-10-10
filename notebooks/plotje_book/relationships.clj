@@ -332,20 +332,19 @@
 
 ;; ## Scatter Plot Matrix (SPLOM)
 ;;
-;; `pj/cross` generates all combinations of two lists. Passing
-;; column names produces a grid of scatter plots -- one per pair of
-;; variables. The diagonal shows histograms (automatic inference
-;; for same-column pairs).
+;; `pj/facet` given columns across, `{:col {:x [...]}}`, and columns
+;; down, `{:row {:y [...]}}`, draws a grid with a panel for every pair --
+;; a scatter plot matrix. With no layer written, each panel takes the
+;; layer its columns call for: a histogram where a column meets itself,
+;; on the diagonal, and a scatter elsewhere.
 ;;
-;; Start small: two variables crossed with themselves give a 2x2
-;; grid. Off-diagonal cells (where the row and column variables
-;; differ) get scatter plots; diagonal cells (where they match) get
-;; histograms.
+;; Start small: two variables crossed with themselves give a 2x2 grid.
 
 (def small-cols [:sepal-length :petal-length])
 
 (-> (rdatasets/datasets-iris)
-    (pj/cross-matrix small-cols {:color :species}))
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x small-cols} :row {:y small-cols}}))
 
 (kind/test-last
  [(fn [v]
@@ -363,7 +362,8 @@
 (def cols [:sepal-length :sepal-width :petal-length :petal-width])
 
 (-> (rdatasets/datasets-iris)
-    (pj/cross-matrix cols {:color :species}))
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x cols} :row {:y cols}}))
 
 (kind/test-last
  [(fn [v]
@@ -379,8 +379,9 @@
 
 ;; Per-cell inference picks the layer type for each panel: diagonal
 ;; cells (x = y) get histograms; off-diagonal cells get scatter
-;; plots. All panels share the color aesthetic set at the composite
-;; root.
+;; plots. All panels share the color aesthetic set on the pose.
+;; `pj/cross-matrix` builds the same grid in one call,
+;; `(pj/cross-matrix data cols {:color :species})`.
 ;;
 ;; See the [Gallery](./plotje_book.gallery.html#scatter-plot-matrices)
 ;; chapter for more SPLOM variations, and the

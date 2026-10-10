@@ -419,25 +419,19 @@ dashboard
 ;; ## Drawing Layers with Different Data
 ;;
 ;; A layer can carry its own `:data` via the layer options map.
-;; This is how reference lines, prediction overlays, and small
-;; annotation datasets attach to a plot. A panel has one x-axis and
-;; one y-axis, both identified by their column ref, so a layer that
-;; renders on a panel uses the panel's column refs to look up values
-;; in its data.
+;; This is how reference lines, predictions drawn over the data, and
+;; small annotation datasets attach to a plot. The layer reads the
+;; columns it names from its own data, and the columns it leaves to the
+;; pose from its own data too.
 ;;
-;; That rule gives two patterns -- "overlay on the same panel"
-;; and "this layer on a panel of its own" -- with different
-;; mechanics. Knowing which one you want determines the call
-;; shape.
+;; A layer with data of its own is drawn on the pose's panel, like any
+;; other layer of the pose. A separate panel for it comes from
+;; `pj/arrange`.
 ;;
-;; ### Overlay on the same panel
+;; ### On the same panel
 ;;
-;; There are two ways to draw the layer on the existing panel with
-;; data from elsewhere. The first is to use the panel's column refs,
-;; renaming the incoming dataset's columns to match via
-;; `tc/rename-columns`; a layer whose columns match the panel's joins
-;; it. Here a base scatter is overlaid with a second set of points
-;; from another dataset:
+;; Here a base scatter gets a second set of points from another
+;; dataset, whose columns are named `:x` and `:y`:
 
 (def overlay-base
   {:fitted   [1 2 3]
@@ -449,10 +443,7 @@ dashboard
 
 (-> overlay-base
     (pj/lay-point :fitted :residual {:color "#377eb8"})
-    (pj/lay-point :fitted :residual
-                  {:color "#e6550d"
-                   :data (tc/rename-columns overlay-other
-                                            {:x :fitted :y :residual})}))
+    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
 
 (kind/test-last
  [(fn [v]
@@ -460,84 +451,49 @@ dashboard
       (and (= 1 (:panels s))
            (= 6 (:points s)))))])
 
-;; Both layers use the pose's `:fitted` and `:residual` column
-;; refs; the second layer's data, renamed to those columns,
-;; renders into the same panel. The result is one panel with
-;; six points -- three from each layer. Overlaid layers paint in
+;; One panel with six points -- three from each layer. Layers paint in
 ;; the order they were added -- see
-;; [Poses](./plotje_book.pose_model.html#layer-order-is-paint-order) -- so add the layer you
-;; want on top last.
+;; [Poses](./plotje_book.pose_model.html#layer-order-is-paint-order) --
+;; so add the layer you want on top last.
 ;;
-;; The second way is to say outright that you meant an overlay, and
-;; leave the incoming columns alone. `pj/overlay` marks the pose, and
-;; its layers are drawn on one panel:
+;; Where the incoming columns are the same quantity under another name,
+;; renaming them to the pose's columns with `tc/rename-columns` draws
+;; the same picture and says so in the data:
 
 (-> overlay-base
     (pj/lay-point :fitted :residual {:color "#377eb8"})
-    pj/overlay
-    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
+    (pj/lay-point :fitted :residual
+                  {:color "#e6550d"
+                   :data (tc/rename-columns overlay-other
+                                            {:x :fitted :y :residual})}))
 
 (kind/test-last
  [(fn [v]
-    (let [s (pj/svg-summary v)
-          renamed (-> overlay-base
-                      (pj/lay-point :fitted :residual {:color "#377eb8"})
-                      (pj/lay-point :fitted :residual
-                                    {:color "#e6550d"
-                                     :data (tc/rename-columns
-                                            overlay-other
-                                            {:x :fitted :y :residual})}))]
-      (and (= 1 (:panels s))
-           (= 6 (:points s))
-           ;; "Same picture" taken literally: the renamed form above
-           ;; draws the same SVG, which the written colours make
-           ;; checkable rather than merely plausible.
-           (= (pj/plot renamed) (pj/plot v)))))])
+    (= (pj/plot v)
+       (pj/plot (-> overlay-base
+                    (pj/lay-point :fitted :residual {:color "#377eb8"})
+                    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other})))))])
 
-;; Same picture, no renaming. Which to reach for depends on what the
-;; incoming columns mean: rename when they are the same quantity under
-;; another name, and use `pj/overlay` when they are a different
-;; quantity you want read against the same axes.
+;; ### A panel of its own
 ;;
-;; ### A panel of its own for the new layer
-;;
-;; To put the new layer on its own panel, name the layer's
-;; columns directly. When the new layer's columns do not match the
-;; existing ones, the pose draws two panels: one for the columns it
-;; already had, one for the columns the layer names. The layer keeps
-;; its own columns and the pose stays a leaf -- which panels a leaf
-;; draws is settled at draft time, where `:overlay` is read. A panel is
-;; placed by its columns: `:x` picks the column of the grid, `:y` picks
-;; the row, so two panels naming four different columns sit on the
-;; diagonal of a two-by-two grid and the other two cells stay empty.
-;; This split is specified as Rule
-;; LP2 in the [Pose Rules](./plotje_book.pose_rules.html#rule-lp2-position-carrying-lay--attaches-to-the-dfs-last-matching-leaf) chapter.
+;; To draw the other dataset beside the base scatter, build each as a
+;; pose and arrange them:
 
-(-> overlay-base
-    (pj/lay-point :fitted :residual {:color "#377eb8"})
-    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
+(pj/arrange [(pj/lay-point overlay-base :fitted :residual {:color "#377eb8"})
+             (pj/lay-point overlay-other :x :y {:color "#e6550d"})])
 
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)]
       (and (= 2 (:panels s))
            (= 6 (:points s))
-           ;; The two-by-two grid the prose describes: two distinct
-           ;; x columns give two grid columns, two distinct y columns
-           ;; give two rows, and only two of the four cells are filled --
-           ;; the two that are, on the diagonal.
-           (= [[0 0] [1 1]] (mapv (juxt :row :col) (:panels (pj/plan v))))
            ;; The same two colours as the two examples above, so the
-           ;; three outcomes can be compared mark for mark.
+           ;; outcomes can be compared mark for mark.
            (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
               (disj (:colors s) "none")))))])
 
-;; Each panel has three points and its own x/y axis labels:
-;; panel-1 shows `fitted` vs `residual`, panel-2 shows `x` vs
-;; `y`. To put the two panels in a row instead of on a diagonal --
-;; or to set weights, share scales, or give an explicit grid --
-;; build the composite via `pj/arrange` or the explicit
-;; composite-pose form shown earlier in the chapter.
+;; Each panel has three points and its own axis titles: the first
+;; shows `fitted` against `residual`, the second `x` against `y`.
 
 ;; ## Panels Clip Their Own Content
 ;;

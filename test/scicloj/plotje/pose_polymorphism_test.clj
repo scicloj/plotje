@@ -14,6 +14,7 @@
    are test-internal."
   (:require [clojure.test :refer [deftest testing is]]
             [tablecloth.api :as tc]
+            [scicloj.metamorph.ml.rdatasets :as rdatasets]
             [scicloj.plotje.api :as pj]
             [scicloj.plotje.impl.pose :as pose]))
 
@@ -115,114 +116,73 @@
       (is (not (contains? f :poses))))))
 
 ;; ============================================================
-;; Promote -- leaf-with-position plus a new position (P1-P3)
+;; A mapping writer -- position on a leaf that has one (P1-P4)
 ;; ============================================================
 ;;
-;; When the receiver leaf already carries position (:x or :y in its
-;; :mapping), another position-bearing pj/pose call promotes to a
-;; composite. Aesthetic parts split to the composite's root; position
-;; parts stay on the per-panel sub-poses.
+;; `pj/pose` merges into the pose's mapping and never adds a panel. A
+;; new `:x` or `:y` replaces the old one, so a pose returned by a
+;; function can be pointed at other columns.
 
-(deftest promote-via-position-test
-  (testing "P1 (guiding): identical positions -- two identical panels"
-    (let [f (-> iris (pj/pose :a :b) (pj/pose :a :b))]
-      (is (= 2 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :a :y :b} (-> f :poses (nth 1) :mapping)))
-      (is (not (contains? f :mapping)))
-      (is (not (contains? f :layers)))))
+(deftest mapping-writer-position-test
+  (testing "P1: the same position again gives the same pose"
+    (let [p (pj/pose iris :a :b)]
+      (is (= p (pj/pose p :a :b)))))
 
-  (testing "P2: distinct positions -- two distinct panels"
+  (testing "P2: a different position replaces the old one"
     (let [f (-> iris (pj/pose :a :b) (pj/pose :c :d))]
-      (is (= 2 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping)))
-      (is (not (contains? f :mapping)))))
+      (is (= {:x :c :y :d} (:mapping f)))
+      (is (not (contains? f :poses)))))
 
-  (testing "P3: aesthetic in first call splits to root; positions to panels"
-    (let [f (-> iris (pj/pose :a :b {:color :species}) (pj/pose :c :d))]
-      (is (= {:color :species} (:mapping f)))
-      (is (= 2 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping))))))
+  (testing "P3: the aesthetic stays"
+    (is (= {:x :c :y :d :color :species}
+           (:mapping (-> iris (pj/pose :a :b {:color :species}) (pj/pose :c :d))))))
+
+  (testing "P4: a pose returned by a function, pointed at other columns"
+    (let [trend (fn [data] (-> data
+                               (pj/pose :sepal-length :sepal-width)
+                               pj/lay-point
+                               pj/lay-smooth))
+          real-iris (rdatasets/datasets-iris)
+          moved (pj/pose (trend real-iris) :petal-length :petal-width)]
+      (is (= {:x :petal-length :y :petal-width} (:mapping moved)))
+      (is (= [{:layer-type :point} {:layer-type :smooth}] (:layers moved)))
+      (is (= (pj/plot moved)
+             (pj/plot (-> real-iris
+                          (pj/pose :petal-length :petal-width)
+                          pj/lay-point
+                          pj/lay-smooth)))))))
 
 ;; ============================================================
-;; Promote -- aesthetic-only call on leaf-with-position (A1-A2)
+;; A mapping writer -- aesthetic on a leaf with position (A1-A2)
 ;; ============================================================
-;;
-;; Aesthetic-only calls do not add a panel; they promote the leaf so
-;; the aesthetic lives at composite root (flowing to every descendant
-;; panel). Subsequent position calls append panels as usual.
 
-(deftest promote-via-aesthetic-test
-  (testing "A1: aesthetic-only on leaf-with-position promotes, no new panel"
+(deftest mapping-writer-aesthetic-test
+  (testing "A1: an aesthetic merges into the leaf's mapping"
     (let [f (-> iris (pj/pose :a :b) (pj/pose {:color :species}))]
-      (is (= {:color :species} (:mapping f)))
-      (is (= 1 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))))
+      (is (= {:x :a :y :b :color :species} (:mapping f)))
+      (is (not (contains? f :poses)))))
 
-  (testing "A2: aesthetic-then-position gives root aesthetic + two panels"
-    (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/pose {:color :species})
-                (pj/pose :c :d))]
-      (is (= {:color :species} (:mapping f)))
-      (is (= 2 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping))))))
+  (testing "A2: the layers stay on the leaf"
+    (let [f (-> iris (pj/pose :a :b) pj/lay-point (pj/pose {:color :species}))]
+      (is (= [{:layer-type :point}] (:layers f)))
+      (is (= {:x :a :y :b :color :species} (:mapping f))))))
 
 ;; ============================================================
-;; Layer partitioning during promotion (L1-L4)
+;; Laws of a mapping writer (W1-W3)
 ;; ============================================================
-;;
-;; Partition rule is single and self-describing: inspect each layer's
-;; own :mapping. Layers carrying :x or :y ("panel-origin") stay with
-;; sub-pose 1. Layers without :x/:y ("root-origin") move to the new
-;; composite's root :layers -- they distribute to every panel via
-;; resolve-tree.
 
-(deftest layer-partitioning-test
-  (testing "L1 (Pattern D): bare lay-point routes to root, flows to both"
-    (let [f (-> iris (pj/pose :a :b) pj/lay-point (pj/pose :c :d))]
-      (is (= 1 (count (:layers f))))
-      (is (= :point (-> f :layers (nth 0) :layer-type)))
-      (is (not (contains? (-> f :layers (nth 0)) :mapping)))
-      (is (= 2 (count (:poses f))))
-      (is (= [] (-> f :poses (nth 0) :layers)))
-      (is (= [] (-> f :poses (nth 1) :layers)))))
-
-  (testing "L2: position-matching lay-point stays in sub-pose 1"
-    (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/lay-point :a :b)
-                (pj/pose :c :d))]
-      (is (or (not (contains? f :layers))
-              (= [] (:layers f))))
-      (is (= 1 (count (-> f :poses (nth 0) :layers))))
-      (is (= :point (-> f :poses (nth 0) :layers (nth 0) :layer-type)))
-      (is (= [] (-> f :poses (nth 1) :layers)))))
-
-  (testing "L3: mixed bare + position layers partition correctly"
-    (let [f (-> iris
-                (pj/pose :a :b)
-                pj/lay-point
-                (pj/lay-line :a :b)
-                (pj/pose :c :d))]
-      (is (= 1 (count (:layers f))))
-      (is (= :point (-> f :layers (nth 0) :layer-type)))
-      (is (= 1 (count (-> f :poses (nth 0) :layers))))
-      (is (= :line (-> f :poses (nth 0) :layers (nth 0) :layer-type)))
-      (is (= [] (-> f :poses (nth 1) :layers)))))
-
-  (testing "L4: aesthetic-only on layer (no :x/:y) routes to root"
-    (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/lay-point {:color :species})
-                (pj/pose :c :d))]
-      (is (= 1 (count (:layers f))))
-      (is (= {:color :species} (-> f :layers (nth 0) :mapping)))
-      (is (= [] (-> f :poses (nth 0) :layers)))
-      (is (= [] (-> f :poses (nth 1) :layers))))))
+(deftest mapping-writer-laws-test
+  (let [p (-> iris (pj/pose :a :b {:color :species}) pj/lay-point)]
+    (testing "W1: (pj/pose p) is p"
+      (is (= p (pj/pose p))))
+    (testing "W2: (pj/pose p {}) is p"
+      (is (= p (pj/pose p {}))))
+    (testing "W3: writing a mapping twice is writing it once"
+      (is (= (pj/pose p {:size :c}) (pj/pose (pj/pose p {:size :c}) {:size :c}))))
+    (testing "W4: on a composite, an aesthetic merges into the root"
+      (let [c (pj/arrange iris [[:a :b] [:c :d]])]
+        (is (= {:color :species} (:mapping (pj/pose c {:color :species}))))
+        (is (= c (pj/pose c {})))))))
 
 ;; ============================================================
 ;; No-op on empty call (N1-N2)
@@ -239,24 +199,37 @@
       (is (= leaf again))))
 
   (testing "N2: (pj/pose composite) returns composite unchanged"
-    (let [composite (-> iris (pj/pose :a :b) (pj/pose :c :d))
+    (let [composite (pj/arrange iris [[:a :b] [:c :d]])
           again (pj/pose composite)]
       (is (= composite again)))))
 
 ;; ============================================================
-;; Composite append -- third panel and beyond (K1)
+;; A position on a composite (K1-K3)
 ;; ============================================================
 
 (deftest composite-append-test
-  (testing "K1: three pj/pose position calls in a row give three panels"
-    (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/pose :c :d)
-                (pj/pose :e :f))]
-      (is (= 3 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping)))
-      (is (= {:x :e :y :f} (-> f :poses (nth 2) :mapping))))))
+  (testing "K1: a position on a composite goes to the root; cells that map
+            their own override it, and the draft warns that it is not drawn"
+    (let [real-iris (rdatasets/datasets-iris)
+          c (-> real-iris
+                (pj/arrange [[:sepal-length :sepal-width]])
+                (pj/pose :petal-length :petal-width)
+                pj/lay-point)
+          out (with-out-str (pj/plan c))]
+      (is (= {:x :petal-length :y :petal-width} (:mapping c)))
+      (is (re-find #"not drawn" out))
+      (is (= (pj/plot c)
+             (pj/plot (-> real-iris (pj/arrange [[:sepal-length :sepal-width]]) pj/lay-point))))))
+  (testing "K2: no warning where a cell reads the root's position"
+    (let [real-iris (rdatasets/datasets-iris)]
+      (is (= "" (with-out-str
+                  (pj/plan (-> (pj/arrange [(pj/pose real-iris {:y :sepal-width})])
+                               (pj/pose {:x :sepal-length})
+                               pj/lay-point)))))))
+  (testing "K3: cells are appended with pj/arrange"
+    (let [f (-> iris (pj/arrange [[:a :b]]) (pj/arrange [[:c :d] [:e :f]]))]
+      (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
+             (mapv :mapping (panels f)))))))
 
 ;; ============================================================
 ;; Multi-pair pj/arrange -- N panels in one call (M1-M7)
@@ -437,7 +410,7 @@
 
 (deftest integration-lay-resolve-test
   (testing "I1: root-origin layer reaches both panels through resolve-tree"
-    (let [f (-> iris (pj/pose :a :b) pj/lay-point (pj/pose :c :d))
+    (let [f (-> iris (pj/arrange [[:a :b] [:c :d]]) pj/lay-point)
           leaves (pose/resolve-tree f)]
       (is (= 2 (count leaves)))
       (is (every? (fn [leaf] (= 1 (count (:layers leaf)))) leaves)
@@ -445,9 +418,8 @@
 
   (testing "I2: panel-specific layer does not leak across panels"
     (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/lay-point :a :b)
-                (pj/pose :c :d))
+                (pj/arrange [[:a :b] [:c :d]])
+                (pj/lay-point :a :b))
           leaves (pose/resolve-tree f)
           layers-per-leaf (mapv #(count (:layers %)) leaves)]
       (is (= [1 0] layers-per-leaf)
@@ -455,9 +427,8 @@
 
   (testing "I3: root aesthetic merges into both resolved leaves' mappings"
     (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/pose {:color :species})
-                (pj/pose :c :d))
+                (pj/arrange [[:a :b] [:c :d]])
+                (pj/pose {:color :species}))
           leaves (pose/resolve-tree f)]
       (is (= 2 (count leaves)))
       (is (every? (fn [leaf] (= :species (get-in leaf [:mapping :color])))
@@ -472,61 +443,42 @@
     (is (no-empty-map-output? (pj/pose)))
     (is (no-empty-map-output? (pj/pose iris)))
     (is (no-empty-map-output? (pj/pose iris :a :b)))
-    (is (no-empty-map-output? (-> iris (pj/pose :a :b) (pj/pose :c :d))))
+    (is (no-empty-map-output? (pj/arrange iris [[:a :b] [:c :d]])))
     (is (no-empty-map-output? (-> iris (pj/pose :a :b) pj/lay-point)))
     (is (no-empty-map-output?
-         (-> iris (pj/pose :a :b) pj/lay-point (pj/pose :c :d))))))
+         (-> iris (pj/arrange [[:a :b] [:c :d]]) pj/lay-point)))))
 
 (deftest poses-preserve-call-order-test
-  (testing "Sub-poses appear in left-to-right pj/pose invocation order"
-    (let [f (-> iris
-                (pj/pose :a :b)
-                (pj/pose :c :d)
-                (pj/pose :e :f))]
+  (testing "Cells appear in the order pj/arrange is given them"
+    (let [f (pj/arrange iris [[:a :b] [:c :d] [:e :f]])]
       (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
-             (mapv :mapping (:poses f)))))))
-
-(deftest promotion-shape-idempotence-test
-  (testing "Threading pj/pose three times equals threading twice + once"
-    (let [three-in-a-row (-> iris
-                             (pj/pose :a :b)
-                             (pj/pose :c :d)
-                             (pj/pose :e :f))
-          built-in-two   (let [two (-> iris
-                                       (pj/pose :a :b)
-                                       (pj/pose :c :d))]
-                           (pj/pose two :e :f))]
-      (is (= three-in-a-row built-in-two)))))
+             (mapv :mapping (panels f)))))))
 
 ;; ============================================================
-;; Layer position vs pose position -- overlay semantics
+;; Layer columns vs pose columns
 ;; ============================================================
 ;;
-;; When a leaf already carries position and `pj/lay-*` is called with
-;; a non-matching position, the layer joins the leaf carrying its own
-;; place, and the leaf draws a panel per place at draft time. `lay-*`
-;; does not restructure the pose: which panels a leaf draws is settled
-;; where `:overlay` is read, so that `pj/overlay` says the same thing
-;; wherever in a thread it is written.
+;; When a leaf already carries columns and `pj/lay-*` is called with
+;; others, the layer joins the leaf carrying its own columns, and the
+;; layers of the leaf share its one panel. `lay-*` does not restructure
+;; the pose.
 
-(deftest leaf-layer-non-matching-position-splits-at-draft-test
-  (testing "leaf with position, lay-* with non-matching position -- a panel each"
+(deftest leaf-layer-non-matching-columns-share-the-panel-test
+  (testing "leaf with columns, lay-* with other columns -- one panel"
     (let [fr (-> iris
                  (pj/pose :a :b)
                  (pj/lay-point :c :d))]
       (is (nil? (:poses fr)) "lay-* does not restructure the pose")
       (is (= {:x :a :y :b} (:mapping fr)))
       (is (= [{:x :c :y :d}] (mapv :mapping (:layers fr))))
-      ;; The pose's own place keeps its panel, with a mark inferred for
-      ;; it, as the promoted sub-pose it replaces did.
-      (is (= 2 (:panels (pj/svg-summary fr))))))
-  (testing "each layer keeps its own place, and each place gets a panel"
+      (is (= 1 (:panels (pj/svg-summary fr))))))
+  (testing "each layer keeps its own columns, on one panel"
     (let [fr (-> iris
                  (pj/lay-point :a :b)
                  (pj/lay-point :c :d))]
       (is (nil? (:poses fr)))
       (is (= [{:x :a :y :b} {:x :c :y :d}] (mapv :mapping (:layers fr))))
-      (is (= 2 (:panels (pj/svg-summary fr))))))
+      (is (= 1 (:panels (pj/svg-summary fr))))))
   (testing "matching position passes -- redundant :mapping on the layer is fine"
     (let [f (-> iris
                 (pj/pose :a :b)
@@ -534,7 +486,7 @@
       (is (= {:x :a :y :b} (:mapping f)))
       (is (= 1 (count (:layers f))))
       (is (= 1 (:panels (pj/svg-summary f))))))
-  (testing "string vs keyword: distinct column references, so a panel each"
+  (testing "string vs keyword: distinct column references, both drawn"
     ;; Layer-level :data with string-named columns makes the safety
     ;; check pass: the new panel has columns "a" and "b" to map to.
     ;; Without it, the safety check correctly notes that strings
@@ -546,7 +498,7 @@
       (is (nil? (:poses fr)))
       (is (= {:x :a :y :b} (:mapping fr)))
       (is (= [{:x "a" :y "b"}] (mapv :mapping (:layers fr))))
-      (is (= 2 (:panels (pj/svg-summary fr)))))))
+      (is (= 1 (:panels (pj/svg-summary fr)))))))
 
 (deftest a-split-keeps-a-layers-own-mapping-test
   ;; A layer that names no place is stamped with the leaf's when the

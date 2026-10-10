@@ -878,14 +878,19 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo msg
                             (pj/pose two :when :level {:column :level}))))
     (testing "the slots that do take it are unaffected"
+      ;; A lay-* call keeps its columns on its layer.
       (is (= {:x {:column :when} :y :level}
-             (:mapping (pj/lay-point two {:column :when} :level))))
+             (-> (pj/lay-point two {:column :when} :level)
+                 :layers first :mapping (select-keys [:x :y]))))
       (is (= {:x :when :y {:column :level}}
-             (:mapping (pj/lay-point two :when {:column :level} {:color :when}))))
+             (-> (pj/lay-point two :when {:column :level} {:color :when})
+                 :layers first :mapping (select-keys [:x :y]))))
       (is (= {:x {:column :when} :y :level}
              (:mapping (pj/pose two {:x {:column :when} :y :level})))))
     (testing "and an ordinary options map is untouched"
-      (is (= {:x :when :y :level} (:mapping (pj/lay-point two :when :level {:alpha 0.5}))))
+      (is (= {:x :when :y :level}
+             (-> (pj/lay-point two :when :level {:alpha 0.5})
+                 :layers first :mapping (select-keys [:x :y]))))
       (is (= {:color :when :x :when :y :level}
              (:mapping (pj/pose two :when :level {:color :when})))))))
 

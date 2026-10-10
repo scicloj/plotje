@@ -208,11 +208,10 @@ sales-long
 ;; dodge divides by:
 
 (-> sales-wide
-    pj/overlay
     (pj/lay-bar :quarter :revenue {:position :dodge})
     (pj/lay-bar :quarter :cost {:position :dodge}))
 
-(->> (pj/plan (-> sales-wide pj/overlay
+(->> (pj/plan (-> sales-wide
                   (pj/lay-bar :quarter :revenue {:position :dodge})
                   (pj/lay-bar :quarter :cost {:position :dodge})))
      :panels first :layers
@@ -243,7 +242,7 @@ sales-long
                            (mapv double)))]
     (vec (for [adj [:dodge :stack :fill]]
            [adj
-            (pr-str (tops (-> sales-wide pj/overlay
+            (pr-str (tops (-> sales-wide
                               (pj/lay-bar :quarter :revenue {:position adj})
                               (pj/lay-bar :quarter :cost {:position adj}))))
             (pr-str (tops (-> sales-wide
@@ -275,7 +274,6 @@ sales-long
 ;; line across it, different stats, different options per layer:
 
 (-> sales-wide
-    pj/overlay
     (pj/lay-bar :quarter :revenue)
     (pj/lay-line :quarter :cost {:color "#e6550d"}))
 
@@ -304,12 +302,15 @@ sales-long
 
 (kind/test-last [(fn [v] (= 12 (:polygons (pj/svg-summary v))))])
 
-;; The pivot happens on the pose, so everything after it reads an
-;; ordinary pose -- one dataset, one mapping per aesthetic:
+;; The layer keeps the series it was given. The pivot happens when the
+;; pose is drawn, so everything after it reads ordinary columns -- one
+;; dataset, one mapping per aesthetic:
 
 (-> sales-wide (pj/lay-bar :quarter [:revenue :cost :tax]) kind/pprint)
 
-(kind/test-last [(fn [pose] (= {:x :quarter :y :value} (:mapping pose)))])
+(kind/test-last [(fn [pose] (and (= [:revenue :cost :tax] (-> pose :layers first :mapping :y))
+                                 (= [:quarter :value]
+                                    ((juxt :x :y) (-> pose pj/draft :layers first)))))])
 
 ;; ## Every adjustment reaches them
 
@@ -508,70 +509,44 @@ sales-long
 
 ;; # Four repairs that came with it
 
-;; ## The panel split says what it did
+;; ## Layers on other columns share the panel, and say where they disagree
 
-;; Two layers disagreeing about an axis still get a panel each -- the
-;; default is unchanged -- but the split no longer happens in silence,
-;; and the note names the onward routes. `pj/overlay` draws the second
-;; column against the axis the panel already has, and always applies.
-;; The series route replaces the two calls with one, and is named only
-;; where following it draws.
-
-;; The split is settled where `:overlay` is read, which is at draft
-;; time, so the note is said when the pose is drawn rather than when a
-;; layer is added.
+;; Two layers naming different columns used to get a panel each. The
+;; layers of a pose now share its panel, and separate panels come from
+;; `pj/facet` over the columns or from `pj/arrange`. Two numeric columns
+;; on one axis need no report: the axis covers both and is titled by
+;; both.
 
 (defn note-of
   "What a pose says when it is drawn."
   [pose]
   (with-out-str (pj/plot pose)))
 
-(note-of (-> sales (pj/lay-point :quarter :revenue)
-             (pj/lay-point :quarter :cost)))
+(let [p (-> sales (pj/lay-point :quarter :revenue)
+            (pj/lay-point :quarter :cost))]
+  [(note-of p) (:panels (pj/svg-summary p))])
+
+(kind/test-last [(fn [[out panels]] (and (= "" out) (= 1 panels)))])
+
+;; A count beside a column on `:y` can be drawn, but the axis then reads
+;; in two units, and the draw says so:
+
+(note-of (-> sales (pj/lay-histogram :revenue) (pj/lay-point :revenue :cost)))
 
 (kind/test-last
- [(fn [out] (and (re-find #"panel of its own" out)
-                 (re-find #"pj/overlay" out)
-                 (re-find #"\[:revenue :cost\]" out)))])
+ [(fn [out] (re-find #"Note: the layers of this pose share one panel, and on :y" out))])
 
-;; Nothing is said where the layers agree, or under `pj/overlay`, which
-;; asked for one panel -- and nothing where `pj/overlay` is written
-;; after the layers, which asks for the same thing:
+;; A category beside a number on one axis cannot be placed at all, and
+;; reports an error naming both routes to separate panels:
 
-[(note-of (-> sales (pj/lay-point :quarter :revenue)
-              (pj/lay-line :quarter :revenue)))
- (note-of (-> sales pj/overlay (pj/lay-point :quarter :revenue)
-              (pj/lay-point :quarter :cost)))
- (note-of (-> sales (pj/lay-point :quarter :revenue)
-              (pj/lay-point :quarter :cost)
-              pj/overlay))]
-
-(kind/test-last [(fn [outs] (= ["" "" ""] outs))])
-
-;; The series route needs one dataset carrying the columns, so where
-;; the layer brings data of its own the note leaves it out:
-
-(note-of
- (-> {:fitted [1 2 3] :residual [1 2 3]}
-     (pj/lay-point :fitted :residual)
-     (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))
+(try (pj/plot (-> sales (pj/lay-point :quarter :revenue)
+                  (pj/lay-point :units :revenue)))
+     (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
- [(fn [out] (and (re-find #"panel of its own" out)
-                 (re-find #"pj/overlay" out)
-                 (not (re-find #"series" out))))])
-
-;; Where both axes disagree, the route it names is a series on each
-;; axis, which is read in pairs:
-
-(note-of
- (-> (assoc sales :units [3 4 5 6] :rank [1 2 3 4])
-     (pj/lay-point :revenue :cost)
-     (pj/lay-point :rank :units)))
-
-(kind/test-last
- [(fn [out] (and (re-find #"panel of its own" out)
-                 (re-find #"series in pairs" out)))])
+ [(fn [msg] (and (re-find #"columns of different kinds" msg)
+                 (re-find #"pj/arrange" msg)
+                 (re-find #"pj/facet" msg)))])
 
 ;; ## Composites nest
 

@@ -312,9 +312,8 @@ trace-pose
 ;;
 ;; - **pj/pose** -- not a literal composition. Beyond `pj/->pose`,
 ;;   it infers mappings from 1-3 column datasets, parses positional
-;;   column arguments (e.g. `(pj/pose data :x :y)`), builds
-;;   rectangular composites from `pj/cross` pair lists, and extends
-;;   or promotes existing poses. Use `pj/->pose` when you only need
+;;   column arguments (e.g. `(pj/pose data :x :y)`), and merges a
+;;   mapping into an existing pose. Use `pj/->pose` when you only need
 ;;   to lift raw input to a pose without any of that.
 ;; - **pj/draft** -- raw input -> draft.
 ;; - **pj/plan** -- raw input -> plan.

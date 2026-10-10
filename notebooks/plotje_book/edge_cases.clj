@@ -540,11 +540,10 @@
 ;;
 ;; When a layer carries its own `:data` and the pose's position
 ;; columns are absent from that data, the error names the source
-;; (inherited from the pose's mapping) and offers two paths: rename
-;; the column for an overlay, or set the axis on the layer call so the
-;; layer draws a panel of its own. This error covers a second layer
-;; attached with its own dataset whose columns do not match the
-;; panel's axes, a pattern common in ggplot2.
+;; (inherited from the pose's mapping) and asks for the axis to be set
+;; on the layer call, to a column of the layer's data. This error
+;; covers a second layer attached with its own dataset whose columns do
+;; not match the panel's axes, a pattern common in ggplot2.
 
 (try
   (-> (tc/dataset {:fitted [1 2 3] :residual [1 2 3]})

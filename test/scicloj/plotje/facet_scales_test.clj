@@ -11,7 +11,8 @@
    different x/y columns is meaningless."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
-            [scicloj.plotje.layer-type :as layer-type]))
+            [scicloj.plotje.layer-type :as layer-type]
+            [tablecloth.api :as tc]))
 
 (def small
   ;; Three groups with deliberately different x and y ranges.
@@ -201,3 +202,46 @@
                    pj/plan)
           [only] (panel-magnitudes plan :size :sizes)]
       (is (= [2.0 8.0] [(apply min only) (apply max only)])))))
+
+(deftest a-facet-reads-the-column-the-data-names-test
+  ;; The data decides what names a column: an integer names column 2 of
+  ;; a dataset whose columns are integers. It drew one panel, no message.
+  (let [d (tc/dataset {0 [1 2 3 4] 1 [1 2 3 4] 2 ["a" "b" "a" "b"]})]
+    (is (= 2 (:panels (pj/svg-summary (-> d (pj/lay-point 0 1) (pj/facet 2)))))))
+  (testing "a facet naming no column of the data is reported"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Column :nope \(from :col\) not found"
+                          (pj/plan (-> {:a [1 2] :b [3 4]} (pj/lay-point :a :b) (pj/facet :nope)))))))
+
+(deftest too-many-panels-says-so-in-drawing-terms-test
+  ;; The message said "px" and quoted :width=600 as if it had been written.
+  (let [d (tc/dataset {:x (range 76) :y (range 76) :g (map #(str "c" (mod % 38)) (range 76))})
+        msg (try (pj/plan (-> d (pj/lay-point :x :y) (pj/facet :g))) nil
+                 (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+    (is (re-find #"Each panel would be \d+ wide" msg))
+    (is (re-find #"for 38 columns of panels" msg))
+    (is (not (re-find #"px|:width=" msg)))))
+
+(deftest an-empty-facet-grid-cell-does-not-stretch-the-shared-axes-test
+  ;; A cell with no rows read a domain at zero, and every panel's axes
+  ;; were pulled to it.
+  (let [d {:a [1 1 2] :b [5 6 7] :x [10.0 11.0 12.0] :y [20.0 21.0 22.0]}
+        plan (pj/plan (-> d (pj/lay-point :x :y) (pj/facet-grid :a :b)))
+        doms (set (map (juxt :x-domain :y-domain) (:panels plan)))]
+    (is (= 6 (count (:panels plan))))
+    (is (= 1 (count doms)))
+    ;; Every panel reads the data's extent, padded: x 10-12, y 20-22.
+    (is (= #{[[9.0 13.0] [19.0 23.1]]} doms))))
+
+(deftest free-axis-labels-every-panel-test
+  ;; Each panel of a free axis has ticks of its own, so each draws its
+  ;; tick labels; a shared axis labels only the outer panels.
+  (let [d {:x [1 2 3 4 5 6] :y [1 2 10 20 100 200] :g ["a" "a" "b" "b" "c" "c"]}
+        base (-> d (pj/lay-point :x :y) (pj/facet :g))
+        free (pj/options base {:scales :free-y})
+        panel-labels (mapv (comp :labels :y-ticks) (:panels (pj/plan free)))
+        drawn (frequencies (:texts (pj/svg-summary free)))]
+    (is (= ["1" "2"] (first panel-labels)))
+    (is (= "110" (second (last panel-labels))))
+    (is (every? drawn (apply concat panel-labels)))
+    ;; Shared: one column of y labels, so "200" is drawn once.
+    (is (= 1 ((frequencies (:texts (pj/svg-summary base))) "200")))))

@@ -77,19 +77,32 @@
 
 (defn- col-strip-drawables
   "Build a vector of membrane drawables: one centered text per column
-   label, positioned above its column's top-row rect."
-  [col-labels layout n-cols strip-top cfg]
-  (vec
-   (for [ci (range n-cols)
-         :let [label (nth col-labels ci nil)
-               rect  (get layout [0 ci])]
-         :when (and label rect)]
-     (let [[x _ w _] rect
-           cx (+ (double x) (/ (double w) 2.0))]
-       (ui/translate cx (double strip-top)
-                     (ui/with-color composite-text-color
-                       (assoc (ui/label label (ui/font nil (:strip-font-size cfg)))
-                              :text-anchor "middle")))))))
+   label, positioned above its column's top-row cell. Centred on the
+   cell's panel where the cell's plan is known -- the cell's rectangle
+   also holds the room its y labels take, and centring on that put the
+   label left of the panel under it."
+  ([col-labels layout n-cols strip-top cfg]
+   (col-strip-drawables col-labels layout n-cols strip-top cfg {}))
+  ([col-labels layout n-cols strip-top cfg plan-of]
+   (vec
+    (for [ci (range n-cols)
+          :let [label (nth col-labels ci nil)
+                ;; Rows of cells, as `pj/arrange` builds them, or one
+                ;; flat row of cells.
+                path  (if (get layout [0 ci]) [0 ci] [ci])
+                rect  (get layout path)]
+          :when (and label rect)]
+      (let [[x _ w _] rect
+            p (get plan-of path)
+            pad (get-in p [:layout :y-label-pad])
+            pw (:panel-width p)
+            cx (if (and pad pw)
+                 (+ (double x) (double pad) (/ (double pw) 2.0))
+                 (+ (double x) (/ (double w) 2.0)))]
+        (ui/translate cx (double strip-top)
+                      (ui/with-color composite-text-color
+                        (assoc (ui/label label (ui/font nil (:strip-font-size cfg)))
+                               :text-anchor "middle"))))))))
 
 (defn- row-strip-drawables
   "Build a vector of membrane drawables: one text per row label,
@@ -100,7 +113,7 @@
     (vec
      (for [ri (range n-rows)
            :let [label (nth row-labels ri nil)
-                 rect  (get layout [ri 0])]
+                 rect  (or (get layout [ri 0]) (get layout [ri]))]
            :when (and label rect)]
        (let [[_ y _ h] rect
              cy (+ (double y) (/ (double h) 2.0))]
@@ -157,9 +170,9 @@
         ;; a legend reading 100000 beside axes reading 100,000.
         cfg (defaults/resolve-config opts)
         {:keys [width height sub-plots chrome]} composite-plan
-        {:keys [title title-band-h grid-rect strip-h strip-w
+        {:keys [title subtitle caption title-band-h grid-rect strip-h strip-w
                 col-labels row-labels n-cols n-rows matrix?
-                shared-legend layout]} chrome
+                shared-legend layout axis-titles]} chrome
         strips? (boolean (or (seq col-labels) (seq row-labels)))
         ;; The composite's own options reach each cell. Passing `{}` here
         ;; left every panel of a composite resolving its configuration
@@ -185,7 +198,8 @@
                        (matrix-col-strip-drawables col-labels grid-rect n-cols
                                                    (+ title-band-h 2) cfg)
                        (col-strip-drawables col-labels layout n-cols
-                                            (+ title-band-h 2) cfg)))
+                                            (+ title-band-h 2) cfg
+                                            (into {} (map (juxt :path :plan)) sub-plots))))
         row-strips (when (and strips? (seq row-labels))
                      (if matrix?
                        (matrix-row-strip-drawables row-labels grid-rect n-rows
@@ -199,7 +213,42 @@
                        (+ (double strip-w) (double grid-w) 20)
                        (double (+ title-band-h strip-h))
                        cfg))
+        ;; Axis titles drawn once beside the grid, as a facet's are.
+        [gx gy gw gh] grid-rect
+        title-trees (cond-> []
+                      (:x axis-titles)
+                      (conj (ui/translate (+ (double gx) (/ (double gw) 2.0))
+                                          (+ (double gy) (double gh) 4)
+                                          (ui/with-color composite-text-color
+                                            (assoc (ui/label (:x axis-titles)
+                                                             (ui/font nil (:label-font-size cfg)))
+                                                   :text-anchor "middle"))))
+                      (:y axis-titles)
+                      (conj (ui/translate (- (double gx) 18)
+                                          (+ (double gy) (/ (double gh) 2.0))
+                                          (membrane.ui.Rotate. -90
+                                                               (ui/with-color composite-text-color
+                                                                 (assoc (ui/label (:y axis-titles)
+                                                                                  (ui/font nil (:label-font-size cfg)))
+                                                                        :text-anchor "middle"))))))
+        ;; Under the title, as a leaf's subtitle is: centred, two
+        ;; points smaller. The caption sits under the grid, at the right.
+        title-trees (cond-> title-trees
+                      subtitle
+                      (conj (ui/translate (/ (double width) 2.0)
+                                          (if title 32 6)
+                                          (ui/with-color composite-text-color
+                                            (assoc (ui/label subtitle
+                                                             (ui/font nil (- (:title-font-size cfg) 2)))
+                                                   :text-anchor "middle"))))
+                      caption
+                      (conj (ui/translate (- (double width) 10)
+                                          (- (double height) 13)
+                                          (ui/with-color [0.5 0.5 0.5 1.0]
+                                            (assoc (ui/label caption (ui/font nil 9))
+                                                   :text-anchor "end")))))
         composed (cond-> leaf-trees
+                   (seq title-trees) (into title-trees)
                    (seq col-strips) (into col-strips)
                    (seq row-strips) (into row-strips)
                    (seq legend-tree) (into legend-tree)

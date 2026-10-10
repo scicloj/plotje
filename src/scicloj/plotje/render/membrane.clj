@@ -433,6 +433,18 @@
                                       [ci (apply max (map :row ps))]))
         leftmost-col-per-row (into {} (for [[ri ps] (group-by :row panels)]
                                         [ri (apply min (map :col ps))]))
+        ;; A free axis has a domain of its own on each panel, so a panel
+        ;; whose domain differs from that of the panel labelled for its
+        ;; row (column) labels its own ticks. A panel with no data has
+        ;; a placeholder domain and labels none of its own.
+        panel-at (into {} (for [p panels] [[(:row p) (:col p)] p]))
+        own-domain? (fn [p axis]
+                     (let [k (if (= axis :x) :x-domain :y-domain)
+                           labelled (if (= axis :x)
+                                      (panel-at [(get bottom-row-per-col (:col p)) (:col p)])
+                                      (panel-at [(:row p) (get leftmost-col-per-row (:row p))]))]
+                       (and (some (comp seq :groups) (:layers p))
+                            (not= (k p) (k labelled)))))
 
         ;; Two-pass rendering: draw every panel's background first, then
         ;; foreground content on top. In sparse grids an earlier panel's
@@ -457,8 +469,8 @@
          (for [p panels
                :let [ri (:row p)
                      ci (:col p)
-                     show-x? (= ri (get bottom-row-per-col ci))
-                     show-y? (= ci (get leftmost-col-per-row ri))
+                     show-x? (or (= ri (get bottom-row-per-col ci)) (own-domain? p :x))
+                     show-y? (or (= ci (get leftmost-col-per-row ri)) (own-domain? p :y))
                      [x-off y-off] (frames/panel-origin plan p)]]
            (ui/translate x-off y-off
                          (panel/panel->membrane p pw ph margin cfg

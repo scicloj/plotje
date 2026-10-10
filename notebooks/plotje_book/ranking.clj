@@ -273,16 +273,15 @@
 ;; before and after a change -- by joining them with a line. Both ends
 ;; of the segment can name columns: `:x` is where the segment starts
 ;; and `:x-end` where it stops. A point layer on each column marks the
-;; two ends. The second point layer draws a different `:x` column, so
-;; `{:overlay true}` puts it on the same panel, and each point layer
-;; takes a colour and a legend entry of its own:
+;; two ends. The two point layers draw different `:x` columns on the
+;; same panel, and each takes a colour and a legend entry of its own:
 
 (-> {:team ["Ops" "Sales" "Support" "Research"]
      :before [62 48 71 55]
      :after [74 66 69 81]}
     (pj/lay-segment :before :team {:x-end :after})
     (pj/lay-point :before :team)
-    (pj/lay-point :after :team {:overlay true}))
+    (pj/lay-point :after :team))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
                                p (pj/plan v)]

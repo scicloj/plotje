@@ -48,9 +48,7 @@
                      o))]
     (assoc leaf :opts (-> opts
                           (keep-dom :x :x-scale-domain)
-                          (keep-dom :y :y-scale-domain)
-                          (keep-dom :x :x-scale-domain-by-column)
-                          (keep-dom :y :y-scale-domain-by-column)))))
+                          (keep-dom :y :y-scale-domain)))))
 
 (defn- outer-dimensions
   "The composite's total `[width height]`: its own `:width`/`:height`,
@@ -65,9 +63,21 @@
     [(long-or (:width opts) (:width cfg))
      (long-or (:height opts) (:height cfg))]))
 
+(def ^:private axis-title-band
+  "Room for an axis title a composite draws once beside its grid."
+  22)
+
 (def ^:private title-band-h
   "Height reserved at the top of a composite when :title is set."
   30)
+
+(def ^:private subtitle-band-h
+  "Height reserved under the title band when :subtitle is set."
+  18)
+
+(def ^:private caption-band-h
+  "Height reserved under the grid when :caption is set."
+  18)
 
 (def ^:private composite-chrome-opt-keys
   "Opts that live at the composite root -- the outer title band, etc.
@@ -307,7 +317,12 @@
   (let [[w h] (outer-dimensions composite)
         opts (or (:opts composite) {})
         title (:title opts)
-        top-pad (if title title-band-h 0)
+        subtitle (:subtitle opts)
+        caption (:caption opts)
+        ;; A subtitle takes a line under the title band; a caption a
+        ;; line under the grid.
+        top-pad (+ (if title title-band-h 0) (if subtitle subtitle-band-h 0))
+        caption-h (if caption caption-band-h 0)
         ;; Strip composite-chrome keys before resolve-tree so leaves
         ;; don't inherit them. The composite itself still renders
         ;; chrome via the title band above the leaf trees.
@@ -345,11 +360,16 @@
         strip-w (if (seq row-labels) (grid-strip-w row-labels) 0)
         n-cols (count col-labels)
         n-rows (count row-labels)
-        grid-w (max 1 (- w legend-w strip-w))
-        grid-rect [(double strip-w)
+        ;; Axis titles the composite draws once, beside the grid, as a
+        ;; facet does: a band below for x, one at the left for y.
+        axis-titles (set (:grid-axis-titles composite))
+        x-title-h (if (axis-titles :x) axis-title-band 0)
+        y-title-w (if (axis-titles :y) axis-title-band 0)
+        grid-w (max 1 (- w legend-w strip-w y-title-w))
+        grid-rect [(double (+ strip-w y-title-w))
                    (double (+ top-pad strip-h))
                    (double grid-w)
-                   (double (- h top-pad strip-h))]
+                   (double (- h top-pad strip-h x-title-h caption-h))]
         layout (pose/compute-layout injected grid-rect)
         ;; In matrix layout, the strip labels at the top carry the
         ;; column's x-col name and the strip labels on the left carry
@@ -368,7 +388,10 @@
                          leaves))
                  leaves)
         chrome {:title title
+                :subtitle subtitle
+                :caption caption
                 :title-band-h top-pad
+                :axis-title-axes axis-titles
                 :grid-rect grid-rect
                 :legend-w legend-w
                 :strip-h strip-h
@@ -387,6 +410,26 @@
      :shared-aesthetics shared-aesthetics
      :shared-categories shared-categories
      :chrome chrome}))
+
+(defn- align-direction
+  "Which way a composite's cells run, for aligning their drawing areas.
+   `pj/arrange` builds rows stacked vertically, so the root says
+   `:vertical` for a single row and for a grid alike, and aligning
+   either as a column left its bottom edges uneven. Rows of several
+   cells are aligned both ways -- equal widths and level bottoms -- as a
+   grid; a single column, and anything else, by the direction the root
+   writes. An axis title shared by every cell is drawn once by the
+   composite (`:grid-axis-titles`), so no row pays for a title only the
+   bottom row draws."
+  [composite]
+  (let [d (:direction (:layout composite))
+        rows (:poses composite)
+        row-of? #(= :horizontal (get-in % [:layout :direction]))]
+    (if (and (= :vertical d) (seq rows) (every? row-of? rows))
+      (let [n-rows (count rows)
+            n-cols (reduce max 0 (map #(count (:poses %)) rows))]
+        (if (> n-cols 1) :grid d))
+      d)))
 
 (defn composite-pose->draft
   "Resolve a composite pose into a CompositeDraft. Each sub-draft entry
@@ -408,7 +451,16 @@
    first-class field on the CompositeDraft so downstream stages do
    not need to recompute layout from the original pose tree."
   [composite]
-  (let [{:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
+  (pose/report-unread-positions! composite)
+  (let [;; The draft's choices written in first -- a default mapping, a
+        ;; concrete layer type for every inferred layer -- so sharing,
+        ;; layout and the leaf drafts read layer types rather than
+        ;; predicting them.
+        composite (-> composite
+                      pose/fit-layers
+                      pose/elaborate
+                      pose/infer-chrome)
+        {:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)
         ;; When the composite carries its own title/subtitle/caption,
@@ -448,7 +500,7 @@
       ;; which pads have to agree is a question about how the cells
       ;; were asked to run.
       (assoc :align-panels true
-             :align-direction (:direction (:layout composite))))))
+             :align-direction (align-direction composite)))))
 
 (defn composite-draft->plan
   "Convert a CompositeDraft into a CompositePlan. Per sub-draft, this
@@ -554,9 +606,23 @@
                             (reduce merge-entries (select-keys rep-plan shared-keys) shared-keys))))
         _ (when (seq (deref warnings))
             (run! println (sort (reduce clojure.set/intersection (deref warnings)))))
+        ;; The titles a composite draws once are the ones a cell would
+        ;; draw: planned from one cell with its own titles left in, so a
+        ;; written `:x-label` is read by the one rule that reads it.
+        axis-titles (when-let [axes (seq (:axis-title-axes chrome-spec))]
+                      (when-let [sub (first sub-drafts)]
+                        (let [p (binding [plan/*unread-option-warnings* (atom [])]
+                                  (plan/draft->plan (:draft sub)
+                                                    (dissoc (:opts sub) :suppress-x-label
+                                                            :suppress-y-label)))]
+                          (into {} (keep (fn [k]
+                                           (when-let [t (get p (if (= k :x) :x-label :y-label))]
+                                             [k t])))
+                                axes))))
         chrome (-> chrome-spec
                    (dissoc :shared?)
                    (assoc :shared-legend shared-legend)
+                   (assoc :axis-titles axis-titles)
                    (assoc :layout layout))]
     (assoc (resolve/->CompositePlan width height sub-plots chrome)
            :composite? true

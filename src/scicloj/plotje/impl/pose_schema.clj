@@ -120,6 +120,10 @@
    `nil` -- leaves the convention in charge. A scale type or a spec map
    there names which scale.
 
+   `{:scale ...}` alone names no source: it is what `pj/scale` writes on
+   a pose whose columns are named by its layers or by an outer pose, and
+   it says how to read whichever column reaches that aesthetic.
+
    A map is unambiguous as a mapping value because no aesthetic takes
    one: a color is a string or a keyword, a size is a number, a shape
    is a symbol from a fixed list."
@@ -129,8 +133,10 @@
     [:value {:optional true} any?]
     [:from {:optional true} any?]
     [:scale {:optional true} any?]]
-   [:fn {:error/message "should name exactly one of :column, :value or :from"}
-    (fn [m] (= 1 (count (filter #(contains? m %) [:column :value :from]))))]])
+   [:fn {:error/message "should name exactly one of :column, :value or :from, or only a :scale"}
+    (fn [m] (let [n (count (filter #(contains? m %) [:column :value :from]))]
+              (or (= 1 n)
+                  (and (zero? n) (contains? m :scale)))))]])
 
 (def drawn-value-schemas
   "What each aesthetic accepts as a **written value** -- the half of the

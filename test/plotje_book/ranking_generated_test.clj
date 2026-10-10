@@ -301,8 +301,8 @@
    :residual
    (map
     (fn*
-     [p1__136841#]
-     (* (Math/sin p1__136841#) (Math/exp (- (/ p1__136841# 30.0)))))
+     [p1__79595#]
+     (* (Math/sin p1__79595#) (Math/exp (- (/ p1__79595# 30.0)))))
     (range 1 41))}
   (pj/lay-segment :index :residual {:y-end 0})
   (pj/lay-rule-h {:y-intercept 0})))
@@ -320,18 +320,18 @@
 
 
 (def
- v50_l280
+ v50_l279
  (->
   {:team ["Ops" "Sales" "Support" "Research"],
    :before [62 48 71 55],
    :after [74 66 69 81]}
   (pj/lay-segment :before :team {:x-end :after})
   (pj/lay-point :before :team)
-  (pj/lay-point :after :team {:overlay true})))
+  (pj/lay-point :after :team)))
 
 
 (deftest
- t51_l287
+ t51_l286
  (is
   ((fn
     [v]
@@ -342,4 +342,4 @@
       (= 4 (:lines s))
       (= 8 (:points s))
       (= ["before" "after"] (mapv :label (:entries (:legend p)))))))
-   v50_l280)))
+   v50_l279)))

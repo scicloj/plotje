@@ -90,8 +90,8 @@
 (kind/test-last
  [(fn [_] (= #{:col :row} (set (keys pj/panel-aesthetic-docs))))])
 
-;; `pj/facet` writes `:col` into the pose's mapping, beside `:x` and
-;; `:y`. Here is the plot, and then the pose that draws it.
+;; `pj/facet` writes `:col` into the pose's mapping. Here is the plot,
+;; and then the pose that draws it.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -173,11 +173,11 @@
 
 ;; Three panels in the top row and one in the bottom row.
 
-;; ### A facet multiplies the panels a pose already draws
+;; ### Layers on different columns, faceted
 
-;; A pose whose layers name different columns draws a panel for each
-;; place. Faceting such a pose draws every one of those panels once
-;; per value the column holds: the facet is the outer division.
+;; The layers of a pose share its panel, so a pose whose layers name
+;; different columns draws one panel, and faceting it by a column draws
+;; one panel per value:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -186,7 +186,23 @@
     (pj/options {:width 900 :height 480}))
 
 (kind/test-last
- [(fn [fr] (= 6 (:panels (pj/svg-summary fr))))])
+ [(fn [fr] (= 3 (:panels (pj/svg-summary fr))))])
+
+;; To give each pair of columns a row of its own as well, cross the
+;; categories with the columns in one `pj/facet` call. Each layer is
+;; drawn in the row of the columns it names:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-point :petal-length :petal-width)
+    (pj/facet {:col :species
+               :row {:x [:sepal-length :petal-length]
+                     :y [:sepal-width :petal-width]}})
+    (pj/options {:width 900 :height 480}))
+
+(kind/test-last
+ [(fn [fr] (= {:panels 6 :points 300}
+              (select-keys (pj/svg-summary fr) [:panels :points])))])
 
 ;; ### A marginal follows the division
 
@@ -460,10 +476,11 @@ measures
 
 ;; ### Comparing Multiple Columns
 ;;
-;; Pass a vector of column names to create one panel per column:
+;; Give `pj/facet` a map of columns to create one panel per column:
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [:sepal-length :sepal-width :petal-length] {:color :species}))
+    (pj/pose {:color :species})
+    (pj/facet {:x [:sepal-length :sepal-width :petal-length]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 3 (:panels s))

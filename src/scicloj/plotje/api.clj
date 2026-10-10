@@ -24,7 +24,6 @@
             [clojure.set :as set]
             [clojure.string :as str]
             [tablecloth.api :as tc]
-            [tech.v3.datatype :as dtype]
             [scicloj.kindly.v4.kind :as kind]))
 
 ;; ---- Type predicates ----
@@ -351,10 +350,6 @@
   (resolve/cross xs ys))
 
 ;; ---- Series: the wide-side reading of a grouping ----
-
-(def ^:private default-series-label pose/default-series-label)
-
-(def ^:private series-value-column pose/series-value-column)
 
 (def series-mapping
   "The series a mapping value asks for, as `{:cols [...] :as label}`, or
@@ -693,28 +688,13 @@
                  " (template; attach data later via pj/with-data).")
             {:caller caller :value x :type (type x)}))))
 
-(defn- try-infer-mapping
-  "Infer a position/color mapping from the first 1-3 columns of a
-   dataset. Returns nil if the dataset has 0 or 4+ columns -- callers
-   decide whether to throw or fall through."
-  [d]
-  (let [cols (vec (tc/column-names d))
-        n (count cols)]
-    (case n
-      1 {:x (cols 0)}
-      2 {:x (cols 0) :y (cols 1)}
-      3 {:x (cols 0) :y (cols 1) :color (cols 2)}
-      nil)))
-
-(defn- auto-infer-mapping
-  "Auto-infer a position/color mapping from the first 1-3 columns of
-   a dataset. Throws if the dataset has 4+ columns -- the user must
-   pass explicit x/y.
-
-   Applied when 1-arity (pj/lay-* data) lands on a fresh leaf-pose
-   with data but no :mapping."
+(defn- check-columns-inferable
+  "Throw where a dataset has too many columns for the default mapping
+   to read -- 4 or more -- so the user must pass explicit x/y. Run where
+   `(pj/lay-* data)` names no column on raw data; the mapping itself is
+   inferred at draft time, by `infer-mapping`."
   [layer-type-key d]
-  (or (try-infer-mapping d)
+  (when-not (pose/default-mapping d)
       (let [cols (sort (tc/column-names d))
             x-only? (:x-only (layer-type/lookup layer-type-key))
             example (if x-only?
@@ -804,19 +784,6 @@
          (let [d (coerce-dataset x)]
            (prepare-pose (cond-> {:layers []} d (assoc :data d))))))))
 
-(defn- fresh-data-only-leaf?
-  "True for a lifted leaf pose carrying :data but no mapping, no
-   layers, and no sub-poses -- the exact shape `->pose` produces from
-   raw data. The semantic-inference seam fires only on this shape, so
-   it is idempotent: anything `lay-*`/`pj/pose` already built (a
-   mapping, layers, or sub-poses present) is left untouched."
-  [fr]
-  (and (pose? fr)
-       (some? (:data fr))
-       (nil? (:poses fr))
-       (empty? (:mapping fr))
-       (empty? (:layers fr))))
-
 (defn infer-mapping
   "Infer and attach a default mapping to a pose that carries data but
    no mapping yet -- the fresh leaf `pj/->pose` produces from raw
@@ -824,9 +791,12 @@
    (1 column to `:x`, 2 columns to `:x` and `:y`, 3 columns add
    `:color`).
 
-   A pose that already has a mapping, has layers, is composite, or
-   has 4+ columns is returned unchanged, so the step is idempotent
-   and safe to include anywhere in a pipeline. This is the step that
+   A pose whose mapping already names an `:x` or `:y` column, that has
+   a layer naming every column it draws, that is composite, or whose
+   data has 4+ columns is returned unchanged, so the step is idempotent
+   and safe to include anywhere in a pipeline. A layer naming one
+   column keeps it, and the default supplies the rest. The draft runs
+   the same step on every leaf, cells of a composite included. This is the step that
    lets raw data render a sensible default: the user-facing entry
    points (`pj/pose` 1-arity and the shortcuts `pj/draft`, `pj/plan`,
    `pj/membrane`, `pj/plot`, `pj/save`) apply it right after
@@ -835,9 +805,8 @@
    - `(-> data pj/->pose pj/infer-mapping)` -- lift, then default map
    - `(pj/infer-mapping built-pose)` -- no-op on an already-mapped pose"
   [fr]
-  (if-let [m (and (fresh-data-only-leaf? fr)
-                  (try-infer-mapping (:data fr)))]
-    (assoc fr :mapping m)
+  (if (pose? fr)
+    (pose/infer-default-mapping fr)
     fr))
 
 (defn pose->draft
@@ -854,9 +823,13 @@
   [pose]
   (expect-type pose pose? "pose" "pj/pose->draft")
   (check-pose-shape! pose)
-  (if (pose/composite? pose)
-    (compositor/composite-pose->draft pose)
-    (resolve/->LeafDraft (pose/leaf->draft pose) (or (:opts pose) {}))))
+  (let [pose (cond-> pose
+               (:facet pose) pose/expand-facet-node
+               pose/*expand-facets* pose/expand-facets
+               true pose/collapse-regular-split)]
+    (if (pose/composite? pose)
+      (compositor/composite-pose->draft pose)
+      (resolve/->LeafDraft (pose/leaf->draft pose) (or (:opts pose) {})))))
 
 (def ^:private pose-mapping-keys
   "Keys accepted in a pose mapping (column refs + per-pose
@@ -1023,7 +996,7 @@
    outer-scope :mapping inherits downward and merges with each
    descendant's own mapping."
   #{:data :mapping :layers :opts :poses :layout :share-scales
-    :grid-strip-labels :overlay})
+    :grid-strip-labels :grid-axis-titles :overlay :where :facet})
 
 (def ^:private pose-print-order
   "Key order used by pj/prepare-pose to make printed pose maps
@@ -1031,7 +1004,7 @@
    each level's data stays visually bound to its own siblings rather
    than trailing past its children; :poses last since children can
    be heavy."
-  [:opts :mapping :overlay :share-scales :grid-strip-labels :layout :layers :data :poses])
+  [:opts :where :mapping :facet :overlay :share-scales :grid-strip-labels :grid-axis-titles :layout :layers :data :poses])
 
 (defn- warn-unknown-pose-keys
   "Warn once about top-level keys in fr that are not in pose-keys.
@@ -1218,72 +1191,51 @@
     [(vec (or root []))
      (vec (or panel []))]))
 
-(defn- promote-leaf
-  "Promote a leaf to a composite, folding a new incoming-mapping into
-   the result. The leaf's position part + panel-origin layers become
-   sub-pose 1; the leaf's aesthetic part + root-origin layers + the
-   leaf's :opts move to the composite root; the incoming mapping
-   splits the same way (aesthetic -> root, position -> sub-pose 2).
-   When the incoming mapping carries no position, no new sub-pose
-   is added."
-  [leaf incoming-mapping]
-  (let [[root-layers panel-layers] (partition-layers-by-position (:layers leaf))
-        leaf-pos        (position-mapping (:mapping leaf))
-        leaf-aesth      (aesthetic-mapping (:mapping leaf))
-        incoming-pos    (position-mapping incoming-mapping)
-        incoming-aesth  (aesthetic-mapping incoming-mapping)
-        root-aesth      (merge leaf-aesth incoming-aesth)
-        leaf-opts       (:opts leaf)
-        panel-1         (cond-> {:layers panel-layers}
-                          (seq leaf-pos) (assoc :mapping leaf-pos))
-        panel-2         (when (seq incoming-pos)
-                          {:mapping incoming-pos :layers []})
-        poses          (filterv some? [panel-1 panel-2])]
-    (cond-> {:poses poses
-             ;; Threaded `(pj/pose fr :x :y)` over a leaf-with-position
-             ;; promotes into a composite. By default the layout is
-             ;; matrix: distinct x-cols become grid columns, distinct
-             ;; y-cols become grid rows, leaves land at their (x, y)
-             ;; intersection. The user can override later with
-             ;; (pj/options fr {:layout {:direction :horizontal}}).
-             :layout {:direction :matrix}}
-      (:data leaf)      (assoc :data (:data leaf))
-      (seq root-aesth)  (assoc :mapping root-aesth)
-      (seq root-layers) (assoc :layers root-layers)
-      (seq leaf-opts)   (assoc :opts leaf-opts))))
-
-(defn- extend-leaf
-  "Extend a leaf that carries no position yet, merging incoming-mapping
-   into its :mapping. Used when neither the leaf's :mapping nor its
-   layers carry :x or :y."
-  [leaf incoming-mapping]
-  (let [merged (merge (:mapping leaf) incoming-mapping)]
-    (cond-> leaf
-      (seq merged)   (assoc :mapping merged)
+(defn- extend-mapping-of
+  "Merge `incoming-mapping` into the pose's own `:mapping` -- the root's,
+   for a composite. Writing the same mapping twice gives the same pose,
+   and an empty mapping changes nothing."
+  [fr incoming-mapping]
+  (let [merged (merge (:mapping fr) incoming-mapping)]
+    (cond-> fr
+      (seq merged)    (assoc :mapping merged)
       (empty? merged) (dissoc :mapping))))
 
-(defn- extend-composite
-  "Extend a composite. Aesthetic part of incoming-mapping merges into
-   the root :mapping; position part appends a new sub-pose."
-  [composite incoming-mapping]
-  (let [incoming-pos   (position-mapping incoming-mapping)
-        incoming-aesth (aesthetic-mapping incoming-mapping)
-        with-aesth (if (seq incoming-aesth)
-                     (update composite :mapping (fnil merge {}) incoming-aesth)
-                     composite)]
-    (if (seq incoming-pos)
-      (update with-aesth :poses conj {:mapping incoming-pos :layers []})
-      with-aesth)))
+(defn- add-cells
+  "One sub-pose per mapping in `ms`, for `multi-pair-pose`. Appended to
+   a composite; on a leaf, the leaf's own position and the layers that
+   name one become the first cell, and its aesthetics, other layers,
+   data and options go to the composite's root. A single mapping on a
+   leaf with no position is merged into it."
+  [base ms]
+  (let [cell (fn [m] {:mapping m :layers []})]
+    (cond
+      (pose/composite? base)
+      (update base :poses (fnil into []) (map cell ms))
 
-(defn- extend-or-promote
-  "Dispatch `(pj/pose existing-pose incoming-mapping)`: composite
-   inputs extend in place; leaves extend or promote depending on
-   whether they already carry position."
+      (and (= 1 (count ms)) (not (leaf-has-position? base)))
+      (extend-mapping-of base (first ms))
+
+      :else
+      (let [[root-layers panel-layers] (partition-layers-by-position (:layers base))
+            leaf-pos   (position-mapping (:mapping base))
+            leaf-aesth (aesthetic-mapping (:mapping base))
+            own        (when (leaf-has-position? base)
+                         [(cond-> {:layers panel-layers}
+                            (seq leaf-pos) (assoc :mapping leaf-pos))])]
+        (cond-> {:poses (into (vec own) (map cell ms))
+                 :layout {:direction :matrix}}
+          (:data base)      (assoc :data (:data base))
+          (seq leaf-aesth)  (assoc :mapping leaf-aesth)
+          (seq root-layers) (assoc :layers root-layers)
+          (seq (:opts base)) (assoc :opts (:opts base)))))))
+
+(defn- extend-pose
+  "`(pj/pose existing-pose incoming-mapping)`: the mapping is merged into
+   the pose's own -- the root's, on a composite. A new `:x` or `:y`
+   replaces the one the pose had; `pj/pose` never adds a panel."
   [fr incoming-mapping]
-  (cond
-    (pose/composite? fr)    (extend-composite fr incoming-mapping)
-    (leaf-has-position? fr)  (promote-leaf fr incoming-mapping)
-    :else                    (extend-leaf fr incoming-mapping)))
+  (extend-mapping-of fr incoming-mapping))
 
 (defn- pose-from-data
   "Build a leaf-pose map from raw data and an already-normalized
@@ -1363,7 +1315,9 @@
         root-l    (:layers base)
         root-o    (:opts base)
         n-rows    (count rows)
-        col->name (fn [c] (if (keyword? c) (name c) (str c)))
+        ;; One formatter for every name a reader sees -- strips, axis
+        ;; titles, legend titles: `sepal length`, not `sepal-length`.
+        col->name defaults/fmt-name
         ;; Each column shares its x column; each row shares its y
         ;; column. Strip labels live at the composite root, not on
         ;; individual cells, so cell layout stays untouched. A column
@@ -1424,13 +1378,13 @@
     (cond
       ;; Univariate -- columns
       (or (keyword? first-el) (string? first-el))
-      (reduce (fn [fr col] (pose fr col)) base items)
+      (prepare-pose (add-cells base (mapv (fn [col] {:x col}) items)))
 
       ;; Pairs -- check for rectangular grid before falling back
       (sequential? first-el)
       (if-let [rows (pairs->rows items)]
         (grid-composite base rows)
-        (reduce (fn [fr [a b]] (pose fr a b)) base items))
+        (prepare-pose (add-cells base (mapv (fn [[a b]] {:x a :y b}) items))))
 
       :else
       (throw (ex-info
@@ -1449,7 +1403,7 @@
     (check-explicit-mappings "pj/pose" mapping)
     (check-position-mapping "pj/pose" mapping)
     (if (pose? p)
-      (cond-> (prepare-pose (extend-or-promote p mapping))
+      (cond-> (prepare-pose (extend-pose p mapping))
         data-over (with-data data-over))
       (prepare-pose (pose-from-data (or data-over p) mapping)))))
 
@@ -1459,28 +1413,30 @@
    **On raw data (first argument is not itself a pose):**
 
    - `(pj/pose)` -- empty leaf.
-   - `(pj/pose data)` -- leaf with data; on 1-3 column datasets the
-     mapping is auto-inferred (`:x`, then `:y`, then `:color`) so the
-     pose renders without an explicit mapping call.
+   - `(pj/pose data)` -- leaf with data and no mapping. On 1-3 column
+     datasets the draft infers one (`:x`, then `:y`, then `:color`), so
+     the pose renders without an explicit mapping call.
    - `(pj/pose data {:color :species})` -- leaf with aesthetic mapping.
    - `(pj/pose data :x-col)` -- leaf with `{:x :x-col}`.
    - `(pj/pose data :x-col {:color :c})` -- univariate x with opts.
    - `(pj/pose data :x-col :y-col)` -- leaf with `:x` and `:y`.
    - `(pj/pose data :x-col :y-col {:color :c})` -- positional x/y with opts.
-   - `(pj/pose data (pj/cross cols cols) {:color :c})` -- multi-pair plus
-     aesthetic mapping at the composite root.
 
    **Threaded over an existing pose (first argument is a pose):**
 
    - `(pj/pose fr)` -- pass-through; lifts a literal map for notebook
      auto-render if it is not already tagged.
-   - `(pj/pose fr :x-col :y-col)` -- extend a leaf-without-position, or
-     promote a leaf-with-position into a 2-panel composite, or append a
-     panel to a composite.
-   - `(pj/pose fr :x-col :y-col {:color :c})` -- same, with aesthetic
-     routed to the composite root on promote.
-   - `(pj/pose fr {:color :c})` -- aesthetic-only: extend mapping or
-     (on leaf-with-position) promote.
+   - `(pj/pose fr :x-col :y-col)` -- merge `:x` and `:y` into the
+     pose's mapping (the root's, on a composite), replacing the ones it
+     had. Layers that name no columns of their own read the new ones.
+     `pj/pose` does not add panels; for panels side by side, use
+     `pj/arrange`.
+   - `(pj/pose fr :x-col :y-col {:color :c})` -- same, with the
+     aesthetic merged too.
+   - `(pj/pose fr {:color :c})` -- aesthetic-only: merge into the
+     mapping.
+   - `(pj/pose fr {})` is `fr`, and writing the same mapping twice gives
+     the same pose.
    - `(pj/pose fr {:data X :color :c})` -- extend mapping AND replace the
      top-level data with X.
 
@@ -1514,7 +1470,7 @@
    `pj/scale` for choosing a scale's type."
   ([] (prepare-pose {:layers []}))
   ([pose-or-data]
-   (-> pose-or-data (->pose "pj/pose") infer-mapping))
+   (->pose pose-or-data "pj/pose"))
   ([pose-or-data x-or-mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
@@ -1697,34 +1653,13 @@
                          (resolve/column-ref? col)
                          (not (contains? col-names col)))]
         (throw (ex-info
-                (if (some #{col} (::series-columns (meta d)))
-                  ;; The column was read by a series on this pose, and the
-                  ;; pivot replaced it with a key column and a value
-                  ;; column. Drawing the layer on the pose's panel would
-                  ;; not bring it back, so `pj/overlay` is not offered.
-                  (str "lay-" (layer-type-name layer-type)
-                       " " k " " (pr-str col) " names a column that a"
-                       " series on this pose has already read: the series"
-                       " pivots " (pr-str (::series-columns (meta d)))
-                       " into the columns " (vec (sort col-names))
-                       ", so the pose's data has no column " (pr-str col)
-                       ". To draw " (pr-str col) " in a layer of its own,"
-                       " pass the original data on this lay-* call --"
-                       " {:data data}, with {:overlay true} to draw it on"
-                       " the series' panel.")
-                  (str "lay-" (layer-type-name layer-type)
+                (str "lay-" (layer-type-name layer-type)
                        " " k " " (pr-str col)
                        " names a column that doesn't exist in the data"
                        " the layer would draw from. Available columns: "
                        (vec (sort col-names))
-                       ". The " k " differs from the column the pose"
-                       " draws, so this layer would take a panel of its"
-                       " own -- but its data has no column " (pr-str col)
-                       ". If you meant to draw this layer on the panel"
-                       " the pose already draws, write pj/overlay on the"
-                       " pose, or {:overlay true} in its own options map."
-                       " If you meant another dataset, pass `:data` on"
-                       " this lay-* call."))
+                       ". If you meant another dataset, pass `:data` on"
+                       " this lay-* call.")
                 {:caller (str "pj/lay-" (layer-type-name layer-type))
                  :key k :column col :available (sort col-names)}))))))
 
@@ -1743,17 +1678,19 @@
          ;; the four-level merge in pose/leaf->draft honors over the
          ;; leaf's.
          path (or match-path (when overlay? (pose/last-leaf-path fr)))]
-     (if (some? path)
-       (update-in fr
-                  (conj (pose/path->update-in-path path) :layers)
-                  (fnil conj []) (cond-> layer
-                                   (and overlay? (nil? match-path))
-                                   (update :mapping (fnil merge {}) position-mapping)))
-       (do
-         (check-new-panel-columns (:layer-type layer)
-                                  position-mapping layer (:data fr))
-         (update fr :poses (fnil conj [])
-                 {:mapping position-mapping :layers [layer]}))))))
+     ;; The layer keeps the columns it names on its own mapping, on a
+     ;; matching cell and on a new one alike -- a cell's mapping is what
+     ;; `pj/pose` writes, and `lay-*` never writes it.
+     (let [layer (update layer :mapping #(merge position-mapping %))]
+       (if (some? path)
+         (update-in fr
+                    (conj (pose/path->update-in-path path) :layers)
+                    (fnil conj []) layer)
+         (do
+           (check-new-panel-columns (:layer-type layer)
+                                    position-mapping layer (:data fr))
+           (update fr :poses (fnil conj [])
+                   {:layers [layer]})))))))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -1788,19 +1725,20 @@
   [context opts]
   (doseq [k [:x :y]]
     (when-let [v (get opts k)]
-      ;; A series reaching here was written where it is not read: a
-      ;; `lay-*` call expands one before any of these checks run, so the
-      ;; only way a series arrives is from `pj/pose`. Reported before the
-      ;; general message, which advised adding a column holding the
-      ;; vector as a constant -- advice that draws one mark at a place
-      ;; named by a list of columns, and never a series.
+      ;; Pairs of columns, or a cross, ask for a panel each -- what
+      ;; `pj/arrange` and `pj/cross-matrix` draw.
+      (when (and (sequential? v) (seq v) (every? sequential? v))
+        (throw (ex-info (str context " was given pairs of columns, "
+                             (pr-str (vec v)) ". A pose draws one panel."
+                             " For a panel per pair, write (pj/arrange data "
+                             (pr-str (vec (map vec v))) "); for every :x"
+                             " column against every :y column, write"
+                             " (pj/cross-matrix data xs ys).")
+                        {:option k :value v})))
       ;; A series passes: several columns on a positional aesthetic are
-      ;; read by name and pivoted, and `expand-series` has done that
-      ;; before this check runs on a `lay-*` call. Written on a pose it
-      ;; is expanded when a layer is added, so it reaches here
-      ;; unexpanded and is let through -- a pose carries a series into
-      ;; every layer below it, which is what scope does for every other
-      ;; mapping.
+      ;; read by name, and the draft pivots them -- on a layer for that
+      ;; layer, on a pose for every layer below it, which is what scope
+      ;; does for every other mapping.
       (when-not (or (series-mapping? v)
                     (keyword? v) (string? v)
                     (pose/explicit-mapping? v)
@@ -2047,10 +1985,30 @@
                       {:position p :registered (sort (registered-positions))})))))
 
 (def ^:private layer-structural-keys
-  "User-supplied layer options that are layer-structural (not
-   column-to-aesthetic mappings). Promoted to top-level keys on the
-   layer map; `:mapping` holds only true mappings."
-  #{:stat :position :mark :overlay})
+  "The layer options written beside `:layer-type` rather than in the
+   layer's `:mapping`. `:mark`, `:stat` and `:position` each replace one
+   part of the layer type, so they sit next to it. Every other option --
+   aesthetics, stat parameters such as `:bins`, drawing options such as
+   `:jitter` -- goes in `:mapping` (see `build-layer`)."
+  #{:stat :position :mark})
+
+(defn- retired-overlay!
+  "Report `:overlay`, or `pj/overlay`, written by `caller` with value `v`.
+
+   The layers of a pose share one panel, so asking for that is ignored
+   with a warning -- the picture is the one asked for. Asking for the
+   opposite, `false`, cannot be done by a flag: separate panels come
+   from a split or from `pj/arrange`, and the error names both."
+  [caller v]
+  (if v
+    (println (str "Warning: " caller " -- :overlay is retired and ignored. The"
+                  " layers of a pose share one panel without it."))
+    (throw (ex-info (str caller " -- :overlay is retired. The layers of a pose"
+                         " share one panel. To draw layers on separate panels,"
+                         " split the pose over the columns, as in"
+                         " (pj/facet pose {:y [:a :b]}), or give each layer a"
+                         " pose of its own and arrange the poses with pj/arrange.")
+                    {:caller caller :overlay v}))))
 
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
@@ -2210,295 +2168,20 @@
       (seq at-call) [at-call :call]
       (seq on-pose) [on-pose :pose])))
 
-(defn- check-series-columns!
-  "Throw where the columns a series names cannot be pivoted: fewer than
-   two, one that is not a column reference, or one the data does not
-   have. Shared by a series on one aesthetic and by the pairs two
-   series on `:x` and `:y` make."
-  [caller ds cols]
-  (let [available (vec (sort-by str (tc/column-names ds)))
-        present (set available)
-        missing (vec (remove present cols))]
-    (when (< (count cols) 2)
-      (throw (ex-info (str caller " was given " (count cols) " column in a"
-                           " slot where several are read as several series: "
-                           (pr-str (vec cols)) ". Name the column on its own"
-                           " where there is one.")
-                      {:caller caller :columns (vec cols)})))
-    (doseq [c cols]
-      (when-not (resolve/column-ref? c)
-        (throw (ex-info (str caller " was given " (pr-str (vec cols))
-                             ", and " (pr-str c) " is not a column reference"
-                             " -- a keyword or a string naming a column of"
-                             " the data.")
-                        {:caller caller :column c :columns (vec cols)}))))
-    (when (seq missing)
-      (throw (ex-info (str caller " was given several columns to read as"
-                           " series, and the data does not have "
-                           (pr-str missing) ". Available columns: "
-                           available ".")
-                      {:caller caller :missing missing :columns available})))))
-
-(defn- pivot-series
-  "Pivot the columns a series names into a key column and a value
-   column. Returns the new dataset."
-  [caller data spec]
-  (let [{cols :cols label :as} spec
-        ds (tc/dataset data)
-        present (set (tc/column-names ds))]
-    (check-series-columns! caller ds cols)
-    ;; Reported before the clash check below, whose set literal held
-    ;; both names and threw a bare `Duplicate key: :value` when `:as`
-    ;; named the value column -- the guard meant to report the
-    ;; collision dying on it, naming neither `:as` nor the call.
-    (when (= label series-value-column)
-      (throw (ex-info (str caller " was given :as " (pr-str label)
-                           ", which is the name the pivot gives the value"
-                           " column it invents. The key column needs a name"
-                           " of its own -- {:series " (pr-str (vec cols))
-                           " :as :measure}.")
-                      {:caller caller
-                       :as label
-                       :value-column series-value-column})))
-    ;; Each clash is named on its own, with the remedy that moves it:
-    ;; `:as` renames the key column and cannot rename the value column,
-    ;; so a clash on the value column is offered only a rename in the
-    ;; data. The value clash is reported first, because `:as` cannot
-    ;; clear it.
-    (let [clashes (pose/series-clashes cols label present)
-          key-clash? (some? (:key clashes))
-          value-clash? (some? (:value clashes))
-          key-named (if (= label default-series-label)
-                      (str "the pivot names its key column " (pr-str label))
-                      (str ":as names the key column " (pr-str label)))]
-      (when (or key-clash? value-clash?)
-        (throw (ex-info (str caller " cannot pivot these columns: "
-                             (if value-clash?
-                               (str "the pivot names its value column "
-                                    (pr-str series-value-column)
-                                    ", and the data already has a "
-                                    (pr-str series-value-column) " column."
-                                    " Rename that column in the data."
-                                    (when key-clash?
-                                      (str " Also, " key-named
-                                           ", which the data has as well --"
-                                           " name the key column something"
-                                           " else with :as.")))
-                               (str key-named ", and the data already has a "
-                                    (pr-str label) " column. Name the key"
-                                    " column something else -- {:series "
-                                    (pr-str (vec cols)) " :as :measure} -- or"
-                                    " rename the column in the data.")))
-                        {:caller caller
-                         :clashes (vec (cond-> []
-                                         key-clash? (conj label)
-                                         value-clash? (conj series-value-column)))
-                         :key-column label
-                         :value-column series-value-column}))))
-    ;; `tc/pivot->longer` drops a row whose value is missing, and the
-    ;; dataset it returns is what a reader finds on the pose's `:data`,
-    ;; so its defaults are kept rather than overridden -- a Tablecloth
-    ;; user comparing the two should find them the same. What is said
-    ;; about the drop is Plotje's own contract: a row that does not
-    ;; reach the plot is named, and written long by hand the same rows
-    ;; are reported by `filter-infinities`. Counted from the pivot's own
-    ;; effect -- one row per original row and pivoted column, less what
-    ;; came back -- rather than predicted from the source columns.
-    (let [pivoted (tc/pivot->longer ds (set cols)
-                                    {:target-columns label
-                                     :value-column-name series-value-column})]
-      (defaults/report-removed-rows!
-       (- (* (tc/row-count ds) (count cols)) (tc/row-count pivoted))
-       (str "with a missing value among the columns read as series ("
-            (str/join ", " (map pr-str cols)) ")"))
-      (vary-meta pivoted assoc ::series-columns (vec cols)))))
-
-(defn- check-pair-column-kinds!
-  "Throw where the columns one side of a pair of series names hold
-   different kinds of value. They become one value column, which holds
-   one kind; checked here so the message names the columns written, not
-   the value column the pivot invents."
-  [caller ds cols]
-  (let [numerical (set (tc/column-names ds :type/numerical))
-        temporal (set (tc/column-names ds :type/datetime))
-        kind (fn [c] (cond (numerical c) :numerical
-                           (temporal c) :temporal
-                           :else :categorical))
-        kinds (into {} (map (juxt identity kind)) cols)]
-    (when (next (distinct (vals kinds)))
-      (throw (ex-info (str caller " was given " (pr-str (vec cols))
-                           " to read as series in pairs, and their values are"
-                           " of different kinds: " (pr-str kinds) ". The"
-                           " columns become one value column, so they must"
-                           " all be numerical, all temporal or all"
-                           " categorical.")
-                      {:caller caller :columns (vec cols) :kinds kinds})))))
-
-(defn- pivot-series-pairs
-  "Pivot a series on `:x` and a series on `:y` together, pairing their
-   columns in order: the first `:x` column with the first `:y` column,
-   and so on. Each pair becomes a group of rows labelled with both
-   names, `\"a / c\"`, holding the pair's values in two value columns.
-   Returns the new dataset.
-
-   The key column is named by `:as` on either series; the two may not
-   name different ones."
-  [caller data x-spec y-spec]
-  (let [ds (tc/dataset data)
-        {xs :cols} x-spec
-        {ys :cols} y-spec
-        _ (when (not= (count xs) (count ys))
-            (throw (ex-info (str caller " was given " (count xs)
-                                 (if (= 1 (count xs)) " column" " columns")
-                                 " on :x, " (pr-str (vec xs)) ", and " (count ys)
-                                 " on :y, " (pr-str (vec ys)) ". Two series"
-                                 " are read in pairs, the first :x column"
-                                 " with the first :y column, so they take"
-                                 " as many columns each.")
-                            {:caller caller :x (vec xs) :y (vec ys)})))
-        _ (check-series-columns! caller ds xs)
-        _ (check-series-columns! caller ds ys)
-        _ (check-pair-column-kinds! caller ds xs)
-        _ (check-pair-column-kinds! caller ds ys)
-        named (distinct (remove #(= % default-series-label)
-                                [(:as x-spec) (:as y-spec)]))
-        _ (when (next named)
-            (throw (ex-info (str caller " was given a series on :x named :as "
-                                 (pr-str (:as x-spec)) " and a series on :y"
-                                 " named :as " (pr-str (:as y-spec)) ". The"
-                                 " two are pivoted together into one key"
-                                 " column, so name it once.")
-                            {:caller caller :as (vec named)})))
-        label (or (first named) default-series-label)
-        {xv :x yv :y} pose/series-pair-value-columns
-        consumed (set (concat xs ys))
-        remaining (vec (remove consumed (tc/column-names ds)))
-        clashes (filterv (set remaining) [label xv yv])
-        _ (when (seq clashes)
-            (throw (ex-info (str caller " cannot pivot these columns in pairs:"
-                                 " the pivot names its key column "
-                                 (pr-str label) " and its value columns "
-                                 (pr-str xv) " and " (pr-str yv) ", and the"
-                                 " data already has " (pr-str clashes) "."
-                                 " Rename that column in the data"
-                                 (when (some #{label} clashes)
-                                   ", or name the key column with :as")
-                                 ".")
-                            {:caller caller :clashes clashes})))
-        n (tc/row-count ds)
-        ;; Through the formatter the legend gives a single series' key
-        ;; column, so `:time-a` reads `time a` in both legends.
-        col-label defaults/fmt-category-label
-        kept (tc/select-columns ds remaining)
-        parts (mapv (fn [x y]
-                      (-> kept
-                          (tc/add-column label (vec (repeat n (str (col-label x) " / " (col-label y)))))
-                          (tc/add-column xv (ds x))
-                          (tc/add-column yv (ds y))))
-                    xs ys)
-        joined (apply tc/concat parts)
-        ;; A pair missing either value has no place to be drawn. The
-        ;; drop is named, as the single-series pivot names its own.
-        pivoted (tc/drop-missing joined [xv yv])]
-    (defaults/report-removed-rows!
-     (- (tc/row-count joined) (tc/row-count pivoted))
-     (str "with a missing value among the columns read as series in pairs ("
-          (str/join ", " (map pr-str (concat xs ys))) ")"))
-    (vary-meta pivoted assoc ::series-columns (vec (concat xs ys)))))
-
-(defn- series-consumers
-  "Where the pose already names a column the pivot would consume. A
-   `[what aesthetic column]` triple per hit, so the report can name all
-   three.
-
-   The pivot drops the columns it reads, so a mapping already written
-   against one of them would name a column that is no longer there --
-   reported here rather than at draft time, where the message would
-   name the column and not the series that removed it."
-  [fr cols]
-  (let [consumed (set cols)
-        hits (fn [what mapping]
-               (keep (fn [[k v]]
-                       (let [src (pose/mapping-source v)]
-                         (when (consumed src) [what k src])))
-                     mapping))]
-    (vec (concat (hits "this pose's mapping" (:mapping fr))
-                 (mapcat (fn [l] (hits "a layer already on this pose" (:mapping l)))
-                         (:layers fr))))))
-
-(defn- series-colour-type
-  "`{:color-type :categorical}` where the key column the pivot invents
-   would otherwise be read as a continuous colour, and `nil` where it
-   would not.
-
-   `tc/pivot->longer` reads a column name that looks like a number as
-   one, so a wide table of years gives an `:int64` key column. The
-   column holds column names whatever its type, and a colour infers
-   continuous or categorical from the type, so the years were drawn as
-   a gradient: one group, no legend entries, and every measure in one
-   colour. The pivot knows what the column holds and says so here,
-   rather than leaving the colour to infer it from values that no
-   longer mean what they look like.
-
-   Two guards. It is written only where the column really is numeric,
-   so an ordinary series carries no `:color-type` and a reader
-   inspecting that pose sees only what they wrote. And only where the
-   writer has said nothing about the colour's type at either scope --
-   the pivot writes into a layer's mapping, which outranks a pose's, so
-   writing unconditionally would override an explicit `:color-type` on
-   the pose.
-
-   `:group` and `:col` need none of this: a grouping and a panel
-   aesthetic divide by value whatever the type."
-  [fr pivoted label group-key written opts]
-  (when (and (= :color group-key)
-             (not (contains? (:mapping fr) :color-type))
-             (not (contains? (or written {}) :color-type))
-             (not (contains? (or opts {}) :color-type))
-             (let [col (get pivoted label)]
-               (and col (not (contains? #{:string :keyword}
-                                        (dtype/elemwise-datatype col))))))
-    {:color-type :categorical}))
-
-(defn- expand-series
-  "Rewrite a `lay-*` call that reads several columns as several series,
-   so the rest of the pipeline reads an ordinary call naming ordinary
-   columns. Returns `[fr position-mapping opts]`.
-
-   The pivoted data goes on the pose, so everything downstream sees one
-   dataset and one mapping per aesthetic, and the identity rule decides
-   which panel the layer lands on by the column names the pose now
-   carries. A layer carrying data of its own is a path the library does
-   not support -- a bare layer added after one reports the missing
-   column -- so the series does not take it.
-
-   The columns the series reads are consumed by the pivot. The ones it
-   does not read come through untouched, so a layer drawing another
-   column of the same dataset still finds it.
-
-   The key column the pivot invents is mapped to `:color`, and to
-   `:group` where the layer maps `:color` itself, so the series stay
-   separate marks either way."
-  [caller fr layer-type-key position-mapping opts]
-  (if-let [[ks source] (find-series caller fr position-mapping opts)]
+(defn- check-series-call!
+  "Check a `lay-*` call that reads several columns as several series,
+   where the call alone can say what is wrong: a series written out
+   with a key it does not take, a series at the call on a pose that
+   already reads one, a series added to a composite, and -- where the
+   call has the data -- what the pivot would refuse. The series
+   itself stays on the layer's mapping, and the draft pivots it --
+   see `pose/pivot-leaf-series`."
+  [caller fr position-mapping opts]
+  (when-let [[ks source] (find-series caller fr position-mapping opts)]
     (let [written-at (fn [k] (if (= :pose source)
                                (get (:mapping fr) k)
-                               (or (get opts k) (get position-mapping k))))
-          _ (doseq [k ks] (check-series-keys! caller (written-at k)))
-          specs (into {} (map (fn [k] [k (series-mapping (written-at k))])) ks)
-          pairs? (next ks)
-          k (first ks)
-          written (written-at k)
-          spec (get specs k)
-          cols (vec (mapcat :cols (vals specs)))
-          label (if pairs?
-                  (or (first (remove #(= % default-series-label) (map :as (vals specs))))
-                      default-series-label)
-                  (:as spec))
-          data (or (:data opts) (:data fr))]
-      ;; The composite check comes first: a composite built by
-      ;; `pj/arrange` carries no data at its root, so the nil-data
-      ;; message would answer a question the writer did not ask.
+                               (or (get opts k) (get position-mapping k))))]
+      (doseq [k ks] (check-series-keys! caller (written-at k)))
       (when (pose/composite? fr)
         (throw (ex-info (str caller " was given several columns to read as"
                              " series, on a composite pose. The pivot"
@@ -2506,106 +2189,45 @@
                              " a composite's cells share one, so every cell"
                              " would be reshaped. Add the layer to a cell"
                              " before arranging the cells.")
-                        {:caller caller :aesthetic k :columns (vec cols)})))
-      (when (nil? data)
-        (throw (ex-info (str caller " was given several columns to read as"
-                             " series and has no data to pivot. Pass the"
-                             " data to the " caller " call, or put it on the"
-                             " pose with pj/pose first.")
-                        {:caller caller :aesthetic k})))
-      (let [pivoted (if pairs?
-                      (pivot-series-pairs caller data (:x specs) (:y specs))
-                      (pivot-series caller data spec))]
-        (when-let [hits (seq (series-consumers fr cols))]
-          (throw (ex-info (str caller " reads " (pr-str (vec cols))
-                               " as series, and " (ffirst hits) " names "
-                               (pr-str (nth (first hits) 2)) " on "
-                               (second (first hits))
-                               ". The pivot consumes the columns it reads,"
-                               " so that mapping would name a column that is"
-                               " no longer there. Put the series on a pose of"
-                               " its own, or drop the mapping that names one"
-                               " of its columns.")
-                          {:caller caller :columns (vec cols)
-                           :conflicts (vec hits)})))
-        (let [group-key (if (contains? (if (= :pose source) (:mapping fr) (or opts {}))
-                                       :color)
-                          :group :color)
-              colour-type (series-colour-type fr pivoted label group-key
-                                              position-mapping opts)
-              ;; `:from` rather than `:column`, so that a series reading
-              ;; through a scale is the same position as one reading
-              ;; plainly -- identity is decided on `pose/mapping-source`,
-              ;; which unwraps both to the invented column.
-              value-mapping (fn [k]
-                              (let [col (if pairs?
-                                          (get pose/series-pair-value-columns k)
-                                          series-value-column)]
-                                (if-let [sc (:scale (get specs k))]
-                                  {:from col :scale sc}
-                                  col)))
-              values (into {} (map (fn [k] [k (value-mapping k)])) ks)]
-          ;; Written on the pose, rewritten on the pose: the layers below
-          ;; it then read ordinary columns, and a second layer added later
-          ;; reads the same ones.
-          (if (= :pose source)
-            [(-> fr
-                 (assoc :data pivoted)
-                 (update :mapping merge values {group-key label}
-                         colour-type))
-             position-mapping
-             opts]
-            [(assoc fr :data pivoted)
-             (merge (or position-mapping {}) values)
-             (-> (apply dissoc (or opts {}) :data ks)
-                 (merge {group-key label} colour-type))]))))
-    [fr position-mapping opts]))
+                        {:caller caller :aesthetic (first ks)})))
+      ;; With the data in hand, what the pivot would refuse is reported
+      ;; here, naming the call; without it, the draft reports it.
+      (when-let [d (or (:data opts) (:data fr))]
+        (pose/check-series! caller d
+                            (into {} (map (fn [k] [k (written-at k)])) ks))))))
 
 (defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
-   Composite + position: the layer lands on the last leaf whose
+   The columns the call names are written on the layer's own
+   :mapping, and never on a pose's: the pose's :mapping is what
+   `pj/pose` writes.
+
+   Composite + columns: the layer lands on the last leaf whose
    effective :x/:y match (via add-leaf-layer-to-composite), or a
-   fresh sub-pose is appended at the root.
+   fresh sub-pose holding it is appended at the root (LP3).
 
-   Leaf whose own :mapping has no :x/:y, called with a position:
-   extend the leaf's :mapping with the position and append a bare
-   layer. A position-bearing lay-* on a bare pose sets the pose's
-   position.
+   Leaf + columns: the layer is appended, and the leaf draws one panel
+   per place its layers name, worked out at draft time -- the leaf
+   stays a leaf.
 
-   Leaf whose own :mapping already has position, called with a
-   matching position: append a layer carrying its own :mapping so
-   downstream partitioning treats it as panel-origin.
-
-   Leaf whose own :mapping already has position, called with a
-   non-matching position: append the layer carrying its own columns,
-   and the leaf draws a panel for it at draft time -- the leaf stays a
-   leaf. A composite receiving non-matching columns appends a new leaf
-   instead (LP3).
-
-   No position (leaf or composite + aesthetic-only): append the
-   bare / aesthetic layer to :layers."
+   No columns (leaf or composite + aesthetic-only): append the bare /
+   aesthetic layer to :layers; it is drawn on every panel, reading
+   that panel's columns."
   [fr layer-type-key position-mapping opts]
   ;; The positional x/y of a lay-* call reach the pose's :mapping without
   ;; passing through build-layer, so they need the same column-reference
   ;; check pj/pose runs on the map it is handed.
   (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
                           position-mapping)
-  (let [built (elide-empty-maps (build-layer layer-type-key opts))
-        ;; `:overlay` is carried onto the layer rather than read here.
-        ;; Which panel a layer draws on is settled at draft time, where
-        ;; the leaf's `:overlay` and the layer's own are read together --
-        ;; so `pj/overlay` says the same thing wherever in a thread it is
-        ;; written, as every mapping already does. Read here, it made the
-        ;; one construct in the pipeline whose placement changed the
-        ;; result.
-        ;;
-        ;; A composite is the exception: its cells are separate poses, so
-        ;; a layer added to one has to be placed now, and the pose's own
-        ;; flag is what says which cell.
-        overlay? (boolean (if (contains? built :overlay)
-                            (:overlay built)
-                            (:overlay fr)))
+  (when (contains? opts :overlay)
+    (retired-overlay! (str "pj/lay-" (layer-type-name layer-type-key)) (:overlay opts)))
+  (let [opts (dissoc opts :overlay)
+        built (elide-empty-maps (build-layer layer-type-key opts))
+        ;; A composite's cells are separate poses, so a layer added to
+        ;; one has to be placed now; a hand-written `:overlay` on the
+        ;; composite still says to join the last cell.
+        overlay? (boolean (:overlay fr))
         bare-layer built
         ;; A position written in the options map is the layer's own
         ;; mapping and stays there, and it decides which panel the layer
@@ -2618,11 +2240,7 @@
                                 (identity-columns (:mapping bare-layer)
                                                   (or (:data bare-layer)
                                                       (:data fr))))
-        ;; What the mapping *names*, not how it is written: a scale
-        ;; written by `pj/scale` puts a map under `:x` that names no
-        ;; position, and a position written in full names one.
-        pose-pos? (or (pose/mapping-source (:x (:mapping fr)))
-                      (pose/mapping-source (:y (:mapping fr))))]
+]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
       ;; The resolved flag rides onto the layer: it lands on a cell whose
@@ -2633,121 +2251,66 @@
                                      overlay? (assoc :overlay true))
                                    overlay?)
 
-      (and (seq position-mapping) (not pose-pos?))
-      (-> fr
-          ;; Through merge-mappings, not merge: the pose may already
-          ;; carry a scale for this axis with no source under it --
-          ;; what `pj/scale` writes -- and a plain merge replaces that
-          ;; whole value with the column name, dropping the scale in
-          ;; silence. The position names the source; the scale set
-          ;; further out still says how to read it.
-          (update :mapping #(pose/merge-mappings (or % {}) position-mapping))
-          (update :layers (fnil conj []) bare-layer))
-
+      ;; A layer keeps the columns it names on its own mapping, and the
+      ;; pose's mapping is left as it was: a later `pj/pose` retargets
+      ;; the layers that leave their columns to the pose, and only those,
+      ;; as scope says. Which panel the layer draws on is decided at
+      ;; draft time, from every layer's columns read together.
       (seq position-mapping)
-      (let [leaf-mapping (:mapping fr)
-            disagreements (for [k [:x :y]
-                                :let [pos-v (pose/mapping-source
-                                             (get position-mapping k))
-                                      leaf-v (pose/mapping-source
-                                              (get leaf-mapping k))]
-                                :when (and pos-v leaf-v
-                                           (not= pos-v leaf-v))]
-                            [k pos-v leaf-v])
-            ;; Whether this call is the one that first divides the leaf.
-            ;; Bare layers already on it were written for the one panel it
-            ;; had, so they are stamped with that place and stay on it;
-            ;; bare layers written after this one draw on every panel,
-            ;; which is how a rule or a line added at the end annotates
-            ;; all of them.
-            splitting? (and (seq disagreements)
-                            (= 1 (count (pose/leaf-panel-keys fr))))
-            ;; A layer that names a y and no x -- which only an options
-            ;; map can write -- would draw at no x at all. Every layer type
-            ;; draws along an x, so the panel it leaves supplies one, where
-            ;; the data the new panel reads carries that column:
-            ;; `(-> data (pj/pose :X) (pj/lay-line {:y :Y})
-            ;; (pj/lay-line {:y :Z}))` gives two panels over the same `:X`.
-            ;; The mirror case is left alone, because whether a layer type
-            ;; needs a y depends on the type -- a histogram named on x
-            ;; alone wants a panel with no y.
-            new-cols (when-let [d (or (:data bare-layer) (:data fr))]
-                       (set (tc/column-names d)))
-            leaf-x-col (pose/mapping-source (:x leaf-mapping))
-            position-mapping (if (and (seq disagreements)
-                                      (pose/mapping-source (:y position-mapping))
-                                      (not (pose/mapping-source (:x position-mapping)))
-                                      leaf-x-col
-                                      (or (nil? new-cols)
-                                          (contains? new-cols leaf-x-col)))
-                               (assoc position-mapping :x (:x leaf-mapping))
-                               position-mapping)
-            leaf-pos (select-keys leaf-mapping [:x :y])
-            stamped (if splitting?
-                      ;; Through merge-mappings, and into the layer's own
-                      ;; mapping: a layer's aesthetics and its layer-type
-                      ;; options share that slot, so replacing it would
-                      ;; discard every one of them -- the colour, the
-                      ;; `:bar-width`, the `:bins`. The layer names no
-                      ;; place, which is why it is being stamped at all,
-                      ;; so nothing it carries is overridden.
-                      (update fr :layers
-                              (fn [ls]
-                                (mapv (fn [l]
-                                        (if (layer-has-position? l)
-                                          l
-                                          (update l :mapping
-                                                  #(pose/merge-mappings
-                                                    leaf-pos (or % {})))))
-                                      (or ls []))))
-                      fr)
-            ;; Where the layer names an axis the leaf does not name at
-            ;; all, the leaf takes that column, so that a later layer
-            ;; naming a different column for that axis disagrees with it
-            ;; rather than joining in silence. A layer that overlays
-            ;; leaves the leaf's mapping as it was -- the axis keeps the
-            ;; name of the panel's own column -- and so does one that
-            ;; already disagrees, which is taking a panel of its own.
-            adopt (if (or overlay? (seq disagreements))
-                    {}
-                    (select-keys position-mapping
-                                 (remove #(pose/mapping-source
-                                           (get leaf-mapping %))
-                                         [:x :y])))]
-        (when (seq disagreements)
-          (check-new-panel-columns layer-type-key position-mapping
-                                   bare-layer (:data fr)))
-        (cond-> stamped
-          (seq adopt)
-          (update :mapping #(pose/merge-mappings (or % {}) adopt))
-
-          :always
-          (update :layers (fnil conj [])
+      (do (when (some (fn [k]
+                        (let [pos-v (pose/mapping-source (get position-mapping k))
+                              leaf-v (get (pose/leaf-columns fr) k)]
+                          (and pos-v leaf-v (not= pos-v leaf-v))))
+                      [:x :y])
+            ;; The layer names columns the pose does not draw: say which
+            ;; column is missing here rather than deep in the plan.
+            (check-new-panel-columns layer-type-key position-mapping
+                                     bare-layer (:data fr)))
+          (update fr :layers (fnil conj [])
                   (elide-empty-maps
                    ;; The layer's own mapping wins: an options map may
                    ;; have written a value where the position names a
                    ;; column, and `{:x 2.0}` on a label is the place
                    ;; the label goes, not the panel's column.
                    (update bare-layer :mapping
-                           #(merge position-mapping %))))))
-
+                           #(merge position-mapping %)))))
       :else
       (update fr :layers (fnil conj []) bare-layer))))
 
 (defn- lay-on-pose
-  "`lay-on-pose*`, with a series expanded first.
+  "`lay-on-pose*`, with a series checked first.
 
-   Every `lay-*` arity funnels through here, so several columns written
-   where one goes are pivoted into two ordinary ones before anything
-   else reads the call: the column-reference checks, the identity rule
-   that decides which leaf the layer joins, and the panel split all see
-   the columns the pivot invented rather than the ones the writer
-   named."
+   Every `lay-*` arity funnels through here. Several columns written
+   where one goes stay on the layer's mapping as a series; the draft
+   pivots them into a key column and a value column."
   [fr layer-type-key position-mapping opts]
-  (let [caller (str "pj/lay-" (layer-type-name layer-type-key))
-        [fr position-mapping opts]
-        (expand-series caller fr layer-type-key position-mapping opts)]
-    (lay-on-pose* fr layer-type-key position-mapping opts)))
+  (check-series-call! (str "pj/lay-" (layer-type-name layer-type-key))
+                      fr position-mapping opts)
+  (let [result (lay-on-pose* fr layer-type-key position-mapping opts)]
+    ;; The call that makes a conflict with a series reports it: a second
+    ;; series on the pose, or a layer naming a column the pivot consumes.
+    (when (pose/leaf? result)
+      (pose/check-series-leaf! result))
+    result))
+
+(declare arrange)
+
+(defn- panel-per-column
+  "A `lay-*` call given a lone vector of columns, `(pj/lay-histogram
+   data [:a :b :c])`: for this release it draws a panel per column, as
+   0.16 did, and warns that the next release reads the vector as a
+   series on one panel. Returns the pose the layer is added to -- the
+   cells `pj/arrange` builds from the columns."
+  [layer-type-key fr cols]
+  (let [lay (str "pj/lay-" (layer-type-name layer-type-key))]
+    (println (str "Warning: " lay " was given a vector of columns, "
+                  (pr-str (vec cols)) ", and drew a panel for each. In the"
+                  " next release a vector of columns in a lay-* call is read"
+                  " as a series, drawn on one panel. For a panel per column,"
+                  " write (-> data (pj/arrange " (pr-str (vec cols)) ") " lay
+                  "); for one panel, write (" lay " data {:x "
+                  (pr-str (vec cols)) "}).")))
+  (arrange fr cols))
 
 (defn- lay-layer-type
   "Shared implementation for all lay-* functions.
@@ -2756,8 +2319,9 @@
    pass through. All dispatches then route through lay-on-pose, which
    follows the DFS-last identity rule in pose_rules.clj.
 
-   1-arity: auto-infer columns for a fresh leaf-with-data (<= 3 cols),
-            otherwise append a bare/aesthetic layer.
+   1-arity: append a bare layer; on raw data with 4+ columns, report
+            that no default mapping can be inferred (1-3 columns are
+            inferred at draft time).
    2-arity: keyword/string -> position-bearing layer;
             vector of columns/pairs -> multi-pair broadcast;
             map -> aesthetic-only layer with opts.
@@ -2769,16 +2333,12 @@
          fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))
          d (:data fr)]
      (if (and was-raw? d)
-       ;; Raw-data 1-arity: auto-infer columns from the first 1-3 columns
-       ;; so `(pj/lay-point data)` still produces a renderable plot.
-       ;; Threaded `(-> data pj/pose pj/lay-point)` works too because
-       ;; pj/pose 1-arity sets the mapping itself for 1-3 col data.
-       ;; A pose with no mapping that reaches here (e.g. iris with 7
-       ;; cols through pj/pose, or a hand-built map) stays bare so the
-       ;; "root layer flows to every panel" M4 pattern keeps working.
-       (let [mapping (auto-infer-mapping layer-type-key d)]
-         (lay-on-pose (assoc fr :mapping mapping)
-                      layer-type-key nil nil))
+       ;; Raw-data 1-arity: the columns are inferred at draft time from
+       ;; the first 1-3 columns (`infer-mapping`), so `(pj/lay-point
+       ;; data)` still produces a renderable plot. With 4 or more there
+       ;; is no default to infer, and the call says so here.
+       (do (check-columns-inferable layer-type-key d)
+           (lay-on-pose fr layer-type-key nil nil))
        (lay-on-pose fr layer-type-key nil nil))))
   ([layer-type-key pose-or-data x-or-opts]
    (let [was-raw? (not (pose? pose-or-data))
@@ -2796,16 +2356,20 @@
                        (contains? x-or-opts :x)
                        (and (contains? x-or-opts :x)
                             (contains? x-or-opts :y)))
-             fr (if (and was-raw? d (nil? (:mapping fr)) (not mapped?))
-                  (assoc fr :mapping (auto-infer-mapping layer-type-key d))
-                  fr)]
+             _ (when (and was-raw? d (nil? (:mapping fr)) (not mapped?))
+                 (check-columns-inferable layer-type-key d))]
          (lay-on-pose fr layer-type-key nil x-or-opts))
 
        ;; Sequential -> build a multi-panel composite via pj/pose, then
        ;; attach the layer at the root so it flows to every panel via
        ;; resolve-tree.
+       (and (sequential? x-or-opts) (series-mapping? x-or-opts))
+       (lay-on-pose (panel-per-column layer-type-key fr x-or-opts)
+                    layer-type-key nil nil)
+
        (sequential? x-or-opts)
-       (lay-on-pose (pose fr x-or-opts) layer-type-key nil nil)
+       (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x-or-opts})
+           (lay-on-pose (pose fr x-or-opts) layer-type-key nil nil))
 
        ;; Anything else in the x slot is a column reference. A value that
        ;; is not one reaches lay-on-pose and is named there; it used to be
@@ -2848,8 +2412,13 @@
 
        ;; Sequential + opts -> build a multi-panel composite via pj/pose,
        ;; then attach a layer with opts at the root.
+       (and (sequential? x) (series-mapping? x) (map? y-or-opts))
+       (lay-on-pose (panel-per-column layer-type-key fr x)
+                    layer-type-key nil y-or-opts)
+
        (and (sequential? x) (map? y-or-opts))
-       (lay-on-pose (pose fr x) layer-type-key nil y-or-opts)
+       (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x})
+           (lay-on-pose (pose fr x) layer-type-key nil y-or-opts))
 
        (map? y-or-opts)
        (lay-on-pose fr layer-type-key {:x x} y-or-opts)
@@ -3620,45 +3189,16 @@
                       {:caller caller :value v})))))
 
 (defn overlay
-  "Mark a pose so that its layers are drawn on one panel, instead of a
-   layer naming columns the panel does not draw taking a panel of its
-   own.
+  "Retired. The layers of a pose share one panel, so `(pj/overlay pose)`
+   returns the pose unchanged and warns.
 
-   A layer naming columns the panel does not draw cannot share that
-   panel's axes, so by default it becomes a panel of its own. That is
-   the right answer for two unrelated pairs of columns and the wrong one
-   for two measures meant to be read against one axis. `pj/overlay`
-   turns that default off:
-
-   - `(-> data pj/overlay (pj/lay-bar :growth :cohort) (pj/lay-bar :tax :cohort))`
-
-   The layer keeps its own columns; they are drawn against the axes the
-   panel already has, and each axis covers every column drawn on it.
-   Each layer takes a colour and a legend entry naming its column, and
-   an axis title names every column drawn on it. Where each layer writes
-   its own colour, the axis is named for the panel's own column.
-
-   `pj/overlay` says the same thing wherever in a pipeline it is
-   written. It is read where the panels are decided rather than where a
-   layer is added, so writing it after the layers draws what writing it
-   before them draws.
-
-   `{:overlay true}` on one `lay-*` call joins that layer alone,
-   `{:overlay false}` opts one layer out, and `(pj/overlay pose false)`
-   turns it off for the pose. A layer whose columns already match the
-   panel is unaffected -- it was joining anyway.
-
-   Where the columns are written makes no difference: an `:x` or `:y` in
-   the options map asks for a panel exactly as one in an argument slot
-   does, and `pj/overlay` answers both. A written value names no panel
-   -- `{:x 7.5 :y 4.2 :text \"note\"}` marks a place on the panel it is
-   added to -- so a written value needs no overlay."
+   `(pj/overlay pose false)` reports an error: separate panels come from
+   a split over the columns, as in `(pj/facet pose {:y [:a :b]})`, or
+   from separate poses given to `pj/arrange`."
   ([pose-or-data] (overlay pose-or-data true))
   ([pose-or-data on?]
-   (let [fr (->pose pose-or-data "pj/overlay")]
-     (if on?
-       (assoc fr :overlay true)
-       (dissoc fr :overlay)))))
+   (retired-overlay! "pj/overlay" on?)
+   (->pose pose-or-data "pj/overlay")))
 
 (defn- update-mapping
   "Update the root :mapping of a pose. Non-pose inputs are coerced via
@@ -3694,6 +3234,46 @@
                         :given col}))))
    pose))
 
+;; ---- pj/facet with a map (provisional, PR #61: the tutorial's API) ----
+
+(defn- facet-categories?
+  "True of a facet part that names categories: a column, several
+   columns as a compound key, the written-out `{:column ..}`, or nil."
+  [v]
+  (or (nil? v)
+      (and (map? v) (contains? v :column))
+      (and (sequential? v) (every? #(not (or (map? %) (sequential? %))) v))
+      (not (or (map? v) (sequential? v)))))
+
+(defn- facet-node-columns
+  "Every column a facet node names, nil margins left out."
+  [node]
+  (letfn [(part [v] (cond (nil? v) []
+                          (and (map? v) (contains? v :column)) [(:column v)]
+                          (map? v) (mapcat #(remove nil? (get v %)) [:x :y])
+                          (sequential? v) (remove nil? v)
+                          :else [v]))]
+    (if (and (map? node) (or (contains? node :col) (contains? node :row)))
+      (concat (part (:col node)) (part (:row node)))
+      (part node))))
+
+(defn- check-facet-node!
+  "Report a column a facet node names that the pose's data does not
+   have, at the call -- with the message the draw reports, so the two
+   checks say one thing. A pose with a series is left to the draw: its
+   pivot makes the key column a facet may name (`:series`)."
+  [pose node role]
+  (when-let [data (and (not-any? pose/series-mapping
+                                 (concat (vals (:mapping pose))
+                                         (mapcat (comp vals :mapping) (:layers pose))))
+                       (:data pose))]
+    (let [have (set (tc/column-names data))]
+      (doseq [c (facet-node-columns node)
+              :when (not (contains? have c))]
+        (throw (ex-info (str "Column " c " (from " role ") not found in dataset. Available: "
+                             (sort-by str have))
+                        {:role role :column c :available (sort-by str have)}))))))
+
 (defn- facet-direction
   "Write one panel aesthetic into a pose's mapping: lift the pose, read
    the column, report a second answer in the same direction, and write
@@ -3710,8 +3290,36 @@
   [pose col direction caller]
   (let [fr  (->pose pose caller)
         col (column-argument caller col)]
+    (check-facet-node! fr col direction)
     (report-refacet fr direction col caller)
     (update-mapping fr assoc direction col)))
+
+(defn- facet-map
+  "`pj/facet` given a map. Categories on `:col` and `:row` are written
+   into the mapping, as `pj/facet-grid` writes them; a map holding
+   columns -- `{:y [:hwy :cty]}`, pairs `{:x [..] :y [..]}`, or a grid
+   whose `:col` or `:row` holds one -- is kept under the pose's `:facet`
+   and expanded into cells when the pose is drawn. Provisional (PR #61)."
+  [pose node]
+  (let [fr (->pose pose "pj/facet")
+        grid? (or (contains? node :col) (contains? node :row))
+        columns? (if grid?
+                   (not (and (facet-categories? (:col node))
+                             (facet-categories? (:row node))))
+                   (some #(sequential? (get node %)) [:x :y]))]
+    (cond
+      (and grid? (not columns?))
+      (cond-> fr
+        (:col node) (facet-direction (:col node) :col "pj/facet")
+        (:row node) (facet-direction (:row node) :row "pj/facet"))
+
+      columns?
+      (do (check-facet-node! fr node :facet)
+          (prepare-pose (assoc fr :facet node)))
+
+      ;; Any other map is read as a column argument, which reports it.
+      :else
+      (facet-direction fr node :col "pj/facet"))))
 
 (defn facet
   "Facet a pose by a column: one panel per value the column holds.
@@ -3736,8 +3344,25 @@
    - `(pj/facet my-pose [:part :dimension])` -- one panel per observed
      combination, which is a compound key. `pj/facet-grid` fills the
      rectangle instead.
-   - `{:col {:column :species}}` -- the same as the first, written out."
-  ([pose col] (facet pose col :col))
+   - `{:col {:column :species}}` -- the same as the first, written out.
+
+   A map without `:column` says where panels come from, and may name
+   columns rather than categories (provisional, PR #61):
+
+   - `(pj/facet my-pose {:col :year :row :drv})` -- a grid of categories.
+   - `(pj/facet my-pose {:y [:hwy :cty]})` -- a panel per column.
+   - `(pj/facet my-pose {:x [:a :b] :y [:c :d]})` -- a panel per pair.
+   - `(pj/facet my-pose {:col {:x [:a :b]} :row {:y [:a :b]}})` -- a
+     matrix; `nil` in a vector of columns leaves that place for a
+     margin.
+
+   The columns are checked against the data when `pj/facet` is called.
+   A layer naming one of the facet's columns is drawn only in the
+   panels of that column."
+  ([pose col]
+   (if (and (map? col) (not (contains? col :column)))
+     (facet-map pose col)
+     (facet pose col :col)))
   ([pose col direction]
    (when-not (#{:col :row} direction)
      (throw (ex-info (str "pj/facet direction must be :col or :row, got: "
@@ -4584,6 +4209,8 @@
 
    - `:cols` -- explicit column count (default: min(4, n-plots)).
    - `:title` -- centered title band above the grid.
+   - `:subtitle` -- a line under the title; `:caption` -- a line under
+     the grid, at the right.
    - `:width` -- total composite width.
    - `:height` -- total composite height.
    - `:share-scales` -- subset of `#{:x :y}` shared across cells
@@ -4637,7 +4264,7 @@
    the public face and decides which of its arguments is data."
   ([plots opts]
    (let [cfg (defaults/config)
-         {:keys [cols title share-scales align-panels]
+         {:keys [cols title subtitle caption share-scales align-panels]
           :or {share-scales #{}}} opts
          _ (when-not (and (or (set? share-scales)
                               (sequential? share-scales))
@@ -4703,7 +4330,11 @@
                             (:width opts) (assoc :width (long (Math/round (double (:width opts)))))
                             (:height opts) (assoc :height (long (Math/round (double (:height opts)))))
                             title (assoc :title title)
-                            (seq share-scales) (assoc :share-scales (set share-scales))
+                            subtitle (assoc :subtitle subtitle)
+                            caption (assoc :caption caption)
+                            ;; Written, even empty: `#{}` turns off the
+                            ;; sharing a composite has by default.
+                            (contains? opts :share-scales) (assoc :share-scales (set share-scales))
                             align-panels (assoc :align-panels true))
                     :layout {:direction :vertical}
                     :poses row-poses}]
@@ -4778,7 +4409,7 @@
          ;; sits against: the x column above the panel, the y column
          ;; beside it.
          axis (if (= :right side) :y :x)
-         col (pose/mapping-source (get-in pose [:mapping axis]))
+         col (get (pose/leaf-columns pose) axis)
          _ (when-not col
              (throw (ex-info (str "pj/marginal needs the pose to name "
                                   (if (= :right side) "a :y" "an :x")
@@ -4790,9 +4421,10 @@
                                   ;; column to describe until a mapping
                                   ;; names one. Say so rather than
                                   ;; reporting the missing axis alone.
-                                  (when (empty? (:mapping pose))
-                                    (str " This pose carries no mapping"
-                                         " yet: give it one with pj/pose"
+                                  (when (and (empty? (:mapping pose))
+                                             (empty? (pose/leaf-columns pose)))
+                                    (str " This pose names no columns"
+                                         " yet: name them with pj/pose"
                                          " or a pj/lay-* call first.")))
                              {:caller "pj/marginal"
                               :side side
