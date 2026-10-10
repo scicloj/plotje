@@ -104,7 +104,7 @@ scatter-pose
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
 ;; | Alpha legend | ~5 graduated opacity squares (count varies with range) when `:alpha` maps to numerical column | `:alpha` mapping controls presence |
 ;; | Layout padding | adjusts for title, labels, legend | `:width`, `:height` in options |
-;; | Layout type | single, facet-grid, multi-variable | `pj/facet`, multiple x-y pairs |
+;; | Layout type | single, facet-grid | `pj/facet` |
 ;; | Coordinate system | `:cartesian` | `(pj/coord :flip)`, `(pj/coord :polar)` |
 ;;
 ;; The sections below walk each rule in detail. The order roughly
@@ -1105,10 +1105,9 @@ full-layout-pose
 
 ;; Layout type is also inferred from the pose structure:
 ;;
-;; - A single panel is `:single`
+;; - A single panel is `:single`, also where its layers name different
+;;   columns
 ;; - A faceted pose -- one mapping `:col` or `:row` -- is `:facet-grid`
-;; - Any other pose drawing several panels is `:multi-variable`: a
-;;   scatter plot matrix, or layers that name different columns
 
 scatter-pose
 
@@ -1118,7 +1117,7 @@ scatter-pose
                  (= :facet-grid (:layout-type (pj/plan (-> iris
                                                            (pj/lay-point :sepal-length :sepal-width)
                                                            (pj/facet :species)))))
-                 (= :multi-variable (:layout-type (pj/plan (-> iris
+                 (= :single (:layout-type (pj/plan (-> iris
                                                                (pj/lay-point :sepal-length :sepal-width)
                                                                (pj/lay-point :petal-length :petal-width))))))))])
 

@@ -102,10 +102,10 @@
 
 ;; Those integer names are what the axes are titled with, and they can
 ;; be mapped like any other column name. `(tc/rename-columns ds [:x :y])`
-;; gives them words. A vector of vectors written where a mapping goes
-;; means something else -- pairs of column names, one panel each, shown
-;; under [Identity](#identity) below. What tells the two apart is where
-;; the vector is written, not what it holds.
+;; gives them words. A vector of vectors given to `pj/arrange` means
+;; something else -- pairs of column names, one panel each, shown under
+;; [Identity](#identity) below. What tells the two apart is where the
+;; vector is written, not what it holds.
 
 ;; When the dataset has 1, 2, or 3 columns, you can omit the column
 ;; names entirely -- they are inferred by position: the first column
@@ -331,13 +331,13 @@ two-panel
 ;; Scope determines what each pose and layer sees. But how do
 ;; layers find their pose? The rule is:
 ;;
-;; - `pj/lay-*` with columns **finds the most recent leaf pose**
-;;   whose position mappings match, or creates a new one if none
-;;   matches.
+;; - On a leaf, `pj/lay-*` **adds the layer to that leaf**, and the
+;;   layers of a leaf share its one panel, whatever columns they name.
+;; - On a composite, `pj/lay-*` with columns **finds the most recent
+;;   leaf** whose columns match, or appends a new leaf if none matches.
 ;;
-;; This makes the threading pipeline sequential and predictable.
-;; When the columns match, the new layer attaches to the existing
-;; pose:
+;; This makes the threading pipeline sequential and predictable. Here
+;; the second layer joins the first:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -351,17 +351,22 @@ two-panel
 ;; One pose, two layers: scatter points and a regression line
 ;; sharing the same axes.
 ;;
-;; To draw two column-pairs as their own panels, use an explicit
-;; `pj/arrange` call with a vector of column-pairs. Each `[x y]` pair
-;; becomes one panel; here `pj/arrange` places the two panels side by
-;; side.
+;; To draw two pairs of columns as panels of their own, split the pose
+;; over them with `pj/facet`. The first `:x` column goes with the first
+;; `:y` column, the second with the second:
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [[:sepal-length :sepal-width]
-                 [:petal-length :petal-width]]))
+    (pj/facet {:x [:sepal-length :petal-length]
+               :y [:sepal-width :petal-width]})
+    pj/lay-point)
 
-;; Printed, the two-panel outcome has a vertical root containing one
-;; horizontal row of two sub-poses:
+(kind/test-last [(fn [v] (= {:panels 2 :points 300}
+                            (select-keys (pj/svg-summary v) [:panels :points])))])
+
+;; The pose stays one leaf, holding the split under `:facet`; the cells
+;; are made when it is drawn. `pj/arrange` given the same pairs builds
+;; the cells at once, as a composite pose. Printed, it has a vertical
+;; root containing one horizontal row of two sub-poses:
 
 (-> (rdatasets/datasets-iris)
     (pj/arrange [[:sepal-length :sepal-width]
@@ -384,9 +389,10 @@ two-panel
                                 (not= (first a) (first b))
                                 (= (second a) (second b)))))])
 
-;; `pj/arrange` keeps these pairs side by side regardless of whether
-;; they share columns. To put every pairing of x and y columns in a
-;; matrix, use `pj/cross-matrix` instead.
+;; Both keep these pairs side by side regardless of whether they share
+;; columns. To put every pairing of x and y columns in a matrix, write
+;; `{:col {:x [...]} :row {:y [...]}}` -- the
+;; [Relationships](./plotje_book.relationships.html) chapter draws one.
 ;;
 ;; `pj/arrange` is also useful for combining independent poses, such as
 ;; plots with different layer kinds, a scatter and a histogram say:
@@ -397,37 +403,24 @@ two-panel
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; By default, a layer naming columns the panel does not draw starts a
-;; panel of its own. That is right for two unrelated pairs of columns.
-;; It is wrong for two measures that belong on one axis. `pj/overlay`
-;; turns the default off: the pose's layers are drawn on one panel,
-;; each keeping its own columns. `pj/overlay` says the same thing
-;; wherever in a pipeline it is written.
-;;
-;; Where the columns are written makes no difference: `{:y :tax}` in a
-;; layer's options map asks for a panel exactly as `(pj/lay-bar :tax
-;; :cohort)` does. A written value is not a column and asks for no
-;; panel, so a label at `{:x 5 :y 10}` annotates the panel it is added
-;; to.
+;; The layers of one pose share its panel, whatever columns they name.
+;; Two measures that belong on one axis are two layers, and the axis
+;; covers both. A written value is not a column, so a label at `{:x 5
+;; :y 10}` annotates the panel it is added to.
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-    pj/overlay
-    (pj/lay-bar :growth :cohort {:color "#377eb8"})
-    (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
+    (pj/lay-bar :growth :cohort)
+    (pj/lay-bar :tax :cohort {:bar-width 0.4}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
-                                (= 6 (:polygons s)))))])
+                                (= 6 (:polygons s))
+                                (some #{"growth, tax"} (:texts s)))))])
 
-;; Both bars are drawn against the panel's axes. Those axes cover every
-;; column drawn on them. Each bar layer here writes its own colour, so
-;; the axis keeps the name of the panel's own column and reads `growth`
-;; even though it also carries `tax`. Without the written colours, each
-;; layer would take a colour and a legend entry, and the axis title
-;; would name both columns.
-;;
-;; To make a single layer join without changing where later layers go,
-;; write `{:overlay true}` in that layer's own options map.
+;; Each layer takes a colour and a legend entry naming its column, and
+;; the axis title names both columns. For a panel per column, split the
+;; pose with `(pj/facet pose {:x [:growth :tax]})`, or arrange separate
+;; poses with `pj/arrange`.
 
 ;; ## The Pose
 ;;
@@ -439,10 +432,10 @@ two-panel
 ;; | Field | Contains | Set by |
 ;; |:------|:---------|:-------|
 ;; | `:data` | the dataset | `pj/pose`, `pj/lay-*`, or `pj/with-data` |
-;; | `:mapping` | pose-level mappings, and their scales | `pj/pose`, `pj/scale` |
+;; | `:mapping` | pose-level mappings, and their scales, and a facet's categories under `:col` and `:row` | `pj/pose`, `pj/scale`, `pj/facet` |
 ;; | `:layers` | layers attached to the pose | `pj/lay-*` |
-;; | `:overlay` | whether a later `pj/lay-*` joins a panel rather than starting one | `pj/overlay` |
-;; | `:opts` | title, width, theme, coord, facets | `pj/options`, `pj/coord`, `pj/facet` |
+;; | `:facet` | a facet over columns, when `pj/facet` is given them | `pj/facet` |
+;; | `:opts` | title, width, theme, coord | `pj/options`, `pj/coord` |
 ;;
 ;; A composite pose adds `:poses` (sub-poses) and optionally
 ;; `:layout` and `:share-scales`; see the
@@ -882,10 +875,10 @@ two-panel
 (-> (rdatasets/datasets-iris)
     (pj/lay-histogram {:x [:sepal-length :sepal-width :petal-length]}))
 
-;; Use arrange to create one panel per variable:
+;; Use `pj/facet` over the columns to create one panel per variable:
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [:sepal-length :sepal-width :petal-length])
+    (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
     (pj/lay-histogram))
 
 (kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])

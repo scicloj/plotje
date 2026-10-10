@@ -28,7 +28,7 @@
    the plot option of the same name, which is the switch that turns
    hovering on."
   [:x :y :color :color-type :alpha :group :position :data
-   :x-type :y-type :mark :stat :offset-x :offset-y :in :overlay
+   :x-type :y-type :mark :stat :offset-x :offset-y :in
    :tooltip])
 
 (def spaces
@@ -57,7 +57,6 @@
    :position "Position adjustment keyword -- how overlapping groups are arranged (see pj/position-doc)"
    :dx "Shift all x-coordinates by this amount in the axis's own units -- a data value on a numerical or temporal axis, one band on a categorical one, where 0.5 is half a band along. The unit is whatever :x is measured in, which is why the name says a change in x without naming a unit; for a shift measured on the page, see :offset-x"
    :dy "Shift all y-coordinates by this amount in the axis's own units. See :dx"
-   :overlay "Whether this layer joins the panel it is added to rather than starting a new one. Without it, a layer naming columns the panel does not draw becomes a panel of its own -- whether those columns are written in the argument slots or here in the options map. A written value in :x or :y names no panel, so a layer placed at one joins without asking. `pj/overlay` sets the same thing for every layer of the pose, wherever in a pipeline it is written."
    :in "The space this layer's :x and :y are in -- :data (default, values mapped through the scales) or :drawing-area (drawing units from the top left of the panel background). It does not widen to the other aesthetics; to take one axis off its scale on its own, write {:y {:column :b :scale false}}. An unscaled layer is placed on the panel rather than in the data, so it does not move the axis domains"
    :offset-x "Shift the whole layer right by this many drawing units, after the scales. Unlike :dx the amount is a distance on the page rather than in the axis's units, so it means the same on every axis and does not move the axis domain -- use it to clear a label of the mark it labels"
    :offset-y "Shift the whole layer down by this many drawing units, after the scales. See :offset-x"
@@ -397,15 +396,13 @@
 ;; meaning for one line or one box drawn at a written value. There are
 ;; no rows to dodge, to stack or to split into groups, and the three
 ;; column-type overrides change how a column is read, which decides
-;; nothing about a line drawn across the whole panel. `:overlay` is
-;; rejected because a mark placed at a written value names no panel of
-;; its own and so joins the panel it is added to already.
+;; nothing about a line drawn across the whole panel.
 ;;
 ;; `:in` is accepted: a rule reads its intercept as a distance from the
 ;; panel background's corner under `{:in :drawing-area}`, as any other
 ;; layer reads its `:x` and `:y` there.
 (def ^:private rule-band-rejects
-  [:position :group :x-type :y-type :color-type :overlay])
+  [:position :group :x-type :y-type :color-type])
 
 (register! :rule-h {:mark :rule-h :stat :identity :accepts [:y-intercept :stroke-dash :size] :rejects rule-band-rejects :doc "Horizontal reference line at y = y-intercept."})
 (register! :rule-v {:mark :rule-v :stat :identity :accepts [:x-intercept :stroke-dash :size] :rejects rule-band-rejects :doc "Vertical reference line at x = x-intercept."})

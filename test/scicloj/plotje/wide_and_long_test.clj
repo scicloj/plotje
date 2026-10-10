@@ -85,12 +85,12 @@
       (is (contains? texts "measure"))
       (is (contains? texts "revenue"))
       (is (not (contains? texts "series"))))
-    (is (contains? (set (:texts (pj/svg-summary
-                                 (-> sales (pj/lay-bar :quarter [:revenue :cost])))))
-                   "series")
-        "unnamed, the key column is :series"))
+    (is (not (contains? (set (:texts (pj/svg-summary
+                                      (-> sales (pj/lay-bar :quarter [:revenue :cost])))))
+                        "series"))
+        "unnamed, the key column titles no legend"))
 
-  (testing "the value column titles the value axis, and :y-label renames it"
+  (testing "the series' columns title the value axis, and :y-label renames it"
     (let [texts (set (:texts (pj/svg-summary
                               (-> sales (pj/lay-bar :quarter [:revenue :cost])
                                   (pj/options {:y-label "Euros"})))))]
@@ -105,14 +105,13 @@
       (is (= ["revenue" "cost"] (mapv :label (:groups l))))
       (is (= [0 1] (mapv :dodge-idx (:groups l))))))
 
-  (testing "two overlaid layers are labelled by the column each draws, so a dodge divides them"
+  (testing "two layers sharing a panel are labelled by the column each draws, so a dodge divides them"
     ;; Overlaid layers that disagree about a column are told apart by a
     ;; colour and a legend, and the label that legend prints is what
     ;; the dodge divides by. Both labels used to be the empty string,
     ;; so the cohort saw one group, the dodge was inert, and the two
     ;; sets of bars were drawn at the same places.
     (let [ls (-> (pj/plan (-> sales
-                              pj/overlay
                               (pj/lay-bar :quarter :revenue {:position :dodge})
                               (pj/lay-bar :quarter :cost {:position :dodge})))
                  :panels first :layers)]
@@ -214,7 +213,7 @@
           one (seen (pj/lay-point d [:t1 :t2] [:v1 :v2]))]
       (is (= 1 (first one)))
       (is (= 6 (second one)))
-      (is (every? (nth one 2) ["t1 / v1" "t2 / v2" "x value" "y value"]))
+      (is (every? (nth one 2) ["t1 / v1" "t2 / v2" "t1, t2" "v1, v2"]))
       (is (= one (seen (pj/lay-point d {:x [:t1 :t2] :y [:v1 :v2]}))))
       (is (= one (seen (-> d (pj/pose {:x [:t1 :t2] :y [:v1 :v2]}) pj/lay-point))))
       (is (= one (seen (-> (pj/pose d [:t1 :t2] [:v1 :v2]) pj/lay-point))))
@@ -358,71 +357,15 @@
     (is (= :linear (-> (pj/plan (-> sales (pj/lay-line :quarter [:revenue :cost])))
                        :panels first :y-scale :type)))))
 
-;; ---- The panel split says what it did ----
+;; ---- Layers sharing a panel ----
 
-(defn- note-of
-  "What a pose says when it is drawn. The split is settled at draft
-   time, where `:overlay` is read, so the note is said there -- capturing
-   it around the `lay-*` calls would catch nothing."
-  [pose]
-  (with-out-str (pj/plot pose)))
-
-(deftest the-panel-split-reports-itself-test
-  (testing "two layers disagreeing about an axis get a panel each, and say so"
-    (let [out (note-of (-> sales (pj/lay-point :quarter :revenue)
-                           (pj/lay-point :quarter :cost)))]
-      (is (re-find #"panel of its own" out))
-      (is (re-find #"pj/overlay" out) "one onward route")
-      (is (re-find #"\[:revenue :cost\]" out) "and the other, spelled")))
-
-  (testing "nothing is said where the layers agree"
-    (is (= "" (note-of (-> sales (pj/lay-point :quarter :revenue)
-                           (pj/lay-line :quarter :revenue))))))
-
-  (testing "nothing is said under pj/overlay, which asked for one panel"
-    (is (= "" (note-of (-> sales pj/overlay
-                           (pj/lay-point :quarter :revenue)
-                           (pj/lay-point :quarter :cost))))))
-
-  ;; Said at draft rather than at the call, so a pj/overlay written after
-  ;; the layers is read before the note is decided. Said at the call, the
-  ;; note stated an outcome that pj/overlay then changed.
-  (testing "nothing is said where pj/overlay comes after the layers"
-    (is (= "" (note-of (-> sales (pj/lay-point :quarter :revenue)
-                           (pj/lay-point :quarter :cost)
-                           pj/overlay)))))
-
-  (testing "nothing is said where the layer opts itself in"
-    (is (= "" (note-of (-> sales (pj/lay-point :quarter :revenue)
-                           (pj/lay-point :quarter :cost {:overlay true}))))))
-
-  ;; The series route is named only where following it draws. The note
-  ;; used to name it on every split, and both cases below reported a
-  ;; missing column or left a disagreement standing.
-  (testing "the series route is not offered where the layer brings its own data"
-    (let [out (note-of
-               (-> {:fitted [1 2 3] :residual [1 2 3]}
-                   (pj/lay-point :fitted :residual)
-                   (pj/lay-point :x :y {:data (tc/dataset {:x [1 2 3] :y [1 2 3]})})))]
-      (is (re-find #"panel of its own" out))
-      (is (re-find #"pj/overlay" out) "the route that does apply")
-      (is (not (re-find #"series" out))
-          "neither dataset carries both columns, so a series reports rather than draws")))
-
-  (testing "where both axes disagree, the route offered is series in pairs, and it draws"
-    (let [wide (assoc sales :x2 [1 2 3 4] :units [3 4 5 6] :rev2 [1 2 3 4])
-          wide (dissoc wide :quarter)
-          out (note-of (-> wide (pj/lay-point :revenue :cost)
-                           (pj/lay-point :x2 :units)))]
-      (is (re-find #"panel of its own" out))
-      (is (re-find #"\{:x \[:revenue :x2\], :y \[:cost :units\]\}" out))
-      (is (re-find #"series in pairs" out))
-      (is (= 1 (:panels (pj/svg-summary
-                         (pj/lay-point wide {:x [:revenue :x2] :y [:cost :units]})))))))
-
-  (testing "the route the note names is the one that draws"
-    (is (= 1 (:panels (pj/svg-summary
-                       (-> sales (pj/lay-line :quarter [:revenue :cost]))))))))
+(deftest layers-on-other-columns-share-the-panel-quietly-test
+  ;; Two numeric columns on one axis need no report; the legend and the
+  ;; axis title name both.
+  (let [p (-> sales (pj/lay-point :quarter :revenue) (pj/lay-point :quarter :cost))]
+    (is (= "" (with-out-str (pj/plot p))))
+    (is (= 1 (:panels (pj/svg-summary p))))
+    (is (contains? (set (:texts (pj/svg-summary p))) "revenue, cost"))))
 
 ;; ---- Composites nest ----
 
@@ -548,21 +491,6 @@
              (fills (pj/plot (pj/arrange [themed (pj/lay-point sales :quarter :cost)]
                                          {:width 500 :height 200}))))))))
 
-(deftest the-split-note-offers-a-series-only-where-it-draws-test
-  ;; The note named `[:value :units]` after a series -- the pivot's own
-  ;; column -- and following it reached the clash report.
-  (let [note (fn [pose] (with-out-str (pj/plan pose)))]
-    (testing "beside two plain columns, the series route is named"
-      (is (re-find #"as series" (note (-> sales
-                                          (pj/lay-line :quarter :revenue)
-                                          (pj/lay-point :quarter :cost))))))
-    (testing "on a pose already reading a series, it is not"
-      (let [s (note (-> (assoc sales :units [1 2 3 4])
-                        (pj/lay-line :quarter [:revenue :cost])
-                        (pj/lay-point :quarter :units)))]
-        (is (re-find #"pj/overlay" s))
-        (is (not (re-find #"as series" s)))))))
-
 (deftest a-series-no-layer-is-added-to-is-drawn-test
   ;; The draft pivots a series wherever it is written, so a series on a
   ;; pose that no layer was added to is drawn: a cell of pj/arrange
@@ -583,13 +511,12 @@
                            (pj/pose {:x :quarter :y [:revenue :cost]})
                            pj/lay-line)))))))
 
-(deftest a-layer-on-a-new-panel-checks-its-columns-test
-  ;; The message spoke of a new sub-pose, which a leaf no longer builds.
+(deftest a-layer-on-other-columns-checks-its-columns-test
   (let [msg (try (-> sales (pj/lay-point :quarter :revenue) (pj/lay-point :nope :nada))
                  nil
                  (catch clojure.lang.ExceptionInfo e (ex-message e)))]
-    (is (re-find #"panel of its own" msg))
-    (is (not (re-find #"sub-pose" msg)))))
+    (is (re-find #"names a column that doesn't exist in the data" msg))
+    (is (not (re-find #"sub-pose|pj/overlay" msg)))))
 
 (deftest series-pairs-refused-on-an-x-only-mark-test
   ;; The pair branch ran before the "uses only the x column" check, so a

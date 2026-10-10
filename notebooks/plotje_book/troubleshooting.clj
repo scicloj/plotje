@@ -542,56 +542,45 @@
 ;; The [Datasets](./plotje_book.datasets.html#column-names) chapter covers column
 ;; names in full.
 
-;; ## Two Panels Where One Was Wanted
+;; ## One Panel Where Two Were Wanted
 ;;
-;; **Symptom**: a second `pj/lay-*` meant to draw on the same panel
-;; draws beside it instead, and the plot comes out with two panels.
+;; **Symptom**: two `pj/lay-*` calls on unrelated columns draw on one
+;; panel, and one axis holds both columns.
 ;;
-;; **Cause**: a `pj/lay-*` call naming `:x` and `:y` joins the panel
-;; whose own `:x` and `:y` match. When none matches it cannot share
-;; those axes, so it starts a panel of its own. Below, the second bar
-;; layer names a different value column from the first, so the plot
-;; comes out with two panels:
+;; **Cause**: the layers of a pose share its one panel, whatever columns
+;; they name. Below, the second bar layer names a different value column
+;; from the first, and both are drawn against one x axis:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
     (pj/lay-bar :tax :cohort {:color "#e6550d"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
+                           (and (= 1 (:panels s))
                                 ;; The same two series as the fix
                                 ;; below, so the two pictures differ
                                 ;; only in how many panels they use.
                                 (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
                                    (disj (:colors s) "none")))))])
 
-;; **Fix**: Add `pj/overlay` to the pose. Its layers are drawn on one
-;; panel, each keeping its own columns, and the axis covers every column
-;; drawn on it:
+;; **Fix**: split the pose over the columns with `pj/facet`. Each layer
+;; is drawn only in the panel of the column it names:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-    pj/overlay
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
-    (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
+    (pj/lay-bar :tax :cohort {:color "#e6550d"})
+    (pj/facet {:x [:growth :tax]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
+                           (and (= 2 (:panels s))
                                 (= 6 (:polygons s))
                                 ;; The same two series as the picture
-                                ;; above, now sharing one panel.
+                                ;; above, now in a panel each.
                                 (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
                                    (disj (:colors s) "none")))))])
 
-;; To join one layer without changing where later layers go, write
-;; `{:overlay true}` in that layer's own options map.
-;;
-;; Joining has to be asked for because two panels are right when the
-;; columns are unrelated. There is a second remedy for the case where
-;; the incoming values are the same quantity under another name: rename
-;; those columns to the panel's own, and the layer joins without
-;; `pj/overlay`. The
-;; [Composition](./plotje_book.composition.html#overlay-on-the-same-panel)
-;; chapter shows both.
+;; Separately built plots go side by side with `pj/arrange`. The
+;; [Composition](./plotje_book.composition.html) chapter shows both.
 
 ;; ## Dataset Missing Columns a Template References
 ;;

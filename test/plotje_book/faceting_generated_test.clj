@@ -202,7 +202,7 @@
      (=
       [3 1]
       (mapv
-       (fn* [p1__75602#] (count (:panels (:plan p1__75602#))))
+       (fn* [p1__78667#] (count (:panels (:plan p1__78667#))))
        (:sub-plots (pj/plan fr))))))
    v28_l163)))
 
@@ -219,11 +219,36 @@
 
 (deftest
  t32_l188
- (is ((fn [fr] (= 6 (:panels (pj/svg-summary fr)))) v31_l182)))
+ (is ((fn [fr] (= 3 (:panels (pj/svg-summary fr)))) v31_l182)))
 
 
 (def
- v34_l199
+ v34_l195
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width)
+  (pj/lay-point :petal-length :petal-width)
+  (pj/facet
+   {:col :species,
+    :row
+    {:x [:sepal-length :petal-length],
+     :y [:sepal-width :petal-width]}})
+  (pj/options {:width 900, :height 480})))
+
+
+(deftest
+ t35_l203
+ (is
+  ((fn
+    [fr]
+    (=
+     {:panels 6, :points 300}
+     (select-keys (pj/svg-summary fr) [:panels :points])))
+   v34_l195)))
+
+
+(def
+ v37_l215
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -233,7 +258,7 @@
 
 
 (deftest
- t35_l205
+ t38_l221
  (is
   ((fn
     [fr]
@@ -250,17 +275,17 @@
       (= 6 (:panels s))
       (= 150 (:points s))
       (= ["setosa" "versicolor" "virginica"] (vec labelled)))))
-   v34_l199)))
+   v37_l215)))
 
 
-(def v37_l223 (pj/compound-key-aesthetics))
+(def v40_l239 (pj/compound-key-aesthetics))
 
 
-(deftest t38_l225 (is ((fn [s] (= #{:group :col :row} s)) v37_l223)))
+(deftest t41_l241 (is ((fn [s] (= #{:group :col :row} s)) v40_l239)))
 
 
 (def
- v40_l230
+ v43_l246
  (def
   measures
   (tc/dataset
@@ -270,30 +295,30 @@
     :v [1.0 2.0 1.5 2.5 2.0 3.0]})))
 
 
-(def v41_l236 measures)
+(def v44_l252 measures)
 
 
 (def
- v43_l241
+ v46_l257
  (try
   (-> measures (pj/lay-point :t :v {:color [:part :dimension]}))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t44_l247
+ t47_l263
  (is
   ((fn [msg] (re-find #":color was given several columns" msg))
-   v43_l241)))
+   v46_l257)))
 
 
 (def
- v46_l253
+ v49_l269
  (-> measures (pj/lay-point :t :v) (pj/facet [:part :dimension])))
 
 
 (deftest
- t47_l257
+ t50_l273
  (is
   ((fn
     [fr]
@@ -302,21 +327,21 @@
      (=
       ["sepal / length" "sepal / width" "petal / length"]
       (mapv :col-label (:panels (pj/plan fr))))))
-   v46_l253)))
+   v49_l269)))
 
 
 (def
- v49_l266
+ v52_l282
  (-> measures (pj/lay-point :t :v) (pj/facet-grid :part :dimension)))
 
 
 (deftest
- t50_l270
- (is ((fn [fr] (= 4 (:panels (pj/svg-summary fr)))) v49_l266)))
+ t53_l286
+ (is ((fn [fr] (= 4 (:panels (pj/svg-summary fr)))) v52_l282)))
 
 
 (def
- v52_l280
+ v55_l296
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -325,7 +350,7 @@
 
 
 (deftest
- t53_l285
+ t56_l301
  (is
   ((fn
     [v]
@@ -342,11 +367,11 @@
           (pj/lay-point :sepal-length :sepal-width)
           (pj/facet :species)))))]
      (and (= 3 (:panels s)) (= 150 (:points s)) (apply = doms))))
-   v52_l280)))
+   v55_l296)))
 
 
 (def
- v55_l299
+ v58_l315
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -355,7 +380,7 @@
 
 
 (deftest
- t56_l304
+ t59_l320
  (is
   ((fn
     [v]
@@ -373,11 +398,11 @@
           (pj/facet :species)
           (pj/options {:scales :free-y})))))]
      (and (= 3 (:panels s)) (= 3 (count (distinct doms))))))
-   v55_l299)))
+   v58_l315)))
 
 
 (def
- v58_l330
+ v61_l346
  (def
   per-panel
   {:g ["L" "L" "L" "R" "R" "R"],
@@ -387,12 +412,12 @@
 
 
 (def
- v59_l336
+ v62_l352
  (-> per-panel (pj/lay-point :x :y {:size :n}) (pj/facet :g)))
 
 
 (deftest
- t60_l340
+ t63_l356
  (is
   ((fn
     [v]
@@ -404,11 +429,11 @@
       (=
        [[1 2 3] [4 7 10]]
        (mapv (fn [l] (vec (mapcat :sizes (:groups l)))) layers)))))
-   v59_l336)))
+   v62_l352)))
 
 
 (def
- v62_l357
+ v65_l373
  (->
   per-panel
   (pj/lay-point :x :y {:size :n})
@@ -417,7 +442,7 @@
 
 
 (deftest
- t63_l362
+ t66_l378
  (is
   ((fn
     [v]
@@ -427,11 +452,11 @@
       (= 6 (count radii))
       (> (first radii) 2.0)
       (< (last radii) 8.0))))
-   v62_l357)))
+   v65_l373)))
 
 
 (def
- v65_l385
+ v68_l401
  (try
   (->
    (rdatasets/datasets-iris)
@@ -441,7 +466,7 @@
 
 
 (deftest
- t66_l391
+ t69_l407
  (is
   ((fn
     [m]
@@ -452,11 +477,11 @@
      (re-find #"pj/facet pose" m)
      (re-find #"pj/facet-grid" m)
      (re-find #"in the pose's mapping" m)))
-   v65_l385)))
+   v68_l401)))
 
 
 (def
- v68_l408
+ v71_l424
  (try
   (->
    (rdatasets/datasets-iris)
@@ -467,14 +492,14 @@
 
 
 (deftest
- t69_l415
+ t72_l431
  (is
   ((fn [m] (and (string? m) (re-find #"already facets by" m)))
-   v68_l408)))
+   v71_l424)))
 
 
 (def
- v71_l424
+ v74_l440
  (->
   (rdatasets/datasets-iris)
   (pj/lay-histogram :sepal-length {:color :species})
@@ -482,18 +507,18 @@
 
 
 (deftest
- t72_l428
+ t75_l444
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (pos? (:polygons s)))))
-   v71_l424)))
+   v74_l440)))
 
 
 (def
- v74_l436
+ v77_l452
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :total-bill :tip {:color :sex})
@@ -503,18 +528,18 @@
 
 
 (deftest
- t75_l442
+ t78_l458
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:panels s)) (= 244 (:points s)) (= 4 (:lines s)))))
-   v74_l436)))
+   v77_l452)))
 
 
 (def
- v77_l453
+ v80_l469
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :species {:color :species})
@@ -522,38 +547,37 @@
 
 
 (deftest
- t78_l457
+ t81_l473
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (= 5 (:polygons s)))))
-   v77_l453)))
+   v80_l469)))
 
 
 (def
- v80_l465
+ v83_l481
  (->
   (rdatasets/datasets-iris)
-  (pj/arrange
-   [:sepal-length :sepal-width :petal-length]
-   {:color :species})))
+  (pj/pose {:color :species})
+  (pj/facet {:x [:sepal-length :sepal-width :petal-length]})))
 
 
 (deftest
- t81_l468
+ t84_l485
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (pos? (:polygons s)))))
-   v80_l465)))
+   v83_l481)))
 
 
 (def
- v83_l476
+ v86_l493
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -565,7 +589,7 @@
 
 
 (deftest
- t84_l482
+ t87_l499
  (is
   ((fn
     [v]
@@ -576,4 +600,4 @@
       (= 150 (:points s))
       (some #{"Iris by Species"} (:texts s))
       (some #{"Sepal Length (cm)"} (:texts s)))))
-   v83_l476)))
+   v86_l493)))

@@ -231,3 +231,17 @@
     (is (= 1 (count doms)))
     ;; Every panel reads the data's extent, padded: x 10-12, y 20-22.
     (is (= #{[[9.0 13.0] [19.0 23.1]]} doms))))
+
+(deftest free-axis-labels-every-panel-test
+  ;; Each panel of a free axis has ticks of its own, so each draws its
+  ;; tick labels; a shared axis labels only the outer panels.
+  (let [d {:x [1 2 3 4 5 6] :y [1 2 10 20 100 200] :g ["a" "a" "b" "b" "c" "c"]}
+        base (-> d (pj/lay-point :x :y) (pj/facet :g))
+        free (pj/options base {:scales :free-y})
+        panel-labels (mapv (comp :labels :y-ticks) (:panels (pj/plan free)))
+        drawn (frequencies (:texts (pj/svg-summary free)))]
+    (is (= ["1" "2"] (first panel-labels)))
+    (is (= "110" (second (last panel-labels))))
+    (is (every? drawn (apply concat panel-labels)))
+    ;; Shared: one column of y labels, so "200" is drawn once.
+    (is (= 1 ((frequencies (:texts (pj/svg-summary base))) "200")))))

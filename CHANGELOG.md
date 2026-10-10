@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-`pj/pose` builds one pose: data or a pose, then columns, then a mapping. Panels drawn from several columns come from `pj/arrange`, which takes columns as cells, and from the new `pj/cross-matrix`. Contributed in [#61](https://github.com/scicloj/plotje/pull/61) - thanks, @timothypratley
+`pj/pose` builds one pose: data or a pose, then columns, then a mapping. The layers of a pose share one panel, and panels drawn from several columns come from `pj/facet`, which takes a map of columns, from `pj/arrange`, which takes columns as cells, and from the new `pj/cross-matrix`. Contributed in [#61](https://github.com/scicloj/plotje/pull/61) - thanks, @timothypratley
 
 ### Plots that look different after upgrading
 
@@ -12,19 +12,27 @@ All notable changes to this project will be documented in this file. This change
 
 - **A series written as several columns** lists its legend entries, and orders its groups, in the order the columns are written: `[:cost :revenue]` lists `cost` first.
 
-- **A `pj/pose` call given a vector of columns in place of one column**, such as `(pj/pose data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled `value`. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
+- **A `pj/pose` call given a vector of columns in place of one column**, such as `(pj/pose data [:a :b :c])`, draws the columns as a series on one panel: a colour and a legend entry per column, on an axis titled by the columns. Where the call also writes `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
 - **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`, and a pose returned by a function can be pointed at other columns; layers that name their own columns keep them. On a composite the mapping goes to the root, and an `:x` or `:y` there that every cell overrides warns that it is not drawn. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`. `(pj/pose p)` and `(pj/pose p {})` return `p`.
 
 - **A pose built by `lay-*` calls, or by `(pj/pose data)`,** carries the columns each `lay-*` call names on that call's layer, and no mapping of its own; the pose's mapping is what `pj/pose` writes. A later `pj/pose` changes the columns of the layers that name none. The default mapping of 1-3 column data is inferred when the pose is drawn, in every cell of a composite too, and `pj/infer-mapping` shows it.
 
-- **A layer that names no columns, on a pose that draws several panels,** is drawn on every panel and reads that panel's columns, in whatever order the `lay-*` calls are written. In `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width) pj/lay-smooth)`, the smooth on the petal panel is fitted to the petal columns.
+- **Layers of one pose that name different columns** share one panel: `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width))` draws one panel, each axis covering and titled by every column drawn on it. Where no layer writes its own colour, each layer takes a colour and a legend entry naming its columns. The pose's own `:x` and `:y` are drawn by the layers that name no columns. For a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
+
+- **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column. `:x-label` and `:y-label` still set the title.
 
 ### Added
 
 - `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, and a layer added afterwards reaches every panel.
 
-- `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells are appended to it.
+- `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells are appended to it. Cells that split the data of the pose they are arranged into share each axis that draws one column, title it once and label its ticks on the outer cells only; `:share-scales` overrides the sharing.
+
+- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. A layer naming one of the facet's columns is drawn only in that column's panels, and a column on `:y` alone under a histogram or a density is drawn on its side.
+
+- A layer beside a series may name one of the series' columns: `(-> sales (pj/lay-line :quarter [:revenue :cost]) (pj/lay-point :quarter :revenue))` draws the points on the revenue line, in its colour.
+
+- A pose may carry `:where`, a map from column to value or set of values, and draws only the rows that match; numbers match by value, so `4` selects `4.0`. Cells listed under a pose that holds the data, each with a `:where`, draw what `pj/facet` draws. The name `:where` is provisional.
 
 ### Warnings and errors
 
@@ -34,9 +42,21 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/cross-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error.
 
+- `pj/overlay` and the `:overlay` layer option warn that they are ignored, since the layers of a pose share one panel; `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`. Layers of one panel drawing a categorical and a numeric column on the same axis report an error naming the layers and the same two routes, and a count or a density beside a column on `:y` warns that the axis reads in two units.
+
+- `pj/facet` given a column the data does not hold reports an error when it is called. A `:where` value that appears nowhere in its column warns.
+
 ### Fixed
 
 - `pj/arrange` draws `:subtitle` under its title and `:caption` under the grid. `:align-panels` on a row or a grid of cells gives every cell the same width and the same bottom edge.
+
+- Facets with `{:scales :free}`, `:free-x` or `:free-y` label the ticks of every panel whose axis differs from its neighbour's, and a facet whose rows draw different `:x` columns labels each row.
+
+- A layer drawing several columns on a panel that shares an axis with other cells takes the extent of every column it draws, and the cells sharing that axis take it too. The marks of its second column were drawn outside the panel.
+
+- A layer placed in the drawing area, `{:in :drawing-area}`, with columns of its own data is drawn on the panel it is added to.
+
+- `(-> data (pj/pose {:y :hwy}) pj/lay-histogram)` draws the histogram on its side; it reported a null pointer error.
 
 - `pj/facet` reads a column name the data holds whatever its type, so `(pj/facet pose 2)` on a dataset whose columns are integers draws a panel per value of column 2.
 

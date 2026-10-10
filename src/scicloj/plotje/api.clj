@@ -1658,13 +1658,7 @@
                        " names a column that doesn't exist in the data"
                        " the layer would draw from. Available columns: "
                        (vec (sort col-names))
-                       ". The " k " differs from the column the pose"
-                       " draws, so this layer would take a panel of its"
-                       " own -- but its data has no column " (pr-str col)
-                       ". If you meant to draw this layer on the panel"
-                       " the pose already draws, write pj/overlay on the"
-                       " pose, or {:overlay true} in its own options map."
-                       " If you meant another dataset, pass `:data` on"
+                       ". If you meant another dataset, pass `:data` on"
                        " this lay-* call.")
                 {:caller (str "pj/lay-" (layer-type-name layer-type))
                  :key k :column col :available (sort col-names)}))))))
@@ -1991,10 +1985,30 @@
                       {:position p :registered (sort (registered-positions))})))))
 
 (def ^:private layer-structural-keys
-  "User-supplied layer options that are layer-structural (not
-   column-to-aesthetic mappings). Promoted to top-level keys on the
-   layer map; `:mapping` holds only true mappings."
-  #{:stat :position :mark :overlay})
+  "The layer options written beside `:layer-type` rather than in the
+   layer's `:mapping`. `:mark`, `:stat` and `:position` each replace one
+   part of the layer type, so they sit next to it. Every other option --
+   aesthetics, stat parameters such as `:bins`, drawing options such as
+   `:jitter` -- goes in `:mapping` (see `build-layer`)."
+  #{:stat :position :mark})
+
+(defn- retired-overlay!
+  "Report `:overlay`, or `pj/overlay`, written by `caller` with value `v`.
+
+   The layers of a pose share one panel, so asking for that is ignored
+   with a warning -- the picture is the one asked for. Asking for the
+   opposite, `false`, cannot be done by a flag: separate panels come
+   from a split or from `pj/arrange`, and the error names both."
+  [caller v]
+  (if v
+    (println (str "Warning: " caller " -- :overlay is retired and ignored. The"
+                  " layers of a pose share one panel without it."))
+    (throw (ex-info (str caller " -- :overlay is retired. The layers of a pose"
+                         " share one panel. To draw layers on separate panels,"
+                         " split the pose over the columns, as in"
+                         " (pj/facet pose {:y [:a :b]}), or give each layer a"
+                         " pose of its own and arrange the poses with pj/arrange.")
+                    {:caller caller :overlay v}))))
 
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
@@ -2206,21 +2220,14 @@
   ;; check pj/pose runs on the map it is handed.
   (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
                           position-mapping)
-  (let [built (elide-empty-maps (build-layer layer-type-key opts))
-        ;; `:overlay` is carried onto the layer rather than read here.
-        ;; Which panel a layer draws on is settled at draft time, where
-        ;; the leaf's `:overlay` and the layer's own are read together --
-        ;; so `pj/overlay` says the same thing wherever in a thread it is
-        ;; written, as every mapping already does. Read here, it made the
-        ;; one construct in the pipeline whose placement changed the
-        ;; result.
-        ;;
-        ;; A composite is the exception: its cells are separate poses, so
-        ;; a layer added to one has to be placed now, and the pose's own
-        ;; flag is what says which cell.
-        overlay? (boolean (if (contains? built :overlay)
-                            (:overlay built)
-                            (:overlay fr)))
+  (when (contains? opts :overlay)
+    (retired-overlay! (str "pj/lay-" (layer-type-name layer-type-key)) (:overlay opts)))
+  (let [opts (dissoc opts :overlay)
+        built (elide-empty-maps (build-layer layer-type-key opts))
+        ;; A composite's cells are separate poses, so a layer added to
+        ;; one has to be placed now; a hand-written `:overlay` on the
+        ;; composite still says to join the last cell.
+        overlay? (boolean (:overlay fr))
         bare-layer built
         ;; A position written in the options map is the layer's own
         ;; mapping and stays there, and it decides which panel the layer
@@ -2255,9 +2262,8 @@
                               leaf-v (get (pose/leaf-columns fr) k)]
                           (and pos-v leaf-v (not= pos-v leaf-v))))
                       [:x :y])
-            ;; The layer disagrees with the columns the pose draws, so it
-            ;; will take a panel of its own: say which column is missing
-            ;; here rather than deep in the plan.
+            ;; The layer names columns the pose does not draw: say which
+            ;; column is missing here rather than deep in the plan.
             (check-new-panel-columns layer-type-key position-mapping
                                      bare-layer (:data fr)))
           (update fr :layers (fnil conj [])
@@ -3183,45 +3189,16 @@
                       {:caller caller :value v})))))
 
 (defn overlay
-  "Mark a pose so that its layers are drawn on one panel, instead of a
-   layer naming columns the panel does not draw taking a panel of its
-   own.
+  "Retired. The layers of a pose share one panel, so `(pj/overlay pose)`
+   returns the pose unchanged and warns.
 
-   A layer naming columns the panel does not draw cannot share that
-   panel's axes, so by default it becomes a panel of its own. That is
-   the right answer for two unrelated pairs of columns and the wrong one
-   for two measures meant to be read against one axis. `pj/overlay`
-   turns that default off:
-
-   - `(-> data pj/overlay (pj/lay-bar :growth :cohort) (pj/lay-bar :tax :cohort))`
-
-   The layer keeps its own columns; they are drawn against the axes the
-   panel already has, and each axis covers every column drawn on it.
-   Each layer takes a colour and a legend entry naming its column, and
-   an axis title names every column drawn on it. Where each layer writes
-   its own colour, the axis is named for the panel's own column.
-
-   `pj/overlay` says the same thing wherever in a pipeline it is
-   written. It is read where the panels are decided rather than where a
-   layer is added, so writing it after the layers draws what writing it
-   before them draws.
-
-   `{:overlay true}` on one `lay-*` call joins that layer alone,
-   `{:overlay false}` opts one layer out, and `(pj/overlay pose false)`
-   turns it off for the pose. A layer whose columns already match the
-   panel is unaffected -- it was joining anyway.
-
-   Where the columns are written makes no difference: an `:x` or `:y` in
-   the options map asks for a panel exactly as one in an argument slot
-   does, and `pj/overlay` answers both. A written value names no panel
-   -- `{:x 7.5 :y 4.2 :text \"note\"}` marks a place on the panel it is
-   added to -- so a written value needs no overlay."
+   `(pj/overlay pose false)` reports an error: separate panels come from
+   a split over the columns, as in `(pj/facet pose {:y [:a :b]})`, or
+   from separate poses given to `pj/arrange`."
   ([pose-or-data] (overlay pose-or-data true))
   ([pose-or-data on?]
-   (let [fr (->pose pose-or-data "pj/overlay")]
-     (if on?
-       (assoc fr :overlay true)
-       (dissoc fr :overlay)))))
+   (retired-overlay! "pj/overlay" on?)
+   (->pose pose-or-data "pj/overlay")))
 
 (defn- update-mapping
   "Update the root :mapping of a pose. Non-pose inputs are coerced via
@@ -3367,7 +3344,21 @@
    - `(pj/facet my-pose [:part :dimension])` -- one panel per observed
      combination, which is a compound key. `pj/facet-grid` fills the
      rectangle instead.
-   - `{:col {:column :species}}` -- the same as the first, written out."
+   - `{:col {:column :species}}` -- the same as the first, written out.
+
+   A map without `:column` says where panels come from, and may name
+   columns rather than categories (provisional, PR #61):
+
+   - `(pj/facet my-pose {:col :year :row :drv})` -- a grid of categories.
+   - `(pj/facet my-pose {:y [:hwy :cty]})` -- a panel per column.
+   - `(pj/facet my-pose {:x [:a :b] :y [:c :d]})` -- a panel per pair.
+   - `(pj/facet my-pose {:col {:x [:a :b]} :row {:y [:a :b]}})` -- a
+     matrix; `nil` in a vector of columns leaves that place for a
+     margin.
+
+   The columns are checked against the data when `pj/facet` is called.
+   A layer naming one of the facet's columns is drawn only in the
+   panels of that column."
   ([pose col]
    (if (and (map? col) (not (contains? col :column)))
      (facet-map pose col)

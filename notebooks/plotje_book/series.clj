@@ -66,7 +66,7 @@ sales-by-region
 ;; A series is the wide-side spelling of something the long shape
 ;; already writes. Pivoting the measures into a key column and a value
 ;; column, then mapping the key column to `:color`, draws the same
-;; plot:
+;; marks:
 
 (-> sales
     (tc/pivot->longer #{:revenue :cost :tax}
@@ -74,10 +74,19 @@ sales-by-region
     (pj/lay-bar :quarter :value {:color :series :position :dodge}))
 
 (kind/test-last
- [(fn [v] (= (pj/plot v)
-             (pj/plot (-> sales
-                          (pj/lay-bar :quarter [:revenue :cost :tax]
-                                      {:position :dodge})))))])
+ [(fn [v] (let [series (pj/svg-summary (-> sales
+                                           (pj/lay-bar :quarter [:revenue :cost :tax]
+                                                       {:position :dodge})))
+                long (pj/svg-summary v)]
+            (and (= (dissoc long :texts) (dissoc series :texts))
+                 (some #{"value"} (:texts long))
+                 (some #{"revenue, cost, tax"} (:texts series)))))])
+
+;; The titles differ. The long table's columns were named in the
+;; `tc/pivot->longer` call, so `value` titles the axis and `series` the
+;; legend. A series names no column of its own: its axis is titled by
+;; the columns it reads, and its legend has no title, since the entries
+;; already name the columns.
 
 ;; An adjustment divides a band between labelled competitors, and the
 ;; pivot gives the measures their labels, so the adjustments below
@@ -87,7 +96,7 @@ sales-by-region
 
 ;; A series can be written out as a map rather than a bare vector. The
 ;; reason to write it out is to name the key column the pivot invents,
-;; which is what titles the legend.
+;; which then titles the legend.
 
 (-> sales
     (pj/lay-bar :quarter {:series [:revenue :cost :tax] :as :measure}
@@ -105,7 +114,7 @@ sales-by-region
 ;; reads, `:as` for the key column the pivot invents, and `:scale` for
 ;; the scale its value column is read through. Any other key reports an
 ;; error, so a misspelled `:as` is caught where it is written rather
-;; than leaving the legend titled `series`.
+;; than leaving the legend untitled.
 
 (try
   (-> sales
@@ -279,7 +288,8 @@ sales-by-region
 ;; pairs: the first `:x` column with the first `:y` column, the second
 ;; with the second, and so on. Each pair is one series of the layer,
 ;; labelled with both column names, and the pivot invents two value
-;; columns, `:x-value` and `:y-value`, one for each axis.
+;; columns, `:x-value` and `:y-value`, one for each axis. Each axis is
+;; titled by the columns it reads.
 
 (-> {:time-a    [0 1 2 3]
      :time-b    [0.5 1.5 2.5 3.5]
@@ -294,11 +304,10 @@ sales-by-region
                  (= 2 (:lines s))
                  (contains? texts "time a / reading a")
                  (contains? texts "time b / reading b")
-                 (contains? texts "x value")
-                 (contains? texts "y value"))))])
+                 (contains? texts "time a, time b")
+                 (contains? texts "reading a, reading b"))))])
 
-;; The axis titles name the two invented columns. Titles of your own
-;; are written with `:x-label` and `:y-label`:
+;; Titles of your own are written with `:x-label` and `:y-label`:
 
 (-> {:time-a    [0 1 2 3]
      :time-b    [0.5 1.5 2.5 3.5]
@@ -970,39 +979,25 @@ sales-by-region
                  (= :point (:mark points))
                  (= 1 (count (:groups points))))))])
 
-;; #### Series beside a layer that keeps its own panel
+;; #### Series beside a layer on another column
 
-;; A layer naming a column the pivot did not consume takes a panel of
-;; its own, and `pj/overlay` puts it on the series panel instead.
+;; A layer naming a column the pivot did not consume is drawn on the
+;; series' panel, its column on the axis of the series' values:
 
 (-> sales
     (pj/lay-bar :quarter [:revenue :cost] {:position :stack})
     (pj/lay-line :quarter :units))
 
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-(-> sales
-    (pj/lay-bar :quarter [:revenue :cost] {:position :stack})
-    (pj/lay-line :quarter :units)
-    pj/overlay)
-
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
-;; Drawing the first of those two says what it did, and names
-;; `pj/overlay` as the way to one panel. The note does not offer reading
-;; the columns as one series here, as it does beside two plain columns:
-;; the pose already reads a series, and a second one would write over
-;; the columns the first invented.
+;; Units and euros do not share a scale, so here the two belong in
+;; panels of their own, arranged one above the other:
 
-(with-out-str
-  (pj/plot (-> sales
-               (pj/lay-bar :quarter [:revenue :cost])
-               (pj/lay-line :quarter :units))))
+(pj/arrange [(pj/lay-bar sales :quarter [:revenue :cost] {:position :stack})
+             (pj/lay-line sales :quarter :units)]
+            {:cols 1})
 
-(kind/test-last
- [(fn [out] (and (re-find #"panel of its own" out)
-                 (re-find #"pj/overlay" out)
-                 (not (re-find #"as series" out))))])
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
 ;; #### A rule across every panel of a series
 

@@ -250,15 +250,15 @@
     [m]
     (and
      (every?
-      (fn* [p1__75261#] (re-matches #"\d{2}:\d{2}" p1__75261#))
+      (fn* [p1__78885#] (re-matches #"\d{2}:\d{2}" p1__78885#))
       (:six-hours m))
      (every?
       (fn*
-       [p1__75262#]
-       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__75262#))
+       [p1__78886#]
+       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__78886#))
       (:three-days m))
      (every?
-      (fn* [p1__75263#] (re-matches #"\d{4}" p1__75263#))
+      (fn* [p1__78887#] (re-matches #"\d{4}" p1__78887#))
       (:nine-years m))
      (= 9 (count (:nine-years m)))))
    v39_l282)))
@@ -1118,11 +1118,11 @@
    v184_l1091)))
 
 
-(def v187_l1113 scatter-pose)
+(def v187_l1112 scatter-pose)
 
 
 (deftest
- t188_l1115
+ t188_l1114
  (is
   ((fn
     [_]
@@ -1139,36 +1139,36 @@
           (pj/lay-point :sepal-length :sepal-width)
           (pj/facet :species)))))
       (=
-       :multi-variable
+       :single
        (:layout-type
         (pj/plan
          (->
           iris
           (pj/lay-point :sepal-length :sepal-width)
           (pj/lay-point :petal-length :petal-width))))))))
-   v187_l1113)))
+   v187_l1112)))
 
 
 (def
- v190_l1131
+ v190_l1130
  (def normal-pose (-> animals (pj/lay-bar :animal :count))))
 
 
-(def v191_l1135 normal-pose)
+(def v191_l1134 normal-pose)
 
 
 (def
- v192_l1137
+ v192_l1136
  (def
   flip-pose
   (-> animals (pj/lay-bar :animal :count) (pj/coord :flip))))
 
 
-(def v193_l1142 flip-pose)
+(def v193_l1141 flip-pose)
 
 
 (deftest
- t194_l1144
+ t194_l1143
  (is
   ((fn
     [v]
@@ -1183,32 +1183,32 @@
       (not (:categorical? (:y-ticks np)))
       (not (:categorical? (:x-ticks fp)))
       (true? (:categorical? (:y-ticks fp))))))
-   v193_l1142)))
+   v193_l1141)))
 
 
 (def
- v196_l1159
+ v196_l1158
  (def
   flipped-labels-pose
   (-> five-points (pj/lay-point :x :y) (pj/coord :flip))))
 
 
-(def v197_l1164 flipped-labels-pose)
+(def v197_l1163 flipped-labels-pose)
 
 
 (deftest
- t198_l1166
+ t198_l1165
  (is
   ((fn
     [_]
     (let
      [plan (pj/plan flipped-labels-pose)]
      (and (= "y" (:x-label plan)) (= "x" (:y-label plan)))))
-   v197_l1164)))
+   v197_l1163)))
 
 
 (def
- v200_l1183
+ v200_l1182
  (def
   multi-pose
   (->
@@ -1218,11 +1218,11 @@
    (pj/lay-smooth {:stat :linear-model}))))
 
 
-(def v201_l1189 multi-pose)
+(def v201_l1188 multi-pose)
 
 
 (deftest
- t202_l1191
+ t202_l1190
  (is
   ((fn
     [v]
@@ -1232,10 +1232,10 @@
       (= 5 (:points s))
       (= 1 (:lines s))
       (= 2 (count (:layers p))))))
-   v201_l1189)))
+   v201_l1188)))
 
 
 (def
- v204_l1208
+ v204_l1207
  (kind/mermaid
   "\ngraph TD\n  POSE[\"pose + options\"]\n  POSE --> CT[\"Column types\"]\n  POSE --> AE[\"Aesthetics\"]\n  CT --> GR[\"Grouping\"]\n  AE --> GR\n  CT --> ME[\"Layer type\"]\n  GR --> STATS[\"Statistics\"]\n  ME --> STATS\n\n  STATS --> DOM[\"Domains\"]\n  DOM --> TK[\"Ticks\"]\n\n  POSE --> LBL[\"Axis labels\"]\n  AE --> LEG[\"Color legend\"]\n  AE --> SLEG[\"Size legend\"]\n  AE --> ALEG[\"Alpha legend\"]\n\n  DOM --> LAYOUT[\"Layout\"]\n  LBL --> LAYOUT\n  LEG --> LAYOUT\n  SLEG --> LAYOUT\n  ALEG --> LAYOUT\n\n  DOM --> PLOT[\"Rendered plot\"]\n  TK --> PLOT\n  LBL --> PLOT\n  LEG --> PLOT\n  SLEG --> PLOT\n  ALEG --> PLOT\n  LAYOUT --> PLOT\n  STATS --> PLOT\n\n  style POSE fill:#e8f5e9\n  style PLOT fill:#fff3e0\n  style STATS fill:#e3f2fd\n  style DOM fill:#e3f2fd\n"))

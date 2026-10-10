@@ -110,8 +110,8 @@ my-pose
 ;;   most recent matching leaf reuses that leaf, so the new layer
 ;;   joins the existing panel.
 ;; - **Non-matching columns** -- on a leaf, the layer keeps the
-;;   columns it names and the leaf draws a panel for them; on a
-;;   composite, a new leaf is appended with the layer attached.
+;;   columns it names and draws on the leaf's panel; on a composite, a
+;;   new leaf is appended with the layer attached.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
@@ -934,16 +934,12 @@ my-pose
 ;; ## Overlay
 ;;
 ;; To **overlay** is to draw a layer on a panel that another layer
-;; already draws on. Layers naming the panel's own columns overlay it
-;; without being asked. A layer naming other columns cannot share those
-;; axes and becomes a panel of its own instead, so `pj/overlay` marks
-;; the pose to say an overlay was meant: its layers are drawn on one
+;; already draws on. The layers of a pose overlay one another on its
 ;; panel, each keeping its own columns, and each axis covers every
-;; column drawn on it. `pj/overlay` says the same thing wherever in a
-;; pipeline it is written.
+;; column drawn on it. Separate panels come from `pj/facet` over the
+;; columns or from `pj/arrange`.
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-    pj/overlay
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
     (pj/lay-bar :tax :cohort {:bar-width 0.4 :color "#e6550d"}))
 
@@ -1005,9 +1001,9 @@ my-pose
 ;;   and the axis domains are unaffected. See **Drawing Area**.
 ;;
 ;; Annotations are regular layers, so they attach under the same
-;; three cases as any `lay-*`: bare call sits on the pose, matching
-;; columns join the most recent matching leaf, non-matching columns
-;; create a new leaf.
+;; three cases as any `lay-*`: bare call sits on the pose, and a call
+;; naming columns joins the leaf's panel -- on a composite, the most
+;; recent matching leaf, or a new leaf where none matches.
 ;;
 ;; | Constructor | What |
 ;; |:------------|:-----|
@@ -1344,7 +1340,7 @@ annotated
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |
-;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/overlay`, `:overlay` in a `pj/lay-*` options map |
+;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | every layer of a pose |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make sibling poses of a composite share data ranges across named axes | `:share-scales` in composite `:opts` |
 ;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |

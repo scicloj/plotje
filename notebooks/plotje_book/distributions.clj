@@ -408,13 +408,11 @@
 (pj/lay-histogram (rdatasets/datasets-iris)
                   {:x [:sepal-length :sepal-width :petal-length]})
 
-;; Use `pj/arrange` to create one panel per column.
+;; Use `pj/facet` over the columns to create one panel per column.
 ;; This is useful for comparing the shape of different variables side by side.
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [:sepal-length
-                 :sepal-width
-                 :petal-length])
+    (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
     (pj/lay-histogram))
 
 (kind/test-last
@@ -425,7 +423,7 @@
 ;; Combine with `:color` to see group differences within each column.
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [:sepal-length :sepal-width :petal-length])
+    (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
     (pj/lay-density {:color :species}))
 
 (kind/test-last

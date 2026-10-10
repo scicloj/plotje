@@ -455,34 +455,30 @@
              (mapv :mapping (panels f)))))))
 
 ;; ============================================================
-;; Layer position vs pose position -- overlay semantics
+;; Layer columns vs pose columns
 ;; ============================================================
 ;;
-;; When a leaf already carries position and `pj/lay-*` is called with
-;; a non-matching position, the layer joins the leaf carrying its own
-;; place, and the leaf draws a panel per place at draft time. `lay-*`
-;; does not restructure the pose: which panels a leaf draws is settled
-;; where `:overlay` is read, so that `pj/overlay` says the same thing
-;; wherever in a thread it is written.
+;; When a leaf already carries columns and `pj/lay-*` is called with
+;; others, the layer joins the leaf carrying its own columns, and the
+;; layers of the leaf share its one panel. `lay-*` does not restructure
+;; the pose.
 
-(deftest leaf-layer-non-matching-position-splits-at-draft-test
-  (testing "leaf with position, lay-* with non-matching position -- a panel each"
+(deftest leaf-layer-non-matching-columns-share-the-panel-test
+  (testing "leaf with columns, lay-* with other columns -- one panel"
     (let [fr (-> iris
                  (pj/pose :a :b)
                  (pj/lay-point :c :d))]
       (is (nil? (:poses fr)) "lay-* does not restructure the pose")
       (is (= {:x :a :y :b} (:mapping fr)))
       (is (= [{:x :c :y :d}] (mapv :mapping (:layers fr))))
-      ;; The pose's own place keeps its panel, with a mark inferred for
-      ;; it, as the promoted sub-pose it replaces did.
-      (is (= 2 (:panels (pj/svg-summary fr))))))
-  (testing "each layer keeps its own place, and each place gets a panel"
+      (is (= 1 (:panels (pj/svg-summary fr))))))
+  (testing "each layer keeps its own columns, on one panel"
     (let [fr (-> iris
                  (pj/lay-point :a :b)
                  (pj/lay-point :c :d))]
       (is (nil? (:poses fr)))
       (is (= [{:x :a :y :b} {:x :c :y :d}] (mapv :mapping (:layers fr))))
-      (is (= 2 (:panels (pj/svg-summary fr))))))
+      (is (= 1 (:panels (pj/svg-summary fr))))))
   (testing "matching position passes -- redundant :mapping on the layer is fine"
     (let [f (-> iris
                 (pj/pose :a :b)
@@ -490,7 +486,7 @@
       (is (= {:x :a :y :b} (:mapping f)))
       (is (= 1 (count (:layers f))))
       (is (= 1 (:panels (pj/svg-summary f))))))
-  (testing "string vs keyword: distinct column references, so a panel each"
+  (testing "string vs keyword: distinct column references, both drawn"
     ;; Layer-level :data with string-named columns makes the safety
     ;; check pass: the new panel has columns "a" and "b" to map to.
     ;; Without it, the safety check correctly notes that strings
@@ -502,7 +498,7 @@
       (is (nil? (:poses fr)))
       (is (= {:x :a :y :b} (:mapping fr)))
       (is (= [{:x "a" :y "b"}] (mapv :mapping (:layers fr))))
-      (is (= 2 (:panels (pj/svg-summary fr)))))))
+      (is (= 1 (:panels (pj/svg-summary fr)))))))
 
 (deftest a-split-keeps-a-layers-own-mapping-test
   ;; A layer that names no place is stamped with the leaf's when the

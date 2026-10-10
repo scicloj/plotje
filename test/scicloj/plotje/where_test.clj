@@ -29,3 +29,16 @@
 (deftest a-filter-on-a-missing-column-is-reported-test
   (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A row filter names \[:nope\]"
                         (pj/plan (assoc (pj/lay-point d :x :y) :where {:nope 1})))))
+
+(deftest numbers-compare-by-value-test
+  ;; 3 selects a row holding 3.0, as it would in a comparison.
+  (is (= 1 (:points (pj/svg-summary (-> d (pj/lay-point :x :y) (assoc :where {:x 3}))))))
+  (is (= 2 (:points (pj/svg-summary (-> d (pj/lay-point :x :y) (assoc :where {:x #{1 4}})))))))
+
+(deftest a-value-the-data-does-not-hold-is-reported-test
+  ;; A misspelled category selects nothing; the warning names it.
+  (let [out (with-out-str
+              (pj/plan (-> d (pj/lay-point :x :y) (assoc :where {:g #{"a" "zz"}}))))]
+    (is (re-find #"Warning: A row filter names \"zz\" on :g -- a value the data does not hold" out)))
+  (testing "a cell generated from the data names none"
+    (is (= "" (with-out-str (pj/plan (pj/facet (pj/lay-point d :x :y) :g)))))))
