@@ -402,10 +402,19 @@
 ;; ## Comparing Multiple Columns
 ;;
 ;; Pass a vector of column names to `pj/lay-histogram` (or any
-;; `lay-*` function) to create one panel per column. This is useful
-;; for comparing the shape of different variables side by side.
+;; `lay-*` function) to create layers on one panel.
 
-(pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width :petal-length])
+(pj/lay-histogram (rdatasets/datasets-iris)
+                  [:sepal-length :sepal-width :petal-length])
+
+;; Use `pj/arrange` to create one panel per column.
+;; This is useful for comparing the shape of different variables side by side.
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [:sepal-length
+                 :sepal-width
+                 :petal-length])
+    (pj/lay-histogram))
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
@@ -414,7 +423,9 @@
 
 ;; Combine with `:color` to see group differences within each column.
 
-(pj/lay-density (rdatasets/datasets-iris) [:sepal-length :sepal-width :petal-length] {:color :species})
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [:sepal-length :sepal-width :petal-length])
+    (pj/lay-density {:color :species}))
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]

@@ -13,7 +13,9 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__76821#] (Math/sin (* p1__76821# 0.3))) (range 30))}))
+   (map
+    (fn* [p1__136981#] (Math/sin (* p1__136981# 0.3)))
+    (range 30))}))
 
 
 (def v4_l21 (-> wave (pj/lay-line :x :y)))
@@ -37,10 +39,12 @@
   (tc/dataset
    {:x (range 30),
     :sin
-    (map (fn* [p1__76822#] (Math/sin (* p1__76822# 0.3))) (range 30)),
+    (map
+     (fn* [p1__136982#] (Math/sin (* p1__136982# 0.3)))
+     (range 30)),
     :cos
     (map
-     (fn* [p1__76823#] (Math/cos (* p1__76823# 0.3)))
+     (fn* [p1__136983#] (Math/cos (* p1__136983# 0.3)))
      (range 30))})))
 
 
@@ -181,7 +185,7 @@
  (->
   {:x (range 30),
    :y
-   (map (fn* [p1__76824#] (Math/sin (* p1__76824# 0.3))) (range 30))}
+   (map (fn* [p1__136984#] (Math/sin (* p1__136984# 0.3))) (range 30))}
   (pj/lay-area :x :y)))
 
 
@@ -256,7 +260,7 @@
       (= 6 (:points s))
       (= 1 (:lines s))
       (some
-       (fn* [p1__76825#] (re-find #"[A-Z][a-z]{2}" p1__76825#))
+       (fn* [p1__136985#] (re-find #"[A-Z][a-z]{2}" p1__136985#))
        tick-labels))))
    v35_l178)))
 
@@ -366,7 +370,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__76826#] (-> p1__76826# :plan :panels first))
+       (fn* [p1__136986#] (-> p1__136986# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -375,7 +379,7 @@
       (apply
        not=
        (mapv
-        (fn* [p1__76827#] (:labels (:x-ticks p1__76827#)))
+        (fn* [p1__136987#] (:labels (:x-ticks p1__136987#)))
         panels)))))
    v48_l251)))
 
@@ -391,20 +395,20 @@
     (let
      [panels
       (mapv
-       (fn* [p1__76828#] (-> p1__76828# :plan :panels first))
+       (fn* [p1__136988#] (-> p1__136988# :plan :panels first))
        (:sub-plots (pj/plan v)))
       widths
       (->>
        (tree-seq vector? seq (pj/plot v))
        (filter
         (fn*
-         [p1__76829#]
+         [p1__136989#]
          (and
-          (vector? p1__76829#)
-          (= :rect (first p1__76829#))
-          (= "rgb(232,232,232)" (:fill (second p1__76829#))))))
+          (vector? p1__136989#)
+          (= :rect (first p1__136989#))
+          (= "rgb(232,232,232)" (:fill (second p1__136989#))))))
        (mapv
-        (fn* [p1__76830#] (double (:width (second p1__76830#))))))]
+        (fn* [p1__136990#] (double (:width (second p1__136990#))))))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
       (= 12 (:points (pj/svg-summary v)))
@@ -412,7 +416,7 @@
       (apply
        =
        (mapv
-        (fn* [p1__76831#] (:labels (:x-ticks p1__76831#)))
+        (fn* [p1__136991#] (:labels (:x-ticks p1__136991#)))
         panels))
       (apply = widths))))
    v51_l267)))
@@ -456,7 +460,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__76832#] (-> p1__76832# :plan :panels first))
+       (fn* [p1__136992#] (-> p1__136992# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))

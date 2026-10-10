@@ -99,8 +99,8 @@
 ;; with one pose per pair:
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose [[:sepal-length :sepal-width]
-              [:petal-length :petal-width]])
+    (pj/arrange [[:sepal-length :sepal-width]
+                 [:petal-length :petal-width]])
     (pj/lay-point {:color :species}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -123,16 +123,16 @@
 
 (kind/test-last [(fn [v] (= [[:a 1] [:a 2] [:a 3] [:b 1] [:b 2] [:b 3]] v))])
 
-;; Combine `pj/cross` with `pj/pose` to build a SPLOM:
+;; `pj/cross-matrix` builds a SPLOM:
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross [:sepal-length :petal-length]
-                       [:sepal-width :petal-width])
-             {:color :species}))
+    (pj/cross-matrix [:sepal-length :petal-length]
+                     {:color :species}))
+
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))
-                                (= 600 (:points s)))))])
+                                (= 300 (:points s)))))])
 
 ;; ## Layer Functions
 
@@ -186,12 +186,12 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
 
-;; A vector of columns creates one panel per column:
+;; A vector of columns creates one panel:
 
 (pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width])
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
+                           (and (= 1 (:panels s))
                                 (pos? (:polygons s)))))])
 
 (kind/doc #'pj/lay-bar)

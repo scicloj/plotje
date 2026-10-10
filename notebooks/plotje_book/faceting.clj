@@ -462,7 +462,8 @@ measures
 ;;
 ;; Pass a vector of column names to create one panel per column:
 
-(pj/lay-histogram (rdatasets/datasets-iris) [:sepal-length :sepal-width :petal-length] {:color :species})
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [:sepal-length :sepal-width :petal-length] {:color :species}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 3 (:panels s))

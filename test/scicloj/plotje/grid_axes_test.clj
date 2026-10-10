@@ -24,8 +24,8 @@
 ;;   :petal-length [1.0 6.9]   :petal-width  [0.1 2.5]
 (def cross-2x2
   (-> (rdatasets/datasets-iris)
-      (pj/pose (pj/cross [:sepal-length :sepal-width]
-                         [:petal-length :petal-width]))
+      (pj/cross-matrix [:sepal-length :sepal-width]
+                       [:petal-length :petal-width])
       (pj/options {:width 800 :height 600})))
 
 (defn- cell-mappings

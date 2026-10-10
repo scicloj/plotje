@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__74511#]
+      [p1__137304#]
       (+
-       (Math/sin (* p1__74511# 0.2))
+       (Math/sin (* p1__137304# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -418,7 +418,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__74512#] (-> p1__74512# :plan :panels first))
+       (fn* [p1__137305#] (-> p1__137305# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -465,7 +465,7 @@
  v61_l347
  (->
   (rdatasets/datasets-iris)
-  (pj/pose (pj/cross small-cols small-cols) {:color :species})))
+  (pj/cross-matrix small-cols {:color :species})))
 
 
 (deftest
@@ -498,7 +498,7 @@
  v65_l365
  (->
   (rdatasets/datasets-iris)
-  (pj/pose (pj/cross cols cols) {:color :species})))
+  (pj/cross-matrix cols {:color :species})))
 
 
 (deftest

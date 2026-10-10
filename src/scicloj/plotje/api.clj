@@ -1439,6 +1439,20 @@
                    (pr-str first-el))
               {:item first-el :cols-or-pairs cols-or-pairs})))))
 
+(defn- extend-mapping [p m]
+  (check-mapping-in-map-slot "pj/pose" m "its mapping map")
+  (let [opts      (or (warn-and-strip-unknown-opts "pj/pose" m pose-mapping-keys)
+                      {})
+        data-over (:data opts)
+        mapping   (dissoc opts :data)]
+    (check-column-ref-types "pj/pose" mapping)
+    (check-explicit-mappings "pj/pose" mapping)
+    (check-position-mapping "pj/pose" mapping)
+    (if (pose? p)
+      (cond-> (prepare-pose (extend-or-promote p mapping))
+        data-over (with-data data-over))
+      (prepare-pose (pose-from-data (or data-over p) mapping)))))
+
 (defn pose
   "Construct or extend a pose.
 
@@ -1453,8 +1467,6 @@
    - `(pj/pose data :x-col {:color :c})` -- univariate x with opts.
    - `(pj/pose data :x-col :y-col)` -- leaf with `:x` and `:y`.
    - `(pj/pose data :x-col :y-col {:color :c})` -- positional x/y with opts.
-   - `(pj/pose data [[:a :b] [:c :d]])` -- multi-pair: N bivariate panels.
-   - `(pj/pose data [:a :b :c])` -- multi-pair: N univariate panels.
    - `(pj/pose data (pj/cross cols cols) {:color :c})` -- multi-pair plus
      aesthetic mapping at the composite root.
 
@@ -1469,10 +1481,6 @@
      routed to the composite root on promote.
    - `(pj/pose fr {:color :c})` -- aesthetic-only: extend mapping or
      (on leaf-with-position) promote.
-   - `(pj/pose fr [[:a :b] [:c :d]])` -- multi-pair: append N panels.
-   - `(pj/pose fr (pj/cross cols cols))` -- SPLOM N^2 panels in one call.
-   - `(pj/pose fr (pj/cross cols cols) {:color :c})` -- SPLOM plus aesthetic
-     mapping at the composite root.
    - `(pj/pose fr {:data X :color :c})` -- extend mapping AND replace the
      top-level data with X.
 
@@ -1505,87 +1513,58 @@
    `pj/layer-option-docs` for what each aesthetic accepts, and
    `pj/scale` for choosing a scale's type."
   ([] (prepare-pose {:layers []}))
-  ([x]
-   (-> x (->pose "pj/pose") infer-mapping))
-  ([x y]
-   (when-not (pose? x) (validate-template-data! "pj/pose" x))
-   (cond
-     (and (sequential? y) (not (map? y)))
-     (multi-pair-pose x y)
-
-     :else
-     (if (map? y)
-       (let [_         (check-mapping-in-map-slot "pj/pose" y "its mapping map")
-             opts      (or (warn-and-strip-unknown-opts
-                            "pj/pose" y pose-mapping-keys)
-                           {})
-             data-over (:data opts)
-             mapping   (dissoc opts :data)]
-         (check-column-ref-types "pj/pose" mapping)
-         (check-explicit-mappings "pj/pose" mapping)
-         (check-position-mapping "pj/pose" mapping)
-         (if (pose? x)
-           (cond-> (prepare-pose (extend-or-promote x mapping))
-             data-over (with-data data-over))
-           (prepare-pose (pose-from-data (or data-over x) mapping))))
-       (let [mapping {:x y}]
-         (check-column-ref-types "pj/pose" mapping)
-         (check-explicit-mappings "pj/pose" mapping)
-         (check-position-mapping "pj/pose" mapping)
-         (if (pose? x)
-           (prepare-pose (extend-or-promote x mapping))
-           (prepare-pose (pose-from-data x mapping)))))))
-  ([x y z]
-   (when-not (pose? x) (validate-template-data! "pj/pose" x))
-   (cond
-     ;; (pj/pose data multi-pair opts-map) -- attach mapping to the base,
-     ;; then multi-pair on top, so opts (e.g. {:color :species}) lives at
-     ;; the composite root and flows into every panel.
-     (and (sequential? y) (not (map? y)) (map? z))
-     (multi-pair-pose (pose x z) y)
-
-     (map? z)
+  ([pose-or-data]
+   (-> pose-or-data (->pose "pj/pose") infer-mapping))
+  ([pose-or-data x-or-mapping]
+   (when-not (pose? pose-or-data)
+     (validate-template-data! "pj/pose" pose-or-data))
+   (if (map? x-or-mapping)
+     (extend-mapping pose-or-data x-or-mapping)
+     (extend-mapping pose-or-data {:x x-or-mapping})))
+  ([pose-or-data x y-or-mapping]
+   (when-not (pose? pose-or-data)
+     (validate-template-data! "pj/pose" pose-or-data))
+   (if (map? y-or-mapping)
      ;; (pj/pose data x-col opts-map) -- univariate position plus opts
-     (let [_         (check-mapping-in-map-slot "pj/pose" z "its mapping map")
-           opts      (warn-and-strip-unknown-opts "pj/pose" z pose-mapping-keys)
-           data-over (:data opts)
-           mapping   (-> opts (dissoc :data) (merge {:x y}))]
-       (check-column-ref-types "pj/pose" mapping)
-       (check-explicit-mappings "pj/pose" mapping)
-       (check-position-mapping "pj/pose" mapping)
-       (if (pose? x)
-         (cond-> (prepare-pose (extend-or-promote x mapping))
-           data-over (with-data data-over))
-         (prepare-pose (pose-from-data (or data-over x) mapping))))
-
-     :else
-     (let [mapping {:x y :y z}]
-       (check-column-ref-types "pj/pose" mapping)
-       (check-explicit-mappings "pj/pose" mapping)
-       (check-position-mapping "pj/pose" mapping)
-       (if (pose? x)
-         (prepare-pose (extend-or-promote x mapping))
-         (prepare-pose (pose-from-data x mapping))))))
-  ([x y z opts]
-   (when-not (pose? x) (validate-template-data! "pj/pose" x))
-   (when-not (or (nil? opts) (map? opts))
+     (extend-mapping pose-or-data (merge y-or-mapping {:x x}))
+     ;; else
+     (extend-mapping pose-or-data {:x x :y y-or-mapping})))
+  ([pose-or-data x y mapping]
+   (when-not (pose? pose-or-data)
+     (validate-template-data! "pj/pose" pose-or-data))
+   (when-not (or (nil? mapping) (map? mapping))
      (throw (ex-info
              (str "pj/pose 4-arity expects an opts map as the last"
-                  " argument, got " (pr-str (type opts)) ": "
-                  (pr-str opts) ". Wrap aesthetic mappings in a map,"
+                  " argument, got " (pr-str (type mapping)) ": "
+                  (pr-str mapping) ". Wrap aesthetic mappings in a map,"
                   " e.g. {:color :species}.")
-             {:caller "pj/pose" :value opts})))
-   (check-mapping-in-map-slot "pj/pose" opts "its mapping map")
-   (let [opts      (warn-and-strip-unknown-opts "pj/pose" opts pose-mapping-keys)
-         data-over (:data opts)
-         mapping   (-> opts (dissoc :data) (merge {:x y :y z}))]
-     (check-column-ref-types "pj/pose" mapping)
-     (check-explicit-mappings "pj/pose" mapping)
-     (check-position-mapping "pj/pose" mapping)
-     (if (pose? x)
-       (cond-> (prepare-pose (extend-or-promote x mapping))
-         data-over (with-data data-over))
-       (prepare-pose (pose-from-data (or data-over x) mapping))))))
+             {:caller "pj/pose" :value mapping})))
+   (check-mapping-in-map-slot "pj/pose" mapping "its mapping map")
+   (extend-mapping pose-or-data (merge mapping {:x x :y y}))))
+
+(defn cross-matrix
+  "Creates a matrix of plots of cols vs cols.
+   When no cols are provided, attempts to cross all columns.
+
+   - `(pj/matrix fr)` -- SPLOM N^2 panels for all columns.
+   - `(pj/matrix fr cols)` -- SPLOM N^2 panels for cols.
+   - `(pj/matrix fr cols {:color :c})` -- SPLOM plus aesthetic mapping.
+   - `(pj/matrix fr cols cols) `-- SPLOM NxM panels for cols1xcols2.
+   - `(pj/matrix fr cols1 cols2 {:color :c}) `-- SPLOM NxM panels with mapping."
+  ([pose-or-data]
+   (let [p (->pose pose-or-data "pj/matrix")
+         cols (tc/column-names (:data p))]
+     (cross-matrix p cols)))
+  ([pose-or-data cols]
+   (multi-pair-pose pose-or-data (cross cols cols)))
+  ([pose-or-data cols cols-or-mapping]
+   (if (map? cols-or-mapping)
+     (-> (extend-mapping pose-or-data cols-or-mapping)
+         (multi-pair-pose (cross cols cols)))
+     (multi-pair-pose pose-or-data (cross cols cols-or-mapping))))
+  ([pose-or-data xcols ycols mapping]
+   (-> (extend-mapping pose-or-data mapping)
+       (multi-pair-pose (cross xcols ycols)))))
 
 (defn- column-refs-in-mapping
   "The keyword column references a mapping makes, in either spelling.
@@ -4535,6 +4514,60 @@
 
 (declare arrange*)
 
+;; Cell shorthand for `pj/arrange`: a column is a univariate panel, a
+;; pair of columns is a bivariate one, and a pose followed by one or two
+;; columns is that pose extended. Anything else is left as it is.
+(defn- column-ref? [x] (or (keyword? x) (string? x)))
+
+(defn- shorthand-cell
+  "The pose-shaped cell a shorthand cell stands for, or nil when `c`
+   is not a shorthand."
+  [c]
+  (cond
+    (column-ref? c) {:x c}
+
+    (and (sequential? c) (= 2 (count c)) (every? column-ref? c))
+    {:x (first c) :y (second c)}
+
+    (and (sequential? c) (<= 2 (count c) 3) (pose? (first c))
+         (every? column-ref? (rest c)))
+    (apply pose c)))
+
+(defn- normalize-arrange-cells
+  "Rewrite shorthand cells into poses and mappings. A sequential that
+   is no shorthand is a row of cells when the list is already a list of
+   rows, and otherwise a nested arrangement of its own."
+  [cells]
+  (let [cells (vec cells)
+        rows? (and (seq cells)
+                   (sequential? (first cells))
+                   (nil? (shorthand-cell (first cells))))]
+    (mapv (fn [c]
+            (or (shorthand-cell c)
+                (if (and (sequential? c) (seq c) (not (column-ref? (first c))))
+                  (let [inner (normalize-arrange-cells c)]
+                    (if rows? inner (arrange* inner {})))
+                  c)))
+          cells)))
+
+(defn- arrange-from-pose
+  "Arrange `cells` beside what the pose `p` already holds."
+  [p cells opts]
+  (cond
+    (pose/composite? p)
+    (do (when (seq opts)
+          (throw (ex-info (str "pj/arrange options are not used when cells"
+                               " are appended to a composite pose.")
+                          {:caller "pj/arrange" :opts opts})))
+        (multi-pair-pose p cells))
+
+    :else
+    (let [{:keys [data mapping layers]} p]
+      (cond-> (arrange* (normalize-arrange-cells cells) opts)
+        (some? data) (with-data data)
+        (seq mapping) (assoc :mapping mapping)
+        (seq layers) (assoc :layers layers)))))
+
 (defn arrange
   "Arrange multiple poses in a grid. Returns a composite pose
    that renders through the compositor via membrane -- so `:svg`,
@@ -4577,25 +4610,27 @@
    - `(-> data (arrange cells {:cols 2}) (lay-point))`
 
    The arity is decided by the second argument: a sequential one is
-   the cell list, so the first is data; a map is the options, so the
-   first is the cells."
+   the cell list, so the first is data or a pose; a map is the options,
+   so the first is the cells.
+
+   A cell may also be written as columns:
+
+   - `(arrange data [:a :b :c])` -- N univariate panels.
+   - `(arrange data [[:a :b] [:c :d]])` -- N bivariate panels.
+   - `(arrange pose [[:a :b] [:c :d]])` -- the pose's data, mapping and
+     layers with N panels; on a composite pose, N panels appended.
+   - `(arrange data [[pose1 :a] [:b :c] [[:e :f]]])` -- a pose extended
+     by a column, a pair, and a nested arrangement, mixed freely."
   ([plots] (arrange plots {}))
   ([plots-or-data opts-or-cells]
    (if (sequential? opts-or-cells)
      (arrange plots-or-data opts-or-cells {})
      (arrange* plots-or-data opts-or-cells)))
-  ([data cells opts]
-   ;; A pose here was read as a dataset whose columns are its keys, and
-   ;; the report that followed named `:data`, `:layers` and `:mapping`
-   ;; as the available columns.
-   (when (pose? data)
-     (throw (ex-info (str "pj/arrange was given a pose where the data goes."
-                          " Data first means a dataset the cells are drawn"
-                          " from; to arrange a pose beside others, put it in"
-                          " the cell list: (pj/arrange [my-pose other-pose]).")
-                     {:caller "pj/arrange"})))
-   (-> (arrange* cells opts)
-       (with-data data))))
+  ([data-or-pose cells opts]
+   (if (pose? data-or-pose)
+     (arrange-from-pose data-or-pose cells opts)
+     (-> (arrange* (normalize-arrange-cells cells) opts)
+         (with-data data-or-pose)))))
 
 (defn- arrange*
   "Build the composite from a cell list and options. `pj/arrange` is

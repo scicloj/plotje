@@ -345,7 +345,7 @@
 (def small-cols [:sepal-length :petal-length])
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross small-cols small-cols) {:color :species}))
+    (pj/cross-matrix small-cols {:color :species}))
 
 (kind/test-last
  [(fn [v]
@@ -363,7 +363,7 @@
 (def cols [:sepal-length :sepal-width :petal-length :petal-width])
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross cols cols) {:color :species}))
+    (pj/cross-matrix cols {:color :species}))
 
 (kind/test-last
  [(fn [v]

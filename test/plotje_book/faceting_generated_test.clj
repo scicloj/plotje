@@ -202,7 +202,7 @@
      (=
       [3 1]
       (mapv
-       (fn* [p1__80273#] (count (:panels (:plan p1__80273#))))
+       (fn* [p1__139690#] (count (:panels (:plan p1__139690#))))
        (:sub-plots (pj/plan fr))))))
    v28_l163)))
 
@@ -534,14 +534,15 @@
 
 (def
  v80_l465
- (pj/lay-histogram
+ (->
   (rdatasets/datasets-iris)
-  [:sepal-length :sepal-width :petal-length]
-  {:color :species}))
+  (pj/arrange
+   [:sepal-length :sepal-width :petal-length]
+   {:color :species})))
 
 
 (deftest
- t81_l467
+ t81_l468
  (is
   ((fn
     [v]
@@ -552,7 +553,7 @@
 
 
 (def
- v83_l475
+ v83_l476
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -564,7 +565,7 @@
 
 
 (deftest
- t84_l481
+ t84_l482
  (is
   ((fn
     [v]
@@ -575,4 +576,4 @@
       (= 150 (:points s))
       (some #{"Iris by Species"} (:texts s))
       (some #{"Sepal Length (cm)"} (:texts s)))))
-   v83_l475)))
+   v83_l476)))

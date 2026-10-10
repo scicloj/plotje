@@ -149,14 +149,12 @@
 ;; which writes no size of its own:
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross [:sepal-length :sepal-width]
-                       [:sepal-length :sepal-width])))
+    (pj/cross-matrix [:sepal-length :sepal-width]))
 
 ;; Its width, measured while the override is in place:
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross [:sepal-length :sepal-width]
-                       [:sepal-length :sepal-width]))
+    (pj/cross-matrix [:sepal-length :sepal-width])
     pj/svg-summary
     :width)
 

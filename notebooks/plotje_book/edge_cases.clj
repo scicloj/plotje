@@ -503,9 +503,8 @@
 ;; appear as axis labels on each cell.
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross [:sepal-length :sepal-width :petal-length]
-                       [:sepal-length :sepal-width :petal-length])
-             {:color :species}))
+    (pj/cross-matrix [:sepal-length :sepal-width :petal-length]
+                     {:color :species}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
                                texts (:texts s)

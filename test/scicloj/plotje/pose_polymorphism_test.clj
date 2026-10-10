@@ -39,6 +39,14 @@
           (:layers fr)
           (mapcat all-nodes (:poses fr))))
 
+(defn- panels
+  "The leaf poses of `fr` in layout order. pj/arrange nests its cells
+  in rows, so the panel list is not `(:poses fr)`."
+  [fr]
+  (if (seq (:poses fr))
+    (vec (mapcat panels (:poses fr)))
+    [fr]))
+
 (defn- no-empty-map-output? [fr]
   (every? (fn [node]
             (not (or (and (contains? node :mapping) (empty? (:mapping node)))
@@ -251,46 +259,50 @@
       (is (= {:x :e :y :f} (-> f :poses (nth 2) :mapping))))))
 
 ;; ============================================================
-;; Multi-pair pj/pose -- broadcast N panels in one call (M1-M6)
+;; Multi-pair pj/arrange -- N panels in one call (M1-M7)
 ;; ============================================================
 ;;
-;; (pj/pose fr [[:a :b] [:c :d]]) and (pj/pose fr [:a :b :c]) expand
-;; to an iterated sequence of (pj/pose fr ...) calls, one per pair or
-;; column. The result is equivalent to threading pj/pose N times.
-;; This restores the panel-broadcast half of the old pj/view that was
-;; dropped in slice 1. The canonical use is SPLOM:
+;; (pj/arrange fr [[:a :b] [:c :d]]) and (pj/arrange fr [:a :b :c])
+;; make one panel per pair or column. pj/arrange lays the panels out
+;; as a grid: a vertical composite of horizontal rows, so the panels
+;; are the leaves of that tree, not (:poses f). The `panels` helper
+;; collects them in layout order. The canonical use is a row of
+;; panels that share a root aesthetic and layer:
 ;;
 ;;   (-> data (pj/pose {:color :species})
 ;;            pj/lay-point
-;;            (pj/pose (pj/cross cols cols)))
+;;            (pj/arrange [[:a :b] [:c :d]]))
+;;
+;; For the full SPLOM grid, see pj/cross-matrix (G1-G5 below).
 
 (deftest multi-pair-raw-data-bivariate-test
-  (testing "M1: (pj/pose data [[:a :b] [:c :d]]) -- vector of pairs"
-    (let [f (pj/pose iris [[:a :b] [:c :d]])]
-      (is (= 2 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping))))))
+  (testing "M1: (pj/arrange data [[:a :b] [:c :d]]) -- vector of pairs"
+    (let [f (pj/arrange iris [[:a :b] [:c :d]])]
+      (is (= 2 (count (panels f))))
+      (is (= {:x :a :y :b} (-> f panels (nth 0) :mapping)))
+      (is (= {:x :c :y :d} (-> f panels (nth 1) :mapping))))))
 
 (deftest multi-pair-raw-data-univariate-test
-  (testing "M2: (pj/pose data [:a :b :c]) -- vector of columns"
-    (let [f (pj/pose iris [:a :b :c])]
-      (is (= 3 (count (:poses f))))
-      (is (= {:x :a} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :b} (-> f :poses (nth 1) :mapping)))
-      (is (= {:x :c} (-> f :poses (nth 2) :mapping))))))
+  (testing "M2: (pj/arrange data [:a :b :c]) -- vector of columns"
+    (let [f (pj/arrange iris [:a :b :c])]
+      (is (= 3 (count (panels f))))
+      (is (= {:x :a} (-> f panels (nth 0) :mapping)))
+      (is (= {:x :b} (-> f panels (nth 1) :mapping)))
+      (is (= {:x :c} (-> f panels (nth 2) :mapping))))))
 
 (deftest multi-pair-extend-existing-test
-  (testing "M3: threaded onto a leaf-with-position -- promote + append"
-    (let [f (-> iris (pj/pose :a :b) (pj/pose [[:c :d] [:e :f]]))]
-      (is (= 3 (count (:poses f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping)))
-      (is (= {:x :e :y :f} (-> f :poses (nth 2) :mapping))))))
+  (testing "M3: arranged from a pose with a position -- the position stays
+            at the root and the pairs become the panels"
+    (let [f (-> iris (pj/pose :a :b) (pj/arrange [[:c :d] [:e :f]]))]
+      (is (= {:x :a :y :b} (:mapping f)))
+      (is (= 2 (count (panels f))))
+      (is (= {:x :c :y :d} (-> f panels (nth 0) :mapping)))
+      (is (= {:x :e :y :f} (-> f panels (nth 1) :mapping))))))
 
 (deftest multi-pair-root-layer-flows-test
   (testing "M4: root layer flows to every panel via resolve-tree"
-    (let [f (-> iris pj/pose pj/lay-point (pj/pose [[:a :b] [:c :d]]))]
-      (is (= 2 (count (:poses f))))
+    (let [f (-> iris pj/pose pj/lay-point (pj/arrange [[:a :b] [:c :d]]))]
+      (is (= 2 (count (panels f))))
       (is (= 1 (count (:layers f))))
       (is (= :point (-> f :layers (nth 0) :layer-type))))))
 
@@ -299,44 +311,38 @@
     (let [f (-> iris
                 (pj/pose {:color :species})
                 pj/lay-point
-                (pj/pose [[:a :b] [:c :d]]))]
+                (pj/arrange [[:a :b] [:c :d]]))]
       (is (= {:color :species} (:mapping f)))
-      (is (= 2 (count (:poses f))))
+      (is (= 2 (count (panels f))))
       (is (= 1 (count (:layers f))))
-      (is (= {:x :a :y :b} (-> f :poses (nth 0) :mapping)))
-      (is (= {:x :c :y :d} (-> f :poses (nth 1) :mapping))))))
+      (is (= {:x :a :y :b} (-> f panels (nth 0) :mapping)))
+      (is (= {:x :c :y :d} (-> f panels (nth 1) :mapping))))))
 
 (deftest multi-pair-cross-utility-test
-  (testing "M6: (pj/pose data (pj/cross cols cols)) builds a SPLOM grid"
+  (testing "M6: (pj/cross-matrix data cols) builds a SPLOM grid"
     ;; (pj/cross cols cols) is the canonical SPLOM input -- an MxM
     ;; Cartesian rectangle. See the G1-G5 tests below for the full
-    ;; grid-shape contract; here we pin that it is NOT the flat
-    ;; composite (which was the slice-1 behaviour).
+    ;; grid-shape contract; here we pin that it is a grid of rows, not
+    ;; one flat list of panels.
     (let [cols [:a :b]
-          f (pj/pose iris (pj/cross cols cols))]
+          f (pj/cross-matrix iris cols)]
       (is (= 2 (count (:poses f))) "2 rows, not 4 flat sub-poses")
       (is (= :vertical (get-in f [:layout :direction])))
       (is (= #{:x :y} (get-in f [:opts :share-scales]))))))
 
 (deftest multi-pair-iteration-equivalence-test
-  (testing "M7: (pj/pose fr vec-of-pairs) -- non-rectangular pair list threads per-pair"
-    ;; 3 pairs that do NOT form a Cartesian rectangle -- keeps flat
-    ;; behaviour; equivalent to threading pj/pose three times.
-    (let [expected (-> iris
-                       (pj/pose :a :b)
-                       (pj/pose :c :d)
-                       (pj/pose :e :f))
-          actual (pj/pose iris [[:a :b] [:c :d] [:e :f]])]
-      (is (= expected actual)))))
+  (testing "M7: (pj/arrange data pairs) -- one panel per pair, in order"
+    (let [f (pj/arrange iris [[:a :b] [:c :d] [:e :f]])]
+      (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
+             (mapv :mapping (panels f)))))))
 
 ;; ============================================================
-;; Multi-pair pj/pose -- rectangular grid reshape (G1-G5)
+;; pj/cross-matrix -- rectangular grid (G1-G5)
 ;; ============================================================
 ;;
-;; When multi-pair pj/pose receives pairs that form an M x N
-;; Cartesian rectangle (every combination of unique first-elements
-;; with unique second-elements, in cross-order), the result is a
-;; nested composite: outer :vertical of rows, one per distinct y;
+;; pj/cross-matrix takes pairs that form an M x N Cartesian
+;; rectangle (every combination of unique first-elements with unique
+;; second-elements, in cross-order) and returns a nested composite: outer :vertical of rows, one per distinct y;
 ;; each row is :horizontal of cells, one per distinct x.
 ;; :share-scales is stamped as #{:x :y} so axes align across rows and
 ;; columns -- the canonical SPLOM shape.
@@ -349,12 +355,13 @@
 ;; loses its x axis and every column but the first its y axis, and a
 ;; reader takes a neighbour's numbers for its own.
 ;;
-;; Pair lists that are not rectangular keep the flat-reduce
-;; behaviour asserted in M7.
+;; A 1xN shape is not reshaped (G5). A pair list that is not a
+;; rectangle goes through pj/arrange instead, which makes one panel
+;; per pair (G4).
 
 (deftest multi-pair-grid-splom-shape-test
   (testing "G1: (pj/cross cols cols) produces M x N nested composite"
-    (let [f (pj/pose iris (pj/cross [:a :b] [:c :d]))]
+    (let [f (pj/cross-matrix iris [:a :b] [:c :d])]
       (is (= :vertical (get-in f [:layout :direction])))
       (is (= #{:x :y} (get-in f [:opts :share-scales])))
       (is (= 2 (count (:poses f))) "2 rows")
@@ -373,7 +380,7 @@
 (deftest multi-pair-grid-3x3-test
   (testing "G2: 3 x 3 SPLOM via pj/cross"
     (let [cols [:a :b :c]
-          f (pj/pose iris (pj/cross cols cols))]
+          f (pj/cross-matrix iris cols)]
       (is (= 3 (count (:poses f))) "3 rows")
       (is (every? #(= 3 (count (:poses %))) (:poses f)) "3 cells each"))))
 
@@ -382,7 +389,7 @@
     (let [f (-> iris
                 (pj/pose {:color :species})
                 pj/lay-point
-                (pj/pose (pj/cross [:a :b] [:c :d])))]
+                (pj/cross-matrix [:a :b]))]
       (is (= {:color :species} (:mapping f))
           "root aesthetic preserved")
       (is (= 1 (count (:layers f)))
@@ -392,14 +399,14 @@
       (is (every? #(= 2 (count (:poses %))) (:poses f)) "2 cells each"))))
 
 (deftest multi-pair-grid-with-opts-arity-test
-  (testing "G3b: 3-arity (pj/pose data multi-pair opts-map) folds the
+  (testing "G3b: (pj/cross-matrix data cols-x cols-y opts-map) folds the
             two-call SPLOM idiom into one call -- aesthetic at the root,
             grid below."
     (let [a (-> iris
                 (pj/pose {:color :species})
-                (pj/pose (pj/cross [:a :b] [:c :d])))
+                (pj/cross-matrix [:a :b] [:c :d]))
           b (-> iris
-                (pj/pose (pj/cross [:a :b] [:c :d]) {:color :species}))]
+                (pj/cross-matrix [:a :b] [:c :d] {:color :species}))]
       (is (= a b) "two-call and one-call forms are pose-equal")
       (is (= {:color :species} (:mapping b))
           "root aesthetic mapping lives at the composite root")
@@ -407,21 +414,19 @@
       (is (every? #(= 2 (count (:poses %))) (:poses b)) "2 cells each"))))
 
 (deftest multi-pair-grid-non-rectangular-falls-through-test
-  (testing "G4: non-rectangular pair list keeps flat composite"
-    ;; 2 pairs: [:a :b] [:c :d] -- would need [:a :d] [:c :b] for a 2x2
-    ;; rectangle, so falls through to flat reduce.
-    (let [f (pj/pose iris [[:a :b] [:c :d]])]
-      (is (= 2 (count (:poses f))))
-      ;; Flat composite -- each sub-pose is a leaf with mapping, no
-      ;; nested :poses
-      (is (every? #(not (contains? % :poses)) (:poses f))))))
+  (testing "G4: a non-rectangular pair list goes through pj/arrange --
+            one leaf panel per pair, no grid reshape"
+    (let [f (pj/arrange iris [[:a :b] [:c :d]])
+          ps (panels f)]
+      (is (= 2 (count ps)))
+      (is (every? #(not (contains? % :poses)) ps)))))
 
 (deftest multi-pair-grid-1xN-falls-through-test
-  (testing "G5: a 1xN shape does not grid-reshape"
+  (testing "G5: a 1xN pj/cross-matrix does not grid-reshape"
     ;; (pj/cross [:a] [:b :c :d]) gives 3 pairs but only 1 unique x --
     ;; 1 row. We require at least 2 rows and 2 cols to reshape.
-    (let [f (pj/pose iris (pj/cross [:a] [:b :c :d]))]
-      ;; Falls through to flat -- 3 sub-poses at root
+    (let [f (pj/cross-matrix iris [:a] [:b :c :d])]
+      ;; Stays flat -- 3 sub-poses at root
       (is (= 3 (count (:poses f))))
       (is (every? #(not (contains? % :poses)) (:poses f)))
       (is (not (contains? (:opts f) :share-scales))))))

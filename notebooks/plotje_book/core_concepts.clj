@@ -352,47 +352,44 @@ two-panel
 ;; sharing the same axes.
 ;;
 ;; To draw two column-pairs as their own panels, use an explicit
-;; `pj/pose` call with a vector of column-pairs. Each `[x y]` pair
-;; becomes one panel, and a panel's place on the grid follows its
-;; columns: its x decides which column of the grid it sits in, its y
-;; which row.
+;; `pj/arrange` call with a vector of column-pairs. Each `[x y]` pair
+;; becomes one panel; here `pj/arrange` places the two panels side by
+;; side.
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose [[:sepal-length :sepal-width] [:petal-length :petal-width]])
-    (pj/lay-point))
+    (pj/arrange [[:sepal-length :sepal-width]
+                 [:petal-length :petal-width]]))
+
+;; Printed, the two-panel outcome has a vertical root containing one
+;; horizontal row of two sub-poses:
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [[:sepal-length :sepal-width]
+                 [:petal-length :petal-width]])
+    (kind/pprint))
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; Printed, the two-panel outcome is a composite with two sub-poses:
+(kind/test-last [(fn [v] (let [row (first (:poses v))
+                               cells (:poses row)
+                               [a b] (map (comp :panel-box :frames)
+                                          (:panels (pj/frames v)))]
+                           (and (= :vertical (get-in v [:layout :direction]))
+                                (= :horizontal (get-in row [:layout :direction]))
+                                (= 2 (count cells))
+                                (= :sepal-length (get-in cells [0 :mapping :x]))
+                                (= :sepal-width  (get-in cells [0 :mapping :y]))
+                                (= :petal-length (get-in cells [1 :mapping :x]))
+                                (= :petal-width  (get-in cells [1 :mapping :y]))
+                                (not= (first a) (first b))
+                                (= (second a) (second b)))))])
 
-(-> (rdatasets/datasets-iris)
-    (pj/pose [[:sepal-length :sepal-width] [:petal-length :petal-width]])
-    (pj/lay-point)
-    kind/pprint)
-
-(kind/test-last [(fn [v] (and (= 2 (count (:poses v)))
-                              (= :sepal-length (get-in v [:poses 0 :mapping :x]))
-                              (= :sepal-width  (get-in v [:poses 0 :mapping :y]))
-                              (= :petal-length (get-in v [:poses 1 :mapping :x]))
-                              (= :petal-width  (get-in v [:poses 1 :mapping :y]))
-                              ;; These two pairs share no column, so the
-                              ;; panels take a column and a row each and
-                              ;; come out on a diagonal -- they differ in
-                              ;; both where they start across and down.
-                              (let [[a b] (map (comp :panel-box :frames)
-                                               (:panels (pj/frames v)))]
-                                (and (not= (first a) (first b))
-                                     (not= (second a) (second b))))))])
-
-;; These two pairs have no column in common, so they take a column
-;; and a row each: the panels come out on the diagonal of a two-by-two
-;; grid, and the other two cells stay empty. Pairs that do share a
-;; column line up instead -- a shared y puts them in one row, a shared
-;; x in one column.
+;; `pj/arrange` keeps these pairs side by side regardless of whether
+;; they share columns. To put every pairing of x and y columns in a
+;; matrix, use `pj/cross-matrix` instead.
 ;;
-;; For two plots side by side whatever their columns -- or for plots
-;; with different layer kinds, a scatter and a histogram say -- use
-;; `pj/arrange` to combine independent poses:
+;; `pj/arrange` is also useful for combining independent poses, such as
+;; plots with different layer kinds, a scatter and a histogram say:
 
 (pj/arrange
  [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-width))
@@ -879,25 +876,18 @@ two-panel
 
 (kind/test-last [(fn [v] (= :species (get-in v [:mapping :col])))])
 
-;; A vector of column names creates one panel per variable:
+;; A vector of column names creates one panel:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-histogram [:sepal-length :sepal-width :petal-length]))
 
-(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
-
-;; Printed, each named column becomes a sub-pose with its own x
-;; mapping; the bare `pj/lay-histogram` attaches at the root and
-;; flows into every panel at plan time:
+;; Use arrange to create one panel per variable:
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-histogram [:sepal-length :sepal-width :petal-length])
-    kind/pprint)
+    (pj/arrange [:sepal-length :sepal-width :petal-length])
+    (pj/lay-histogram))
 
-(kind/test-last [(fn [v] (and (= 3 (count (:poses v)))
-                              (= :sepal-length (get-in v [:poses 0 :mapping :x]))
-                              (= :sepal-width (get-in v [:poses 1 :mapping :x]))
-                              (= :petal-length (get-in v [:poses 2 :mapping :x]))))])
+(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
 ;; To place whole poses side by side, use `pj/arrange`:
 

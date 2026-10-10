@@ -564,10 +564,9 @@ graph LR
 
 (def composite-pose
   (-> (rdatasets/datasets-iris)
-      (pj/pose [[:petal-length :petal-width]
-                [:sepal-length :sepal-width]]
-               {:color :species})
-      pj/lay-point))
+      (pj/arrange [[:petal-length :petal-width]
+                   [:sepal-length :sepal-width]])
+      (pj/pose {:color :species})))
 
 composite-pose
 

@@ -415,9 +415,8 @@
 ;; the layer type:
 
 (-> (rdatasets/datasets-iris)
-    (pj/pose (pj/cross [:sepal-length :sepal-width :petal-length :petal-width]
-                       [:sepal-length :sepal-width :petal-length :petal-width])
-             {:color :species})
+    (pj/cross-matrix [:sepal-length :sepal-width :petal-length :petal-width]
+                     {:color :species})
     (pj/options {:title "Iris SPLOM"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -1591,7 +1590,8 @@
 ;; row of panels.
 
 (-> (rdatasets/ggplot2-economics)
-    (pj/pose [[:date :unemploy] [:date :uempmed]])
+    (pj/arrange [[:date :unemploy]
+                 [:date :uempmed]])
     pj/lay-line
     (pj/options {:title "Unemployment: Total vs Median Duration"}))
 
@@ -1601,7 +1601,9 @@
 ;; Source: [ECharts: Multi Line](https://echarts.apache.org/examples/en/editor.html?c=line-smooth)
 
 (-> (rdatasets/ggplot2-economics)
-    (pj/pose [[:date :unemploy] [:date :uempmed] [:date :psavert]])
+    (pj/arrange [[:date :unemploy]
+                 [:date :uempmed]
+                 [:date :psavert]])
     pj/lay-line
     (pj/options {:title "US Economic Indicators"}))
 
@@ -1901,7 +1903,7 @@
 ;; Source: [Vega-Lite: SPLOM](https://vega.github.io/vega-lite/examples/interactive_splom.html)
 
 (-> (rdatasets/datasets-mtcars)
-    (pj/pose (pj/cross [:mpg :hp :wt] [:mpg :hp :wt]))
+    (pj/cross-matrix [:mpg :hp :wt])
     (pj/options {:title "Motor Trend Cars: 3x3 SPLOM"}))
 
 (kind/test-last [(fn [v] (= 9 (:panels (pj/svg-summary v))))])
@@ -1910,7 +1912,7 @@
 ;; Source: [D3 Graph Gallery: SPLOM](https://d3-graph-gallery.com/graph/correlogram_basic.html)
 
 (-> (rdatasets/datasets-mtcars)
-    (pj/pose (pj/cross [:mpg :wt] [:mpg :wt]))
+    (pj/cross-matrix [:mpg :wt])
     (pj/options {:title "MPG vs Weight: 2x2 SPLOM"}))
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])

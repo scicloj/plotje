@@ -143,7 +143,7 @@
                "share"       (pj/arrange [(pj/lay-point data :num :num2)
                                           (pj/lay-point data :num :num2)]
                                          {:share-scales #{:x :y}})
-               "multi-pair"  (pj/pose data [[:num :num2] [:num2 :num]])
+               "multi-pair"  (pj/arrange data [[:num :num2] [:num2 :num]])
                "scale"       (-> (pj/lay-point data :num :num2) (pj/scale :x :log))
                "coord"       (-> (pj/lay-point data :num :num2) (pj/coord :flip))
                "options"     (-> (pj/lay-point data :num :num2)

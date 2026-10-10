@@ -66,6 +66,5 @@
   (make-book! {:docs true})
   (make-book! {:docs false})
   (make-gfm!)
+  (make-gfm! "wide_and_long.clj")
   (make-gfm! "plotje_book/quickstart.clj"))
-
-

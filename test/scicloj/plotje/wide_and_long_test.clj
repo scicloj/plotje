@@ -170,11 +170,6 @@
                                                                           {:position :fill})))))))))))
 
 (deftest what-is-not-a-series-test
-  (testing "a vector of pairs is still the multi-panel form"
-    (is (= 2 (:panels (pj/svg-summary
-                       (-> sales (pj/lay-point [[:quarter :revenue]
-                                                [:quarter :cost]])))))))
-
   (testing "two parallel vectors of columns are series in pairs, on one panel"
     (is (= 1 (:panels (pj/svg-summary
                        (-> with-target (pj/lay-point [:revenue :cost]

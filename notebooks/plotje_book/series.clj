@@ -1130,21 +1130,9 @@ sales-by-region
 
 ;; #### A grid of panels of series
 
-;; One combination has no spelling. A grid of panels built from pairs
-;; of columns is a composite whose cells share one dataset, and a
-;; series pivots the dataset of the pose it is added to, so a series
-;; added to the whole grid is reported:
-
-(try
-  (-> sales
-      (pj/pose [[:quarter :revenue] [:quarter :cost]])
-      (pj/lay-point :quarter [:revenue :cost]))
-  (catch clojure.lang.ExceptionInfo e
-    (ex-message e)))
-
-(kind/test-last
- [(fn [msg] (and (re-find #"composite pose" msg)
-                 (re-find #"before arranging" msg)))])
+(pj/arrange
+ [(-> sales (pj/lay-line :quarter [:revenue :cost]))
+  (-> sales (pj/lay-line :quarter [:tax :units]))])
 
 ;; Both routes to the same picture are on the long side. `pj/facet`
 ;; reaches it where the split comes from a column, and `pj/arrange` of
@@ -1206,24 +1194,6 @@ sales-by-region
                              (pj/lay-bar :quarter [:revenue :outlet]))])))])
 
 ;; #### What is not a series
-
-;; A vector of `[x y]` pairs is the multi-panel form, one panel per
-;; pair:
-
-(-> sales
-    (pj/pose [[:quarter :revenue] [:quarter :cost]])
-    (pj/lay-point))
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-;; A vector with no other column beside it is the multi-panel form as
-;; well: a lay-* call reads it as one column per panel, and each panel
-;; draws its own mark.
-
-(-> sales
-    (pj/lay-histogram [:revenue :cost]))
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
 ;; A vector on `:group` is one compound key rather than several series.
 ;; Region combined with outlet gives four keys, so the line is drawn in

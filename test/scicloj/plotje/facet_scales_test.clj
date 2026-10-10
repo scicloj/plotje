@@ -101,7 +101,9 @@
                 :y-A [10.0 20.0 30.0]
                 :x-B [100.0 200.0 300.0]
                 :y-B [1000.0 2000.0 3000.0]}
-          pose (-> (pj/pose data [[:x-A :y-A] [:x-B :y-B]])
+          pose (-> data
+                   (pj/arrange [(pj/pose nil :x-A :x-A)
+                                (pj/pose nil :x-B :x-B)])
                    pj/lay-point)
           pl   (pj/plan pose)]
       (is (:composite? pl) "multi-pair becomes a composite plan")

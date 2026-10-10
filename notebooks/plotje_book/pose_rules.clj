@@ -428,9 +428,8 @@ composite-pose
 ;; composite root and flows to every cell.
 
 (-> iris
-    (pj/pose (pj/cross [:sepal-length :sepal-width]
-                       [:petal-length :petal-width])
-             {:color :species}))
+    (pj/cross-matrix [:sepal-length :sepal-width]
+                     {:color :species}))
 
 (kind/test-last
  [(fn [pose]
@@ -443,12 +442,10 @@ composite-pose
 
 (let [a (-> iris
             (pj/pose {:color :species})
-            (pj/pose (pj/cross [:sepal-length :sepal-width]
-                               [:petal-length :petal-width])))
+            (pj/cross-matrix [:sepal-length :sepal-width]))
       b (-> iris
-            (pj/pose (pj/cross [:sepal-length :sepal-width]
-                               [:petal-length :petal-width])
-                     {:color :species}))]
+            (pj/cross-matrix [:sepal-length :sepal-width]
+                             {:color :species}))]
   (= a b))
 
 (kind/test-last [true?])
@@ -1459,9 +1456,9 @@ l4-shared
 ;; (see Rules C3 / C6).
 
 (-> iris
-    (pj/pose (pj/cross [:sepal-length :sepal-width]
-                       [:petal-length :petal-width])
-             {:color :species}))
+    (pj/cross-matrix [:sepal-length :sepal-width]
+                     [:petal-length :petal-width]
+                     {:color :species}))
 
 (kind/test-last
  [(fn [pose]
