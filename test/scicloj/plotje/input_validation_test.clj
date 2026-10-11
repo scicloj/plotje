@@ -1329,3 +1329,110 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"^pj/pose expects a pose or data, not a draft"
                           (pj/pose (pj/draft p))))))
+
+(def cars
+  {:drv   ["f" "f" "4" "r" "4" "f"]
+   :class ["compact" "suv" "suv" "2seater" "compact" "compact"]
+   :hwy   [29 20 18 26 25 31]
+   :displ [1.8 3.0 4.0 5.7 2.0 1.6]})
+
+(defn- panel-marks
+  "The marks each panel of a plan draws, cell by cell for a composite."
+  [plan]
+  (if-let [subs (:sub-plots plan)]
+    (vec (mapcat #(panel-marks (:plan %)) subs))
+    (mapv #(mapv :mark (:layers %)) (:panels plan))))
+
+(deftest a-categorical-column-on-both-axes-is-counted-test
+  ;; The plan was built and the renderer then failed with a
+  ;; NullPointerException: the pose wrote the inferred layer down as
+  ;; `:bar`, and the bar's stat was chosen again as `:identity`, which
+  ;; reads a length from a categorical column.
+  (testing "one categorical column on both axes draws the count of its categories"
+    (doseq [pose [(pj/pose cars :drv :drv)
+                  (-> cars (pj/pose :drv :drv) pj/lay-bar)
+                  (pj/lay-bar cars :drv :drv)
+                  (-> cars (pj/pose :drv :drv) (pj/coord :flip))]]
+      (is (= [[:rect]] (panel-marks (pj/plan pose))))
+      (is (= 3 (:polygons (pj/svg-summary pose))))))
+  (testing "the same picture as the column named once"
+    (is (= (:polygons (pj/svg-summary (pj/pose cars :drv)))
+           (:polygons (pj/svg-summary (pj/pose cars :drv :drv))))))
+  (testing "the diagonal of a matrix holding a categorical column"
+    (is (= [[:rect] [:boxplot] [:boxplot] [:bar]]
+           (panel-marks (pj/plan (pj/cross-matrix cars [:drv :hwy])))))
+    (is (pos? (:polygons (pj/svg-summary (pj/cross-matrix cars [:drv :hwy])))))
+    (is (pos? (:polygons (pj/svg-summary (pj/arrange cars [[:drv :drv] [:drv :hwy]])))))
+    (is (pos? (:polygons (pj/svg-summary (-> cars
+                                             (pj/pose {:y :drv})
+                                             (pj/facet {:x [:drv :hwy]})))))))
+  (testing "a bar of two different categorical columns has no length to read"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"lay-bar reads the length of a bar from a numerical column, but :drv and :class are both categorical"
+                          (pj/plan (pj/lay-bar cars :drv :class)))))
+  (testing "a boxplot of two categorical columns reports the column that is not numeric"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Stat :boxplot requires a numeric column for :y, but :class is categorical"
+                          (pj/plan (pj/lay-boxplot cars :drv :class))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Stat :boxplot requires a numeric column for :y, but :drv is categorical"
+                          (pj/plan (pj/lay-boxplot cars :drv :drv))))
+    (is (= 3 (:polygons (pj/svg-summary (pj/lay-boxplot cars :drv :hwy)))))
+    (is (= 3 (:polygons (pj/svg-summary (pj/lay-boxplot cars :hwy :drv))))))
+  (testing "a bar of a category and a number, and points of two categories, are as before"
+    (is (= 6 (:polygons (pj/svg-summary (pj/lay-bar cars :drv :hwy)))))
+    (is (= 6 (:points (pj/svg-summary (pj/lay-point cars :drv :class)))))))
+
+(deftest lay-reports-a-map-that-is-not-a-layer-type-test
+  ;; A mapping written where the layer type goes was stored as the
+  ;; layer type and drew a layer of the type the data chose, untitled,
+  ;; with no message.
+  (let [pose (pj/pose cars :displ :hwy)]
+    (testing "a map that reads as a mapping is told where the layer type goes"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay got the map \{:y :hwy\} as its layer type.*\(pj/lay pose :point \{:y :hwy\}\)"
+                            (pj/lay pose {:y :hwy}))))
+    (testing "a map with no :mark is not a layer type"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"a layer type written as a map names its :mark"
+                            (pj/lay pose {})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"a layer type written as a map names its :mark"
+                            (pj/lay pose {:stat :bin}))))
+    (testing "a mark that is not registered is reported at the call"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay got :mark :nosuch, which is not a registered mark"
+                            (pj/lay pose {:mark :nosuch}))))
+    (testing "neither a keyword nor a map"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay got \"point\" as its layer type"
+                            (pj/lay pose "point")))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay got nil as its layer type.*not registered"
+                            (pj/lay pose nil))))
+    (testing "a layer type written as a map still draws, with options after it"
+      (is (= 6 (:points (pj/svg-summary (pj/lay pose {:mark :point :stat :identity})))))
+      (is (= 6 (:points (pj/svg-summary (pj/lay pose (pj/layer-type-lookup :point))))))
+      (is (= ["f" "4" "r"]
+             (mapv :label (:entries (:legend (pj/plan (pj/lay pose {:mark :point} {:color :drv}))))))))))
+
+(deftest save-asks-the-plan-whether-a-pose-is-empty-test
+  ;; The check tested the pose's shape -- data on the pose, with a
+  ;; layer or a mapping -- and so refused poses that draw.
+  (let [path (str (System/getProperty "java.io.tmpdir") "/plotje-save-" (System/nanoTime) ".svg")
+        saved? (fn [pose]
+                 (pj/save pose path)
+                 (let [f (java.io.File. path)
+                       ok (pos? (.length f))]
+                   (.delete f)
+                   ok))]
+    (testing "a pose that draws is saved, whatever names its columns"
+      (is (saved? (pj/facet cars {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}})))
+      (is (saved? (pj/facet cars {:x [:displ :hwy]})))
+      (is (saved? (-> (pj/pose) (pj/lay-point :a :b {:data {:a [1 2] :b [3 4]}}))))
+      (is (saved? (pj/pose cars :displ :hwy))))
+    (testing "a pose that draws nothing is reported"
+      (doseq [pose [(pj/pose) (pj/pose cars) (pj/arrange [(pj/pose) (pj/pose)])]]
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #"empty pose -- nothing to render"
+                              (pj/save pose path)))))))

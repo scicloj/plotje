@@ -2024,6 +2024,15 @@
                          " pose of its own and arrange the poses with pj/arrange.")
                     {:caller caller :overlay v}))))
 
+(defn- lay-caller-name
+  "How a message names the call that wrote a layer: `lay-point` for a
+   registered keyword, `pj/lay` for a layer type written as a map, which
+   has no name of its own."
+  [layer-type-key]
+  (if (keyword? layer-type-key)
+    (str "lay-" (name layer-type-key))
+    "pj/lay"))
+
 (defn- build-layer
   "Build a layer map from a layer-type-key and optional opts.
    Extracts :data if present. Extracts :stat, :position, :mark as
@@ -2042,15 +2051,15 @@
   [layer-type-key opts]
   (when opts
     (check-facet-keys "layer" opts)
-    (check-mapping-in-map-slot (str "lay-" (name layer-type-key)) opts "its options map")
-    (check-column-ref-types (str "lay-" (name layer-type-key)) opts)
-    (check-explicit-mappings (str "lay-" (name layer-type-key)) opts)
+    (check-mapping-in-map-slot (lay-caller-name layer-type-key) opts "its options map")
+    (check-column-ref-types (lay-caller-name layer-type-key) opts)
+    (check-explicit-mappings (lay-caller-name layer-type-key) opts)
     ;; :x and :y here may be a value as well as a column. Which of the
     ;; two it draws is decided in `pose/leaf->draft`, where the pose's
     ;; mapping and the layer's data are both known.
-    (check-position-mapping (str "lay-" (name layer-type-key)) opts)
-    (check-numeric-aesthetics (str "lay-" (name layer-type-key)) opts)
-    (validate-mark-stat (str "lay-" (name layer-type-key)) opts))
+    (check-position-mapping (lay-caller-name layer-type-key) opts)
+    (check-numeric-aesthetics (lay-caller-name layer-type-key) opts)
+    (validate-mark-stat (lay-caller-name layer-type-key) opts))
   (let [opts (if (and opts (keyword? layer-type-key))
                (warn-and-strip-unknown-opts
                 (str "lay-" (name layer-type-key))
@@ -2083,7 +2092,44 @@
                            (vec registered))
                       {:caller "pj/lay"
                        :layer-type layer-type-key
-                       :registered registered})))))
+                       :registered registered}))))
+  ;; A layer type written as a map is an entry: what `pj/layer-type-lookup`
+  ;; answers with, alone or with options merged over it. Every entry
+  ;; names its mark, so a map without one is not a layer type. It was
+  ;; stored as one and its keys read as the layer's options, so a
+  ;; mapping written in this slot by mistake drew a layer of the type
+  ;; the data chose, with no message.
+  (when (map? layer-type-key)
+    (when-not (keyword? (:mark layer-type-key))
+      (let [written (into {} layer-type-key)
+            mapping? (and (seq written)
+                          (every? pose-mapping-keys (keys written)))]
+        (throw (ex-info (str "pj/lay got the map " (pr-str written)
+                             " as its layer type, and a layer type written as a"
+                             " map names its :mark, as (pj/layer-type-lookup :point)"
+                             " does."
+                             (if mapping?
+                               (str " This map reads as a mapping. Name the layer type"
+                                    " before it: (pj/lay pose :point " (pr-str written)
+                                    "), or (pj/lay-point pose " (pr-str written) ").")
+                               (str " Name a registered layer type by its keyword,"
+                                    " as in (pj/lay pose :point), with any options"
+                                    " in a map after it.")))
+                        {:caller "pj/lay"
+                         :layer-type layer-type-key}))))
+    (validate-mark-stat "pj/lay" layer-type-key))
+  (when-not (or (keyword? layer-type-key) (map? layer-type-key))
+    (throw (ex-info (str "pj/lay got " (pr-str layer-type-key)
+                         " as its layer type. A layer type is the keyword it is"
+                         " registered under, as in (pj/lay pose :point), or the"
+                         " entry (pj/layer-type-lookup :point) answers with."
+                         (when (nil? layer-type-key)
+                           (str " nil is what pj/layer-type-lookup answers for a"
+                                " name that is not registered."))
+                         " Registered layer types: "
+                         (vec (sort (keys (layer-type/registered)))))
+                    {:caller "pj/lay"
+                     :layer-type layer-type-key}))))
 
 (defn- lay-layer-type-key
   "The registry key for a `pj/lay` layer-type argument.
@@ -2110,7 +2156,8 @@
    single panel (leaf).
 
    The layer type is named either by its keyword or by the entry
-   `pj/layer-type-lookup` answers with; both behave the same."
+   `pj/layer-type-lookup` answers with; both behave the same. An entry
+   is a map naming its `:mark`; any other value reports an error."
   ([pose-or-data layer-type-key]
    (lay pose-or-data layer-type-key nil))
   ([pose-or-data layer-type-key opts]
@@ -4420,24 +4467,37 @@
 
 ;; ---- Save ----
 
-(defn- assert-saveable-pose!
-  "Throw if `fr` would render as a blank document. A pose is saveable
-   if it is a composite (has :poses), or if it has data plus at least
-   one of :layers / :mapping / :poses. Catches the silent-blank-file
-   case where an empty `(pj/pose)` reaches `pj/save`."
+(defn- plan-panel-count
+  "How many panels a plan draws: a leaf plan's own, or those of every
+   cell of a composite plan."
+  [the-plan]
+  (if (resolve/composite-plan? the-plan)
+    (reduce + 0 (map (comp plan-panel-count :plan) (:sub-plots the-plan)))
+    (count (:panels the-plan))))
+
+(defn- saveable-plan
+  "The plan of `fr`, or an error where it would be written as a blank
+   document. Catches the silent-blank-file case where an empty
+   `(pj/pose)` reaches `pj/save`.
+
+   A pose with no data anywhere -- on itself, a layer or a sub-pose --
+   has nothing to plan. Any other pose is planned, and is empty where
+   its plan draws no panel: the plan is what decides what is drawn. A
+   test of the pose's shape (data on the pose, with a layer or a
+   mapping) refused poses that draw -- a facet over columns with no
+   mapping of its own, and a pose whose only data is its layer's."
   [caller fr]
-  (let [composite? (seq (:poses fr))
-        has-data? (some? (:data fr))
-        has-layers? (seq (:layers fr))
-        has-mapping? (seq (:mapping fr))]
-    (when-not (or composite?
-                  (and has-data? (or has-layers? has-mapping?)))
-      (throw (ex-info
-              (str caller " was given an empty pose -- nothing to"
-                   " render. Attach data and a layer first, e.g."
-                   " (-> data (pj/lay-point :x :y))," " or use"
-                   " pj/pose with sub-poses for a composite.")
-              {:caller caller :pose fr})))))
+  (let [fail (fn []
+               (throw (ex-info
+                       (str caller " was given an empty pose -- nothing to"
+                            " render. Attach data and a layer first, e.g."
+                            " (-> data (pj/lay-point :x :y))," " or use"
+                            " pj/pose with sub-poses for a composite.")
+                       {:caller caller :pose fr})))
+        _ (when-not (pose-has-data-anywhere? fr) (fail))
+        the-plan (plan fr)]
+    (when (zero? (plan-panel-count the-plan)) (fail))
+    the-plan))
 
 (def ^:private marginal-sides
   "Sides a marginal can be drawn on. `:bottom` and `:left` would put
@@ -4655,8 +4715,8 @@
                        {:caller "pj/save" :format opts-fmt}))))
    (let [path-str (str path)
          fr (-> pose (->pose "pj/save") infer-mapping)
-         _ (assert-saveable-pose! "pj/save" fr)
          fr (if (seq opts) (options fr opts) fr)
+         the-plan (saveable-plan "pj/save" fr)
          pose-fmt (:format (:opts fr))
          pose-fmt (if (= pose-fmt :bufimg) :png pose-fmt)
          path-fmt (infer-format-from-path path-str)
@@ -4673,14 +4733,14 @@
                               " an existing directory.")
                          {:path path-str :parent (.getPath parent)}))))
      (case resolved-fmt
-       :svg (let [out (render-impl/plan->plot (plan fr) :svg (:opts fr {}))]
+       :svg (let [out (render-impl/plan->plot the-plan :svg (:opts fr {}))]
               (spit path (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                               (svg/hiccup->svg-str out))))
        ;; The renderer dispatches on :bufimg; the caller asked for a
        ;; PNG. The binding is what the interaction warning names, so it
        ;; reports the word that was written.
        :png (let [img (binding [render-impl/*format-asked* :png]
-                        (render-impl/plan->plot (plan fr) :bufimg (:opts fr {})))]
+                        (render-impl/plan->plot the-plan :bufimg (:opts fr {})))]
               ((resolve 'scicloj.plotje.render.bufimg/save-png) img path))
        (throw (ex-info (str "pj/save cannot write format "
                             (pr-str resolved-fmt) " to a file. Supported: "

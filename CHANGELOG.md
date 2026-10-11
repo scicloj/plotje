@@ -58,6 +58,10 @@ All notable changes to this project will be documented in this file. This change
 
 ### Warnings and errors
 
+- `pj/lay` reports an error at the call for a layer type that is neither a registered keyword nor a map naming its `:mark`. A mapping given where the layer type goes, as in `(pj/lay pose {:y :hwy})`, is told to name the layer type before it.
+
+- A bar of two categorical columns, such as `(pj/lay-bar data :drv :class)`, reports an error: a bar reads its length from a numerical column. The message suggests counting one column and colouring by the other. A boxplot of two categorical columns names the column that is not numeric, as a violin does.
+
 - Layers of one pose that draw a count and a density on one axis, such as `pj/lay-histogram` with `pj/lay-density`, print a Note that the axis reads in two units, as a count beside a column does.
 
 - Panels too small to draw report an error stating the size each panel would have and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`.
@@ -77,6 +81,10 @@ All notable changes to this project will be documented in this file. This change
 - `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` value that appears nowhere in its column, or an empty set, warns.
 
 ### Fixed
+
+- A categorical column named on both axes draws the count of its categories, as the column named once does. This covers `(pj/pose data :drv :drv)` and the diagonal of `pj/cross-matrix` and of an arrangement holding a categorical column.
+
+- `pj/save` writes every pose that draws, including a facet over columns with no layer and a pose whose only data is a layer's. A pose whose plan has no panel reports the empty-pose error.
 
 - Cells of an arrangement that share an axis end on one domain where their text labels widen it. Each cell was widened for its own labels after the shared extent was set, which left the cells on different domains.
 

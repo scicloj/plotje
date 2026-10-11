@@ -1262,6 +1262,13 @@
      :outliers (vec outliers)}))
 
 (defmethod compute-stat :boxplot [draft-layer]
+  ;; The numeric axis is validated as for a violin -- y in vertical
+  ;; orientation, x in horizontal. Two categorical columns failed with
+  ;; a cast exception.
+  (let [num-axis (if (and (= (:y-type draft-layer) :categorical)
+                          (not= (:x-type draft-layer) :categorical))
+                   :x :y)]
+    (validate-numeric-column draft-layer num-axis :boxplot))
   (let [result (per-category-stat draft-layer 1
                                   (fn [y-col cat cc]
                                     (cond-> (merge (five-number-summary y-col)

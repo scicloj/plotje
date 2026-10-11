@@ -654,7 +654,7 @@
                                 (set (map (fn [col] {::computes c ::of col}) group))))
       :else [])))
 
-(declare infer-layer-type-key)
+(declare infer-layer-type-key coerce-dataset)
 
 (defn- layer-stat
   "The stat the plan assigns this layer. `elaborate` has written a layer
@@ -670,12 +670,24 @@
                  (:layer-type layer))
         lt-info (when (keyword? lt-key) (layer-type/lookup lt-key))
         mark (or (:mark layer) (:mark lt-info))
-        stat (or (:stat layer) (:stat lt-info))]
+        stat (or (:stat layer) (:stat lt-info))
+        x (mapping-source (:x v))
+        y (mapping-source (:y v))
+        ;; One column on both axes is counted where it is categorical
+        ;; (`resolve/infer-layer-type`), so the column's type is read
+        ;; for that case and no other.
+        x-type (when (and x (= x y))
+                 (try (:x-type (resolve/infer-column-types
+                                (coerce-dataset (or (:data layer) leaf-data))
+                                (cond-> {:x x :y y}
+                                  (:x-type v) (assoc :x-type (:x-type v)))))
+                      (catch Exception _ nil)))]
     (when mark
-      (:stat (resolve/infer-layer-type {:mark mark
+      (:stat (resolve/infer-layer-type (cond-> {:mark mark
                                         :stat stat
-                                        :y (mapping-source (:y v))}
-                                       nil nil false false)))))
+                                                :y y}
+                                         x-type (assoc :x x))
+                                       x-type nil false false)))))
 
 (defn- layer-computes
   "What the stat of this layer computes for `axis` -- `:count`,

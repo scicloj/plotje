@@ -647,6 +647,13 @@
                  (cond
                    (nil? (:mark v))                        default-stat
                    (and (= (:mark v) :rect) (nil? (:y v))) :count
+                   ;; A categorical column named on both axes is the
+                   ;; diagonal the default rule above counts. The pose
+                   ;; writes that choice down as `:bar`, which fixes the
+                   ;; mark, so the count has to be chosen here as well:
+                   ;; a bar cannot read its length from categories.
+                   (and (= (:mark v) :rect) diagonal?
+                        (= x-type :categorical))           :count
                    :else                                   :identity))]
     {:mark mark :stat stat}))
 
@@ -782,6 +789,22 @@
                                    "override; to flip the chart so categories appear on the "
                                    "visual y-axis, add (pj/coord :flip).")
                               {:mark mark :y (:y v) :y-type y-type})))
+          ;; A bar reads its length from a numerical column and stands on
+          ;; a category of the other. Two categorical columns leave it no
+          ;; length: the plan was built, and the renderer then failed on
+          ;; a nil coordinate.
+          _ (when (and (= mark :rect) (= stat :identity)
+                       (:x v) (:y v)
+                       (= x-type :categorical) (= y-type :categorical))
+              (throw (ex-info (str "lay-" (name user-fn-name) " reads the length of a bar from a"
+                                   " numerical column, but " (pr-str (:x v)) " and " (pr-str (:y v))
+                                   " are both categorical. To count the rows of each category,"
+                                   " name one column: (pj/lay-bar data " (pr-str (:x v)) "), with"
+                                   " {:color " (pr-str (:y v)) "} to split each bar by the other."
+                                   " To mark which pairs of categories occur, use pj/lay-point"
+                                   " or pj/lay-tile.")
+                              {:mark mark :x (:x v) :y (:y v)
+                               :x-type x-type :y-type y-type})))
           ;; Reject x-only draft-layers (no :y) for layer types that require y.
           ;; Otherwise prepare-points silently fabricates y=0 for every
           ;; point and renders a flat line at the bottom of a [0, 1] domain.
