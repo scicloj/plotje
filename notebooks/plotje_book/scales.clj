@@ -254,6 +254,25 @@ gapminder-2007
 ;; `:scale false` does not accumulate: it says the value passes through
 ;; no scale at all, so it replaces whatever was set above.
 ;;
+;; A scale set on the pose configures the scale and does not send a
+;; value through it. The pose below titles the color legend, and the
+;; line layer specifies `:color "black"`. The line is drawn black and
+;; has no legend entry:
+
+(-> gapminder-2007
+    (pj/pose :gdp-percap :life-exp {:color :continent})
+    (pj/scale :color {:label "Continent"})
+    (pj/scale :x :log)
+    pj/lay-point
+    (pj/lay-smooth {:color "black"}))
+
+(kind/test-last
+ [(fn [fr] (and (not-any? #{"black"} (map :label (:entries (:legend (pj/plan fr)))))
+                (contains? (:colors (pj/svg-summary fr)) "rgb(0,0,0)")))])
+
+;; To read a value through the scale, say so with the value:
+;; `{:color {:value "trend" :scale true}}`.
+;;
 ;; A column read this way has to hold what the aesthetic draws. For
 ;; `:size` that is a radius in drawing units, so the column below
 ;; holds 4, 8 and 12 -- not a population count, which would ask for

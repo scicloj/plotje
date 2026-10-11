@@ -153,21 +153,28 @@
   ;; draws none of the series. It read the pivoted rows, which hold
   ;; each row of the data once per series column, so every mark was
   ;; drawn twice -- once in each series' colour where the series was
-  ;; on the pose.
+  ;; on the pose. With no :color specified it takes the colour and the
+  ;; legend entry of its column, beside the series' entries.
   (let [groups (fn [pose]
                  (vec (for [p (:panels (pj/plan pose)) l (:layers p)]
                         (mapv (fn [g] [(:label g) (count (:xs g))]) (:groups l)))))]
     (testing "a series on the pose"
-      (is (= [[["hwy" 5] ["cty" 5]] [[nil 5]]]
+      (is (= [[["hwy" 5] ["cty" 5]] [["displ" 5]]]
              (groups (-> cars
                          (pj/pose {:x :displ :y [:hwy :cty]})
                          pj/lay-point
                          (pj/lay-point {:y :displ}))))))
     (testing "a series on a layer"
-      (is (= [[["hwy" 5] ["cty" 5]] [[nil 5]]]
+      (is (= [[["hwy" 5] ["cty" 5]] [["displ" 5]]]
              (groups (-> cars
                          (pj/lay-point :displ [:hwy :cty])
                          (pj/lay-point :displ :displ))))))
+    (testing "a literal :color on the layer is drawn as it stands, with no entry"
+      (is (= [[["hwy" 5] ["cty" 5]] [[nil 5]]]
+             (groups (-> cars
+                         (pj/pose {:x :displ :y [:hwy :cty]})
+                         pj/lay-point
+                         (pj/lay-point {:y :displ :color "black"}))))))
     (testing "the layer keeps a :color of its own"
       (is (= [[["hwy" 5] ["cty" 5]] [["compact" 2] ["midsize" 1] ["suv" 2]]]
              (groups (-> cars

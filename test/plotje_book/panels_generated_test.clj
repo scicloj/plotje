@@ -57,7 +57,29 @@
 
 
 (def
- v13_l67
+ v13_l69
+ (->
+  measurements
+  (pj/lay-point :height :weight)
+  (pj/lay-point :depth :weight)
+  (pj/lay-line :height :weight {:color "black"})))
+
+
+(deftest
+ t14_l74
+ (is
+  ((fn
+    [v]
+    (let
+     [plan (pj/plan v)]
+     (and
+      (= ["height" "depth"] (mapv :label (:entries (:legend plan))))
+      (contains? (:colors (pj/svg-summary v)) "rgb(0,0,0)"))))
+   v13_l69)))
+
+
+(def
+ v16_l83
  (->
   measurements
   (pj/pose {:color :species})
@@ -66,7 +88,7 @@
 
 
 (deftest
- t14_l72
+ t17_l88
  (is
   ((fn
     [v]
@@ -77,11 +99,28 @@
       (some #{"height, depth"} (:texts s))
       (some #{"species"} (:texts s))
       (not-any? #{"height" "depth"} (:texts s)))))
-   v13_l67)))
+   v16_l83)))
 
 
 (def
- v16_l85
+ v19_l101
+ (->
+  measurements
+  (pj/lay-point :height :weight {:color :species})
+  (pj/lay-point :depth :weight)))
+
+
+(deftest
+ t20_l105
+ (is
+  ((fn
+    [v]
+    (= ["a" "b"] (mapv :label (:entries (:legend (pj/plan v))))))
+   v19_l101)))
+
+
+(def
+ v22_l118
  (->
   measurements
   (pj/lay-point :height :weight)
@@ -90,12 +129,12 @@
 
 
 (deftest
- t17_l90
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v16_l85)))
+ t23_l123
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v22_l118)))
 
 
 (def
- v19_l96
+ v25_l129
  (->
   measurements
   (pj/pose {:y :weight})
@@ -104,7 +143,7 @@
 
 
 (deftest
- t20_l101
+ t26_l134
  (is
   ((fn
     [v]
@@ -113,33 +152,33 @@
      (and
       (= 2 (:panels s))
       (= 1 (count (filter #{"weight"} (:texts s)))))))
-   v19_l96)))
+   v25_l129)))
 
 
 (def
- v22_l110
+ v28_l143
  (pj/arrange
   [(pj/lay-point measurements :height :weight)
    (pj/lay-point measurements :depth :weight)]))
 
 
 (deftest
- t23_l113
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v22_l110)))
+ t29_l146
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v28_l143)))
 
 
 (def
- v25_l124
+ v31_l157
  (-> measurements (pj/lay-point :height :weight) (pj/facet :species)))
 
 
 (deftest
- t26_l128
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v25_l124)))
+ t32_l161
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v31_l157)))
 
 
 (def
- v28_l133
+ v34_l166
  (->
   {:height [1 2 3 4], :weight [1 2 3 4], :site ["p" "q" "r" "s"]}
   (pj/lay-point :height :weight)
@@ -147,12 +186,12 @@
 
 
 (deftest
- t29_l137
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v28_l133)))
+ t35_l170
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v34_l166)))
 
 
 (def
- v31_l149
+ v37_l182
  (->
   measurements
   (pj/lay-point :height :weight)
@@ -161,12 +200,12 @@
 
 
 (deftest
- t32_l154
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v31_l149)))
+ t38_l187
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v37_l182)))
 
 
 (def
- v34_l159
+ v40_l192
  (->
   measurements
   (pj/pose {:y :weight})
@@ -175,12 +214,12 @@
 
 
 (deftest
- t35_l164
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v34_l159)))
+ t41_l197
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v40_l192)))
 
 
 (def
- v37_l169
+ v43_l202
  (->
   (pj/arrange
    [(pj/pose measurements :height :weight)
@@ -190,5 +229,5 @@
 
 
 (deftest
- t38_l174
- (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v37_l169)))
+ t44_l207
+ (is ((fn [v] (= 4 (:panels (pj/svg-summary v)))) v43_l202)))

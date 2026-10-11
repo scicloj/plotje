@@ -1754,8 +1754,18 @@
                                            v (get resolved k)]
                                      :when (and (some? v)
                                                 (= :value (aes/source v col-names (said k)))
-                                                (some? scale)
-                                                (not (false? scale)))]
+                                                ;; `:scale true`, or a scale spec
+                                                ;; beside a `:value`. A scale spec
+                                                ;; that reached a plain value from
+                                                ;; a wider scope -- a legend title
+                                                ;; set on the pose, above a layer's
+                                                ;; `:color "black"` -- configures
+                                                ;; the scale and does not ask for
+                                                ;; the value to be read through it.
+                                                (or (true? scale)
+                                                    (and (some? scale)
+                                                         (not (false? scale))
+                                                         (= :value (said k)))))]
                                  [k v]))
         broadcast (cond-> (merge literals scaled-values)
                     (and text-literal d) (assoc :text text-literal))]
@@ -2050,9 +2060,8 @@
    Read for two things, which do not depend on one another. The axis is
    titled by every column drawn on it, so each labelled layer is marked
    for the title. And the label is the default for a layer's `:color`:
-   where no layer of the panel has a `:color` specified
-   (`color-specified?`), each takes its label as a colour and a legend
-   entry.
+   a layer with no `:color` specified takes its label as a colour and a
+   legend entry (`default-color-layers`).
 
    Layers that disagree about a column take a panel each, and the
    panels name the columns. Overlaid, they share a panel and nothing
@@ -2090,29 +2099,64 @@
                 (range (count layers))
                 places))))))
 
-(defn color-specified?
-  "Whether any layer of a leaf has a `:color` specified, in the mapping
-   it resolves to: the leaf's own mapping, which holds what its
-   ancestors specify and reaches every layer, or the layer's own.
+(defn- color-specified?
+  "Whether `mapping` -- the mapping a layer resolves to -- has a `:color`
+   specified.
 
-   The colours `overlay-labels` gives are a default, inferred only
-   where this is false. It is read from the resolved mapping because
-   that is what a layer draws: a `:color` on the pose is a mapping like
-   any other, so a layer below it has a colour and needs no default."
+   A scale set with no column or value -- `(pj/scale pose :color
+   {:label \"Measure\"})` -- specifies how a colour is read and leaves
+   what is coloured unspecified, so that part is still inferred. `nil`
+   specifies no colour."
+  [mapping]
+  (and (contains? mapping :color)
+       (let [v (:color mapping)]
+         (or (not (map? v))
+             (some #(contains? v %) [:from :column :value])))))
+
+(defn- color-column?
+  "Whether the `:color` of `mapping` names a column of `data`: a
+   `{:column ...}`, or a plain value or a `:from` that the data holds
+   as a column."
+  [mapping data]
+  (let [v (:color mapping)
+        src (mapping-source v)]
+    (boolean
+     (and (color-specified? mapping)
+          (some? src)
+          (not (map? src))
+          (not (and (map? v) (contains? v :value)))
+          (or (and (map? v) (contains? v :column))
+              (when-let [ds (when data (coerce-dataset data))]
+                (contains? (set (tc/column-names ds)) src)))))))
+
+(defn- default-color-layers
+  "Which layers of a leaf take the default colour, as a vector of
+   booleans aligned with `(:layers leaf)`.
+
+   The default is decided layer by layer: a layer with no `:color`
+   specified, in the mapping it resolves to, takes the colour and the
+   legend entry of the column it draws. A `:color` on the pose is a
+   mapping like any other and reaches every layer, so no layer below it
+   needs a default.
+
+   No layer takes the default on a panel where a layer is coloured by a
+   column. The entries of that legend are the column's values, and a
+   column name listed among them would read as one more value."
   [leaf]
-  (let [specified? (fn [m]
-                   (and (contains? m :color)
-                        (let [v (:color m)]
-                          ;; A scale set with no column or value --
-                          ;; `(pj/scale pose :color {:label "Measure"})`
-                          ;; -- specifies how a colour is read and
-                          ;; leaves what is coloured unspecified, so
-                          ;; that part is still inferred. `nil`
-                          ;; specifies no colour.
-                          (or (not (map? v))
-                              (some #(contains? v %) [:from :column :value])))))]
-    (boolean (or (specified? (or (:mapping leaf) {}))
-                 (some #(specified? (or (:mapping %) {})) (:layers leaf))))))
+  (let [leaf-mapping (or (:mapping leaf) {})
+        resolved (mapv #(merge-mappings leaf-mapping (:mapping %)) (:layers leaf))
+        by-column? (some true? (map #(color-column? %1 (or (:data %2) (:data leaf)))
+                                    resolved (:layers leaf)))]
+    (mapv #(and (not by-column?) (not (color-specified? %))) resolved)))
+
+(defn- default-color
+  "The default colour of a layer labelled `label`, in the form a pose
+   can specify: a value read through the colour scale, which draws one
+   palette colour and a legend entry. `scale` is `{:label \"\"}` where
+   the entries name columns and the legend needs no title, and `true`
+   where the legend is titled elsewhere."
+  [label scale]
+  {:value label :scale scale})
 
 (def default-series-label
   "The name the key column a series invents takes when the writer does
@@ -2651,6 +2695,21 @@
           pv
           (:titled pv)))
 
+(defn- title-columns-beside
+  "`pv` with the columns that layers beside the series draw on its axis
+   added to the axis title the pivot wrote: an axis is titled by every
+   column drawn on it. `beside-of` answers those columns for an
+   aesthetic."
+  [pv beside-of]
+  (reduce (fn [pv k]
+            (let [extra (remove (set (:cols pv)) (beside-of k))]
+              (if (and (seq extra) (string? (get-in pv [:values k :scale :label])))
+                (update-in pv [:values k :scale :label]
+                           #(str/join ", " (cons % (map defaults/fmt-name extra))))
+                pv)))
+          pv
+          (:titled pv)))
+
 (declare note-columns-of-different-size!)
 
 (defn pivot-leaf-series
@@ -2711,27 +2770,44 @@
             ;; axis, is counted here too: after the pivot the series is
             ;; one column, `:value`, which names nothing the writer
             ;; wrote.
+            series-m (if (= :pose from) leaf-mapping (:mapping (layers (first idxs))))
+            wide-cols (when wide (set (tc/column-names (coerce-dataset wide))))
+            beside-of (fn [k]
+                        (when wide
+                          (distinct
+                           (for [[i l] (map-indexed vector layers)
+                                 :when (and (not (contains? (set idxs) i))
+                                            (nil? (:data l))
+                                            (not= :drawing-area (:in (:mapping l))))
+                                 :let [c (mapping-source (get (:mapping l) k))]
+                                 :when (and c (wide-cols c))]
+                             c))))
             _ (when wide
-                (let [m (if (= :pose from) leaf-mapping (:mapping (layers (first idxs))))
-                      wide-cols (set (tc/column-names (coerce-dataset wide)))]
-                  (doseq [k (series-in m)
-                          :let [series-cols (:cols (series-mapping (get m k)))
-                                beside (for [[i l] (map-indexed vector layers)
-                                             :when (and (not (contains? (set idxs) i))
-                                                        (nil? (:data l))
-                                                        (not= :drawing-area (:in (:mapping l))))
-                                             :let [c (mapping-source (get (:mapping l) k))]
-                                             :when (and c (wide-cols c))]
-                                         c)]
-                          :when (#{:x :y} k)]
-                    (note-columns-of-different-size!
-                     k
-                     (zipmap (distinct (concat series-cols beside)) (repeat wide))
-                     (cons leaf-mapping (map :mapping layers))))))
+                (doseq [k (series-in series-m)
+                        :let [series-cols (:cols (series-mapping (get series-m k)))]
+                        :when (#{:x :y} k)]
+                  (note-columns-of-different-size!
+                   k
+                   (zipmap (distinct (concat series-cols (beside-of k))) (repeat wide))
+                   (cons leaf-mapping (map :mapping layers)))))
+            ;; Which layers take the default colour, read before the
+            ;; pivot gives the series' own layers the key column.
+            default-colors (default-color-layers leaf)
+            beside-default (fn [i l]
+                             (let [label (str/join
+                                          " / "
+                                          (for [k [:x :y]
+                                                :when (seq (series-in (select-keys series-m [k])))
+                                                :let [c (mapping-source (get (:mapping l) k))]
+                                                :when (some? c)]
+                                            (defaults/fmt-name c)))]
+                               (when (and (nth default-colors i nil) (seq label))
+                                 label)))
             pivoted (if (= :pose from)
                       (let [pv (-> (pivot-mapping "pj/pose"
                                                   (or wide (throw (no-data (first (series-in leaf-mapping)))))
                                                   leaf-mapping)
+                                   (title-columns-beside beside-of)
                                    (untitle-where-written (:opts leaf)))]
                         (assoc leaf
                                :data (:data pv)
@@ -2742,6 +2818,7 @@
                                                   (or wide
                                                       (throw (no-data (first (series-in (:mapping first-l))))))
                                                   (:mapping first-l))
+                                   (title-columns-beside beside-of)
                                    (untitle-where-written (:opts leaf)))]
                         (assoc leaf
                                :data (:data pv)
@@ -2772,7 +2849,22 @@
                                     (fn [i l]
                                       (if (contains? (set idxs) i)
                                         l
-                                        (read-series-column l pv (set cols) wide keyed unkeyed)))
+                                        ;; A layer beside the series, drawing a
+                                        ;; column of its own, is one more column
+                                        ;; on the series' axis: with no `:color`
+                                        ;; specified it joins the series' legend
+                                        ;; as an entry named after its column,
+                                        ;; as it would beside one-column layers
+                                        ;; (`default-color-layers`).
+                                        (read-series-column
+                                         l pv (set cols) wide keyed
+                                         (cond-> unkeyed
+                                           (beside-default i l)
+                                           (assoc :color
+                                                  (default-color (beside-default i l)
+                                                                 (if (:named? pv)
+                                                                   true
+                                                                   {:label ""})))))))
                                     ls))))))
       leaf)))
 
@@ -4133,7 +4225,7 @@
         ;; one palette colour and earns a legend entry -- the same
         ;; route `{:color {:value "Model A" :scale true}}` takes.
         ov-labels    (overlay-labels leaf)
-        ov-colors?   (and ov-labels (not (color-specified? leaf)))
+        ov-colors    (when ov-labels (default-color-layers leaf))
         overlay-legend-titled? (boolean
                                 (some->> (:color leaf-mapping)
                                          (#(when (map? %) (:scale %)))
@@ -4163,16 +4255,17 @@
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
              layer-mapping    (cond-> (report-panel-aesthetic-on-layer
                                        (or (:mapping layer) {}))
-                                (and ov-colors? (nth ov-labels layer-idx nil))
+                                (and (nth ov-colors layer-idx nil)
+                                     (nth ov-labels layer-idx nil))
                                 (assoc :color
-                                       (cond-> {:value (nth ov-labels layer-idx)
-                                                :scale true}
-                                         ;; The entries name the columns, so a
-                                         ;; legend titled "color" says nothing
-                                         ;; the reader cannot already see. A
-                                         ;; title the writer set is left alone.
-                                         (not overlay-legend-titled?)
-                                         (assoc :scale {:label ""}))))
+                                       ;; The entries name the columns, so a
+                                       ;; legend titled "color" says nothing
+                                       ;; the reader cannot already see. A
+                                       ;; title the writer set is left alone.
+                                       (default-color (nth ov-labels layer-idx)
+                                                      (if overlay-legend-titled?
+                                                        true
+                                                        {:label ""}))))
              layer-structural (select-keys layer [:stat :position :mark])
              ;; Explicit mappings are unwrapped before anything reads
              ;; the merged map, so every check and every later stage

@@ -60,10 +60,25 @@
                            (and (= 1 (:panels s))
                                 (some #{"height, depth"} (:texts s)))))])
 
-;; The colours per column are a default, given where no `:color` is
-;; specified on the pose or on any layer. With a `:color` on the pose,
-;; the layers are coloured by it, and the axis is still titled by every
-;; column:
+;; The colour per column is a default, and it is decided layer by
+;; layer: a layer with no `:color` specified takes the colour and the
+;; legend entry of its column. A layer that specifies a colour is drawn
+;; in that colour and has no legend entry. Here a black line is added,
+;; and the two point layers keep the default colours:
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/lay-point :depth :weight)
+    (pj/lay-line :height :weight {:color "black"}))
+
+(kind/test-last [(fn [v] (let [plan (pj/plan v)]
+                           (and (= ["height" "depth"]
+                                   (mapv :label (:entries (:legend plan))))
+                                (contains? (:colors (pj/svg-summary v)) "rgb(0,0,0)"))))])
+
+;; A `:color` on the pose reaches every layer, so every layer has a
+;; colour specified and none takes the default. The layers are coloured
+;; by the pose's `:color`, and the axis is still titled by every column:
 
 (-> measurements
     (pj/pose {:color :species})
@@ -76,6 +91,23 @@
                                 (some #{"species"} (:texts s))
                                 ;; no entry naming a column
                                 (not-any? #{"height" "depth"} (:texts s)))))])
+
+;; The default is also left out of a panel where one layer is coloured
+;; by a column. The legend of that panel lists the values of the column,
+;; and a column name among them would read as one more value. The
+;; second layer below has no `:color` specified and is drawn in the
+;; default colour:
+
+(-> measurements
+    (pj/lay-point :height :weight {:color :species})
+    (pj/lay-point :depth :weight))
+
+(kind/test-last [(fn [v] (= ["a" "b"]
+                            (mapv :label (:entries (:legend (pj/plan v))))))])
+
+;; To name the second layer in that legend, specify its colour as a
+;; value read through the color scale: `{:color {:value "depth" :scale
+;; true}}`.
 
 ;; ## A panel per column
 

@@ -685,11 +685,11 @@ composite-pose
 ;; columns it names. Its `:x` and `:y` stay on the layer's own
 ;; `:mapping`, and the leaf's `:mapping` is left as it was.
 ;;
-;; Each axis is titled by every column drawn on it. Where no `:color`
-;; is specified, on the pose or on a layer, each layer also takes a
-;; colour and a legend entry naming its columns by default. Each layer
-;; below specifies its colour, so no colour and no legend entry is
-;; added.
+;; Each axis is titled by every column drawn on it. A layer with no
+;; `:color` specified, on the pose or on the layer, also takes a colour
+;; and a legend entry naming its columns by default, unless a layer of
+;; the panel is coloured by a column. Each layer below specifies its
+;; colour, so no colour and no legend entry is added.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)

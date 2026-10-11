@@ -993,13 +993,19 @@ sales-by-region
 ;; #### Series beside a layer on another column
 
 ;; A layer naming a column the pivot did not consume is drawn on the
-;; series' panel, its column on the axis of the series' values:
+;; series' panel, its column on the axis of the series' values. The
+;; axis title names the layer's column after the columns of the series.
+;; With no `:color` specified, the layer takes a colour and a legend
+;; entry named after its column, beside the entries of the series:
 
 (-> sales
     (pj/lay-bar :quarter [:revenue :cost] {:position :stack})
     (pj/lay-line :quarter :units))
 
 (kind/test-last [(fn [v] (and (= 1 (:panels (pj/svg-summary v)))
+                              (= "revenue, cost, units" (:y-label (pj/plan v)))
+                              (= ["revenue" "cost" "units"]
+                                 (mapv :label (:entries (:legend (pj/plan v)))))
                               (re-find #"Note: on :y one axis holds :revenue .*:cost .*:units"
                                        (with-out-str (pj/plan v)))))])
 

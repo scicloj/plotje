@@ -92,6 +92,42 @@
         (is (= #{"rgb(55,126,184)" "rgb(230,85,13)"}
                (disj (:colors (pj/svg-summary own)) "none")))))
 
+    (testing "the default is decided layer by layer: a literal colour on one layer leaves the others theirs"
+      (let [with-line (-> d
+                          (pj/pose {:x :quarter})
+                          (pj/lay-point {:y :revenue})
+                          (pj/lay-point {:y :cost})
+                          (pj/lay-line {:y :revenue :color "black"}))
+            plan (pj/plan with-line)]
+        (is (= ["revenue" "cost"] (mapv :label (:entries (:legend plan)))))
+        (is (= #{"rgb(0,0,0)" "rgb(228,26,28)" "rgb(55,126,184)"}
+               (disj (:colors (pj/svg-summary with-line)) "none")))))
+
+    (testing "the default specified on one layer leaves the other layer its default"
+      (let [one (-> d
+                    (pj/lay-point :quarter :revenue {:color {:value "revenue" :scale {:label ""}}})
+                    (pj/lay-point :quarter :cost))]
+        (is (= (:colors (pj/svg-summary overlaid)) (:colors (pj/svg-summary one))))
+        (is (= ["revenue" "cost"] (mapv :label (:entries (:legend (pj/plan one))))))))
+
+    (testing "no layer takes the default on a panel where a layer is coloured by a column"
+      (let [d2 (assoc d :region ["n" "s" "n" "s"])
+            plan (pj/plan (-> d2
+                              (pj/lay-point :quarter :revenue {:color :region})
+                              (pj/lay-point :quarter :cost)))]
+        (is (= :region (:title (:legend plan))))
+        (is (= ["n" "s"] (mapv :label (:entries (:legend plan)))))))
+
+    (testing "a scale set on the pose leaves a layer's literal colour drawn as it stands"
+      (let [d2 (assoc d :region ["n" "s" "n" "s"])
+            p (-> d2
+                  (pj/pose {:x :quarter :y :revenue :color :region})
+                  (pj/scale :color {:label "Region"})
+                  pj/lay-point
+                  (pj/lay-line {:color "black"}))]
+        (is (= ["n" "s"] (mapv :label (:entries (:legend (pj/plan p))))))
+        (is (contains? (:colors (pj/svg-summary p)) "rgb(0,0,0)"))))
+
     (testing "a :color on the pose reaches the layers, so they take no default colour"
       (let [d2 (assoc d :region ["n" "s" "n" "s"])
             by-pose (-> d2
