@@ -22,7 +22,7 @@
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
-   ;; Plotje internals -- read in "How Panels Share an Axis"
+   ;; Plotje internals -- read in "The columns a layer reads" and "How Panels Share an Axis"
    [scicloj.plotje.impl.pose :as pose]
    [scicloj.plotje.impl.plan :as plan]
    ;; Membrane UI protocols
@@ -555,6 +555,42 @@ graph LR
 ;; `pj/coord`, `pj/options`, mapping keys like `:x-type`), so the
 ;; user can opt out of any single inference without losing the
 ;; others.
+;;
+;; ### The columns a layer reads
+;;
+;; One choice is made before the draft, in `pose/elaborate`: which
+;; columns a layer reads where it names none, or names one of two. A
+;; `pj/lay-*` call keeps its columns on its own layer, so the pose
+;; below has no mapping. Its panel's columns are those of the first
+;; layer naming one on each axis. `pose/elaborate` writes them into
+;; each layer that needs them, and the draft then merges the pose's
+;; mapping and each layer's mapping by scope and nothing else:
+
+(-> {:week [1 2 3 4]
+     :adults [30 25 28 35]
+     :children [20 15 18 22]}
+    (pj/lay-point :week :adults)
+    (pj/lay-line {:y :children})
+    pj/lay-smooth
+    pose/elaborate
+    (dissoc :data)
+    kind/pprint)
+
+(kind/test-last
+ [(fn [elaborated]
+    (and (nil? (:mapping elaborated))
+         (= [{:x :week :y :adults}
+             {:x :week :y :children}
+             {:x :week :y :adults}]
+            (mapv :mapping (:layers elaborated)))))])
+
+;; The column is written into the layer and not into the pose's
+;; mapping. Written into the pose, it would reach every layer by
+;; scope, and a layer type that can draw from one column -- a bar that
+;; counts, a histogram -- would be given a second column it did not
+;; ask for. A facet over columns is the one place the pose is written:
+;; its cells are made from the panel's columns, with the facet's column
+;; on the axis it names (`pose/expand-facet-nodes`, below).
 
 ;; ## Composite Poses
 ;;

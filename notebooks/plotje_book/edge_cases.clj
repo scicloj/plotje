@@ -538,12 +538,12 @@
 
 ;; ### Layer with own :data, missing the pose's position columns
 ;;
-;; When a layer carries its own `:data` and the pose's position
-;; columns are absent from that data, the error names the source
-;; (inherited from the pose's mapping) and asks for the axis to be set
-;; on the layer call, to a column of the layer's data. This error
-;; covers a second layer attached with its own dataset whose columns do
-;; not match the panel's axes, a pattern common in ggplot2.
+;; A layer that names no columns reads the panel's columns. When the
+;; layer carries its own `:data` and that data lacks one of them, the
+;; error names the column and asks for the axis to be set on the layer
+;; call, to a column of the layer's data. This error covers a second
+;; layer attached with its own dataset whose columns do not match the
+;; panel's axes, a pattern common in ggplot2.
 
 (try
   (-> (tc/dataset {:fitted [1 2 3] :residual [1 2 3]})
@@ -558,8 +558,9 @@
 (kind/test-last
  [(fn [m]
     (and (string? m)
-         (re-find #"inherited from the pose's mapping" m)
-         (re-find #"absent from this layer's :data" m)))])
+         (re-find #"lay-text" m)
+         (re-find #"absent from this layer's :data" m)
+         (re-find #"on the layer call" m)))])
 
 ;; ### Unsupported polar mark
 

@@ -4,7 +4,8 @@
    retired `pj/overlay`, and the titles a series draws beside the same
    columns drawn as layers."
   (:require [clojure.test :refer [deftest testing is]]
-            [scicloj.plotje.api :as pj]))
+            [scicloj.plotje.api :as pj]
+            [scicloj.plotje.impl.pose :as pose]))
 
 (def cars
   {:displ [1.8 2.0 2.8 3.1 4.2]
@@ -192,3 +193,99 @@
                         (message (-> {:d [#inst "2024-01-01" #inst "2024-02-01"] :n [1 2] :v [1 2]}
                                      (pj/lay-point :d :v)
                                      (pj/lay-point :n :v)))))))))
+
+(defn- panel-marks
+  "The marks each panel of a plan draws, cell by cell for a composite."
+  [plan]
+  (if-let [subs (:sub-plots plan)]
+    (vec (mapcat #(panel-marks (:plan %)) subs))
+    (mapv #(mapv :mark (:layers %)) (:panels plan))))
+
+(defn- draft-columns [pose]
+  (mapv (juxt :mark :x :y)
+        (filter #(and (map? %) (contains? % :__panel-idx))
+                (tree-seq coll? seq (pj/draft pose)))))
+
+(deftest a-layer-reads-the-panels-column-where-it-needs-one-test
+  ;; The panel's column on an axis is the pose's, else that of the first
+  ;; layer naming one there. A layer naming one column of two failed
+  ;; with "pj/plan got 1.6 for :x, which is past the ends of this axis".
+  (testing "a layer naming one column reads the other from the first layer"
+    (is (= [[:point :displ :cty] [:point :displ :hwy]]
+           (draft-columns (-> cars (pj/lay-point :displ :cty) (pj/lay-point {:y :hwy})))))
+    (is (= [[:point :displ :cty] [:point :hwy :cty]]
+           (draft-columns (-> cars (pj/lay-point :displ :cty) (pj/lay-point {:x :hwy})))))
+    (is (= {:panels 1 :points 10}
+           (select-keys (pj/svg-summary (-> cars
+                                            (pj/lay-point :displ :cty)
+                                            (pj/lay-point {:y :hwy})))
+                        [:panels :points]))))
+  (testing "axis by axis: the layer naming :y first reads the :x a later layer names"
+    (is (= [[:point :displ :hwy] [:point :displ :cty]]
+           (draft-columns (-> cars pj/pose (pj/lay-point {:y :hwy}) (pj/lay-point :displ :cty))))))
+  (testing "a layer naming no column reads both, as before"
+    (is (= [[:point :displ :hwy] [:line :displ :hwy]]
+           (draft-columns (-> cars (pj/lay-point :displ :hwy) pj/lay-smooth)))))
+  (testing "a layer type that can draw from one column is given no second column"
+    ;; Written into the pose, the first layer's :y would reach the bar
+    ;; by scope and turn its count into a bar per row.
+    (let [p (-> cars (pj/lay-point :class :hwy) (pj/lay-bar :class))]
+      (is (= [[:point :class :hwy] [:rect :class nil]]
+             (binding [*out* (java.io.StringWriter.)] (draft-columns p))))
+      (is (= 3 (:polygons (binding [*out* (java.io.StringWriter.)] (pj/svg-summary p))))))
+    (is (= [[:point :displ :hwy] [:rug :cty nil]]
+           (draft-columns (-> cars (pj/lay-point :displ :hwy) (pj/lay-rug {:x :cty}))))))
+  (testing "the pose's own column reaches a layer by scope and is not written into it"
+    (let [e (pose/elaborate (-> cars (pj/pose {:x :displ}) (pj/lay-point {:y :hwy}) pj/lay-smooth))]
+      (is (= {:x :displ} (:mapping e)))
+      (is (= [{:y :hwy} {:y :hwy}] (mapv :mapping (:layers e))))))
+  (testing "a scale specified beside the first layer's column comes with the column"
+    (is (= {:x {:column :displ :scale {:type :log}} :y :hwy}
+           (-> cars
+               (pj/lay-point {:x {:column :displ :scale {:type :log}} :y :cty})
+               (pj/lay-point {:y :hwy})
+               pose/elaborate
+               :layers second :mapping)))))
+
+(deftest the-columns-a-layer-reads-are-written-into-the-elaborated-pose-test
+  (let [p (-> cars (pj/lay-point :displ :cty) (pj/lay-line {:y :hwy}) pj/lay-smooth)
+        e (pose/elaborate p)]
+    (testing "into the layers, and not into the pose's mapping"
+      (is (nil? (:mapping e)))
+      (is (= [{:x :displ :y :cty} {:x :displ :y :hwy} {:x :displ :y :cty}]
+             (mapv :mapping (:layers e)))))
+    (testing "elaboration is idempotent, and the elaborated pose draws the same"
+      (is (= e (pose/elaborate e)))
+      (is (= (pj/svg-summary p) (pj/svg-summary e))))
+    (testing "a layer placed in the drawing area reads drawing units, not columns"
+      (is (= {:x 0.5 :y 0.5 :text "n" :in :drawing-area}
+             (-> cars
+                 (pj/lay-point :displ :hwy)
+                 (pj/lay-text {:x 0.5 :y 0.5 :text "n" :in :drawing-area})
+                 pose/elaborate
+                 :layers second :mapping))))))
+
+(deftest a-facet-over-columns-makes-its-cells-from-the-panels-columns-test
+  ;; A layer naming both columns drew its own panel and a histogram on
+  ;; its side for the other column; with a smooth it failed with a
+  ;; NullPointerException.
+  (testing "the panel no layer names is inferred from the panel's column and the facet's"
+    (doseq [[facet cols] [[{:y [:hwy :cty]} [[:point :displ :hwy] [:point :displ :cty]]]
+                          [{:x [:displ :cty]} [[:point :displ :hwy] [:point :cty :hwy]]]]]
+      (let [p (-> cars (pj/lay-point :displ :hwy) (pj/facet facet))]
+        (is (= cols (draft-columns p)))
+        (is (= [[:point] [:point]] (panel-marks (pj/plan p)))))))
+  (testing "a layer naming no column is drawn in every panel"
+    (let [p (-> cars (pj/lay-point :displ :hwy) pj/lay-smooth (pj/facet {:y [:hwy :cty]}))]
+      (is (= [[:point :line] [:line]] (panel-marks (pj/plan p))))
+      (is (= [[:point :displ :hwy] [:line :displ :hwy] [:line :displ :cty]]
+             (draft-columns p)))))
+  (testing "the facet written first, then the layer"
+    (is (= [[:point] [:point]]
+           (panel-marks (pj/plan (-> cars (pj/facet {:y [:hwy :cty]}) (pj/lay-point :displ :hwy)))))))
+  (testing "two layers each naming both columns take a panel each"
+    (is (= [[:point] [:line]]
+           (panel-marks (pj/plan (-> cars
+                                     (pj/lay-point :displ :hwy)
+                                     (pj/lay-line :displ :cty)
+                                     (pj/facet {:y [:hwy :cty]}))))))))

@@ -40,6 +40,10 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- A layer that names one column reads the panel's column on the other axis, where its layer type draws from two columns: `(-> data (pj/lay-point :week :adults) (pj/lay-line {:y :children}))` draws the line of `:children` against `:week`. The panel's column on an axis is the pose's, and where the pose names none there, that of the first layer naming one. A layer type that can draw from one column, such as a bar or a histogram, is given no second column.
+
+- The cells of a facet over columns are made from the panel's columns, with the facet's column on the axis it names. `(-> data (pj/lay-point :week :adults) (pj/facet {:y [:adults :children]}))` draws `:adults` and `:children` each against `:week`, and a layer naming no columns is drawn in both panels.
+
 - A stat declares what it computes for an axis with a method on `[stat :computes]`, beside its `[stat :doc]`: `:bin` declares `{:y :count}`, or `{:y :density}` under `:normalize :density`. Sharing an axis, the Note for layers of one panel, and the check for a missing `:y` column read the declaration, so an extension's stat takes part in all three. See "What a stat computes" in the Extensibility chapter.
 
 - `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, and a layer added afterwards reaches every panel.

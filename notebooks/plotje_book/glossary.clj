@@ -105,7 +105,9 @@ my-pose
 ;;
 ;; - **Bare** -- `pj/lay-*` without columns attaches a layer that is
 ;;   drawn on every panel of the pose, reading that panel's columns --
-;;   the ones `pj/pose` wrote, or the ones a prior `pj/lay-*` named.
+;;   the ones `pj/pose` wrote, or the ones the first `pj/lay-*` call
+;;   naming columns named. A layer naming one column reads the panel's
+;;   other column where its layer type draws from two.
 ;; - **Matching columns** -- `pj/lay-*` with columns that match the
 ;;   most recent matching leaf reuses that leaf, so the new layer
 ;;   joins the existing panel.

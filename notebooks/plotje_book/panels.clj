@@ -109,6 +109,45 @@
 ;; value read through the color scale: `{:color {:value "depth" :scale
 ;; true}}`.
 
+;; ### The panel's columns
+
+;; A `pj/lay-*` call keeps its columns on its own layer, so a pose built
+;; by such calls has no mapping of its own. The panel still has columns:
+;; on each axis, the column the pose names, and where the pose names
+;; none there, the column of the first layer that names one. A layer
+;; that names no columns reads both of the panel's columns:
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    pj/lay-smooth)
+
+(kind/test-last [(fn [v] (= [:height :weight]
+                            ((juxt :x :y) (second (:layers (pj/draft v))))))])
+
+;; A layer that names one column reads the panel's column on the other
+;; axis, where its layer type draws from two columns. The line below
+;; names `:depth` on `:y` and is drawn against the panel's `:height`:
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/lay-line {:y :depth}))
+
+(kind/test-last [(fn [v] (and (= [:height :depth]
+                                 ((juxt :x :y) (second (:layers (pj/draft v)))))
+                              (some #{"weight, depth"} (:texts (pj/svg-summary v)))))])
+
+;; A layer type that can draw from one column is not given a second
+;; column. A rug draws from one column, so the rug below marks `:depth`
+;; along the `:x` axis and reads no `:y`:
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/lay-rug {:x :depth}))
+
+(kind/test-last [(fn [v] (let [rug (second (:layers (pj/draft v)))]
+                           (and (= :depth (:x rug))
+                                (nil? (:y rug)))))])
+
 ;; ## A panel per column
 
 ;; To draw the two columns apart, split the pose over them with
@@ -121,6 +160,25 @@
     (pj/facet {:x [:height :depth]}))
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+
+;; The cells of a facet over columns are made from the panel's columns,
+;; and the facet replaces the column on the axis it names. Below, the
+;; point layer names `:weight`, so it is drawn in the `:weight` panel.
+;; The `:depth` panel keeps the panel's `:height` on `:x`. No layer
+;; names `:depth`, so that panel draws the layer the data chooses for
+;; `:height` and `:depth`, which is a scatter too:
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/facet {:y [:weight :depth]}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= {:panels 2 :points 8}
+                                   (select-keys s [:panels :points]))
+                                ;; each panel titled by its own column on :y,
+                                ;; and the shared :x titled once
+                                (= ["weight" "depth" "height"]
+                                   (filterv #{"weight" "depth" "height"} (:texts s))))))])
 
 ;; Where one layer is meant for every column, name the columns in the
 ;; facet alone. The panels share the axis they agree about, `:weight`,

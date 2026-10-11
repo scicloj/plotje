@@ -762,6 +762,40 @@ composite-pose
                  (re-find #"pj/facet" msg)
                  (re-find #"pj/arrange" msg)))])
 
+;; ### Rule LP6: a layer reads the panel's column where it needs one
+;;
+;; The panel's column on an axis is the column the pose names there,
+;; and where the pose names none, the column of the first layer that
+;; names one there. A layer reads the panel's column on an axis where
+;; it names none and its layer type needs one: both columns for a layer
+;; naming none, and the other column for a layer naming one whose layer
+;; type draws from two.
+
+(-> iris
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-line {:y :petal-width})
+    pj/lay-smooth)
+
+(kind/test-last
+ [(fn [v] (= [[:sepal-length :sepal-width]
+              [:sepal-length :petal-width]
+              [:sepal-length :sepal-width]]
+             (mapv (juxt :x :y) (:layers (pj/draft v)))))])
+
+;; The columns stay on the layers. The pose's own mapping is not
+;; written, so a layer type that can draw from one column reads no
+;; second column from a neighbouring layer:
+
+(-> iris
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-rug {:x :petal-length})
+    pj/draft
+    :layers
+    second
+    (select-keys [:mark :x :y]))
+
+(kind/test-last [(fn [m] (= {:mark :rug :x :petal-length} m))])
+
 ;; ---
 ;; ## Leaf Identity
 ;;

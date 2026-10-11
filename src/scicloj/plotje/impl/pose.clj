@@ -1145,10 +1145,9 @@
 
 (defn- column-not-found-message
   "Build a focused error message for a missing column reference.
-   When the layer carries its own :data and the failing key was
-   inherited from the pose, surface that asymmetry and offer two
-   fixes (`pj/overlay` to keep it on the panel, or override on
-   the layer so it draws a panel of its own).
+   When the layer carries its own :data and the failing key is `:x` or
+   `:y`, say that the layer's data lacks the column and that the layer
+   call is where to name one it holds.
 
    `explicit-column?` marks a reference the writer wrote as
    `{:column ...}`. The drawn-value sentence is dropped there: they
@@ -1156,11 +1155,18 @@
    answer."
   [k col col-names {:keys [layer-type-key layer-own-data? source explicit-column?]}]
   (let [layer-name (if (keyword? layer-type-key) (name layer-type-key) "*")]
-    (case (when (and layer-own-data? (= :pose source)) :pose-inherited)
-      :pose-inherited
+    (case (when (and layer-own-data? (#{:x :y} k) (not explicit-column?)) :panel-column)
+      ;; The layer reads this column from the pose's mapping, or from
+      ;; the panel's columns where the pose names none
+      ;; (`read-panel-columns` has then written it into the layer), or
+      ;; names it itself. Each way it is a column the layer's own data
+      ;; has to hold.
+      :panel-column
       (str "lay-" layer-name " " k " " (pr-str col)
-           ", inherited from the pose's mapping, names a column"
-           " absent from this layer's :data. Available columns: "
+           (if (= :pose source)
+             ", inherited from the pose's mapping,"
+             ", the panel's column or the layer's own,")
+           " names a column absent from this layer's :data. Available columns: "
            (vec (sort-by str col-names))
            ". Set " k " on the layer call to a column that exists in"
            " :data.")
@@ -2042,15 +2048,20 @@
   (layer-position-key (:mapping leaf) layer (or (:data layer) (:data leaf))))
 
 (defn leaf-place
-  "The place a leaf draws at, as `[x-source y-source]`, or nil where
-   neither it nor any layer names one. The leaf's own mapping where it
-   names one, and otherwise the first place a layer names: a `lay-*`
-   call keeps its columns on its layer, so a pose built by `lay-*` alone
-   names them only there. The layers of a leaf share this one panel;
-   separate panels come from a split or from `pj/arrange`."
+  "The place a leaf draws at -- the panel's columns -- as
+   `[x-source y-source]`, or nil where neither it nor any layer names
+   one. Decided axis by axis: the leaf's own column, and where its
+   mapping names none on that axis, that of the first layer naming one
+   there. A `lay-*` call keeps its columns on its layer, so a pose built
+   by `lay-*` alone names them only there. The layers of a leaf share
+   this one panel; separate panels come from a split or from
+   `pj/arrange`."
   [leaf]
-  (or (position-mapping-key (:mapping leaf))
-      (first (keep #(layer-place leaf %) (:layers leaf)))))
+  (let [places (cons (position-mapping-key (:mapping leaf))
+                     (keep #(layer-place leaf %) (:layers leaf)))
+        x (some first places)
+        y (some second places)]
+    (when (or x y) [x y])))
 
 (defn leaf-columns
   "The columns a leaf draws on `:x` and `:y` on its first panel, as
@@ -2063,6 +2074,78 @@
     (cond-> {}
       x (assoc :x x)
       y (assoc :y y))))
+
+(defn- panel-columns
+  "The panel's columns as a mapping, `{:x v :y v}`, leaving out an axis
+   nothing names. Each axis keeps the value it was specified with --
+   the leaf's, or that of the first layer naming the column -- so a
+   scale specified beside the column comes too."
+  [leaf]
+  (let [k (leaf-place leaf)
+        mappings (cons (or (:mapping leaf) {}) (map :mapping (:layers leaf)))]
+    (into {}
+          (for [[i axis] [[0 :x] [1 :y]]
+                :let [src (nth k i nil)]
+                :when src]
+            [axis (or (some #(let [v (get % axis)]
+                               (when (= src (mapping-source v)) v))
+                            mappings)
+                      src)]))))
+
+(defn- layer-panel-columns
+  "The panel's columns one layer of a leaf reads, as a mapping to put
+   under the layer's own: both for a layer naming no column, and for a
+   layer naming one column whose layer type draws only from two
+   (`layer-type/column-counts` lacks 1), the column on the axis it
+   leaves out. A layer type that can draw from one column is given no
+   second: `(pj/lay-bar pose :drv)` beside points counts. Nothing for
+   an axis the layer's own mapping holds, or for a layer placed in the
+   drawing area, which reads drawing units."
+  [leaf layer columns]
+  (let [own (or (:mapping layer) {})
+        k (layer-place leaf layer)
+        axes (cond
+               (= :drawing-area (:in own)) []
+               (nil? k) [:x :y]
+               (contains? (layer-type/column-counts (:layer-type layer)) 1) []
+               (nil? (first k)) [:x]
+               (nil? (second k)) [:y]
+               :else [])]
+    (into {} (remove (fn [[axis _]] (contains? own axis)))
+          (select-keys columns axes))))
+
+(defn- read-panel-columns
+  "A leaf whose layers hold the panel's columns they read
+   (`layer-panel-columns`), written into each layer's mapping. An axis
+   the leaf's own mapping names is left out: it reaches every layer by
+   scope. Idempotent: a layer that was given a column names it."
+  [leaf]
+  (let [m (or (:mapping leaf) {})
+        columns (into {} (remove (fn [[axis _]] (mapping-source (get m axis))))
+                      (panel-columns leaf))]
+    (if (empty? columns)
+      leaf
+      (update leaf :layers
+              (fn [ls]
+                (mapv (fn [layer]
+                        (let [add (layer-panel-columns leaf layer columns)]
+                          (if (seq add)
+                            (update layer :mapping #(merge add %))
+                            layer)))
+                      ls))))))
+
+(defn- write-panel-columns
+  "A leaf whose own mapping names the panel's columns: on each axis
+   where it names none, the column of the first layer naming one there.
+   For the pose a facet over columns expands: its cells are made from
+   the panel's columns, and the facet replaces the axis it names."
+  [leaf]
+  (let [m (or (:mapping leaf) {})
+        add (into {} (remove (fn [[axis _]] (mapping-source (get m axis))))
+                  (panel-columns leaf))]
+    (if (seq add)
+      (assoc leaf :mapping (merge-mappings add m))
+      leaf)))
 
 (defn overlay-labels
   "The column each layer of a panel draws where its layers disagree, as
@@ -3603,7 +3686,8 @@
       pose
       (let [base (-> pose
                      (dissoc :facet)
-                     (cond-> (:data pose) pivot-leaf-series))
+                     (cond-> (:data pose) pivot-leaf-series)
+                     write-panel-columns)
             ds (coerce-dataset (:data base))
             grid? (or (contains? node :col) (contains? node :row))
             rows (if grid?
@@ -4048,6 +4132,9 @@
      its panel, with a layer of the type the data chooses --
      `(-> data (pj/pose :a :b) (pj/lay-point :c :d))` draws a-against-b
      beside c-against-d.
+   - A layer holds the panel's columns it reads, where it names none
+     or names one and its layer type needs two -- see
+     `read-panel-columns`.
    - A layer written as `:infer` takes the type the data chooses for
      the place it draws at.
 
@@ -4064,7 +4151,7 @@
                  (seq layers) layers
                  own-place [{:layer-type :infer}]
                  :else [])
-        leaf (assoc leaf :layers layers)
+        leaf (read-panel-columns (assoc leaf :layers layers))
         place-mapping (fn [layer]
                         (let [k (or (layer-place leaf layer)
                                     (leaf-place leaf))]
@@ -4212,21 +4299,6 @@
         facet-row    (or (mapping-source (:row leaf-mapping)) (:facet-row opts))
         leaf-mapping (dissoc leaf-mapping :col :row)
         variants     (facet-variants leaf-data facet-col facet-row)
-        ;; The columns the panel draws, as a mapping: what a layer naming
-        ;; no place reads. Each axis keeps the value it was written with
-        ;; -- the leaf's, or that of the first layer naming the column --
-        ;; so a scale written beside the column comes too.
-        panel-place  (let [k (leaf-place leaf)]
-                       (into {}
-                             (for [[i axis] [[0 :x] [1 :y]]
-                                   :let [src (nth k i nil)]
-                                   :when src]
-                               [axis (or (some #(let [v (get % axis)]
-                                                  (when (= src (mapping-source v)) v))
-                                               (cons leaf-mapping
-                                                     (map :mapping applicable)))
-                                         src)])))
-        placeless?   (mapv #(nil? (layer-place leaf %)) applicable)
         ;; Said once per draft, and only where the leaf's own layers made
         ;; the split -- a faceted leaf has many panels and no disagreement
         ;; to report.
@@ -4284,9 +4356,7 @@
              ;; sees a plain value with the writer's two choices
              ;; recorded beside it.
              resolved (normalize-explicit-mappings
-                       (-> (cond-> leaf-mapping
-                             (nth placeless? layer-idx)
-                             (merge-mappings panel-place))
+                       (-> leaf-mapping
                            (merge-mappings layer-type-info)
                            (merge-mappings layer-mapping)
                            (merge-mappings layer-structural)))
