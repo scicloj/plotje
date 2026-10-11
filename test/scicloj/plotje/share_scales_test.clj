@@ -479,3 +479,39 @@
                      (with-out-str (pj/plan (-> data
                                                 (pj/lay-histogram :v)
                                                 (pj/lay ::running-share {:x :v}))))))))))
+
+;; A series faceted by its own key column is a facet over the series'
+;; columns, and is drawn as one.
+
+(deftest a-series-faceted-by-its-key-is-a-facet-over-its-columns-test
+  (let [texts (fn [pose] (vec (remove #(re-matches #"-?[\d.,]+" %) (:texts (pj/svg-summary pose)))))
+        same? (fn [a b] (and (= (domains a) (domains b)) (= (texts a) (texts b))))
+        over-y (fn [] (-> cars (pj/pose {:x :size}) pj/lay-point))]
+    (testing "the same panels, axes and titles"
+      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series :row))
+                 (-> (over-y) (pj/facet {:y [:fast :slow]}))))
+      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series))
+                 (-> (over-y) (pj/facet {:col {:y [:fast :slow]}})))))
+    (testing "a series on the pose, and a key named with :as"
+      (is (same? (-> cars (pj/pose {:x :size :y {:series [:fast :slow] :as :speed}})
+                     pj/lay-point (pj/facet :speed :row))
+                 (-> (over-y) (pj/facet {:y [:fast :slow]})))))
+    (testing "an axis per column by default, one where a group shares it"
+      (let [by-key (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series))]
+        (is (= [1 2] (distinct-counts by-key)))
+        (is (= [1 1] (distinct-counts (pj/options by-key {:share-scales {:y [[:fast :slow]]}}))))))
+    (testing "histograms of a series: a count axis per column"
+      (is (same? (-> cars (pj/lay-histogram {:x [:fast :slow]}) (pj/facet :series))
+                 (-> cars (pj/pose {:x :fast}) pj/lay-histogram (pj/facet {:col {:x [:fast :slow]}})))))
+    (testing "beside a facet by another column, a grid"
+      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series) (pj/facet :kind :row))
+                 (-> (over-y) (pj/facet {:col {:y [:fast :slow]} :row :kind})))))
+    (testing "a series faceted by another column keeps its panel of both columns"
+      (let [pose (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :kind))]
+        (is (nil? (:sub-plots (pj/plan pose))))
+        (is (= [1 1] (distinct-counts pose)))
+        (is (some #{"fast, slow"} (texts pose)))))
+    (testing "a colour specified on the key keeps the series' own rows"
+      (let [pose (-> cars (pj/lay-point :size [:fast :slow] {:color :series}) (pj/facet :series))]
+        (is (nil? (:sub-plots (pj/plan pose))))
+        (is (= 2 (count (:panels (pj/plan pose)))))))))

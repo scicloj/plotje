@@ -681,20 +681,31 @@ sales-by-region
 
 ;; #### Panels from the key column
 
-;; The key column is an ordinary column of the pivoted dataset, so
-;; `pj/facet` reads it as it reads any other: one panel per measure.
-;; The panels share one value axis, which is what lets the measures be
-;; read against each other.
+;; Faceting a series by its key column draws one panel per measure.
+;; These are the panels `(pj/facet pose {:y [:revenue :cost :tax]})`
+;; draws, and Plotje draws them the same way: each panel draws one
+;; column, is titled by that column, and has a value axis of its own.
 
 (-> sales
     (pj/lay-line :quarter [:revenue :cost :tax])
     (pj/facet :series))
 
 (kind/test-last
- [(fn [v] (and (= 3 (:panels (pj/svg-summary v)))
-               (= 1 (count (distinct (map (fn [panel]
-                                            (mapv double (:y-domain panel)))
-                                          (:panels (pj/plan v))))))))])
+ [(fn [v] (let [panels (mapcat (comp :panels :plan) (:sub-plots (pj/plan v)))]
+            (and (= 3 (:panels (pj/svg-summary v)))
+                 (= 3 (count (distinct (map :y-domain panels)))))))])
+
+;; To read the measures against each other, share the value axis
+;; between the columns with `:share-scales`:
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/facet :series)
+    (pj/options {:share-scales {:y :all}}))
+
+(kind/test-last
+ [(fn [v] (let [panels (mapcat (comp :panels :plan) (:sub-plots (pj/plan v)))]
+            (= 1 (count (distinct (map :y-domain panels))))))])
 
 ;; With `:as`, the facet names the key column by its new name:
 

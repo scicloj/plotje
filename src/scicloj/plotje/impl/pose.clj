@@ -3523,15 +3523,94 @@
                :layout {:direction :vertical}
                :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
 
+(defn- series-key-facet
+  "A leaf whose series is faceted by its own key column, as the facet
+   over the series' columns it is; any other pose as it is.
+
+   `{:y [:hwy :cty]}` faceted by the key the series invents draws a
+   panel per column, which is what `(pj/facet pose {:y [:hwy :cty]})`
+   says. The two were drawn by different paths and disagreed about the
+   axes, the titles and the legend, so the first is rewritten into the
+   second: the series is taken off the axis, leaving a scale written
+   beside it, and the facet's `:col` and `:row` move from the mapping
+   into a `:facet` node, with the columns where the key was. A facet by
+   another column beside the key stays, as the other side of the grid.
+
+   Left alone: a series on both axes (pairs), a compound facet key, a
+   pose that already holds a `:facet` node, and a pose where anything
+   else reads the key column -- a `:color` or a `:group` specified on
+   it -- which needs the pivot's rows."
+  [pose]
+  (let [m (or (:mapping pose) {})
+        layers (vec (:layers pose))
+        dir-col (fn [d] (let [v (get m d)]
+                          (cond (resolve/column-ref? v) v
+                                (and (map? v) (resolve/column-ref? (:column v))) (:column v))))
+        on-pose (series-in m)
+        on-layers (vec (keep-indexed (fn [i l] (when (and (seq (series-in (:mapping l)))
+                                                          (nil? (:data l)))
+                                                 i))
+                                     layers))
+        specs (cond
+                (seq on-pose) [(select-keys m on-pose)]
+                (seq on-layers) (distinct (map #(select-keys (:mapping (layers %))
+                                                             (series-in (:mapping (layers %))))
+                                               on-layers)))
+        spec (when (and (= 1 (count specs)) (= 1 (count (first specs)))
+                        (not (and (seq on-pose) (seq on-layers))))
+               (first specs))
+        [axis written] (first spec)
+        {:keys [cols] label :as} (when spec (series-mapping written))
+        key-dir (when label (first (filter #(= label (dir-col %)) [:col :row])))
+        other-dir (when key-dir (first (remove #{key-dir} [:col :row])))
+        reads-key? (fn [mapping skip]
+                     (some (fn [[k v]] (and (not (skip k)) (= label (mapping-source v))))
+                           mapping))]
+    (if (or (composite? pose)
+            (:facet pose)
+            (nil? key-dir)
+            (reads-key? m #{:col :row})
+            (some #(reads-key? (:mapping %) #{}) layers))
+      pose
+      (let [unseries (fn [mapping]
+                       (let [sc (when (map? written) (:scale written))]
+                         (if (some? sc)
+                           (assoc mapping axis {:scale sc})
+                           (dissoc mapping axis))))
+            node (cond-> {key-dir {axis cols}}
+                   (contains? m other-dir) (assoc other-dir (get m other-dir)))
+            ;; The column the series' layers draw on the other axis is
+            ;; the panels' common column, so it goes to the pose, where
+            ;; a facet over columns reads it: the axis is then titled
+            ;; once, as it is where the writer put the column there.
+            across ({:x :y :y :x} axis)
+            common (when (and (seq on-layers) (not (contains? m across)))
+                     (let [vs (distinct (map #(get (:mapping (layers %)) across) on-layers))]
+                       (when (and (= 1 (count vs)) (some? (first vs)))
+                         (first vs))))
+            relayer (fn [mapping] (cond-> (unseries mapping)
+                                    (some? common) (dissoc across)))]
+        (-> pose
+            (assoc :mapping (cond-> (dissoc m :col :row)
+                              (seq on-pose) unseries
+                              (some? common) (assoc across common)))
+            (update :mapping not-empty)
+            (cond-> (seq on-layers)
+              (assoc :layers (reduce (fn [ls i] (update-in ls [i :mapping] relayer))
+                                     layers on-layers)))
+            (assoc :facet node))))))
+
 (defn expand-facet-nodes
   "`expand-facet-node` on every pose of a tree that holds a `:facet`
    node, so a pose faceted over columns draws the same panels as a cell
    of an arrangement as it does alone. A faceted cell with no data of
    its own is expanded with the data it inherits, which the expansion
-   reads to pivot a series and to list a category's values."
+   reads to pivot a series and to list a category's values. A series
+   faceted by its own key is such a pose (`series-key-facet`)."
   ([pose] (expand-facet-nodes pose nil))
   ([pose inherited]
    (let [data (or (:data pose) inherited)
+         pose (series-key-facet pose)
          pose (if (and (:facet pose) (not (composite? pose)))
                 (expand-facet-node (cond-> pose
                                      (and data (nil? (:data pose))) (assoc :data data)))

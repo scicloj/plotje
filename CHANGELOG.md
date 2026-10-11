@@ -28,6 +28,8 @@ All notable changes to this project will be documented in this file. This change
 
 - **A count or density axis** is shared among panels that compute the same thing from the same column: histograms of one column in the cells of a split share their count axis, as the panels of a facet do. Histograms of different columns keep a count axis each, and `{:share-scales {:y :all}}` or a group naming the columns, `{:y [[:hwy :cty]]}`, shares it. A count is shared with counts only, never with a density or with the values of a column, also under `:all`; a histogram with `{:normalize :density}` is a density.
 
+- **A series faceted by its own key column**, such as `(-> data (pj/lay-line :quarter [:revenue :cost]) (pj/facet :series))`, is drawn as the facet over its columns, `(pj/facet pose {:y [:revenue :cost]})`: each panel is titled by its column and has a value axis of its own, and there is no legend. `(pj/options pose {:share-scales {:y :all}})` gives the panels one value axis. A series whose key column is also mapped to `:color` or another aesthetic is drawn from the pivoted rows, with a colour per column.
+
 - **Bars drawn across**, with the value on `:x` and the category on `:y`, start on the panel edge: the `:x` axis begins at zero and is padded only past the longest bar, as the `:y` axis under upright bars is. The same holds where `:share-scales` names `:x`, as in `(pj/arrange [bars-a bars-b] {:share-scales #{:x}})`. Values below zero are padded past as before.
 
 - **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column. `:x-label` and `:y-label` still set the title.

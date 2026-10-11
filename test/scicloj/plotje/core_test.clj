@@ -2282,14 +2282,24 @@
   (let [data {:t [1 2 3 4] :species ["a" "b" "a" "b"] :len [1.0 2.0 3.0 4.0]}
         mixed (-> data (pj/lay-point :t [:species :len]) (pj/facet :series))]
 
-    (testing "a categorical panel beside a numeric one is reported"
+    ;; A series faceted by its key is a facet over its columns: each
+    ;; panel draws a column of its own, on an axis of its own.
+    (testing "a categorical panel beside a numeric one draws, each on its own axis"
+      (is (= [["a" "b"] [0.85 4.15]]
+             (mapv (comp :y-domain first :panels :plan) (:sub-plots (pj/plan mixed))))))
+
+    (testing "and is reported once the panels are asked to share that axis"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"incompatible scale meaning"
+                            (pj/plan (pj/options mixed {:share-scales {:y :all}})))))
+
+    (testing "slices of one column holding both are reported by the facet"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"disagree about what the y axis holds"
-                            (pj/plan mixed))))
-
-    (testing "and draws once the panels stop sharing that axis"
-      (is (= [["a" "b"] [0.85 4.15]]
-             (mapv :y-domain (:panels (pj/plan (pj/options mixed {:scales :free-y})))))))
+                            (pj/plan (-> {:t [1 2 3 4] :g ["p" "p" "q" "q"]
+                                          :v ["a" "b" 3.0 4.0]}
+                                         (pj/lay-point :t :v)
+                                         (pj/facet :g))))))
 
     (testing "panels that agree still share, on the extent of both padded once"
       (is (= [[0.85 4.15] [0.85 4.15]]
