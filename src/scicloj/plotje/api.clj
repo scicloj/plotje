@@ -4287,7 +4287,9 @@
    - `:height` -- total composite height.
    - `:share-scales` -- the axes the cells share. A set of axes,
      `#{:x :y}`, shares each among the cells drawing the same column on
-     it. A map says which columns go together on an axis:
+     it; `:x` is the horizontal axis and `:y` the vertical one, also
+     for a cell drawn with `:coord :flip`. A map says which columns go
+     together on an axis:
      `{:y [[:hwy :cty]]}` shares `:y` between the cells drawing `:hwy`
      and `:cty`, `{:y :all}` between every cell, and `{:y :same-column}`
      is what the set says. A shared axis covers what the cells sharing
@@ -4567,12 +4569,10 @@
                          right? (coord :flip)
                          (seq panels-mapping) (update :mapping merge panels-mapping)
                          true   (update :opts merge suppress))
-         ;; The marginal's own column carries the shared axis, and a
-         ;; flip means the two cells name that column on different
-         ;; axes -- :y on the main panel, :x on the marginal. Sharing
-         ;; both stamps each with the column's own extent, and the two
-         ;; agree because it is one column of one dataset.
-         shares (if right? #{:x :y} #{:x})]
+         ;; The marginal shares the axis it sits along: the vertical one
+         ;; on the right, where it names the panel's `:y` column on its
+         ;; own `:x` under the flip, and the horizontal one on top.
+         shares (if right? #{:y} #{:x})]
      ;; Through prepare-pose, as every other composite-building path is
      ;; (`pj/arrange`, `pj/pose`'s promoting arities): it coerces :data
      ;; at every depth, puts the printed keys in the book's order, and

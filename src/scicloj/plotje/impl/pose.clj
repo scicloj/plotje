@@ -568,9 +568,21 @@
   (let [cols (panel-axis-cols leaf axis)]
     (when (next cols) cols)))
 
+(defn- data-axis
+  "The axis of a leaf's mapping that is drawn along `axis` of the page:
+   `axis` itself, and the other one under `:coord :flip`. Sharing names
+   the axis as drawn -- `:x` is the horizontal one -- because it is
+   along a direction of the page that panels side by side are compared,
+   so an upright cell and a flipped one drawing a column the same way
+   share it. (`pj/scale` and `:x-label` name the mapping instead.)"
+  [leaf axis]
+  (if (= :flip (get-in leaf [:opts :coord]))
+    ({:x :y :y :x} axis)
+    axis))
+
 (defn- axis-buckets
-  "The leaves of `subtree` grouped by the column they draw on `axis`,
-   as `{col [leaf ...]}` -- the buckets a shared scale is decided in.
+  "The leaves of `subtree` grouped by the column they draw along `axis`
+   of the page (`data-axis`), as `{col [leaf ...]}`.
 
    A leaf whose panels read several columns is placed in the bucket of
    each. Every reader of the buckets goes through this, so the check,
@@ -583,9 +595,10 @@
   (reduce (fn [m [col leaf]] (update m col (fnil conj []) leaf))
           {}
           (mapcat (fn [leaf]
-                    (if-let [cols (drawn-axis-cols leaf axis)]
-                      (map #(vector % leaf) cols)
-                      [[(effective-axis-col leaf axis) leaf]]))
+                    (let [a (data-axis leaf axis)]
+                      (if-let [cols (drawn-axis-cols leaf a)]
+                        (map #(vector % leaf) cols)
+                        [[(effective-axis-col leaf a) leaf]])))
                   subtree)))
 
 (declare y-axis-stat-driven? layer-stat)
@@ -605,18 +618,19 @@
 (defn- counted-key? [k] (and (map? k) (contains? k ::stat)))
 
 (defn- share-key-buckets
-  "The leaves of `subtree` grouped by what they draw on `axis`, for
-   sharing: `axis-buckets`, with a leaf drawing a count or a density on
-   `:y` under its `counted-key` there."
+  "The leaves of `subtree` grouped by what they draw along `axis` of
+   the page, for sharing: `axis-buckets`, with a leaf drawing a count or
+   a density there under its `counted-key`."
   [subtree axis]
   (reduce (fn [m [k leaf]] (update m k (fnil conj []) leaf))
           {}
           (mapcat (fn [leaf]
-                    (if-let [k (and (= axis :y) (counted-key leaf))]
-                      [[k leaf]]
-                      (if-let [cols (drawn-axis-cols leaf axis)]
-                        (map #(vector % leaf) cols)
-                        [[(effective-axis-col leaf axis) leaf]])))
+                    (let [a (data-axis leaf axis)]
+                      (if-let [k (and (= a :y) (counted-key leaf))]
+                        [[k leaf]]
+                        (if-let [cols (drawn-axis-cols leaf a)]
+                          (map #(vector % leaf) cols)
+                          [[(effective-axis-col leaf a) leaf]]))))
                   subtree)))
 
 (defn- share-groups
@@ -693,19 +707,17 @@
       (remove nil? (ds col-ref)))))
 
 (defn- leaf-share-key
-  "Compatibility descriptor for a leaf when sharing scales on `axis`.
-   Two leaves whose effective-axis-col agree must produce the same
-   descriptor to be sharable; mismatches signal that the user wrote
-   :share-scales across cells that would mean different things on the
-   target axis (mixed coord, mixed numeric/categorical/temporal,
-   mixed linear/log).
-
-   Layers whose y axis is stat-driven (count/density on a histogram /
-   KDE / count layer) are not target-axis comparable for y-sharing;
-   the existing :y-axis-stat-driven? path skips the y-stamp entirely
-   for those leaves, so they are also exempt here."
+  "Compatibility descriptor for a leaf when sharing the scale drawn
+   along `axis` of the page. Two leaves in one bucket must produce the
+   same descriptor to be sharable; mismatches signal a `:share-scales`
+   across cells that would mean different things on that axis (mixed
+   coord, mixed numeric/categorical/temporal, mixed linear/log). A
+   flipped cell and an upright one agree: the flip decides which of the
+   leaf's columns is drawn there (`data-axis`), and nothing else."
   [leaf axis col]
-  (let [coord (or (get-in leaf [:opts :coord]) :cartesian)
+  (let [axis (data-axis leaf axis)
+        coord (let [c (or (get-in leaf [:opts :coord]) :cartesian)]
+                (if (= :flip c) :cartesian c))
         ;; The mapping is where a scale lives, whether it was written
         ;; there or set with `pj/scale`.
         scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
@@ -715,13 +727,13 @@
                         ;; A count or a density is a number.
                         [:numerical false]
                         (when (and ds col)
-                        (try
-                          (let [{:keys [x-type y-type x-temporal? y-temporal?]}
-                                (resolve/infer-column-types ds {axis col})]
-                            (case axis
-                              :x [x-type x-temporal?]
-                              :y [y-type y-temporal?]))
-                          (catch Throwable _ nil))))]
+                          (try
+                            (let [{:keys [x-type y-type x-temporal? y-temporal?]}
+                                  (resolve/infer-column-types ds {axis col})]
+                              (case axis
+                                :x [x-type x-temporal?]
+                                :y [y-type y-temporal?]))
+                            (catch Throwable _ nil))))]
     {:coord coord :scale-type scale-type :type-temporal type-temporal}))
 
 (defn- describe-share-conflict
@@ -885,7 +897,9 @@
 (defn shared-axis-groups
   "Which cells of a pose tree share an axis with which, as
    `{path {axis {:group id :order [category ...]}}}` for every leaf in
-   a group of two or more.
+   a group of two or more. `axis` there is the leaf's own -- the axis
+   of its mapping -- while `:share-scales` names the axis as drawn
+   (`data-axis`).
 
    Each composite with a `:share-scales` -- written in `(:opts pose)` or
    at the top of a hand-built composite, or inferred where its cells are
@@ -896,10 +910,10 @@
    the two sets, so sharing is one relation over the whole tree and
    every cell of a group ends on the same domain.
 
-   Two cells drawing one column along the same direction of the page
-   are linked across axes: a marginal on the right names the panel's
-   `:y` column on its own `:x` under a flip, and has to follow whatever
-   the panel's layers draw there.
+   A flipped cell and an upright one drawing a column along the same
+   direction of the page are in one bucket: a marginal on the right
+   names the panel's `:y` column on its own `:x` under a flip, and
+   follows whatever the panel's layers draw there.
 
    `:order` is given where every cell of a group reads the dataset of
    the composite that links it, whole or in part, and the columns the
@@ -910,7 +924,6 @@
    The checks and warnings about a `:share-scales` are raised here."
   [root]
   (let [links (atom [])
-        flip? (fn [leaf] (= :flip (get-in leaf [:opts :coord])))
         walk (fn walk [pose path inherited-mapping inherited-data]
                (when (seq (:poses pose))
                  (let [data (or (:data pose) inherited-data)
@@ -935,17 +948,9 @@
                                {:keys [cols pairs]} bs
                                :when (seq pairs)]
                          (swap! links conj
-                                {:nodes (set (map (fn [[_ leaf]] [(:path leaf) axis]) pairs))
+                                {:nodes (set (map (fn [[_ leaf]] [(:path leaf) (data-axis leaf axis)]) pairs))
                                  :cols (vec (remove counted-key? cols))
-                                 :data (when (one-dataset? pairs) data)}))
-                       (doseq [{xcols :cols xpairs :pairs} (:x buckets)
-                               {ycols :cols ypairs :pairs} (:y buckets)
-                               :when (some (set (remove counted-key? xcols)) ycols)
-                               [_ a] xpairs
-                               [_ b] ypairs
-                               :when (not= (flip? a) (flip? b))]
-                         (swap! links conj {:nodes #{[(:path a) :x] [(:path b) :y]}
-                                            :cols [] :data nil}))))
+                                 :data (when (one-dataset? pairs) data)}))))
                    (doseq [[i child] (map-indexed vector (:poses pose))]
                      (walk child (conj path i) mapping data)))))
         _ (walk root [] {} nil)

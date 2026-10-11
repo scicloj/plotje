@@ -373,31 +373,39 @@
                                      :mapping {:x :a :y :b}}]}]}]
         (is (together? (pose/shared-axis-groups tree) :y [0] [1]))))))
 
-(deftest shared-axis-groups-across-axes-test
-  (testing "a flipped cell naming the panel's :y column on :x follows the panel"
-    (let [ds (tc/dataset {:a [1.0 2.0 3.0]
-                          :b [10.0 20.0 30.0]})
-          tree {:data ds
-                :share-scales #{:x :y}
-                :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
-                        {:opts {:coord :flip}
-                         :layers [{:layer-type :histogram :mapping {:x :b}}]}]}
-          groups (pose/shared-axis-groups tree)]
-      (is (some? (group-of groups [0] :y)))
-      (is (= (group-of groups [0] :y) (group-of groups [1] :x))))))
-
-(deftest shared-axis-groups-rejects-coord-conflict-test
-  (testing "share-scales :x refuses when one cell uses :coord :flip and another does not"
-    (let [tree {:share-scales #{:x}
-                :poses [{:data (tc/dataset {:x [1.0 2.0 3.0] :y [10.0 20.0 30.0]})
-                         :opts {:coord :flip}
-                         :layers [{:layer-type :point :mapping {:x :x :y :y}}]}
-                        {:data (tc/dataset {:x [4.0 5.0 6.0] :y [40.0 50.0 60.0]})
-                         :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"incompatible scale meaning"
-           (pose/shared-axis-groups tree))))))
+(deftest shared-axis-groups-name-the-axis-as-drawn-test
+  (let [ds (tc/dataset {:a [1.0 2.0 3.0]
+                        :b [10.0 20.0 30.0]})]
+    (testing "a flipped cell naming the panel's :y column on :x shares the vertical axis with it"
+      (let [tree {:data ds
+                  :share-scales #{:y}
+                  :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
+                          {:opts {:coord :flip}
+                           :layers [{:layer-type :histogram :mapping {:x :b}}]}]}
+            groups (pose/shared-axis-groups tree)]
+        (is (some? (group-of groups [0] :y)))
+        (is (= (group-of groups [0] :y) (group-of groups [1] :x))
+            "the group is on each leaf's own axis: the panel's :y, the flipped cell's :x")))
+    (testing "two flipped cells share :x on the axis that runs across, their :y"
+      (let [tree {:data ds
+                  :share-scales #{:x}
+                  :poses [{:opts {:coord :flip}
+                           :layers [{:layer-type :point :mapping {:x :a :y :b}}]}
+                          {:opts {:coord :flip}
+                           :layers [{:layer-type :point :mapping {:x :a :y :b}}]}]}
+            groups (pose/shared-axis-groups tree)]
+        (is (together? groups :y [0] [1]))
+        (is (nil? (group-of groups [0] :x)))))
+    (testing "a flipped cell and an upright one drawing :a the same way do not share the other way"
+      (let [tree {:data ds
+                  :share-scales #{:x}
+                  :poses [{:opts {:coord :flip}
+                           :layers [{:layer-type :point :mapping {:x :a :y :b}}]}
+                          {:layers [{:layer-type :point :mapping {:x :a :y :b}}]}]}
+            groups (atom nil)]
+        ;; Across the page one draws :b and the other :a.
+        (with-out-str (reset! groups (pose/shared-axis-groups tree)))
+        (is (= {} (deref groups)))))))
 
 (deftest shared-axis-groups-rejects-mixed-type-test
   (testing "share-scales refuses mixing numerical and categorical for the same column ref"

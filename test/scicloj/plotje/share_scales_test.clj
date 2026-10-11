@@ -388,3 +388,18 @@
         [panel marginal] (map (comp first :panels :plan) (:sub-plots plan))]
     (is (<= 60 (second (:y-domain panel))))
     (is (= (:y-domain panel) (:y-domain marginal)))))
+
+(deftest share-scales-names-the-axis-as-drawn-test
+  ;; Flipped, :v runs across and :u runs up. `#{:x}` shares what runs
+  ;; across, in a facet and in an arrangement alike.
+  (let [data (tc/dataset {:g ["a" "a" "a" "b" "b" "b"]
+                          :u [1.0 2.0 3.0 11.0 12.0 13.0]
+                          :v [10.0 20.0 30.0 400.0 500.0 600.0]})
+        flipped #(-> % (pj/lay-point :u :v) (pj/coord :flip))
+        part (fn [g] (tc/select-rows data #(= g (:g %))))
+        facet (domains (-> (flipped data) (pj/facet :g) (pj/options {:share-scales #{:x}})))
+        arranged (domains (pj/arrange [(flipped (part "a")) (flipped (part "b"))]
+                                      {:share-scales #{:x}}))]
+    (is (apply = (map first facet)) "the horizontal axis is shared")
+    (is (apply not= (map second facet)) "the vertical one is each panel's own")
+    (is (= facet arranged))))
