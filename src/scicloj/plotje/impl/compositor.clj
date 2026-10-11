@@ -6,8 +6,10 @@
    `render/composite.clj`, keeping this namespace free of membrane
    dependencies.
 
-   Shared scales are reconciled before drafting by stamping a forced
-   domain on matching leaves (impl.pose/inject-shared-scales).
+   Shared scales: the pose stage says which cells share an axis
+   (impl.pose/shared-axis-groups), and `composite-draft->plan` measures
+   what those cells draw, pools it, and plans each with the pooled
+   extent.
 
    When the composite root carries a legend-producing mapping
    (:color/:size/:alpha), the chrome reserves a strip on the right
@@ -24,31 +26,66 @@
 (defn- long-or [x default]
   (long (Math/round (double (or x default)))))
 
-(defn- apply-shared-scale-domains
-  "Keep the :x-scale-domain / :y-scale-domain that inject-shared-scales
-   stamped on the leaf, dropping either where that axis has no domain
-   to share. The plan reads them from the leaf's opts and uses each as
-   the extent that axis's domain is computed from.
+(defn- leaf-share
+  "The share groups of a leaf (`pose/shared-axis-groups`), leaving out
+   an axis mapped with `:scale false`: it measures in drawing units and
+   has no domain to share."
+  [leaf share]
+  (let [unscaled? (fn [axis]
+                    (false? (:scale (get-in leaf [:mapping axis]))))]
+    (not-empty (into {} (remove (fn [[axis _]] (unscaled? axis))) share))))
+
+(defn- shared-extents
+  "The extent each sharing cell is planned with, as
+   `{path {:x-scale-domain e :y-scale-domain e}}`.
+
+   Every cell in a share group is asked what it draws
+   (`plan/draft->extents`: its stats run, so a stack's top, an error
+   bar's ends and a count are all in it), and a group's answers are
+   pooled -- numbers by lowest and highest, categories by union, in the
+   order of the data where the cells read one dataset
+   (`plan/order-categories`) and cell by cell where they do not. The
+   plan reads the pooled extent from the cell's opts as the extent its
+   own values would give, and pads and anchors it there, so every cell
+   of a group ends on one domain.
 
    An extent, not a `:domain`: a `:domain` says draw exactly this
    interval, and the plan honours it without padding, which is right
-   for a domain the writer wrote and wrong for one the cells were
-   given. Written as a `:domain`, a shared axis lost its padding and
-   drew its outermost marks on the panel edge.
+   for a domain the writer specified and wrong for one the cells were
+   given.
 
-   An axis mapped with `:scale false` is left alone: it measures in
-   drawing units and has no domain to share."
-  [leaf]
-  (let [opts (or (:opts leaf) {})
-        unscaled? (fn [axis]
-                    (false? (:scale (get-in leaf [:mapping axis]))))
-        keep-dom (fn [o axis opt-key]
-                   (if (and (contains? o opt-key) (unscaled? axis))
-                     (dissoc o opt-key)
-                     o))]
-    (assoc leaf :opts (-> opts
-                          (keep-dom :x :x-scale-domain)
-                          (keep-dom :y :y-scale-domain)))))
+   One function with the facet's panels: both pool what is drawn and
+   pad once. Until a stat's result is kept between the two passes, a
+   sharing cell's stats run twice."
+  [sub-drafts]
+  (let [sharing (filter :share sub-drafts)
+        measured (into {} (map (fn [{:keys [path draft opts]}]
+                                 [path (plan/draft->extents draft opts)]))
+                       sharing)
+        members (for [{:keys [path share]} sharing
+                      [axis {:keys [group order]}] share]
+                  {:path path :axis axis :group group :order order})]
+    (reduce (fn [m [_ ms]]
+              (let [pooled (plan/pool-extents (map #(get-in measured [(:path %) (:axis %)]) ms))
+                    _ (when (= :scicloj.plotje.impl.plan/mixed pooled)
+                        (throw (ex-info
+                                (str "The cells sharing an axis disagree about what it"
+                                     " holds: some draw categories there and some draw"
+                                     " numbers. Leave the axis out of :share-scales, or"
+                                     " give the cells a column of one type.")
+                                {:caller "share-scales"
+                                 :extents (mapv #(get-in measured [(:path %) (:axis %)]) ms)})))
+                    pooled (if (and (seq pooled) (not (number? (first pooled))))
+                             (plan/order-categories pooled (some :order ms))
+                             pooled)]
+                (if (seq pooled)
+                  (reduce (fn [m {:keys [path axis]}]
+                            (assoc-in m [path (if (= axis :x) :x-scale-domain :y-scale-domain)]
+                                      pooled))
+                          m ms)
+                  m)))
+            {}
+            (group-by :group members))))
 
 (defn- outer-dimensions
   "The composite's total `[width height]`: its own `:width`/`:height`,
@@ -308,7 +345,7 @@
    Returns:
      {:width  outer width
       :height outer height
-      :leaves resolved leaves with shared-scale + suppress-* applied
+      :leaves resolved leaves with their share groups (`::share`) + suppress-* applied
       :layout map of leaf-path -> [x y w h]
       :shared? true when the composite carries a legend-producing root mapping
       :chrome {:title :title-band-h :grid-rect :legend-w :strip-h :strip-w
@@ -327,7 +364,7 @@
         ;; don't inherit them. The composite itself still renders
         ;; chrome via the title band above the leaf trees.
         stripped (composite-with-stripped-leaf-opts composite)
-        injected (pose/inject-shared-scales stripped)
+        share-groups (pose/shared-axis-groups stripped)
         ;; Detect which legend-bearing aesthetics are unanimous across
         ;; all descendant leaves; those produce one shared legend at
         ;; composite level. Aesthetics that disagree (or are absent)
@@ -336,7 +373,12 @@
         ;; One scale behind each shared legend; an aesthetic whose
         ;; cells cannot share one is dropped, and drawn per cell.
         {leaves :leaves shared-aesthetics :shared shared-categories :categories}
-        (unify-legend-scales (pose/resolve-tree injected) shared-aesthetics
+        (unify-legend-scales (mapv (fn [leaf]
+                                     (if-let [sh (leaf-share leaf (get share-groups (:path leaf)))]
+                                       (assoc leaf ::share sh)
+                                       leaf))
+                                   (pose/resolve-tree stripped))
+                             shared-aesthetics
                              (defaults/resolve-config opts))
         shared? (boolean (seq shared-aesthetics))
         legend-w (if shared? shared-legend-strip-w 0)
@@ -370,7 +412,7 @@
                    (double (+ top-pad strip-h))
                    (double grid-w)
                    (double (- h top-pad strip-h x-title-h caption-h))]
-        layout (pose/compute-layout injected grid-rect)
+        layout (pose/compute-layout stripped grid-rect)
         ;; In matrix layout, the strip labels at the top carry the
         ;; column's x-col name and the strip labels on the left carry
         ;; the row's y-col name. Suppress the per-leaf x-label /
@@ -439,9 +481,8 @@
    merged from the rect).
 
    Per-leaf draft contextualization happens here, not at plan stage:
-     - Shared-scale domains are stamped via inject-shared-scales /
-       apply-shared-scale-domains, so per-leaf drafts carry forced
-       :x-scale / :y-scale.
+     - The share groups of each leaf ride along as `:share`; the
+       plan stage pools what the groups draw (`shared-extents`).
      - Matrix-layout strip labels suppress the per-leaf x-label /
        y-label (so axis labels appear only on the strip, not inside
        each cell).
@@ -473,7 +514,7 @@
         sub-drafts (mapv (fn [leaf]
                            (let [rect (get layout (:path leaf))
                                  [_ _ rw rh] rect
-                                 leaf' (apply-shared-scale-domains leaf)
+                                 leaf' (dissoc leaf ::share)
                                  leaf-opts (cond-> (assoc (or (:opts leaf') {})
                                                           :width (max 1 (long-or rw 1))
                                                           :height (max 1 (long-or rh 1)))
@@ -484,10 +525,11 @@
                                              (as-> $ (reduce #(dissoc %1 %2)
                                                              $ composite-chrome-suppress)))
                                  draft (pose/leaf->draft leaf')]
-                             {:path (:path leaf)
-                              :rect rect
-                              :draft draft
-                              :opts leaf-opts}))
+                             (cond-> {:path (:path leaf)
+                                      :rect rect
+                                      :draft draft
+                                      :opts leaf-opts}
+                               (::share leaf) (assoc :share (::share leaf)))))
                          leaves)
         chrome-spec (-> chrome
                         (assoc :shared? shared?)
@@ -510,6 +552,10 @@
    N+1 issue from the round-2 internals review)."
   [composite-draft]
   (let [{:keys [width height sub-drafts chrome-spec layout]} composite-draft
+        ;; The cells sharing an axis are measured and pooled first, and
+        ;; every later pass plans a cell with its pooled extent.
+        shared (shared-extents sub-drafts)
+        sub-drafts (mapv #(update % :opts merge (get shared (:path %))) sub-drafts)
         ;; `:opts` rides along so the render stage can read what the
         ;; cell asked for. Plan-stage options already reach the cell
         ;; through `draft->plan` here; render-stage ones -- `:theme`

@@ -1227,7 +1227,7 @@
 
 ;; ---- Which axes cells share ----
 ;;
-;; `:share-scales` is read by the composite path (`pose/inject-shared-scales`)
+;; `:share-scales` is read by the composite path (`pose/shared-axis-groups`)
 ;; and by the facet plan (`plan/coordinate-facet-domains`). Both read it
 ;; through `share-scales-spec`, so a set and a map cannot come to mean
 ;; different things in the two.
@@ -1301,9 +1301,9 @@
    the axes shared.
 
    `:shared` stands for writing nothing. It was the default, and a
-   written `#{:x :y}` is not the same request: on cells that hold a
-   categorical column it reports that the axis cannot be shared, where
-   the default leaves that axis alone."
+   specified `#{:x :y}` is not the same request: cells with data of
+   their own share nothing by default, and share both axes under the
+   set."
   {:shared nil
    :free-y #{:x}
    :free-x #{:y}

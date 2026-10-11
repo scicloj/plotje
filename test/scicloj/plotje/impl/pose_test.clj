@@ -212,51 +212,64 @@
                 {:x nil :y nil})))))
 
 ;; ============================================================
-;; inject-shared-scales
+;; shared-axis-groups
 ;; ============================================================
 ;;
-;; The high-value primitive. Three scenarios cover the behavior that
-;; the nested-poses PoC validated:
-;; - shared axis with the same column across leaves -> union domain
-;; - shared axis with DIFFERENT columns across leaves -> independent buckets
-;; - composite without :share-scales -> no injection
+;; Which cells share an axis with which. No extent is read here: what a
+;; group's axis covers is measured at the plan stage from what its
+;; cells draw (`share_scales_test`).
 
 (def iris-like
   (tc/dataset {:sepal-length [4.0 5.0 6.0 7.0 8.0]
                :sepal-width  [2.0 3.0 3.5 4.0 4.5]
                :species      ["a" "a" "b" "b" "c"]}))
 
-(deftest inject-shared-scales-no-share-test
-  (testing "composite with :share-scales #{} leaves leaves untouched"
+(defn- group-of [groups path axis] (get-in groups [path axis :group]))
+
+(defn- together?
+  "True when the cells at `paths` are in one group on `axis`."
+  [groups axis & paths]
+  (let [ids (map #(group-of groups % axis) paths)]
+    (and (every? some? ids) (apply = ids))))
+
+(deftest shared-axis-groups-no-share-test
+  (testing "composite with :share-scales #{} puts no cells together"
     (let [tree {:data iris-like
                 :share-scales #{}
                 :poses [{:layers [{:layer-type :point
                                    :mapping {:x :sepal-length}}]}
                         {:layers [{:layer-type :point
-                                   :mapping {:x :sepal-length}}]}]}
-          injected (pose/inject-shared-scales tree)
-          leaves (pose/resolve-tree injected)]
-      (is (every? #(nil? (:x-scale-domain (:opts %))) leaves)))))
+                                   :mapping {:x :sepal-length}}]}]}]
+      (is (= {} (pose/shared-axis-groups tree))))))
 
-(deftest inject-shared-scales-declared-split-test
+(deftest shared-axis-groups-declared-split-test
   (testing "cells drawing parts of the composite's data share with nothing written"
     (let [tree {:data iris-like
                 :poses [{:where {:species "a"}
                          :layers [{:layer-type :point :mapping {:x :sepal-length}}]}
                         {:where {:species "c"}
                          :layers [{:layer-type :point :mapping {:x :sepal-length}}]}]}
-          leaves (pose/resolve-tree (pose/inject-shared-scales (pose/elaborate tree)))]
-      (is (= [[4.0 8.0] [4.0 8.0]] (mapv #(:x-scale-domain (:opts %)) leaves)))))
+          groups (pose/shared-axis-groups (pose/elaborate tree))]
+      (is (together? groups :x [0] [1]))
+      (is (nil? (get-in groups [[0] :x :order]))
+          "a numeric column has no order of categories")))
+  (testing "a categorical column they share is listed in the order of the data"
+    (let [tree {:data iris-like
+                :poses [{:where {:sepal-length 8.0}
+                         :layers [{:layer-type :point :mapping {:x :species :y :sepal-width}}]}
+                        {:where {:sepal-length 4.0}
+                         :layers [{:layer-type :point :mapping {:x :species :y :sepal-width}}]}]}
+          groups (pose/shared-axis-groups (pose/elaborate tree))]
+      (is (= ["a" "b" "c"] (get-in groups [[0] :x :order])))))
   (testing "cells bringing data of their own do not"
     (let [tree {:poses [{:data (tc/dataset {:sepal-length [1.0 2.0]})
                          :layers [{:layer-type :point :mapping {:x :sepal-length}}]}
                         {:data (tc/dataset {:sepal-length [10.0 20.0]})
-                         :layers [{:layer-type :point :mapping {:x :sepal-length}}]}]}
-          leaves (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (every? #(nil? (:x-scale-domain (:opts %))) leaves)))))
+                         :layers [{:layer-type :point :mapping {:x :sepal-length}}]}]}]
+      (is (= {} (pose/shared-axis-groups tree))))))
 
-(deftest inject-shared-scales-same-column-test
-  (testing "leaves sharing a column get a union x domain"
+(deftest shared-axis-groups-same-column-test
+  (testing "leaves drawing one column are put together"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:sepal-length [1.0 2.0 3.0]})
                          :layers [{:layer-type :point
@@ -264,27 +277,26 @@
                         {:data (tc/dataset {:sepal-length [10.0 20.0]})
                          :layers [{:layer-type :point
                                    :mapping {:x :sepal-length}}]}]}
-          leaves (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= 2 (count leaves)))
-      (is (= [1.0 20.0] (:x-scale-domain (:opts (first leaves)))))
-      (is (= [1.0 20.0] (:x-scale-domain (:opts (second leaves))))))))
+          groups (pose/shared-axis-groups tree)]
+      (is (together? groups :x [0] [1]))
+      (is (nil? (get-in groups [[0] :x :order]))
+          "cells with data of their own have no one dataset to take an order from"))))
 
-(deftest inject-shared-scales-column-bucketed-test
-  (testing "leaves using different columns for the same axis get different buckets"
+(deftest shared-axis-groups-column-bucketed-test
+  (testing "leaves drawing different columns on an axis are not put together"
     (let [tree {:data iris-like
                 :share-scales #{:x}
                 :poses [{:layers [{:layer-type :point
                                    :mapping {:x :sepal-length}}]}
                         {:layers [{:layer-type :point
                                    :mapping {:x :sepal-width}}]}]}
-          [l1 l2] (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= [4.0 8.0] (:x-scale-domain (:opts l1)))
-          "first leaf gets the sepal-length domain")
-      (is (= [2.0 4.5] (:x-scale-domain (:opts l2)))
-          "second leaf gets the sepal-width domain (not unioned with sepal-length)"))))
+          groups (atom nil)
+          out (with-out-str (reset! groups (pose/shared-axis-groups tree)))]
+      (is (= {} (deref groups)))
+      (is (re-find #"no two cells share :x" out)))))
 
-(deftest inject-shared-scales-nested-test
-  (testing "SPLOM-like: outer :x :y share, inner rows and columns each get their own buckets"
+(deftest shared-axis-groups-nested-test
+  (testing "SPLOM-like: columns of the grid share :x, rows share :y"
     (let [ds (tc/dataset {:a [1.0 2.0 3.0]
                           :b [10.0 20.0 30.0]
                           :c [100.0 200.0 300.0]})
@@ -297,83 +309,84 @@
                         {:layout {:direction :horizontal}
                          :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
                                  {:layers [{:layer-type :point :mapping {:x :b :y :b}}]}]}]}
-          leaves (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= 4 (count leaves)))
-      (is (every? #(= [1.0 3.0] (:x-scale-domain (:opts %)))
-                  (filter #(= :a (get-in % [:layers 0 :mapping :x])) leaves))
-          "leaves with :x :a share the :a domain")
-      (is (every? #(= [10.0 30.0] (:x-scale-domain (:opts %)))
-                  (filter #(= :b (get-in % [:layers 0 :mapping :x])) leaves))
-          "leaves with :x :b share the :b domain")
-      (is (every? #(= [1.0 3.0] (:y-scale-domain (:opts %)))
-                  (filter #(= :a (get-in % [:layers 0 :mapping :y])) leaves))
-          "leaves with :y :a share the :a domain")
-      (is (every? #(= [10.0 30.0] (:y-scale-domain (:opts %)))
-                  (filter #(= :b (get-in % [:layers 0 :mapping :y])) leaves))
-          "leaves with :y :b share the :b domain"))))
+          groups (pose/shared-axis-groups tree)]
+      (is (together? groups :x [0 0] [1 0]) "leaves with :x :a")
+      (is (together? groups :x [0 1] [1 1]) "leaves with :x :b")
+      (is (together? groups :y [0 0] [0 1]) "leaves with :y :a")
+      (is (together? groups :y [1 0] [1 1]) "leaves with :y :b")
+      (is (not (together? groups :x [0 0] [0 1])) ":a and :b are apart")
+      (is (not (together? groups :y [0 0] [1 0]))))))
 
-(deftest inject-shared-scales-stat-driven-y-test
-  (testing "leaves whose y axis is stat-driven (count/density) skip the y-domain stamp"
+(deftest shared-axis-groups-count-axis-test
+  (let [ds (tc/dataset {:a [1.0 2.0 3.0]
+                        :b [10.0 20.0 30.0]})]
+    (testing "a count axis is not the axis of the column it counts"
+      (let [tree {:data ds
+                  :share-scales #{:y}
+                  :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
+                          {:layers [{:layer-type :histogram :mapping {:x :b}}]
+                           ;; The pose mapping names :b on :y; the layer
+                           ;; still counts.
+                           :mapping {:y :b}}]}]
+        (is (= {} (pose/shared-axis-groups tree)))))
+    (testing "an explicit :stat :density likewise"
+      (let [tree {:data ds
+                  :share-scales #{:y}
+                  :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
+                          {:mapping {:y :b}
+                           :layers [{:layer-type :line
+                                     :stat :density
+                                     :mapping {:x :a}}]}]}]
+        (is (= {} (pose/shared-axis-groups tree)))))
+    (testing "an empty-layers diagonal cell, elaborated to a histogram, likewise"
+      (let [tree {:data ds
+                  :share-scales #{:y}
+                  :poses [{:mapping {:x :a :y :a} :layers []}
+                          {:mapping {:x :b :y :a}
+                           :layers [{:layer-type :point}]}]}
+            elaborated (pose/elaborate tree)]
+        (is (= [:histogram] (mapv :layer-type (:layers (first (pose/resolve-tree elaborated))))))
+        (is (= {} (pose/shared-axis-groups elaborated)))))
+    (testing "counts of one column share"
+      (let [tree {:share-scales #{:y}
+                  :poses [{:data ds :layers [{:layer-type :histogram :mapping {:x :a}}]}
+                          {:data ds :layers [{:layer-type :histogram :mapping {:x :a}}]}]}]
+        (is (together? (pose/shared-axis-groups tree) :y [0] [1]))))
+    (testing "counts of two columns share where :all or a group says so"
+      (let [tree (fn [how]
+                   {:data ds
+                    :share-scales {:y how}
+                    :poses [{:layers [{:layer-type :histogram :mapping {:x :a}}]}
+                            {:layers [{:layer-type :histogram :mapping {:x :b}}]}]})
+            groups (fn [how] (let [g (atom nil)]
+                               (with-out-str (reset! g (pose/shared-axis-groups (tree how))))
+                               (deref g)))]
+        (is (= {} (groups :same-column)))
+        (is (together? (groups :all) :y [0] [1]))
+        (is (together? (groups [[:a :b]]) :y [0] [1]))))
+    (testing ":bin2d is a data axis on :y -- the count goes to the fill"
+      (let [tree {:data ds
+                  :share-scales #{:y}
+                  :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
+                          {:layers [{:layer-type :tile
+                                     :stat :bin2d
+                                     :mapping {:x :a :y :b}}]}]}]
+        (is (together? (pose/shared-axis-groups tree) :y [0] [1]))))))
+
+(deftest shared-axis-groups-across-axes-test
+  (testing "a flipped cell naming the panel's :y column on :x follows the panel"
     (let [ds (tc/dataset {:a [1.0 2.0 3.0]
                           :b [10.0 20.0 30.0]})
-          ;; SPLOM where one leaf is an explicit histogram on the y=:b
-          ;; column. The other y=:b leaf is a scatter -- it should
-          ;; still get the shared :b domain. The histogram leaf
-          ;; should NOT, since its rendered y-axis is a count axis.
           tree {:data ds
-                :share-scales #{:y}
+                :share-scales #{:x :y}
                 :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
-                        {:layers [{:layer-type :histogram :mapping {:x :b}}]
-                          ;; Force the histogram leaf into the :y :b
-                          ;; bucket via its pose mapping; the layer
-                          ;; itself still stat-bins on x.
-                         :mapping {:y :b}}]}
-          [scatter hist] (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= [10.0 30.0] (:y-scale-domain (:opts scatter)))
-          "scatter leaf still gets the shared y-domain")
-      (is (nil? (:y-scale-domain (:opts hist)))
-          "histogram leaf does not get the shared y-domain (its y-axis is count, not data)"))))
+                        {:opts {:coord :flip}
+                         :layers [{:layer-type :histogram :mapping {:x :b}}]}]}
+          groups (pose/shared-axis-groups tree)]
+      (is (some? (group-of groups [0] :y)))
+      (is (= (group-of groups [0] :y) (group-of groups [1] :x))))))
 
-(deftest inject-shared-scales-empty-layers-diagonal-test
-  (testing "an empty-layers leaf whose diagonal mapping infers to :bin gets exempted"
-    (let [ds (tc/dataset {:a [1.0 2.0 3.0]
-                          :b [10.0 20.0 30.0]})
-          ;; This mirrors the SPLOM diagonal cell shape produced by
-          ;; (pj/cross cols cols): the leaf has :x = :y mapping and
-          ;; empty layers. Per-cell inference picks {:mark :bar :stat :bin}.
-          tree {:data ds
-                :share-scales #{:y}
-                :poses [{:mapping {:x :a :y :a} :layers []}      ;; diagonal: will infer :bin
-                        {:mapping {:x :b :y :a}                  ;; off-diagonal: will infer scatter
-                         :layers [{:layer-type :point}]}]}
-          ;; Elaborated first, as the compositor does: the diagonal cell
-          ;; is given a histogram layer, which is what exempts it.
-          [diag off] (-> tree
-                         pose/elaborate
-                         pose/inject-shared-scales
-                         pose/resolve-tree)]
-      (is (= [:histogram] (mapv :layer-type (:layers diag))))
-      (is (nil? (:y-scale-domain (:opts diag)))
-          "diagonal cell (inferred to :bin) skips the y-stamp")
-      (is (= [1.0 3.0] (:y-scale-domain (:opts off)))
-          "off-diagonal scatter still gets the shared y-domain"))))
-
-(deftest inject-shared-scales-bin2d-not-exempted-test
-  (testing ":bin2d (heatmap) is NOT exempted -- its y is a data axis, count goes to fill"
-    (let [ds (tc/dataset {:a [1.0 2.0 3.0]
-                          :b [10.0 20.0 30.0]})
-          tree {:data ds
-                :share-scales #{:y}
-                :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
-                        {:layers [{:layer-type :tile
-                                   :stat :bin2d
-                                   :mapping {:x :a :y :b}}]}]}
-          [scatter heatmap] (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= [10.0 30.0] (:y-scale-domain (:opts scatter))))
-      (is (= [10.0 30.0] (:y-scale-domain (:opts heatmap)))
-          "heatmap participates in shared y-domain because its y is data, not count"))))
-
-(deftest inject-shared-scales-rejects-coord-conflict-test
+(deftest shared-axis-groups-rejects-coord-conflict-test
   (testing "share-scales :x refuses when one cell uses :coord :flip and another does not"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x [1.0 2.0 3.0] :y [10.0 20.0 30.0]})
@@ -384,9 +397,9 @@
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"incompatible scale meaning"
-           (pose/inject-shared-scales tree))))))
+           (pose/shared-axis-groups tree))))))
 
-(deftest inject-shared-scales-rejects-mixed-type-test
+(deftest shared-axis-groups-rejects-mixed-type-test
   (testing "share-scales refuses mixing numerical and categorical for the same column ref"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x [1.0 2.0 3.0] :y [10.0 20.0 30.0]})
@@ -396,9 +409,9 @@
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"incompatible scale meaning"
-           (pose/inject-shared-scales tree))))))
+           (pose/shared-axis-groups tree))))))
 
-(deftest inject-shared-scales-rejects-mixed-scale-type-test
+(deftest shared-axis-groups-rejects-mixed-scale-type-test
   (testing "share-scales refuses mixing :linear and :log on the same column"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x [1.0 2.0 3.0] :y [10.0 20.0 30.0]})
@@ -409,9 +422,9 @@
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
            #"incompatible scale meaning"
-           (pose/inject-shared-scales tree))))))
+           (pose/shared-axis-groups tree))))))
 
-(deftest inject-shared-scales-warns-on-free-conflict-test
+(deftest shared-axis-groups-warns-on-free-conflict-test
   (testing "share-scales :x warns when a sub-pose writes a :share-scales leaving :x out"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x [1.0 2.0 3.0] :y [10.0 20.0 30.0]})
@@ -419,7 +432,7 @@
                         {:data (tc/dataset {:x [4.0 5.0 6.0] :y [40.0 50.0 60.0]})
                          :opts {:share-scales #{}}
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}
-          out (with-out-str (pose/inject-shared-scales tree))]
+          out (with-out-str (pose/shared-axis-groups tree))]
       (is (re-find #"shares :x, and a pose inside it writes a :share-scales that leaves :x out \(#\{\}\)" out))))
 
   (testing "share-scales :y does not warn when the sub-pose shares :y too"
@@ -429,24 +442,18 @@
                         {:data (tc/dataset {:x [4.0 5.0 6.0] :y [40.0 50.0 60.0]})
                          :opts {:share-scales #{:y}}
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}
-          out (with-out-str (pose/inject-shared-scales tree))]
+          out (with-out-str (pose/shared-axis-groups tree))]
       (is (= "" out)))))
 
-(deftest inject-shared-scales-rejects-all-categorical-bucket-test
-  (testing "share-scales refuses when no cell in the bucket has an extent"
+(deftest shared-axis-groups-categorical-and-temporal-test
+  (testing "cells drawing a categorical column share it"
     (let [tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x ["a" "b"] :y [1.0 2.0]})
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}
                         {:data (tc/dataset {:x ["c" "d"] :y [3.0 4.0]})
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"categorical across all sharing cells"
-           (pose/inject-shared-scales tree)))))
-  (testing "but a temporal bucket is shared, read as epoch milliseconds"
-    ;; A date has an extent; a category does not. The stamp is in the
-    ;; units an axis holds a date in, which is what a `:domain` written
-    ;; in dates is converted to as well.
+      (is (together? (pose/shared-axis-groups tree) :x [0] [1]))))
+  (testing "and cells drawing a temporal one"
     (let [d (fn [s] (java.time.LocalDate/parse s))
           tree {:share-scales #{:x}
                 :poses [{:data (tc/dataset {:x [(d "2020-01-01") (d "2020-06-01")]
@@ -454,31 +461,23 @@
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}
                         {:data (tc/dataset {:x [(d "2020-03-01") (d "2020-12-01")]
                                             :y [3.0 4.0]})
-                         :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}
-          stamped (mapv #(get-in % [:opts :x-scale-domain])
-                        (:poses (pose/inject-shared-scales tree)))]
-      (is (apply = stamped))
-      (is (= 2 (count (first stamped))))
-      (is (every? number? (first stamped))))))
+                         :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
+      (is (together? (pose/shared-axis-groups tree) :x [0] [1])))))
 
-(deftest inject-shared-scales-reads-ancestor-layers-test
+(deftest shared-axis-groups-reads-ancestor-context-test
   (testing "a layer on the composite counts for each leaf it renders on"
     (let [ds (tc/dataset {:a [1.0 2.0 3.0]
                           :b [10.0 20.0 30.0]})
           ;; The shape of a grid of pairs given a histogram afterwards:
           ;; the layer lives on the composite and the cells carry only
-          ;; their mapping. Each cell's y axis is a count, so it must
-          ;; not be stamped the :a extent -- judged on its own empty
-          ;; layers, the off-diagonal cell predicted a scatter.
+          ;; their mapping. Each cell's y axis is a count -- of :a in
+          ;; one and of :b in the other -- whatever :y the cells name.
           tree {:data ds
                 :share-scales #{:y}
                 :layers [{:layer-type :histogram}]
                 :poses [{:mapping {:x :a :y :a} :layers []}
-                        {:mapping {:x :b :y :a} :layers []}]}
-          [diag off] (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (nil? (:y-scale-domain (:opts diag))))
-      (is (nil? (:y-scale-domain (:opts off)))
-          "a histogram inherited from the composite has a count axis")))
+                        {:mapping {:x :b :y :a} :layers []}]}]
+      (is (= {} (pose/shared-axis-groups tree)))))
   (testing "a scale set on the composite keeps the leaf's column in its bucket"
     (let [ds (tc/dataset {:a [1.0 2.0 3.0]
                           :b [10.0 20.0 30.0]})
@@ -490,23 +489,5 @@
                 :mapping {:x :a}
                 :poses [{:mapping {:y :b} :layers [{:layer-type :point}]}
                         {:mapping {:x {:scale {:type :linear}} :y :b}
-                         :layers [{:layer-type :point}]}]}
-          [l1 l2] (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= [1.0 3.0] (:x-scale-domain (:opts l1))))
-      (is (= [1.0 3.0] (:x-scale-domain (:opts l2)))))))
-
-(deftest inject-shared-scales-explicit-density-stat-test
-  (testing "explicit :stat :density triggers the exemption"
-    (let [ds (tc/dataset {:a [1.0 2.0 3.0]
-                          :b [10.0 20.0 30.0]})
-          tree {:data ds
-                :share-scales #{:y}
-                :poses [{:layers [{:layer-type :point :mapping {:x :a :y :b}}]}
-                        {:mapping {:y :b}
-                         :layers [{:layer-type :line
-                                   :stat :density
-                                   :mapping {:x :a}}]}]}
-          [scatter density] (pose/resolve-tree (pose/inject-shared-scales tree))]
-      (is (= [10.0 30.0] (:y-scale-domain (:opts scatter))))
-      (is (nil? (:y-scale-domain (:opts density)))
-          ":density layer's y axis is density values, not data"))))
+                         :layers [{:layer-type :point}]}]}]
+      (is (together? (pose/shared-axis-groups tree) :x [0] [1])))))

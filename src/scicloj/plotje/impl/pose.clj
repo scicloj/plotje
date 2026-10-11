@@ -506,22 +506,20 @@
                    (:path leaf))))
          last)))
 
-;; ---- Shared-scale injection ----
+;; ---- Shared scales: who shares with whom ----
 ;;
-;; The load-bearing primitive surfaced by the nested-poses PoC.
+;; A composite's `:share-scales` says which cells share an axis. This
+;; stage decides only that: the cells are put in groups
+;; (`shared-axis-groups`), and no extent is read from a column. What a
+;; group's axis covers is what its cells draw, which is known once
+;; their stats have run, so the plan stage measures each cell, pools the
+;; group and plans every cell with the pooled extent
+;; (`compositor/composite-draft->plan`, `plan/draft->extents`).
 ;;
-;; When a composite declares :share-scales #{:x} (or :y, or both), we
-;; compute a shared domain across descendants and stamp it onto each
-;; leaf's :opts as :x-scale-domain / :y-scale-domain. The compositor
-;; later reads these keys and forces the matching scale.
-;;
-;; Column bucketing: sharing is scoped to leaves whose effective
-;; column for the axis matches. Leaves with different columns get
-;; their own bucket, independent of the composite's share-scales set.
-;; This gives the right behavior for SPLOM (columns align across rows,
-;; rows align across columns), marginal plots (x shares between
-;; scatter and top density; right density uses its own column), and
-;; mosaic-of-scatters.
+;; Sharing is by column: cells drawing one column on an axis share it,
+;; and cells drawing different columns keep their own. That gives a
+;; scatter plot matrix its aligned rows and columns and a marginal its
+;; panel's axis.
 
 (defn- mapping-scale-type
   "The scale type a mapping value names, or nil where it names none.
@@ -590,42 +588,50 @@
                       [[(effective-axis-col leaf axis) leaf]]))
                   subtree)))
 
-(declare union-domain)
+(declare y-axis-stat-driven? layer-stat)
+
+(defn- counted-key
+  "What a leaf whose every layer draws a count or a density on `:y` is
+   grouped under there: the statistic and the column counted. Such an
+   axis has no column of its own, and counts of one column are one
+   quantity -- the histograms of a split share their count axis -- while
+   a count is not the values of the column it counts, so this is a key
+   apart from the column's."
+  [leaf]
+  (when (y-axis-stat-driven? (:layers leaf) (:mapping leaf) (:data leaf))
+    {::stat (layer-stat (first (:layers leaf)) (:mapping leaf) (:data leaf))
+     ::of (effective-axis-col leaf :x)}))
+
+(defn- counted-key? [k] (and (map? k) (contains? k ::stat)))
+
+(defn- share-key-buckets
+  "The leaves of `subtree` grouped by what they draw on `axis`, for
+   sharing: `axis-buckets`, with a leaf drawing a count or a density on
+   `:y` under its `counted-key` there."
+  [subtree axis]
+  (reduce (fn [m [k leaf]] (update m k (fnil conj []) leaf))
+          {}
+          (mapcat (fn [leaf]
+                    (if-let [k (and (= axis :y) (counted-key leaf))]
+                      [[k leaf]]
+                      (if-let [cols (drawn-axis-cols leaf axis)]
+                        (map #(vector % leaf) cols)
+                        [[(effective-axis-col leaf axis) leaf]])))
+                  subtree)))
 
 (defn- share-groups
-  "The sets of columns a share spec puts together on an axis, beyond
-   each column on its own: one set of every column for `:all`, the
-   written groups for a vector of groups, none for `:same-column`."
-  [how cols]
+  "The sets of keys a share spec puts together on an axis, beyond each
+   on its own: one set of every key for `:all`, the written groups for a
+   vector of groups, none for `:same-column`. A written group names
+   columns, and puts the counts of those columns together as well."
+  [how ks]
   (cond
-    (= :all how) [(set (remove nil? cols))]
-    (sequential? how) (mapv set how)
+    (= :all how) [(set (remove nil? ks))]
+    (sequential? how) (into (mapv set how)
+                            (for [group how
+                                  stat (distinct (map ::stat (filter counted-key? ks)))]
+                              (set (map (fn [c] {::stat stat ::of c}) group))))
     :else []))
-
-(defn- pool-drawn-together
-  "`col->dom` with the domains of columns that go together pooled.
-
-   Columns go together where a panel draws them together -- a panel
-   whose layers draw `:a` and `:b` on `axis` needs the extent of both,
-   and every cell sharing `:a` or `:b` gets that extent too, so the
-   cells still agree -- and where `:share-scales` says so (`how`, see
-   `defaults/share-scales-spec`). Groups chain: a panel drawing `:b` and
-   `:c` joins the same group."
-  [col->dom subtree axis how]
-  (let [links (concat (keep #(some-> (drawn-axis-cols % axis) set) subtree)
-                      (share-groups how (keys col->dom)))
-        groups (reduce (fn [groups link]
-                         (let [{hit true miss false} (group-by #(boolean (some link %)) groups)]
-                           (conj (vec miss) (reduce into link hit))))
-                       []
-                       links)]
-    (reduce (fn [m group]
-              (let [d (reduce union-domain nil (keep col->dom group))]
-                (if d
-                  (into m (for [c group :when (contains? m c)] [c d]))
-                  m)))
-            col->dom
-            groups)))
 
 (def ^:private stat-driven-y-stats
   "Stats whose y-axis output is a count or density rather than a
@@ -686,32 +692,6 @@
     (when (contains? (set (tc/column-names ds)) col-ref)
       (remove nil? (ds col-ref)))))
 
-(defn- numeric-domain
-  "[lo hi] across the numeric values in a sequence, or nil if none.
-
-   A temporal value counts as numeric here, read as the epoch
-   milliseconds an axis holds it in. That is the same reading
-   `axis-domain` gives a `:domain` written in dates, so a shared extent
-   and a written one arrive at the plan in the same units."
-  [vals]
-  (let [nums (keep (fn [v]
-                     (cond
-                       (number? v) v
-                       (resolve/temporal-value? v) (resolve/temporal->epoch-ms v)
-                       :else nil))
-                   vals)]
-    (when (seq nums)
-      [(dfn/reduce-min nums) (dfn/reduce-max nums)])))
-
-(defn- union-domain
-  "Merge two [lo hi] pairs into a single enclosing [lo hi]. Nil-safe."
-  [a b]
-  (cond
-    (nil? a) b
-    (nil? b) a
-    :else [(min (first a) (first b))
-           (max (second a) (second b))]))
-
 (defn- leaf-share-key
   "Compatibility descriptor for a leaf when sharing scales on `axis`.
    Two leaves whose effective-axis-col agree must produce the same
@@ -731,14 +711,17 @@
         scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
                        :linear)
         ds (:data leaf)
-        type-temporal (when (and ds col)
+        type-temporal (if (counted-key? col)
+                        ;; A count or a density is a number.
+                        [:numerical false]
+                        (when (and ds col)
                         (try
                           (let [{:keys [x-type y-type x-temporal? y-temporal?]}
                                 (resolve/infer-column-types ds {axis col})]
                             (case axis
                               :x [x-type x-temporal?]
                               :y [y-type y-temporal?]))
-                          (catch Throwable _ nil)))]
+                          (catch Throwable _ nil))))]
     {:coord coord :scale-type scale-type :type-temporal type-temporal}))
 
 (defn- describe-share-conflict
@@ -756,12 +739,12 @@
 (defn- share-buckets
   "The cells that share `axis` under `how`, as a seq of
    `{:cols [...] :pairs [[col leaf] ...]}` -- one entry per set of
-   columns that go together (`share-groups`), each column in no group on
-   its own. A leaf drawing a count or a density on `:y` shares no `:y`
-   and is left out. Read by both checks below, so they agree with the
-   pooling in `inject-shared-scales` about which cells share."
+   keys that go together (`share-groups`), each key in no group on its
+   own. A key is a column, or the `counted-key` of a count or density
+   axis. Read by the checks below and by `shared-axis-groups`, so they
+   agree about which cells share."
   [subtree axis how]
-  (let [by-col (dissoc (axis-buckets subtree axis) nil)
+  (let [by-col (dissoc (share-key-buckets subtree axis) nil)
         groups (share-groups how (keys by-col))
         grouped (reduce (fn [groups link]
                           (let [{hit true miss false} (group-by #(boolean (some link %)) groups)]
@@ -773,25 +756,25 @@
           :when (seq cols)]
       {:cols cols
        :pairs (for [col cols
-                    leaf (get by-col col)
-                    :when (not (and (= axis :y)
-                                    (y-axis-stat-driven? (:layers leaf)
-                                                         (:mapping leaf)
-                                                         (:data leaf))))]
+                    leaf (get by-col col)]
                 [col leaf])})))
+
+(defn- describe-share-key
+  [k]
+  (if (counted-key? k)
+    (str "the " (name (::stat k)) " of " (pr-str (::of k)))
+    (pr-str k)))
 
 (defn- describe-share-cols
   [cols]
   (if (next cols)
-    (str "columns " (str/join ", " (map pr-str cols)) " have")
-    (str "column " (pr-str (first cols)) " has")))
+    (str "columns " (str/join ", " (map describe-share-key cols)) " have")
+    (str "column " (describe-share-key (first cols)) " has")))
 
 (defn- validate-share-bucket-compatibility!
   "For each set of cells sharing an axis under `spec`, refuse when the
-   cells disagree about coord / scale-type / inferred type. Stat-driven
-   y-axis leaves (count/density) are exempt on axis :y -- they would
-   skip the stamp downstream anyway. Throws an ex-info naming the
-   conflict."
+   cells disagree about coord / scale-type / inferred type. Throws an
+   ex-info naming the conflict."
   [subtree spec]
   (doseq [[axis how] spec
           {:keys [cols pairs]} (share-buckets subtree axis how)
@@ -848,7 +831,11 @@
   [subtree spec]
   (doseq [[axis how] spec
           :let [buckets (remove (comp empty? :pairs) (share-buckets subtree axis how))
-                drawn (vec (mapcat :cols buckets))]
+                drawn-keys (vec (mapcat :cols buckets))
+                ;; A group names columns; a count is named by the
+                ;; column counted.
+                drawn (vec (distinct (map #(if (counted-key? %) (::of %) %) drawn-keys)))
+                drawn-text (str/join ", " (map describe-share-key drawn-keys))]
           ;; Only where every column is drawn by one cell. A column two
           ;; cells draw, one of them as a count -- the diagonal of a
           ;; two-by-two matrix -- shares nothing either, but the option
@@ -868,103 +855,17 @@
      (str "Warning: :share-scales shares " axis
           (if (sequential? how)
             (str " between the columns of " (pr-str how)
-                 ", and the cells draw " (str/join ", " (map pr-str drawn))
+                 ", and the cells draw " drawn-text
                  " there, each in one cell, so no two cells share " axis
                  ". Name the columns the cells draw, as in {"
                  axis " " (pr-str [drawn]) "}.")
             (str " among the cells drawing the same column, and the cells"
-                 " draw " (str/join ", " (map pr-str drawn))
+                 " draw " drawn-text
                  " there, each in one cell, so no two cells share " axis
                  ". To share " axis " between columns that measure one"
                  " quantity, name them as a group: {:share-scales {"
                  axis " " (pr-str [drawn]) "}}; {" axis
                  " :all} shares it between every cell."))))))
-
-(defn- assert-share-bucket-has-extent!
-  "Refuse :share-scales on a bucket whose data column has no extent to
-   pool -- a categorical one.
-   A category has no extent to pool, so the silent path would produce
-   no shared domain and the cells would quietly disagree.
-
-   A temporal column is shared: an axis holds dates as epoch
-   milliseconds, so the union is defined, and `numeric-domain` reads
-   them that way.
-
-   A bucket of one cell is left alone: sharing is between cells, and a
-   cell that shares with nobody is stamped with its own extent, which
-   is what it would have had anyway. Refusing those reported an axis
-   the writer never asked to share -- `pj/marginal` sets
-   `:share-scales` itself, so a right marginal on a numeric column was
-   refused because the *other* axis held dates, and the message named a
-   setting the writer had not written."
-  [subtree spec]
-  (doseq [[axis how] spec
-          {:keys [cols pairs]} (share-buckets subtree axis how)
-          :let [vals (mapcat (fn [[col leaf]] (col-values (:data leaf) col)) pairs)]
-          :when (and (< 1 (count pairs)) (seq vals)
-                     (not-any? #(or (number? %) (resolve/temporal-value? %)) vals))]
-    (throw (ex-info
-            (str ":share-scales " axis " refused: "
-                 (if (next cols)
-                   (str "columns " (str/join ", " (map pr-str cols)) " are")
-                   (str "column " (pr-str (first cols)) " is"))
-                 " categorical across all sharing cells, so a"
-                 " union domain is not defined. Drop :share-scales"
-                 " on this axis, or share scales only on numerical"
-                 " or temporal columns.")
-            {:caller "share-scales"
-             :axis axis
-             :column (first cols)
-             :columns cols}))))
-
-(defn written-axis-values
-  "The values the rules and bands among a leaf's layers write on
-   `axis`, for the shared-domain union.
-
-   A shared axis is built from the columns its leaves name, and a rule
-   writes its value on the layer rather than into a column, so without
-   this the union never sees it: a rule at 99 on data reaching 6 gave a
-   shared domain of [1.8 6.2] and drew the line thousands of drawing
-   units below the panel, where the same rule on an unshared axis
-   widened it to [-2.85 103.85]. Faceting and `pj/marginal` already
-   reach the written value, so this is what makes the three composition
-   paths answer alike.
-
-   A layer is still `{:layer-type k :mapping m}` here -- the mark and
-   the written value only come together at draft time -- so this puts
-   the two back together for `resolve/written-values` to read.
-
-   A segment's or an interval's far end (`:x-end`, `:y-end`) reaches the
-   axis too, whether written as a value or named as a column: the stat
-   widens an unshared axis to it, and a shared axis built without it
-   clipped every segment at the panel edge."
-  [leaf axis]
-  (mapcat (fn [layer]
-            (let [lt-key (:layer-type layer)
-                  lt-info (when (and lt-key (keyword? lt-key) (not= :infer lt-key))
-                            (layer-type/lookup lt-key))
-                  mark (or (:mark layer) (:mark lt-info))
-                  end (get (:mapping layer) (if (= axis :x) :x-end :y-end))]
-              (concat
-               (resolve/written-values (assoc (:mapping layer) :mark mark) axis)
-               (cond
-                 (number? end) [end]
-                 (some? end) (col-values (:data leaf) end))
-               ;; A tile drawn one cell per row -- reading `:fill` or
-               ;; `:color` -- reaches half a step past its outer values
-               ;; on a numeric axis, as the identity stat widens an
-               ;; unshared axis. A binned or density tile does not.
-               (when (and (= lt-key :tile)
-                          (let [m (merge (:mapping leaf) (:mapping layer))]
-                            (or (:fill m) (:color m))))
-                 (let [a (get (merge (:mapping leaf) (:mapping layer)) axis)
-                       col (if (map? a) (:from a) a)
-                       vs (filter number? (col-values (:data leaf) col))]
-                   (when (seq vs)
-                     (let [span (scale/tile-span vs (= :log (get-in a [:scale :type])))]
-                       [(first (scale/tile-edges (reduce min vs) span))
-                        (second (scale/tile-edges (reduce max vs) span))])))))))
-          (:layers leaf)))
 
 (declare share-axes share-spec)
 
@@ -981,97 +882,106 @@
        (every? #(or (nil? (:data %)) (:plotje/part-of-parent-data %))
                (:poses pose))))
 
-(defn inject-shared-scales
-  "Walk a pose tree. For each composite with :share-scales, compute a
-   union domain per (axis, effective-column) bucket across descendant
-   leaves, and stamp those domains onto matching leaves' :opts as
-   :x-scale-domain / :y-scale-domain. Returns a new tree.
+(defn shared-axis-groups
+  "Which cells of a pose tree share an axis with which, as
+   `{path {axis {:group id :order [category ...]}}}` for every leaf in
+   a group of two or more.
 
-   :share-scales may live in `(:opts pose)` (the canonical location;
-   set via pj/options or pj/arrange) or directly at the top of the
-   pose (legacy location for hand-built composites). The :opts entry
-   wins if both are present. Where neither is written, cells that are
-   the parts of one declared split share what they can (`share-axes`).
+   Each composite with a `:share-scales` -- written in `(:opts pose)` or
+   at the top of a hand-built composite, or inferred where its cells are
+   the parts of one declared split (`share-spec`) -- links the cells of
+   each of its buckets (`share-buckets`). Links chain: a cell whose
+   layers draw `:a` and `:b` on one panel is in both columns' buckets,
+   and a cell linked by an outer composite and by an inner one joins
+   the two sets, so sharing is one relation over the whole tree and
+   every cell of a group ends on the same domain.
 
-   `inherited-domains` carries `{axis {col-ref [lo hi]}}` down the
-   tree. `inherited-mapping` carries the ancestor-merged mapping so a
-   leaf can resolve its effective axis column from (inherited + own +
-   layer) when deciding which bucket to claim. `inherited-data` is
-   the nearest-ancestor dataset, threaded through so a leaf can
-   predict whether its layers' y axis is stat-driven (count/density)
-   and skip the shared y-domain stamp on such leaves -- e.g., the
-   diagonal histogram cells of a SPLOM. `inherited-layers` carries the
-   ancestors' layers, which render on every descendant leaf.
+   Two cells drawing one column along the same direction of the page
+   are linked across axes: a marginal on the right names the panel's
+   `:y` column on its own `:x` under a flip, and has to follow whatever
+   the panel's layers draw there.
 
-   A leaf's context is merged the way `resolve-tree` merges it, because
-   the buckets are built from `resolve-tree`'s leaves: a leaf judged on
-   its own layers alone answers a different question from its bucket.
-   A histogram added to a grid of pairs lives on the composite, so its
-   cells, judged on their own empty layers, predicted points and were
-   stamped a data extent on the count axis -- every bar ran off the
-   panel."
-  ([pose]
-   (inject-shared-scales pose {} {} nil []))
-  ([pose inherited-domains inherited-mapping inherited-data inherited-layers]
-   (let [my-mapping  (merge-mappings inherited-mapping (:mapping pose))
-         my-data     (or (:data pose) inherited-data)
-         my-layers   (into (vec inherited-layers) (:layers pose))
-         my-shares   (when (seq (:poses pose))
-                       (not-empty (share-spec pose)))
-         new-domains (when (and my-shares (seq (:poses pose)))
-                       (let [subtree (resolve-tree pose
-                                                   {:mapping inherited-mapping
-                                                    :data inherited-data}
-                                                   [])]
-                         (validate-share-bucket-compatibility! subtree my-shares)
-                         (assert-share-bucket-has-extent! subtree my-shares)
-                         (warn-share-scales-overrides-free! subtree my-shares)
-                         (warn-share-scales-without-effect! subtree my-shares)
-                         (into {}
-                               (keep
-                                (fn [[axis how]]
-                                  (let [by-col (axis-buckets subtree axis)
-                                        col->dom (into {}
-                                                       (keep
-                                                        (fn [[col leaves]]
-                                                          (when col
-                                                            (when-let [d (numeric-domain
-                                                                          (concat
-                                                                           (mapcat #(col-values (:data %) col)
-                                                                                   leaves)
-                                                                           (mapcat #(written-axis-values % axis)
-                                                                                   leaves)))]
-                                                              [col d])))
-                                                        by-col))]
-                                    (when (seq col->dom)
-                                      [axis (pool-drawn-together col->dom subtree axis how)])))
-                                my-shares))))
-         child-domains (merge-with (partial merge-with union-domain)
-                                   inherited-domains
-                                   new-domains)]
-     (if (leaf? pose)
-       (if (seq child-domains)
-         (let [pose-ctx (assoc pose :mapping my-mapping :data my-data
-                               :layers my-layers)
-               x-dom (get-in child-domains [:x (effective-axis-col pose-ctx :x)])
-               y-dom (get-in child-domains [:y (effective-axis-col pose-ctx :y)])
-               ;; Drop the y-domain when this leaf's y-axis is
-               ;; stat-driven (count/density) -- the shared-data
-               ;; bucket value would clip the bars / curve.
-               stat-driven? (y-axis-stat-driven? my-layers my-mapping my-data)
-               y-dom (when-not stat-driven? y-dom)]
-           (if (or x-dom y-dom)
-             (update pose :opts merge
-                     (cond-> {}
-                       x-dom (assoc :x-scale-domain x-dom)
-                       y-dom (assoc :y-scale-domain y-dom)))
-             pose))
-         pose)
-       (update pose :poses
-               (fn [children]
-                 (mapv #(inject-shared-scales % child-domains my-mapping
-                                              my-data my-layers)
-                       children)))))))
+   `:order` is given where every cell of a group reads the dataset of
+   the composite that links it, whole or in part, and the columns the
+   group draws hold categories: it lists them in the order of that
+   dataset's rows, which is the order a shared categorical axis then
+   takes (`plan/order-categories`), as the same plot unsplit does.
+
+   The checks and warnings about a `:share-scales` are raised here."
+  [root]
+  (let [links (atom [])
+        flip? (fn [leaf] (= :flip (get-in leaf [:opts :coord])))
+        walk (fn walk [pose path inherited-mapping inherited-data]
+               (when (seq (:poses pose))
+                 (let [data (or (:data pose) inherited-data)
+                       mapping (merge-mappings inherited-mapping (:mapping pose))]
+                   (when-let [spec (not-empty (share-spec pose))]
+                     (let [subtree (resolve-tree pose
+                                                 {:mapping inherited-mapping
+                                                  :data inherited-data}
+                                                 path)
+                           _ (validate-share-bucket-compatibility! subtree spec)
+                           _ (warn-share-scales-overrides-free! subtree spec)
+                           _ (warn-share-scales-without-effect! subtree spec)
+                           buckets (into {} (for [[axis how] spec]
+                                              [axis (vec (share-buckets subtree axis how))]))
+                           one-dataset? (fn [pairs]
+                                          (and (some? data)
+                                               (every? (fn [[_ leaf]]
+                                                         (or (identical? data (:data leaf))
+                                                             (:plotje/part-of-parent-data leaf)))
+                                                       pairs)))]
+                       (doseq [[axis bs] buckets
+                               {:keys [cols pairs]} bs
+                               :when (seq pairs)]
+                         (swap! links conj
+                                {:nodes (set (map (fn [[_ leaf]] [(:path leaf) axis]) pairs))
+                                 :cols (vec (remove counted-key? cols))
+                                 :data (when (one-dataset? pairs) data)}))
+                       (doseq [{xcols :cols xpairs :pairs} (:x buckets)
+                               {ycols :cols ypairs :pairs} (:y buckets)
+                               :when (some (set (remove counted-key? xcols)) ycols)
+                               [_ a] xpairs
+                               [_ b] ypairs
+                               :when (not= (flip? a) (flip? b))]
+                         (swap! links conj {:nodes #{[(:path a) :x] [(:path b) :y]}
+                                            :cols [] :data nil}))))
+                   (doseq [[i child] (map-indexed vector (:poses pose))]
+                     (walk child (conj path i) mapping data)))))
+        _ (walk root [] {} nil)
+        merge-links (fn [a b]
+                      {:nodes (into (:nodes a) (:nodes b))
+                       :cols (vec (distinct (concat (:cols a) (:cols b))))
+                       ;; One dataset for the whole group, or none.
+                       :data (when (and (:data a) (identical? (:data a) (:data b)))
+                               (:data a))})
+        ;; The categories of the group's columns in the order of the
+        ;; rows, where the columns hold categories.
+        order-of (memoize
+                  (fn [data cols]
+                    (when data
+                      (let [vs (mapcat #(col-values data %) cols)
+                            v (first vs)]
+                        (when (and (some? v)
+                                   (not (or (number? v) (resolve/temporal-value? v))))
+                          (vec (distinct (map str vs))))))))
+        groups (reduce (fn [groups link]
+                         (let [{hit true miss false}
+                               (group-by #(boolean (some (:nodes link) (:nodes %))) groups)]
+                           (conj (vec miss) (reduce merge-links link hit))))
+                       []
+                       (deref links))]
+    (reduce (fn [m [id {:keys [nodes cols data]}]]
+              (if (next nodes)
+                (reduce (fn [m [path axis]]
+                          (assoc-in m [path axis]
+                                    (cond-> {:group id}
+                                      (seq (order-of data cols))
+                                      (assoc :order (order-of data cols)))))
+                        m nodes)
+                m))
+            {}
+            (map-indexed vector groups))))
 
 ;; ---- Leaf-to-draft ----
 ;;
@@ -3075,8 +2985,8 @@
 
 (defn default-share-axes
   "The axes the cells of a composite do share by default -- two or more
-   cells draw one column there, every bucket of cells reading one column
-   has an extent, and its cells agree on the kind of scale. Sharing is
+   cells draw one column there (or count one column), and the cells of
+   each bucket agree on the kind of scale. Sharing is
    by column, so cells reading different columns on an axis keep their
    own extents, and an axis where every cell draws a column of its own
    is not in the default: written out, the default changes nothing and
@@ -3087,7 +2997,6 @@
   (let [subtree (vec (remove :plotje/empty-cell (resolve-tree composite)))]
     (set (filter (fn [axis]
                    (try (validate-share-bucket-compatibility! subtree {axis :same-column})
-                        (assert-share-bucket-has-extent! subtree {axis :same-column})
                         (boolean (some #(next (:pairs %))
                                        (share-buckets subtree axis :same-column)))
                         (catch clojure.lang.ExceptionInfo _ false)))
@@ -3099,7 +3008,7 @@
    (in `:opts`, or at the top of a hand-built composite), or -- where
    none is written and the cells are the parts of one declared split --
    every axis they can share, each column on its own. Read by
-   `inject-shared-scales` and by `infer-chrome`, so the domains and the
+   `shared-axis-groups` and by `infer-chrome`, so the domains and the
    chrome agree."
   [pose]
   (cond
@@ -4113,7 +4022,26 @@
         overlay-legend-titled? (boolean
                                 (some->> (:color leaf-mapping)
                                          (#(when (map? %) (:scale %)))
-                                         (#(when (map? %) (contains? % :label)))))]
+                                         (#(when (map? %) (contains? % :label)))))
+        ;; The order the whole data holds a column's categories in,
+        ;; which the panels of a facet cannot give: each holds some of
+        ;; the rows. The plan orders a shared categorical axis by it
+        ;; (`plan/order-categories`).
+        whole        (when (next variants) (coerce-dataset leaf-data))
+        category-order (memoize
+                        (fn [col]
+                          (when (and whole (contains? (set (tc/column-names whole)) col))
+                            (vec (distinct (map str (remove nil? (whole col))))))))
+        categories-of (fn [resolved axis]
+                        (let [col (get resolved axis)
+                              vs (when (and whole (resolve/column-ref? col)
+                                            (contains? (set (tc/column-names whole)) col))
+                                   (whole col))
+                              v (some identity (take 100 vs))]
+                          (when (and (some? v)
+                                     (or (= :categorical (get resolved (if (= axis :x) :x-type :y-type)))
+                                         (not (or (number? v) (resolve/temporal-value? v)))))
+                            (category-order col))))]
     (vec
      (for [[variant-idx variant] (map-indexed vector variants)
            [layer-idx layer] (map-indexed vector applicable)]
@@ -4185,6 +4113,10 @@
               (and ov-labels (nth ov-labels layer-idx nil))
               (assoc :overlay-labelled true)
               (:facet-col variant) (assoc :facet-col (:facet-col variant))
-              (:facet-row variant) (assoc :facet-row (:facet-row variant)))
+              (:facet-row variant) (assoc :facet-row (:facet-row variant))
+              (and (not layer-own-data?) (categories-of resolved :x))
+              (assoc :__x-order (categories-of resolved :x))
+              (and (not layer-own-data?) (categories-of resolved :y))
+              (assoc :__y-order (categories-of resolved :y)))
              (cond-> (= :infer (:mark resolved))
                (-> (dissoc :mark :stat)))))))))

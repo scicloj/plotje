@@ -4290,10 +4290,13 @@
      it. A map says which columns go together on an axis:
      `{:y [[:hwy :cty]]}` shares `:y` between the cells drawing `:hwy`
      and `:cty`, `{:y :all}` between every cell, and `{:y :same-column}`
-     is what the set says. By default, cells that split the data of the
-     pose they are arranged into share each axis that draws one column,
-     and other cells share nothing. `pj/options` takes the same option
-     for the panels of a facet.
+     is what the set says. A shared axis covers what the cells sharing
+     it draw; a categorical one lists every category they hold. A count
+     or density axis is shared among cells that count the same column,
+     and a group or `:all` shares it between columns. By default, cells
+     that split the data of the pose they are arranged into share each
+     axis that draws one column, and other cells share nothing.
+     `pj/options` takes the same option for the panels of a facet.
    - `:align-panels` -- give every cell the same drawing area, by
      reserving the widest y-label pad and legend column a cell needs on
      all of them (and, for a row, the tallest x-label pad). Two cells

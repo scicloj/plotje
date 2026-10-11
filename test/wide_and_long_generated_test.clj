@@ -1344,7 +1344,7 @@
 
 
 (def
- v169_l895
+ v169_l893
  (mapv
   (fn
    [pose]
@@ -1364,14 +1364,9 @@
 
 
 (deftest
- t170_l911
+ t170_l909
  (is
   ((fn
     [[long-side wide-facet wide-arrange]]
-    (and
-     (= 3 long-side)
-     (re-find
-      #"column :quarter is categorical across all sharing cells"
-      wide-facet)
-     (= wide-facet wide-arrange)))
-   v169_l895)))
+    (= 3 long-side wide-facet wide-arrange))
+   v169_l893)))

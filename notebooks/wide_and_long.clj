@@ -885,12 +885,10 @@ tooltip-slots
 ;; split by a column's values shares both axes, and panels of different
 ;; columns share only the axis that draws one column in all of them.
 ;;
-;; **One disagreement that remains.** The two sides still differ on
-;; whether a categorical axis can be named in `:share-scales`. Every
-;; panel below draws `:quarter` on `:x`. The long side takes
-;; `{:share-scales #{:x}}` and draws; the wide side reports an error for
-;; the same option, although with nothing specified it draws the same
-;; four quarters in every panel:
+;; **A second decision taken since.** A categorical axis can be named in
+;; `:share-scales` on both sides. Every panel below draws `:quarter` on
+;; `:x`, and each of the three poses takes `{:share-scales #{:x}}` and
+;; draws three panels:
 
 (mapv (fn [pose]
         (try (:panels (pj/svg-summary (pj/options pose {:share-scales #{:x}})))
@@ -910,9 +908,7 @@ tooltip-slots
 
 (kind/test-last
  [(fn [[long-side wide-facet wide-arrange]]
-    (and (= 3 long-side)
-         (re-find #"column :quarter is categorical across all sharing cells" wide-facet)
-         (= wide-facet wide-arrange)))])
+    (= 3 long-side wide-facet wide-arrange))])
 
 ;; **One decision this does not take.**
 ;;

@@ -296,6 +296,15 @@
           (and (seq yd) (not (number? (first yd)))
                (seq xd) (number? (first xd)))))))
 
+(defn- shared-extent
+  "The extent shared with this panel, where it is of the panel's own
+   kind: a low and a high for a numeric axis, the categories for a
+   categorical one. Nil otherwise, and the panel keeps its own."
+  [shared numeric?]
+  (when (and (seq shared)
+             (= numeric? (boolean (and (= 2 (count shared)) (number? (first shared))))))
+    shared))
+
 (defn collect-domain
   "Collect and merge domains from stat results along axis-key.
 
@@ -310,7 +319,9 @@
    values give, and is then padded and anchored as that extent would
    be -- so a cell in a shared composite is padded exactly as it is
    alone, and every cell reaches the same padded domain because they
-   start from the same shared extent.
+   start from the same shared extent. On a categorical axis it is the
+   categories of every sharing cell, in the order the axis holds them,
+   and this panel's own follow where it holds any other.
 
    `baseline` is the values a mark on this axis is measured from --
    `[0.0]` for bars drawn across, whose values run along `:x`
@@ -332,10 +343,10 @@
              anchors (concat (when numeric? baseline)
                              (include-anchors aesthetic scale-spec numeric? temporal?))]
          (if numeric?
-           (pad-domain-anchored (or shared
+           (pad-domain-anchored (or (shared-extent shared true)
                                     [(reduce min vals) (reduce max vals)])
                                 anchors scale-spec padding)
-           (distinct vals)))))))
+           (distinct (concat (shared-extent shared false) vals))))))))
 
 (defn compute-global-y-domain
   "Compute global y-domain from position-adjusted layers.
@@ -412,7 +423,7 @@
            (let [lo (double (reduce min all-vals))
                  hi (double (reduce max all-vals))]
              (if (or (< lo hi) (seq anchors))
-               (pad-domain-anchored (or shared [lo hi]) anchors scale-spec padding)
+               (pad-domain-anchored (or (shared-extent shared true) [lo hi]) anchors scale-spec padding)
                [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
            [(if log? 1.0 0.0) (if log? 10.0 1.0)]))
 
@@ -428,9 +439,9 @@
                   ;; A baseline mark asks for zero through its mark;
                   ;; `:include` asks for values by name. One rule.
                    anchors (concat (if needs-zero? [0.0] []) wanted)]
-               (pad-domain-anchored (or shared [raw-lo raw-hi])
+               (pad-domain-anchored (or (shared-extent shared true) [raw-lo raw-hi])
                                     anchors scale-spec padding))
-             (distinct vals))))))))
+             (distinct (concat (shared-extent shared false) vals)))))))))
 
 ;; ---- Tick Computation ----
 
@@ -2627,6 +2638,24 @@
      :facet-row-vals (when has-facet-row? row-vals)
      :panels panels}))
 
+(defn order-categories
+  "`categories` in the order `data-order` lists them, the ones it does
+   not list after, as they came. `data-order` is the categories in the
+   order of the rows of the dataset the sharing panels all read, or nil
+   where they read no one dataset.
+
+   Panels sharing a categorical axis pool their categories panel by
+   panel, which is the order of the panels and not of the data: bars of
+   `:class` split by `:drv` listed the first panel's classes, then what
+   the second added. Ordered by the data, the split has the axis of the
+   same plot unsplit, whatever order its panels come in."
+  [categories data-order]
+  (if (seq data-order)
+    (let [rank (zipmap data-order (range))
+          n (count rank)]
+      (vec (sort-by #(get rank % n) categories)))
+    (vec categories)))
+
 (defn- coordinate-facet-domains
   "Replace each panel's :x-dom and/or :y-dom with the cross-panel
    aggregate so faceted layouts share scales. Numeric domains
@@ -2645,7 +2674,11 @@
    multi-variable, so the layout alone cannot say which panels belong
    together; grouping by the column says it for every layout at once,
    and where each panel draws its own column every group holds one
-   panel and nothing is merged."
+   panel and nothing is merged.
+
+   Shared categories are listed in the order of the data
+   (`order-categories`), which a panel carries as `:x-order` and
+   `:y-order`."
   [panel-domains share-scales-opt]
   (let [shared (or (defaults/share-scales-axes share-scales-opt) #{:x :y})
         share-x? (contains? shared :x)
@@ -2687,7 +2720,8 @@
                     (if (numeric? (first doms))
                       [(reduce min (map first doms))
                        (reduce max (map second doms))]
-                      (vec (distinct (mapcat seq doms))))))))
+                      (order-categories (distinct (mapcat seq doms))
+                                        (some (if (= k :x-dom) :x-order :y-order) pds)))))))
         ;; One aggregate per column drawn on the axis, keyed by that
         ;; column, so a panel reads the aggregate of the panels it is a
         ;; slice of.
@@ -3194,6 +3228,46 @@
                  :stops stops}
           ticks (assoc :ticks ticks))))))
 
+(defn pool-extents
+  "One extent from the extents several panels draw on an axis: the
+   lowest low and the highest high of numeric ones, the categories of
+   categorical ones in the order they come. Nil where there is none.
+   Panels holding numbers beside panels holding categories cannot be
+   pooled, and the caller says so in its own terms: this answers
+   `::mixed` for them."
+  [extents]
+  (let [extents (filter seq extents)
+        numeric? #(number? (first %))]
+    (cond
+      (empty? extents) nil
+      (every? numeric? extents) [(reduce min (map first extents))
+                                 (reduce max (map second extents))]
+      (not-any? numeric? extents) (vec (distinct (mapcat seq extents)))
+      :else ::mixed)))
+
+(defn- drawn-extents
+  "What the panels of one plan draw on each axis, as `{:x e :y e}` in
+   data order: `fitted` is their domains measured unpadded, which are
+   the drawn axes -- swapped back here under a flip or a ridgeline. A
+   panel with no rows does not vote. An axis with no extent, or whose
+   panels hold numbers and categories both, is left out."
+  [fitted has-ridgeline?]
+  (let [per-panel (for [p fitted
+                        :let [x (when (:x-votes? p true) (:x-dom p))
+                              y (when (:y-votes? p true) (:y-dom p))]]
+                    (if (not= (boolean has-ridgeline?) (= :flip (:coord p)))
+                      [y x]
+                      [x y]))
+        pooled (fn [f] (let [e (pool-extents (map f per-panel))]
+                         (when-not (= ::mixed e) e)))
+        x (pooled first)
+        y (pooled second)]
+    (cond-> {}
+      x (assoc :x x)
+      y (assoc :y y))))
+
+(declare draft->extents)
+
 (defn draft->plan
   "Pipeline: convert a draft into a plan using panel-based grid layout.
    Grid position from structural columns.
@@ -3267,8 +3341,10 @@
          shape-info (collect-shapes resolved-all)
 
          ;; Representative scale/coord (first draft layer) for plot-level decisions
-         ;; What `:share-scales` decided for this cell, stamped onto
-         ;; the leaf's opts by `inject-shared-scales`. It is an extent
+         ;; What `:share-scales` decided for this cell: the extent its
+         ;; share group draws, pooled by the compositor
+         ;; (`compositor/shared-extents`) and put on the cell's opts --
+         ;; a low and a high, or the categories. It is an extent
          ;; the panel's domain is computed from, not a domain written
          ;; by the writer: a `:domain` says use exactly this, while a
          ;; shared extent is padded and anchored as the cell's own
@@ -3353,6 +3429,7 @@
                           (if has-ridgeline?
                             (assoc d :x-dom (:y-dom d) :y-dom (:x-dom d)
                                    :x-var (:y-var d) :y-var (:x-var d)
+                                   :x-order (:y-order d) :y-order (:x-order d)
                                    :x-scale (:y-scale d) :y-scale (:x-scale d)
                                    :x-informed? (:y-informed? d)
                                    :y-informed? (:x-informed? d)
@@ -3366,281 +3443,311 @@
                         (vec
                          (map-indexed
                           (fn [i pd]
-                            (let [v (first (:draft-layers pd))]
+                            (let [v (first (:draft-layers pd))
+                                  d (resolve-panel-domains pd default-x-scale default-y-scale
+                                                           default-coord
+                                                           padding
+                                                           (shared-of i))
+                                  ;; The data's order of the categories,
+                                  ;; written by `pose/leaf->draft` in
+                                  ;; data order; the domains are the
+                                  ;; drawn axes, which a flip swaps.
+                                  ox (some :__x-order (:draft-layers pd))
+                                  oy (some :__y-order (:draft-layers pd))
+                                  [ox oy] (if (= :flip (:coord d)) [oy ox] [ox oy])]
                               (swap-ridgeline
-                               (assoc (resolve-panel-domains pd default-x-scale default-y-scale
-                                                             default-coord
-                                                             padding
-                                                             (shared-of i))
+                               (assoc d
                                       :x-var (:x v)
-                                      :y-var (:y v)))))
-                          drawn-panels)))
-         ;; Facet scale coordination: by default, faceted layouts share
-         ;; one x-domain and one y-domain across all panels so panels
-         ;; are visually comparable. The :share-scales opt controls which axes
-         ;; coordinate. Multi-variable layouts (different x/y vars per
-         ;; panel) skip this -- aggregating across different columns
-         ;; would be meaningless.
-         ;;
-         ;; A shared numeric axis pools the extents the panels draw and
-         ;; is padded once, so it reads as the same panels drawn on one
-         ;; panel would. Padding each panel before pooling padded by a
-         ;; share of each panel's own, narrower, extent: `displ` from
-         ;; 1.6 to 7.0, split three ways, ran `[1.415 7.16]` where the
-         ;; unsplit plot runs `[1.33 7.27]`, and a panel holding one row
-         ;; voted with the plus and minus one a lone value is padded by.
-         ;; So the panels are measured first, unpadded; the pooled
-         ;; extent then stands in for each panel's own, as the extent a
-         ;; composite shares does, and is padded and anchored there.
-         panel-domains
-         (if-not (= layout-type :facet-grid)
-           (domains-with (:domain-padding cfg) (constantly shared-domains))
-           (let [;; A measurement: whatever this pass would print, the
-                 ;; pass below prints.
-                 fitted (binding [*out* (java.io.StringWriter.)
-                                  *err* (java.io.StringWriter.)]
-                          (domains-with nil (constantly shared-domains)))
-                 pooled (coordinate-facet-domains fitted (:share-scales opts))
-                 numeric (fn [d] (when (and (seq d) (number? (first d))) (vec d)))
-                 shared-of (fn [i]
-                             (let [p (nth pooled i)
-                                   x (when (:x-votes? p true) (numeric (:x-dom p)))
-                                   y (when (:y-votes? p true) (numeric (:y-dom p)))
-                                   ;; The pooled domains describe the
-                                   ;; drawn axes; a shared extent is
-                                   ;; read in data order.
-                                   [x y] (if (not= (boolean has-ridgeline?) (= :flip (:coord p)))
-                                           [y x]
-                                           [x y])]
-                               ;; An extent a composite stamped on this
-                               ;; leaf already covers its cells.
-                               (not-empty (merge (cond-> {} x (assoc :x x) y (assoc :y y))
-                                                 shared-domains))))]
-             ;; Pooled again for what the stand-in does not carry: the
-             ;; union of categories, and a panel with no rows, which
-             ;; takes the others' domain.
-             (coordinate-facet-domains (domains-with (:domain-padding cfg) shared-of)
-                                       (:share-scales opts))))
+                                      :y-var (:y v)
+                                      :x-order ox
+                                      :y-order oy))))
+                          drawn-panels)))]
+     ;; Asked only what its panels draw (`draft->extents`), the plan
+     ;; stops here: the cells of a composite sharing an axis are measured
+     ;; before any of them is given the pooled extent.
+     (if (::extents-only opts)
+       (drawn-extents (binding [*out* (java.io.StringWriter.)
+                                *err* (java.io.StringWriter.)]
+                        (domains-with nil (constantly nil)))
+                      has-ridgeline?)
+             ;; Facet scale coordination: by default, faceted layouts share
+             ;; one x-domain and one y-domain across all panels so panels
+             ;; are visually comparable. The :share-scales opt controls which axes
+             ;; coordinate. Multi-variable layouts (different x/y vars per
+             ;; panel) skip this -- aggregating across different columns
+             ;; would be meaningless.
+             ;;
+             ;; A shared numeric axis pools the extents the panels draw and
+             ;; is padded once, so it reads as the same panels drawn on one
+             ;; panel would. Padding each panel before pooling padded by a
+             ;; share of each panel's own, narrower, extent: `displ` from
+             ;; 1.6 to 7.0, split three ways, ran `[1.415 7.16]` where the
+             ;; unsplit plot runs `[1.33 7.27]`, and a panel holding one row
+             ;; voted with the plus and minus one a lone value is padded by.
+             ;; So the panels are measured first, unpadded; the pooled
+             ;; extent then stands in for each panel's own, as the extent a
+             ;; composite shares does, and is padded and anchored there.
+       (let [panel-domains
+             (if-not (= layout-type :facet-grid)
+               (domains-with (:domain-padding cfg) (constantly shared-domains))
+               (let [;; A measurement: whatever this pass would print, the
+                     ;; pass below prints.
+                     fitted (binding [*out* (java.io.StringWriter.)
+                                      *err* (java.io.StringWriter.)]
+                              (domains-with nil (constantly shared-domains)))
+                     pooled (coordinate-facet-domains fitted (:share-scales opts))
+                     numeric (fn [d] (when (and (seq d) (number? (first d))) (vec d)))
+                     shared-of (fn [i]
+                                 (let [p (nth pooled i)
+                                       x (when (:x-votes? p true) (numeric (:x-dom p)))
+                                       y (when (:y-votes? p true) (numeric (:y-dom p)))
+                                       ;; The pooled domains describe the
+                                       ;; drawn axes; a shared extent is
+                                       ;; read in data order.
+                                       [x y] (if (not= (boolean has-ridgeline?) (= :flip (:coord p)))
+                                               [y x]
+                                               [x y])]
+                                   ;; An extent a composite stamped on this
+                                   ;; leaf already covers its cells.
+                                   (not-empty (merge (cond-> {} x (assoc :x x) y (assoc :y y))
+                                                     shared-domains))))]
+                 ;; Pooled again for what the stand-in does not carry: the
+                 ;; union of categories, and a panel with no rows, which
+                 ;; takes the others' domain.
+                 (coordinate-facet-domains (domains-with (:domain-padding cfg) shared-of)
+                                           (:share-scales opts))))
 
-         ;; --- Phase 3: labels, legends, and the three layout fns ---
-         ;; An axis carries a shared title only where every panel draws
-         ;; the same column on it; where the panels differ, each one's
-         ;; strip names its own column and a shared title would name
-         ;; one of them over all of them. Asked per axis, because a
-         ;; plot can share its x column across panels that disagree
-         ;; about y.
-         show-ticks? (coord/show-ticks? rep-coord)
-         ;; Kept for the margin below, which is the one thing that does
-         ;; want the grid's shape: a two-dimensional multi-variable
-         ;; grid is drawn with tighter margins than a single panel.
-         multi? (and (= layout-type :multi-variable)
-                     (> grid-cols-n 1) (> grid-rows-n 1))
-         {:keys [eff-title eff-x-label eff-y-label]}
-         (resolve-labels x-vars y-vars x-overlay-vars y-overlay-vars
-                         rep-x-scale rep-y-scale
-                         title x-label y-label
-                         (and show-ticks? (:x mergeable))
-                         (and show-ticks? (:y mergeable)))
-         swap-labels? (or (= rep-coord :flip) has-ridgeline?)
-         [eff-x-label eff-y-label] (if swap-labels?
-                                     [eff-y-label eff-x-label]
-                                     [eff-x-label eff-y-label])
-         ;; :suppress-x-label / :suppress-y-label on opts drop the axis
-         ;; label text. Used by the compositor on grid-composite inner
-         ;; cells so only the edge cells carry labels -- reduces chart
-         ;; junk in a SPLOM.
-         eff-x-label (if (:suppress-x-label opts) nil eff-x-label)
-         eff-y-label (if (:suppress-y-label opts) nil eff-y-label)
-         ;; An axis no panel gives a data meaning carries no ticks (see
-         ;; `finalize-panel`), and naming it after the column would be
-         ;; the same false claim one line lower: the marks are placed by
-         ;; a distance across the panel, not by that column's values.
-         eff-x-label (if (some :x-informed? panel-domains) eff-x-label nil)
-         eff-y-label (if (some :y-informed? panel-domains) eff-y-label nil)
+             ;; --- Phase 3: labels, legends, and the three layout fns ---
+             ;; An axis carries a shared title only where every panel draws
+             ;; the same column on it; where the panels differ, each one's
+             ;; strip names its own column and a shared title would name
+             ;; one of them over all of them. Asked per axis, because a
+             ;; plot can share its x column across panels that disagree
+             ;; about y.
+             show-ticks? (coord/show-ticks? rep-coord)
+             ;; Kept for the margin below, which is the one thing that does
+             ;; want the grid's shape: a two-dimensional multi-variable
+             ;; grid is drawn with tighter margins than a single panel.
+             multi? (and (= layout-type :multi-variable)
+                         (> grid-cols-n 1) (> grid-rows-n 1))
+             {:keys [eff-title eff-x-label eff-y-label]}
+             (resolve-labels x-vars y-vars x-overlay-vars y-overlay-vars
+                             rep-x-scale rep-y-scale
+                             title x-label y-label
+                             (and show-ticks? (:x mergeable))
+                             (and show-ticks? (:y mergeable)))
+             swap-labels? (or (= rep-coord :flip) has-ridgeline?)
+             [eff-x-label eff-y-label] (if swap-labels?
+                                         [eff-y-label eff-x-label]
+                                         [eff-x-label eff-y-label])
+             ;; :suppress-x-label / :suppress-y-label on opts drop the axis
+             ;; label text. Used by the compositor on grid-composite inner
+             ;; cells so only the edge cells carry labels -- reduces chart
+             ;; junk in a SPLOM.
+             eff-x-label (if (:suppress-x-label opts) nil eff-x-label)
+             eff-y-label (if (:suppress-y-label opts) nil eff-y-label)
+             ;; An axis no panel gives a data meaning carries no ticks (see
+             ;; `finalize-panel`), and naming it after the column would be
+             ;; the same false claim one line lower: the marks are placed by
+             ;; a distance across the panel, not by that column's values.
+             eff-x-label (if (some :x-informed? panel-domains) eff-x-label nil)
+             eff-y-label (if (some :y-informed? panel-domains) eff-y-label nil)
 
-         ;; Legends -- depend on resolved draft layers + cfg, not on pixel math.
-         ;; :suppress-legend on opts skips ALL legend construction; used
-         ;; by the compositor on sub-plots (e.g. SPLOM cells) so the legend
-         ;; doesn't eat the per-cell render rectangle. The per-channel
-         ;; flags (:suppress-color-legend, :suppress-size-legend,
-         ;; :suppress-alpha-legend, :suppress-shape-legend) are set by
-         ;; the aware-chrome path when
-         ;; only some aesthetics are unanimous across composite cells --
-         ;; the per-leaf legend renders for the non-unanimous aesthetics
-         ;; while the unanimous ones get one shared legend at composite
-         ;; level.
-         suppress-legend? (:suppress-legend opts)
-         suppress-color? (or suppress-legend? (:suppress-color-legend opts))
-         suppress-size? (or suppress-legend? (:suppress-size-legend opts))
-         suppress-alpha? (or suppress-legend? (:suppress-alpha-legend opts))
-         suppress-shape? (or suppress-legend? (:suppress-shape-legend opts))
-         ;; A legend title is one setting at two scopes, as an axis
-         ;; title is: `:label` in the aesthetic's scale spec, and the
-         ;; `<aesthetic>-label` plot option one scope out. The spec is
-         ;; written further in, so it wins.
-         legend-title (fn [aesthetic]
-                        (defaults/scale-setting
-                         aesthetic :label
-                         (some (defaults/channel->scale-key aesthetic) resolved-all)
-                         opts))
-         ;; A tile reading a numeric `:color` paints its cells through
-         ;; the fill settings, so its legend is titled through them too
-         ;; -- `:fill-label` before `:color-label`, as the range is read.
-         colour-fill-layer (when numeric-color?
-                             (first (filter #(and (contains? fill-drawing-marks (:mark %))
-                                                  (resolve/scaled-color-column? %)
-                                                  (:data %))
-                                            resolved-all)))
-         legend (when-not suppress-color?
-                  (build-legend resolved-all numeric-color? all-colors color-cols cfg
-                                (if colour-fill-layer
-                                  (extract/fill-setting :label colour-fill-layer opts)
-                                  (legend-title :color))))
-         legend (or legend
-                    (when-not suppress-color?
-                      (build-fill-fallback-legend panel-data resolved-all cfg opts)))
-         _ (when-not suppress-color?
-             (warn-unread-legend-options! opts legend resolved-all all-colors))
-         size-legend (when-not suppress-size?
-                       (build-size-legend resolved-all (legend-title :size) height))
-         alpha-legend (when-not suppress-alpha?
-                        (build-alpha-legend resolved-all (legend-title :alpha)))
-         shape-legend (when-not suppress-shape?
-                        (build-shape-legend shape-info (legend-title :shape)))
-         [legend shape-legend] (merge-shape-into-color-legend legend shape-legend)
+             ;; Legends -- depend on resolved draft layers + cfg, not on pixel math.
+             ;; :suppress-legend on opts skips ALL legend construction; used
+             ;; by the compositor on sub-plots (e.g. SPLOM cells) so the legend
+             ;; doesn't eat the per-cell render rectangle. The per-channel
+             ;; flags (:suppress-color-legend, :suppress-size-legend,
+             ;; :suppress-alpha-legend, :suppress-shape-legend) are set by
+             ;; the aware-chrome path when
+             ;; only some aesthetics are unanimous across composite cells --
+             ;; the per-leaf legend renders for the non-unanimous aesthetics
+             ;; while the unanimous ones get one shared legend at composite
+             ;; level.
+             suppress-legend? (:suppress-legend opts)
+             suppress-color? (or suppress-legend? (:suppress-color-legend opts))
+             suppress-size? (or suppress-legend? (:suppress-size-legend opts))
+             suppress-alpha? (or suppress-legend? (:suppress-alpha-legend opts))
+             suppress-shape? (or suppress-legend? (:suppress-shape-legend opts))
+             ;; A legend title is one setting at two scopes, as an axis
+             ;; title is: `:label` in the aesthetic's scale spec, and the
+             ;; `<aesthetic>-label` plot option one scope out. The spec is
+             ;; written further in, so it wins.
+             legend-title (fn [aesthetic]
+                            (defaults/scale-setting
+                             aesthetic :label
+                             (some (defaults/channel->scale-key aesthetic) resolved-all)
+                             opts))
+             ;; A tile reading a numeric `:color` paints its cells through
+             ;; the fill settings, so its legend is titled through them too
+             ;; -- `:fill-label` before `:color-label`, as the range is read.
+             colour-fill-layer (when numeric-color?
+                                 (first (filter #(and (contains? fill-drawing-marks (:mark %))
+                                                      (resolve/scaled-color-column? %)
+                                                      (:data %))
+                                                resolved-all)))
+             legend (when-not suppress-color?
+                      (build-legend resolved-all numeric-color? all-colors color-cols cfg
+                                    (if colour-fill-layer
+                                      (extract/fill-setting :label colour-fill-layer opts)
+                                      (legend-title :color))))
+             legend (or legend
+                        (when-not suppress-color?
+                          (build-fill-fallback-legend panel-data resolved-all cfg opts)))
+             _ (when-not suppress-color?
+                 (warn-unread-legend-options! opts legend resolved-all all-colors))
+             size-legend (when-not suppress-size?
+                           (build-size-legend resolved-all (legend-title :size) height))
+             alpha-legend (when-not suppress-alpha?
+                            (build-alpha-legend resolved-all (legend-title :alpha)))
+             shape-legend (when-not suppress-shape?
+                            (build-shape-legend shape-info (legend-title :shape)))
+             [legend shape-legend] (merge-shape-into-color-legend legend shape-legend)
 
-         ;; Scene: everything compute-padding + compute-dims need to
-         ;; know about the data and options, all data-derived or
-         ;; opts-derived. No pixel math yet. Taken as a function of the
-         ;; panel domains because the text fit below revises them and
-         ;; then needs the layout those revised domains imply.
-         layout-for
-         (fn [pds]
-           (let [scene (layout/compute-scene
-                        {:layout-type layout-type
-                         :grid-rows grid-rows-n
-                         :grid-cols grid-cols-n
-                         :eff-title eff-title
-                         :subtitle subtitle
-                         :caption caption
-                         :eff-x-label eff-x-label
-                         :eff-y-label eff-y-label
-                         :facet-row-vals (:facet-row-vals grid)
-                         :facet-col-vals (:facet-col-vals grid)
-                         :coord-type rep-coord
-                         :panel-x-domains (mapv :x-dom pds)
-                         :panel-y-domains (mapv :y-dom pds)
-                         ;; The panel domains above are the drawn axes,
-                         ;; which a flip swaps, so the specs follow them:
-                         ;; `:breaks []` on data x empties the vertical
-                         ;; axis's labels under `:coord :flip`.
-                         :x-scale-spec (if (= rep-coord :flip) rep-y-scale rep-x-scale)
-                         :y-scale-spec (if (= rep-coord :flip) rep-x-scale rep-y-scale)
-                         :x-temporal (some :x-te pds)
-                         :y-temporal (some :y-te pds)
-                         :panel-row-labels (mapv :row-label pds)
-                         :panel-col-labels (mapv :col-label pds)
-                         :legend legend
-                         :size-legend size-legend
-                         :alpha-legend alpha-legend
-                         :shape-legend shape-legend})
-                 padding (layout/compute-padding scene cfg layout-opts)]
-             {:padding padding
-              :dims (layout/compute-dims scene padding cfg layout-opts)}))
+             ;; Scene: everything compute-padding + compute-dims need to
+             ;; know about the data and options, all data-derived or
+             ;; opts-derived. No pixel math yet. Taken as a function of the
+             ;; panel domains because the text fit below revises them and
+             ;; then needs the layout those revised domains imply.
+             layout-for
+             (fn [pds]
+               (let [scene (layout/compute-scene
+                            {:layout-type layout-type
+                             :grid-rows grid-rows-n
+                             :grid-cols grid-cols-n
+                             :eff-title eff-title
+                             :subtitle subtitle
+                             :caption caption
+                             :eff-x-label eff-x-label
+                             :eff-y-label eff-y-label
+                             :facet-row-vals (:facet-row-vals grid)
+                             :facet-col-vals (:facet-col-vals grid)
+                             :coord-type rep-coord
+                             :panel-x-domains (mapv :x-dom pds)
+                             :panel-y-domains (mapv :y-dom pds)
+                             ;; The panel domains above are the drawn axes,
+                             ;; which a flip swaps, so the specs follow them:
+                             ;; `:breaks []` on data x empties the vertical
+                             ;; axis's labels under `:coord :flip`.
+                             :x-scale-spec (if (= rep-coord :flip) rep-y-scale rep-x-scale)
+                             :y-scale-spec (if (= rep-coord :flip) rep-x-scale rep-y-scale)
+                             :x-temporal (some :x-te pds)
+                             :y-temporal (some :y-te pds)
+                             :panel-row-labels (mapv :row-label pds)
+                             :panel-col-labels (mapv :col-label pds)
+                             :legend legend
+                             :size-legend size-legend
+                             :alpha-legend alpha-legend
+                             :shape-legend shape-legend})
+                     padding (layout/compute-padding scene cfg layout-opts)]
+                 {:padding padding
+                  :dims (layout/compute-dims scene padding cfg layout-opts)}))
 
-         m (if multi? (:margin-multi cfg) (:margin cfg))
+             m (if multi? (:margin-multi cfg) (:margin cfg))
 
-         ;; --- Phase 3b: fit text marks into the panel ---
-         ;; A text mark is sized in pixels, so a data label at the edge of
-         ;; the data is drawn past the edge of the drawing area and cut
-         ;; off there. Widen the domains until the labels fit. A widened
-         ;; domain can print wider tick labels, which moves the panel
-         ;; width the fit was measured against, so layout and fit
-         ;; alternate until the domains settle. Ridgeline panels are
-         ;; skipped: their domains have already been swapped away from
-         ;; the axes their layers were extracted on.
-         fit-text? (and (:fit-text-domain cfg) (not has-ridgeline?))
-         [panel-domains {:keys [padding dims]}]
-         (loop [pds panel-domains k 0]
-           (let [lay (layout-for pds)
-                 fitted (if fit-text?
-                          (cond-> (mapv #(fit-panel-text % (:pw (:dims lay))
-                                                         (:ph (:dims lay)) m)
-                                        pds)
-                            (= layout-type :facet-grid)
-                            (coordinate-facet-domains (:share-scales opts)))
-                          pds)]
-             (if (or (= fitted pds) (>= k 2))
-               [pds lay]
-               (recur fitted (inc k)))))
-         {:keys [pw ph total-w total-h]} dims
+             ;; --- Phase 3b: fit text marks into the panel ---
+             ;; A text mark is sized in pixels, so a data label at the edge of
+             ;; the data is drawn past the edge of the drawing area and cut
+             ;; off there. Widen the domains until the labels fit. A widened
+             ;; domain can print wider tick labels, which moves the panel
+             ;; width the fit was measured against, so layout and fit
+             ;; alternate until the domains settle. Ridgeline panels are
+             ;; skipped: their domains have already been swapped away from
+             ;; the axes their layers were extracted on.
+             fit-text? (and (:fit-text-domain cfg) (not has-ridgeline?))
+             [panel-domains {:keys [padding dims]}]
+             (loop [pds panel-domains k 0]
+               (let [lay (layout-for pds)
+                     fitted (if fit-text?
+                              (cond-> (mapv #(fit-panel-text % (:pw (:dims lay))
+                                                             (:ph (:dims lay)) m)
+                                            pds)
+                                (= layout-type :facet-grid)
+                                (coordinate-facet-domains (:share-scales opts)))
+                              pds)]
+                 (if (or (= fitted pds) (>= k 2))
+                   [pds lay]
+                   (recur fitted (inc k)))))
+             {:keys [pw ph total-w total-h]} dims
 
-         ;; --- Phase 4: :coord :fixed aspect adjustment ---
-         ;; When the user asked for a 1:1 data-unit aspect ratio, shrink
-         ;; the larger panel axis so that one data unit on x equals one
-         ;; data unit on y. This runs AFTER compute-dims so we have real
-         ;; pw/ph to adjust. If the adjustment fires we also recompute
-         ;; total-w/total-h to reflect the shrink.
-         fixed-result (when (and (= rep-coord :fixed) (seq panel-domains))
-                        (let [p1 (first panel-domains)
-                              gx (:x-dom p1)
-                              gy (:y-dom p1)]
-                          (when (and (sequential? gx) (= 2 (count gx)) (number? (first gx))
-                                     (sequential? gy) (= 2 (count gy)) (number? (first gy)))
-                            (adjust-fixed-aspect pw ph gx gy))))
-         [pw ph] (if fixed-result
-                   [(:pw fixed-result) (:ph fixed-result)]
-                   [pw ph])
-         total-w (if fixed-result
-                   (+ (:horiz-overhead dims) (* grid-cols-n pw))
-                   total-w)
-         total-h (if fixed-result
-                   (+ (:vert-overhead dims) (* grid-rows-n ph))
-                   total-h)
+             ;; --- Phase 4: :coord :fixed aspect adjustment ---
+             ;; When the user asked for a 1:1 data-unit aspect ratio, shrink
+             ;; the larger panel axis so that one data unit on x equals one
+             ;; data unit on y. This runs AFTER compute-dims so we have real
+             ;; pw/ph to adjust. If the adjustment fires we also recompute
+             ;; total-w/total-h to reflect the shrink.
+             fixed-result (when (and (= rep-coord :fixed) (seq panel-domains))
+                            (let [p1 (first panel-domains)
+                                  gx (:x-dom p1)
+                                  gy (:y-dom p1)]
+                              (when (and (sequential? gx) (= 2 (count gx)) (number? (first gx))
+                                         (sequential? gy) (= 2 (count gy)) (number? (first gy)))
+                                (adjust-fixed-aspect pw ph gx gy))))
+             [pw ph] (if fixed-result
+                       [(:pw fixed-result) (:ph fixed-result)]
+                       [pw ph])
+             total-w (if fixed-result
+                       (+ (:horiz-overhead dims) (* grid-cols-n pw))
+                       total-w)
+             total-h (if fixed-result
+                       (+ (:vert-overhead dims) (* grid-rows-n ph))
+                       total-h)
 
-         ;; --- Phase 5: compute ticks at the final panel dimensions ---
-         panels (mapv #(finalize-panel % pw ph m cfg) panel-domains)
-         ;; :suppress-x-ticks / :suppress-y-ticks on opts blank the
-         ;; tick set for the corresponding axis. Compositor sets these
-         ;; on inner cells of grid-composites (SPLOM) so only the
-         ;; bottom row carries x-tick numbers and only the leftmost
-         ;; column carries y-tick numbers -- matches the legacy SPLOM
-         ;; chrome and avoids visual noise from per-cell tick text.
-         empty-ticks {:values [] :labels [] :categorical? false}
-         panels (cond-> panels
-                  (:suppress-x-ticks opts)
-                  (->> (mapv #(assoc % :x-ticks empty-ticks)))
-                  (:suppress-y-ticks opts)
-                  (->> (mapv #(assoc % :y-ticks empty-ticks))))
+             ;; --- Phase 5: compute ticks at the final panel dimensions ---
+             panels (mapv #(finalize-panel % pw ph m cfg) panel-domains)
+             ;; :suppress-x-ticks / :suppress-y-ticks on opts blank the
+             ;; tick set for the corresponding axis. Compositor sets these
+             ;; on inner cells of grid-composites (SPLOM) so only the
+             ;; bottom row carries x-tick numbers and only the leftmost
+             ;; column carries y-tick numbers -- matches the legacy SPLOM
+             ;; chrome and avoids visual noise from per-cell tick text.
+             empty-ticks {:values [] :labels [] :categorical? false}
+             panels (cond-> panels
+                      (:suppress-x-ticks opts)
+                      (->> (mapv #(assoc % :x-ticks empty-ticks)))
+                      (:suppress-y-ticks opts)
+                      (->> (mapv #(assoc % :y-ticks empty-ticks))))
 
-         plan
-         (resolve/map->Plan
-          {:width width :height height :margin m
-           :total-width total-w :total-height total-h
-           :panel-width pw :panel-height ph
-           :grid {:rows grid-rows-n :cols grid-cols-n}
-           :layout-type layout-type
-           :title eff-title :subtitle subtitle :caption caption
-           :x-label eff-x-label :y-label eff-y-label
-           :legend legend :size-legend size-legend :alpha-legend alpha-legend
-           :shape-legend shape-legend
-           :legend-position (:legend-position padding)
-           :panels panels
-           ;; A `:tooltip` mapping is a request for tooltips. Writing
-           ;; the column and then having to write `{:tooltip true}`
-           ;; beside it asks the same thing twice, and leaving the
-           ;; second out drew a plot whose hover text was computed and
-           ;; never shown.
-           :tooltip (or (:tooltip opts)
-                        (boolean (some #(or (:tooltip-col %) (:fixed-tooltip %))
-                                       resolved-all)))
-           :layout (select-keys padding [:x-label-pad :y-label-pad :title-pad
-                                         :subtitle-pad :caption-pad
-                                         :legend-w :legend-h :strip-h :strip-w])})]
-     (validate-drawn-color-marks resolved-all panels)
-     (warn-unread-tooltip-mappings resolved-all panels)
-     (warn-monochrome-numeric-color! resolved-all panels)
-     (when validate?
-       (when-let [explanation (ss/explain plan)]
-         (throw (ex-info "Plan does not conform to schema" {:explanation explanation}))))
-     plan)))
+             plan
+             (resolve/map->Plan
+              {:width width :height height :margin m
+               :total-width total-w :total-height total-h
+               :panel-width pw :panel-height ph
+               :grid {:rows grid-rows-n :cols grid-cols-n}
+               :layout-type layout-type
+               :title eff-title :subtitle subtitle :caption caption
+               :x-label eff-x-label :y-label eff-y-label
+               :legend legend :size-legend size-legend :alpha-legend alpha-legend
+               :shape-legend shape-legend
+               :legend-position (:legend-position padding)
+               :panels panels
+               ;; A `:tooltip` mapping is a request for tooltips. Writing
+               ;; the column and then having to write `{:tooltip true}`
+               ;; beside it asks the same thing twice, and leaving the
+               ;; second out drew a plot whose hover text was computed and
+               ;; never shown.
+               :tooltip (or (:tooltip opts)
+                            (boolean (some #(or (:tooltip-col %) (:fixed-tooltip %))
+                                           resolved-all)))
+               :layout (select-keys padding [:x-label-pad :y-label-pad :title-pad
+                                             :subtitle-pad :caption-pad
+                                             :legend-w :legend-h :strip-h :strip-w])})]
+         (validate-drawn-color-marks resolved-all panels)
+         (warn-unread-tooltip-mappings resolved-all panels)
+         (warn-monochrome-numeric-color! resolved-all panels)
+         (when validate?
+           (when-let [explanation (ss/explain plan)]
+             (throw (ex-info "Plan does not conform to schema" {:explanation explanation}))))
+         plan)))))
+
+(defn draft->extents
+  "What a draft's panels draw on each axis, as `{:x e :y e}` in data
+   order -- a low and a high for a numeric axis, the categories for a
+   categorical one -- unpadded, and reaching whatever the marks are
+   measured from. The stats run, so this is what is drawn and not what
+   the columns hold: the top of a stack, the ends of an error bar, a
+   count. Nothing is printed. `compositor/composite-draft->plan` asks
+   this of every cell sharing an axis, pools the answers, and plans
+   each cell with the pooled extent."
+  [draft opts]
+  (draft->plan draft (assoc opts ::extents-only true)))

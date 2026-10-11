@@ -273,3 +273,118 @@
                :cost [80.0 85.0 95.0 100.0]}]
     (is (= [[0.0 178.5] [0.0 178.5]] (mapv second (domains (pose sales)))))
     (is (= (domains (pose sales)) (domains (pose (tc/dataset sales)))))))
+
+;; A shared axis covers what the sharing cells draw. The arrangement
+;; measures each cell after its stats have run, as a facet measures its
+;; panels, so the two agree.
+
+(def survey
+  {:group ["a" "a" "a" "a" "b" "b" "b" "b"]
+   :item  ["p" "p" "q" "q" "q" "q" "r" "r"]
+   :half  ["1" "2" "1" "2" "1" "2" "1" "2"]
+   :n     [4.0 6.0 3.0 2.0 9.0 8.0 1.0 2.0]
+   :low   [2.0 5.0 1.0 1.0 6.0 7.0 0.5 1.0]
+   :high  [7.0 9.0 4.0 5.0 14.0 11.0 3.0 6.0]})
+
+(defn- rows-of [group]
+  (tc/select-rows (tc/dataset survey) #(= group (:group %))))
+
+(defn- three-ways
+  "The same two panels through a facet, through the facet's cells
+   written out in the other order, and through an arrangement of two
+   poses with data of their own and `axes` shared: three vectors of
+   `[x-domain y-domain]`, each in the order a, b."
+  [lay axes]
+  (let [whole (lay (tc/dataset survey))
+        cell (fn [g] {:where {:group g}})]
+    [(domains (pj/facet whole :group))
+     (vec (reverse (domains (assoc whole :poses [(cell "b") (cell "a")]))))
+     (domains (pj/arrange [(lay (rows-of "a")) (lay (rows-of "b"))]
+                          {:share-scales axes}))]))
+
+(deftest a-shared-axis-covers-what-is-drawn-test
+  (testing "stacked bars: the top of the tallest stack"
+    (let [[facet split arranged]
+          (three-ways #(pj/lay-bar % :item :n {:color :half :position :stack}) #{:x :y})]
+      (is (= [0.0 17.85] (second (first facet))))
+      (is (= facet split arranged))))
+  (testing "error bars: the ends of the whiskers"
+    (let [[facet split arranged]
+          (three-ways #(pj/lay-errorbar % :item :n {:y-min :low :y-max :high}) #{:x :y})]
+      (is (<= (first (second (first facet))) 0.5))
+      (is (>= (second (second (first facet))) 14.0))
+      (is (= facet split arranged))))
+  (testing "a smooth alone: the lines, not the column"
+    (let [data (tc/dataset {:group (vec (concat (repeat 6 "a") (repeat 6 "b")))
+                            :x [1 2 3 4 5 6 1 2 3 4 5 6]
+                            :y [1.0 9.0 2.0 8.0 3.0 7.0 11.0 19.0 12.0 18.0 13.0 17.0]})
+          lay #(pj/lay-smooth % :x :y)
+          part (fn [g] (tc/select-rows data #(= g (:group %))))
+          facet (domains (pj/facet (lay data) :group))
+          arranged (domains (pj/arrange [(lay (part "a")) (lay (part "b"))]
+                                        {:share-scales #{:x :y}}))]
+      (is (= facet arranged))
+      (is (< 1.0 (first (second (first arranged)))))
+      (is (> 19.0 (second (second (first arranged))))))))
+
+(deftest a-count-axis-shares-by-the-column-counted-test
+  (let [data (tc/dataset {:group (vec (concat (repeat 3 "a") (repeat 9 "b")))
+                          :v [1.0 1.1 5.0 1.0 1.1 1.2 1.3 1.4 1.5 1.6 5.0 5.1]
+                          :w [1.0 1.0 1.0 1.0 1.0 1.0 2.0 2.0 2.0 2.0 2.0 5.0]})
+        part (fn [g] (tc/select-rows data #(= g (:group %))))
+        count-axes (fn [pose] (mapv second (domains pose)))]
+    (testing "histograms of one column, split: one count axis, whatever the order of the cells"
+      (let [whole (pj/lay-histogram data :v)
+            facet (count-axes (pj/facet whole :group))
+            split (count-axes (assoc whole :poses [{:where {:group "b"}} {:where {:group "a"}}]))]
+        (is (apply = facet))
+        (is (= facet split))))
+    (testing "arranged with :y shared"
+      (is (apply = (count-axes (pj/arrange [(pj/lay-histogram (part "a") :v)
+                                            (pj/lay-histogram (part "b") :v)]
+                                           {:share-scales #{:y}})))))
+    (testing "histograms of two columns keep a count axis each"
+      (let [over (-> data (pj/pose {:x :v}) pj/lay-histogram (pj/facet {:x [:v :w]}))]
+        (is (apply not= (count-axes over)))
+        (testing "until :all or a group of the columns shares them"
+          (is (apply = (count-axes (pj/options over {:share-scales {:y :all}}))))
+          (is (apply = (count-axes (pj/options over {:share-scales {:y [[:v :w]]}})))))))))
+
+(deftest a-shared-categorical-axis-test
+  (let [lay #(pj/lay-bar % :item :n)]
+    (testing "every category of every sharing cell, in every cell"
+      (let [[facet split arranged] (three-ways lay #{:x})]
+        (is (= [["p" "q" "r"] ["p" "q" "r"]] (mapv first facet)))
+        (is (= (mapv first facet) (mapv first split) (mapv first arranged)))))
+    (testing "in the order of the data where the cells read one dataset"
+      ;; The rows hold r before p; the first panel holds only p and q.
+      (let [data (tc/dataset {:group ["b" "a" "a" "b"]
+                              :item  ["r" "p" "q" "q"]
+                              :n     [1.0 2.0 3.0 4.0]})
+            whole (pj/lay-bar data :item :n)
+            unsplit (ffirst (domains whole))]
+        (is (= ["r" "p" "q"] unsplit))
+        (is (= [unsplit unsplit] (mapv first (domains (pj/facet whole :group)))))
+        (is (= [unsplit unsplit]
+               (mapv first (domains (assoc whole :poses [{:where {:group "a"}}
+                                                         {:where {:group "b"}}])))))))
+    (testing "cell by cell where the cells have data of their own"
+      (is (= [["q" "r" "p"] ["q" "r" "p"]]
+             (mapv first (domains (pj/arrange [(lay (rows-of "b")) (lay (rows-of "a"))]
+                                              {:share-scales #{:x}}))))))
+    (testing "not shared where nobody asked"
+      (is (= [["p" "q"] ["q" "r"]]
+             (mapv first (domains (pj/arrange [(lay (rows-of "a")) (lay (rows-of "b"))]))))))))
+
+(deftest a-marginal-follows-its-panel-test
+  ;; The panel's layers reach past the column -- a rule at 60 -- and the
+  ;; marginal on the right, which names the column on its own :x under a
+  ;; flip, covers the same extent.
+  (let [data (tc/dataset {:a [1.0 2.0 3.0 4.0] :b [10.0 20.0 30.0 40.0]})
+        plan (pj/plan (-> data
+                          (pj/lay-point :a :b)
+                          (pj/lay-rule-h {:y-intercept 60})
+                          (pj/marginal :right)))
+        [panel marginal] (map (comp first :panels :plan) (:sub-plots plan))]
+    (is (<= 60 (second (:y-domain panel))))
+    (is (= (:y-domain panel) (:y-domain marginal)))))

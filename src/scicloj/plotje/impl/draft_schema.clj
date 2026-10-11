@@ -139,7 +139,10 @@
    [:path [:vector int?]]
    [:rect ps/Rect]
    [:draft [:vector DraftLayer]]
-   [:opts map?]])
+   [:opts map?]
+   ;; The groups of cells this leaf shares an axis with
+   ;; (`impl.pose/shared-axis-groups`), by axis.
+   [:share {:optional true} map?]])
 
 (def CompositeDraftSchema
   "A composite draft -- produced by `pj/pose->draft` for a composite

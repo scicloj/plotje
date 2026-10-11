@@ -297,19 +297,25 @@
                              {:data ds-b :mapping {:x :x :y :y}
                               :layers [{:layer-type :point}]}]}
           d (pj/draft composite)
-          ;; Each leaf carries the shared extent [0 30] on its opts,
-          ;; not its own narrow one. It rides there rather than as a
-          ;; `:domain` on the scale because the plan pads an extent and
-          ;; honours a `:domain` exactly as written.
+          ;; The draft says only that the two leaves share :x: each
+          ;; carries the same group. The extent is pooled at the plan
+          ;; stage, from what the cells draw, and rides on the cell's
+          ;; opts rather than as a `:domain` on the scale because the
+          ;; plan pads an extent and honours a `:domain` exactly as
+          ;; specified.
           leaf0-x-scale (-> d :sub-drafts (get 0) :draft first :x-scale)
           leaf1-x-scale (-> d :sub-drafts (get 1) :draft first :x-scale)
-          leaf-extent (fn [i] (-> d :sub-drafts (get i) :opts :x-scale-domain))]
+          leaf-group (fn [i] (-> d :sub-drafts (get i) :share :x :group))
+          leaf-extent (fn [i] (-> (pj/plan composite) :sub-plots (get i) :opts :x-scale-domain))]
       (is (= leaf0-x-scale leaf1-x-scale)
           "both per-leaf drafts carry the same :x-scale")
+      (is (some? (leaf-group 0)))
+      (is (= (leaf-group 0) (leaf-group 1))
+          "both leaves are in one share group")
       (is (= [0 30] (leaf-extent 0))
-          "the shared extent is the union of each leaf's data range")
+          "the shared extent is the union of what each leaf draws")
       (is (= (leaf-extent 0) (leaf-extent 1))
-          "and both leaves were given it"))))
+          "and both leaves were planned with it"))))
 
 (deftest composite-plan-validates-test
   (testing "pj/valid-plan? returns true for a CompositePlan;

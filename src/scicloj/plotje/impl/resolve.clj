@@ -152,7 +152,7 @@
    its own keys: an intercept for a rule, two edges for a band. One
    table, because three readers ask this question: `stat/written-extent`
    asks it to widen the axis domain, `plan` asks it to widen a temporal
-   axis's tick extent, and `pose/inject-shared-scales` asks it so a
+   axis's tick extent, and `pose/shared-axis-groups` asks it so a
    shared axis reaches a rule the way an unshared one does. An axis
    whose domain reached a written date while its ticks stopped at the
    data drew labels across the first sixth of itself and left the rest
