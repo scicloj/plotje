@@ -2291,8 +2291,8 @@
       (is (= [["a" "b"] [0.85 4.15]]
              (mapv :y-domain (:panels (pj/plan (pj/options mixed {:scales :free-y})))))))
 
-    (testing "panels that agree still share"
-      (is (= [[0.9 4.1] [0.9 4.1]]
+    (testing "panels that agree still share, on the extent of both padded once"
+      (is (= [[0.85 4.15] [0.85 4.15]]
              (mapv :y-domain (:panels (pj/plan (-> data
                                                    (pj/lay-point :t :len)
                                                    (pj/facet :species))))))))))

@@ -1084,6 +1084,20 @@
   (when d
     (if (tc/dataset? d) d (tc/dataset d))))
 
+(defn coerce-data-in-tree
+  "A pose with the `:data` of every pose in it a dataset. `pj/pose`
+   coerces the data it is given; a pose written as a map may hold a
+   plain map or rows, and the sharing of axes reads columns from
+   `:data` as a dataset -- on a plain map it found no column, and cells
+   asked to share an axis kept their own, with no message."
+  [pose]
+  (cond-> pose
+    (and (some? (:data pose)) (not (tc/dataset? (:data pose))))
+    (update :data coerce-dataset)
+
+    (seq (:poses pose))
+    (update :poses #(mapv coerce-data-in-tree %))))
+
 (defn- resolve-layer-type-info
   "Look up layer-type info from a layer's :layer-type key.
    Keyword -> registry lookup (throws on unknown). Map -> pass through.
@@ -2962,6 +2976,10 @@
                                                        :temporal "dates"}
                                                       (distinct (map :type columns))))
                                " together."
+                               (when (= #{:categorical :numerical} (set (map :type columns)))
+                                 (str " To read the numeric column as categories on this"
+                                      " axis, set " (if (= :x axis) ":x-type" ":y-type")
+                                      " :categorical on its layer."))
                                (advice axis (distinct (map :column columns))))
                           {:axis axis :draws (vec draws)}))
 
@@ -3354,15 +3372,11 @@
                         :poses (vec (for [v vs]
                                       {:where (where-of variation v)}))}])))))
 
-;; ---- Facets drawn as listed cells (provisional switch) ----
-
-(def ^:dynamic *expand-facets*
-  "When true, `pj/pose->draft` draws a faceted leaf as the listed cells
-   its facet expands to (`expand-facets`), one plan per cell, rather
-   than as one plan with many panels. Provisional (PR #61, agenda item
-   \"one plan or many\"): off by default, so the two paths can be
-   compared."
-  false)
+;; ---- A facet by category as the cells it means ----
+;;
+;; A regular split is drawn as one plan (`collapse-regular-split`), so
+;; nothing draws through this; it states what a facet means, and the
+;; facet laws are tested against it.
 
 (defn expand-facets
   "A leaf whose mapping writes `:col` or `:row`, as the listed pose its
@@ -3858,25 +3872,38 @@
    column (`layer-type/column-counts` holds 1: histogram, density, rug,
    bar), drawn on its side: the column on
    `:x` and the coordinates flipped, so its distribution runs up the
-   `:y` axis -- the margin beside a scatter. A leaf that writes its own
-   `:coord`, or whose layers name `:x` or `:y`, is left as it is. (Read
+   `:y` axis -- the margin beside a scatter. A leaf whose layers name
+   `:x` or `:y` is left as it is; a `:coord` other than `:flip`
+   specified on such a leaf reports an error. (Read
    on `:y` alone, such a leaf drew nothing and failed with a
    NullPointerException.)"
   [leaf]
   (let [m (:mapping leaf)
-        layers (:layers leaf)]
+        layers (:layers leaf)
+        coord (get-in leaf [:opts :coord])]
     (if (and (some? (:y m))
              (nil? (:x m))
              (seq layers)
-             (nil? (get-in leaf [:opts :coord]))
              (every? (fn [l] (and (keyword? (:layer-type l))
                                   (contains? (layer-type/column-counts (:layer-type l)) 1)
                                   (not (contains? (:mapping l) :x))
                                   (not (contains? (:mapping l) :y))))
                      layers))
-      (-> leaf
-          (assoc :mapping (-> m (dissoc :y) (assoc :x (:y m))))
-          (assoc-in [:opts :coord] :flip))
+      (do
+        ;; On its side is the one way such a leaf is drawn, so `:flip`
+        ;; specified says what is inferred, and any other coordinate
+        ;; system has no drawing for a column that is on `:y` alone.
+        (when-not (contains? #{nil :flip} coord)
+          (throw (ex-info (str "This pose names " (pr-str (mapping-source (:y m)))
+                               " on :y alone, under layers that draw from one column,"
+                               " which is drawn on its side with the coordinates"
+                               " flipped. :coord " (pr-str coord) " has no drawing for"
+                               " it. Name the column on :x, or leave :coord"
+                               " unspecified.")
+                          {:y (mapping-source (:y m)) :coord coord})))
+        (-> leaf
+            (assoc :mapping (-> m (dissoc :y) (assoc :x (:y m))))
+            (assoc-in [:opts :coord] :flip)))
       leaf)))
 
 (defn elaborate-leaf

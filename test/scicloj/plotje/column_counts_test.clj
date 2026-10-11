@@ -48,3 +48,14 @@
     (testing "a scatter takes the first other column as its x"
       (let [plan (pj/plan (pj/lay-point animals {:y :count}))]
         (is (= ["animal" "count"] [(:x-label plan) (:y-label plan)]))))))
+
+(deftest a-column-on-y-alone-and-a-specified-coord-test
+  ;; Drawn on its side is the one drawing such a pose has. `:flip`
+  ;; specified says what is inferred; any other coordinate system
+  ;; reports an error, where it failed with a NullPointerException.
+  (let [side (fn [coord]
+               (cond-> (-> {:v [1.0 2.0 2.0 3.0 5.0]} (pj/pose {:y :v}) pj/lay-histogram)
+                 coord (pj/coord coord)))]
+    (is (= (pj/plot (side nil)) (pj/plot (side :flip))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #":coord :cartesian has no drawing"
+                          (pj/plan (side :cartesian))))))

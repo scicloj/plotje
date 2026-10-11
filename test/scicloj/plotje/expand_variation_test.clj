@@ -56,7 +56,7 @@
                  (pj/facet-grid base :drv :cyl)
                  (-> base (pj/facet :drv) (pj/options {:scales :free}))]]
         (is (= (pj/plot v)
-               (binding [pose/*expand-facets* true] (pj/plot v)))))))
+               (pj/plot (pose/expand-facets v)))))))
   (testing "cells written by hand draw the facet's picture"
     (is (= (pj/plot (assoc scatter
                            :layout {:direction :horizontal}

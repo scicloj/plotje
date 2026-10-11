@@ -4,7 +4,8 @@
    `:scales` option it replaces."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
-            [scicloj.plotje.impl.defaults :as defaults]))
+            [scicloj.plotje.impl.defaults :as defaults]
+            [tablecloth.api :as tc]))
 
 (def cars
   {:size [1.0 2.0 3.0 4.0 5.0 6.0]
@@ -256,3 +257,19 @@
     (testing "values below zero are still padded past"
       (is (= [[-5.75 10.75]]
              (x-domains (pj/lay-bar {:cohort ["a" "b"] :growth [-5 10]} :growth :cohort)))))))
+
+(deftest data-in-a-pose-written-as-a-map-test
+  ;; `pj/pose` coerces its data; a pose written as a map may hold a
+  ;; plain map, and its cells were not shared, with no message.
+  (let [pose (fn [data]
+               {:data data
+                :mapping {:x :quarter}
+                :layers [{:layer-type :bar}]
+                :layout {:direction :vertical}
+                :poses [{:mapping {:y :revenue}} {:mapping {:y :cost}}]
+                :opts {:share-scales {:y :all}}})
+        sales {:quarter ["Q1" "Q2" "Q3" "Q4"]
+               :revenue [120.0 135.0 150.0 170.0]
+               :cost [80.0 85.0 95.0 100.0]}]
+    (is (= [[0.0 178.5] [0.0 178.5]] (mapv second (domains (pose sales)))))
+    (is (= (domains (pose sales)) (domains (pose (tc/dataset sales)))))))

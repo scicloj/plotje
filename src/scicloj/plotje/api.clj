@@ -835,10 +835,11 @@
   [pose]
   (expect-type pose pose? "pose" "pj/pose->draft")
   (check-pose-shape! pose)
-  (let [pose (retire-scales-in-tree pose)
+  (let [pose (-> pose
+                 retire-scales-in-tree
+                 pose/coerce-data-in-tree)
         pose (cond-> pose
                true pose/expand-facet-nodes
-               pose/*expand-facets* pose/expand-facets
                true pose/collapse-regular-split)]
     (if (pose/composite? pose)
       (compositor/composite-pose->draft pose)

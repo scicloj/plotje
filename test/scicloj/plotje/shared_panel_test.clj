@@ -174,3 +174,14 @@
                          (pj/pose {:x :displ :y [:hwy :cty]})
                          pj/lay-point
                          (pj/lay-point {:y :displ :color :class}))))))))
+
+(deftest kinds-error-names-the-type-option-test
+  (let [message (fn [pose] (try (pj/plan pose) nil (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+    (testing "categories beside numbers: the column can be read as categories"
+      (is (re-find #"set :x-type :categorical on its layer"
+                   (message (-> cars (pj/lay-point :class :hwy) (pj/lay-point :cty :hwy))))))
+    (testing "dates beside numbers: no such reading"
+      (is (not (re-find #"-type"
+                        (message (-> {:d [#inst "2024-01-01" #inst "2024-02-01"] :n [1 2] :v [1 2]}
+                                     (pj/lay-point :d :v)
+                                     (pj/lay-point :n :v)))))))))

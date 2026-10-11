@@ -12,6 +12,7 @@
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
             [scicloj.plotje.layer-type :as layer-type]
+            [scicloj.metamorph.ml.rdatasets :as rdatasets]
             [tablecloth.api :as tc]))
 
 (def small
@@ -229,8 +230,10 @@
         doms (set (map (juxt :x-domain :y-domain) (:panels plan)))]
     (is (= 6 (count (:panels plan))))
     (is (= 1 (count doms)))
-    ;; Every panel reads the data's extent, padded: x 10-12, y 20-22.
-    (is (= #{[[9.0 13.0] [19.0 23.1]]} doms))))
+    ;; Every panel reads the data's extent, padded once: x 10-12, y
+    ;; 20-22. Each cell holds one row, and a cell votes with its value,
+    ;; not with the room a lone value is padded by.
+    (is (= #{[[9.9 12.1] [19.9 22.1]]} doms))))
 
 (deftest free-axis-labels-every-panel-test
   ;; Each panel of a free axis has ticks of its own, so each draws its
@@ -245,3 +248,29 @@
     (is (every? drawn (apply concat panel-labels)))
     ;; Shared: one column of y labels, so "200" is drawn once.
     (is (= 1 ((frequencies (:texts (pj/svg-summary base))) "200")))))
+
+(deftest a-shared-facet-axis-is-pooled-then-padded-test
+  ;; The panels sharing an axis pool the extents they draw, and the
+  ;; pooled extent is padded once -- so a split reads on the axes of the
+  ;; same plot unsplit. Padding each panel before pooling padded by a
+  ;; share of each panel's own, narrower, extent.
+  (let [mpg (rdatasets/ggplot2-mpg)
+        base (pj/lay-point mpg :displ :hwy)
+        domains (fn [pose] (vec (distinct (map (juxt :x-domain :y-domain) (:panels (pj/plan pose))))))
+        unsplit (domains base)]
+    (is (= [[[1.33 7.27] [10.4 45.6]]] unsplit))
+    (testing "a facet, a grid with one-row cells, and a flipped facet"
+      (is (= unsplit (domains (pj/facet base :drv))))
+      (is (= unsplit (domains (pj/facet-grid base :drv :cyl))))
+      (is (= [[[10.4 45.6] [1.33 7.27]]] (domains (pj/coord (pj/facet base :drv) :flip)))))
+    (testing "an axis left out of :share-scales is fitted to each panel, as before"
+      (is (= [[1.33 7.27]]
+             (vec (distinct (map first (domains (pj/options (pj/facet base :drv) {:share-scales #{:x}})))))))
+      (is (= 3 (count (domains (pj/options (pj/facet base :drv) {:share-scales #{:x}}))))))
+    (testing "a baseline stays on the panel edge, and a count axis is shared"
+      (is (= [[[10.4 45.6] [0.0 46.2]]] (domains (pj/facet (pj/lay-histogram mpg :hwy) :drv)))))
+    (testing "a :domain specified is the domain"
+      (is (= [[[1.33 7.27] [0 50]]] (domains (pj/scale (pj/facet base :drv) :y {:domain [0 50]})))))
+    (testing "panels that each hold one value share the extent between the values"
+      (is (= [[[0.9 3.1] [4.0 6.0]]]
+             (domains (pj/facet (pj/lay-point {:g ["a" "b"] :x [1.0 3.0] :y [5.0 5.0]} :x :y) :g)))))))

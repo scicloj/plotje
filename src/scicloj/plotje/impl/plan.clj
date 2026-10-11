@@ -207,10 +207,20 @@
    One function because the two rules are one rule: `lay-bar` asked for
    zero through its mark and `:include` asks for it by name, and a
    stacked bar used to pad below the baseline its unstacked sibling sat
-   on."
+   on.
+
+   `padding` nil answers the extent itself, reaching the anchors and
+   not padded -- what a panel draws, before the panels sharing an axis
+   are pooled (`draft->plan`)."
   [[raw-lo raw-hi] anchors scale-spec padding]
-  (if (empty? anchors)
+  (cond
+    (nil? padding)
+    [(reduce min raw-lo anchors) (reduce max raw-hi anchors)]
+
+    (empty? anchors)
     (scale/pad-domain [raw-lo raw-hi] scale-spec padding)
+
+    :else
     (let [raw-lo (double raw-lo)
           raw-hi (double raw-hi)
           a-lo (double (reduce min anchors))
@@ -3335,42 +3345,82 @@
          ;; is what tells the panels that are slices of one column from
          ;; the panels that hold different columns. Read from the first
          ;; draft layer, as the grid reads it.
-         panel-domains (vec
-                        (for [pd panel-data
-                              :when (seq (:draft-layers pd))
-                              :let [v (first (:draft-layers pd))]]
-                          (assoc (resolve-panel-domains pd default-x-scale default-y-scale
-                                                        default-coord
-                                                        (:domain-padding cfg)
-                                                        shared-domains)
-                                 :x-var (:x v)
-                                 :y-var (:y v))))
-
+         has-ridgeline? (some #(= :ridgeline (:mark %)) draft-layers)
          ;; Ridgeline swap: categories go on y, density on x. Swap
          ;; per-panel domains/scales/temporal extents before anything
          ;; reads them for layout or rendering.
-         has-ridgeline? (some #(= :ridgeline (:mark %)) draft-layers)
-         panel-domains (if has-ridgeline?
-                         (mapv (fn [d]
-                                 (-> d
-                                     (assoc :x-dom (:y-dom d) :y-dom (:x-dom d)
-                                            :x-var (:y-var d) :y-var (:x-var d)
-                                            :x-scale (:y-scale d) :y-scale (:x-scale d)
-                                            :x-informed? (:y-informed? d)
-                                            :y-informed? (:x-informed? d)
-                                            :x-te (:y-te d) :y-te (:x-te d))))
-                               panel-domains)
-                         panel-domains)
-
+         swap-ridgeline (fn [d]
+                          (if has-ridgeline?
+                            (assoc d :x-dom (:y-dom d) :y-dom (:x-dom d)
+                                   :x-var (:y-var d) :y-var (:x-var d)
+                                   :x-scale (:y-scale d) :y-scale (:x-scale d)
+                                   :x-informed? (:y-informed? d)
+                                   :y-informed? (:x-informed? d)
+                                   :x-te (:y-te d) :y-te (:x-te d))
+                            d))
+         drawn-panels (filterv #(seq (:draft-layers %)) panel-data)
+         ;; `padding` nil asks for the extent each panel's layers draw,
+         ;; unpadded (`pad-domain-anchored`). `shared-of` gives the
+         ;; extent that stands in for a panel's own, by panel index.
+         domains-with (fn [padding shared-of]
+                        (vec
+                         (map-indexed
+                          (fn [i pd]
+                            (let [v (first (:draft-layers pd))]
+                              (swap-ridgeline
+                               (assoc (resolve-panel-domains pd default-x-scale default-y-scale
+                                                             default-coord
+                                                             padding
+                                                             (shared-of i))
+                                      :x-var (:x v)
+                                      :y-var (:y v)))))
+                          drawn-panels)))
          ;; Facet scale coordination: by default, faceted layouts share
          ;; one x-domain and one y-domain across all panels so panels
          ;; are visually comparable. The :share-scales opt controls which axes
          ;; coordinate. Multi-variable layouts (different x/y vars per
          ;; panel) skip this -- aggregating across different columns
          ;; would be meaningless.
-         panel-domains (if (= layout-type :facet-grid)
-                         (coordinate-facet-domains panel-domains (:share-scales opts))
-                         panel-domains)
+         ;;
+         ;; A shared numeric axis pools the extents the panels draw and
+         ;; is padded once, so it reads as the same panels drawn on one
+         ;; panel would. Padding each panel before pooling padded by a
+         ;; share of each panel's own, narrower, extent: `displ` from
+         ;; 1.6 to 7.0, split three ways, ran `[1.415 7.16]` where the
+         ;; unsplit plot runs `[1.33 7.27]`, and a panel holding one row
+         ;; voted with the plus and minus one a lone value is padded by.
+         ;; So the panels are measured first, unpadded; the pooled
+         ;; extent then stands in for each panel's own, as the extent a
+         ;; composite shares does, and is padded and anchored there.
+         panel-domains
+         (if-not (= layout-type :facet-grid)
+           (domains-with (:domain-padding cfg) (constantly shared-domains))
+           (let [;; A measurement: whatever this pass would print, the
+                 ;; pass below prints.
+                 fitted (binding [*out* (java.io.StringWriter.)
+                                  *err* (java.io.StringWriter.)]
+                          (domains-with nil (constantly shared-domains)))
+                 pooled (coordinate-facet-domains fitted (:share-scales opts))
+                 numeric (fn [d] (when (and (seq d) (number? (first d))) (vec d)))
+                 shared-of (fn [i]
+                             (let [p (nth pooled i)
+                                   x (when (:x-votes? p true) (numeric (:x-dom p)))
+                                   y (when (:y-votes? p true) (numeric (:y-dom p)))
+                                   ;; The pooled domains describe the
+                                   ;; drawn axes; a shared extent is
+                                   ;; read in data order.
+                                   [x y] (if (not= (boolean has-ridgeline?) (= :flip (:coord p)))
+                                           [y x]
+                                           [x y])]
+                               ;; An extent a composite stamped on this
+                               ;; leaf already covers its cells.
+                               (not-empty (merge (cond-> {} x (assoc :x x) y (assoc :y y))
+                                                 shared-domains))))]
+             ;; Pooled again for what the stand-in does not carry: the
+             ;; union of categories, and a panel with no rows, which
+             ;; takes the others' domain.
+             (coordinate-facet-domains (domains-with (:domain-padding cfg) shared-of)
+                                       (:share-scales opts))))
 
          ;; --- Phase 3: labels, legends, and the three layout fns ---
          ;; An axis carries a shared title only where every panel draws

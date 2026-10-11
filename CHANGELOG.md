@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file. This change
 
 - **Cells drawn from one pose's data with `:scales` written on that pose**, such as `(-> data (pj/arrange [[:a :b] [:a :c]]) pj/lay-point (pj/options {:scales :free}))`, now follow it: `:scales` is read as `:share-scales`, which reaches an arrangement as well as a facet.
 
+- **A facet's shared axis** covers the extent its panels draw, padded once, so the panels read on the axes of the same plot drawn without the facet: `displ` from 1.6 to 7.0 runs `[1.33 7.27]` in every panel of `(pj/facet pose :drv)`. In a `pj/facet-grid`, a cell holding one row no longer widens the shared axis by a unit either way. An axis left out of `:share-scales` is fitted to each panel as before.
+
 - **Bars drawn across**, with the value on `:x` and the category on `:y`, start on the panel edge: the `:x` axis begins at zero and is padded only past the longest bar, as the `:y` axis under upright bars is. The same holds where `:share-scales` names `:x`, as in `(pj/arrange [bars-a bars-b] {:share-scales #{:x}})`. Values below zero are padded past as before.
 
 - **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column. `:x-label` and `:y-label` still set the title.
@@ -32,7 +34,7 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells are appended to it. Cells that split the data of the pose they are arranged into share each axis that draws one column, title it once and label its ticks on the outer cells only; `:share-scales` overrides the sharing.
 
-- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. A layer written above the facet is drawn in the panels whose columns it draws -- so a layer naming one of the facet's columns is drawn only in that column's panels -- and a panel no layer draws takes the layer type inferred from its columns: `(-> iris (pj/facet {:col {:x cols} :row {:y cols}}) pj/lay-point)` draws histograms on the diagonal. A column on `:y` alone under a histogram or a density is drawn on its side.
+- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. A layer written above the facet is drawn in the panels whose columns it draws -- so a layer naming one of the facet's columns is drawn only in that column's panels -- and a panel no layer draws takes the layer type inferred from its columns: `(-> iris (pj/facet {:col {:x cols} :row {:y cols}}) pj/lay-point)` draws histograms on the diagonal. A column on `:y` alone under a histogram or a density is drawn on its side. Such a pose takes `:coord :flip` or none; another coordinate system reports an error.
 
 - `:share-scales` says which axes panels share, on a facet and on an arrangement alike. A set names the axes: `(pj/options faceted {:share-scales #{:x}})` shares `:x` and fits `:y` to each panel, and `#{}` shares neither. A map says which columns go together on an axis, and cells whose columns go together share it: `{:y [[:hwy :cty]]}` shares `:y` between the panels drawing `:hwy` and `:cty`, `{:y :all}` between every panel, and `{:y :same-column}` between panels drawing the same column, which is what the set says. Columns that go together must be of one kind, numbers or dates.
 
@@ -50,7 +52,7 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/cross-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error.
 
-- `pj/overlay` and the `:overlay` layer option warn that they are ignored, since the layers of a pose share one panel; `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`. Layers of one panel drawing a categorical and a numeric column on the same axis report an error naming the layers and the same two routes, and a count or a density beside a column on `:y` warns that the axis reads in two units.
+- `pj/overlay` and the `:overlay` layer option warn that they are ignored, since the layers of a pose share one panel; `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`. Layers of one panel drawing a categorical and a numeric column on the same axis report an error naming the layers and the same two routes, and `:x-type :categorical` for a numeric column that should be read as categories, and a count or a density beside a column on `:y` warns that the axis reads in two units.
 
 - The `:scales` option is retired: it warns and is read as the `:share-scales` value it stands for, `#{:x}` for `:free-y`, `#{:y}` for `:free-x` and `#{}` for `:free`, and `:shared` is dropped as the default. Under `:strict` it reports an error.
 
@@ -61,6 +63,8 @@ All notable changes to this project will be documented in this file. This change
 - `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` value that appears nowhere in its column, or an empty set, warns.
 
 ### Fixed
+
+- A pose written as a map, with plain data under `:data` and cells that share an axis, shares it as the same pose holding a dataset does.
 
 - `pj/arrange` draws `:subtitle` under its title and `:caption` under the grid. `:align-panels` on a row or a grid of cells gives every cell the same width and the same bottom edge.
 
