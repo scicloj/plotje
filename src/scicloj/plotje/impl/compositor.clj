@@ -87,6 +87,63 @@
             {}
             (group-by :group members))))
 
+(defn- shared-floors
+  "Where the planned cells of a share group ended on different domains,
+   the widest of them for each of its cells, as `{path {axis [lo hi]}}`
+   by data axis; empty where every group agrees. Categorical domains
+   are left out: they are shared whole and nothing widens them."
+  [sub-drafts sub-plots]
+  (let [plan-of (into {} (map (juxt :path :plan)) sub-plots)
+        final (fn [path axis]
+                (let [doms (for [p (:panels (plan-of path))
+                                 :let [k (if (= (= axis :x) (not= :flip (:coord p)))
+                                           :x-domain :y-domain)
+                                       d (get p k)]
+                                 :when (and (sequential? d) (= 2 (count d)) (number? (first d)))]
+                             d)]
+                  (when (seq doms)
+                    [(reduce min (map first doms)) (reduce max (map second doms))])))
+        members (for [{:keys [path share]} sub-drafts
+                      [axis {:keys [group]}] share
+                      :let [d (final path axis)]
+                      :when d]
+                  {:path path :axis axis :group group :domain d})]
+    (reduce (fn [m [_ ms]]
+              (let [widest [(reduce min (map (comp first :domain) ms))
+                            (reduce max (map (comp second :domain) ms))]]
+                (if (every? #(= widest (:domain %)) ms)
+                  m
+                  (reduce (fn [m {:keys [path axis]}] (assoc-in m [path axis] widest)) m ms))))
+            {}
+            (group-by :group members))))
+
+(defn- settle-shared
+  "The planned cells, with the cells of every share group on one domain.
+
+   A cell's numeric domain is widened after it is planned so that its
+   text marks are drawn in full, by an amount that depends on its own
+   labels and its own width. Two cells sharing an axis start from one
+   pooled extent and can end apart. Where they do, they are planned
+   again with the widest domain as a floor, which each may still widen
+   for its labels; if they are still apart, once more with the floor
+   and the fit switched off on that axis, which leaves them equal. A
+   facet does the same within its one plan, pooling again after each
+   fit."
+  [sub-drafts sub-plots replan]
+  (loop [plots sub-plots
+         k 0]
+    (let [floors (shared-floors sub-drafts plots)]
+      (if (or (empty? floors) (>= k 2))
+        plots
+        (recur (mapv (fn [sub plot]
+                       (if-let [f (get floors (:path sub))]
+                         (replan (update sub :opts merge
+                                         (cond-> {:domain-floors f}
+                                           (= k 1) (assoc :domains-settled (set (keys f))))))
+                         plot))
+                     sub-drafts plots)
+               (inc k))))))
+
 (defn- outer-dimensions
   "The composite's total `[width height]`: its own `:width`/`:height`,
    and otherwise the configuration's, resolved at draw time the way
@@ -604,6 +661,12 @@
                               (plan-sub (update sub :opts merge align-floors)))
                             sub-drafts))
                     first-pass)
+        sub-plots (settle-shared sub-drafts sub-plots
+                                 (fn [sub]
+                                   (binding [plan/*unread-option-warnings* (atom [])]
+                                     (plan-sub (cond-> sub
+                                                 (:align-panels composite-draft)
+                                                 (update :opts #(merge align-floors %)))))))
         shared-legend (when (:shared? chrome-spec)
                         (when-let [first-sub (first sub-drafts)]
                           (let [shared-aes (:shared-aesthetics chrome-spec)

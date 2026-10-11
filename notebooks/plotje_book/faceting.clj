@@ -341,9 +341,29 @@ measures
 ;; `#{:y}` shares `:y` and fits `:x` to each panel, and `#{}` fits both
 ;; axes to each panel.
 ;;
+;; A shared axis covers what the panels sharing it draw, and is padded
+;; once. So the panels of a facet read on the axes the same plot has
+;; when it is not split:
+
+(let [whole (-> (rdatasets/datasets-iris)
+                (pj/lay-point :sepal-length :sepal-width))
+      domains (fn [pose] (mapv (juxt :x-domain :y-domain) (:panels (pj/plan pose))))]
+  {:not-split (first (domains whole))
+   :each-panel (distinct (domains (pj/facet whole :species)))})
+
+(kind/test-last
+ [(fn [{:keys [not-split each-panel]}]
+    (= [not-split] each-panel))])
+
+;; A shared axis of categories lists every category the panels hold, in
+;; the order of the data, so a category sits at the same place in every
+;; panel. The panels of a faceted histogram share their count axis.
+;;
 ;; `pj/arrange` takes the same option for its cells, where it can also
 ;; say which columns share an axis; see
-;; [Composition](./plotje_book.composition.html#shared-scales).
+;; [Composition](./plotje_book.composition.html#shared-scales) and, for
+;; what a shared axis covers,
+;; [What a Shared Axis Covers](./plotje_book.composition.html#what-a-shared-axis-covers).
 
 ;; ## Appearance Aesthetics Across Panels
 ;;

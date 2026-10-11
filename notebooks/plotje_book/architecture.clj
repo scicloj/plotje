@@ -22,6 +22,9 @@
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
+   ;; Plotje internals -- read in "How Panels Share an Axis"
+   [scicloj.plotje.impl.pose :as pose]
+   [scicloj.plotje.impl.plan :as plan]
    ;; Membrane UI protocols
    [membrane.ui]))
 
@@ -616,15 +619,214 @@ composite-pose
 ;; either way -- because each step dispatches on shape at
 ;; the bottom of its call.
 
-;; The composite path also performs cross-leaf work that has no
-;; per-leaf analogue. When the composite carries
-;; `{:share-scales #{:x :y}}`, `pj/pose->draft` computes domains
-;; across all leaves and inserts them into each per-leaf draft
-;; before `pj/draft->plan` runs, so the resulting panels share
-;; axes. Shared-scale resolution belongs to the composite stage
-;; rather than per-leaf planning. See the
-;; [Composition](./plotje_book.composition.html#shared-scales) chapter for worked
-;; examples.
+;; The composite path also performs work across leaves that a single
+;; leaf has no counterpart for: deciding which cells share an axis, and
+;; what that axis covers. The next section follows it through the
+;; stages.
+
+;; ## How Panels Share an Axis
+;;
+;; Panels that are meant to be compared are drawn on one axis: the same
+;; numbers, or the same categories, in every panel. Plotje reaches
+;; several panels by two paths, and both follow one rule: **a shared
+;; axis covers what the panels sharing it draw.**
+;;
+;; - A facet by the categories of a column is one plan with several
+;;   panels.
+;; - An arrangement, and a facet over columns, is a `CompositePlan`: one
+;;   plan per cell.
+;;
+;; The same two clinics drawn by each path:
+
+(def north
+  {:week ["w1" "w1" "w2" "w2"]
+   :age ["adults" "children" "adults" "children"]
+   :visits [30 20 25 15]})
+
+(def south
+  {:week ["w1" "w1" "w2" "w2"]
+   :age ["adults" "children" "adults" "children"]
+   :visits [60 45 50 40]})
+
+(def arranged-clinics
+  (pj/arrange [(pj/lay-bar north :week :visits {:color :age :position :stack})
+               (pj/lay-bar south :week :visits {:color :age :position :stack})]
+              {:share-scales #{:y}}))
+
+arranged-clinics
+
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+
+(def faceted-clinics
+  (-> {:clinic ["north" "north" "north" "north" "south" "south" "south" "south"]
+       :week ["w1" "w1" "w2" "w2" "w1" "w1" "w2" "w2"]
+       :age ["adults" "children" "adults" "children"
+             "adults" "children" "adults" "children"]
+       :visits [30 20 25 15 60 45 50 40]}
+      (pj/lay-bar :week :visits {:color :age :position :stack})
+      (pj/facet :clinic)))
+
+faceted-clinics
+
+(kind/test-last
+ [(fn [v] (and (pj/composite-plan? (pj/plan arranged-clinics))
+               (not (pj/composite-plan? (pj/plan v)))
+               (= 2 (count (:panels (pj/plan v))))))])
+
+;; ### The pose stage decides which cells share
+;;
+;; `pj/pose->draft` reads the composite's `:share-scales` and puts the
+;; cells into groups. It reads no value from the data to do this. Each
+;; sub-draft carries the groups of its cell under `:share`, by axis:
+
+(->> arranged-clinics
+     pj/draft
+     :sub-drafts
+     (mapv :share))
+
+(kind/test-last [(fn [shares] (= [{:y {:group 0}} {:y {:group 0}}] shares))])
+
+;; Two cells are placed in one group where they draw the same thing
+;; along an axis: the values of one column, or what a stat computes from
+;; one column -- a count, a density -- which the stat declares (see
+;; [What a stat computes](./plotje_book.extensibility.html#what-a-stat-computes)).
+;; A count of a column and the values of that column are never in one
+;; group. `:share-scales` can also name columns that go together, or
+;; `:all`.
+;;
+;; `:share-scales` names an axis as it is drawn: `:x` is the horizontal
+;; axis. The groups are recorded by the axis of each cell's own
+;; mapping, so two flipped cells sharing `:x` are in a group on their
+;; `:y`, which is the column that runs across:
+
+(->> (pj/arrange [(pj/coord (pj/lay-bar north :week :visits) :flip)
+                  (pj/coord (pj/lay-bar south :week :visits) :flip)]
+                 {:share-scales #{:x}})
+     pj/draft
+     :sub-drafts
+     (mapv :share))
+
+(kind/test-last [(fn [shares] (= [{:y {:group 0}} {:y {:group 0}}] shares))])
+
+;; ### The plan stage decides what the axis covers
+;;
+;; What a cell draws is known only after its stats have run. A stack of
+;; bars reaches the sum of its parts, which no row of the `:visits`
+;; column holds. So `pj/draft->plan` first measures every sharing cell:
+;; `plan/draft->extents` runs the cell's stats and returns the extent
+;; the cell draws on each axis, before any padding.
+
+(->> arranged-clinics
+     pj/draft
+     :sub-drafts
+     (mapv (fn [sub-draft]
+             (plan/draft->extents (:draft sub-draft) (:opts sub-draft)))))
+
+(kind/test-last
+ [(fn [extents]
+    ;; The largest value in either :visits column is 60; the stacks
+    ;; reach 50 and 105.
+    (= [[0.0 50.0] [0.0 105.0]] (mapv :y extents)))])
+
+;; The extents of a group are pooled: numbers by the lowest low and the
+;; highest high, categories by listing every category of every cell.
+;; Each cell is then planned with the pooled extent in place of its
+;; own. The pooled extent is in the cell's options in the plan:
+
+(->> arranged-clinics
+     pj/plan
+     :sub-plots
+     (mapv (fn [sub-plot] (:y-scale-domain (:opts sub-plot)))))
+
+(kind/test-last [(fn [domains] (= [[0.0 105.0] [0.0 105.0]] domains))])
+
+;; Every cell pads that one extent the same way, so the panels end on
+;; one domain:
+
+(->> arranged-clinics
+     pj/plan
+     :sub-plots
+     (mapv (fn [sub-plot] (:y-domain (first (:panels (:plan sub-plot)))))))
+
+(kind/test-last [(fn [domains] (and (apply = domains)
+                                    (< 105.0 (second (first domains)))))])
+
+;; Three details complete the picture:
+;;
+;; - **Categories.** Where the cells of a group are parts of one
+;;   dataset, the pooled categories are listed in the order of that
+;;   dataset's rows, so the split has the axis of the same plot drawn
+;;   without the split. Cells with data of their own are listed cell by
+;;   cell.
+;; - **Text labels.** A cell's numeric domain is widened after planning
+;;   so that its text marks are drawn in full, by an amount that depends
+;;   on the cell's own labels. Cells of a group that end on different
+;;   domains are planned again with the widest domain as a floor, so
+;;   that they agree.
+;; - **Cost.** A sharing cell's stats run twice: once to measure it, and
+;;   once to plan it with the pooled extent. A cell that shares with no
+;;   other cell is not measured.
+;;
+;; A facet in one plan follows the same steps inside `pj/draft->plan`:
+;; its panels are measured without padding, pooled, and each panel is
+;; then given the pooled extent and padded. The facet of the two
+;; clinics ends on the domain the arrangement ends on:
+
+(->> faceted-clinics
+     pj/plan
+     :panels
+     (mapv :y-domain))
+
+(kind/test-last
+ [(fn [domains]
+    (= domains
+       (mapv (fn [sub-plot] (:y-domain (first (:panels (:plan sub-plot)))))
+             (:sub-plots (pj/plan arranged-clinics)))))])
+
+;; ### Poses rewritten before drafting
+;;
+;; Some poses are rewritten into the cells they stand for before any of
+;; the above runs, so that one spelling cannot be drawn differently
+;; from another. `pj/pose->draft` does this in `pose/expand-facet-nodes`.
+;;
+;; A facet over columns is kept on the pose as written, and expanded
+;; into a composite of one cell per column. A series faceted by the key
+;; column the series invents asks for the same panels, so it is first
+;; rewritten into a facet over the columns of the series, and then
+;; expanded like any other:
+
+(def weekly-visits
+  {:week [1 2 3 4]
+   :adults [30 25 28 35]
+   :children [20 15 18 22]})
+
+(def series-by-key
+  (-> weekly-visits
+      (pj/lay-line :week [:adults :children])
+      (pj/facet :series)))
+
+series-by-key
+
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+
+;; The expanded pose is a composite. The column the layer drew along
+;; `:x` has moved to the root, and each cell names one of the series'
+;; columns:
+
+(-> series-by-key
+    pose/expand-facet-nodes
+    (dissoc :data)
+    kind/pprint)
+
+(kind/test-last
+ [(fn [expanded]
+    (and (= {:x :week} (:mapping expanded))
+         (= [{:y :adults} {:y :children}]
+            (mapv :mapping (mapcat :poses (:poses expanded))))))])
+
+;; From here the pose is an ordinary composite: its cells are grouped,
+;; measured and planned as the two clinics above were. Each cell draws
+;; a column of its own, so by default no two cells share `:y`.
 
 ;; ## The Plan Boundary
 ;;

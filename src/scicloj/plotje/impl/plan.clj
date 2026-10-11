@@ -2841,8 +2841,10 @@
    full. Leaves alone a domain the user pinned with pj/scale, a
    categorical domain, and any panel under :coord :polar, where the
    value-to-pixel mapping is not a straight line and this arithmetic
-   would not describe it."
-  [pd pw ph m]
+   would not describe it. Nor a domain in `settled` (`:x-dom`,
+   `:y-dom`): one the cells of a composite sharing the axis have
+   already agreed on."
+  [pd pw ph m settled]
   (if (= :polar (:coord pd))
     pd
     (let [flip? (= :flip (:coord pd))
@@ -2850,6 +2852,7 @@
                 (let [dom (dom-key pd)
                       spec (scale-key pd)]
                   (if (or (:domain spec)
+                          (contains? settled dom-key)
                           (not (and (sequential? dom)
                                     (= 2 (count dom))
                                     (number? (first dom)))))
@@ -3655,12 +3658,34 @@
              ;; skipped: their domains have already been swapped away from
              ;; the axes their layers were extracted on.
              fit-text? (and (:fit-text-domain cfg) (not has-ridgeline?))
+             ;; The cells of a composite sharing an axis are each fitted
+             ;; to their own labels, which leaves them on different
+             ;; domains, so the compositor plans them again with the
+             ;; widest as a floor (`:domain-floors`, by data axis), and
+             ;; once more with the fit switched off on that axis
+             ;; (`:domains-settled`) -- see `compositor/settle-shared`.
+             drawn-key (fn [pd axis]
+                         (let [swap? (not= (boolean has-ridgeline?) (= :flip (:coord pd)))]
+                           (if (= (= axis :x) (not swap?)) :x-dom :y-dom)))
+             cover (fn [pd]
+                     (reduce (fn [pd [axis [lo hi]]]
+                               (let [k (drawn-key pd axis)
+                                     d (get pd k)
+                                     spec (get pd (if (= k :x-dom) :x-scale :y-scale))]
+                                 (if (and (not (:domain spec))
+                                          (sequential? d) (= 2 (count d)) (number? (first d)))
+                                   (assoc pd k [(min (first d) lo) (max (second d) hi)])
+                                   pd)))
+                             pd
+                             (:domain-floors opts)))
+             settled-keys (fn [pd] (set (map #(drawn-key pd %) (:domains-settled opts))))
              [panel-domains {:keys [padding dims]}]
-             (loop [pds panel-domains k 0]
+             (loop [pds (mapv cover panel-domains) k 0]
                (let [lay (layout-for pds)
                      fitted (if fit-text?
-                              (cond-> (mapv #(fit-panel-text % (:pw (:dims lay))
-                                                             (:ph (:dims lay)) m)
+                              (cond-> (mapv #(cover (fit-panel-text % (:pw (:dims lay))
+                                                                    (:ph (:dims lay)) m
+                                                                    (settled-keys %)))
                                             pds)
                                 (= layout-type :facet-grid)
                                 (coordinate-facet-domains (:share-scales opts)))

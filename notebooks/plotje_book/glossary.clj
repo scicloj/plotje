@@ -911,8 +911,8 @@ my-pose
 ;; - `pj/facet` creates a row or column of panels
 ;; - `pj/facet-grid` creates a row-by-column grid from two columns
 ;;
-;; By default all panels share the same x and y domains, derived
-;; from the full dataset. `:share-scales` in `pj/options` names the
+;; By default all panels share the same x and y domains, which cover
+;; what the panels draw. `:share-scales` in `pj/options` names the
 ;; axes the panels share: `{:share-scales #{:x}}` lets each panel use
 ;; its own `:y` range, and `{:share-scales #{}}` its own range on both
 ;; axes.

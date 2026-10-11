@@ -3058,8 +3058,9 @@
   "Where the cells all draw one column on an axis, that axis is titled
    once beside the grid (`:grid-axis-titles`). On a shared axis, a cell
    drops its tick labels where a cell with rows below it (x) or to its
-   left (y) draws the same column on that axis, or a column
-   `:share-scales` puts together with it -- read from where the
+   left (y) shares that axis with it (`share-buckets`: the same
+   column, the same count, or what `:share-scales` puts together) --
+   read from where the
    layout places the cells, so a row, a column, a grid and a matrix are
    treated alike: a facet ticks its outer panels, a scatter plot matrix
    ticks its bottom row and left column. An axis left free keeps its
@@ -3072,24 +3073,38 @@
   (if (contains? composite :grid-axis-titles)
     composite
     (let [spec (share-spec composite)
-          ;; Two columns one scale draws: the same column, or columns
-          ;; the share spec puts together.
-          together? (fn [axis a b]
-                      (and (contains? spec axis)
-                           (or (= a b)
-                               (let [how (get spec axis)]
-                                 (cond
-                                   (= :all how) true
-                                   (sequential? how) (boolean (some #(and (some #{a} %) (some #{b} %)) how))
-                                   :else false)))))
           leaves (resolve-tree composite)
-          once-x? (unanimous-column leaves :x)
-          once-y? (unanimous-column leaves :y)
+          ;; The buckets each cell is in on a shared axis, by path: two
+          ;; cells one scale draws are in a bucket together -- the same
+          ;; column, the same count, or what the share spec puts
+          ;; together (`share-buckets`, which the domains are shared
+          ;; by).
+          buckets (into {}
+                        (for [[axis how] spec]
+                          [axis (reduce (fn [m [i {:keys [pairs]}]]
+                                          (reduce (fn [m [_ leaf]]
+                                                    (update m (:path leaf) (fnil conj #{}) i))
+                                                  m pairs))
+                                        {}
+                                        (map-indexed vector (share-buckets leaves axis how)))]))
+          together? (fn [axis a b]
+                      (boolean (some (get-in buckets [axis (:path a)] #{})
+                                     (get-in buckets [axis (:path b)] #{}))))
+          ;; A shared axis every cell draws the same thing on -- one
+          ;; column, which a cell's layers may name where its mapping
+          ;; does not, or one count -- is titled once as well.
+          live-leaves (remove :plotje/empty-cell leaves)
+          one-key? (fn [axis]
+                     (let [ks (map #(keys (share-key-buckets [%] axis)) live-leaves)]
+                       (and (contains? spec axis)
+                            (seq ks)
+                            (every? #(and (= 1 (count %)) (some? (first %))) ks)
+                            (apply = ks))))
+          once-x? (or (unanimous-column leaves :x) (one-key? :x))
+          once-y? (or (unanimous-column leaves :y) (one-key? :y))
           rects (compute-layout composite [0 0 1000 1000])
-          live (vec (for [leaf leaves
-                          :when (not (:plotje/empty-cell leaf))
-                          :let [cols (leaf-columns leaf)]]
-                      {:rect (rects (:path leaf)) :x (:x cols) :y (:y cols)}))
+          live (vec (for [leaf live-leaves]
+                      {:rect (rects (:path leaf)) :path (:path leaf)}))
           ;; Only a cell in the same column of the grid -- the same
           ;; horizontal extent -- carries ticks a cell above it can read;
           ;; a wider panel below, whose axis does not line up, does not.
@@ -3099,14 +3114,13 @@
           left? (fn [[x y _ h] [x2 y2 _ h2]]
                   (and (< x2 x) (same? y y2) (same? h h2)))
           chrome (fn [leaf]
-                   (let [rect (rects (:path leaf))
-                         {cx :x cy :y} (leaf-columns leaf)]
+                   (let [rect (rects (:path leaf))]
                      (cond-> {}
                        once-x? (assoc :suppress-x-label true)
-                       (and cx (some #(and (:x %) (together? :x cx (:x %)) (below? rect (:rect %))) live))
+                       (some #(and (together? :x leaf %) (below? rect (:rect %))) live)
                        (assoc :suppress-x-ticks true)
                        once-y? (assoc :suppress-y-label true)
-                       (and cy (some #(and (:y %) (together? :y cy (:y %)) (left? rect (:rect %))) live))
+                       (some #(and (together? :y leaf %) (left? rect (:rect %))) live)
                        (assoc :suppress-y-ticks true))))]
       (cond-> (reduce (fn [c leaf]
                         (let [ch (when-not (:plotje/empty-cell leaf) (chrome leaf))]

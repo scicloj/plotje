@@ -515,3 +515,35 @@
       (let [pose (-> cars (pj/lay-point :size [:fast :slow] {:color :series}) (pj/facet :series))]
         (is (nil? (:sub-plots (pj/plan pose))))
         (is (= 2 (count (:panels (pj/plan pose)))))))))
+
+(deftest cells-sharing-an-axis-agree-after-the-text-fit-test
+  ;; Each cell is widened for its own labels; the cells sharing the
+  ;; axis are then planned again until they are on one domain.
+  (let [data (tc/dataset {:g ["a" "a" "b" "b"]
+                          :u [1.0 2.0 1.0 2.0]
+                          :v [10.0 20.0 30.0 40.0]
+                          :t ["s" "a very long label, longer than the others" "x" "y"]})
+        part (fn [g] (-> (tc/select-rows data #(= g (:g %)))
+                         (pj/lay-text :u :v {:text :t})))
+        alone (ffirst (domains (part "a")))
+        shared (domains (pj/arrange [(part "a") (part "b")] {:share-scales #{:x :y}}))]
+    (is (apply = shared))
+    (is (< 2.0 (second (ffirst shared))) "and wide enough for the long label")
+    (is (not= alone (ffirst (domains (part "b")))) "the cells alone differ")
+    (testing "flipped cells too"
+      (let [flipped (domains (pj/arrange [(pj/coord (part "a") :flip) (pj/coord (part "b") :flip)]
+                                         {:share-scales #{:x :y}}))]
+        (is (apply = flipped))))))
+
+(deftest a-shared-count-axis-is-ticked-once-test
+  ;; The histograms of a split share their count axis, so only the
+  ;; first cell of a row draws its ticks, as a facet's panels do.
+  (let [data (tc/dataset {:g (vec (concat (repeat 4 "a") (repeat 8 "b")))
+                          :v [1.0 1.1 1.2 5.0 1.0 1.1 1.2 1.3 1.4 1.5 5.0 5.1]})
+        whole (pj/lay-histogram data :v)
+        split (assoc whole :poses [{:where {:g "b"}} {:where {:g "a"}}])
+        y-ticks (fn [pose]
+                  (mapv (comp count :values :y-ticks first :panels :plan)
+                        (:sub-plots (pj/plan pose))))]
+    (is (pos? (first (y-ticks split))))
+    (is (zero? (second (y-ticks split))))))

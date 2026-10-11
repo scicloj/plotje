@@ -146,49 +146,99 @@
    v21_l135)))
 
 
-(def v24_l158 (def limit 8.5))
+(def
+ v24_l166
+ (def
+  north-shop
+  {:drink ["tea" "tea" "coffee" "coffee"],
+   :half ["first" "second" "first" "second"],
+   :sold [30 45 20 25]}))
 
 
 (def
- v25_l160
+ v25_l171
+ (def
+  south-shop
+  {:drink ["tea" "tea" "cocoa" "cocoa"],
+   :half ["first" "second" "first" "second"],
+   :sold [60 70 10 15]}))
+
+
+(def
+ v26_l176
+ (pj/arrange
+  [(->
+    north-shop
+    (pj/lay-bar :drink :sold {:color :half, :position :stack}))
+   (->
+    south-shop
+    (pj/lay-bar :drink :sold {:color :half, :position :stack}))]
+  {:share-scales #{:y}}))
+
+
+(deftest
+ t27_l181
+ (is
+  ((fn
+    [v]
+    (let
+     [domains
+      (mapv
+       (fn* [p1__11199#] (-> p1__11199# :plan :panels first :y-domain))
+       (:sub-plots (pj/plan v)))
+      tallest-stack
+      (+ 60 70)
+      largest-value
+      (reduce max (concat (:sold north-shop) (:sold south-shop)))]
+     (and
+      (apply = domains)
+      (< largest-value tallest-stack (second (first domains))))))
+   v26_l176)))
+
+
+(def v29_l193 (def limit 8.5))
+
+
+(def
+ v30_l195
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__11193#] (= "setosa" (:species p1__11193#))))
+     (fn* [p1__11200#] (= "setosa" (:species p1__11200#))))
     (pj/lay-point :sepal-length :sepal-width)
     (pj/lay-rule-v {:x-intercept limit, :color "firebrick"}))
    (->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__11194#] (= "virginica" (:species p1__11194#))))
+     (fn* [p1__11201#] (= "virginica" (:species p1__11201#))))
     (pj/lay-point :sepal-length :sepal-width))]
   {:share-scales #{:x}}))
 
 
 (deftest
- t26_l170
+ t31_l205
  (is
   ((fn
     [v]
     (let
      [panels
       (mapcat
-       (fn* [p1__11195#] (:panels (:plan p1__11195#)))
+       (fn* [p1__11202#] (:panels (:plan p1__11202#)))
        (:sub-plots (pj/plan v)))
       domains
       (mapv
-       (fn* [p1__11196#] (mapv double (:x-domain p1__11196#)))
+       (fn* [p1__11203#] (mapv double (:x-domain p1__11203#)))
        panels)]
      (and
       (= 2 (count domains))
       (apply = domains)
       (< limit (second (first domains))))))
-   v25_l160)))
+   v30_l195)))
 
 
 (def
- v28_l191
+ v33_l226
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose {:x :displ})
@@ -198,24 +248,24 @@
 
 
 (deftest
- t29_l197
+ t34_l232
  (is
   ((fn
     [v]
     (let
      [doms
       (mapv
-       (fn* [p1__11197#] (-> p1__11197# :plan :panels first :y-domain))
+       (fn* [p1__11204#] (-> p1__11204# :plan :panels first :y-domain))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (count doms))
       (not= (first doms) (second doms))
       (re-find #"no two cells share :y" (with-out-str (pj/plan v))))))
-   v28_l191)))
+   v33_l226)))
 
 
 (def
- v31_l221
+ v36_l256
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose {:x :displ})
@@ -225,7 +275,7 @@
 
 
 (deftest
- t32_l228
+ t37_l263
  (is
   ((fn
     [v]
@@ -235,8 +285,8 @@
        [pose]
        (mapv
         (fn*
-         [p1__11198#]
-         (-> p1__11198# :plan :panels first :y-domain))
+         [p1__11205#]
+         (-> p1__11205# :plan :panels first :y-domain))
         (:sub-plots (pj/plan pose))))
       [lo hi]
       (first (doms v))
@@ -252,11 +302,11 @@
       (<= lo (reduce min (:cty (rdatasets/ggplot2-mpg))))
       (>= hi (reduce max (:hwy (rdatasets/ggplot2-mpg))))
       (= (doms v) (doms all)))))
-   v31_l221)))
+   v36_l256)))
 
 
 (def
- v34_l248
+ v39_l283
  (->
   (rdatasets/ggplot2-mpg)
   (pj/pose {:x :year})
@@ -266,21 +316,21 @@
 
 
 (deftest
- t35_l255
+ t40_l290
  (is
   ((fn
     [v]
     (let
      [[hwy cty displ]
       (mapv
-       (fn* [p1__11199#] (-> p1__11199# :plan :panels first :y-domain))
+       (fn* [p1__11206#] (-> p1__11206# :plan :panels first :y-domain))
        (:sub-plots (pj/plan v)))]
      (and (= hwy cty) (not= hwy displ))))
-   v34_l248)))
+   v39_l283)))
 
 
 (def
- v37_l265
+ v42_l300
  (pj/arrange
   [(->
     {:day [1 2 3], :indoor [19.0 20.5 21.0]}
@@ -292,23 +342,23 @@
 
 
 (deftest
- t38_l272
+ t43_l307
  (is
   ((fn
     [v]
     (let
      [doms
       (mapv
-       (fn* [p1__11200#] (-> p1__11200# :plan :panels first :y-domain))
+       (fn* [p1__11207#] (-> p1__11207# :plan :panels first :y-domain))
        (:sub-plots (pj/plan v)))
       [lo hi]
       (first doms)]
      (and (apply = doms) (<= lo 4.0) (>= hi 21.0))))
-   v37_l265)))
+   v42_l300)))
 
 
 (def
- v40_l284
+ v45_l319
  (try
   (->
    (rdatasets/ggplot2-mpg)
@@ -321,16 +371,159 @@
 
 
 (deftest
- t41_l293
+ t46_l328
  (is
   ((fn
     [msg]
     (re-find #":share-scales :y refused: columns :hwy, :drv" msg))
-   v40_l284)))
+   v45_l319)))
 
 
 (def
- v43_l305
+ v48_l340
+ (def north-totals {:drink ["tea" "coffee"], :sold [75 45]}))
+
+
+(def
+ v49_l343
+ (def south-totals {:drink ["tea" "cocoa"], :sold [130 25]}))
+
+
+(def
+ v50_l346
+ (pj/arrange
+  [(-> north-totals (pj/lay-bar :drink :sold))
+   (-> south-totals (pj/lay-bar :drink :sold))]
+  {:share-scales #{:y :x}}))
+
+
+(deftest
+ t51_l351
+ (is
+  ((fn
+    [v]
+    (let
+     [domains
+      (mapv
+       (fn* [p1__11208#] (-> p1__11208# :plan :panels first :x-domain))
+       (:sub-plots (pj/plan v)))]
+     (= [["tea" "coffee" "cocoa"] ["tea" "coffee" "cocoa"]] domains)))
+   v50_l346)))
+
+
+(def
+ v53_l369
+ (pj/arrange
+  [(->
+    (rdatasets/datasets-iris)
+    (tc/select-rows
+     (fn* [p1__11209#] (= "setosa" (:species p1__11209#))))
+    (pj/lay-histogram :sepal-length))
+   (-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length))]
+  {:share-scales #{:y}}))
+
+
+(deftest
+ t54_l377
+ (is
+  ((fn
+    [v]
+    (let
+     [domains
+      (mapv
+       (fn* [p1__11210#] (-> p1__11210# :plan :panels first :y-domain))
+       (:sub-plots (pj/plan v)))]
+     (apply = domains)))
+   v53_l369)))
+
+
+(def
+ v56_l386
+ (->
+  (rdatasets/ggplot2-mpg)
+  pj/pose
+  pj/lay-histogram
+  (pj/facet {:x [:hwy :cty]})
+  (pj/options {:share-scales {:y [[:hwy :cty]]}})))
+
+
+(deftest
+ t57_l392
+ (is
+  ((fn
+    [v]
+    (let
+     [count-axes
+      (fn
+       [pose]
+       (mapv
+        (fn*
+         [p1__11211#]
+         (-> p1__11211# :plan :panels first :y-domain))
+        (:sub-plots (pj/plan pose))))]
+     (and
+      (apply = (count-axes v))
+      (apply
+       not=
+       (count-axes
+        (->
+         (rdatasets/ggplot2-mpg)
+         pj/pose
+         pj/lay-histogram
+         (pj/facet {:x [:hwy :cty]})))))))
+   v56_l386)))
+
+
+(def
+ v59_l409
+ (pj/arrange
+  [(-> (rdatasets/ggplot2-mpg) (pj/lay-histogram :hwy))
+   (-> (rdatasets/ggplot2-mpg) (pj/lay-histogram :cty))
+   (-> (rdatasets/ggplot2-mpg) (pj/lay-point :displ :hwy))]
+  {:share-scales {:y :all}}))
+
+
+(deftest
+ t60_l415
+ (is
+  ((fn
+    [v]
+    (let
+     [[hwy-count cty-count hwy-values]
+      (mapv
+       (fn* [p1__11212#] (-> p1__11212# :plan :panels first :y-domain))
+       (:sub-plots (pj/plan v)))]
+     (and (= hwy-count cty-count) (not= hwy-count hwy-values))))
+   v59_l409)))
+
+
+(def
+ v62_l437
+ (pj/arrange
+  [(-> north-totals (pj/lay-bar :drink :sold) (pj/coord :flip))
+   (-> south-totals (pj/lay-bar :drink :sold) (pj/coord :flip))]
+  {:share-scales #{:x}}))
+
+
+(deftest
+ t63_l442
+ (is
+  ((fn
+    [v]
+    (let
+     [panels
+      (mapv
+       (fn* [p1__11213#] (-> p1__11213# :plan :panels first))
+       (:sub-plots (pj/plan v)))]
+     (and
+      (apply = (map :x-domain panels))
+      (number? (first (:x-domain (first panels))))
+      (apply not= (map :y-domain panels)))))
+   v62_l437)))
+
+
+(def
+ v65_l459
  (def
   readings
   {:t [1 2 3 4 5],
@@ -339,7 +532,7 @@
 
 
 (def
- v44_l310
+ v66_l464
  (pj/arrange
   [(-> readings (pj/lay-line :t :rate))
    (-> readings (pj/lay-line :t :total))]
@@ -347,7 +540,7 @@
 
 
 (deftest
- t45_l315
+ t67_l469
  (is
   ((fn
     [v]
@@ -357,8 +550,8 @@
        [pose]
        (mapv
         (fn*
-         [p1__11201#]
-         (get-in p1__11201# [:plan :layout :y-label-pad]))
+         [p1__11214#]
+         (get-in p1__11214# [:plan :layout :y-label-pad]))
         (:sub-plots (pj/plan pose))))
       plain
       (pads-of
@@ -370,11 +563,11 @@
       (= 2 (:panels (pj/svg-summary v)))
       (apply == (pads-of v))
       (not (apply == plain)))))
-   v44_l310)))
+   v66_l464)))
 
 
 (def
- v47_l345
+ v69_l499
  (def
   marginal
   (->
@@ -383,11 +576,11 @@
    (pj/marginal :top))))
 
 
-(def v48_l350 marginal)
+(def v70_l504 marginal)
 
 
 (deftest
- t49_l352
+ t71_l506
  (is
   ((fn
     [v]
@@ -397,7 +590,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal)))
       panels
-      (mapv (fn* [p1__11202#] (-> p1__11202# :panels first)) plans)
+      (mapv (fn* [p1__11215#] (-> p1__11215# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)
       [d-y s-y]
@@ -413,18 +606,18 @@
       (apply
        ==
        (map
-        (fn* [p1__11203#] (get-in p1__11203# [:layout :y-label-pad]))
+        (fn* [p1__11216#] (get-in p1__11216# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__11204#] (get-in p1__11204# [:layout :legend-w]))
+        (fn* [p1__11217#] (get-in p1__11217# [:layout :legend-w]))
         plans)))))
-   v48_l350)))
+   v70_l504)))
 
 
 (def
- v51_l390
+ v73_l544
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -432,18 +625,18 @@
 
 
 (deftest
- t52_l394
+ t74_l548
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 150 (:points s)))))
-   v51_l390)))
+   v73_l544)))
 
 
 (def
- v54_l406
+ v76_l560
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -451,7 +644,7 @@
 
 
 (deftest
- t55_l410
+ t77_l564
  (is
   ((fn
     [v]
@@ -461,7 +654,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan v)))
       panels
-      (mapv (fn* [p1__11205#] (-> p1__11205# :panels first)) plans)]
+      (mapv (fn* [p1__11218#] (-> p1__11218# :panels first)) plans)]
      (and
       (= 2 (:panels s))
       (= 150 (:points s))
@@ -471,13 +664,13 @@
       (apply
        ==
        (map
-        (fn* [p1__11206#] (get-in p1__11206# [:layout :x-label-pad]))
+        (fn* [p1__11219#] (get-in p1__11219# [:layout :x-label-pad]))
         plans)))))
-   v54_l406)))
+   v76_l560)))
 
 
 (def
- v57_l444
+ v79_l602
  (def
   marginal-by-hand
   (pj/pose
@@ -492,11 +685,11 @@
     :data (rdatasets/datasets-iris)})))
 
 
-(def v58_l455 marginal-by-hand)
+(def v80_l613 marginal-by-hand)
 
 
 (deftest
- t59_l457
+ t81_l615
  (is
   ((fn
     [v]
@@ -506,7 +699,7 @@
       plans
       (mapv :plan (:sub-plots (pj/plan marginal-by-hand)))
       panels
-      (mapv (fn* [p1__11207#] (-> p1__11207# :panels first)) plans)
+      (mapv (fn* [p1__11220#] (-> p1__11220# :panels first)) plans)
       [d-x s-x]
       (mapv :x-domain panels)]
      (and
@@ -516,16 +709,16 @@
       (=
        [0 102]
        (mapv
-        (fn* [p1__11208#] (get-in p1__11208# [:layout :legend-w]))
+        (fn* [p1__11221#] (get-in p1__11221# [:layout :legend-w]))
         plans)))))
-   v58_l455)))
+   v80_l613)))
 
 
-(def v61_l486 (assoc-in marginal-by-hand [:opts :align-panels] true))
+(def v83_l644 (assoc-in marginal-by-hand [:opts :align-panels] true))
 
 
 (deftest
- t62_l488
+ t84_l646
  (is
   ((fn
     [v]
@@ -536,18 +729,18 @@
       (apply
        ==
        (map
-        (fn* [p1__11209#] (get-in p1__11209# [:layout :y-label-pad]))
+        (fn* [p1__11222#] (get-in p1__11222# [:layout :y-label-pad]))
         plans))
       (apply
        ==
        (map
-        (fn* [p1__11210#] (get-in p1__11210# [:layout :legend-w]))
+        (fn* [p1__11223#] (get-in p1__11223# [:layout :legend-w]))
         plans)))))
-   v61_l486)))
+   v83_l644)))
 
 
 (def
- v64_l513
+ v86_l671
  (def
   dashboard
   (pj/arrange
@@ -563,11 +756,11 @@
       (pj/lay-density :petal-length {:color :species}))]])))
 
 
-(def v65_l520 dashboard)
+(def v87_l678 dashboard)
 
 
 (deftest
- t66_l522
+ t88_l680
  (is
   ((fn
     [v]
@@ -576,19 +769,19 @@
      (and
       (= 4 (:panels (pj/svg-summary v)))
       (= #{} (:shared-aesthetics chrome)))))
-   v65_l520)))
+   v87_l678)))
 
 
-(def v68_l552 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
+(def v90_l710 (def overlay-base {:fitted [1 2 3], :residual [1 2 3]}))
 
 
 (def
- v69_l556
+ v91_l714
  (def overlay-other (tc/dataset {:x [0.5 1.5 2.5], :y [1.5 2.5 3.5]})))
 
 
 (def
- v70_l560
+ v92_l718
  (->
   overlay-base
   (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -596,18 +789,18 @@
 
 
 (deftest
- t71_l564
+ t93_l722
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 6 (:points s)))))
-   v70_l560)))
+   v92_l718)))
 
 
 (def
- v73_l580
+ v95_l738
  (->
   overlay-base
   (pj/lay-point :fitted :residual {:color "#377eb8"})
@@ -620,7 +813,7 @@
 
 
 (deftest
- t74_l587
+ t96_l745
  (is
   ((fn
     [v]
@@ -643,18 +836,18 @@
       (=
        (:points (pj/svg-summary v))
        (:points (pj/svg-summary unrenamed))))))
-   v73_l580)))
+   v95_l738)))
 
 
 (def
- v76_l605
+ v98_l763
  (pj/arrange
   [(pj/lay-point overlay-base :fitted :residual {:color "#377eb8"})
    (pj/lay-point overlay-other :x :y {:color "#e6550d"})]))
 
 
 (deftest
- t77_l608
+ t99_l766
  (is
   ((fn
     [v]
@@ -666,11 +859,11 @@
       (=
        #{"rgb(55,126,184)" "rgb(230,85,13)"}
        (disj (:colors s) "none")))))
-   v76_l605)))
+   v98_l763)))
 
 
 (def
- v79_l629
+ v101_l787
  (def
   bounded
   (->
@@ -680,22 +873,22 @@
    (pj/scale :y {:type :linear, :domain [0 30]}))))
 
 
-(def v80_l635 (pj/arrange [bounded bounded] {:cols 1}))
+(def v102_l793 (pj/arrange [bounded bounded] {:cols 1}))
 
 
 (deftest
- t81_l637
+ t103_l795
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 2 (:clips s)))))
-   v80_l635)))
+   v102_l793)))
 
 
 (def
- v83_l694
+ v105_l852
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -706,7 +899,7 @@
 
 
 (deftest
- t84_l700
+ t106_l858
  (is
   ((fn
     [v]
@@ -728,26 +921,26 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v83_l694)))
+   v105_l852)))
 
 
 (def
- v86_l716
+ v108_l874
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__11211#] (not= "virginica" (:species p1__11211#))))
+     (fn* [p1__11224#] (not= "virginica" (:species p1__11224#))))
     (pj/lay-point :sepal-length :sepal-width {:color :species}))
    (->
     (rdatasets/datasets-iris)
     (tc/select-rows
-     (fn* [p1__11212#] (not= "setosa" (:species p1__11212#))))
+     (fn* [p1__11225#] (not= "setosa" (:species p1__11225#))))
     (pj/lay-point :sepal-length :sepal-width {:color :species}))]))
 
 
 (deftest
- t87_l724
+ t109_l882
  (is
   ((fn
     [v]
@@ -759,10 +952,10 @@
        [sp]
        (some
         (fn*
-         [p1__11213#]
+         [p1__11226#]
          (when
-          (= "versicolor" (:label p1__11213#))
-          (:color p1__11213#)))
+          (= "versicolor" (:label p1__11226#))
+          (:color p1__11226#)))
         (-> sp :plan :panels first :layers first :groups)))
       [left right]
       (:sub-plots plan)]
@@ -772,11 +965,11 @@
        (mapv :label (-> plan :chrome :shared-legend :legend :entries)))
       (some? (versicolor left))
       (= (versicolor left) (versicolor right)))))
-   v86_l716)))
+   v108_l874)))
 
 
 (def
- v89_l740
+ v111_l898
  (pj/arrange
   [(pj/arrange
     [(->
@@ -790,5 +983,5 @@
 
 
 (deftest
- t90_l750
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v89_l740)))
+ t112_l908
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v111_l898)))

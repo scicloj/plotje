@@ -74,6 +74,10 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- Cells of an arrangement that share an axis end on one domain where their text labels widen it. Each cell was widened for its own labels after the shared extent was set, which left the cells on different domains.
+
+- Cells that split one pose's data and share a count axis, or a column their layers name, draw that axis's ticks and title once, as the panels of a facet do.
+
 - A pose written as a map, with plain data under `:data` and cells that share an axis, shares it as the same pose holding a dataset does.
 
 - `pj/arrange` draws `:subtitle` under its title and `:caption` under the grid. `:align-panels` on a row or a grid of cells gives every cell the same width and the same bottom edge.

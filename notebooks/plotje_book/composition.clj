@@ -148,12 +148,47 @@ shared-x
 ;; effective x-column matches share a scale. Panels with different
 ;; x-columns would each get their own domain.
 
-;; A rule or a band is covered too. A shared axis pools the columns its
-;; cells name, and a rule names none: its `:x-intercept` is a mapping
-;; like any other, but it takes a written value rather than a column
-;; reference. The shared domain covers those written values too.
-;; Here one cell carries a limit beyond anything either species
-;; measures, and both cells reach it:
+;; ### What a Shared Axis Covers
+;;
+;; A shared axis covers what the cells sharing it draw. What a cell
+;; draws is not always what its column holds: a stack of bars reaches
+;; the total of its segments, an error bar reaches its ends, and a
+;; smoothed line stays inside the points it was fitted to. Plotje
+;; measures each cell after its statistics have run, pools the
+;; measurements of the cells sharing the axis, and pads the pooled
+;; extent once. Every sharing cell then draws the same axis, and no mark
+;; is cut off at the edge of a panel.
+;;
+;; Two shops below sell the same drinks in two halves of a year. No
+;; value in the `:sold` column reaches the tallest stack, and the shared
+;; `:y` axis of both cells reaches past that stack:
+
+(def north-shop
+  {:drink ["tea" "tea" "coffee" "coffee"]
+   :half ["first" "second" "first" "second"]
+   :sold [30 45 20 25]})
+
+(def south-shop
+  {:drink ["tea" "tea" "cocoa" "cocoa"]
+   :half ["first" "second" "first" "second"]
+   :sold [60 70 10 15]})
+
+(pj/arrange
+ [(-> north-shop (pj/lay-bar :drink :sold {:color :half :position :stack}))
+  (-> south-shop (pj/lay-bar :drink :sold {:color :half :position :stack}))]
+ {:share-scales #{:y}})
+
+(kind/test-last
+ [(fn [v] (let [domains (mapv #(-> % :plan :panels first :y-domain)
+                              (:sub-plots (pj/plan v)))
+                tallest-stack (+ 60 70)
+                largest-value (reduce max (concat (:sold north-shop) (:sold south-shop)))]
+            (and (apply = domains)
+                 (< largest-value tallest-stack (second (first domains))))))])
+
+;; A rule or a band is covered too. A rule is drawn at a value written
+;; on its layer, which no column holds. Here one cell carries a limit
+;; beyond anything either species measures, and both cells reach it:
 
 (def limit 8.5)
 
@@ -277,9 +312,9 @@ shared-x
                  (<= lo 4.0)
                  (>= hi 21.0))))])
 
-;; Columns that go together have to be of one kind -- numbers with
-;; numbers, dates with dates. A group holding a numeric column and a
-;; categorical one reports an error:
+;; Columns that go together have to hold one type of value: numbers
+;; with numbers, dates with dates, categories with categories. A group
+;; holding a numeric column and a categorical one reports an error:
 
 (try
   (-> (rdatasets/ggplot2-mpg)
@@ -292,6 +327,125 @@ shared-x
 
 (kind/test-last
  [(fn [msg] (re-find #":share-scales :y refused: columns :hwy, :drv" msg))])
+
+;; ### A Shared Categorical Axis
+;;
+;; A categorical axis is shared as the list of every category the
+;; sharing cells hold. A bar for `tea` then stands at the same place in
+;; each cell, and a cell with no rows for a category leaves the place of
+;; that category empty. The north shop sells no cocoa and the south shop
+;; no coffee; with `:x` shared, both cells list all three drinks. Each
+;; bar here is a drink's total for the year:
+
+(def north-totals
+  {:drink ["tea" "coffee"] :sold [75 45]})
+
+(def south-totals
+  {:drink ["tea" "cocoa"] :sold [130 25]})
+
+(pj/arrange
+ [(-> north-totals (pj/lay-bar :drink :sold))
+  (-> south-totals (pj/lay-bar :drink :sold))]
+ {:share-scales #{:x :y}})
+
+(kind/test-last
+ [(fn [v] (let [domains (mapv #(-> % :plan :panels first :x-domain)
+                              (:sub-plots (pj/plan v)))]
+            (= [["tea" "coffee" "cocoa"] ["tea" "coffee" "cocoa"]] domains)))])
+
+;; The two cells above have data of their own, so the categories come in
+;; the order of the cells: the drinks of the first cell, then the drink
+;; the second cell adds. Cells that are parts of one dataset -- the
+;; panels of a facet, or the cells of a pose arranged over its own data
+;; -- list the categories in the order of that dataset's rows, which is
+;; the order the same plot draws them in when it is not split.
+
+;; ### Count and Density Axes
+;;
+;; A histogram draws a count on `:y`, and no column holds that count. An
+;; axis like this is shared by what is counted. Two histograms of one
+;; column share their count axis:
+
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "setosa" (:species %)))
+      (pj/lay-histogram :sepal-length))
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-histogram :sepal-length))]
+ {:share-scales #{:y}})
+
+(kind/test-last
+ [(fn [v] (let [domains (mapv #(-> % :plan :panels first :y-domain)
+                              (:sub-plots (pj/plan v)))]
+            (apply = domains)))])
+
+;; Histograms of different columns keep a count axis each under a set of
+;; axes, as cells drawing different columns do. A group naming the
+;; columns shares their count axes:
+
+(-> (rdatasets/ggplot2-mpg)
+    pj/pose
+    pj/lay-histogram
+    (pj/facet {:x [:hwy :cty]})
+    (pj/options {:share-scales {:y [[:hwy :cty]]}}))
+
+(kind/test-last
+ [(fn [v] (let [count-axes (fn [pose] (mapv #(-> % :plan :panels first :y-domain)
+                                            (:sub-plots (pj/plan pose))))]
+            (and (apply = (count-axes v))
+                 ;; without the option, a count axis each
+                 (apply not= (count-axes (-> (rdatasets/ggplot2-mpg)
+                                             pj/pose
+                                             pj/lay-histogram
+                                             (pj/facet {:x [:hwy :cty]})))))))])
+
+;; A count, a density and the values of a column are measured in
+;; different units, so an axis holding one is never pooled with an axis
+;; holding another. `{:y :all}` shares every count axis with the other
+;; count axes, every density axis with the other density axes, and the
+;; axes of columns with each other. Below, the two histograms share one
+;; count axis and the scatter keeps the axis of its `:hwy` column:
+
+(pj/arrange
+ [(-> (rdatasets/ggplot2-mpg) (pj/lay-histogram :hwy))
+  (-> (rdatasets/ggplot2-mpg) (pj/lay-histogram :cty))
+  (-> (rdatasets/ggplot2-mpg) (pj/lay-point :displ :hwy))]
+ {:share-scales {:y :all}})
+
+(kind/test-last
+ [(fn [v] (let [[hwy-count cty-count hwy-values]
+                (mapv #(-> % :plan :panels first :y-domain)
+                      (:sub-plots (pj/plan v)))]
+            (and (= hwy-count cty-count)
+                 (not= hwy-count hwy-values))))])
+
+;; A histogram normalized with `{:normalize :density}` draws a density,
+;; and shares with a density curve of the same column. A layer type
+;; added by an extension takes part by declaring what its statistic
+;; computes; see
+;; [Extensibility](./plotje_book.extensibility.html#what-a-stat-computes).
+
+;; ### Cells Drawn Flipped
+;;
+;; `:share-scales` names an axis as it is drawn: `:x` is the horizontal
+;; axis and `:y` the vertical one. Under `(pj/coord :flip)` the column
+;; mapped to `:y` runs across the page, and `#{:x}` shares the axis that
+;; column is drawn on. (`pj/scale` and `:x-label` name the column's own
+;; axis, whichever way that axis is drawn.) The totals of the two shops
+;; as flipped bars, sharing the horizontal axis:
+
+(pj/arrange
+ [(-> north-totals (pj/lay-bar :drink :sold) (pj/coord :flip))
+  (-> south-totals (pj/lay-bar :drink :sold) (pj/coord :flip))]
+ {:share-scales #{:x}})
+
+(kind/test-last
+ [(fn [v] (let [panels (mapv #(-> % :plan :panels first) (:sub-plots (pj/plan v)))]
+            (and (apply = (map :x-domain panels))
+                 ;; the horizontal axis holds the numbers
+                 (number? (first (:x-domain (first panels))))
+                 ;; the vertical axis is each cell's own drinks
+                 (apply not= (map :y-domain panels)))))])
 
 ;; ### Cells That Line Up
 ;;
@@ -424,6 +578,10 @@ marginal
            ;; the room reserved below each is what has to agree.
            (apply == (map #(get-in % [:layout :x-label-pad]) plans)))))])
 
+;; The strip shares the panel's vertical axis. `pj/marginal` writes
+;; `{:share-scales #{:y}}` for a marginal on the right, and under the
+;; flip the strip's `:x` column is the column drawn along that axis.
+;;
 ;; A `:top` marginal and a `:right` one line up on different edges. Two
 ;; panels in a column share their left and right edges, so what has to
 ;; agree is the room reserved for the y title and for the legend; two
