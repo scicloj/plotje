@@ -776,6 +776,20 @@ count-pose-on-y
            (= "count" (:y-label plan))
            (= 4 (:points (pj/svg-summary v))))))])
 
+;; The column can be named on the layer in place of the pose. Where
+;; every layer of the pose draws from one column and none names an
+;; `:x`, the pose is drawn on its side, as `count-pose-on-y` above is:
+
+(-> animals
+    (pj/lay-bar {:y :animal}))
+
+(kind/test-last
+ [(fn [v]
+    (let [plan (pj/plan v)]
+      (and (= "animal" (:y-label plan))
+           (= (:polygons (pj/svg-summary count-pose-on-y))
+              (:polygons (pj/svg-summary v))))))])
+
 ;; Two numerical columns produce a scatter (the chapter's opening
 ;; `scatter-pose` is such a pose):
 

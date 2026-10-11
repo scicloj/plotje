@@ -40,6 +40,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- A layer type that draws from one column is drawn on its side where the column is named on `:y` in the layer: `(pj/lay-histogram pose {:y :hwy})` draws what `(pj/pose data {:y :hwy})` with `pj/lay-histogram` draws.
+
 - A layer that names one column reads the panel's column on the other axis, where its layer type draws from two columns: `(-> data (pj/lay-point :week :adults) (pj/lay-line {:y :children}))` draws the line of `:children` against `:week`. The panel's column on an axis is the pose's, and where the pose names none there, that of the first layer naming one. A layer type that can draw from one column, such as a bar or a histogram, is given no second column.
 
 - The cells of a facet over columns are made from the panel's columns, with the facet's column on the axis it names. `(-> data (pj/lay-point :week :adults) (pj/facet {:y [:adults :children]}))` draws `:adults` and `:children` each against `:week`, and a layer naming no columns is drawn in both panels.
@@ -61,6 +63,10 @@ All notable changes to this project will be documented in this file. This change
 - A pose may carry `:where`, a map from column to value or set of values, and draws only the rows that match; numbers match by value, so `4` selects `4.0`. Cells listed under a pose that holds the data, each with a `:where`, draw what `pj/facet` draws. The name `:where` is provisional.
 
 ### Warnings and errors
+
+- A layer left without a column its layer type draws from reports an error naming the layer, the axis that is missing, the columns the layer does name, and the columns of the data.
+
+- Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column. Beside layers that fit every panel it is drawn in every panel.
 
 - `pj/lay` reports an error at the call for a layer type that is neither a registered keyword nor a map naming its `:mark`. A mapping given where the layer type goes, as in `(pj/lay pose {:y :hwy})`, is told to name the layer type before it.
 

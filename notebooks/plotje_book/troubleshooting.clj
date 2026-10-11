@@ -542,6 +542,87 @@
 ;; The [Datasets](./plotje_book.datasets.html#column-names) chapter covers column
 ;; names in full.
 
+;; ## A Layer Left Without a Column
+;;
+;; **Symptom**: an error such as `"pj/lay-point draws from two columns,
+;; one on :x and one on :y, and this layer has no column on :x"`.
+;;
+;; **Cause**: A layer reads its columns from its own mapping, from the
+;; pose's mapping, and from the panel's columns -- those of the first
+;; layer naming any. Where none of the three names a column the layer
+;; type draws from, there is nothing to draw. Data of four or more
+;; columns gives no default mapping, so on such data every column has
+;; to be named somewhere. The message names the layer, the axis that is
+;; missing, what the layer does name, and the columns of the data:
+
+(try
+  (-> (rdatasets/datasets-iris)
+      pj/pose
+      (pj/lay-point {:y :sepal-width})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"pj/lay-point draws from two columns" msg)
+                 (re-find #"no column on :x" msg)
+                 (re-find #"It names :y :sepal-width" msg)
+                 (re-find #"Available columns" msg)))])
+
+;; **Fix**: Name the missing column on the layer, or in the pose's
+;; mapping where every layer should read it:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:x :sepal-length})
+    (pj/lay-point {:y :sepal-width}))
+
+(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+
+;; ## A Layer Naming a Column the Facet Lacks
+;;
+;; **Symptom**: an error such as `"pj/lay-point names :petal-width on
+;; :y, and no panel draws it"`.
+;;
+;; **Cause**: A facet over columns draws a panel per column, and a
+;; layer naming a column is drawn in the panel of that column. A layer
+;; naming a column that is not among the facet's has no panel of its
+;; own. Drawn in every panel in place of the facet's columns, it would
+;; leave those columns drawn nowhere:
+
+(try
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :petal-width)
+      (pj/facet {:y [:sepal-width :petal-length]})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"names :petal-width on :y, and no panel draws it" msg)
+                 (re-find #":sepal-width and :petal-length on :y" msg)))])
+
+;; **Fix**: List the column in the facet, and name the varying columns
+;; in the facet alone:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:x :sepal-length})
+    pj/lay-point
+    (pj/facet {:y [:sepal-width :petal-length :petal-width]}))
+
+(kind/test-last [(fn [v] (= {:panels 3 :points 450}
+                            (select-keys (pj/svg-summary v) [:panels :points])))])
+
+;; A layer naming another column is drawn in every panel where each
+;; panel also has a layer drawing its own column. Below, `:petal-width`
+;; is drawn in both panels beside each panel's own column:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:x :sepal-length})
+    pj/lay-point
+    (pj/lay-point {:y :petal-width})
+    (pj/facet {:y [:sepal-width :petal-length]}))
+
+(kind/test-last [(fn [v] (= {:panels 2 :points 600}
+                            (select-keys (pj/svg-summary v) [:panels :points])))])
+
 ;; ## One Panel Where Two Were Wanted
 ;;
 ;; **Symptom**: two `pj/lay-*` calls on unrelated columns draw on one

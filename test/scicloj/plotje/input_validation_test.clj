@@ -1277,10 +1277,10 @@
         (is (pos? (:visible-tiles (pj/svg-summary pose))))))
     (testing "the guard still fires for a mark that reads its rows"
       (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo #":point requires both :x and :y columns"
+           clojure.lang.ExceptionInfo #"pj/lay-point draws from two columns.*no column on :y\. It names :x :v"
            (pj/plan (-> counts (pj/lay-point :v)))))
       (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo #":line requires both :x and :y columns"
+           clojure.lang.ExceptionInfo #"pj/lay-line draws from two columns.*no column on :y\. It names :x :v"
            (pj/plan (-> counts (pj/lay-line :v))))))))
 
 (deftest a-band-with-equal-bounds-is-reported
@@ -1436,3 +1436,103 @@
         (is (thrown-with-msg? clojure.lang.ExceptionInfo
                               #"empty pose -- nothing to render"
                               (pj/save pose path)))))))
+
+(def wide
+  {:drv   ["f" "f" "4" "r" "4" "f"]
+   :class ["compact" "suv" "suv" "2seater" "compact" "compact"]
+   :hwy   [29 20 18 26 25 31]
+   :cty   [21 15 14 17 19 24]
+   :displ [1.8 3.0 4.0 5.7 2.0 1.6]})
+
+(deftest a-layer-left-without-a-column-says-which-test
+  ;; These failed with a NullPointerException, "Plan does not conform
+  ;; to schema", or a message naming neither the layer nor the columns.
+  (testing "a layer naming no column, on data too wide to read by default"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/lay-point draws from two columns, one on :x and one on :y, and this layer has no column on :x or :y\. It names no column\..*Available columns: \[:class :cty :displ :drv :hwy\]"
+                          (pj/plan (-> wide pj/pose pj/lay-point))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/lay-histogram draws from one column, on :x, and this layer has no column on :x"
+                          (pj/plan (-> wide pj/pose pj/lay-histogram)))))
+  (testing "a layer naming one column of the two its type draws from"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/lay-point draws from two columns.*no column on :x\. It names :y :hwy\. Name the :x column on the layer -- \(pj/lay-point pose :x-column :hwy\)"
+                          (pj/plan (-> wide pj/pose (pj/lay-point {:y :hwy})))))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/lay-point draws from two columns.*no column on :x\. It names :y :hwy"
+                          (pj/plan (-> wide
+                                       (pj/arrange [[:displ :hwy] [:displ :cty]])
+                                       (pj/lay-point {:y :hwy}))))))
+  (testing "a bar naming :y alone beside points is not given the panel's :x"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"pj/lay-bar draws from one column on :x, or two on :x and :y, and this layer has no column on :x\. It names :y :hwy\. Name the :x column on the layer"
+                          (pj/plan (-> wide (pj/lay-point :drv :cty) (pj/lay-bar {:y :hwy}))))))
+  (testing "a value on :x with nothing on :y"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"no column on :y\. It names :x 3"
+                          (pj/plan (-> wide pj/pose (pj/lay-point {:x {:value 3}}))))))
+  (testing "layers that name no column and need none are drawn"
+    (let [base (pj/lay-point wide :displ :hwy)]
+      (is (= 1 (:lines (pj/svg-summary (pj/lay-rule-h base {:y-intercept 25})))))
+      (is (some #{"n"} (:texts (pj/svg-summary (pj/lay-text base {:x 3 :y 25 :text "n"}))))))))
+
+(deftest a-column-on-y-alone-in-a-layer-is-drawn-on-its-side-test
+  ;; `(pj/pose data {:y :a})` with `pj/lay-histogram` drew on its side,
+  ;; and `(pj/lay-histogram pose {:y :a})` failed with a
+  ;; NullPointerException. One request, two spellings.
+  (let [summary #(select-keys (pj/svg-summary %) [:polygons :texts])
+        on-pose (-> wide (pj/pose {:y :hwy}) pj/lay-histogram)
+        on-layer (-> wide pj/pose (pj/lay-histogram {:y :hwy}))]
+    (testing "the layer spelling draws what the pose spelling draws"
+      (is (= (summary on-pose) (summary on-layer)))
+      (is (= "hwy" (:y-label (pj/plan on-layer)))))
+    (testing "a second layer naming no column reads the same column"
+      (is (= [[:bar :area]]
+             (mapv #(mapv :mark (:layers %))
+                   (:panels (pj/plan (-> wide pj/pose (pj/lay-histogram {:y :hwy}) pj/lay-density)))))))
+    (testing "a bar counts the categories of a column named on :y"
+      (is (= 3 (:polygons (pj/svg-summary (-> wide pj/pose (pj/lay-bar {:y :drv})))))))
+    (testing "a coordinate system other than :flip has no drawing for it"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"names :hwy on :y alone.*:coord :polar has no drawing for it"
+                            (pj/plan (pj/coord on-layer :polar)))))
+    (testing "beside a layer that draws from two columns, the message names that layer"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay-histogram draws from one column.*It names :y :cty\..*and pj/lay-point does not"
+                            (pj/plan (-> wide (pj/lay-point :displ :hwy) (pj/lay-histogram {:y :cty}))))))))
+
+(deftest a-layer-naming-a-column-the-facet-lacks-test
+  ;; The layer was drawn in every panel and the facet's columns in
+  ;; none, with no message.
+  (let [marks (fn [pose] (mapv (fn [sp] (mapv :mark (:layers (first (:panels (:plan sp))))))
+                               (:sub-plots (pj/plan pose))))]
+    (testing "an error where a panel is left with no layer drawing its own column"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay-point names :cty on :y, and no panel draws it: the facet over columns has :hwy and :displ on :y\. List :cty among the facet's :y columns"
+                            (pj/plan (-> wide (pj/lay-point :drv :cty) (pj/facet {:y [:hwy :displ]})))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"pj/lay-point names :cty on :y, and no panel draws it"
+                            (pj/plan (-> wide
+                                         (pj/lay-point :drv :cty)
+                                         (pj/lay-point :drv :hwy)
+                                         (pj/facet {:y [:hwy :displ]}))))))
+    (testing "a layer with data of its own is told its columns are not the facet's"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"This layer draws data of its own"
+                            (pj/plan (-> wide
+                                         (pj/lay-point :a :b {:data {:a [1 2] :b [3 4]}})
+                                         (pj/facet {:y [:hwy :displ]}))))))
+    (testing "beside layers that fit every panel, it is drawn in every panel"
+      (is (= [[:point :point] [:point :point]]
+             (marks (-> wide
+                        (pj/pose {:x :drv})
+                        (pj/facet {:y [:hwy :displ]})
+                        pj/lay-point
+                        (pj/lay-point {:y :cty}))))))
+    (testing "a layer placed by written values is drawn in every panel"
+      (is (= [[:point :text] [:point :text]]
+             (marks (-> wide
+                        (pj/pose {:x :displ})
+                        (pj/facet {:y [:hwy :cty]})
+                        pj/lay-point
+                        (pj/lay-text {:x 3 :y 20 :text "n"}))))))))

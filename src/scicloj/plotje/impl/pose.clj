@@ -3871,19 +3871,149 @@
                  (range) (:poses pose)))
     [{:path path :mapping inherited :own own :leaf pose}]))
 
+(defn- columns-no-cell-has
+  "The columns of a layer that no cell it reaches draws: for each of
+   `:x` and `:y` on which the layer names a column of the data and some
+   cell names another, `{:axis :column :cells}` -- but only where every
+   cell names another column than the layer on some axis, so the layer
+   fits none for that reason. Nil otherwise.
+
+   Narrower than `names-another-column?`, which a written value
+   satisfies too (`{:x 3 :y 30}` is another source than `:displ`): a
+   value marks a place on every panel and is drawn in every cell."
+  [entries layer col-names]
+  (let [lm (:mapping layer)
+        column? (fn [src] (and (some? src)
+                               (if col-names
+                                 (contains? col-names src)
+                                 (resolve/column-ref? src))))
+        mine (into {} (for [k [:x :y]
+                            :let [src (mapping-source (get lm k))]
+                            :when (column? src)]
+                        [k src]))
+        clash (fn [e k] (let [varied (mapping-source (get (:own e) k))]
+                          (and varied (contains? mine k) (not= varied (mine k)))))]
+    (when (and (seq mine) (seq entries)
+               (every? (fn [e] (some #(clash e %) [:x :y])) entries))
+      (vec (for [k [:x :y]
+                 :when (some #(clash % k) entries)
+                 :let [cells (vec (distinct (keep #(mapping-source (get (:own %) k)) entries)))]]
+             {:axis k
+              :column (mine k)
+              :cells cells
+              ;; A column the series pivot invented, known by the title
+              ;; the pivot wrote beside it: the message names the series.
+              :series (let [v (get lm k)]
+                        (when (and (map? v)
+                                   (contains? (conj (set (vals series-pair-value-columns))
+                                                    series-value-column)
+                                              (:from v)))
+                          (get-in v [:scale :label])))
+              ;; Whether no cell at all names the layer's column here,
+              ;; or some do and none of those agrees on the other axis.
+              :absent? (not (some #{(mine k)} cells))})))))
+
+(defn- layer-fits-no-cell-message
+  "The report for a layer naming a column no panel draws
+   (`columns-no-cell-has`). The cells are those of a facet over columns:
+   a `lay-*` call naming columns on an arrangement joins a cell or adds
+   one at the call, and never reaches the fit."
+  [layer clashes entries]
+  (let [lt (:layer-type layer)
+        fn-name (if (keyword? lt) (str "pj/lay-" (name lt)) "A layer")
+        one-of (fn [cs] (if (next cs)
+                          (str (str/join ", " (map pr-str (butlast cs))) " and " (pr-str (last cs)))
+                          (pr-str (first cs))))
+        absent (filterv :absent? clashes)
+        ;; Each column is in some cell and no cell has the two together.
+        pair? (empty? absent)
+        told (if pair? clashes absent)
+        it (if (next told) "them" "it")
+        series? (some :series told)
+        where "the facet over columns has "]
+    (str fn-name " names "
+         (str/join " and " (for [{:keys [axis column series]} told]
+                             (str (if series
+                                    (str "the series " series)
+                                    (pr-str column))
+                                  " on " axis)))
+         (if pair?
+           (str ", and no panel draws the two together: " where
+                (str/join ", "
+                          (distinct
+                           (for [e entries]
+                             (pr-str (into {} (for [k [:x :y]
+                                                    :let [c (mapping-source (get (:own e) k))]
+                                                    :when c]
+                                                [k c]))))))
+                ". ")
+           (str ", and no panel draws " it ": " where
+                (str/join ", and " (for [{:keys [axis cells]} told]
+                                     (str (one-of cells) " on " axis)))
+                ". "))
+         (cond
+           series?
+           (str "A series draws its columns on one panel, and a facet over columns"
+                " draws each on a panel of its own: write one of the two.")
+
+           ;; The layer draws data of its own, so its columns are not
+           ;; the facet's to list.
+           (some? (:data layer))
+           (str "This layer draws data of its own, which the facet's columns are"
+                " not read from: draw it on a pose of its own and put the two side"
+                " by side with pj/arrange, or name a column the panels draw.")
+
+           :else
+           (str (if pair?
+                  "List the pair in the facet"
+                  (str "List "
+                       (str/join " and " (for [{:keys [axis column]} told]
+                                           (str (pr-str column) " among the facet's " axis " columns")))))
+                " and leave " (str/join " and " (map (comp str :axis) told))
+                " off the layer, or draw the layer on a pose of its own and put the"
+                " two side by side with pj/arrange."))
+         " A layer naming no column is drawn in every panel.")))
+
 (defn fit-layers
   "A composite whose layers are fitted to its cells, as above. Returned
-   unchanged where every layer fits every cell it reaches."
-  ([pose] (fit-layers pose {}))
-  ([pose inherited]
+   unchanged where every layer fits every cell it reaches.
+
+   A layer that fits no cell because it names a column on an axis where
+   every cell names another (`columns-no-cell-has`) reports an error
+   where it leaves some cell with no layer drawing that cell's own
+   columns: the facet's column would be drawn nowhere. Beside layers
+   that fit every cell it is drawn in every cell, as a column shown in
+   each panel for comparison."
+  ([pose] (fit-layers pose {} nil))
+  ([pose inherited] (fit-layers pose inherited nil))
+  ([pose inherited data]
    (if-not (seq (:poses pose))
      pose
      (let [m (merge-mappings inherited (:mapping pose))
+           data (or (:data pose) data)
            layers (vec (:layers pose))
            entries (vec (leaf-entries (dissoc pose :mapping) m {} []))
            fits (vec (for [e entries]
                        (mapv #(layer-fits-cell? (:mapping e) (:own e) %) layers)))
            fit-somewhere (set (for [row fits [i f] (map-indexed vector row) :when f] i))
+           _ (doseq [[i layer] (map-indexed vector layers)
+                     :when (not (fit-somewhere i))]
+               (let [d (or (:data layer) data)
+                     col-names (when d (try (set (tc/column-names (coerce-dataset d)))
+                                            (catch Exception _ nil)))]
+                 (when-let [clashes (and
+                                     ;; Some cell has no layer drawing its
+                                     ;; own columns: none of this level's
+                                     ;; fits it, and it has none of its own.
+                                     (not (every? (fn [[e row]]
+                                                    (or (some true? row)
+                                                        (seq (:layers (:leaf e)))))
+                                                  (map vector entries fits)))
+                                     (columns-no-cell-has entries layer col-names))]
+                   (throw (ex-info (layer-fits-no-cell-message layer clashes entries)
+                                   {:layer-type (:layer-type layer)
+                                    :mapping (:mapping layer)
+                                    :clashes clashes})))))
            kept (vec (for [row fits]
                        (vec (keep-indexed (fn [i f] (when (or f (not (fit-somewhere i))) (layers i)))
                                           row))))
@@ -3905,7 +4035,7 @@
                                             :else leaf))))
                            (dissoc pose :layers)
                            (map vector entries kept)))]
-       (update pose' :poses (fn [ps] (mapv #(fit-layers % m) ps)))))))
+       (update pose' :poses (fn [ps] (mapv #(fit-layers % m data) ps)))))))
 
 ;; ---- Row filter ----
 
@@ -4079,42 +4209,53 @@
 
       :else leaf)))
 
+(defn- keeps-from-side-on?
+  "Whether a layer keeps its leaf from being drawn on its side: its
+   layer type does not draw from one column, or it names an `:x`."
+  [layer]
+  (not (and (keyword? (:layer-type layer))
+            (contains? (layer-type/column-counts (:layer-type layer)) 1)
+            (not (contains? (:mapping layer) :x)))))
+
 (defn- side-on
-  "A leaf naming a column only on `:y`, whose layers each draw from one
-   column (`layer-type/column-counts` holds 1: histogram, density, rug,
-   bar), drawn on its side: the column on
-   `:x` and the coordinates flipped, so its distribution runs up the
-   `:y` axis -- the margin beside a scatter. A leaf whose layers name
-   `:x` or `:y` is left as it is; a `:coord` other than `:flip`
-   specified on such a leaf reports an error. (Read
-   on `:y` alone, such a leaf drew nothing and failed with a
-   NullPointerException.)"
+  "A leaf naming a column only on `:y` -- in its own mapping or in its
+   layers' -- whose layers each draw from one column
+   (`layer-type/column-counts` holds 1: histogram, density, rug, bar),
+   drawn on its side: the column on `:x` and the coordinates flipped,
+   so its distribution runs up the `:y` axis -- the margin beside a
+   scatter. `(pj/pose data {:y :a})` with `pj/lay-histogram` and
+   `(pj/lay-histogram pose {:y :a})` are one request. A leaf with a
+   layer that names `:x`, or draws only from two columns, is left as it
+   is (`keeps-from-side-on?`); a `:coord` other than `:flip` specified
+   on such a leaf reports an error. (Read on `:y` alone, such a leaf
+   drew nothing and failed with a NullPointerException.)"
   [leaf]
   (let [m (:mapping leaf)
         layers (:layers leaf)
-        coord (get-in leaf [:opts :coord])]
-    (if (and (some? (:y m))
+        coord (get-in leaf [:opts :coord])
+        y (or (:y m) (some #(:y (:mapping %)) layers))
+        on-x (fn [mapping] (if (contains? mapping :y)
+                             (-> mapping (dissoc :y) (assoc :x (:y mapping)))
+                             mapping))]
+    (if (and (some? y)
              (nil? (:x m))
              (seq layers)
-             (every? (fn [l] (and (keyword? (:layer-type l))
-                                  (contains? (layer-type/column-counts (:layer-type l)) 1)
-                                  (not (contains? (:mapping l) :x))
-                                  (not (contains? (:mapping l) :y))))
-                     layers))
+             (not-any? keeps-from-side-on? layers))
       (do
         ;; On its side is the one way such a leaf is drawn, so `:flip`
         ;; specified says what is inferred, and any other coordinate
         ;; system has no drawing for a column that is on `:y` alone.
         (when-not (contains? #{nil :flip} coord)
-          (throw (ex-info (str "This pose names " (pr-str (mapping-source (:y m)))
+          (throw (ex-info (str "This pose names " (pr-str (mapping-source y))
                                " on :y alone, under layers that draw from one column,"
                                " which is drawn on its side with the coordinates"
                                " flipped. :coord " (pr-str coord) " has no drawing for"
                                " it. Name the column on :x, or leave :coord"
                                " unspecified.")
-                          {:y (mapping-source (:y m)) :coord coord})))
+                          {:y (mapping-source y) :coord coord})))
         (-> leaf
-            (assoc :mapping (-> m (dissoc :y) (assoc :x (:y m))))
+            (cond-> (some? m) (assoc :mapping (on-x m)))
+            (update :layers (fn [ls] (mapv #(cond-> % (:mapping %) (update :mapping on-x)) ls)))
             (assoc-in [:opts :coord] :flip)))
       leaf)))
 
@@ -4254,6 +4395,153 @@
            (dissoc :where)
            (update :poses (fn [ps] (mapv #(elaborate % ctx) ps))))))))
 
+;; ---- A layer left without a column its layer type draws from ----
+;;
+;; Asked once per draft layer, after its mapping is resolved and its
+;; written values are columns: a layer that reads rows needs a column on
+;; `:x`, and a `:y` column too unless its type draws from one column or
+;; its stat computes `:y`. `resolve/resolve-draft-layer` asks the second
+;; half again at plan time, for a draft built by hand. The two share
+;; `stat/computes` and the set of marks drawn from written values, and
+;; cannot share more, because only this site has the layer's call and
+;; the pose's mapping to name.
+
+(defn- one-column-layer-fns
+  "The `lay-*` functions of the registered layer types that draw from
+   one column, as a phrase."
+  []
+  (let [names (->> (layer-type/registered)
+                   keys
+                   (filter #(contains? (layer-type/column-counts %) 1))
+                   (map #(str "pj/lay-" (name %)))
+                   sort)]
+    (if (next names)
+      (str (str/join ", " (butlast names)) " or " (last names))
+      (first names))))
+
+(defn- layer-missing-columns
+  "The axes on which a draft layer lacks a column its type draws from,
+   as a vector of `:x` and `:y` -- empty where it has what it needs.
+   `resolved` is the layer's mapping after `resolve-positional-values`,
+   so a written value is already a column."
+  [resolved layer-type-key]
+  (let [mark (:mark resolved)
+        x (:x resolved)
+        y (:y resolved)
+        counts (layer-type/column-counts layer-type-key)
+        stat (:stat (resolve/infer-layer-type (select-keys resolved [:mark :stat :y])
+                                              nil nil false false))
+        y-free? (or (contains? counts 1)
+                    (:x-only resolved)
+                    (= :rug mark)
+                    (:y (stat/computes (assoc resolved :stat stat))))]
+    (cond
+      (or (= :infer mark)
+          (= :infer layer-type-key)
+          (resolve/written-position-marks mark)) []
+      (and (nil? x) (nil? y)) (if y-free? [:x] [:x :y])
+      (nil? x) [:x]
+      (and (nil? y) (not y-free?)) [:y]
+      :else [])))
+
+(defn- missing-columns-message
+  [missing resolved d {:keys [layer-type-key layer-mapping leaf-mapping written columns
+                              side-on-blockers]}]
+  (let [fn-name (if (keyword? layer-type-key)
+                  (str "pj/lay-" (name layer-type-key))
+                  (str "A layer of mark " (pr-str (:mark resolved))))
+        counts (layer-type/column-counts layer-type-key)
+        ;; The columns of the data as the layer was given it: a written
+        ;; value is a column of `d` by now, under a name nobody wrote.
+        cols (vec (sort-by str (or columns (tc/column-names d))))
+        col-set (set cols)
+        draws (cond
+                (= #{1} counts) "one column, on :x"
+                (= #{1 2} counts) "one column on :x, or two on :x and :y"
+                :else "two columns, one on :x and one on :y")
+        ;; What the layer does have, each with where it was named.
+        named (for [k (concat [:x :y] (sort (disj defaults/column-keys :x :y)))
+                    :let [v (get written k)]
+                    :when (and (some? v)
+                               (some? (get resolved k))
+                               (or (#{:x :y} k) (contains? col-set v)))]
+                (str k " " (pr-str v)
+                     (cond (contains? layer-mapping k) ""
+                           (contains? leaf-mapping k) " (from the pose)"
+                           :else "")))
+        x (when (:x resolved) (:x written))
+        y (when (:y resolved) (:y written))
+        ;; How to write the fix: a call for a registered layer type, a
+        ;; mapping for a layer whose type is a map.
+        lay (fn [& args]
+              (if (keyword? layer-type-key)
+                (str "(" fn-name " pose " (str/join " " args) ")")
+                (str "{" (str/join " " (map #(str %1 " " %2) [:x :y] args))
+                     "} in its :mapping")))]
+    (str fn-name " draws from " draws ", and this layer has no column on "
+         (str/join " or " (map str missing)) ". "
+         (if (seq named)
+           (str "It names " (str/join ", " named) ". ")
+           "It names no column. ")
+         (cond
+           (= [:x :y] missing)
+           (str "Name both on the layer -- " (lay ":x-column" ":y-column")
+                " -- or in the pose's mapping, which every layer of the pose reads.")
+
+           (and (= [:x] missing) (nil? y))
+           (str "Name it on the layer -- " (lay ":x-column")
+                " -- or in the pose's mapping, which every layer of the pose reads.")
+
+           ;; The pose names a column on `:y` alone, which `side-on`
+           ;; draws on its side -- unless another layer keeps it from.
+           (and (= [:x] missing) (= #{1} counts)
+                (seq side-on-blockers)
+                (not-any? #{fn-name} side-on-blockers))
+           (str "A column named on :y alone is drawn on its side where every"
+                " layer draws from one column and names no :x of its own, and "
+                (str/join ", " side-on-blockers)
+                (if (next side-on-blockers) " do not" " does not")
+                ". Name the column on :x -- (pj/pose data {:x " (pr-str y)
+                "}) -- and add (pj/coord :flip) to draw it on its side.")
+
+           (= [:x] missing)
+           (str "Name the :x column on the layer -- " (lay ":x-column" (pr-str y))
+                " -- or in the pose's mapping, which every layer of the pose reads.")
+
+           ;; A value written on `:x`, with nothing on `:y`.
+           (not (contains? col-set x))
+           (str "Name the :y column, or write a :y value, on the layer -- "
+                (if (keyword? layer-type-key)
+                  (str "(" fn-name " pose {:x " (pr-str x) " :y ...})")
+                  (str "{:x " (pr-str x) " :y ...} in its :mapping"))
+                " -- or name the column in the pose's mapping.")
+
+           :else
+           (str "Name the :y column on the layer -- " (lay (pr-str x) ":y-column")
+                " -- or in the pose's mapping. To draw " (pr-str x)
+                " alone, use a layer that draws from one column: "
+                (one-column-layer-fns) "."))
+         (when (and (nil? x) (nil? y) (nil? (default-mapping d)))
+           (str " The data has " (count cols) " columns, so none is read by default."))
+         " Available columns: " cols)))
+
+(defn- check-layer-columns!
+  "Report a layer left without a column its layer type draws from.
+   `ctx` carries the layer's mapping as written (`:written`, before its
+   values became columns) and the columns of the data it was given
+   (`:columns`), which are what the message names."
+  [resolved d ctx]
+  (when d
+    (let [missing (layer-missing-columns resolved (:layer-type-key ctx))]
+      (when (seq missing)
+        (throw (ex-info (missing-columns-message missing resolved d ctx)
+                        {:layer-type (:layer-type-key ctx)
+                         :missing missing
+                         :x (:x resolved)
+                         :y (:y resolved)
+                         :columns (vec (sort-by str (or (:columns ctx)
+                                                        (tc/column-names d))))}))))))
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -4299,6 +4587,17 @@
         facet-row    (or (mapping-source (:row leaf-mapping)) (:facet-row opts))
         leaf-mapping (dissoc leaf-mapping :col :row)
         variants     (facet-variants leaf-data facet-col facet-row)
+        ;; The layers that keep a column on `:y` alone from being drawn
+        ;; on its side, for `check-layer-columns!` to name.
+        side-on-blockers (when (and (nil? (:x leaf-mapping))
+                                    (or (some? (:y leaf-mapping))
+                                        (some #(:y (:mapping %)) applicable)))
+                           (vec (distinct
+                                 (for [l applicable
+                                       :when (keeps-from-side-on? l)]
+                                   (if (keyword? (:layer-type l))
+                                     (str "pj/lay-" (name (:layer-type l)))
+                                     "a layer whose type is a map")))))
         ;; Said once per draft, and only where the leaf's own layers made
         ;; the split -- a faceted leaf has many panels and no disagreement
         ;; to report.
@@ -4361,18 +4660,27 @@
                            (merge-mappings layer-mapping)
                            (merge-mappings layer-structural)))
              layer-own-data?  (some? (:data layer))
+             written          resolved
+             given-data       (coerce-dataset (or (:data layer) (:data variant)))
              ;; An :x or :y given as a value becomes data before anything
              ;; else looks at the mapping, so every check and every later
              ;; stage sees the ordinary shape: columns named by a mapping.
              [resolved d] (resolve-positional-values
                            resolved
-                           (coerce-dataset (or (:data layer) (:data variant)))
+                           given-data
                            layer-own-data?)]
          (validate-columns resolved d
                            {:layer-mapping layer-mapping
                             :layer-type-info layer-type-info
                             :layer-type-key (:layer-type layer)
                             :layer-own-data? layer-own-data?})
+         (check-layer-columns! resolved d
+                               {:layer-mapping (or (:mapping layer) {})
+                                :leaf-mapping leaf-mapping
+                                :written written
+                                :side-on-blockers side-on-blockers
+                                :columns (when given-data (tc/column-names given-data))
+                                :layer-type-key (:layer-type layer)})
          (validate-column-only-aesthetics resolved d)
          (validate-unscaled-channel-options resolved opts)
          (-> resolved
