@@ -26,13 +26,15 @@ All notable changes to this project will be documented in this file. This change
 
 - **A shared categorical axis** lists every category of the panels sharing it, in a facet and in an arrangement alike, so `(pj/arrange [bars-a bars-b] {:share-scales #{:x}})` draws the same bands in both cells. Where the panels are parts of one dataset the categories are in the order of its rows, which is the order of the same plot drawn without the split; where each panel has data of its own they are in the order of the panels.
 
-- **A count or density axis** is shared among panels that count the same column: histograms of one column in the cells of a split share their count axis, as the panels of a facet do. Histograms of different columns keep a count axis each, and `{:share-scales {:y :all}}` or a group naming the columns, `{:y [[:hwy :cty]]}`, shares it.
+- **A count or density axis** is shared among panels that compute the same thing from the same column: histograms of one column in the cells of a split share their count axis, as the panels of a facet do. Histograms of different columns keep a count axis each, and `{:share-scales {:y :all}}` or a group naming the columns, `{:y [[:hwy :cty]]}`, shares it. A count is shared with counts only, never with a density or with the values of a column, also under `:all`; a histogram with `{:normalize :density}` is a density.
 
 - **Bars drawn across**, with the value on `:x` and the category on `:y`, start on the panel edge: the `:x` axis begins at zero and is padded only past the longest bar, as the `:y` axis under upright bars is. The same holds where `:share-scales` names `:x`, as in `(pj/arrange [bars-a bars-b] {:share-scales #{:x}})`. Values below zero are padded past as before.
 
 - **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column. `:x-label` and `:y-label` still set the title.
 
 ### Added
+
+- A stat declares what it computes for an axis with a method on `[stat :computes]`, beside its `[stat :doc]`: `:bin` declares `{:y :count}`, or `{:y :density}` under `:normalize :density`. Sharing an axis, the Note for layers of one panel, and the check for a missing `:y` column read the declaration, so an extension's stat takes part in all three. See "What a stat computes" in the Extensibility chapter.
 
 - `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, and a layer added afterwards reaches every panel.
 
@@ -49,6 +51,8 @@ All notable changes to this project will be documented in this file. This change
 - A pose may carry `:where`, a map from column to value or set of values, and draws only the rows that match; numbers match by value, so `4` selects `4.0`. Cells listed under a pose that holds the data, each with a `:where`, draw what `pj/facet` draws. The name `:where` is provisional.
 
 ### Warnings and errors
+
+- Layers of one pose that draw a count and a density on one axis, such as `pj/lay-histogram` with `pj/lay-density`, print a Note that the axis reads in two units, as a count beside a column does.
 
 - Panels too small to draw report an error stating the size each panel would have and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`.
 

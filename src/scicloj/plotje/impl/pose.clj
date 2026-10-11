@@ -22,6 +22,7 @@
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.impl.scale :as scale]
+            [scicloj.plotje.impl.stat :as stat]
             [scicloj.plotje.layer-type :as layer-type]))
 
 ;; ---- Structural predicates ----
@@ -601,21 +602,22 @@
                         [[(effective-axis-col leaf a) leaf]])))
                   subtree)))
 
-(declare y-axis-stat-driven? layer-stat)
+(declare axis-computes)
 
 (defn- counted-key
-  "What a leaf whose every layer draws a count or a density on `:y` is
-   grouped under there: the statistic and the column counted. Such an
-   axis has no column of its own, and counts of one column are one
-   quantity -- the histograms of a split share their count axis -- while
-   a count is not the values of the column it counts, so this is a key
-   apart from the column's."
-  [leaf]
-  (when (y-axis-stat-driven? (:layers leaf) (:mapping leaf) (:data leaf))
-    {::stat (layer-stat (first (:layers leaf)) (:mapping leaf) (:data leaf))
-     ::of (effective-axis-col leaf :x)}))
+  "What a leaf whose every layer computes what it draws along its axis
+   `a` is grouped under there -- a count or a density on `:y`: what is
+   computed (`stat/computes`) and the column it is computed from. Such
+   an axis has no column of its own, and counts of one column are one
+   measure -- the histograms of a split share their count axis -- while
+   a count is not the values of the column counted, nor a density of
+   it, so this is a key apart from the column's."
+  [leaf a]
+  (when-let [c (axis-computes leaf a)]
+    {::computes c
+     ::of (effective-axis-col leaf ({:x :y :y :x} a))}))
 
-(defn- counted-key? [k] (and (map? k) (contains? k ::stat)))
+(defn- counted-key? [k] (and (map? k) (contains? k ::computes)))
 
 (defn- share-key-buckets
   "The leaves of `subtree` grouped by what they draw along `axis` of
@@ -626,7 +628,7 @@
           {}
           (mapcat (fn [leaf]
                     (let [a (data-axis leaf axis)]
-                      (if-let [k (and (= a :y) (counted-key leaf))]
+                      (if-let [k (counted-key leaf a)]
                         [[k leaf]]
                         (if-let [cols (drawn-axis-cols leaf a)]
                           (map #(vector % leaf) cols)
@@ -635,33 +637,22 @@
 
 (defn- share-groups
   "The sets of keys a share spec puts together on an axis, beyond each
-   on its own: one set of every key for `:all`, the written groups for a
-   vector of groups, none for `:same-column`. A written group names
-   columns, and puts the counts of those columns together as well."
+   on its own. Keys go together only where they measure alike: columns
+   with columns, counts with counts, densities with densities
+   (`counted-key`). `:all` puts every key together with those it
+   measures alike with; a vector of groups names columns, and puts
+   together those columns, and what is computed from them, each with
+   its like; `:same-column` adds nothing."
   [how ks]
-  (cond
-    (= :all how) [(set (remove nil? ks))]
-    (sequential? how) (into (mapv set how)
-                            (for [group how
-                                  stat (distinct (map ::stat (filter counted-key? ks)))]
-                              (set (map (fn [c] {::stat stat ::of c}) group))))
-    :else []))
-
-(def ^:private stat-driven-y-stats
-  "Stats whose y-axis output is a count or density rather than a
-   function of the y-mapped data column. Leaves whose every layer
-   resolves to one of these stats should not have a shared
-   y-scale-domain stamped on them -- their y axis is independent
-   of the column that other cells in the same y-bucket share.
-
-   :bin     1D histogram (count per numeric bin)
-   :count   categorical count per category
-   :density 1D KDE (density per numeric value)
-
-   :bin2d / :density-2d are NOT included: those are 2D heatmaps
-   whose count/density goes to the fill aesthetic, leaving y as a
-   data axis that participates in sharing normally."
-  #{:bin :count :density})
+  (let [computed (distinct (map ::computes (filter counted-key? ks)))]
+    (cond
+      (= :all how) (mapv set (vals (group-by #(when (counted-key? %) (::computes %))
+                                             (remove nil? ks))))
+      (sequential? how) (into (mapv set how)
+                              (for [group how
+                                    c computed]
+                                (set (map (fn [col] {::computes c ::of col}) group))))
+      :else [])))
 
 (declare infer-layer-type-key)
 
@@ -686,16 +677,29 @@
                                         :y (mapping-source (:y v))}
                                        nil nil false false)))))
 
-(defn- y-axis-stat-driven?
-  "True if every layer of this leaf will resolve to a stat whose y-axis
-   is independent of the y-mapped data column. Such a leaf should not
-   be stamped with a shared y-scale-domain."
-  [layers mapping data]
-  (and (seq layers)
-       (every? (fn [layer]
-                 (contains? stat-driven-y-stats
-                            (layer-stat layer mapping data)))
-               layers)))
+(defn- layer-computes
+  "What the stat of this layer computes for `axis` -- `:count`,
+   `:density`, whatever an extension's stat declares
+   (`stat/computes`) -- or nil where the layer draws a column there. The
+   stat is asked with the layer's options, the layer type's defaults
+   under them."
+  [layer leaf-mapping leaf-data axis]
+  (when-let [stat (layer-stat layer leaf-mapping leaf-data)]
+    (let [lt-key (:layer-type layer)
+          defaults (when (and (keyword? lt-key) (not= :infer lt-key))
+                     (:defaults (layer-type/lookup lt-key)))]
+      (get (stat/computes (assoc (merge defaults leaf-mapping (:mapping layer))
+                                 :stat stat))
+           axis))))
+
+(defn- axis-computes
+  "What every layer of this leaf computes for `axis`, where every layer
+   computes something there: the first layer's answer. Nil where a
+   layer draws a column on it, or the leaf has no layers."
+  [leaf axis]
+  (let [cs (map #(layer-computes % (:mapping leaf) (:data leaf) axis) (:layers leaf))]
+    (when (and (seq cs) (every? some? cs))
+      (first cs))))
 
 (defn- col-values
   "Non-nil values for a column reference from a dataset. The reference
@@ -774,7 +778,7 @@
 (defn- describe-share-key
   [k]
   (if (counted-key? k)
-    (str "the " (name (::stat k)) " of " (pr-str (::of k)))
+    (str "the " (name (::computes k)) " of " (pr-str (::of k)))
     (pr-str k)))
 
 (defn- describe-share-cols
@@ -2774,16 +2778,17 @@
 
 (defn- layer-axis-draws
   "What a layer of `leaf` draws on `axis`, for comparing the layers that
-   share its panel: `{:stat s}` for a count or a density on `:y`,
+   share its panel: `{:computes c}` where its stat computes what it draws
+   there (a count or a density on `:y`, `stat/computes`),
    `{:column c :type t}` for a column (`resolve/column-type`), or nil
    where the layer draws a written value there or nothing."
   [leaf layer axis]
   (let [leaf-mapping (or (:mapping leaf) {})
         data (coerce-dataset (or (:data layer) (:data leaf)))
-        stat (layer-stat layer leaf-mapping (:data leaf))
+        computed (layer-computes layer leaf-mapping (:data leaf) axis)
         src (mapping-source (get (merge leaf-mapping (:mapping layer)) axis))]
     (cond
-      (and (= axis :y) (contains? stat-driven-y-stats stat)) {:stat stat}
+      computed {:computes computed}
       (and src data (contains? (set (tc/column-names data)) src))
       (let [m (merge leaf-mapping (:mapping layer))
             ;; A type the writer gave with `:x-type` or `:y-type` is the
@@ -2856,8 +2861,9 @@
    beside a number -- cannot be placed on one scale, and drawing them
    anyway placed the numbers as category places: an error, naming the
    layers and the two ways to separate panels. A count or a density
-   beside a column on `:y` can be placed, but the axis then reads in two
-   units: a Note, with the same advice. Numeric columns of very different
+   beside a column on `:y` can be placed, and so can a count beside a
+   density, but the axis then reads in two units: a Note, with the same
+   advice. Numeric columns of very different
    size can be placed too, and one of them is then drawn flat: a Note
    (`note-columns-of-different-size!`)."
   [leaf]
@@ -2876,11 +2882,11 @@
                                           (assoc d :caller (caller l))))
                                 layers)
                     columns (filter :column draws)
-                    stats (filter :stat draws)
+                    stats (filter :computes draws)
                     describe (fn [d] (str (:caller d) " draws "
                                           (if (:column d)
                                             (str (pr-str (:column d)) " (" (name (:type d)) ")")
-                                            (str "a " (name ({:bin :count} (:stat d) (:stat d)))))))]]
+                                            (str "a " (name (:computes d))))))]]
         (cond
           (next (distinct (map :type columns)))
           (throw (ex-info (str "The layers of this pose share one panel, and on " axis
@@ -2902,6 +2908,17 @@
           (println (str "Note: the layers of this pose share one panel, and on " axis " "
                         (str/join ", " (map describe (concat (take 1 stats) (take 1 columns))))
                         ", so the axis reads in two units."
+                        (advice axis nil)))
+
+          ;; A count beside a density: both computed, and not alike.
+          (next (distinct (map :computes stats)))
+          (println (str "Note: the layers of this pose share one panel, and on " axis " "
+                        (str/join ", " (map (comp describe first)
+                                            (vals (group-by :computes stats))))
+                        ", so the axis reads in two units."
+                        (when (some #{:count} (map :computes stats))
+                          (str " To draw a histogram as a density, write"
+                               " {:normalize :density} on its layer."))
                         (advice axis nil)))
 
           ;; Not where a series has been pivoted into its value column:

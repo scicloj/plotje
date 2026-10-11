@@ -440,6 +440,34 @@
 
 ;; ---- Doc methods (dispatching on [stat-key :doc]) ----
 
+(defn computes
+  "What a layer's stat computes for an axis, as `{axis name}` -- `{:y
+   :count}` for a histogram -- or nil where it draws the columns it is
+   given.
+
+   A stat declares it with a method on `[stat :computes]`, beside its
+   `[stat :doc]`, taking the layer: one stat may compute different
+   things by its options, as `:bin` computes a density under
+   `:normalize :density`. The names are open keywords; an extension
+   names what it computes.
+
+   An axis holding something computed is not the axis of the column it
+   was computed from. Two such axes hold the same thing where the name
+   and the source column agree, which is what sharing an axis between
+   panels asks (`pose/shared-axis-groups`); layers of one panel that
+   disagree get a Note (`pose/check-shared-panel!`); and a stat that
+   computes `:y` needs no `:y` column (`resolve/resolve-draft-layer`).
+   Each of the three read a list of stat names before."
+  [layer]
+  (let [k (or (:stat layer) :identity)]
+    (when (contains? (methods compute-stat) [k :computes])
+      (compute-stat (assoc layer :stat [k :computes])))))
+
+(defmethod compute-stat [:bin :computes] [layer]
+  {:y (if (= :density (:normalize layer)) :density :count)})
+(defmethod compute-stat [:count :computes] [_] {:y :count})
+(defmethod compute-stat [:density :computes] [_] {:y :density})
+
 (defmethod compute-stat [:identity :doc] [_] "Pass-through -- no transform")
 (defmethod compute-stat [:bin :doc] [_] "Bin numerical values into ranges")
 (defmethod compute-stat [:count :doc] [_] "Count occurrences per category")

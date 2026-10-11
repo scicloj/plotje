@@ -5,6 +5,8 @@
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.stat :as stat]
+            [scicloj.plotje.layer-type :as layer-type]
             [tablecloth.api :as tc]))
 
 (def cars
@@ -403,3 +405,77 @@
     (is (apply = (map first facet)) "the horizontal axis is shared")
     (is (apply not= (map second facet)) "the vertical one is each panel's own")
     (is (= facet arranged))))
+
+;; What an axis measures: the values of a column, or what a stat
+;; computes from one -- a count, a density. Axes share only where they
+;; measure alike.
+
+(deftest axes-share-only-where-they-measure-alike-test
+  (let [data (tc/dataset {:v [1.0 1.1 1.2 1.3 2.0 2.1 2.2 3.0 3.1 5.0 5.1 9.0]
+                          :w [1.0 1.0 1.0 1.0 2.0 2.0 2.0 2.0 2.0 5.0 5.0 5.0]})
+        ys (fn [cells share]
+             (let [out (atom nil)]
+               (with-out-str (reset! out (mapv second (domains (pj/arrange cells {:share-scales share})))))
+               (deref out)))
+        counts #(pj/lay-histogram data %)
+        normalised #(pj/lay-histogram data % {:normalize :density})
+        density #(pj/lay-density data %)
+        points (pj/lay-point data :w :v)]
+    (testing "a count and a density of one column are apart"
+      (is (apply not= (ys [(counts :v) (density :v)] #{:y}))))
+    (testing "a normalised histogram is a density"
+      (is (apply = (ys [(normalised :v) (density :v)] #{:y})))
+      (is (apply not= (ys [(counts :v) (normalised :v)] #{:y}))))
+    (testing ":all shares counts with counts, and nothing else with them"
+      (let [[a b c d] (ys [(counts :v) (counts :w) (density :v) points] {:y :all})]
+        (is (= a b) "the two counts")
+        (is (not= a c) "not the density")
+        (is (not= a d) "not the column's values")
+        (is (not= c d))))
+    (testing "a group shares the counts of its columns, and their densities, each with its like"
+      (let [[a b c d] (ys [(counts :v) (counts :w) (density :v) (density :w)] {:y [[:v :w]]})]
+        (is (= a b))
+        (is (= c d))
+        (is (not= a c))))))
+
+;; The share of the rows at or below each value: 0 to 1 on :y, computed
+;; from one column. An extension's stat, declared as the built-in ones
+;; are.
+(defmethod stat/compute-stat ::running-share [{:keys [data x]}]
+  (let [xs (vec (sort (data x)))
+        n (count xs)
+        ys (mapv #(/ (double (inc %)) n) (range n))]
+    {:points [{:xs xs :ys ys}]
+     :x-domain [(first xs) (peek xs)]
+     :y-domain [0.0 1.0]}))
+
+(defmethod stat/compute-stat [::running-share :computes] [_] {:y :running-share})
+
+(deftest a-stat-declares-what-it-computes-test
+  (testing "the built-in declarations"
+    (is (= {:y :count} (stat/computes {:stat :bin})))
+    (is (= {:y :density} (stat/computes {:stat :bin :normalize :density})))
+    (is (= {:y :count} (stat/computes {:stat :count})))
+    (is (= {:y :density} (stat/computes {:stat :density})))
+    (is (nil? (stat/computes {:stat :identity})))
+    (is (nil? (stat/computes {}))))
+  (testing "an extension's stat is read as the built-in ones are"
+    (layer-type/register! ::running-share
+                          {:mark :line :stat ::running-share :column-counts #{1}})
+    (let [data (tc/dataset {:v [1.0 2.0 3.0 4.0] :w [10.0 20.0 30.0 40.0]})
+          share #(pj/lay data ::running-share {:x %})
+          ys (fn [cells how] (mapv second (domains (pj/arrange cells {:share-scales how}))))]
+      (testing "it needs no :y column, and draws"
+        (let [[lo hi] (second (first (domains (share :v))))]
+          (is (< lo 0.25 1.0 hi))))
+      (testing "its axis is not the axis of the column's values"
+        (is (apply not= (ys [(share :v) (pj/lay-point data :w :v)] {:y :all}))))
+      (testing "nor a count's"
+        (is (apply not= (ys [(share :v) (pj/lay-histogram data :v)] {:y :all}))))
+      (testing "and two of them share"
+        (is (apply = (ys [(share :v) (share :w)] {:y :all}))))
+      (testing "one panel holding it beside a count says the axis reads in two units"
+        (is (re-find #"draws a count, .* draws a running-share, so the axis reads in two units"
+                     (with-out-str (pj/plan (-> data
+                                                (pj/lay-histogram :v)
+                                                (pj/lay ::running-share {:x :v}))))))))))

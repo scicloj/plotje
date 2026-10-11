@@ -1144,7 +1144,7 @@
    quantity a mark of that value is drawn at wherever it sits.
    Returns {:resolved [...] :stat-results [...] :layers [...]}."
   [panel-draft-layers all-colors cfg & {:keys [resolved shape-map extents]}]
-  (let [resolved (or resolved (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) panel-draft-layers))
+  (let [resolved (or resolved (mapv (comp filter-log-nonpositive filter-infinities #(resolve/resolve-draft-layer % stat/computes)) panel-draft-layers))
         stat-results (mapv #(stat/compute-stat (assoc % :cfg (merge cfg (:cfg %)))) resolved)
         raw-plan-layers (vec (map (fn [rv sr]
                                     (-> (extract/stamp-group-keys
@@ -1332,7 +1332,7 @@
 
    Returns {:resolved-all :numeric-color? :all-colors :color-cols :tagged-draft-layers}."
   [draft-layers]
-  (let [resolved-all (mapv (comp filter-log-nonpositive filter-infinities resolve/resolve-draft-layer) draft-layers)
+  (let [resolved-all (mapv (comp filter-log-nonpositive filter-infinities #(resolve/resolve-draft-layer % stat/computes)) draft-layers)
         tagged-draft-layers (mapv (fn [v rv] (assoc v :__resolved rv)) draft-layers resolved-all)
         numeric-color? (some #(= :numerical (:color-type %)) resolved-all)
         all-colors (when-not numeric-color?

@@ -167,6 +167,79 @@ graph LR
 
 (kind/test-last [false?])
 
+;; ### What a stat computes
+;;
+;; The running maximum draws values of the `:rain` column, so its `:y`
+;; axis is the axis of that column. A histogram is different: its `:y`
+;; axis holds a count, and no column of the data holds that count.
+;; Plotje has to tell the two apart. Panels that share an axis share it
+;; only where their axes hold the same thing, and a count of a column is
+;; not the values of that column.
+;;
+;; A stat declares what it computes with a method on
+;; `[stat :computes]`, beside its `[stat :doc]`. The method takes the
+;; layer and returns a map from an axis to a name for what the stat
+;; computes on that axis. `stat/computes` reads the declaration:
+
+(stat/computes {:stat :bin})
+
+(kind/test-last [(fn [m] (= {:y :count} m))])
+
+;; The method takes the layer because the options of a layer can change
+;; what one stat computes. A histogram normalized to a density computes
+;; a density:
+
+(stat/computes {:stat :bin :normalize :density})
+
+(kind/test-last [(fn [m] (= {:y :density} m))])
+
+;; A stat with no such method draws the columns the layer names, and
+;; `stat/computes` returns `nil` for it:
+
+(stat/computes {:stat :loess})
+
+(kind/test-last [nil?])
+
+;; The built-in stats that declare what they compute, each asked with no
+;; options:
+
+(kind/table
+ {:column-names ["Stat" "Computes"]
+  :row-maps
+  (->> (methods stat/compute-stat)
+       keys
+       (filter #(and (vector? %) (= :computes (second %))))
+       (map first)
+       sort
+       (mapv (fn [k] {"Stat" (kind/code (pr-str k))
+                      "Computes" (kind/code (pr-str (stat/computes {:stat k})))})))})
+
+(kind/test-last [(fn [t] (= [":bin" ":count" ":density"]
+                            (mapv #(first (get % "Stat")) (:row-maps t))))])
+
+;; The names are keywords the stat chooses. An extension stat that
+;; computes the share of rows at or below each value would declare a
+;; name of its own.
+;;
+;; Pseudocode:
+;;
+;; ```clojure
+;; (defmethod stat/compute-stat [:running-share :computes] [layer]
+;;   {:y :running-share})
+;; ```
+;;
+;; Plotje reads the declaration in three places:
+;;
+;; - **Sharing an axis.** Under `:share-scales`, two panels share an
+;;   axis where the axes hold the same thing: the values of one column,
+;;   or the same computed name from one column. A count is shared with
+;;   a count, and never with a density or with the values of a column.
+;; - **Layers of one panel.** Where one layer draws a count and another
+;;   draws a density or a column on the same axis, Plotje prints a Note
+;;   that the axis reads in two units.
+;; - **Columns a layer needs.** A layer whose stat computes `:y` draws
+;;   from an `:x` column alone.
+
 ;; ### Where a layer's stat comes from
 ;;
 ;; `compute-stat` dispatches on a layer's `:stat`, which is settled before

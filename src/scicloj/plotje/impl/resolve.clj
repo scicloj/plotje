@@ -604,13 +604,6 @@
                                      (when (and color-group explicit-group) color-group))))]
     group))
 
-(def ^:private x-only-stats
-  "Stats that consume only an x column and synthesize y themselves
-   (counts, bins, densities). Used to permit x-only draft-layers for marks
-   driven by these stats even when the layer-type registry's :x-only flag
-   is missing (e.g., tests that construct draft-layers directly)."
-  #{:bin :count :density})
-
 (defn infer-layer-type
   "Choose mark and stat from column types when the user hasn't specified them.
    Rules:
@@ -687,8 +680,14 @@
    and `infer-layer-type` -- each named for the inference step it performs.
    Also normalizes user-facing shorthand options:
      - `:bandwidth` -> `:cfg {:<stat>-bandwidth ...}` (routed per stat)
-     - `:tile` with `:fill` -> stat `:identity`"
-  [v]
+     - `:tile` with `:fill` -> stat `:identity`
+
+   `computes` answers what a layer's stat computes for an axis: a stat
+   computing `:y` needs no `:y` column. It is `stat/computes`, which the
+   plan passes in; `impl.stat` requires this namespace, so called
+   without it the var is looked up when first needed."
+  ([v] (resolve-draft-layer v (requiring-resolve 'scicloj.plotje.impl.stat/computes)))
+  ([v computes]
   (if-not (:data v)
     v
     (let [ds (let [d (:data v)] (if (tc/dataset? d) d (tc/dataset d)))
@@ -790,8 +789,9 @@
           ;; a mark that writes its extent never calls prepare-points.
           ;; Four sources of x-only permission:
           ;;   1. :x-only true from the layer-type registry (e.g., :histogram, :rug)
-          ;;   2. stat is in `x-only-stats` -- :bin/:count/:density synthesize y
-          ;;      from x alone (covers the :rect mark + bar stat too)
+          ;;   2. the stat computes y itself (`stat/computes`) -- a
+          ;;      count or a density, from x alone (covers the :rect
+          ;;      mark + bar stat too)
           ;;   3. mark is :rug, which is structurally x-only even when
           ;;      constructed without the layer-type registry
           ;;   4. the mark is one of `written-position-marks` -- a rule or a
@@ -801,7 +801,7 @@
           ;;      asks for a column the pose does not have.
           _ (when (and (nil? y-resolved)
                        (not (:x-only v))
-                       (not (contains? x-only-stats stat))
+                       (not (:y (when computes (computes (assoc v :stat stat)))))
                        (not= :rug mark)
                        (not (written-position-marks mark)))
               (throw (ex-info (str ":" (name mark) " requires both :x and :y columns. "
@@ -901,5 +901,4 @@
                             (= :numerical (:color-type resolved)))
                        (assoc :fill (:color resolved)))
                      resolved)]
-      resolved)))
-
+      resolved))))
