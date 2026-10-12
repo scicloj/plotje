@@ -879,6 +879,34 @@ series-by-key
          (= [{:y :adults} {:y :children}]
             (mapv :mapping (mapcat :poses (:poses expanded))))))])
 
+;; Each cell holds what the facet specified for it and nothing else. On
+;; the diagonal of a matrix, `{:col {:x cols} :row {:y cols}}`, the cell
+;; names its column on both axes, the map `pj/arrange` and
+;; `pj/cross-matrix` write for the same cell, and a `nil` in a list of
+;; columns stays in the cell as a `nil`:
+
+(->> (-> weekly-visits
+         pj/pose
+         (pj/facet {:col {:x [:adults nil]} :row {:y [:adults :children]}})
+         pose/expand-facet-nodes)
+     (tree-seq :poses :poses)
+     (remove :poses)
+     (mapv :mapping))
+
+(kind/test-last
+ [(fn [mappings]
+    (= [{:x :adults :y :adults} {:x nil :y :adults}
+        {:x :adults :y :children} {:x nil :y :children}]
+       mappings))])
+
+;; The steps after this one read such a cell without a special case.
+;; `pose/fit-layers` keeps a layer in a cell where the layer names no
+;; column other than the cell's and its layer type can draw from the
+;; number of distinct columns the cell names: one for `{:x :adults :y
+;; :adults}`, so a density fits and a scatter does not. Inference reads
+;; one column on both axes as one column and chooses a histogram, and
+;; the stat reads the column on `:x` and puts its count on `:y`.
+;;
 ;; From here the pose is an ordinary composite: its cells are grouped,
 ;; measured and planned as the two clinics above were. Each cell draws
 ;; a column of its own, so by default no two cells share `:y`.

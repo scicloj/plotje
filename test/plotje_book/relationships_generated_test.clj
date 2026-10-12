@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__74925#]
+      [p1__11199#]
       (+
-       (Math/sin (* p1__74925# 0.2))
+       (Math/sin (* p1__11199# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -418,7 +418,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__74926#] (-> p1__74926# :plan :panels first))
+       (fn* [p1__11200#] (-> p1__11200# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -577,3 +577,43 @@
          (set (map :mark (-> plan :panels first :layers)))]
         (= marks (if (= r c) #{:area} #{:point})))))))
    v71_l407)))
+
+
+(def
+ v74_l424
+ (->
+  (rdatasets/datasets-iris)
+  (pj/pose {:color :species})
+  (pj/facet {:col {:x small-cols}, :row {:y small-cols}})
+  pj/lay-point
+  pj/lay-density
+  (pj/lay-smooth
+   (first small-cols)
+   (second small-cols)
+   {:color "black"})))
+
+
+(deftest
+ t75_l431
+ (is
+  ((fn
+    [v]
+    (let
+     [with-line
+      (->>
+       (:sub-plots (pj/plan v))
+       (filter
+        (fn
+         [{:keys [plan]}]
+         (some
+          #{:line}
+          (map :mark (-> plan :panels first :layers))))))]
+     (and
+      (= 1 (count with-line))
+      (=
+       #{:line :point}
+       (set
+        (map
+         :mark
+         (-> with-line first :plan :panels first :layers)))))))
+   v74_l424)))

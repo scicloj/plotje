@@ -3691,7 +3691,10 @@
                              " length; got " (pr-str part) ".")
                         {:facet part})))
       (for [i (range n)]
-        {:mapping (into {} (keep (fn [k] (when-let [c (nth (get part k) i)] [k c])) varied))}))
+        ;; A `nil` is kept: the cell is specified to have no column on
+        ;; that axis, which differs from an axis the facet leaves to
+        ;; the pose.
+        {:mapping (into {} (map (fn [k] [k (nth (get part k) i)])) varied)}))
 
     :else
     (let [col (if (map? part) (:column part) part)
@@ -3702,13 +3705,15 @@
         {:where (if (sequential? col) (zipmap col v) {col v})}))))
 
 (defn- facet-cell
-  "One listed cell from the items of a row and a column. A cell naming
-   one column on both axes -- the diagonal of a scatter plot matrix --
-   names it once, on `:x`."
+  "One listed cell from the items of a row and a column, holding what
+   the facet specified for it: the diagonal of a scatter plot matrix
+   names its column on both axes, `{:x a :y a}`, as `pj/arrange` and
+   `pj/cross-matrix` write it, and a margin keeps its `nil`. One column
+   named on both axes is read as one column by the fit
+   (`columns-named`) and by inference."
   [row-item col-item]
   (let [w (merge (:where row-item) (:where col-item))
-        m (merge (:mapping row-item) (:mapping col-item))
-        m (if (and (:x m) (= (:x m) (:y m))) (dissoc m :y) m)]
+        m (merge (:mapping row-item) (:mapping col-item))]
     (cond-> {}
       (seq w) (assoc :where w)
       (seq m) (assoc :mapping m))))
@@ -3886,9 +3891,11 @@
    than the one the cell's own mapping names there."
   [own-mapping layer]
   (let [lm (:mapping layer)]
+    ;; An axis the cell specifies with `nil` -- a margin -- has no
+    ;; column, so any column the layer names there is another.
     (boolean (some (fn [k] (let [varied (mapping-source (get own-mapping k))
                                  mine (mapping-source (get lm k))]
-                             (and varied mine (not= varied mine))))
+                             (and (contains? own-mapping k) mine (not= varied mine))))
                    [:x :y]))))
 
 (defn- layer-fits-cell? [cell-mapping own-mapping layer]
@@ -3931,7 +3938,7 @@
                             :when (column? src)]
                         [k src]))
         clash (fn [e k] (let [varied (mapping-source (get (:own e) k))]
-                          (and varied (contains? mine k) (not= varied (mine k)))))]
+                          (and (contains? (:own e) k) (contains? mine k) (not= varied (mine k)))))]
     (when (and (seq mine) (seq entries)
                (every? (fn [e] (some #(clash e %) [:x :y])) entries))
       (vec (for [k [:x :y]

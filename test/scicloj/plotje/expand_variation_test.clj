@@ -129,6 +129,32 @@
       (is (= [#{:bar} #{} #{:point} #{:bar}]
              (marks-per-cell (-> cars pj/pose pj/lay-point pj/lay-histogram
                                  (pj/facet {:col {:x [:displ nil]} :row {:y [nil :hwy]}}))))))
+    (testing "a layer naming both columns is drawn only in the cell of those columns"
+      (let [matrix {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}}]
+        (is (= [#{:bar} #{:point} #{:point} #{:bar}]
+               (marks-per-cell (-> cars (pj/lay-point :displ :hwy) (pj/facet matrix)))
+               (marks-per-cell (-> cars (pj/facet matrix) (pj/lay-point :hwy :displ)))))
+        (is (= [#{:area} #{:point} #{:point :line} #{:area}]
+               (marks-per-cell (-> cars (pj/facet matrix)
+                                   pj/lay-point pj/lay-density (pj/lay-smooth :displ :hwy)))))
+        (testing "and a column the matrix lacks reports an error"
+          (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                                #"names :cty on :y, and no panel draws it"
+                                (pj/plan (-> cars (pj/lay-point :displ :cty) (pj/facet matrix))))))))
+    (testing "margins under a layer naming both columns: the margins keep their own"
+      (let [margins {:col {:x [:displ nil]} :row {:y [nil :hwy]}}]
+        (is (= [#{:bar} #{} #{:point} #{:bar}]
+               (marks-per-cell (-> cars (pj/lay-point :displ :hwy) (pj/facet margins)))))
+        (is (= [#{:area} #{} #{:point} #{:area}]
+               (marks-per-cell (-> cars (pj/facet margins)
+                                   (pj/lay-point :displ :hwy) pj/lay-density))))))
+    (testing "the diagonal cell names its column on both axes, as pj/arrange writes it"
+      (is (= [{:x :displ :y :displ} {:x :hwy :y :displ} {:x :displ :y :hwy} {:x :hwy :y :hwy}]
+             (->> (pose/expand-facet-nodes
+                   (-> cars pj/pose (pj/facet {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}})))
+                  (tree-seq :poses :poses)
+                  (remove :poses)
+                  (mapv :mapping)))))
     (testing "a cell no layer fits keeps them all: a matrix of points draws its diagonal"
       (is (= 9 (:panels (pj/svg-summary (-> (tc/dataset {:a [1 2 3] :b [3 1 2] :c [2 3 1]})
                                              (pj/cross-matrix [:a :b :c])

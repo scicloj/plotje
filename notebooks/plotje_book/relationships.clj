@@ -418,6 +418,25 @@
                          marks (set (map :mark (-> plan :panels first :layers)))]
                      (= marks (if (= r c) #{:area} #{:point})))))))])
 
+;; A layer that names its columns is drawn only in the panel of those
+;; columns. Here a trend line is added to one panel of the matrix:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x small-cols} :row {:y small-cols}})
+    pj/lay-point
+    pj/lay-density
+    (pj/lay-smooth (first small-cols) (second small-cols) {:color "black"}))
+
+(kind/test-last
+ [(fn [v]
+    (let [with-line (->> (:sub-plots (pj/plan v))
+                         (filter (fn [{:keys [plan]}]
+                                   (some #{:line} (map :mark (-> plan :panels first :layers))))))]
+      (and (= 1 (count with-line))
+           (= #{:point :line}
+              (set (map :mark (-> with-line first :plan :panels first :layers)))))))])
+
 ;; A layer that fits no panel -- a histogram written on a pose whose
 ;; panels all name two columns -- is drawn in every panel, as it would be
 ;; on a single pose.
