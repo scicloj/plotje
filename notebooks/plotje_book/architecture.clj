@@ -524,8 +524,10 @@ graph LR
 ;;   that accept raw data -- `pj/pose` (1-arity) and the shortcuts
 ;;   `pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot`, and `pj/save`,
 ;;   which all apply the shared public step `pj/infer-mapping` (a
-;;   no-op once a pose has a mapping). `pj/lay-*` (1-arity) infers the
-;;   same way but throws on 4+ columns rather than falling through.
+;;   no-op once a pose has a mapping). A `pj/lay-*` call reads no
+;;   column of the data when it is called: a layer naming no column is
+;;   given its columns at the draft, and a layer left without a column
+;;   is reported there.
 ;;   Inference never lives in `pj/->pose`, which only lifts data into
 ;;   a bare mapping-less leaf -- so `pj/infer-mapping` is a public step
 ;;   you can drop into a hand-built pipeline, and raw data handed to a

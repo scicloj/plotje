@@ -64,7 +64,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Warnings and errors
 
-- A layer left without a column its layer type draws from reports an error naming the layer, the axis that is missing, the columns the layer does name, and the columns of the data.
+- A layer left without a column its layer type draws from reports an error naming the layer, the axis that is missing, the columns the layer does name, and the columns of the data. The error is reported when the pose is drawn. A `pj/lay-*` call on a dataset of four or more columns returns a pose whatever columns it names, so a later step may name them: `(-> data pj/lay-point (pj/pose {:x :a :y :b}))` and `(-> data pj/lay-smooth (pj/lay-point :a :b))` draw.
 
 - Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column. Beside layers that fit every panel it is drawn in every panel.
 

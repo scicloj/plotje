@@ -688,26 +688,6 @@
                  " (template; attach data later via pj/with-data).")
             {:caller caller :value x :type (type x)}))))
 
-(defn- check-columns-inferable
-  "Throw where a dataset has too many columns for the default mapping
-   to read -- 4 or more -- so the user must pass explicit x/y. Run where
-   `(pj/lay-* data)` names no column on raw data; the mapping itself is
-   inferred at draft time, by `infer-mapping`."
-  [layer-type-key d]
-  (when-not (pose/default-mapping d)
-      (let [cols (sort (tc/column-names d))
-            x-only? (:x-only (layer-type/lookup layer-type-key))
-            example (if x-only?
-                      (str "(pj/lay-" (name layer-type-key) " data :x)")
-                      (str "(pj/lay-" (name layer-type-key) " data :x :y)"))]
-        (throw (ex-info (str "Cannot auto-infer columns from " (count cols) " columns. "
-                             "Pass explicit " (if x-only? "x" "x and y")
-                             ": " example ". Available columns: " cols)
-                        {:layer-type layer-type-key
-                         :column-count (count cols)
-                         :x-only? (boolean x-only?)
-                         :columns cols})))))
-
 (defn pose?
   "Return true if x is a pose-shaped plain map: one carrying
    `:layers`, `:poses`, or a map-valued `:mapping`."
@@ -2380,9 +2360,8 @@
    pass through. All dispatches then route through lay-on-pose, which
    follows the DFS-last identity rule in pose_rules.clj.
 
-   1-arity: append a bare layer; on raw data with 4+ columns, report
-            that no default mapping can be inferred (1-3 columns are
-            inferred at draft time).
+   1-arity: append a bare layer. Its columns are the panel's, or the
+            first one to three columns of the data, read at draft time.
    2-arity: keyword/string -> position-bearing layer;
             vector of columns/pairs -> multi-pair broadcast;
             map -> aesthetic-only layer with opts.
@@ -2390,36 +2369,19 @@
             vector+map -> multi-pair broadcast with opts.
    4-arity: bivariate layer with opts."
   ([layer-type-key pose-or-data]
-   (let [was-raw? (not (pose? pose-or-data))
-         fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))
-         d (:data fr)]
-     (if (and was-raw? d)
-       ;; Raw-data 1-arity: the columns are inferred at draft time from
-       ;; the first 1-3 columns (`infer-mapping`), so `(pj/lay-point
-       ;; data)` still produces a renderable plot. With 4 or more there
-       ;; is no default to infer, and the call says so here.
-       (do (check-columns-inferable layer-type-key d)
-           (lay-on-pose fr layer-type-key nil nil))
-       (lay-on-pose fr layer-type-key nil nil))))
+   ;; A layer naming no column is given its columns later: the panel's
+   ;; columns at elaboration, or the first one to three columns of the
+   ;; data at the draft (`infer-mapping`). A layer left without a column
+   ;; is reported at the draft, by `pose/check-layer-columns!`.
+   (lay-on-pose (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))
+                layer-type-key nil nil))
   ([layer-type-key pose-or-data x-or-opts]
-   (let [was-raw? (not (pose? pose-or-data))
-         fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
+   (let [fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
      (cond
        (map? x-or-opts)
-       (let [_ (check-mapping-in-map-slot
-                (str "lay-" (name layer-type-key)) x-or-opts "its options map")
-             d (:data fr)
-             ;; The options map may carry the position mapping itself.
-             ;; When it carries all of it, inference has nothing left to
-             ;; supply -- and running it anyway throws on 4+ columns,
-             ;; refusing the very mapping the caller passed.
-             mapped? (if (x-only? layer-type-key)
-                       (contains? x-or-opts :x)
-                       (and (contains? x-or-opts :x)
-                            (contains? x-or-opts :y)))
-             _ (when (and was-raw? d (nil? (:mapping fr)) (not mapped?))
-                 (check-columns-inferable layer-type-key d))]
-         (lay-on-pose fr layer-type-key nil x-or-opts))
+       (do (check-mapping-in-map-slot
+            (str "lay-" (name layer-type-key)) x-or-opts "its options map")
+           (lay-on-pose fr layer-type-key nil x-or-opts))
 
        ;; Sequential -> build a multi-panel composite via pj/pose, then
        ;; attach the layer at the root so it flows to every panel via

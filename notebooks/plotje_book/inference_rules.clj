@@ -180,14 +180,13 @@ two-col-pose
 ;; ### 4+ columns
 ;;
 ;; With four or more columns there is no unambiguous default, so
-;; inference stops:
-;;
-;; - `(pj/lay-* data)` throws with a message listing the available
-;;   columns, asking you to pass explicit `:x` and `:y`.
-;; - `(pj/pose data)` does not throw -- it builds a pose with the data
-;;   attached but no mapping, so you can add one downstream with
-;;   `(pj/pose pose :col-a :col-b)` or
-;;   `(pj/lay-point pose :col-a :col-b)`.
+;; no column is read from the data. `(pj/lay-point data)` and
+;; `(pj/pose data)` both build a pose with the data attached and no
+;; column named, and a later step may name the columns:
+;; `(pj/pose pose :col-a :col-b)` or
+;; `(pj/lay-point pose :col-a :col-b)`. A pose drawn while a layer
+;; still has no column reports an error that names the layer and
+;; lists the columns of the data.
 ;;
 ;; When you provide explicit columns, inference is skipped:
 

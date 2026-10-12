@@ -983,43 +983,46 @@
       (is (= {:x :x :y :y}
              (:mapping (pj/infer-mapping (pj/lay-line small {:color :x}))))))
 
-    (testing "raw data with 4+ columns throws (consistent with 1-arity)"
+    (testing "raw data with 4+ columns: drawn, the layer reports its missing columns"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"Cannot auto-infer columns from 5 columns"
-           (pj/lay-point big {:color :a}))))
+           #"no column on :x or :y. It names :color :a.*The data has 5 columns, so none is read by default"
+           (pj/plan (pj/lay-point big {:color :a})))))
 
     (testing "pose input is unaffected -- no auto-infer triggers on a pose"
       (let [bare-pose (pj/pose)
             pose (pj/lay-point bare-pose {:color :x})]
         (is (nil? (:mapping pose)))))))
 
-(deftest auto-infer-error-branches-on-x-only
+(deftest a-layer-with-no-column-says-what-its-type-draws-from
+  ;; Reported at the draft: the call builds a pose, and a later step may
+  ;; still name the columns.
   (let [big (tc/dataset {:a [1] :b [2] :c [3] :d [4] :e [5]})]
-    (testing "bivariate mark suggests :x :y"
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"Pass explicit x and y: \(pj/lay-point data :x :y\)"
-           (pj/lay-point big)))
-      ;; lay-bar is no longer x-only -- it accepts a y column (value bars)
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"Pass explicit x and y: \(pj/lay-bar data :x :y\)"
-           (pj/lay-bar big))))
+    (testing "the call does not throw"
+      (doseq [lay [pj/lay-point pj/lay-bar pj/lay-histogram pj/lay-density pj/lay-rug]]
+        (is (= 1 (count (:layers (lay big)))))))
 
-    (testing "x-only mark suggests :x only"
+    (testing "a layer type drawing from two columns suggests both"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"Pass explicit x: \(pj/lay-histogram data :x\)"
-           (pj/lay-histogram big)))
+           #"pj/lay-point draws from two columns.*\(pj/lay-point pose :x-column :y-column\)"
+           (pj/plan (pj/lay-point big)))))
+
+    (testing "a layer type drawing from one column suggests :x only"
+      (doseq [[lay nm] [[pj/lay-histogram "histogram"]
+                        [pj/lay-density "density"]
+                        [pj/lay-rug "rug"]]]
+        (is (thrown-with-msg?
+             clojure.lang.ExceptionInfo
+             (re-pattern (str "pj/lay-" nm " draws from one column, on :x.*"
+                              "\\(pj/lay-" nm " pose :x-column\\)"))
+             (pj/plan (lay big))))))
+
+    (testing "a layer type drawing from one column or two says so"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"Pass explicit x: \(pj/lay-density data :x\)"
-           (pj/lay-density big)))
-      (is (thrown-with-msg?
-           clojure.lang.ExceptionInfo
-           #"Pass explicit x: \(pj/lay-rug data :x\)"
-           (pj/lay-rug big))))))
+           #"pj/lay-bar draws from one column on :x, or two on :x and :y"
+           (pj/plan (pj/lay-bar big)))))))
 
 (deftest lay-star-docstrings-list-accepted-options
   (let [layer-type-keys (keys (scicloj.plotje.layer-type/registered))]
@@ -1062,7 +1065,7 @@
         "the option is stripped rather than carried into the plan")))
 
 (def four-columns
-  "Four columns, so `auto-infer-mapping` refuses to guess."
+  "Four columns, so no column is read by default."
   {:t [1 2 3] :a [1.0 2.0 3.0] :b [3.0 2.0 1.0] :g ["p" "q" "p"]})
 
 (defn- axis-labels [pose]
@@ -1076,13 +1079,13 @@
     (is (= ["a" nil] (axis-labels (pj/lay-histogram four-columns {:x :a})))
         "an x-only layer type needs only :x to count as mapped"))
 
-  (testing "the guard still fires when the options map supplies no mapping"
+  (testing "an options map naming no column leaves the layer without one"
     (doseq [opts [{} {:size 5}]]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"Cannot auto-infer columns from 4 columns"
+           #"The data has 4 columns, so none is read by default"
            (pj/plan (pj/lay-point four-columns opts)))
-          (str "options " opts " carry no position, so inference must run"))))
+          (str "options " opts " name no column on :x or :y"))))
 
   (testing "a partial mapping still infers, so the other axis is filled in"
     ;; Three columns, where inference succeeds: {:y :a} keeps the inferred

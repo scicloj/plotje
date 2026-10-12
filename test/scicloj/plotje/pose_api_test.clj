@@ -83,11 +83,13 @@
       (is (= (:mapping raw) (:mapping threaded)))
       (is (= (:layers raw) (:layers threaded)))))
 
-  (testing "4+ column lay-* still throws (no ambiguous default)"
-    (is (thrown-with-msg?
-         clojure.lang.ExceptionInfo
-         #"Cannot auto-infer columns from 4 columns"
-         (pj/lay-point {:a [1] :b [2] :c [3] :d [4]})))))
+  (testing "4+ column lay-* is a pose; drawing it reports the missing columns"
+    (let [pose (pj/lay-point {:a [1] :b [2] :c [3] :d [4]})]
+      (is (= 1 (count (:layers pose))))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo
+           #"this layer has no column on :x or :y.*The data has 4 columns, so none is read by default"
+           (pj/plan pose))))))
 
 ;; ============================================================
 ;; Composite poses render via the Phase-4 compositor: each leaf

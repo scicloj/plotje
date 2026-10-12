@@ -116,7 +116,8 @@
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
-;; Datasets with four or more columns require explicit column names.
+;; With four or more columns no column is read by default: name the
+;; columns, in the `pj/lay-*` call or in `pj/pose`.
 ;; See the [Datasets](./plotje_book.datasets.html#from-a-csv-or-url) chapter for
 ;; loading from CSV, URLs, and other file formats.
 
@@ -503,8 +504,9 @@ two-panel
 ;; | 3 | `:x`, `:y`, `:color` |
 ;;
 ;; With four or more columns the library does not guess -- you
-;; have to name the columns you want. Column inference is most
-;; useful for quick sketches of small, focused datasets.
+;; have to name the columns you want, and a pose drawn without them
+;; reports an error. Column inference is most useful for quick
+;; sketches of small, focused datasets.
 
 (-> {:height [170 180 165 175] :weight [70 80 65 75]}
     pj/lay-point)

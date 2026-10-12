@@ -124,6 +124,18 @@
 (kind/test-last [(fn [v] (= [:height :weight]
                             ((juxt :x :y) (second (:layers (pj/draft v))))))])
 
+;; The layer that names no columns may be written first. A `pj/lay-*`
+;; call does not read the data's columns when it is called; the layer
+;; is given its columns when the pose is drawn, so a later call may
+;; name them:
+
+(-> measurements
+    pj/lay-smooth
+    (pj/lay-point :height :weight))
+
+(kind/test-last [(fn [v] (= [[:height :weight] [:height :weight]]
+                            (mapv (juxt :x :y) (:layers (pj/draft v)))))])
+
 ;; A layer that names one column reads the panel's column on the other
 ;; axis, where its layer type draws from two columns. The line below
 ;; names `:depth` on `:y` and is drawn against the panel's `:height`:

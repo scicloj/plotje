@@ -2419,20 +2419,26 @@
   ;; persona-16 B4. Closes Skept-R4 F1, P5-R2 C2.
   (let [four-col {:a [1 2 3] :b [4 5 6] :c [7 8 9] :d [10 11 12]}
         three-col {:x [1 2 3] :y [10 20 30] :g ["a" "b" "c"]}]
-    (testing "4+ column auto-infer throws with helpful message"
+    (testing "4+ columns: no column is read by default, reported at the draft"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Cannot auto-infer columns from 4 columns"
+                            #"The data has 4 columns, so none is read by default"
                             (-> four-col pj/lay-point pj/plan))))
 
     (testing "error message suggests explicit x/y"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"pj/lay-point data :x :y"
+                            #"\(pj/lay-point pose :x-column :y-column\)"
                             (-> four-col pj/lay-point pj/plan))))
 
     (testing "error message lists available columns"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"Available columns: \(:a :b :c :d\)"
+                            #"Available columns: \[:a :b :c :d\]"
                             (-> four-col pj/lay-point pj/plan))))
+
+    (testing "the call itself builds a pose, so a later step can name the columns"
+      (is (= 3 (-> four-col pj/lay-point (pj/pose {:x :a :y :b})
+                   pj/svg-summary :points)))
+      (is (= 3 (-> four-col pj/lay-point (pj/lay-line :a :b)
+                   pj/svg-summary :points))))
 
     (testing "3-column auto-infer still works"
       (is (= 1 (-> three-col pj/lay-point pj/plan :panels count))))

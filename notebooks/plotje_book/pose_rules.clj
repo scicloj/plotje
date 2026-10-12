@@ -814,7 +814,7 @@ composite-pose
 ;; | 1 | `{:x col0}` |
 ;; | 2 | `{:x col0 :y col1}` |
 ;; | 3 | `{:x col0 :y col1 :color col2}` |
-;; | 4+ | error (pass explicit x and y) |
+;; | 4+ | none (name the columns) |
 ;;
 ;; The example is a dataset rather than a map literal, because the rule
 ;; reads an order and a Clojure map does not carry one.
@@ -825,16 +825,30 @@ composite-pose
 (kind/test-last
  [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
-;; Four or more columns without explicit arguments throws:
+;; With four or more columns no column is read by default. The
+;; `pj/lay-point` call returns a pose, and a later step may name the
+;; columns:
+
+(-> (tc/dataset {:a [1 2] :b [3 4] :c [5 6] :d [7 8]})
+    pj/lay-point
+    (pj/pose {:x :a :y :b}))
+
+(kind/test-last
+ [(fn [v] (= 2 (:points (pj/svg-summary v))))])
+
+;; Drawn with no column named, the pose reports an error naming the
+;; layer and the columns of the data:
 
 (try
   (-> (tc/dataset {:a [1 2] :b [3 4] :c [5 6] :d [7 8]})
-      pj/lay-point)
+      pj/lay-point
+      pj/plan)
   (catch Exception e
     (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"Cannot auto-infer columns" msg))])
+ [(fn [msg] (and (re-find #"this layer has no column on :x or :y" msg)
+                 (re-find #"Available columns: \[:a :b :c :d\]" msg)))])
 
 ;; ---
 ;; ## Scope
