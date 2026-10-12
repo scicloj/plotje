@@ -4213,9 +4213,11 @@
      leaf's own mapping, so a scale it already carries reads the
      default column.
    - The same where the first layer names no column, the leaf's mapping
-     names none, and the layers after the first name the default's
-     `:x` and `:y` columns and no other. A layer added to a pose leaves
-     the layers before it as they were drawn: on data of three columns
+     names none, and the layers after the first name no column but the
+     default's, each on the axis the default reads it on: both, as in
+     `(pj/lay-smooth :a :b)`, or one, as in `(pj/lay-rug :a)`. A layer
+     added to a pose leaves the layers before it as they were drawn:
+     on data of three columns
      `(-> data pj/lay-point)` colours by the third, and so does
      `(-> data pj/lay-point (pj/lay-smooth :a :b))`, while
      `(-> data (pj/lay-point :a :b) pj/lay-smooth)` reads no colour,
@@ -4240,12 +4242,10 @@
         default (when d (default-mapping d))
         names (fn [mapping k] (mapping-source (get mapping k)))
         ;; The first layer reads the leaf's data and names no column,
-        ;; and the layers after it name the default's `:x` and `:y` and
-        ;; no other.
+        ;; and the layers after it name no column but the default's.
         default-beside? (fn []
                           (and (not (names m :x))
                                (not (names m :y))
-                               (every? named? (filter default [:x :y]))
                                (when-let [l (first (:layers leaf))]
                                  (and (nil? (:data l))
                                       (not (names (:mapping l) :x))

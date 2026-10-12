@@ -2442,6 +2442,21 @@
         ;; the first layer names its columns: no column is read by default
         (is (= [nil {:points 12 :lines 1}]
                (read-out (-> d (pj/lay-point :a :b) pj/lay-smooth))))
+        ;; a later layer naming one of the default's columns
+        (is (= [:c {:points 12 :lines 12}]
+               (read-out (-> d pj/lay-point (pj/lay-rug :a)))))
+        (is (= [nil {:points 12 :lines 12}]
+               (read-out (-> (dissoc d :c) pj/lay-point (pj/lay-rug {:y :b})))))
+        ;; the first layer names its column, so a count stays a count
+        (is (= [{:x :a} nil]
+               (mapv :mapping (:layers (pj/infer-mapping
+                                        (-> {:a ["u" "u" "v"] :b [1 2 3]}
+                                            (pj/lay-bar :a)
+                                            (pj/lay-label {:stat :count})))))))
+        (is (nil? (:mapping (pj/infer-mapping
+                             (-> {:a ["u" "u" "v"] :b [1 2 3]}
+                                 (pj/lay-bar :a)
+                                 (pj/lay-label {:stat :count}))))))
         ;; a later layer naming other columns: the panel's columns are its
         (is (= [nil {:points 12 :lines 1}]
                (read-out (-> d pj/lay-point (pj/lay-smooth :b :a)))))))

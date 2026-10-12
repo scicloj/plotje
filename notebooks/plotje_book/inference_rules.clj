@@ -202,6 +202,18 @@ two-col-pose
                                 (some #{"north"} (:texts s))
                                 (= :plot (:color (:mapping (pj/infer-mapping v)))))))])
 
+;; A later layer naming one of the two columns leaves the points as
+;; they were drawn too. Here a rug marks each `:day` along the x axis:
+
+(-> seedlings
+    pj/lay-point
+    (pj/lay-rug :day))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 12 (:points s))
+                                (= 12 (:lines s))
+                                (some #{"north"} (:texts s)))))])
+
 ;; Where the first layer names its columns, no column is read by
 ;; default, and a layer added after it names no colour either:
 

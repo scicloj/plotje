@@ -526,7 +526,7 @@ graph LR
 ;;   which all apply the shared public step `pj/infer-mapping` (a
 ;;   no-op once a pose has a mapping). The default is also written
 ;;   where the first layer names no column and the layers after it
-;;   name the default's `:x` and `:y` columns, so a layer added to a
+;;   name no column but the default's, so a layer added to a
 ;;   pose leaves the layers before it as they were drawn. A
 ;;   `pj/lay-*` call reads no column of the data when it is called: a
 ;;   layer naming no column is given its columns at the draft, and a
