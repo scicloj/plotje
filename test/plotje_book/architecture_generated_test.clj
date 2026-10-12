@@ -78,13 +78,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__76050#] (= :petal-length (:x p1__76050#)))
+        (fn* [p1__11193#] (= :petal-length (:x p1__11193#)))
         layers)
        (every?
-        (fn* [p1__76051#] (= :petal-width (:y p1__76051#)))
+        (fn* [p1__11194#] (= :petal-width (:y p1__11194#)))
         layers)
        (every?
-        (fn* [p1__76052#] (= :species (:color p1__76052#)))
+        (fn* [p1__11195#] (= :species (:color p1__11195#)))
         layers)))
      (= {} (:opts d))))
    v14_l208)))
@@ -138,8 +138,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__76053#]
-       (.startsWith (.getName (class p1__76053#)) "membrane.ui."))
+       [p1__11196#]
+       (.startsWith (.getName (class p1__11196#)) "membrane.ui."))
       (:drawables v))))
    v27_l266)))
 
@@ -231,7 +231,7 @@
        2
        (count
         (filter
-         (fn* [p1__76054#] (.startsWith p1__76054# "rgb"))
+         (fn* [p1__11197#] (.startsWith p1__11197# "rgb"))
          (:colors s)))))))
    v42_l509)))
 
@@ -579,12 +579,12 @@
 
 
 (def
- v102_l923
+ v102_l926
  (kind/mermaid
   "\ngraph LR\n  A[\"Pose + draft\"] -->|plan| P[\"Plan\"]\n  P --> R[\"membrane + plot\"]\n  style A fill:#e8f5e9\n  style P fill:#fff3e0\n  style R fill:#e3f2fd\n"))
 
 
 (def
- v104_l1014
+ v104_l1017
  (kind/mermaid
   "\ngraph TD\n  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]\n  API --> RES[\"impl/resolve.clj\"]\n  API --> PL[\"impl/plan.clj\"]\n  API --> COMP[\"impl/compositor.clj\"]\n  POSE --> RES\n  COMP --> POSE\n  COMP --> PL\n  PL --> RES\n  PL --> STAT[\"impl/stat.clj\"]\n  PL --> SCALE[\"impl/scale.clj\"]\n  PL --> DEFAULTS[\"impl/defaults.clj\"]\n  PL --> PS[\"impl/plan_schema.clj\"]\n  API --> RENDER[\"impl/render.clj\"]\n  RENDER --> SVG[\"render/svg.clj\"]\n  SVG --> MEMBRANE[\"render/membrane.clj\"]\n  MEMBRANE --> PANEL[\"render/panel.clj\"]\n  PANEL --> MARK[\"render/mark.clj\"]\n  PANEL --> SCALE\n  PANEL --> COORD[\"impl/coord.clj\"]\n  API --> RC[\"render/composite.clj\"]\n  RC --> MEMBRANE\n  style API fill:#c8e6c9\n  style COMP fill:#d1c4e9\n  style PL fill:#d1c4e9\n  style SVG fill:#f8bbd0\n  style MEMBRANE fill:#f8bbd0\n  style RC fill:#f8bbd0\n"))

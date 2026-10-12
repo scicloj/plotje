@@ -1369,6 +1369,30 @@
     (is (pos? (:polygons (pj/svg-summary (-> cars
                                              (pj/pose {:y :drv})
                                              (pj/facet {:x [:drv :hwy]})))))))
+  (testing "a bar of a numerical column named on both axes counts too, and says what a count needs"
+    ;; It was read as two columns and drew the column against itself.
+    (doseq [pose [(pj/lay-bar cars :displ :displ)
+                  (-> cars (pj/pose :displ :displ) pj/lay-bar)
+                  (-> cars (pj/cross-matrix [:displ :hwy]) pj/lay-bar)
+                  (-> cars
+                      (pj/facet {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}})
+                      pj/lay-bar)]]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"lay-bar \(counting\) requires a categorical column for :x, but :displ is numerical"
+                            (pj/plan pose))))
+    (testing "as the column named once does"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"lay-bar \(counting\) requires a categorical column for :x, but :displ is numerical"
+                            (pj/plan (pj/lay-bar cars :displ))))))
+  (testing "layer types that draw only from two columns still draw the column against itself"
+    (is (= (:points (pj/svg-summary (pj/lay-point cars :displ :hwy)))
+           (:points (pj/svg-summary (pj/lay-point cars :displ :displ)))))
+    (is (pos? (:points (pj/svg-summary (pj/lay-point cars :displ :displ))))))
+  (testing "a rug on the diagonal of a matrix leaves its row's axis as the column's"
+    (let [y-domains (fn [pose] (mapv #(-> % :plan :panels first :y-domain) (:sub-plots (pj/plan pose))))
+          [rug-cell point-cell] (y-domains (-> cars (pj/cross-matrix [:displ :hwy]) pj/lay-point pj/lay-rug))]
+      (is (= rug-cell point-cell))
+      (is (pos? (first rug-cell)))))
   (testing "a bar of two different categorical columns has no length to read"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"lay-bar reads the length of a bar from a numerical column, but :drv and :class are both categorical"

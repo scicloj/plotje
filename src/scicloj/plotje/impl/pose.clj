@@ -676,21 +676,16 @@
         stat (or (:stat layer) (:stat lt-info))
         x (mapping-source (:x v))
         y (mapping-source (:y v))
-        ;; One column on both axes is counted where it is categorical
-        ;; (`resolve/infer-layer-type`), so the column's type is read
-        ;; for that case and no other.
-        x-type (when (and x (= x y))
-                 (try (:x-type (resolve/infer-column-types
-                                (coerce-dataset (or (:data layer) leaf-data))
-                                (cond-> {:x x :y y}
-                                  (:x-type v) (assoc :x-type (:x-type v)))))
-                      (catch Exception _ nil)))]
+        ;; One column on both axes is counted
+        ;; (`resolve/infer-layer-type`), so `:x` is passed for that
+        ;; case and no other.
+        diagonal? (and (some? x) (= x y))]
     (when mark
       (:stat (resolve/infer-layer-type (cond-> {:mark mark
-                                        :stat stat
+                                                :stat stat
                                                 :y y}
-                                         x-type (assoc :x x))
-                                       x-type nil false false)))))
+                                         diagonal? (assoc :x x))
+                                       nil nil false false)))))
 
 (defn- layer-computes
   "What the stat of this layer computes for `axis` -- `:count`,

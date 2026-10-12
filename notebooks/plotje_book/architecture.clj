@@ -905,7 +905,10 @@ series-by-key
 ;; number of distinct columns the cell names: one for `{:x :adults :y
 ;; :adults}`, so a density fits and a scatter does not. Inference reads
 ;; one column on both axes as one column and chooses a histogram, and
-;; the stat reads the column on `:x` and puts its count on `:y`.
+;; the stat reads the column on `:x` and puts its count on `:y`. A bar,
+;; whose layer type can draw from one column or from two, counts there
+;; as well (`resolve/infer-layer-type`), where a scatter draws the
+;; column against itself.
 ;;
 ;; From here the pose is an ordinary composite: its cells are grouped,
 ;; measured and planned as the two clinics above were. Each cell draws

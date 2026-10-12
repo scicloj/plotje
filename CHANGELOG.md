@@ -94,7 +94,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
-- A categorical column named on both axes draws the count of its categories, as the column named once does. This covers `(pj/pose data :drv :drv)` and the diagonal of `pj/cross-matrix` and of an arrangement holding a categorical column.
+- A column named on both axes is read by `pj/lay-bar` as the column named once is: the bar counts its categories. This covers `(pj/pose data :drv :drv)` and the diagonal of `pj/cross-matrix`, of a `pj/facet` matrix and of an arrangement. A numerical column there reports that a count needs a categorical column and names `pj/lay-histogram`, as `(pj/lay-bar data :displ)` does.
 
 - `pj/save` writes every pose that draws, including a facet over columns with no layer and a pose whose only data is a layer's. A pose whose plan has no panel reports the empty-pose error.
 

@@ -647,13 +647,13 @@
                  (cond
                    (nil? (:mark v))                        default-stat
                    (and (= (:mark v) :rect) (nil? (:y v))) :count
-                   ;; A categorical column named on both axes is the
-                   ;; diagonal the default rule above counts. The pose
-                   ;; writes that choice down as `:bar`, which fixes the
-                   ;; mark, so the count has to be chosen here as well:
-                   ;; a bar cannot read its length from categories.
-                   (and (= (:mark v) :rect) diagonal?
-                        (= x-type :categorical))           :count
+                   ;; One column named on both axes -- the diagonal of
+                   ;; a matrix -- is one column, and a bar of one column
+                   ;; counts, as it does with no `:y` named. Read as two
+                   ;; columns, the bar drew the column against itself.
+                   ;; A numerical column is then reported by the count,
+                   ;; as `(pj/lay-bar data :col)` is.
+                   (and (= (:mark v) :rect) diagonal? (some? (:x v))) :count
                    :else                                   :identity))]
     {:mark mark :stat stat}))
 
