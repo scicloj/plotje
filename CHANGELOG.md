@@ -86,6 +86,8 @@ All notable changes to this project will be documented in this file. This change
 
 - Numeric columns drawn on one axis, by the layers of a pose or as a series, print a Note where one of them takes less than a twentieth of that axis, as `:hwy` does beside `:year`. The Note names the columns and their extents and the `pj/facet` call that draws a panel per column. It is not printed where the axis has a `:domain` specified or a log scale.
 
+- A layer with no data draws a panel reading "no data" whatever its layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn before `pj/with-data` gives it data. A `lay-*` call on an arrangement whose cells carry their own data, naming columns no cell draws, prints a Note: the layer is drawn on a cell of its own, and that cell has no data. The Note names the columns the cells draw and the `{:data data}` spelling that gives the new cell its data.
+
 - A `:share-scales` that names an axis no two cells share warns once, naming the columns the cells draw there and the group that would share them. Cells of an arrangement that write a `:share-scales` leaving out an axis the arrangement shares are reported in one warning, whatever their number.
 
 - `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` value that appears nowhere in its column, or an empty set, warns.

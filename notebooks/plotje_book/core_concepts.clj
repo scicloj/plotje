@@ -588,6 +588,16 @@ two-panel
                               (= 2 (count (:layers v)))
                               (= "Scatter with Regression" (get-in v [:opts :title]))))])
 
+;; Drawn before it has data, the template draws a panel that reads
+;; "no data", whatever its layer types:
+
+scatter-with-regression
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (some #{"no data"} (:texts s))
+                                (zero? (:points s))
+                                (zero? (:lines s)))))])
+
 ;; Apply to one dataset:
 
 (-> scatter-with-regression

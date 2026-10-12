@@ -601,6 +601,37 @@ composite-pose
          (= [{:x :sepal-length :y :petal-length}]
             (mapv :mapping (:layers (nth (cells pose) 2))))))])
 
+;; The new leaf reads the data of the composite's root. Where the cells
+;; carry their own data and the root has none, the new leaf has no data
+;; to read: it draws a panel reading "no data", and the call prints a
+;; Note that names the columns the cells draw and the two ways out.
+
+(def cells-with-their-own-data
+  (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
+               (pj/lay-point iris :petal-length :petal-width)]))
+
+(with-out-str
+  (pj/lay-smooth cells-with-their-own-data :sepal-length :petal-length))
+
+(kind/test-last
+ [(fn [note]
+    (and (re-find #"Note: pj/lay-smooth names :sepal-length and :petal-length" note)
+         (re-find #"That cell has no data" note)
+         (re-find #"the cells draw :sepal-length / :sepal-width, :petal-length / :petal-width" note)
+         (re-find #"\(pj/lay-smooth pose :sepal-length :petal-length \{:data data\}\)" note)))])
+
+;; Passing the data on the call gives the new leaf its own:
+
+(pj/lay-smooth cells-with-their-own-data :sepal-length :petal-length
+               {:data iris})
+
+(kind/test-last
+ [(fn [pose]
+    (and (= 3 (count (cells pose)))
+         (= {:panels 3 :points 300 :lines 1}
+            (select-keys (pj/svg-summary pose) [:panels :points :lines]))
+         (not (some #{"no data"} (:texts (pj/svg-summary pose))))))])
+
 ;; **Property: a split and an arrangement draw the same panels.**
 ;; Two layers on different columns, split over those columns with
 ;; `pj/facet`, and the same layers attached to a composite built with

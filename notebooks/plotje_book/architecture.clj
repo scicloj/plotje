@@ -603,6 +603,13 @@ graph LR
 ;; `pose/elaborate` reads. A cell built by `pj/lay-*` names its columns
 ;; on its layers only, and is matched as a cell that names them in its
 ;; own mapping is.
+;;
+;; A layer may reach the plan with no data at all: a template drawn
+;; before `pj/with-data`, or a cell added to an arrangement whose root
+;; has no data. `plan/resolve-panel-draft-layers` gives such a layer a
+;; dataset of no rows before its stat runs, so every stat takes the
+;; route it takes for data that is all missing, and the panel reads
+;; "no data".
 
 ;; ## Composite Poses
 ;;

@@ -1683,6 +1683,27 @@
          (do
            (check-new-panel-columns (:layer-type layer)
                                     position-mapping layer (:data fr))
+           ;; The new cell reads the root's data. Where the cells carry
+           ;; their own and the root has none, it has nothing to read
+           ;; and draws a panel reading "no data".
+           (when-not (or (:data layer) (:data fr))
+             (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
+                   cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])
+                   drawn (distinct (keep pose/leaf-place (pose/resolve-tree fr)))]
+               (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
+                             ", and no cell of this pose draws "
+                             (if (next cols) "those columns" "that column")
+                             ", so the layer is drawn on a cell of its own."
+                             " That cell has no data: the cells carry their own,"
+                             " and the pose they are arranged in has none."
+                             " To draw the layer on a cell, name that cell's columns"
+                             (when (seq drawn)
+                               (str " (the cells draw "
+                                    (str/join ", " (map #(str/join " / " (map pr-str (remove nil? %)))
+                                                        drawn))
+                                    ")"))
+                             ". To keep the new cell, pass its data: (" lay
+                             " pose " (str/join " " (map pr-str cols)) " {:data data})."))))
            (update fr :poses (fnil conj [])
                    {:layers [layer]})))))))
 

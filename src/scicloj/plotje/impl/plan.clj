@@ -1132,6 +1132,18 @@
             #(vec (sort-by (fn [g] (get rank (:label g) Long/MAX_VALUE)) %)))
     layer))
 
+(defn- no-rows
+  "A dataset of no rows holding the columns `layer` names, for a layer
+   with no data."
+  [layer]
+  (tc/dataset (into {}
+                    (for [v (concat (map layer [:x :y :color :size :alpha :shape
+                                                :y-min :y-max :x-end :y-end :fill
+                                                :text-col :tooltip-col])
+                                    (:group layer))
+                          :when (resolve/column-ref? v)]
+                      [v []]))))
+
 (defn resolve-panel-draft-layers
   "Resolve draft layers and compute stats for a group of draft layers belonging to one panel.
    If pre-resolved draft layers are provided, skips resolve-draft-layer.
@@ -1145,7 +1157,13 @@
    Returns {:resolved [...] :stat-results [...] :layers [...]}."
   [panel-draft-layers all-colors cfg & {:keys [resolved shape-map extents]}]
   (let [resolved (or resolved (mapv (comp filter-log-nonpositive filter-infinities #(resolve/resolve-draft-layer % stat/computes)) panel-draft-layers))
-        stat-results (mapv #(stat/compute-stat (assoc % :cfg (merge cfg (:cfg %)))) resolved)
+        ;; A layer with no data is given a dataset of no rows, so every
+        ;; stat takes the route it takes for data that is all missing,
+        ;; and the panel reads "no data" whatever the layer type.
+        stat-results (mapv #(stat/compute-stat
+                             (cond-> (assoc % :cfg (merge cfg (:cfg %)))
+                               (nil? (:data %)) (assoc :data (no-rows %))))
+                           resolved)
         raw-plan-layers (vec (map (fn [rv sr]
                                     (-> (extract/stamp-group-keys
                                          (extract/extract-layer rv sr all-colors cfg) sr)

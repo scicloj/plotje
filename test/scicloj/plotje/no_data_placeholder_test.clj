@@ -74,6 +74,42 @@
       (is (has-no-data-text? pose)
           "all-NaN y collapses :groups to empty -> 'no data' should appear"))))
 
+(deftest a-layer-with-no-data-shows-no-data-whatever-its-type
+  ;; A stat that reads its dataset used to fail on a pose with no data,
+  ;; with a protocol error naming nil, while a layer whose stat passes
+  ;; the rows through drew the placeholder.
+  (doseq [layer-type [:area :bar :boxplot :contour :density :density-2d
+                      :errorbar :histogram :label :line :lollipop :point
+                      :ridgeline :rug :smooth :step :summary :text :tile
+                      :violin]]
+    (testing (str layer-type " on a pose with no data")
+      (is (has-no-data-text? (pj/pose {:mapping {:x :a :y :b}
+                                       :layers [{:layer-type layer-type}]})))))
+  (testing "a template draws once it has its data"
+    (is (= 1 (:lines (pj/svg-summary
+                      (-> (pj/pose)
+                          (pj/lay-smooth :a :b)
+                          (pj/with-data {:a [1 2 3 4 5 6] :b [2 3 1 5 4 6]}))))))))
+
+(deftest a-new-cell-with-no-data-prints-a-note
+  (let [d {:a [1 2 3 4 5 6] :b [2 3 1 5 4 6] :c [3 1 2 6 5 4]}
+        arranged (pj/arrange [(pj/lay-point d :a :b) (pj/lay-point d :a :c)])]
+    (testing "the cells carry their own data, and the layer names columns no cell draws"
+      (let [note (with-out-str (pj/lay-smooth arranged :b :c))]
+        (is (re-find #"Note: pj/lay-smooth names :b and :c" note))
+        (is (re-find #"That cell has no data" note))
+        (is (re-find #"the cells draw :a / :b, :a / :c" note))
+        (is (re-find #"\(pj/lay-smooth pose :b :c \{:data data\}\)" note)))
+      (is (has-no-data-text? (binding [*out* (java.io.StringWriter.)]
+                               (pj/lay-smooth arranged :b :c)))))
+    (testing "no Note where the layer has data, joins a cell, or the root has data"
+      (is (= "" (with-out-str (pj/lay-smooth arranged :b :c {:data d}))))
+      (is (= "" (with-out-str (pj/lay-smooth arranged :a :c))))
+      (is (= "" (with-out-str (-> d
+                                  (pj/arrange [[:a :b] [:a :c]])
+                                  pj/lay-point
+                                  (pj/lay-smooth :b :c))))))))
+
 (deftest extension-with-custom-slot-does-not-show-no-data
   (testing "an extension that stores geometry in a custom slot
             (here :bars, mirroring waterfall_extension.clj) is
