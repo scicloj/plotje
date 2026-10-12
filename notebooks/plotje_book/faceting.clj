@@ -519,6 +519,36 @@ measures
                            (and (= 3 (:panels s))
                                 (pos? (:polygons s)))))])
 
+;; A layer is drawn in every panel where it names none of the facet's
+;; columns. Name the column the panels have in common on the pose, and
+;; leave the other column to the facet:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/pose {:x :displ})
+    (pj/lay-smooth {:color "black"})
+    (pj/facet {:y [:hwy :cty]}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 2 (:lines s))
+                                (zero? (:points s)))))])
+
+;; A layer that names one of the facet's columns is drawn only in the
+;; panel of that column. A panel left with no layer draws the layer type
+;; inferred from its columns, and Plotje prints a Note naming the layer,
+;; the panels, and the change that draws the layer in every panel:
+
+(with-out-str
+  (-> (rdatasets/ggplot2-mpg)
+      (pj/lay-smooth :displ :hwy {:color "black"})
+      (pj/facet {:y [:hwy :cty]})
+      pj/plan))
+
+(kind/test-last
+ [(fn [out] (and (re-find #"pj/lay-smooth names :hwy on :y" out)
+                 (re-find #"\{:y :cty\} has no layer" out)
+                 (re-find #"leave :y off the layer and name :x on the pose" out)))])
+
 ;; ### Labels and Faceting
 ;;
 ;; `pj/options` works with faceted plots:

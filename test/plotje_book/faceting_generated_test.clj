@@ -202,7 +202,7 @@
      (=
       [3 1]
       (mapv
-       (fn* [p1__75747#] (count (:panels (:plan p1__75747#))))
+       (fn* [p1__11193#] (count (:panels (:plan p1__11193#))))
        (:sub-plots (pj/plan fr))))))
    v28_l163)))
 
@@ -611,6 +611,48 @@
 (def
  v89_l526
  (->
+  (rdatasets/ggplot2-mpg)
+  (pj/pose {:x :displ})
+  (pj/lay-smooth {:color "black"})
+  (pj/facet {:y [:hwy :cty]})))
+
+
+(deftest
+ t90_l531
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 2 (:panels s)) (= 2 (:lines s)) (zero? (:points s)))))
+   v89_l526)))
+
+
+(def
+ v92_l541
+ (with-out-str
+  (->
+   (rdatasets/ggplot2-mpg)
+   (pj/lay-smooth :displ :hwy {:color "black"})
+   (pj/facet {:y [:hwy :cty]})
+   pj/plan)))
+
+
+(deftest
+ t93_l547
+ (is
+  ((fn
+    [out]
+    (and
+     (re-find #"pj/lay-smooth names :hwy on :y" out)
+     (re-find #"\{:y :cty\} has no layer" out)
+     (re-find #"leave :y off the layer and name :x on the pose" out)))
+   v92_l541)))
+
+
+(def
+ v95_l556
+ (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
   (pj/facet :species)
@@ -621,7 +663,7 @@
 
 
 (deftest
- t90_l532
+ t96_l562
  (is
   ((fn
     [v]
@@ -632,4 +674,4 @@
       (= 150 (:points s))
       (some #{"Iris by Species"} (:texts s))
       (some #{"Sepal Length (cm)"} (:texts s)))))
-   v89_l526)))
+   v95_l556)))

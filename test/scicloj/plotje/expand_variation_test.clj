@@ -165,6 +165,43 @@
                                               (pj/facet {:col :species :row {:y [:sepal-width :petal-length]}})))
                           [:panels :points]))))))
 
+(deftest a-panel-left-to-inference-prints-a-note-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        by-y {:y [:hwy :cty]}
+        printed (fn [pose] (with-out-str (pj/plan pose)))
+        marks (fn [pose] (mapv #(mapv :mark (-> % :plan :panels first :layers))
+                               (:sub-plots (pj/plan pose))))]
+    (testing "a layer naming a column of the facet leaves the other panel to inference"
+      (let [pose (-> mpg (pj/lay-smooth :displ :hwy) (pj/facet by-y))
+            out (printed pose)]
+        (is (= [[:line] [:point]] (marks pose)))
+        (is (re-find #"Note: pj/lay-smooth names :hwy on :y" out))
+        (is (re-find #"\{:y :cty\} has no layer" out))
+        (is (re-find #"\(pj/lay-point\)" out))
+        (is (re-find #"leave :y off the layer and name :x on the pose" out))
+        (is (= 1 (count (re-seq #"Note:" out))))))
+    (testing "the layer's own type inferred, with options the panel does not get"
+      (is (re-find #"Note: pj/lay-point names :hwy"
+                   (printed (-> mpg (pj/lay-point :displ :hwy {:color :drv}) (pj/facet by-y))))))
+    (testing "no Note where inference draws the layer as written"
+      (is (= "" (printed (-> mpg (pj/lay-point :displ :hwy) (pj/facet by-y)))))
+      (is (= "" (printed (-> mpg (pj/lay-histogram :hwy) (pj/facet {:x [:hwy :cty]}))))))
+    (testing "no Note where the column is left to the facet"
+      (is (= "" (printed (-> mpg (pj/pose {:x :displ}) pj/lay-smooth (pj/facet by-y))))))
+    (testing "no Note where every panel has a layer"
+      (is (= "" (printed (-> mpg
+                             (pj/pose {:x :displ})
+                             (pj/lay-point {:y :hwy})
+                             (pj/lay-smooth {:y :cty})
+                             (pj/facet by-y))))))
+    (testing "a matrix: the diagonal draws one column, and is not named"
+      (let [cols [:displ :hwy]
+            matrix (pj/facet mpg {:col {:x cols} :row {:y cols}})
+            out (printed (pj/lay-smooth matrix :displ :hwy))]
+        (is (re-find #"names :displ on :x and :hwy on :y" out))
+        (is (re-find #"The panel \{:x :hwy, :y :displ\} has no layer" out))
+        (is (= "" (printed (-> matrix pj/lay-point (pj/lay-smooth :displ :hwy)))))))))
+
 (deftest a-column-on-y-alone-draws-on-its-side-test
   (let [p (pj/plan (-> (rdatasets/ggplot2-mpg) (pj/pose {:y :hwy}) pj/lay-histogram))]
     (is (= 1 (count (:panels p))))
