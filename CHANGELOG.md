@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **Bars drawn across**, with the value on `:x` and the category on `:y`, start on the panel edge: the `:x` axis begins at zero and is padded only past the longest bar, as the `:y` axis under upright bars is. The same holds where `:share-scales` names `:x`, as in `(pj/arrange [bars-a bars-b] {:share-scales #{:x}})`. Values below zero are padded past as before.
 
-- **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column. `:x-label` and `:y-label` still set the title.
+- **A series** titles the axis it is drawn on by its columns, `revenue, cost`, and series in pairs title each axis by their own columns. The legend has no title unless `:as` names the key column or a title is specified, with `:color-label` or a `:label` in the colour scale. `:x-label` and `:y-label` still set the axis title.
 
 ### Added
 

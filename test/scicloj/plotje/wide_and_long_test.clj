@@ -542,3 +542,56 @@
   (let [labels (fn [cols] (mapv :label (:entries (:legend (pj/plan (pj/lay-line sales :quarter cols))))))]
     (is (= ["revenue" "cost"] (labels [:revenue :cost])))
     (is (= ["cost" "revenue"] (labels [:cost :revenue])))))
+
+(deftest a-series-legend-takes-a-specified-title-test
+  ;; The entries of a series' legend name its columns, so the legend is
+  ;; given no title. That empty title is a `:label` in the colour scale,
+  ;; which outranks the `:color-label` option, so it is written only
+  ;; where the writer titled nothing.
+  (let [q {:q [1 2 3 4] :revenue [3 4 5 6] :cost [1 2 2 3] :units [2 2 3 3]}
+        title (fn [pose] (:title (:legend (pj/plan pose))))
+        series (pj/lay-line q :q [:revenue :cost])]
+    (testing "no title where none is specified"
+      (is (= "" (title series)))
+      (is (= "" (title (-> q (pj/pose {:x :q :y [:revenue :cost]}) pj/lay-line)))))
+    (testing ":color-label titles it"
+      (is (= "Measure" (title (pj/options series {:color-label "Measure"}))))
+      (is (= "Measure" (title (-> q
+                                  (pj/pose {:x :q :y [:revenue :cost]})
+                                  pj/lay-line
+                                  (pj/options {:color-label "Measure"}))))))
+    (testing "a :label in the colour scale titles it, and outranks the option"
+      (is (= "Measure" (title (pj/scale series :color {:label "Measure"}))))
+      (is (= "Scale" (title (-> series
+                                (pj/scale :color {:label "Scale"})
+                                (pj/options {:color-label "Option"})))))
+      (is (= "Measure" (title (-> q
+                                  (pj/pose {:x :q :y [:revenue :cost]})
+                                  pj/lay-line
+                                  (pj/scale :color {:label "Measure"}))))))
+    (testing "a colour scale set beside a series on the pose reaches the series"
+      (is (= [[1.0 0.0 0.0 1.0] [0.0 0.0 1.0 1.0]]
+             (->> (-> q
+                      (pj/pose {:x :q :y [:revenue :cost]})
+                      pj/lay-line
+                      (pj/scale :color {:values ["red" "blue"]}))
+                  pj/plan :legend :entries (mapv :color)))))
+    (testing "a layer beside the series joins the titled legend"
+      (let [pose (-> series (pj/lay-point :q :units) (pj/options {:color-label "Measure"}))]
+        (is (= "Measure" (title pose)))
+        (is (= 3 (count (:entries (:legend (pj/plan pose))))))))
+    (testing "layers drawing different columns take the title too"
+      (is (= "Measure" (title (-> q
+                                  (pj/lay-line :q :revenue)
+                                  (pj/lay-line :q :cost)
+                                  (pj/options {:color-label "Measure"}))))))
+    (testing "a :shape reading the key column shares the colour legend"
+      (let [shaped (pj/lay-point q :q [:revenue :cost] {:shape :series})
+            one-legend? (fn [pose]
+                          (let [plan (pj/plan pose)]
+                            (and (nil? (:shape-legend plan))
+                                 (every? :shape (:entries (:legend plan))))))]
+        (is (one-legend? shaped))
+        (is (= "" (title shaped)))
+        (is (one-legend? (pj/options shaped {:color-label "Measure" :shape-label "Measure"})))
+        (is (= "Measure" (title (pj/options shaped {:color-label "Measure" :shape-label "Measure"}))))))))

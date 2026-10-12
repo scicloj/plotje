@@ -2429,6 +2429,23 @@
                             #"\(pj/lay-point pose :x-column :y-column\)"
                             (-> four-col pj/lay-point pj/plan))))
 
+    (testing "a later layer naming the default's columns leaves the first as it was drawn"
+      (let [d {:a (vec (range 12))
+               :b [2 3 1 5 4 6 7 9 8 11 10 12]
+               :c (vec (concat (repeat 6 "u") (repeat 6 "v")))}
+            read-out (fn [pose]
+                       [(:title (:legend (pj/plan pose)))
+                        (select-keys (pj/svg-summary pose) [:points :lines])])]
+        (is (= [:c {:points 12 :lines 0}] (read-out (pj/lay-point d))))
+        (is (= [:c {:points 12 :lines 2}]
+               (read-out (-> d pj/lay-point (pj/lay-smooth :a :b)))))
+        ;; the first layer names its columns: no column is read by default
+        (is (= [nil {:points 12 :lines 1}]
+               (read-out (-> d (pj/lay-point :a :b) pj/lay-smooth))))
+        ;; a later layer naming other columns: the panel's columns are its
+        (is (= [nil {:points 12 :lines 1}]
+               (read-out (-> d pj/lay-point (pj/lay-smooth :b :a)))))))
+
     (testing "error message lists available columns"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"Available columns: \[:a :b :c :d\]"

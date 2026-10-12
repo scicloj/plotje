@@ -87,6 +87,21 @@ sales-by-region
 ;; legend. A series names no column of its own: its axis is titled by
 ;; the columns it reads, and its legend has no title, since the entries
 ;; already name the columns.
+;;
+;; The legend takes a title where one is specified, as any colour
+;; legend does: the `:color-label` option, or a `:label` in the colour
+;; scale.
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/options {:color-label "Measure"}))
+
+(kind/test-last
+ [(fn [v] (and (= "Measure" (:title (:legend (pj/plan v))))
+               (= "Measure" (:title (:legend (pj/plan (-> sales
+                                                          (pj/lay-line :quarter [:revenue :cost :tax])
+                                                          (pj/scale :color {:label "Measure"}))))))
+               (= "" (:title (:legend (pj/plan (pj/lay-line sales :quarter [:revenue :cost :tax])))))))])
 
 ;; An adjustment divides a band between labelled competitors, and the
 ;; pivot gives the measures their labels, so the adjustments below
@@ -738,7 +753,8 @@ sales-by-region
 
 ;; The layer that asks for a series may map the key column again. Shape
 ;; beside colour separates the measures twice over, which survives
-;; printing in one colour:
+;; printing in one colour. The two share one legend, each entry drawn
+;; in its colour and its shape:
 
 (-> sales
     (pj/lay-point :quarter [:revenue :cost :tax] {:shape :series}))
@@ -749,7 +765,11 @@ sales-by-region
             ;; the default point is a rect and one measure now takes a
             ;; polygon instead.
             (and (= 8 (:points s))
-                 (= 4 (:polygons s)))))])
+                 (= 4 (:polygons s))
+                 ;; one legend: the shapes are folded into the colour
+                 ;; legend's entries.
+                 (nil? (:shape-legend (pj/plan v)))
+                 (every? :shape (:entries (:legend (pj/plan v)))))))])
 
 ;; `:tooltip` reads the key column as readily, so in the HTML
 ;; rendering of this page hovering a point says which measure it holds:

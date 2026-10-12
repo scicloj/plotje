@@ -485,7 +485,9 @@ composite-pose
 ;; ### Rule LP2: position-carrying `lay-*` attaches to the DFS-last matching leaf
 ;;
 ;; When `lay-*` carries `:x`/`:y` and at least one leaf has matching
-;; effective `:x`/`:y` (after ancestor merge), the layer attaches to
+;; panel's columns (its own `:x`/`:y` after ancestor merge, and on an
+;; axis where it names none, the column of its first layer naming
+;; one), the layer attaches to
 ;; the **last such leaf in left-to-right depth-first order**. The
 ;; layer's own `:mapping` carries the call's position. This is the
 ;; same "most recent matching leaf" rule the teaching chapters
@@ -505,6 +507,22 @@ composite-pose
          (= 0 (count (:layers (second (cells pose)))))
          (= :point
             (:layer-type (first (:layers (first (cells pose))))))))])
+
+;; A cell built by `lay-*` names its columns on its layer and not in
+;; its own mapping. The panel's columns are the same either way, so the
+;; layer attaches to that cell too:
+
+(-> (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
+                 (pj/lay-point iris :petal-length :petal-width)])
+    (pj/lay-smooth :petal-length :petal-width))
+
+(kind/test-last
+ [(fn [pose]
+    (and (= 2 (count (cells pose)))
+         (= [[:point] [:point :smooth]]
+            (mapv #(mapv :layer-type (:layers %)) (cells pose)))
+         (= {:panels 2 :points 300 :lines 1}
+            (select-keys (pj/svg-summary pose) [:panels :points :lines]))))])
 
 ;; **Note on leaf-input with other columns.**
 ;; A leaf that already carries columns, called with a `lay-*` that

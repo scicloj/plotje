@@ -480,31 +480,34 @@
   [path]
   (into [] (mapcat (fn [i] [:poses i])) path))
 
+(declare leaf-place)
+
 (defn last-matching-leaf-path
   "Walk `pose` in left-to-right DFS order. Return the `:path` of the
-   last leaf whose effective `:x` and `:y` (after ancestor-merge of
-   `:mapping`) match `position-mapping`. Matching is strict equality:
-   `:x` and `\"x\"` are different column references. Returns `nil` if
-   no leaf matches.
+   last leaf whose panel's columns (`leaf-place`, read after the
+   ancestors' `:mapping` is merged in) match `position-mapping`.
+   Matching is strict equality: `:x` and `\"x\"` are different column
+   references. Returns `nil` if no leaf matches.
 
    `position-mapping` may carry either or both of `:x` and `:y`; a
-   `nil` value matches a leaf whose effective mapping has no entry
-   for that axis. Matching is against resolved positional mappings
-   only -- a bare leaf (no `:x`/`:y`) matches a bare position
-   mapping.
+   `nil` value matches a leaf whose panel has no column on that axis.
+
+   The panel's columns are the leaf's own, and on an axis its mapping
+   names none, those of its first layer naming one: a `lay-*` call
+   keeps its columns on its layer, so a cell built by `lay-*` alone
+   names them only there.
 
    What a mapping names decides the match, not how it is written: a
-   position carrying a scale names the same position as the plain
-   form, and a mapping that names only a scale names no position at
-   all."
+   column carrying a scale names the same column as the plain form, and
+   a mapping that names only a scale names no column at all."
   [pose position-mapping]
   (let [px (mapping-source (:x position-mapping))
         py (mapping-source (:y position-mapping))]
     (->> (resolve-tree pose)
          (keep (fn [leaf]
-                 (when (and (= (mapping-source (get-in leaf [:mapping :x])) px)
-                            (= (mapping-source (get-in leaf [:mapping :y])) py))
-                   (:path leaf))))
+                 (let [[x y] (leaf-place leaf)]
+                   (when (and (= x px) (= y py))
+                     (:path leaf)))))
          last)))
 
 ;; ---- Shared scales: who shares with whom ----
@@ -2253,6 +2256,22 @@
   [label scale]
   {:value label :scale scale})
 
+(defn- legend-titled?
+  "Whether the writer titled the legend of `aesthetic` on `leaf`: the
+   `<aesthetic>-label` option, or a `:label` in a scale spec for the
+   aesthetic on the leaf's mapping or in `layer-mapping`. A legend whose
+   entries name columns is given no title of its own, and only where
+   this answers false: a title in a scale spec outranks an option, so an
+   empty one written here would hide the writer's."
+  [leaf layer-mapping aesthetic]
+  (let [label? (fn [m]
+                 (let [sc (:scale (get m aesthetic))]
+                   (and (map? sc) (contains? sc :label))))]
+    (boolean
+     (or (contains? (:opts leaf) (keyword (str (name aesthetic) "-label")))
+         (label? (:mapping leaf))
+         (label? layer-mapping)))))
+
 (def default-series-label
   "The name the key column a series invents takes when the writer does
    not give one. It titles the legend, so it is a word a reader can read
@@ -2837,12 +2856,31 @@
                                 " the pose with pj/pose.")
                            {:aesthetic k}))
         ;; The key column's legend lists the columns, so it is titled
-        ;; only where the writer named the key column with `:as`.
+        ;; only where the writer named the key column with `:as`, or
+        ;; titled the legend (`legend-titled?`). A `:shape` reading the
+        ;; key column is the same legend, and is untitled with it.
         rewrite (fn [m {:keys [data values label named?]} outer]
-                  (let [group-key (if (contains? m :color) :group :color)
-                        keyed (if (and (= :color group-key) (not named?))
-                                {:from label :scale {:label ""}}
-                                label)]
+                  (let [;; A `:color` that sets only a scale names no
+                        ;; colour, so the key column takes that scale.
+                        scale-only (let [c (:color m)]
+                                     (when (and (map? c) (nil? (mapping-source c)))
+                                       c))
+                        group-key (if (and (contains? m :color) (not scale-only))
+                                    :group
+                                    :color)
+                        untitled (fn [k v]
+                                   (if (or named? (legend-titled? leaf m k))
+                                     v
+                                     {:from label :scale {:label ""}}))
+                        keyed (cond
+                                scale-only (cond-> (assoc scale-only :from label)
+                                             (not (or named? (legend-titled? leaf m :color)))
+                                             (update :scale #(assoc (or (as-scale-spec %) {})
+                                                                    :label "")))
+                                (= :color group-key) (untitled :color label)
+                                :else label)
+                        m (cond-> m
+                            (= label (:shape m)) (update :shape #(untitled :shape %)))]
                     (merge (apply dissoc m (series-in m))
                            values {group-key keyed}
                            (series-colour-type (or outer m) (when outer m) data label group-key))))
@@ -2957,7 +2995,8 @@
                                            (beside-default i l)
                                            (assoc :color
                                                   (default-color (beside-default i l)
-                                                                 (if (:named? pv)
+                                                                 (if (or (:named? pv)
+                                                                         (legend-titled? leaf (:mapping l) :color))
                                                                    true
                                                                    {:label ""})))))))
                                     ls))))))
@@ -4173,6 +4212,14 @@
      `:y` column, the data's `default-mapping` is written under the
      leaf's own mapping, so a scale it already carries reads the
      default column.
+   - The same where the first layer names no column, the leaf's mapping
+     names none, and the layers after the first name the default's
+     `:x` and `:y` columns and no other. A layer added to a pose leaves
+     the layers before it as they were drawn: on data of three columns
+     `(-> data pj/lay-point)` colours by the third, and so does
+     `(-> data pj/lay-point (pj/lay-smooth :a :b))`, while
+     `(-> data (pj/lay-point :a :b) pj/lay-smooth)` reads no colour,
+     as `(-> data (pj/lay-point :a :b))` reads none.
    - Where a `:y` is named and no `:x` is, and a layer's type draws
      only from two columns (`layer-type/column-counts` lacks 1), the
      leaf's `:x` is the first column nothing names, so
@@ -4190,11 +4237,29 @@
         named? (fn [k] (some #(mapping-source (get % k)) mappings))
         d (when (and (:data leaf) (nil? (:poses leaf)))
             (coerce-dataset (:data leaf)))
-        default (when d (default-mapping d))]
+        default (when d (default-mapping d))
+        names (fn [mapping k] (mapping-source (get mapping k)))
+        ;; The first layer reads the leaf's data and names no column,
+        ;; and the layers after it name the default's `:x` and `:y` and
+        ;; no other.
+        default-beside? (fn []
+                          (and (not (names m :x))
+                               (not (names m :y))
+                               (every? named? (filter default [:x :y]))
+                               (when-let [l (first (:layers leaf))]
+                                 (and (nil? (:data l))
+                                      (not (names (:mapping l) :x))
+                                      (not (names (:mapping l) :y))))
+                               (every? (fn [mapping]
+                                         (every? #(let [c (names mapping %)]
+                                                    (or (nil? c) (= c (get default %))))
+                                                 [:x :y]))
+                                       (rest mappings))))]
     (cond
       (not default) leaf
 
-      (and (not (named? :x)) (not (named? :y)))
+      (or (and (not (named? :x)) (not (named? :y)))
+          (default-beside?))
       (assoc leaf :mapping (merge-mappings default m))
 
       (and (not (named? :x)) (named? :y)
@@ -4609,10 +4674,7 @@
         ;; route `{:color {:value "Model A" :scale true}}` takes.
         ov-labels    (overlay-labels leaf)
         ov-colors    (when ov-labels (default-color-layers leaf))
-        overlay-legend-titled? (boolean
-                                (some->> (:color leaf-mapping)
-                                         (#(when (map? %) (:scale %)))
-                                         (#(when (map? %) (contains? % :label)))))
+        overlay-legend-titled? (legend-titled? leaf nil :color)
         ;; The order the whole data holds a column's categories in,
         ;; which the panels of a facet cannot give: each holds some of
         ;; the rows. The plan orders a shared categorical axis by it

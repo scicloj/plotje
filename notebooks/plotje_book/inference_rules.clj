@@ -177,6 +177,44 @@ two-col-pose
 (kind/test-last [(fn [pose] (and (= {:x :x :y :y} (:mapping pose))
                                  (empty? (:layers pose))))])
 
+;; ### A later layer naming the default's columns
+;;
+;; A layer added to a pose leaves the layers before it as they were
+;; drawn. Below, the points come first and name no column, so they read
+;; the first three columns of the data. The trend line names the two
+;; columns the points are already drawn at. The points keep the third
+;; column as their colour, and the trend line reads that colour as
+;; every layer of the pose does, so there is a line per plot:
+
+(def seedlings
+  {:day [1 2 3 4 5 6 1 2 3 4 5 6]
+   :height [2.0 3.1 3.9 5.2 6.1 6.8 1.5 2.1 2.4 3.3 3.6 4.4]
+   :plot ["north" "north" "north" "north" "north" "north"
+          "south" "south" "south" "south" "south" "south"]})
+
+(-> seedlings
+    pj/lay-point
+    (pj/lay-smooth :day :height))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 12 (:points s))
+                                (= 2 (:lines s))
+                                (some #{"north"} (:texts s))
+                                (= :plot (:color (:mapping (pj/infer-mapping v)))))))])
+
+;; Where the first layer names its columns, no column is read by
+;; default, and a layer added after it names no colour either:
+
+(-> seedlings
+    (pj/lay-point :day :height)
+    pj/lay-smooth)
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 12 (:points s))
+                                (= 1 (:lines s))
+                                (not (some #{"north"} (:texts s)))
+                                (nil? (:mapping (pj/infer-mapping v))))))])
+
 ;; ### 4+ columns
 ;;
 ;; With four or more columns there is no unambiguous default, so

@@ -524,10 +524,13 @@ graph LR
 ;;   that accept raw data -- `pj/pose` (1-arity) and the shortcuts
 ;;   `pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot`, and `pj/save`,
 ;;   which all apply the shared public step `pj/infer-mapping` (a
-;;   no-op once a pose has a mapping). A `pj/lay-*` call reads no
-;;   column of the data when it is called: a layer naming no column is
-;;   given its columns at the draft, and a layer left without a column
-;;   is reported there.
+;;   no-op once a pose has a mapping). The default is also written
+;;   where the first layer names no column and the layers after it
+;;   name the default's `:x` and `:y` columns, so a layer added to a
+;;   pose leaves the layers before it as they were drawn. A
+;;   `pj/lay-*` call reads no column of the data when it is called: a
+;;   layer naming no column is given its columns at the draft, and a
+;;   layer left without a column is reported there.
 ;;   Inference never lives in `pj/->pose`, which only lifts data into
 ;;   a bare mapping-less leaf -- so `pj/infer-mapping` is a public step
 ;;   you can drop into a hand-built pipeline, and raw data handed to a
@@ -593,6 +596,13 @@ graph LR
 ;; ask for. A facet over columns is the one place the pose is written:
 ;; its cells are made from the panel's columns, with the facet's column
 ;; on the axis it names (`pose/expand-facet-nodes`, below).
+;;
+;; The panel's columns are also what a `pj/lay-*` call on a composite
+;; compares its columns with, to find the cell the layer joins:
+;; `pose/last-matching-leaf-path` reads `pose/leaf-place`, the function
+;; `pose/elaborate` reads. A cell built by `pj/lay-*` names its columns
+;; on its layers only, and is matched as a cell that names them in its
+;; own mapping is.
 
 ;; ## Composite Poses
 ;;

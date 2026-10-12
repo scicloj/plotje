@@ -1070,3 +1070,23 @@
                         (pj/lay-rule-h {:y-intercept 99})
                         (pj/facet :f))]
         (is (every? #(= unshared %) (y-domains faceted)))))))
+
+(deftest a-layer-joins-a-cell-built-by-lay-test
+  ;; A `lay-*` call keeps its columns on its layer, so a cell built by
+  ;; one has no mapping of its own. A composite matches a new layer
+  ;; against the panel's columns, which are the same either way.
+  (let [d {:a [1 2 3 4 5 6] :b [2 3 1 5 4 6] :c [3 1 2 6 5 4]}
+        leaves (fn leaves [pose]
+                 (if (:poses pose) (mapcat leaves (:poses pose)) [pose]))
+        types (fn [pose] (mapv #(mapv :layer-type (:layers %)) (leaves pose)))
+        arranged (pj/arrange [(pj/lay-point d :a :b) (pj/lay-point d :a :c)])]
+    (testing "the layer joins the cell drawing its columns"
+      (is (= [[:point :line] [:point]] (types (pj/lay-line arranged :a :b))))
+      (is (= [[:point] [:point :line]] (types (pj/lay-line arranged :a :c)))))
+    (testing "the cells carry their own data, and the pose draws"
+      (is (= {:panels 2 :points 12 :lines 1}
+             (select-keys (pj/svg-summary (pj/lay-line arranged :a :b))
+                          [:panels :points :lines]))))
+    (testing "a cell naming its columns in its own mapping is matched as before"
+      (is (= [[:line] []]
+             (types (-> d (pj/arrange [[:a :b] [:a :c]]) (pj/lay-line :a :b))))))))
