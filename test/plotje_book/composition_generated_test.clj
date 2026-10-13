@@ -411,7 +411,9 @@
  (is
   ((fn
     [msg]
-    (re-find #":share-scales :y refused: columns :hwy, :drv" msg))
+    (re-find
+     #"cannot share :y between these cells: columns :hwy, :drv.*differ in column type"
+     msg))
    v48_l343)))
 
 

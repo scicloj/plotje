@@ -226,10 +226,26 @@
                   (pj/plan (-> (pj/arrange [(pj/pose real-iris {:y :sepal-width})])
                                (pj/pose {:x :sepal-length})
                                pj/lay-point)))))))
+  (testing "K1: the same where the cells name their columns on their layers"
+    (let [real-iris (rdatasets/datasets-iris)
+          cells [(pj/lay-point real-iris :sepal-length :sepal-width)
+                 (pj/lay-point real-iris :sepal-length :petal-width)]
+          out (with-out-str (pj/plan (-> (pj/arrange cells) (pj/pose :petal-length :petal-width))))]
+      (is (re-find #"maps :x to :petal-length, and every cell below it names its own :x" out))
+      (is (re-find #"maps :y to :petal-width" out))
+      (is (= "" (with-out-str (pj/plan (pj/arrange cells)))))))
   (testing "K3: cells are appended with pj/arrange"
     (let [f (-> iris (pj/arrange [[:a :b]]) (pj/arrange [[:c :d] [:e :f]]))]
       (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
-             (mapv :mapping (panels f)))))))
+             (mapv :mapping (panels f))))))
+  (testing "K3: a column and a pair are each read the same wherever they stand"
+    (let [base (pj/arrange iris [[:a :b]])
+          cells (fn [f] (mapv :mapping (rest (panels f))))]
+      (is (= [{:x :c :y :d} {:x :e}] (cells (pj/arrange base [[:c :d] :e]))))
+      (is (= [{:x :e} {:x :c :y :d}] (cells (pj/arrange base [:e [:c :d]]))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"appends columns and pairs of columns.*\[:c :d :e\] is neither"
+                            (pj/arrange base [[:c :d :e]]))))))
 
 ;; ============================================================
 ;; Multi-pair pj/arrange -- N panels in one call (M1-M7)

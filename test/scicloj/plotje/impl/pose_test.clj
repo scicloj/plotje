@@ -416,7 +416,7 @@
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"incompatible scale meaning"
+           #"cannot share :x between these cells.*differ in column type"
            (pose/shared-axis-groups tree))))))
 
 (deftest shared-axis-groups-rejects-mixed-scale-type-test
@@ -429,7 +429,7 @@
                          :layers [{:layer-type :point :mapping {:x :x :y :y}}]}]}]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"incompatible scale meaning"
+           #"cannot share :x between these cells.*differ in scale type"
            (pose/shared-axis-groups tree))))))
 
 (deftest shared-axis-groups-warns-on-free-conflict-test

@@ -771,12 +771,19 @@
   "Build a human-readable list of differing fields across a set of
    share-keys, for use in the error message."
   [keys-set]
-  (let [fields [:coord :scale-type :type-temporal]]
+  (let [fields [[:coord "coordinate system" name]
+                [:scale-type "scale type" name]
+                ;; `[type temporal?]`: a temporal column is typed
+                ;; numerical, so the flag names it.
+                [:type-temporal "column type"
+                 (fn [[t temporal?]] (cond temporal? "temporal"
+                                           t (name t)
+                                           :else "unknown"))]]]
     (->> fields
-         (keep (fn [field]
-                 (let [vs (set (map field keys-set))]
-                   (when (> (count vs) 1)
-                     (str (name field) " " (vec vs))))))
+         (keep (fn [[field label describe]]
+                 (let [vs (distinct (map field keys-set))]
+                   (when (next vs)
+                     (str label ": " (str/join " and " (map describe vs)))))))
          (str/join "; "))))
 
 (defn- share-buckets
@@ -824,14 +831,15 @@
           :let [keys-set (set (map (fn [[col leaf]] (leaf-share-key leaf axis col)) pairs))]
           :when (> (count keys-set) 1)]
     (throw (ex-info
-            (str ":share-scales " axis " refused: "
+            (str ":share-scales cannot share " axis " between these cells: "
                  (describe-share-cols cols)
-                 " incompatible scale meaning across cells ("
+                 " no one axis to be drawn on. The cells differ in "
                  (describe-share-conflict keys-set)
-                 "). Cells targeting :share-scales must agree on"
-                 " coord (e.g. cartesian vs flip), inferred column"
-                 " type (numerical / categorical / temporal), and"
-                 " scale type (linear / log).")
+                 ". Cells sharing an axis must agree on the coordinate"
+                 " system, the column type (numerical, categorical or"
+                 " temporal) and the scale type (linear or log). Leave "
+                 axis " out of :share-scales, or name only the columns"
+                 " that go together.")
             {:caller "share-scales"
              :axis axis
              :column (first cols)
@@ -3201,14 +3209,20 @@
 (defn unread-positions
   "The `:x` and `:y` that a composite in `pose`'s tree writes in its own
    `:mapping` and that no leaf below reads, because each leaf, or a pose
-   between, writes its own. Returns `[[path k] ...]`, `path` the composite's
-   `:poses` indices from the root."
+   between, writes its own -- on its mapping, or on every one of its
+   layers, which is where a `lay-*` call naming columns keeps them.
+   Returns `[[path k] ...]`, `path` the composite's `:poses` indices from
+   the root."
   [pose]
   (letfn [(reaches? [node k]
             (cond (nil? node) false
                   (contains? (:mapping node) k) false
                   (composite? node) (boolean (some #(reaches? % k) (:poses node)))
-                  :else true))
+                  ;; A leaf with no layer draws an inferred one, which
+                  ;; reads the mapping; so does a layer naming no `k`.
+                  :else (or (empty? (:layers node))
+                            (boolean (some #(not (contains? (:mapping %) k))
+                                           (:layers node))))))
           (walk [node path]
             (when (composite? node)
               (concat
@@ -3231,8 +3245,9 @@
   (doseq [[path k] (unread-positions pose)]
     (println (str "Warning: a composite pose maps " k " to "
                   (pr-str (mapping-source (get-in pose (concat (mapcat (fn [i] [:poses i]) path) [:mapping k]))))
-                  ", and every cell below it maps its own " k
-                  ", so it is not drawn. To change the columns of the cells,"
+                  ", and every cell below it names its own " k
+                  ", on its mapping or on its layers, so it is not drawn."
+                  " To change the columns of the cells,"
                   " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")))
   pose)
 
@@ -4504,7 +4519,13 @@
                                     " to a cell before arranging the cells.")
                                {:layer-type (:layer-type l)})))
            resolved {:data (or (:data pose) (:data parent-ctx))
-                     :opts (:opts pose)
+                     ;; The coordinate system an ancestor specifies is
+                     ;; the leaf's, where it specifies none: `side-on`
+                     ;; reads it, and reports one it cannot draw.
+                     :opts (cond-> (:opts pose)
+                             (and (some? (:coord parent-ctx))
+                                  (not (contains? (:opts pose) :coord)))
+                             (assoc :coord (:coord parent-ctx)))
                      :where (:where pose)
                      :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                      :layers (into anc-layers (:layers pose))
@@ -4549,7 +4570,10 @@
 
            ;; A coordinate system the draft chose -- a column on `:y`
            ;; alone drawn on its side (`side-on`).
-           (and (get-in done [:opts :coord]) (not (get-in pose [:opts :coord])))
+           (and (get-in done [:opts :coord])
+                (not (get-in pose [:opts :coord]))
+                ;; Not the one inherited: that stays on the ancestor.
+                (not= (get-in done [:opts :coord]) (get-in resolved [:opts :coord])))
            (assoc-in [:opts :coord] (get-in done [:opts :coord])))))
 
      :else
@@ -4558,6 +4582,9 @@
                                            :where (:where pose)}))
                 :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                 :layers (into (vec (:layers parent-ctx)) (:layers pose))
+                :coord (if (contains? (:opts pose) :coord)
+                         (get-in pose [:opts :coord])
+                         (:coord parent-ctx))
                 :overlay (if (contains? pose :overlay)
                            (:overlay pose)
                            (:overlay parent-ctx))}]

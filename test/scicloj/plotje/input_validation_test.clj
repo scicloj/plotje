@@ -1523,6 +1523,16 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"names :hwy on :y alone.*:coord :polar has no drawing for it"
                             (pj/plan (pj/coord on-layer :polar)))))
+    (testing "the same where the pose above specifies it: a facet over columns on its side"
+      (let [faceted (-> wide pj/pose pj/lay-histogram (pj/facet {:y [:hwy :cty]}))
+            coords (fn [pose] (mapv #(:coord (first (:panels (:plan %)))) (:sub-plots (pj/plan pose))))]
+        (is (= [:flip :flip] (coords faceted) (coords (pj/coord faceted :flip))))
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #"on :y alone.*:coord :polar has no drawing for it"
+                              (pj/plan (pj/coord faceted :polar))))
+        (is (= [:polar :polar]
+               (coords (-> wide pj/pose pj/lay-histogram (pj/facet {:x [:hwy :cty]}) (pj/coord :polar))))
+            "a facet not drawn on its side takes the coordinate system")))
     (testing "beside a layer that draws from two columns, the message names that layer"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"pj/lay-histogram draws from one column.*It names :y :cty\..*and pj/lay-point does not"

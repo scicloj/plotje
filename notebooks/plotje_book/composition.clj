@@ -350,7 +350,7 @@ shared-x
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #":share-scales :y refused: columns :hwy, :drv" msg))])
+ [(fn [msg] (re-find #"cannot share :y between these cells: columns :hwy, :drv.*differ in column type" msg))])
 
 ;; ### A Shared Categorical Axis
 ;;

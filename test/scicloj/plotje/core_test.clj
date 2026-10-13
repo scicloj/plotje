@@ -2290,7 +2290,7 @@
 
     (testing "and is reported once the panels are asked to share that axis"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"incompatible scale meaning"
+                            #"cannot share :y between these cells.*differ in column type"
                             (pj/plan (pj/options mixed {:share-scales {:y :all}})))))
 
     (testing "slices of one column holding both are reported by the facet"

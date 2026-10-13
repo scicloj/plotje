@@ -323,10 +323,10 @@
 ;; ---- Cross ----
 
 (defn cross
-  "Build a vector of `[x y]` pairs from two column-name sequences. Pair
-   with `pj/pose` for SPLOM grids: when an MxN rectangle of pairs is
-   threaded through `pj/pose`, the result is an MxN composite with
-   shared scales.
+  "Build a vector of `[x y]` pairs from two column-name sequences, as
+   cells for `pj/arrange`: `(pj/arrange data (pj/cross xs ys))` draws a
+   panel per pair. For a grid of panels with the `xs` across and the
+   `ys` down, use `(pj/cross-matrix data xs ys)`.
 
    - `(pj/cross [:a :b] [:c :d])` returns `[[:a :c] [:a :d] [:b :c] [:b :d]]`."
   [xs ys]
@@ -1368,24 +1368,30 @@
         ;; must not carry a position mapping of its own.
         base     (if (pose? x) x (prepare-pose (pose-from-data x {})))
         items    (vec cols-or-pairs)
-        first-el (first items)]
-    (cond
-      ;; Univariate -- columns
-      (or (keyword? first-el) (string? first-el))
-      (prepare-pose (add-cells base (mapv (fn [col] {:x col}) items)))
+        column?  (fn [c] (or (keyword? c) (string? c)))
+        ;; One reading of an element, wherever it stands in the list: a
+        ;; column is a panel of that column, a pair a panel of the two.
+        ;; (Read by the first element alone, a pair after a column was a
+        ;; series, and a column after a pair failed to destructure.)
+        cell-of  (fn [item]
+                   (cond
+                     (column? item) {:x item}
 
-      ;; Pairs -- check for rectangular grid before falling back
-      (sequential? first-el)
-      (if-let [rows (pairs->rows items)]
-        (grid-composite base rows)
-        (prepare-pose (add-cells base (mapv (fn [[a b]] {:x a :y b}) items))))
+                     (and (sequential? item) (= 2 (count item)) (every? column? item))
+                     {:x (first item) :y (second item)}
 
-      :else
-      (throw (ex-info
-              (str "pj/pose multi-pair element must be a column "
-                   "reference or a two-element sequential, got: "
-                   (pr-str first-el))
-              {:item first-el :cols-or-pairs cols-or-pairs})))))
+                     :else
+                     (throw (ex-info
+                             (str "pj/arrange appends columns and pairs of columns"
+                                  " to a composite pose, and " (pr-str item)
+                                  " is neither. Write a column, as :a, or a pair"
+                                  " of columns, as [:a :b].")
+                             {:item item :cols-or-pairs cols-or-pairs}))))
+        cells    (mapv cell-of items)]
+    (if-let [rows (and (seq items) (every? sequential? items) (pairs->rows items))]
+      ;; A rectangular grid of pairs.
+      (grid-composite base rows)
+      (prepare-pose (add-cells base cells)))))
 
 (defn- extend-mapping [p m]
   (check-mapping-in-map-slot "pj/pose" m "its mapping map")

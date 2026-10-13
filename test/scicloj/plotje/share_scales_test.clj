@@ -151,7 +151,7 @@
   (testing "columns of different kinds cannot go together"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #":share-scales :y refused: columns :fast, :kind have incompatible"
+         #":share-scales cannot share :y between these cells: columns :fast, :kind"
          (-> cars
              (pj/pose {:x :size})
              pj/lay-point
@@ -567,6 +567,17 @@
                                            (bars {:column :kind :scale {:domain ["b" "a"]}})]
                                           {:share-scales {:x :all}})))]
         (is (= [["b" "a"] ["b" "a"]] xs))))))
+
+(deftest cells-that-cannot-share-an-axis-say-how-they-differ-test
+  (let [cell (fn [y] (pj/lay-point cars {:x :size :y y}))
+        msg (fn [pose] (try (pj/plan pose) nil (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+    (is (re-find #"cannot share :y.*columns :fast, :kind.*differ in column type: (numerical and categorical|categorical and numerical)"
+                 (msg (pj/arrange [(cell :fast) (cell :kind)] {:share-scales {:y [[:fast :kind]]}}))))
+    (is (re-find #"differ in scale type: (log and linear|linear and log)"
+                 (msg (pj/arrange [(cell :fast) (pj/scale (cell :slow) :y :log)]
+                                  {:share-scales {:y :all}}))))
+    (is (not (re-find #"type-temporal|\[\["
+                      (msg (pj/arrange [(cell :fast) (cell :kind)] {:share-scales {:y [[:fast :kind]]}})))))))
 
 (deftest cells-sharing-an-axis-agree-after-the-text-fit-test
   ;; Each cell is widened for its own labels; the cells sharing the
