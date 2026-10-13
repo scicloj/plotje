@@ -3397,8 +3397,14 @@
                               y (:y-scale-domain opts)]
                           (when (or x y)
                             (cond-> {} x (assoc :x x) y (assoc :y y))))
-         default-x-scale {:type :linear}
-         default-y-scale {:type :linear}
+         ;; A `:domain` one member of a share group specified is the
+         ;; domain of every member (`compositor/shared-extents`), read
+         ;; here as though this cell had specified it: exact, unpadded,
+         ;; not widened for text.
+         default-x-scale (cond-> {:type :linear}
+                           (:x-shared-domain opts) (assoc :domain (:x-shared-domain opts)))
+         default-y-scale (cond-> {:type :linear}
+                           (:y-shared-domain opts) (assoc :domain (:y-shared-domain opts)))
          default-coord :cartesian
          ;; As in `resolve-panel-domains`: the first layer that names a
          ;; spec, merged over the default so a `:type` is always there.

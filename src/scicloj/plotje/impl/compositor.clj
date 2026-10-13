@@ -54,6 +54,13 @@
    for a domain the writer specified and wrong for one the cells were
    given.
 
+   A `:domain` one member specifies for the shared axis is the group's:
+   every member is planned as though it had specified it, exactly and
+   unpadded, under `:x-shared-domain` / `:y-shared-domain` in its opts.
+   Members specifying different domains, or a `:domain` beside another
+   member's `:include`, report an error. A categorical `:domain` orders
+   the pooled categories, as it orders the axis of one plot.
+
    One function with the facet's panels: both pool what is drawn and
    pad once. Until a stat's result is kept between the two passes, a
    sharing cell's stats run twice."
@@ -64,9 +71,68 @@
                        sharing)
         members (for [{:keys [path share]} sharing
                       [axis {:keys [group order]}] share]
-                  {:path path :axis axis :group group :order order})]
+                  {:path path :axis axis :group group :order order})
+        ;; The scale spec a member specifies for the shared axis, read where
+        ;; the plan reads it -- the first of its draft layers naming one
+        ;; (`plan/resolve-panel-domains`).
+        draft-of (into {} (map (juxt :path :draft)) sharing)
+        layers-of (fn [path] (let [d (draft-of path)] (if (map? d) [d] d)))
+        spec-of (fn [{:keys [path axis]}]
+                  (some (if (= axis :x) :x-scale :y-scale) (layers-of path)))
+        specified (comp :domain spec-of)
+        column-of (fn [{:keys [path axis]}] (some axis (layers-of path)))
+        flipped? (fn [{:keys [path]}] (= :flip (some :coord (layers-of path))))
+        ;; `:share-scales` names the axis as drawn.
+        drawn-axis (fn [m] (if (flipped? m) ({:x :y :y :x} (:axis m)) (:axis m)))
+        same (fn [d] (mapv #(if (number? %) (double %) %) d))]
     (reduce (fn [m [_ ms]]
-              (let [pooled (plan/pool-extents (map #(get-in measured [(:path %) (:axis %)]) ms))
+              (let [specifying (filter specified ms)
+                    domains (vals (group-by (comp same specified) specifying))
+                    shared-axis (drawn-axis (first ms))
+                    _ (when (next domains)
+                        (let [[a b] (map first domains)]
+                          (throw (ex-info
+                                  (str "The cells sharing " shared-axis " specify different"
+                                       " domains for it: " (pr-str (vec (specified a)))
+                                       " in the cell drawing " (pr-str (column-of a))
+                                       " and " (pr-str (vec (specified b)))
+                                       " in the cell drawing " (pr-str (column-of b))
+                                       ". A shared axis has one domain. Specify one domain"
+                                       " for the cells sharing " shared-axis
+                                       (when-not (some flipped? ms)
+                                         (str " -- (pj/scale <the arrangement> " shared-axis
+                                              " {:domain ...}) reaches every cell that"
+                                              " specifies none of its own --"))
+                                       " or leave " shared-axis " out of :share-scales and"
+                                       " each cell keeps its own.")
+                                  {:caller "share-scales"
+                                   :axis shared-axis
+                                   :domains (mapv (fn [g] {:domain (vec (specified (first g)))
+                                                           :columns (mapv column-of g)
+                                                           :paths (mapv :path g)})
+                                                  domains)}))))
+                    the-domain (some-> (first specifying) specified vec)
+                    ;; On one plot a `:domain` and an `:include` for one
+                    ;; axis report an error. Handed the group's domain,
+                    ;; a member specifying an `:include` would be blamed
+                    ;; for both, so the group says it here.
+                    _ (when-let [inc (and the-domain (first (filter (comp :include spec-of) ms)))]
+                        (throw (ex-info
+                                (str "The cells sharing " shared-axis " specify both a :domain"
+                                     " and an :include for it: :domain " (pr-str the-domain)
+                                     " in the cell drawing " (pr-str (column-of (first specifying)))
+                                     " and :include " (pr-str (:include (spec-of inc)))
+                                     " in the cell drawing " (pr-str (column-of inc))
+                                     ". A shared axis has one domain, and a :domain replaces"
+                                     " the extent an :include adds to. Take one off, or leave "
+                                     shared-axis " out of :share-scales.")
+                                {:caller "share-scales" :axis shared-axis
+                                 :domain the-domain :include (:include (spec-of inc))})))
+                    ;; The members specifying a domain first: where the
+                    ;; axis holds categories their order leads, as it
+                    ;; does on a single plot.
+                    ms' (concat specifying (remove specified ms))
+                    pooled (plan/pool-extents (map #(get-in measured [(:path %) (:axis %)]) ms'))
                     _ (when (= :scicloj.plotje.impl.plan/mixed pooled)
                         (throw (ex-info
                                 (str "The cells sharing an axis disagree about what it"
@@ -75,13 +141,25 @@
                                      " give the cells a column of one type.")
                                 {:caller "share-scales"
                                  :extents (mapv #(get-in measured [(:path %) (:axis %)]) ms)})))
-                    pooled (if (and (seq pooled) (not (number? (first pooled))))
+                    categories? (and (seq pooled) (not (number? (first pooled))))
+                    pooled (if (and categories? (not the-domain))
                              (plan/order-categories pooled (some :order ms))
-                             pooled)]
+                             pooled)
+                    ;; A specified domain on an axis of numbers or dates
+                    ;; is the group's domain, exactly: every member is
+                    ;; planned as though it had specified it.
+                    exact (when (and the-domain (not categories?)) the-domain)]
                 (if (seq pooled)
                   (reduce (fn [m {:keys [path axis]}]
-                            (assoc-in m [path (if (= axis :x) :x-scale-domain :y-scale-domain)]
-                                      pooled))
+                            ;; An exact domain stands alone: handed the
+                            ;; pooled extent beside it, a date axis
+                            ;; picked its ticks over the extent and not
+                            ;; over the domain, as a single plot does.
+                            (if exact
+                              (assoc-in m [path (if (= axis :x) :x-shared-domain :y-shared-domain)]
+                                        exact)
+                              (assoc-in m [path (if (= axis :x) :x-scale-domain :y-scale-domain)]
+                                        pooled)))
                           m ms)
                   m)))
             {}

@@ -806,7 +806,7 @@ faceted-clinics
 (kind/test-last [(fn [domains] (and (apply = domains)
                                     (< 105.0 (second (first domains)))))])
 
-;; Three details complete the picture:
+;; These details complete the picture:
 ;;
 ;; - **Categories.** Where the cells of a group are parts of one
 ;;   dataset, the pooled categories are listed in the order of that
@@ -818,6 +818,10 @@ faceted-clinics
 ;;   panels are parts of, by the one function that answers for the axis
 ;;   (`pose/data-category-order`). The palette, the order of a stack and
 ;;   the order of dodged marks follow the legend's list.
+;; - **A specified domain.** A `:domain` one cell specifies for the
+;;   shared axis is the domain of every cell sharing it: each is planned
+;;   as though it had specified that domain, so none pads it. Cells
+;;   specifying different domains for one shared axis report an error.
 ;; - **Text labels.** A cell's numeric domain is widened after planning
 ;;   so that its text marks are drawn in full, by an amount that depends
 ;;   on the cell's own labels. Cells of a group that end on different

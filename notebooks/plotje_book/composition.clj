@@ -213,6 +213,30 @@ shared-x
                  (apply = domains)
                  (< limit (second (first domains))))))])
 
+;; A `:domain` that one cell specifies for a shared axis is the domain
+;; of every cell sharing that axis, since a shared axis is one axis.
+;; Below, the second cell specifies 0 to 10 for `:x`, and both cells are
+;; drawn on exactly that interval:
+
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "setosa" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width))
+  (-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "virginica" (:species %)))
+      (pj/lay-point {:x {:column :sepal-length :scale {:domain [0 10]}}
+                     :y :sepal-width}))]
+ {:share-scales #{:x}})
+
+(kind/test-last
+ [(fn [v] (let [panels (mapcat #(:panels (:plan %)) (:sub-plots (pj/plan v)))]
+            (= [[0.0 10.0] [0.0 10.0]]
+               (mapv #(mapv double (:x-domain %)) panels))))])
+
+;; Two cells that specify different domains for one shared axis report
+;; an error naming both. `(pj/scale arrangement :x {:domain [0 10]})`
+;; specifies the domain once for every cell.
+
 ;; ### Columns That Share an Axis
 ;;
 ;; A set of axes shares an axis among the cells that draw the same

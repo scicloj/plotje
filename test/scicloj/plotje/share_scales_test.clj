@@ -516,6 +516,58 @@
         (is (nil? (:sub-plots (pj/plan pose))))
         (is (= 2 (count (:panels (pj/plan pose)))))))))
 
+(deftest a-domain-on-one-cell-is-the-shared-axis-domain-test
+  (let [cell (fn [y] (pj/lay-point cars {:x :size :y y}))
+        dom (fn [col d] {:column col :scale {:domain d}})
+        ys (fn [pose] (mapv #(mapv double (second %)) (domains pose)))
+        share (fn [cells] (pj/arrange cells {:share-scales {:y :all}}))]
+    (testing "on either cell, in the layer, on the pose or by pj/scale on the cell"
+      (is (= [[0.0 100.0] [0.0 100.0]]
+             (ys (share [(cell (dom :fast [0 100])) (cell :slow)]))
+             (ys (share [(cell :fast) (cell (dom :slow [0 100]))]))
+             (ys (share [(-> cars (pj/pose {:x :size :y (dom :fast [0 100])}) pj/lay-point)
+                         (cell :slow)]))
+             (ys (share [(pj/scale (cell :fast) :y {:domain [0 100]}) (cell :slow)])))))
+    (testing "three cells, and a reversed domain"
+      (is (= (repeat 3 [0.0 50.0])
+             (ys (share [(cell :fast) (cell (dom :slow [0 50])) (cell :weight)]))))
+      (is (= [[100.0 0.0] [100.0 0.0]]
+             (ys (share [(cell (dom :fast [100 0])) (cell :slow)])))))
+    (testing "a group of columns, and an axis not shared"
+      (is (= [[0.0 100.0] [0.0 100.0]]
+             (ys (pj/arrange [(cell (dom :fast [0 100])) (cell :slow)]
+                             {:share-scales {:y [[:fast :slow]]}}))))
+      (let [[a b] (ys (pj/arrange [(cell (dom :fast [0 100])) (cell :slow)]
+                                  {:share-scales {:x :all}}))]
+        (is (= [0.0 100.0] a))
+        (is (not= a b))))
+    (testing "the same domain twice agrees; two domains report an error naming both"
+      (is (= [[0.0 100.0] [0.0 100.0]]
+             (ys (share [(cell (dom :fast [0 100])) (cell (dom :slow [0 100]))]))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"sharing :y specify different domains.*\[0 100\].*:fast.*\[0 50\].*:slow"
+                            (pj/plan (share [(cell (dom :fast [0 100])) (cell (dom :slow [0 50]))]))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"specify different domains"
+                            (pj/plan (-> (share [(cell :fast) (cell (dom :slow [0 50]))])
+                                         (pj/scale :y {:domain [0 100]}))))))
+    (testing "a :domain on one cell beside an :include on another reports an error"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"both a :domain and an :include"
+                            (pj/plan (share [(cell (dom :fast [0 100]))
+                                             (cell {:column :slow :scale {:include [200]}})])))))
+    (testing "an :include alone is pooled and padded, as before"
+      (let [[a b] (ys (share [(cell {:column :fast :scale {:include [0 100]}}) (cell :slow)]))]
+        (is (= a b))
+        (is (= [-5.0 105.0] a))))
+    (testing "a categorical domain on the second cell orders both"
+      (let [bars (fn [x] (pj/lay-bar cars {:x x}))
+            xs (mapv (comp vec first)
+                     (domains (pj/arrange [(bars :kind)
+                                           (bars {:column :kind :scale {:domain ["b" "a"]}})]
+                                          {:share-scales {:x :all}})))]
+        (is (= [["b" "a"] ["b" "a"]] xs))))))
+
 (deftest cells-sharing-an-axis-agree-after-the-text-fit-test
   ;; Each cell is widened for its own labels; the cells sharing the
   ;; axis are then planned again until they are on one domain.
