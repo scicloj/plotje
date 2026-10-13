@@ -246,13 +246,19 @@
       (some #(let [v (get-in % [:mapping a])] (when (map? v) (:scale v)))
             (:layers leaf))))
 
+(defn- leaf-aesthetic-columns
+  "The columns mapped to `a` in a resolved leaf, on its mapping or on
+   one of its layers'."
+  [leaf a]
+  (distinct (keep #(when-let [c (mapping-column %)]
+                     (when (resolve/column-ref? c) c))
+                  (cons (get-in leaf [:mapping a])
+                        (map #(get-in % [:mapping a]) (:layers leaf))))))
+
 (defn- leaf-aesthetic-data
   "Every non-nil value the columns mapped to `a` take in a resolved leaf."
   [leaf a]
-  (let [cols (distinct (keep #(when-let [c (mapping-column %)]
-                                (when (resolve/column-ref? c) c))
-                             (cons (get-in leaf [:mapping a])
-                                   (map #(get-in % [:mapping a]) (:layers leaf)))))]
+  (let [cols (leaf-aesthetic-columns leaf a)]
     (for [c cols
           ds (distinct (keep identity (cons (:data leaf) (map :data (:layers leaf)))))
           :when (contains? (set (tc/column-names ds)) c)
@@ -301,8 +307,12 @@
 
 (defn- unify-one
   "One scale for `a` over `leaves`, or nil where the cells cannot share
-   one. Returns {:leaves :categories}."
-  [leaves a cfg]
+   one. Returns {:leaves :categories}. `whole` is the dataset every
+   cell reads, whole or in part, or nil where they read no one dataset:
+   categories are then listed in the order of its rows
+   (`plan/order-categories`), as a shared categorical axis lists them,
+   and cell by cell otherwise."
+  [leaves a cfg whole]
   (let [per-leaf (mapv #(vec (leaf-aesthetic-data % a)) leaves)
         all (apply concat per-leaf)
         written (mapv #(written-scale % a) leaves)
@@ -330,6 +340,10 @@
       (when (#{:color :shape} a)
         (let [domain (some #(let [d (:domain %)] (when (sequential? d) d)) written)
               union (vec (distinct all))
+              union (plan/order-categories
+                     union
+                     (pose/data-category-order
+                      whole (distinct (mapcat #(leaf-aesthetic-columns % a) leaves))))
               union (if domain
                       (vec (concat (filter (set union) domain) (remove (set domain) union)))
                       union)
@@ -356,9 +370,9 @@
    legend they would share. Returns {:leaves :shared :categories}: the
    aesthetics that could not be unified are dropped from `shared`, so
    each cell keeps its own legend for them."
-  [leaves shared cfg]
+  [leaves shared cfg whole]
   (reduce (fn [acc a]
-            (if-let [{ls :leaves cats :categories} (unify-one (:leaves acc) a cfg)]
+            (if-let [{ls :leaves cats :categories} (unify-one (:leaves acc) a cfg whole)]
               (cond-> (assoc acc :leaves ls)
                 cats (assoc-in [:categories a] cats))
               (update acc :shared disj a)))
@@ -436,7 +450,18 @@
                                        leaf))
                                    (pose/resolve-tree stripped))
                              shared-aesthetics
-                             (defaults/resolve-config opts))
+                             (defaults/resolve-config opts)
+                             ;; The one dataset the cells read, where
+                             ;; they do: the composite's own, each cell
+                             ;; holding it whole or a part of it -- the
+                             ;; test `pose/shared-axis-groups` makes for
+                             ;; a shared axis.
+                             (when-let [data (:data stripped)]
+                               (when (every? #(or (:plotje/empty-cell %)
+                                                  (identical? data (:data %))
+                                                  (:plotje/part-of-parent-data %))
+                                             (pose/resolve-tree stripped))
+                                 data)))
         shared? (boolean (seq shared-aesthetics))
         legend-w (if shared? shared-legend-strip-w 0)
         ;; Grid-composite (rows-of-cols SPLOM) stamps :grid-strip-labels
@@ -581,7 +606,19 @@
                                              (seq composite-chrome-suppress)
                                              (as-> $ (reduce #(dissoc %1 %2)
                                                              $ composite-chrome-suppress)))
-                                 draft (pose/leaf->draft leaf')]
+                                 ;; The shared categories are in one order
+                                 ;; for every cell, so each cell lists and
+                                 ;; draws its own in that order rather than
+                                 ;; in the order of its own rows -- the key
+                                 ;; `pose/leaf->draft` writes for the
+                                 ;; panels of a facet.
+                                 order-keys (cond-> {}
+                                              (seq (:color shared-categories))
+                                              (assoc :__color-order (:color shared-categories))
+                                              (seq (:shape shared-categories))
+                                              (assoc :__shape-order (:shape shared-categories)))
+                                 draft (cond->> (pose/leaf->draft leaf')
+                                         (seq order-keys) (mapv #(merge % order-keys)))]
                              (cond-> {:path (:path leaf)
                                       :rect rect
                                       :draft draft
@@ -703,14 +740,21 @@
                                                         sub-drafts))]
                                         (assoc legends k
                                                (assoc legend :entries
-                                                      (:out (reduce (fn [{:keys [seen] :as acc} e]
-                                                                      (if (seen (:label e))
-                                                                        acc
-                                                                        (-> acc
-                                                                            (update :seen conj (:label e))
-                                                                            (update :out conj e))))
-                                                                    {:seen #{} :out []}
-                                                                    (mapcat :entries all))))))
+                                                      ;; Gathered cell by cell, then put in
+                                                      ;; the order of the union: an entry's
+                                                      ;; label is the display form of its
+                                                      ;; category.
+                                                      (plan/order-categories-by
+                                                       :label
+                                                       (:out (reduce (fn [{:keys [seen] :as acc} e]
+                                                                       (if (seen (:label e))
+                                                                         acc
+                                                                         (-> acc
+                                                                             (update :seen conj (:label e))
+                                                                             (update :out conj e))))
+                                                                     {:seen #{} :out []}
+                                                                     (mapcat :entries all)))
+                                                       (map defaults/fmt-category-label (get cats aes))))))
                                       legends)))]
                             (reduce merge-entries (select-keys rep-plan shared-keys) shared-keys))))
         _ (when (seq (deref warnings))

@@ -720,6 +720,23 @@
     (when (contains? (set (tc/column-names ds)) col-ref)
       (remove nil? (ds col-ref)))))
 
+(defn data-category-order
+  "The values the columns `cols` of `data` hold, each once, in the order
+   of the rows -- the order a categorical axis and a categorical legend
+   list them in, whichever panel a row is drawn in. Nil where `data`
+   holds none of the columns.
+
+   The values are the data's own, which is what a legend's categories
+   are matched against; an axis is matched against display labels, so
+   its callers map `defaults/fmt-category-label` over the answer. One
+   function for the panels of a facet (`leaf->draft`), the cells of an
+   arrangement (`shared-axis-groups`) and the legend they share
+   (`compositor/unify-legend-scales`), because the three ask one
+   question."
+  [data cols]
+  (when data
+    (not-empty (vec (distinct (mapcat #(col-values data %) cols))))))
+
 (defn- leaf-share-key
   "Compatibility descriptor for a leaf when sharing the scale drawn
    along `axis` of the page. Two leaves in one bucket must produce the
@@ -978,12 +995,14 @@
         ;; rows, where the columns hold categories.
         order-of (memoize
                   (fn [data cols]
-                    (when data
-                      (let [vs (mapcat #(col-values data %) cols)
-                            v (first vs)]
-                        (when (and (some? v)
-                                   (not (or (number? v) (resolve/temporal-value? v))))
-                          (vec (distinct (map str vs))))))))
+                    (let [vs (data-category-order data cols)
+                          v (first vs)]
+                      (when (and (some? v)
+                                 (not (or (number? v) (resolve/temporal-value? v))))
+                        ;; As the axis lists them: display labels
+                        ;; (`stat/format-category-column`), so a
+                        ;; keyword category is found by its label.
+                        (vec (distinct (map defaults/fmt-category-label vs)))))))
         groups (reduce (fn [groups link]
                          (let [{hit true miss false}
                                (group-by #(boolean (some (:nodes link) (:nodes %))) groups)]
@@ -4766,10 +4785,24 @@
         ;; the rows. The plan orders a shared categorical axis by it
         ;; (`plan/order-categories`).
         whole        (when (next variants) (coerce-dataset leaf-data))
+        ;; As the axis lists them: display labels
+        ;; (`stat/format-category-column`), so a keyword category is
+        ;; found by its label.
         category-order (memoize
                         (fn [col]
-                          (when (and whole (contains? (set (tc/column-names whole)) col))
-                            (vec (distinct (map str (remove nil? (whole col))))))))
+                          (some->> (data-category-order whole [col])
+                                   (map defaults/fmt-category-label)
+                                   distinct
+                                   vec)))
+        ;; The same order for a legend, in the data's own values, which
+        ;; is what `plan/collect-colors` and `plan/collect-shapes` hold.
+        ;; Only for a column of the whole data read as it stands: a
+        ;; layer bringing its own data, or a value written in place of
+        ;; a column, has no rows here to take an order from.
+        legend-order (memoize
+                      (fn [col]
+                        (when (resolve/column-ref? col)
+                          (data-category-order whole [col]))))
         categories-of (fn [resolved axis]
                         (let [col (get resolved axis)
                               vs (when (and whole (resolve/column-ref? col)
@@ -4863,6 +4896,10 @@
               (and (not layer-own-data?) (categories-of resolved :x))
               (assoc :__x-order (categories-of resolved :x))
               (and (not layer-own-data?) (categories-of resolved :y))
-              (assoc :__y-order (categories-of resolved :y)))
+              (assoc :__y-order (categories-of resolved :y))
+              (and (not layer-own-data?) (legend-order (:color resolved)))
+              (assoc :__color-order (legend-order (:color resolved)))
+              (and (not layer-own-data?) (legend-order (:shape resolved)))
+              (assoc :__shape-order (legend-order (:shape resolved))))
              (cond-> (= :infer (:mark resolved))
                (-> (dissoc :mark :stat)))))))))

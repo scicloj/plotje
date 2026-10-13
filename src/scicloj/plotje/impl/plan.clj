@@ -1338,6 +1338,8 @@
                            :temporal? temporal?})))
         vs))))
 
+(declare order-categories)
+
 (defn- collect-colors
   "Resolve draft layers and collect color categories across all draft layers.
    Attaches :__resolved to each draft layer for downstream re-use.
@@ -1359,6 +1361,14 @@
                        (when (seq color-draft-layers)
                          (let [observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :color)
                                                                             color-draft-layers))))
+                               ;; The panels of a facet each hold some of
+                               ;; the rows, so pooled panel by panel the
+                               ;; categories come in the order of the
+                               ;; panels. `pose/leaf->draft` writes the
+                               ;; whole data's order, as it does for a
+                               ;; categorical axis.
+                               observed (order-categories
+                                         observed (some :__color-order color-draft-layers))
                                domain (seq (categorical-domain
                                             (some :color-scale color-draft-layers)))]
                            (when (and domain (seq observed))
@@ -1411,6 +1421,10 @@
             syms (or (when-not by-category (seq (:values scale))) (defaults/shape-palette))
             observed (vec (distinct (remove nil? (mapcat #(aesthetic-col % :shape)
                                                          shape-draft-layers))))
+            ;; In the whole data's order under a facet, as
+            ;; `collect-colors` does.
+            observed (order-categories
+                      observed (some :__shape-order shape-draft-layers))
             all-shapes (if domain
                          (order-by-domain observed domain)
                          observed)]
@@ -2656,6 +2670,18 @@
      :facet-row-vals (when has-facet-row? row-vals)
      :panels panels}))
 
+(defn order-categories-by
+  "`items` in the order `data-order` lists the category `(category-of
+   item)` names, the ones it does not list after, as they came. See
+   `order-categories`, which is this with the items the categories
+   themselves."
+  [category-of items data-order]
+  (if (seq data-order)
+    (let [rank (zipmap data-order (range))
+          n (count rank)]
+      (vec (sort-by #(get rank (category-of %) n) items)))
+    (vec items)))
+
 (defn order-categories
   "`categories` in the order `data-order` lists them, the ones it does
    not list after, as they came. `data-order` is the categories in the
@@ -2668,11 +2694,7 @@
    the second added. Ordered by the data, the split has the axis of the
    same plot unsplit, whatever order its panels come in."
   [categories data-order]
-  (if (seq data-order)
-    (let [rank (zipmap data-order (range))
-          n (count rank)]
-      (vec (sort-by #(get rank % n) categories)))
-    (vec categories)))
+  (order-categories-by identity categories data-order))
 
 (defn- coordinate-facet-domains
   "Replace each panel's :x-dom and/or :y-dom with the cross-panel

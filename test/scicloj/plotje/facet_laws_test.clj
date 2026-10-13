@@ -58,6 +58,35 @@
       (is (= (-> mpg (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]}))
              (-> mpg (pj/pose {:x :displ}) (pj/facet {:y [:hwy :cty]}) pj/lay-point))))))
 
+(deftest a-facet-keeps-the-legend-of-the-unfaceted-plot-test
+  (let [d {:x [1 2 3 4 5 6] :y [1 2 3 4 5 6]
+           :c ["b" "a" "c" "b" "c" "b"]
+           :k [:kb :ka :kc :kb :kc :kb]
+           :g ["p2" "p1" "p2" "p1" "p2" "p2"]}
+        legend (fn [pose] (mapv :label (:entries (:legend (pj/plan pose)))))
+        colors (fn [pose] (mapv :color (:entries (:legend (pj/plan pose)))))]
+    (testing "the colour legend is in the order of the data's rows, not panel by panel"
+      (let [plain (pj/lay-point d :x :y {:color :c})]
+        (is (= ["b" "a" "c"] (legend plain) (legend (pj/facet plain :g))))
+        (is (= (colors plain) (colors (pj/facet plain :g))))
+        (is (= ["b" "a" "c"] (legend (pj/facet-grid plain nil :g))))))
+    (testing "the shape legend too"
+      (is (= [["b" :circle] ["a" :square] ["c" :triangle]]
+             (->> (-> d (pj/lay-point :x :y {:shape :c}) (pj/facet :g))
+                  pj/plan :shape-legend :entries
+                  (mapv (juxt :label :shape))))))
+    (testing "counted bars"
+      (is (= ["b" "a" "c"] (legend (-> d (pj/lay-bar :g {:color :c}) (pj/facet :g))))))
+    (testing "a categorical axis of a keyword column"
+      (is (= ["kb" "ka" "kc"]
+             (-> d (pj/lay-point :k :y) (pj/facet :g) pj/plan :panels first :x-domain vec))))
+    (testing "a specified :domain decides"
+      (is (= ["c" "a" "b"]
+             (legend (-> d
+                         (pj/lay-point :x :y {:color :c})
+                         (pj/facet :g)
+                         (pj/scale :color {:domain ["c" "a" "b"]}))))))))
+
 (deftest pose-is-idempotent-test
   (doseq [[label base _] cases]
     (testing label

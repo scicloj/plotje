@@ -400,6 +400,30 @@ measures
        (= [[1 2 3] [4 7 10]]
           (mapv (fn [l] (vec (mapcat :sizes (:groups l)))) layers)))))])
 
+;; A `:color` or `:shape` column is read against the whole data too. The
+;; legend lists the categories in the order the rows of the data hold
+;; them, whichever panel a row is drawn in, so a category has the colour
+;; it has in the same plot drawn without the facet. Below, the first
+;; panel holds classes the data meets early and late, and the legend is
+;; the legend of the unfaceted plot:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy {:color :class})
+    (pj/facet :drv))
+
+(kind/test-last
+ [(fn [v]
+    (let [labels (fn [pose] (mapv :label (:entries (:legend (pj/plan pose)))))
+          mpg (rdatasets/ggplot2-mpg)]
+      (and (= (labels v)
+              (labels (pj/lay-point mpg :displ :hwy {:color :class}))
+              (vec (distinct (:class mpg))))
+           ;; Panel by panel the classes would come in another order:
+           ;; the first panel does not hold the first three alone.
+           (not= (vec (distinct (:class mpg)))
+                 (vec (distinct (mapcat (fn [drv] (:class (tc/select-rows mpg #(= drv (:drv %)))))
+                                        (distinct (:drv mpg)))))))))])
+
 ;; A `:domain` sets that one extent. Given more room than the data
 ;; needs, no mark reaches either end of the range:
 

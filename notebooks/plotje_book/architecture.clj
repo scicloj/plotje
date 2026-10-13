@@ -813,6 +813,11 @@ faceted-clinics
 ;;   dataset's rows, so the split has the axis of the same plot drawn
 ;;   without the split. Cells with data of their own are listed cell by
 ;;   cell.
+;; - **Legends.** A colour or shape legend follows the same rule: its
+;;   categories are listed in the order of the rows of the dataset the
+;;   panels are parts of, by the one function that answers for the axis
+;;   (`pose/data-category-order`). The palette, the order of a stack and
+;;   the order of dodged marks follow the legend's list.
 ;; - **Text labels.** A cell's numeric domain is widened after planning
 ;;   so that its text marks are drawn in full, by an amount that depends
 ;;   on the cell's own labels. Cells of a group that end on different

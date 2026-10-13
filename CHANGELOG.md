@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Plots that look different after upgrading
 
+- **A colour or shape legend under a facet** lists its categories in the order the rows of the whole data hold them, as the same plot with no facet does, so a category keeps its colour and its symbol when a facet is added. The order of a stack and of dodged marks follows the legend. A faceted plot whose first panel does not hold the data's first categories changes colours; a `:domain` on the scale sets the order as before. A shared categorical axis of a keyword column follows the same order.
+
 - **Strips above a grid of cells**, as a scatter-plot matrix draws them, are centred on each panel rather than on the whole cell, which also holds the room for the cell's y labels, and name the columns as the axis titles do: `sepal length`, not `sepal-length`.
 
 - **A series written as several columns** lists its legend entries, and orders its groups, in the order the columns are written: `[:cost :revenue]` lists `cost` first.
