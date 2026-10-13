@@ -341,6 +341,21 @@ measures
 ;; `#{:y}` shares `:y` and fits `:x` to each panel, and `#{}` fits both
 ;; axes to each panel.
 ;;
+;; The options of a faceted plot may also be written in the facet call,
+;; in a map after the column. `pj/facet` passes that map to
+;; `pj/options`, so the two spellings build the same pose:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/facet :species {:share-scales #{:x}}))
+
+(kind/test-last
+ [(fn [v]
+    (= v (-> (rdatasets/datasets-iris)
+             (pj/lay-point :sepal-length :sepal-width {:color :species})
+             (pj/facet :species)
+             (pj/options {:share-scales #{:x}}))))])
+;;
 ;; A shared axis covers what the panels sharing it draw, and is padded
 ;; once. So the panels of a facet read on the axes the same plot has
 ;; when it is not split:
@@ -487,6 +502,41 @@ measures
 
 (kind/test-last
  [(fn [m] (and (string? m) (re-find #"already facets by" m)))])
+
+;; The map given to `pj/facet` says where the panels come from, and
+;; takes no other key. A plot option written inside it is reported, and
+;; the message says to write the option in a map of its own, after the
+;; first:
+
+(try
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/facet {:col :species :share-scales #{:x}}))
+  (catch Exception e (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (and (string? m)
+               (re-find #"unexpected key\(s\): \[:share-scales\]" m)
+               (re-find #"in a map of its own after this one" m)))])
+
+;; A facet draws its panels in one row or in one column, and does not
+;; wrap them onto further rows. Where a column holds so many values
+;; that the panels cannot be drawn, the error names the column and the
+;; number of its values, and suggests arranging one pose per value with
+;; `pj/arrange`, which does wrap:
+
+(try
+  (-> (rdatasets/ggplot2-mpg)
+      (pj/lay-point :displ :hwy)
+      (pj/facet :model)
+      pj/plan)
+  (catch Exception e (ex-message e)))
+
+(kind/test-last
+ [(fn [m] (and (string? m)
+               (re-find #"a facet by :model" m)
+               (re-find #"does not wrap its panels" m)
+               (re-find #"pj/arrange poses" m)))])
 
 ;; ## Examples
 

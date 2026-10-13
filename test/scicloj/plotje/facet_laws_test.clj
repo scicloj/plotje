@@ -87,6 +87,79 @@
                          (pj/facet :g)
                          (pj/scale :color {:domain ["c" "a" "b"]}))))))))
 
+(deftest options-written-in-the-facet-call-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        p (pj/lay-point mpg :displ :hwy)
+        share {:share-scales #{:x}}
+        y-domains (fn [pose] (count (distinct (map :y-domain (:panels (pj/plan pose))))))]
+    (testing "a trailing map is what pj/options takes"
+      (is (= (pj/facet p :drv share) (-> p (pj/facet :drv) (pj/options share))))
+      (is (= (pj/facet p :drv :row share) (-> p (pj/facet :drv :row) (pj/options share))))
+      (is (= (pj/facet p {:row :drv} share) (-> p (pj/facet {:row :drv}) (pj/options share))))
+      (is (= (pj/facet-grid p :drv :cyl share) (-> p (pj/facet-grid :drv :cyl) (pj/options share)))))
+    (testing "and it is read"
+      (is (= 1 (y-domains (pj/facet p :drv))))
+      (is (= 3 (y-domains (pj/facet p :drv share)))))
+    (testing "a direction that is neither :col nor :row still reports an error"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"direction must be :col or :row"
+                            (pj/facet p :drv :sideways))))))
+
+(deftest a-key-the-facet-map-does-not-read-test
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+        msg (fn [node] (try (pj/facet p node) nil
+                            (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+    (testing "a plot option, with where to write it"
+      (is (re-find #"unexpected key\(s\): \[:share-scales\].*It takes \[:col :row\].*in a map of its own after this one"
+                   (msg {:col :drv :share-scales #{:x}})))
+      (is (re-find #"It takes \[:x :y\]" (msg {:y [:cty :hwy] :share-scales #{}}))))
+    (testing "columns beside a grid, a mapping, and a key of no kind"
+      (is (re-find #"the columns of :y go inside :col or :row" (msg {:col :drv :y [:cty :hwy]})))
+      (is (re-find #":color is a mapping" (msg {:col :drv :color :class})))
+      (is (re-find #"unexpected key\(s\): \[:cols\]" (msg {:col :drv :cols 2}))))
+    (testing "inside a part of a grid"
+      (is (re-find #"its :col part has unexpected key\(s\): \[:foo\]"
+                   (msg {:col {:x [:displ :cyl] :foo 1} :row {:y [:hwy]}}))))
+    (testing "a map of none of the four keys keeps the column message"
+      (is (re-find #"takes a column of the data" (msg {:value :g}))))
+    (testing "the maps the facet reads are unchanged"
+      (is (= {:col :drv} (select-keys (:mapping (pj/facet p {:col :drv})) [:col :row])))
+      (is (= {:col :drv :row :cyl}
+             (select-keys (:mapping (pj/facet p {:col :drv :row :cyl})) [:col :row]))))))
+
+(deftest nil-cancels-the-facet-from-above-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        cell (fn [f] (f (pj/lay-point (pj/pose mpg :displ :hwy))))
+        panels (fn [f] (->> (-> (pj/arrange [(cell f) (cell identity)]) (pj/facet :drv))
+                            pj/plan :sub-plots
+                            (mapv #(count (:panels (:plan %))))))]
+    (is (= [3 3] (panels identity)))
+    (is (= [1 3] (panels #(pj/facet % nil))))
+    (is (= [1 3] (panels #(pj/facet % {:col nil}))) "the map says the same")
+    (testing "on the pose that wrote the facet there is nothing above to cancel"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"nil cancels the facet of a pose above.*leave out the earlier pj/facet call"
+                            (-> (pj/lay-point mpg :displ :hwy) (pj/facet :drv) (pj/facet nil)))))))
+
+(deftest too-many-facet-panels-names-the-facet-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        p (pj/lay-point mpg :displ :hwy)
+        report (fn [pose] (try (pj/plan pose) nil (catch clojure.lang.ExceptionInfo e e)))]
+    (testing "across and down"
+      (let [e (report (pj/facet p :model))]
+        (is (re-find #"a facet by :model, which holds 38 values and draws them in one row"
+                     (ex-message e)))
+        (is (re-find #"does not wrap its panels.*\(pj/arrange poses \{:cols 4\}\)" (ex-message e)))
+        (is (= {:facet :model :values 38} (select-keys (ex-data e) [:facet :values]))))
+      (is (re-find #"in one column" (ex-message (report (pj/facet p :model :row))))))
+    (testing "a plot too small with no facet keeps its message"
+      (is (not (re-find #"facet" (ex-message (report (pj/options p {:width 30})))))))
+    (testing "the suggested form draws"
+      (is (= 38 (:panels (pj/svg-summary
+                          (pj/arrange (mapv (fn [m] (pj/lay-point (tc/select-rows mpg #(= m (:model %)))
+                                                                  :displ :hwy))
+                                            (distinct (:model mpg)))
+                                      {:cols 4 :width 900 :height 1400}))))))))
+
 (deftest pose-is-idempotent-test
   (doseq [[label base _] cases]
     (testing label

@@ -4891,8 +4891,12 @@
               ;; axis title alone.
               (and ov-labels (nth ov-labels layer-idx nil))
               (assoc :overlay-labelled true)
-              (:facet-col variant) (assoc :facet-col (:facet-col variant))
-              (:facet-row variant) (assoc :facet-row (:facet-row variant))
+              ;; The category, and beside it the column it is a value
+              ;; of, which the plan names where the panels do not fit.
+              (:facet-col variant) (assoc :facet-col (:facet-col variant)
+                                          :__facet-col-column facet-col)
+              (:facet-row variant) (assoc :facet-row (:facet-row variant)
+                                          :__facet-row-column facet-row)
               (and (not layer-own-data?) (categories-of resolved :x))
               (assoc :__x-order (categories-of resolved :x))
               (and (not layer-own-data?) (categories-of resolved :y))

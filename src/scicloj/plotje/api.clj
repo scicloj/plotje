@@ -3290,11 +3290,19 @@
      (when (not= existing col)
        (throw (ex-info (str caller " was given " (pr-str col) " for " aesthetic
                             ", which this pose already facets by "
-                            (pr-str existing) ". A pose divides its panels once"
-                            " per direction: use the other direction, or"
-                            " pj/facet-grid for both at once, or facet a"
-                            " compound key -- (pj/facet my-pose ["
-                            (pr-str existing) " " (pr-str col) "]).")
+                            (pr-str existing) ". "
+                            (if (nil? col)
+                              ;; `nil` cancels a facet written on a pose
+                              ;; above; there is none to cancel here.
+                              (str "nil cancels the facet of a pose above this"
+                                   " one, as in a cell of a faceted arrangement."
+                                   " To draw this pose with no facet, leave out"
+                                   " the earlier " caller " call.")
+                              (str "A pose divides its panels once"
+                                   " per direction: use the other direction, or"
+                                   " pj/facet-grid for both at once, or facet a"
+                                   " compound key -- (pj/facet my-pose ["
+                                   (pr-str existing) " " (pr-str col) "]).")))
                        {:caller caller
                         :aesthetic aesthetic
                         :existing existing
@@ -3395,6 +3403,57 @@
                                " (pj/facet {" many " " (pr-str (get node many)) "})).")
                           {:facet node})))))))
 
+(defn- check-facet-map-keys!
+  "Report a key a `pj/facet` map holds and nothing reads.
+
+   The map says where the panels come from, in one of two shapes: a
+   grid, under `:col` and `:row`, or columns, under `:x` and `:y`. A
+   part of a grid is a column, a vector of columns, `{:column ..}`, or a
+   map of columns under `:x` and `:y`. Any other key was kept or dropped
+   with no message, so `{:col :drv :share-scales #{:x}}` drew shared
+   scales and `{:col :drv :y [:hwy :cty]}` drew one row of panels.
+
+   The message names where the key belongs where that is known: a plot
+   option goes in the options map after this one, a column of a grid
+   inside its `:col` or `:row`, and any other mapping to `pj/pose`."
+  [node]
+  (let [grid? (or (contains? node :col) (contains? node :row))
+        accepted (cond grid? #{:col :row}
+                       (some #{:x :y} (keys node)) #{:x :y}
+                       :else #{:col :row :x :y})
+        advice (fn [k]
+                 (cond
+                   (contains? plot-options-keys k)
+                   (str k " is a plot option: write it in a map of its own after"
+                        " this one, as in (pj/facet pose {...} {" k " ...}).")
+                   (and grid? (#{:x :y} k))
+                   (str "In a grid, the columns of " k " go inside :col or"
+                        " :row, as in {:col ... :row {" k " [...]}}.")
+                   (contains? pose-mapping-keys k)
+                   (str k " is a mapping: write it with (pj/pose pose {" k
+                        " ...}).")))
+        report (fn [where m accepted]
+                 (when-let [unknown (seq (remove accepted (keys m)))]
+                   (throw (ex-info
+                           (str "pj/facet was given " (pr-str node) ", and "
+                                where " has unexpected key(s): " (vec unknown)
+                                ". It takes " (vec (sort accepted)) "."
+                                (when-let [a (some advice unknown)] (str " " a)))
+                           {:caller "pj/facet" :facet node
+                            :unknown (vec unknown)
+                            :accepted (vec (sort accepted))}))))]
+    ;; A map holding none of the four keys and no plot option is left
+    ;; to `column-argument`, which reports a mapping value given where
+    ;; a column goes, as `{:value :g}`.
+    (when (or (some #{:col :row :x :y} (keys node))
+              (some plot-options-keys (keys node)))
+      (report "the map" node accepted)
+      (when grid?
+        (doseq [k [:col :row]
+                :let [part (get node k)]
+                :when (and (map? part) (not (contains? part :column)))]
+          (report (str "its " k " part") part #{:x :y}))))))
+
 (defn- facet-map
   "`pj/facet` given a map. Categories on `:col` and `:row` are written
    into the mapping, as `pj/facet-grid` writes them; a map holding
@@ -3403,6 +3462,7 @@
    and expanded into cells when the pose is drawn. Provisional (PR #61)."
   [pose node]
   (let [fr (->pose pose "pj/facet")
+        _ (check-facet-map-keys! node)
         grid? (or (contains? node :col) (contains? node :row))
         columns? (if grid?
                    (not (and (facet-categories? (:col node))
@@ -3410,9 +3470,12 @@
                    (some #(sequential? (get node %)) [:x :y]))]
     (cond
       (and grid? (not columns?))
+      ;; A key written with `nil` is written into the mapping too: it
+      ;; cancels the facet of a pose above, as `(pj/facet cell nil)`
+      ;; does.
       (cond-> fr
-        (:col node) (facet-direction (:col node) :col "pj/facet")
-        (:row node) (facet-direction (:row node) :row "pj/facet"))
+        (contains? node :col) (facet-direction (:col node) :col "pj/facet")
+        (contains? node :row) (facet-direction (:row node) :row "pj/facet"))
 
       columns?
       (do (check-facet-columns-map! fr node)
@@ -3422,6 +3485,17 @@
       ;; Any other map is read as a column argument, which reports it.
       :else
       (facet-direction fr node :col "pj/facet"))))
+
+(defn- facet-with-direction
+  "`pj/facet` given a column and a direction."
+  [pose col direction]
+  (when-not (#{:col :row} direction)
+    (throw (ex-info (str "pj/facet direction must be :col or :row, got: "
+                         (pr-str direction) ".")
+                    {:caller "pj/facet"
+                     :direction direction
+                     :accepted #{:col :row}})))
+  (facet-direction pose col direction "pj/facet"))
 
 (defn facet
   "Facet a pose by a column: one panel per value the column holds.
@@ -3460,19 +3534,25 @@
 
    The columns are checked against the data when `pj/facet` is called.
    A layer naming one of the facet's columns is drawn only in the
-   panels of that column."
+   panels of that column.
+
+   `nil` in place of the column cancels the facet a pose above writes:
+   `(pj/facet cell nil)` on one cell of a faceted arrangement draws that
+   cell as one panel.
+
+   A map of plot options may come last, and is what `pj/options` takes:
+   `(pj/facet my-pose :species {:share-scales #{:x}})` is
+   `(-> my-pose (pj/facet :species) (pj/options {:share-scales #{:x}}))`."
   ([pose col]
    (if (and (map? col) (not (contains? col :column)))
      (facet-map pose col)
      (facet pose col :col)))
-  ([pose col direction]
-   (when-not (#{:col :row} direction)
-     (throw (ex-info (str "pj/facet direction must be :col or :row, got: "
-                          (pr-str direction) ".")
-                     {:caller "pj/facet"
-                      :direction direction
-                      :accepted #{:col :row}})))
-   (facet-direction pose col direction "pj/facet")))
+  ([pose col direction-or-options]
+   (if (map? direction-or-options)
+     (options (facet pose col) direction-or-options)
+     (facet-with-direction pose col direction-or-options)))
+  ([pose col direction opts]
+   (options (facet-with-direction pose col direction) opts)))
 
 (defn facet-grid
   "Facet a pose by two columns: a panel for every row-and-column pair,
@@ -3485,11 +3565,16 @@
    and is made of those two steps.
 
    `pj/facet-grid` fills the rectangle; `(pj/facet my-pose [:a :b])`
-   draws only the combinations the data holds."
-  [pose col-col row-col]
-  (-> pose
-      (facet-direction col-col :col "pj/facet-grid")
-      (facet-direction row-col :row "pj/facet-grid")))
+   draws only the combinations the data holds.
+
+   A map of plot options may come last, as in `pj/facet`:
+   `(pj/facet-grid my-pose :a :b {:share-scales #{:x}})`."
+  ([pose col-col row-col]
+   (-> pose
+       (facet-direction col-col :col "pj/facet-grid")
+       (facet-direction row-col :row "pj/facet-grid")))
+  ([pose col-col row-col opts]
+   (options (facet-grid pose col-col row-col) opts)))
 
 (def ^:private aesthetic->scale-key
   "Aesthetic keyword to the opts key holding its scale spec. Derived

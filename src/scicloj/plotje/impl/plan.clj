@@ -3690,7 +3690,33 @@
                              :shape-legend shape-legend})
                      padding (layout/compute-padding scene cfg layout-opts)]
                  {:padding padding
-                  :dims (layout/compute-dims scene padding cfg layout-opts)}))
+                  :dims (try
+                          (layout/compute-dims scene padding cfg layout-opts)
+                          (catch clojure.lang.ExceptionInfo e
+                            ;; Panels too small, in a direction a facet
+                            ;; fills: say which facet, and that it does
+                            ;; not wrap.
+                            (let [[k n] (cond
+                                          (contains? (ex-data e) :panel-width)
+                                          [:__facet-col-column grid-cols-n]
+                                          (contains? (ex-data e) :panel-height)
+                                          [:__facet-row-column grid-rows-n])
+                                  column (when k (some k draft-layers))]
+                              (throw (if (some? column)
+                                       (ex-info
+                                        (str (ex-message e)
+                                             " The panels are those of a facet by "
+                                             (pr-str column) ", which holds " n
+                                             " values and draws them in one "
+                                             (if (= k :__facet-col-column) "row" "column")
+                                             ": a facet does not wrap its panels. For"
+                                             " several rows of panels, arrange one"
+                                             " pose per value, each drawing the rows"
+                                             " of that value: (pj/arrange poses"
+                                             " {:cols 4}).")
+                                        (assoc (ex-data e) :facet column :values n)
+                                        e)
+                                       e)))))}))
 
              m (if multi? (:margin-multi cfg) (:margin cfg))
 

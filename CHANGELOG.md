@@ -42,7 +42,9 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, a list of pairs or a list of single columns is appended to it.
 
-- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin.
+- `pj/facet` takes a map. `{:col :year :row :drv}` is a grid of categories; `{:y [:hwy :cty]}` draws a panel per column, `{:x [..] :y [..]}` a panel per pair, and `{:col {:x [..]} :row {:y [..]}}` a matrix, where `nil` leaves the place for a margin. `nil` under `:col` or `:row` cancels the facet of a pose above, as `(pj/facet cell nil)` does.
+
+- `pj/facet` and `pj/facet-grid` take a map of plot options last, which is the map `pj/options` takes: `(pj/facet pose :drv {:share-scales #{:x}})` builds the pose that `(-> pose (pj/facet :drv) (pj/options {:share-scales #{:x}}))` builds.
 
 - Under a facet over columns, a layer is drawn in the panels whose columns it draws. A layer naming no column is drawn in every panel, on the panel's own columns with the facet's column on the axis it names: `(-> data (pj/pose {:x :week}) pj/lay-line (pj/facet {:y [:adults :children]}))` draws a line of `:adults` and a line of `:children`, each against `:week`. A layer naming one of the facet's columns is drawn only in that column's panels. A panel no layer draws takes the layer type inferred from its columns: `(-> iris (pj/facet {:col {:x cols} :row {:y cols}}) pj/lay-point)` draws histograms on the diagonal.
 
@@ -86,11 +88,13 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` naming a column the data does not hold reports an error; a `:where` value that appears nowhere in its column, or an empty set, warns.
 
+- A key the map given to `pj/facet` does not read reports an error naming the key and where it belongs: a plot option such as `:share-scales` in a map of its own after the first, a mapping such as `:color` in `pj/pose`, and the columns of a grid inside its `:col` or `:row`.
+
 - `pj/lay-bar` reports an error for two categorical columns, such as `(pj/lay-bar data :drv :class)`: a bar reads its length from a numerical column, and the message suggests counting one column and colouring by the other. It reports an error for one numerical column named on both axes, `(pj/lay-bar data :displ :displ)`, naming `pj/lay-histogram`. A boxplot of two categorical columns names the column that is not numeric, as a violin does.
 
 - `pj/lay` reports an error at the call for a layer type that is neither a registered keyword nor a map naming its `:mark`. For a mapping given where the layer type goes, as in `(pj/lay pose {:y :hwy})`, the error says to name the layer type before the mapping.
 
-- Panels too small to draw report an error stating the size each panel would have and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`.
+- Panels too small to draw report an error stating the size each panel would have and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`. Where the panels are those of a facet, the error names the facet's column and the number of its values, says that a facet does not wrap its panels, and suggests arranging one pose per value with `pj/arrange`.
 
 ### Fixed
 
