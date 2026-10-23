@@ -13,7 +13,6 @@
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.impl.stat :as stat]
             [scicloj.plotje.impl.scale :as scale]
-            [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.position :as position]
             [scicloj.plotje.impl.extract :as extract]
             [scicloj.plotje.impl.layout :as layout]
@@ -3672,8 +3671,9 @@
              ;; strip names its own column and a shared title would name
              ;; one of them over all of them. Asked per axis, because a
              ;; plot can share its x column across panels that disagree
-             ;; about y.
-             show-ticks? (coord/show-ticks? rep-coord)
+             ;; about y. Under `:polar`, which draws no tick labels, the
+             ;; axis title is the one text naming the column, so it is
+             ;; drawn there too.
              ;; Kept for the margin below, which is the one thing that does
              ;; want the grid's shape: a two-dimensional multi-variable
              ;; grid is drawn with tighter margins than a single panel.
@@ -3683,8 +3683,8 @@
              (resolve-labels x-vars y-vars x-overlay-vars y-overlay-vars
                              rep-x-scale rep-y-scale
                              title x-label y-label
-                             (and show-ticks? (:x mergeable))
-                             (and show-ticks? (:y mergeable)))
+                             (:x mergeable)
+                             (:y mergeable))
              swap-labels? (or (= rep-coord :flip) has-ridgeline?)
              [eff-x-label eff-y-label] (if swap-labels?
                                          [eff-y-label eff-x-label]

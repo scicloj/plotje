@@ -347,8 +347,9 @@
 (defn- pad-y-label
   "y-label-pad = label-offset + max(0, tick-text-width - 12) when a
    y-label is present; otherwise just the tick-text-width (so tick
-   labels don't collide with the panel edge). Polar axes suppress
-   y-ticks entirely, so the pad is zero.
+   labels don't collide with the panel edge). Polar axes draw no tick
+   labels, so their tick width is zero: the pad is the y-label's room
+   where there is one, and zero where there is none.
 
    `:min-y-label-pad` in opts raises the result to at least that many
    drawing units. Two panels stacked in a composite have the same cell
@@ -365,24 +366,20 @@
   [scene cfg opts]
   (let [{:keys [coord-type y-label?]} scene
         angle (get cfg :y-tick-angle 0)
-        computed (if (= coord-type :polar)
-                   0.0
-                   (let [w (y-tick-text-width scene cfg opts)
-                         ;; A rotated label reaches left of the axis by
-                         ;; its width times the cosine of the angle, plus
-                         ;; its height times the sine.
-                         tick-w (cond
-                                  (:suppress-y-ticks opts) 0.0
-                                  (zero? angle) w
-                                  :else
-                                  (let [rad (Math/toRadians (double angle))]
-                                    (+ (* w (Math/abs (Math/cos rad)))
-                                       (* (double (tick-font-size cfg))
-                                          (Math/abs (Math/sin rad))))))]
-                     (if y-label?
-                       (+ (double (:label-offset cfg))
-                          (max 0.0 (- tick-w 12.0)))
-                       tick-w)))]
+        w (y-tick-text-width scene cfg opts)
+        ;; A rotated label reaches left of the axis by its width times
+        ;; the cosine of the angle, plus its height times the sine.
+        tick-w (cond (= coord-type :polar) 0.0
+                     (:suppress-y-ticks opts) 0.0
+                     (zero? angle) w
+                     :else (let [rad (Math/toRadians (double angle))]
+                             (+ (* w (Math/abs (Math/cos rad)))
+                                (* (double (tick-font-size cfg))
+                                   (Math/abs (Math/sin rad))))))
+        computed (if y-label?
+                   (+ (double (:label-offset cfg))
+                      (max 0.0 (- tick-w 12.0)))
+                   tick-w)]
     (max computed (double (or (:min-y-label-pad opts) 0.0)))))
 
 (defn- pad-strip-h [{:keys [has-col-strips?]} cfg]

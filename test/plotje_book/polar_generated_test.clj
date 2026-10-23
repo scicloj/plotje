@@ -8,7 +8,7 @@
 
 
 (def
- v2_l24
+ v2_l26
  (def
   wind
   {:direction ["N" "NE" "E" "SE" "S" "SW" "W" "NW"],
@@ -16,7 +16,7 @@
 
 
 (def
- v4_l35
+ v4_l37
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -24,7 +24,7 @@
 
 
 (deftest
- t5_l39
+ t5_l41
  (is
   ((fn
     [v]
@@ -37,41 +37,41 @@
       (= 1 (:panels s))
       (= 150 (:points s))
       (= [4.3 7.9] [(reduce min lengths) (reduce max lengths)]))))
-   v4_l35)))
+   v4_l37)))
 
 
 (def
- v7_l53
+ v7_l55
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :polar)))
 
 
 (deftest
- t8_l57
+ t8_l59
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 3 (:polygons s)))))
-   v7_l53)))
+   v7_l55)))
 
 
-(def v10_l66 (-> wind (pj/lay-bar :direction :speed) (pj/coord :polar)))
+(def v10_l68 (-> wind (pj/lay-bar :direction :speed) (pj/coord :polar)))
 
 
 (deftest
- t11_l70
+ t11_l72
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 8 (:polygons s)))))
-   v10_l66)))
+   v10_l68)))
 
 
 (def
- v13_l81
+ v13_l83
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:position :stack, :color :species})
@@ -79,18 +79,18 @@
 
 
 (deftest
- t14_l85
+ t14_l87
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v13_l81)))
+   v13_l83)))
 
 
 (def
- v16_l94
+ v16_l96
  (->
   (rdatasets/datasets-iris)
   (pj/lay-histogram :sepal-length)
@@ -98,27 +98,30 @@
 
 
 (deftest
- t17_l98
+ t17_l100
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v16_l94)))
+   v16_l96)))
 
 
 (def
- v19_l107
+ v19_l110
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
   (pj/coord :polar)
-  (pj/options {:title "Iris in Polar Space"})))
+  (pj/options
+   {:title "Iris in Polar Space",
+    :x-label "Sepal length (angle)",
+    :y-label "Sepal width (radius)"})))
 
 
 (deftest
- t20_l112
+ t20_l117
  (is
   ((fn
     [v]
@@ -126,5 +129,9 @@
      [s (pj/svg-summary v)]
      (and
       (= 1 (:panels s))
-      (some #{"Iris in Polar Space"} (:texts s)))))
-   v19_l107)))
+      (every?
+       (set (:texts s))
+       ["Iris in Polar Space"
+        "Sepal length (angle)"
+        "Sepal width (radius)"]))))
+   v19_l110)))

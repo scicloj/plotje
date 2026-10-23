@@ -1302,6 +1302,36 @@
           pl (pj/plan views)]
       (is (= :polar (get-in pl [:panels 0 :coord]))))))
 
+(deftest polar-axis-titles-test
+  (testing "a polar plot draws its axis titles, and no tick labels"
+    (let [pl (-> {:a [1 2 3] :b [4 5 6]}
+                 (pj/lay-point :a :b)
+                 (pj/coord :polar)
+                 pj/plan)]
+      (is (= "a" (:x-label pl)))
+      (is (= "b" (:y-label pl)))
+      ;; The y title has room left of the panel; under :polar there
+      ;; is no tick label to add to it.
+      (is (= 38.0 (double (get-in pl [:layout :y-label-pad])))))
+    (is (= ["b" "a"]
+           (:texts (pj/svg-summary (-> {:a [1 2 3] :b [4 5 6]}
+                                       (pj/lay-point :a :b)
+                                       (pj/coord :polar)))))))
+  (testing "the panels of a facet over columns are named under :polar"
+    (is (= #{"hwy" "cty" "displ"}
+           (set (:texts (pj/svg-summary
+                         (-> (rdatasets/ggplot2-mpg)
+                             (pj/lay-point :displ :hwy)
+                             (pj/facet {:y [:hwy :cty]})
+                             (pj/coord :polar))))))))
+  (testing "a polar plot without a y title reserves no room for one"
+    ;; A counting bar leaves `:y` untitled.
+    (is (= 0.0 (double (get-in (-> {:kind ["a" "b" "b"]}
+                                   (pj/lay-bar :kind)
+                                   (pj/coord :polar)
+                                   pj/plan)
+                               [:layout :y-label-pad]))))))
+
 (deftest flip-coord-test
   (testing "flipped coordinates swap x/y domains"
     (let [views (-> cat-ds

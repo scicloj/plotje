@@ -6,8 +6,10 @@
 ;; a polar plane. The angular spread is set by the x-column's range,
 ;; so a narrow range produces a wedge cluster rather than a full
 ;; circle. Supported marks today are `:point`, `:bar`, `:rect`,
-;; `:text`, and `:rug`; other marks report an error. Tick labels and
-;; axis labels are not yet rendered under `:polar`, but legends render
+;; `:text`, and `:rug`; other marks report an error. Tick labels are
+;; not yet rendered under `:polar`. The axis titles are: the `:x` title
+;; below the panel names the column drawn as the angle, and the `:y`
+;; title beside it names the column drawn as the radius. Legends render
 ;; as they would on Cartesian coords -- a `:color` mapping produces a
 ;; normal legend that can be repositioned via `:legend-position` (see
 ;; [Customization](./plotje_book.customization.html#legend-position)).
@@ -101,17 +103,23 @@
 
 ;; ## Explicit Labels with Polar
 ;;
-;; By default, polar suppresses auto-generated axis labels (since there
-;; are no rectangular axes). You can still set a title with `pj/options`:
+;; The axis titles name the angle's column and the radius's column, as
+;; on Cartesian coords. `pj/options` replaces them, and sets a title,
+;; as it does there:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/coord :polar)
-    (pj/options {:title "Iris in Polar Space"}))
+    (pj/options {:title "Iris in Polar Space"
+                 :x-label "Sepal length (angle)"
+                 :y-label "Sepal width (radius)"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
-                                (some #{"Iris in Polar Space"} (:texts s)))))])
+                                (every? (set (:texts s))
+                                        ["Iris in Polar Space"
+                                         "Sepal length (angle)"
+                                         "Sepal width (radius)"]))))])
 
 ;; ## See Also
 ;;
