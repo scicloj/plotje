@@ -4497,9 +4497,18 @@
         layers (:layers leaf)
         coord (get-in leaf [:opts :coord])
         y (or (:y m) (some #(:y (:mapping %)) layers))
-        on-x (fn [mapping] (if (contains? mapping :y)
-                             (-> mapping (dissoc :y) (assoc :x (:y mapping)))
-                             mapping))]
+        ;; The column's type moves with the column: `:y-type` written
+        ;; beside a column on `:y` says how that column is read, and the
+        ;; stat reads it as `:x-type` once the column is on `:x`. An
+        ;; `:x-type` written beside it is left where it is, so a pose
+        ;; that already draws keeps drawing.
+        on-x (fn [mapping]
+               (cond-> mapping
+                 (contains? mapping :y)
+                 (-> (dissoc :y) (assoc :x (:y mapping)))
+
+                 (and (contains? mapping :y-type) (not (contains? mapping :x-type)))
+                 (-> (dissoc :y-type) (assoc :x-type (:y-type mapping)))))]
     (if (and (some? y)
              (nil? (:x m))
              (seq layers)
@@ -4532,10 +4541,12 @@
      `infer-default-mapping`.
    - A leaf with a place and no layers draws one layer, of the type the
      data chooses.
-   - A place the leaf's own mapping names, where no layer draws, keeps
-     its panel, with a layer of the type the data chooses --
-     `(-> data (pj/pose :a :b) (pj/lay-point :c :d))` draws a-against-b
-     beside c-against-d.
+   - A column the leaf's own mapping names is drawn by the layers that
+     name no column on that axis, and by no other: where every layer
+     names its own, as in
+     `(-> data (pj/pose :a :b) (pj/lay-point :c :d))`, the leaf draws
+     c-against-d alone (teaching: `pose_rules.clj`, \"Note on
+     leaf-input with other columns\").
    - A layer holds the panel's columns it reads, where it names none
      or names one and its layer type needs two -- see
      `read-panel-columns`.
@@ -4776,8 +4787,13 @@
                 " layer draws from one column and names no :x of its own, and "
                 (str/join ", " side-on-blockers)
                 (if (next side-on-blockers) " do not" " does not")
-                ". Name the column on :x -- (pj/pose data {:x " (pr-str y)
-                "}) -- and add (pj/coord :flip) to draw it on its side.")
+                ", so this pose is not drawn on its side. Name this layer's"
+                " column on :x -- " (lay (pr-str y)) " -- to draw it upright"
+                " beside the other layers, or draw it on its side on a pose"
+                " of its own"
+                (when (keyword? layer-type-key)
+                  (str ": (" fn-name " data {:y " (pr-str y) "})"))
+                ".")
 
            (= [:x] missing)
            (str "Name the :x column on the layer -- " (lay ":x-column" (pr-str y))
@@ -4945,6 +4961,19 @@
                            (merge-mappings layer-type-info)
                            (merge-mappings layer-mapping)
                            (merge-mappings layer-structural)))
+             ;; A layer type that draws from one column and computes
+             ;; what it draws on `:y` -- a histogram, a density -- reads
+             ;; no `:y` column. One reaches it from the pose's mapping,
+             ;; or from the panel's columns, beside layers that do read
+             ;; it; kept in the draft layer it titled the count axis
+             ;; with that column. A `:y` with no `:x` beside it is the
+             ;; layer's one column, written on the other axis, and is
+             ;; left for `check-layer-columns!` to name.
+             resolved (if (and (:x-only resolved)
+                               (some? (:x resolved))
+                               (:y (stat/computes resolved)))
+                        (dissoc resolved :y :y-type)
+                        resolved)
              layer-own-data?  (some? (:data layer))
              written          resolved
              given-data       (coerce-dataset (or (:data layer) (:data variant)))

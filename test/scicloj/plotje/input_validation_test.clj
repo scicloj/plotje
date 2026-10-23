@@ -1378,11 +1378,11 @@
                       (pj/facet {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}})
                       pj/lay-bar)]]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"lay-bar \(counting\) requires a categorical column for :x, but :displ is numerical"
+                            #"lay-bar \(counting\) requires a categorical column, but :displ is numerical"
                             (pj/plan pose))))
     (testing "as the column named once does"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"lay-bar \(counting\) requires a categorical column for :x, but :displ is numerical"
+                            #"lay-bar \(counting\) requires a categorical column, but :displ is numerical"
                             (pj/plan (pj/lay-bar cars :displ))))))
   (testing "layer types that draw only from two columns still draw the column against itself"
     (is (= (:points (pj/svg-summary (pj/lay-point cars :displ :hwy)))

@@ -738,21 +738,27 @@
 
 (defmethod compute-stat :count [draft-layer]
   (when-not (= (:x-type draft-layer) :categorical)
+    ;; The column is on `:x` here whichever axis it was written on:
+    ;; `pose/side-on` moves a column named on `:y` alone to `:x` and
+    ;; flips the coordinates, so the message names the column and both
+    ;; spellings of its type, and not an axis.
     (let [{:keys [data x x-type]} draft-layer]
       ;; An empty column and an all-missing one are typed numerical for
       ;; want of anything to read, so the type is not what is wrong with
       ;; them. Described as the other layers that group by category
       ;; describe them (`resolve/column-phrase`).
       (throw (ex-info (if (and (tc/dataset? data) (resolve/no-values? data x))
-                        (str "lay-bar (counting) requires a categorical column for :x, "
+                        (str "lay-bar (counting) requires a categorical column, "
                              "but " (pr-str x) " " (resolve/column-phrase data x) ". "
                              "A layer that groups by category needs at least one row "
                              "carrying a category.")
-                        (str "lay-bar (counting) requires a categorical column for :x, "
+                        (str "lay-bar (counting) requires a categorical column, "
                              "but " x " is " (name (or x-type :unknown))
                              ". Use lay-histogram to bin numeric data, convert " x
-                             " to a string column, or pass {:x-type :categorical} to treat a numeric"
-                             " column as categorical. For horizontal bars, add (pj/coord :flip)."))
+                             " to a string column, or treat the numeric column as categorical"
+                             " by writing the type of the axis it is named on: {:x-type :categorical}"
+                             " for a column on :x, {:y-type :categorical} for a column on :y."
+                             " For horizontal bars, name the column on :y or add (pj/coord :flip)."))
                       {:stat :count :x x :x-type x-type}))))
   (let [{:keys [data x x-type group]} draft-layer
         group-cols (or group [])

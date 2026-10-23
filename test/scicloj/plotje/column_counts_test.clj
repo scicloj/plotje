@@ -59,3 +59,25 @@
     (is (= (pj/plot (side nil)) (pj/plot (side :flip))))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #":coord :cartesian has no drawing"
                           (pj/plan (side :cartesian))))))
+
+(deftest the-type-of-a-column-on-y-alone-moves-with-the-column-test
+  ;; A counting bar whose numerical column is named on `:y` read its
+  ;; type from `:x-type`: `{:y :cyl :y-type :categorical}` reported that
+  ;; `:cyl` is numerical, and the message named `:x`.
+  (let [d {:cyl [4 4 6 8 8 8]}
+        domains (fn [pose] (let [p (first (:panels (pj/plan pose)))]
+                             [(:x-domain p) (:y-domain p)]))
+        typed-on-x (domains (pj/lay-bar d {:y :cyl :x-type :categorical}))]
+    (testing "`:y-type` beside a column on `:y` is that column's type"
+      (is (= ["4" "6" "8"] (second (domains (pj/lay-bar d {:y :cyl :y-type :categorical})))))
+      (is (= typed-on-x (domains (pj/lay-bar d {:y :cyl :y-type :categorical}))))
+      (is (= typed-on-x (domains (-> d (pj/pose {:y :cyl :y-type :categorical}) pj/lay-bar)))))
+    (testing "the same bars as the column on `:x`, flipped"
+      (is (= (reverse typed-on-x)
+             (domains (pj/lay-bar d {:x :cyl :x-type :categorical})))))
+    (testing "with no type, the message names both spellings and no axis"
+      (let [msg (try (pj/plan (pj/lay-bar d {:y :cyl})) nil
+                     (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+        (is (re-find #"requires a categorical column, but :cyl is numerical" msg))
+        (is (re-find #"\{:y-type :categorical\} for a column on :y" msg))
+        (is (not (re-find #"column for :x" msg)))))))

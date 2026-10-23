@@ -2658,7 +2658,10 @@
      :grid-rows max-row
      :layout-type layout-type
      :x-vars (vec (distinct (map :x first-draft-layers)))
-     :y-vars (vec (distinct (map :y first-draft-layers)))
+     ;; On `:y` the first layer of a panel that draws a column: a
+     ;; histogram or a density computes what it draws there and holds
+     ;; no `:y`, and points after it on the panel do.
+     :y-vars (vec (distinct (map #(some :y (:draft-layers %)) panel-groups)))
      ;; The columns drawn by layers overlaid on one panel whose
      ;; columns disagree. They share an axis, so the axis has to name
      ;; all of them -- naming the first titled it after whichever

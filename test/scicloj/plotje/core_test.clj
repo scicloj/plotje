@@ -2967,7 +2967,7 @@
   ;; persona-16 H9. Closes P9-R2 F7.
   (testing "lay-bar counting with numeric x throws clear error"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"lay-bar \(counting\) requires a categorical column for :x"
+                          #"lay-bar \(counting\) requires a categorical column, but"
                           (-> {:x [1 2 3 4 5]} (pj/lay-bar :x) pj/plan))))
 
   (testing "lay-bar value bars with two numeric axes draw numeric-position bars"
