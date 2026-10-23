@@ -745,6 +745,31 @@
                   " them to about that many, and :breaks names the ones"
                   " to keep."))))
 
+(defn- labels-fit?
+  "Whether tick `labels`, laid side by side with a gap after each, fit
+   across `width` drawing units -- or, where `stacked?`, one above
+   another as on a `:y` axis, each taking the font size and a gap. Fewer
+   than two labels always fit.
+
+   One measure for a date axis choosing how many ticks to draw and a
+   numeric axis choosing whether to add ticks to one it was given
+   (`scale/at-least-two-ticks`). The font size is read from the
+   effective config rather than passed in, which is what
+   `layout/tick-font-size` does, and the gap is a margin over an
+   estimate -- this decides how many ticks to draw, not where to draw
+   them, so being a character out changes nothing."
+  [labels width stacked?]
+  (let [font-size (get-in (defaults/config) [:theme :font-size]
+                          (get-in defaults/defaults [:theme :font-size]))
+        gap 6.0]
+    (or (< (count labels) 2)
+        (<= (->> labels
+                 (map #(+ gap (if stacked?
+                                (double font-size)
+                                (text/text-width font-size (str %)))))
+                 (reduce + 0.0))
+            (double width)))))
+
 (defn- temporal-ticks-that-fit
   "The most detailed set of date ticks whose labels fit across `width`.
 
@@ -767,22 +792,9 @@
 
    Two ticks are returned even where they do not fit: an axis has to be
    labelled, and a label running past the panel is a smaller lie than an
-   axis with nothing on it.
-
-   The font size is read from the effective config rather than passed in,
-   which is what `layout/tick-font-size` does, and the gap is a margin
-   over an estimate -- this decides how many ticks to draw, not where to
-   draw them, so being a character out changes nothing."
-  [pick n width]
-  (let [font-size (get-in (defaults/config) [:theme :font-size]
-                          (get-in defaults/defaults [:theme :font-size]))
-        gap 6.0
-        fits? (fn [labels]
-                (or (< (count labels) 2)
-                    (<= (->> labels
-                             (map #(+ gap (text/text-width font-size (str %))))
-                             (reduce + 0.0))
-                        (double width))))]
+   axis with nothing on it. `labels-fit?` is the measure."
+  [pick n width stacked?]
+  (let [fits? #(labels-fit? % width stacked?)]
     (loop [n (long n)]
       (let [[ticks labels :as answer] (pick n)]
         (cond
@@ -824,6 +836,8 @@
   ([domain pixel-range scale-spec spacing temporal-extent separators]
    (compute-ticks domain pixel-range scale-spec spacing temporal-extent separators false))
   ([domain pixel-range scale-spec spacing temporal-extent separators whole?]
+   (compute-ticks domain pixel-range scale-spec spacing temporal-extent separators whole? false))
+  ([domain pixel-range scale-spec spacing temporal-extent separators whole? stacked?]
    (if (scale/categorical-domain? domain)
      (let [user-breaks (:breaks scale-spec)
            user-labels (:tick-labels scale-spec)]
@@ -940,7 +954,8 @@
                    [dt-ticks labels] (temporal-ticks-that-fit
                                       pick n
                                       (Math/abs (double (- (second pixel-range)
-                                                           (first pixel-range)))))
+                                                           (first pixel-range))))
+                                      stacked?)
                    values (mapv resolve/temporal->epoch-ms dt-ticks)]
                {:values values :labels labels :categorical? false})))
 
@@ -964,7 +979,11 @@
          ;; reads are whole -- `scale/linear-ticks` states the rule for
          ;; this path and for `layout/ticks-at-budget`.
          (let [s (scale/make-scale domain pixel-range scale-spec)
-               ticks (scale/linear-ticks s n whole?)
+               width (Math/abs (double (- (second pixel-range)
+                                          (first pixel-range))))
+               ticks (scale/linear-ticks s n whole?
+                                         #(labels-fit? (scale/format-ticks s % separators)
+                                                       width stacked?))
                labels (scale/format-ticks s ticks separators)]
            {:values (vec ticks) :labels (vec labels) :categorical? false}))))))
 
@@ -1759,7 +1778,7 @@
                     ;; long would carry.
                     (let [{:keys [values labels]}
                           (compute-ticks [lo hi] [0.0 120.0] {:type :linear} 30
-                                         nil seps whole?)]
+                                         nil seps whole? true)]
                       (map (fn [v label]
                              {:value v :t (/ (- (double v) lo) (- hi lo)) :label label})
                            values labels)))
@@ -3154,7 +3173,7 @@
         y-ticks (when (and y-dom y-informed?)
                   (compute-ticks y-dom y-px y-scale
                                  (defaults/scale-setting :y :tick-spacing y-scale cfg)
-                                 y-te seps y-whole?))]
+                                 y-te seps y-whole? true))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
              :y-domain (vec (if (sequential? y-dom) y-dom [y-dom]))
              :x-scale x-scale

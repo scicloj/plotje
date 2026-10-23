@@ -89,7 +89,7 @@
       ;; ends up ticked at whole numbers is given a little more room
       ;; than it uses, never less.
       (let [s (scale/make-scale domain [0.0 (double pixel-budget)] scale-spec)
-            ticks (ws/ticks s n)
+            ticks (scale/at-least-two-ticks s n)
             labels (scale/format-ticks s ticks separators)]
         {:values (vec ticks) :labels (vec labels)}))))
 

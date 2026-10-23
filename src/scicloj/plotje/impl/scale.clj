@@ -907,6 +907,54 @@
                          {:step step :ticks ts :off (Math/abs (- (count ts) n))})]
         (:ticks (first (sort-by (juxt :off :step) candidates)))))))
 
+(defn at-least-two-ticks
+  "wadogo's ticks for `scale` asked for about `n`, or, where those are
+   fewer than two, the ticks for the smallest larger count that gives two.
+
+   wadogo picks one step from the span divided by `n`, rounded to 1, 2, 5
+   or 10 times a power of ten, so the count it answers can fall well
+   under `n`. At `n` two -- the count `tick-count` gives an axis under
+   twice its tick spacing, a facet panel or a narrow plot -- a span of
+   6.49 is given the step 5 and one tick: `[0.705 7.195]` was labelled
+   `5` alone, where asking for three gives `2 4 6`. One label says
+   nothing about the scale of the axis.
+
+   Asking for more ticks never gives fewer, so the first count that gives
+   two is the least change. Four always gives two: the rounding makes the
+   step at most 1.6 times the span over the count, so a span is at least
+   2.5 steps wide and holds two multiples of the step. The search stops
+   there; a domain of zero width still answers one tick. A count under
+   two is a request written as `:n-ticks` and is answered as asked.
+
+   `fits?`, where given, is asked of the ticks this adds: on a panel
+   about 70 drawing units wide, `[38 349]` asked for three gives `100
+   200 300`, three labels some 20 units wide on 23-unit steps that read
+   as one number. Where the larger count's ticks do not fit, every other
+   one of them is tried (`100 300`), and where those do not fit either,
+   wadogo's own answer stands. Ticks wadogo gives for `n` itself are
+   never checked; they are what the axis drew before this rule.
+
+   Read by `linear-ticks`, which draws the axis, and by
+   `layout/ticks-at-budget`, which measures the labels first."
+  ([scale n] (at-least-two-ticks scale n nil))
+  ([scale n fits?]
+   (let [n (long n)
+         fits? (or fits? (constantly true))
+         asked (vec (ws/ticks scale n))]
+     (if (or (>= (count asked) 2) (< n 2))
+       asked
+       (loop [k (inc n)]
+         (let [ts (vec (ws/ticks scale k))]
+           (cond
+             (>= (count ts) 2)
+             (let [every-other (vec (take-nth 2 ts))]
+               (cond
+                 (fits? ts) ts
+                 (and (>= (count every-other) 2) (fits? every-other)) every-other
+                 :else asked))
+             (>= k (max n 4)) ts
+             :else (recur (inc k)))))))))
+
 (defn linear-ticks
   "The ticks a linear axis draws across `[lo hi]`: wadogo's, or whole
    numbers where the values the axis reads are whole and wadogo's would
@@ -926,12 +974,16 @@
    is given as wadogo does, so ggplot2 draws 1, 1.5, 2, 2.5, 3 on the
    integers 1 to 3 (measured, 4.0.0); it lands on whole numbers for
    `[0 1 2 3]` because 0-1-2-3 scores well there, not because the
-   algorithm prefers them."
-  [scale n whole?]
-  (let [ts (vec (ws/ticks scale n))]
-    (if (and whole? (some #(and (number? %) (not (whole-number? %))) ts))
-      (or (whole-number-ticks (ws/domain scale) n) ts)
-      ts)))
+   algorithm prefers them.
+
+   `fits?` goes to `at-least-two-ticks`; the axis passes one and a
+   legend, which lays its labels on rows, does not."
+  ([scale n whole?] (linear-ticks scale n whole? nil))
+  ([scale n whole? fits?]
+   (let [ts (at-least-two-ticks scale n fits?)]
+     (if (and whole? (some #(and (number? %) (not (whole-number? %))) ts))
+       (or (whole-number-ticks (ws/domain scale) n) ts)
+       ts))))
 
 (defn ticks-inside-domain
   "The ticks of `ticks` that fall within `[lo hi]`.

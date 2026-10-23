@@ -1827,6 +1827,46 @@
       (is (= ["0" "10" "20" "30" "40" "50" "60" "70" "80" "90" "100"]
              (xl (-> {:x [0 50 100] :y [1 2 3]} (pj/lay-point :x :y))))))))
 
+(deftest a-narrow-axis-is-labelled-at-least-twice
+  ;; wadogo asked for two ticks over a span of 6.49 takes the step 5 and
+  ;; answers one tick; a facet panel or a narrow plot asks for two.
+  (testing "the picker asks for more ticks until two are given"
+    (let [s (scale/make-scale [0.705 7.195] [0.0 150.0] {})]
+      (is (= [2.0 4.0 6.0] (mapv double (scale/at-least-two-ticks s 2))))
+      (is (= [2.0 4.0 6.0] (mapv double (scale/linear-ticks s 2 false))))))
+  (testing "a set that already has two is unchanged"
+    (let [s (scale/make-scale [10.4 45.6] [0.0 150.0] {})]
+      (is (= [20.0 40.0] (mapv double (scale/at-least-two-ticks s 2))))))
+  (testing "an :n-ticks of one is answered as asked"
+    (let [s (scale/make-scale [0.705 7.195] [0.0 150.0] {})]
+      (is (= 1 (count (scale/at-least-two-ticks s 1))))))
+  (testing "the faceted iris petal length axis reads 2 4 6 in every panel"
+    (let [plan (-> (rdatasets/datasets-iris)
+                   (pj/pose :petal-length)
+                   pj/lay-density
+                   (pj/facet :species)
+                   pj/plan)]
+      (is (= [["2" "4" "6"] ["2" "4" "6"] ["2" "4" "6"]]
+             (mapv #(vec (get-in % [:x-ticks :labels])) (:panels plan))))))
+  (testing "ticks added to a narrow axis are kept only where their labels fit"
+    ;; A 400-wide matrix of four mtcars columns, the size metamorph.ml's
+    ;; pair-plot draws: the hp cells are about 60 units wide over 38 to
+    ;; 349, where three ticks read "100200300". Every other one fits.
+    (let [cols [:mpg :hp :wt :qsec]
+          plan (-> (rdatasets/datasets-mtcars)
+                   (tc/select-columns cols)
+                   (pj/cross-matrix cols)
+                   (pj/options {:width 400 :height 400})
+                   pj/plan)
+          bottom-hp (some #(when (= [3 1] (:path %)) %) (:sub-plots plan))
+          left-hp (some #(when (= [1 0] (:path %)) %) (:sub-plots plan))]
+      (is (= ["100" "300"]
+             (-> bottom-hp :plan :panels first :x-ticks :labels vec)))
+      ;; On :y the labels are stacked and need only their height, so the
+      ;; same axis keeps all three.
+      (is (= ["100" "200" "300"]
+             (-> left-hp :plan :panels first :y-ticks :labels vec))))))
+
 (deftest a-legend-and-its-axis-label-one-column-the-same-way
   ;; The whole-number rule went into `scale/linear-ticks`, which the
   ;; axis path read and `nice-legend-values` did not, so one column of
