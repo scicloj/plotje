@@ -577,7 +577,22 @@
                  (msg (pj/arrange [(cell :fast) (pj/scale (cell :slow) :y :log)]
                                   {:share-scales {:y :all}}))))
     (is (not (re-find #"type-temporal|\[\["
-                      (msg (pj/arrange [(cell :fast) (cell :kind)] {:share-scales {:y [[:fast :kind]]}})))))))
+                      (msg (pj/arrange [(cell :fast) (cell :kind)] {:share-scales {:y [[:fast :kind]]}})))))
+    (testing "a scale type written on a layer is read as one written on the pose is"
+      (let [log-layer (pj/lay-point cars :size {:y {:column :slow :scale :log}})
+            log-pose (-> cars (pj/pose {:x :size :y {:column :slow :scale :log}}) pj/lay-point)
+            linear (pj/lay-point cars :size :slow)]
+        (doseq [log-cell [log-layer log-pose]]
+          (is (re-find #"cannot share :y.*differ in scale type: (log and linear|linear and log)"
+                       (str (msg (pj/arrange [log-cell linear] {:share-scales #{:y}}))))))
+        (testing "and two cells both drawing a log axis share it"
+          (let [ys (map second (domains (pj/arrange [log-layer log-layer] {:share-scales #{:y}})))]
+            (is (apply = ys))))
+        (testing "a layer naming no scale type reads the type the pose names"
+          (is (re-find #"differ in scale type"
+                       (str (msg (pj/arrange [(-> cars (pj/pose {:y {:scale :log}}) (pj/lay-point :size :slow))
+                                              linear]
+                                             {:share-scales #{:y}}))))))))))
 
 (deftest cells-sharing-an-axis-agree-after-the-text-fit-test
   ;; Each cell is widened for its own labels; the cells sharing the
@@ -610,3 +625,30 @@
                         (:sub-plots (pj/plan pose))))]
     (is (pos? (first (y-ticks split))))
     (is (zero? (second (y-ticks split))))))
+
+(deftest a-message-about-sharing-suggests-a-form-that-draws-test
+  (let [cell (fn [y] (pj/lay-point cars {:x :size :y y}))
+        printed (fn [pose] (let [sw (java.io.StringWriter.)]
+                             (binding [*out* sw] (pj/plan pose))
+                             (str sw)))
+        msg (fn [pose] (try (binding [*out* (java.io.StringWriter.)] (pj/plan pose)) nil
+                            (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+    (testing "columns of one type: the warning names a group, and the group draws"
+      (let [out (printed (pj/arrange [(cell :fast) (cell :slow)] {:share-scales #{:y}}))]
+        (is (re-find #"name them as a group: \{:share-scales \{:y \[\[:fast :slow\]\]\}\}" out))
+        (is (nil? (msg (pj/arrange [(cell :fast) (cell :slow)] {:share-scales {:y [[:fast :slow]]}}))))
+        (is (nil? (msg (pj/arrange [(cell :fast) (cell :slow)] {:share-scales {:y :all}}))))))
+    (testing "columns of two types: the warning names no group, and says why"
+      (let [out (printed (pj/arrange [(cell :fast) (cell :kind)] {:share-scales #{:y}}))]
+        (is (re-find #"no two cells share :y" out))
+        (is (re-find #"cannot share :y as a group either: they differ in column type" out))
+        (is (not (re-find #"name them as a group|:all\} shares" out)))))
+    (testing "cells specifying different domains: each way out the message names draws"
+      (let [dom (fn [d] (pj/lay-point cars {:x :size :y {:column :fast :scale {:domain d}}}))
+            m (msg (pj/arrange [(dom [0 100]) (dom [0 50])] {:share-scales #{:y}}))]
+        (is (re-find #"Keep the :domain on one of these cells and take it off the others" m))
+        (is (re-find #"take it off every cell and specify it once on the arrangement" m))
+        (is (not (re-find #"reaches every cell that specifies none of its own" m)))
+        (is (nil? (msg (pj/arrange [(dom [0 100]) (cell :fast)] {:share-scales #{:y}}))))
+        (is (nil? (msg (-> (pj/arrange [(cell :fast) (cell :fast)] {:share-scales #{:y}})
+                           (pj/scale :y {:domain [0 100]})))))))))

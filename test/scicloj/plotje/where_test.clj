@@ -53,3 +53,18 @@
     (is (= (pj/plot (pj/facet base :n))
            (pj/plot (assoc base :layout {:direction :horizontal}
                            :poses [{:where {:n 1.0}} {:where {:n 2.0}}]))))))
+
+(deftest a-set-valued-filter-labels-its-strip-by-its-members-test
+  ;; The strip of a cell filtered by a set printed the set, `#{"b" "a"}`.
+  (let [strips (fn [cells]
+                 (-> (pj/lay-point d :x :y)
+                     (assoc :layout {:direction :horizontal} :poses cells)
+                     pj/draft
+                     (get-in [:chrome-spec :col-labels])))]
+    (testing "its members in the order the data holds them, joined by a comma"
+      (is (= ["a, b" "c"] (strips [{:where {:g #{"b" "a"}}} {:where {:g "c"}}])))
+      (is (= ["b, c" "a"] (strips [{:where {:g #{"c" "b"}}} {:where {:g "a"}}]))))
+    (testing "numbers are formatted as a single value is"
+      (is (= ["1.0, 4.0" "2.0"] (strips [{:where {:x #{4.0 1.0}}} {:where {:x 2.0}}]))))
+    (testing "a single value is labelled as before"
+      (is (= ["b" "a" "c"] (strips [{:where {:g "b"}} {:where {:g "a"}} {:where {:g "c"}}]))))))

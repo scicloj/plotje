@@ -97,13 +97,18 @@
                                        " in the cell drawing " (pr-str (column-of a))
                                        " and " (pr-str (vec (specified b)))
                                        " in the cell drawing " (pr-str (column-of b))
-                                       ". A shared axis has one domain. Specify one domain"
-                                       " for the cells sharing " shared-axis
+                                       ". A shared axis has one domain. Keep the :domain"
+                                       " on one of these cells and take it off the"
+                                       " others"
+                                       ;; A scale on the arrangement reaches only
+                                       ;; the cells specifying none, so on these
+                                       ;; cells as they stand it changes nothing.
                                        (when-not (some flipped? ms)
-                                         (str " -- (pj/scale <the arrangement> " shared-axis
-                                              " {:domain ...}) reaches every cell that"
-                                              " specifies none of its own --"))
-                                       " or leave " shared-axis " out of :share-scales and"
+                                         (str ", or take it off every cell and specify"
+                                              " it once on the arrangement, (pj/scale"
+                                              " <the arrangement> " shared-axis
+                                              " {:domain ...})"))
+                                       "; or leave " shared-axis " out of :share-scales and"
                                        " each cell keeps its own.")
                                   {:caller "share-scales"
                                    :axis shared-axis
@@ -716,6 +721,52 @@
       (assoc :align-panels true
              :align-direction (align-direction composite)))))
 
+(defn- cell-too-small
+  "The error for a cell of an arrangement too small to draw its panels,
+   from the error its own plan raised (`layout/too-small-error`).
+
+   A cell's width and height are its share of the arrangement's, so the
+   cell's own message -- \"The plot's height, 40 ... Increase :height\"
+   -- names a size nobody wrote and an option that is not read on a
+   cell. This names the arrangement's size, how many rows or columns of
+   cells divide it, and where the size is written."
+  [e {:keys [rect path]} sub-drafts width height]
+  (let [d (ex-data e)
+        across? (contains? d :panel-width)
+        {:keys [overhead breakdown]} (:too-small d)
+        [_ _ rw rh] rect
+        r #(Math/round (double %))
+        ;; Rows and columns of cells, where the arrangement is one grid:
+        ;; a row of cells, or rows of cells.
+        grid? (every? #(<= (count (:path %)) 2) sub-drafts)
+        n (when grid?
+            (if across?
+              (reduce max 1 (vals (frequencies (map #(r (second (:rect %))) sub-drafts))))
+              (count (distinct (map #(r (second (:rect %))) sub-drafts)))))
+        dim (if across? "width" "height")
+        total (if across? width height)
+        cell (if across? rw rh)]
+    (ex-info
+     (str "A cell of this arrangement is " (r cell) (if across? " wide" " high")
+          ", which leaves no room for its panel: the arrangement's " dim ", " (r total)
+          ", is divided among "
+          (if n
+            (str n (if across?
+                     (if (= 1 n) " column" " columns")
+                     (if (= 1 n) " row" " rows"))
+                 " of cells")
+            "its cells")
+          ", and the cell's labels and legend take " (r overhead) " (" breakdown
+          "). An arrangement keeps its " dim " however many cells it holds."
+          " Give the arrangement more " dim ", as in (pj/arrange cells {:" dim " ...})"
+          " or (pj/options arrangement {:" dim " ...})"
+          (if across?
+            ", or fewer cells in a row with a smaller :cols."
+            ", or fewer rows with a larger :cols."))
+     (assoc d :caller "pj/arrange" :path path :cell-rect rect
+            :width width :height height)
+     e)))
+
 (defn composite-draft->plan
   "Convert a CompositeDraft into a CompositePlan. Per sub-draft, this
    calls draft->plan to produce a leaf plan and wraps it with its rect
@@ -734,11 +785,20 @@
         ;; above all -- are resolved where the drawables are made, and
         ;; the composite used to hand every cell its own options there,
         ;; so a per-cell `{:theme {:bg ...}}` was accepted and dropped.
-        plan-sub (fn [{:keys [path rect draft opts]}]
+        plan-sub (fn [{:keys [path rect draft opts] :as sub}]
                    {:path path
                     :rect rect
                     :opts opts
-                    :plan (plan/draft->plan draft opts)})
+                    :plan (try
+                            (plan/draft->plan draft opts)
+                            (catch clojure.lang.ExceptionInfo e
+                              ;; A size the cell pins itself is the
+                              ;; cell's own, and its message stands.
+                              (throw (if (and (:too-small (ex-data e))
+                                              (not (:facet (ex-data e)))
+                                              (not (or (:panel-width opts) (:panel-height opts))))
+                                       (cell-too-small e sub sub-drafts width height)
+                                       e))))})
         ;; Each cell's unread-option warnings are collected rather
         ;; than printed, and a line is printed only where every cell
         ;; raised it -- see `plan/*unread-option-warnings*`. The
@@ -843,9 +903,20 @@
         axis-titles (when-let [axes (seq (:axis-title-axes chrome-spec))]
                       (when-let [sub (first sub-drafts)]
                         (let [p (binding [plan/*unread-option-warnings* (atom [])]
-                                  (plan/draft->plan (:draft sub)
-                                                    (dissoc (:opts sub) :suppress-x-label
-                                                            :suppress-y-label)))]
+                                  ;; Planned at the cell's own size, so a
+                                  ;; cell too narrow for its titles is
+                                  ;; reported here although the titles
+                                  ;; are drawn beside the grid: fifteen
+                                  ;; cells in a row of 600 fit without
+                                  ;; them, on panels a few units wide.
+                                  (try
+                                    (plan/draft->plan (:draft sub)
+                                                      (dissoc (:opts sub) :suppress-x-label
+                                                              :suppress-y-label))
+                                    (catch clojure.lang.ExceptionInfo e
+                                      (throw (if (:too-small (ex-data e))
+                                               (cell-too-small e sub sub-drafts width height)
+                                               e)))))]
                           (into {} (keep (fn [k]
                                            (when-let [t (get p (if (= k :x) :x-label :y-label))]
                                              [k t])))

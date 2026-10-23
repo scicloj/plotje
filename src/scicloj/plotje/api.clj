@@ -4307,6 +4307,8 @@
 
 ;; ---- Multi-Plot Composition ----
 
+(defn- column-ref? [x] (or (keyword? x) (string? x)))
+
 (defn- coerce-arrange-input
   "Turn one pj/arrange input into a pose-shaped plain map. Accepts a
    leaf pose, a composite pose, which nests, and `nil`, a cell left
@@ -4336,6 +4338,28 @@
       ;; carries (see `pose/resolve-tree`).
       (nil? p) (assoc (pose) :plotje/empty-cell true)
 
+      ;; An empty vector holds no cell. `nil` is the cell left empty.
+      (and (sequential? p) (empty? p))
+      (throw (ex-info (str prefix " is an empty vector. A cell left empty is"
+                           " written nil, as in (pj/arrange [a nil b]).")
+                      {:index idx :type (type p)}))
+
+      ;; Columns and nothing else: one, or three or more. A pair was
+      ;; read as a cell before it came here (`shorthand-cell`), so this
+      ;; is not rendered hiccup, whose head is a keyword too.
+      (and (sequential? p) (every? column-ref? p))
+      (throw (ex-info (if (= 2 (count p))
+                        ;; With data first a pair is a cell by now.
+                        (str prefix " is a pair of columns, " (pr-str (vec p))
+                             ", and pj/arrange was given no data to read them"
+                             " from. Give the data first: (pj/arrange data cells).")
+                        (str prefix " is a vector of " (count p)
+                             (if (= 1 (count p)) " column, " " columns, ") (pr-str (vec p))
+                             ". A cell drawing one column is the column itself, "
+                             (pr-str (first p)) ", and a cell drawing two is a pair,"
+                             " as in [:a :b]."))
+                      {:index idx :columns (vec p)}))
+
       (and (vector? p) (keyword? (first p)))
       (throw (ex-info (str prefix " looks like rendered hiccup (head: "
                            (pr-str (first p)) "). pj/arrange takes "
@@ -4345,11 +4369,12 @@
                       {:index idx :head (first p)}))
 
       (vector? p)
-      (throw (ex-info (str prefix " is a plain vector. pj/arrange takes "
-                           "poses; if you have a sequence of poses, "
-                           "splice them in (e.g. (apply pj/arrange poses)) "
-                           "or use the nested form for an explicit grid: "
-                           "(pj/arrange [[a b] [c d]]).")
+      (throw (ex-info (str prefix " is a plain vector, and a cell is a pose"
+                           " or nil. pj/arrange takes its cells in one flat"
+                           " vector, (pj/arrange [a b c]) -- cells held in"
+                           " several vectors go in with (into [a] more) -- or"
+                           " as rows for an explicit grid, every element a"
+                           " row: (pj/arrange [[a b] [c d]]).")
                       {:index idx :type (type p)}))
 
       (map? p)
@@ -4381,7 +4406,6 @@
 ;; Cell shorthand for `pj/arrange`: a column is a univariate panel, a
 ;; pair of columns is a bivariate one, and a pose followed by one or two
 ;; columns is that pose extended. Anything else is left as it is.
-(defn- column-ref? [x] (or (keyword? x) (string? x)))
 
 (defn- shorthand-cell
   "The pose-shaped cell a shorthand cell stands for, or nil when `c`
@@ -4414,6 +4438,31 @@
                   c)))
           cells)))
 
+(defn- check-arrange-arguments!
+  "Report cells given one by one, `(pj/arrange a b)`, and an options
+   argument that is no options map. The cell list is one sequential
+   argument; a pose is a map, and read as a cell list its entries were
+   reported as rendered hiccup."
+  [cells opts]
+  (let [describe (fn [x] (cond (pose? x) "a pose"
+                               (nil? x) "nil"
+                               (map? x) "a map"
+                               :else (str "a " (.getSimpleName (class x)))))]
+    (when-not (sequential? cells)
+      (throw (ex-info (str "pj/arrange takes its cells in one vector, as in"
+                           " (pj/arrange [a b]), and its options in a map"
+                           " after it. It was given " (describe cells)
+                           " where the vector of cells goes"
+                           (when (pose? opts) ", and a pose after it")
+                           ".")
+                      {:caller "pj/arrange"})))
+    (when (or (pose? opts) (not (or (nil? opts) (map? opts))))
+      (throw (ex-info (str "pj/arrange takes its cells in one vector and its"
+                           " options in a map after it, as in (pj/arrange"
+                           " [a b] {:cols 1}). It was given " (describe opts)
+                           " where the options map goes.")
+                      {:caller "pj/arrange"})))))
+
 (defn- arrange-from-pose
   "Arrange `cells` beside what the pose `p` already holds."
   [p cells opts]
@@ -4444,7 +4493,11 @@
    build your own `[:div ...]` if you need to combine already-rendered
    values outside the library.
 
-   Opts:
+   Opts are the options below and any plot option `pj/options` takes:
+   `(arrange cells {:x-label \"X\"})` is
+   `(-> (arrange cells) (pj/options {:x-label \"X\"}))`, and the option
+   reaches every cell that does not set it. A key that is neither is
+   reported, as `pj/options` reports one.
 
    - `:cols` -- explicit column count (default: min(4, n-plots)).
    - `:title` -- centered title band above the grid.
@@ -4503,24 +4556,66 @@
   ([plots-or-data opts-or-cells]
    (if (sequential? opts-or-cells)
      (arrange plots-or-data opts-or-cells {})
-     (arrange* plots-or-data opts-or-cells)))
+     (do (check-arrange-arguments! plots-or-data opts-or-cells)
+         (arrange* plots-or-data opts-or-cells))))
   ([data-or-pose cells opts]
    (if (pose? data-or-pose)
      (arrange-from-pose data-or-pose cells opts)
      (-> (arrange* (normalize-arrange-cells cells) opts)
          (with-data data-or-pose)))))
 
+(def ^:private arrange-own-option-keys
+  "The options `pj/arrange` takes that `pj/options` does not."
+  #{:cols :align-panels})
+
+(def ^:private arrange-written-option-keys
+  "The options `arrange*` writes itself: its own, and the plot options
+   it reads to build the composite. Any other plot option goes through
+   `pj/options`."
+  (into arrange-own-option-keys
+        #{:title :subtitle :caption :width :height :share-scales}))
+
 (defn- arrange*
   "Build the composite from a cell list and options. `pj/arrange` is
    the public face and decides which of its arguments is data."
   ([plots opts]
    (let [cfg (defaults/config)
+         ;; The options map is `pj/arrange`'s own options and the plot
+         ;; options `pj/options` takes, as the map after a facet is. A
+         ;; key that is neither is reported the way `pj/options` reports
+         ;; one -- a warning, an error under `:strict` -- and not
+         ;; dropped with no message.
+         opts (retire-scales "pj/arrange" opts)
+         opts (warn-and-strip-unknown-opts "pj/arrange" opts
+                                           (into plot-options-keys arrange-own-option-keys))
          {:keys [cols title subtitle caption share-scales align-panels]
           :or {share-scales #{}}} opts
          _ (defaults/check-share-scales! "pj/arrange" share-scales)
          nested? (and (sequential? plots)
                       (sequential? (first plots))
                       (not (keyword? (ffirst plots))))
+         ;; A list of rows is rows throughout, and no row is empty. A
+         ;; cell beside the rows was spliced into the cell list entry by
+         ;; entry and reported as rendered hiccup; an empty first row
+         ;; gave a column count of zero; an empty last row was drawn as
+         ;; an empty band.
+         _ (when nested?
+             (doseq [[i row] (map-indexed vector plots)]
+               (cond
+                 (not (and (sequential? row) (not (map? row))))
+                 (throw (ex-info (str "pj/arrange was given rows of cells -- its"
+                                      " first element is a vector -- and element "
+                                      i " is not a row. Write every row as a"
+                                      " vector, (pj/arrange [[a b] [c d]]), or the"
+                                      " cells in one flat vector, (pj/arrange"
+                                      " [a b c d] {:cols 2}).")
+                                 {:caller "pj/arrange" :index i}))
+                 (empty? row)
+                 (throw (ex-info (str "pj/arrange was given rows of cells, and row "
+                                      i " is an empty vector. A row holds at least"
+                                      " one cell; a cell left empty is written nil,"
+                                      " as in (pj/arrange [[a b] [nil c]]).")
+                                 {:caller "pj/arrange" :index i})))))
          rows-in (if nested? (vec plots) [(vec plots)])
          flat-plots (vec (apply concat rows-in))
          n-plots (count flat-plots)
@@ -4582,8 +4677,13 @@
                             align-panels (assoc :align-panels true))
                     :layout {:direction :vertical}
                     :poses row-poses}]
-     (kind/fn composite
-       {:kindly/f (render-composite defaults/*config*)}))))
+     (cond-> (kind/fn composite
+               {:kindly/f (render-composite defaults/*config*)})
+       ;; Every other plot option is written on the arrangement, as
+       ;; `pj/options` writes it, and reaches every cell that does not
+       ;; set it.
+       (seq (apply dissoc opts arrange-written-option-keys))
+       (options (apply dissoc opts arrange-written-option-keys))))))
 
 ;; ---- Save ----
 

@@ -148,7 +148,7 @@
       (let [e (report (pj/facet p :model))]
         (is (re-find #"a facet by :model, which holds 38 values and draws them in one row"
                      (ex-message e)))
-        (is (re-find #"does not wrap its panels.*\(pj/arrange poses \{:cols 4\}\)" (ex-message e)))
+        (is (re-find #"does not wrap its panels.*\(pj/arrange poses \{:cols 4 :height 1200\}\)" (ex-message e)))
         (is (= {:facet :model :values 38} (select-keys (ex-data e) [:facet :values]))))
       (is (re-find #"in one column" (ex-message (report (pj/facet p :model :row))))))
     (testing "a plot too small with no facet keeps its message"
@@ -158,7 +158,7 @@
                           (pj/arrange (mapv (fn [m] (pj/lay-point (tc/select-rows mpg #(= m (:model %)))
                                                                   :displ :hwy))
                                             (distinct (:model mpg)))
-                                      {:cols 4 :width 900 :height 1400}))))))))
+                                      {:cols 4 :height 1200}))))))))
 
 (deftest pose-is-idempotent-test
   (doseq [[label base _] cases]

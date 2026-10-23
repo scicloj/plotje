@@ -690,7 +690,12 @@
           (if across? (if (= 1 grid-n) "column" "columns") (if (= 1 grid-n) "row" "rows"))
           " of panels. Increase :" dim ", set :" (name axis) " directly, or lower"
           " :min-panel-size for a sparkline-sized plot.")
-     {axis computed})))
+     ;; `:too-small` carries the parts of the message, for a caller that
+     ;; knows more about where the plot's size came from -- a cell of an
+     ;; arrangement is given its size (`compositor/cell-too-small`).
+     {axis computed
+      :too-small {:total total :overhead horiz-overhead :grid-n grid-n
+                  :breakdown component-breakdown}})))
 
 (defn compute-dims
   "Derive panel-width, panel-height, total-width, total-height from

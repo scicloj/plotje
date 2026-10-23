@@ -750,8 +750,20 @@
         coord (let [c (or (get-in leaf [:opts :coord]) :cartesian)]
                 (if (= :flip c) :cartesian c))
         ;; The mapping is where a scale lives, whether it was written
-        ;; there or set with `pj/scale`.
-        scale-type (or (mapping-scale-type (get-in leaf [:mapping axis]))
+        ;; there or set with `pj/scale` -- the leaf's mapping or a
+        ;; layer's, which a layer naming its own column carries. The
+        ;; plan reads the scale of an axis from the first draft layer
+        ;; naming one (`plan/resolve-panel-domains`), and a draft
+        ;; layer's scale is the layer's own with the leaf's beneath it
+        ;; (`merge-mapping-value`), so this reads the same: the first
+        ;; layer whose own mapping, or the leaf's beneath it, names a
+        ;; type.
+        own-type (mapping-scale-type (get-in leaf [:mapping axis]))
+        scale-type (or (some (fn [layer]
+                               (or (mapping-scale-type (get-in layer [:mapping axis]))
+                                   own-type))
+                             (:layers leaf))
+                       own-type
                        :linear)
         ds (:data leaf)
         type-temporal (if (counted-key? col)
@@ -901,22 +913,35 @@
                      (not-any? #(next (:pairs %)) buckets)
                      (every? #(= 1 (count %))
                              (vals (dissoc (axis-buckets subtree axis) nil)))
-                     (not-any? other drawn))]
+                     (not-any? other drawn))
+          ;; A group of these columns, or `:all`, is suggested only
+          ;; where it would be accepted: the cells are checked as
+          ;; `validate-share-bucket-compatibility!` would check them
+          ;; under that group.
+          :let [share-keys (set (for [{:keys [pairs]} buckets
+                                      [col leaf] pairs]
+                                  (leaf-share-key leaf axis col)))
+                cannot (when (next share-keys)
+                         (str " The cells cannot share " axis " as a group either:"
+                              " they differ in " (describe-share-conflict share-keys)
+                              ". Leave " axis " out of :share-scales."))]]
     (println
      (str "Warning: :share-scales shares " axis
           (if (sequential? how)
             (str " between the columns of " (pr-str how)
                  ", and the cells draw " drawn-text
-                 " there, each in one cell, so no two cells share " axis
-                 ". Name the columns the cells draw, as in {"
-                 axis " " (pr-str [drawn]) "}.")
+                 " there, each in one cell, so no two cells share " axis "."
+                 (or cannot
+                     (str " Name the columns the cells draw, as in {"
+                          axis " " (pr-str [drawn]) "}.")))
             (str " among the cells drawing the same column, and the cells"
                  " draw " drawn-text
-                 " there, each in one cell, so no two cells share " axis
-                 ". To share " axis " between columns that measure one"
-                 " quantity, name them as a group: {:share-scales {"
-                 axis " " (pr-str [drawn]) "}}; {" axis
-                 " :all} shares it between every cell."))))))
+                 " there, each in one cell, so no two cells share " axis "."
+                 (or cannot
+                     (str " To share " axis " between columns that measure one"
+                          " quantity, name them as a group: {:share-scales {"
+                          axis " " (pr-str [drawn]) "}}; {" axis
+                          " :all} shares it between every cell."))))))))
 
 (declare share-axes share-spec)
 
@@ -3467,12 +3492,28 @@
             all-cells (apply concat grid)
             common (apply clojure.set/intersection (map entries all-cells))
             key-order (vec (distinct (mapcat (comp keys where-of) all-cells)))
+            ;; A filter value that is a set keeps the rows of any of
+            ;; its members, and is labelled by them: each formatted as a
+            ;; category is, in the order the data holds them where the
+            ;; composite carries the data, joined by a comma. Printed
+            ;; whole it read `#{"4" "f"}`.
+            value-label (fn [k v]
+                          (if (set? v)
+                            (let [order (data-category-order (:data composite) [k])
+                                  rank (fn [x] (or (first (keep-indexed
+                                                           (fn [i o] (when (same-value? o x) i))
+                                                           order))
+                                                   (count order)))]
+                              (str/join ", " (map defaults/fmt-category-label
+                                                  (sort-by (juxt rank str) v))))
+                            v))
             label (fn [cells]
                     (let [m (into {} (clojure.set/difference
                                       (apply clojure.set/intersection (map entries cells))
                                       common))]
                       (when (seq m)
-                        (facet-label (keep #(when (contains? m %) (m %)) key-order)))))
+                        (facet-label (keep #(when (contains? m %) (value-label % (m %)))
+                                           key-order)))))
             n-rows (count grid)
             n-cols (count (first grid))
             col-labels (when (> n-cols 1)

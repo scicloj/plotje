@@ -3714,8 +3714,15 @@
                                              ": a facet does not wrap its panels. For"
                                              " several rows of panels, arrange one"
                                              " pose per value, each drawing the rows"
-                                             " of that value: (pj/arrange poses"
-                                             " {:cols 4}).")
+                                             " of that value, and give the"
+                                             " arrangement a height its rows fit in:"
+                                             " (pj/arrange poses {:cols 4 :height "
+                                             ;; 120 for each row of four: the
+                                             ;; cells of an arrangement divide
+                                             ;; its height, which does not grow
+                                             ;; with its rows.
+                                             (* 120 (long (Math/ceil (/ n 4.0))))
+                                             "}).")
                                         (assoc (ex-data e) :facet column :values n)
                                         e)
                                        e)))))}))
