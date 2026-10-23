@@ -191,15 +191,13 @@
   (rdatasets/datasets-iris)
   (pj/lay-point :petal-length :petal-width {:color :species})
   (pj/options
-   {:width 500,
-    :height 350,
-    :title "Iris Petals",
+   {:title "Iris Petals",
     :x-label "Petal Length (cm)",
     :y-label "Petal Width (cm)"})))
 
 
 (deftest
- t46_l197
+ t46_l196
  (is
   ((fn
     [v]
@@ -213,7 +211,7 @@
 
 
 (def
- v48_l206
+ v48_l205
  (pj/arrange
   [(pj/lay-point
     (rdatasets/datasets-iris)
@@ -227,11 +225,11 @@
   {:cols 2}))
 
 
-(deftest t49_l210 (is ((fn [v] (pj/pose? v)) v48_l206)))
+(deftest t49_l209 (is ((fn [v] (pj/pose? v)) v48_l205)))
 
 
 (def
- v51_l223
+ v51_l222
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -239,12 +237,12 @@
 
 
 (deftest
- t52_l227
- (is ((fn [v] (and (vector? v) (= :svg (first v)))) v51_l223)))
+ t52_l226
+ (is ((fn [v] (and (vector? v) (= :svg (first v)))) v51_l222)))
 
 
 (def
- v54_l235
+ v54_l234
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -253,8 +251,8 @@
 
 
 (deftest
- t55_l240
- (is ((fn [v] (and (vector? v) (= :svg (first v)))) v54_l235)))
+ t55_l239
+ (is ((fn [v] (and (vector? v) (= :svg (first v)))) v54_l234)))
 
 
 (def
@@ -265,4 +263,6 @@
   (pj/save "/tmp/iris-scatter.svg")))
 
 
-(deftest t58_l250 (is ((fn [p] (.exists p)) v57_l246)))
+(deftest
+ t58_l250
+ (is ((fn [p] (and (instance? java.io.File p) (.exists p))) v57_l246)))

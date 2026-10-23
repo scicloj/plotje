@@ -64,8 +64,27 @@
                  ;; four slots, the empty one included
                  (= #{[0 0] [0 1] [1 0] [1 1]} (set (keys layout))))))])
 
+;; `pj/arrange` also takes data first, with columns as its cells: a
+;; pair of columns is a panel drawing the first column on `:x` and the
+;; second on `:y`, and a single column is a panel drawing that column.
+;; The layers are added afterwards, once, and are drawn in every cell:
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [[:sepal-length :sepal-width]
+                 [:sepal-length :petal-length]])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 300 (:points s))
+                                (= 1 (count (filter #{"sepal length"} (:texts s)))))))])
+
+;; The two cells read one dataset, so the two cells share the `:x` axis
+;; on which both draw `:sepal-length`, and that axis is titled once (see
+;; Shared Scales below).
+;;
 ;; `pj/arrange` divides space equally among its sub-poses. For
-;; unequal splits (e.g., give the first panel twice the space of the
+;; unequal splits (e.g., give the first cell twice the width of the
 ;; second), construct the composite as an explicit map; the next
 ;; section shows how.
 
@@ -78,7 +97,7 @@
 ;;
 ;; An explicit `:layout` accepts `:direction` (`:horizontal` or
 ;; `:vertical`) and `:weights` (one weight per sub-pose). Here the
-;; first panel gets twice the space of the second:
+;; first cell gets twice the width of the second:
 
 (def weighted
   (pj/pose
@@ -94,9 +113,15 @@
 
 weighted
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               right-edges (mapv (fn [{{[x _ w _] :panel-box} :frames}] (+ x w))
+                                                 (:panels (pj/frames v)))]
                            (and (= 2 (:panels s))
-                                (= 300 (:points s)))))])
+                                (= 300 (:points s))
+                                ;; The cells split the 600-wide canvas at 400:
+                                ;; each cell's y-axis margin comes out of its
+                                ;; own share, so the panels are not 2 to 1.
+                                (= [400.0 600.0] right-edges))))])
 
 ;; And printed, showing the composite's structure -- `:layout` with
 ;; direction and weights at the top, then each sub-pose with its
@@ -114,39 +139,49 @@ weighted
 
 ;; ## Shared Scales
 ;;
-;; By default, sibling poses in a composite compute their own
-;; domains. That is fine when their columns differ, but for the same
-;; column shown twice (e.g., a marginal above a scatter, or a mosaic
-;; of scatters all measuring the same variable) you want the axes
-;; aligned. `:share-scales` names the axes the siblings share, and the
-;; siblings drawing the same column on such an axis are given one
-;; range:
+;; Two cells that draw the same column are often read against each
+;; other -- a marginal above a scatter, or one measurement shown for
+;; several groups -- and then the two cells need one range on that
+;; axis. Whether cells share an axis by default depends on where they
+;; read their data. Cells that read the data of the pose holding them
+;; -- a composite written with `:data` at its root, as above, or
+;; `(pj/arrange data [...])` -- share each axis on which they draw the
+;; same column, as the panels of a facet do. Cells that each carry data
+;; of their own, as in `(pj/arrange [pose-a pose-b])`, compute their
+;; own domains. `:share-scales` names the axes the cells share,
+;; whichever the default was, and the cells drawing the same column on
+;; such an axis are given one range. Below, each cell holds the rows of
+;; one species, and `:x` is shared:
 
-(def shared-x
-  (pj/pose
-   {:share-scales #{:x}
-    :layout {:direction :horizontal :weights [1 1]}
-    :poses [{:mapping {:x :sepal-length :y :sepal-width}
-             :layers [{:layer-type :point}]}
-            {:mapping {:x :sepal-length :y :petal-length}
-             :layers [{:layer-type :point}]}]
-    :data (rdatasets/datasets-iris)}))
+(pj/arrange
+ [(-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "setosa" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width))
+  (-> (rdatasets/datasets-iris)
+      (tc/select-rows #(= "virginica" (:species %)))
+      (pj/lay-point :sepal-length :sepal-width))]
+ {:share-scales #{:x}})
 
-shared-x
+(kind/test-last
+ [(fn [v] (let [domains (fn [pose axis]
+                          (mapv #(-> % :plan :panels first axis)
+                                (:sub-plots (pj/plan pose))))]
+            (and (apply = (domains v :x-domain))
+                 ;; :y is not named, so each cell keeps its own
+                 (apply not= (domains v :y-domain))
+                 ;; without the option, the two :x domains differ
+                 (apply not= (domains (update v :opts dissoc :share-scales)
+                                      :x-domain)))))])
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (= 300 (:points s)))))])
-
+;; Both cells are drawn on one `:x` range, and each cell keeps its own
+;; `:y` range, because `:share-scales` names `:x` only. Only cells
+;; drawing the same column on `:x` share that axis: two cells drawing
+;; different columns there each keep their own range.
+;;
 ;; A date column pools the same way -- an axis holds a date as a number
 ;; of milliseconds, so the union across cells is defined, and the cells
 ;; are ticked over it rather than each over its own dates. See
 ;; [Change Over Time](./plotje_book.change_over_time.html#two-series-on-one-date-axis).
-;;
-;; Both panels share the sepal-length x-domain even though their y
-;; columns differ. Column bucketing is automatic: only siblings whose
-;; effective x-column matches share a scale. Panels with different
-;; x-columns would each get their own domain.
 
 ;; ### What a Shared Axis Covers
 ;;
@@ -234,8 +269,9 @@ shared-x
                (mapv #(mapv double (:x-domain %)) panels))))])
 
 ;; Two cells that specify different domains for one shared axis report
-;; an error naming both. `(pj/scale arrangement :x {:domain [0 10]})`
-;; specifies the domain once for every cell.
+;; an error naming both domains. To specify one domain for the cells, call
+;; `pj/scale` on the composite: `(pj/scale composite :x {:domain [0
+;; 10]})` is the domain of every cell that specifies none of its own.
 
 ;; ### Columns That Share an Axis
 ;;
@@ -711,14 +747,13 @@ dashboard
            (= #{} (:shared-aesthetics chrome)))))])
 
 ;; Four panels, each its own layer type. `pj/arrange` stacks the rows
-;; vertically; each row is laid out horizontally. Every cell is a
-;; leaf pose -- `pj/arrange` does not accept composite cells.
+;; vertically; each row is laid out horizontally.
 
 ;; ## Drawing Layers with Different Data
 ;;
 ;; A layer can carry its own `:data`, written in the layer's mapping.
 ;; This is how reference lines, predictions drawn over the data, and
-;; small annotation datasets attach to a plot. The layer reads the
+;; small datasets of labels attach to a plot. The layer reads the
 ;; columns it names from its own data, and the columns it leaves to the
 ;; pose from its own data too.
 ;;
@@ -824,11 +859,14 @@ dashboard
 ;;
 ;; A few details about how composition renders today:
 ;;
-;; - **Each leaf draws its own axes, labels, and ticks.** Shared
-;;   scales align the data ranges across panels, but these
-;;   decorations are per-leaf in `:horizontal` and `:vertical`
-;;   layouts, so a stack of cells reading one x column carries that
-;;   axis label once per cell. A cell drops its own with
+;; - **Cells with data of their own draw their own axes, titles and
+;;   ticks.** In `(pj/arrange [pose-a pose-b])` a shared scale aligns
+;;   the data ranges, and each cell still titles and ticks its own
+;;   axes, so a stack of such cells reading one x column carries that
+;;   axis title once per cell. Cells that read the data of the pose
+;;   holding them, as in `(pj/arrange data [...])`, title a shared axis
+;;   once and label the ticks of that axis on the outer cells only, as
+;;   the panels of a facet do. A cell drops its own with
 ;;   `:suppress-x-ticks` and `:suppress-x-label` in that cell's
 ;;   `:opts`, which is what `pj/marginal` writes on the strip it
 ;;   builds. (Matrix layouts -- the SPLOM grid in particular --
@@ -856,8 +894,8 @@ dashboard
 ;;   composite. A category is then the same colour, and a value the
 ;;   same shade, in every cell, even where the cells hold different
 ;;   data. A legend is drawn once, so its scale has to hold in every
-;;   cell; an axis is labelled in each cell, which is why axes stay
-;;   independent unless `:share-scales` names them. A cell that writes
+;;   cell; cells with data of their own share an axis only where
+;;   `:share-scales` names that axis. A cell that writes
 ;;   its own scale for the aesthetic keeps it, and each cell then
 ;;   draws its own legend. When the mappings disagree -- or when only
 ;;   some leaves carry the aesthetic, as in the dashboard above --

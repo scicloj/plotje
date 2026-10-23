@@ -185,12 +185,11 @@
 
 ;; ## Titles and Labels
 ;;
-;; Use `pj/options` for width, height, title, and axis labels:
+;; Use `pj/options` for the title and the axis labels:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :petal-length :petal-width {:color :species})
-    (pj/options {:width 500 :height 350
-                 :title "Iris Petals"
+    (pj/options {:title "Iris Petals"
                  :x-label "Petal Length (cm)"
                  :y-label "Petal Width (cm)"}))
 
@@ -241,13 +240,14 @@
 
 ;; ## Export
 
-;; Save a plot to SVG with `pj/save`. It writes the file and returns the path:
+;; Save a plot to SVG with `pj/save`. It writes the file and returns it as a
+;; `java.io.File`:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
     (pj/save "/tmp/iris-scatter.svg"))
 
-(kind/test-last [(fn [p] (.exists p))])
+(kind/test-last [(fn [p] (and (instance? java.io.File p) (.exists p)))])
 
 ;; For PNG output, `(pj/save pose "x.png")` writes a raster image via
 ;; the Java2D backend; see the Cookbook for other export paths.

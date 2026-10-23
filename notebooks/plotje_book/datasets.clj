@@ -139,7 +139,7 @@
 ;; column name does not give.
 
 ;; Given no `:column-names`, `tc/dataset` names the columns by their
-;; position:
+;; place, 0 and 1:
 
 (tc/dataset [[1 2] [3 4] [5 7]])
 

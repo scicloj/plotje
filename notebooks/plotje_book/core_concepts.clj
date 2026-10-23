@@ -55,9 +55,8 @@
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
-;; Printed, the pose carries the data and the `:x`/`:y` position
-;; mapping at the top, and one point layer with its own layer-scoped
-;; `:color`:
+;; Printed, the pose carries the data and the mapping of `:x` and `:y`
+;; at the top, and one point layer with its own layer-scoped `:color`:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)
@@ -108,8 +107,9 @@
 ;; vector is written, not what it holds.
 
 ;; When the dataset has 1, 2, or 3 columns, you can omit the column
-;; names entirely -- they are inferred by position: the first column
-;; becomes x, the second becomes y, the third becomes color.
+;; names entirely -- they are inferred from the order of the columns:
+;; the first column becomes x, the second becomes y, the third becomes
+;; color.
 
 (-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
     pj/lay-point)
@@ -166,8 +166,9 @@ two-panel
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; Each sub-pose has its own mapping and layers. `pj/arrange`
-;; produces a composite pose that contains them as siblings.
+;; Each sub-pose has its own data and layers, and here each layer
+;; names its own columns. `pj/arrange` produces a composite pose that
+;; contains the two sub-poses as siblings.
 
 ;; ## Scope
 ;;
@@ -273,7 +274,7 @@ two-panel
 ;; - **Layers**: every `pj/lay-*` accumulates a new layer; layers
 ;;   do not override, they pile up.
 ;; - **Data**: the first argument to `pj/pose`/`pj/lay-*` sets the
-;;   pose-level dataset; passing `:data` in a layer's options
+;;   pose-level dataset; writing `:data` in a layer's mapping
 ;;   overrides it for that layer alone (innermost non-nil wins).
 
 ;; ### Layer-level data
@@ -588,8 +589,8 @@ two-panel
                               (= 2 (count (:layers v)))
                               (= "Scatter with Regression" (get-in v [:opts :title]))))])
 
-;; Drawn before it has data, the template draws a panel that reads
-;; "no data", whatever its layer types:
+;; Drawn before it has data, the template draws an empty panel that
+;; reads "no data":
 
 scatter-with-regression
 
@@ -771,7 +772,7 @@ scatter-with-regression
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
     (pj/options {:title "Iris Measurements"
-                 :width 500 :color-values :dark2}))
+                 :color-values :dark2}))
 
 (kind/test-last [(fn [v] (some #{"Iris Measurements"} (:texts (pj/svg-summary v))))])
 
@@ -792,9 +793,10 @@ scatter-with-regression
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
-;; Printed, annotation layers carry their positions (`:y-intercept`,
-;; `:x-min`, `:x-max`) and appearance (`:alpha`) inside the `:mapping`
-;; slot, the same slot chart layers use for their mappings:
+;; Printed, the rule and the band hold the values they are drawn at
+;; (`:y-intercept`, `:x-min`, `:x-max`) and their appearance (`:alpha`)
+;; in their `:mapping`, the slot where the point layer holds its
+;; `:color`:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -809,8 +811,8 @@ scatter-with-regression
                               (= 5.0 (get-in v [:layers 2 :mapping :x-min]))))])
 
 ;; See the [Customization](./plotje_book.customization.html#reference-line-and-band-appearance)
-;; chapter for annotation appearance (default opacity, color
-;; overrides), palettes, and themes. Temporal intercepts
+;; chapter for the appearance of rules and bands (default opacity,
+;; color overrides), palettes, and themes. Temporal intercepts
 ;; (`LocalDate`, `Instant`) are covered in
 ;; [Timelines](./plotje_book.timelines.html#annotated-time-series).
 
@@ -826,18 +828,21 @@ scatter-with-regression
 
 ;; `:fixed` locks the aspect ratio so one data unit on x equals one
 ;; data unit on y -- useful for spatial data or when distances on
-;; the two axes should read the same. The panel width adjusts to
-;; preserve the ratio:
+;; the two axes should read the same. The canvas is made narrower
+;; until the panel has that ratio, so here, where both columns run
+;; from -1 to 1, the panel is square:
 
 (-> {:x [-1 1 -1 1] :y [-1 -1 1 1]}
     (pj/lay-point :x :y)
     (pj/coord :fixed))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               [_ _ w h] (-> (pj/frames v) :panels first :frames :drawing-area)]
                            (and (= 4 (:points s))
-                                ;; :fixed shrank width to preserve
-                                ;; aspect ratio; default would be 600.
-                                (< (:width s) 600))))])
+                                ;; :fixed narrowed the canvas; the
+                                ;; default width is 600.
+                                (< (:width s) 600)
+                                (= w h))))])
 
 ;; `pj/scale` changes how a numeric axis is shown. `:log` applies
 ;; a logarithmic transformation:
@@ -886,6 +891,10 @@ scatter-with-regression
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-histogram {:x [:sepal-length :sepal-width :petal-length]}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 1 (:panels s))
+                                (= 3 (count (disj (:colors s) "none"))))))])
 
 ;; Use `pj/facet` over the columns to create one panel per variable:
 

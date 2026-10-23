@@ -127,7 +127,7 @@
 ;; the options written on the composite itself apply to every cell
 ;; that does not set them.
 ;;
-;; Three functions write plot options to the pose's `:opts`
+;; Two functions write plot options to the pose's `:opts`
 ;; field:
 ;;
 ;; - `pj/options` -- plot text (title, subtitle, caption, axis
@@ -136,12 +136,17 @@
 ;;   below).
 ;; - `pj/coord` -- coordinate system (cartesian, flipped, polar,
 ;;   fixed).
-;; - `pj/facet` and `pj/facet-grid` -- split the plot into panels
-;;   by a column.
 ;;
-;; `pj/scale` is the one that does not: a scale belongs to the
-;; aesthetic it reads, so it is written into that aesthetic's mapping
-;; rather than into `:opts`. It takes an axis (`:x`, `:y`) or a visual
+;; `pj/facet` and `pj/facet-grid` split the plot into panels. A facet
+;; by category is a mapping: the column is written into the pose's
+;; `:mapping` under `:col` or `:row`. A facet over columns,
+;; `(pj/facet pose {:y [:hwy :cty]})`, is kept under the pose's
+;; `:facet` key. Both functions take a map of plot options as a last
+;; argument and pass that map to `pj/options`.
+;;
+;; `pj/scale` does not write to `:opts` either: a scale belongs to the
+;; aesthetic it reads, so it is written into that aesthetic's mapping.
+;; It takes an axis (`:x`, `:y`) or a visual
 ;; aesthetic. Axis scales accept `:linear`, `:log`, `:categorical`; the
 ;; continuous visual ones (`:size`, `:alpha`, `:fill`, `:color`) accept
 ;; `:linear` and `:log`; `:shape` accepts `:categorical`. `:group` has
@@ -286,8 +291,8 @@ demo
 
 ;; Reading the summary:
 ;;
-;; - `:color :species` is inside the layer's mapping -- a layer
-;;   option at layer scope.
+;; - `:color :species` is inside the layer's mapping -- an aesthetic
+;;   at layer scope.
 ;; - `:title` and `:coord` are in `:opts` -- plot options, which on
 ;;   this single-panel plot describe the whole of it.
 ;; - Configuration does not appear in the pose. The renderer
@@ -323,8 +328,8 @@ demo
 ;; - [Pose Rules](./plotje_book.pose_rules.html) --
 ;;   precise rules for each pose-world function: `pj/pose`,
 ;;   `pj/lay-*`, `pj/arrange`, `pj/options`, `pj/scale`, `pj/coord`,
-;;   `pj/facet`. Twenty-nine rules with tested assertions.
+;;   `pj/facet`, each rule with tested assertions.
 ;; - [Configuration](./plotje_book.configuration.html) --
-;;   the four configuration sources and every configuration key.
+;;   the configuration sources and every configuration key.
 ;; - [Glossary](./plotje_book.glossary.html) -- definitions
 ;;   of mapping, layer setting, plot option, and configuration.
