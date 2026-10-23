@@ -252,7 +252,7 @@
 
 (def panel-aesthetic-docs
   "Documentation for the panel aesthetics, the counterpart of
-   `layer-type/layer-option-docs` for keys a layer does not accept.
+   `layer-type/layer-mapping-docs` for keys a layer does not accept.
 
    A panel aesthetic is written on a pose rather than on a layer,
    because it divides every layer of that pose alike. `pj/facet` given a

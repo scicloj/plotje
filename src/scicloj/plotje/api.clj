@@ -131,11 +131,16 @@
    Maps each key to [category description]."
   defaults/plot-option-docs)
 
-(def layer-option-docs
+(def layer-mapping-docs
   "Documentation for the keys a `pj/lay-*` mapping accepts: aesthetics
    and layer settings such as `:stat`, `:bins` and `:position`.
    Maps each key to a description string."
-  layer-type/layer-option-docs)
+  layer-type/layer-mapping-docs)
+
+(def ^:deprecated layer-option-docs
+  "The name `pj/layer-mapping-docs` had until this release. It is the
+   same map, kept for one release."
+  layer-mapping-docs)
 
 (defn aesthetic-roles
   "What a distinction given to each aesthetic is put to work as, as a
@@ -863,7 +868,7 @@
   [layer-type-key]
   (let [reg (when (keyword? layer-type-key)
               (layer-type/lookup layer-type-key))]
-    (-> (set layer-type/universal-layer-options)
+    (-> (set layer-type/universal-mapping-keys)
         (into (:accepts reg))
         (set/difference (set (:rejects reg))))))
 
@@ -900,7 +905,7 @@
            " or pj/set-config! for every plot")
 
       (and (not lay?)
-           (or (contains? (set layer-type/universal-layer-options) k)
+           (or (contains? (set layer-type/universal-mapping-keys) k)
                (seq elsewhere)))
       "Layer settings belong in the mapping of a pj/lay-* call"
 
@@ -1476,7 +1481,7 @@
    The conventions decide when `:scale` is absent: a column passes
    through the scale, a written value is drawn on the appearance
    aesthetics and is a data value on `:x` and `:y`. See
-   `pj/layer-option-docs` for what each aesthetic accepts, and
+   `pj/layer-mapping-docs` for what each aesthetic accepts, and
    `pj/scale` for choosing a scale's type."
   ([] (prepare-pose {:layers []}))
   ([pose-or-data]
@@ -2061,7 +2066,7 @@
 
    Everything else lands in :mapping -- which therefore holds more than
    mappings. Of the keys documented in
-   `layer-type/layer-option-docs`, fourteen are aesthetics and the rest
+   `layer-type/layer-mapping-docs`, fourteen are aesthetics and the rest
    are drawing options (:jitter, :in, :font-size), stat parameters
    (:bandwidth, :bins) and the values a rule or a band is drawn at
    (:x-intercept). Which of
@@ -3160,7 +3165,7 @@
   (when-let [v (resolve (symbol "scicloj.plotje.api"
                                 (str "lay-" (name layer-type-key))))]
     (let [reg (layer-type/lookup layer-type-key)
-          opts (-> (set layer-type/universal-layer-options)
+          opts (-> (set layer-type/universal-mapping-keys)
                    (into (:accepts reg))
                    (set/difference (set (:rejects reg)))
                    sort)
@@ -3767,7 +3772,7 @@
    choose a type for the whole plot, write that mapping out in full:
    `{:color {:column :hex :scale false}}` draws the column's values as
    they stand, and `{:size {:value 7 :scale true}}` sends a written
-   value through the scale. See `pj/layer-option-docs` for `:color` and
+   value through the scale. See `pj/layer-mapping-docs` for `:color` and
    `:size`.
 
    A `:domain` has two readings, and the domain itself decides which:
@@ -3985,7 +3990,7 @@
   [layer]
   (let [reg (when-let [k (:layer-type layer)]
               (layer-type/lookup k))]
-    (-> (set layer-type/universal-layer-options)
+    (-> (set layer-type/universal-mapping-keys)
         (into (:accepts reg))
         (set/difference (set (:rejects reg))))))
 

@@ -1276,9 +1276,9 @@ plan1
 
 (kind/test-last [(fn [n] (= 14 n))])
 
-(kind/doc #'pj/layer-option-docs)
+(kind/doc #'pj/layer-mapping-docs)
 
-(count pj/layer-option-docs)
+(count pj/layer-mapping-docs)
 
 (kind/test-last [(fn [n] (= 57 n))])
 

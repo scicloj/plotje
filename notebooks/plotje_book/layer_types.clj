@@ -237,9 +237,9 @@
 (kind/table
  {:column-names ["Key" "Description"]
   :row-maps
-  (for [k layer-type/universal-layer-options]
+  (for [k layer-type/universal-mapping-keys]
     {"Key" (kind/code (pr-str k))
-     "Description" (get layer-type/layer-option-docs k)})})
+     "Description" (get layer-type/layer-mapping-docs k)})})
 
 (kind/test-last
  [(fn [t] (pos? (count (:row-maps t))))])
@@ -268,14 +268,14 @@
 (kind/table
  {:column-names ["Key" "Description"]
   :row-maps
-  (for [[k desc] (sort-by key layer-type/layer-option-docs)]
+  (for [[k desc] (sort-by key layer-type/layer-mapping-docs)]
     {"Key" (kind/code (pr-str k))
      "Description" desc})})
 
 (kind/test-last
  [(fn [t]
-    (let [documented (set (keys layer-type/layer-option-docs))
-          in-use (into (set layer-type/universal-layer-options)
+    (let [documented (set (keys layer-type/layer-mapping-docs))
+          in-use (into (set layer-type/universal-mapping-keys)
                        (mapcat :accepts (vals (layer-type/registered))))]
       (and (= (count documented) (count (:row-maps t)))
            (empty? (remove documented in-use))

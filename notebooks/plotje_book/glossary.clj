@@ -1335,11 +1335,11 @@ annotated
 ;; layer's aesthetics. Some keys are accepted by every layer type, and
 ;; each layer type may accept more. The
 ;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-keys) chapter lists the
-;; keys each layer type accepts. `pj/layer-option-docs` describes every
+;; keys each layer type accepts. `pj/layer-mapping-docs` describes every
 ;; key of a layer's mapping, aesthetics and layer settings alike, and
 ;; `pj/layer-type-lookup` shows one layer type.
 
-(sort (keys pj/layer-option-docs))
+(sort (keys pj/layer-mapping-docs))
 
 (kind/test-last
  [(fn [ks]

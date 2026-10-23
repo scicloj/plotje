@@ -96,9 +96,9 @@
  v15_l148
  (mapv
   (fn*
-   [p1__77259#]
+   [p1__78540#]
    (select-keys
-    (layer-type/lookup p1__77259#)
+    (layer-type/lookup p1__78540#)
     [:mark :stat :defaults]))
   [:text :label]))
 
@@ -181,9 +181,9 @@
   {:column-names ["Key" "Description"],
    :row-maps
    (for
-    [k layer-type/universal-layer-options]
+    [k layer-type/universal-mapping-keys]
     {"Key" (kind/code (pr-str k)),
-     "Description" (get layer-type/layer-option-docs k)})}))
+     "Description" (get layer-type/layer-mapping-docs k)})}))
 
 
 (deftest t28_l244 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l237)))
@@ -213,7 +213,7 @@
   {:column-names ["Key" "Description"],
    :row-maps
    (for
-    [[k desc] (sort-by key layer-type/layer-option-docs)]
+    [[k desc] (sort-by key layer-type/layer-mapping-docs)]
     {"Key" (kind/code (pr-str k)), "Description" desc})}))
 
 
@@ -224,10 +224,10 @@
     [t]
     (let
      [documented
-      (set (keys layer-type/layer-option-docs))
+      (set (keys layer-type/layer-mapping-docs))
       in-use
       (into
-       (set layer-type/universal-layer-options)
+       (set layer-type/universal-mapping-keys)
        (mapcat :accepts (vals (layer-type/registered))))]
      (and
       (= (count documented) (count (:row-maps t)))

@@ -2763,7 +2763,7 @@
 (deftest layer-x-y-override-test
   ;; persona-skeptical-round-4 F9: layer-level :x/:y overrides used to
   ;; warn as unknown options even though they actually worked. Now :x/:y
-  ;; are accepted on layer opts (universal-layer-options).
+  ;; are accepted on layer opts (universal-mapping-keys).
   (testing "layer-level :x / :y on lay-* doesn't trigger an unknown-opt warning"
     (let [out (with-out-str
                 (-> {:a [1 2 3] :b [4 5 6] :c [7 8 9] :d [10 11 12]}

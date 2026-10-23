@@ -534,7 +534,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__74154#] (-> p1__74154# :plan :panels first))
+       (fn* [p1__78225#] (-> p1__78225# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -607,11 +607,11 @@
       sizes
       (frequencies
        (keep
-        (fn* [p1__74155#] (get-in p1__74155# [1 :font-size]))
+        (fn* [p1__78226#] (get-in p1__78226# [1 :font-size]))
         (filter
          (fn*
-          [p1__74156#]
-          (and (vector? p1__74156#) (= :text (first p1__74156#))))
+          [p1__78227#]
+          (and (vector? p1__78227#) (= :text (first p1__78227#))))
          (tree-seq vector? seq (pj/plot small)))))
       panel
       (first (:panels (pj/plan small)))
@@ -757,7 +757,7 @@
    v114_l1315)))
 
 
-(def v117_l1342 (sort (keys pj/layer-option-docs)))
+(def v117_l1342 (sort (keys pj/layer-mapping-docs)))
 
 
 (deftest

@@ -9,7 +9,7 @@
 
 ;; ---- Registry ----
 
-(def universal-layer-options
+(def universal-mapping-keys
   "Keys the mapping of every layer type accepts. :x and :y are included
    because a layer may name its own columns. :x-type/:y-type/:color-type
    override the inferred column types (e.g. :x-type :categorical
@@ -28,6 +28,11 @@
    :x-type :y-type :mark :stat :offset-x :offset-y :in
    :tooltip])
 
+(def ^:deprecated universal-layer-options
+  "The name `universal-mapping-keys` had until this release. It is the
+   same vector, kept for one release."
+  universal-mapping-keys)
+
 (def spaces
   "The coordinate systems a layer's `:x` and `:y` can be given in, named
    by `:in`. `:data` is the default and is what every layer has always
@@ -38,7 +43,7 @@
    adjustment a layer type carries."
   #{:data :drawing-area})
 
-(def layer-option-docs
+(def layer-mapping-docs
   "Documentation for the keys of a layer's mapping -- aesthetics and
    layer settings alike. Maps key to description string."
   {:x "Column keyword or string naming the column drawn along the x axis, or a value to draw at that x. A value beside a column :y broadcasts over the layer's data; values for both :x and :y draw one mark"
@@ -98,6 +103,11 @@
    :stroke "Outline color for an area or density curve -- the fill still comes from :color"
    :stroke-width "Width of that outline in drawing units"
    :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline -- :dashed, :dotted, :solid, or a raw [dash gap ...] pattern in drawing units"})
+
+(def ^:deprecated layer-option-docs
+  "The name `layer-mapping-docs` had until this release. It is the same
+   map, kept for one release."
+  layer-mapping-docs)
 
 (def quantities
   "The quantities a mark can draw an appearance aesthetic as, and what

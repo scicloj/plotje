@@ -165,8 +165,8 @@
 
 (deftest the-offset-options-are-documented
   (testing "both appear in the public option docs"
-    (is (contains? pj/layer-option-docs :offset-x))
-    (is (contains? pj/layer-option-docs :offset-y))))
+    (is (contains? pj/layer-mapping-docs :offset-x))
+    (is (contains? pj/layer-mapping-docs :offset-y))))
 
 (deftest a-line-layer-shifts-too
   (testing "the offset is applied where every mark passes, not inside one"

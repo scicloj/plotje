@@ -1824,10 +1824,10 @@
 (deftest t390_l1277 (is ((fn [n] (= 14 n)) v389_l1275)))
 
 
-(def v391_l1279 (kind/doc #'pj/layer-option-docs))
+(def v391_l1279 (kind/doc #'pj/layer-mapping-docs))
 
 
-(def v392_l1281 (count pj/layer-option-docs))
+(def v392_l1281 (count pj/layer-mapping-docs))
 
 
 (deftest t393_l1283 (is ((fn [n] (= 57 n)) v392_l1281)))
