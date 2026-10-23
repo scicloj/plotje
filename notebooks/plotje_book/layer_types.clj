@@ -91,13 +91,35 @@
 
 (layer-type/column-counts :bar)
 
-(kind/test-last [(fn [cc] (= #{1 2} cc))])
+(kind/test-last
+ [(fn [cc]
+    (let [columns (fn [pose] (mapv (juxt :x :y) (:layers (pj/draft pose))))
+          data {:a [1 2 3] :b [4 5 6] :c [7 8 9]}]
+      (and (= #{1 2} cc)
+           ;; Backs the third bullet below: the line is given :a, the
+           ;; rug is given no :y.
+           (= [[:a :b] [:a :c]]
+              (columns (-> data
+                           (pj/lay-point :a :b)
+                           (pj/lay-line {:y :c}))))
+           (= [[:a :b] [:c nil]]
+              (columns (-> data
+                           (pj/lay-point :a :b)
+                           (pj/lay-rug {:x :c})))))))])
 
-;; Two things read it. A layer written above a split is drawn in the
-;; panels whose number of columns it draws from -- the
-;; [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
-;; is the case where the panels differ. And a pose that names a column
-;; only on `:y` draws a layer that draws from one column on its side.
+;; Among the places that read it:
+;;
+;; - A layer written above a split is drawn in the panels whose number
+;;   of columns it draws from -- the
+;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
+;;   is the case where the panels differ.
+;; - A pose that names a column only on `:y` draws a layer that draws
+;;   from one column on its side.
+;; - A layer that names one column is given the panel's column on the
+;;   other axis only where its layer type cannot draw from one column:
+;;   after `(pj/lay-point data :a :b)`, `(pj/lay-line {:y :c})` draws
+;;   `:c` against `:a`, and `(pj/lay-rug {:x :c})` draws `:c` alone.
+;;
 ;; A layer type registered without `:column-counts` draws from two
 ;; columns, or from one where it is registered `:x-only true`.
 
@@ -116,8 +138,8 @@
 ;; Every other mark draws one size and one opacity for the whole layer,
 ;; so a column mapped to those aesthetics changes nothing, and Plotje
 ;; warns. See
-;; [Extensibility](./plotje_book.extensibility.html#compute-stat)
-;; for declaring it on a layer type of your own.
+;; [Extensibility](./plotje_book.extensibility.html#drawing-an-aesthetic-the-layer-type-declares-it-varies)
+;; for declaring `:varies` on a layer type of your own.
 
 ;; `:text` and `:label` share a mark, a stat, and a position; the
 ;; "Presets" column shows that a label starts with its box switched
@@ -146,8 +168,8 @@
 ;;
 ;; A **mark** is the visual shape shown for each data point or
 ;; group. Several layer types may share the same mark -- for
-;; instance, `tile` and `density-2d` both produce tiles, and `lm`
-;; (linear model) and `loess` (local regression) both produce lines.
+;; instance, `tile` and `density-2d` both produce tiles, and `line`
+;; and `smooth` both produce lines.
 
 (kind/table
  {:column-names ["Mark" "Shape" "Used by"]
@@ -159,7 +181,10 @@
 
 (kind/test-last
  [(fn [t]
-    (= 22 (count (:row-maps t))))])
+    (and (= 22 (count (:row-maps t)))
+         ;; The two pairs the prose above names.
+         (= :tile (:mark (layer-type/lookup :tile)) (:mark (layer-type/lookup :density-2d)))
+         (= :line (:mark (layer-type/lookup :line)) (:mark (layer-type/lookup :smooth)))))])
 
 ;; ## Stats
 ;;

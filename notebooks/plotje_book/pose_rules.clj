@@ -5,8 +5,9 @@
 ;;
 ;; The rules are organized into seven sections (Construction, Layer
 ;; Placement, Leaf Identity, Scope, Options, Assembly, Layout) and
-;; cover every call shape of `pj/pose`, `pj/lay-*`, `pj/arrange`,
-;; `pj/options`, `pj/scale`, `pj/coord`, `pj/facet`, and `pj/cross`.
+;; cover the call shapes of `pj/pose`, `pj/lay-*`, `pj/arrange`,
+;; `pj/options`, `pj/scale`, `pj/coord`, `pj/facet`, and
+;; `pj/cross-matrix`.
 ;;
 ;; Read [Poses](./plotje_book.pose_model.html) first. On a first read
 ;; through the book you can skim or skip this chapter, and return when
@@ -60,6 +61,7 @@
 ;; | `:layout` | composite | direction + weights |
 ;; | `:facet` | leaf | a facet over columns, expanded into cells when the pose is drawn (Rule O3) |
 ;; | `:opts` | root | plot-level options (incl. composite-level keys like `:share-scales`) |
+;; | `:share-scales` | composite | the axes the cells share; `pj/arrange` writes it under `:opts`, and `pj/marginal` writes it on the composite itself |
 ;;
 ;; A **leaf pose** has `:data`, `:mapping`, `:layers`; no `:poses`.
 ;; A **composite pose** has `:poses`, and a sub-pose may itself be a
@@ -101,9 +103,11 @@
          (= [] (:layers pose))
          (not (contains? pose :poses))))])
 
-;; With only an aesthetic mapping, position is omitted -- the pose
-;; is a leaf with no position yet. Inference at render time will
-;; handle picking an axis if a layer is added without position.
+;; With only `:color` in the mapping, the pose is a leaf that names no
+;; `:x` and no `:y`. On data of one to three columns, the columns are
+;; read by default when the pose is drawn (Rule LI1). Iris has more
+;; columns, so a layer added to this pose has to name its columns, or a
+;; later `pj/pose` call has to name them.
 
 (-> iris
     (pj/pose {:color :species})
@@ -114,12 +118,11 @@
     (and (= {:color :species} (:mapping pose))
          (not (contains? pose :poses))))])
 
-;; ### Rule C2: `pj/pose` on an unpositioned leaf extends its mapping
+;; ### Rule C2: `pj/pose` on a leaf merges into its mapping
 ;;
-;; A leaf is **unpositioned** if neither its own `:mapping` nor any
-;; of its layers' mappings carries `:x` or `:y`. Calling `pj/pose`
-;; again on such a leaf merges the new mapping into the leaf's own;
-;; the leaf remains a leaf. No composite is created.
+;; `pj/pose` called on a leaf merges the new mapping into the leaf's
+;; own mapping, whatever the leaf or its layers already name. The leaf
+;; remains a leaf, and no composite is created.
 
 (-> iris
     pj/pose
@@ -140,9 +143,9 @@
  [(fn [pose]
     (= {:x :sepal-length :y :sepal-width :color :species} (:mapping pose)))])
 
-;; **Property P-C2 -- construction commutativity.** A chained
-;; unpositioned extension yields a pose structurally equal to the
-;; same content expressed as one call.
+;; **Property P-C2 -- construction commutativity.** A mapping built
+;; over several `pj/pose` calls is equal to the same mapping written in
+;; one call.
 
 (= (-> iris
        pj/pose
@@ -152,11 +155,11 @@
 
 (kind/test-last [true?])
 
-;; ### Rule C3: `pj/pose` with a different position on a positioned leaf replaces it
+;; ### Rule C3: `pj/pose` naming other columns replaces the leaf's `:x` and `:y`
 ;;
 ;; `pj/pose` writes one mapping and does not add a panel. Called with
-;; an `:x` or `:y` other than the one a positioned leaf has, it
-;; replaces it, and the layers that name no columns of their own read
+;; an `:x` or `:y` other than the one the leaf's mapping has, it
+;; replaces that column, and the layers that name no columns of their own read
 ;; the new columns. So a pose returned by a function can be pointed at
 ;; other columns:
 
@@ -187,8 +190,8 @@
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; **Property P-C3 -- writing the same position again changes
-;; nothing.** A position call naming the leaf's own `:x` and `:y`
+;; **Property P-C3 -- writing the same columns again changes
+;; nothing.** A `pj/pose` call naming the leaf's own `:x` and `:y`
 ;; returns the same pose.
 
 (= (trend-plot iris)
@@ -196,10 +199,11 @@
 
 (kind/test-last [true?])
 
-;; ### Rule C4: aesthetic-only `pj/pose` on a positioned leaf merges into its mapping
+;; ### Rule C4: `pj/pose` with no `:x` or `:y` merges into the leaf's mapping
 ;;
-;; An aesthetic-only call (no `:x`/`:y`) on a positioned leaf merges
-;; the aesthetic into the leaf's `:mapping`. The leaf stays a leaf.
+;; A `pj/pose` call naming no `:x` and no `:y`, on a leaf whose mapping
+;; names them, merges the aesthetic into the leaf's `:mapping`. The
+;; leaf stays a leaf.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -216,7 +220,7 @@
          (= {:x :sepal-length :y :sepal-width :color :species}
             (:mapping pose))))])
 
-;; **Property P-C4 -- aesthetic-then-position equivalence.** Adding
+;; **Property P-C4 -- the aesthetic may come in a second call.** Adding
 ;; the aesthetic in a second call equals writing it in the first.
 
 (= (-> iris
@@ -273,9 +277,10 @@
              {:x :petal-length :y :petal-width}]
             (mapv :mapping (cells pose)))))])
 
-;; A position written on a composite whose cells each map their own
-;; `:x` and `:y` reaches none of them. The cells keep their columns, and
-;; drawing the pose warns that the root's position is not drawn:
+;; An `:x` or a `:y` written on a composite whose cells each name their
+;; own `:x` and `:y` reaches none of the cells. The cells keep their
+;; columns, and drawing the pose prints a warning for each axis, saying
+;; that the column written on the composite is not drawn:
 
 (-> iris
     (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
@@ -284,7 +289,7 @@
 
 (kind/test-last
  [(fn [pose]
-    (re-find #"not drawn" (with-out-str (pj/plan pose))))])
+    (= 2 (count (re-seq #"not drawn" (with-out-str (pj/plan pose))))))])
 
 ;; ### Rule C7: `pj/pose` with nothing new has no effect
 ;;
@@ -335,10 +340,12 @@ composite-pose
 
 ;; ### Rule C8: `pj/arrange` composes poses into a composite
 ;;
-;; `pj/arrange` takes a sequence of poses (leaves in alpha) plus
-;; optional layout options and returns a composite. The inputs become
-;; the composite's `:poses`, wrapped in a 2-level row-and-column
-;; layout.
+;; `pj/arrange` returns a composite. It takes a vector of cells, or
+;; data or a pose first and then the cells. A cell is a pose, a
+;; composite, a column (a panel of that column), a pair of columns (a
+;; panel of the two columns), a mapping, or `nil` for a cell left
+;; empty. The cells are placed in rows: the composite's `:poses` are
+;; the rows, and each row's `:poses` are the cells of that row.
 
 (pj/arrange
  [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)
@@ -369,8 +376,10 @@ composite-pose
          ;; landed: root -> row -> the cell it was given as.
          (seq (:poses (first (:poses (first (:poses pose))))))))])
 
-;; Opts (`:cols`, `:title`, `:width`, `:height`, `:share-scales`)
-;; route into the composite's `:opts` / `:layout`:
+;; `pj/arrange` writes the options it is given into the composite's
+;; `:opts`: `:title`, `:width`, `:height`, `:share-scales`, and any plot
+;; option `pj/options` takes. `:cols` is not stored: it decides how many
+;; cells each row holds.
 
 (pj/arrange
  [(pj/pose iris :sepal-length :sepal-width)
@@ -380,8 +389,15 @@ composite-pose
 
 (kind/test-last
  [(fn [pose]
-    (and (= "Arranged" (get-in pose [:opts :title]))
-         (= #{:y} (get-in pose [:opts :share-scales]))))])
+    (let [one-per-row (pj/arrange (vec (mapcat :poses (:poses pose)))
+                                  {:cols 1 :x-label "X"})]
+      (and (= "Arranged" (get-in pose [:opts :title]))
+           (= #{:y} (get-in pose [:opts :share-scales]))
+           ;; A plot option is written into :opts too.
+           (= "X" (get-in one-per-row [:opts :x-label]))
+           ;; :cols is read and not stored: one cell per row.
+           (not (contains? (:opts one-per-row) :cols))
+           (= [1 1] (mapv #(count (:poses %)) (:poses one-per-row))))))])
 
 ;; ### Rule C9: `pj/cross-matrix` writes a mapping on the composite's root
 ;;
@@ -415,10 +431,11 @@ composite-pose
 ;; ---
 ;; ## Layer Placement
 ;;
-;; Where `lay-*` calls place the layer in the pose tree.
-;; Five rules covering whether the call names `:x` and `:y`, whether
-;; the receiver is a leaf or a composite, the raw-data convenience
-;; case, and the panel the layers of a leaf share.
+;; Where `lay-*` calls place the layer in the pose tree. The rules
+;; cover whether the call names `:x` and `:y`, whether the receiver is
+;; a leaf or a composite, the raw-data convenience case, the panel the
+;; layers of a leaf share, and the columns a layer reads from that
+;; panel.
 ;;
 ;; **Where the columns are written:** the columns a `lay-*` call names
 ;; are written on the **layer's own `:mapping`**, and only there; the
@@ -428,7 +445,7 @@ composite-pose
 
 ;; ### Rule LP1: bare `lay-*` attaches at the current pose's root
 ;;
-;; A `lay-*` call without position arguments attaches the layer to
+;; A `lay-*` call naming no columns attaches the layer to
 ;; the current pose's top-level `:layers`. On a leaf, that is the
 ;; leaf's own `:layers`. On a composite, it is the root `:layers`,
 ;; and the layer flows into every descendant leaf when rendered.
@@ -464,10 +481,10 @@ composite-pose
          (= :point (:layer-type (first (:layers pose))))))])
 
 ;; **Property P-LP1 -- bare layers flow downward.** After adding one
-;; bare layer to a composite, the composite's root `:layers` holds
-;; that single entry; each leaf inherits it (prepended), so every
-;; sub-plot renders the layer on top of its inferred or explicit
-;; leaf layers.
+;; bare layer to a composite, the composite's root `:layers` holds that
+;; single entry. Each cell whose number of columns the layer type draws
+;; from draws the root's layer first, underneath the cell's own layers,
+;; and a cell that draws the root's layer has no layer inferred for it.
 
 (let [before (pj/arrange
               [(pj/pose iris :sepal-length :sepal-width)
@@ -480,16 +497,42 @@ composite-pose
    (count (or (:layers after)  []))])
 
 (kind/test-last
- [(fn [counts] (= [0 1] counts))])
+ [(fn [counts]
+    (let [marks (fn [pose]
+                  (mapv #(mapv :mark (-> % :plan :panels first :layers))
+                        (:sub-plots (pj/plan pose))))]
+      (and (= [0 1] counts)
+           ;; The root's point layer is drawn first, under the cell's
+           ;; own smooth; the cell with no layer of its own draws the
+           ;; root's layer and has none inferred.
+           (= [[:point :line] [:point]]
+              (marks (-> (pj/arrange
+                          [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-smooth)
+                           (pj/pose iris :petal-length :petal-width)])
+                         pj/lay-point)))
+           (= [[:line] [:line]]
+              (marks (-> (pj/arrange
+                          [(pj/pose iris :sepal-length :sepal-width)
+                           (pj/pose iris :petal-length :petal-width)])
+                         pj/lay-smooth)))
+           ;; A cell drawing one column on both axes keeps its
+           ;; histogram: the point layer draws from two columns.
+           (= [[:bar] [:point] [:point] [:bar]]
+              (marks (-> iris
+                         (pj/cross-matrix [:sepal-length :sepal-width])
+                         pj/lay-point))))))])
 
-;; ### Rule LP2: position-carrying `lay-*` attaches to the DFS-last matching leaf
+;; ### Rule LP2: on a composite, a `lay-*` naming columns attaches to the last matching leaf
 ;;
-;; When `lay-*` carries `:x`/`:y` and at least one leaf has matching
-;; panel's columns (its own `:x`/`:y` after ancestor merge, and on an
-;; axis where it names none, the column of its first layer naming
-;; one), the layer attaches to
-;; the **last such leaf in left-to-right depth-first order**. The
-;; layer's own `:mapping` carries the call's position. This is the
+;; When a `lay-*` call names `:x` and `:y` on a composite, and the
+;; panel of at least one leaf draws those two columns, the layer
+;; attaches to the **last such leaf in left-to-right depth-first
+;; order**. The columns of a leaf's panel are the `:x` and `:y` of the
+;; leaf's mapping after the mappings above the leaf are merged in;
+;; where that mapping names no column on an axis, the panel's column on
+;; that axis is the column of the leaf's first layer that names a
+;; column there. The layer's own `:mapping` carries the columns the
+;; call named. This is the
 ;; same "most recent matching leaf" rule the teaching chapters
 ;; describe, formalized for composite poses where reading-order
 ;; depth-first traversal gives the precise answer. Matching is by
@@ -581,11 +624,11 @@ composite-pose
     (and (nil? (:poses pose))
          (= 2 (count (:layers pose)))))])
 
-;; ### Rule LP3: on a composite, position-carrying `lay-*` misses append a new leaf at root
+;; ### Rule LP3: on a composite, a `lay-*` naming columns no leaf draws appends a new leaf at the root
 ;;
-;; When `lay-*` carries `:x`/`:y` and **no** descendant leaf has
-;; matching effective `:x`/`:y`, a new leaf is appended at the
-;; composite's root `:poses`. It holds the one layer, and the layer's
+;; When a `lay-*` call names `:x` and `:y` and the panel of **no** leaf
+;; draws those two columns, a new leaf is appended at the composite's
+;; root `:poses`. It holds the one layer, and the layer's
 ;; own `:mapping` carries the columns the call named.
 ;; A leaf given other columns stays a leaf instead, and its layers share
 ;; its panel -- see LP2 above.
@@ -604,7 +647,9 @@ composite-pose
 ;; The new leaf reads the data of the composite's root. Where the cells
 ;; carry their own data and the root has none, the new leaf has no data
 ;; to read: it draws a panel reading "no data", and the call prints a
-;; Note that names the columns the cells draw and the two ways out.
+;; Note. The Note names the columns the cells draw, for a layer meant
+;; for one of the cells, and shows the call with `{:data data}`, for a
+;; layer meant for a cell of its own.
 
 (def cells-with-their-own-data
   (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
@@ -664,9 +709,13 @@ composite-pose
 ;; When a `lay-*` call names columns the pose does not draw, it first
 ;; checks that those columns exist in the data the layer would draw
 ;; from -- the layer's own `:data` if present, otherwise the inherited
-;; data. A missing column is almost always a typo or a column name
-;; mismatch; the check raises a focused error at the call site rather
-;; than deferring to a generic "column not found" at plan time.
+;; data. A missing column is almost always a typing mistake, so the
+;; call reports it at once, with the columns the data has.
+;;
+;; The check at the call covers the columns written in the argument
+;; slots. A name written in the layer's mapping may be a column or a
+;; value, which the data decides when the pose is drawn, so a name there
+;; that matches no column is reported when the pose is drawn.
 
 (try
   (-> iris
@@ -677,8 +726,17 @@ composite-pose
 
 (kind/test-last
  [(fn [msg]
-    (and (string? msg)
-         (re-find #"doesn't exist in the data" msg)))])
+    (let [in-mapping (-> iris
+                         (pj/pose :sepal-length :sepal-width)
+                         (pj/lay-point {:y :nope}))]
+      (and (string? msg)
+           (re-find #"doesn't exist in the data" msg)
+           ;; Written in the mapping, the name passes the call and is
+           ;; reported when the pose is drawn.
+           (pj/pose? in-mapping)
+           (re-find #"Column :nope \(from :y\) not found"
+                    (try (pj/plan in-mapping) ""
+                         (catch Exception e (ex-message e)))))))])
 
 ;; Supplying `:data` on the lay-* call satisfies the safety check: the
 ;; layer draws its own data, on the leaf's panel.
@@ -1187,12 +1245,13 @@ s2-tree
 
 ;; ### Rule O4: `pj/lay-rule-*` and `pj/lay-band-*` are layers
 ;;
-;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v`
-;; produce layers and scope like any other `lay-*`: bare call
-;; attaches at root (flows to every panel); 4-arity with column
-;; refs attaches to a matching leaf. Where the line or the band sits
+;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h` and `pj/lay-band-v`
+;; produce layers, and the layers are placed as any other `lay-*` layer
+;; is: a call naming no columns attaches at the root and is drawn in
+;; every panel, and on a composite a call naming two columns attaches
+;; to the leaf that draws them. Where the line or the band sits
 ;; is written as layer-type keys (`:y-intercept`, `:x-intercept`,
-;; `:y-min`/`:y-max`, `:x-min`/`:x-max`), not as column references.
+;; `:y-min`/`:y-max`, `:x-min`/`:x-max`), not as columns.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -1206,8 +1265,8 @@ s2-tree
       (and (some? rule)
            (= 3.0 (get-in rule [:mapping :y-intercept])))))])
 
-;; A pose-scope rule via the 4-arity attaches to a matching leaf, not
-;; every panel:
+;; A rule naming two columns, on a composite, attaches to the leaf that
+;; draws them and is drawn in that leaf's panel only:
 
 (-> iris
     (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
@@ -1252,8 +1311,8 @@ s2-tree
 ;; ### Rule A2: each rendered layer carries fully merged scope
 ;;
 ;; Every layer rendered in the final plot reflects the full scope
-;; merge: the dataset, every mapping (positions and aesthetics)
-;; that flows into it, and the layer-type bundle (plus any
+;; merge: the dataset, every mapping that flows into it, `:x` and `:y`
+;; among them, and the layer-type bundle (plus any
 ;; `:stat`, `:position`, `:mark` overrides). No scope level is
 ;; dropped; no key is unresolved.
 
@@ -1281,7 +1340,7 @@ s2-tree
 ;;
 ;; How leaves become panels in the rendered plot. Five rules
 ;; covering single panels, layers sharing a panel, faceting, composite
-;; grids with shared scales, and the SPLOM reshape of multi-pair poses.
+;; grids with shared scales, and the grid `pj/cross-matrix` builds.
 
 ;; ### Rule L1: each leaf produces a panel block
 ;;
@@ -1289,6 +1348,10 @@ s2-tree
 ;; the block is one panel, which all of the leaf's layers share (Rule
 ;; LP5); `pj/facet` or `pj/facet-grid` multiplies it by the facet values
 ;; (or by the (row, col) pairs).
+;;
+;; A facet over columns expands the leaf into one cell per column when
+;; the pose is drawn, so the plan of such a leaf holds `:sub-plots`, as
+;; the plan of a composite does.
 
 (-> iris
     (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
@@ -1296,9 +1359,17 @@ s2-tree
 
 (kind/test-last
  [(fn [pose]
-    (let [plan (pj/plan pose)]
+    (let [plan (pj/plan pose)
+          by-columns (pj/plan (-> iris
+                                  (pj/pose {:x :sepal-length})
+                                  pj/lay-point
+                                  (pj/facet {:y [:sepal-width :petal-width]})))]
       (and (:composite? plan)
-           (= 2 (count (:sub-plots plan))))))])
+           (= 2 (count (:sub-plots plan)))
+           ;; A leaf faceted over columns plans as a composite too.
+           (:composite? by-columns)
+           (= 2 (count (:sub-plots by-columns)))
+           (empty? (:panels by-columns)))))])
 
 ;; One leaf whose layers name two pairs of columns is one panel:
 
@@ -1329,11 +1400,14 @@ s2-tree
       (and (= 1 (count (:panels plan)))
            (= 2 (count (:layers panel))))))])
 
-;; ### Rule L3: faceting splits each leaf into panels by category
+;; ### Rule L3: faceting splits each leaf into panels, by category or by column
 ;;
-;; `pj/facet :col` produces one panel per unique value of `:col`;
-;; `pj/facet-grid :row-col :col-col` produces one panel per (row,
-;; col) pair.
+;; `(pj/facet pose :species)` draws one panel per distinct value of
+;; `:species`. On the mpg data, `(pj/facet-grid pose :drv :cyl)` draws
+;; one panel per pair of values, the values of `:drv` across and the
+;; values of `:cyl` down. `(pj/facet pose {:y [:hwy :cty]})` draws one
+;; panel per column (Rule O3). Each of the three takes a map of plot
+;; options as its last argument, which is the map `pj/options` takes.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -1341,13 +1415,30 @@ s2-tree
     (pj/facet :species))
 
 (kind/test-last
- [(fn [pose] (= 3 (count (:panels (pj/plan pose)))))])
+ [(fn [pose]
+    (let [mpg-pose (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
+      (and (= 3 (count (:panels (pj/plan pose))))
+           ;; The first column runs across (:col), the second down (:row).
+           (= {:col :drv :row :cyl}
+              (select-keys (:mapping (pj/facet-grid mpg-pose :drv :cyl))
+                           [:col :row]))
+           (= "Faceted"
+              (get-in (pj/facet pose :species {:title "Faceted"})
+                      [:opts :title]))
+           (= "Faceted"
+              (get-in (pj/facet-grid mpg-pose :drv :cyl {:title "Faceted"})
+                      [:opts :title]))
+           (= "Faceted"
+              (get-in (pj/facet mpg-pose {:y [:hwy :cty]} {:title "Faceted"})
+                      [:opts :title])))))])
 
 ;; ### Rule L4: composite layout is controlled by `:layout` and optional `:share-scales`
 ;;
-;; A composite pose carries a `:layout` map (set by `pj/arrange`
-;; options: `:cols`, `:width`, `:height`, `:title`) controlling
-;; the grid of its sub-poses' panel blocks. An optional
+;; A composite pose carries a `:layout` map, which holds the direction
+;; of its rows and, in each row, the direction of the cells.
+;; `pj/arrange` writes `:title`, `:width`, `:height` and `:share-scales`
+;; into the composite's `:opts`, and `:cols` is not stored (Rule C8).
+;; An optional
 ;; `:share-scales` (a subset of `#{:x :y}`, or a map from an axis to
 ;; `:same-column`, `:all`, or groups of columns) enables shared-scale
 ;; resolution across sub-poses. Under a set, sharing is column-bucketed.
@@ -1355,11 +1446,16 @@ s2-tree
 ;; **Column-bucketing**: when `:x` is shared, sub-poses whose
 ;; effective `:x` column is the same share that scale's domain;
 ;; sub-poses with different `:x` columns get independent
-;; x-domains. Same for `:y`. This is what enables SPLOM (one x down
-;; each column, one y across each row) and marginal plots: a top strip
-;; names the scatter's `:x` and falls in the same bucket, and a right
-;; strip names the scatter's `:y` column on its own `:x`, so it falls
-;; in a bucket of its own and is pinned to that column's extent there.
+;; x-domains. Same for `:y`. The grid of `pj/cross-matrix` rests on
+;; this (one x down each column, one y across each row), and so do
+;; marginal plots: a top strip draws the scatter's `:x` column on the
+;; horizontal axis and shares `:x` with the scatter. A right strip is
+;; drawn with `:coord :flip`, so the scatter's `:y` column runs up the
+;; strip's vertical axis, and the strip and the scatter share `:y`. In
+;; `:share-scales`, `:x` is the horizontal axis and `:y` the vertical
+;; axis, also for a panel drawn with `:coord :flip`. A count or density
+;; axis is shared among the cells that compute the same thing from the
+;; same column.
 
 (def l4-shared
   (pj/arrange
@@ -1399,19 +1495,35 @@ l4-shared
            (every? some? domains)
            (apply = domains)
            (apply = (x-domains (cells true)))
-           (apply not= (x-domains (cells false))))))])
+           (apply not= (x-domains (cells false)))
+           ;; A right marginal is drawn on its side and shares the
+           ;; vertical axis with the scatter.
+           (apply = (mapv #(get-in % [:plan :panels 0 :y-domain])
+                          (:sub-plots (pj/plan (-> iris
+                                                   (pj/lay-point :sepal-length :sepal-width)
+                                                   (pj/marginal :right))))))
+           ;; Two histograms of one column share their count axis.
+           (apply = (mapv #(get-in % [:plan :panels 0 :y-domain])
+                          (:sub-plots
+                           (pj/plan
+                            (pj/arrange
+                             [(-> iris
+                                  (tc/select-rows #(= "setosa" (:species %)))
+                                  (pj/lay-histogram :sepal-length))
+                              (-> iris
+                                  (tc/select-rows #(= "virginica" (:species %)))
+                                  (pj/lay-histogram :sepal-length))]
+                             {:share-scales #{:y}}))))))))])
 
-;; ### Rule L5: multi-pair `pj/pose` reshapes rectangular pairs into a 2D grid (SPLOM)
+;; ### Rule L5: `pj/cross-matrix` builds a grid with one cell per pair of columns
 ;;
-;; When `pj/pose` receives a pair-sequence that forms a
-;; rectangular M x N Cartesian product (like the output of
-;; `pj/cross cols cols`), the result is a nested **rows-of-cols**
-;; composite with `:share-scales #{:x :y}` -- the canonical SPLOM
-;; layout. A cell's place follows its columns: its `:x` decides which
-;; column of the grid it sits in, its `:y` which row. Each cell
-;; inherits the base's `:data`, root `:mapping`, and root `:layers`
-;; when rendered. The compositor applies these renderer flags on
-;; cells:
+;; `(pj/cross-matrix data xs ys)` returns a composite of rows, each row
+;; holding one cell per column of `xs`, with `:share-scales #{:x :y}` in
+;; the root's `:opts`. A cell's place follows its columns: the cell's
+;; `:x` decides which column of the grid the cell sits in, and the
+;; cell's `:y` decides which row. Each cell reads the root's `:data`,
+;; `:mapping` and `:layers` when it is drawn. The cells carry these
+;; flags:
 ;;
 ;; - `:suppress-legend`, `:suppress-x-label` and `:suppress-y-label`
 ;;   on every cell. One legend is drawn at composite level, and the
@@ -1423,11 +1535,14 @@ l4-shared
 ;;   whole of their column and the leftmost column's the whole of
 ;;   their row.
 ;;
-;; In practice, SPLOM usage therefore omits `pj/lay-point` -- each
-;; cell infers its own layer type: scatter off-diagonal, histogram
-;; on the diagonal (where x = y). Pair lists that are not
-;; rectangular fall through to the flat one-panel-per-pair behaviour
-;; (see Rules C3 / C6).
+;; A cell with one column on both axes draws a histogram of that
+;; column, and every other cell draws the layer type inferred for its
+;; two columns -- a scatter for two numerical columns. A layer added
+;; with `pj/lay-*` is drawn in the cells whose number of columns its
+;; layer type draws from, so `pj/lay-point` after `pj/cross-matrix`
+;; leaves the histograms on the diagonal (Property P-LP1). `pj/pose`
+;; given pairs of columns reports an error that suggests `pj/arrange`
+;; and `pj/cross-matrix`.
 
 (-> iris
     (pj/cross-matrix [:sepal-length :sepal-width]
@@ -1449,24 +1564,34 @@ l4-shared
              [{:x :sepal-length :y :petal-width}
               {:x :sepal-width :y :petal-width}]]
             (mapv (fn [row] (mapv :mapping (:poses row)))
-                  (:poses pose)))))])
+                  (:poses pose)))
+         ;; pj/pose given pairs points at the two functions.
+         (let [msg (try (pj/pose iris (pj/cross [:sepal-length] [:petal-length :petal-width]))
+                        ""
+                        (catch Exception e (ex-message e)))]
+           (and (re-find #"pj/pose was given pairs of columns" msg)
+                (re-find #"pj/arrange" msg)
+                (re-find #"pj/cross-matrix" msg)))))])
 
 ;; ---
 ;; ## A Note on `pj/cross`
 ;;
-;; `pj/cross` is not a rule. It is a pure pair-generator --
-;; `(for [x xs y ys] [x y])` -- returning `[x-col y-col]` pairs. It
-;; has no plot-level behavior on its own; the multi-pair arity of
-;; `pj/pose` (and `pj/arrange` for independent plots) is what turns
-;; the generated sequence into panels, and those cases are already
-;; covered by the rules above. `pj/cross` is shown as a
-;; SPLOM-construction ingredient in the chart-type and how-to chapters
-;; (Scatter, Faceting, Customization), not as a rule.
+;; `pj/cross` is not a rule. It returns the pairs
+;; `(for [x xs y ys] [x y])` and draws nothing. `pj/arrange` takes the
+;; pairs as cells, one panel per pair, and `pj/cross-matrix` builds the
+;; grid with shared axes from the two lists of columns (Rule L5).
+;; `pj/pose` given the pairs reports an error.
 
 (pj/cross [:a :b] [:c :d])
 
 (kind/test-last
- [(fn [pairs] (= [[:a :c] [:a :d] [:b :c] [:b :d]] pairs))])
+ [(fn [pairs]
+    (and (= [[:a :c] [:a :d] [:b :c] [:b :d]] pairs)
+         (= 4 (:panels (pj/svg-summary
+                        (-> iris
+                            (pj/arrange (pj/cross [:sepal-length :sepal-width]
+                                                  [:petal-length :petal-width]))
+                            pj/lay-point))))))])
 
 ;; ## What's Next
 ;;

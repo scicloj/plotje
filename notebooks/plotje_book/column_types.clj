@@ -160,7 +160,7 @@
 
 ;; ## What the type decides about color
 
-;; The same three columns, mapped to `:color` instead of to a position.
+;; The same three columns, mapped to `:color` instead of to `:x`.
 ;; A categorical column draws one palette color per distinct value:
 
 (-> categorical

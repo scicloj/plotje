@@ -99,8 +99,8 @@ scatter-pose
 ;; | Fill domain | `[0.0, 1.0]` for fill position | `(pj/scale pose :y {:domain [0 2]})` |
 ;; | Tick values | round intervals (linear), powers of 10 (log) | `(pj/scale pose :x {:breaks [1 2 3]})` |
 ;; | Tick labels | number formatting, calendar formatting | `(pj/scale pose :x {:breaks [...] :tick-labels [...]})` |
-;; | Axis labels | column name, with underscores replaced by spaces | `(pj/options {:x-label "Custom"})` |
-;; | Color legend | categorical = discrete, numerical = continuous, none = no legend | `:color` mapping controls presence |
+;; | Axis labels | column name, or every column drawn on the axis, with underscores and hyphens replaced by spaces | `(pj/options {:x-label "Custom"})` |
+;; | Color legend | categorical = discrete, numerical = continuous, none = no legend, except layers naming different columns, which get an entry each | `:color` on the layer or the pose |
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
 ;; | Alpha legend | ~5 graduated opacity squares (count varies with range) when `:alpha` maps to numerical column | `:alpha` mapping controls presence |
 ;; | Layout padding | adjusts for title, labels, legend | `:width`, `:height` in options |
@@ -182,15 +182,16 @@ two-col-pose
 ;; A layer added to a pose leaves the layers before it as they were
 ;; drawn. Below, the points come first and name no column, so they read
 ;; the first three columns of the data. The trend line names the two
-;; columns the points are already drawn at. The points keep the third
-;; column as their colour, and the trend line reads that colour as
-;; every layer of the pose does, so there is a line per plot:
+;; columns the points are already drawn at. The default also maps the
+;; third column, `:bed`, to `:color`. Every layer of the pose reads
+;; that mapping, the trend line among them, so the points are coloured
+;; by bed and there is one trend line per bed:
 
 (def seedlings
   {:day [1 2 3 4 5 6 1 2 3 4 5 6]
    :height [2.0 3.1 3.9 5.2 6.1 6.8 1.5 2.1 2.4 3.3 3.6 4.4]
-   :plot ["north" "north" "north" "north" "north" "north"
-          "south" "south" "south" "south" "south" "south"]})
+   :bed ["north" "north" "north" "north" "north" "north"
+         "south" "south" "south" "south" "south" "south"]})
 
 (-> seedlings
     pj/lay-point
@@ -200,7 +201,7 @@ two-col-pose
                            (and (= 12 (:points s))
                                 (= 2 (:lines s))
                                 (some #{"north"} (:texts s))
-                                (= :plot (:color (:mapping (pj/infer-mapping v)))))))])
+                                (= :bed (:color (:mapping (pj/infer-mapping v)))))))])
 
 ;; A later layer naming one of the two columns leaves the points as
 ;; they were drawn too. Here a rug marks each `:day` along the x axis:
@@ -233,11 +234,22 @@ two-col-pose
 ;; no column is read from the data. `(pj/lay-point data)` and
 ;; `(pj/pose data)` both build a pose with the data attached and no
 ;; column named, and a later step may name the columns:
-;; `(pj/pose pose :col-a :col-b)` or
-;; `(pj/lay-point pose :col-a :col-b)`. A pose drawn while a layer
-;; still has no column reports an error that names the layer and
-;; lists the columns of the data.
-;;
+;; `(pj/pose pose :col-a :col-b)` after either call, or
+;; `(pj/lay-point pose :col-a :col-b)` after `(pj/pose data)`. A pose
+;; drawn while a layer still has no column reports an error that names
+;; the layer and lists the columns of the data:
+
+(try
+  (-> (rdatasets/datasets-iris)
+      pj/lay-point
+      pj/plan)
+  (catch Exception e
+    (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"this layer has no column on :x or :y" msg)
+                 (re-find #"Available columns:" msg)))])
+
 ;; When you provide explicit columns, inference is skipped:
 
 (-> (rdatasets/datasets-iris)
@@ -370,14 +382,21 @@ hour-bar-pose
  [(fn [v]
     (and (= 4 (:polygons (pj/svg-summary v)))
          (= ["9" "10" "11" "12"]
-            (:x-domain (first (:panels (pj/plan hour-bar-pose)))))))])
+            (:x-domain (first (:panels (pj/plan hour-bar-pose)))))
+         ;; Without the override: four bars on a numerical axis whose
+         ;; ticks are not one per hour.
+         (let [plain (pj/lay-bar {:hour [9 10 11 12] :count [5 8 12 7]} :hour :count)
+               ticks (-> plain pj/plan :panels first :x-ticks)]
+           (and (= 4 (:polygons (pj/svg-summary plain)))
+                (false? (:categorical? ticks))
+                (not= ["9" "10" "11" "12"] (:labels ticks))))))])
 
-;; Four bars at discrete hour bands. Without the override,
-;; `lay-bar` would reject the numeric `:hour` column; with
-;; it, the column is treated as categorical (values cast to strings
-;; for display). The same override exists for `:y-type` and for
-;; `:color-type` (see the Grouping section below for a `:color-type`
-;; example).
+;; Four bars at discrete hour bands. Without the override the bars are
+;; drawn along a numerical axis, ticked at round numbers rather than
+;; once per hour; with the override, the column is read as categorical
+;; (values cast to strings for display). The same override exists for
+;; `:y-type` and for `:color-type` (see the Grouping section below for
+;; a `:color-type` example).
 
 ;; ## Aesthetic Resolution
 ;;
@@ -725,16 +744,46 @@ explicit-group-pose
 ;; | temporal | numerical | time-series line | `:line` + `:identity` |
 ;; | categorical | numerical | boxplot (vertical) | `:boxplot` + `:boxplot` |
 ;; | numerical | categorical | boxplot (horizontal) | `:boxplot` + `:boxplot` |
+;; | the same column on both axes | | what the column draws alone: a histogram for a numerical or temporal column, a bar chart of counts for a categorical column | as in the single-column table |
 ;; | any other pair | | scatter (fallback) | `:point` + `:identity` |
 ;;
-;; Fallback pairs include temporal x + categorical y, categorical x +
-;; categorical y, and temporal x + temporal y. These are rarer in
-;; practice, and giving them a dedicated inference is deferred. You
-;; can always override with an explicit `pj/lay-*` call; the
-;; inferred layer type is only a default.
+;; A temporal column is read as a numerical column here, so a
+;; categorical column against a temporal column is a boxplot too. The
+;; pairs that fall back to a scatter are categorical with categorical
+;; and temporal with temporal. These are rarer in practice, and giving
+;; them a dedicated inference is deferred. You can always override with
+;; an explicit `pj/lay-*` call; the inferred layer type is only a
+;; default.
 ;;
 ;; When you use `pj/lay-point`, `pj/lay-histogram`, etc., the layer
 ;; type's stat takes precedence -- column-type inference is bypassed.
+;;
+;; One numerical column named on both axes draws its histogram:
+
+(-> five-points
+    (pj/pose :x :x))
+
+(kind/test-last
+ [(fn [v]
+    (let [mark-of (fn [pose] (-> pose pj/plan :panels first :layers first :mark))
+          dates {:t [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"]
+                 :u [#inst "2023-01-01" #inst "2023-02-01" #inst "2023-03-01"]
+                 :c ["a" "b" "a"]
+                 :k ["p" "q" "q"]}]
+      (and (= :bar (mark-of v))
+           (= :rect (mark-of (pj/pose animals :animal :animal)))
+           ;; Explicit layers keep their own stat.
+           (= 5 (:points (pj/svg-summary (pj/lay-point five-points :x :x))))
+           (= :rect (mark-of (pj/lay-bar animals :animal :animal)))
+           ;; The fallback table above.
+           (= :boxplot (mark-of (pj/pose dates :t :c)))
+           (= :boxplot (mark-of (pj/pose dates :c :t)))
+           (= :point (mark-of (pj/pose dates :c :k)))
+           (= :point (mark-of (pj/pose dates :t :u))))))])
+
+;; An explicit `pj/lay-point` with one column on both axes still draws
+;; the points, and `pj/lay-bar` with one categorical column on both
+;; axes counts that column.
 ;;
 ;; A single numerical column produces a histogram:
 
@@ -1091,7 +1140,8 @@ colored-pose
 ;; The legend's title is the column name; each entry has a `:label`
 ;; and a palette color.
 ;;
-;; No color mapping means no legend:
+;; No color mapping, on a pose whose layers draw the same columns, means
+;; no legend:
 
 scatter-pose
 
@@ -1209,6 +1259,9 @@ full-layout-pose
 ;; - A single panel is `:single`, also where its layers name different
 ;;   columns
 ;; - A faceted pose -- one mapping `:col` or `:row` -- is `:facet-grid`
+;; - A facet over columns, and a pose built with `pj/arrange`, are
+;;   planned as a composite: the plan holds one sub-plot per cell, and
+;;   each sub-plot has a layout type of its own
 
 scatter-pose
 
@@ -1219,8 +1272,16 @@ scatter-pose
                                                            (pj/lay-point :sepal-length :sepal-width)
                                                            (pj/facet :species)))))
                  (= :single (:layout-type (pj/plan (-> iris
-                                                               (pj/lay-point :sepal-length :sepal-width)
-                                                               (pj/lay-point :petal-length :petal-width))))))))])
+                                                       (pj/lay-point :sepal-length :sepal-width)
+                                                       (pj/lay-point :petal-length :petal-width)))))
+                 ;; A facet over columns plans as a composite, each
+                 ;; sub-plot a single panel.
+                 (let [plan (pj/plan (-> iris
+                                         (pj/lay-point :sepal-length :sepal-width)
+                                         (pj/facet {:y [:sepal-width :petal-width]})))]
+                   (and (:composite? plan)
+                        (= [:single :single]
+                           (mapv #(get-in % [:plan :layout-type]) (:sub-plots plan))))))))])
 
 ;; ## Coordinate Flipping
 ;;
@@ -1298,6 +1359,48 @@ multi-pose
 
 ;; Two layers -- one `:point`, one `:line` -- sharing the same domain.
 ;; The line carries the regression curve as a polyline.
+;;
+;; When the layers of a pose name different columns, each axis is
+;; titled by every column drawn on it, and each layer with no `:color`
+;; specified takes a colour and a legend entry naming its columns. Here
+;; both layers draw `:sepal-length` on `:x`, and each names its own `:y`:
+
+(def two-columns-pose
+  (-> (rdatasets/datasets-iris)
+      (pj/pose :sepal-length)
+      (pj/lay-point {:y :sepal-width})
+      (pj/lay-point {:y :petal-width})))
+
+two-columns-pose
+
+(kind/test-last
+ [(fn [_]
+    (let [plan (pj/plan two-columns-pose)]
+      (and (= ["sepal width" "petal width"]
+              (mapv :label (:entries (:legend plan))))
+           (= "sepal length" (:x-label plan))
+           (= "sepal width, petal width" (:y-label plan)))))])
+
+;; A layer that specifies a colour keeps that colour and has no legend
+;; entry, and no layer takes a colour by default on a panel where a
+;; layer is coloured by a column.
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose :sepal-length)
+    (pj/lay-point {:y :sepal-width :color "#377eb8"})
+    (pj/lay-point {:y :petal-width}))
+
+(kind/test-last
+ [(fn [v]
+    (let [by-column (-> (rdatasets/datasets-iris)
+                        (pj/pose :sepal-length)
+                        (pj/lay-point {:y :sepal-width :color :species})
+                        (pj/lay-point {:y :petal-width}))]
+      (and (= ["petal width"]
+              (mapv :label (:entries (:legend (pj/plan v)))))
+           ;; Coloured by a column: the legend holds the species only.
+           (= ["setosa" "versicolor" "virginica"]
+              (mapv :label (:entries (:legend (pj/plan by-column))))))))])
 
 ;; ## Resolution Overview
 ;;

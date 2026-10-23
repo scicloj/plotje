@@ -58,18 +58,20 @@ my-pose
 
 ;; ## Leaf Pose
 ;;
-;; A **leaf pose** is a pose with no sub-poses. It draws one panel per
-;; place its layers name -- usually one -- multiplied by the facet
-;; values where it is faceted.
-;; It carries `:data`, a `:mapping` from columns to aesthetics, and
-;; `:layers` -- the chart-type layers attached to it. Created by
-;; `pj/pose` or `pj/lay-*`.
+;; A **leaf pose** is a pose with no sub-poses. It draws one panel,
+;; which all of its layers share, whatever columns the layers name. A
+;; facet multiplies the panel: by the categories of a column, or by the
+;; columns `pj/facet` is given. A leaf pose carries `:data`, a
+;; `:mapping` from columns to aesthetics, and `:layers` -- the
+;; chart-type layers attached to it. Created by `pj/pose` or
+;; `pj/lay-*`.
 
 ;; ## Composite Pose
 ;;
 ;; A **composite pose** is a pose that contains other poses under
-;; `:poses` plus an optional `:layout`. Created by `pj/arrange`. Its
-;; leaves render independently and are tiled into the final plot.
+;; `:poses` plus an optional `:layout`. Created by `pj/arrange`,
+;; `pj/cross-matrix` and `pj/marginal`. Its leaves render independently
+;; and are tiled into the final plot.
 ;;
 ;; A composite may hold a composite: a cell that is itself a composite
 ;; draws its own grid. Unequal cell weights are the one layout feature
@@ -78,13 +80,15 @@ my-pose
 
 ;; ## Arrange
 ;;
-;; `pj/arrange` builds a composite pose from a sequence of poses.
-;; Each input becomes one of the composite's `:poses`; the
-;; composite tiles them via `:layout`. It accepts `:cols`, `:title`,
-;; `:width`, `:height`, and `:share-scales`. An input may be a
-;; composite, which becomes a cell drawing its own grid. For unequal
-;; cell weights, which `pj/arrange` does not expose, pass a literal
-;; map to `pj/pose`.
+;; `pj/arrange` builds a composite pose from cells. A cell is a pose, a
+;; composite, a column, a pair of columns, a mapping, or `nil` for a
+;; cell left empty. Data or a pose written first reaches every cell.
+;; The composite holds one sub-pose per row, and each row holds the
+;; cells of that row. `pj/arrange` accepts `:cols`, `:align-panels`,
+;; `:share-scales`, and every plot option `pj/options` takes, such as
+;; `:title`, `:width` and `:height`. A cell that is a composite draws
+;; its own grid. For unequal cell weights, which `pj/arrange` does not
+;; expose, pass a literal map to `pj/pose`.
 
 ;; ## Layer Type
 ;;
@@ -121,6 +125,17 @@ my-pose
 (-> my-pose :layers first :layer-type)
 
 (kind/test-last [(fn [k] (= :point k))])
+
+;; ## Panel's Columns
+;;
+;; The **panel's column** on an axis is the column the pose names
+;; there, and where the pose names none, the column of the first layer
+;; that names a column there. A layer naming no column reads the
+;; panel's column on both axes. A layer naming one column reads the
+;; panel's column on the other axis where its layer type draws from two
+;; columns. The
+;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from)
+;; chapter lists how many columns each layer type draws from.
 
 ;; ## Mark
 ;;
@@ -363,7 +378,7 @@ my-pose
 ;; A role is not a category: a **category** is a value a categorical
 ;; column holds, which is the thing a role is given.
 ;;
-;; Two roles are not written as aesthetics:
+;; Three ways of telling marks apart are not written as aesthetics:
 ;;
 ;; - A [position](#position) adjustment -- `:dodge`, `:stack`,
 ;;   `:fill` -- gives a distinction a slot within a band, or a place
@@ -372,10 +387,15 @@ my-pose
 ;; - [`pj/arrange`](#arrange) gives each of several poses a plot of
 ;;   its own. It is written as a call, and what it separates is poses
 ;;   rather than a column's values.
+;; - A facet over columns, `(pj/facet pose {:y [:hwy :cty]})`, gives
+;;   each column a panel of its own. It is kept under the pose's
+;;   `:facet` key, and what it separates is columns rather than the
+;;   values of one column.
 ;;
 ;; So the same question -- what becomes of a distinction -- is
 ;; answered by an aesthetic for four roles, by a layer setting for one,
-;; and by a call for another.
+;; by a call for another, and by the pose's `:facet` key for the
+;; last.
 
 ;; ## Group
 ;;
@@ -734,10 +754,11 @@ my-pose
 
 ;; ## Sub-plot
 ;;
-;; A **sub-plot** is one resolved entry of a composite pose's
-;; `:poses`, in the plan. Where a leaf pose's plan carries
-;; `:panels` (one per faceted variant), a composite pose's plan
-;; carries `:sub-plots` (one per inner pose), each with its own
+;; A **sub-plot** is the plan of one cell: one leaf of a composite
+;; pose, or the panel of one column in a facet over columns. Where the
+;; plan of a leaf pose carries `:panels` (one per category of a facet),
+;; the plan of a composite pose, and of a leaf with a facet over
+;; columns, carries `:sub-plots`, one per cell, each with its own
 ;; nested `:plan` map. The compositor reads `:sub-plots` and tiles
 ;; their rendered membranes into the final canvas.
 
@@ -914,15 +935,22 @@ my-pose
 
 ;; ## Facet
 ;;
-;; A **facet** splits data into multiple panels by a categorical
-;; column. Each panel shows a subset of the data.
+;; A **facet** draws one pose as several panels. A facet over the
+;; categories of a column draws a panel per category, each showing the
+;; rows of that category. A facet over columns, written as a map such
+;; as `{:y [:hwy :cty]}`, draws a panel per column, each showing every
+;; row.
 ;;
-;; - `pj/facet` creates a row or column of panels
-;; - `pj/facet-grid` creates a row-by-column grid from two columns
+;; - `pj/facet` given a column creates a panel per category of that
+;;   column; given a map of columns, a panel per column or per pair of
+;;   columns
+;; - `pj/facet-grid` creates a grid from two categorical columns, the
+;;   categories of the first across and those of the second down
 ;;
 ;; By default all panels share the same x and y domains, which cover
-;; what the panels draw. `:share-scales` in `pj/options` names the
-;; axes the panels share: `{:share-scales #{:x}}` lets each panel use
+;; what the panels draw. `:share-scales` names the axes the panels
+;; share, in `pj/options` or in the map of plot options that `pj/facet`
+;; takes as its last argument: `{:share-scales #{:x}}` lets each panel use
 ;; its own `:y` range, and `{:share-scales #{}}` its own range on both
 ;; axes.
 
@@ -939,7 +967,15 @@ my-pose
                                   (pj/lay-point :sepal-length :sepal-width)
                                   (pj/facet :species)))))]
       (and (= 3 (:panels s))
-           (= 3 n-panels))))])
+           (= 3 n-panels)
+           ;; A facet over columns: every row in each panel.
+           (= {:panels 2 :points 300}
+              (select-keys (pj/svg-summary
+                            (-> (rdatasets/datasets-iris)
+                                (pj/pose {:x :sepal-length})
+                                pj/lay-point
+                                (pj/facet {:y [:sepal-width :petal-width]})))
+                           [:panels :points])))))])
 
 ;; ## Overlay
 ;;
@@ -1098,7 +1134,7 @@ annotated
 ;; |:----|:---------|
 ;; | `:bg` | Panel background color |
 ;; | `:grid` | Gridline color |
-;; | `:font-size` | Base font size in drawing units |
+;; | `:font-size` | Font size of the tick labels, in drawing units |
 ;;
 ;; Passed as `{:theme {...}}` via `pj/options`, `pj/with-config`, or
 ;; `pj/set-config!`. Other visual settings (margins, legend width, tick
@@ -1110,7 +1146,18 @@ annotated
     (pj/options {:theme {:bg "#2d2d2d" :grid "#444444" :font-size 10}}))
 
 (kind/test-last
- [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+ [(fn [v]
+    (let [small (pj/options v {:theme {:font-size 8}})
+          sizes (frequencies
+                 (keep #(get-in % [1 :font-size])
+                       (filter #(and (vector? %) (= :text (first %)))
+                               (tree-seq vector? seq (pj/plot small)))))
+          panel (first (:panels (pj/plan small)))
+          n-tick-labels (+ (count (:labels (:x-ticks panel)))
+                           (count (:labels (:y-ticks panel))))]
+      (and (= 150 (:points (pj/svg-summary v)))
+           ;; `:font-size` sizes the tick labels and no other text.
+           (= n-tick-labels (get sizes 8)))))])
 
 ;; ## Membrane
 ;;
@@ -1322,13 +1369,13 @@ annotated
 ;; | Term | What | Key functions |
 ;; |:-----|:-----|:-------------|
 ;; | Pose | Composable value: data + mapping + layers (+ inner poses) | All `pj/` functions return poses |
-;; | Leaf pose | Pose describing one plot panel | `pj/pose`, `pj/lay-*` with columns |
-;; | Composite pose | Pose containing other poses (in `:poses`) and a layout | `pj/arrange` |
-;; | Mapping | Column-to-aesthetic association on a pose or layer | `pj/pose` mapping, `pj/lay-*` options |
+;; | Leaf pose | Pose with no sub-poses; it draws one panel, which a facet multiplies | `pj/pose`, `pj/lay-*` |
+;; | Composite pose | Pose containing other poses (in `:poses`) and a layout | `pj/arrange`, `pj/cross-matrix`, `pj/marginal` |
+;; | Mapping | Column-to-aesthetic association on a pose or layer | `pj/pose` mapping, `pj/lay-*` mapping |
 ;; | Layer | Layer type attached to a pose, optionally with scoped mappings | `pj/lay-*` |
 ;; | Dataset | Tabular data backing a plot -- a `tech.ml.dataset`, conveniently built and manipulated via the Tablecloth API | `:data` slot, `pj/with-data` |
 ;; | Pipeline | Five-stage flow `pose -> draft -> plan -> membrane -> plot` | Architecture chapter |
-;; | Sub-plot | One resolved entry of a composite pose's `:poses`, in the plan | `:sub-plots` in plan |
+;; | Sub-plot | The plan of one cell of a composite, or of one column of a facet over columns | `:sub-plots` in plan |
 ;; | Resolve tree | Scope-merge walk: root mappings propagate to every leaf | Internal to `pj/plan` |
 ;; | Draft | `LeafDraft` or `CompositeDraft` record carrying merged layer maps and pose-level options | `pj/draft`, automatic during `pj/plan` |
 ;; | Draft layer | One element of a draft: layer type + merged mappings + data | Element of `pj/draft` output |
@@ -1353,8 +1400,8 @@ annotated
 ;; | Drawing area | The panel background inside that margin, where data marks clip | `pj/frames`; `:in :drawing-area` |
 ;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale`, or `:scale` in a mapping |
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
-;; | Facet | Split into panels by a categorical column | `pj/facet`, `pj/facet-grid` |
-;; | Arrange | Compose multiple poses into a grid | `pj/arrange` |
+;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet`, `pj/facet-grid` |
+;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | every layer of a pose |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make the panels of a facet, or the sibling poses of a composite, share data ranges across named axes | `:share-scales` in `:opts` |
