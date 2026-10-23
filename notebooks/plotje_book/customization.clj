@@ -29,26 +29,44 @@
    [clojure2d.color :as c2d]))
 
 ;; ## Dimensions
+;;
+;; `:width` and `:height` set the size of the canvas in drawing units,
+;; and a file written by `pj/save` has that size. The pages of this
+;; book draw every plot at the width of the text column, so here
+;; `:width` and `:height` show as the plot's proportions, and as the
+;; size of its text and marks against the whole plot.
 
-;; A wide, short plot.
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:width 800 :height 250}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 150 (:points s))
-                                (>= (:width s) 800))))])
-
-;; A tall, narrow plot.
+;; A canvas twice as wide as it is tall:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/options {:width 300 :height 500}))
+    (pj/options {:width 800 :height 400}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 150 (:points s))
-                                (>= (:width s) 300))))])
+                                (= 800 (:width s))
+                                (= 400 (:height s)))))])
+
+;; The same width at half the height. The points and the text keep
+;; their size, and the panel is shorter:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/options {:width 800 :height 200}))
+
+(kind/test-last
+ [(fn [v]
+    (let [taller (-> (rdatasets/datasets-iris)
+                     (pj/lay-point :sepal-length :sepal-width {:color :species})
+                     (pj/options {:width 800 :height 400}))
+          font-sizes (fn [fr] (set (re-seq #":font-size [0-9.]+" (str (pj/plot fr)))))
+          s (pj/svg-summary v)]
+      (and (= 150 (:points s))
+           (= 800 (:width s))
+           (= 200 (:height s))
+           (= (:sizes s) (:sizes (pj/svg-summary taller)))
+           (= (font-sizes v) (font-sizes taller))
+           (< (:panel-height (pj/plan v)) (:panel-height (pj/plan taller))))))])
 
 ;; ## Titles and Labels
 
@@ -694,8 +712,7 @@
 ;; broad faint line can sit behind the data rather than cutting across
 ;; it. The rule is written before the points here, so it is drawn under
 ;; them -- layers paint in the order they are added, and these are
-;; layers. A rule written first needs the columns to come from
-;; somewhere, so the pose names them:
+;; layers:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)

@@ -81,8 +81,23 @@
 
 ;; ### Horizontal
 
-;; Counting bars have no native horizontal form (the category would
-;; need to be counted onto the y-axis), so flip the chart instead.
+;; Name the category on `:y` and the counting bars are drawn across. A
+;; counting bar draws from one column, and a column named on `:y` alone
+;; is drawn on its side.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-bar {:y :species}))
+
+(kind/test-last
+ [(fn [v]
+    (let [panel (first (:panels (pj/plan v)))]
+      (and (= 3 (:polygons (pj/svg-summary v)))
+           (= ["setosa" "versicolor" "virginica"] (:y-domain panel))
+           ;; The counts run along x.
+           (zero? (first (:x-domain panel))))))])
+
+;; `(pj/coord :flip)` turns a chart written upright, and draws the same
+;; bars:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-bar :species)
@@ -100,10 +115,13 @@
            (pos? (:polygons s))
            ;; Categories on the y-axis follow the data order, not
            ;; alphabetical order.
-           (= iris-order (:values (:y-ticks panel))))))])
+           (= iris-order (:values (:y-ticks panel)))
+           ;; The same picture as the bars written with {:y :species}.
+           (= s (pj/svg-summary (-> (rdatasets/datasets-iris)
+                                    (pj/lay-bar {:y :species})))))))])
 
-;; `(pj/coord :flip)` draws categories **bottom-to-top in data
-;; order**, matching ggplot2's `coord_flip()`. For a ranking chart
+;; Both forms draw the categories **bottom-to-top in data order**,
+;; matching ggplot2's `coord_flip()`. For a ranking chart
 ;; where the biggest value should appear at the top, sort the data
 ;; ascending before plotting, e.g.
 ;; `(tc/order-by data [:value] [:asc])`.
@@ -139,7 +157,7 @@
 
 ;; ### Horizontal
 
-;; Put the category on y -- no coord flip needed (unlike count bars).
+;; Put the category on `:y` -- no `(pj/coord :flip)` needed.
 
 (-> sales
     (pj/lay-bar :revenue :product))
@@ -154,8 +172,8 @@
 ;; are in whatever order the data happened to hold. Plotje draws the
 ;; bands of a categorical y axis in data order, running bottom to top,
 ;; so sorting the rows ascending by the value puts the biggest bar at
-;; the top. The same sort does the same thing under `(pj/coord :flip)`,
-;; which is how the count-bar form gets there.
+;; the top. The same sort does the same thing for bars written upright
+;; and turned with `(pj/coord :flip)`.
 
 (def sales-ranked
   (-> sales
@@ -176,7 +194,16 @@
            (= 4 (:polygons (pj/svg-summary v)))
            (apply > (mapv height-of bands))
            (= "gadget" (last bands))
-           (= 340 (apply max (:revenue sales))))))])
+           (= 340 (apply max (:revenue sales)))
+           ;; Written upright and flipped, the bands come in the same order.
+           (= bands (-> sales-ranked
+                        (pj/lay-bar :product :revenue)
+                        (pj/coord :flip)
+                        pj/plan
+                        :panels
+                        first
+                        :y-domain
+                        vec)))))])
 
 ;; ### Rotated labels
 
@@ -290,6 +317,48 @@
                                 (= 8 (:points s))
                                 (= ["before" "after"]
                                    (mapv :label (:entries (:legend p)))))))])
+
+;; The segment layer names `:before` on `:x` too, so it is drawn in the
+;; colour of the `before` points. A colour written on the segment layer
+;; draws the line in a neutral grey:
+
+(-> {:team ["Ops" "Sales" "Support" "Research"]
+     :before [62 48 71 55]
+     :after [74 66 69 81]}
+    (pj/lay-segment :before :team {:x-end :after :color "grey"})
+    (pj/lay-point :before :team)
+    (pj/lay-point :after :team))
+
+(kind/test-last
+ [(fn [v]
+    (let [segment-color (fn [fr] (-> fr
+                                     pj/plan
+                                     :panels
+                                     first
+                                     :layers
+                                     first
+                                     :groups
+                                     first
+                                     :color))
+          before-color (fn [fr] (-> fr
+                                    pj/plan
+                                    :legend
+                                    :entries
+                                    first
+                                    :color))
+          default-pose (-> {:team ["Ops" "Sales" "Support" "Research"]
+                            :before [62 48 71 55]
+                            :after [74 66 69 81]}
+                           (pj/lay-segment :before :team {:x-end :after})
+                           (pj/lay-point :before :team)
+                           (pj/lay-point :after :team))]
+      (and (= 4 (:lines (pj/svg-summary v)))
+           ;; Without a colour of its own, the segment takes the colour
+           ;; of the before points.
+           (= (before-color default-pose) (segment-color default-pose))
+           (not= (before-color v) (segment-color v))
+           (= ["before" "after"]
+              (mapv :label (:entries (:legend (pj/plan v))))))))])
 
 ;; ## See Also
 ;;

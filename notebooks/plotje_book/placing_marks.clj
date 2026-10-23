@@ -506,8 +506,8 @@ scatter
 ;; the two rectangles described above. The axis margin is not stored
 ;; separately; it is the difference between those two rectangles.
 ;;
-;; `pj/to-drawing` maps a data point onto the page and `pj/to-data` maps
-;; back, both taking one panel entry:
+;; `pj/to-drawing` maps a data point into drawing space and `pj/to-data`
+;; maps back, both taking one panel entry:
 
 (let [panel (-> scatter pj/frames :panels first)]
   {:mazda-rx4-at      (pj/to-drawing panel 2.62 21.0)

@@ -952,9 +952,10 @@ gapminder-2007
              (:legend (pj/plan (-> (rdatasets/ggplot2-mpg)
                                    (pj/lay-tile :displ :hwy))))))))])
 
-;; Fixing the domain this way is also how every panel of a facet is
-;; given one size or color scale to share -- see
-;; [Faceting](./plotje_book.faceting.html).
+;; Under a facet, every panel reads `:size` and `:color` through one
+;; scale, with or without a `:domain`. A `:domain` written there sets
+;; the extent of that one scale in every panel -- see
+;; [Faceting](./plotje_book.faceting.html#appearance-aesthetics-across-panels).
 
 ;; ## Range
 ;;

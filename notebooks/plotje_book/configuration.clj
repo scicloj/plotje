@@ -73,9 +73,9 @@
 ;;
 ;; These options are accepted directly by `pj/options`, `pj/plan`, and
 ;; `pj/plot`; they are inherently per-plot, with no cross-plot defaults.
-;; (Other plot options -- axis scales, coordinate system, facets --
-;; are set by their dedicated functions and live in the same `:opts`
-;; field.)
+;; The coordinate system, the scales and the facets are set with
+;; functions of their own -- `pj/coord`, `pj/scale` and `pj/facet` --
+;; and `pj/options` does not accept them.
 
 (kind/table
  {:column-names ["Key" "Category" "Description"]
@@ -135,7 +135,10 @@
 ;; `pj/set-config!` sets overrides that persist across calls -- useful
 ;; when you want a consistent style for an entire session or notebook.
 
-;; Set a global width override and render:
+;; Set a global width override and render. The pages of this book draw
+;; every plot at the width of the text column, so on this page the
+;; wider canvas is drawn as wide as the plots above and less tall -- see
+;; [Customization](./plotje_book.customization.html#dimensions):
 
 (pj/set-config! {:width 800})
 
@@ -340,8 +343,8 @@ precedence-point-radius
 
 ;; ## Comparing Two Themes Side by Side
 ;;
-;; `pj/arrange` composes independent plots in a CSS grid.
-;; Each plot can have its own theme.
+;; `pj/arrange` draws several poses side by side in one picture, and
+;; each pose keeps its own theme.
 
 (pj/arrange
  [(-> (base-plot)

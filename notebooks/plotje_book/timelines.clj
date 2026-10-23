@@ -429,8 +429,8 @@
 ;;
 ;; Splitting one chart into one-panel-per-category makes
 ;; overlapping intervals easier to compare. Faceting the activity
-;; timeline by `:kind` produces two stacked tracks -- meetings on
-;; one panel, deep work on the other.
+;; timeline by `:kind` draws two panels side by side -- meetings in
+;; the first panel, deep work in the second.
 
 (-> activity
     (pj/lay-interval-h :start :day {:x-end :end :color :kind})
@@ -442,7 +442,11 @@
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 2 (:panels s))
-                                (= 15 (:polygons s)))))])
+                                (= 15 (:polygons s))
+                                ;; side by side: one row, two columns
+                                (= [[0 0] [0 1]]
+                                   (mapv (juxt :row :col)
+                                         (:panels (pj/frames v)))))))])
 
 ;; ## Interactive timelines
 ;;

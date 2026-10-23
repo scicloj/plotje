@@ -77,7 +77,7 @@
       (= 1 (:panels s))
       (pos? (:polygons s))
       (some
-       (fn* [p1__80341#] (= "Distribution of Total Bill" p1__80341#))
+       (fn* [p1__78377#] (= "Distribution of Total Bill" p1__78377#))
        (:texts s)))))
    v12_l53)))
 
@@ -100,8 +100,8 @@
       (pj/svg-summary v)
       domain
       (fn*
-       [p1__80342#]
-       (-> p1__80342# pj/plan :panels first :x-domain))]
+       [p1__78378#]
+       (-> p1__78378# pj/plan :panels first :x-domain))]
      (and
       (= 1 (:panels s))
       (= 10 (:polygons s))
@@ -292,8 +292,8 @@
       (pj/svg-summary v)
       domain
       (fn*
-       [p1__80343#]
-       (-> p1__80343# pj/plan :panels first :x-domain))]
+       [p1__78379#]
+       (-> p1__78379# pj/plan :panels first :x-domain))]
      (and
       (= 1 (:panels s))
       (= 1 (:polygons s))
@@ -367,7 +367,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__80344#] (= :boxplot (:mark p1__80344#))))
+       (filter (fn* [p1__78380#] (= :boxplot (:mark p1__78380#))))
        first
        :boxes)
       within-fences?
@@ -418,7 +418,7 @@
       box-layer
       (first
        (filter
-        (fn* [p1__80345#] (= :boxplot (:mark p1__80345#)))
+        (fn* [p1__78381#] (= :boxplot (:mark p1__78381#)))
         (:layers (first (:panels plan)))))]
      (and
       (= 1 (:panels s))
@@ -502,7 +502,7 @@
       viol-layer
       (first
        (filter
-        (fn* [p1__80346#] (= :violin (:mark p1__80346#)))
+        (fn* [p1__78382#] (= :violin (:mark p1__78382#)))
         (:layers (first (:panels plan)))))]
      (and
       (= 1 (:panels s))
@@ -573,8 +573,21 @@
   {:x [:sepal-length :sepal-width :petal-length]}))
 
 
+(deftest
+ t74_l411
+ (is
+  ((fn
+    [v]
+    (and
+     (= 1 (:panels (pj/svg-summary v)))
+     (=
+      ["sepal length" "sepal width" "petal length"]
+      (mapv :label (:entries (:legend (pj/plan v)))))))
+   v73_l408)))
+
+
 (def
- v75_l414
+ v76_l419
  (->
   (rdatasets/datasets-iris)
   (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
@@ -582,18 +595,18 @@
 
 
 (deftest
- t76_l418
+ t77_l423
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (pos? (:polygons s)))))
-   v75_l414)))
+   v76_l419)))
 
 
 (def
- v78_l425
+ v79_l430
  (->
   (rdatasets/datasets-iris)
   (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
@@ -601,11 +614,29 @@
 
 
 (deftest
- t79_l429
+ t80_l434
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (pos? (:polygons s)))))
-   v78_l425)))
+   v79_l430)))
+
+
+(def
+ v82_l444
+ (pj/lay-boxplot
+  (rdatasets/datasets-iris)
+  {:x :species, :y [:sepal-length :sepal-width :petal-length]}))
+
+
+(deftest
+ t83_l448
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 1 (:panels s)) (= 9 (:polygons s)))))
+   v82_l444)))

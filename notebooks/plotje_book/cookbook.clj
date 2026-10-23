@@ -447,8 +447,10 @@ longest-per-species
 
 ;; ### Fixed aspect ratio
 ;;
-;; Use `pj/coord :fixed` so one unit on x equals one unit on y.
-;; This makes the plot square when x and y have equal ranges.
+;; Use `pj/coord :fixed` so one unit on x equals one unit on y. The
+;; panel is square where the two columns span equal ranges; here sepal
+;; length spans more than sepal width, so the panel is wider than it is
+;; tall.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width {:color :species})
@@ -457,9 +459,13 @@ longest-per-species
     (pj/coord :fixed)
     (pj/options {:title "Fixed Aspect Ratio"}))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               panel (first (:panels (pj/frames v)))
+                               [_ _ w h] (:drawing-area (:frames panel))]
                            (and (pos? (:points s))
-                                (= 3 (:lines s)))))])
+                                (= 3 (:lines s))
+                                ;; the panel is wider than it is tall
+                                (> w h))))])
 
 ;; ### Diverging color scale
 ;;

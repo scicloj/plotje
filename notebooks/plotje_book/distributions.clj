@@ -402,11 +402,16 @@
 ;; ## Comparing Multiple Columns
 ;;
 ;; Name several columns in the mapping, `{:x [...]}`, to read them as a
-;; series on one panel, a colour per column -- with `pj/lay-histogram`
-;; or any `lay-*` function.
+;; series on one panel, a colour per column -- here with
+;; `pj/lay-histogram`.
 
 (pj/lay-histogram (rdatasets/datasets-iris)
                   {:x [:sepal-length :sepal-width :petal-length]})
+
+(kind/test-last
+ [(fn [v] (and (= 1 (:panels (pj/svg-summary v)))
+               (= ["sepal length" "sepal width" "petal length"]
+                  (mapv :label (:entries (:legend (pj/plan v)))))))])
 
 ;; Use `pj/facet` over the columns to create one panel per column.
 ;; This is useful for comparing the shape of different variables side by side.
@@ -431,8 +436,20 @@
             (and (= 3 (:panels s))
                  (pos? (:polygons s)))))])
 
-;; The multi-column vector works with any `lay-*` function -- histograms,
-;; density curves, boxplots, violin plots, and more.
+;; Several columns on `:x` suit the layer types that draw from one
+;; column, such as histograms, densities and rugs. A boxplot or a violin
+;; draws from two columns, so there the several columns go on `:y`,
+;; beside a category column on `:x`:
+
+(pj/lay-boxplot (rdatasets/datasets-iris)
+                {:x :species
+                 :y [:sepal-length :sepal-width :petal-length]})
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)]
+            (and (= 1 (:panels s))
+                 ;; three species, each with a box per column
+                 (= 9 (:polygons s)))))])
 
 ;; ## See Also
 ;;
