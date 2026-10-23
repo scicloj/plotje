@@ -4072,3 +4072,22 @@
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
                         #"was given 1 column on :x, \[:t\], and 2 on :y"
                         (pj/lay-line {:t [1 2] :a [1 2] :b [2 3]} [:t] [:a :b]))))
+
+(deftest a-path-of-one-row-per-group-is-warned-about
+  ;; A line, step or area joins the rows of each group; where every group
+  ;; holds one row the layer draws nothing visible, and nothing said so.
+  (let [sales {:quarter ["Q1" "Q2" "Q3" "Q4" "Q1" "Q2" "Q3" "Q4"]
+               :region ["North" "North" "North" "North" "South" "South" "South" "South"]
+               :week [1 2 3 4 5 6 7 8]
+               :units [100 120 90 140 70 85 110 95]}
+        out (fn [pose] (with-out-str (pj/plan pose)))]
+    (testing "a colour that differs on every row of a panel"
+      (let [o (out (-> sales (pj/lay-step :week :units {:color :quarter}) (pj/facet :region)))]
+        (is (re-find #"the :step mark joins the rows of each group" o))
+        (is (re-find #"The groups come from :quarter" o))))
+    (testing "a single row"
+      (is (re-find #"Draw a single row with pj/lay-point"
+                   (out (pj/lay-line {:a [1] :b [2]} :a :b)))))
+    (testing "groups of two rows or more draw, and are not warned about"
+      (is (= "" (out (-> sales (pj/lay-step :week :units {:color :quarter})))))
+      (is (= "" (out (-> sales (pj/lay-line :week :units {:color :region}))))))))

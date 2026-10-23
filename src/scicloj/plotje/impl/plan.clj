@@ -1705,6 +1705,45 @@
                       ":color-type :categorical to give each category its "
                       "own color."))))))
 
+(def ^:private row-joining-marks
+  "Marks that draw each group as one path through its rows, so a group of
+   one row draws nothing a reader can see. A closed list: no mark
+   declares whether it joins rows, and these three are the built-in
+   marks that do."
+  #{:line :step :area})
+
+(defn- warn-single-row-groups!
+  "Print a warning for each mark that joins rows where every group, in
+   every panel, holds one row: the layer draws nothing visible, and
+   nothing else on the plot says why. A column on `:color` or `:group`
+   that takes a different value on every row of a panel does it --
+   `(pj/lay-step data :week :units {:color :quarter})` faceted by
+   region, where each region has one row per quarter. ggplot2 4.0.0
+   prints \"Each group consists of only one observation\" for the same
+   plot."
+  [resolved-all panels]
+  (doseq [mark (sort (distinct (keep :mark resolved-all)))
+          :when (contains? row-joining-marks mark)
+          :let [groups (for [panel panels
+                             layer (:layers panel)
+                             :when (= mark (:mark layer))
+                             g (:groups layer)]
+                         (count (:xs g)))]
+          :when (and (seq groups) (every? #(= 1 %) groups))]
+    (let [split-by (->> resolved-all
+                        (filter #(= mark (:mark %)))
+                        (mapcat :group)
+                        distinct
+                        vec)]
+      (println (str "Warning: the " mark " mark joins the rows of each group, and every"
+                    " group holds one row, so the layer draws nothing visible."
+                    (if (seq split-by)
+                      (str " The groups come from " (str/join ", " split-by)
+                           ", which takes a different value on each row of a panel."
+                           " Group the rows by a column that several of them share,"
+                           " or draw them with pj/lay-point.")
+                      " Draw a single row with pj/lay-point."))))))
+
 (def ^:private fill-drawing-marks
   "Marks that paint an interior through the `:fill` aesthetic, and so
    read a `:fill` scale spec.
@@ -3873,6 +3912,7 @@
          (validate-drawn-color-marks resolved-all panels)
          (warn-unread-tooltip-mappings resolved-all panels)
          (warn-monochrome-numeric-color! resolved-all panels)
+         (warn-single-row-groups! resolved-all panels)
          (when validate?
            (when-let [explanation (ss/explain plan)]
              (throw (ex-info "Plan does not conform to schema" {:explanation explanation}))))
