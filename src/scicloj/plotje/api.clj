@@ -1762,6 +1762,25 @@
                                     ")"))
                              ". To keep the new cell, pass its data: (" lay
                              " pose " (str/join " " (map pr-str cols)) " {:data data})."))))
+           ;; Cells that name no column and hold no layer draw nothing,
+           ;; and the layer, naming columns none of them draws, does not
+           ;; reach them: the cells of a split written as filters, as
+           ;; `{:where {:drv "f"}}`, take their columns from the pose.
+           (let [idle (count (filter #(and (nil? (pose/leaf-place %))
+                                           (empty? (:layers %))
+                                           (not (:plotje/empty-cell %)))
+                                     (pose/resolve-tree fr)))]
+             (when (pos? idle)
+               (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
+                     cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])]
+                 (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
+                               ", which no cell of this pose draws, so the layer is"
+                               " drawn on a cell of its own, and " idle
+                               (if (= 1 idle) " cell, which names" " cells, which name")
+                               " no column and hold no layer, draw nothing. To draw"
+                               " the layer in every cell, name its columns on the pose"
+                               " and add the layer with none: (-> pose (pj/pose "
+                               (str/join " " (map pr-str cols)) ") " lay ").")))))
            (update fr :poses (fnil conj [])
                    {:layers [layer]})))))))
 
