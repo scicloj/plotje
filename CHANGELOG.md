@@ -38,7 +38,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, or the count of its categories, and a layer added afterwards reaches every panel.
+- `pj/cross-matrix` draws a grid of panels, one per pair of columns: `(pj/cross-matrix data cols)` crosses the columns with themselves, and `(pj/cross-matrix data xs ys)` places the `xs` across and the `ys` down. A mapping may come last, and with no columns every column of the data is crossed. A panel with the same column on both axes draws a histogram, or the count of its categories, and a layer added afterwards reaches every panel. The name `pj/cross-matrix` is provisional.
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the columns and pairs of the list are appended to it as cells.
 
@@ -61,6 +61,8 @@ All notable changes to this project will be documented in this file. This change
 - `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. Undeclared, it is `#{1}` for an `:x-only` layer type and `#{2}` otherwise; `:bar` declares `#{1 2}`, and `layer-type/column-counts` reads it back.
 
 - A stat declares what it computes for an axis with a method on `[stat :computes]`, beside its `[stat :doc]`: `:bin` declares `{:y :count}`, or `{:y :density}` under `:normalize :density`. Sharing an axis, the Note for layers of one panel, and the check for a missing `:y` column read the declaration, so an extension's stat takes part in all three. See "What a stat computes" in the Extensibility chapter.
+
+- `:legend-font-size` is a plot option: the font size of a legend's entries and numbers, with the legend's title one size larger. The option reaches the colour, size, alpha and shape legends in every `:legend-position`, and the legend column widens to fit the text. The default is 10.
 
 ### Warnings and errors
 

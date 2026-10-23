@@ -1781,7 +1781,7 @@
 (def v377_l1242 (count pj/config-key-docs))
 
 
-(deftest t378_l1244 (is ((fn [n] (= 45 n)) v377_l1242)))
+(deftest t378_l1244 (is ((fn [n] (= 46 n)) v377_l1242)))
 
 
 (def v379_l1246 (kind/doc #'pj/plot-option-docs))

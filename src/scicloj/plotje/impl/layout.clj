@@ -400,6 +400,48 @@
       :none
       raw)))
 
+(defn legend-font-size
+  "Font size of a legend's entries and numbers, from `:legend-font-size`.
+   Asked by the renderer, which draws the text, and by the layout, which
+   reserves room for it."
+  [cfg]
+  (:legend-font-size cfg 10))
+
+(defn legend-title-font-size
+  "Font size of a legend's title: one larger than its entries."
+  [cfg]
+  (inc (legend-font-size cfg)))
+
+(defn legend-scaled
+  "`n`, a length chosen for legend text at the default
+   `:legend-font-size` of 10, at the configured size. `n` is returned
+   as it is at the default, so the default picture keeps its numbers."
+  [cfg n]
+  (let [fsize (legend-font-size cfg)]
+    (if (== 10 fsize)
+      n
+      (* n (/ (double fsize) 10.0)))))
+
+(defn legend-row-step
+  "Distance from one row of a legend to the next: 16, or enough for a
+   larger `:legend-font-size`."
+  [cfg]
+  (max 16 (+ 6 (legend-font-size cfg))))
+
+(defn legend-title-room
+  "Extra room between a legend's title and its first row, for a title
+   drawn larger than the default: nothing at the default
+   `:legend-font-size`."
+  [cfg]
+  (- (legend-row-step cfg) 16))
+
+(defn legend-swatch-drop
+  "How far a swatch sits below the top of its row, so that it stays
+   centred on text drawn larger than the default: nothing at the
+   default `:legend-font-size`."
+  [cfg]
+  (/ (- (legend-font-size cfg) 10) 2))
+
 (def size-legend-swatch-length
   "How long a segment swatch is drawn, in drawing units. A width
    encoding varies the thickness of a fixed-length stroke, so the
@@ -425,7 +467,8 @@
    widest swatch where that is taller. Asked by the layout, which
    reserves the room, and by the renderer, which places the rows."
   [size-legend cfg]
-  (let [row-h (double (:legend-entry-height cfg 18))
+  (let [row-h (max (double (:legend-entry-height cfg 18))
+                   (+ 8.0 (legend-font-size cfg)))
         max-mag (reduce max 0.0 (map :magnitude (:entries size-legend)))]
     (max row-h (+ 2.0 (case (or (:swatch size-legend) :circle)
                         :circle (* 2 max-mag)
@@ -450,7 +493,7 @@
      (let [base (:legend-width cfg 100)
           ;; Swatch + gap takes ~24px; estimate label font advance as
           ;; ~7px per char; leave ~8px right margin.
-           char-px 7
+           char-px (legend-scaled cfg 7)
            chrome  32
            margin  8
           ;; The legend column itself starts this far past the panels
@@ -493,7 +536,8 @@
     (let [{:keys [legend-entry-count legend-continuous? size-legend
                   size-legend-entry-count alpha-legend-entry-count]} scene
           header (double (:legend-header-pad cfg 20))
-          row-h  (double (:legend-entry-height cfg 18))
+          row-h  (max (double (:legend-entry-height cfg 18))
+                      (+ 8.0 (legend-font-size cfg)))
           size-row-h (if size-legend (size-legend-row-h size-legend cfg) row-h)]
       (+ header
          ;; A gradient laid across: the bar and the labels under it.

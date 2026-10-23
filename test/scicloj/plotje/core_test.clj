@@ -939,6 +939,7 @@
       (is (= 13 (:label-font-size cfg)))
       (is (= 15 (:title-font-size cfg)))
       (is (= 11 (:strip-font-size cfg)))
+      (is (= 10 (:legend-font-size cfg)))
       (is (= 38 (:label-offset cfg)))
       (is (= 18 (:title-offset cfg)))
       (is (= 16 (:strip-height cfg)))

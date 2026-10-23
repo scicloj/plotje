@@ -44,7 +44,10 @@
    shared legends (one legend per composite, not per leaf)."
   [legend x y cfg]
   (let [{:keys [title]} legend
-        fsize 10
+        fsize (layout/legend-font-size cfg)
+        row-step (layout/legend-row-step cfg)
+        title-y y
+        y (+ y (layout/legend-title-room cfg))
         title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
       ;; Continuous gradient legend
@@ -65,9 +68,9 @@
         (vec
          (concat
           (when title
-            [(ui/translate x (- y 18)
+            [(ui/translate x (- title-y 18)
                            (ui/with-color title-color
-                             (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
+                             (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))])
           ;; Gradient bar: stack of small colored rectangles
           (for [i (range n-stops)
                 :let [{:keys [t gradient-t color]} (nth stops i)
@@ -95,7 +98,7 @@
                    (let [ty (+ y (* (- 1.0 (double t)) bar-h) -4)]
                      (ui/translate (+ x bar-w 4) ty
                                    (ui/with-color title-color
-                                     (ui/label label (ui/font nil 10))))))
+                                     (ui/label label (ui/font nil (layout/legend-font-size cfg)))))))
                  ticks)
             ;; Too few ticks inside the bar: the two ends -- or, for a
             ;; column holding one value, that value once, at the middle
@@ -104,26 +107,26 @@
               (if (== (double min) (double max))
                 [(ui/translate (+ x bar-w 4) (+ y (/ bar-h 2.0) -6)
                                (ui/with-color title-color
-                                 (ui/label lo-label (ui/font nil 10))))]
+                                 (ui/label lo-label (ui/font nil (layout/legend-font-size cfg)))))]
                 [(ui/translate (+ x bar-w 4) (+ y bar-h -4)
                                (ui/with-color title-color
-                                 (ui/label lo-label (ui/font nil 10))))
+                                 (ui/label lo-label (ui/font nil (layout/legend-font-size cfg)))))
                  (ui/translate (+ x bar-w 4) (+ y 6)
                                (ui/with-color title-color
-                                 (ui/label hi-label (ui/font nil 10))))]))))))
+                                 (ui/label hi-label (ui/font nil (layout/legend-font-size cfg)))))]))))))
       ;; Categorical legend: a colored key beside each label
       (let [{:keys [entries]} legend]
         (vec
          (concat
           (when title
-            [(assoc (ui/translate x (- y 18)
+            [(assoc (ui/translate x (- title-y 18)
                                   (ui/with-color title-color
-                                    (ui/label (defaults/fmt-name title) (ui/font nil 11))))
+                                    (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))
                     :legend true)])
           (for [[i {:keys [label color shape]}] (map-indexed vector entries)]
             (assoc
-             (ui/translate x (+ y (* i 16))
-                           [(ui/translate 0 0 (legend-swatch color shape))
+             (ui/translate x (+ y (* i row-step))
+                           [(ui/translate 0 (layout/legend-swatch-drop cfg) (legend-swatch color shape))
                             (ui/translate 12 0
                                           (ui/with-color title-color
                                             (ui/label label (ui/font nil fsize))))])
@@ -145,22 +148,22 @@
                        (not= render-range color-range))
         grad-fn (when override? (defaults/resolve-gradient-fn render-range))
         title-color [0.2 0.2 0.2 1.0]
-        title-w (if title (* (count (defaults/fmt-name title)) 6) 0)
+        title-w (if title (* (count (defaults/fmt-name title)) (layout/legend-scaled cfg 6)) 0)
         bar-x (+ x (if title (+ title-w 8) 0))
         bar-w 160 bar-h 10
         n-stops (count stops)
         label-at (fn [t label]
                    (ui/translate (+ bar-x (* (double t) bar-w)
-                                    (- (* 2.5 (count label))))
+                                    (- (* (layout/legend-scaled cfg 2.5) (count label))))
                                  (+ y bar-h 2)
                                  (ui/with-color title-color
-                                   (ui/label label (ui/font nil 10)))))]
+                                   (ui/label label (ui/font nil (layout/legend-font-size cfg))))))]
     (vec
      (concat
       (when title
         [(ui/translate x (- y 1)
                        (ui/with-color title-color
-                         (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
+                         (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))])
       (for [i (range n-stops)
             :let [{:keys [t gradient-t color]} (nth stops i)
                   [cr cg cb _] (if override? (grad-fn gradient-t) color)]]
@@ -185,23 +188,23 @@
    Keys and labels laid out left to right in a single row."
   [legend x y cfg]
   (let [{:keys [title entries]} legend
-        fsize 10
+        fsize (layout/legend-font-size cfg)
         title-color [0.2 0.2 0.2 1.0]]
     (if (= :continuous (:type legend))
       (render-gradient-horizontal legend x y cfg)
       ;; The same, laid out left to right
-      (let [title-w (if title (* (count (defaults/fmt-name title)) 6) 0)
+      (let [title-w (if title (* (count (defaults/fmt-name title)) (layout/legend-scaled cfg 6)) 0)
             start-x (if title (+ title-w 8) 0)]
         (vec
          (concat
           (when title
             [(ui/translate x (- y 1)
                            (ui/with-color title-color
-                             (ui/label (defaults/fmt-name title) (ui/font nil 11))))])
+                             (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))])
           (let [{:keys [elems]}
                 (reduce (fn [{:keys [elems cur-x]} {:keys [label color shape]}]
-                          (let [label-w (* (count label) 6)
-                                elem [(assoc (ui/translate (+ x cur-x) (- y 1)
+                          (let [label-w (* (count label) (layout/legend-scaled cfg 6))
+                                elem [(assoc (ui/translate (+ x cur-x) (+ y -1 (layout/legend-swatch-drop cfg))
                                                            (legend-swatch color shape))
                                              :legend true)
                                       (ui/translate (+ x cur-x 10) (- y 1)
@@ -269,10 +272,10 @@
       (when title
         [(assoc (ui/translate x (- y 16)
                               (ui/with-color title-color
-                                (ui/label (defaults/fmt-name title) (ui/font nil 11))))
+                                (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))
                 :legend true)])
       (for [[i {:keys [value magnitude]}] (map-indexed vector entries)
-            :let [cy (+ y (* i row-h))
+            :let [cy (+ y (layout/legend-title-room cfg) (* i row-h))
                   ;; Center each swatch on the widest one's column
                   cx (+ x (* 0.5 column-w))
                   [w h] (size-swatch-box swatch magnitude)]]
@@ -289,7 +292,7 @@
                                :legend true)
                         (ui/translate (+ x column-w 6) cy
                                       (ui/with-color title-color
-                                        (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
+                                        (ui/label (fmt-legend-number value cfg) (ui/font nil (layout/legend-font-size cfg)))))])
          :legend true))))))
 
 (defn render-alpha-legend
@@ -300,26 +303,26 @@
   (let [{:keys [title entries]} alpha-legend
         title-color [0.2 0.2 0.2 1.0]
         sw defaults/legend-swatch-size
-        row-h 16]
+        row-h (layout/legend-row-step cfg)]
     (vec
      (concat
       (when title
         [(assoc (ui/translate x (- y 16)
                               (ui/with-color title-color
-                                (ui/label (defaults/fmt-name title) (ui/font nil 11))))
+                                (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))
                 :legend true)])
       (for [[i {:keys [value alpha]}] (map-indexed vector entries)
-            :let [cy (+ y (* i row-h))]]
+            :let [cy (+ y (layout/legend-title-room cfg) (* i row-h))]]
         (assoc
          (ui/translate 0 0
-                       [(assoc (ui/translate x cy
+                       [(assoc (ui/translate x (+ cy (layout/legend-swatch-drop cfg))
                                              (ui/with-color [0.3 0.3 0.3 alpha]
                                                (ui/with-style ::ui/style-fill
                                                  (ui/rounded-rectangle sw sw 1))))
                                :legend true)
                         (ui/translate (+ x sw 6) cy
                                       (ui/with-color title-color
-                                        (ui/label (fmt-legend-number value cfg) (ui/font nil 10))))])
+                                        (ui/label (fmt-legend-number value cfg) (ui/font nil (layout/legend-font-size cfg)))))])
          :legend true))))))
 
 (defn render-shape-legend
@@ -333,23 +336,23 @@
         title-color [0.2 0.2 0.2 1.0]
         sw defaults/legend-swatch-size
         mark-color (defaults/hex->rgba (:default-color cfg))
-        row-h 16]
+        row-h (layout/legend-row-step cfg)]
     (vec
      (concat
       (when title
         [(assoc (ui/translate x (- y 16)
                               (ui/with-color title-color
-                                (ui/label (defaults/fmt-name title) (ui/font nil 11))))
+                                (ui/label (defaults/fmt-name title) (ui/font nil (layout/legend-title-font-size cfg)))))
                 :legend true)])
       (for [[i {:keys [label shape]}] (map-indexed vector entries)
-            :let [cy (+ y (* i row-h))]]
+            :let [cy (+ y (layout/legend-title-room cfg) (* i row-h))]]
         (assoc
          (ui/translate 0 0
-                       [(assoc (ui/translate x cy (legend-swatch mark-color shape))
+                       [(assoc (ui/translate x (+ cy (layout/legend-swatch-drop cfg)) (legend-swatch mark-color shape))
                                :legend true)
                         (ui/translate (+ x sw 6) cy
                                       (ui/with-color title-color
-                                        (ui/label label (ui/font nil 10))))])
+                                        (ui/label label (ui/font nil (layout/legend-font-size cfg)))))])
          :legend true))))))
 
 ;; ---- Plan -> Membrane ----
@@ -565,21 +568,26 @@
                           ;; Compute y offset after color legend
                           color-h (cond
                                     (nil? legend) 0
-                                    (= :continuous (:type legend)) 160
-                                    :else (+ 16 (* 16 (count (:entries legend)))))
+                                    (= :continuous (:type legend)) (+ 160 (layout/legend-title-room cfg))
+                                    :else (let [step (layout/legend-row-step cfg)]
+                                            (+ step (* step (count (:entries legend))))))
                           ;; Size legend
                           size-y (+ base-y color-h (if legend 10 0))
                           size-elems (when size-legend
                                        (render-size-legend size-legend legend-x size-y cfg))
                           size-h (if size-legend
-                                   (+ 16 (* (layout/size-legend-row-h size-legend cfg)
+                                   (+ (layout/legend-row-step cfg)
+                                      (* (layout/size-legend-row-h size-legend cfg)
                                             (count (:entries size-legend))))
                                    0)
                           ;; Alpha legend
                           alpha-y (+ size-y size-h (if size-legend 10 0))
                           alpha-elems (when alpha-legend
                                         (render-alpha-legend alpha-legend legend-x alpha-y cfg))
-                          alpha-h (if alpha-legend (+ 16 (* 16 (count (:entries alpha-legend)))) 0)
+                          alpha-h (if alpha-legend
+                                    (let [step (layout/legend-row-step cfg)]
+                                      (+ step (* step (count (:entries alpha-legend)))))
+                                    0)
                           ;; Shape legend
                           shape-y (+ alpha-y alpha-h (if alpha-legend 10 0))
                           shape-elems (when shape-legend

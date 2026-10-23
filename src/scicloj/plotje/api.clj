@@ -1502,13 +1502,15 @@
   "Creates a matrix of plots of cols vs cols.
    When no cols are provided, attempts to cross all columns.
 
-   - `(pj/matrix fr)` -- SPLOM N^2 panels for all columns.
-   - `(pj/matrix fr cols)` -- SPLOM N^2 panels for cols.
-   - `(pj/matrix fr cols {:color :c})` -- SPLOM plus aesthetic mapping.
-   - `(pj/matrix fr cols cols) `-- SPLOM NxM panels for cols1xcols2.
-   - `(pj/matrix fr cols1 cols2 {:color :c}) `-- SPLOM NxM panels with mapping."
+   - `(pj/cross-matrix fr)` -- SPLOM N^2 panels for all columns.
+   - `(pj/cross-matrix fr cols)` -- SPLOM N^2 panels for cols.
+   - `(pj/cross-matrix fr cols {:color :c})` -- SPLOM plus aesthetic mapping.
+   - `(pj/cross-matrix fr cols cols)` -- SPLOM NxM panels for cols1xcols2.
+   - `(pj/cross-matrix fr cols1 cols2 {:color :c})` -- SPLOM NxM panels with mapping.
+
+   The name `pj/cross-matrix` is provisional."
   ([pose-or-data]
-   (let [p (->pose pose-or-data "pj/matrix")
+   (let [p (->pose pose-or-data "pj/cross-matrix")
          cols (tc/column-names (:data p))]
      (cross-matrix p cols)))
   ([pose-or-data cols]

@@ -828,6 +828,38 @@
       (and (= 150 (:points s))
            (zero? (get-in plan [:layout :legend-w])))))])
 
+;; ## Legend Text Size
+;;
+;; A legend printed small is hard to read on a slide or a poster.
+;; `:legend-font-size` sets the font size of a legend's entries and
+;; numbers, and the legend's title is drawn one size larger. The
+;; option reaches every legend of the plot -- colour, size, alpha and
+;; shape -- wherever `:legend-position` places the legend.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/options {:legend-font-size 14}))
+
+(kind/test-last
+ [(fn [v]
+    (let [legend-w (fn [pose] (get-in (pj/plan pose) [:layout :legend-w]))]
+      ;; The layout measures legend text at the size the renderer
+      ;; draws it, so larger text reserves a wider legend column.
+      (and (= 150 (:points (pj/svg-summary v)))
+           (> (legend-w v)
+              (legend-w (pj/options v {:legend-font-size 10}))))))])
+
+;; The default legend font size:
+
+(:legend-font-size (pj/config))
+
+(kind/test-last [(fn [n] (= 10 n))])
+
+;; The other text of a plot has its own options: `:title-font-size`
+;; for the plot title, `:label-font-size` for the axis titles,
+;; `:strip-font-size` for the strip labels of a facet, and the theme's
+;; `:font-size` for the tick labels.
+
 ;; ## See Also
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping and aesthetic vocabulary used throughout this chapter

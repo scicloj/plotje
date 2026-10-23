@@ -82,6 +82,8 @@
    :fit-text-domain true
    ;; Facet strips
    :strip-font-size 11 :strip-height 16
+   ;; Legends
+   :legend-font-size 10
    ;; Number separators
    :thousands-separator nil :decimal-separator nil
    ;; Fallback
@@ -1093,6 +1095,7 @@
    :label-font-size ["Typography" "Font size for axis labels"]
    :title-font-size ["Typography" "Font size for the plot title"]
    :strip-font-size ["Typography" "Font size for facet strip labels"]
+   :legend-font-size ["Typography" "Font size for legend entries and numbers; a legend's title is one larger"]
    :point-radius ["Points" "Default point radius"]
    :point-opacity ["Points" "Default point opacity (0.0-1.0)"]
    :point-stroke ["Points" "Point border stroke color (\"none\" to disable)"]

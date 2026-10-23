@@ -12,6 +12,7 @@
    These tests compare the paths against each other rather than against
    a fixed expectation, so they keep holding as the defaults move."
   (:require [clojure.test :refer [deftest testing is]]
+            [clojure.set]
             [clojure.string :as str]
             [scicloj.plotje.api :as pj]
             [scicloj.plotje.impl.defaults :as defaults]
@@ -63,6 +64,7 @@
   {:thousands-separator ","
    :title-font-size 30
    :label-font-size 22
+   :legend-font-size 20
    :grid-stroke-width 4
    :rule-color "#0000ff"})
 
@@ -95,6 +97,42 @@
       (is (= (plotted-signature (composite {k v}))
              (saved-signature (composite {k v})))
           (str k " renders differently through the two composite paths")))))
+
+(deftest the-legend-font-size-reaches-every-legend-kind
+  (let [d {:height [1 2 3 4] :weight [1 2 3 4] :n [10 20 30 40]
+           :kind ["a" "b" "a" "b"]}
+        fonts (fn [pose] (set (:fonts (plotted-signature pose))))
+        with (fn [pose] (fonts (pj/options pose {:legend-font-size 20})))
+        poses {:categorical (pj/lay-point d :height :weight {:color :kind})
+               :gradient    (pj/lay-point d :height :weight {:color :n})
+               :size        (pj/lay-point d :height :weight {:size :n})
+               :alpha       (pj/lay-point d :height :weight {:alpha :n})
+               :shape       (pj/lay-point d :height :weight {:shape :kind})
+               :bottom      (-> (pj/lay-point d :height :weight {:color :kind})
+                                (pj/options {:legend-position :bottom}))
+               :gradient-top (-> (pj/lay-point d :height :weight {:color :n})
+                                 (pj/options {:legend-position :top}))
+               :shared      (pj/arrange [(pj/lay-point d :height :weight {:color :kind})
+                                         (pj/lay-point d :weight :height {:color :kind})])}]
+    (doseq [[k pose] poses]
+      (testing (str k)
+        (is (= (fonts pose) (fonts (pj/options pose {:legend-font-size 10})))
+            "the default is 10, so writing 10 changes nothing")
+        (is (contains? (fonts pose) "10") "entries are drawn at 10 by default")
+        (is (= #{"20" "21"} (clojure.set/difference (with pose) (fonts pose)))
+            "entries at the size written, the title one larger")
+        (is (not (contains? (with pose) "10"))
+            "no legend text is left at the default size")))))
+
+(deftest the-layout-measures-legend-text-at-its-font-size
+  (let [d {:height [1 2 3] :weight [1 2 3]
+           :kind ["a long category name" "another long name" "a third"]}
+        pose (pj/lay-point d :height :weight {:color :kind})
+        legend-w (fn [n] (get-in (pj/plan (pj/options pose {:legend-font-size n}))
+                                 [:layout :legend-w]))]
+    (is (== (legend-w 10)
+            (get-in (pj/plan pose) [:layout :legend-w])))
+    (is (< (legend-w 10) (legend-w 15) (legend-w 20)))))
 
 ;; ---- Coverage that maintains itself ----
 ;;

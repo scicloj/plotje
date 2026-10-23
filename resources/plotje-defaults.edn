@@ -30,6 +30,7 @@
 
  ;; Typography
  :label-font-size 13 :title-font-size 15 :strip-font-size 11
+ :legend-font-size 10
 
  ;; Points
  :point-radius 3.0 :point-opacity 0.75

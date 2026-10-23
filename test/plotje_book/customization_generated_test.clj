@@ -1086,3 +1086,32 @@
       (= 150 (:points s))
       (zero? (get-in plan [:layout :legend-w])))))
    v161_l818)))
+
+
+(def
+ v164_l839
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width {:color :species})
+  (pj/options {:legend-font-size 14})))
+
+
+(deftest
+ t165_l843
+ (is
+  ((fn
+    [v]
+    (let
+     [legend-w (fn [pose] (get-in (pj/plan pose) [:layout :legend-w]))]
+     (and
+      (= 150 (:points (pj/svg-summary v)))
+      (>
+       (legend-w v)
+       (legend-w (pj/options v {:legend-font-size 10}))))))
+   v164_l839)))
+
+
+(def v167_l854 (:legend-font-size (pj/config)))
+
+
+(deftest t168_l856 (is ((fn [n] (= 10 n)) v167_l854)))
