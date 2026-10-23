@@ -3643,7 +3643,15 @@
    empty draws nothing and is skipped. A written `:grid-axis-titles` is
    kept as written; a cell's own `:suppress-*` options win over the
    inferred ones. A cell below or beside counts only where it lines up:
-   the same extent across (x) or down (y)."
+   the same extent across (x) or down (y).
+
+   The cells whose y tick labels are dropped here, and not by an option
+   the cell wrote, are recorded on the composite as
+   `:plotje/y-ticks-inferred-off`, a set of paths. Whether a cell draws
+   a legend of its own is known only once the cell is planned, so the
+   compositor gives the tick labels back to a recorded cell whose
+   neighbour at the left draws a legend between the two panels
+   (`compositor/keep-ticks-beside-a-legend`)."
   [composite]
   (if (contains? composite :grid-axis-titles)
     composite
@@ -3700,8 +3708,11 @@
       (cond-> (reduce (fn [c leaf]
                         (let [ch (when-not (:plotje/empty-cell leaf) (chrome leaf))]
                           (if (seq ch)
-                            (update-in c (vec (interleave (repeat :poses) (:path leaf)))
-                                       update :opts #(merge ch %))
+                            (cond-> (update-in c (vec (interleave (repeat :poses) (:path leaf)))
+                                               update :opts #(merge ch %))
+                              (and (:suppress-y-ticks ch)
+                                   (not (contains? (:opts leaf) :suppress-y-ticks)))
+                              (update :plotje/y-ticks-inferred-off (fnil conj #{}) (:path leaf)))
                             c)))
                       composite
                       leaves)

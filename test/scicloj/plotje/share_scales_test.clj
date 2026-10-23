@@ -652,3 +652,31 @@
         (is (nil? (msg (pj/arrange [(dom [0 100]) (cell :fast)] {:share-scales #{:y}}))))
         (is (nil? (msg (-> (pj/arrange [(cell :fast) (cell :fast)] {:share-scales #{:y}})
                            (pj/scale :y {:domain [0 100]})))))))))
+
+(deftest a-cell-beside-a-legend-keeps-its-tick-labels-test
+  ;; The cells of a declared split share `:y`, and a cell with a cell at
+  ;; its left sharing the axis drops its tick labels. A cell's own
+  ;; legend is drawn at the right of its panel, between the two panels,
+  ;; so the cell at the right of a legend keeps its tick labels.
+  (let [y-ticks (fn [pose]
+                  (mapv (comp count :values :y-ticks first :panels :plan)
+                        (:sub-plots (pj/plan pose))))
+        plain #(pj/lay-point (pj/pose) :size :fast)
+        coloured #(pj/lay-point (pj/pose) :size :fast {:color :kind})]
+    (testing "no legend between: the cell at the right drops its tick labels"
+      (is (zero? (second (y-ticks (pj/arrange cars [(plain) (plain)]))))))
+    (testing "a legend between: the cell at the right keeps them"
+      (is (pos? (second (y-ticks (pj/arrange cars [(coloured) (plain)]))))))
+    (testing "a legend the cells share is drawn at the right of the grid"
+      (is (zero? (second (y-ticks (pj/arrange cars [(coloured) (coloured)]))))))
+    (testing "the legend of two layers told apart by colour"
+      (is (pos? (second (y-ticks (pj/arrange cars [(-> (pj/pose)
+                                                       (pj/lay-line :size :fast)
+                                                       (pj/lay-line :size :slow))
+                                                   (plain)]))))))
+    (testing "only the cell next to the legend"
+      (is (= [true true false]
+             (mapv zero? (rest (y-ticks (pj/arrange cars [(plain) (plain) (coloured) (plain)])))))))
+    (testing "a literal colour draws no legend"
+      (is (zero? (second (y-ticks (pj/arrange cars [(pj/lay-point (pj/pose) :size :fast {:color "red"})
+                                                    (plain)]))))))))

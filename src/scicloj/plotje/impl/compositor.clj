@@ -709,6 +709,7 @@
                                (::share leaf) (assoc :share (::share leaf)))))
                          leaves)
         chrome-spec (-> chrome
+                        (assoc :y-ticks-inferred-off (set (:plotje/y-ticks-inferred-off composite)))
                         (assoc :shared? shared?)
                         (assoc :shared-aesthetics shared-aesthetics)
                         (assoc :shared-categories shared-categories))]
@@ -767,6 +768,31 @@
             :width width :height height)
      e)))
 
+(defn- keep-ticks-beside-a-legend
+  "The paths of the cells that get their y tick labels back: a cell
+   whose tick labels were dropped because a cell at its left shares its
+   y axis (`pose/infer-axis-chrome`, `inferred-off`), where the nearest
+   cell at its left in the row draws a legend of its own. A cell's own
+   legend is drawn at the right of its panel, so it lies between the two
+   panels, and the tick labels at the far side of the legend are not
+   beside this panel to be read.
+
+   Asked here and not where the tick labels are dropped, because
+   whether a cell draws a legend is known once it is planned
+   (`:legend-w` of its layout): a layer's default colour, and a literal
+   colour that names no column, are both decided past the pose."
+  [inferred-off planned]
+  (let [same? (fn [a b] (< (Math/abs (- (double a) (double b))) 1e-6))
+        left? (fn [[x y _ h] [x2 y2 _ h2]]
+                (and (< x2 x) (same? y y2) (same? h h2)))]
+    (set (for [{:keys [path rect]} planned
+               :when (contains? inferred-off path)
+               :let [beside (filter #(left? rect (:rect %)) planned)]
+               :when (seq beside)
+               :let [nearest (apply max-key #(double (first (:rect %))) beside)]
+               :when (pos? (double (or (get-in nearest [:plan :layout :legend-w]) 0.0)))]
+           path))))
+
 (defn composite-draft->plan
   "Convert a CompositeDraft into a CompositePlan. Per sub-draft, this
    calls draft->plan to produce a leaf plan and wraps it with its rect
@@ -807,6 +833,16 @@
         warnings (atom [])
         first-pass (binding [plan/*unread-option-warnings* warnings]
                      (mapv plan-sub sub-drafts))
+        ;; A cell beside a legend keeps its y tick labels, and is
+        ;; planned again with them.
+        keep-ticks (keep-ticks-beside-a-legend (:y-ticks-inferred-off chrome-spec) first-pass)
+        sub-drafts (mapv #(cond-> % (keep-ticks (:path %)) (update :opts dissoc :suppress-y-ticks))
+                         sub-drafts)
+        first-pass (if (seq keep-ticks)
+                     (binding [plan/*unread-option-warnings* (atom [])]
+                       (mapv (fn [sub plot] (if (keep-ticks (:path sub)) (plan-sub sub) plot))
+                             sub-drafts first-pass))
+                     first-pass)
         ;; Aligning drawing areas takes a second pass, because the pad a
         ;; cell needs is only known once that cell has been planned.
         ;; Pass one measures every cell's pads; pass two re-plans them
