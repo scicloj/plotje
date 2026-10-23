@@ -4458,6 +4458,26 @@
   [layer]
   (= :infer (:layer-type layer)))
 
+(defn- facet-named-columns
+  "The axes a facet over columns names columns on, each with the columns
+   it names there: `{:x [:a :b]}` for `{:x [:a :b]}`, and `{:x [:a :b]
+   :y [:a :b]}` for a matrix. Empty for a facet over categories, whose
+   columns name panels rather than what an axis draws."
+  [node]
+  (let [parts (if (and (map? node) (or (contains? node :col) (contains? node :row)))
+                [(:col node) (:row node)]
+                [node])]
+    (reduce (fn [acc part]
+              (if (and (map? part) (not (contains? part :column)))
+                (reduce (fn [acc k]
+                          (let [cols (get part k)]
+                            (if (sequential? cols)
+                              (update acc k (fnil into []) (remove nil? cols))
+                              acc)))
+                        acc [:x :y])
+                acc))
+            {} parts)))
+
 (defn infer-default-mapping
   "A leaf with the columns it draws filled in where nothing names them,
    from data of 1-3 columns.
@@ -4486,11 +4506,18 @@
      any width. A `:y` is never filled in: whether a layer needs one
      depends on its type, and `(pj/lay-bar data :x)` counts.
 
+   An axis a facet over columns names columns on counts as named, and
+   its columns as used: `{:col {:x [:a :b]} :row {:y [:a :b]}}` on data
+   of three columns draws `:a` and `:b` and no colour, as
+   `(pj/pose data {:x :a :y :b})` does.
+
    Returns the leaf unchanged otherwise, so it is idempotent."
   [leaf]
   (let [m (or (:mapping leaf) {})
         mappings (cons m (map #(or (:mapping %) {}) (:layers leaf)))
-        named? (fn [k] (some #(mapping-source (get % k)) mappings))
+        facet-names (facet-named-columns (:facet leaf))
+        named? (fn [k] (or (contains? facet-names k)
+                           (some #(mapping-source (get % k)) mappings)))
         d (when (and (:data leaf) (nil? (:poses leaf)))
             (coerce-dataset (:data leaf)))
         default (when d (default-mapping d))
@@ -4498,7 +4525,8 @@
         ;; The first layer reads the leaf's data and names no column,
         ;; and the layers after it name no column but the default's.
         default-beside? (fn []
-                          (and (not (names m :x))
+                          (and (empty? facet-names)
+                               (not (names m :x))
                                (not (names m :y))
                                (when-let [l (first (:layers leaf))]
                                  (and (nil? (:data l))
@@ -4519,8 +4547,9 @@
       (and (not (named? :x)) (named? :y)
            (some #(not (contains? (layer-type/column-counts (:layer-type %)) 1))
                  (:layers leaf)))
-      (let [used (set (keep #(when-not (map? %) %)
-                            (mapcat #(map mapping-source (vals %)) mappings)))
+      (let [used (into (set (keep #(when-not (map? %) %)
+                                  (mapcat #(map mapping-source (vals %)) mappings)))
+                       (mapcat val facet-names))
             free (first (remove used (tc/column-names d)))]
         (if free
           (assoc leaf :mapping (merge-mappings {:x free} m))

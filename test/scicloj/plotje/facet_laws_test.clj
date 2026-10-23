@@ -200,3 +200,34 @@
         (is (= 3 (:panels s)))
         (is (zero? (:points s)))
         (is (pos? (:polygons s)))))))
+
+(deftest a-facet-over-columns-names-its-columns-for-inference
+  ;; Data of three columns infers :x, :y and :color by column order, and
+  ;; a pose naming :x and :y infers none. A facet over columns names
+  ;; them too: before, the matrix below coloured every panel by :c and
+  ;; printed three warnings about a numeric :color on the densities.
+  (let [d3 {:a [1 2 3 4 5] :b [2 1 4 3 5] :c [10 20 30 40 50]}
+        warnings (fn [pose] (count (re-seq #"Warning" (with-out-str (pj/plan pose)))))
+        legends (fn [pose] (keep #(-> % :plan :legend) (:sub-plots (pj/plan pose))))]
+    (testing "a matrix of two of three columns has no colour"
+      (let [matrix (-> (pj/pose d3)
+                       (pj/facet {:col {:x [:a :b]} :row {:y [:a :b]}})
+                       pj/lay-point
+                       pj/lay-density)]
+        (is (zero? (warnings matrix)))
+        (is (empty? (legends matrix)))
+        ;; Its marks are those of the matrix of the same two columns;
+        ;; the tick labels on the left differ (decision 3.2).
+        (is (= (select-keys (pj/svg-summary matrix) [:points :polygons :colors :panels])
+               (select-keys (pj/svg-summary (-> (pj/cross-matrix d3 [:a :b])
+                                                pj/lay-point
+                                                pj/lay-density))
+                            [:points :polygons :colors :panels])))))
+    (testing "the same pose with no facet still colours by the third column"
+      (is (= :c (-> (pj/pose d3) pj/lay-point pj/plan :legend :title))))
+    (testing "a facet over :y alone takes its :x from a column it does not name"
+      ;; As `(pj/lay-point data {:y :a})` draws :a against a column
+      ;; nothing names.
+      (is (= [[:c :a] [:c :b]]
+             (mapv #(-> % :draft first ((juxt :x :y)))
+                   (:sub-drafts (pj/draft (-> (pj/pose d3) (pj/facet {:y [:a :b]}) pj/lay-point)))))))))
