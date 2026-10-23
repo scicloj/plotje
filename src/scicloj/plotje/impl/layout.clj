@@ -679,7 +679,7 @@
 ;; ---- compute-dims ----
 
 (defn- min-panel-size [cfg]
-  (double (:min-panel-size cfg 40)))
+  (double (or (:min-panel-size cfg) (:min-panel-size defaults/defaults))))
 
 (defn- too-small-error
   "The panels would be drawn smaller than `:min-panel-size`. Sizes are
@@ -727,7 +727,7 @@
    an ignored legacy key for now.
 
    Throws with a detailed error when the derived panel is smaller
-   than `:min-panel-size` (cfg, default 40) -- the user gave more
+   than `:min-panel-size` (cfg, default 20) -- the user gave more
    overhead budget than they left space for."
   [scene padding cfg opts]
   (let [{:keys [grid-rows grid-cols]} scene

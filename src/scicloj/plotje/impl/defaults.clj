@@ -64,6 +64,7 @@
   {;; Layout -- must match EDN
    :width 600 :height 400
    :margin 10 :margin-multi 10 :panel-size 200 :legend-width 100
+   :min-panel-size 20
    ;; Ticks
    :x-tick-spacing 60 :y-tick-spacing 40
    ;; Points
@@ -1089,6 +1090,7 @@
    :margin ["Layout" "Margin around single-panel plots"]
    :margin-multi ["Layout" "Margin around multi-panel plots"]
    :panel-size ["Layout" "Default panel size for faceted/multi-variable grids"]
+   :min-panel-size ["Layout" "Smallest width and height a panel is drawn at. A plot whose panels would be smaller reports an error naming the sizes; lower this for a sparkline-sized plot"]
    :legend-width ["Layout" "Width reserved for the legend column"]
    :legend-position ["Layout" "Legend placement -- :right, :bottom, :top, or :none"]
    :theme ["Theme" "Nested map {:bg :grid :font-size} -- visual identity"]
