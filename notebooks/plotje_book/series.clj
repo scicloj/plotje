@@ -390,8 +390,9 @@ sales-by-region
                      "petal length / sepal width" "petal length / petal width"]
                     (mapv :label (:entries (:legend (pj/plan v))))))))])
 
-;; The same pairs given to `pj/pose` draw a panel for each pair instead,
-;; as the scatter plot matrix in
+;; For a panel per pair in place of one panel, give the two lists to
+;; `pj/facet` as `{:col {:x xs} :row {:y ys}}`, as the scatter plot
+;; matrix in
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;; does.
 
@@ -753,8 +754,8 @@ sales-by-region
 
 ;; The layer that asks for a series may map the key column again. Shape
 ;; beside colour separates the measures twice over, which survives
-;; printing in one colour. The two share one legend, each entry drawn
-;; in its colour and its shape:
+;; printing in one colour. Colour and shape share one legend, each entry
+;; drawn in its colour and its shape:
 
 (-> sales
     (pj/lay-point :quarter [:revenue :cost :tax] {:shape :series}))

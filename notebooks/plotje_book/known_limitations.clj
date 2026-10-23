@@ -63,7 +63,7 @@
 ;;   stroke and ends bluntly.
 ;;
 ;; - Nothing moves a label out of the way of another label. Two text
-;;   marks at nearby positions are drawn on top of each other, and
+;;   marks at nearby `:x` and `:y` values are drawn on top of each other, and
 ;;   labelling every point of a dense scatter produces an unreadable
 ;;   pile. Workarounds: label a subset, or separate them by hand with
 ;;   `:offset-x`/`:offset-y`. Automatic placement, as in R's `ggrepel`,
@@ -81,7 +81,7 @@
 ;; - `:in` places a layer in the data or on the panel
 ;;   (`:in :drawing-area`), and nothing places one on the canvas as a
 ;;   whole. A note outside every panel -- beside the legend, or under
-;;   the title -- has no position to be given. Workaround: `:caption`
+;;   the title -- cannot be placed. Workaround: `:caption`
 ;;   and `:subtitle` for text below and above the panels.
 ;;
 ;; - `pj/marginal` draws on `:top` and `:right`. `:bottom` and `:left`
@@ -197,10 +197,11 @@
 ;;   is the categorical band for a horizontal bar. Workaround: put the
 ;;   category on `:x` and add `(pj/coord :flip)`, where stacking works.
 ;;
-;; - Numeric/temporal-position bars (`pj/lay-bar` with both axes numeric
-;;   or temporal) draw one bar per row at its x position; grouped bars
-;;   (via `:color`) overlap rather than dodge, and `:position :stack` is
-;;   not applied. Pre-aggregate or jitter positions to separate groups.
+;; - Bars on a numeric or temporal `:x` (`pj/lay-bar` with both axes
+;;   numeric or temporal) draw one bar per row at its `:x` value; grouped
+;;   bars (via `:color`) overlap rather than dodge, and `:position
+;;   :stack` is not applied. Pre-aggregate, or jitter the `:x` values, to
+;;   separate groups.
 ;;
 ;; - Value bars (`pj/lay-bar` with a value column) cannot use a log scale
 ;;   on the value axis: a bar is measured from zero, so its axis always
@@ -326,7 +327,7 @@
 ;;   `:y-tick-angle` plot options rather than through the theme -- see
 ;;   [Customization](./plotje_book.customization.html#rotating-tick-labels).
 ;;
-;; - Per-layer `data`, `guides()` for per-aesthetic legend control,
+;; - `guides()` for per-aesthetic legend control,
 ;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog. The
 ;;   axis types are `:linear`, `:log` and `:categorical`; a square-root
 ;;   axis is not among them. (`pj/scale :size {:by :sqrt}` is a

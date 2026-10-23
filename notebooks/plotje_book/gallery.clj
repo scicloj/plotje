@@ -222,8 +222,9 @@
 ;; ### Horizontal bar
 ;; Source: [R Graph Gallery: Barplot](https://r-graph-gallery.com/barplot.html)
 
-;; The same count, flipped to horizontal. (Count bars have no native
-;; horizontal form -- only value bars can put the category on y.)
+;; The same count, drawn across with `(pj/coord :flip)`. Naming the
+;; column on `:y` alone draws the same bars with no `pj/coord`:
+;; `(pj/lay-bar data {:y :cut})`.
 
 (-> (rdatasets/ggplot2-diamonds)
     (pj/pose :cut)
@@ -1584,10 +1585,9 @@
 ;; ### Two y-variables side by side
 ;; Source: [Vega-Lite: Layered Line](https://vega.github.io/vega-lite/examples/layer_line_color_rule.html)
 
-;; Two different y-variables, each in its own panel. Distinct
-;; positional aesthetics mean distinct poses; threading two pairs
-;; through `pj/pose` produces a horizontal
-;; row of panels.
+;; Two different y columns, each in a panel of its own. `pj/arrange`
+;; takes a pair of columns as a cell, and the layer added afterwards is
+;; drawn in every cell.
 
 (-> (rdatasets/ggplot2-economics)
     (pj/arrange [[:date :unemploy]
@@ -1708,7 +1708,7 @@
 ;; ---
 ;; ## Faceted Charts
 
-;; ### Facet-wrap scatter by class
+;; ### Scatter faceted by class
 ;; Source: [Vega-Lite: Faceted Scatter](https://vega.github.io/vega-lite/examples/trellis_scatter.html)
 
 (-> (rdatasets/ggplot2-mpg)
@@ -1721,7 +1721,7 @@
 
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
-;; ### Facet-grid: rows by drive, columns by year
+;; ### Facet-grid: columns by drive, rows by year
 ;; Source: [Vega-Lite: Trellis Grid](https://vega.github.io/vega-lite/examples/trellis_barley.html)
 
 (-> (rdatasets/ggplot2-mpg)
@@ -1732,9 +1732,13 @@
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
 
-(kind/test-last [(fn [v] (= 6 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (let [panels (:panels (pj/plan v))]
+                           (and (= 6 (:panels (pj/svg-summary v)))
+                                ;; drive across, year down
+                                (= ["f" "4" "r"] (distinct (map :col-label panels)))
+                                (= ["1999" "2008"] (distinct (map :row-label panels))))))])
 
-;; ### Facet-grid: rows by drive, columns by class
+;; ### Facet-grid: columns by drive, rows by class
 ;; Source: [Vega-Lite: Trellis Grid Multi](https://vega.github.io/vega-lite/examples/trellis_scatter.html)
 ;;
 ;; The Vega-Lite original facets by `:cyl`. Plotje's `pj/facet-grid`
@@ -1751,18 +1755,20 @@
 
 (kind/test-last [(fn [v] (pos? (:panels (pj/svg-summary v))))])
 
-;; ### Facet-grid column only
+;; ### Facet-grid, rows only
 ;; Source: [Vega-Lite: Column Facet](https://vega.github.io/vega-lite/examples/trellis_bar.html)
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy)
     pj/lay-point
     (pj/facet-grid nil :drv)
-    (pj/options {:title "MPG: Column Facets by Drive Type"
+    (pj/options {:title "MPG: Row Facets by Drive Type"
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
 
-(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 3 (:panels (pj/svg-summary v)))
+                              ;; one column of panels, one row per drive
+                              (= #{0} (set (map :col (:panels (pj/plan v)))))))])
 
 ;; ### Faceted density
 ;; Source: [Python Graph Gallery: Small Multiples Density](https://python-graph-gallery.com/125-small-multiples-for-line-chart/)
@@ -1899,7 +1905,7 @@
 ;; ---
 ;; ## Scatter Plot Matrices
 
-;; ### Compact SPLOM (3 variables)
+;; ### SPLOM (3 variables)
 ;; Source: [Vega-Lite: SPLOM](https://vega.github.io/vega-lite/examples/interactive_splom.html)
 
 (-> (rdatasets/datasets-mtcars)
@@ -1963,19 +1969,23 @@
 ;; ### Bar + point overlay
 ;; Source: [Vega-Lite: Layered Bar](https://vega.github.io/vega-lite/examples/bar_layered_transparent.html)
 
-;; Layering bar and point gives a dot-on-bar pattern:
+;; Bars and points on one value column. `pj/lay-bar` given a value
+;; column draws a bar for each row, so the bars of one day overlap and
+;; the tallest one shows; the points mark each bill:
 
 (-> (rdatasets/reshape2-tips)
     (pj/pose :day :total-bill)
     pj/lay-bar
     pj/lay-point
-    (pj/options {:title "Tips: Bar Count with Individual Points"
+    (pj/options {:title "Tips: Total Bill by Day, Bars and Points"
                  :x-label "Day"
                  :y-label "Total Bill ($)"}))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (pos? (:polygons s))
-                                (pos? (:points s)))))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               n (tc/row-count (rdatasets/reshape2-tips))]
+                           ;; a bar and a point for each row
+                           (and (= n (:polygons s))
+                                (= n (:points s)))))])
 
 ;; ---
 ;; ## Density-Based Views

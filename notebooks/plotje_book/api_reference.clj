@@ -40,11 +40,12 @@
 ;; ## Construction
 ;;
 ;; `pj/pose` is not a literal composition of the single-step
-;; transitions. Its 1-arity is `(-> x pj/->pose pj/infer-mapping)` --
-;; the same lift-and-default-map the other shortcuts (`pj/draft`,
-;; `pj/plan`, `pj/membrane`, `pj/plot`, `pj/save`) apply on the way
-;; in -- but its typed arities add positional column-arg parsing and
-;; merging a mapping into an existing pose on top of `pj/->pose`. The
+;; transitions. Its 1-arity is `pj/->pose`, which lifts data to a pose
+;; and writes no mapping. The default mapping of data with one to three
+;; columns is inferred when the pose is drawn, by `pj/infer-mapping`,
+;; which the shortcuts (`pj/draft`, `pj/plan`, `pj/membrane`,
+;; `pj/plot`, `pj/save`) apply on the way in. The other arities read
+;; column arguments and merge a mapping into an existing pose. The
 ;; examples below walk each shape.
 
 (kind/doc #'pj/pose)
@@ -95,18 +96,6 @@
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
-;; Multi-pair pose -- a vector of `[x y]` pairs creates a composite
-;; with one pose per pair:
-
-(-> (rdatasets/datasets-iris)
-    (pj/arrange [[:sepal-length :sepal-width]
-                 [:petal-length :petal-width]])
-    (pj/lay-point {:color :species}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (= 300 (:points s)))))])
-
 ;; Map form -- explicit keys on a pose:
 
 (-> (rdatasets/datasets-iris)
@@ -123,12 +112,18 @@
 
 (kind/test-last [(fn [v] (= [[:a 1] [:a 2] [:a 3] [:b 1] [:b 2] [:b 3]] v))])
 
-;; `pj/cross-matrix` builds a SPLOM:
+;; The pairs go to `pj/arrange` as cells. For a grid of every `:x`
+;; column against every `:y` column, `pj/cross-matrix` takes the two
+;; lists itself.
+
+(kind/doc #'pj/cross-matrix)
+
+;; `pj/cross-matrix` draws a panel for every pair of columns, a scatter
+;; plot matrix (SPLOM):
 
 (-> (rdatasets/datasets-iris)
     (pj/cross-matrix [:sepal-length :petal-length]
                      {:color :species}))
-
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))
@@ -496,8 +491,10 @@
 ;; `:x-min`/`:x-max` for `lay-band-v`); `:color` overrides the default
 ;; reference color, `:alpha` the opacity -- which on a band overrides
 ;; the `:band-opacity` configuration default -- and `:size` a rule's
-;; width. Without x/y columns they attach at the root (every panel);
-;; with x/y columns they attach to one matching leaf.
+;; width. On a composite, a rule or a band written without columns is
+;; added at the root and drawn in every cell, and one written with an
+;; `:x` and a `:y` column is drawn in the cell that draws those two
+;; columns.
 ;;
 ;; They are drawn in the order they were added, like any other layer,
 ;; so a rule written before a scatter sits under its points. The axis
@@ -736,28 +733,26 @@
 (kind/doc #'pj/arrange)
 
 (pj/arrange [(-> (rdatasets/datasets-iris)
-                 (pj/lay-point :sepal-length :sepal-width {:color :species})
-                 (pj/options {:width 250 :height 200}))
+                 (pj/lay-point :sepal-length :sepal-width {:color :species}))
              (-> (rdatasets/datasets-iris)
-                 (pj/lay-point :petal-length :petal-width {:color :species})
-                 (pj/options {:width 250 :height 200}))]
-            {:cols 2})
+                 (pj/lay-point :petal-length :petal-width {:color :species}))]
+            {:cols 2 :height 250})
 
-(kind/test-last [(fn [v] (pj/pose? v))])
+(kind/test-last [(fn [v] (and (pj/pose? v)
+                              (= 2 (:panels (pj/svg-summary v)))
+                              (= [0.0 0.0 600.0 250.0] (:canvas (pj/frames v)))))])
 
-(kind/doc #'pj/overlay)
+;; Columns as cells -- a pair of columns is a panel of the two columns,
+;; and a layer added afterwards is drawn in every cell:
 
-;; The layers of a pose share one panel without it, so `pj/overlay`
-;; returns the pose unchanged and prints a warning:
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [[:sepal-length :sepal-width]
+                 [:petal-length :petal-width]])
+    (pj/lay-point {:color :species}))
 
-(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-    (pj/lay-bar :growth :cohort)
-    (pj/lay-bar :tax :cohort)
-    pj/overlay
-    pj/svg-summary
-    :panels)
-
-(kind/test-last [(fn [n] (= 1 n))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 300 (:points s)))))])
 
 (kind/doc #'pj/marginal)
 
@@ -828,11 +823,12 @@
 
 (-> tiny
     (pj/lay-point :x :y)
-    (pj/options {:width 400 :height 200 :title "Small Plot"}))
+    (pj/options {:width 400 :height 200 :title "Twice as wide as tall"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (< (:width s) 500)
-                                (some #{"Small Plot"} (:texts s)))))])
+                           (and (== 400 (:width s))
+                                (== 200 (:height s))
+                                (some #{"Twice as wide as tall"} (:texts s)))))])
 
 ;; ## Predicates
 
@@ -926,6 +922,25 @@
 
 (kind/test-last [true?])
 
+(kind/doc #'pj/series-mapping?)
+
+;; Check whether a mapping value asks for a series. A vector of columns
+;; does, and one column does not:
+
+[(pj/series-mapping? [:revenue :cost])
+ (pj/series-mapping? :revenue)]
+
+(kind/test-last [(fn [v] (= [true false] v))])
+
+(kind/doc #'pj/series-mapping)
+
+;; The series a mapping value asks for -- its columns, and the name of
+;; the key column:
+
+(pj/series-mapping {:series [:revenue :cost] :as :measure})
+
+(kind/test-last [(fn [m] (= {:cols [:revenue :cost] :as :measure} m))])
+
 ;; ## Inspection
 
 (kind/doc #'pj/draft)
@@ -976,7 +991,7 @@ plan1
 ;; the plot. Each panel's rectangles are given in canvas coordinates, so
 ;; they nest inside it and can be compared with each other directly.
 ;; That holds for a composite too, where the panels come from separate
-;; sub-plans -- here a 700-wide image of two cells, whose panel boxes
+;; sub-plans -- here a canvas 700 wide holding two cells, whose panel boxes
 ;; start at different x and both end inside the canvas:
 
 (let [f (pj/frames (pj/arrange [(pj/lay-point tiny :x :y)
@@ -1139,14 +1154,26 @@ plan1
 
 (kind/test-last [(fn [m] (= {:x :height :y :weight} m))])
 
-;; It is a no-op on a pose that already carries a mapping, so it is
-;; safe anywhere in a pipeline:
+;; It returns the pose unchanged where the pose's mapping names an `:x`
+;; or a `:y` column, or where a layer names every column it draws, so
+;; it is safe anywhere in a pipeline. Here the layer names both
+;; columns, and the pose's mapping is empty before and after:
 
 (let [built (pj/lay-point tiny :x :y)]
-  (= (:mapping built)
-     (:mapping (pj/infer-mapping built))))
+  [(:mapping built)
+   (:mapping (pj/infer-mapping built))])
 
-(kind/test-last [true?])
+(kind/test-last [(fn [v] (= [nil nil] v))])
+
+;; A mapping that names neither `:x` nor `:y`, such as
+;; `{:color :group}`, is filled in:
+
+(-> tiny
+    (pj/pose {:color :group})
+    pj/infer-mapping
+    :mapping)
+
+(kind/test-last [(fn [m] (= {:x :x :y :y :color :group} m))])
 
 (kind/doc #'pj/pose->draft)
 
@@ -1255,6 +1282,56 @@ plan1
 
 (kind/test-last [(fn [n] (= 57 n))])
 
+;; The tables below document the aesthetics. `pj/panel-aesthetic-docs`
+;; describes the panel aesthetics, which a pose's mapping takes and a
+;; layer's mapping does not:
+
+(kind/doc #'pj/panel-aesthetic-docs)
+
+(keys pj/panel-aesthetic-docs)
+
+(kind/test-last [(fn [ks] (= #{:col :row} (set ks)))])
+
+;; `pj/aesthetic-roles` says what each aesthetic is put to work as:
+
+(kind/doc #'pj/aesthetic-roles)
+
+(select-keys (pj/aesthetic-roles) [:x :color :group :col])
+
+(kind/test-last [(fn [m] (= {:x :positional :color :appearance
+                             :group :grouping :col :panel}
+                            m))])
+
+;; `pj/aesthetic-scales` lists, for each aesthetic that has a scale, the
+;; scale types it can be read through and the keys its scale spec
+;; reads:
+
+(kind/doc #'pj/aesthetic-scales)
+
+(first pj/aesthetic-scales)
+
+(kind/test-last [(fn [m] (and (= :x (:aesthetic m))
+                              (= [:linear :log :categorical] (:types m))))])
+
+;; `pj/compound-key-aesthetics` names the aesthetics that read several
+;; columns as one distinction:
+
+(kind/doc #'pj/compound-key-aesthetics)
+
+(pj/compound-key-aesthetics)
+
+(kind/test-last [(fn [s] (= #{:group :col :row} s))])
+
+;; `pj/shape-palette` lists the shape symbols assigned to categories, in
+;; order. Each of them is a symbol `pj/shape-symbols` accepts:
+
+(kind/doc #'pj/shape-palette)
+
+(pj/shape-palette)
+
+(kind/test-last [(fn [syms] (and (seq syms)
+                                 (every? (set (pj/shape-symbols)) syms)))])
+
 ;; ## Layer Type Registry
 
 (kind/doc #'pj/layer-type-lookup)
@@ -1357,3 +1434,22 @@ plan1
       (mapv #(bit-and ^int % 0xFF) (vec bs)))))
 
 (kind/test-last [(fn [bs] (= [137 80 78 71] bs))])
+
+;; ## Retired
+
+;; Public functions kept so that code written for an earlier release
+;; keeps drawing.
+
+(kind/doc #'pj/overlay)
+
+;; The layers of a pose share one panel without it, so `pj/overlay`
+;; returns the pose unchanged and prints a warning:
+
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    (pj/lay-bar :growth :cohort)
+    (pj/lay-bar :tax :cohort)
+    pj/overlay
+    pj/svg-summary
+    :panels)
+
+(kind/test-last [(fn [n] (= 1 n))])

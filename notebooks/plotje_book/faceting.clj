@@ -1,7 +1,8 @@
 ;; # Faceting
 ;;
-;; Faceting splits data into subsets and draws each in its own panel,
-;; making it easy to compare patterns across groups.
+;; Faceting draws a pose as several panels: one panel for each category
+;; of a column, or one panel for each of several columns. Panels side by
+;; side make it easy to compare patterns across groups.
 ;;
 ;; A facet is a mapping: `:col` and `:row` are aesthetics, and
 ;; `pj/facet` is the call that writes one. Everything else follows
@@ -21,10 +22,11 @@
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]))
 
-;; ## Facet Wrap
+;; ## A Panel per Category
 ;;
-;; `pj/facet` splits a pose into panels by one categorical column.
-;; The default direction is `:col` -- a horizontal row of panels:
+;; `pj/facet` splits a pose into panels by one categorical column, one
+;; panel for each category. By default the panels run across, in one
+;; row:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -41,6 +43,9 @@
           y-doms (mapv :y-domain panels)]
       (and (= 3 (:panels s))
            (= 150 (:points s))
+           ;; one row, three panels across
+           (= #{0} (set (map :row panels)))
+           (= [0 1 2] (mapv :col panels))
            ;; By default every panel shares both
            ;; x-domain and y-domain.
            (apply = x-doms)
@@ -73,6 +78,70 @@
                                 (= 244 (:points s)))))])
 
 ;; Row labels appear on the right, column labels on top.
+
+;; ## A Panel per Column
+;;
+;; `pj/facet` given a map of columns draws a panel for each column.
+;; Under `:x` the panels run across, each with one of the columns on its
+;; `:x` axis; under `:y` they run down, each with one of the columns on
+;; its `:y` axis. With no layer written, each panel draws the layer type
+;; inferred from its columns -- here a histogram of each column:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/facet {:x [:sepal-length :sepal-width :petal-length]}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               boxes (map (comp :panel-box :frames)
+                                          (:panels (pj/frames v)))]
+                           (and (= 3 (:panels s))
+                                (pos? (:polygons s))
+                                ;; across: three left edges, one top edge
+                                (= 3 (count (distinct (map first boxes))))
+                                (= 1 (count (distinct (map second boxes)))))))])
+
+;; A layer is drawn in every panel where it names none of the facet's
+;; columns. Name the column the panels have in common on the pose, and
+;; leave the other column to the facet:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/pose {:x :displ})
+    (pj/lay-smooth {:color "black"})
+    (pj/facet {:y [:hwy :cty]}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               boxes (map (comp :panel-box :frames)
+                                          (:panels (pj/frames v)))]
+                           (and (= 2 (:panels s))
+                                (= 2 (:lines s))
+                                (zero? (:points s))
+                                ;; down: one left edge, two top edges
+                                (= 1 (count (distinct (map first boxes))))
+                                (= 2 (count (distinct (map second boxes)))))))])
+
+;; A layer that names one of the facet's columns is drawn only in the
+;; panel of that column. A panel left with no layer draws the layer type
+;; inferred from its columns, and Plotje prints a Note naming the layer,
+;; the panels, and the change that draws the layer in every panel:
+
+(with-out-str
+  (-> (rdatasets/ggplot2-mpg)
+      (pj/lay-smooth :displ :hwy {:color "black"})
+      (pj/facet {:y [:hwy :cty]})
+      pj/plan))
+
+(kind/test-last
+ [(fn [out] (and (re-find #"pj/lay-smooth names :hwy on :y" out)
+                 (re-find #"\{:y :cty\} has no layer" out)
+                 (re-find #"leave :y off the layer and name :x on the pose" out)))])
+
+;; ### A panel for every pair of columns
+;;
+;; Columns across under `:col` and columns down under `:row` draw a panel
+;; for every pair of columns -- a **scatter plot matrix (SPLOM)**:
+;; `(pj/facet pose {:col {:x cols} :row {:y cols}})`. The
+;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
+;; chapter builds scatter plot matrices this way.
 
 ;; ## Faceting is a mapping
 
@@ -420,7 +489,7 @@ measures
 ;; legend lists the categories in the order the rows of the data hold
 ;; them, whichever panel a row is drawn in, so a category has the colour
 ;; it has in the same plot drawn without the facet. Below, the first
-;; panel holds classes the data meets early and late, and the legend is
+;; panel holds some of the classes and not others, and the legend is
 ;; the legend of the unfaceted plot:
 
 (-> (rdatasets/ggplot2-mpg)
@@ -456,12 +525,6 @@ measures
       (and (= 6 (count radii))
            (> (first radii) 2.0)
            (< (last radii) 8.0))))])
-
-;; A related multi-panel layout, the **scatter plot matrix (SPLOM)**,
-;; uses `pj/cross` rather than `pj/facet` -- the panels show all
-;; pairs of variables instead of one variable split across panels.
-;; See the [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom) chapter
-;; for the canonical SPLOM example.
 
 ;; ## Where it is refused
 
@@ -581,48 +644,6 @@ measures
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 3 (:panels s))
                                 (= 5 (:polygons s)))))])
-
-;; ### Comparing Multiple Columns
-;;
-;; Give `pj/facet` a map of columns to create one panel per column:
-
-(-> (rdatasets/datasets-iris)
-    (pj/pose {:color :species})
-    (pj/facet {:x [:sepal-length :sepal-width :petal-length]}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 3 (:panels s))
-                                (pos? (:polygons s)))))])
-
-;; A layer is drawn in every panel where it names none of the facet's
-;; columns. Name the column the panels have in common on the pose, and
-;; leave the other column to the facet:
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/pose {:x :displ})
-    (pj/lay-smooth {:color "black"})
-    (pj/facet {:y [:hwy :cty]}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (= 2 (:lines s))
-                                (zero? (:points s)))))])
-
-;; A layer that names one of the facet's columns is drawn only in the
-;; panel of that column. A panel left with no layer draws the layer type
-;; inferred from its columns, and Plotje prints a Note naming the layer,
-;; the panels, and the change that draws the layer in every panel:
-
-(with-out-str
-  (-> (rdatasets/ggplot2-mpg)
-      (pj/lay-smooth :displ :hwy {:color "black"})
-      (pj/facet {:y [:hwy :cty]})
-      pj/plan))
-
-(kind/test-last
- [(fn [out] (and (re-find #"pj/lay-smooth names :hwy on :y" out)
-                 (re-find #"\{:y :cty\} has no layer" out)
-                 (re-find #"leave :y off the layer and name :x on the pose" out)))])
 
 ;; ### Labels and Faceting
 ;;

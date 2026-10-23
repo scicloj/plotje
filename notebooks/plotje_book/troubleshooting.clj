@@ -139,10 +139,11 @@
 ;; **Symptom**: A column of discrete numbers (hour of day, year,
 ;; subject ID) is treated as a continuous axis. A categorical-axis
 ;; mark like `:boxplot`, `:violin`, or `:lollipop` rejects it with an
-;; error like `"requires a categorical column"`. (`pj/lay-bar` does
-;; not error on a numeric axis -- it draws a bar at each numeric
-;; position; use the same fix below to get evenly-spaced bands
-;; instead.)
+;; error like `"requires a categorical column"`. (`pj/lay-bar` given a
+;; numeric `:x` column and a value column does not report an error --
+;; it draws a bar at each numeric value; use the same fix below to get
+;; evenly-spaced bands instead. A counting `pj/lay-bar`, given one
+;; numeric column, reports the error.)
 ;;
 ;; **Cause**: The column contains numbers, so column-type inference
 ;; classifies it as `:numerical`. These marks need `:categorical`.
@@ -335,7 +336,8 @@
 
 ;; ## Categorical Column with Log Scale
 ;;
-;; **Symptom**: `"Log scale requires numeric data"` error.
+;; **Symptom**: an error such as `"Log scale on :x requires numeric
+;; data, but column :species is non-numeric."`
 ;;
 ;; **Cause**: Log scales only work with numerical columns. Categorical
 ;; columns (strings, keywords) have no meaningful log transform.
@@ -347,7 +349,7 @@
       pj/plot)
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
-(kind/test-last [(fn [msg] (re-find #"[Ll]og scale" msg))])
+(kind/test-last [(fn [msg] (re-find #"Log scale on :x requires numeric data, but column :species is non-numeric" msg))])
 
 ;; **Fix**: Use a numerical column for the log-scaled axis, or drop
 ;; the log scale on the categorical axis.
@@ -684,8 +686,10 @@
 ;; - **Layers that specify their own colour.** No layer gets a legend
 ;;   entry naming its columns; the axis title still names every column.
 ;; - **A layer beside a series, on another column.** The layer is drawn
-;;   in the default grey, and the axis title and the legend name only
-;;   the series.
+;;   on the panel of the series, on the axis of the values of the
+;;   series. With no `:color` specified the layer takes a colour and a
+;;   legend entry named after its column, and the axis title lists the
+;;   layer's column after the columns of the series.
 ;; - **`pj/pose` called again to add a panel.** A later `pj/pose`
 ;;   replaces the columns of the layers that name none, so the plot
 ;;   draws the new columns twice; write the panels with `pj/arrange`.
@@ -694,8 +698,33 @@
 ;;   named the axes left free: write `{:share-scales #{:x}}` for
 ;;   `{:scales :free-y}`, `#{:y}` for `:free-x`, and `#{}` for `:free`.
 ;;
-;; For each of the first three, split the pose with `pj/facet`, or draw
-;; the layers as separate poses with `pj/arrange`.
+;; For each of the first two, split the pose with `pj/facet`, or draw
+;; the layers as separate poses with `pj/arrange`. A series and a facet
+;; over columns on one pose are reported, so for a layer beside a
+;; series draw the series and the layer as separate poses with
+;; `pj/arrange`.
+;;
+;; Some spellings 0.16.1 accepted report an error or warn in place of
+;; drawing something else. A vector of column pairs given to `pj/pose`
+;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
+;; `pj/cross-matrix`. A vector of columns given alone to a `pj/lay-*`
+;; call draws a panel per column, and warns that the next release reads
+;; the vector as a series. `pj/overlay` and `{:overlay true}` warn that
+;; they are ignored, and `{:overlay false}` reports an error. Here is
+;; the error for pairs of columns:
+
+(try
+  (pj/lay-point (rdatasets/datasets-iris)
+                [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"was given pairs of columns" msg)
+                 (re-find #"pj/arrange" msg)
+                 (re-find #"pj/cross-matrix" msg)))])
+
+;; The plot below draws `:hwy` and `:year` on one axis, the first case
+;; in the list:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/lay-point :displ :hwy)
