@@ -566,12 +566,17 @@
   "Throw a clear error when `:size`, `:alpha` or `:fill` names a
    categorical column. Without it the column reaches the encoder and
    dies casting a string to a number, naming neither the aesthetic nor
-   the column."
+   the column.
+
+   Whether a value names a column is asked as `resolve-aesthetics` asks
+   it, through `aes/source`, so a column whose name is a number is
+   checked too, and a value written `{:value ...}` is not."
   [ds v]
   (let [col-names (set (tc/column-names ds))]
     (doseq [k defaults/continuous-column-aesthetics
             :let [col (get v k)]
-            :when (and col (column-ref? col) (contains? col-names col))]
+            :when (and col (= :column (aes/source col col-names
+                                                  (get-in v [:__source k]))))]
       (when (= :categorical (column-type ds col))
         (throw (ex-info (str "Aesthetic " k " needs a numeric column, but "
                              (pr-str col) " holds categories. " k
