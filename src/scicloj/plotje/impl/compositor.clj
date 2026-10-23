@@ -843,6 +843,52 @@
                        (mapv (fn [sub plot] (if (keep-ticks (:path sub)) (plan-sub sub) plot))
                              sub-drafts first-pass))
                      first-pass)
+        direction (:align-direction composite-draft)
+        ;; In an aligned grid, the cells of one grid column share their
+        ;; left edge, so each reserves the widest y-label pad of its
+        ;; column, whether it draws its own tick labels or not. A column
+        ;; whose cells all hide them keeps a pad of zero; one whose
+        ;; cells draw them in some rows only -- a scatter plot matrix,
+        ;; ticked where each scale is first drawn -- lines up. The grid
+        ;; columns are then resized so the drawing areas are equal: a
+        ;; column is as wide as the common drawing width plus its own
+        ;; pad, as a facet's margin sits outside its panels. Only where
+        ;; nothing else a cell reserves differs between the columns.
+        {:keys [sub-drafts layout column-pad]}
+        (let [grid-columns (when (and (:align-panels composite-draft) (= direction :grid))
+                             (->> first-pass
+                                  (group-by (fn [{[x _ w _] :rect}] [(Math/round (double x)) (Math/round (double w))]))
+                                  (sort-by ffirst)
+                                  vec))
+              pad-of (fn [p] (double (or (get-in p [:plan :layout :y-label-pad]) 0.0)))
+              legend-ws (set (map #(Math/round (double (or (get-in % [:plan :layout :legend-w]) 0.0))) first-pass))]
+          (if (and (next grid-columns) (= 1 (count legend-ws)))
+            (let [pads (mapv (fn [[_ ps]] (reduce max 0.0 (map pad-of ps))) grid-columns)
+                  xs (mapv (comp first first) grid-columns)
+                  ws (mapv (comp second first) grid-columns)
+                  gaps (mapv (fn [i] (- (nth xs (inc i)) (+ (nth xs i) (nth ws i)))) (range (dec (count xs))))
+                  drawing (/ (- (reduce + ws) (reduce + pads)) (count ws))
+                  new-ws (mapv #(Math/round (double (+ drawing %))) pads)
+                  ;; Rounding is settled on the last column, so the grid
+                  ;; keeps its width.
+                  new-ws (update new-ws (dec (count new-ws)) + (- (reduce + ws) (reduce + new-ws)))
+                  new-xs (reductions + (first xs) (map + new-ws gaps))
+                  resize (into {} (map-indexed (fn [i [k _]] [k [(nth new-xs i) (nth new-ws i)]])) grid-columns)
+                  column-pad (into {} (mapcat (fn [[_ ps] pad] (map (fn [p] [(:path p) pad]) ps)) grid-columns pads))
+                  moved (fn [[x y w h]]
+                          (if-let [[nx nw] (get resize [(Math/round (double x)) (Math/round (double w))])]
+                            [nx y nw h]
+                            [x y w h]))
+                  sub-drafts (mapv (fn [sub]
+                                     (let [[_ _ nw _ :as r] (moved (:rect sub))]
+                                       (-> sub
+                                           (assoc :rect r)
+                                           (assoc-in [:opts :width] (max 1 (long nw))))))
+                                   sub-drafts)]
+              {:sub-drafts sub-drafts
+               :layout (into {} (map (fn [[k r]] [k (moved r)])) layout)
+               :column-pad column-pad})
+            {:sub-drafts sub-drafts :layout layout :column-pad nil}))
         ;; Aligning drawing areas takes a second pass, because the pad a
         ;; cell needs is only known once that cell has been planned.
         ;; Pass one measures every cell's pads; pass two re-plans them
@@ -859,19 +905,24 @@
         ;; legend reserves the second. A row shares its top and bottom
         ;; edges instead, so the x-label pad is floored. A layout that
         ;; is neither -- a grid -- shares both.
-        direction (:align-direction composite-draft)
         align-floors (cond-> {}
                        (not= direction :horizontal)
                        (assoc :min-y-label-pad (widest :y-label-pad)
                               :min-legend-w (widest :legend-w))
                        (not= direction :vertical)
                        (assoc :min-x-label-pad (widest :x-label-pad)))
-        ;; A cell that draws no :y tick labels takes no floor for
-        ;; them: its pad stays zero, so its drawing area keeps the
+        ;; Elsewhere a cell that draws no :y tick labels takes no floor
+        ;; for them: its pad stays zero, so its drawing area keeps the
         ;; width of its neighbours that draw none either.
         floors-for (fn [sub]
-                     (cond-> align-floors
-                       (get-in sub [:opts :suppress-y-ticks]) (dissoc :min-y-label-pad)))
+                     (cond
+                       column-pad
+                       (assoc align-floors :min-y-label-pad (get column-pad (:path sub) 0.0))
+
+                       (get-in sub [:opts :suppress-y-ticks])
+                       (dissoc align-floors :min-y-label-pad)
+
+                       :else align-floors))
         sub-plots (if (:align-panels composite-draft)
                     (binding [plan/*unread-option-warnings* (atom [])]
                       (mapv (fn [sub]

@@ -4300,9 +4300,16 @@
                                           (dissoc m k)))
                                       m
                                       varied)))))]
-        (assoc base
-               :layout {:direction :vertical}
-               :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))))))
+        (cond-> (assoc base
+                       :layout {:direction :vertical}
+                       :poses (mapv (fn [cells] {:layout {:direction :horizontal} :poses cells}) rows))
+          ;; A grid crossing `:col` with `:row` -- a scatter plot matrix
+          ;; among them -- lines its cells up by column: each cell
+          ;; reserves the y-label pad its grid column needs, whether
+          ;; it draws its own tick labels or not
+          ;; (`compositor/composite-draft->plan`).
+          (and (contains? node :col) (contains? node :row))
+          (update :opts #(merge {:align-panels true} %)))))))
 
 (defn- series-key-facet
   "A leaf whose series is faceted by its own key column, as the facet

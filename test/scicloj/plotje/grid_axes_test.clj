@@ -77,3 +77,26 @@
   (let [texts (frequencies (map str (:texts (pj/svg-summary cross-2x2))))]
     (doseq [label ["sepal length" "sepal width" "petal length" "petal width"]]
       (is (= 1 (texts label)) label))))
+
+(deftest the-panels-of-a-matrix-are-equal-and-line-up
+  ;; Each cell is ticked where its scale is first drawn, so the cells of
+  ;; one grid column draw tick labels in some rows only. Each reserves
+  ;; the widest label room of its column, and the columns are sized so
+  ;; the drawing areas are equal -- also with a categorical column,
+  ;; whose labels ("versicolor") are the widest.
+  (doseq [cols [[:sepal-length :sepal-width :petal-length]
+                [:sepal-length :sepal-width :petal-length :petal-width :species]]]
+    (let [areas (mapv #(get-in % [:frames :drawing-area])
+                      (:panels (pj/frames (-> (rdatasets/datasets-iris)
+                                              (pj/facet-matrix cols)
+                                              (pj/options {:width 600 :height 600})))))
+          n (count cols)
+          by-column (partition n (apply interleave (partition n areas)))]
+      (testing (str (count cols) " columns")
+        (is (= (* n n) (count areas)))
+        (testing "the drawing areas of one grid column share their left edge"
+          (doseq [column by-column]
+            (is (= 1 (count (distinct (map #(Math/round (double (first %))) column)))))))
+        (testing "every drawing area is as wide as the others, to a unit"
+          (let [ws (map #(double (nth % 2)) areas)]
+            (is (<= (- (reduce max ws) (reduce min ws)) 1.0))))))))
