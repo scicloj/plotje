@@ -552,17 +552,44 @@
             (:layers leaf))
       (mapping-source (get-in leaf [:mapping axis]))))
 
+(defn- series-columns
+  "The columns of the data as written that `col` stands for on `axis`
+   of `leaf`: the columns a series there reads, where `col` is the
+   value column the pivot invented for them, and `col` itself anywhere
+   else. `layer` is the layer naming `col`, or nil for the leaf's own
+   mapping.
+
+   The pivot records what it read (`:plotje/series-columns`,
+   `pivot-leaf-series`): on the leaf for a series pivoted out of the
+   leaf's data, and on a layer for a series pivoted out of that layer's
+   own data, or for the one column of the leaf's series a layer beside
+   it reads. A layer with data of its own is read by its own record
+   alone, so a `:value` column in data a layer brings is that column."
+  [leaf layer axis col]
+  (let [{:keys [from columns]} (if (and layer (some? (:data layer)))
+                                 (get-in layer [:plotje/series-columns axis])
+                                 (get-in leaf [:plotje/series-columns axis]))]
+    (if (and (some? col) (= col from))
+      columns
+      [col])))
+
 (defn- panel-axis-cols
   "The columns the layers of a one-panel leaf draw on `axis`, in layer
    order and without repeats: each layer's own column, or the leaf's
    where the layer names none. A layer that draws a count or a density
-   on `:y` names no column there and adds none."
+   on `:y` names no column there and adds none. A series is read as the
+   columns it was pivoted from (`series-columns`), never as the value
+   column the pivot invented: cells share an axis by the columns the
+   writer named."
   [leaf axis]
-  (let [own (mapping-source (get-in leaf [:mapping axis]))
+  (let [own (series-columns leaf nil axis (mapping-source (get-in leaf [:mapping axis])))
         layers (:layers leaf)]
     (vec (distinct (remove nil? (if (seq layers)
-                                  (map #(or (mapping-source (get-in % [:mapping axis])) own) layers)
-                                  [own]))))))
+                                  (mapcat #(if-let [c (mapping-source (get-in % [:mapping axis]))]
+                                             (series-columns leaf % axis c)
+                                             own)
+                                          layers)
+                                  own))))))
 
 (defn- drawn-axis-cols
   "The columns a leaf is bucketed under for a shared scale on `axis`,
@@ -620,6 +647,15 @@
     {::computes c
      ::of (effective-axis-col leaf ({:x :y :y :x} a))}))
 
+(defn- counted-keys
+  "The `counted-key` of a leaf, once for each column counted: a count of
+   a series is a count of each column the series reads
+   (`series-columns`). Nil where the leaf draws a column on `a`."
+  [leaf a]
+  (when-let [k (counted-key leaf a)]
+    (map #(assoc k ::of %)
+         (series-columns leaf nil ({:x :y :y :x} a) (::of k)))))
+
 (defn- counted-key? [k] (and (map? k) (contains? k ::computes)))
 
 (defn- share-key-buckets
@@ -631,8 +667,8 @@
           {}
           (mapcat (fn [leaf]
                     (let [a (data-axis leaf axis)]
-                      (if-let [k (counted-key leaf a)]
-                        [[k leaf]]
+                      (if-let [ks (counted-keys leaf a)]
+                        (map #(vector % leaf) ks)
                         (if-let [cols (drawn-axis-cols leaf a)]
                           (map #(vector % leaf) cols)
                           [[(effective-axis-col leaf a) leaf]]))))
@@ -771,7 +807,12 @@
                         [:numerical false]
                         (when (and ds col)
                           (try
-                            (let [{:keys [x-type y-type x-temporal? y-temporal?]}
+                            (let [;; A column a series reads is not in
+                                  ;; the pivoted data; its values are in
+                                  ;; the value column the pivot wrote.
+                                  {:keys [from columns]} (get-in leaf [:plotje/series-columns axis])
+                                  col (if (some #{col} columns) from col)
+                                  {:keys [x-type y-type x-temporal? y-temporal?]}
                                   (resolve/infer-column-types ds {axis col})]
                               (case axis
                                 :x [x-type x-temporal?]
@@ -2844,7 +2885,22 @@
      ;; Whether the writer named the key column with `:as`; a name the
      ;; pivot chose titles no legend.
      :named? (not= label default-series-label)
-     :cols (vec (mapcat :cols (vals specs)))}))
+     :cols (vec (mapcat :cols (vals specs)))
+     ;; The columns each aesthetic's series reads, for the record the
+     ;; pivot leaves (`series-record`).
+     :axis-cols (into {} (map (fn [k] [k (:cols (get specs k))])) ks)}))
+
+(defn- series-record
+  "What a pivot leaves behind for whoever asks which columns a pivoted
+   leaf or layer draws on an axis (`series-columns`), as
+   `{aesthetic {:from value-column :columns [...]}}`. The pivoted data
+   holds the value column and none of the columns it was made from, and
+   an axis is shared by the columns the writer named."
+  [pv]
+  (into {}
+        (for [[k cols] (:axis-cols pv)]
+          [k {:from (mapping-source (get (:values pv) k))
+              :columns (vec cols)}])))
 
 (defn- layer-series-caller
   [l]
@@ -3012,7 +3068,11 @@
           (do
             (assoc layer
                    :data (tc/select-rows long-data (rows-where (long-data label) key-of))
-                   :mapping (merge keyed m (into {} (for [k (keys on-series)] [k ((:values pv) k)])))))
+                   :mapping (merge keyed m (into {} (for [k (keys on-series)] [k ((:values pv) k)])))
+                   :plotje/series-columns (into {}
+                                                (for [k (keys on-series)]
+                                                  [k {:from (mapping-source ((:values pv) k))
+                                                      :columns [col]}]))))
           (assoc layer :data wide))))))
 
 (defn- untitle-where-written
@@ -3110,7 +3170,10 @@
                        (if (and (:data l) (seq (series-in (:mapping l))))
                          (let [pv (-> (pivot-mapping (layer-series-caller l) (:data l) (:mapping l))
                                       (untitle-where-written (:opts leaf)))]
-                           (assoc l :data (:data pv) :mapping (rewrite (:mapping l) pv leaf-mapping)))
+                           (assoc l
+                                  :data (:data pv)
+                                  :mapping (rewrite (:mapping l) pv leaf-mapping)
+                                  :plotje/series-columns (series-record pv)))
                          l))
                      layers)
         leaf (assoc leaf :layers layers)]
@@ -3199,6 +3262,7 @@
                                 [k nil]))))]
         (-> pivoted
             (dissoc ::pivot)
+            (assoc :plotje/series-columns (series-record pv))
             (update :layers (fn [ls]
                               (vec (map-indexed
                                     (fn [i l]
@@ -4872,6 +4936,11 @@
                 (or (:filtered? parent-ctx)
                     (not (identical? (:data resolved) (:data done)))))
            (assoc :plotje/part-of-parent-data true)
+
+           ;; The columns a pivoted series read, which the pivoted data
+           ;; no longer holds; sharing reads them (`series-columns`).
+           (:plotje/series-columns done)
+           (assoc :plotje/series-columns (:plotje/series-columns done))
 
            (not= (:mapping resolved) (:mapping done))
          ;; The elaborated mapping already holds the leaf's own keys over

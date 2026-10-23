@@ -1338,11 +1338,19 @@
                          (fn [col-idx [x y]]
                            (let [leftmost? (zero? col-idx)]
                              {:mapping {:x x :y y}
-                              :opts (cond-> {:suppress-legend true
-                                             :suppress-x-label true
-                                             :suppress-y-label true}
-                                      (not bottom?)   (assoc :suppress-x-ticks true)
-                                      (not leftmost?) (assoc :suppress-y-ticks true))
+                              ;; Which cells keep their tick labels is
+                              ;; left to `pose/infer-chrome`, which a
+                              ;; facet over columns goes through: a cell
+                              ;; loses them where a cell below it, or to
+                              ;; its left, draws the same scale. Written
+                              ;; here by row and column, a row whose
+                              ;; leftmost cell is the diagonal histogram
+                              ;; kept that cell's counts and dropped the
+                              ;; ticks of the column the rest of the row
+                              ;; draws.
+                              :opts {:suppress-legend true
+                                     :suppress-x-label true
+                                     :suppress-y-label true}
                               :layers []}))
                          row))))
         row-poses (vec
