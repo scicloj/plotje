@@ -830,10 +830,16 @@
                               :min-legend-w (widest :legend-w))
                        (not= direction :vertical)
                        (assoc :min-x-label-pad (widest :x-label-pad)))
+        ;; A cell that draws no :y tick labels takes no floor for
+        ;; them: its pad stays zero, so its drawing area keeps the
+        ;; width of its neighbours that draw none either.
+        floors-for (fn [sub]
+                     (cond-> align-floors
+                       (get-in sub [:opts :suppress-y-ticks]) (dissoc :min-y-label-pad)))
         sub-plots (if (:align-panels composite-draft)
                     (binding [plan/*unread-option-warnings* (atom [])]
                       (mapv (fn [sub]
-                              (plan-sub (update sub :opts merge align-floors)))
+                              (plan-sub (update sub :opts merge (floors-for sub))))
                             sub-drafts))
                     first-pass)
         sub-plots (settle-shared sub-drafts sub-plots
@@ -841,7 +847,7 @@
                                    (binding [plan/*unread-option-warnings* (atom [])]
                                      (plan-sub (cond-> sub
                                                  (:align-panels composite-draft)
-                                                 (update :opts #(merge align-floors %)))))))
+                                                 (update :opts #(merge (floors-for sub) %)))))))
         shared-legend (when (:shared? chrome-spec)
                         (when-let [first-sub (first sub-drafts)]
                           (let [shared-aes (:shared-aesthetics chrome-spec)

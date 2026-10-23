@@ -355,7 +355,13 @@
    width, so equal y-label pads are what makes their drawing areas --
    and so their x scales -- line up. Each panel still gets at least the
    room its own labels need: this is a floor, never a ceiling, so it
-   cannot clip a label."
+   cannot clip a label.
+
+   A panel whose `:y` tick labels are suppressed reserves no room for
+   them, only for its `:y` title where it draws one. The cells of a
+   matrix to the right of the first column draw no tick labels, and
+   reserving the first column's width there narrowed every panel of a
+   row whose column holds long category names."
   [scene cfg opts]
   (let [{:keys [coord-type y-label?]} scene
         angle (get cfg :y-tick-angle 0)
@@ -365,8 +371,10 @@
                          ;; A rotated label reaches left of the axis by
                          ;; its width times the cosine of the angle, plus
                          ;; its height times the sine.
-                         tick-w (if (zero? angle)
-                                  w
+                         tick-w (cond
+                                  (:suppress-y-ticks opts) 0.0
+                                  (zero? angle) w
+                                  :else
                                   (let [rad (Math/toRadians (double angle))]
                                     (+ (* w (Math/abs (Math/cos rad)))
                                        (* (double (tick-font-size cfg))

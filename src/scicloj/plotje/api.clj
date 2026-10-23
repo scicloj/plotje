@@ -1346,7 +1346,9 @@
         composite (cond-> {:layout             {:direction :vertical}
                            :grid-strip-labels  {:col-labels col-labels
                                                 :row-labels row-labels}
-                           :opts              (merge {:share-scales #{:x :y}} root-o)
+                           :opts              (merge {:share-scales #{:x :y}
+                                                      :align-panels true}
+                                                     root-o)
                            :poses             row-poses}
                     (some? root-data) (assoc :data root-data)
                     (seq root-m)      (assoc :mapping root-m)
