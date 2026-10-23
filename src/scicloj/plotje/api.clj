@@ -199,6 +199,10 @@
    and aesthetics with the same capabilities are adjacent so a table
    can group them.
 
+   The panel aesthetics, `:col` and `:row`, come last with no types and
+   no keys: the one setting they take is a `:domain`, which orders
+   their panels.
+
    The same tables `pj/scale` and a mapping's `:scale` validate
    against, so a reference table built from this cannot drift from what
    they enforce. Use it as `pj/config-key-docs` is used."
@@ -3303,11 +3307,20 @@
    until this it was stashed whole: `(pj/facet pose {:column :g})` drew
    a single unfaceted panel and said nothing, while `(pj/facet pose
    :nosuch)` reported the missing column correctly."
-  [caller v]
+  [caller direction v]
   (if-not (map? v)
     v
-    (if (= (set (keys v)) #{:column})
+    (cond
+      (= (set (keys v)) #{:column})
       (:column v)
+
+      ;; The column with the order of its panels: kept in the full
+      ;; form, which is where a scale setting is written.
+      (= (set (keys v)) #{:column :scale})
+      (do (pose/check-panel-mapping! direction v)
+          v)
+
+      :else
       (throw (ex-info (str caller " takes a column of the data, and "
                            (pr-str v) " is not one. Write the column, or"
                            " {:column ...} on its own -- there is no second"
@@ -3346,8 +3359,8 @@
    two answers to one question."
   ([pose aesthetic col] (report-refacet pose aesthetic col "pj/facet"))
   ([pose aesthetic col caller]
-   (when-let [existing (get (:mapping pose) aesthetic)]
-     (when (not= existing col)
+   (when-let [existing (pose/mapping-source (get (:mapping pose) aesthetic))]
+     (when (not= existing (pose/mapping-source col))
        (throw (ex-info (str caller " was given " (pr-str col) " for " aesthetic
                             ", which this pose already facets by "
                             (pr-str existing) ". "
@@ -3445,10 +3458,17 @@
    names it."
   [pose col direction caller]
   (let [fr  (->pose pose caller)
-        col (column-argument caller col)]
+        col (column-argument caller direction col)]
     (check-facet-node! fr col direction)
     (report-refacet fr direction col caller)
-    (update-mapping fr assoc direction col)))
+    ;; An order of panels already specified for this direction
+    ;; (`pj/scale pose :col {:domain ..}`) stays with the column.
+    (let [existing (get (:mapping fr) direction)
+          written (if (and (map? existing) (:scale existing) (not (map? col)))
+                    (-> existing (dissoc :column :from) (assoc :from col))
+                    col)]
+      (pose/check-panel-mapping! direction written)
+      (update-mapping fr assoc direction written))))
 
 (defn- check-facet-columns-map!
   "Report a `pj/facet` map of columns that cannot be drawn as written:
@@ -3627,6 +3647,12 @@
      rectangle instead.
    - `{:col {:column :species}}` -- the same as the first, written out.
 
+   The panels are drawn in the order the data holds the column's
+   values. A `:domain` specifies another order, as it does for a
+   categorical axis and a legend: `(pj/scale my-pose :col {:domain
+   [...]})`, or beside the column, `(pj/facet my-pose {:column :species
+   :scale {:domain [...]}})`.
+
    A map without `:column` says where panels come from, and may name
    columns rather than categories:
 
@@ -3795,6 +3821,12 @@
    supplies the symbols to draw those categories with in that same
    order; `pj/shape-symbols` lists the ones available.
 
+   On `:col` and `:row` a `:domain` gives the order the panels of a
+   facet are drawn in, by the same rule: the listed categories first,
+   and a category the list leaves out after them, with a warning. It is
+   the one scale setting a panel aesthetic takes, and it orders the
+   panels of one column, not of a compound key.
+
    On a numeric `:color` or `:fill` column it gives the two ends of the
    gradient, as it gives the ends of the drawn range on `:size` and
    `:alpha`. That is how every panel of a facet can be given one scale
@@ -3834,7 +3866,9 @@
    - `(scale pose :fill :log)` -- log-spaced tile fill.
    - `(scale pose :shape {:type :categorical :domain [...]})` -- shape
      legend order.
-   - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols."
+   - `(scale pose :shape {:values [:cross :plus]})` -- pick the symbols.
+   - `(scale pose :col {:domain [4 5 6 8]})` -- the order of a facet's
+     panels."
   [pose aesthetic scale-type]
   (when (= :group aesthetic)
     (throw (ex-info (str "pj/scale has no :group aesthetic. Grouping draws"
@@ -3845,6 +3879,41 @@
                          " aesthetic that draws it: :color or :shape.")
                     {:aesthetic aesthetic
                      :supported (vec (sort (keys aesthetic->scale-key)))})))
+  (if (defaults/panel-aesthetics aesthetic)
+    ;; A panel aesthetic takes the order of its panels and nothing else
+    ;; (`pose/check-panel-domain!`), written with the mapping as every
+    ;; scale setting is.
+    (let [fr (->pose pose "pj/scale")
+          _ (pose/check-panel-domain! aesthetic {:scale scale-type} scale-type)
+          ;; A facet over columns is kept under the pose's `:facet`, and
+          ;; its `:col` or `:row` may hold a column of categories there
+          ;; (`{:col :cyl :row {:y [:hwy :cty]}}`). The order is written
+          ;; beside that column, as it is written beside a column in the
+          ;; mapping.
+          node (:facet fr)
+          part (when (map? node) (get node aesthetic))
+          in-node? (and (map? node) (contains? node aesthetic) (some? part))
+          columns? (and (map? part) (not (some #(contains? part %) [:column :from])))]
+      (when (and in-node? columns?)
+        (throw (ex-info (str "pj/scale " aesthetic " " (pr-str scale-type)
+                             " orders the panels of a column of categories, and"
+                             " this pose facets " aesthetic " over the columns "
+                             (pr-str part) ". Those panels are drawn in the order"
+                             " the columns are written.")
+                        {:aesthetic aesthetic :facet node :scale scale-type})))
+      (let [fr (if in-node?
+                 ;; In the node a column of categories written in full
+                 ;; is `{:column ..}`, which is what its readers ask
+                 ;; for.
+                 (assoc-in fr [:facet aesthetic]
+                           (if (map? part)
+                             (assoc part :scale (pose/combine-scales (:scale part) scale-type))
+                             {:column part :scale scale-type}))
+                 (update fr :mapping pose/put-scale aesthetic scale-type))]
+        (pose/check-panel-mapping! aesthetic (if in-node?
+                                               (get-in fr [:facet aesthetic])
+                                               (get-in fr [:mapping aesthetic])))
+        fr))
   (let [k (or (aesthetic->scale-key aesthetic)
               (throw (ex-info (str "pj/scale takes one of the aesthetics "
                                    (vec (sort (keys aesthetic->scale-key)))
@@ -3898,7 +3967,7 @@
                  scale-type
                  {:type scale-type})]
       (update (->pose pose "pj/scale") :mapping
-              pose/put-scale aesthetic spec))))
+              pose/put-scale aesthetic spec)))))
 
 (defn coord
   "Set coordinate transform on a pose. The coord applies to the pose it

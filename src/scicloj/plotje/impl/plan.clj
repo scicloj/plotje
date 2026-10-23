@@ -1242,21 +1242,11 @@
     (when (and (sequential? d) (seq d))
       d)))
 
-(defn- category-label
-  "How a category is matched against an entry of a written `:domain`.
-
-   By the text the category is drawn with, so a column of numbers read
-   as categories can be ordered by those numbers as well as by the text
-   they become: an axis holds `\"4\"` where the column held `4`, and
-   both should name the same band."
-  [v]
-  (defaults/fmt-category-label v))
-
 (defn- order-by-domain
   "Order `observed` categories by an explicit `domain`. Domain entries
    come first, in the order given; observed categories the domain omits
    follow in the order they appear in the data, so nothing silently
-   loses its place. `warn-category-domain-mismatch!` reports both the omissions
+   loses its place. `scale/warn-category-domain-mismatch!` reports both the omissions
    and the names the data does not hold.
 
    The values answered are always the observed ones. The marks carry
@@ -1264,46 +1254,7 @@
    answering the written domain's would leave a scale whose categories
    no mark matches."
   [observed domain]
-  (let [by-label (into {} (map (juxt category-label identity) (reverse observed)))
-        listed (vec (distinct (keep (comp by-label category-label) domain)))
-        listed-set (set listed)]
-    (into listed (remove listed-set observed))))
-
-(defn- warn-category-domain-mismatch!
-  "Warn where a `pj/scale` `:domain` and the categories the data holds
-   disagree, in either direction. One comparison answers both, so a
-   message cannot be added on one side and forgotten on the other --
-   which is how the second of these came to be missing while the first
-   had been reported since categorical domains were added.
-
-   A category the domain leaves out is still drawn, appended after the
-   listed ones, but the order asked for does not cover it, which is
-   usually a typo or a stale category list.
-
-   A name the domain lists that the data does not hold is dropped: a
-   `:domain` orders the categories the data holds and adds none to
-   them, so no band, colour or symbol is given to that name. ggplot2's
-   `scale_*_discrete(limits = ...)` draws an empty band for it instead,
-   so saying nothing here read as that behaviour to anyone arriving
-   from there.
-
-   Both sides are compared by `category-label`, so a column of numbers
-   read as categories matches a domain written with those numbers."
-  [aesthetic observed domain]
-  (let [listed (set (map category-label domain))
-        held (set (map category-label observed))]
-    (when-let [missing (seq (remove (comp listed category-label) observed))]
-      (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
-                    ". Those categories are still drawn, ordered after the "
-                    ;; No "legend" here: the aesthetic may be an axis,
-                    ;; which has none.
-                    "listed ones. List every category to order all of "
-                    "them.")))
-    (when-let [unheld (seq (remove (comp held category-label) domain))]
-      (println (str "Warning: pj/scale " aesthetic " :domain names " (vec unheld)
-                    ", which the data does not hold. A :domain orders the "
-                    "categories the data holds and adds none to them, so "
-                    "nothing is drawn there.")))))
+  (scale/order-by-domain identity observed domain))
 
 (defn- axis-domain
   "The domain an axis is drawn against, given its scale spec and what
@@ -1338,7 +1289,7 @@
       (nil? written) data-domain
 
       (and (some? data-domain) (scale/categorical-domain? data-domain))
-      (do (warn-category-domain-mismatch! aesthetic data-domain written)
+      (do (scale/warn-category-domain-mismatch! aesthetic data-domain written)
           (order-by-domain data-domain written))
 
       :else
@@ -1399,7 +1350,7 @@
                                domain (seq (categorical-domain
                                             (some :color-scale color-draft-layers)))]
                            (when (and domain (seq observed))
-                             (warn-category-domain-mismatch! :color observed domain))
+                             (scale/warn-category-domain-mismatch! :color observed domain))
                            (if domain
                              (order-by-domain observed domain)
                              observed)))))
@@ -1457,7 +1408,7 @@
                          observed)]
         (when (seq all-shapes)
           (when domain
-            (warn-category-domain-mismatch! :shape observed domain))
+            (scale/warn-category-domain-mismatch! :shape observed domain))
           (when-not by-category (warn-shape-wrap! all-shapes syms))
           {:all-shapes all-shapes
            :shape-cols (distinct (keep #(when (resolve/column-ref? (:shape %)) (:shape %))

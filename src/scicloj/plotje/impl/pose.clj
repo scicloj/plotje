@@ -1580,6 +1580,86 @@
        (contains? v :scale)
        (not-any? #(contains? v %) source-keys)))
 
+(defn check-panel-domain!
+  "Throw unless `spec`, the `:scale` of a panel aesthetic, is a map
+   holding a `:domain` of categories and nothing else.
+
+   `:col` and `:row` draw nothing through a scale, so they take no scale
+   type, range or breaks. What they share with a categorical axis and a
+   categorical legend is an order of categories, and the `:domain` that
+   orders those two orders the panels: the listed categories first, the
+   others after, in the order of the data. Called from the mapping check
+   and from `pj/scale`, so the two refuse the same things."
+  [k v spec]
+  (when-not (and (map? spec)
+                 (= #{:domain} (set (keys spec)))
+                 (sequential? (:domain spec))
+                 (seq (:domain spec)))
+    (throw (ex-info (str k " " (pr-str v) " sets :scale to " (pr-str spec)
+                         ". " k " sends each category to a panel and draws"
+                         " nothing through a scale, so the one setting it"
+                         " takes is the order of the panels: {:domain [..]},"
+                         " listing the categories in the order to draw them.")
+                    {:key k :value v :scale spec}))))
+
+(defn panel-domain
+  "The `:domain` specified for a panel aesthetic in a mapping value, or
+   nil where none is."
+  [v]
+  (when (map? v)
+    (let [s (:scale v)]
+      (when (map? s) (not-empty (:domain s))))))
+
+(defn check-panel-domain-key!
+  "Throw where a `:domain` is specified for a panel aesthetic that
+   reads several columns as a compound key. A `:domain` lists the
+   categories of one column, and a compound key has a panel for each
+   combination of values the data holds, so the list has nothing to be
+   matched against. Called where the two are written together
+   (`check-panel-mapping!`) and where the panels are made
+   (`panel-order`), since a `pj/scale` on an outer pose meets the
+   facet of an inner one only there."
+  [k col domain]
+  (when (and domain (sequential? col) (next col))
+    (throw (ex-info (str k " facets by the compound key " (pr-str (vec col))
+                         " and has a :domain, " (pr-str (vec domain)) ". A :domain"
+                         " orders the categories of one column, and a compound"
+                         " key draws a panel for each combination of values the"
+                         " data holds. Facet by one column to order its panels"
+                         " with a :domain, or order the rows of the data: the"
+                         " panels of a compound key follow them.")
+                    {:key k :columns (vec col) :domain (vec domain)}))))
+
+(defn check-panel-mapping!
+  "Throw where `v`, a mapping value written for the panel aesthetic `k`
+   in full, cannot be read: a `:scale` that is not a `:domain` alone
+   (`check-panel-domain!`), or a `:domain` beside a compound key
+   (`check-panel-domain-key!`). Called from the mapping check, from
+   `pj/facet` and from `pj/scale`, so the three refuse the same
+   things."
+  [k v]
+  (when (and (map? v) (contains? v :scale))
+    (check-panel-domain! k v (:scale v))
+    (check-panel-domain-key! k (mapping-source v) (panel-domain v))))
+
+(defn- panel-order
+  "The categories of a facet in the order its panels are drawn: the
+   order of the data, or, where a `:domain` is specified, the listed
+   ones first and the others after (`scale/order-by-domain`, which
+   orders a categorical axis and a categorical legend). `observed` are
+   the categories in the order of the data; `key-fn` gives the category
+   of an item, for the tuples `facet-variants` holds. `col` is what the
+   aesthetic `k` names. One function for the panels of a facet kept in
+   the mapping (`facet-variants`), for a category part of a facet over
+   columns (`facet-part-items`) and for the listed pose a facet means
+   (`expand-variation`)."
+  [k col key-fn observed domain]
+  (check-panel-domain-key! k col domain)
+  (if domain
+    (do (scale/warn-category-domain-mismatch! k (map key-fn observed) domain)
+        (scale/order-by-domain key-fn observed domain))
+    (vec observed)))
+
 (defn check-explicit-mapping!
   "Throw when an explicit mapping is malformed. Nothing here reads the
    layer's data, which is what lets `api` run it at the `pj/pose` or
@@ -1619,7 +1699,9 @@
     ;; `:group` was refused at first, so `{:text {:value "hi" :scale
     ;; true}}` was accepted and the key dropped -- the very thing this
     ;; check exists to prevent, under the same reasoning one entry over.
-    (when (contains? v :scale)
+    (when (and (contains? v :scale) (defaults/panel-aesthetics k))
+      (check-panel-mapping! k v))
+    (when (and (contains? v :scale) (not (defaults/panel-aesthetics k)))
       (let [{:keys [scale-default scale-key]} (defaults/aesthetic-registry k)]
         (when-let [why (cond
                          (nil? scale-default)
@@ -1658,7 +1740,7 @@
     ;; says. `true` keeps meaning the aesthetic's default type -- it is
     ;; not an opinion about the scale, only about which side of it the
     ;; value passes.
-    (let [s (:scale v)]
+    (let [s (when-not (defaults/panel-aesthetics k) (:scale v))]
       (when-not (contains? #{true false nil} s)
         (when-not (or (keyword? s) (map? s))
           (throw (ex-info (str k " " (pr-str v) " sets :scale to " (pr-str s)
@@ -2027,10 +2109,15 @@
    and `:color` give a vector, and it differs from `pj/facet-grid`,
    which crosses two distinctions and fills the rectangle whether the
    data holds a combination or not."
-  [data facet-col facet-row]
+  [data facet-col facet-row col-domain row-domain]
   (let [ds    (coerce-dataset data)
         crefs (facet-columns facet-col)
-        rrefs (facet-columns facet-row)]
+        rrefs (facet-columns facet-row)
+        ;; The keys in the order of the data, or in the order a
+        ;; `:domain` specifies (`panel-order`). A key is a tuple, one
+        ;; value per column.
+        ordered (fn [aesthetic refs ks domain]
+                  (panel-order aesthetic refs first (distinct ks) domain))]
     (cond
       (not (or crefs rrefs))
       [{:data ds}]
@@ -2038,9 +2125,13 @@
       (and crefs rrefs)
       (let [ck (facet-keys ds :col crefs)
             rk (facet-keys ds :row rrefs)
-            rows (rows-by-key (mapv vector ck rk))]
+            rows (rows-by-key (mapv vector ck rk))
+            ;; Ordered once, outside the loop over the columns, so a
+            ;; warning about the domain is printed once.
+            rvs (ordered :row rrefs rk row-domain)]
         (vec
-         (for [cv (distinct ck) rv (distinct rk)]
+         (for [cv (ordered :col crefs ck col-domain)
+               rv rvs]
            ;; A combination the data does not hold keeps its panel,
            ;; with no rows.
            {:data (tc/select-rows ds (get rows [cv rv] []))
@@ -2051,7 +2142,7 @@
       (let [ck (facet-keys ds :col crefs)
             rows (rows-by-key ck)]
         (vec
-         (for [cv (distinct ck)]
+         (for [cv (ordered :col crefs ck col-domain)]
            {:data (tc/select-rows ds (rows cv))
             :facet-col (facet-label cv)})))
 
@@ -2059,7 +2150,7 @@
       (let [rk (facet-keys ds :row rrefs)
             rows (rows-by-key rk)]
         (vec
-         (for [rv (distinct rk)]
+         (for [rv (ordered :row rrefs rk row-domain)]
            {:data (tc/select-rows ds (rows rv))
             :facet-row (facet-label rv)}))))))
 
@@ -3882,16 +3973,25 @@
         ;; A category is one column, or several united into a compound
         ;; key -- one value per combination the data holds, in the order
         ;; the data holds them.
-        values (fn [col]
-                 (if (sequential? col)
-                   (vec (distinct (apply map vector (map ds col))))
-                   (vec (distinct (ds col)))))
-        where-of (fn [col v] (if (sequential? col) (zipmap col v) {col v}))]
+        ;; A category may be written in full, as the mapping holds it
+        ;; -- `{:column :cyl :scale {:domain [..]}}` -- and its cells
+        ;; are then listed in the order the `:domain` specifies
+        ;; (`panel-order`).
+        values (fn [k written]
+                 (let [col (mapping-source written)]
+                   (panel-order k col identity
+                                (if (sequential? col)
+                                  (vec (distinct (apply map vector (map ds col))))
+                                  (vec (distinct (ds col))))
+                                (panel-domain written))))
+        where-of (fn [written v]
+                   (let [col (mapping-source written)]
+                     (if (sequential? col) (zipmap col v) {col v})))]
     (cond
       (and (map? variation) (or (contains? variation :col) (contains? variation :row)))
       (let [{c :col r :row} variation
-            cvs (if c (values c) [nil])
-            rvs (if r (values r) [nil])
+            cvs (if c (values :col c) [nil])
+            rvs (if r (values :row r) [nil])
             cell (fn [cv rv]
                    {:where (cond-> {}
                              c (merge (where-of c cv))
@@ -3910,7 +4010,7 @@
                    :poses (vec (for [c cols] {:mapping {k c}})))))
 
       :else
-      (let [vs (values variation)]
+      (let [vs (values :col variation)]
         ;; One row in a vertical stack, the shape `pj/arrange` builds,
         ;; which the strips are drawn against.
         (assoc pose
@@ -3956,9 +4056,13 @@
             base (-> pose
                      pivot-leaf-series
                      (update :mapping #(not-empty (dissoc % :col :row))))
+            ;; Each facet as the mapping holds it, so an order of panels
+            ;; specified there is the order of the listed cells.
+            c (when c (:col m))
+            r (when r (:row m))
             variation (cond (and c r) {:col c :row r}
                             r {:row r}
-                            :else c)]
+                            :else {:col c})]
         (expand-variation base variation)))))
 
 ;; ---- A regular split drawn as one plan ----
@@ -4052,14 +4156,22 @@
 ;; crosses a `:col` part with a `:row` part. `nil` in a vector of columns
 ;; leaves that cell without a column on that axis -- a margin.
 
+(defn- facet-part-categories?
+  "True of a part of a facet node written in full as a mapping value
+   naming a column of categories: `{:column :cyl}`, or the `{:from :cyl
+   :scale {:domain [..]}}` that `pj/scale` writes."
+  [part]
+  (and (map? part) (some? (some #(find part %) [:column :from]))))
+
 (defn- facet-part-items
   "The cells one part of a facet node asks for, each a map of the
-   `:where` it keeps and the `:mapping` it writes."
-  [ds part]
+   `:where` it keeps and the `:mapping` it writes. `k` is the panel
+   aesthetic the part is written under, `:col` or `:row`."
+  [ds k part]
   (cond
     (nil? part) [{}]
 
-    (and (map? part) (not (contains? part :column)))
+    (and (map? part) (not (facet-part-categories? part)))
     (let [varied (filterv #(sequential? (get part %)) [:x :y])
           n (count (get part (first varied)))]
       (when-not (every? #(= n (count (get part %))) varied)
@@ -4073,10 +4185,13 @@
         {:mapping (into {} (map (fn [k] [k (nth (get part k) i)])) varied)}))
 
     :else
-    (let [col (if (map? part) (:column part) part)
+    (let [col (mapping-source part)
           values (if (sequential? col)
                    (vec (distinct (apply map vector (map ds col))))
-                   (vec (distinct (ds col))))]
+                   (vec (distinct (ds col))))
+          ;; In the order a `:domain` specifies, as `facet-variants`
+          ;; orders the panels of a facet kept in the mapping.
+          values (panel-order k col identity values (panel-domain part))]
       (for [v values]
         {:where (if (sequential? col) (zipmap col v) {col v})}))))
 
@@ -4099,9 +4214,29 @@
    any other pose as it is. A part over columns of `:y` alone stacks its
    cells down, so they share the `:x` axis; any other single part runs
    across; `:col` and `:row` make a grid. The leaf's series is pivoted
-   first, as for a facet over categories."
-  [pose]
-  (let [node (:facet pose)]
+   first, as for a facet over categories.
+
+   `panel-mapping` is what the pose and the poses above it map `:col`
+   and `:row` to. An order of panels specified there with no column --
+   `(pj/scale pose :col {:domain [..]})` written before the facet, or
+   on a pose above -- orders the categories of that part of the node,
+   where the part specifies no order of its own."
+  [pose panel-mapping]
+  (let [node (:facet pose)
+        node (if (and (map? node) (or (contains? node :col) (contains? node :row)))
+               (reduce (fn [node k]
+                         (let [part (get node k)
+                               outer (get panel-mapping k)]
+                           (if (and (some? part)
+                                    (or (not (map? part)) (facet-part-categories? part))
+                                    (nil? (panel-domain part))
+                                    (some? (panel-domain outer)))
+                             (assoc node k {:column (mapping-source part)
+                                            :scale (:scale outer)})
+                             node)))
+                       node
+                       [:col :row])
+               node)]
     (if (or (nil? node) (composite? pose))
       pose
       (let [base (-> pose
@@ -4111,9 +4246,9 @@
             ds (coerce-dataset (:data base))
             grid? (or (contains? node :col) (contains? node :row))
             rows (if grid?
-                   (vec (for [r (facet-part-items ds (:row node))]
-                          (mapv #(facet-cell r %) (facet-part-items ds (:col node)))))
-                   (let [items (facet-part-items ds node)
+                   (vec (for [r (facet-part-items ds :row (:row node))]
+                          (mapv #(facet-cell r %) (facet-part-items ds :col (:col node)))))
+                   (let [items (facet-part-items ds nil node)
                          down? (and (map? node) (= [:y] (filterv #(sequential? (get node %)) [:x :y])))]
                      (if down?
                        (mapv #(vector (facet-cell {} %)) items)
@@ -4229,17 +4364,25 @@
    its own is expanded with the data it inherits, which the expansion
    reads to pivot a series and to list a category's values. A series
    faceted by its own key is such a pose (`series-key-facet`)."
-  ([pose] (expand-facet-nodes pose nil))
-  ([pose inherited]
+  ([pose] (expand-facet-nodes pose nil nil))
+  ([pose inherited] (expand-facet-nodes pose inherited nil))
+  ([pose inherited panel-mapping]
    (let [data (or (:data pose) inherited)
+         ;; What `:col` and `:row` are mapped to down to this pose: an
+         ;; order of panels specified above reaches a facet node here
+         ;; (`expand-facet-node`), as it reaches a facet in the mapping
+         ;; through `resolve-tree`.
+         panel-mapping (merge-mappings panel-mapping
+                                       (select-keys (:mapping pose) defaults/panel-aesthetics))
          pose (series-key-facet pose)
          pose (if (and (:facet pose) (not (composite? pose)))
                 (expand-facet-node (cond-> pose
-                                     (and data (nil? (:data pose))) (assoc :data data)))
+                                     (and data (nil? (:data pose))) (assoc :data data))
+                                   panel-mapping)
                 pose)]
      (cond-> pose
        (seq (:poses pose))
-       (update :poses (fn [ps] (mapv #(expand-facet-nodes % data) ps)))))))
+       (update :poses (fn [ps] (mapv #(expand-facet-nodes % data panel-mapping) ps)))))))
 
 ;; ---- Layers fitted to cells ----
 ;;
@@ -5208,8 +5351,10 @@
         ;; so a hand-built pose carrying it still faceted.
         facet-col    (or (mapping-source (:col leaf-mapping)) (:facet-col opts))
         facet-row    (or (mapping-source (:row leaf-mapping)) (:facet-row opts))
+        col-domain   (panel-domain (:col leaf-mapping))
+        row-domain   (panel-domain (:row leaf-mapping))
         leaf-mapping (dissoc leaf-mapping :col :row)
-        variants     (facet-variants leaf-data facet-col facet-row)
+        variants     (facet-variants leaf-data facet-col facet-row col-domain row-domain)
         ;; The layers that keep a column on `:y` alone from being drawn
         ;; on its side, for `check-layer-columns!` to name.
         side-on-blockers (when (and (nil? (:x leaf-mapping))

@@ -352,9 +352,9 @@ gapminder-2007
 
 (kind/test-last
  [(fn [_]
-    ;; Every aesthetic `pj/scale` accepts appears, and none that has no
-    ;; scale does.
-    (= #{:x :y :size :alpha :color :fill :shape}
+    ;; Every aesthetic `pj/scale` accepts appears, and no other: the
+    ;; panel aesthetics take a `:domain` and nothing else.
+    (= #{:x :y :size :alpha :color :fill :shape :col :row}
        (set (map :aesthetic pj/aesthetic-scales))))])
 
 ;; A spec key an aesthetic does not read is refused where it is

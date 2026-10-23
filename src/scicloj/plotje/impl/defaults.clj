@@ -423,13 +423,21 @@
    which belong to every scale. Both are ordered vectors.
 
    Derived from `channel-scale-types` and `channel-scale-options` so
-   that documentation cannot drift from what the validators enforce."
-  (vec (for [a (in-canonical-order scale-bearing-aesthetic-order
-                                   (keys channel-scale-types))]
-         {:aesthetic a
-          :types (in-canonical-order scale-type-order (get channel-scale-types a))
-          :keys  (in-canonical-order scale-spec-key-order
-                                     (get channel-scale-options a #{}))})))
+   that documentation cannot drift from what the validators enforce.
+
+   The panel aesthetics come last, with no `:types` and no `:keys`:
+   `:col` and `:row` draw nothing through a scale, and the one setting
+   they take is the `:domain` that orders their panels
+   (`impl.pose/check-panel-domain!`). They are read from the registry's
+   `:panel` role, as `panel-aesthetics` is."
+  (into (vec (for [a (in-canonical-order scale-bearing-aesthetic-order
+                                         (keys channel-scale-types))]
+               {:aesthetic a
+                :types (in-canonical-order scale-type-order (get channel-scale-types a))
+                :keys  (in-canonical-order scale-spec-key-order
+                                           (get channel-scale-options a #{}))}))
+        (for [a (sort panel-aesthetics)]
+          {:aesthetic a :types [] :keys []})))
 
 (defn scale-option-key
   "The plot option that is the outer scope of scale spec key `k` on

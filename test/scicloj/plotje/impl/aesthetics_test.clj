@@ -570,10 +570,13 @@
     (is (= 2 (panels (-> d (pj/lay-point :when :level) (pj/facet {:column :variety})))))
 
     (testing "and a map with no column reading is reported"
-      (doseq [m [{:value :variety} {:column :variety :scale false}]]
-        (is (thrown-with-msg?
-             clojure.lang.ExceptionInfo #"takes a column of the data"
-             (-> d (pj/lay-point :when :level) (pj/facet m))))))))
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"takes a column of the data"
+           (-> d (pj/lay-point :when :level) (pj/facet {:value :variety})))))
+    (testing "and a scale setting a panel does not take is reported"
+      (is (thrown-with-msg?
+           clojure.lang.ExceptionInfo #"sets :scale to false.*the order of the panels"
+           (-> d (pj/lay-point :when :level) (pj/facet {:column :variety :scale false})))))))
 
 (deftest a-datum-broadcasts-on-a-layer-of-values-too-test
   ;; A layer whose x and y are both written values gets a one-row

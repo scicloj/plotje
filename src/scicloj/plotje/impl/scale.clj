@@ -309,6 +309,65 @@
   [aesthetic]
   (into #{:type :domain} (get defaults/channel-scale-options aesthetic #{})))
 
+(defn order-by-domain
+  "`observed` categories ordered by a specified `domain`: the listed ones
+   first, in the order given, then the ones the domain leaves out, in
+   the order they came. A name `observed` does not hold adds nothing.
+
+   Compared by the text a category is drawn with
+   (`defaults/fmt-category-label`), so a column of numbers is ordered by
+   those numbers as well as by the text they become. `key-fn` gives the
+   category of an item, for items that carry one -- the tuple of a facet
+   key. The values answered are always the observed ones.
+
+   One function for a categorical axis, a categorical legend and the
+   panels of a facet, because the three ask one question."
+  [key-fn observed domain]
+  (let [label (comp defaults/fmt-category-label key-fn)
+        by-label (into {} (map (juxt label identity) (reverse observed)))
+        listed (vec (distinct (keep (comp by-label defaults/fmt-category-label) domain)))
+        listed-set (set listed)]
+    (into listed (remove listed-set observed))))
+
+(defn warn-category-domain-mismatch!
+  "Warn where a `:domain` and the categories the data holds disagree,
+   in either direction. One comparison answers both, so a message
+   cannot be added on one side and forgotten on the other.
+
+   A category the domain leaves out is still drawn, after the listed
+   ones, but the order asked for does not cover it, which is usually a
+   typo or a stale category list.
+
+   A name the domain lists that the data does not hold is dropped: a
+   `:domain` orders the categories the data holds and adds none to
+   them, so no band, colour, symbol or panel is given to that name.
+   ggplot2's discrete `limits` draw an empty band for it instead, so
+   saying nothing here read as that behaviour to anyone arriving from
+   there.
+
+   Both sides are compared by `defaults/fmt-category-label`, as
+   `order-by-domain` compares them. One function for a categorical
+   axis, a categorical legend and the panels of a facet; the message
+   names which of the three the aesthetic orders."
+  [aesthetic observed domain]
+  (let [label defaults/fmt-category-label
+        listed (set (map label domain))
+        held (set (map label observed))
+        what (case (:role (defaults/aesthetic-registry aesthetic))
+               :panel "panel"
+               :positional "axis"
+               "legend")]
+    (when-let [missing (seq (remove (comp listed label) observed))]
+      (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
+                    ". Those categories are still drawn, ordered after the "
+                    "listed ones. List every category to control the whole "
+                    what " order.")))
+    (when-let [unheld (seq (remove (comp held label) domain))]
+      (println (str "Warning: pj/scale " aesthetic " :domain names " (vec unheld)
+                    ", which the data does not hold. A :domain orders the "
+                    "categories the data holds and adds none to them, so "
+                    "nothing is drawn there.")))))
+
 (defn validate-spec-keys!
   "Throw when a scale spec names a key `aesthetic` does not read.
 
