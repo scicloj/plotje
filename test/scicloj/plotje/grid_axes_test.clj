@@ -1,7 +1,7 @@
 (ns scicloj.plotje.grid-axes-test
-  "A grid built from a rectangular pair list -- the SPLOM shape that
-   `pj/pose` with `pj/cross` produces -- draws one x axis per column
-   and one y axis per row, and suppresses the rest.
+  "The grid `pj/facet-matrix` draws -- a facet crossing two lists of
+   columns -- has one x per column of cells and one y per row, and
+   each column's and row's axis is drawn.
 
    That is only readable if a cell's x really is constant down its
    column and its y constant across its row. When the grid was built
@@ -15,6 +15,7 @@
    labels that arrangement is supposed to make readable."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
+            [scicloj.plotje.impl.pose :as pose]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]))
 
 ;; Four iris columns with well-separated ranges, so a tick label can
@@ -24,18 +25,19 @@
 ;;   :petal-length [1.0 6.9]   :petal-width  [0.1 2.5]
 (def cross-2x2
   (-> (rdatasets/datasets-iris)
-      (pj/cross-matrix [:sepal-length :sepal-width]
+      (pj/facet-matrix [:sepal-length :sepal-width]
                        [:petal-length :petal-width])
       (pj/options {:width 800 :height 600})))
 
 (defn- cell-mappings
-  "The [x y] of each cell, as a vector of rows."
-  [pose]
+  "The [x y] of each cell the matrix's facet expands into, as a vector
+   of rows."
+  [p]
   (mapv (fn [row]
           (mapv (fn [cell] [(get-in cell [:mapping :x])
                             (get-in cell [:mapping :y])])
                 (:poses row)))
-        (:poses pose)))
+        (:poses (pose/expand-facet-nodes p))))
 
 (deftest columns-carry-x-rows-carry-y
   (testing "every cell in a column shares one x"
@@ -70,10 +72,8 @@
 
 (deftest strip-labels-name-the-axis-they-sit-on
   ;; The column header names the x of the cells beneath it, the row
-  ;; header the y of the cells beside it. The composite root carries
-  ;; both lists; the compositor draws them from there.
-  ;; Formatted as the axis titles are: `sepal length`, not `sepal-length`.
-  (is (= ["sepal length" "sepal width"]
-         (get-in cross-2x2 [:grid-strip-labels :col-labels])))
-  (is (= ["petal length" "petal width"]
-         (get-in cross-2x2 [:grid-strip-labels :row-labels]))))
+  ;; header the y of the cells beside it, formatted as the axis titles
+  ;; are: `sepal length`, not `sepal-length`. Each is drawn once.
+  (let [texts (frequencies (map str (:texts (pj/svg-summary cross-2x2))))]
+    (doseq [label ["sepal length" "sepal width" "petal length" "petal width"]]
+      (is (= 1 (texts label)) label))))

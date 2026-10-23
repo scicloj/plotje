@@ -226,7 +226,7 @@
       (is (= "" (printed over-columns)))
       (is (= "" (printed by-kind)))
       (is (= "" (printed (pj/options by-kind {:share-scales #{:x}}))))
-      (is (= "" (printed (pj/cross-matrix cars [:fast :slow])))))
+      (is (= "" (printed (pj/facet-matrix cars [:fast :slow])))))
     (testing "a conflict with the cells' own :share-scales is one message, however many cells"
       (let [free (pj/options by-kind {:share-scales #{}})
             out (printed (pj/arrange [free free] {:share-scales #{:y}}))]

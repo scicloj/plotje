@@ -380,8 +380,8 @@
 ;; Per-cell inference picks the layer type for each panel: diagonal
 ;; cells (x = y) get histograms; off-diagonal cells get scatter
 ;; plots. All panels share the color aesthetic set on the pose.
-;; `pj/cross-matrix` builds the same grid in one call,
-;; `(pj/cross-matrix data cols {:color :species})`.
+;; `pj/facet-matrix` writes the same facet in one call,
+;; `(pj/facet-matrix data cols {:color :species})`.
 
 ;; A layer written on the matrix is drawn in the panels whose columns it
 ;; draws. A scatter draws two columns, so `pj/lay-point` is drawn in the

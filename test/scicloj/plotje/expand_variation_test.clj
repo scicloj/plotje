@@ -157,7 +157,7 @@
                   (mapv :mapping)))))
     (testing "a cell no layer fits keeps them all: a matrix of points draws its diagonal"
       (is (= 9 (:panels (pj/svg-summary (-> (tc/dataset {:a [1 2 3] :b [3 1 2] :c [2 3 1]})
-                                             (pj/cross-matrix [:a :b :c])
+                                             (pj/facet-matrix [:a :b :c])
                                              pj/lay-point))))))
     (testing "categories crossed with columns"
       (is (= {:panels 6 :points 300}

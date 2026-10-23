@@ -116,5 +116,5 @@
     (let [rs (deref results)]
       (is (< 500 (count (filter #(= :ok (get-in % [:outcome :status])) rs))))
       (is (< 100 (count (filter #(= :error (get-in % [:outcome :status])) rs))))
-      (is (= #{:none :facet-cat :facet-cols :arrange-cols :cross-matrix :arrange-poses :arrange-one}
+      (is (= #{:none :facet-cat :facet-cols :arrange-cols :facet-matrix :arrange-poses :arrange-one}
              (set (map (comp :wrapper :rec) rs)))))))

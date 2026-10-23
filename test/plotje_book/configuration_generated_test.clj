@@ -152,14 +152,14 @@
  v31_l154
  (->
   (rdatasets/datasets-iris)
-  (pj/cross-matrix [:sepal-length :sepal-width])))
+  (pj/facet-matrix [:sepal-length :sepal-width])))
 
 
 (def
  v33_l159
  (->
   (rdatasets/datasets-iris)
-  (pj/cross-matrix [:sepal-length :sepal-width])
+  (pj/facet-matrix [:sepal-length :sepal-width])
   pj/svg-summary
   :width))
 

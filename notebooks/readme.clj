@@ -51,7 +51,7 @@
 ;; Scatter plot matrix (SPLOM) -- all pairwise combinations with color grouping:
 
 (-> (rdatasets/datasets-iris)
-    (pj/cross-matrix [:sepal-length :sepal-width
+    (pj/facet-matrix [:sepal-length :sepal-width
                       :petal-length :petal-width]
                      {:color :species})
     (pj/options {:title "Iris SPLOM"}))

@@ -149,7 +149,7 @@
   (let [dk (pick-w (into {} (map (fn [[k v]] [k (:w v)]) datasets)))
         ds (datasets dk)
         wrapper (pick-w {:none 40 :facet-cat 15 :facet-cols 10 :arrange-cols 10
-                         :cross-matrix 5 :arrange-poses 12 :arrange-one 8})
+                         :facet-matrix 5 :arrange-poses 12 :arrange-one 8})
         share (when (chance 0.3) (gen-share))
         flip? (chance 0.1)
         bogus? (chance 0.04)
@@ -184,9 +184,9 @@
                              ar (cond-> ['pj/arrange cells] trailing-opts (conj trailing-opts))
                              layers (vec (repeatedly (pick-w {1 70 2 30}) #(gen-layer ds)))]
                          {:steps (-> [ar] (into layers) (into tail))})
-         :cross-matrix (let [cols (vec (take 2 (shuffle-r (:num ds))))
+         :facet-matrix (let [cols (vec (take 2 (shuffle-r (:num ds))))
                              layers (vec (repeatedly (pick-w {0 30 1 70}) #(let [l (gen-layer ds)] [(first l)])))]
-                         {:steps (-> [['pj/cross-matrix cols]]
+                         {:steps (-> [['pj/facet-matrix cols]]
                                      (into layers)
                                      (cond-> trailing-opts (conj ['pj/options trailing-opts]))
                                      (into tail))})
@@ -403,7 +403,7 @@
   (when (and (= :ok (:status o)) (not (flip? rec)) (not (side-on? rec)))
     (let [share (share-of rec)
           lvs (get-in o [:plan :leaves])
-          one-data? (#{:facet-cat :facet-cols :arrange-cols :cross-matrix} (:wrapper rec))
+          one-data? (#{:facet-cat :facet-cols :arrange-cols :facet-matrix} (:wrapper rec))
           axes (or (cond (set? share) share (map? share) (set (keys share)))
                    (when one-data? #{:x :y}))
           all? (fn [axis] (and (map? share) (= :all (get share axis))))

@@ -262,7 +262,7 @@
 ;;            pj/lay-point
 ;;            (pj/arrange [[:a :b] [:c :d]]))
 ;;
-;; For the full SPLOM grid, see pj/cross-matrix (G1-G5 below).
+;; For the full SPLOM grid, see pj/facet-matrix (G1-G5 below).
 
 (deftest multi-pair-raw-data-bivariate-test
   (testing "M1: (pj/arrange data [[:a :b] [:c :d]]) -- vector of pairs"
@@ -308,16 +308,11 @@
       (is (= {:x :c :y :d} (-> f panels (nth 1) :mapping))))))
 
 (deftest multi-pair-cross-utility-test
-  (testing "M6: (pj/cross-matrix data cols) builds a SPLOM grid"
-    ;; (pj/cross cols cols) is the canonical SPLOM input -- an MxM
-    ;; Cartesian rectangle. See the G1-G5 tests below for the full
-    ;; grid-shape contract; here we pin that it is a grid of rows, not
-    ;; one flat list of panels.
+  (testing "M6: (pj/facet-matrix data cols) writes the facet map crossing cols"
     (let [cols [:a :b]
-          f (pj/cross-matrix iris cols)]
-      (is (= 2 (count (:poses f))) "2 rows, not 4 flat sub-poses")
-      (is (= :vertical (get-in f [:layout :direction])))
-      (is (= #{:x :y} (get-in f [:opts :share-scales]))))))
+          f (pj/facet-matrix iris cols)]
+      (is (= {:col {:x cols} :row {:y cols}} (:facet f)))
+      (is (nil? (:poses f)) "a pose with one panel, split when drawn"))))
 
 (deftest multi-pair-iteration-equivalence-test
   (testing "M7: (pj/arrange data pairs) -- one panel per pair, in order"
@@ -326,81 +321,58 @@
              (mapv :mapping (panels f)))))))
 
 ;; ============================================================
-;; pj/cross-matrix -- rectangular grid (G1-G5)
+;; pj/facet-matrix -- the facet map crossing two lists (G1-G5)
 ;; ============================================================
 ;;
-;; pj/cross-matrix takes pairs that form an M x N Cartesian
-;; rectangle (every combination of unique first-elements with unique
-;; second-elements, in cross-order) and returns a nested composite: outer :vertical of rows, one per distinct y;
-;; each row is :horizontal of cells, one per distinct x.
-;; :share-scales is stamped as #{:x :y} so axes align across rows and
-;; columns -- the canonical SPLOM shape.
-;;
-;; A cell's x is named by the column it sits in and its y by the row,
-;; which is how a scatterplot matrix is read and what the tick
-;; suppression in grid-composite assumes (x ticks on the bottom row,
-;; y ticks in the leftmost column). The assertions below pin that
-;; orientation: written the other way round, every row but the last
-;; loses its x axis and every column but the first its y axis, and a
-;; reader takes a neighbour's numbers for its own.
-;;
-;; A 1xN shape is not reshaped (G5). A pair list that is not a
-;; rectangle goes through pj/arrange instead, which makes one panel
-;; per pair (G4).
+;; pj/facet-matrix writes `{:col {:x xs} :row {:y ys}}` on a pose with
+;; one panel. When it is drawn the facet expands into a grid: a row per
+;; `:y` column and, across it, a cell per `:x` column. A cell's x is
+;; named by the column it sits in and its y by the row, which is how a
+;; scatterplot matrix is read; the assertions below pin that
+;; orientation.
+
+(defn- cell-mappings
+  "The mappings of the cells a facet over columns expands into, row by
+   row."
+  [f]
+  (mapv (fn [row] (mapv :mapping (:poses row)))
+        (:poses (pose/expand-facet-nodes f))))
 
 (deftest multi-pair-grid-splom-shape-test
-  (testing "G1: (pj/cross cols cols) produces M x N nested composite"
-    (let [f (pj/cross-matrix iris [:a :b] [:c :d])]
-      (is (= :vertical (get-in f [:layout :direction])))
-      (is (= #{:x :y} (get-in f [:opts :share-scales])))
-      (is (= 2 (count (:poses f))) "2 rows")
-      (let [row-0 (first (:poses f))
-            row-1 (second (:poses f))]
-        (is (= :horizontal (get-in row-0 [:layout :direction])))
-        (is (= 2 (count (:poses row-0))) "2 cells per row")
-        (is (= 2 (count (:poses row-1))))
-        ;; row 0: y = :c, x varies [:a :b] across the columns
-        (is (= {:x :a :y :c} (:mapping (first (:poses row-0)))))
-        (is (= {:x :b :y :c} (:mapping (second (:poses row-0)))))
-        ;; row 1: y = :d, x varies the same way
-        (is (= {:x :a :y :d} (:mapping (first (:poses row-1)))))
-        (is (= {:x :b :y :d} (:mapping (second (:poses row-1)))))))))
+  (testing "G1: two lists of columns cross into a grid, x across and y down"
+    (let [f (pj/facet-matrix iris [:a :b] [:c :d])]
+      (is (= {:col {:x [:a :b]} :row {:y [:c :d]}} (:facet f)))
+      (is (= [[{:x :a :y :c} {:x :b :y :c}]
+              [{:x :a :y :d} {:x :b :y :d}]]
+             (cell-mappings f)))
+      (is (= 4 (:panels (pj/svg-summary f)))))))
 
 (deftest multi-pair-grid-3x3-test
-  (testing "G2: 3 x 3 SPLOM via pj/cross"
-    (let [cols [:a :b :c]
-          f (pj/cross-matrix iris cols)]
-      (is (= 3 (count (:poses f))) "3 rows")
-      (is (every? #(= 3 (count (:poses %))) (:poses f)) "3 cells each"))))
+  (testing "G2: 3 x 3 SPLOM"
+    (let [f (pj/facet-matrix iris [:a :b :c])]
+      (is (= 9 (:panels (pj/svg-summary f)))))))
 
 (deftest multi-pair-grid-root-aesthetic-test
-  (testing "G3: SPLOM pattern -- root aesthetic + root layer + grid"
+  (testing "G3: SPLOM pattern -- aesthetic and layer on the pose, facet below"
     (let [f (-> iris
                 (pj/pose {:color :species})
                 pj/lay-point
-                (pj/cross-matrix [:a :b]))]
-      (is (= {:color :species} (:mapping f))
-          "root aesthetic preserved")
-      (is (= 1 (count (:layers f)))
-          "root layer preserved")
+                (pj/facet-matrix [:a :b]))]
+      (is (= {:color :species} (:mapping f)) "aesthetic preserved")
+      (is (= 1 (count (:layers f))) "layer preserved")
       (is (= :point (-> f :layers first :layer-type)))
-      (is (= 2 (count (:poses f))) "2 rows")
-      (is (every? #(= 2 (count (:poses %))) (:poses f)) "2 cells each"))))
+      (is (= {:col {:x [:a :b]} :row {:y [:a :b]}} (:facet f))))))
 
 (deftest multi-pair-grid-with-opts-arity-test
-  (testing "G3b: (pj/cross-matrix data cols-x cols-y opts-map) folds the
-            two-call SPLOM idiom into one call -- aesthetic at the root,
-            grid below."
+  (testing "G3b: (pj/facet-matrix data xs ys mapping) folds the two-call
+            idiom into one call"
     (let [a (-> iris
                 (pj/pose {:color :species})
-                (pj/cross-matrix [:a :b] [:c :d]))
+                (pj/facet-matrix [:a :b] [:c :d]))
           b (-> iris
-                (pj/cross-matrix [:a :b] [:c :d] {:color :species}))]
+                (pj/facet-matrix [:a :b] [:c :d] {:color :species}))]
       (is (= a b) "two-call and one-call forms are pose-equal")
-      (is (= {:color :species} (:mapping b))
-          "root aesthetic mapping lives at the composite root")
-      (is (= 2 (count (:poses b))) "2 rows")
-      (is (every? #(= 2 (count (:poses %))) (:poses b)) "2 cells each"))))
+      (is (= {:color :species} (:mapping b))))))
 
 (deftest multi-pair-grid-non-rectangular-falls-through-test
   (testing "G4: a non-rectangular pair list goes through pj/arrange --
@@ -410,15 +382,11 @@
       (is (= 2 (count ps)))
       (is (every? #(not (contains? % :poses)) ps)))))
 
-(deftest multi-pair-grid-1xN-falls-through-test
-  (testing "G5: a 1xN pj/cross-matrix does not grid-reshape"
-    ;; (pj/cross [:a] [:b :c :d]) gives 3 pairs but only 1 unique x --
-    ;; 1 row. We require at least 2 rows and 2 cols to reshape.
-    (let [f (pj/cross-matrix iris [:a] [:b :c :d])]
-      ;; Stays flat -- 3 sub-poses at root
-      (is (= 3 (count (:poses f))))
-      (is (every? #(not (contains? % :poses)) (:poses f)))
-      (is (not (contains? (:opts f) :share-scales))))))
+(deftest multi-pair-grid-1xN-test
+  (testing "G5: one :x column against three :y columns is a column of three panels"
+    (let [f (pj/facet-matrix iris [:a] [:b :c :d])]
+      (is (= [[{:x :a :y :b}] [{:x :a :y :c}] [{:x :a :y :d}]]
+             (cell-mappings f))))))
 
 ;; ============================================================
 ;; Integration with pj/lay-* and resolve-tree (I1-I3)

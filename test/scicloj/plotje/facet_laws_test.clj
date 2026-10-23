@@ -238,7 +238,7 @@
         ;; Its marks are those of the matrix of the same two columns;
         ;; the tick labels on the left differ (decision 3.2).
         (is (= (select-keys (pj/svg-summary matrix) [:points :polygons :colors :panels])
-               (select-keys (pj/svg-summary (-> (pj/cross-matrix d3 [:a :b])
+               (select-keys (pj/svg-summary (-> (pj/facet-matrix d3 [:a :b])
                                                 pj/lay-point
                                                 pj/lay-density))
                             [:points :polygons :colors :panels])))))

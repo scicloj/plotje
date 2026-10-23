@@ -371,9 +371,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__78435#]
+    [p1__80360#]
     (#{"Australia" "Brazil" "Japan" "Nigeria" "Germany"}
-     (:country p1__78435#))))
+     (:country p1__80360#))))
   (pj/pose :year :life-exp {:color :country})
   pj/lay-line
   pj/lay-point
@@ -522,7 +522,7 @@
  v76_l418
  (->
   (rdatasets/datasets-iris)
-  (pj/cross-matrix
+  (pj/facet-matrix
    [:sepal-length :sepal-width :petal-length :petal-width]
    {:color :species})
   (pj/options {:title "Iris SPLOM"})))
@@ -769,7 +769,7 @@
  v115_l601
  (->
   (rdatasets/gapminder-gapminder)
-  (tc/select-rows (fn* [p1__78436#] (= 2007 (:year p1__78436#))))
+  (tc/select-rows (fn* [p1__80361#] (= 2007 (:year p1__80361#))))
   (pj/lay-point :gdp-percap :life-exp {:color :continent, :size :pop})
   (pj/scale :x :log)
   (pj/options
@@ -789,9 +789,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__78437#]
+    [p1__80362#]
     (#{"Brazil" "United States" "Japan" "China" "India"}
-     (:country p1__78437#))))
+     (:country p1__80362#))))
   (pj/lay-line :year :life-exp {:color :country})
   (pj/options
    {:title "Life Expectancy Over Time",
@@ -1125,8 +1125,8 @@
   (rdatasets/ggplot2-txhousing)
   (tc/select-rows
    (fn*
-    [p1__78438#]
-    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__78438#))))
+    [p1__80363#]
+    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__80363#))))
   (pj/pose :date :median {:color :city})
   pj/lay-line
   (pj/options
@@ -1169,7 +1169,7 @@
  (->
   (rdatasets/lme4-sleepstudy)
   (tc/select-rows
-   (fn* [p1__78439#] (= "308" (str (:subject p1__78439#)))))
+   (fn* [p1__80364#] (= "308" (str (:subject p1__80364#)))))
   (pj/pose :days :reaction)
   pj/lay-step
   pj/lay-point
@@ -1287,7 +1287,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__78440#] (= 2007 (:year p1__78440#))))
+   (fn* [p1__80365#] (= 2007 (:year p1__80365#))))
   (pj/lay-point
    :gdp-percap
    :life-exp
@@ -1822,8 +1822,8 @@
      [ds]
      (map
       (fn*
-       [p1__78441#]
-       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__78441#))
+       [p1__80366#]
+       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__80366#))
       (ds :month)))))))
 
 
@@ -2120,10 +2120,10 @@
 (def
  v321_l1537
  (->
-  {:row (mapcat (fn* [p1__78442#] (repeat 6 p1__78442#)) (range 6)),
+  {:row (mapcat (fn* [p1__80367#] (repeat 6 p1__80367#)) (range 6)),
    :col (flatten (repeat 6 (range 6))),
    :value
-   (map (fn* [p1__78443#] (Math/sin (* p1__78443# 0.5))) (range 36))}
+   (map (fn* [p1__80368#] (Math/sin (* p1__80368# 0.5))) (range 36))}
   (pj/pose :col :row {:fill :value})
   pj/lay-tile
   (pj/options
@@ -2569,7 +2569,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__78444#] (= 2007 (:year p1__78444#))))
+   (fn* [p1__80369#] (= 2007 (:year p1__80369#))))
   (pj/pose :gdp-percap :life-exp)
   pj/lay-point
   (pj/scale :x :log)
@@ -2639,7 +2639,7 @@
  v393_l1911
  (->
   (rdatasets/datasets-mtcars)
-  (pj/cross-matrix [:mpg :hp :wt])
+  (pj/facet-matrix [:mpg :hp :wt])
   (pj/options {:title "Motor Trend Cars: 3x3 SPLOM"})))
 
 
@@ -2652,7 +2652,7 @@
  v396_l1920
  (->
   (rdatasets/datasets-mtcars)
-  (pj/cross-matrix [:mpg :wt])
+  (pj/facet-matrix [:mpg :wt])
   (pj/options {:title "MPG vs Weight: 2x2 SPLOM"})))
 
 

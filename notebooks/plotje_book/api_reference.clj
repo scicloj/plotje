@@ -113,16 +113,16 @@
 (kind/test-last [(fn [v] (= [[:a 1] [:a 2] [:a 3] [:b 1] [:b 2] [:b 3]] v))])
 
 ;; The pairs go to `pj/arrange` as cells. For a grid of every `:x`
-;; column against every `:y` column, `pj/cross-matrix` takes the two
+;; column against every `:y` column, `pj/facet-matrix` takes the two
 ;; lists itself.
 
-(kind/doc #'pj/cross-matrix)
+(kind/doc #'pj/facet-matrix)
 
-;; `pj/cross-matrix` draws a panel for every pair of columns, a scatter
+;; `pj/facet-matrix` draws a panel for every pair of columns, a scatter
 ;; plot matrix (SPLOM):
 
 (-> (rdatasets/datasets-iris)
-    (pj/cross-matrix [:sepal-length :petal-length]
+    (pj/facet-matrix [:sepal-length :petal-length]
                      {:color :species}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

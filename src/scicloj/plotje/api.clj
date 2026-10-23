@@ -336,7 +336,7 @@
   "Build a vector of `[x y]` pairs from two column-name sequences, as
    cells for `pj/arrange`: `(pj/arrange data (pj/cross xs ys))` draws a
    panel per pair. For a grid of panels with the `xs` across and the
-   `ys` down, use `(pj/cross-matrix data xs ys)`.
+   `ys` down, use `(pj/facet-matrix data xs ys)`.
 
    - `(pj/cross [:a :b] [:c :d])` returns `[[:a :c] [:a :d] [:b :c] [:b :d]]`."
   [xs ys]
@@ -1527,31 +1527,52 @@
    (check-mapping-in-map-slot "pj/pose" mapping "its mapping map")
    (extend-mapping pose-or-data (merge mapping {:x x :y y}))))
 
-(defn cross-matrix
-  "Creates a matrix of plots of cols vs cols.
-   When no cols are provided, attempts to cross all columns.
+(declare facet)
 
-   - `(pj/cross-matrix fr)` -- SPLOM N^2 panels for all columns.
-   - `(pj/cross-matrix fr cols)` -- SPLOM N^2 panels for cols.
-   - `(pj/cross-matrix fr cols {:color :c})` -- SPLOM plus aesthetic mapping.
-   - `(pj/cross-matrix fr cols cols)` -- SPLOM NxM panels for cols1xcols2.
-   - `(pj/cross-matrix fr cols1 cols2 {:color :c})` -- SPLOM NxM panels with mapping.
+(defn- matrix-pose
+  "The pose `pj/facet-matrix` returns: the facet map that crosses
+   `xcols` with `ycols`, written on a pose with one panel."
+  [pose-or-data xcols ycols mapping]
+  (let [p (->pose pose-or-data "pj/facet-matrix")]
+    (when (seq (:poses p))
+      (throw (ex-info (str "pj/facet-matrix splits a pose with one panel, and"
+                           " it was given a composite pose. Call it on each"
+                           " cell, or on the data, and arrange the results with"
+                           " pj/arrange.")
+                      {:caller "pj/facet-matrix"})))
+    (facet (cond-> p (seq mapping) (extend-mapping mapping))
+           {:col {:x (vec xcols)} :row {:y (vec ycols)}})))
 
-   The name `pj/cross-matrix` is provisional."
+(defn facet-matrix
+  "A matrix of panels, one for every pair of columns: the `xcols`
+   across and the `ycols` down, each panel drawing its column pair. A
+   panel whose two columns are the same draws one column, a histogram
+   by default. Given one list of columns, it is crossed with itself, a
+   scatter plot matrix; given none, every column of the data is.
+
+   It writes the facet map `{:col {:x xcols} :row {:y ycols}}`, so
+   `(pj/facet-matrix data cols)` is `(pj/facet (pj/pose data) {:col {:x
+   cols} :row {:y cols}})`, and layers added after it are drawn in every
+   panel. A mapping given last is written on the pose:
+
+   - `(pj/facet-matrix data)` -- every column against every column.
+   - `(pj/facet-matrix data cols)` -- the columns against each other.
+   - `(pj/facet-matrix data cols {:color :c})` -- with a mapping.
+   - `(pj/facet-matrix data xcols ycols)` -- the `xcols` against the
+     `ycols`.
+   - `(pj/facet-matrix data xcols ycols {:color :c})` -- with a mapping."
   ([pose-or-data]
-   (let [p (->pose pose-or-data "pj/cross-matrix")
+   (let [p (->pose pose-or-data "pj/facet-matrix")
          cols (tc/column-names (:data p))]
-     (cross-matrix p cols)))
+     (matrix-pose p cols cols nil)))
   ([pose-or-data cols]
-   (multi-pair-pose pose-or-data (cross cols cols)))
+   (matrix-pose pose-or-data cols cols nil))
   ([pose-or-data cols cols-or-mapping]
    (if (map? cols-or-mapping)
-     (-> (extend-mapping pose-or-data cols-or-mapping)
-         (multi-pair-pose (cross cols cols)))
-     (multi-pair-pose pose-or-data (cross cols cols-or-mapping))))
+     (matrix-pose pose-or-data cols cols cols-or-mapping)
+     (matrix-pose pose-or-data cols cols-or-mapping nil)))
   ([pose-or-data xcols ycols mapping]
-   (-> (extend-mapping pose-or-data mapping)
-       (multi-pair-pose (cross xcols ycols)))))
+   (matrix-pose pose-or-data xcols ycols mapping)))
 
 (defn- column-refs-in-mapping
   "The keyword column references a mapping makes, in either spelling.
@@ -1778,14 +1799,14 @@
   (doseq [k [:x :y]]
     (when-let [v (get opts k)]
       ;; Pairs of columns, or a cross, ask for a panel each -- what
-      ;; `pj/arrange` and `pj/cross-matrix` draw.
+      ;; `pj/arrange` and `pj/facet-matrix` draw.
       (when (and (sequential? v) (seq v) (every? sequential? v))
         (throw (ex-info (str context " was given pairs of columns, "
                              (pr-str (vec v)) ". A pose draws one panel."
                              " For a panel per pair, write (pj/arrange data "
                              (pr-str (vec (map vec v))) "); for every :x"
                              " column against every :y column, write"
-                             " (pj/cross-matrix data xs ys).")
+                             " (pj/facet-matrix data xs ys).")
                         {:option k :value v})))
       ;; A series passes: several columns on a positional aesthetic are
       ;; read by name, and the draft pivots them -- on a layer for that

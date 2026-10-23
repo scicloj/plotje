@@ -710,7 +710,7 @@
 ;; Some spellings 0.16.1 accepted report an error or warn in place of
 ;; drawing something else. A vector of column pairs given to `pj/pose`
 ;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
-;; `pj/cross-matrix`. A vector of columns given alone to a `pj/lay-*`
+;; `pj/facet-matrix`. A vector of columns given alone to a `pj/lay-*`
 ;; call draws a panel per column, and warns that the next release reads
 ;; the vector as a series. `pj/overlay` and `{:overlay true}` warn that
 ;; they are ignored, and `{:overlay false}` reports an error. Here is
@@ -724,7 +724,7 @@
 (kind/test-last
  [(fn [msg] (and (re-find #"was given pairs of columns" msg)
                  (re-find #"pj/arrange" msg)
-                 (re-find #"pj/cross-matrix" msg)))])
+                 (re-find #"pj/facet-matrix" msg)))])
 
 ;; The plot below draws `:hwy` and `:year` on one axis, the first case
 ;; in the list:

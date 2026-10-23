@@ -61,7 +61,7 @@
      (every? (set ks) [:x-domain :y-domain :layers])
      (let
       [matrix-plan
-       (pj/plan (pj/cross-matrix {:a [1 2 3], :b [3 1 2]} [:a :b]))]
+       (pj/plan (pj/facet-matrix {:a [1 2 3], :b [3 1 2]} [:a :b]))]
       (and
        (pj/composite-plan? matrix-plan)
        (= 4 (count (:sub-plots matrix-plan)))))))
@@ -202,7 +202,7 @@
     [gs]
     (and
      (= 3 (count gs))
-     (every? (fn* [p1__77059#] (= 50 (:n-points p1__77059#))) gs)))
+     (every? (fn* [p1__79955#] (= 50 (:n-points p1__79955#))) gs)))
    v49_l184)))
 
 
@@ -306,9 +306,9 @@
     (and
      (> (count bars) 3)
      (every?
-      (fn* [p1__77060#] (< (:lo p1__77060#) (:hi p1__77060#)))
+      (fn* [p1__79956#] (< (:lo p1__79956#) (:hi p1__79956#)))
       bars)
-     (every? (fn* [p1__77061#] (pos? (:count p1__77061#))) bars)))
+     (every? (fn* [p1__79957#] (pos? (:count p1__79957#))) bars)))
    v74_l255)))
 
 
@@ -514,7 +514,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__77062#] (Math/sin (* p1__77062# 0.3))) (range 30))}))
+   (map (fn* [p1__79958#] (Math/sin (* p1__79958# 0.3))) (range 30))}))
 
 
 (def v114_l402 (-> wave (pj/lay-line :x :y)))

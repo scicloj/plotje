@@ -85,7 +85,7 @@ tiny-plan
                    (and (every? (set ks) [:x-domain :y-domain :layers])
                         ;; A scatter plot matrix plans as a composite,
                         ;; one plan per cell.
-                        (let [matrix-plan (pj/plan (pj/cross-matrix {:a [1 2 3] :b [3 1 2]} [:a :b]))]
+                        (let [matrix-plan (pj/plan (pj/facet-matrix {:a [1 2 3] :b [3 1 2]} [:a :b]))]
                           (and (pj/composite-plan? matrix-plan)
                                (= 4 (count (:sub-plots matrix-plan)))))))])
 

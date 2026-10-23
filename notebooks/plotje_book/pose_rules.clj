@@ -7,7 +7,7 @@
 ;; Placement, Leaf Identity, Scope, Options, Assembly, Layout) and
 ;; cover the call shapes of `pj/pose`, `pj/lay-*`, `pj/arrange`,
 ;; `pj/options`, `pj/scale`, `pj/coord`, `pj/facet`, and
-;; `pj/cross-matrix`.
+;; `pj/facet-matrix`.
 ;;
 ;; Read [Poses](./plotje_book.pose_model.html) first. On a first read
 ;; through the book you can skim or skip this chapter, and return when
@@ -399,30 +399,35 @@ composite-pose
            (not (contains? (:opts one-per-row) :cols))
            (= [1 1] (mapv #(count (:poses %)) (:poses one-per-row))))))])
 
-;; ### Rule C9: `pj/cross-matrix` writes a mapping on the composite's root
+;; ### Rule C9: `pj/facet-matrix` writes a facet map, and a mapping on the pose
 ;;
-;; `pj/cross-matrix` given columns draws one cell for every pair of
-;; them. Given a mapping as well, it writes that mapping on the
-;; composite's root, so it reaches every cell.
+;; `pj/facet-matrix` given columns writes the facet map that crosses
+;; them, `{:col {:x cols} :row {:y cols}}`, on a pose with one panel,
+;; which the facet splits into a panel for every pair. Given a mapping
+;; as well, it writes that mapping on the pose, so it reaches every
+;; panel.
 
 (-> iris
-    (pj/cross-matrix [:sepal-length :sepal-width]
+    (pj/facet-matrix [:sepal-length :sepal-width]
                      {:color :species}))
 
 (kind/test-last
  [(fn [pose]
     (and (= {:color :species} (:mapping pose))
-         (= 2 (count (:poses pose)))
-         (every? #(= 2 (count (:poses %))) (:poses pose))))])
+         (= {:col {:x [:sepal-length :sepal-width]}
+             :row {:y [:sepal-length :sepal-width]}}
+            (:facet pose))
+         (nil? (:poses pose))
+         (= 4 (:panels (pj/svg-summary pose)))))])
 
 ;; **Property P-C9 -- the mapping can come first or last.** A mapping
-;; written with `pj/pose` before `pj/cross-matrix` gives an equal pose.
+;; written with `pj/pose` before `pj/facet-matrix` gives an equal pose.
 
 (let [a (-> iris
             (pj/pose {:color :species})
-            (pj/cross-matrix [:sepal-length :sepal-width]))
+            (pj/facet-matrix [:sepal-length :sepal-width]))
       b (-> iris
-            (pj/cross-matrix [:sepal-length :sepal-width]
+            (pj/facet-matrix [:sepal-length :sepal-width]
                              {:color :species}))]
   (= a b))
 
@@ -519,7 +524,7 @@ composite-pose
            ;; histogram: the point layer draws from two columns.
            (= [[:bar] [:point] [:point] [:bar]]
               (marks (-> iris
-                         (pj/cross-matrix [:sepal-length :sepal-width])
+                         (pj/facet-matrix [:sepal-length :sepal-width])
                          pj/lay-point))))))])
 
 ;; ### Rule LP2: on a composite, a `lay-*` naming columns attaches to the last matching leaf
@@ -1340,7 +1345,7 @@ s2-tree
 ;;
 ;; How leaves become panels in the rendered plot. Five rules
 ;; covering single panels, layers sharing a panel, faceting, composite
-;; grids with shared scales, and the grid `pj/cross-matrix` builds.
+;; grids with shared scales, and the matrix `pj/facet-matrix` writes.
 
 ;; ### Rule L1: each leaf produces a panel block
 ;;
@@ -1446,9 +1451,7 @@ s2-tree
 ;; **Column-bucketing**: when `:x` is shared, sub-poses whose
 ;; effective `:x` column is the same share that scale's domain;
 ;; sub-poses with different `:x` columns get independent
-;; x-domains. Same for `:y`. The grid of `pj/cross-matrix` rests on
-;; this (one x down each column, one y across each row), and so do
-;; marginal plots: a top strip draws the scatter's `:x` column on the
+;; x-domains. Same for `:y`. Marginal plots rest on this: a top strip draws the scatter's `:x` column on the
 ;; horizontal axis and shares `:x` with the scatter. A right strip is
 ;; drawn with `:coord :flip`, so the scatter's `:y` column runs up the
 ;; strip's vertical axis, and the strip and the scatter share `:y`. In
@@ -1515,71 +1518,55 @@ l4-shared
                                   (pj/lay-histogram :sepal-length))]
                              {:share-scales #{:y}}))))))))])
 
-;; ### Rule L5: `pj/cross-matrix` builds a grid with one cell per pair of columns
+;; ### Rule L5: `pj/facet-matrix` is a facet with one panel per pair of columns
 ;;
-;; `(pj/cross-matrix data xs ys)` returns a composite of rows, each row
-;; holding one cell per column of `xs`, with `:share-scales #{:x :y}` in
-;; the root's `:opts`. A cell's place follows its columns: the cell's
-;; `:x` decides which column of the grid the cell sits in, and the
-;; cell's `:y` decides which row. Each cell reads the root's `:data`,
-;; `:mapping` and `:layers` when it is drawn. The cells carry these
-;; flags:
+;; `(pj/facet-matrix data xs ys)` returns a pose with one panel that
+;; carries the facet map `{:col {:x xs} :row {:y ys}}`: a column of the
+;; grid for each column of `xs`, a row for each column of `ys`, and a
+;; panel where they cross. It draws what `pj/facet` given that map
+;; draws (Rule L3), so its axes, tick labels and strips are a facet's.
 ;;
-;; - `:suppress-legend`, `:suppress-x-label` and `:suppress-y-label`
-;;   on every cell. One legend is drawn at composite level, and the
-;;   strip labels carry the axis-variable names.
-;; - `:suppress-x-ticks` on every cell above the bottom row, and
-;;   `:suppress-y-ticks` on every cell right of the leftmost column.
-;;   Every cell in a grid column carries the same `:x` and every cell
-;;   in a row the same `:y`, so the bottom row's numbers describe the
-;;   whole of their column and the leftmost column's the whole of
-;;   their row.
-;;
-;; A cell with one column on both axes draws a histogram of that
-;; column, and every other cell draws the layer type inferred for its
+;; A panel with one column on both axes draws a histogram of that
+;; column, and every other panel draws the layer type inferred for its
 ;; two columns -- a scatter for two numerical columns. A layer added
-;; with `pj/lay-*` is drawn in the cells whose number of columns its
-;; layer type draws from, so `pj/lay-point` after `pj/cross-matrix`
+;; with `pj/lay-*` is drawn in the panels whose number of columns its
+;; layer type draws from, so `pj/lay-point` after `pj/facet-matrix`
 ;; leaves the histograms on the diagonal (Property P-LP1). `pj/pose`
 ;; given pairs of columns reports an error that suggests `pj/arrange`
-;; and `pj/cross-matrix`.
+;; and `pj/facet-matrix`.
 
 (-> iris
-    (pj/cross-matrix [:sepal-length :sepal-width]
+    (pj/facet-matrix [:sepal-length :sepal-width]
                      [:petal-length :petal-width]
                      {:color :species}))
 
 (kind/test-last
  [(fn [pose]
-    (and (= :vertical (get-in pose [:layout :direction]))
-         (= #{:x :y} (get-in pose [:opts :share-scales]))
-         (= 2 (count (:poses pose)))
-         (every? #(= 2 (count (:poses %))) (:poses pose))
+    (and (= {:col {:x [:sepal-length :sepal-width]}
+             :row {:y [:petal-length :petal-width]}}
+            (:facet pose))
          (= {:color :species} (:mapping pose))
-         ;; The row fixes y and the cells across it vary x, which is
-         ;; what makes the bottom row's tick numbers true of the
-         ;; column above them.
-         (= [[{:x :sepal-length :y :petal-length}
-              {:x :sepal-width :y :petal-length}]
-             [{:x :sepal-length :y :petal-width}
-              {:x :sepal-width :y :petal-width}]]
-            (mapv (fn [row] (mapv :mapping (:poses row)))
-                  (:poses pose)))
+         ;; The same picture as the facet map written out.
+         (= (pj/plot pose)
+            (pj/plot (-> iris
+                         (pj/pose {:color :species})
+                         (pj/facet {:col {:x [:sepal-length :sepal-width]}
+                                    :row {:y [:petal-length :petal-width]}}))))
          ;; pj/pose given pairs points at the two functions.
          (let [msg (try (pj/pose iris (pj/cross [:sepal-length] [:petal-length :petal-width]))
                         ""
                         (catch Exception e (ex-message e)))]
            (and (re-find #"pj/pose was given pairs of columns" msg)
                 (re-find #"pj/arrange" msg)
-                (re-find #"pj/cross-matrix" msg)))))])
+                (re-find #"pj/facet-matrix" msg)))))])
 
 ;; ---
 ;; ## A Note on `pj/cross`
 ;;
 ;; `pj/cross` is not a rule. It returns the pairs
 ;; `(for [x xs y ys] [x y])` and draws nothing. `pj/arrange` takes the
-;; pairs as cells, one panel per pair, and `pj/cross-matrix` builds the
-;; grid with shared axes from the two lists of columns (Rule L5).
+;; pairs as cells, one panel per pair, and `pj/facet-matrix` writes the
+;; facet that crosses the two lists of columns (Rule L5).
 ;; `pj/pose` given the pairs reports an error.
 
 (pj/cross [:a :b] [:c :d])

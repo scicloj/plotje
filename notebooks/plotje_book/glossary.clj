@@ -69,8 +69,8 @@ my-pose
 ;; ## Composite Pose
 ;;
 ;; A **composite pose** is a pose that contains other poses under
-;; `:poses` plus an optional `:layout`. Created by `pj/arrange`,
-;; `pj/cross-matrix` and `pj/marginal`. Its leaves render independently
+;; `:poses` plus an optional `:layout`. Created by `pj/arrange` and
+;; `pj/marginal`. Its leaves render independently
 ;; and are tiled into the final plot.
 ;;
 ;; A composite may hold a composite: a cell that is itself a composite
@@ -1370,7 +1370,7 @@ annotated
 ;; |:-----|:-----|:-------------|
 ;; | Pose | Composable value: data + mapping + layers (+ inner poses) | All `pj/` functions return poses |
 ;; | Leaf pose | Pose with no sub-poses; it draws one panel, which a facet multiplies | `pj/pose`, `pj/lay-*` |
-;; | Composite pose | Pose containing other poses (in `:poses`) and a layout | `pj/arrange`, `pj/cross-matrix`, `pj/marginal` |
+;; | Composite pose | Pose containing other poses (in `:poses`) and a layout | `pj/arrange`, `pj/marginal` |
 ;; | Mapping | Column-to-aesthetic association on a pose or layer | `pj/pose` mapping, `pj/lay-*` mapping |
 ;; | Layer | Layer type attached to a pose, optionally with scoped mappings | `pj/lay-*` |
 ;; | Dataset | Tabular data backing a plot -- a `tech.ml.dataset`, conveniently built and manipulated via the Tablecloth API | `:data` slot, `pj/with-data` |

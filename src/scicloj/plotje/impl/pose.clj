@@ -4223,7 +4223,7 @@
   "One listed cell from the items of a row and a column, holding what
    the facet specified for it: the diagonal of a scatter plot matrix
    names its column on both axes, `{:x a :y a}`, as `pj/arrange` and
-   `pj/cross-matrix` write it, and a margin keeps its `nil`. One column
+   `pj/facet-matrix` write it, and a margin keeps its `nil`. One column
    named on both axes is read as one column by the fit
    (`columns-named`) and by inference."
   [row-item col-item]

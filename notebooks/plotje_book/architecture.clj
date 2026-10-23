@@ -1080,8 +1080,8 @@ series-by-key
 
 ;; Each cell holds what the facet specified for it and nothing else. On
 ;; the diagonal of a matrix, `{:col {:x cols} :row {:y cols}}`, the cell
-;; names its column on both axes, the map `pj/arrange` and
-;; `pj/cross-matrix` write for the same cell, and a `nil` in a list of
+;; names its column on both axes, the map `pj/arrange` writes for the
+;; same cell, and a `nil` in a list of
 ;; columns stays in the cell as a `nil`:
 
 (->> (-> weekly-visits

@@ -148,16 +148,16 @@
 
 (-> (base-plot))
 
-;; A composite takes the width as well -- here a scatterplot matrix,
-;; which writes no size of its own:
+;; A plot of several panels takes the width as well -- here a
+;; scatterplot matrix, which writes no size of its own:
 
 (-> (rdatasets/datasets-iris)
-    (pj/cross-matrix [:sepal-length :sepal-width]))
+    (pj/facet-matrix [:sepal-length :sepal-width]))
 
 ;; Its width, measured while the override is in place:
 
 (-> (rdatasets/datasets-iris)
-    (pj/cross-matrix [:sepal-length :sepal-width])
+    (pj/facet-matrix [:sepal-length :sepal-width])
     pj/svg-summary
     :width)
 

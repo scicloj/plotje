@@ -976,7 +976,7 @@
   (let [iris (rdatasets/datasets-iris)
         cols [:sepal-length :sepal-width]
         size (fn [pose] (let [s (pj/svg-summary pose)] [(:width s) (:height s)]))
-        matrix (fn [] (pj/cross-matrix iris cols))
+        matrix (fn [] (pj/facet-matrix iris cols))
         arranged (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
                               (pj/lay-point iris :petal-length :petal-width)])]
     (try
@@ -1519,7 +1519,7 @@
   (testing "cross plot (full grid) shows all strip labels"
     (let [ds (tc/dataset {:a [1 2 3 4 5] :b [5 4 3 2 1] :c [2 4 6 8 10]})
           views (-> ds
-                    (pj/cross-matrix [:a :b :c])
+                    (pj/facet-matrix [:a :b :c])
                     pj/lay-point)
           svg (pj/plot views)
           s (pj/svg-summary svg)
@@ -1902,7 +1902,7 @@
     (let [cols [:mpg :hp :wt :qsec]
           plan (-> (rdatasets/datasets-mtcars)
                    (tc/select-columns cols)
-                   (pj/cross-matrix cols)
+                   (pj/facet-matrix cols)
                    (pj/options {:width 400 :height 400})
                    pj/plan)
           bottom-hp (some #(when (= [3 1] (:path %)) %) (:sub-plots plan))
@@ -3520,7 +3520,7 @@
 
     (testing "SPLOM inference"
       (let [s (summary (-> (pj/pose iris {:color :species})
-                           (pj/cross-matrix [:sepal_length :sepal_width :petal_length])))]
+                           (pj/facet-matrix [:sepal_length :sepal_width :petal_length])))]
         (is (= 9 (:panels s)))
         (is (= 900 (:points s)))))
 

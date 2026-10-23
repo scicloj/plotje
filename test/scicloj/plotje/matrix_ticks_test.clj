@@ -1,6 +1,6 @@
 (ns scicloj.plotje.matrix-ticks-test
   "Which cells of a matrix keep their tick labels is decided in one
-   place (`pose/infer-chrome`), so `pj/cross-matrix` and the same panels
+   place (`pose/infer-chrome`), so `pj/facet-matrix` and the same panels
    written as a facet over columns are ticked alike."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
@@ -9,7 +9,7 @@
 (deftest a-matrix-is-ticked-as-the-same-facet-is-test
   (let [mpg (rdatasets/ggplot2-mpg)
         cols [:displ :hwy :cty]
-        matrix (pj/cross-matrix mpg cols)
+        matrix (pj/facet-matrix mpg cols)
         facet (pj/facet (pj/pose mpg) {:col {:x cols} :row {:y cols}})
         texts #(sort (:texts (pj/svg-summary %)))]
     (testing "the two spellings draw the same text"

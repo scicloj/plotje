@@ -102,7 +102,7 @@ sales-long
 ;; | the question | long side, from a column's **values** | wide side, from **column names** |
 ;; |:--|:--|:--|
 ;; | several measures shown together | `:color`, `:group` | a layer per column, or several columns in one slot (a series) |
-;; | several measures in their own panels | `pj/facet` with a column | `pj/facet` with a map of columns, `pj/arrange` with columns as cells, `pj/cross-matrix` |
+;; | several measures in their own panels | `pj/facet` with a column | `pj/facet` with a map of columns, `pj/arrange` with columns as cells, `pj/facet-matrix` |
 ;; | whether those panels share a scale | `:share-scales` | `:share-scales` |
 ;; | how competitors share a place | `:position` | `:position` on a series; `:dodge` alone across layers |
 
