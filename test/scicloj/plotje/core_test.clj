@@ -2545,8 +2545,9 @@
                              (-> {:a ["u" "u" "v"] :b [1 2 3]}
                                  (pj/lay-bar :a)
                                  (pj/lay-label {:stat :count}))))))
-        ;; a later layer naming other columns: the panel's columns are its
-        (is (= [nil {:points 12 :lines 1}]
+        ;; a later layer naming other columns: the first layer still
+        ;; draws the default, and the smooth is grouped by its colour
+        (is (= [:c {:points 12 :lines 2}]
                (read-out (-> d pj/lay-point (pj/lay-smooth :b :a)))))))
 
     (testing "error message lists available columns"

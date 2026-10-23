@@ -289,3 +289,70 @@
                                      (pj/lay-point :displ :hwy)
                                      (pj/lay-line :displ :cty)
                                      (pj/facet {:y [:hwy :cty]}))))))))
+
+(def growth
+  {:day    [1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8]
+   :height [3 5 4 8 7 9 11 10 2 3 3 5 4 6 6 8]
+   :plot   ["a" "a" "a" "a" "a" "a" "a" "a" "b" "b" "b" "b" "b" "b" "b" "b"]})
+
+(deftest a-later-layer-leaves-a-first-layer-naming-no-column-as-drawn-test
+  ;; On data of one to three columns a first layer naming no column draws
+  ;; the data's default mapping. A layer added after it naming other
+  ;; columns moved the points to those columns and dropped their colour
+  ;; (a smooth), or left the point layer with one column and an error
+  ;; naming a column it did not write (a rug, a histogram).
+  (let [quiet (fn [f] (binding [*out* (java.io.StringWriter.)] (f)))
+        first-layer (fn [pose] (first (draft-columns pose)))
+        colour (fn [pose] (:color (first (filter #(and (map? %) (contains? % :__panel-idx))
+                                                 (tree-seq coll? seq (pj/draft pose))))))]
+    (testing "the first layer keeps the default columns and colour"
+      (doseq [[nm add] [["a smooth of the same columns the other way round"
+                         #(pj/lay-smooth % :height :day)]
+                        ["a rug of the second column" #(pj/lay-rug % :height)]
+                        ["a histogram of the second column" #(pj/lay-histogram % :height)]
+                        ["points of one other column" #(pj/lay-point % {:y :day})]]]
+        (testing nm
+          (let [p (add (pj/lay-point growth))]
+            (is (= [:point :day :height] (quiet #(first-layer p))))
+            (is (= :plot (quiet #(colour p))))
+            (is (= {:x :day :y :height :color :plot}
+                   (:mapping (quiet #(pose/elaborate p)))))))))
+    (testing "the layer added keeps the columns it names, on the same panel"
+      (let [p (-> growth pj/lay-point (pj/lay-smooth :height :day))]
+        (is (= [[:point :day :height] [:line :height :day]] (draft-columns p)))
+        (is (= 1 (:panels (pj/svg-summary p))))
+        (is (= 16 (:points (pj/svg-summary p))))))
+    (testing "a first layer that names its columns still gives them to a layer naming none"
+      (is (= [[:line :height :day] [:point :height :day]]
+             (draft-columns (-> growth (pj/lay-smooth :height :day) pj/lay-point)))))
+    (testing "data of four or more columns has no default: the first layer reads the panel's"
+      (is (= [[:point :displ :hwy] [:line :displ :hwy]]
+             (draft-columns (-> cars pj/lay-point (pj/lay-smooth :displ :hwy))))))))
+
+(deftest a-layer-is-given-no-column-its-data-does-not-hold-test
+  ;; A layer bringing its own :data names columns of that data. A layer
+  ;; reading the pose's data was given them and failed with "Column :v
+  ;; (from :y) not found in dataset".
+  (let [other {:u [1 2] :v [3 4]}]
+    (testing "the layer reading the pose's data is reported as naming no column"
+      (doseq [p [(-> cars pj/lay-point (pj/lay-point :u :v {:data other}))
+                 (-> cars (pj/lay-point :u :v {:data other}) pj/lay-point)]]
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                              #"pj/lay-point draws from two columns.*It names no column"
+                              (pj/plan p)))))
+    (testing "on data with a default mapping, both layers draw"
+      (let [p (-> (select-keys growth [:day :height])
+                  pj/lay-point
+                  (pj/lay-point :u :v {:data other}))]
+        (is (= [[:point :day :height] [:point :u :v]] (draft-columns p)))
+        (is (= 18 (:points (pj/svg-summary p))))))))
+
+(deftest a-column-read-from-the-panel-is-not-reported-as-named-test
+  ;; The point layer names no column; the rug names :hwy, which the
+  ;; point layer reads on :x. The message said "It names :x :hwy".
+  (let [msg (try (pj/plan (-> cars pj/lay-point (pj/lay-rug :hwy)))
+                 nil
+                 (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+    (is (re-find #"pj/lay-point draws from two columns" msg))
+    (is (re-find #"It reads :x :hwy \(the panel's column, named by another layer\)" msg))
+    (is (not (re-find #"It names" msg)))))

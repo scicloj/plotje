@@ -2180,9 +2180,26 @@
 (defn- layer-panel-columns
   "The panel's columns one layer of a leaf reads, as a mapping to put
    under the layer's own, on the axes `panel-axes-read` answers. Nothing
-   for an axis the layer's own mapping holds."
+   for an axis the layer's own mapping holds. Nothing either, for a layer
+   reading the leaf's data, for a column that data does not hold:
+   another layer bringing its own `:data` names columns of that data,
+   and this layer has no such column to read. (A layer bringing its own
+   `:data` is still given the panel's columns, and a column its data
+   lacks is reported by `column-not-found-message`, which says where to
+   name one it holds.)"
   [leaf layer columns]
-  (let [own (or (:mapping layer) {})]
+  (let [own (or (:mapping layer) {})
+        data (when-not (:data layer) (:data leaf))
+        col-names (when data (try (set (tc/column-names (coerce-dataset data)))
+                                  (catch Exception _ nil)))
+        ;; Only a plain column reference is checked: a series or a
+        ;; written value is not a column name to look up.
+        absent? (fn [v]
+                  (let [src (mapping-source v)]
+                    (and col-names
+                         (resolve/column-ref? src)
+                         (not (contains? col-names src)))))
+        columns (into {} (remove (fn [[_ v]] (absent? v))) columns)]
     (into {} (remove (fn [[axis _]] (contains? own axis)))
           (select-keys columns (panel-axes-read leaf layer)))))
 
@@ -2190,7 +2207,12 @@
   "A leaf whose layers hold the panel's columns they read
    (`layer-panel-columns`), written into each layer's mapping. An axis
    the leaf's own mapping names is left out: it reaches every layer by
-   scope. Idempotent: a layer that was given a column names it."
+   scope. Idempotent: a layer that was given a column names it.
+
+   The axes written are recorded as metadata on the layer's mapping
+   (`::from-panel`), which changes no equality and lets a message say
+   that the layer reads the column from the panel and does not name it
+   (`missing-columns-message`)."
   [leaf]
   (let [m (or (:mapping leaf) {})
         columns (into {} (remove (fn [[axis _]] (mapping-source (get m axis))))
@@ -2202,7 +2224,11 @@
                 (mapv (fn [layer]
                         (let [add (layer-panel-columns leaf layer columns)]
                           (if (seq add)
-                            (update layer :mapping #(merge add %))
+                            (update layer :mapping
+                                    #(with-meta (merge add %)
+                                       (assoc (meta %) ::from-panel
+                                              (into (or (::from-panel (meta %)) #{})
+                                                    (keys add)))))
                             layer)))
                       ls))))))
 
@@ -4570,14 +4596,14 @@
      `:y` column, the data's `default-mapping` is written under the
      leaf's own mapping, so a scale it already carries reads the
      default column.
-   - The same where the first layer names no column, the leaf's mapping
-     names none, and the layers after the first name no column but the
-     default's, each on the axis the default reads it on: both, as in
-     `(pj/lay-smooth :a :b)`, or one, as in `(pj/lay-rug :a)`. A layer
-     added to a pose leaves the layers before it as they were drawn:
-     on data of three columns
-     `(-> data pj/lay-point)` colours by the third, and so does
-     `(-> data pj/lay-point (pj/lay-smooth :a :b))`, while
+   - The same where the first layer reads the leaf's data and names no
+     column, and the leaf's mapping names none, whatever the layers
+     after the first name. A layer added to a pose leaves the layers
+     before it as they were drawn: on data of three columns
+     `(-> data pj/lay-point)` colours by the third, and so do
+     `(-> data pj/lay-point (pj/lay-smooth :a :b))` and
+     `(-> data pj/lay-point (pj/lay-smooth :b :a))`, where the smooth
+     keeps the columns it names and is drawn on the points' panel.
      `(-> data (pj/lay-point :a :b) pj/lay-smooth)` reads no colour,
      as `(-> data (pj/lay-point :a :b))` reads none.
    - Where a `:y` is named and no `:x` is, and a layer's type draws
@@ -4606,8 +4632,9 @@
             (coerce-dataset (:data leaf)))
         default (when d (default-mapping d))
         names (fn [mapping k] (mapping-source (get mapping k)))
-        ;; The first layer reads the leaf's data and names no column,
-        ;; and the layers after it name no column but the default's.
+        ;; The first layer reads the leaf's data and names no column.
+        ;; Alone it draws the default, and a layer added after it does
+        ;; not change what it draws, whichever columns that layer names.
         default-beside? (fn []
                           (and (empty? facet-names)
                                (not (names m :x))
@@ -4615,12 +4642,7 @@
                                (when-let [l (first (:layers leaf))]
                                  (and (nil? (:data l))
                                       (not (names (:mapping l) :x))
-                                      (not (names (:mapping l) :y))))
-                               (every? (fn [mapping]
-                                         (every? #(let [c (names mapping %)]
-                                                    (or (nil? c) (= c (get default %))))
-                                                 [:x :y]))
-                                       (rest mappings))))]
+                                      (not (names (:mapping l) :y))))))]
     (cond
       (not default) leaf
 
@@ -4936,11 +4958,14 @@
                 (str k " " (if-let [t (get series k)]
                              (str "the series " t)
                              (pr-str v))
-                     (cond (contains? layer-mapping k) ""
+                     (cond (contains? (::from-panel (meta layer-mapping)) k)
+                           " (the panel's column, named by another layer)"
+                           (contains? layer-mapping k) ""
                            (contains? leaf-mapping k) " (from the pose)"
                            :else "")))
         x (when (:x resolved) (:x written))
         y (when (:y resolved) (:y written))
+        from-panel? (seq (::from-panel (meta layer-mapping)))
         ;; How to write the fix: a call for a registered layer type, a
         ;; mapping for a layer whose type is a map.
         lay (fn [& args]
@@ -4950,9 +4975,10 @@
                      "} in its :mapping")))]
     (str fn-name " draws from " draws ", and this layer has no column on "
          (str/join " or " (map str missing)) ". "
-         (if (seq named)
-           (str "It names " (str/join ", " named) ". ")
-           "It names no column. ")
+         (cond
+           (and (seq named) from-panel?) (str "It reads " (str/join ", " named) ". ")
+           (seq named) (str "It names " (str/join ", " named) ". ")
+           :else "It names no column. ")
          (cond
            (= [:x :y] missing)
            (str "Name both on the layer -- " (lay ":x-column" ":y-column")
