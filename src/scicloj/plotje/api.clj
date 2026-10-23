@@ -3309,11 +3309,28 @@
                                    " one, as in a cell of a faceted arrangement."
                                    " To draw this pose with no facet, leave out"
                                    " the earlier " caller " call.")
-                              (str "A pose divides its panels once"
-                                   " per direction: use the other direction, or"
-                                   " pj/facet-grid for both at once, or facet a"
-                                   " compound key -- (pj/facet my-pose ["
-                                   (pr-str existing) " " (pr-str col) "]).")))
+                              (let [columns (fn [v]
+                                              (let [v (if (and (map? v) (contains? v :column))
+                                                        (:column v)
+                                                        v)]
+                                                (cond (map? v) nil
+                                                      (sequential? v) (vec v)
+                                                      :else [v])))
+                                    both (when (and (columns existing) (columns col))
+                                           (vec (distinct (concat (columns existing)
+                                                                  (columns col)))))]
+                                (str "A pose divides its panels once"
+                                     " per direction: use the other direction, or"
+                                     " pj/facet-grid for both at once"
+                                     ;; The compound key replaces the earlier
+                                     ;; facet: written after it, it is a second
+                                     ;; facet in the same direction and is
+                                     ;; reported like this one.
+                                     (when (and both (< 1 (count both)))
+                                       (str ", or leave out the earlier facet and"
+                                            " write one compound key in its place"
+                                            " -- (pj/facet pose " (pr-str both) ")"))
+                                     "."))))
                        {:caller caller
                         :aesthetic aesthetic
                         :existing existing
@@ -3335,7 +3352,11 @@
   "Every column a facet node names, nil margins left out."
   [node]
   (letfn [(part [v] (cond (nil? v) []
-                          (and (map? v) (contains? v :column)) [(:column v)]
+                          ;; `{:column [:a :b]}` is the compound key
+                          ;; `[:a :b]` written in full: two columns.
+                          (and (map? v) (contains? v :column))
+                          (let [c (:column v)]
+                            (if (sequential? c) (remove nil? c) [c]))
                           (map? v) (mapcat #(remove nil? (get v %)) [:x :y])
                           (sequential? v) (remove nil? v)
                           :else [v]))]
@@ -3506,6 +3527,21 @@
                     {:caller "pj/facet"
                      :direction direction
                      :accepted #{:col :row}})))
+  ;; A map without `:column` is the form that says where panels come
+  ;; from, and it names the direction by its own keys. Read as a column
+  ;; it was reported as "not a column of the data", which named neither
+  ;; the direction nor the form that draws.
+  (when (and (map? col) (not (contains? col :column)))
+    (throw (ex-info (if (or (contains? col :col) (contains? col :row))
+                      (str "pj/facet was given the map " (pr-str col)
+                           " and the direction " direction
+                           ". The map already names its directions: leave "
+                           direction " out -- (pj/facet pose " (pr-str col) ").")
+                      (str "pj/facet was given the map " (pr-str col)
+                           " and the direction " direction
+                           ". A map names the direction as its key: "
+                           "(pj/facet pose " (pr-str {direction col}) ")."))
+                    {:caller "pj/facet" :value col :direction direction})))
   (facet-direction pose col direction "pj/facet"))
 
 (defn facet
@@ -4251,18 +4287,23 @@
    Returns a map with `:width`, `:height`, `:panels`, `:points`, `:lines`,
    `:dashed-lines`, `:dash-patterns`, `:polygons`, `:tiles`, `:visible-tiles`,
    and `:texts` -- useful for asserting plot structure.
-   Accepts SVG hiccup or a pose (auto-renders to SVG first).
+   Accepts SVG hiccup, or anything `pj/plot` accepts, which is rendered
+   to SVG first: a pose, or raw data, drawn as `pj/plot` draws it.
+   Anything else is reported by `pj/plot`.
 
    - `(svg-summary (plot fr))` -- summary of rendered SVG.
    - `(svg-summary my-pose)` -- auto-renders pose (leaf or composite)."
   ([svg-or-pose]
-   (if (pose? svg-or-pose)
-     (svg/svg-summary (plot svg-or-pose))
-     (svg/svg-summary svg-or-pose)))
+   ;; SVG hiccup is a vector headed by a tag. Everything else goes
+   ;; through `plot`: read as hiccup, raw data summarized to zeros with
+   ;; no message, and a dataset failed on a cast.
+   (if (and (vector? svg-or-pose) (keyword? (first svg-or-pose)))
+     (svg/svg-summary svg-or-pose)
+     (svg/svg-summary (plot svg-or-pose))))
   ([svg-or-pose theme]
-   (if (pose? svg-or-pose)
-     (svg/svg-summary (plot svg-or-pose) theme)
-     (svg/svg-summary svg-or-pose theme))))
+   (if (and (vector? svg-or-pose) (keyword? (first svg-or-pose)))
+     (svg/svg-summary svg-or-pose theme)
+     (svg/svg-summary (plot svg-or-pose) theme))))
 
 ;; ---- Multi-Plot Composition ----
 

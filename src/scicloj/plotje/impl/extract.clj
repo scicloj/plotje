@@ -331,7 +331,12 @@
                              (cond (and lo (not hi)) ":y-min alone. "
                                    (and hi (not lo)) ":y-max alone. "
                                    :else "neither. "))
-                           "Pass them as options: (pj/lay-errorbar :x :y {:y-min :lo :y-max :hi})")
+                           ;; The form is a whole call: a data or pose
+                           ;; argument first, then this layer's columns.
+                           "Name both in the layer's mapping: (pj/lay-"
+                           (name (or (:layer-type draft-layer) :errorbar)) " data "
+                           (pr-str (:x draft-layer)) " " (pr-str (:y draft-layer))
+                           " {:y-min :lo-column :y-max :hi-column}).")
                       {:mark (:mark draft-layer)})))
     (when (and with-labels? (seq groups)
                (not-any? :labels groups))
@@ -347,7 +352,10 @@
                                (str (pr-str given) " was given for :text and named no column that "
                                     "could be read. A column reference is a keyword or a string; "
                                     "rename the column, or select it into one that is.")
-                               "Pass it as an option: (pj/lay-text :x :y {:text :label-column})"))
+                               (str "Name it in the layer's mapping: (pj/lay-"
+                                    (name (or (:layer-type draft-layer) :text)) " data "
+                                    (pr-str (:x draft-layer)) " " (pr-str (:y draft-layer))
+                                    " {:text :label-column}).")))
                         {:mark (:mark draft-layer) :text given}))))
     groups))
 
@@ -1111,8 +1119,8 @@
                                                    true c-min c-max cfg)))))]
     (when (and (seq groups) (not-any? :x-ends groups))
       (throw (ex-info (str "lay-interval-h requires an :x-end column. "
-                           "Pass it as an option: "
-                           "(pj/lay-interval-h data :start :task {:x-end :end})")
+                           "Name it in the layer's mapping: "
+                           "(pj/lay-interval-h data :start :task {:x-end :end}).")
                       {:mark :interval-h})))
     {:mark :interval-h
      :fixed-tooltip (:fixed-tooltip draft-layer)

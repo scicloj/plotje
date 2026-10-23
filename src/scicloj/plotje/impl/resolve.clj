@@ -657,9 +657,10 @@
                    :else                                   :identity))]
     {:mark mark :stat stat}))
 
-(defn- column-phrase
+(defn column-phrase
   "How to describe a column in an error message: what it holds, or that
-   it holds nothing.
+   it holds nothing. Public so the counting bar's own check, which is
+   raised in `impl.stat`, describes a column as the checks here do.
 
    An empty column and an all-missing one are both typed `:boolean` by
    tech.ml.dataset, and `column-type` reads both as `:numerical` so the
@@ -675,7 +676,7 @@
       (every? nil? (take 100 c)) "has no values"
       :else "is numerical")))
 
-(defn- no-values?
+(defn no-values?
   "True where `column-phrase` would report the column as holding
    nothing, so a caller can choose different advice."
   [ds col]

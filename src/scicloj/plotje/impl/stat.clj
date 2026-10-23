@@ -107,6 +107,23 @@
               " in " (str/join ", " (map pr-str culprits))))))
     out))
 
+(defn- drawable-rows
+  "The rows of `ds` a layer draws: the rows holding a value in every
+   column of `cols` and in every grouping column of the layer (`:group`,
+   and a categorical `:color`). The rows removed are reported.
+
+   One reader for every stat. A row whose colour or group is missing has
+   no group to be computed with, so it is removed here whatever the stat
+   -- the rule `prepare-points`, `:count` and the per-category stats
+   already followed, and `:bin`, `:density`, `:linear-model`, `:loess`
+   and `:summary` did not: those computed a group of their own for the
+   rows with no colour and drew it in the default colour, with no legend
+   entry and no message."
+  [{:keys [group]} ds cols]
+  (let [names (set (tc/column-names ds))
+        group-cols (filter #(contains? names %) group)]
+    (drop-missing-reported ds (vec (distinct (concat cols group-cols))))))
+
 (defn group-color
   "The value of the colour column for the group `group-val` names, which
    is what a group is coloured by and what its legend entry prints.
@@ -259,7 +276,8 @@
       (when (and (some? v) (not (contains? ds-cols v)))
         (throw (ex-info (str "lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
                              "layer's data. lay-" (name mark) " reads " k " as a column, one "
-                             "bound per row: (pj/lay-errorbar :x :y {:y-min :lo :y-max :hi}). "
+                             "bound per row: (pj/lay-" (name mark)
+                             " data :x-column :y-column {:y-min :lo-column :y-max :hi-column}). "
                              "Available columns: " available
                              ". On pj/lay-band-h these two keys take a written number instead, "
                              "and shade one region between them.")
@@ -303,7 +321,7 @@
                          (col-ref? y-end)  (conj y-end)
                          (col-ref? fill)  (conj fill))
         drop-cols (vec (distinct (concat (if x-only? [x] [x y]) aesthetic-cols)))
-        clean (cond-> (drop-missing-reported data-idx drop-cols)
+        clean (cond-> (drawable-rows draft-layer data-idx drop-cols)
                 (= x-type :categorical) (format-category-column x)
                 ;; An end column on a categorical axis names categories
                 ;; too, formatted as the column it ends is.
@@ -638,7 +656,7 @@
     (when-not (and (number? bw) (pos? bw))
       (throw (ex-info (str ":binwidth must be a positive number, got: " (pr-str bw))
                       {:binwidth bw}))))
-  (let [clean (cond-> (drop-missing-reported data [x])
+  (let [clean (cond-> (drawable-rows draft-layer data [x])
                 (= x-type :categorical) (format-category-column x))
         xs-col (clean x)
         user-binwidth (:binwidth draft-layer)
@@ -720,12 +738,22 @@
 
 (defmethod compute-stat :count [draft-layer]
   (when-not (= (:x-type draft-layer) :categorical)
-    (throw (ex-info (str "lay-bar (counting) requires a categorical column for :x, "
-                         "but " (:x draft-layer) " is " (name (or (:x-type draft-layer) :unknown))
-                         ". Use lay-histogram to bin numeric data, convert " (:x draft-layer)
-                         " to a string column, or pass {:x-type :categorical} to treat a numeric"
-                         " column as categorical. For horizontal bars, add (pj/coord :flip).")
-                    {:stat :count :x (:x draft-layer) :x-type (:x-type draft-layer)})))
+    (let [{:keys [data x x-type]} draft-layer]
+      ;; An empty column and an all-missing one are typed numerical for
+      ;; want of anything to read, so the type is not what is wrong with
+      ;; them. Described as the other layers that group by category
+      ;; describe them (`resolve/column-phrase`).
+      (throw (ex-info (if (and (tc/dataset? data) (resolve/no-values? data x))
+                        (str "lay-bar (counting) requires a categorical column for :x, "
+                             "but " (pr-str x) " " (resolve/column-phrase data x) ". "
+                             "A layer that groups by category needs at least one row "
+                             "carrying a category.")
+                        (str "lay-bar (counting) requires a categorical column for :x, "
+                             "but " x " is " (name (or x-type :unknown))
+                             ". Use lay-histogram to bin numeric data, convert " x
+                             " to a string column, or pass {:x-type :categorical} to treat a numeric"
+                             " column as categorical. For horizontal bars, add (pj/coord :flip)."))
+                      {:stat :count :x x :x-type x-type}))))
   (let [{:keys [data x x-type group]} draft-layer
         group-cols (or group [])
         clean (cond-> (drop-missing-reported data [x])
@@ -736,7 +764,7 @@
       ;; Use tc/group-by for efficient counting
       (let [color-col (first group-cols)
             has-color? (seq group-cols)
-            clean-c (if has-color? (drop-missing-reported clean group-cols) clean)
+            clean-c (if has-color? (drawable-rows draft-layer clean []) clean)
             color-cats (when has-color? (sort (distinct (clean-c color-col))))
             ;; Single tc/group-by handles both colored and uncolored cases
             grouped (tc/group-by clean-c
@@ -810,12 +838,16 @@
         x-min (dfn/reduce-min xs-col)
         x-max (dfn/reduce-max xs-col)
         step (if (<= n-grid 1) 0.0 (/ (- x-max x-min) (dec (double n-grid))))
-        grid-xs (dfn/+ x-min (dfn/* step (range n-grid)))
-        grid-ys (dtype/emap #(regr/predict model [%]) :float64 grid-xs)
+        grid-xs (dtype/clone (dfn/+ x-min (dfn/* step (range n-grid))))
+        ;; Realized: the fitted values are read three times below (the
+        ;; curve and the two edges of the band) and again by every
+        ;; consumer of the result. A lazy reader predicts again on each
+        ;; read.
+        grid-ys (dtype/clone (dtype/emap #(regr/predict model [%]) :float64 grid-xs))
         h (dfn/+ a00 (dfn/* 2.0 a01 grid-xs) (dfn/* a11 grid-xs grid-xs))
         se (dfn/* sigma (dfn/sqrt h))
-        grid-ymins (dfn/- grid-ys (dfn/* t-val se))
-        grid-ymaxs (dfn/+ grid-ys (dfn/* t-val se))]
+        grid-ymins (dtype/clone (dfn/- grid-ys (dfn/* t-val se)))
+        grid-ymaxs (dtype/clone (dfn/+ grid-ys (dfn/* t-val se)))]
     {:xs grid-xs :ys grid-ys
      :ymins grid-ymins :ymaxs grid-ymaxs
      :x1 x-min :y1 (regr/predict model [x-min])
@@ -827,7 +859,7 @@
   (let [se (:confidence-band draft-layer)
         level (or (:level draft-layer) 0.95)
         n-grid (or (:se-n-grid (or cfg defaults/defaults)) 80)
-        clean (drop-missing-reported data [x y])
+        clean (drawable-rows draft-layer data [x y])
         n (tc/row-count clean)]
     (if (or (< n 3)
             (near-constant? (clean x)))
@@ -922,8 +954,11 @@
         x-min (dfn/reduce-min xs-col)
         x-max (dfn/reduce-max xs-col)
         step (if (<= n-grid 1) 0.0 (/ (- x-max x-min) (dec (double n-grid))))
-        grid-xs (dfn/+ x-min (dfn/* step (range n-grid)))
-        grid-ys (dtype/emap loess-fn :float64 grid-xs)]
+        grid-xs (dtype/clone (dfn/+ x-min (dfn/* step (range n-grid))))
+        ;; Realized once: a lazy reader runs the fit again on every read,
+        ;; and the result is read for its extent, by the plan and by the
+        ;; renderer.
+        grid-ys (dtype/clone (dtype/emap loess-fn :float64 grid-xs))]
     {:xs grid-xs :ys grid-ys}))
 
 (defn fit-loess-with-se
@@ -941,8 +976,9 @@
         x-min (dfn/reduce-min xs-col)
         x-max (dfn/reduce-max xs-col)
         step (if (<= n-grid 1) 0.0 (/ (- x-max x-min) (dec (double n-grid))))
-        grid-xs (dfn/+ x-min (dfn/* step (range n-grid)))
-        grid-ys (dtype/emap loess-fn :float64 grid-xs)
+        grid-xs (dtype/clone (dfn/+ x-min (dfn/* step (range n-grid))))
+        ;; Realized once, as in `fit-loess`.
+        grid-ys (dtype/clone (dtype/emap loess-fn :float64 grid-xs))
 
         ;; Bootstrap: resample via tensor, fit LOESS, evaluate on grid
         t (tensor/->tensor [xs-col ys-col] :datatype :float64)
@@ -959,7 +995,10 @@
                          (when (>= (alength bsx) 4)
                            (try
                              (let [bfn (interp/loess bsx bsy {:bandwidth bandwidth :iters 4})]
-                               (dtype/emap bfn :float64 grid-xs))
+                               ;; Realized: each resampled curve is
+                               ;; read once for the lower edge of the
+                               ;; band and once for the upper.
+                               (dtype/clone (dtype/emap bfn :float64 grid-xs)))
                              (catch Exception _ nil)))))
         valid-boots (vec (remove nil? boot-grid-ys))
         n-valid (count valid-boots)]
@@ -987,7 +1026,7 @@
   (validate-numeric-column draft-layer :y :loess)
   (let [se (:confidence-band draft-layer)
         level (or (:level draft-layer) 0.95)
-        clean (drop-missing-reported data [x y])
+        clean (drawable-rows draft-layer data [x y])
         n (tc/row-count clean)
         ;; Adaptive bootstrap count: LOESS fits are O(n^1.7), so running
         ;; 200 bootstraps on 100k rows is prohibitive. Scale the sample
@@ -1113,14 +1152,17 @@
          lo (- (double lo0) pad)
          hi (+ (double hi0) pad)
          step (if (<= n-grid 1) 0.0 (/ (- hi lo) (double (dec n-grid))))
-         grid-xs (dfn/+ lo (dfn/* step (range n-grid)))
-         grid-ys (dtype/emap kd :float64 grid-xs)]
+         grid-xs (dtype/clone (dfn/+ lo (dfn/* step (range n-grid))))
+         ;; Realized once: `kd` sums a kernel over every row, and a lazy
+         ;; reader runs that sum again on every read -- for the extent,
+         ;; by the plan, and by the renderer.
+         grid-ys (dtype/clone (dtype/emap kd :float64 grid-xs))]
      {:xs grid-xs :ys grid-ys})))
 
 (defmethod compute-stat :density [draft-layer]
   (validate-numeric-column draft-layer :x :kde)
   (let [{:keys [data x group cfg]} draft-layer
-        clean (drop-missing-reported data [x])
+        clean (drawable-rows draft-layer data [x])
         n (tc/row-count clean)
         ;; 512 grid points, matching ggplot2. 100 looked identical at a
         ;; default 600px plot but drew a visibly faceted peak once the
@@ -1193,7 +1235,7 @@
       (let [group-cols (or group [])
             color-col (first group-cols)
             has-color? (and (seq group-cols) color-col)
-            clean-c (if has-color? (drop-missing-reported clean group-cols) clean)
+            clean-c (if has-color? (drawable-rows draft-layer clean []) clean)
             color-cats (when has-color? (vec (sort (distinct (clean-c color-col)))))
             ;; Single tc/group-by replaces O(cats x colors) select-rows calls
             group-keys (if has-color? [cat-col color-col] [cat-col])
@@ -1338,7 +1380,7 @@
 
 (defmethod compute-stat :summary [{:keys [data x y x-type group] :as draft-layer}]
   (validate-numeric-column draft-layer :y :summary)
-  (let [clean (cond-> (drop-missing-reported data [x y])
+  (let [clean (cond-> (drawable-rows draft-layer data [x y])
                 (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)

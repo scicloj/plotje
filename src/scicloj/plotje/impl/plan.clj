@@ -1270,8 +1270,10 @@
     (when-let [missing (seq (remove (comp listed category-label) observed))]
       (println (str "Warning: pj/scale " aesthetic " :domain omits " (vec missing)
                     ". Those categories are still drawn, ordered after the "
-                    "listed ones. List every category to control the whole "
-                    "legend order.")))
+                    ;; No "legend" here: the aesthetic may be an axis,
+                    ;; which has none.
+                    "listed ones. List every category to order all of "
+                    "them.")))
     (when-let [unheld (seq (remove (comp held category-label) domain))]
       (println (str "Warning: pj/scale " aesthetic " :domain names " (vec unheld)
                     ", which the data does not hold. A :domain orders the "

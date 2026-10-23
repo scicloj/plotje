@@ -1939,6 +1939,16 @@
                  (fn [x] (same-value? x k)))]
     (into [] (keep-indexed (fn [i v] (when (match? v) i))) ks)))
 
+(defn- rows-by-key
+  "The row indices at which each distinct key of `ks` appears, as a map
+   from the key to a vector of indices in row order. One pass over
+   `ks`, where `rows-where` once per key is a pass per key.
+
+   Keys are matched by `=`, as `rows-where` matches a key that is a
+   vector, and every facet key is a vector (`facet-keys`)."
+  [ks]
+  (group-by ks (range (count ks))))
+
 (defn- facet-variants
   "Build one (data + labels) variant per facet-value combination.
    Returns a vector of maps {:data ds-subset, :facet-col <label>?, :facet-row <label>?}.
@@ -1962,25 +1972,29 @@
       (and crefs rrefs)
       (let [ck (facet-keys ds :col crefs)
             rk (facet-keys ds :row rrefs)
-            both (mapv vector ck rk)]
+            rows (rows-by-key (mapv vector ck rk))]
         (vec
          (for [cv (distinct ck) rv (distinct rk)]
-           {:data (tc/select-rows ds (rows-where both [cv rv]))
+           ;; A combination the data does not hold keeps its panel,
+           ;; with no rows.
+           {:data (tc/select-rows ds (get rows [cv rv] []))
             :facet-col (facet-label cv)
             :facet-row (facet-label rv)})))
 
       crefs
-      (let [ck (facet-keys ds :col crefs)]
+      (let [ck (facet-keys ds :col crefs)
+            rows (rows-by-key ck)]
         (vec
          (for [cv (distinct ck)]
-           {:data (tc/select-rows ds (rows-where ck cv))
+           {:data (tc/select-rows ds (rows cv))
             :facet-col (facet-label cv)})))
 
       rrefs
-      (let [rk (facet-keys ds :row rrefs)]
+      (let [rk (facet-keys ds :row rrefs)
+            rows (rows-by-key rk)]
         (vec
          (for [rv (distinct rk)]
-           {:data (tc/select-rows ds (rows-where rk rv))
+           {:data (tc/select-rows ds (rows rv))
             :facet-row (facet-label rv)}))))))
 
 (defn- mapping-scale-spec
@@ -2198,10 +2212,20 @@
         ;; A layer naming no place draws at the leaf's place, so it is
         ;; told apart like any other.
         place (leaf-place leaf)
+        ;; A rule or a band is drawn once, from written values, and
+        ;; draws no column: it has no label, so it takes no default
+        ;; colour and no legend entry, and the axis title is left to the
+        ;; layers that draw columns.
+        written-place? (fn [layer]
+                         (let [lt (:layer-type layer)]
+                           (resolve/written-position-marks
+                            (cond (keyword? lt) (:mark (layer-type/lookup lt))
+                                  (map? lt) (:mark lt)))))
         ;; A layer placed in the drawing area reads drawing units, not
         ;; a column of the panel's axes, so it names nothing an axis
         ;; title or a legend entry could.
-        places (mapv #(when-not (= :drawing-area (:in (:mapping %)))
+        places (mapv #(when-not (or (= :drawing-area (:in (:mapping %)))
+                                    (written-place? %))
                         (or (layer-position-key leaf-mapping %
                                                 (or (:data %) (:data leaf)))
                             place))
@@ -2944,7 +2968,8 @@
                   (note-columns-of-different-size!
                    k
                    (zipmap (distinct (concat series-cols (beside-of k))) (repeat wide))
-                   (cons leaf-mapping (map :mapping layers)))))
+                   (cons leaf-mapping (map :mapping layers))
+                   true)))
             ;; Which layers take the default colour, read before the
             ;; pivot gives the series' own layers the key column.
             default-colors (default-color-layers leaf)
@@ -3069,8 +3094,12 @@
    (`mappings` are every mapping that could carry either). It reads the
    data and the scale specified for the axis, nothing else.
 
-   `col->data` maps each column to the dataset it is read from."
-  [axis col->data mappings]
+   `col->data` maps each column to the dataset it is read from.
+   `series?` says the columns are named together as a series: a facet
+   over those columns added to such a pose reports an error (a series
+   draws its columns on one panel), so the Note says the facet is
+   written in place of the series."
+  [axis col->data mappings series?]
   (let [scale-of (fn [m] (let [v (get m axis)] (when (map? v) (:scale v))))
         settled? (some (fn [m] (let [sc (scale-of m)]
                                  (or (= :log sc)
@@ -3097,8 +3126,15 @@
                         (str/join " and " (map (comp pr-str first) flat))
                         (if (next flat) " are each" " is")
                         " drawn within a small part of it. To give each column an"
-                        " axis of its own, draw a panel per column: (pj/facet pose "
-                        (pr-str {axis (mapv first extents)}) ").")))))))
+                        " axis of its own, draw a panel per column: "
+                        (if series?
+                          (str "name the columns in a facet in place of the series"
+                               " -- (pj/facet pose "
+                               (pr-str {axis (mapv first extents)})
+                               "), where no layer of the pose names a column on "
+                               axis ".")
+                          (str "(pj/facet pose "
+                               (pr-str {axis (mapv first extents)}) ").")))))))))
 
 (defn check-shared-panel!
   "Report layers of a leaf that share its one panel and disagree about
@@ -3184,7 +3220,8 @@
                           :let [d (layer-axis-draws leaf l axis)]
                           :when (:column d)]
                       [(:column d) (or (:data l) (:data leaf))]))
-           (cons (:mapping leaf) (map :mapping layers))))))))
+           (cons (:mapping leaf) (map :mapping layers))
+           false))))))
 
 (defn report-panel-aesthetic-on-layer
   "Report a panel aesthetic written on a layer.
