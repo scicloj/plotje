@@ -4364,6 +4364,16 @@
 
 (defn- column-ref? [x] (or (keyword? x) (string? x)))
 
+(defn- where-cell?
+  "True of a map holding `:where`, a row filter, and otherwise only a
+   mapping (see `mapping-map?`), or nothing else."
+  [p]
+  (and (map? p)
+       (not (pose? p))
+       (map? (:where p))
+       (let [m (dissoc p :where)]
+         (or (empty? m) (mapping-map? m)))))
+
 (defn- coerce-arrange-input
   "Turn one pj/arrange input into a pose-shaped plain map. Accepts a
    leaf pose, a composite pose, which nests, and `nil`, a cell left
@@ -4387,6 +4397,17 @@
       ;; rather than special-cased, so `{:x :mpg :y :cyl}` here means
       ;; what it means everywhere else.
       (mapping-map? p) (->pose p "pj/arrange")
+
+      ;; A row filter, alone or beside a mapping: the cell draws the rows
+      ;; of the arrangement's data that match. Cells holding only a
+      ;; filter are written as `expand-variation` writes the cells of a
+      ;; facet, so a regular split draws what `pj/facet` draws
+      ;; (`pose/collapse-regular-split`).
+      (where-cell? p)
+      (let [m (dissoc p :where)]
+        (if (seq m)
+          (assoc (->pose m "pj/arrange") :where (:where p))
+          {:where (:where p)}))
 
       ;; `nil` is a cell left empty: it keeps its place in the layout
       ;; and draws nothing, whatever data and layers the composite
@@ -4594,6 +4615,10 @@
 
    - `(-> data (arrange [{:x :a :y :b} {:x :c :y :d}]) (lay-point))`
    - `(-> data (arrange cells {:cols 2}) (lay-point))`
+   - `(-> data (pose {:x :a :y :b}) (arrange [{:where {:g \"u\"}} {:where {:g \"v\"}}]) (lay-point))`
+     -- a cell holding `:where` draws the rows that match, alone or
+     beside a mapping. Cells that split the data by one column's
+     values, in the data's order, draw what `pj/facet` draws.
 
    The arity is decided by the second argument: a sequential one is
    the cell list, so the first is data or a pose; a map is the options,

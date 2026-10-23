@@ -68,3 +68,24 @@
       (is (= ["1.0, 4.0" "2.0"] (strips [{:where {:x #{4.0 1.0}}} {:where {:x 2.0}}]))))
     (testing "a single value is labelled as before"
       (is (= ["b" "a" "c"] (strips [{:where {:g "b"}} {:where {:g "a"}} {:where {:g "c"}}]))))))
+
+(deftest a-cell-of-pj-arrange-may-hold-a-filter-test
+  (let [base (pj/lay-point d :x :y)
+        cells [{:where {:g "a"}} {:where {:g "b"}} {:where {:g "c"}}]]
+    (testing "cells holding only a filter draw what pj/facet draws"
+      (is (= (pj/plot (pj/facet base :g)) (pj/plot (pj/arrange base cells))))
+      (is (= (pj/plot (pj/facet base :g))
+             (pj/plot (-> d (pj/pose {:x :x :y :y}) (pj/arrange cells) pj/lay-point)))))
+    (testing "a filter beside a mapping"
+      (is (= {:panels 2 :points 3}
+             (select-keys (pj/svg-summary (-> d
+                                              (pj/arrange [{:x :x :y :y :where {:g "a"}}
+                                                           {:x :y :y :x :where {:g "b"}}])
+                                              pj/lay-point))
+                          [:panels :points]))))
+    (testing "the filter is checked against the data"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A row filter names \[:nope\]"
+                            (pj/plan (pj/arrange base [{:where {:nope 1}}])))))
+    (testing "a map holding a filter and a key no mapping takes is still not a cell"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"is a map but not a pose"
+                            (pj/arrange base [{:where {:g "a"} :bogus 1}]))))))
