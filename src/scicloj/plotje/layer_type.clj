@@ -10,11 +10,8 @@
 ;; ---- Registry ----
 
 (def universal-layer-options
-  "Keys the mapping of every layer type accepts. :x and :y are included so a
-   layer can override the pose's position mapping (an overlay-like
-   pattern); the four-level merge in pose/leaf->draft already honors
-   layer-level x/y, this list keeps build-layer's unknown-option
-   warning consistent with that behavior. :x-type/:y-type/:color-type
+  "Keys the mapping of every layer type accepts. :x and :y are included
+   because a layer may name its own columns. :x-type/:y-type/:color-type
    override the inferred column types (e.g. :x-type :categorical
    treats a numeric x as categorical). :mark and :stat let any layer
    override the visual mark or statistical transform supplied by its

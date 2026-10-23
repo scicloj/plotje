@@ -180,8 +180,8 @@
 (def panel-aesthetic-docs
   "Documentation for the panel aesthetics -- the mapping keys that send
    each value of a distinction to a panel of its own. Written on a
-   pose, not on a layer, and `pj/facet` and `pj/facet-grid` are sugar
-   for writing one. Maps each key to a description string."
+   pose, not on a layer. `pj/facet` given a column, and `pj/facet-grid`,
+   write one. Maps each key to a description string."
   defaults/panel-aesthetic-docs)
 
 (def aesthetic-scales
@@ -334,14 +334,14 @@
   (when-not (sequential? xs)
     (throw (ex-info (str "pj/cross expects two sequentials of column"
                          " references, got xs: " (pr-str (type xs))
-                         " (" (pr-str xs) "). Use (pj/cross [:a :b]"
-                         " [:c :d]) for a 2x2 grid.")
+                         " (" (pr-str xs) "). Write two vectors of columns,"
+                         " as in (pj/cross [:a :b] [:c :d]).")
                     {:caller "pj/cross" :argument :xs :value xs})))
   (when-not (sequential? ys)
     (throw (ex-info (str "pj/cross expects two sequentials of column"
                          " references, got ys: " (pr-str (type ys))
-                         " (" (pr-str ys) "). Use (pj/cross [:a :b]"
-                         " [:c :d]) for a 2x2 grid.")
+                         " (" (pr-str ys) "). Write two vectors of columns,"
+                         " as in (pj/cross [:a :b] [:c :d]).")
                     {:caller "pj/cross" :argument :ys :value ys})))
   (when (or (empty? xs) (empty? ys))
     (throw (ex-info (str "pj/cross got an empty sequence (xs: "
@@ -777,11 +777,11 @@
    data has 4+ columns is returned unchanged, so the step is idempotent
    and safe to include anywhere in a pipeline. A layer naming one
    column keeps it, and the default supplies the rest. The draft runs
-   the same step on every leaf, cells of a composite included. This is the step that
-   lets raw data render a sensible default: the user-facing entry
-   points (`pj/pose` 1-arity and the shortcuts `pj/draft`, `pj/plan`,
-   `pj/membrane`, `pj/plot`, `pj/save`) apply it right after
-   `pj/->pose`, while `pj/->pose` itself stays a bare structural lift.
+   the same step on every leaf, cells of a composite included. This is
+   the step that lets raw data render a default: the shortcuts
+   `pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot` and `pj/save` apply
+   it to what they are given. `pj/pose` and `pj/->pose` write no
+   mapping.
 
    - `(-> data pj/->pose pj/infer-mapping)` -- lift, then default map
    - `(pj/infer-mapping built-pose)` -- no-op on an already-mapped pose"
@@ -807,7 +807,8 @@
    pose shape -- a leaf pose becomes a `LeafDraft` (a record carrying
    `:layers` -- a vector of one map per applicable layer with merged
    scope -- and `:opts` -- the pose-level options that flow into the
-   plan stage); a composite pose becomes a `CompositeDraft` carrying
+   plan stage); a composite pose, and a leaf with a facet over columns,
+   which is drawn as one cell per column, becomes a `CompositeDraft` carrying
    per-leaf drafts (each contextualized with shared-scale domains and
    chrome-driven opt adjustments), the resolved chrome geometry, and
    the layout (path -> rect).
@@ -1423,9 +1424,13 @@
      the pose renders without an explicit mapping call.
    - `(pj/pose data {:color :species})` -- leaf with aesthetic mapping.
    - `(pj/pose data :x-col)` -- leaf with `{:x :x-col}`.
-   - `(pj/pose data :x-col {:color :c})` -- univariate x with opts.
+   - `(pj/pose data :x-col {:color :c})` -- `:x` and a mapping.
    - `(pj/pose data :x-col :y-col)` -- leaf with `:x` and `:y`.
-   - `(pj/pose data :x-col :y-col {:color :c})` -- positional x/y with opts.
+   - `(pj/pose data :x-col :y-col {:color :c})` -- `:x`, `:y` and a mapping.
+   - `(pj/pose data [:a :b :c])` -- several columns where one column
+     goes are a series, drawn on one panel with a colour for each
+     column. Pairs of columns, `[[:a :b] [:c :d]]`, report an error:
+     `pj/arrange` takes them as cells.
 
    **Threaded over an existing pose (first argument is a pose):**
 
@@ -2370,6 +2375,16 @@
 
 (declare arrange)
 
+(defn- one-column-layer-given-two-message
+  "The message for a layer type that draws from one column, given a
+   column in each of the `:x` and `:y` slots of its `lay-*` call."
+  [layer-type-key x y]
+  (let [lay (str "pj/lay-" (layer-type-name layer-type-key))]
+    (str lay " draws from one column, and was given " (pr-str x)
+         " on :x and " (pr-str y) " on :y. Name one column; to draw the"
+         " layer on its side, name the column on :y, as in (" lay
+         " data {:y " (pr-str x) "}).")))
+
 (defn- panel-per-column
   "A `lay-*` call given a lone vector of columns, `(pj/lay-histogram
    data [:a :b :c])`: for this release it draws a panel per column, as
@@ -2396,12 +2411,17 @@
 
    1-arity: append a bare layer. Its columns are the panel's, or the
             first one to three columns of the data, read at draft time.
-   2-arity: keyword/string -> position-bearing layer;
-            vector of columns/pairs -> multi-pair broadcast;
-            map -> aesthetic-only layer with opts.
-   3-arity: two keywords -> bivariate; keyword+map -> univariate+opts;
-            vector+map -> multi-pair broadcast with opts.
-   4-arity: bivariate layer with opts."
+   2-arity: a column -> a layer naming it on `:x`;
+            a vector of columns -> a panel per column, with a warning;
+            a vector of pairs -> an error;
+            a map -> a layer with that mapping.
+   3-arity: two columns -> a layer naming both;
+            a column and a vector of columns -> a series;
+            a column and a map -> a layer naming it on `:x`, with that
+            mapping;
+            a vector of columns and a map -> a panel per column, with a
+            warning.
+   4-arity: two columns and a map."
   ([layer-type-key pose-or-data]
    ;; A layer naming no column is given its columns later: the panel's
    ;; columns at elaboration, or the first one to three columns of the
@@ -2441,7 +2461,7 @@
      ;; Checked before any reading of the y slot, so a series written
      ;; there is refused as a single column is.
      (when (and (x-only? layer-type-key) (some? y-or-opts) (not (map? y-or-opts)))
-       (throw (ex-info (str "lay-" (name layer-type-key) " uses only the x column; do not pass a y column")
+       (throw (ex-info (one-column-layer-given-two-message layer-type-key x y-or-opts)
                        {:layer-type layer-type-key :x x :y y-or-opts})))
      (cond
        ;; Several columns in one positional slot beside a single column
@@ -2491,10 +2511,10 @@
        (lay-on-pose fr layer-type-key {:x x} nil))))
   ([layer-type-key pose-or-data x y opts]
    (when (x-only? layer-type-key)
-     (throw (ex-info (str "lay-" (name layer-type-key) " uses only the x column; do not pass a y column")
+     (throw (ex-info (one-column-layer-given-two-message layer-type-key x y)
                      {:layer-type layer-type-key :x x :y y})))
    (when-not (or (nil? opts) (map? opts))
-     (throw (ex-info (str "lay-" (name layer-type-key)
+     (throw (ex-info (str "pj/lay-" (name layer-type-key)
                           " 4-arity expects a mapping as the last"
                           " argument, got " (pr-str (type opts)) ": "
                           (pr-str opts) ". Wrap aesthetic mappings in"
@@ -2505,14 +2525,18 @@
 
 (defn lay-point
   "Add a `:point` (scatter) layer to a pose.
-   Without columns -> bare layer at the pose's root (flows to every leaf).
-   With columns -> position-bearing layer (attaches to the matching leaf
-   via DFS-last identity, or appends a new sub-pose on miss).
 
-   - `(lay-point fr)` -- bare layer at root.
-   - `(lay-point fr {:color :species})` -- bare layer with a mapping.
-   - `(lay-point data :x :y)` -- coerce data to a leaf, then attach.
-   - `(lay-point data :x :y {:color :c})` -- same with a mapping."
+   With no columns, the layer reads the panel's columns; on a composite
+   pose it is added at the root and drawn in every cell. With columns,
+   the layer keeps them on its own mapping and is drawn on the pose's
+   one panel. On a composite pose, a layer naming columns joins the last
+   cell that draws those columns, or is appended as a new cell.
+
+   - `(lay-point pose)` -- a layer reading the panel's columns.
+   - `(lay-point pose {:color :species})` -- the same, with a mapping.
+   - `(lay-point data :x :y)` -- the data becomes a pose, and the layer
+     names its columns.
+   - `(lay-point data :x :y {:color :c})` -- the same, with a mapping."
   ([pose-or-data] (lay-layer-type :point pose-or-data))
   ([pose-or-data x-or-mapping] (lay-layer-type :point pose-or-data x-or-mapping))
   ([pose-or-data x y-or-mapping] (lay-layer-type :point pose-or-data x y-or-mapping))
@@ -2548,7 +2572,7 @@
     (doseq [c cols
             :when (and (some? c) (not (resolve/column-ref? c))
                        names (not (contains? names c)))]
-      (throw (ex-info (str "lay-" (name layer-type-key) " was given " (pr-str c)
+      (throw (ex-info (str "pj/lay-" (name layer-type-key) " was given " (pr-str c)
                            " before its mapping, and the data has no column "
                            (pr-str c) ". The arguments written there name"
                            " columns, which pick the panel the "
@@ -2669,7 +2693,7 @@
         v (get opts k)]
     (when-not (or (and (number? v) (Double/isFinite (double v)))
                   (temporal-intercept? v))
-      (throw (ex-info (str "lay-" (name layer-type-key) " requires a finite numeric "
+      (throw (ex-info (str "pj/lay-" (name layer-type-key) " requires a finite numeric "
                            "or temporal " k " in its mapping. "
                            "Example: (pj/lay-" (name layer-type-key) " pose {" k " 3.0})"
                            " or (pj/lay-" (name layer-type-key) " pose {" k
@@ -2686,7 +2710,7 @@
                        (or (and (number? v) (Double/isFinite (double v)))
                            (temporal-intercept? v)))]
     (when-not (and (valid-bound? lo) (valid-bound? hi))
-      (throw (ex-info (str "lay-" (name layer-type-key) " requires finite numeric or temporal "
+      (throw (ex-info (str "pj/lay-" (name layer-type-key) " requires finite numeric or temporal "
                            lo-k " and " hi-k " in its mapping. "
                            "Example: (pj/lay-" (name layer-type-key) " pose {" lo-k " 2.0 " hi-k " 4.0}) "
                            "or (pj/lay-" (name layer-type-key) " pose {" lo-k
@@ -2698,7 +2722,7 @@
     (let [lo-num (double (coerce-intercept lo))
           hi-num (double (coerce-intercept hi))]
       (when-not (<= lo-num hi-num)
-        (throw (ex-info (str "lay-" (name layer-type-key) " requires " lo-k " <= " hi-k ", got " lo-k " " lo " " hi-k " " hi ". "
+        (throw (ex-info (str "pj/lay-" (name layer-type-key) " requires " lo-k " <= " hi-k ", got " lo-k " " lo " " hi-k " " hi ". "
                              "Swap the arguments or check the source of the values.")
                         {:layer-type layer-type-key :opts opts})))
       ;; Equal bounds passed this guard and drew a rectangle of zero
@@ -2706,7 +2730,7 @@
       ;; reported by nothing. A band marks a span; a span of nothing is
       ;; a mistake in the values, and a line at that value is a rule.
       (when (== lo-num hi-num)
-        (throw (ex-info (str "lay-" (name layer-type-key) " requires " lo-k " < " hi-k ", got both "
+        (throw (ex-info (str "pj/lay-" (name layer-type-key) " requires " lo-k " < " hi-k ", got both "
                              lo ". A band with equal bounds covers nothing and draws nothing. "
                              "For a line at that value use (pj/lay-"
                              (if (= layer-type-key :band-h) "rule-h pose {:y-intercept " "rule-v pose {:x-intercept ")
@@ -2715,13 +2739,13 @@
 
 (defn- assert-rule-1-arity! [layer-type-key]
   (let [k (rule-position-key layer-type-key)]
-    (throw (ex-info (str "lay-" (name layer-type-key) " requires a mapping with " k ". "
+    (throw (ex-info (str "pj/lay-" (name layer-type-key) " requires a mapping with " k ". "
                          "Example: (pj/lay-" (name layer-type-key) " pose {" k " 3.0}).")
                     {:layer-type layer-type-key}))))
 
 (defn- assert-band-1-arity! [layer-type-key]
   (let [[lo-k hi-k] (band-position-keys layer-type-key)]
-    (throw (ex-info (str "lay-" (name layer-type-key) " requires a mapping with " lo-k " and " hi-k ". "
+    (throw (ex-info (str "pj/lay-" (name layer-type-key) " requires a mapping with " lo-k " and " hi-k ". "
                          "Example: (pj/lay-" (name layer-type-key) " pose {" lo-k " 2.0 " hi-k " 4.0}).")
                     {:layer-type layer-type-key}))))
 
@@ -2862,7 +2886,9 @@
 
 (defn lay-histogram
   "Add `:histogram` layer type -- bin numerical values into bars.
-   X-only: pass one column. Accepts `:bins` (count), `:binwidth`, `:color`,
+   Draws from one column: `(lay-histogram pose :hwy)` draws upright
+   bars, and `(lay-histogram pose {:y :hwy})` draws the same histogram on
+   its side. Accepts `:bins` (count), `:binwidth`, `:color`,
    `:normalize` (`:density` for density-normalized heights)."
   ([pose-or-data] (lay-layer-type :histogram pose-or-data))
   ([pose-or-data x-or-mapping] (lay-layer-type :histogram pose-or-data x-or-mapping))
@@ -2872,8 +2898,9 @@
 (defn lay-bar
   "Add a `:bar` layer type.
 
-   - One column (x only): counts occurrences of each category. Requires a
-     categorical x.
+   - One column: counts the rows of each category. Named on `:y`, as in
+     `(pj/lay-bar pose {:y :class})`, the bars are drawn across. Two
+     categorical columns report an error.
    - Two columns (x and y): uses the y value directly as the bar height.
 
    The stat is inferred from whether a y column is present, and overridable:
@@ -2882,13 +2909,14 @@
    gives grouped or stacked bars.
 
    The categorical axis can be x (vertical bars) or y (horizontal bars):
-   `(pj/lay-bar :value :category)` with a categorical y draws horizontal value
+   `(pj/lay-bar pose :value :category)` with a categorical y draws horizontal value
    bars, no `pj/coord` needed. (Stacked/filled horizontal bars are not yet
    supported directly -- put the category on x and add `(pj/coord :flip)`.)
-   To treat a numeric column as categorical, pass `{:x-type :categorical}`
-   (or `{:y-type :categorical}`).
+   To read a numerical column as categories, write the type of the axis
+   it is named on: `{:x-type :categorical}` for a column on `:x`,
+   `{:y-type :categorical}` for a column on `:y`.
 
-   When both axes are numeric or temporal (`(pj/lay-bar :x :y)` with no
+   When both axes are numeric or temporal (`(pj/lay-bar pose :x :y)` with no
    categorical axis), each bar sits at its x position with a width taken from
    `0.9` of the smallest gap between adjacent x values -- a time-series or
    numeric-position bar chart. Grouped numeric bars currently overlap rather
@@ -2918,7 +2946,9 @@
 
 (defn lay-density
   "Add `:density` layer type -- kernel density estimate curve.
-   X-only: pass one numerical column. Accepts `:color` (fill),
+   Draws from one numerical column: `(lay-density pose :hwy)` draws the
+   curve upright, and `(lay-density pose {:y :hwy})` draws it on its
+   side. Accepts `:color` (fill),
    `:bandwidth`, and an opt-in outline on the curve: `:stroke` (outline
    color), `:stroke-width`, `:stroke-dash` (`:dashed`/`:dotted`/`:solid`
    or a raw `[dash gap]` vector)."
@@ -3050,7 +3080,9 @@
 
 (defn lay-rug
   "Add `:rug` layer type -- short tick marks along the axis showing individual values.
-   X-only: pass one column. Often layered with density or scatter."
+   Draws from one column: `(lay-rug pose :hwy)` marks the values along
+   `:x`, and `(lay-rug pose {:y :hwy})` along `:y`. Often layered with
+   density or scatter."
   ([pose-or-data] (lay-layer-type :rug pose-or-data))
   ([pose-or-data x-or-mapping] (lay-layer-type :rug pose-or-data x-or-mapping))
   ([pose-or-data x y-or-mapping] (lay-layer-type :rug pose-or-data x y-or-mapping))
@@ -3210,7 +3242,7 @@
    them at plan time."
   [pose opts]
   (when-not (or (nil? opts) (map? opts))
-    (throw (ex-info (str "pj/options expects an opts map as the second"
+    (throw (ex-info (str "pj/options expects a map of options as the second"
                          " argument, got " (pr-str (type opts)) ": "
                          (pr-str opts) ". Wrap plot-level options in"
                          " a map, e.g. {:title \"...\" :width 800}.")
@@ -3583,7 +3615,9 @@
 
    The columns are checked against the data when `pj/facet` is called.
    A layer naming one of the facet's columns is drawn only in the
-   panels of that column.
+   panels of that column. A map of columns is written once, on a pose
+   with one panel: a second map, or a map on a composite pose, reports
+   an error.
 
    `nil` in place of the column cancels the facet a pose above writes:
    `(pj/facet cell nil)` on one cell of a faceted arrangement draws that
@@ -3663,8 +3697,7 @@
 
    Accepts a type keyword or a scale spec map. `:type` and `:domain`
    belong to every scale. The rest are per aesthetic, and a key an
-   aesthetic does not read is refused where it is written rather than
-   dropped in silence:
+   aesthetic does not read reports an error:
 
    - Every aesthetic takes `:label`, the title of whatever explains its
      scale to a reader: the axis for `:x` and `:y`, the legend for the
@@ -3717,7 +3750,7 @@
    - The discrete appearance aesthetic `:shape` accepts `:categorical`
      only -- `:linear` and `:log` do not apply to a discrete encoding.
 
-   `:group` is refused: it draws nothing of its own, so there is no
+   `:group` reports an error: it draws nothing of its own, so there is no
    scale to set. It splits a layer into one drawn group per value, and
    the order of those groups is the order of the data.
 
@@ -3856,7 +3889,11 @@
    - `:cartesian` -- standard x-right, y-up mapping (the default).
    - `:flip` -- swap x and y axes (horizontal bars / boxplots).
    - `:fixed` -- equal aspect ratio (1 data unit = 1 data unit).
-   - `:polar` -- radial mapping: x to angle, y to radius."
+   - `:polar` -- radial mapping: x to angle, y to radius.
+
+   A pose that names a column on `:y` alone, under layers that draw from
+   one column, is drawn on its side, and takes `:flip` or no coordinate
+   system: `:cartesian`, `:polar` and `:fixed` report an error."
   [pose coord-type]
   (when-not (#{:cartesian :flip :polar :fixed} coord-type)
     (throw (ex-info (str "Coordinate must be :cartesian, :flip, :polar, or :fixed, got: " coord-type)
@@ -3870,13 +3907,15 @@
    `(-> x ->pose (options opts) draft)`.
 
    Raw data (a dataset or a bare collection of values) is given a
-   default mapping first, exactly as `pj/pose` would, so `(draft data)`
+   default mapping first, as `pj/infer-mapping` gives one, so `(draft data)`
    works without an explicit `pj/pose` call.
 
    For a leaf pose, returns a `LeafDraft` record (`:layers` is a
    vector of flat maps, one per applicable layer with merged scope;
    `:opts` carries the pose-level options that flow into the plan
-   stage). For a composite pose, returns a `CompositeDraft` carrying
+   stage). For a composite pose, and for a leaf with a facet over
+   columns, which is drawn as one cell per column, returns a
+   `CompositeDraft` carrying
    per-leaf drafts (each contextualized -- shared-scale domains
    injected, suppress-* flags applied), the resolved chrome geometry,
    and the layout (path -> rect).
@@ -4031,11 +4070,13 @@
    `(-> x ->pose (options opts) plan)`.
 
    Raw data (a dataset or a bare collection of values) is given a
-   default mapping first, exactly as `pj/pose` would, so `(plan data)`
+   default mapping first, as `pj/infer-mapping` gives one, so `(plan data)`
    works without an explicit `pj/pose` call.
 
-   For a leaf pose, returns a `Plan` record with one panel per facet
-   variant. For a composite pose, returns a `CompositePlan` record
+   For a leaf pose, returns a `Plan` record, with one panel per category
+   where the pose is faceted by a column. For a composite pose, and for
+   a leaf with a facet over columns, which is drawn as one cell per
+   column, returns a `CompositePlan` record
    with `:sub-plots` tying each leaf path to its rect and sub-plan,
    plus `:chrome` carrying the resolved layout geometry (title-band,
    grid-rect, strip labels, shared-legend spec).
@@ -4121,9 +4162,9 @@
    area's own corner instead, so drawing these coordinates back means
    subtracting that corner first.
 
-   A pose, a plan or the whole frames map in the panel's place is
-   refused, with a message naming which of them it got and the call that
-   reaches a panel entry from there.
+   A pose, a plan or the whole frames map in the panel's place reports
+   an error naming which of them it got and the call that reaches a
+   panel entry from there.
 
    A categorical axis is a band scale, and it answers two kinds of
    value. A category sits at the middle of its band. A number is a
@@ -4160,9 +4201,9 @@
    a place between two categories, such as `1.5`, comes back as one of
    them.
 
-   A pose, a plan or the whole frames map in the panel's place is
-   refused, with a message naming which of them it got and the call that
-   reaches a panel entry from there."
+   A pose, a plan or the whole frames map in the panel's place reports
+   an error naming which of them it got and the call that reaches a
+   panel entry from there."
   ([panel cx cy] (frames-impl/to-data panel cx cy))
   ([panel data] (frames-impl/to-data panel data)))
 
@@ -4189,7 +4230,7 @@
    the result of `pj/membrane` via the standard Membrane protocols.
 
    Raw data (a dataset or a bare collection of values) is given a
-   default mapping first, exactly as `pj/pose` would, so
+   default mapping first, as `pj/infer-mapping` gives one, so
    `(membrane data)` works without an explicit `pj/pose` call.
 
    - `(membrane pose)`
@@ -4245,7 +4286,7 @@
    there.
 
    Raw data (a dataset or a bare collection of values) is given a
-   default mapping first, exactly as `pj/pose` would, so `(plot data)`
+   default mapping first, as `pj/infer-mapping` gives one, so `(plot data)`
    renders the inferred default instead of a blank figure.
 
    - `(plot pose)`
@@ -4286,9 +4327,12 @@
 
 (defn svg-summary
   "Extract structural summary from SVG hiccup for testing.
-   Returns a map with `:width`, `:height`, `:panels`, `:points`, `:lines`,
-   `:dashed-lines`, `:dash-patterns`, `:polygons`, `:tiles`, `:visible-tiles`,
-   and `:texts` -- useful for asserting plot structure.
+   Returns a map of what the SVG draws -- `:width`, `:height`, `:panels`,
+   `:points`, `:lines`, `:dashed-lines`, `:dash-patterns`, `:polygons`,
+   `:tiles`, `:visible-tiles`, `:texts`, `:bold-texts`, `:italic-texts`,
+   `:label-boxes` and `:clips`, and the sets `:sizes`, `:colors`,
+   `:alphas` and `:shapes` of the values the marks are drawn with --
+   useful for asserting plot structure.
    Accepts SVG hiccup, or anything `pj/plot` accepts, which is rendered
    to SVG first: a pose, or raw data, drawn as `pj/plot` draws it.
    Anything else is reported by `pj/plot`.
@@ -4622,7 +4666,7 @@
          flat-plots (vec (apply concat rows-in))
          n-plots (count flat-plots)
          _ (when (zero? n-plots)
-             (throw (ex-info "pj/arrange requires at least one plot." {:plots plots})))
+             (throw (ex-info "pj/arrange requires at least one cell." {:plots plots})))
          leaves (vec (map-indexed (fn [i p] (coerce-arrange-input p i)) flat-plots))
          _ (when (every? :plotje/empty-cell leaves)
              (throw (ex-info (str "pj/arrange was given " n-plots
@@ -4713,8 +4757,8 @@
                (throw (ex-info
                        (str caller " was given an empty pose -- nothing to"
                             " render. Attach data and a layer first, e.g."
-                            " (-> data (pj/lay-point :x :y))," " or use"
-                            " pj/pose with sub-poses for a composite.")
+                            " (-> data (pj/lay-point :x :y))," " or arrange"
+                            " several poses with pj/arrange.")
                        {:caller caller :pose fr})))
         _ (when-not (pose-has-data-anywhere? fr) (fail))
         the-plan (plan fr)]
@@ -4748,9 +4792,8 @@
    axis runs across the panel and its baseline stands at the left edge,
    against the main panel.
 
-   `pj/overlay` and `pj/marginal` are the two answers to one question.
-   Overlay puts a second layer on the panel it is added to; a marginal
-   puts a distribution beside that panel, on an axis of its own."
+   A second layer added to the pose is drawn on the pose's panel; a
+   marginal is drawn beside that panel, on a value axis of its own."
   ([pose side] (marginal pose side :density {}))
   ([pose side layer-type] (marginal pose side layer-type {}))
   ([pose side layer-type opts]
@@ -4904,8 +4947,8 @@
    Arguments:
 
    - `pose` -- a pose, or raw data (a dataset or a bare collection of
-     values), which is given a default mapping first, exactly as
-     `pj/pose` would.
+     values), which is given a default mapping first, as
+     `pj/infer-mapping` gives one.
    - `path` -- file path (string or `java.io.File`).
    - `opts` -- same options as plot, but `:format` accepts only `:svg`
      or `:png`.
@@ -4924,7 +4967,7 @@
   ([pose path] (save pose path nil))
   ([pose path opts]
    (when-not (or (nil? opts) (map? opts))
-     (throw (ex-info (str "pj/save expects an opts map as the third"
+     (throw (ex-info (str "pj/save expects a map of options as the third"
                           " argument, got " (pr-str (type opts)) ": "
                           (pr-str opts) ".")
                      {:caller "pj/save" :value opts})))

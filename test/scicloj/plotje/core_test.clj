@@ -1450,13 +1450,13 @@
 (deftest x-only-validation-test
   (testing "histogram rejects :y column"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"lay-histogram uses only the x column"
+                          #"pj/lay-histogram draws from one column, and was given :x on :x and :y on :y\. Name one column; to draw the layer on its side, name the column on :y, as in \(pj/lay-histogram data \{:y :x\}\)\."
                           (pj/lay-histogram {:x [1 2 3] :y [4 5 6]} :x :y))))
   (testing "bar accepts a :y column (value bars)"
     (is (some? (pj/lay-bar {:x ["a" "b"] :y [1 2]} :x :y))))
   (testing "density rejects :y column"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"lay-density uses only the x column"
+                          #"pj/lay-density draws from one column, and was given :x on :x and :y on :y"
                           (pj/lay-density {:x [1 2 3] :y [4 5 6]} :x :y))))
   (testing "histogram with opts (not :y) still works"
     (is (some? (pj/lay-histogram {:x [1 2 3 4 5]} :x {:color :x})))))

@@ -273,7 +273,7 @@
   (testing "(pj/save pose path <vector>) throws with helpful message"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the third"
+         #"a map of options as the third"
          (pj/save (pj/lay-point tiny :x :y) "/tmp/_x.svg" [:not :a :map])))))
 
 (deftest tick-angle-must-be-a-finite-number-test

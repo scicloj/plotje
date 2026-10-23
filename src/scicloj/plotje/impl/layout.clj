@@ -727,7 +727,7 @@
    an ignored legacy key for now.
 
    Throws with a detailed error when the derived panel is smaller
-   than `:min-panel-size` (cfg, default 20) -- the user gave more
+   than `:min-panel-size` (cfg, default 40) -- the user gave more
    overhead budget than they left space for."
   [scene padding cfg opts]
   (let [{:keys [grid-rows grid-cols]} scene

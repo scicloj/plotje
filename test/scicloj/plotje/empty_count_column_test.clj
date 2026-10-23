@@ -21,5 +21,5 @@
       (is (re-find #":g has no values" m))
       (is (not (re-find #"numerical" m)))))
   (testing "a numerical column keeps the advice about its type"
-    (is (re-find #":g is numerical. Use lay-histogram"
+    (is (re-find #":g is numerical. Use pj/lay-histogram"
                  (message (pj/lay-bar {:g [1 2 3]} :g))))))

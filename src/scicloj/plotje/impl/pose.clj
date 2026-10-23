@@ -4124,9 +4124,11 @@
 
 (defn- layer-fits-no-cell-message
   "The report for a layer naming a column no panel draws
-   (`columns-no-cell-has`). The cells are those of a facet over columns:
-   a `lay-*` call naming columns on an arrangement joins a cell or adds
-   one at the call, and never reaches the fit."
+   (`columns-no-cell-has`). The cells are those of a facet over columns,
+   or those `pj/arrange` makes from columns for a pose that already has
+   the layer: `(-> (pj/lay-point data :a :b) (pj/arrange [[:c :d]]))`.
+   A `lay-*` call on an arrangement joins a cell or adds one at the
+   call, and does not reach this report."
   [layer clashes entries]
   (let [lt (:layer-type layer)
         fn-name (if (keyword? lt) (str "pj/lay-" (name lt)) "A layer")
@@ -4139,7 +4141,9 @@
         told (if pair? clashes absent)
         it (if (next told) "them" "it")
         series? (some :series told)
-        where "the facet over columns has "]
+        ;; The panels may come from a facet over columns or from the
+        ;; cells of `pj/arrange`, so the message names neither.
+        where "the panels draw "]
     (str fn-name " names "
          (str/join " and " (for [{:keys [axis column series]} told]
                              (str (if series
@@ -4174,10 +4178,11 @@
 
            :else
            (str (if pair?
-                  "List the pair in the facet"
-                  (str "List "
+                  "Add the pair to the columns the panels are made from -- the facet's, or the cells given to pj/arrange --"
+                  (str "Add "
                        (str/join " and " (for [{:keys [axis column]} told]
-                                           (str (pr-str column) " among the facet's " axis " columns")))))
+                                           (str (pr-str column) " to the " axis " columns")))
+                       " the panels are made from -- the facet's, or the cells given to pj/arrange --"))
                 " and leave " (str/join " and " (map (comp str :axis) told))
                 " off the layer, or draw the layer on a pose of its own and put the"
                 " two side by side with pj/arrange."))

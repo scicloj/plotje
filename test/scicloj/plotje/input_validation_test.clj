@@ -165,13 +165,13 @@
   (testing "(pj/options pose <vector>) throws with helpful message"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the second argument"
+         #"a map of options as the second argument"
          (pj/options (pj/lay-point tiny :x :y) [:not :a :map]))))
 
   (testing "(pj/options pose 42) throws"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the second argument"
+         #"a map of options as the second argument"
          (pj/options (pj/lay-point tiny :x :y) 42))))
 
   (testing "(pj/options pose nil) is accepted (no-op)"
@@ -1545,7 +1545,7 @@
                                (:sub-plots (pj/plan pose))))]
     (testing "an error where a panel is left with no layer drawing its own column"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"pj/lay-point names :cty on :y, and no panel draws it: the facet over columns has :hwy and :displ on :y\. List :cty among the facet's :y columns"
+                            #"pj/lay-point names :cty on :y, and no panel draws it: the panels draw :hwy and :displ on :y\. Add :cty to the :y columns the panels are made from -- the facet's, or the cells given to pj/arrange -- and leave :y off the layer"
                             (pj/plan (-> wide (pj/lay-point :drv :cty) (pj/facet {:y [:hwy :displ]})))))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"pj/lay-point names :cty on :y, and no panel draws it"

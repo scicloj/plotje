@@ -522,9 +522,9 @@
   ;; The pair branch ran before the "uses only the x column" check, so a
   ;; histogram drew a count axis titled "y value" beside unused y columns.
   (let [w {:t1 [1 2 3] :t2 [2 3 4] :v1 [10 20 30] :v2 [15 25 35]}]
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"uses only the x column"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"draws from one column, and was given"
                           (pj/lay-histogram w [:t1 :t2] [:v1 :v2])))
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"uses only the x column"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"draws from one column, and was given"
                           (pj/lay-histogram w :t1 [:v1 :v2])))))
 
 (deftest series-pairs-errors-name-the-written-columns-test

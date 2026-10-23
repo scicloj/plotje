@@ -768,7 +768,7 @@
           _ (when (and (contains? both-axes-marks mark)
                        (= stat (both-axes-marks mark))
                        both-numerical?)
-              (throw (ex-info (str "lay-" (name user-fn-name) " requires a categorical column on either :x or :y, "
+              (throw (ex-info (str "pj/lay-" (name user-fn-name) " requires a categorical column on either :x or :y, "
                                    "but " (pr-str (:x v)) " " (column-phrase resolved-ds (:x v))
                                    " and " (pr-str (:y v)) " " (column-phrase resolved-ds (:y v)) ". "
                                    (if (or (no-values? resolved-ds (:x v))
@@ -782,7 +782,7 @@
           _ (when (and (contains? x-only-cat-marks mark)
                        (= stat (x-only-cat-marks mark))
                        (= x-type :numerical))
-              (throw (ex-info (str "lay-" (name user-fn-name) " requires a categorical :x column, but "
+              (throw (ex-info (str "pj/lay-" (name user-fn-name) " requires a categorical :x column, but "
                                    (pr-str (:x v)) " " (column-phrase resolved-ds (:x v)) ". "
                                    (if (no-values? resolved-ds (:x v))
                                      (str "A layer that groups by category needs at least one row "
@@ -794,7 +794,7 @@
           _ (when (and (contains? x-only-cat-marks mark)
                        (= stat (x-only-cat-marks mark))
                        (= y-type :categorical))
-              (throw (ex-info (str "lay-" (name user-fn-name) " requires a numerical :y column, "
+              (throw (ex-info (str "pj/lay-" (name user-fn-name) " requires a numerical :y column, "
                                    "but :y-type was declared :categorical. Drop the :y-type "
                                    "override; to flip the chart so categories appear on the "
                                    "visual y-axis, add (pj/coord :flip).")
@@ -806,7 +806,7 @@
           _ (when (and (= mark :rect) (= stat :identity)
                        (:x v) (:y v)
                        (= x-type :categorical) (= y-type :categorical))
-              (throw (ex-info (str "lay-" (name user-fn-name) " reads the length of a bar from a"
+              (throw (ex-info (str "pj/lay-" (name user-fn-name) " reads the length of a bar from a"
                                    " numerical column, but " (pr-str (:x v)) " and " (pr-str (:y v))
                                    " are both categorical. To count the rows of each category,"
                                    " name one column: (pj/lay-bar data " (pr-str (:x v)) "), with"

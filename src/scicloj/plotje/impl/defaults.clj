@@ -254,8 +254,8 @@
    `layer-type/layer-option-docs` for keys a layer does not accept.
 
    A panel aesthetic is written on a pose rather than on a layer,
-   because it divides every layer of that pose alike. `pj/facet` and
-   `pj/facet-grid` are sugar for writing one."
+   because it divides every layer of that pose alike. `pj/facet` given a
+   column, and `pj/facet-grid`, write one."
   {:col "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out across. A vector unites the columns into a compound key, so a panel is drawn for each combination the data holds. Written by pj/facet, and by pj/facet-grid for the across direction."
    :row "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out down. The same readings as :col. Written by (pj/facet my-pose col :row), and by pj/facet-grid for the down direction."})
 
@@ -1113,11 +1113,11 @@
    :x-tick-label-pad ["Ticks" "Extra vertical space, in drawing units, reserved below panels for angled x-tick labels, added on top of :label-offset. When nil, computed from :x-tick-angle and the widest x-tick label, up to 30% of :height. When 0, no extra space is reserved and rotated labels may be clipped by the SVG boundary."]
    :bin-method ["Statistics" "Histogram bin count method (:sturges, :sqrt, :rice, :fd)"]
    :domain-padding ["Statistics" "Fractional padding added to numeric domains"]
-   :label-offset ["Labels" "Pixel offset for axis labels from the axis"]
+   :label-offset ["Labels" "Offset of the axis labels from the axis"]
    :fit-text-domain ["Labels" "When true (the default), a numeric domain is widened so that text and label marks near its edge are drawn in full instead of being cut off at the panel boundary. A domain pinned with pj/scale is never widened"]
    :decimal-separator ["Labels" "String drawn in place of the decimal point of a number that measures, in the same text :thousands-separator groups (a comma, with a point for the thousands, gives the European 1.234,5). Numbers are formatted under Locale/ROOT, so the two separators are chosen here rather than inherited from the JVM's locale. nil (the default) leaves the point as a point"]
    :thousands-separator ["Labels" "String inserted between three-digit groups of a number that measures (a comma gives 462,389): numeric axis tick labels, text/label mark content, and the values a size or alpha legend prints. A number that names is left alone -- category names, colour and shape legend labels, facet strips, and a categorical axis whose categories happen to be numbers. nil (the default) leaves everything ungrouped"]
-   :title-offset ["Labels" "Pixel offset for the title from the top"]
+   :title-offset ["Labels" "Offset of the title from the top"]
    :strip-height ["Labels" "Height of facet strip label bars"]
    :validate ["Behavior" "When true, validate plans against Malli schema"]
    :strict ["Behavior" "When true, throw on unknown option keys instead of warning and stripping"]

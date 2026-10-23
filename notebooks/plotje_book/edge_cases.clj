@@ -586,12 +586,10 @@
 
 (kind/test-last [(fn [m] (re-find #"must contain :boxes" m))])
 
-;; ### x-only layer type with y column
+;; ### A second column given to a layer type that draws from one column
 ;;
-;; Layer types that use only the x column (histogram, bar, density,
-;; rug) report an error for a y column.
-
-;; Histogram uses only the x column. Passing a y column is an error:
+;; A histogram, a density and a rug each draw from one column. A second
+;; column in the argument slots of the call reports an error:
 
 (try
   (-> {:x [1 2 3] :y [4 5 6]}
@@ -599,4 +597,22 @@
   (catch clojure.lang.ExceptionInfo e
     (ex-message e)))
 
-(kind/test-last [(fn [m] (re-find #"lay-histogram uses only the x column" m))])
+(kind/test-last [(fn [m] (re-find #"lay-histogram draws from one column, and was given" m))])
+
+;; A bar is not among these layer types: `(pj/lay-bar data :x :y)` draws
+;; one bar per category, as long as the category's `:y` value. To draw a
+;; histogram on its side, name the column on `:y` in the layer's
+;; mapping:
+
+(pj/lay-histogram (rdatasets/datasets-iris) {:y :sepal-length})
+
+(kind/test-last
+ [(fn [v]
+    (and (= :flip (:coord (first (:panels (pj/plan v)))))
+         ;; A bar given two columns draws, and is not reported.
+         (= [:rect] (->> (pj/lay-bar {:x ["a" "b"] :y [1 2]} :x :y)
+                         pj/plan
+                         :panels
+                         first
+                         :layers
+                         (mapv :mark)))))])

@@ -299,14 +299,18 @@
 ;; chapter for how scale types and domains interact with column
 ;; inference.
 
-;; ## x-Only Layer Types Do Not Accept a y Column
+;; ## Two Columns Given to a One-Column Layer Type
 ;;
-;; **Symptom**: `"lay-histogram uses only the x column; do not pass
-;; a y column"` error.
+;; **Symptom**: an error such as `"pj/lay-histogram draws from one
+;; column, and was given :sepal-length on :x and :sepal-width on :y."`
 ;;
-;; **Cause**: Histogram, density, and rug layer types use only
-;; the x column. Passing a y column is an error. (`lay-bar` is not
-;; among them -- it uses a y column as the bar height when given one.)
+;; **Cause**: Histogram, density, and rug layer types draw from one
+;; column. Two columns given as arguments to one of them, as in
+;; `(pj/lay-histogram data :sepal-length :sepal-width)`, are reported.
+;; (`lay-bar` is not among them -- it uses a second column as the bar
+;; length.) One column named on `:y` is not an error:
+;; `(pj/lay-histogram data {:y :sepal-width})` draws the histogram on
+;; its side.
 ;;
 ;; This restricts the layer's own columns and nothing else. A rule or a
 ;; band goes on such a pose like any other layer, because its intercept
@@ -320,7 +324,7 @@
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
- [(fn [msg] (re-find #"uses only the x column" msg))])
+ [(fn [msg] (re-find #"draws from one column, and was given :sepal-length on :x and :sepal-width on :y" msg))])
 
 ;; **Fix**: Remove the y column:
 

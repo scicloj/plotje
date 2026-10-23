@@ -274,7 +274,7 @@
   (let [available (vec (sort-by str (remove #{:__row-idx} ds-cols)))]
     (doseq [[k v] [[:y-min y-min] [:y-max y-max]]]
       (when (and (some? v) (not (contains? ds-cols v)))
-        (throw (ex-info (str "lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
+        (throw (ex-info (str "pj/lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
                              "layer's data. lay-" (name mark) " reads " k " as a column, one "
                              "bound per row: (pj/lay-" (name mark)
                              " data :x-column :y-column {:y-min :lo-column :y-max :hi-column}). "
@@ -748,13 +748,13 @@
       ;; them. Described as the other layers that group by category
       ;; describe them (`resolve/column-phrase`).
       (throw (ex-info (if (and (tc/dataset? data) (resolve/no-values? data x))
-                        (str "lay-bar (counting) requires a categorical column, "
+                        (str "pj/lay-bar (counting) requires a categorical column, "
                              "but " (pr-str x) " " (resolve/column-phrase data x) ". "
                              "A layer that groups by category needs at least one row "
                              "carrying a category.")
-                        (str "lay-bar (counting) requires a categorical column, "
+                        (str "pj/lay-bar (counting) requires a categorical column, "
                              "but " x " is " (name (or x-type :unknown))
-                             ". Use lay-histogram to bin numeric data, convert " x
+                             ". Use pj/lay-histogram to bin numeric data, convert " x
                              " to a string column, or treat the numeric column as categorical"
                              " by writing the type of the axis it is named on: {:x-type :categorical}"
                              " for a column on :x, {:y-type :categorical} for a column on :y."
