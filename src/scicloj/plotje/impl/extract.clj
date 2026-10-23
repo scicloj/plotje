@@ -3,6 +3,7 @@
    Produces layer descriptor maps -- plain Clojure maps with mark type,
    style, and groups of data-space coordinates."
   (:require [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.pose :as pose]
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.impl.scale :as scale]
             [tech.v3.datatype.functional :as dfn]
@@ -580,9 +581,18 @@
           ;; the bars out vertically, then flips), where stacking works.
           (when (and flipped? (#{:stack :fill} (:position draft-layer)))
             (throw (ex-info (str "Stacked/filled horizontal value bars are not supported directly yet. "
-                                 "Put the category on :x and use (pj/coord :flip): "
-                                 "(-> data (pj/lay-bar " (pr-str (:y draft-layer)) " " (pr-str (:x draft-layer))
-                                 " {:position " (pr-str (:position draft-layer)) " ...}) (pj/coord :flip)).")
+                                 ;; A series on :x names the value column
+                                 ;; its pivot invents, which a form
+                                 ;; written here would print.
+                                 (if-let [t (pose/pivoted-series-title
+                                             (:x draft-layer)
+                                             (get-in draft-layer [:__scale :x]))]
+                                   (str "Write the layer with " (pr-str (:y draft-layer))
+                                        " first and the series " t " second, which puts"
+                                        " the category on :x, and add (pj/coord :flip).")
+                                   (str "Put the category on :x and use (pj/coord :flip): "
+                                        "(-> data (pj/lay-bar " (pr-str (:y draft-layer)) " " (pr-str (:x draft-layer))
+                                        " {:position " (pr-str (:position draft-layer)) " ...}) (pj/coord :flip)).")))
                             {:mark :rect :position (:position draft-layer)
                              :x (:x draft-layer) :y (:y draft-layer)})))
           {:mark :rect

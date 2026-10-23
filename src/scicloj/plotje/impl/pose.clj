@@ -2409,6 +2409,28 @@
    needs no second spelling of its own."
   :value)
 
+(declare series-pair-value-columns)
+
+(defn series-value-columns
+  "The columns a series pivot invents to hold the values: one for a
+   series, one per axis for series in pairs."
+  []
+  (conj (set (vals series-pair-value-columns)) series-value-column))
+
+(defn pivoted-series-title
+  "The title a series pivot wrote for the value column it invented --
+   the written columns joined, as \"revenue, cost\", or the writer's
+   own `:label` -- where `column` is that invented column and `scale` the
+   scale spec carried beside it; nil otherwise.
+
+   A message that prints a layer's columns prints this instead: the
+   writer never wrote the invented column, and the data holds no column
+   of that name. Read from the title until the pivot keeps the mapping
+   as written (the transforms plan, step C)."
+  [column scale]
+  (when (contains? (series-value-columns) column)
+    (:label scale)))
+
 (defn series-mapping
   "The series a mapping value asks for, as `{:cols [...] :as label}`, or
    nil where it asks for none.
@@ -3195,8 +3217,10 @@
             ;; type the axis reads. (A categorical scale written on the
             ;; mapping is not read here: the plan does not yet place the
             ;; numbers of such a column among another layer's categories.)
-            written (get m ({:x :x-type :y :y-type} axis))]
-        {:column src :type (or written (resolve/column-type data src))}))))
+            written (get m ({:x :x-type :y :y-type} axis))
+            v (get m axis)]
+        (cond-> {:column src :type (or written (resolve/column-type data src))}
+          (map? v) (assoc :series (pivoted-series-title src (:scale v))))))))
 
 (def ^:private small-share-of-axis
   "The part of a shared axis below which a column counts as drawn flat:
@@ -3302,7 +3326,10 @@
                     stats (filter :computes draws)
                     describe (fn [d] (str (:caller d) " draws "
                                           (if (:column d)
-                                            (str (pr-str (:column d)) " (" (name (:type d)) ")")
+                                            (str (if (:series d)
+                                                   (str "the series " (:series d))
+                                                   (pr-str (:column d)))
+                                                 " (" (name (:type d)) ")")
                                             (str "a " (name (:computes d))))))]]
         (cond
           (next (distinct (map :type columns)))
@@ -4888,12 +4915,27 @@
                 (= #{1 2} counts) "one column on :x, or two on :x and :y"
                 :else "two columns, one on :x and one on :y")
         ;; What the layer does have, each with where it was named.
+        ;; A series on :x or :y is pivoted before this check, so the
+        ;; layer names the value column the pivot invents. The message
+        ;; names the series by the columns written, and describes the
+        ;; fix in words where a form would print the invented column.
+        series (into {} (keep (fn [k]
+                                (when-let [t (pivoted-series-title
+                                              (get written k)
+                                              (get-in written [:__scale k]))]
+                                  [k t])))
+                     [:x :y])
+        invented (conj (series-value-columns) default-series-label)
         named (for [k (concat [:x :y] (sort (disj defaults/column-keys :x :y)))
                     :let [v (get written k)]
                     :when (and (some? v)
                                (some? (get resolved k))
-                               (or (#{:x :y} k) (contains? col-set v)))]
-                (str k " " (pr-str v)
+                               (or (#{:x :y} k) (contains? col-set v))
+                               (not (and (seq series) (contains? invented v)
+                                         (not (contains? series k)))))]
+                (str k " " (if-let [t (get series k)]
+                             (str "the series " t)
+                             (pr-str v))
                      (cond (contains? layer-mapping k) ""
                            (contains? leaf-mapping k) " (from the pose)"
                            :else "")))
@@ -4949,6 +4991,11 @@
                   (str "{:x " (pr-str x) " :y ...} in its :mapping"))
                 " -- or name the column in the pose's mapping.")
 
+           (contains? series :x)
+           (str "Name the :y column on the layer, after the series on :x, or"
+                " in the pose's mapping. To draw the series alone, use a layer"
+                " that draws from one column: " (one-column-layer-fns) ".")
+
            :else
            (str "Name the :y column on the layer -- " (lay (pr-str x) ":y-column")
                 " -- or in the pose's mapping. To draw " (pr-str x)
@@ -4956,7 +5003,10 @@
                 (one-column-layer-fns) "."))
          (when (and (nil? x) (nil? y) (nil? (default-mapping d)))
            (str " The data has " (count cols) " columns, so none is read by default."))
-         " Available columns: " cols)))
+         (if (seq series)
+           (str " Available columns besides the series: "
+                (vec (remove invented cols)))
+           (str " Available columns: " cols)))))
 
 (defn- check-layer-columns!
   "Report a layer left without a column its layer type draws from.
