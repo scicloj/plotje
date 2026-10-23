@@ -4091,3 +4091,30 @@
     (testing "groups of two rows or more draw, and are not warned about"
       (is (= "" (out (-> sales (pj/lay-step :week :units {:color :quarter})))))
       (is (= "" (out (-> sales (pj/lay-line :week :units {:color :region}))))))))
+
+(deftest rule-columns-on-a-leaf-are-not-read-for-its-extent-test
+  ;; On a composite pose a rule's columns pick the cell it is drawn in.
+  ;; On a leaf there is no cell to pick: columns the panel does not draw
+  ;; are left out, with a warning, so they do not stretch the axes.
+  (let [mpg (rdatasets/ggplot2-mpg)
+        points (pj/lay-point mpg :displ :hwy)
+        domains (fn [pose] (-> pose pj/plan :panels first (select-keys [:x-domain :y-domain])))
+        base (domains points)]
+    (testing "a rule or a band naming other columns keeps the points' axes, and warns"
+      (doseq [pose [(pj/lay-rule-h points :cty :year {:y-intercept 30})
+                    (pj/lay-band-v points :cty :year {:x-min 3 :x-max 4})]]
+        (let [out (with-out-str (is (= base (domains pose))))]
+          (is (str/includes? out "names :cty on :x and :year on :y, columns the panel does not draw"))
+          (is (not (str/includes? out "Note:"))))))
+    (testing "the panel's own columns, or none, print nothing"
+      (doseq [pose [(pj/lay-rule-h points :displ :hwy {:y-intercept 30})
+                    (pj/lay-rule-h points {:y-intercept 30})]]
+        (is (= "" (with-out-str (is (= base (domains pose))))))))
+    (testing "a pose holding nothing but a rule keeps the rule's columns as its axes"
+      (is (= "" (with-out-str
+                  (is (= base (domains (pj/lay-rule-h mpg :displ :hwy {:y-intercept 30}))))))))
+    (testing "on a composite the rule still picks its cell, silently"
+      (let [comp (-> (pj/arrange [points (pj/lay-point mpg :cty :year)])
+                     (pj/lay-rule-h :cty :year {:y-intercept 2000}))]
+        (is (= "" (with-out-str (pj/plan comp))))
+        (is (= 2 (:panels (pj/svg-summary comp))))))))

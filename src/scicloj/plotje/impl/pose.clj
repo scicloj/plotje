@@ -2219,6 +2219,56 @@
       (assoc leaf :mapping (merge-mappings add m))
       leaf)))
 
+(defn- written-place-layer?
+  "Whether `layer` is a rule or a band -- a mark drawn once, from values
+   written on the layer, which reads no row of the columns it names."
+  [layer]
+  (let [lt (:layer-type layer)]
+    (boolean
+     (resolve/written-position-marks
+      (cond (keyword? lt) (:mark (layer-type/lookup lt))
+            (map? lt) (:mark lt))))))
+
+(defn- rule-columns-not-drawn
+  "For each layer of `leaf`, aligned with `(:layers leaf)`, the axes on
+   which a rule or a band names a column of its own that the panel does
+   not draw -- nil for every other layer, and nil throughout where no
+   layer draws rows.
+
+   On a composite pose a rule's columns pick the cell it is drawn in
+   (`pj/lay-rule-h` and the other three). On a leaf there is no cell to
+   pick, and read as the extent of the rule they stretched the panel's
+   axes to hold columns no layer draws a row of. `leaf->draft` leaves
+   them out of the rule's mapping, so the rule is drawn as one naming
+   no column, and marks the layer for `plan`'s warning. A leaf holding
+   nothing but rules and bands keeps their columns: they are the axes
+   the panel has (`stat/written-extent`)."
+  [leaf]
+  (let [layers (vec (:layers leaf))
+        drawers (remove #(or (written-place-layer? %)
+                             (= :drawing-area (:in (:mapping %))))
+                        layers)]
+    (when (seq drawers)
+      (let [places (cons (position-mapping-key (:mapping leaf))
+                         (keep #(layer-place leaf %) drawers))
+            drawn {:x (set (keep first places))
+                   :y (set (keep second places))}]
+        (mapv (fn [layer]
+                (when (written-place-layer? layer)
+                  (let [own (or (:mapping layer) {})
+                        data (or (:data layer) (:data leaf))
+                        cols (when data
+                               (try (set (tc/column-names (coerce-dataset data)))
+                                    (catch Exception _ nil)))]
+                    (not-empty
+                     (vec (for [axis [:x :y]
+                                :let [src (mapping-source (get own axis))]
+                                :when (and (some? src)
+                                           (contains? cols src)
+                                           (not (contains? (drawn axis) src)))]
+                            axis))))))
+              layers)))))
+
 (defn overlay-labels
   "The column each layer of a panel draws where its layers disagree, as
    a vector aligned with `(:layers leaf)`, or nil where they all draw
@@ -2249,11 +2299,7 @@
         ;; draws no column: it has no label, so it takes no default
         ;; colour and no legend entry, and the axis title is left to the
         ;; layers that draw columns.
-        written-place? (fn [layer]
-                         (let [lt (:layer-type layer)]
-                           (resolve/written-position-marks
-                            (cond (keyword? lt) (:mark (layer-type/lookup lt))
-                                  (map? lt) (:mark lt)))))
+        written-place? written-place-layer?
         ;; A layer placed in the drawing area reads drawing units, not
         ;; a column of the panel's axes, so it names nothing an axis
         ;; title or a legend entry could.
@@ -3232,7 +3278,13 @@
    size can be placed too, and one of them is then drawn flat: a Note
    (`note-columns-of-different-size!`)."
   [leaf]
-  (let [layers (:layers leaf)
+  (let [;; A rule or a band reads no row, and beside layers that do its
+        ;; columns are either the panel's or not read at all
+        ;; (`rule-columns-not-drawn`), so it has nothing to disagree
+        ;; about.
+        layers (let [ls (:layers leaf)
+                     drawers (remove written-place-layer? ls)]
+                 (if (seq drawers) drawers ls))
         caller layer-series-caller
         advice (fn [axis cols]
                  (str " To draw them on separate panels, give each its own pose"
@@ -4989,6 +5041,7 @@
         ;; one palette colour and earns a legend entry -- the same
         ;; route `{:color {:value "Model A" :scale true}}` takes.
         ov-labels    (overlay-labels leaf)
+        rule-unread  (rule-columns-not-drawn leaf)
         ov-colors    (when ov-labels (default-color-layers leaf))
         overlay-legend-titled? (legend-titled? leaf nil :color)
         ;; The order the whole data holds a column's categories in,
@@ -5028,8 +5081,14 @@
      (for [[variant-idx variant] (map-indexed vector variants)
            [layer-idx layer] (map-indexed vector applicable)]
        (let [layer-type-info  (resolve-layer-type-info (:layer-type layer))
+             ;; A rule's or a band's own columns that the panel does not
+             ;; draw -- see `rule-columns-not-drawn`.
+             unread-axes      (nth rule-unread layer-idx nil)
              layer-mapping    (cond-> (report-panel-aesthetic-on-layer
                                        (or (:mapping layer) {}))
+                                unread-axes
+                                (as-> m (apply dissoc m (mapcat (fn [a] [a ({:x :x-type :y :y-type} a)])
+                                                                unread-axes)))
                                 (and (nth ov-colors layer-idx nil)
                                      (nth ov-labels layer-idx nil))
                                 (assoc :color
@@ -5105,6 +5164,10 @@
                          r)))
              (assoc :data d
                     :__panel-idx variant-idx)
+             (cond-> unread-axes
+               (assoc :unread-rule-columns
+                      [(:layer-type layer)
+                       (mapv #(vector % (mapping-source (get (:mapping layer) %))) unread-axes)]))
              (merge (layer-scale-specs resolved))
              (cond->
               coord-type  (assoc :coord coord-type)

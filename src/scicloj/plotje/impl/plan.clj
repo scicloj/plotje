@@ -2442,6 +2442,25 @@
                   " is drawn once, from written values, so :color takes a"
                   " written colour such as \"red\"."))))
 
+(defn- warn-unread-rule-columns
+  "Warn, once per plot, about columns written on a rule or a band of a
+   leaf that the panel does not draw; `pose/leaf->draft` left them out
+   of the layer and marked it with `:unread-rule-columns`."
+  [resolved-all]
+  (doseq [[lt pairs] (distinct (keep :unread-rule-columns resolved-all))
+          :let [mark (if (keyword? lt) (:mark (layer-type/lookup lt)) (:mark lt))
+                noun (if (#{:band-h :band-v} mark) "band" "rule")]]
+    (println (str "Warning: "
+                  (if (keyword? lt) (str "pj/lay-" (name lt)) (str "A " noun " layer"))
+                  " names "
+                  (str/join " and " (map (fn [[axis col]] (str (pr-str col) " on " axis)) pairs))
+                  (if (next pairs) ", columns" ", a column")
+                  " the panel does not draw, so " (if (next pairs) "they are" "it is")
+                  " not read. On a composite pose a " noun "'s columns pick the cell"
+                  " it is drawn in; this pose is not a composite, so the " noun
+                  " is drawn with its other layers. Name the panel's own columns,"
+                  " or none."))))
+
 (defn- warn-undrawn-density-color
   "Warn, once per plot, about a `:color` on a 2D density or a contour.
    The density is computed from all rows together, so the colour
@@ -3499,6 +3518,7 @@
          _ (warn-undrawn-tile-color resolved-all)
          _ (warn-undrawn-density-color resolved-all)
          _ (warn-undrawn-rule-color resolved-all)
+         _ (warn-unread-rule-columns resolved-all)
          _ (warn-conflicting-specs draft-layers)
          _ (validate-axis-spec-agreement resolved-all)
          resolved-all (settle-channel-specs resolved-all)
