@@ -602,6 +602,122 @@ measures
                (re-find #"does not wrap its panels" m)
                (re-find #"pj/arrange poses" m)))])
 
+;; ## Facet or Arrange
+;;
+;; `pj/facet` and `pj/arrange` both draw several panels, and many plots
+;; can be written with either call. Which call fits depends on where the
+;; panels come from. A facet generates its panels from one pose: a panel
+;; for each category of a column, or a panel for each column the facet
+;; names, all drawn from the same data with the same layers. An
+;; arrangement lists its cells, and each cell is a pose of its own, with
+;; its own data, mapping and layers.
+;;
+;; Where both calls can draw a plot, they agree on what its panels show.
+;; Here `:hwy` and `:cty` are drawn against `:displ`, one panel above the
+;; other, first by a facet over the two columns:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/pose {:x :displ})
+    pj/lay-point
+    (pj/facet {:y [:hwy :cty]}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          plan (pj/plan v)
+          x-domains (for [sp (:sub-plots plan)
+                          panel (:panels (:plan sp))]
+                      (:x-domain panel))]
+      (and (= 2 (:panels s))
+           (= 468 (:points s))
+           (apply = x-domains)
+           ;; The shared :x axis is titled once, under the lower panel.
+           (= 1 (count (filter #{"displ"} (:texts s)))))))])
+
+;; and then by an arrangement of two poses, in one column:
+
+(pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+             (pj/lay-point (rdatasets/ggplot2-mpg) :displ :cty)]
+            {:cols 1})
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)
+          domains (fn [pose]
+                    (vec (for [sp (:sub-plots (pj/plan pose))
+                               panel (:panels (:plan sp))]
+                           [(:x-domain panel) (:y-domain panel)])))
+          faceted (-> (rdatasets/ggplot2-mpg)
+                      (pj/pose {:x :displ})
+                      pj/lay-point
+                      (pj/facet {:y [:hwy :cty]}))]
+      (and (= 2 (:panels s))
+           (= 468 (:points s))
+           ;; The same :x and :y domains, panel by panel, as the facet.
+           (= (domains faceted) (domains v))
+           ;; Each cell titles its own :x axis.
+           (= 2 (count (filter #{"displ"} (:texts s)))))))])
+
+;; The two cells share the `:x` axis, because both draw `:displ` from the
+;; same dataset. Each cell is a plot of its own, so each draws its own
+;; `:x` ticks and title, where the facet draws the shared axis once.
+;;
+;; Cells that hold data of their own share no axis. Here three cells
+;; each hold the rows of one kind of drive, and each `:y` axis covers
+;; only its own cell's rows:
+
+(pj/arrange (vec (for [drive ["4" "f" "r"]]
+                   (-> (rdatasets/ggplot2-mpg)
+                       (tc/select-rows #(= drive (:drv %)))
+                       (pj/lay-point :displ :hwy)
+                       (pj/options {:title drive})))))
+
+(kind/test-last
+ [(fn [v]
+    (let [y-domains (for [sp (:sub-plots (pj/plan v))
+                          panel (:panels (:plan sp))]
+                      (:y-domain panel))]
+      (and (= 3 (count y-domains))
+           (= 3 (count (distinct y-domains))))))])
+
+;; A facet over `:drv` divides one dataset, so its three panels share
+;; both axes:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :drv))
+
+(kind/test-last
+ [(fn [v]
+    (let [panels (:panels (pj/plan v))]
+      (and (= 3 (count panels))
+           (apply = (map :y-domain panels))
+           (apply = (map :x-domain panels)))))])
+
+;; `{:share-scales #{:y}}` in the arrangement's options gives the three
+;; cells one `:y` axis, as the Shared Scales section of the Composition
+;; chapter shows.
+
+(kind/test-last
+ [(fn [_]
+    (let [arranged (pj/arrange (vec (for [drive ["4" "f" "r"]]
+                                      (-> (rdatasets/ggplot2-mpg)
+                                          (tc/select-rows #(= drive (:drv %)))
+                                          (pj/lay-point :displ :hwy))))
+                               {:share-scales #{:y}})]
+      (apply = (for [sp (:sub-plots (pj/plan arranged))
+                     panel (:panels (:plan sp))]
+                 (:y-domain panel)))))])
+
+;; So write `pj/facet` when the panels are parts of one plot: one
+;; dataset and the same layers, divided by the categories of a column or
+;; across columns. A facet also reaches every cell of an arrangement it
+;; is written on, as "A composite can be faceted" above shows. Write
+;; `pj/arrange` when the cells are different plots -- different data,
+;; different layers, a dashboard -- or when the layout needs what only a
+;; list of cells can say: a column count, an empty cell written `nil`,
+;; rows of different lengths, or one arrangement placed inside another.
+
 ;; ## Examples
 
 ;; Faceted plots of other kinds, each built from the ideas above.
