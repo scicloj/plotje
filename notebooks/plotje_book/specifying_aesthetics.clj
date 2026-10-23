@@ -41,7 +41,7 @@
 ;; `{:color :species}` is a mapping. What it supplies may differ from
 ;; row to row, or be a single value for the whole layer. A mapping is
 ;; written either on a [pose](./plotje_book.glossary.html#pose), where
-;; every layer of that pose sees it, or in the options map of a single
+;; every layer of that pose sees it, or in the mapping of a single
 ;; [layer](./plotje_book.glossary.html#layer), where only that layer
 ;; does. See [Mapping](./plotje_book.glossary.html#mapping).
 ;;

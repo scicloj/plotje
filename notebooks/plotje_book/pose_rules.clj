@@ -83,8 +83,8 @@
 ;;
 ;; Called with a dataset as first argument, `pj/pose` returns a
 ;; leaf pose. The arity determines what's in `:mapping`: a keyword
-;; is `:x`; two keywords are `:x` and `:y`; an options map
-;; contributes aesthetic keys.
+;; is `:x`; two keywords are `:x` and `:y`; a final map is the
+;; mapping and contributes aesthetic keys.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width))
@@ -546,14 +546,14 @@ composite-pose
 
 ;; **Where the columns are written does not change the rule.** A layer
 ;; names its columns either in the call's argument slots or in its
-;; options map, and identity reads both alike:
+;; mapping, and identity reads both alike:
 ;; `(pj/lay-line pose :sepal-length :petal-width)` and
 ;; `(pj/lay-line pose {:x :sepal-length :y :petal-width})` land on the
 ;; same leaf. A written value is not a column -- it places a mark at
 ;; that value -- and the layer's data decides which of the two a value
 ;; is.
 ;;
-;; Two lines over one `:x`, each naming its own `:y` in an options map,
+;; Two lines over one `:x`, each naming its own `:y` in its mapping,
 ;; therefore draw on one panel, the y axis covering both columns:
 
 (-> {:X [1 2 3 4 5] :Y [1 2 3 4 5] :Z [1 4 9 16 25]}

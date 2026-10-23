@@ -150,7 +150,7 @@
 ;; ---- It is not a text feature ----
 
 (deftest every-layer-type-takes-an-offset
-  (testing ":offset-x is a universal layer option, not one mark's parameter"
+  (testing ":offset-x is a layer setting every layer type accepts, not one mark's parameter"
     ;; Behaviourally, not by reading a list: each layer type is built with
     ;; an offset and the plan layer has to come back carrying it.
     (doseq [t [:point :line :step :area :text :label]]

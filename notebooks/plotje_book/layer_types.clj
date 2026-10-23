@@ -59,7 +59,7 @@
 ;; ## Layer Types
 ;;
 ;; Each row is a registered layer type showing its mark, stat, position,
-;; and the layer options it presets. Two layer types can share a mark and
+;; and the layer settings it presets. Two layer types can share a mark and
 ;; differ only by one of the other three columns: `:histogram` is the
 ;; `:bar` mark with a binning stat, and `:label` is the `:text` mark with
 ;; a background box preset.
@@ -140,7 +140,7 @@
 ;; multiple sub-bars per category. So a colored
 ;; `(pj/lay-bar :species {:color :group})` produces dodged bars
 ;; even though the table shows `:identity` for `:bar`. To force a
-;; different layout, pass `:position` explicitly in the layer options.
+;; different layout, write `:position` in the layer's mapping.
 
 ;; ## Marks
 ;;
@@ -196,55 +196,55 @@
  [(fn [t]
     (pos? (count (:row-maps t))))])
 
-;; You can override the default position by passing `:position` in
-;; the layer options.
+;; You can override the default position by writing `:position` in
+;; the layer's mapping.
 ;; When multiple layers share `:position :dodge`, they are coordinated
 ;; together -- error bars automatically align with bars.
 
-;; ## Layer Options
+;; ## A Layer's Mapping
 ;;
-;; The options map passed to `lay-` functions controls aesthetics,
-;; statistical parameters, and spatial adjustments for that layer.
+;; The mapping passed to a `pj/lay-*` function takes that layer's
+;; aesthetics and its layer settings: statistical parameters, the
+;; position adjustment, the layer's own data.
 ;;
-;; ### Universal options
-;;
-;; Accepted by every layer type:
+;; ### Keys every layer type accepts
 
 (kind/table
- {:column-names ["Option" "Description"]
+ {:column-names ["Key" "Description"]
   :row-maps
   (for [k layer-type/universal-layer-options]
-    {"Option" (kind/code (pr-str k))
+    {"Key" (kind/code (pr-str k))
      "Description" (get layer-type/layer-option-docs k)})})
 
 (kind/test-last
  [(fn [t] (pos? (count (:row-maps t))))])
 
-;; ### Layer-type-specific options
+;; ### Layer-type-specific keys
 ;;
-;; Some layer types accept additional keys beyond the universal set.
-;; Layer types not listed here accept only the universal options above.
+;; Some layer types accept additional keys beyond the keys every layer
+;; type accepts. Layer types not listed here accept only the keys in
+;; the table above.
 
 (kind/table
- {:column-names ["Layer type" "Additional options"]
+ {:column-names ["Layer type" "Additional keys"]
   :row-maps
   (for [k layer-type/layer-type-order
         :let [m (layer-type/lookup k)
               accepts (:accepts m)]
         :when (seq accepts)]
     {"Layer type" (kind/code (pr-str k))
-     "Additional options" accepts})})
+     "Additional keys" accepts})})
 
 (kind/test-last
  [(fn [t] (pos? (count (:row-maps t))))])
 
-;; ### All layer option keys
+;; ### All keys of a layer's mapping
 
 (kind/table
- {:column-names ["Option" "Description"]
+ {:column-names ["Key" "Description"]
   :row-maps
   (for [[k desc] (sort-by key layer-type/layer-option-docs)]
-    {"Option" (kind/code (pr-str k))
+    {"Key" (kind/code (pr-str k))
      "Description" desc})})
 
 (kind/test-last
@@ -260,4 +260,4 @@
 ;;
 ;; - [**Relationships**](./plotje_book.relationships.html) -- see point, line, and regression layer types in action
 ;; - [**Distributions**](./plotje_book.distributions.html) -- histograms, density, boxplots, violins
-;; - [**Customization**](./plotje_book.customization.html) -- colors, palettes, themes, and per-layer options
+;; - [**Customization**](./plotje_book.customization.html) -- colors, palettes, themes, and per-layer styling

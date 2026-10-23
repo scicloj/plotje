@@ -342,9 +342,9 @@ graph LR
 ;; x and a y column, `#{1 2}` for either. It is listed per layer type in
 ;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from),
 ;; and `:x-only true` is the older way to write `#{1}`. `:accepts` lists
-;; the layer options it takes beyond the universal ones, tabulated per
-;; layer type in
-;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options).
+;; the keys its mapping takes beyond the keys every layer type accepts,
+;; tabulated per layer type in
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-keys).
 ;; `:varies` names the appearance aesthetics its mark varies from row
 ;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. A
 ;; aesthetic left out of `:varies` is one the mark draws once for the

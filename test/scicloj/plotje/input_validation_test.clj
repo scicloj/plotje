@@ -152,7 +152,7 @@
   (testing "(pj/pose data x y :not-a-map) throws with helpful message"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the last argument"
+         #"a mapping as the last argument"
          (pj/pose [{:a 1 :b 2}] :a :b :c))))
 
   (testing "(pj/pose data x y nil) is accepted as no-opts"
@@ -184,19 +184,19 @@
   (testing "(pj/lay-point ds :x :y <vector>) throws with helpful message"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the last argument"
+         #"a mapping as the last argument"
          (pj/lay-point tiny :x :y [:not :a :map]))))
 
   (testing "(pj/lay-point ds :x :y 42) throws"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the last argument"
+         #"a mapping as the last argument"
          (pj/lay-point tiny :x :y 42))))
 
   (testing "(pj/lay-line ds :x :y :not-a-map) throws"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"opts map as the last argument"
+         #"a mapping as the last argument"
          (pj/lay-line tiny :x :y :foo))))
 
   (testing "(pj/lay-point ds :x :y nil) is accepted as no-opts"
@@ -511,7 +511,7 @@
 
 (deftest a-number-position-is-resolved-by-the-data-test
   ;; A number in an `:x` or `:y` mapping used to be refused everywhere
-  ;; except a layer's options map, on the reasoning that the check runs
+  ;; except a layer's mapping, on the reasoning that the check runs
   ;; before the data is available and cannot tell a column name from a
   ;; place. The source question is answered at draft time for every
   ;; other mapping, so it is answered there for these too, and the rule
@@ -524,7 +524,7 @@
       (doseq [[label p] [["pose map"        (-> (pj/pose ints {:x 0 :y 1}) pj/lay-point)]
                          ["pose 3-arity"    (-> (pj/pose ints 0 1) pj/lay-point)]
                          ["lay-* positional" (pj/lay-point ints 0 1)]
-                         ["lay-* opts map"  (pj/lay-point ints {:x 0 :y 1})]
+                         ["lay-* mapping"  (pj/lay-point ints {:x 0 :y 1})]
                          ["lay-* 4-arity"   (pj/lay-point ints 0 1 {})]
                          ["x-only arity"    (pj/lay-histogram ints 0)]]]
         (is (= [0.9 3.1] (x-dom p)) label)))
@@ -1031,8 +1031,8 @@
         (let [v (resolve (symbol "scicloj.plotje.api" (str "lay-" (name k))))
               doc (:doc (meta v))]
           (is (some? v) (str "missing pj/lay-" (name k)))
-          (is (re-find #"Accepted options:" doc)
-              (str "pj/lay-" (name k) " docstring lacks Accepted options block")))))
+          (is (re-find #"The mapping accepts:" doc)
+              (str "pj/lay-" (name k) " docstring lacks its accepted-keys block")))))
 
     (testing "annotation rejects (:position :group :x-type :y-type :color-type) are filtered out for lay-rule-h"
       (let [doc (:doc (meta #'pj/lay-rule-h))]
@@ -1046,9 +1046,9 @@
       ;; prose above it names `:bins` too, so matching the docstring
       ;; would pass even if the block dropped the option. The closing
       ;; backtick is what keeps `:bins` from matching `:binwidth`.
-      (let [block (second (re-find #"(?s)(Accepted options:.*)\z"
+      (let [block (second (re-find #"(?s)(The mapping accepts:.*)\z"
                                    (:doc (meta #'pj/lay-histogram))))]
-        (is (some? block) "lay-histogram docstring lacks an Accepted options block")
+        (is (some? block) "lay-histogram docstring lacks its accepted-keys block")
         (is (re-find #"`:bins`" block))))))
 
 (deftest the-anchor-options-belong-to-text-alone
@@ -1057,7 +1057,7 @@
     ;; that are text-specific. Nothing else pinned that.
     (let [out (with-out-str
                 (pj/lay-point {:x [1 2] :y [3 4]} :x :y {:align-x :right}))]
-      (is (re-find #"lay-point does not recognize option\(s\): \[:align-x\]" out))
+      (is (re-find #"pj/lay-point does not recognize \[:align-x\]" out))
       (is (re-find #"\[:label :text\]" out)))
     (is (nil? (->> (pj/plan (pj/lay-point {:x [1 2] :y [3 4]} :x :y
                                           {:align-x :right}))
@@ -1072,14 +1072,14 @@
   ((juxt :x-label :y-label) (pj/plan pose)))
 
 (deftest an-options-map-carrying-the-mapping-skips-inference
-  (testing "a mapping given in the options map is honored on 4+ columns"
-    ;; The guard used to run before the options map was applied, so it
+  (testing "a mapping given in the final map is honored on 4+ columns"
+    ;; The guard used to run before the final map was applied, so it
     ;; refused the mapping it was asking for, on data too wide to guess.
     (is (= ["t" "a"] (axis-labels (pj/lay-point four-columns {:x :t :y :a}))))
     (is (= ["a" nil] (axis-labels (pj/lay-histogram four-columns {:x :a})))
         "an x-only layer type needs only :x to count as mapped"))
 
-  (testing "an options map naming no column leaves the layer without one"
+  (testing "a mapping naming no column leaves the layer without one"
     (doseq [opts [{} {:size 5}]]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo

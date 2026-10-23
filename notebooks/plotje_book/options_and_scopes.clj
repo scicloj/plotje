@@ -3,11 +3,11 @@
 ;; Plotje has three kinds of values you set, each answering
 ;; a different question:
 ;;
-;; - **Layer options** -- *how is this layer shown?* Its
-;;   aesthetics (`:color`, `:size`), its layer-type parameters
-;;   (`:bandwidth`, `:bins`), its data, its grouping and
-;;   position. Per-layer by nature, but scopable up to apply
-;;   across multiple layers.
+;; - **Mappings** -- *how is this layer shown?* Its aesthetics
+;;   (`:color`, `:size`, `:group`), and its **layer settings**: the
+;;   parameters of its layer type (`:bandwidth`, `:bins`), its data,
+;;   its position adjustment. A mapping belongs to one layer, and its
+;;   aesthetics can be written on the pose to reach every layer.
 ;; - **Plot options** -- *what describes this plot as a whole?*
 ;;   Its title and labels, its axis scales, its coordinate
 ;;   system, its facets. Per-plot by nature; there is one of each
@@ -48,28 +48,33 @@
   [pose]
   (kind/pprint (strip-data pose)))
 
-;; ## Layer Options
+;; ## Mappings
 ;;
-;; Layer options describe a specific layer. They include:
+;; The final argument of a `pj/lay-*` function is a map, the layer's
+;; **mapping**. A layer's mapping describes that layer, and it takes
+;; two kinds of key.
 ;;
-;; - **The layer type** -- the rendering recipe: a mark (point, line,
-;;   bar, histogram, ...), a stat (identity, linear-model, density,
-;;   binning, ...), and a position adjustment (dodge, stack,
-;;   jitter). The layer type is chosen by which `pj/lay-*` function
-;;   you call; its constituents can be overridden via `:mark`,
-;;   `:stat`, and `:position` keys in the options map.
-;; - **Layer-type parameters** -- settings specific to the layer type,
+;; **Aesthetics** say how the layer maps data to visuals: `:color`,
+;; `:size`, `:alpha`, `:shape`, `:group`, plus mark-specific keys like
+;; `:text` and `:fill`. An aesthetic is either mapped from a column
+;; (`:color :species`) or given as a constant (`:alpha 0.3`).
+;;
+;; **Layer settings** are the other keys of a layer's mapping. A layer
+;; setting says how the layer is computed or drawn:
+;;
+;; - **The parts of the layer type** -- the rendering recipe is a mark
+;;   (point, line, bar, ...), a stat (identity, linear-model, density,
+;;   binning, ...), and a position adjustment (dodge, stack, fill).
+;;   The layer type is chosen by which `pj/lay-*` function you call,
+;;   and the `:mark`, `:stat`, and `:position` keys override its
+;;   parts.
+;; - **Layer-type parameters** -- keys specific to one layer type,
 ;;   like `:bandwidth` for `pj/lay-density` or `:bins` for
 ;;   `pj/lay-histogram`.
-;; - **Aesthetics** -- how the layer maps data to visuals:
-;;   `:color`, `:size`, `:alpha`, `:shape`, `:group`, plus
-;;   mark-specific keys like `:text` and `:fill`. Either mapped
-;;   from a column (`:color :species`) or given as a constant
-;;   (`:alpha 0.3`).
 ;; - **Data** -- a per-layer `:data` key, if the layer should
 ;;   use a different dataset from the rest of the pose.
 ;;
-;; The primary way to set them is in the options map of `pj/lay-*`:
+;; An aesthetic written in the mapping of `pj/lay-*`:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)
@@ -88,12 +93,13 @@
  [(fn [m]
     (= :species (get-in m [:layers 0 :mapping :color])))])
 
-;; ### Scope: generalizing layer options upward
+;; ### Scope: writing an aesthetic for several layers
 ;;
-;; Layer-type parameters, aesthetics, and per-layer data can also
-;; be set at wider **scopes** when they should apply to more than
-;; one layer. For a single-panel plot the scope hierarchy has two
-;; levels, from narrow to broad:
+;; An aesthetic can also be written at a wider **scope** when it
+;; should apply to more than one layer: `pj/pose` takes a mapping
+;; too, and a pose's mapping takes aesthetics. A layer setting is
+;; written on its own layer. For a single-panel plot the scope
+;; hierarchy has two levels, from narrow to broad:
 ;;
 ;; | Scope  | Set via              | Reaches                    |
 ;; |:-------|:---------------------|:---------------------------|
@@ -110,7 +116,7 @@
 ;; The layer type itself is chosen per layer -- you pick which
 ;; `pj/lay-*` to call. [Core Concepts](./plotje_book.core_concepts.html#scope)
 ;; teaches how layer placement interacts with pose mappings, and
-;; the detailed combination rules for each category of layer option.
+;; the detailed combination rules for each kind of aesthetic.
 
 ;; ## Plot Options
 ;;
@@ -195,17 +201,17 @@
 ;; from one pose, so they share it.
 ;;
 ;; Other chapters call these values *plot-level options*. *Plot-level*
-;; here names a category, while *pose-level* (used for layer options)
+;; here names a category, while *pose-level* (used for mappings)
 ;; names a place in a scope hierarchy -- the shared word "level"
 ;; refers to different things. Putting a plot option inside a
-;; `pj/lay-*` options map -- for example `{:title "Growth"}` -- is a
+;; `pj/lay-*` mapping -- for example `{:title "Growth"}` -- is a
 ;; category mistake: plot options belong in `:opts` via their
 ;; dedicated functions above.
 ;;
 ;; A scale is not a plot option at all. `pj/scale` writes the
 ;; mapping the scale reads, so neither `{:x-scale {:type :log}}`
-;; nor any other `*-scale` key belongs in an options map, at
-;; either level. Write `(pj/scale pose :x :log)`, or say it in the
+;; nor any other `*-scale` key belongs in `pj/options` or in a
+;; mapping. Write `(pj/scale pose :x :log)`, or say it in the
 ;; mapping as `{:x {:column :year :scale :log}}`.
 
 ;; ## Configuration
@@ -253,7 +259,7 @@
 (def demo
   (-> (rdatasets/datasets-iris)
       (pj/pose :sepal-length :sepal-width)
-      ;; layer option: a layer-scope color mapping
+      ;; mapping: a color aesthetic at layer scope
       (pj/lay-point {:color :species})
       ;; plot options: stored in :opts
       (pj/options {:title "Iris measurements"})
@@ -295,8 +301,8 @@ demo
 ;;
 ;; | ggplot2 construct                            | Plotje category       |
 ;; |:---------------------------------------------|:----------------------------|
-;; | `geom_*(aes(...))`                           | layer option (layer scope)  |
-;; | `ggplot(aes(...))`                           | layer option (pose scope)  |
+;; | `geom_*(aes(...))`                           | a layer's mapping           |
+;; | `ggplot(aes(...))`                           | a pose's mapping            |
 ;; | `+ geom_*()`                                 | a layer                     |
 ;; | `+ scale_*()`, `+ coord_*()`, `+ facet_*()`  | plot option                 |
 ;; | `+ labs(...)`, one-off `+ theme(...)`        | plot option                 |
@@ -313,7 +319,7 @@ demo
 ;; ## See Also
 ;;
 ;; - [Core Concepts](./plotje_book.core_concepts.html) --
-;;   the scope hierarchy for layer options in full.
+;;   the scope hierarchy for mappings in full.
 ;; - [Pose Rules](./plotje_book.pose_rules.html) --
 ;;   precise rules for each pose-world function: `pj/pose`,
 ;;   `pj/lay-*`, `pj/arrange`, `pj/options`, `pj/scale`, `pj/coord`,
@@ -321,4 +327,4 @@ demo
 ;; - [Configuration](./plotje_book.configuration.html) --
 ;;   the four configuration sources and every configuration key.
 ;; - [Glossary](./plotje_book.glossary.html) -- definitions
-;;   of layer option, plot option, and configuration.
+;;   of mapping, layer setting, plot option, and configuration.

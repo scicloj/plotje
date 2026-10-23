@@ -10,7 +10,7 @@
 ;; ---- Registry ----
 
 (def universal-layer-options
-  "Layer options accepted by all layer types. :x and :y are included so a
+  "Keys the mapping of every layer type accepts. :x and :y are included so a
    layer can override the pose's position mapping (an overlay-like
    pattern); the four-level merge in pose/leaf->draft already honors
    layer-level x/y, this list keeps build-layer's unknown-option
@@ -42,7 +42,8 @@
   #{:data :drawing-area})
 
 (def layer-option-docs
-  "Documentation for layer option keys. Maps key to description string."
+  "Documentation for the keys of a layer's mapping -- aesthetics and
+   layer settings alike. Maps key to description string."
   {:x "Column keyword or string naming the column drawn along the x axis, or a value to draw at that x. A value beside a column :y broadcasts over the layer's data; values for both :x and :y draw one mark"
    :y "Column keyword or string naming the column drawn along the y axis, or a value to draw at that y. The same two shapes as :x"
    :data "Dataset or plain data for this layer alone, overriding the pose's"
@@ -173,7 +174,7 @@
    :mark, :stat, and optionally :position and :doc.
    Position defaults to nil (identity) -- only :dodge, :stack, :fill are explicit.
 
-   :defaults is an optional map of layer-option values the layer type
+   :defaults is an optional map of layer settings the layer type
    presets -- how one layer type differs from another that shares its mark
    by the options it starts with rather than by what it draws. `:label` is
    `:text` with `{:box true}`. Options passed at the call site win over

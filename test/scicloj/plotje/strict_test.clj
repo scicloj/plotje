@@ -13,7 +13,7 @@
           fr (binding [*out* out]
                (-> tiny (pj/lay-point :x :y {:colour :a})))]
       (is (pj/pose? fr))
-      (is (re-find #"does not recognize option" (str out)))
+      (is (re-find #"does not recognize \[" (str out)))
       (is (not (contains? (-> fr :layers first :mapping) :colour))
           ":colour is stripped, not stored on the layer"))))
 
@@ -22,21 +22,21 @@
     (pj/with-config {:strict true}
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"does not recognize option"
+           #"does not recognize \["
            (-> tiny (pj/lay-point :x :y {:colour :a}))))))
 
   (testing ":strict true throws on unknown pj/options key"
     (pj/with-config {:strict true}
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"does not recognize option"
+           #"does not recognize \["
            (-> tiny (pj/lay-point :x :y) (pj/options {:scale-x :log}))))))
 
   (testing ":strict true throws on unknown pj/pose aesthetic key"
     (pj/with-config {:strict true}
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"does not recognize option"
+           #"does not recognize \["
            (-> tiny (pj/pose {:colour :a}))))))
 
   (testing ":strict true throws when a categorical :break names no category"
@@ -62,7 +62,7 @@
       (defaults/set-config! {:strict true})
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"does not recognize option"
+           #"does not recognize \["
            (-> tiny (pj/lay-point :x :y {:colour :a}))))
       (finally (defaults/set-config! nil)))))
 

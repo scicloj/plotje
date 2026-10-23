@@ -89,7 +89,7 @@ scatter-pose
 ;; | What is inferred | Default | Override |
 ;; |:-----------------|:--------|:---------|
 ;; | Column selection | one column fills x; two fill x, y; three fill x, y, color | explicit column args in `pj/pose` or `pj/lay-*` |
-;; | Column type | dtype inspection | `:x-type`, `:y-type`, `:color-type` in pose or layer options |
+;; | Column type | dtype inspection | `:x-type`, `:y-type`, `:color-type` in a pose's or a layer's mapping |
 ;; | Aesthetic classification | the data decides: a name it carries is a column, anything else is a value | `{:color {:column "red"}}` / `{:color {:value "red"}}` |
 ;; | Grouping | categorical color column | `:group` aesthetic |
 ;; | Layer type (mark + stat) | column types (see Layer Type section) | `pj/lay-point`, `pj/lay-histogram`, etc. |
@@ -357,8 +357,8 @@ temporal-pose
 ;; Sometimes a numeric column is really categorical -- for example,
 ;; hours of the day, years, or subject IDs. Inference treats a column
 ;; of numbers as numerical, but you may want discrete categorical
-;; bands. Pass `:x-type :categorical` (or `:y-type`) to the pose or
-;; layer options to override:
+;; bands. Write `:x-type :categorical` (or `:y-type`) in the pose's or
+;; the layer's mapping to override:
 
 (def hour-bar-pose
   (-> {:hour [9 10 11 12] :count [5 8 12 7]}

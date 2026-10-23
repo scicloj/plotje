@@ -2682,7 +2682,7 @@
                 (-> {:a [1 2 3] :b [4 5 6] :c [7 8 9] :d [10 11 12]}
                     (pj/pose :a :b)
                     (pj/lay-point {:x :c :y :d})))]
-      (is (not (re-find #"does not recognize option" out))))))
+      (is (not (re-find #"does not recognize \[" out))))))
 
 (deftest plot-level-keys-stripped-from-wrong-scope-test
   ;; persona-skeptical-round-6 F1/F5/F6: plot-level keys like
@@ -2837,18 +2837,18 @@
 
   (testing "lay-rule-h/v 1-arity throws helpful error pointing at the required intercept opt"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"requires an opts map with :y-intercept"
+                          #"requires a mapping with :y-intercept"
                           (pj/lay-rule-h (pj/pose))))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"requires an opts map with :x-intercept"
+                          #"requires a mapping with :x-intercept"
                           (pj/lay-rule-v (pj/pose)))))
 
   (testing "lay-band-h/v 1-arity throws helpful error pointing at min/max opts"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"requires an opts map with :y-min and :y-max"
+                          #"requires a mapping with :y-min and :y-max"
                           (pj/lay-band-h (pj/pose))))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"requires an opts map with :x-min and :x-max"
+                          #"requires a mapping with :x-min and :x-max"
                           (pj/lay-band-v (pj/pose)))))
 
   (testing "lay-* with unknown :position throws (parallel to :mark/:stat validation)"
@@ -3214,16 +3214,16 @@
   (let [data {:x [1 2 3] :y [10 20 30]}]
     (testing "pj/pose (position + opts) warns on unknown option key"
       (let [out (with-out-str (-> data (pj/pose :x :y {:colour :y}) pj/lay-point))]
-        (is (re-find #"Warning: pj/pose does not recognize option" out))
+        (is (re-find #"Warning: pj/pose does not recognize \[" out))
         (is (re-find #":colour" out))))
 
     (testing "pj/pose (aesthetic-only opts) warns on unknown option key"
       (let [out (with-out-str (pj/pose data {:colour :y}))]
-        (is (re-find #"Warning: pj/pose does not recognize option" out))))
+        (is (re-find #"Warning: pj/pose does not recognize \[" out))))
 
     (testing "pj/options warns on unknown option key"
       (let [out (with-out-str (-> data (pj/lay-point :x :y) (pj/options {:titel "Hi"})))]
-        (is (re-find #"Warning: pj/options does not recognize option" out))
+        (is (re-find #"Warning: pj/options does not recognize \[" out))
         (is (re-find #":titel" out))))
 
     (testing "a retired configuration key is reported like any other"
@@ -3233,7 +3233,7 @@
       ;; rule takes `:stroke-dash` on its layer.
       (let [out (with-out-str (-> data (pj/lay-point :x :y)
                                   (pj/options {:annotation-dash :dashed})))]
-        (is (re-find #"Warning: pj/options does not recognize option" out))
+        (is (re-find #"Warning: pj/options does not recognize \[" out))
         (is (re-find #":annotation-dash" out)))
       ;; The two keys beside it are live, and stay quiet.
       (is (= "" (with-out-str (-> data (pj/lay-point :x :y)
@@ -3976,10 +3976,10 @@
   ;; the x axis stretched to 7 with no warning, and the rule drew at 2.
   (let [pose (pj/lay-point {:x [1 2 3] :y [1 2 3]} :x :y)]
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"lay-rule-v was given 7 before its options map.*\{:x-intercept \.\.\.\}"
+                          #"lay-rule-v was given 7 before its mapping.*\{:x-intercept \.\.\.\}"
                           (pj/lay-rule-v pose 7 {:x-intercept 2})))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"lay-band-h was given 1 before its options map"
+                          #"lay-band-h was given 1 before its mapping"
                           (pj/lay-band-h pose 1 2 {:y-min 1 :y-max 2})))
     ;; Columns there still pick the panel, a number naming a column
     ;; included, and a pose with no data yet cannot be checked.

@@ -140,12 +140,12 @@
 ;; that apply to text alone. Passing one to `pj/lay-point` prints a
 ;; warning that names the layer types accepting it, and the option is
 ;; dropped. (`:fit-text-domain`, further down, is also about text, but it
-;; is a plot option rather than a layer option.)
+;; is a plot option rather than a layer setting.)
 
 ;; ## Shifting a mark by a distance on the page
 ;;
 ;; Anchoring places one edge of the label exactly on the point, so a
-;; point drawn with a radius still overlaps it. Two layer options move a
+;; point drawn with a radius still overlaps it. Two layer settings move a
 ;; mark off the coordinates it was given.
 ;;
 ;; `:dx` and `:dy` shift a mark in the axis's own units. The amount is
@@ -443,7 +443,7 @@ cars
 
 ;; ## Placing a mark on the panel instead of in the data
 ;;
-;; The layer option `:in` names the space a layer's `:x` and `:y` are in:
+;; The layer setting `:in` names the space a layer's `:x` and `:y` are in:
 ;; `:data` by default, or `:drawing-area`, which measures drawing units
 ;; from the top left of the panel background. A `:drawing-area` layer is
 ;; placed on the panel rather than in the data, so the axis domains are

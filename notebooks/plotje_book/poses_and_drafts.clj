@@ -198,7 +198,7 @@ jittered-pose
 ;;
 ;; The pose's own `:mapping` is empty. A `lay-*` call keeps the columns
 ;; it names on its layer, whether they are written as arguments or in
-;; the options map; columns written with `pj/pose` go on the pose's
+;; the layer's mapping; columns written with `pj/pose` go on the pose's
 ;; mapping and reach every layer that names none of its own:
 
 (:mapping jittered-pose)

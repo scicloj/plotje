@@ -109,6 +109,6 @@
       (is (contains? defaults/panel-aesthetic-docs k)
           (str k " has no entry in panel-aesthetic-docs"))
       (is (not (contains? layer-type/layer-option-docs k))
-          (str k " is documented as a layer option, which no lay-* accepts")))
+          (str k " is documented as a key of a layer's mapping, which no lay-* accepts")))
     (is (= defaults/panel-aesthetics (set (keys defaults/panel-aesthetic-docs)))
         "panel-aesthetic-docs describes exactly the panel aesthetics")))

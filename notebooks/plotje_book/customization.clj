@@ -864,7 +864,7 @@
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping and aesthetic vocabulary used throughout this chapter
 ;; - [**Scales**](./plotje_book.scales.html) -- types, domains, ranges, and the scale spec each aesthetic reads
-;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- where layer options, plot options, and configuration live
+;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) -- where mappings, plot options, and configuration live
 ;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes: anchoring, offsets, values for `:x` and `:y`, and `pj/frames`
 ;; - [**Interactivity**](./plotje_book.interactivity.html) -- tooltips and brush selection
 

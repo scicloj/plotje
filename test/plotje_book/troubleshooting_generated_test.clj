@@ -243,8 +243,7 @@
 (deftest
  t45_l283
  (is
-  ((fn [out] (re-find #"does not recognize option.*:scale-y" out))
-   v44_l278)))
+  ((fn [out] (re-find #"does not recognize.*:scale-y" out)) v44_l278)))
 
 
 (def

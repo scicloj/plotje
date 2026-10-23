@@ -204,7 +204,7 @@
          (pj/lay-text scatter {:in :moon :x 1 :y 2 :text "no"})))))
 
 (deftest the-space-is-documented
-  (testing ":in appears in the public layer option docs"
+  (testing ":in appears in pj/layer-option-docs"
     (is (contains? pj/layer-option-docs :in))))
 
 ;; ---- A panel where nothing informs a domain ----

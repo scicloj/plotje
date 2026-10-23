@@ -716,7 +716,7 @@ dashboard
 
 ;; ## Drawing Layers with Different Data
 ;;
-;; A layer can carry its own `:data` via the layer options map.
+;; A layer can carry its own `:data`, written in the layer's mapping.
 ;; This is how reference lines, predictions drawn over the data, and
 ;; small annotation datasets attach to a plot. The layer reads the
 ;; columns it names from its own data, and the columns it leaves to the
@@ -934,7 +934,7 @@ dashboard
 ;; ## What's Next
 ;;
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) --
-;;   the taxonomy of layer options, plot options, and configuration
+;;   the taxonomy of mappings, plot options, and configuration
 ;;   (next chapter in Foundations)
 ;; - [**Faceting**](./plotje_book.faceting.html) -- panel splits by
 ;;   a categorical column (a data-driven composite, covered in How-to)

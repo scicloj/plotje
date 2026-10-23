@@ -1059,7 +1059,7 @@
    Keyword -> registry lookup (throws on unknown). Map -> pass through.
    :infer -> sentinel.
 
-   A layer type's `:defaults` come along as ordinary layer options, which
+   A layer type's `:defaults` come along as ordinary layer settings, which
    is how two layer types sharing one mark differ -- `:label` is `:text`
    with `{:box true}`. The caller's own options are merged over this map
    (see the resolved layer below), so an explicit `{:box false}` wins."

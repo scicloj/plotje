@@ -79,7 +79,8 @@
 ;; The panel aesthetics `:col` and `:row` give each value of a column
 ;; a panel of its own, told apart by a strip label -- where `:color`
 ;; tells the marks apart by colour on one panel. They are documented
-;; here, where they are written, rather than beside the layer options,
+;; here, where they are written, rather than beside the keys of a
+;; layer's mapping,
 ;; because no `pj/lay-*` call accepts one.
 
 (kind/table
@@ -466,7 +467,7 @@ measures
 
 ;; A facet divides every layer of the pose alike, and a panel aesthetic
 ;; is read from a pose's mapping and not from a layer's, so a panel
-;; aesthetic belongs on the pose. Written in a `pj/lay-*` options map
+;; aesthetic belongs on the pose. Written in a `pj/lay-*` mapping
 ;; it is reported, and the report names the places to write it
 ;; instead.
 

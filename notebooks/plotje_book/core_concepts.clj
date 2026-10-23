@@ -278,7 +278,7 @@ two-panel
 
 ;; ### Layer-level data
 ;;
-;; Pass `:data` in the options map of `pj/lay-*` to give that layer its
+;; Write `:data` in the mapping of `pj/lay-*` to give that layer its
 ;; own dataset:
 
 (def setosa
@@ -777,7 +777,7 @@ scatter-with-regression
 
 ;; Reference lines and shaded bands are themselves layers, added with
 ;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v`.
-;; Where each one draws comes from the options map (`:y-intercept` /
+;; Where each one draws comes from its mapping (`:y-intercept` /
 ;; `:x-intercept` for rules; `:y-min`/`:y-max` or `:x-min`/`:x-max` for
 ;; bands); appearance
 ;; aesthetics like `:color` and `:alpha` work the same way they do on

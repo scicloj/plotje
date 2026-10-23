@@ -212,7 +212,7 @@
       demands that the column exist.
 
    2. **Where the mapping is written decides what a number in `:x` or
-      `:y` means.** In a layer's options map it places a mark, either
+      `:y` means.** In a layer's mapping it places a mark, either
       as one mark or broadcast over the layer's data. In `pj/pose`, or
       in the `:x` / `:y` arguments of a `lay-*` call,
       `api/check-position-mapping` refuses it, so an integer column

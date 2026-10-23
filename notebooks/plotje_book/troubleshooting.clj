@@ -265,7 +265,7 @@
 ;;
 ;; **Symptom**: Passing `{:scale-x :log}` (or `{:scale-y :log}`)
 ;; to a layer or to `pj/options` prints a warning --
-;; `"does not recognize option(s): [:scale-x]"` -- and the chart
+;; `"does not recognize [:scale-x]"` -- and the chart
 ;; comes out on a linear axis.
 ;;
 ;; **Cause**: `:scale-x` and `:scale-y` are not option keys at all. A
@@ -281,7 +281,7 @@
       pj/plan))
 
 (kind/test-last
- [(fn [out] (re-find #"does not recognize option.*:scale-y" out))])
+ [(fn [out] (re-find #"does not recognize.*:scale-y" out))])
 
 ;; **Fix**: Use `pj/scale`:
 
@@ -427,12 +427,12 @@
  [(fn [v] (and (= 150 (:points (pj/svg-summary v)))
                (re-find #"data-tooltip" (str (pj/plot v)))))])
 
-;; ## Faceting Keys in a Layer's Options Map
+;; ## Faceting Keys in a Layer's Mapping
 ;;
 ;; **Symptom**: An error naming the panel aesthetic that was written
-;; in a layer's options map, when you put `:col`, `:row`, or one of
+;; in a layer's mapping, when you put `:col`, `:row`, or one of
 ;; the older `:facet-col`, `:facet-row`, `:facet-x`, `:facet-y`
-;; spellings inside a `pj/lay-*` options map.
+;; spellings inside a `pj/lay-*` mapping.
 ;;
 ;; **Cause**: `:col` and `:row` are panel aesthetics, and a panel
 ;; aesthetic is read from a pose's mapping and not from a layer's. A
@@ -883,14 +883,14 @@
 (kind/test-last
  [(fn [v] (= 1 (:lines (pj/svg-summary v))))])
 
-;; ## A Layer Option From an Earlier Release
+;; ## A Layer Setting From an Earlier Release
 ;;
-;; **Symptom**: A layer option that used to shift a mark prints a
+;; **Symptom**: A layer setting that used to shift a mark prints a
 ;; warning naming a different key, and the plot draws as it always
 ;; did.
 ;;
-;; **Cause**: The option was renamed. `:nudge-x` and `:nudge-y` are
-;; `:dx` and `:dy`. A retired layer option is not handled the way the
+;; **Cause**: The layer setting was renamed. `:nudge-x` and `:nudge-y` are
+;; `:dx` and `:dy`. A retired layer setting is not handled the way the
 ;; retired configuration key above is: dropping a shift would move a
 ;; label back onto the mark it was written to clear, so the old name is
 ;; read as the new one and the warning names the edit. The warning is

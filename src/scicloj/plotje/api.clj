@@ -132,7 +132,8 @@
   defaults/plot-option-docs)
 
 (def layer-option-docs
-  "Documentation for layer option keys accepted by lay- functions.
+  "Documentation for the keys a `pj/lay-*` mapping accepts: aesthetics
+   and layer settings such as `:stat`, `:bins` and `:position`.
    Maps each key to a description string."
   layer-type/layer-option-docs)
 
@@ -851,12 +852,12 @@
   {:scale-x "pj/scale" :scale-y "pj/scale"})
 
 (defn- layer-accepted-options
-  "The option keys a layer of `layer-type-key` accepts: the universal
-   layer options plus that layer type's own `:accepts`, less anything
+  "The keys the mapping of a `layer-type-key` layer accepts: the universal
+   ones plus that layer type's own `:accepts`, less anything
    it `:rejects`. An unregistered or missing layer type answers the
-   universal options alone.
+   universal keys alone.
 
-   One rule, read by `build-layer` when it warns about an options map
+   One rule, read by `build-layer` when it warns about a layer's mapping
    and by `validate-pose-shape` when it walks a built layer."
   [layer-type-key]
   (let [reg (when (keyword? layer-type-key)
@@ -900,10 +901,10 @@
       (and (not lay?)
            (or (contains? (set layer-type/universal-layer-options) k)
                (seq elsewhere)))
-      "Layer options belong in a pj/lay-* options map"
+      "Layer settings belong in the mapping of a pj/lay-* call"
 
       (and lay? (seq elsewhere))
-      (str "Layer options of " elsewhere " belong in that layer's options map"))))
+      (str "Layer settings of " elsewhere " belong in that layer's mapping"))))
 
 (defn- option-home-lines
   "One line per destination, naming the unknown keys that belong there.
@@ -968,7 +969,9 @@
                          :let [m (first (get by-squash (squash k)))]
                          :when m]
                      (str "\n  Did you mean " m " for " k "?"))
-              msg (str caller " does not recognize option(s): " (vec unknown) "."
+              ;; A layer is named as its writer called it.
+              named (if (str/starts-with? caller "lay-") (str "pj/" caller) caller)
+              msg (str named " does not recognize " (vec unknown) "."
                        (apply str near)
                        (option-home-lines caller unknown)
                        "\n  Accepted: " (vec (sort accepted)))]
@@ -1490,7 +1493,7 @@
      (validate-template-data! "pj/pose" pose-or-data))
    (when-not (or (nil? mapping) (map? mapping))
      (throw (ex-info
-             (str "pj/pose 4-arity expects an opts map as the last"
+             (str "pj/pose 4-arity expects a mapping as the last"
                   " argument, got " (pr-str (type mapping)) ": "
                   (pr-str mapping) ". Wrap aesthetic mappings in a map,"
                   " e.g. {:color :species}.")
@@ -1595,13 +1598,13 @@
     (prepare-pose (assoc fr :data ds))))
 
 (defn- check-facet-keys
-  "Throw a helpful error if a mapping or layer-options map contains a
+  "Throw a helpful error if a pose's or a layer's mapping contains a
    panel aesthetic, or one of the older `:facet-*` spellings of one.
 
    A facet divides every layer of the pose alike, so it is written on
-   the pose and never in a sub-pose or layer options map. Both
+   the pose and never in a sub-pose's or a layer's mapping. Both
    spellings are caught here so they report the same thing: `:col` in
-   a layer's options map used to be dropped with a warning naming no
+   a layer's mapping used to be dropped with a warning naming no
    route, which is the silent-strip behaviour this check exists to
    prevent (user-report-2 Issue 5).
 
@@ -1618,7 +1621,7 @@
     (when (seq fk)
       (throw (ex-info (str "A panel aesthetic "
                            (str/join " / " (map name (keys fk)))
-                           " was written in a " context "'s options map. A facet"
+                           " was written in a " context "'s mapping. A facet"
                            " divides every layer of the pose, and a panel"
                            " aesthetic is read from a pose's mapping and not"
                            " from a layer's, so write it on the pose:"
@@ -1726,10 +1729,10 @@
    So `{:x 0}` reads column 0 on a dataset that has one and places
    every mark at zero on a dataset that does not, whether it was
    written in `pj/pose`, in a `lay-*` positional argument, or in a
-   layer's options map.
+   layer's mapping.
 
-   This gate used to refuse a bare number outside a layer's options
-   map, on the reasoning that it runs before the data is available and
+   This gate used to refuse a bare number outside a layer's mapping,
+   on the reasoning that it runs before the data is available and
    cannot tell a column name from a place. That reasoning does not
    hold: the source question is answered at draft time for every other
    mapping, and answering it here as well is what makes the rule one
@@ -1737,11 +1740,11 @@
    reading is meant where a reader of the code could not tell.
 
    Where the explicit form may be written is a separate question, and
-   the answer is `pj/pose`, a layer's options map -- `{:x {:column 0}}`
+   the answer is `pj/pose`, a layer's mapping -- `{:x {:column 0}}`
    -- and any `lay-*` positional argument that is not the last one:
    `(pj/lay-point data {:column 0} :b)` and
    `(pj/lay-point data :a {:column :b} {:color :sp})` both read the map
-   as a position. The **last** positional argument is the options map
+   as a position. The **last** positional argument is the mapping
    whichever axis it stands in, so the form cannot be spelled there;
    the arity decides before this check is reached, and
    `check-mapping-in-map-slot` is what says so."
@@ -1911,9 +1914,9 @@
    it belongs under an aesthetic key. Both of Plotje's map slots hold
    the aesthetics themselves: `pj/pose`'s map argument is the mapping
    map, and a map in a `lay-*` call's **last** positional argument is
-   the options map, whichever axis that argument stands in. So
+   the layer's mapping, whichever axis that argument stands in. So
    `(pj/lay-point data :a {:column :b})` does not say `:y` -- the map
-   is the options, `:column` is not an option, and the layer came back
+   is the layer's mapping, `:column` is not a key of one, and the layer came back
    carrying `:x` alone, warned about but drawn: a one-dimensional plot
    from a call that reads as a two-dimensional one.
 
@@ -2008,7 +2011,7 @@
                       {:position p :registered (sort (registered-positions))})))))
 
 (def ^:private layer-structural-keys
-  "The layer options written beside `:layer-type` rather than in the
+  "The layer settings written beside `:layer-type` rather than in the
    layer's `:mapping`. `:mark`, `:stat` and `:position` each replace one
    part of the layer type, so they sit next to it. Every other option --
    aesthetics, stat parameters such as `:bins`, drawing options such as
@@ -2046,11 +2049,11 @@
   "Build a layer map from a layer-type-key and optional opts.
    Extracts :data if present. Extracts :stat, :position, :mark as
    first-class sibling keys. Warns and strips unrecognized option keys.
-   Rejects unknown :mark or :stat keywords (since both are universal
-   layer options, a typo would silently fall through the accept-list).
+   Rejects unknown :mark or :stat keywords (since every layer
+   accepts both, a typo would silently fall through the accept-list).
 
    Everything else lands in :mapping -- which therefore holds more than
-   mappings. Of the layer options documented in
+   mappings. Of the keys documented in
    `layer-type/layer-option-docs`, fourteen are aesthetics and the rest
    are drawing options (:jitter, :in, :font-size), stat parameters
    (:bandwidth, :bins) and the values a rule or a band is drawn at
@@ -2060,7 +2063,7 @@
   [layer-type-key opts]
   (when opts
     (check-facet-keys "layer" opts)
-    (check-mapping-in-map-slot (lay-caller-name layer-type-key) opts "its options map")
+    (check-mapping-in-map-slot (lay-caller-name layer-type-key) opts "its mapping")
     (check-column-ref-types (lay-caller-name layer-type-key) opts)
     (check-explicit-mappings (lay-caller-name layer-type-key) opts)
     ;; :x and :y here may be a value as well as a column. Which of the
@@ -2169,10 +2172,10 @@
    is a map naming its `:mark`; any other value reports an error."
   ([pose-or-data layer-type-key]
    (lay pose-or-data layer-type-key nil))
-  ([pose-or-data layer-type-key opts]
+  ([pose-or-data layer-type-key mapping]
    (let [layer-type-key (lay-layer-type-key layer-type-key)]
      (validate-lay-layer-type-key layer-type-key)
-     (let [layer (build-layer layer-type-key opts)]
+     (let [layer (build-layer layer-type-key mapping)]
        (update (->pose pose-or-data "pj/lay") :layers (fnil conj []) layer)))))
 
 (defn- x-only?
@@ -2186,7 +2189,7 @@
    belongs on.
 
    Identity reads the columns a layer names, and a layer names them
-   either in a `lay-*` argument slot or in its options map. Both reach
+   either in a `lay-*` argument slot or in its mapping. Both reach
    here. A written value is not a column: it places a mark on the panel
    the layer is added to and asks for no panel of its own, so
    `(pj/lay-text pose {:x 7.5 :y 4.2 :text \"note\"})` annotates the
@@ -2299,11 +2302,11 @@
         ;; composite still says to join the last cell.
         overlay? (boolean (:overlay fr))
         bare-layer built
-        ;; A position written in the options map is the layer's own
+        ;; A position written in the final map is the layer's own
         ;; mapping and stays there, and it decides which panel the layer
         ;; lands on exactly as one written in an argument slot does.
         ;; Before this, the two spellings meant different things: a
-        ;; second `:y` in the options map joined the panel silently, and
+        ;; second `:y` in the final map joined the panel silently, and
         ;; `{:overlay false}` could not undo it, because such a layer was
         ;; never a candidate to start a panel.
         position-mapping (merge position-mapping
@@ -2338,7 +2341,7 @@
                                      bare-layer (:data fr)))
           (update fr :layers (fnil conj [])
                   (elide-empty-maps
-                   ;; The layer's own mapping wins: an options map may
+                   ;; The layer's own mapping wins: the final map may
                    ;; have written a value where the position names a
                    ;; column, and `{:x 2.0}` on a label is the place
                    ;; the label goes, not the panel's column.
@@ -2409,7 +2412,7 @@
      (cond
        (map? x-or-opts)
        (do (check-mapping-in-map-slot
-            (str "lay-" (name layer-type-key)) x-or-opts "its options map")
+            (str "lay-" (name layer-type-key)) x-or-opts "its mapping")
            (lay-on-pose fr layer-type-key nil x-or-opts))
 
        ;; Sequential -> build a multi-panel composite via pj/pose, then
@@ -2477,7 +2480,7 @@
 
        ;; Anything else in the y slot is a column reference. A value that
        ;; is not one reaches lay-on-pose and is named there; it used to be
-       ;; passed on as the options map, so a scalar y failed as
+       ;; passed on as the mapping, so a scalar y failed as
        ;; "find not supported on type: java.lang.Long".
        (some? y-or-opts)
        (lay-on-pose fr layer-type-key {:x x :y y-or-opts} nil)
@@ -2490,7 +2493,7 @@
                      {:layer-type layer-type-key :x x :y y})))
    (when-not (or (nil? opts) (map? opts))
      (throw (ex-info (str "lay-" (name layer-type-key)
-                          " 4-arity expects an opts map as the last"
+                          " 4-arity expects a mapping as the last"
                           " argument, got " (pr-str (type opts)) ": "
                           (pr-str opts) ". Wrap aesthetic mappings in"
                           " a map, e.g. {:color :species}.")
@@ -2505,31 +2508,31 @@
    via DFS-last identity, or appends a new sub-pose on miss).
 
    - `(lay-point fr)` -- bare layer at root.
-   - `(lay-point fr {:color :species})` -- bare layer with layer options.
+   - `(lay-point fr {:color :species})` -- bare layer with a mapping.
    - `(lay-point data :x :y)` -- coerce data to a leaf, then attach.
-   - `(lay-point data :x :y {:color :c})` -- same with layer options."
+   - `(lay-point data :x :y {:color :c})` -- same with a mapping."
   ([pose-or-data] (lay-layer-type :point pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :point pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :point pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :point pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :point pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :point pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :point pose-or-data x y mapping)))
 
 (defn- last-opts
-  "Return the trailing opts map from a lay-* arg list (or nil)."
+  "Return the trailing mapping from a lay-* arg list (or nil)."
   [args]
   (let [last-arg (last args)]
     (when (map? last-arg) last-arg)))
 
 (defn- positional-hint
   "If the user passed a non-map last arg (e.g. a bare number), suggest
-   wrapping it in an opts map. args here are the trailing args after
+   wrapping it in a map. args here are the trailing args after
    the pose -- so the bad shape is `(lay-rule-h fr 3)` not `(lay-rule-h fr)`."
   [args]
   (when (and (seq args) (not (map? (last args))))
     (str " Got " (pr-str (last args)) " as the last argument; did you forget"
-         " to wrap it in an opts map?")))
+         " to wrap it in a map?")))
 
 (defn- assert-panel-columns!
-  "A rule or a band takes its place from its options map. The arguments
+  "A rule or a band takes its place from its mapping. The arguments
    written before that map name columns, and only pick the panel the
    rule or band is drawn on. A value there that is not a column of the
    data was read as a written value: it stretched the axis to reach it,
@@ -2544,7 +2547,7 @@
             :when (and (some? c) (not (resolve/column-ref? c))
                        names (not (contains? names c)))]
       (throw (ex-info (str "lay-" (name layer-type-key) " was given " (pr-str c)
-                           " before its options map, and the data has no column "
+                           " before its mapping, and the data has no column "
                            (pr-str c) ". The arguments written there name"
                            " columns, which pick the panel the "
                            (if (#{:rule-h :rule-v} layer-type-key) "rule" "band")
@@ -2588,7 +2591,7 @@
                     {:caller caller :option k :value v}))))
 
 (defn- unwrap-written-bounds
-  "Unwrap `{:value v}` on each of `ks` in an opts map, so the checks and
+  "Unwrap `{:value v}` on each of `ks` in a layer's mapping, so the checks and
    the marks below see the number the writer wrote."
   [caller ks opts]
   (if-not (map? opts)
@@ -2665,7 +2668,7 @@
     (when-not (or (and (number? v) (Double/isFinite (double v)))
                   (temporal-intercept? v))
       (throw (ex-info (str "lay-" (name layer-type-key) " requires a finite numeric "
-                           "or temporal " k " in its opts map. "
+                           "or temporal " k " in its mapping. "
                            "Example: (pj/lay-" (name layer-type-key) " pose {" k " 3.0})"
                            " or (pj/lay-" (name layer-type-key) " pose {" k
                            " #inst \"2024-06-15\"})."
@@ -2682,7 +2685,7 @@
                            (temporal-intercept? v)))]
     (when-not (and (valid-bound? lo) (valid-bound? hi))
       (throw (ex-info (str "lay-" (name layer-type-key) " requires finite numeric or temporal "
-                           lo-k " and " hi-k " in its opts map. "
+                           lo-k " and " hi-k " in its mapping. "
                            "Example: (pj/lay-" (name layer-type-key) " pose {" lo-k " 2.0 " hi-k " 4.0}) "
                            "or (pj/lay-" (name layer-type-key) " pose {" lo-k
                            " #inst \"2024-01-01\" " hi-k " #inst \"2024-06-30\"})."
@@ -2710,19 +2713,19 @@
 
 (defn- assert-rule-1-arity! [layer-type-key]
   (let [k (rule-position-key layer-type-key)]
-    (throw (ex-info (str "lay-" (name layer-type-key) " requires an opts map with " k ". "
+    (throw (ex-info (str "lay-" (name layer-type-key) " requires a mapping with " k ". "
                          "Example: (pj/lay-" (name layer-type-key) " pose {" k " 3.0}).")
                     {:layer-type layer-type-key}))))
 
 (defn- assert-band-1-arity! [layer-type-key]
   (let [[lo-k hi-k] (band-position-keys layer-type-key)]
-    (throw (ex-info (str "lay-" (name layer-type-key) " requires an opts map with " lo-k " and " hi-k ". "
+    (throw (ex-info (str "lay-" (name layer-type-key) " requires a mapping with " lo-k " and " hi-k ". "
                          "Example: (pj/lay-" (name layer-type-key) " pose {" lo-k " 2.0 " hi-k " 4.0}).")
                     {:layer-type layer-type-key}))))
 
 (defn lay-rule-h
   "Add `:rule-h` layer -- horizontal reference line at y = y-intercept.
-   The value is written in opts rather than read from a column; `:y-intercept` is required.
+   The value is written in the mapping rather than read from a column; `:y-intercept` is required.
    Accepts `:y-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
    Instant, java.util.Date), `:color` (a written color), `:alpha` (the
    line's opacity), `:size` (its width) and `:stroke-dash`
@@ -2744,13 +2747,13 @@
    - `(lay-rule-h pose {:y-intercept (java.time.LocalDate/parse \"2024-01-01\")})`
      -- temporal intercept on a date axis."
   ([_pose-or-data] (assert-rule-1-arity! :rule-h))
-  ([pose-or-data x-or-opts] (assert-rule-opts! :rule-h [x-or-opts]) (lay-layer-type :rule-h pose-or-data (coerce-rule-opts :rule-h x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-rule-opts! :rule-h [y-or-opts]) (assert-panel-columns! :rule-h pose-or-data [x]) (lay-layer-type :rule-h pose-or-data x (coerce-rule-opts :rule-h y-or-opts)))
-  ([pose-or-data x y opts] (assert-rule-opts! :rule-h [opts]) (assert-panel-columns! :rule-h pose-or-data [x y]) (lay-layer-type :rule-h pose-or-data x y (coerce-rule-opts :rule-h opts))))
+  ([pose-or-data x-or-mapping] (assert-rule-opts! :rule-h [x-or-mapping]) (lay-layer-type :rule-h pose-or-data (coerce-rule-opts :rule-h x-or-mapping)))
+  ([pose-or-data x y-or-mapping] (assert-rule-opts! :rule-h [y-or-mapping]) (assert-panel-columns! :rule-h pose-or-data [x]) (lay-layer-type :rule-h pose-or-data x (coerce-rule-opts :rule-h y-or-mapping)))
+  ([pose-or-data x y mapping] (assert-rule-opts! :rule-h [mapping]) (assert-panel-columns! :rule-h pose-or-data [x y]) (lay-layer-type :rule-h pose-or-data x y (coerce-rule-opts :rule-h mapping))))
 
 (defn lay-rule-v
   "Add `:rule-v` layer -- vertical reference line at x = x-intercept.
-   The value is written in opts rather than read from a column; `:x-intercept` is required.
+   The value is written in the mapping rather than read from a column; `:x-intercept` is required.
    Accepts `:x-intercept` (numeric or temporal -- LocalDate, LocalDateTime,
    Instant, java.util.Date), `:color` (a written color), `:alpha` (the
    line's opacity), `:size` (its width) and `:stroke-dash`
@@ -2772,13 +2775,13 @@
    - `(lay-rule-v pose {:x-intercept #inst \"2008-09-15\"})` -- temporal
      intercept on a date axis."
   ([_pose-or-data] (assert-rule-1-arity! :rule-v))
-  ([pose-or-data x-or-opts] (assert-rule-opts! :rule-v [x-or-opts]) (lay-layer-type :rule-v pose-or-data (coerce-rule-opts :rule-v x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-rule-opts! :rule-v [y-or-opts]) (assert-panel-columns! :rule-v pose-or-data [x]) (lay-layer-type :rule-v pose-or-data x (coerce-rule-opts :rule-v y-or-opts)))
-  ([pose-or-data x y opts] (assert-rule-opts! :rule-v [opts]) (assert-panel-columns! :rule-v pose-or-data [x y]) (lay-layer-type :rule-v pose-or-data x y (coerce-rule-opts :rule-v opts))))
+  ([pose-or-data x-or-mapping] (assert-rule-opts! :rule-v [x-or-mapping]) (lay-layer-type :rule-v pose-or-data (coerce-rule-opts :rule-v x-or-mapping)))
+  ([pose-or-data x y-or-mapping] (assert-rule-opts! :rule-v [y-or-mapping]) (assert-panel-columns! :rule-v pose-or-data [x]) (lay-layer-type :rule-v pose-or-data x (coerce-rule-opts :rule-v y-or-mapping)))
+  ([pose-or-data x y mapping] (assert-rule-opts! :rule-v [mapping]) (assert-panel-columns! :rule-v pose-or-data [x y]) (lay-layer-type :rule-v pose-or-data x y (coerce-rule-opts :rule-v mapping))))
 
 (defn lay-band-h
   "Add `:band-h` layer -- horizontal shaded band between y = y-min and y = y-max.
-   The bounds are written in opts rather than read from a column; `:y-min` and `:y-max` are
+   The bounds are written in the mapping rather than read from a column; `:y-min` and `:y-max` are
    required and `:y-min` must be <= `:y-max`.
    Accepts `:y-min` (required), `:y-max` (required), `:color` (a
    written color) and `:alpha`. Bounds may be numeric or temporal
@@ -2797,13 +2800,13 @@
    - `(lay-band-h pose {:y-min 2 :y-max 4 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-h))
-  ([pose-or-data x-or-opts] (assert-band-opts! :band-h [x-or-opts]) (lay-layer-type :band-h pose-or-data (coerce-band-opts :band-h x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-band-opts! :band-h [y-or-opts]) (assert-panel-columns! :band-h pose-or-data [x]) (lay-layer-type :band-h pose-or-data x (coerce-band-opts :band-h y-or-opts)))
-  ([pose-or-data x y opts] (assert-band-opts! :band-h [opts]) (assert-panel-columns! :band-h pose-or-data [x y]) (lay-layer-type :band-h pose-or-data x y (coerce-band-opts :band-h opts))))
+  ([pose-or-data x-or-mapping] (assert-band-opts! :band-h [x-or-mapping]) (lay-layer-type :band-h pose-or-data (coerce-band-opts :band-h x-or-mapping)))
+  ([pose-or-data x y-or-mapping] (assert-band-opts! :band-h [y-or-mapping]) (assert-panel-columns! :band-h pose-or-data [x]) (lay-layer-type :band-h pose-or-data x (coerce-band-opts :band-h y-or-mapping)))
+  ([pose-or-data x y mapping] (assert-band-opts! :band-h [mapping]) (assert-panel-columns! :band-h pose-or-data [x y]) (lay-layer-type :band-h pose-or-data x y (coerce-band-opts :band-h mapping))))
 
 (defn lay-band-v
   "Add `:band-v` layer -- vertical shaded band between x = x-min and x = x-max.
-   The bounds are written in opts rather than read from a column; `:x-min` and `:x-max` are
+   The bounds are written in the mapping rather than read from a column; `:x-min` and `:x-max` are
    required and `:x-min` must be <= `:x-max`.
    Accepts `:x-min` (required), `:x-max` (required), `:color` (a
    written color) and `:alpha`. Bounds may be numeric or temporal
@@ -2822,9 +2825,9 @@
    - `(lay-band-v pose {:x-min 4 :x-max 6 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-v))
-  ([pose-or-data x-or-opts] (assert-band-opts! :band-v [x-or-opts]) (lay-layer-type :band-v pose-or-data (coerce-band-opts :band-v x-or-opts)))
-  ([pose-or-data x y-or-opts] (assert-band-opts! :band-v [y-or-opts]) (assert-panel-columns! :band-v pose-or-data [x]) (lay-layer-type :band-v pose-or-data x (coerce-band-opts :band-v y-or-opts)))
-  ([pose-or-data x y opts] (assert-band-opts! :band-v [opts]) (assert-panel-columns! :band-v pose-or-data [x y]) (lay-layer-type :band-v pose-or-data x y (coerce-band-opts :band-v opts))))
+  ([pose-or-data x-or-mapping] (assert-band-opts! :band-v [x-or-mapping]) (lay-layer-type :band-v pose-or-data (coerce-band-opts :band-v x-or-mapping)))
+  ([pose-or-data x y-or-mapping] (assert-band-opts! :band-v [y-or-mapping]) (assert-panel-columns! :band-v pose-or-data [x]) (lay-layer-type :band-v pose-or-data x (coerce-band-opts :band-v y-or-mapping)))
+  ([pose-or-data x y mapping] (assert-band-opts! :band-v [mapping]) (assert-panel-columns! :band-v pose-or-data [x y]) (lay-layer-type :band-v pose-or-data x y (coerce-band-opts :band-v mapping))))
 
 (defn lay-line
   "Add `:line` layer type -- connected line through data points.
@@ -2833,17 +2836,17 @@
    (`:dashed`/`:dotted`/`:solid` or a raw `[dash gap]` vector), `:dx`,
    `:dy`."
   ([pose-or-data] (lay-layer-type :line pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :line pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :line pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :line pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :line pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :line pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :line pose-or-data x y mapping)))
 
 (defn lay-step
   "Add `:step` layer type -- staircase line (horizontal then vertical).
    Requires x and y (both numerical). Accepts `:stroke-dash`."
   ([pose-or-data] (lay-layer-type :step pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :step pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :step pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :step pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :step pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :step pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :step pose-or-data x y mapping)))
 
 (defn lay-area
   "Add `:area` layer type -- filled region between y and the baseline.
@@ -2851,18 +2854,18 @@
    and an opt-in outline on the top curve: `:stroke` (outline color),
    `:stroke-width`, `:stroke-dash`."
   ([pose-or-data] (lay-layer-type :area pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :area pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :area pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :area pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :area pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :area pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :area pose-or-data x y mapping)))
 
 (defn lay-histogram
   "Add `:histogram` layer type -- bin numerical values into bars.
    X-only: pass one column. Accepts `:bins` (count), `:binwidth`, `:color`,
    `:normalize` (`:density` for density-normalized heights)."
   ([pose-or-data] (lay-layer-type :histogram pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :histogram pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :histogram pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :histogram pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :histogram pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :histogram pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :histogram pose-or-data x y mapping)))
 
 (defn lay-bar
   "Add a `:bar` layer type.
@@ -2896,9 +2899,9 @@
    overlay rather than a stack. On a numeric or temporal axis, where there is
    no band, it is a width in data units."
   ([pose-or-data] (lay-layer-type :bar pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :bar pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :bar pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :bar pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :bar pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :bar pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :bar pose-or-data x y mapping)))
 
 (defn lay-smooth
   "Add `:smooth` layer type -- a smoothed trend line.
@@ -2907,9 +2910,9 @@
    Accepts {`:confidence-band` true} for a confidence ribbon, and
    `:stroke-dash`."
   ([pose-or-data] (lay-layer-type :smooth pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :smooth pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :smooth pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :smooth pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :smooth pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :smooth pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :smooth pose-or-data x y mapping)))
 
 (defn lay-density
   "Add `:density` layer type -- kernel density estimate curve.
@@ -2918,9 +2921,9 @@
    color), `:stroke-width`, `:stroke-dash` (`:dashed`/`:dotted`/`:solid`
    or a raw `[dash gap]` vector)."
   ([pose-or-data] (lay-layer-type :density pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :density pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :density pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :density pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :density pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :density pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :density pose-or-data x y mapping)))
 
 (defn lay-tile
   "Add `:tile` layer type -- colored grid cells (heatmap).
@@ -2940,79 +2943,79 @@
    Given both `:fill` and `:color`, the cells are painted from `:fill`
    and `:color` is not drawn, with a warning."
   ([pose-or-data] (lay-layer-type :tile pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :tile pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :tile pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :tile pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :tile pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :tile pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :tile pose-or-data x y mapping)))
 
 (defn lay-density-2d
   "Add `:density-2d` layer type -- 2D kernel density heatmap.
    Requires x and y (both numerical). Produces a smoothed density
    surface as colored tiles with a continuous gradient legend."
   ([pose-or-data] (lay-layer-type :density-2d pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :density-2d pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :density-2d pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :density-2d pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :density-2d pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :density-2d pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :density-2d pose-or-data x y mapping)))
 
 (defn lay-contour
   "Add `:contour` layer type -- iso-density contour lines from 2D KDE.
    Requires x and y (both numerical). Accepts {`:levels` 10} for
    the number of contour levels."
   ([pose-or-data] (lay-layer-type :contour pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :contour pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :contour pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :contour pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :contour pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :contour pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :contour pose-or-data x y mapping)))
 
 (defn lay-boxplot
   "Add `:boxplot` layer type -- box-and-whisker plot.
    Requires categorical x and numerical y. Shows median, quartiles,
    whiskers, and outliers. Accepts `:color` for grouped boxplots."
   ([pose-or-data] (lay-layer-type :boxplot pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :boxplot pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :boxplot pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :boxplot pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :boxplot pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :boxplot pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :boxplot pose-or-data x y mapping)))
 
 (defn lay-violin
   "Add `:violin` layer type -- mirrored density estimate by category.
    Requires categorical x and numerical y. Accepts `:color`, `:bandwidth`."
   ([pose-or-data] (lay-layer-type :violin pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :violin pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :violin pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :violin pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :violin pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :violin pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :violin pose-or-data x y mapping)))
 
 (defn lay-ridgeline
   "Add `:ridgeline` layer type -- stacked density curves by category.
    Requires categorical x and numerical y. Categories stack vertically
    with density curves rendered horizontally."
   ([pose-or-data] (lay-layer-type :ridgeline pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :ridgeline pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :ridgeline pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :ridgeline pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :ridgeline pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :ridgeline pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :ridgeline pose-or-data x y mapping)))
 
 (defn lay-summary
   "Add `:summary` layer type -- mean +/- standard error per category.
    Requires categorical x and numerical y. Shows a point at the mean
    with error bars for +/- 1 SE. Accepts `:color` for grouped summaries."
   ([pose-or-data] (lay-layer-type :summary pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :summary pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :summary pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :summary pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :summary pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :summary pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :summary pose-or-data x y mapping)))
 
 (defn lay-errorbar
   "Add `:errorbar` layer type -- vertical error bars from pre-computed bounds.
    Requires x, y, and {`:y-min` `:col` `:y-max` `:col`} for lower/upper bounds."
   ([pose-or-data] (lay-layer-type :errorbar pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :errorbar pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :errorbar pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :errorbar pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :errorbar pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :errorbar pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :errorbar pose-or-data x y mapping)))
 
 (defn lay-lollipop
   "Add `:lollipop` layer type -- dot on a stem from the baseline.
    Requires categorical x and numerical y. Like a value bar but with
    a circle+line instead of a filled rectangle."
   ([pose-or-data] (lay-layer-type :lollipop pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :lollipop pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :lollipop pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :lollipop pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :lollipop pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :lollipop pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :lollipop pose-or-data x y mapping)))
 
 (defn lay-text
   "Add `:text` layer type -- text labels at data coordinates.
@@ -3025,9 +3028,9 @@
    or a map of box properties (`{:corner-radius 8}`). `pj/lay-label` is
    this layer with the box on."
   ([pose-or-data] (lay-layer-type :text pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :text pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :text pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :text pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :text pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :text pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :text pose-or-data x y mapping)))
 
 (defn lay-label
   "Add `:label` layer type -- text labels on a background box at data
@@ -3039,17 +3042,17 @@
    anchored text. Pass `:box` to shape it -- `{:box {:corner-radius 0}}`
    for square corners, `{:box false}` for bare text."
   ([pose-or-data] (lay-layer-type :label pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :label pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :label pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :label pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :label pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :label pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :label pose-or-data x y mapping)))
 
 (defn lay-rug
   "Add `:rug` layer type -- short tick marks along the axis showing individual values.
    X-only: pass one column. Often layered with density or scatter."
   ([pose-or-data] (lay-layer-type :rug pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :rug pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :rug pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :rug pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :rug pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :rug pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :rug pose-or-data x y mapping)))
 
 (defn lay-segment
   "Add `:segment` layer type -- a straight line from (x, y) to
@@ -3069,9 +3072,9 @@
    - `(lay-segment data :quarter :sales {:x-end {:value \"Q4\"}})` --
      each row's segment runs to the Q4 category."
   ([pose-or-data] (lay-layer-type :segment pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :segment pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :segment pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :segment pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :segment pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :segment pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :segment pose-or-data x y mapping)))
 
 (defn lay-interval-h
   "Add `:interval-h` layer type -- horizontal bar from x to x-end at categorical y.
@@ -3083,21 +3086,21 @@
    0.0-1.0, default 0.7).
    (lay-interval-h data :start :task {:x-end :end :color :status})"
   ([pose-or-data] (lay-layer-type :interval-h pose-or-data))
-  ([pose-or-data x-or-opts] (lay-layer-type :interval-h pose-or-data x-or-opts))
-  ([pose-or-data x y-or-opts] (lay-layer-type :interval-h pose-or-data x y-or-opts))
-  ([pose-or-data x y opts] (lay-layer-type :interval-h pose-or-data x y opts)))
+  ([pose-or-data x-or-mapping] (lay-layer-type :interval-h pose-or-data x-or-mapping))
+  ([pose-or-data x y-or-mapping] (lay-layer-type :interval-h pose-or-data x y-or-mapping))
+  ([pose-or-data x y mapping] (lay-layer-type :interval-h pose-or-data x y mapping)))
 
 (defn- wrap-options-list
   "Wrap a sorted seq of option keywords across lines so the rendered
-   docstring stays readable. First line is prefixed with 'Accepted
-   options: '; continuation lines align under the first option.
+   docstring stays readable. First line is prefixed with 'The mapping
+   accepts: '; continuation lines align under the first key.
 
    Each keyword is wrapped in backticks, as every other code-like token
    in these docstrings is: `kind/doc` renders them as Markdown, so an
    unbacked keyword loses its monospace and reads as prose."
   [opts]
-  (let [prefix "   Accepted options: "
-        cont   "                     "
+  (let [prefix "   The mapping accepts: "
+        cont   "                        "
         max-w  78]
     (loop [[opt & more] opts
            lines []
@@ -3684,7 +3687,7 @@
    choose a type for the whole plot, write that mapping out in full:
    `{:color {:column :hex :scale false}}` draws the column's values as
    they stand, and `{:size {:value 7 :scale true}}` sends a written
-   value through the scale. See the layer option docs for `:color` and
+   value through the scale. See `pj/layer-option-docs` for `:color` and
    `:size`.
 
    A `:domain` has two readings, and the domain itself decides which:
@@ -3761,7 +3764,7 @@
               (cond
                 ;; `:color` draws categories too; what it has no scale
                 ;; type for is reading numbers as categories, which a
-                ;; layer option does.
+                ;; layer setting does.
                 (and (= aesthetic :color) (= type-kw :categorical))
                 (str "A :color scale has no :categorical type; its types are "
                      (vec (sort valid-types)) ". A column of categories is"
@@ -3891,7 +3894,7 @@
     :else nil))
 
 (defn- layer-accepted-keys
-  "Set of keys a single layer accepts: universal layer options union
+  "Set of keys a single layer accepts: the universal keys union
    the layer-type's :accepts, minus its :rejects."
   [layer]
   (let [reg (when-let [k (:layer-type layer)]

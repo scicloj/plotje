@@ -142,23 +142,23 @@
 
 
 (def
- v27_l213
+ v27_l212
  (kind/table
-  {:column-names ["Option" "Description"],
+  {:column-names ["Key" "Description"],
    :row-maps
    (for
     [k layer-type/universal-layer-options]
-    {"Option" (kind/code (pr-str k)),
+    {"Key" (kind/code (pr-str k)),
      "Description" (get layer-type/layer-option-docs k)})}))
 
 
-(deftest t28_l220 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l213)))
+(deftest t28_l219 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l212)))
 
 
 (def
  v30_l228
  (kind/table
-  {:column-names ["Layer type" "Additional options"],
+  {:column-names ["Layer type" "Additional keys"],
    :row-maps
    (for
     [k
@@ -167,8 +167,7 @@
      [m (layer-type/lookup k) accepts (:accepts m)]
      :when
      (seq accepts)]
-    {"Layer type" (kind/code (pr-str k)),
-     "Additional options" accepts})}))
+    {"Layer type" (kind/code (pr-str k)), "Additional keys" accepts})}))
 
 
 (deftest t31_l238 (is ((fn [t] (pos? (count (:row-maps t)))) v30_l228)))
@@ -177,11 +176,11 @@
 (def
  v33_l243
  (kind/table
-  {:column-names ["Option" "Description"],
+  {:column-names ["Key" "Description"],
    :row-maps
    (for
     [[k desc] (sort-by key layer-type/layer-option-docs)]
-    {"Option" (kind/code (pr-str k)), "Description" desc})}))
+    {"Key" (kind/code (pr-str k)), "Description" desc})}))
 
 
 (deftest

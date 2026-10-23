@@ -117,7 +117,7 @@
                          :color-type :temporal}))
     (is (not (mapping-valid? {:x-type :continuous}))))
 
-  (testing "a mapping is open, because layer options ride in it too"
+  (testing "a mapping is open, because layer settings ride in it too"
     (is (mapping-valid? {:jitter 0.2 :in :drawing-area :dx 3
                          :font-size 12 :bandwidth 0.3}))))
 

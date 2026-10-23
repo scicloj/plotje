@@ -151,13 +151,14 @@ my-pose
 ;; read them; `:dodge` leaves values untouched and records which slot
 ;; each mark takes in its band, which becomes an offset in **drawing
 ;; space** when the mark is drawn. You can override the default
-;; position by passing `:position` in the layer options. When multiple
+;; position by writing `:position` in the layer's mapping. When multiple
 ;; layers share `:position :dodge`, they are coordinated together --
 ;; error bars automatically align with bars.
 ;;
 ;; A position adjustment is one of the [roles](#role) a distinction
 ;; can be given -- a slot within a band, or a place in a pile -- and
-;; the only one written as a layer option rather than as a mapping.
+;; the only one written as a [layer setting](#layer-settings) rather
+;; than as an aesthetic.
 ;; See the [Layer Types](./plotje_book.layer_types.html#positions) chapter for
 ;; a table of all built-in positions.
 
@@ -256,6 +257,12 @@ my-pose
 ;; attached to it -- or on a single layer, where they scope to that
 ;; layer alone. Lower scope wins on conflict; an explicit `nil`
 ;; cancels a mapping inherited from above.
+;;
+;; **The mapping** of a pose or of a layer is also the name of the map
+;; these are written in: the final argument of `pj/pose` and of every
+;; `pj/lay-*` function, stored under `:mapping`. A pose's mapping takes
+;; aesthetics. A layer's mapping takes aesthetics and that layer's
+;; [layer settings](#layer-settings).
 
 ;; ## Aesthetic
 ;;
@@ -360,15 +367,15 @@ my-pose
 ;;
 ;; - A [position](#position) adjustment -- `:dodge`, `:stack`,
 ;;   `:fill` -- gives a distinction a slot within a band, or a place
-;;   in a pile. It is written as a layer option, and it tells the
+;;   in a pile. It is written as a layer setting, and it tells the
 ;;   marks apart only by whatever aesthetic is also mapped.
 ;; - [`pj/arrange`](#arrange) gives each of several poses a plot of
 ;;   its own. It is written as a call, and what it separates is poses
 ;;   rather than a column's values.
 ;;
 ;; So the same question -- what becomes of a distinction -- is
-;; answered in a mapping for four roles, in a layer option for one,
-;; and in a call for another.
+;; answered by an aesthetic for four roles, by a layer setting for one,
+;; and by a call for another.
 
 ;; ## Group
 ;;
@@ -1226,8 +1233,9 @@ annotated
 ;;
 ;; **Configuration** controls rendering behavior -- dimensions, theme,
 ;; palette, color scale, margins, and more. It is one of three option
-;; scopes -- the others are [plot options](#plot-options) and
-;; [layer options](#layer-options). Configuration follows a
+;; kinds of value a plot is built from -- the others are
+;; [plot options](#plot-options) and [mappings](#mapping).
+;; Configuration follows a
 ;; precedence chain:
 ;;
 ;; plot options > `pj/with-config` > `pj/set-config!` > `plotje.edn` > library defaults
@@ -1264,21 +1272,25 @@ annotated
     (and (= 14 (count ks))
          (some #{:title :subtitle :caption :x-label :y-label} ks)))])
 
-;; ## Layer Options
+;; ## Layer Settings
 ;;
-;; **Layer options** are per-layer settings passed in the options map
-;; of layer functions (`pj/lay-point`, `pj/lay-histogram`, etc.).
-;; They control aesthetics (`:color`, `:size`, `:alpha`, `:shape`),
-;; grouping (`:group`), position adjustment (`:position`), and
-;; layer-type-specific parameters (`:bandwidth`, `:confidence-band`,
-;; `:normalize`, etc.).
+;; A **layer setting** is a key of a layer's [mapping](#mapping) that
+;; is not an aesthetic. A layer setting says how the layer is computed
+;; or drawn, where an aesthetic says what a column or a value becomes.
+;; The layer settings are the parts of the layer type (`:mark`,
+;; `:stat`, `:position`), the layer's own `:data`, the space its `:x`
+;; and `:y` are in (`:in`), and the parameters of one layer type
+;; (`:bins`, `:bandwidth`, `:confidence-band`, `:normalize`, and
+;; others).
 ;;
-;; Four keys are universal -- accepted by every layer -- and each
-;; layer type may accept additional keys. The
-;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-options) chapter lists which
-;; options each layer type accepts. See also `pj/layer-option-docs`
-;; for descriptions, or inspect a specific layer type with
-;; `pj/layer-type-lookup`.
+;; A layer setting is written in the mapping of a layer function
+;; (`pj/lay-point`, `pj/lay-histogram`, and the rest), beside the
+;; layer's aesthetics. Some keys are accepted by every layer type, and
+;; each layer type may accept more. The
+;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-keys) chapter lists the
+;; keys each layer type accepts. `pj/layer-option-docs` describes every
+;; key of a layer's mapping, aesthetics and layer settings alike, and
+;; `pj/layer-type-lookup` shows one layer type.
 
 (sort (keys pj/layer-option-docs))
 
@@ -1349,7 +1361,7 @@ annotated
 ;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
-;; | Layer options | Per-layer aesthetics and layer-type parameters | `pj/lay-*` options map |
+;; | Layer settings | The keys of a layer's mapping that are not aesthetics: `:stat`, `:position`, `:bins`, `:data` | `pj/lay-*` mapping |
 ;; | Theme | Visual styling: background, grid, fonts | `:theme` in `pj/options` |
 ;; | Palette | Ordered color set for categorical aesthetics | `:values` in a `:color` scale spec |
 ;; | Gradient | Continuous color ramp for numerical mappings | `:range` in a `:color` scale spec |

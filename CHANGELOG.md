@@ -66,6 +66,10 @@ All notable changes to this project will be documented in this file. This change
 
 ### Warnings and errors
 
+- The final map of a `pj/lay-*` call is named its mapping, as the final map of `pj/pose` is: the `lay-*` arglists, docstrings, messages and the book say `mapping` where they said `opts` or "options map". The keys of a layer's mapping that are not aesthetics, such as `:stat`, `:bins`, `:position` and `:in`, are called layer settings. No call changes its behaviour.
+
+- The warning for a key a call does not read is worded `pj/lay-point does not recognize [:foo]`, followed by where each key belongs.
+
 - A layer left without a column its layer type draws from reports an error naming the layer, the axis that is missing, the columns the layer does name, and the columns of the data. The error is reported when the pose is drawn. A `pj/lay-*` call on a dataset of four or more columns returns a pose without naming columns, so a later step may name them: `(-> data pj/lay-point (pj/pose {:x :a :y :b}))` and `(-> data pj/lay-smooth (pj/lay-point :a :b))` draw.
 
 - A layer with no data draws a panel reading "no data" for any layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn before `pj/with-data` gives it data. A `lay-*` call on an arrangement whose cells carry their own data, naming columns no cell draws, prints a Note: the layer is drawn on a cell of its own, and that cell has no data. The Note names the columns the cells draw and the `{:data data}` spelling that gives the new cell its data.
