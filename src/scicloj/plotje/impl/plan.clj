@@ -1511,17 +1511,26 @@
 
 (defn- adjust-fixed-aspect
   "Adjust panel dimensions for coord :fixed so that 1 data unit = 1 data unit
-   on both axes. Shrinks the larger dimension to match the data aspect ratio."
-  [pw ph x-domain y-domain]
+   on both axes. Shrinks the larger dimension to match the data aspect ratio.
+
+   The ratio is kept between the spans the scales map onto, `pw` and `ph`
+   less the padding `m` at each end (`finalize-panel` reads `[m (- pw
+   m)]`), not between `pw` and `ph` themselves: keeping the panel's own
+   sides in ratio made one data unit 109.97 drawing units on `:x` and
+   107.45 on `:y` on iris."
+  [pw ph m x-domain y-domain]
   (let [x-range (- (double (second x-domain)) (double (first x-domain)))
-        y-range (- (double (second y-domain)) (double (first y-domain)))]
-    (if (or (<= x-range 0) (<= y-range 0))
+        y-range (- (double (second y-domain)) (double (first y-domain)))
+        pad (* 2.0 (double m))
+        iw (- (double pw) pad)
+        ih (- (double ph) pad)]
+    (if (or (<= x-range 0) (<= y-range 0) (<= iw 0) (<= ih 0))
       {:pw pw :ph ph}
       (let [data-ratio (/ x-range y-range)
-            panel-ratio (/ pw ph)]
-        (if (> panel-ratio data-ratio)
-          {:pw (* ph data-ratio) :ph ph}
-          {:pw pw :ph (/ pw data-ratio)})))))
+            span-ratio (/ iw ih)]
+        (if (> span-ratio data-ratio)
+          {:pw (+ pad (* ih data-ratio)) :ph ph}
+          {:pw pw :ph (+ pad (/ iw data-ratio))})))))
 
 (defn- resolve-labels
   "Resolve effective title and axis labels.
@@ -3811,7 +3820,7 @@
                                   gy (:y-dom p1)]
                               (when (and (sequential? gx) (= 2 (count gx)) (number? (first gx))
                                          (sequential? gy) (= 2 (count gy)) (number? (first gy)))
-                                (adjust-fixed-aspect pw ph gx gy))))
+                                (adjust-fixed-aspect pw ph m gx gy))))
              [pw ph] (if fixed-result
                        [(:pw fixed-result) (:ph fixed-result)]
                        [pw ph])

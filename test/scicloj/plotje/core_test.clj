@@ -791,7 +791,24 @@
   (testing "coord :fixed end-to-end -- asymmetric ranges"
     (let [ds (tc/dataset {:x [0 100 50] :y [0 10 5]})
           pl (-> ds (pj/pose :x :y) (pj/coord :fixed) pj/lay-point pj/plan)]
-      (is (> (:panel-width pl) (:panel-height pl)) "Wide data -> wider panel"))))
+      (is (> (:panel-width pl) (:panel-height pl)) "Wide data -> wider panel")))
+  (testing "one data unit is as many drawing units on x as on y"
+    ;; The scales map onto the panel less its padding at each end, so the
+    ;; ratio is kept between those spans. Keeping it between the panel's
+    ;; own sides made a data unit 14.7 drawing units on x and 31.1 on y
+    ;; for the tall case, and 2.3% apart on iris.
+    (doseq [pose [(-> {:x [0 1] :y [0 10]} (pj/lay-point :x :y) (pj/coord :fixed))
+                  (-> {:x [0 10] :y [0 1]} (pj/lay-point :x :y) (pj/coord :fixed))
+                  (-> (rdatasets/datasets-iris)
+                      (pj/lay-point :sepal-length :sepal-width)
+                      (pj/facet :species)
+                      (pj/coord :fixed))]]
+      (let [pl (pj/plan pose)
+            m (:margin pl)
+            {[x0 x1] :x-domain [y0 y1] :y-domain} (first (:panels pl))
+            x-unit (/ (- (:panel-width pl) (* 2 m)) (- x1 x0))
+            y-unit (/ (- (:panel-height pl) (* 2 m)) (- y1 y0))]
+        (is (< (Math/abs (- x-unit y-unit)) 1e-9))))))
 
 (deftest diverging-color-test
   (testing "diverging-color endpoints"
