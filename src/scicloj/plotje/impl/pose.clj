@@ -3446,8 +3446,8 @@
                   :else (or (empty? (:layers node))
                             (boolean (some #(not (contains? (:mapping %) k))
                                            (:layers node))))))
-          (walk [node path]
-            (when (composite? node)
+          (walk [node path above]
+            (if (composite? node)
               (concat
                (for [k [:x :y]
                      ;; A scale written with no column names nothing
@@ -3455,23 +3455,56 @@
                      :when (and (some? (mapping-source (get (:mapping node) k)))
                                 (not-any? #(reaches? % k) (:poses node)))]
                  [path k])
-               (mapcat (fn [i child] (walk child (conj path i)))
-                       (range) (:poses node)))))]
-    (vec (walk pose []))))
+               (mapcat (fn [i child]
+                         (walk child (conj path i) (into above (:layers node))))
+                       (range) (:poses node)))
+              ;; A leaf: the same question about its own mapping and the
+              ;; layers drawn on it -- its own, and those of the poses
+              ;; above it, which every cell below draws.
+              ;; A layer naming the column the leaf names draws it.
+              (let [layers (into above (:layers node))]
+                (for [k [:x :y]
+                      :let [col (mapping-source (get (:mapping node) k))]
+                      :when (and (some? col)
+                                 (seq layers)
+                                 (every? #(and (contains? (:mapping %) k)
+                                               (not= col (mapping-source (get (:mapping %) k))))
+                                         layers))]
+                  [path k]))))]
+    (vec (walk pose [] []))))
 
 (defn report-unread-positions!
   "Warn about an `:x` or `:y` written on a composite that no cell reads.
    `pj/pose` writes the composite's own mapping, and a cell that maps its
    own `:x` or `:y` overrides it, so without this the write changes
-   nothing and says nothing."
-  [pose]
-  (doseq [[path k] (unread-positions pose)]
-    (println (str "Warning: a composite pose maps " k " to "
-                  (pr-str (mapping-source (get-in pose (concat (mapcat (fn [i] [:poses i]) path) [:mapping k]))))
-                  ", and every cell below it names its own " k
-                  ", on its mapping or on its layers, so it is not drawn."
-                  " To change the columns of the cells,"
-                  " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")))
+   nothing and says nothing. The same for a leaf whose layers each name
+   another column there.
+
+   `which` is `:composites` or `:leaves`. The two are asked at different
+   moments: a composite once its facets are expanded, because an
+   expansion makes composites; a leaf as it was written, before that,
+   because the cells an expansion makes each hold the layers of the
+   whole pose, and `fit-layers` reports a layer that fits no cell."
+  [pose which]
+  (doseq [[path k] (unread-positions pose)
+          :let [node (get-in pose (mapcat (fn [i] [:poses i]) path))
+                col (pr-str (mapping-source (get-in node [:mapping k])))]
+          :when (= which (if (composite? node) :composites :leaves))]
+    (println
+     (if (composite? node)
+       (str "Warning: a composite pose maps " k " to " col
+            ", and every cell below it names its own " k
+            ", on its mapping or on its layers, so it is not drawn."
+            " To change the columns of the cells,"
+            " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")
+       ;; The layers of a pose share one panel, and a layer naming a
+       ;; column of its own draws that column there. Nothing is added
+       ;; for the pose's column, so it is said.
+       (str "Warning: a pose maps " k " to " col
+            ", and every layer drawn on it names its own " k
+            ", so " col " is not drawn. To draw it, add a layer that"
+            " names no " k " -- for example (pj/lay-point pose) -- or"
+            " remove " k " from the pose's mapping."))))
   pose)
 
 ;; ---- Sharing and chrome decided from the listed cells ----
@@ -4736,7 +4769,8 @@
      name no column on that axis, and by no other: where every layer
      names its own, as in
      `(-> data (pj/pose :a :b) (pj/lay-point :c :d))`, the leaf draws
-     c-against-d alone (teaching: `pose_rules.clj`, \"Note on
+     c-against-d alone and `report-unread-positions!` warns that
+     `:a` and `:b` are not drawn (teaching: `pose_rules.clj`, \"Note on
      leaf-input with other columns\").
    - A layer holds the panel's columns it reads, where it names none
      or names one and its layer type needs two -- see

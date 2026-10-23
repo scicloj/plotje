@@ -825,6 +825,8 @@
   (let [pose (-> pose
                  retire-scales-in-tree
                  pose/coerce-data-in-tree)
+        ;; Asked of the pose as written, before a facet makes cells.
+        _ (pose/report-unread-positions! pose :leaves)
         pose (cond-> pose
                true pose/expand-facet-nodes
                true pose/collapse-regular-split)]

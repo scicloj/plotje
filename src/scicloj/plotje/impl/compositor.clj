@@ -657,7 +657,7 @@
    first-class field on the CompositeDraft so downstream stages do
    not need to recompute layout from the original pose tree."
   [composite]
-  (pose/report-unread-positions! composite)
+  (pose/report-unread-positions! composite :composites)
   (let [;; The draft's choices written in first -- a default mapping, a
         ;; concrete layer type for every inferred layer -- so sharing,
         ;; layout and the leaf drafts read layer types rather than
