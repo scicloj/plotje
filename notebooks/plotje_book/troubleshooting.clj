@@ -697,6 +697,9 @@
 ;;   replaces it and names the axes the panels share, where `:scales`
 ;;   named the axes left free: write `{:share-scales #{:x}}` for
 ;;   `{:scales :free-y}`, `#{:y}` for `:free-x`, and `#{}` for `:free`.
+;; - **The direction argument of `pj/facet`.** It is retired and warns.
+;;   `(pj/facet pose :species :row)` draws as before; write
+;;   `(pj/facet pose {:row :species})`.
 ;;
 ;; For each of the first two, split the pose with `pj/facet`, or draw
 ;; the layers as separate poses with `pj/arrange`. A series and a facet

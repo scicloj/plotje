@@ -488,13 +488,13 @@
         same? (fn [a b] (and (= (domains a) (domains b)) (= (texts a) (texts b))))
         over-y (fn [] (-> cars (pj/pose {:x :size}) pj/lay-point))]
     (testing "the same panels, axes and titles"
-      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series :row))
+      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet {:row :series}))
                  (-> (over-y) (pj/facet {:y [:fast :slow]}))))
       (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series))
                  (-> (over-y) (pj/facet {:col {:y [:fast :slow]}})))))
     (testing "a series on the pose, and a key named with :as"
       (is (same? (-> cars (pj/pose {:x :size :y {:series [:fast :slow] :as :speed}})
-                     pj/lay-point (pj/facet :speed :row))
+                     pj/lay-point (pj/facet {:row :speed}))
                  (-> (over-y) (pj/facet {:y [:fast :slow]})))))
     (testing "an axis per column by default, one where a group shares it"
       (let [by-key (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series))]
@@ -504,7 +504,7 @@
       (is (same? (-> cars (pj/lay-histogram {:x [:fast :slow]}) (pj/facet :series))
                  (-> cars (pj/pose {:x :fast}) pj/lay-histogram (pj/facet {:col {:x [:fast :slow]}})))))
     (testing "beside a facet by another column, a grid"
-      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series) (pj/facet :kind :row))
+      (is (same? (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :series) (pj/facet {:row :kind}))
                  (-> (over-y) (pj/facet {:col {:y [:fast :slow]} :row :kind})))))
     (testing "a series faceted by another column keeps its panel of both columns"
       (let [pose (-> cars (pj/lay-point :size [:fast :slow]) (pj/facet :kind))]

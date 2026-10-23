@@ -33,6 +33,8 @@
     (testing "a map that already names a direction"
       (is (re-find #"already names its directions: leave :row out"
                    (message #(pj/facet base {:col :kind} :row)))))
-    (testing "{:column ...} with a direction is still a column"
-      (is (= 2 (:panels (pj/svg-summary (pj/facet (pj/lay-point rows :size :height)
-                                                  {:column :kind} :row))))))))
+    (testing "{:column ...} with a direction is still a column, and warns"
+      (let [printed (with-out-str
+                      (is (= 2 (:panels (pj/svg-summary (pj/facet (pj/lay-point rows :size :height)
+                                                                  {:column :kind} :row))))))]
+        (is (re-find #"direction argument is retired" printed))))))

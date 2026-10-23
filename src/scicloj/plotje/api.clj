@@ -3553,14 +3553,18 @@
       (facet-direction fr node :col "pj/facet"))))
 
 (defn- facet-with-direction
-  "`pj/facet` given a column and a direction."
+  "`pj/facet` given a column and a direction, a form retired in favour
+   of the map: `(pj/facet pose col :row)` is `(pj/facet pose {:row
+   col})`. It draws as before and warns, or reports an error under
+   `:strict`."
   [pose col direction]
   (when-not (#{:col :row} direction)
-    (throw (ex-info (str "pj/facet direction must be :col or :row, got: "
-                         (pr-str direction) ".")
+    (throw (ex-info (str "pj/facet was given " (pr-str direction) " after the"
+                         " column. It takes a map of plot options there. To put"
+                         " the panels down, write (pj/facet pose "
+                         (pr-str {:row col}) ").")
                     {:caller "pj/facet"
-                     :direction direction
-                     :accepted #{:col :row}})))
+                     :value direction})))
   ;; A map without `:column` is the form that says where panels come
   ;; from, and it names the direction by its own keys. Read as a column
   ;; it was reported as "not a column of the data", which named neither
@@ -3576,13 +3580,18 @@
                            ". A map names the direction as its key: "
                            "(pj/facet pose " (pr-str {direction col}) ")."))
                     {:caller "pj/facet" :value col :direction direction})))
+  (let [form (if (= :col direction) col {:row col})
+        msg (str "pj/facet: the direction argument is retired. (pj/facet pose "
+                 (pr-str col) " " direction ") draws as before for now; write"
+                 " (pj/facet pose " (pr-str form) ").")]
+    (if (:strict (defaults/config))
+      (throw (ex-info msg {:caller "pj/facet" :retired :direction :to form}))
+      (println (str "Warning: " msg))))
   (facet-direction pose col direction "pj/facet"))
 
 (defn facet
-  "Facet a pose by a column: one panel per value the column holds.
-
-   `direction` is `:col` (default, panels across) or `:row` (panels
-   down).
+  "Facet a pose by a column: one panel per value the column holds,
+   placed across. `(pj/facet my-pose {:row :species})` places them down.
 
    Faceting is a mapping. `(pj/facet my-pose :species)` writes
    `{:col :species}` into the pose's mapping, so it follows the same
@@ -3604,7 +3613,7 @@
    - `{:col {:column :species}}` -- the same as the first, written out.
 
    A map without `:column` says where panels come from, and may name
-   columns rather than categories (provisional, PR #61):
+   columns rather than categories:
 
    - `(pj/facet my-pose {:col :year :row :drv})` -- a grid of categories.
    - `(pj/facet my-pose {:y [:hwy :cty]})` -- a panel per column.
@@ -3629,11 +3638,11 @@
   ([pose col]
    (if (and (map? col) (not (contains? col :column)))
      (facet-map pose col)
-     (facet pose col :col)))
-  ([pose col direction-or-options]
-   (if (map? direction-or-options)
-     (options (facet pose col) direction-or-options)
-     (facet-with-direction pose col direction-or-options)))
+     (facet-direction pose col :col "pj/facet")))
+  ([pose col options-or-direction]
+   (if (map? options-or-direction)
+     (options (facet pose col) options-or-direction)
+     (facet-with-direction pose col options-or-direction)))
   ([pose col direction opts]
    (options (facet-with-direction pose col direction) opts)))
 
@@ -3644,7 +3653,7 @@
    Like `pj/facet`, this is a mapping -- it writes `{:col ... :row ...}`
    -- so it scopes downward and reaches a composite's cells.
    `(pj/facet-grid my-pose :a :b)` writes the same mapping as
-   `(pj/facet my-pose :a)` followed by `(pj/facet my-pose :b :row)`,
+   `(pj/facet my-pose :a)` followed by `(pj/facet my-pose {:row :b})`,
    and is made of those two steps.
 
    `pj/facet-grid` fills the rectangle; `(pj/facet my-pose [:a :b])`

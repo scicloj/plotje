@@ -51,7 +51,7 @@
     (let [mpg (rdatasets/ggplot2-mpg)
           base (pj/lay-point mpg :displ :hwy)]
       (doseq [v [(pj/facet base :drv)
-                 (pj/facet base :drv :row)
+                 (pj/facet base {:row :drv})
                  (pj/facet base [:year :drv])
                  (pj/facet-grid base :drv :cyl)
                  (-> base (pj/facet :drv) (pj/options {:scales :free}))]]

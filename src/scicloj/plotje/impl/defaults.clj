@@ -257,7 +257,7 @@
    because it divides every layer of that pose alike. `pj/facet` given a
    column, and `pj/facet-grid`, write one."
   {:col "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out across. A vector unites the columns into a compound key, so a panel is drawn for each combination the data holds. Written by pj/facet, and by pj/facet-grid for the across direction."
-   :row "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out down. The same readings as :col. Written by (pj/facet my-pose col :row), and by pj/facet-grid for the down direction."})
+   :row "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out down. The same readings as :col. Written by (pj/facet my-pose {:row col}), and by pj/facet-grid for the down direction."})
 
 (def positional-aesthetics
   "The aesthetics that place a mark, and so may be given as a value.

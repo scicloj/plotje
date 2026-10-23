@@ -761,15 +761,11 @@
 
 (deftest pj-facet-bad-direction-throws-ex-info
   (let [pose (pj/lay-point tiny :x :y)]
-    (testing "(pj/facet pose col :diagonal) throws ex-info naming the accepted directions"
+    (testing "(pj/facet pose col :diagonal) throws ex-info naming the map"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"pj/facet direction must be :col or :row, got: :diagonal"
-           (pj/facet pose :y :diagonal))))
-
-    (testing ":col and :row pass through"
-      (is (some? (pj/facet pose :y :col)))
-      (is (some? (pj/facet pose :y :row))))))
+           #"pj/facet was given :diagonal after the column"
+           (pj/facet pose :y :diagonal))))))
 
 (deftest plan-warns-on-out-of-range-breaks
   (let [iris (tc/dataset {:sepal-length [4.0 5.0 6.0]

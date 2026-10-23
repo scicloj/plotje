@@ -57,11 +57,11 @@
 
 ;; ## Vertical Facet and Facet Grid
 ;;
-;; Pass `:row` as the direction for a vertical column of panels:
+;; `{:row :species}` puts the panels down, in one column:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
-    (pj/facet :species :row))
+    (pj/facet {:row :species}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 3 (:panels s))
@@ -175,7 +175,7 @@
 (kind/test-last
  [(fn [fr] (= :species (get-in fr [:mapping :col])))])
 
-;; `(pj/facet my-pose col :row)` writes `:row` instead, and
+;; `(pj/facet my-pose {:row col})` writes `:row` instead, and
 ;; `pj/facet-grid` writes both.
 
 (-> (rdatasets/ggplot2-mpg)

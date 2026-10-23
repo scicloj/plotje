@@ -50,7 +50,7 @@
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
-  (pj/facet :species :row)))
+  (pj/facet {:row :species})))
 
 
 (deftest

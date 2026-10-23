@@ -94,15 +94,34 @@
         y-domains (fn [pose] (count (distinct (map :y-domain (:panels (pj/plan pose))))))]
     (testing "a trailing map is what pj/options takes"
       (is (= (pj/facet p :drv share) (-> p (pj/facet :drv) (pj/options share))))
-      (is (= (pj/facet p :drv :row share) (-> p (pj/facet :drv :row) (pj/options share))))
       (is (= (pj/facet p {:row :drv} share) (-> p (pj/facet {:row :drv}) (pj/options share))))
       (is (= (pj/facet-grid p :drv :cyl share) (-> p (pj/facet-grid :drv :cyl) (pj/options share)))))
     (testing "and it is read"
       (is (= 1 (y-domains (pj/facet p :drv))))
       (is (= 3 (y-domains (pj/facet p :drv share)))))
-    (testing "a direction that is neither :col nor :row still reports an error"
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"direction must be :col or :row"
+    (testing "a keyword after the column that is neither :col nor :row reports an error"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"was given :sideways after the column.*\(pj/facet pose \{:row :drv\}\)"
                             (pj/facet p :drv :sideways))))))
+
+(deftest the-direction-argument-is-retired-test
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+        out (fn [f] (with-out-str (f)))]
+    (testing "it draws as the map does, and warns naming the map"
+      (let [printed (out #(is (= (pj/plot (pj/facet p :drv :row))
+                                 (pj/plot (pj/facet p {:row :drv})))))]
+        (is (re-find #"direction argument is retired.*\(pj/facet pose :drv :row\).*write \(pj/facet pose \{:row :drv\}\)"
+                     printed)))
+      (is (re-find #"write \(pj/facet pose :drv\)" (out #(pj/facet p :drv :col))))
+      (is (re-find #"retired" (out #(pj/facet p :drv :row {:share-scales #{:x}})))))
+    (testing "the shorthand and the map print nothing"
+      (is (= "" (out #(pj/facet p :drv))))
+      (is (= "" (out #(pj/facet p {:row :drv}))))
+      (is (= "" (out #(pj/facet p :drv {:share-scales #{:x}}))))
+      (is (= "" (out #(pj/facet-grid p :drv :cyl)))))
+    (testing "under :strict it reports an error"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"direction argument is retired"
+                            (pj/with-config {:strict true} (pj/facet p :drv :row)))))))
 
 (deftest a-key-the-facet-map-does-not-read-test
   (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
@@ -150,7 +169,7 @@
                      (ex-message e)))
         (is (re-find #"does not wrap its panels.*\(pj/arrange poses \{:cols 4 :height 1200\}\)" (ex-message e)))
         (is (= {:facet :model :values 38} (select-keys (ex-data e) [:facet :values]))))
-      (is (re-find #"in one column" (ex-message (report (pj/facet p :model :row))))))
+      (is (re-find #"in one column" (ex-message (report (pj/facet p {:row :model}))))))
     (testing "a plot too small with no facet keeps its message"
       (is (not (re-find #"facet" (ex-message (report (pj/options p {:width 30})))))))
     (testing "the suggested form draws"
