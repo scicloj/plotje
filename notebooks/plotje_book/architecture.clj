@@ -16,6 +16,8 @@
 
 (ns plotje-book.architecture
   (:require
+   ;; Clojure string -- splitting a message into sentences
+   [clojure.string :as str]
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
    ;; Rdatasets -- standard datasets
@@ -152,8 +154,9 @@ graph LR
 ;; flows through unchanged (idempotent). This is the structural lift
 ;; that lets every downstream function accept either raw data or a
 ;; pose. It stops there -- it sets no mapping. The default mapping
-;; that makes a bare dataset render is added separately by
-;; `pj/infer-mapping` (see "Where Inference Happens" below).
+;; that makes a bare dataset render is filled in when the pose is
+;; drafted, and `pj/infer-mapping` writes it onto the pose ahead of
+;; that (see "Where Inference Happens" below).
 ;;
 ;; The example traced through every stage is iris petal
 ;; measurements, with a scatter and per-species regression line.
@@ -313,11 +316,11 @@ trace-pose
 ;; file-output sibling that runs the chain all the way and writes the
 ;; result to disk:
 ;;
-;; - **pj/pose** -- not a literal composition. Beyond `pj/->pose`,
-;;   it infers mappings from 1-3 column datasets, parses positional
-;;   column arguments (e.g. `(pj/pose data :x :y)`), and merges a
-;;   mapping into an existing pose. Use `pj/->pose` when you only need
-;;   to lift raw input to a pose without any of that.
+;; - **pj/pose** -- not a literal composition. On raw data its
+;;   one-argument form is `pj/->pose`. With more arguments it reads
+;;   column arguments (`(pj/pose data :x :y)`) and a mapping, and on an
+;;   existing pose it merges them into that pose's mapping. It infers
+;;   nothing: the default mapping is filled in when the pose is drafted.
 ;; - **pj/draft** -- raw input -> draft.
 ;; - **pj/plan** -- raw input -> plan.
 ;; - **pj/membrane** -- raw input -> membrane tree.
@@ -346,23 +349,23 @@ graph LR
   style F fill:#fce4ec
 ")
 
-;; The shortcuts are near-literal compositions of these steps: each
-;; lifts raw input with `pj/->pose`, applies the shared
-;; `pj/infer-mapping` step (which gives a bare dataset a default
-;; mapping and is a no-op once a pose already has one), and runs the
-;; chain up to its stage. Their source shows the pipeline directly.
-;; Two things are simplified below for clarity: the `pj/->pose`
-;; caller-name argument -- which only tunes error messages -- is
-;; elided, and `pj/pose` is shown at its 1-arity (its typed arities
-;; also parse positional column arguments and build composites).
+;; The shortcuts from `pj/draft` on are near-literal compositions of
+;; these steps: each lifts raw input with `pj/->pose`, applies the
+;; shared `pj/infer-mapping` step (which gives a pose that names no
+;; `:x` or `:y` column the default mapping of its data, and changes
+;; nothing on a pose whose mapping names one), and runs the chain up to
+;; its stage. Their source shows the pipeline directly. Two things are
+;; simplified below for clarity: the `pj/->pose` caller-name argument
+;; -- which only tunes error messages -- is elided, and `pj/pose` is
+;; shown at its 1-arity (its other arities also read column arguments
+;; and a mapping).
 ;;
 ;; Pseudocode:
 ;; ```clojure
-;; (defn pose         ; 1-arity; typed arities also parse positional
-;;   ([x]             ; column arguments and build composites
+;; (defn pose         ; 1-arity; the other arities also read
+;;   ([x]             ; column arguments and a mapping
 ;;    (-> x
-;;        ->pose
-;;        infer-mapping)))
+;;        ->pose)))
 ;;
 ;; (defn draft
 ;;   ([x]
@@ -439,9 +442,9 @@ graph LR
 ;; In `plot`, the `let` binds `pose`, `opts`, and `fmt` for use in
 ;; the subsequent `->` thread, which runs the four transitions
 ;; (`pose->draft`, `draft->plan`, `plan->membrane`, `membrane->plot`)
-;; in order. The plan-derived dimensions and title are attached to
-;; the membrane tree as metadata, so `membrane->plot` can read them
-;; without the plan.
+;; in order. The membrane carries the dimensions the plan settled on as
+;; record fields, and the title under `:plotje/title`, so
+;; `membrane->plot` reads them without the plan.
 ;;
 ;; `pj/save` is the file-output sibling: it lifts and infers the same
 ;; way, resolves the file format (from a `:format` option or the path
@@ -518,30 +521,31 @@ graph LR
 
 ;; Where each kind of inference lives:
 ;;
-;; - **Mapping inference** fills in a position/color mapping from the
-;;   first 1-3 columns: 1 column to `:x`, 2 columns to `:x` and `:y`,
-;;   3 columns add `:color`. It runs at the user-facing entry points
-;;   that accept raw data -- `pj/pose` (1-arity) and the shortcuts
-;;   `pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot`, and `pj/save`,
-;;   which all apply the shared public step `pj/infer-mapping` (a
-;;   no-op once a pose has a mapping). The default is also written
-;;   where the first layer names no column and the layers after it
-;;   name no column but the default's, so a layer added to a
-;;   pose leaves the layers before it as they were drawn. A
-;;   `pj/lay-*` call reads no column of the data when it is called: a
-;;   layer naming no column is given its columns at the draft, and a
-;;   layer left without a column is reported there.
-;;   Inference never lives in `pj/->pose`, which only lifts data into
-;;   a bare mapping-less leaf -- so `pj/infer-mapping` is a public step
-;;   you can drop into a hand-built pipeline, and raw data handed to a
-;;   shortcut renders the same default as `pj/pose` would.
-;; - **Layer-type inference** lives in `pj/draft->plan`. A pose
-;;   without an explicit `pj/lay-*` call drafts to a layer with no
-;;   `:mark` set; the plan stage detects the missing mark, looks
-;;   at the column types, and picks a concrete mark + stat --
-;;   categorical x with numerical y produces a boxplot, temporal x
-;;   with numerical y produces a time-series line, numerical x and
-;;   y produce a scatter, and so on.
+;; - **Mapping inference** fills in `:x`, `:y` and `:color` from the
+;;   first one to three columns of the data: one column to `:x`, two
+;;   columns to `:x` and `:y`, and a third column to `:color`. It runs
+;;   at the start of `pj/pose->draft`, on every leaf, cells of a
+;;   composite included. It writes the default where neither the
+;;   pose's mapping nor any layer names an `:x` or a `:y` column, and
+;;   where the first layer names no column and each later layer names
+;;   only the default's columns, each on the axis the default reads it
+;;   on (the example below this list shows that case).
+;;   `pj/infer-mapping` is the same step as a public function: it
+;;   writes the default onto the pose, where it can be read before
+;;   drafting. `pj/->pose`, `pj/pose` and the `pj/lay-*` functions read
+;;   no column of the data when they are called: a layer naming no
+;;   column is given its columns when the pose is drafted, and a layer
+;;   left without a column is reported then.
+;; - **Layer-type inference** is written into the draft. A pose with no
+;;   `pj/lay-*` call is given one layer, of the type its columns choose:
+;;   a categorical x with a numerical y gives a boxplot, a temporal x
+;;   with a numerical y gives a line, a numerical x and y give a
+;;   scatter, and one numerical column gives a histogram.
+;;   `pose/elaborate` makes the choice, so the draft layer already
+;;   holds its `:mark` and `:stat`. `pj/draft->plan` chooses the stat of
+;;   a layer whose type leaves it open -- a bar with no `:y` column
+;;   counts -- and gives a draft layer written by hand with no `:mark`
+;;   the type its columns choose.
 ;; - **Column-type inference** lives in `pj/draft->plan`.
 ;;   `:x-type`/`:y-type`/`:color-type` default from the data
 ;;   (numerical / categorical / temporal); a user-supplied
@@ -551,20 +555,37 @@ graph LR
 ;;   values; legend entries are derived from the layers' aesthetic
 ;;   mappings; the coordinate system defaults to `:cartesian`.
 ;;
-;; All but mapping inference happens in the plan stage. Mapping
-;; inference runs earlier -- before any draft exists -- so the rest
-;; of the pipeline always receives a pose with mappings. The plan stage
-;; is where the geometry, types, and layer choice are resolved: the
-;; draft may leave them unspecified, and the plan fills them in.
+;; Mapping inference and the choice of a layer type run in
+;; `pj/pose->draft`; the rest runs in `pj/draft->plan`.
 ;; Every inferred default has an explicit override (`pj/scale`,
 ;; `pj/coord`, `pj/options`, mapping keys like `:x-type`), so the
 ;; user can opt out of any single inference without losing the
 ;; others.
 ;;
+;; Below, `pj/pose->draft` gives a pose built by `pj/->pose` the default
+;; mapping of its three columns, with no `pj/infer-mapping` call in
+;; between. The points keep the color of the default beside a smooth
+;; that names the default's `:x` and `:y` columns:
+
+(->> (-> {:a [1 2 3 4] :b [2 4 3 5] :c ["u" "u" "v" "v"]}
+         pj/->pose
+         pj/lay-point
+         (pj/lay-smooth :a :b)
+         pj/pose->draft)
+     :layers
+     (mapv #(select-keys % [:mark :x :y :color])))
+
+(kind/test-last
+ [(fn [layers]
+    (= [{:mark :point :x :a :y :b :color :c}
+        {:mark :line :x :a :y :b :color :c}]
+       layers))])
+
 ;; ### The columns a layer reads
 ;;
-;; One choice is made before the draft, in `pose/elaborate`: which
-;; columns a layer reads where it names none, or names one of two. A
+;; One choice is made at the start of `pj/pose->draft`, by
+;; `pose/elaborate`: which columns a layer reads where it names none, or
+;; names one of two. A
 ;; `pj/lay-*` call keeps its columns on its own layer, so the pose
 ;; below has no mapping. Its panel's columns are those of the first
 ;; layer naming one on each axis. `pose/elaborate` writes them into
@@ -593,16 +614,21 @@ graph LR
 ;; mapping. Written into the pose, it would reach every layer by
 ;; scope, and a layer type that can draw from one column -- a bar that
 ;; counts, a histogram -- would be given a second column it did not
-;; ask for. A facet over columns is the one place the pose is written:
-;; its cells are made from the panel's columns, with the facet's column
-;; on the axis it names (`pose/expand-facet-nodes`, below).
+;; ask for. The panel's columns are written into the pose in one place,
+;; a facet over columns: its cells are made from the panel's columns,
+;; with the facet's column on the axis it names
+;; (`pose/expand-facet-nodes`, below). Elaboration writes two other
+;; things on the pose: the default mapping of data with one to three
+;; columns, and the flip of a column named on `:y` alone (see "A column
+;; on `:y` alone" below).
 ;;
 ;; The panel's columns are also what a `pj/lay-*` call on a composite
 ;; compares its columns with, to find the cell the layer joins:
 ;; `pose/last-matching-leaf-path` reads `pose/leaf-place`, the function
 ;; `pose/elaborate` reads. A cell built by `pj/lay-*` names its columns
-;; on its layers only, and is matched as a cell that names them in its
-;; own mapping is.
+;; on its layers and not in its mapping. Such a cell is matched by its
+;; columns all the same, because the panel's columns are read from the
+;; layers where the mapping names none.
 ;;
 ;; A layer may reach the plan with no data at all: a template drawn
 ;; before `pj/with-data`, or a cell added to an arrangement whose root
@@ -610,6 +636,118 @@ graph LR
 ;; dataset of no rows before its stat runs, so every stat takes the
 ;; route it takes for data that is all missing, and the panel reads
 ;; "no data".
+
+;; ### What elaboration writes
+;;
+;; `pose/elaborate` writes into a pose what the draft would otherwise
+;; have to choose, in this order: the rows the pose keeps
+;; (`apply-where`); a series pivoted into a key column and a value
+;; column; the default mapping of data with one to three columns; one
+;; layer, where the pose names columns and has no layer; the panel's
+;; columns, into each layer that reads them; a layer type for each
+;; layer left to inference; and the flip of a column named on `:y`
+;; alone, described in the next section.
+;;
+;; A layer naming no column is given both of the panel's columns. A
+;; layer naming one column is given the other only where its layer type
+;; cannot draw from one column, which `layer-type/column-counts` says.
+;; The line naming `:children` above is given `:week`. A bar naming
+;; `:day` beside points of `:day` against `:visits` is given nothing,
+;; and counts:
+
+(def counted-beside-points
+  (-> {:day ["mon" "tue" "mon" "wed"]
+       :visits [3 5 2 4]}
+      (pj/lay-point :day :visits)
+      (pj/lay-bar :day)))
+
+(->> counted-beside-points
+     pose/elaborate
+     :layers
+     (mapv :mapping))
+
+(kind/test-last
+ [(fn [mappings]
+    (and (= [{:x :day :y :visits} {:x :day}] mappings)
+         ;; A second call changes nothing.
+         (= (pose/elaborate counted-beside-points)
+            (pose/elaborate (pose/elaborate counted-beside-points)))))])
+
+;; A second call to `pose/elaborate` changes nothing, so the draft can
+;; run it on a pose that was elaborated already.
+;;
+;; ### A column on `:y` alone
+;;
+;; A histogram, a density, a rug and a counting bar draw from one
+;; column, which their stat reads on `:x`. Where a pose names a column
+;; on `:y` and none on `:x`, in its mapping or in its layers, and every
+;; layer can draw from one column, `pose/elaborate` moves the column to
+;; `:x` and writes `:coord :flip` into the pose's options, so the marks
+;; run along the vertical axis:
+
+(-> {:height [1.6 1.7 1.8 1.7 1.75]}
+    (pj/lay-histogram {:y :height})
+    pose/elaborate
+    (dissoc :data)
+    kind/pprint)
+
+(kind/test-last
+ [(fn [elaborated]
+    (and (= {:coord :flip} (:opts elaborated))
+         (= [{:x :height}] (mapv :mapping (:layers elaborated)))))])
+
+;; A layer that draws only from two columns, or that names an `:x`,
+;; keeps the pose as it is written, and the layer left with no `:x`
+;; column is then reported. A `:coord` other than `:flip` on a pose that
+;; would be turned on its side reports an error, since the flip is the
+;; one drawing for it. A layer type of an extension takes part by
+;; declaring `:column-counts`.
+;;
+;; ### The color a layer is given
+;;
+;; Where the layers of a pose draw different columns, nothing on the
+;; panel says which marks belong to which columns. `pose/leaf->draft`
+;; gives each layer a label made of the columns the layer draws
+;; (`pose/overlay-labels`), and each axis is titled with the columns of
+;; every layer. Each layer whose mapping specifies no `:color` is then
+;; given its label as a color: one palette color and one legend entry
+;; per layer. A layer that specifies a color keeps that color. On a
+;; panel where a layer is colored by a column, no layer is given the
+;; default, because the legend of that panel lists the column's values.
+;; The color is written into the draft and not into the pose: each
+;; draft layer below maps `:color` to a column of labels the draft adds
+;; to its data, except the smooth, which keeps its black:
+
+(def sepals-and-petals
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      (pj/lay-point :petal-length :petal-width)
+      (pj/lay-smooth {:color "black"})))
+
+(->> sepals-and-petals
+     pj/draft
+     :layers
+     (mapv (fn [layer]
+             (let [color (:color layer)]
+               (if (keyword? color)
+                 (first ((:data layer) color))
+                 color)))))
+
+(kind/test-last
+ [(fn [colors]
+    (and (= ["sepal length / sepal width" "petal length / petal width" "black"]
+            colors)
+         ;; Nothing is written into the pose's layers.
+         (= [{:x :sepal-length :y :sepal-width}
+             {:x :petal-length :y :petal-width}
+             {:color "black"}]
+            (mapv :mapping (:layers sepals-and-petals)))
+         ;; A layer colored by a column leaves the other layer with no
+         ;; color.
+         (let [colored (-> (rdatasets/datasets-iris)
+                           (pj/lay-point :sepal-length :sepal-width {:color :species})
+                           (pj/lay-point :petal-length :petal-width))]
+           (nil? (:color (second (:layers (pj/draft colored))))))))])
 
 ;; ## Composite Poses
 ;;
@@ -731,8 +869,11 @@ faceted-clinics
 ;; ### The pose stage decides which cells share
 ;;
 ;; `pj/pose->draft` reads the composite's `:share-scales` and puts the
-;; cells into groups. It reads no value from the data to do this. Each
-;; sub-draft carries the groups of its cell under `:share`, by axis:
+;; cells into groups. It measures no extent to do this. It reads the
+;; type of each column, to report cells that cannot share, and for a
+;; column of categories the order the data holds them in, which the
+;; group carries as `:order`. Each sub-draft carries the groups of its
+;; cell under `:share`, by axis:
 
 (->> arranged-clinics
      pj/draft
@@ -762,6 +903,58 @@ faceted-clinics
      (mapv :share))
 
 (kind/test-last [(fn [shares] (= [{:y {:group 0}} {:y {:group 0}}] shares))])
+
+;; With no `:share-scales` written, cells that split the data of one
+;; pose -- the cells of `(pj/arrange data [...])` and of a facet over
+;; columns -- share each axis on which two of them draw one column.
+;; Below, the two cells draw `:week` on `:x` and share it, and the group
+;; lists the weeks in the order of the data's rows:
+
+(->> (pj/arrange {:week ["w2" "w1" "w2" "w1"]
+                  :adults [30 25 28 35]
+                  :children [20 15 18 22]}
+                 [[:week :adults] [:week :children]])
+     pj/draft
+     :sub-drafts
+     (mapv :share))
+
+(kind/test-last
+ [(fn [shares]
+    (and (= [{:x {:group 0 :order ["w2" "w1"]}}
+             {:x {:group 0 :order ["w2" "w1"]}}]
+            shares)
+         ;; Poses with data of their own share nothing by default.
+         (= [nil nil]
+            (->> (pj/arrange [(pj/lay-bar north :week :visits)
+                              (pj/lay-bar south :week :visits)])
+                 pj/draft
+                 :sub-drafts
+                 (mapv :share)))))])
+
+;; Poses that carry data of their own, arranged with
+;; `(pj/arrange [pose-a pose-b])`, share no axis unless `:share-scales`
+;; names it, as the two clinics above do. A cell whose layers draw two
+;; columns on an axis belongs to the groups of both columns, and the two
+;; groups become one: three cells sharing `:y`, drawing `:adults`,
+;; `:children`, and both, are one group.
+
+(def weekly-visits
+  {:week [1 2 3 4]
+   :adults [30 25 28 35]
+   :children [20 15 18 22]})
+
+(->> (pj/arrange [(pj/lay-point weekly-visits :week :adults)
+                  (pj/lay-point weekly-visits :week :children)
+                  (-> weekly-visits
+                      (pj/lay-point :week :adults)
+                      (pj/lay-line :week :children))]
+                 {:share-scales #{:y}})
+     pj/draft
+     :sub-drafts
+     (mapv :share))
+
+(kind/test-last
+ [(fn [shares] (= [{:y {:group 0}} {:y {:group 0}} {:y {:group 0}}] shares))])
 
 ;; ### The plan stage decides what the axis covers
 ;;
@@ -813,15 +1006,17 @@ faceted-clinics
 ;;   dataset's rows, so the split has the axis of the same plot drawn
 ;;   without the split. Cells with data of their own are listed cell by
 ;;   cell.
-;; - **Legends.** A colour or shape legend follows the same rule: its
-;;   categories are listed in the order of the rows of the dataset the
-;;   panels are parts of, by the one function that answers for the axis
-;;   (`pose/data-category-order`). The palette, the order of a stack and
-;;   the order of dodged marks follow the legend's list.
-;; - **A specified domain.** A `:domain` one cell specifies for the
-;;   shared axis is the domain of every cell sharing it: each is planned
-;;   as though it had specified that domain, so none pads it. Cells
-;;   specifying different domains for one shared axis report an error.
+;; - **Legends.** A color legend and a shape legend follow the same
+;;   rule: the categories of the legend are listed in the order of the
+;;   rows of the dataset the panels are parts of. One function,
+;;   `pose/data-category-order`, gives that order to the axis and to the
+;;   legend. The palette, the order of a stack and the order of dodged
+;;   marks follow the order of the legend.
+;; - **A specified domain.** A `:domain` that one cell specifies for the
+;;   shared axis is the domain of every cell sharing that axis: every
+;;   cell is planned as though it had specified that domain, so no cell
+;;   pads the domain. Cells that specify different domains for one
+;;   shared axis report an error.
 ;; - **Text labels.** A cell's numeric domain is widened after planning
 ;;   so that its text marks are drawn in full, by an amount that depends
 ;;   on the cell's own labels. Cells of a group that end on different
@@ -857,12 +1052,7 @@ faceted-clinics
 ;; into a composite of one cell per column. A series faceted by the key
 ;; column the series invents asks for the same panels, so it is first
 ;; rewritten into a facet over the columns of the series, and then
-;; expanded like any other:
-
-(def weekly-visits
-  {:week [1 2 3 4]
-   :adults [30 25 28 35]
-   :children [20 15 18 22]})
+;; expanded like any other, here on the weekly visits above:
 
 (def series-by-key
   (-> weekly-visits
@@ -915,13 +1105,135 @@ series-by-key
 ;; :adults}`, so a density fits and a scatter does not. Inference reads
 ;; one column on both axes as one column and chooses a histogram, and
 ;; the stat reads the column on `:x` and puts its count on `:y`. A bar,
-;; whose layer type can draw from one column or from two, counts there
-;; as well (`resolve/infer-layer-type`), where a scatter draws the
-;; column against itself.
+;; whose layer type can draw from one column or from two, counts the
+;; rows of each category of such a cell (`resolve/infer-layer-type`),
+;; and reports an error for a numerical column, as
+;; `(pj/lay-bar data :adults)` does. A scatter draws the column against
+;; itself.
 ;;
+;; A cell that no layer fits is left with no layer, and elaboration
+;; gives it the layer its columns choose. A layer that fits no cell is
+;; drawn in every cell, as a histogram written on a faceted scatter is.
+;; Where such a layer names a column on an axis on which every cell
+;; names another, and some cell would be left with no layer drawing that
+;; cell's own columns, `pose/fit-layers` reports an error. On a
+;; two-by-two matrix, a scatter fits the two cells off the diagonal and
+;; a density fits the two cells on it:
+
+(->> (-> (select-keys weekly-visits [:adults :children])
+         pj/lay-point
+         pj/lay-density
+         (pj/facet {:col {:x [:adults :children]}
+                    :row {:y [:adults :children]}}))
+     pj/draft
+     :sub-drafts
+     (mapv (fn [sub-draft] (mapv :mark (:draft sub-draft)))))
+
+(kind/test-last
+ [(fn [marks]
+    (let [marks-per-cell (fn [pose]
+                           (->> pose
+                                pj/draft
+                                :sub-drafts
+                                (mapv (fn [sub-draft] (mapv :mark (:draft sub-draft))))))]
+      (and (= [[:area] [:point] [:point] [:area]] marks)
+           ;; A histogram fits no cell of a faceted scatter, and is
+           ;; drawn in both.
+           (= [[:point :bar] [:bar]]
+              (marks-per-cell (-> weekly-visits
+                                  (pj/lay-point :week :adults)
+                                  (pj/lay-histogram {:x :week})
+                                  (pj/facet {:y [:adults :children]}))))
+           ;; A layer naming :week on :y, where every cell names its
+           ;; own :y, leaves the cells with no layer of their own.
+           (re-find #"no panel draws it"
+                    (try (pj/draft (-> weekly-visits
+                                       (pj/pose {:x :week})
+                                       (pj/lay-point {:y :week})
+                                       (pj/facet {:y [:adults :children]})))
+                         ""
+                         (catch Exception e (ex-message e)))))))])
+
 ;; From here the pose is an ordinary composite: its cells are grouped,
-;; measured and planned as the two clinics above were. Each cell draws
-;; a column of its own, so by default no two cells share `:y`.
+;; measured and planned as the two clinics above were. In the series
+;; faceted by its key, each cell draws a column of its own on `:y`, so
+;; by default the two cells share `:x` and not `:y`:
+
+(->> series-by-key
+     pj/draft
+     :sub-drafts
+     (mapv :share))
+
+(kind/test-last
+ [(fn [shares] (= [{:x {:group 0}} {:x {:group 0}}] shares))])
+
+;; ## Where a Mistake Is Reported
+;;
+;; When a pose cannot be drawn, the step that reports the error says
+;; what the error depends on. A call reports what its own arguments
+;; decide. What depends on the other layers, on the columns the data
+;; has, or on the cells of a facet is reported by `pj/pose->draft`. A
+;; layer whose stat or mark cannot draw the values it is given, and
+;; panels too small for the canvas, are reported by `pj/draft->plan`.
+;; So `pj/lay-point` naming a column the data lacks returns a pose, and
+;; drafting that pose reports the column.
+;;
+;; The table below builds a pose for each mistake and runs the steps in
+;; order. It shows the first step that reports an error, and the first
+;; sentence of the message:
+
+(kind/table
+ {:column-names ["Mistake" "Reported by" "First sentence of the message"]
+  :row-vectors
+  (for [[mistake build]
+        [["A second column given to pj/lay-histogram"
+          #(pj/lay-histogram weekly-visits :adults :children)]
+         ["Pairs of columns given to pj/pose"
+          #(pj/pose weekly-visits [[:week :adults] [:week :children]])]
+         ["A key the map of pj/facet does not read"
+          #(-> weekly-visits
+               (pj/lay-point :week :adults)
+               (pj/facet {:y [:adults :children] :z [:week]}))]
+         ["A column the data lacks"
+          #(pj/lay-point weekly-visits :week :teens)]
+         ["A layer left without a column, on data of four columns"
+          #(pj/lay-point (assoc weekly-visits :seniors [5 6 7 8]))]
+         ["A category and a number on one axis"
+          #(-> north
+               (pj/lay-point :visits :week)
+               (pj/lay-point :age :week))]
+         ["A layer naming a column no cell of a facet over columns has"
+          #(-> weekly-visits
+               (pj/pose {:x :week})
+               (pj/lay-point {:y :week})
+               (pj/facet {:y [:adults :children]}))]
+         ["A bar of two categorical columns"
+          #(pj/lay-bar north :week :age)]
+         ["A mark polar coordinates cannot draw"
+          #(-> weekly-visits
+               (pj/lay-line :week :adults)
+               (pj/coord :polar))]
+         ["Panels too small for the canvas"
+          #(-> north
+               (pj/lay-point :week :visits)
+               (pj/facet :age)
+               (pj/options {:width 60}))]]]
+    (let [report (fn [step f]
+                   (try (f)
+                        nil
+                        (catch Exception e
+                          [mistake step (first (str/split (ex-message e) #"(?<=\.) "))])))
+          pose (try (build) (catch Exception _ nil))]
+      (or (report "the call" build)
+          (report "pj/pose->draft" #(pj/pose->draft pose))
+          (report "pj/draft->plan" #(pj/draft->plan (pj/pose->draft pose))))))})
+
+(kind/test-last
+ [(fn [table]
+    (= (concat (repeat 3 "the call")
+               (repeat 4 "pj/pose->draft")
+               (repeat 3 "pj/draft->plan"))
+       (map second (:row-vectors table))))])
 
 ;; ## The Plan Boundary
 ;;
@@ -1055,10 +1367,13 @@ graph TD
   style RC fill:#f8bbd0
 ")
 
-;; `impl/pose.clj` holds the core pose operations: `resolve-tree` (merges
-;; mappings/data/options down from root to every leaf), `leaf->draft`
-;; (the leaf-pose flattening that the public `pj/pose->draft` calls),
-;; and the multi-pair / grid composite utilities.
+;; `impl/pose.clj` holds the pose operations: `resolve-tree` (merges
+;; mappings, data and options from the root down to every leaf),
+;; `elaborate` (writes in what the draft chooses), `expand-facet-nodes`
+;; and `fit-layers` (a facet over columns as cells, and the layers each
+;; cell draws), `shared-axis-groups` (which cells share an axis), and
+;; `leaf->draft` (the leaf flattening that the public `pj/pose->draft`
+;; calls).
 ;;
 ;; `impl/compositor.clj` handles composite framing layout,
 ;; `composite-pose->draft`, and `composite-draft->plan` -- pure

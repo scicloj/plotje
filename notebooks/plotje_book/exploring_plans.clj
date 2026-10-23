@@ -71,14 +71,23 @@ tiny-plan
 
 ;; ### The panel
 ;;
-;; The plan contains one or more panels. A simple plot has one panel;
-;; faceting and SPLOM (scatter plot matrix) produce multiple. Each panel holds its own data space:
+;; A plan holds one or more panels. A simple plot has one panel, and a
+;; facet over the categories of a column has one panel per category. A
+;; scatter plot matrix, a facet over columns and an arrangement are
+;; drawn from a composite plan instead, which holds one plan per cell
+;; under `:sub-plots`. Each panel holds its own data space:
 
 (def tiny-panel (first (:panels tiny-plan)))
 
 (keys tiny-panel)
 
-(kind/test-last [(fn [ks] (every? (set ks) [:x-domain :y-domain :layers]))])
+(kind/test-last [(fn [ks]
+                   (and (every? (set ks) [:x-domain :y-domain :layers])
+                        ;; A scatter plot matrix plans as a composite,
+                        ;; one plan per cell.
+                        (let [matrix-plan (pj/plan (pj/cross-matrix {:a [1 2 3] :b [3 1 2]} [:a :b]))]
+                          (and (pj/composite-plan? matrix-plan)
+                               (= 4 (count (:sub-plots matrix-plan)))))))])
 
 ;; **Domains** -- the numeric range of the data, with a small padding:
 
@@ -96,7 +105,7 @@ tiny-plan
 
 (kind/test-last [(fn [s] (= :linear (:type s)))])
 
-;; **Ticks** -- pre-computed tick positions and their text labels:
+;; **Ticks** -- the tick values and their text labels:
 
 (:x-ticks tiny-panel)
 
@@ -525,8 +534,9 @@ final-plan
 
 ;; ## Multi-Panel Plans
 ;;
-;; Faceting produces plans with multiple panels. Each panel has
-;; its own domains, ticks, and layers, plus grid positioning.
+;; A facet over the categories of a column produces a plan with
+;; multiple panels. Each panel has its own domains, ticks, and layers,
+;; plus its place in the grid.
 
 (def faceted-plan
   (-> (rdatasets/datasets-iris)

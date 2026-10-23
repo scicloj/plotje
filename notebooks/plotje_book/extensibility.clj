@@ -341,7 +341,12 @@ graph LR
 ;; the layer type draws from: `#{1}` for an x column alone, `#{2}` for an
 ;; x and a y column, `#{1 2}` for either. It is listed per layer type in
 ;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from),
-;; and `:x-only true` is the older way to write `#{1}`. `:accepts` lists
+;; and `:x-only true` is the older way to write `#{1}`. `:column-counts`
+;; decides which panels of a facet over columns a layer is drawn in,
+;; whether a layer naming one column is given the panel's other column,
+;; and whether a column named on `:y` alone is drawn on its side (see
+;; [The columns a layer reads](./plotje_book.architecture.html#the-columns-a-layer-reads)).
+;; `:accepts` lists
 ;; the keys its mapping takes beyond the keys every layer type accepts,
 ;; tabulated per layer type in
 ;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-keys).
@@ -682,8 +687,11 @@ graph LR
 ;;
 ;; After defining `compute-stat` and `extract-layer` for your custom
 ;; mark, register a layer type and create a convenience function that
-;; works with the pose API:
+;; works with the pose API. The
+;; [Waterfall Extension](./plotje_book.waterfall_extension.html) chapter
+;; evaluates the same steps.
 ;;
+;; Pseudocode:
 ;; ```clojure
 ;; ;; Register the layer type
 ;; (layer-type/register! :waterfall
@@ -993,7 +1001,7 @@ graph LR
 ;; `:polar` registers none, so it falls to the default, which returns
 ;; nil. A panel under a coordinate system with no inverse reports
 ;; `:invertible? false` in `pj/frames`, and `pj/to-data` throws for it
-;; rather than answering with a position that is only sometimes the one
+;; rather than answering with a value that is only sometimes the one
 ;; asked about. A custom coord that can be inverted should register a
 ;; method; one that cannot needs no action.
 
@@ -1071,5 +1079,5 @@ graph LR
 
 ;; ## What's Next
 ;;
-;; - [**Extension Example**](./plotje_book.waterfall_extension.html) -- a worked example that uses the extension points above to add a waterfall chart
+;; - [**Waterfall Extension**](./plotje_book.waterfall_extension.html) -- a worked example that uses the extension points above to add a waterfall chart
 ;; - [**Edge Cases**](./plotje_book.edge_cases.html) -- how the library handles unusual inputs

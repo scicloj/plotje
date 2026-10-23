@@ -1,4 +1,4 @@
-;; # Extension Example
+;; # Waterfall Extension
 ;;
 ;; This notebook walks through building a custom chart type from
 ;; scratch -- a **[waterfall chart](https://en.wikipedia.org/wiki/Waterfall_chart)** that shows running totals as
@@ -241,7 +241,7 @@
 
 ;; ## Background
 ;;
-;; - [**Extensibility**](./plotje_book.extensibility.html) -- reference for all eight extension points
+;; - [**Extensibility**](./plotje_book.extensibility.html) -- reference for every extension point
 ;; - [**Architecture**](./plotje_book.architecture.html) -- the five-stage pipeline in detail
 
 ;; ## What's Next

@@ -497,10 +497,12 @@
 
 (kind/test-last [(fn [v] (= 100 (:points (pj/svg-summary v))))])
 
-;; ### Full grid -- cross plot
+;; ### Full grid -- a matrix of columns
 ;;
-;; `pj/cross` produces a full NxN grid of panels. Column names
-;; appear as axis labels on each cell.
+;; `pj/cross-matrix` draws a panel for every pair of the columns it is
+;; given. Each column is named once above its column of panels and once
+;; beside its row of panels, and a panel with one column on both axes
+;; draws a histogram of that column.
 
 (-> (rdatasets/datasets-iris)
     (pj/cross-matrix [:sepal-length :sepal-width :petal-length]
@@ -510,7 +512,12 @@
                                texts (:texts s)
                                col-label? #(re-find #"sepal|petal" %)]
                            (and (= 9 (:panels s))
-                                (seq (filter col-label? texts)))))])
+                                ;; Each of the three column names twice.
+                                (= {"sepal length" 2 "sepal width" 2 "petal length" 2}
+                                   (frequencies (filter col-label? texts)))
+                                ;; The three panels on the diagonal draw bars.
+                                (= 3 (count (filter #(= [:bar] (mapv :mark (:layers (first (:panels (:plan %))))))
+                                                    (:sub-plots (pj/plan v))))))))])
 ;; ## Error Messages
 ;; Plotje reports an error for these common mistakes.
 
@@ -536,7 +543,7 @@
 
 (kind/test-last [(fn [m] (string? m))])
 
-;; ### Layer with own :data, missing the pose's position columns
+;; ### A layer with its own `:data` that lacks the panel's columns
 ;;
 ;; A layer that names no columns reads the panel's columns. When the
 ;; layer carries its own `:data` and that data lacks one of them, the
