@@ -675,11 +675,17 @@
    chart appears unlabelled. Print a warning naming the offending
    values and suggesting :domain (which extends the axis range) for
    users who meant to broaden the visible scale rather than pin
-   tick locations only. Strict mode upgrades to ex-info."
+   tick locations only. Strict mode upgrades to ex-info.
+
+   A domain may be written high to low, `[6 -1]`, to draw the axis
+   reversed; a break inside it is inside whichever end is written
+   first."
   [breaks domain]
-  (let [[lo hi] domain]
-    (when (and (number? lo) (number? hi))
-      (let [out-of-range (vec (filter #(or (< (double %) (double lo))
+  (let [[a b] domain]
+    (when (and (number? a) (number? b))
+      (let [lo (min a b)
+            hi (max a b)
+            out-of-range (vec (filter #(or (< (double %) (double lo))
                                            (> (double %) (double hi)))
                                       breaks))]
         (when (seq out-of-range)
@@ -701,6 +707,7 @@
                                :domain [lo hi]
                                :out-of-range out-of-range}))
               (println (str "Warning: " msg)))))))))
+
 
 (defn- warn-unknown-categorical-breaks!
   "When user-supplied :breaks on a categorical axis include values that
