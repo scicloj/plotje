@@ -4149,3 +4149,30 @@
                      (pj/lay-rule-h :cty :year {:y-intercept 2000}))]
         (is (= "" (with-out-str (pj/plan comp))))
         (is (= 2 (:panels (pj/svg-summary comp))))))))
+
+(deftest legend-of-two-colour-columns-names-both-test
+  ;; Two layers of one panel coloured by different columns share one
+  ;; colour scale; the legend lists both columns' values, so it is
+  ;; titled by both, as an axis drawing two columns is ("hwy, cty").
+  (let [d {:displ [1 2 3 4] :hwy [10 20 30 40] :cty [8 16 24 32]
+           :drv ["f" "r" "f" "r"] :class ["a" "b" "a" "b"]}
+        plan-of (fn [pose] (binding [*out* (java.io.StringWriter.)] (pj/plan pose)))
+        two (plan-of (-> d
+                         (pj/lay-point :displ :hwy {:color :drv})
+                         (pj/lay-point :displ :cty {:color :class})))
+        one (plan-of (-> d
+                         (pj/lay-point :displ :hwy {:color :drv})
+                         (pj/lay-point :displ :cty {:color :drv})))
+        shapes (plan-of (-> d
+                            (pj/lay-point :displ :hwy {:shape :drv})
+                            (pj/lay-point :displ :cty {:shape :class})))]
+    (is (= "drv, class" (-> two :legend :title)))
+    (is (= ["f" "r" "a" "b"] (mapv :label (-> two :legend :entries))))
+    (is (= :drv (-> one :legend :title)))
+    (is (= "drv, class" (-> shapes :shape-legend :title)))
+    ;; A value read through the scale adds a category and no name: the
+    ;; legend keeps the column's title.
+    (is (= :drv (-> (plan-of (-> d
+                                 (pj/lay-point :displ :hwy {:color :drv})
+                                 (pj/lay-line :displ :cty {:color {:value "predicted" :scale true}})))
+                    :legend :title)))))

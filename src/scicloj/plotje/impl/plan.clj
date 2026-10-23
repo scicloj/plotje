@@ -1354,7 +1354,13 @@
                            (if domain
                              (order-by-domain observed domain)
                              observed)))))
-        color-cols (distinct (keep #(when (resolve/scaled-color-column? %) (:color %)) resolved-all))]
+        ;; The columns that title the legend. A column made from a
+        ;; value read through the scale (`pose/mark-value-columns`)
+        ;; adds a category and no name, so it titles the legend only
+        ;; where no layer names a column of its own.
+        scaled (filter resolve/scaled-color-column? resolved-all)
+        named (remove #(contains? (:__value-aesthetics %) :color) scaled)
+        color-cols (distinct (map :color (if (seq named) named scaled)))]
     {:resolved-all resolved-all
      :numeric-color? numeric-color?
      :all-colors all-colors
@@ -1411,8 +1417,10 @@
             (scale/warn-category-domain-mismatch! :shape observed domain))
           (when-not by-category (warn-shape-wrap! all-shapes syms))
           {:all-shapes all-shapes
-           :shape-cols (distinct (keep #(when (resolve/column-ref? (:shape %)) (:shape %))
-                                       resolved-all))
+           ;; Titled as `collect-colors` titles the colour legend.
+           :shape-cols (let [shaped (filter #(resolve/column-ref? (:shape %)) resolved-all)
+                             named (remove #(contains? (:__value-aesthetics %) :shape) shaped)]
+                         (distinct (map :shape (if (seq named) named shaped))))
            :shape-map (let [cycled (zipmap all-shapes (cycle syms))]
                         (if by-category
                           (into {} (map (fn [c] [c (get by-category c (cycled c))]) all-shapes))
@@ -1489,6 +1497,15 @@
           {:pw (+ pad (* ih data-ratio)) :ph ph}
           {:pw pw :ph (+ pad (/ iw data-ratio))})))))
 
+(defn- columns-title
+  "The title of an axis or a legend that draws several columns: each
+   column's name once, joined by commas (`hwy, cty`). An axis and a
+   legend name what they draw by the same rule, so a reader can tell
+   which column each tick or entry comes from."
+  [cols]
+  (when-let [names (seq (distinct (keep identity cols)))]
+    (str/join ", " (map defaults/fmt-name names))))
+
 (defn- resolve-labels
   "Resolve effective title and axis labels.
    Title comes from opts only. An axis label is one setting written at
@@ -1503,10 +1520,7 @@
         ;; passes none of the second, so its axis keeps one name and
         ;; each panel's strip names its own column.
         axis-name (fn [vars overlay-vars]
-                    (let [names (vec (distinct (keep identity
-                                                     (cons (first vars) overlay-vars))))]
-                      (when (seq names)
-                        (str/join ", " (map defaults/fmt-name names)))))]
+                    (columns-title (cons (first vars) overlay-vars)))]
     {:eff-title title
      :eff-x-label (or (:label x-scale-spec)
                       x-label
@@ -1700,6 +1714,48 @@
                            " Group the rows by a column that several of them share,"
                            " or draw them with pj/lay-point.")
                       " Draw a single row with pj/lay-point."))))))
+
+(defn- warn-too-few-rows!
+  "Warn once per plan about the groups a smooth drew nothing for because
+   each held fewer rows than its fit needs (`stat/too-few-rows`). Without
+   it a smooth coloured by a column with two rows per category drew no
+   curve, a full legend, and -- alone on its panel -- \"no data\"."
+  [panel-data]
+  (let [drops (keep :too-few-rows (mapcat :stat-results panel-data))]
+    (doseq [[[stat min-rows columns] ds] (group-by (juxt :stat :min-rows :columns) drops)]
+      (let [fit (if (= :loess stat) "a curve" "a line")
+            groups (mapcat :groups ds)
+            counts (distinct (map second groups))
+            label (fn [gv] (if (sequential? gv)
+                             (str/join " / " (map defaults/fmt-category-label gv))
+                             (defaults/fmt-category-label gv)))
+            names (distinct (map (comp label first) groups))
+            listed (if (next names)
+                     (str (str/join ", " (butlast names)) " and " (last names))
+                     (first names))
+            rows (fn [n] (str n (if (= 1 n) " row" " rows")))]
+        ;; Under a facet the stat runs once per panel, so a group can
+        ;; be dropped in one panel and drawn in another; the counts are
+        ;; then left out rather than given for one panel.
+        (println
+         (str "Warning: a smooth with :stat " stat " fits " fit " from at least "
+              min-rows " rows"
+              (cond
+                (and (empty? columns) (= 1 (count panel-data)))
+                (str ", and the layer has " (rows (first counts))
+                     ", so it draws nothing.")
+                (empty? columns)
+                (str ", so it draws nothing in the " (count ds)
+                     " panels that have fewer.")
+                :else
+                (str " per group, so it draws nothing for "
+                     (if (next names) "the groups " "the group ") listed
+                     " of " (str/join ", " (map pr-str columns))
+                     (if (or (next counts) (next panel-data))
+                       " where they have fewer."
+                       (str ", which " (if (next names) "have " "has ")
+                            (rows (first counts))
+                            (when (next names) " each") "."))))))))))
 
 (def ^:private fill-drawing-marks
   "Marks that paint an interior through the `:fill` aesthetic, and so
@@ -1905,7 +1961,11 @@
    and a plot that mixes the two legends only the scaled half, rather
    than all of it or none."
   [resolved-all numeric-color? all-colors color-cols cfg opts-title]
-  (let [title (or opts-title (first color-cols))]
+  (let [;; Two layers coloured by different columns share one colour
+        ;; scale, so the legend lists both columns' values and is
+        ;; titled by both, as an axis drawing two columns is.
+        title (or opts-title
+                  (if (next color-cols) (columns-title color-cols) (first color-cols)))]
     (cond
       numeric-color?
       (let [color-draft-layers (filter #(and (resolve/scaled-color-column? %)
@@ -2201,7 +2261,8 @@
    user-supplied `:shape-label` plot option)."
   [{:keys [all-shapes shape-cols shape-map]} opts-title]
   (when (seq all-shapes)
-    {:title (or opts-title (first shape-cols))
+    {:title (or opts-title
+                (if (next shape-cols) (columns-title shape-cols) (first shape-cols)))
      :type :shape
      :entries (vec (for [cat all-shapes]
                      {:label (defaults/fmt-category-label cat)
@@ -3514,6 +3575,7 @@
                      (:panels grid))
 
          _ (warn-undrawn-varies! panel-data)
+         _ (warn-too-few-rows! panel-data)
 
          ;; --- Phase 2: per-panel domains (still no pixel math) ---
          ;; `:x-var` and `:y-var` name the column each panel draws, which

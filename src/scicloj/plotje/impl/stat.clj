@@ -817,6 +817,22 @@
 
 ;; ---- Linear Regression ----
 
+(defn- too-few-rows
+  "The groups a smooth draws nothing for because each holds fewer rows
+   than its fit needs, as `{:stat :min-rows :columns :groups}` with
+   `:groups` a vector of `[group-value row-count]` -- the whole layer as
+   one group of value nil where `group` is empty. Nil where no group is
+   dropped, and for a layer of no rows, which draws \"no data\"
+   already. Read by `plan/warn-too-few-rows!`, which prints one warning
+   per plan rather than one per panel."
+  [stat clean group min-rows]
+  (when (pos? (tc/row-count clean))
+    (let [small (filterv #(< (second %) min-rows)
+                         (group-by-columns clean (or group [])
+                                           (fn [ds gv] [gv (tc/row-count ds)])))]
+      (when (seq small)
+        {:stat stat :min-rows min-rows :columns (vec group) :groups small}))))
+
 (defn fit-lm
   "Fit a linear model, return {:x1 :y1 :x2 :y2}."
   [xs-col ys-col]
@@ -866,9 +882,11 @@
         level (or (:level draft-layer) 0.95)
         n-grid (or (:se-n-grid (or cfg defaults/defaults)) 80)
         clean (drawable-rows draft-layer data [x y])
-        n (tc/row-count clean)]
-    (if (or (< n 3)
-            (near-constant? (clean x)))
+        n (tc/row-count clean)
+        dropped (too-few-rows :linear-model clean group 3)]
+    (cond->
+     (if (or (< n 3)
+             (near-constant? (clean x)))
       (cond-> {:lines []
                :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
                :y-domain (if (pos? n) (numeric-extent (clean y)) [0 1])}
@@ -910,7 +928,8 @@
                            (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))]
           {:lines (vec (remove nil? lines))
            :x-domain (numeric-extent (clean x))
-           :y-domain (numeric-extent (clean y))})))))
+           :y-domain (numeric-extent (clean y))})))
+      dropped (assoc :too-few-rows dropped))))
 
 ;; ---- LOESS Smoothing ----
 
@@ -1047,9 +1066,11 @@
                      (<= n 10000)  50
                      :else         30))
         n-grid (or (:loess-n-grid (or cfg defaults/defaults)) 80)
-        bandwidth (or (:loess-bandwidth (or cfg defaults/defaults)) 0.75)]
-    (if (or (< n 4)
-            (near-constant? (clean x)))
+        bandwidth (or (:loess-bandwidth (or cfg defaults/defaults)) 0.75)
+        dropped (too-few-rows :loess clean group 4)]
+    (cond->
+     (if (or (< n 4)
+             (near-constant? (clean x)))
       (cond-> {:points []
                :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
                :y-domain (if (pos? n) (numeric-extent (clean y)) [0 1])}
@@ -1096,7 +1117,8 @@
               y-max (if ys-bufs (dfn/reduce-max (dtype/concat-buffers ys-bufs)) (dfn/reduce-max (clean y)))]
           {:points curves
            :x-domain (numeric-extent (clean x))
-           :y-domain [y-min y-max]})))))
+           :y-domain [y-min y-max]})))
+      dropped (assoc :too-few-rows dropped))))
 
 ;; ---- KDE (kernel density estimation) ----
 

@@ -356,3 +356,21 @@
     (is (re-find #"pj/lay-point draws from two columns" msg))
     (is (re-find #"It reads :x :hwy \(the panel's column, named by another layer\)" msg))
     (is (not (re-find #"It names" msg)))))
+
+(deftest rug-naming-no-column-reads-y-only-for-its-side-test
+  ;; A rug naming no column reads the panel's `:x`, and its `:y` only
+  ;; where its `:side` draws on `:y`. With the default `:side :x`
+  ;; reading the `:y` of the line beside it removed the rows whose
+  ;; `:y` is missing: 16 ticks for 20 rows.
+  (let [d {:temp (vec (range 1 21))
+           :reading [1.0 2.0 nil 4.0 5.5 nil 7.0 8.0 9.5 10.0
+                     11.0 nil 13.0 14.5 15.0 16.0 nil 18.0 19.0 20.5]}
+        rug-ticks (fn [pose]
+                    (binding [*out* (java.io.StringWriter.)]
+                      (->> (pj/plan pose) :panels first :layers
+                           (filter #(= :rug (:mark %)))
+                           first :groups (map (comp count :xs)) (reduce +))))]
+    (is (= 20 (rug-ticks (-> d (pj/lay-point :temp :reading) pj/lay-rug))))
+    (is (= 20 (rug-ticks (-> d (pj/pose :temp) pj/lay-rug (pj/lay-line :temp :reading)))))
+    ;; `:side :both` draws ticks on `:y` too, so it reads the `:y`.
+    (is (= 16 (rug-ticks (-> d (pj/lay-point :temp :reading) (pj/lay-rug {:side :both})))))))

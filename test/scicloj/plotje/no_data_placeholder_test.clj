@@ -142,3 +142,24 @@
         (remove-method mark/layer->membrane ::custom)
         (swap! @(resolve 'scicloj.plotje.layer-type/registry*)
                dissoc ::custom)))))
+
+(deftest smooth-groups-with-too-few-rows-are-warned-about-test
+  ;; A smooth draws nothing for a group with fewer rows than its fit
+  ;; needs -- 4 for loess, 3 for a straight line. With every group
+  ;; dropped the panel reads "no data" beside a legend of four entries;
+  ;; the warning names the groups, once per plan.
+  (let [sales {:quarter ["Q1" "Q2" "Q3" "Q4" "Q1" "Q2" "Q3" "Q4"]
+               :week [1 2 3 4 5 6 7 8]
+               :units [100 120 90 140 70 85 110 95]}
+        printed (fn [pose] (with-out-str (pj/plan pose)))
+        loess (printed (pj/lay-smooth sales :week :units {:color :quarter}))
+        lm (printed (pj/lay-smooth sales :week :units {:color :quarter :stat :linear-model}))]
+    (is (= (str "Warning: a smooth with :stat :loess fits a curve from at least 4 rows"
+                " per group, so it draws nothing for the groups Q1, Q2, Q3 and Q4 of"
+                " :quarter, which have 2 rows each.\n")
+           loess))
+    (is (re-find #":stat :linear-model fits a line from at least 3 rows per group" lm))
+    (is (= "Warning: a smooth with :stat :loess fits a curve from at least 4 rows, and the layer has 3 rows, so it draws nothing.\n"
+           (printed (pj/lay-smooth {:week [1 2 3] :units [4 6 5]} :week :units))))
+    ;; Enough rows: nothing printed.
+    (is (= "" (printed (pj/lay-smooth sales :week :units))))))

@@ -1841,6 +1841,17 @@
           resolved
           (select-keys resolved defaults/column-keys)))
 
+(defn- mark-value-columns
+  "Record, as `:__value-aesthetics`, the appearance aesthetics whose
+   column was made from a value read through the scale (`{:color {:value
+   \"Model A\" :scale true}}`). Such a column contributes a category and
+   is named after the aesthetic, not by the writer, so a legend is not
+   titled by it (`plan/collect-colors`)."
+  [resolved ks]
+  (if (seq ks)
+    (update resolved :__value-aesthetics (fnil into #{}) ks)
+    resolved))
+
 (defn- forget-explicit-source
   "Drop the recorded `:__source` for aesthetics whose written value has
    just become a column.
@@ -1977,7 +1988,8 @@
                      (string? text) (assoc :text text))]
         [(-> resolved
              (merge (zipmap (keys values) (keys values)))
-             (forget-explicit-source (keys values)))
+             (forget-explicit-source (keys values))
+             (mark-value-columns (keys scaled-values)))
          (coerce-dataset (into {} (for [[k v] values] [k [v]])))])
 
       ;; A column reference with no data anywhere resolves to nothing
@@ -2000,7 +2012,8 @@
                                   k)]))]
         [(-> resolved
              (merge names)
-             (forget-explicit-source (keys broadcast)))
+             (forget-explicit-source (keys broadcast))
+             (mark-value-columns (keys scaled-values)))
          (reduce (fn [ds [k v]]
                    (tc/add-column ds (names k) (dtype/const-reader v (tc/row-count ds))))
                  d
@@ -2295,15 +2308,26 @@
    the axis it leaves out. A layer type that can draw from one column
    reads no second: `(pj/lay-bar pose :drv)` beside points counts. None
    for a layer placed in the drawing area, which reads drawing units.
+   A rug naming no column reads the panel's `:y` only where its `:side`
+   draws ticks on `:y` (`:y` or `:both`): with the default `:side :x` it
+   draws no `:y`, and reading one would drop the rows whose `:y` is
+   missing. This is a special case for one layer type; the general form
+   is a declaration on `register!` of the axes a layer type reads, which
+   for a rug would be a function of its `:side`.
    One rule for the two places that ask: `layer-panel-columns`, which
    writes the columns in, and `read-series-column`, which decides
    whether a layer beside a series reads the series' rows."
   [leaf layer]
   (let [own (or (:mapping layer) {})
-        k (layer-place leaf layer)]
+        k (layer-place leaf layer)
+        lt (:layer-type layer)
+        mark (or (:mark own)
+                 (:mark (if (keyword? lt) (layer-type/lookup lt) lt)))]
     (cond
       (= :drawing-area (:in own)) []
-      (nil? k) [:x :y]
+      (nil? k) (if (and (= :rug mark) (not (#{:y :both} (:side own))))
+                 [:x]
+                 [:x :y])
       (contains? (layer-type/column-counts (:layer-type layer)) 1) []
       (nil? (first k)) [:x]
       (nil? (second k)) [:y]
