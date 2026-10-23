@@ -1528,9 +1528,10 @@
                       (when auto-x-label? (axis-name x-vars x-overlay-vars)))
      :eff-y-label (or (:label y-scale-spec)
                       y-label
-                      (when auto-y-label?
-                        (when (not= (first y-vars) (first x-vars))
-                          (axis-name y-vars y-overlay-vars))))}))
+                      ;; A column drawn on both axes titles both: points
+                      ;; of `:displ` against `:displ` draw that column on
+                      ;; `:y` as on `:x`.
+                      (when auto-y-label? (axis-name y-vars y-overlay-vars)))}))
 
 (defn- finite-vals
   "Concatenate a seq of column buffers into a single Clojure vector with

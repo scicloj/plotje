@@ -207,10 +207,14 @@
             ;; with nil values. Treat as numerical since the input was numeric.
             all-missing? (every? nil? (take 100 c))]
         (cond
+          ;; A column of strings is categorical with every value missing
+          ;; too: the rows a facet's panel holds for a missing category
+          ;; are such a column, and read as numerical they gave that
+          ;; panel's colour a gradient beside the others' categories.
+          (#{:string :keyword :symbol :text} t) :categorical
           all-missing? :numerical
           ;; Check dtype first to catch numeric columns
           (#{:float32 :float64 :int8 :int16 :int32 :int64} dt) :numerical
-          (#{:string :keyword :symbol :text} t) :categorical
           ;; Check for temporal types via dtype-next metadata
           (dt-dt/datetime-datatype? dt) :temporal
           ;; A temporal type the dataset stores as :object -- a

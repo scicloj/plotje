@@ -93,3 +93,17 @@
                    "rgb(18,52,86)")))
   (testing "a colour column still takes the palette"
     (is (= 3 (fill-count (pj/lay-point keyword-rows :v :v {:color :g}) :rect)))))
+
+(deftest a-facet-on-the-colour-column-keeps-its-legend-test
+  ;; The facet's panel for a missing category holds the colour column
+  ;; with every value missing. It is still a column of strings, so it is
+  ;; read as categories like the other panels', and the legend stays.
+  (let [rows {:temp [1 2 3 4 5 6]
+              :site ["a" "b" nil "a" "b" nil]}
+        out (java.io.StringWriter.)
+        plan (binding [*out* out]
+               (pj/plan (-> rows
+                            (pj/lay-histogram :temp {:color :site})
+                            (pj/facet :site))))]
+    (is (= ["a" "b"] (mapv :label (:entries (:legend plan)))))
+    (is (not (re-find #"numeric :color" (str out))))))

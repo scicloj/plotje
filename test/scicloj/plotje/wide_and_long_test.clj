@@ -595,3 +595,54 @@
         (is (= "" (title shaped)))
         (is (one-legend? (pj/options shaped {:color-label "Measure" :shape-label "Measure"})))
         (is (= "Measure" (title (pj/options shaped {:color-label "Measure" :shape-label "Measure"}))))))))
+
+(deftest a-layer-beside-a-series-counts-the-rows-as-written-test
+  ;; A layer that names no column on the series' axis, and whose type
+  ;; draws from one column, reads the data as written: on the pivoted
+  ;; rows it would count each row once per series column.
+  (let [mpg-like {:drv ["f" "f" "r" "4" "4" "4"]
+                  :displ [1.8 2.0 5.7 4.2 3.0 2.5]
+                  :hwy [29 31 25 17 20 22]
+                  :cty [18 21 15 12 14 16]}
+        counts (fn [pose] (-> (pj/plan pose) :panels first :layers first
+                              :groups first :counts (->> (mapv :count))))
+        bins (fn [pose] (-> (pj/plan pose) :panels first :layers first
+                            :groups first :bars (->> (mapv :count))))]
+    (testing "a counting bar keeps its counts beside a series"
+      (is (= (counts (pj/lay-bar mpg-like :drv))
+             (counts (-> mpg-like (pj/lay-bar :drv) (pj/lay-point :drv [:hwy :cty]))))))
+    (testing "a histogram keeps its counts beside a series"
+      (is (= (reduce + (bins (pj/lay-histogram mpg-like :displ)))
+             (reduce + (bins (-> mpg-like (pj/lay-histogram :displ)
+                                 (pj/lay-line :displ [:hwy :cty])))))))
+    (testing "a layer reading the pose's column on the series' axis keeps its rows"
+      (let [ys (fn [pose] (-> (pj/plan pose) :panels first :layers first
+                              :groups (->> (mapv (comp vec :ys)))))
+            base (pj/pose mpg-like :drv :displ)]
+        (is (= (ys (pj/lay-bar base :drv))
+               (ys (-> base (pj/lay-bar :drv) (pj/lay-point :drv [:hwy :cty])))))))
+    (testing "a layer naming no column still reads the series' rows"
+      (is (= 12 (-> (pj/plan (-> mpg-like (pj/lay-line :displ [:hwy :cty]) (pj/lay-point)))
+                    :panels first :layers second :groups
+                    (->> (map (comp count :xs)) (reduce +))))))))
+
+(deftest series-pairs-title-each-column-once-test
+  ;; Four pairs from two columns on each axis: each axis names its two
+  ;; columns once, not once per pair.
+  (let [pose (pj/lay-point {:a [1 2 3] :b [2 3 4] :c [5 6 7] :d [1 1 2]}
+                           [:a :a :b :b] [:c :d :c :d])
+        plan (pj/plan pose)]
+    (is (= "a, b" (:x-label plan)))
+    (is (= "c, d" (:y-label plan)))))
+
+(deftest a-series-column-named-again-is-reported-before-the-pivot-test
+  ;; The message names the columns the writer wrote, not the key and
+  ;; value columns the pivot invents.
+  (let [msg (fn [f] (try (pj/plan (f)) nil (catch clojure.lang.ExceptionInfo e (ex-message e))))]
+    (testing "on :x of the same layer"
+      (let [m (msg #(pj/lay-point sales :revenue [:revenue :cost]))]
+        (is (re-find #"names :revenue on :x" m))
+        (is (not (re-find #":value" m)))))
+    (testing "on :x of the pose"
+      (is (re-find #"names :revenue on :x"
+                   (msg #(pj/pose sales :revenue [:revenue :cost])))))))

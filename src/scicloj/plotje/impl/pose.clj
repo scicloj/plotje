@@ -2156,27 +2156,35 @@
                             mappings)
                       src)]))))
 
+(defn- panel-axes-read
+  "The axes on which a layer of `leaf` reads the panel's columns: both
+   for a layer naming no column, and for a layer naming one column whose
+   layer type draws only from two (`layer-type/column-counts` lacks 1),
+   the axis it leaves out. A layer type that can draw from one column
+   reads no second: `(pj/lay-bar pose :drv)` beside points counts. None
+   for a layer placed in the drawing area, which reads drawing units.
+   One rule for the two places that ask: `layer-panel-columns`, which
+   writes the columns in, and `read-series-column`, which decides
+   whether a layer beside a series reads the series' rows."
+  [leaf layer]
+  (let [own (or (:mapping layer) {})
+        k (layer-place leaf layer)]
+    (cond
+      (= :drawing-area (:in own)) []
+      (nil? k) [:x :y]
+      (contains? (layer-type/column-counts (:layer-type layer)) 1) []
+      (nil? (first k)) [:x]
+      (nil? (second k)) [:y]
+      :else [])))
+
 (defn- layer-panel-columns
   "The panel's columns one layer of a leaf reads, as a mapping to put
-   under the layer's own: both for a layer naming no column, and for a
-   layer naming one column whose layer type draws only from two
-   (`layer-type/column-counts` lacks 1), the column on the axis it
-   leaves out. A layer type that can draw from one column is given no
-   second: `(pj/lay-bar pose :drv)` beside points counts. Nothing for
-   an axis the layer's own mapping holds, or for a layer placed in the
-   drawing area, which reads drawing units."
+   under the layer's own, on the axes `panel-axes-read` answers. Nothing
+   for an axis the layer's own mapping holds."
   [leaf layer columns]
-  (let [own (or (:mapping layer) {})
-        k (layer-place leaf layer)
-        axes (cond
-               (= :drawing-area (:in own)) []
-               (nil? k) [:x :y]
-               (contains? (layer-type/column-counts (:layer-type layer)) 1) []
-               (nil? (first k)) [:x]
-               (nil? (second k)) [:y]
-               :else [])]
+  (let [own (or (:mapping layer) {})]
     (into {} (remove (fn [[axis _]] (contains? own axis)))
-          (select-keys columns axes))))
+          (select-keys columns (panel-axes-read leaf layer)))))
 
 (defn- read-panel-columns
   "A leaf whose layers hold the panel's columns they read
@@ -2643,7 +2651,29 @@
         ds (coerce-dataset data)]
     (cond
       (next ks) (check-series-pairs! caller ds (:x specs) (:y specs))
-      (seq ks) (check-single-series! caller ds (get specs (first ks))))))
+      (seq ks) (check-single-series! caller ds (get specs (first ks))))
+    ;; The same mapping naming one of the series' columns on another
+    ;; aesthetic -- `(pj/lay-point data :hwy [:hwy :cty])` -- names a
+    ;; column the pivot consumes. Reported here, before the pivot, so the
+    ;; message names the columns the writer wrote rather than the two
+    ;; the pivot invents.
+    (let [cols (vec (mapcat :cols (vals specs)))
+          consumed (set cols)
+          hits (for [[k v] m
+                     :when (not (contains? specs k))
+                     :let [src (mapping-source v)]
+                     :when (and (some? src) (not (map? src)) (consumed src))]
+                 [k src])]
+      (when-let [[k col] (first hits)]
+        (throw (ex-info (str caller " reads " (pr-str cols) " as series on "
+                             (str/join " and " (map pr-str ks)) ", and names "
+                             (pr-str col) " on " (pr-str k) " too. The series"
+                             " pivots " (pr-str cols) " into a key column and a"
+                             " value column, so the rows it draws have no column "
+                             (pr-str col) ". Name another column on " (pr-str k)
+                             ", or draw " (pr-str col) " on " (pr-str k)
+                             " in a layer of its own.")
+                        {:caller caller :columns cols :conflicts (vec hits)}))))))
 
 (defn- series-colour-type
   "`{:color-type :categorical}` where the key column the pivot invents
@@ -2700,7 +2730,10 @@
                                     (get series-pair-value-columns k)
                                     series-value-column)
                               sc (:scale (get specs k))
-                              title (str/join ", " (map defaults/fmt-name (:cols (get specs k))))]
+                              ;; Each column once: series in pairs repeat
+                              ;; a column on one axis for every column it
+                              ;; is paired with on the other.
+                              title (str/join ", " (map defaults/fmt-name (distinct (:cols (get specs k)))))]
                           (cond
                             (nil? sc) {:from col :scale {:label title}}
                             (and (map? sc) (not (contains? sc :label))) {:from col :scale (assoc sc :label title)}
@@ -2820,8 +2853,15 @@
    pivoted rows each of its rows would be drawn once per series column.
    `unkeyed` is the key column's mapping a series on the pose hands
    down to every layer, written as `nil`, which that layer takes so
-   that it does not read a column the data as written does not hold."
-  [layer pv consumed wide keyed unkeyed]
+   that it does not read a column the data as written does not hold.
+
+   So does a layer that names no column on an aesthetic the series is
+   on and does not read the panel's column there (`panel-axes-read`) --
+   a counting bar on `:drv` beside points for `[:hwy :cty]` on `:y`.
+   On the pivoted rows such a layer would count each row once per
+   series column. `leaf` is the leaf before the pivot: an aesthetic
+   its own mapping names reaches every layer by scope."
+  [leaf layer pv consumed wide keyed unkeyed]
   (let [m (:mapping layer)
         hits (into {} (for [[k v] m
                             :let [src (mapping-source v)]
@@ -2832,18 +2872,34 @@
         ;; :quarter :value {:color :series})` -- and reads the pivoted
         ;; rows for them.
         wide-columns (when wide (set (tc/column-names (coerce-dataset wide))))
-        own-column? (fn [k] (let [src (mapping-source (get m k))]
+        ;; The layer's own column, or the leaf's where the layer names
+        ;; none there: a layer reads the leaf's column by scope.
+        own-column? (fn [k] (let [src (mapping-source (if (contains? m k)
+                                                          (get m k)
+                                                          (get (:mapping leaf) k)))]
                               (and (some? src) (not (map? src))
-                                   (contains? wide-columns src))))]
+                                   (contains? wide-columns src))))
+        reads-none? (fn [k] (and (nil? (get m k))
+                                 (nil? (get (:mapping leaf) k))
+                                 (not (some #{k} (panel-axes-read leaf layer)))))]
     (cond
       (or (:data layer) (seq (series-in m)) (nil? wide))
       layer
 
       (empty? hits)
-      (if (every? own-column? (keys (:values pv)))
+      (if (every? #(or (own-column? %) (reads-none? %)) (keys (:values pv)))
         (assoc layer
                :data wide
-               :mapping (merge unkeyed m))
+               ;; An aesthetic the layer reads nothing on is written as
+               ;; `nil`, as `unkeyed` is, so that a column the leaf's
+               ;; mapping later names there -- the value column a facet
+               ;; over columns writes into its cells -- does not reach
+               ;; the data as written, which has no such column.
+               :mapping (merge unkeyed
+                               (into {} (for [k (keys (:values pv))
+                                              :when (reads-none? k)]
+                                          [k nil]))
+                               m))
         layer)
 
       :else
@@ -3062,7 +3118,7 @@
                                         ;; as it would beside one-column layers
                                         ;; (`default-color-layers`).
                                         (read-series-column
-                                         l pv (set cols) wide keyed
+                                         leaf l pv (set cols) wide keyed
                                          (cond-> unkeyed
                                            (beside-default i l)
                                            (assoc :color

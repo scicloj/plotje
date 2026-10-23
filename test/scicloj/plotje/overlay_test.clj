@@ -214,3 +214,19 @@
         both (seen (-> d (pj/lay-line :t :a) (pj/lay-line :t :b)))]
     (is (= both (seen (-> d (pj/pose :t :a) pj/lay-line (pj/lay-line :t :b)))))
     (is (contains? (nth both 2) "a, b"))))
+
+(deftest a-column-on-both-axes-titles-both-test
+  ;; One column drawn against itself is a column drawn on :y, and the
+  ;; layers beside it keep their :y columns in the title.
+  (let [y-label (fn [pose] (:y-label (pj/plan pose)))]
+    (testing "a layer drawing one column on both axes"
+      (is (= "reading" (y-label (pj/lay-point weather :reading :reading)))))
+    (testing "beside a layer drawing another column on :y, in either order"
+      (is (= "reading, humidity"
+             (y-label (-> weather
+                          (pj/lay-point :reading :reading)
+                          (pj/lay-point :reading :humidity)))))
+      (is (= "humidity, reading"
+             (y-label (-> weather
+                          (pj/lay-point :reading :humidity)
+                          (pj/lay-point :reading :reading))))))))
