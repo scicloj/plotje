@@ -96,9 +96,9 @@
    (rdatasets/ggplot2-economics)
    (tc/select-rows
     (fn*
-     [p1__79678#]
+     [p1__11199#]
      (let
-      [d (:date p1__79678#)]
+      [d (:date p1__11199#)]
       (and (>= (.getYear d) 2000) (<= (.getYear d) 2014))))))))
 
 
@@ -550,11 +550,11 @@
 
 
 (def
- v43_l435
+ v43_l436
  (->
   activity
   (pj/lay-interval-h :start :day {:x-end :end, :color :kind})
-  (pj/facet :kind)
+  (pj/facet {:row :kind})
   (pj/options
    {:title "Same week, faceted by activity kind",
     :x-label "hour of day",
@@ -563,7 +563,7 @@
 
 
 (deftest
- t44_l443
+ t44_l444
  (is
   ((fn
     [v]
@@ -573,13 +573,13 @@
       (= 2 (:panels s))
       (= 15 (:polygons s))
       (=
-       [[0 0] [0 1]]
+       [[0 0] [1 0]]
        (mapv (juxt :row :col) (:panels (pj/frames v)))))))
-   v43_l435)))
+   v43_l436)))
 
 
 (def
- v46_l460
+ v46_l461
  (->
   (rdatasets/ggplot2-presidential)
   (pj/lay-interval-h :start :name {:x-end :end, :color :party})
@@ -591,11 +591,11 @@
 
 
 (deftest
- t47_l467
+ t47_l468
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-tooltip" s) (re-find #" → " s))))
-   v46_l460)))
+   v46_l461)))
