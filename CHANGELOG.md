@@ -138,6 +138,8 @@ All notable changes to this project will be documented in this file. This change
 
 - The warning for a categorical `:domain` that leaves out categories ends `List every category to control the whole axis order`. The errors for an error bar without its bounds and a text layer without `:text` show the call with the layer's own columns.
 
+- Under a facet over columns, a layer naming one of the facet's columns is drawn in that column's panel only. Where another panel is drawn by other layers, none of that layer's type, a Note names the panels the layer is drawn in and the form that draws it in every panel: `(pj/pose data {:x :displ})`, with the layer naming no column.
+
 ### Fixed
 
 - A pose naming a column only on `:y`, under a layer type that draws from two columns such as `lay-point`, takes the first other column of 1-3 column data as its `:x`.

@@ -1147,9 +1147,10 @@ series-by-key
       (and (= [[:area] [:point] [:point] [:area]] marks)
            ;; A histogram fits no cell of a faceted scatter, and is
            ;; drawn in both.
-           (= [[:point :bar] [:bar]]
+           (= [[:point :bar] [:point :bar]]
               (marks-per-cell (-> weekly-visits
-                                  (pj/lay-point :week :adults)
+                                  (pj/pose {:x :week})
+                                  pj/lay-point
                                   (pj/lay-histogram {:x :week})
                                   (pj/facet {:y [:adults :children]}))))
            ;; A layer naming :week on :y, where every cell names its

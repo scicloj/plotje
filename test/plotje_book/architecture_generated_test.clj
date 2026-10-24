@@ -796,11 +796,12 @@
      (and
       (= [[:area] [:point] [:point] [:area]] marks)
       (=
-       [[:point :bar] [:bar]]
+       [[:point :bar] [:point :bar]]
        (marks-per-cell
         (->
          weekly-visits
-         (pj/lay-point :week :adults)
+         (pj/pose {:x :week})
+         pj/lay-point
          (pj/lay-histogram {:x :week})
          (pj/facet {:y [:adults :children]}))))
       (re-find
@@ -817,18 +818,18 @@
    v122_l1131)))
 
 
-(def v125_l1170 (->> series-by-key pj/draft :sub-drafts (mapv :share)))
+(def v125_l1171 (->> series-by-key pj/draft :sub-drafts (mapv :share)))
 
 
 (deftest
- t126_l1175
+ t126_l1176
  (is
   ((fn [shares] (= [{:x {:group 0}} {:x {:group 0}}] shares))
-   v125_l1170)))
+   v125_l1171)))
 
 
 (def
- v128_l1185
+ v128_l1186
  (let
   [points (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
   (->>
@@ -841,12 +842,12 @@
 
 
 (deftest
- t129_l1190
- (is ((fn [composite?] (= [false true] composite?)) v128_l1185)))
+ t129_l1191
+ (is ((fn [composite?] (= [false true] composite?)) v128_l1186)))
 
 
 (def
- v131_l1209
+ v131_l1210
  (kind/table
   {:column-names
    ["Mistake" "Reported by" "First sentence of the message"],
@@ -928,7 +929,7 @@
 
 
 (deftest
- t132_l1255
+ t132_l1256
  (is
   ((fn
     [table]
@@ -938,16 +939,16 @@
       (repeat 4 "pj/pose->draft")
       (repeat 3 "pj/draft->plan"))
      (map second (:row-vectors table))))
-   v131_l1209)))
+   v131_l1210)))
 
 
 (def
- v134_l1271
+ v134_l1272
  (kind/mermaid
   "\ngraph LR\n  A[\"Pose + draft\"] -->|plan| P[\"Plan\"]\n  P --> R[\"membrane + plot\"]\n  style A fill:#e8f5e9\n  style P fill:#fff3e0\n  style R fill:#e3f2fd\n"))
 
 
 (def
- v136_l1362
+ v136_l1363
  (kind/mermaid
   "\ngraph TD\n  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]\n  API --> RES[\"impl/resolve.clj\"]\n  API --> PL[\"impl/plan.clj\"]\n  API --> COMP[\"impl/compositor.clj\"]\n  POSE --> RES\n  COMP --> POSE\n  COMP --> PL\n  PL --> RES\n  PL --> STAT[\"impl/stat.clj\"]\n  PL --> SCALE[\"impl/scale.clj\"]\n  PL --> DEFAULTS[\"impl/defaults.clj\"]\n  PL --> PS[\"impl/plan_schema.clj\"]\n  API --> RENDER[\"impl/render.clj\"]\n  RENDER --> SVG[\"render/svg.clj\"]\n  SVG --> MEMBRANE[\"render/membrane.clj\"]\n  MEMBRANE --> PANEL[\"render/panel.clj\"]\n  PANEL --> MARK[\"render/mark.clj\"]\n  PANEL --> SCALE\n  PANEL --> COORD[\"impl/coord.clj\"]\n  API --> RC[\"render/composite.clj\"]\n  RC --> MEMBRANE\n  style API fill:#c8e6c9\n  style COMP fill:#d1c4e9\n  style PL fill:#d1c4e9\n  style SVG fill:#f8bbd0\n  style MEMBRANE fill:#f8bbd0\n  style RC fill:#f8bbd0\n"))
