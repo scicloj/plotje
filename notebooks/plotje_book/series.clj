@@ -1028,7 +1028,7 @@ sales-by-region
                               (= "revenue, cost, units" (:y-label (pj/plan v)))
                               (= ["revenue" "cost" "units"]
                                  (mapv :label (:entries (:legend (pj/plan v)))))
-                              (re-find #"Note: on :y one axis holds :revenue .*:cost .*:units"
+                              (re-find #"Note: the :y axis holds :revenue .*:cost .*:units"
                                        (with-out-str (pj/plan v)))))])
 
 ;; A count of units and an amount of money do not belong on one axis,

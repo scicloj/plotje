@@ -689,7 +689,7 @@ series-and-units
              (pj/lay-point :quarter :margin)))
 
 (kind/test-last
- [(fn [out] (and (re-find #"Note: on :y one axis holds :revenue" out)
+ [(fn [out] (and (re-find #"Note: the :y axis holds :revenue" out)
                  (re-find #":margin is drawn within a small part of it" out)
                  (re-find #"\(pj/facet pose \{:y \[:revenue :margin\]\}\)" out)))])
 

@@ -1517,14 +1517,14 @@
       (is (= 3 (:polygons (pj/svg-summary (-> wide pj/pose (pj/lay-bar {:y :drv})))))))
     (testing "a coordinate system other than :flip has no drawing for it"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"names :hwy on :y alone.*:coord :polar has no drawing for it"
+                            #"names :hwy on :y alone.*:coord :polar has no drawing for a pose on its side"
                             (pj/plan (pj/coord on-layer :polar)))))
     (testing "the same where the pose above specifies it: a facet over columns on its side"
       (let [faceted (-> wide pj/pose pj/lay-histogram (pj/facet {:y [:hwy :cty]}))
             coords (fn [pose] (mapv #(:coord (first (:panels (:plan %)))) (:sub-plots (pj/plan pose))))]
         (is (= [:flip :flip] (coords faceted) (coords (pj/coord faceted :flip))))
         (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                              #"on :y alone.*:coord :polar has no drawing for it"
+                              #"on :y alone.*:coord :polar has no drawing for a pose on its side"
                               (pj/plan (pj/coord faceted :polar))))
         (is (= [:polar :polar]
                (coords (-> wide pj/pose pj/lay-histogram (pj/facet {:x [:hwy :cty]}) (pj/coord :polar))))

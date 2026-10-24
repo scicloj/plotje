@@ -1495,10 +1495,10 @@
     ;; The map form drew counts on an axis titled with the :y column.
     (doseq [lay [pj/lay-histogram pj/lay-density]]
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"draws from one column, and this call names two: :x :a and :y :b"
+                            #"draws from one column, and was given :a on :x and :b on :y"
                             (lay {:a [1 2 3] :b [4 5 6]} {:x :a :y :b})))
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"draws from one column, and this call names two"
+                            #"draws from one column, and was given :a on :x and :b on :y"
                             (lay {:a [1 2 3] :b [4 5 6]} :a {:y :b}))))
     (testing "one column, on either axis, is accepted"
       (is (some? (pj/plan (pj/lay-histogram {:a [1 2 3] :b [4 5 6]} {:x :a}))))

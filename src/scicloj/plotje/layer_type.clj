@@ -29,8 +29,8 @@
    :tooltip])
 
 (def ^:deprecated universal-layer-options
-  "The name `universal-mapping-keys` had until this release. It is the
-   same vector, kept for one release."
+  "Deprecated: the earlier name of `universal-mapping-keys`, the same
+   vector. It will be removed in the next release."
   universal-mapping-keys)
 
 (def spaces
@@ -105,8 +105,8 @@
    :stroke-dash "Dash pattern for a line, step, smooth, reference line, or area outline -- :dashed, :dotted, :solid, or a raw [dash gap ...] pattern in drawing units"})
 
 (def ^:deprecated layer-option-docs
-  "The name `layer-mapping-docs` had until this release. It is the same
-   map, kept for one release."
+  "Deprecated: the earlier name of `layer-mapping-docs`, the same map.
+   It will be removed in the next release."
   layer-mapping-docs)
 
 (def quantities

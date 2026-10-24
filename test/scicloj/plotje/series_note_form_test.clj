@@ -11,7 +11,7 @@
 
 (deftest the-note-for-a-series-says-the-facet-replaces-it
   (let [note (with-out-str (pj/plan (pj/lay-line rows :quarter [:revenue :cost :units])))]
-    (is (str/includes? note "Note: on :y one axis holds :revenue"))
+    (is (str/includes? note "Note: the :y axis holds :revenue"))
     (is (str/includes? note "name the columns in a facet in place of the series -- (pj/facet pose {:y [:revenue :cost :units]}), where no layer of the pose names a column on :y."))
     (testing "the form the Note describes"
       (is (= 3 (:panels (pj/svg-summary (-> rows

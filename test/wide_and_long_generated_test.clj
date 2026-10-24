@@ -42,16 +42,16 @@
           [xs
            (->>
             (str/split (str/trim (str (:points attrs))) #"[\s,]+")
-            (map (fn* [p1__11196#] (Double/parseDouble p1__11196#)))
+            (map (fn* [p1__78677#] (Double/parseDouble p1__78677#)))
             (partition 2)
             (map first))]
           [[(+ dx (apply min xs)) (+ dx (apply max xs))]]))]
        (into
         (vec own)
-        (mapcat (fn* [p1__11197#] (walk p1__11197# (+ dx tx))))
+        (mapcat (fn* [p1__78678#] (walk p1__78678# (+ dx tx))))
         kids))
       (sequential? node)
-      (into [] (mapcat (fn* [p1__11198#] (walk p1__11198# dx))) node)
+      (into [] (mapcat (fn* [p1__78679#] (walk p1__78679# dx))) node)
       :else
       []))]
    (vec (sort (walk (pj/plot pose {:width 600, :height 400}) 0.0))))))
@@ -205,7 +205,7 @@
   y-ticks
   [pose]
   (filterv
-   (fn* [p1__11199#] (re-matches #"\d+" p1__11199#))
+   (fn* [p1__78680#] (re-matches #"\d+" p1__78680#))
    (:texts (pj/svg-summary pose)))))
 
 
@@ -908,7 +908,7 @@
      (apply
       =
       (map
-       (fn* [p1__11200#] (-> p1__11200# :plan :panels first :y-domain))
+       (fn* [p1__78681#] (-> p1__78681# :plan :panels first :y-domain))
        (:sub-plots (pj/plan v))))))
    v110_l620)))
 
@@ -1007,7 +1007,7 @@
   ((fn
     [out]
     (and
-     (re-find #"Note: on :y one axis holds :revenue" out)
+     (re-find #"Note: the :y axis holds :revenue" out)
      (re-find #":margin is drawn within a small part of it" out)
      (re-find #"\(pj/facet pose \{:y \[:revenue :margin\]\}\)" out)))
    v124_l685)))
@@ -1294,14 +1294,14 @@
        (tree-seq sequential? seq (pj/plot v))
        (filter
         (fn*
-         [p1__11201#]
+         [p1__78682#]
          (and
-          (vector? p1__11201#)
-          (= :rect (first p1__11201#))
-          (map? (second p1__11201#))
-          (number? (:width (second p1__11201#)))
-          (> (:width (second p1__11201#)) 100))))
-       (keep (fn* [p1__11202#] (:fill (second p1__11202#))))
+          (vector? p1__78682#)
+          (= :rect (first p1__78682#))
+          (map? (second p1__78682#))
+          (number? (:width (second p1__78682#)))
+          (> (:width (second p1__78682#)) 100))))
+       (keep (fn* [p1__78683#] (:fill (second p1__78683#))))
        distinct
        vec)]
      (= ["rgb(255,255,255)" "rgb(232,232,232)"] fills)))
@@ -1324,7 +1324,7 @@
       first
       :groups
       (mapv
-       (fn* [p1__11203#] (vec (take 2 (:tooltips p1__11203#))))))])
+       (fn* [p1__78684#] (vec (take 2 (:tooltips p1__78684#))))))])
    [["a column" {:tooltip :units}]
     ["valid hiccup" {:tooltip [:b "a note"]}]])))
 

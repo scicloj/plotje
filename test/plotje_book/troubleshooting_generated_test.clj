@@ -224,7 +224,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__79778#] (= :text (:mark p1__79778#))))
+      (filter (fn* [p1__77470#] (= :text (:mark p1__77470#))))
       first
       :style
       :align-x)))
@@ -673,7 +673,7 @@
       (> hi 2000)
       (< (* 20 (- (reduce max hwy) (reduce min hwy))) (- hi lo))
       (re-find
-       #"Note: on :y one axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)"
+       #"Note: the :y axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)"
        printed)
       (re-find #"\(pj/facet pose \{:y \[:hwy :year\]\}\)" printed))))
    v113_l737)))
@@ -759,7 +759,7 @@
     [fr]
     (let
      [radii
-      (fn* [p1__79779#] (sort (:sizes (pj/svg-summary p1__79779#))))
+      (fn* [p1__77471#] (sort (:sizes (pj/svg-summary p1__77471#))))
       now
       (radii fr)
       before

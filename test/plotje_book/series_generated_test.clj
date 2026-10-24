@@ -1286,7 +1286,7 @@
       ["revenue" "cost" "units"]
       (mapv :label (:entries (:legend (pj/plan v)))))
      (re-find
-      #"Note: on :y one axis holds :revenue .*:cost .*:units"
+      #"Note: the :y axis holds :revenue .*:cost .*:units"
       (with-out-str (pj/plan v)))))
    v207_l1023)))
 

@@ -1253,7 +1253,7 @@
       ;; names it itself. Each way it is a column the layer's own data
       ;; has to hold.
       :panel-column
-      (str "lay-" layer-name " " k " " (pr-str col)
+      (str "pj/lay-" layer-name " " k " " (pr-str col)
            (if (= :pose source)
              ", inherited from the pose's mapping,"
              ", the panel's column or the layer's own,")
@@ -3475,7 +3475,7 @@
                          extents)
             fmt (fn [v] (if (== v (Math/rint v)) (str (long v)) (format "%.3g" v)))]
         (when (seq flat)
-          (println (str "Note: on " axis " one axis holds "
+          (println (str "Note: the " axis " axis holds "
                         (str/join ", " (map (fn [[c a b]] (str (pr-str c) " (" (fmt a) " to " (fmt b) ")"))
                                             extents))
                         ", which together span " (fmt lo) " to " (fmt hi) ", so "
@@ -4199,8 +4199,10 @@
     (let [varied (filterv #(sequential? (get part %)) [:x :y])
           n (count (get part (first varied)))]
       (when-not (every? #(= n (count (get part %))) varied)
-        (throw (ex-info (str "pj/facet reads vectors of columns in step, so they need one"
-                             " length; got " (pr-str part) ".")
+        (throw (ex-info (str "pj/facet pairs the :x and :y columns one by one, so the"
+                             " two vectors need the same length; got " (pr-str part) "."
+                             " For every :x column against every :y column, write"
+                             " {:col {:x [...]} :row {:y [...]}}.")
                         {:facet part})))
       (for [i (range n)]
         ;; A `nil` is kept: the cell is specified to have no column on
@@ -4992,10 +4994,10 @@
         ;; system has no drawing for a column that is on `:y` alone.
         (when-not (contains? #{nil :flip} coord)
           (throw (ex-info (str "This pose names " (pr-str (mapping-source y))
-                               " on :y alone, under layers that draw from one column,"
-                               " which is drawn on its side with the coordinates"
+                               " on :y alone under layers that draw from one column,"
+                               " so the pose is drawn on its side with the coordinates"
                                " flipped. :coord " (pr-str coord) " has no drawing for"
-                               " it. Name the column on :x, or leave :coord"
+                               " a pose on its side. Name the column on :x, or leave :coord"
                                " unspecified.")
                           {:y (mapping-source y) :coord coord})))
         (-> leaf

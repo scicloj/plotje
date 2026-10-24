@@ -748,7 +748,7 @@
                            ;; reaching past the year 2000.
                            (and (< lo 50) (> hi 2000)
                                 (< (* 20 (- (reduce max hwy) (reduce min hwy))) (- hi lo))
-                                (re-find #"Note: on :y one axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)" printed)
+                                (re-find #"Note: the :y axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)" printed)
                                 (re-find #"\(pj/facet pose \{:y \[:hwy :year\]\}\)" printed))))])
 
 ;; ## Dataset Missing Columns a Template References

@@ -138,8 +138,8 @@
   layer-type/layer-mapping-docs)
 
 (def ^:deprecated layer-option-docs
-  "The name `pj/layer-mapping-docs` had until this release. It is the
-   same map, kept for one release."
+  "Deprecated: the earlier name of `pj/layer-mapping-docs`, the same
+   map. It will be removed in the next release."
   layer-mapping-docs)
 
 (defn aesthetic-roles
@@ -169,8 +169,9 @@
 
    `{:group [:part :dimension]}` is one grouping keyed on the pair, and
    `{:col [:part :dimension]}` draws a panel per combination the data
-   holds -- while `{:color [:part :dimension]}` is reported, because a
-   mark has one colour. The three spellings of a vector read alike:
+   holds -- while `{:color [:part :dimension]}` reports an error: a
+   vector of columns where one goes is read as a series, which is
+   written on `:x` or `:y`. The three spellings of a vector read alike:
    bare, `{:series [...]}` and `{:column [...]}`.
 
    The same set the check reads, so a table built from this cannot
@@ -793,11 +794,14 @@
    (1 column to `:x`, 2 columns to `:x` and `:y`, 3 columns add
    `:color`).
 
-   A pose whose mapping already names an `:x` or `:y` column, that has
-   a layer naming every column it draws, that is composite, or whose
-   data has 4+ columns is returned unchanged, so the step is idempotent
-   and safe to include anywhere in a pipeline. A layer naming one
-   column keeps it, and the default supplies the rest. The draft runs
+   The default is written where neither the pose's mapping nor any
+   layer names an `:x` or a `:y` column, and where the first layer
+   names no column, whatever later layers name. Where only a `:y` is
+   named and a layer's type draws only from two columns, the first
+   column nothing names becomes `:x`. A `:y` is never filled in. A
+   composite pose, and data of four or more columns, are returned
+   unchanged, and so is a pose already filled in, so the step is
+   idempotent and safe to include anywhere in a pipeline. The draft runs
    the same step on every leaf, cells of a composite included. This is
    the step that lets raw data render a default: the shortcuts
    `pj/draft`, `pj/plan`, `pj/membrane`, `pj/plot` and `pj/save` apply
@@ -906,7 +910,7 @@
    phrase, given the `caller` that rejected it. Returns nil when `k`
    matches nothing known -- a typo has no better home to point at."
   [caller k]
-  (let [lay? (str/starts-with? caller "lay-")
+  (let [lay? (str/starts-with? caller "pj/lay-")
         elsewhere (layer-types-accepting k)]
     (cond
       (defaults/renamed-to k)
@@ -993,9 +997,7 @@
                          :let [m (first (get by-squash (squash k)))]
                          :when m]
                      (str "\n  Did you mean " m " for " k "?"))
-              ;; A layer is named as its writer called it.
-              named (if (str/starts-with? caller "lay-") (str "pj/" caller) caller)
-              msg (str named " does not recognize " (vec unknown) "."
+              msg (str caller " does not recognize " (vec unknown) "."
                        (apply str near)
                        (option-home-lines caller unknown)
                        "\n  Accepted: " (vec (sort accepted)))]
@@ -1534,7 +1536,7 @@
              (str "pj/pose 4-arity expects a mapping as the last"
                   " argument, got " (pr-str (type mapping)) ": "
                   (pr-str mapping) ". Wrap aesthetic mappings in a map,"
-                  " e.g. {:color :species}.")
+                  " as in {:color :species}.")
              {:caller "pj/pose" :value mapping})))
    (check-mapping-in-map-slot "pj/pose" mapping "its mapping map")
    (extend-mapping pose-or-data (merge mapping {:x x :y y}))))
@@ -1720,7 +1722,7 @@
                          (resolve/column-ref? col)
                          (not (contains? col-names col)))]
         (throw (ex-info
-                (str "lay-" (layer-type-name layer-type)
+                (str "pj/lay-" (layer-type-name layer-type)
                        " " k " " (pr-str col)
                        " names a column that doesn't exist in the data"
                        " the layer would draw from. Available columns: "
@@ -2118,12 +2120,12 @@
                     {:caller caller :overlay v}))))
 
 (defn- lay-caller-name
-  "How a message names the call that wrote a layer: `lay-point` for a
-   registered keyword, `pj/lay` for a layer type written as a map, which
-   has no name of its own."
+  "How a message names the call that wrote a layer: `pj/lay-point` for
+   a registered keyword, `pj/lay` for a layer type written as a map,
+   which has no name of its own."
   [layer-type-key]
   (if (keyword? layer-type-key)
-    (str "lay-" (name layer-type-key))
+    (str "pj/lay-" (name layer-type-key))
     "pj/lay"))
 
 (defn- build-layer
@@ -2155,7 +2157,7 @@
     (validate-mark-stat (lay-caller-name layer-type-key) opts))
   (let [opts (if (and opts (keyword? layer-type-key))
                (warn-and-strip-unknown-opts
-                (str "lay-" (name layer-type-key))
+                (lay-caller-name layer-type-key)
                 opts
                 (layer-accepted-options layer-type-key))
                opts)
@@ -2350,6 +2352,8 @@
         (pose/check-series! caller d
                             (into {} (map (fn [k] [k (written-at k)])) ks))))))
 
+(declare one-column-layer-given-two-message)
+
 (defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
@@ -2372,7 +2376,7 @@
   ;; The positional x/y of a lay-* call reach the pose's :mapping without
   ;; passing through build-layer, so they need the same column-reference
   ;; check pj/pose runs on the map it is handed.
-  (check-position-mapping (str "lay-" (layer-type-name layer-type-key))
+  (check-position-mapping (str "pj/lay-" (layer-type-name layer-type-key))
                           position-mapping)
   (when (contains? opts :overlay)
     (retired-overlay! (str "pj/lay-" (layer-type-name layer-type-key)) (:overlay opts)))
@@ -2403,13 +2407,10 @@
                      (:y (stat/computes {:stat (:stat (layer-type/lookup layer-type-key))}))
                      (contains? position-mapping :x)
                      (contains? position-mapping :y))
-            (throw (ex-info (str "lay-" (layer-type-name layer-type-key)
-                                 " draws from one column, and this call names two: :x "
-                                 (pr-str (pose/mapping-source (:x position-mapping)))
-                                 " and :y "
-                                 (pr-str (pose/mapping-source (:y position-mapping)))
-                                 ". Name one column -- on :x, or on :y alone to draw it"
-                                 " on its side.")
+            (throw (ex-info (one-column-layer-given-two-message
+                             layer-type-key
+                             (pose/mapping-source (:x position-mapping))
+                             (pose/mapping-source (:y position-mapping)))
                             {:layer-type layer-type-key
                              :x (pose/mapping-source (:x position-mapping))
                              :y (pose/mapping-source (:y position-mapping))})))]
@@ -2526,7 +2527,7 @@
      (cond
        (map? x-or-opts)
        (do (check-mapping-in-map-slot
-            (str "lay-" (name layer-type-key)) x-or-opts "its mapping")
+            (lay-caller-name layer-type-key) x-or-opts "its mapping")
            (lay-on-pose fr layer-type-key nil x-or-opts))
 
        ;; Sequential -> build a multi-panel composite via pj/pose, then
@@ -2610,7 +2611,7 @@
                           " 4-arity expects a mapping as the last"
                           " argument, got " (pr-str (type opts)) ": "
                           (pr-str opts) ". Wrap aesthetic mappings in"
-                          " a map, e.g. {:color :species}.")
+                          " a map, as in {:color :species}.")
                      {:caller (str "pj/lay-" (name layer-type-key))
                       :value opts})))
    (lay-on-pose (->pose pose-or-data (str "pj/lay-" (name layer-type-key))) layer-type-key {:x x :y y} opts)))
@@ -2620,8 +2621,9 @@
 
    With no columns, the layer reads the panel's columns; on a composite
    pose it is added at the root and drawn in every cell. With columns,
-   the layer keeps them on its own mapping and is drawn on the pose's
-   one panel. On a composite pose, a layer naming columns joins the last
+   the layer keeps them on its own mapping and is drawn where the pose
+   draws those columns: on its panel, or under a facet over columns, in
+   the panels of those columns. On a composite pose, a layer naming columns joins the last
    cell that draws those columns, or is appended as a new cell.
 
    - `(lay-point pose)` -- a layer reading the panel's columns.
@@ -2757,7 +2759,7 @@
   (if-not (map? opts)
     opts
     (let [k (rule-position-key layer-type-key)
-          opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+          opts (unwrap-written-bounds (lay-caller-name layer-type-key)
                                       [k] opts)
           v (get opts k)]
       (if (temporal-intercept? v)
@@ -2772,7 +2774,7 @@
   (if-not (map? opts)
     opts
     (let [[lo-k hi-k] (band-position-keys layer-type-key)
-          opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+          opts (unwrap-written-bounds (lay-caller-name layer-type-key)
                                       [lo-k hi-k] opts)]
       (cond-> opts
         (temporal-intercept? (get opts lo-k)) (update lo-k coerce-intercept)
@@ -2780,7 +2782,7 @@
 
 (defn- assert-rule-opts! [layer-type-key args]
   (let [k (rule-position-key layer-type-key)
-        opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+        opts (unwrap-written-bounds (lay-caller-name layer-type-key)
                                     [k] (last-opts args))
         v (get opts k)]
     (when-not (or (and (number? v) (Double/isFinite (double v)))
@@ -2795,7 +2797,7 @@
 
 (defn- assert-band-opts! [layer-type-key args]
   (let [[lo-k hi-k] (band-position-keys layer-type-key)
-        opts (unwrap-written-bounds (str "lay-" (name layer-type-key))
+        opts (unwrap-written-bounds (lay-caller-name layer-type-key)
                                     [lo-k hi-k] (last-opts args))
         lo (get opts lo-k) hi (get opts hi-k)
         valid-bound? (fn [v]
@@ -2858,13 +2860,13 @@
    Written with no columns, the rule is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
    4-arity draws the rule only in the cell that draws those two
-   columns, and on a cell of its own where no cell does. On a pose with
-   one panel, columns the panel does not draw warn and are not read:
-   the rule is drawn on that panel.
+   columns, and on a cell of its own where no cell does. On a
+   pose with one panel, a column the panel does not draw is not read,
+   and a warning names it; the rule is still drawn on that panel.
 
    - `(lay-rule-h pose {:y-intercept 3})` -- root-level, flows to every panel.
-   - `(lay-rule-h pose :x :y {:y-intercept 3})` -- on a composite
-     pose, in the cell drawing `:x` and `:y`.
+   - `(lay-rule-h pose :height :weight {:y-intercept 3})` -- on a composite
+     pose, in the cell drawing `:height` and `:weight`.
    - `(lay-rule-h pose {:y-intercept 3 :color \"red\"})` -- with override color.
    - `(lay-rule-h pose {:y-intercept (java.time.LocalDate/parse \"2024-01-01\")})`
      -- temporal intercept on a date axis."
@@ -2890,13 +2892,13 @@
    Written with no columns, the rule is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
    4-arity draws the rule only in the cell that draws those two
-   columns, and on a cell of its own where no cell does. On a pose with
-   one panel, columns the panel does not draw warn and are not read:
-   the rule is drawn on that panel.
+   columns, and on a cell of its own where no cell does. On a
+   pose with one panel, a column the panel does not draw is not read,
+   and a warning names it; the rule is still drawn on that panel.
 
    - `(lay-rule-v pose {:x-intercept 5})` -- root-level, flows to every panel.
-   - `(lay-rule-v pose :x :y {:x-intercept 5})` -- on a composite
-     pose, in the cell drawing `:x` and `:y`.
+   - `(lay-rule-v pose :height :weight {:x-intercept 5})` -- on a composite
+     pose, in the cell drawing `:height` and `:weight`.
    - `(lay-rule-v pose {:x-intercept 5 :color \"red\"})` -- with override color.
    - `(lay-rule-v pose {:x-intercept #inst \"2008-09-15\"})` -- temporal
      intercept on a date axis."
@@ -2920,13 +2922,13 @@
    Written with no columns, the band is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
    4-arity draws the band only in the cell that draws those two
-   columns, and on a cell of its own where no cell does. On a pose with
-   one panel, columns the panel does not draw warn and are not read:
-   the band is drawn on that panel.
+   columns, and on a cell of its own where no cell does. On a
+   pose with one panel, a column the panel does not draw is not read,
+   and a warning names it; the band is still drawn on that panel.
 
    - `(lay-band-h pose {:y-min 2 :y-max 4})` -- root-level, flows to every panel.
-   - `(lay-band-h pose :x :y {:y-min 2 :y-max 4})` -- on a composite
-     pose, in the cell drawing `:x` and `:y`.
+   - `(lay-band-h pose :height :weight {:y-min 2 :y-max 4})` -- on a composite
+     pose, in the cell drawing `:height` and `:weight`.
    - `(lay-band-h pose {:y-min 2 :y-max 4 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-h))
@@ -2949,13 +2951,13 @@
    Written with no columns, the band is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
    4-arity draws the band only in the cell that draws those two
-   columns, and on a cell of its own where no cell does. On a pose with
-   one panel, columns the panel does not draw warn and are not read:
-   the band is drawn on that panel.
+   columns, and on a cell of its own where no cell does. On a
+   pose with one panel, a column the panel does not draw is not read,
+   and a warning names it; the band is still drawn on that panel.
 
    - `(lay-band-v pose {:x-min 4 :x-max 6})` -- root-level, flows to every panel.
-   - `(lay-band-v pose :x :y {:x-min 4 :x-max 6})` -- on a composite
-     pose, in the cell drawing `:x` and `:y`.
+   - `(lay-band-v pose :height :weight {:x-min 4 :x-max 6})` -- on a composite
+     pose, in the cell drawing `:height` and `:weight`.
    - `(lay-band-v pose {:x-min 4 :x-max 6 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-v))
@@ -4260,7 +4262,7 @@
       (throw (ex-info (str "pj/pose->draft: got a pose with no data and no layers. "
                            "The mapping " (pr-str (:mapping bare))
                            " is set, but nothing to draft from. "
-                           "Add a layer with pj/lay-* (e.g. (pj/lay-point pose :x :y)) "
+                           "Add a layer with pj/lay-*, as in (pj/lay-point pose :x-column :y-column), "
                            "or attach data via pj/with-data.")
                       {:caller "pj/pose->draft"
                        :pose-shape :bare-template
@@ -4740,8 +4742,10 @@
   (cond
     (pose/composite? p)
     (do (when (seq opts)
-          (throw (ex-info (str "pj/arrange options are not used when cells"
-                               " are appended to a composite pose.")
+          (throw (ex-info (str "pj/arrange takes no options when it appends cells"
+                               " to a composite pose. Append the cells, then set"
+                               " the options with pj/options:"
+                               " (-> composite (pj/arrange cells) (pj/options {...})).")
                           {:caller "pj/arrange" :opts opts})))
         (multi-pair-pose p cells))
 
@@ -4764,7 +4768,8 @@
    build your own `[:div ...]` if you need to combine already-rendered
    values outside the library.
 
-   Opts are the options below and any plot option `pj/options` takes:
+   The options map holds the options below and any plot option
+   `pj/options` takes:
    `(arrange cells {:x-label \"X\"})` is
    `(-> (arrange cells) (pj/options {:x-label \"X\"}))`, and the option
    reaches every cell that does not set it. A key that is neither is

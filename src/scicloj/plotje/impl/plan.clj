@@ -2470,7 +2470,7 @@
                   " the panel does not draw, so " (if (next pairs) "they are" "it is")
                   " not read. On a composite pose a " noun "'s columns pick the cell"
                   " it is drawn in; this pose is not a composite, so the " noun
-                  " is drawn with its other layers. Name the panel's own columns,"
+                  " is drawn on the panel with the pose's other layers. Name the panel's own columns,"
                   " or none."))))
 
 (defn- warn-undrawn-density-color

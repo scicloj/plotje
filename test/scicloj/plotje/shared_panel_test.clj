@@ -116,14 +116,14 @@
     (testing "two layers whose columns differ greatly in size print one Note naming both"
       (let [out (printed (layers :small :big))]
         (is (= 1 (count (re-seq #"Note:" out))))
-        (is (re-find #"on :y one axis holds :small \(12 to 44\), :big \(1999 to 2008\)" out))
+        (is (re-find #"the :y axis holds :small \(12 to 44\), :big \(1999 to 2008\)" out))
         (is (re-find #"together span 12 to 2008" out))
         (is (re-find #"\(pj/facet pose \{:y \[:small :big\]\}\)" out))))
     (testing "a series of the same columns prints it too, on the pose or on a layer"
-      (is (= 1 (count (re-seq #"Note: on :y" (printed (-> d (pj/pose {:x :t :y [:small :big]}) pj/lay-point))))))
-      (is (= 1 (count (re-seq #"Note: on :y" (printed (pj/lay-point d :t [:small :big])))))))
+      (is (= 1 (count (re-seq #"Note: the :y axis" (printed (-> d (pj/pose {:x :t :y [:small :big]}) pj/lay-point))))))
+      (is (= 1 (count (re-seq #"Note: the :y axis" (printed (pj/lay-point d :t [:small :big])))))))
     (testing "the :x axis is read the same way"
-      (is (re-find #"Note: on :x" (printed (-> d (pj/lay-point :small :t) (pj/lay-point :big :t))))))
+      (is (re-find #"Note: the :x axis" (printed (-> d (pj/lay-point :small :t) (pj/lay-point :big :t))))))
     (testing "columns of comparable size print nothing"
       (is (= "" (printed (layers :small :near)))))
     (testing "with a :domain specified, or a log scale, no extent is fitted on a linear axis and nothing is printed"
