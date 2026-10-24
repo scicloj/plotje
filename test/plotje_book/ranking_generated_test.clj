@@ -96,11 +96,11 @@
    v13_l64)))
 
 
-(def v16_l88 (-> (rdatasets/datasets-iris) (pj/lay-bar {:y :species})))
+(def v16_l87 (-> (rdatasets/datasets-iris) (pj/lay-bar {:y :species})))
 
 
 (deftest
- t17_l91
+ t17_l90
  (is
   ((fn
     [v]
@@ -110,16 +110,16 @@
       (= 3 (:polygons (pj/svg-summary v)))
       (= ["setosa" "versicolor" "virginica"] (:y-domain panel))
       (zero? (first (:x-domain panel))))))
-   v16_l88)))
+   v16_l87)))
 
 
 (def
- v19_l102
+ v19_l101
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t20_l106
+ t20_l105
  (is
   ((fn
     [v]
@@ -144,11 +144,11 @@
        s
        (pj/svg-summary
         (-> (rdatasets/datasets-iris) (pj/lay-bar {:y :species})))))))
-   v19_l102)))
+   v19_l101)))
 
 
 (def
- v22_l133
+ v22_l132
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:color :time})
@@ -156,54 +156,54 @@
 
 
 (deftest
- t23_l137
+ t23_l136
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v22_l133)))
+   v22_l132)))
 
 
-(def v25_l151 (-> sales (pj/lay-bar :product :revenue)))
+(def v25_l150 (-> sales (pj/lay-bar :product :revenue)))
 
 
 (deftest
- t26_l154
+ t26_l153
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v25_l151)))
+   v25_l150)))
 
 
-(def v28_l162 (-> sales (pj/lay-bar :revenue :product)))
+(def v28_l161 (-> sales (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t29_l165
+ t29_l164
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v28_l162)))
+   v28_l161)))
 
 
 (def
- v31_l178
+ v31_l177
  (def sales-ranked (-> sales tc/dataset (tc/order-by :revenue :asc))))
 
 
-(def v32_l183 (-> sales-ranked (pj/lay-bar :revenue :product)))
+(def v32_l182 (-> sales-ranked (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t33_l186
+ t33_l185
  (is
   ((fn
     [v]
@@ -231,11 +231,11 @@
         first
         :y-domain
         vec)))))
-   v32_l183)))
+   v32_l182)))
 
 
 (def
- v35_l216
+ v35_l215
  (->
   {:department
    ["Office Supplies"
@@ -250,7 +250,7 @@
 
 
 (deftest
- t36_l222
+ t36_l221
  (is
   ((fn
     [v]
@@ -259,41 +259,41 @@
      (and
       (= 6 (:polygons s))
       (.contains (pr-str (pj/plot v)) "rotate(-45"))))
-   v35_l216)))
+   v35_l215)))
 
 
-(def v38_l234 (-> sales (pj/lay-lollipop :product :revenue)))
+(def v38_l233 (-> sales (pj/lay-lollipop :product :revenue)))
 
 
 (deftest
- t39_l237
+ t39_l236
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v38_l234)))
+   v38_l233)))
 
 
 (def
- v41_l245
+ v41_l244
  (-> sales (pj/lay-lollipop :product :revenue) (pj/coord :flip)))
 
 
 (deftest
- t42_l249
+ t42_l248
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v41_l245)))
+   v41_l244)))
 
 
 (def
- v44_l258
+ v44_l257
  (->
   {:product ["A" "B" "C" "D" "E" "F"],
    :revenue [120 95 150 80 200 110],
@@ -302,57 +302,57 @@
 
 
 (deftest
- t45_l263
+ t45_l262
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v) fills (disj (:colors s) "none")]
      (and (= 6 (:points s)) (= 2 (count fills)))))
-   v44_l258)))
+   v44_l257)))
 
 
-(def v47_l276 (-> sales (pj/lay-segment :product :revenue {:y-end 0})))
+(def v47_l275 (-> sales (pj/lay-segment :product :revenue {:y-end 0})))
 
 
 (deftest
- t48_l279
+ t48_l278
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:lines s)) (zero? (:points s)))))
-   v47_l276)))
+   v47_l275)))
 
 
 (def
- v50_l287
+ v50_l286
  (->
   {:index (range 1 41),
    :residual
    (map
     (fn*
-     [p1__78929#]
-     (* (Math/sin p1__78929#) (Math/exp (- (/ p1__78929# 30.0)))))
+     [p1__77903#]
+     (* (Math/sin p1__77903#) (Math/exp (- (/ p1__77903# 30.0)))))
     (range 1 41))}
   (pj/lay-segment :index :residual {:y-end 0})
   (pj/lay-rule-h {:y-intercept 0})))
 
 
 (deftest
- t51_l292
+ t51_l291
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 41 (:lines s)))))
-   v50_l287)))
+   v50_l286)))
 
 
 (def
- v53_l306
+ v53_l305
  (->
   {:team ["Ops" "Sales" "Support" "Research"],
    :before [62 48 71 55],
@@ -363,7 +363,7 @@
 
 
 (deftest
- t54_l313
+ t54_l312
  (is
   ((fn
     [v]
@@ -374,7 +374,7 @@
       (= 4 (:lines s))
       (= 8 (:points s))
       (= ["before" "after"] (mapv :label (:entries (:legend p)))))))
-   v53_l306)))
+   v53_l305)))
 
 
 (def

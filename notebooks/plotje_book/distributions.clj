@@ -438,7 +438,8 @@
 
 ;; Several columns on `:x` suit the layer types that draw from one
 ;; column, such as histograms, densities and rugs. A boxplot or a violin
-;; draws from two columns, so there the several columns go on `:y`,
+;; draws from two columns, so for those layer types the several columns
+;; go on `:y`,
 ;; beside a category column on `:x`:
 
 (pj/lay-boxplot (rdatasets/datasets-iris)

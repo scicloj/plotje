@@ -271,9 +271,21 @@ gapminder-2007
                 (contains? (:colors (pj/svg-summary fr)) "rgb(0,0,0)")))])
 
 ;; To read a value through the scale, say so with the value:
-;; `{:color {:value "trend" :scale true}}`.
-;;
-;; A column read this way has to hold what the aesthetic draws. For
+;; `{:color {:value "trend" :scale true}}`. The line then takes a colour
+;; from the palette and a legend entry, `trend`, after the continents:
+
+(-> gapminder-2007
+    (pj/pose :gdp-percap :life-exp {:color :continent})
+    (pj/scale :color {:label "Continent"})
+    (pj/scale :x :log)
+    pj/lay-point
+    (pj/lay-smooth {:color {:value "trend" :scale true}}))
+
+(kind/test-last
+ [(fn [fr] (= "trend" (:label (last (:entries (:legend (pj/plan fr)))))))])
+
+;; A column read with `:scale false` has to hold what the aesthetic
+;; draws. For
 ;; `:size` that is a radius in drawing units, so the column below
 ;; holds 4, 8 and 12 -- not a population count, which would ask for
 ;; circles millions of units across:
@@ -1645,8 +1657,9 @@ gapminder-2007
 ;; - Two layers of one pose cannot read an aesthetic through different
 ;;   scales, as just shown. Lifting this would need a plot to carry two
 ;;   legends for one aesthetic.
-;; - Facet panels share their scale types. Their domains can already
-;;   differ: `{:share-scales #{}}` gives each panel its own.
+;; - Facet panels share their scale types. Their axis domains can
+;;   already differ: `{:share-scales #{}}` gives each panel its own `:x`
+;;   and `:y` domains.
 
 ;; ## See Also
 ;;

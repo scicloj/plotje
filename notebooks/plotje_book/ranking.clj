@@ -81,9 +81,8 @@
 
 ;; ### Horizontal
 
-;; Name the category on `:y` and the counting bars are drawn across. A
-;; counting bar draws from one column, and a column named on `:y` alone
-;; is drawn on its side.
+;; Name the category on `:y` and the counting bars run horizontally,
+;; with the counts along the x-axis.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-bar {:y :species}))
@@ -319,8 +318,9 @@
                                    (mapv :label (:entries (:legend p)))))))])
 
 ;; The segment layer names `:before` on `:x` too, so it is drawn in the
-;; colour of the `before` points. A colour written on the segment layer
-;; draws the line in a neutral grey:
+;; colour of the `before` points. Writing `:color "grey"` on the
+;; segment layer draws the line grey, and the legend keeps the two point
+;; colours:
 
 (-> {:team ["Ops" "Sales" "Support" "Research"]
      :before [62 48 71 55]

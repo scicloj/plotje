@@ -136,7 +136,7 @@
        (try (text-style pj/lay-text {:align-x :middle}) false
             (catch Exception _ true)))))])
 
-;; `:align-x` and `:align-y` are the only *layer* options in this chapter
+;; `:align-x` and `:align-y` are the only layer settings in this chapter
 ;; that apply to text alone. Passing one to `pj/lay-point` prints a
 ;; warning that names the layer types accepting it, and the option is
 ;; dropped. (`:fit-text-domain`, further down, is also about text, but it

@@ -137,7 +137,7 @@
 
 ;; Set a global width override and render. The pages of this book draw
 ;; every plot at the width of the text column, so on this page the
-;; wider canvas is drawn as wide as the plots above and less tall -- see
+;; wider canvas appears as wide as the plots above, and shorter -- see
 ;; [Customization](./plotje_book.customization.html#dimensions):
 
 (pj/set-config! {:width 800})

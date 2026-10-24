@@ -32,9 +32,10 @@
 ;;
 ;; `:width` and `:height` set the size of the canvas in drawing units,
 ;; and a file written by `pj/save` has that size. The pages of this
-;; book draw every plot at the width of the text column, so here
-;; `:width` and `:height` show as the plot's proportions, and as the
-;; size of its text and marks against the whole plot.
+;; book scale every plot to the width of the text column, so on these
+;; pages `:width` and `:height` change the plot's proportions. Text and
+;; marks keep their size in drawing units, so on a larger canvas they
+;; take up less of the whole plot.
 
 ;; A canvas twice as wide as it is tall:
 
@@ -849,7 +850,7 @@
 ;;
 ;; A legend printed small is hard to read on a slide or a poster.
 ;; `:legend-font-size` sets the font size of a legend's entries and
-;; numbers, and the legend's title is drawn one size larger. The
+;; numbers, and the legend's title is drawn one unit larger. The
 ;; option reaches every legend of the plot -- colour, size, alpha and
 ;; shape -- wherever `:legend-position` places the legend.
 
