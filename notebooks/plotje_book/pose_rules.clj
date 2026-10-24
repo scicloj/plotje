@@ -273,8 +273,8 @@
 ;; ### Rule C6: `pj/pose` on a composite merges into the root mapping
 ;;
 ;; On a composite, `pj/pose` merges into the root `:mapping`, which
-;; reaches every cell that does not map the same aesthetic itself. An
-;; aesthetic usually reaches them all:
+;; reaches every cell that does not map the same aesthetic itself. So
+;; an aesthetic that no cell maps itself reaches every cell:
 
 (-> iris
     (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
@@ -419,7 +419,7 @@ composite-pose
 ;; ### Rule C9: `pj/facet-matrix` writes a facet map, and a mapping on the pose
 ;;
 ;; `pj/facet-matrix` given columns writes the facet map that crosses
-;; them, `{:col {:x cols} :row {:y cols}}`, on a pose with one panel,
+;; them, `{:col {:x cols} :row {:y cols}}`, on a leaf pose -- no `:poses` --
 ;; which the facet splits into a panel for every pair. Given a mapping
 ;; as well, it writes that mapping on the pose, so it reaches every
 ;; panel.
@@ -731,11 +731,13 @@ composite-pose
                (= :composite (:via-arrange-shape m))))])
 
 ;; **Property: column-existence safety check.**
-;; When a `lay-*` call names columns the pose does not draw, it first
-;; checks that those columns exist in the data the layer would draw
+;; When a `lay-*` call names a column on an axis where the pose already
+;; draws another column, it first checks that those columns exist in the data the layer would draw
 ;; from -- the layer's own `:data` if present, otherwise the inherited
 ;; data. A missing column is almost always a typing mistake, so the
-;; call reports it at once, with the columns the data has.
+;; call reports it at once, with the columns the data has. A first
+;; `lay-*` call on raw data is not checked at the call; a missing column
+;; there is reported when the pose is drawn.
 ;;
 ;; The check at the call covers the columns written in the argument
 ;; slots. A name written in the layer's mapping may be a column or a
@@ -1199,7 +1201,7 @@ s2-tree
          (= {:type :log} (-> pose pj/plan :panels first :layers first
                              :size-scale))))])
 
-;; ### Rule O3: `pj/facet` writes the faceting column to the mapping
+;; ### Rule O3: `pj/facet` writes a faceting column to the mapping, and a facet over columns to `:facet`
 ;;
 ;; `pj/facet` and `pj/facet-grid` write the faceting column into the
 ;; pose's `:mapping` under `:col` (and `:row` for a grid). These are
@@ -1335,15 +1337,16 @@ s2-tree
 
 ;; ### Rule A1: one rendered layer per applicable (leaf, layer) pair
 ;;
-;; For each leaf, the number of rendered layers equals the number
-;; of layers applicable to that leaf -- the leaf's own plus all
-;; ancestor root-origin layers.
+;; For each leaf, the rendered layers are the leaf's own, plus each
+;; layer written above it whose layer type draws from as many columns
+;; as the leaf's panel (Property P-LP1). A leaf drawing none of these
+;; has a layer inferred for it.
 
 (-> iris
     (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
-    pj/lay-point                            ;; root-origin; reaches both
+    pj/lay-point                            ;; written on the root; reaches both
     (pj/lay-smooth :sepal-length :sepal-width
-                   {:stat :linear-model}))  ;; panel-origin; sub-pose 1 only
+                   {:stat :linear-model}))  ;; written on sub-pose 1 only
 
 (kind/test-last
  [(fn [pose]
@@ -1430,8 +1433,8 @@ s2-tree
 
 ;; ### Rule L2: layers of a leaf overlay within its panel
 ;;
-;; Layers applicable to a leaf (the leaf's own plus all ancestor
-;; root-origin layers) draw on the same axis pair -- they overlay
+;; Layers applicable to a leaf (the leaf's own plus the layers written
+;; on the root that it draws) draw on the same axis pair -- they overlay
 ;; within the leaf's panel, not on separate panels (Rule LP5).
 
 (-> iris
@@ -1561,7 +1564,7 @@ l4-shared
 
 ;; ### Rule L5: `pj/facet-matrix` is a facet with one panel per pair of columns
 ;;
-;; `(pj/facet-matrix data xs ys)` returns a pose with one panel that
+;; `(pj/facet-matrix data xs ys)` returns a leaf pose -- no `:poses` -- that
 ;; carries the facet map `{:col {:x xs} :row {:y ys}}`: a column of the
 ;; grid for each column of `xs`, a row for each column of `ys`, and a
 ;; panel where they cross. It draws what `pj/facet` given that map

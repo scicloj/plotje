@@ -60,7 +60,7 @@
 ;;
 ;; Each row is a registered layer type showing its mark, stat, position,
 ;; and the layer settings it presets. Two layer types can share a mark and
-;; differ only by one of the other three columns: `:histogram` is the
+;; differ only in the stat or the presets: `:histogram` is the
 ;; `:bar` mark with a binning stat, and `:label` is the `:text` mark with
 ;; a background box preset.
 
@@ -109,7 +109,8 @@
 
 ;; Among the places that read it:
 ;;
-;; - A layer written above a split is drawn in the panels whose number
+;; - A layer added after `pj/facet-matrix`, or on the root of a
+;;   composite, is drawn in the panels whose number
 ;;   of columns it draws from -- the
 ;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;;   is the case where the panels differ.

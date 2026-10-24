@@ -108,7 +108,8 @@ my-pose
 ;; pass to `pj/lay-*`:
 ;;
 ;; - **Bare** -- `pj/lay-*` without columns attaches a layer that is
-;;   drawn on every panel of the pose, reading that panel's columns --
+;;   drawn on every panel of the pose whose number of columns its
+;;   layer type draws from, reading that panel's columns --
 ;;   the ones `pj/pose` wrote, or the ones the first `pj/lay-*` call
 ;;   naming columns named. A layer naming one column reads the panel's
 ;;   other column where its layer type draws from two.
@@ -276,7 +277,8 @@ my-pose
 ;; **The mapping** of a pose or of a layer is also the name of the map
 ;; these are written in: the final argument of `pj/pose` and of every
 ;; `pj/lay-*` function, stored under `:mapping`. A pose's mapping takes
-;; aesthetics. A layer's mapping takes aesthetics and that layer's
+;; aesthetics, `:data`, and the type a column is read as (`:x-type`,
+;; `:y-type`, `:color-type`). A layer's mapping takes aesthetics and that layer's
 ;; [layer settings](#layer-settings).
 
 ;; ## Aesthetic
@@ -789,8 +791,9 @@ my-pose
 ;;   first appear in the data**, not alphabetical (e.g., iris
 ;;   gives `["setosa" "versicolor" "virginica"]`).
 ;;
-;; Each panel carries its own `:x-domain` and `:y-domain`. The panels
-;; of a facet share one domain pair by default; `:share-scales` names
+;; Each panel carries its own `:x-domain` and `:y-domain`. By default
+;; the panels of a facet share each axis among the panels that draw the
+;; same column on it; `:share-scales` names
 ;; the axes they share, and a panel computes its own domain on an axis
 ;; left out, so under `{:share-scales #{}}` each panel computes both.
 
@@ -947,8 +950,11 @@ my-pose
 ;; - `pj/facet-grid` creates a grid from two categorical columns, the
 ;;   categories of the first across and those of the second down
 ;;
-;; By default all panels share the same x and y domains, which cover
-;; what the panels draw. `:share-scales` names the axes the panels
+;; By default the panels share each axis among the panels that draw
+;; the same column on it, and a shared axis covers what those panels
+;; draw. In a facet over a column's categories that is every panel; in
+;; a facet over columns, a panel drawing another column has its own
+;; range. `:share-scales` names the axes the panels
 ;; share, in `pj/options` or in the map of plot options that `pj/facet`
 ;; takes as its last argument: `{:share-scales #{:x}}` lets each panel use
 ;; its own `:y` range, and `{:share-scales #{}}` its own range on both
@@ -1279,7 +1285,7 @@ annotated
 ;; ## Configuration
 ;;
 ;; **Configuration** controls rendering behavior -- dimensions, theme,
-;; palette, color scale, margins, and more. It is one of three option
+;; palette, color scale, margins, and more. It is one of the three
 ;; kinds of value a plot is built from -- the others are
 ;; [plot options](#plot-options) and [mappings](#mapping).
 ;; Configuration follows a
@@ -1326,7 +1332,9 @@ annotated
 ;; or drawn, where an aesthetic says what a column or a value becomes.
 ;; The layer settings are the parts of the layer type (`:mark`,
 ;; `:stat`, `:position`), the layer's own `:data`, the space its `:x`
-;; and `:y` are in (`:in`), and the parameters of one layer type
+;; and `:y` are in (`:in`), the type a column is read as (`:x-type`,
+;; `:y-type`, `:color-type`), offsets (`:offset-x`, `:offset-y`),
+;; `:tooltip`, and the parameters of one layer type
 ;; (`:bins`, `:bandwidth`, `:confidence-band`, `:normalize`, and
 ;; others).
 ;;
@@ -1402,7 +1410,7 @@ annotated
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
-;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | every layer of a pose |
+;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/lay-*` on a leaf |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make the panels of a facet, or the sibling poses of a composite, share data ranges across named axes | `:share-scales` in `:opts` |
 ;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |

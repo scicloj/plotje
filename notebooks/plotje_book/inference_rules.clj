@@ -177,7 +177,7 @@ two-col-pose
 (kind/test-last [(fn [pose] (and (= {:x :x :y :y} (:mapping pose))
                                  (empty? (:layers pose))))])
 
-;; ### A later layer naming the default's columns
+;; ### A later layer on a pose whose columns are read by default
 ;;
 ;; A layer added to a pose leaves the layers before it as they were
 ;; drawn. Below, the points come first and name no column, so they read
@@ -252,7 +252,11 @@ two-col-pose
 ;; `(pj/pose data)` both build a pose with the data attached and no
 ;; column named, and a later step may name the columns:
 ;; `(pj/pose pose :col-a :col-b)` after either call, or
-;; `(pj/lay-point pose :col-a :col-b)` after `(pj/pose data)`. A pose
+;; `(pj/lay-point pose :col-a :col-b)` after `(pj/pose data)`. After
+;; `(pj/lay-point data)`, a second layer naming the columns also gives
+;; the first layer its columns (Rule LP6 in
+;; [Pose Rules](./plotje_book.pose_rules.html)), so the points are
+;; drawn twice. A pose
 ;; drawn while a layer still has no column reports an error that names
 ;; the layer and lists the columns of the data:
 
@@ -877,7 +881,8 @@ count-pose-on-y
 ;; columns, such as a scatter, needs an `:x`: on data of two or three
 ;; columns it takes the first column nothing names, so
 ;; `(pj/lay-point animals {:y :count})` draws `:count` against
-;; `:animal`, and on wider data it asks for one. The
+;; `:animal`, and on wider data it reports an error naming the missing
+;; `:x`. The
 ;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from)
 ;; chapter lists how many columns each layer type draws from.
 
@@ -1404,7 +1409,7 @@ two-columns-pose
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length)
-    (pj/lay-point {:y :sepal-width :color "#377eb8"})
+    (pj/lay-point {:y :sepal-width :color "#7f7f7f"})
     (pj/lay-point {:y :petal-width}))
 
 (kind/test-last
