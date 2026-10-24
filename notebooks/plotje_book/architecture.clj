@@ -527,9 +527,9 @@ graph LR
 ;;   at the start of `pj/pose->draft`, on every leaf, cells of a
 ;;   composite included. It writes the default where neither the
 ;;   pose's mapping nor any layer names an `:x` or a `:y` column, and
-;;   where the first layer names no column and each later layer names
-;;   only the default's columns, each on the axis the default reads it
-;;   on (the example below this list shows that case).
+;;   where the first layer names no column, whatever the later layers
+;;   name (the example below this list shows a later layer naming the
+;;   default's columns).
 ;;   `pj/infer-mapping` is the same step as a public function: it
 ;;   writes the default onto the pose, where it can be read before
 ;;   drafting. `pj/->pose`, `pj/pose` and the `pj/lay-*` functions read
@@ -887,8 +887,10 @@ faceted-clinics
 ;; one column -- a count, a density -- which the stat declares (see
 ;; [What a stat computes](./plotje_book.extensibility.html#what-a-stat-computes)).
 ;; A count of a column and the values of that column are never in one
-;; group. `:share-scales` can also name columns that go together, or
-;; `:all`.
+;; group. `:share-scales` is a set of axes, as above, or a map from an
+;; axis to `:same-column`, to the columns that go together on that
+;; axis, `{:y [[:hwy :cty]]}`, or to `:all`, `{:y :all}`, which puts
+;; every cell in one group.
 ;;
 ;; `:share-scales` names an axis as it is drawn: `:x` is the horizontal
 ;; axis. The groups are recorded by the axis of each cell's own
@@ -1166,6 +1168,20 @@ series-by-key
 
 (kind/test-last
  [(fn [shares] (= [{:x {:group 0}} {:x {:group 0}}] shares))])
+
+;; Cells written by hand, each keeping the rows of one value of a
+;; column with `:where`, that together keep every value of the column
+;; are rewritten the other way, into one pose faceted by that column
+;; (`pose/collapse-regular-split`). A list that leaves a value out
+;; stays a composite. Here the three drive types of the mpg data
+;; plan as one faceted pose, and two of them as a composite:
+
+(let [points (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
+  (->> [[{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}]
+        [{:where {:drv "f"}} {:where {:drv "4"}}]]
+       (mapv #(pj/composite-plan? (pj/plan (pj/arrange points %))))))
+
+(kind/test-last [(fn [composite?] (= [false true] composite?))])
 
 ;; ## Where a Mistake Is Reported
 ;;

@@ -700,6 +700,9 @@
 ;; - **The direction argument of `pj/facet`.** It is retired and warns.
 ;;   `(pj/facet pose :species :row)` draws as before; write
 ;;   `(pj/facet pose {:row :species})`.
+;; - **A pose's columns beside a layer naming other columns.** The plot
+;;   draws the layer's columns only, and warns that no layer draws the
+;;   pose's `:x` and `:y`. Draw both pairs of columns with `pj/arrange`.
 ;;
 ;; For each of the first two, split the pose with `pj/facet`, or draw
 ;; the layers as separate poses with `pj/arrange`. A series and a facet

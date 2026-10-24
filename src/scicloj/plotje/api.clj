@@ -1546,14 +1546,17 @@
 (defn facet-matrix
   "A matrix of panels, one for every pair of columns: the `xcols`
    across and the `ycols` down, each panel drawing its column pair. A
-   panel whose two columns are the same draws one column, a histogram
-   by default. Given one list of columns, it is crossed with itself, a
-   scatter plot matrix; given none, every column of the data is.
+   panel whose two columns are the same draws one column: a histogram,
+   or a bar chart of counts for a categorical column. Given one list of
+   columns, it is crossed with itself, a scatter plot matrix; given
+   none, every column of the data is. The first argument may be a pose.
 
    It writes the facet map `{:col {:x xcols} :row {:y ycols}}`, so
    `(pj/facet-matrix data cols)` is `(pj/facet (pj/pose data) {:col {:x
-   cols} :row {:y cols}})`, and layers added after it are drawn in every
-   panel. A mapping given last is written on the pose:
+   cols} :row {:y cols}})`. A layer added afterwards is drawn in the
+   panels of as many columns as its layer type draws from: `pj/lay-point`
+   in the panels of two columns, `pj/lay-rug` on the diagonal. A mapping
+   given last is written on the pose:
 
    - `(pj/facet-matrix data)` -- every column against every column.
    - `(pj/facet-matrix data cols)` -- the columns against each other.
@@ -2821,13 +2824,17 @@
    top left of the panel background instead of as a data value.
    The rule is drawn in the order its layer was written, so one written
    before a scatter sits under its points and one written after sits
-   over them. The 4-arity finds or creates a sub-pose with these x/y
-   columns and attaches the rule there (only panels matching that leaf
-   show it).
+   over them.
+   Written with no columns, the rule is drawn on the pose's panel,
+   and on a composite pose in every cell. On a composite pose the
+   4-arity draws the rule only in the cell that draws those two
+   columns, and on a cell of its own where no cell does. On a pose with
+   one panel, columns the panel does not draw warn and are not read:
+   the rule is drawn on that panel.
 
    - `(lay-rule-h pose {:y-intercept 3})` -- root-level, flows to every panel.
-   - `(lay-rule-h pose :x :y {:y-intercept 3})` -- panel-scope (columns pick
-     or create a sub-pose).
+   - `(lay-rule-h pose :x :y {:y-intercept 3})` -- on a composite
+     pose, in the cell drawing `:x` and `:y`.
    - `(lay-rule-h pose {:y-intercept 3 :color \"red\"})` -- with override color.
    - `(lay-rule-h pose {:y-intercept (java.time.LocalDate/parse \"2024-01-01\")})`
      -- temporal intercept on a date axis."
@@ -2849,13 +2856,17 @@
    top left of the panel background instead of as a data value.
    The rule is drawn in the order its layer was written, so one written
    before a scatter sits under its points and one written after sits
-   over them. The 4-arity finds or creates a sub-pose with these x/y
-   columns and attaches the rule there (only panels matching that leaf
-   show it).
+   over them.
+   Written with no columns, the rule is drawn on the pose's panel,
+   and on a composite pose in every cell. On a composite pose the
+   4-arity draws the rule only in the cell that draws those two
+   columns, and on a cell of its own where no cell does. On a pose with
+   one panel, columns the panel does not draw warn and are not read:
+   the rule is drawn on that panel.
 
    - `(lay-rule-v pose {:x-intercept 5})` -- root-level, flows to every panel.
-   - `(lay-rule-v pose :x :y {:x-intercept 5})` -- panel-scope (columns pick
-     or create a sub-pose).
+   - `(lay-rule-v pose :x :y {:x-intercept 5})` -- on a composite
+     pose, in the cell drawing `:x` and `:y`.
    - `(lay-rule-v pose {:x-intercept 5 :color \"red\"})` -- with override color.
    - `(lay-rule-v pose {:x-intercept #inst \"2008-09-15\"})` -- temporal
      intercept on a date axis."
@@ -2875,13 +2886,17 @@
    `{:in :drawing-area}` reads the bounds as drawing units from the top
    left of the panel background instead of as data values.
    The band is drawn in the order its layer was written, so one written
-   before a scatter sits under its points. The 4-arity finds or creates
-   a sub-pose with these x/y columns and attaches the band there (only
-   panels matching that leaf show it).
+   before a scatter sits under its points.
+   Written with no columns, the band is drawn on the pose's panel,
+   and on a composite pose in every cell. On a composite pose the
+   4-arity draws the band only in the cell that draws those two
+   columns, and on a cell of its own where no cell does. On a pose with
+   one panel, columns the panel does not draw warn and are not read:
+   the band is drawn on that panel.
 
    - `(lay-band-h pose {:y-min 2 :y-max 4})` -- root-level, flows to every panel.
-   - `(lay-band-h pose :x :y {:y-min 2 :y-max 4})` -- panel-scope (columns pick
-     or create a sub-pose).
+   - `(lay-band-h pose :x :y {:y-min 2 :y-max 4})` -- on a composite
+     pose, in the cell drawing `:x` and `:y`.
    - `(lay-band-h pose {:y-min 2 :y-max 4 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-h))
@@ -2900,13 +2915,17 @@
    `{:in :drawing-area}` reads the bounds as drawing units from the top
    left of the panel background instead of as data values.
    The band is drawn in the order its layer was written, so one written
-   before a scatter sits under its points. The 4-arity finds or creates
-   a sub-pose with these x/y columns and attaches the band there (only
-   panels matching that leaf show it).
+   before a scatter sits under its points.
+   Written with no columns, the band is drawn on the pose's panel,
+   and on a composite pose in every cell. On a composite pose the
+   4-arity draws the band only in the cell that draws those two
+   columns, and on a cell of its own where no cell does. On a pose with
+   one panel, columns the panel does not draw warn and are not read:
+   the band is drawn on that panel.
 
    - `(lay-band-v pose {:x-min 4 :x-max 6})` -- root-level, flows to every panel.
-   - `(lay-band-v pose :x :y {:x-min 4 :x-max 6})` -- panel-scope (columns pick
-     or create a sub-pose).
+   - `(lay-band-v pose :x :y {:x-min 4 :x-max 6})` -- on a composite
+     pose, in the cell drawing `:x` and `:y`.
    - `(lay-band-v pose {:x-min 4 :x-max 6 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-v))
@@ -3627,6 +3646,28 @@
       :else
       (facet-direction fr node :col "pj/facet"))))
 
+(defn- facet-options
+  "The plot options written last in a `pj/facet` or `pj/facet-grid`
+   call, given to `pj/options`. `:cols`, which a reader arriving from
+   ggplot2's `facet_wrap` writes here, is named by the call it was
+   written in: a facet does not wrap its panels."
+  [pose opts caller]
+  (let [opts (if (and (map? opts) (contains? opts :cols))
+               (let [msg (str caller " does not recognize [:cols]. "
+                              (if (= caller "pj/facet-grid")
+                                (str "A grid has a column of panels for each value"
+                                     " of its first column and a row for each value"
+                                     " of its second; for another number of columns,")
+                                (str "A facet draws its panels in one row or one"
+                                     " column; for rows of panels,"))
+                              " arrange one pose per value with pj/arrange.")]
+                 (if (:strict (defaults/config))
+                   (throw (ex-info msg {:caller caller :unknown [:cols]}))
+                   (println (str "Warning: " msg)))
+                 (dissoc opts :cols))
+               opts)]
+    (options pose opts)))
+
 (defn- facet-with-direction
   "`pj/facet` given a column and a direction, a form retired in favour
    of the map: `(pj/facet pose col :row)` is `(pj/facet pose {:row
@@ -3722,10 +3763,10 @@
      (facet-direction pose col :col "pj/facet")))
   ([pose col options-or-direction]
    (if (map? options-or-direction)
-     (options (facet pose col) options-or-direction)
+     (facet-options (facet pose col) options-or-direction "pj/facet")
      (facet-with-direction pose col options-or-direction)))
   ([pose col direction opts]
-   (options (facet-with-direction pose col direction) opts)))
+   (facet-options (facet-with-direction pose col direction) opts "pj/facet")))
 
 (defn facet-grid
   "Facet a pose by two columns: a panel for every row-and-column pair,
@@ -3747,7 +3788,7 @@
        (facet-direction col-col :col "pj/facet-grid")
        (facet-direction row-col :row "pj/facet-grid")))
   ([pose col-col row-col opts]
-   (options (facet-grid pose col-col row-col) opts)))
+   (facet-options (facet-grid pose col-col row-col) opts "pj/facet-grid")))
 
 (def ^:private aesthetic->scale-key
   "Aesthetic keyword to the opts key holding its scale spec. Derived

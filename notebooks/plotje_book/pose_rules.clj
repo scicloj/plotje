@@ -62,6 +62,7 @@
 ;; | `:facet` | leaf | a facet over columns, expanded into cells when the pose is drawn (Rule O3) |
 ;; | `:opts` | root | plot-level options (incl. composite-level keys like `:share-scales`) |
 ;; | `:share-scales` | composite | the axes the cells share; `pj/arrange` writes it under `:opts`, and `pj/marginal` writes it on the composite itself |
+;; | `:where` | any pose | a map from a column to a value or a set of values; the pose draws only the rows that match |
 ;;
 ;; A **leaf pose** has `:data`, `:mapping`, `:layers`; no `:poses`.
 ;; A **composite pose** has `:poses`, and a sub-pose may itself be a
@@ -181,6 +182,22 @@
     (and (not (contains? pose :poses))
          (= {:x :petal-length :y :petal-width} (:mapping pose))
          (= [{:layer-type :point} {:layer-type :smooth}] (:layers pose))))])
+
+;; A layer that names its own columns keeps them. The pose's new `:x`
+;; and `:y` are then drawn by no layer, and drawing the pose prints a
+;; warning naming them:
+
+(-> iris
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/pose :petal-length :petal-width))
+
+(kind/test-last
+ [(fn [pose]
+    (let [printed (with-out-str (pj/plan pose))]
+      (and (= {:x :petal-length :y :petal-width} (:mapping pose))
+           (= [{:x :sepal-length :y :sepal-width}] (mapv :mapping (:layers pose)))
+           (re-find #"a pose maps :x to :petal-length, and every layer drawn on it names its own :x" printed)
+           (re-find #"a pose maps :y to :petal-width" printed))))])
 
 ;; For panels side by side, `pj/arrange` takes the pairs of columns:
 
@@ -578,7 +595,8 @@ composite-pose
 ;; call named written on it. The pose stays a leaf, and the layer is
 ;; drawn on the leaf's one panel -- see Rule LP5. The pose's own columns
 ;; are drawn only by layers that name none, so here only the petal
-;; columns are drawn:
+;; columns are drawn, and drawing the pose prints a warning that the
+;; pose's `:x` and `:y` are drawn by no layer:
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -590,7 +608,9 @@ composite-pose
          (= {:x :sepal-length :y :sepal-width} (:mapping fr))
          (= [{:x :petal-length :y :petal-width}] (mapv :mapping (:layers fr)))
          (= {:panels 1 :points 150}
-            (select-keys (pj/svg-summary fr) [:panels :points]))))])
+            (select-keys (pj/svg-summary fr) [:panels :points]))
+         (re-find #"a pose maps :x to :sepal-length, and every layer drawn on it names its own :x, so :sepal-length is not drawn"
+                  (with-out-str (pj/plan fr)))))])
 
 ;; **Where the columns are written does not change the rule.** A layer
 ;; names its columns either in the call's argument slots or in its
@@ -1254,7 +1274,10 @@ s2-tree
 ;; produce layers, and the layers are placed as any other `lay-*` layer
 ;; is: a call naming no columns attaches at the root and is drawn in
 ;; every panel, and on a composite a call naming two columns attaches
-;; to the leaf that draws them. Where the line or the band sits
+;; to the leaf that draws them. On a pose with one panel, columns
+;; written on a rule or a band that the panel does not draw are not
+;; read: the rule is drawn on that panel, and a warning names the
+;; columns. Where the line or the band sits
 ;; is written as layer-type keys (`:y-intercept`, `:x-intercept`,
 ;; `:y-min`/`:y-max`, `:x-min`/`:x-max`), not as columns.
 
@@ -1284,6 +1307,24 @@ s2-tree
          (= 0 (count (:layers (second (cells pose)))))
          (= :rule-h (:layer-type
                      (first (:layers (first (cells pose))))))))])
+
+;; The same call on a pose with one panel draws the rule on that panel.
+;; The petal columns are not read, so the axes are those of the
+;; points:
+
+(-> iris
+    (pj/pose :sepal-length :sepal-width)
+    pj/lay-point
+    (pj/lay-rule-h :petal-length :petal-width {:y-intercept 3.0}))
+
+(kind/test-last
+ [(fn [pose]
+    (let [y-domain #(-> % pj/plan :panels first :y-domain)
+          points (-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)]
+      (and (= 1 (:panels (pj/svg-summary pose)))
+           (= (y-domain points) (y-domain pose))
+           (re-find #"pj/lay-rule-h names :petal-length on :x and :petal-width on :y, columns the panel does not draw, so they are not read"
+                    (with-out-str (pj/plan pose))))))])
 
 ;; ---
 ;; ## Assembly

@@ -155,9 +155,12 @@
 
 ;; Reference lines and shaded bands -- `pj/lay-rule-h`,
 ;; `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v` -- are layers,
-;; not plot options. They scope like any other `lay-*`: bare calls
-;; attach to the pose, while passing `:x`/`:y` columns targets the
-;; most recent matching leaf (or creates a new one).
+;; not plot options. They are added like any other layer. On a pose
+;; with one panel the rule or band is drawn on that panel; columns
+;; named in the call that the panel does not draw are not read there,
+;; and a warning says so. On a composite pose, a call naming no columns
+;; is added at the root and drawn in every cell, and a call naming two
+;; columns is drawn only in the cell that draws those two columns.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)

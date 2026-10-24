@@ -215,6 +215,23 @@ two-col-pose
                                 (= 12 (:lines s))
                                 (some #{"north"} (:texts s)))))])
 
+;; A later layer naming other columns leaves the points where they were
+;; too: the trend line below names `:height` and `:day` the other way
+;; round, and the points stay at `:day` against `:height`, coloured by
+;; bed. The trend line is drawn on the same panel, so each axis is
+;; titled by both of the columns drawn on it:
+
+(-> seedlings
+    pj/lay-point
+    (pj/lay-smooth :height :day))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               [points line] (:layers (pj/draft v))]
+                           (and (= 12 (:points s))
+                                (some #{"north"} (:texts s))
+                                (= [:day :height :bed] ((juxt :x :y :color) points))
+                                (= [:height :day] ((juxt :x :y) line)))))])
+
 ;; Where the first layer names its columns, no column is read by
 ;; default, and a layer added after it names no colour either:
 

@@ -494,7 +494,9 @@
 ;; width. On a composite, a rule or a band written without columns is
 ;; added at the root and drawn in every cell, and one written with an
 ;; `:x` and a `:y` column is drawn in the cell that draws those two
-;; columns.
+;; columns. On a pose with one panel a rule or a band is drawn on that
+;; panel, and columns written on it that the panel does not draw are
+;; not read, with a warning.
 ;;
 ;; They are drawn in the order they were added, like any other layer,
 ;; so a rule written before a scatter sits under its points. The axis

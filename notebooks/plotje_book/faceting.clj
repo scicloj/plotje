@@ -55,6 +55,41 @@
 ;; Scales are shared by default -- all panels use the same x and y range,
 ;; making direct comparison easy.
 
+;; ### Ordering the panels
+;;
+;; The panels follow the order in which the data holds the categories.
+;; A `:domain` on `:col` orders them instead, as a `:domain` on an axis
+;; orders its categories, and one on `:row` orders the rows of panels:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :drv)
+    (pj/scale :col {:domain ["r" "f" "4"]}))
+
+(kind/test-last
+ [(fn [v] (= ["r" "f" "4"]
+             (filterv #{"r" "f" "4"} (drop-while #(not= "r" %) (:texts (pj/svg-summary v))))))])
+
+;; A category the `:domain` leaves out still draws its panel, after the
+;; listed ones, and a name the `:domain` lists that the data does not
+;; hold draws no panel. Each prints a warning:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :drv)
+    (pj/scale :col {:domain ["r" "f" "4" "x"]}))
+
+(kind/test-last
+ [(fn [v] (let [printed (with-out-str (pj/plan v))
+                omitting (-> (rdatasets/ggplot2-mpg)
+                             (pj/lay-point :displ :hwy)
+                             (pj/facet :drv)
+                             (pj/scale :col {:domain ["r" "f"]}))]
+            (and (= 3 (:panels (pj/svg-summary v)))
+                 (re-find #":domain names \[.x.\], which the data does not hold" printed)
+                 (= 3 (:panels (pj/svg-summary omitting)))
+                 (re-find #":domain omits \[.4.\]" (with-out-str (pj/plan omitting))))))])
+
 ;; ## Vertical Facet and Facet Grid
 ;;
 ;; `{:row :species}` puts the panels down, in one column:
@@ -141,7 +176,8 @@
 ;; for every pair of columns -- a **scatter plot matrix (SPLOM)**:
 ;; `(pj/facet pose {:col {:x cols} :row {:y cols}})`. The
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
-;; chapter builds scatter plot matrices this way.
+;; chapter builds scatter plot matrices this way. `pj/facet-matrix`
+;; writes the same facet in one call: `(pj/facet-matrix data cols)`.
 
 ;; ## Faceting is a mapping
 
