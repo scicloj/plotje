@@ -833,7 +833,7 @@
   ((fn
     [s]
     (re-find
-     #"Removed 1 rows with a missing value among the columns read as series \(:revenue, :cost\)"
+     #"Removed 1 row with a missing value among the columns read as series \(:revenue, :cost\)"
      s))
    v136_l674)))
 
@@ -851,7 +851,7 @@
 
 (deftest
  t140_l695
- (is ((fn [s] (re-find #"Removed 1 rows" s)) v139_l689)))
+ (is ((fn [s] (re-find #"Removed 1 row" s)) v139_l689)))
 
 
 (def

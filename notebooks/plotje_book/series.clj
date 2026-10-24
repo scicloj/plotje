@@ -678,7 +678,7 @@ sales-by-region
                (pj/lay-point :quarter [:revenue :cost]))))
 
 (kind/test-last
- [(fn [s] (re-find #"Removed 1 rows with a missing value among the columns read as series \(:revenue, :cost\)" s))])
+ [(fn [s] (re-find #"Removed 1 row with a missing value among the columns read as series \(:revenue, :cost\)" s))])
 
 ;; The pivot is `tc/pivot->longer` with Tablecloth's own defaults, so
 ;; the dataset the pose carries is what Tablecloth gives for the same
@@ -692,7 +692,7 @@ sales-by-region
                 :value   [120 90 nil 100]}
                (pj/lay-point :quarter :value {:color :measure}))))
 
-(kind/test-last [(fn [s] (re-find #"Removed 1 rows" s))])
+(kind/test-last [(fn [s] (re-find #"Removed 1 row" s))])
 
 ;; ### The key column elsewhere
 

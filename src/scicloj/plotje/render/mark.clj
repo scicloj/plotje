@@ -1181,7 +1181,8 @@
         dropped (- (clojure.core/count scaled) (clojure.core/count drawable))]
     (when (pos? dropped)
       (println (str "Warning: Removed " dropped
-                    " bars whose height has no place on a log scale"
+                    (if (= 1 dropped) " bar" " bars")
+                    " whose height has no place on a log scale"
                     " (an empty bin counts zero, and a log scale has no"
                     " reading for it).")))
     (vec

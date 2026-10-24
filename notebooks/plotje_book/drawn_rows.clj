@@ -39,7 +39,7 @@
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
 ;; Plotje prints
-;; `Warning: Removed 1 rows with non-finite values: 1 missing (nil/NaN)`
+;; `Warning: Removed 1 row with non-finite values: 1 missing (nil/NaN)`
 ;; when it does this. `NaN` is counted with `nil` in that message, since
 ;; both mean "no value here".
 
@@ -57,7 +57,7 @@
 
 ;; A log scale has no place for zero or for a negative number. Asking
 ;; for one drops those rows, and says which axis it happened on:
-;; `Warning: Removed 1 rows containing non-positive values (log scale
+;; `Warning: Removed 1 row containing non-positive values (log scale
 ;; on :y)`.
 
 (-> {:height [1 2 3 4] :weight [1 0 10 100]}
@@ -71,7 +71,7 @@
 ;; A `nil` among the values of a **categorical** column leaves its row
 ;; with no category to belong to, so the row is dropped like any other
 ;; unplaceable one:
-;; `Warning: Removed 1 rows with a missing category in :species`. Four
+;; `Warning: Removed 1 row with a missing category in :species`. Four
 ;; rows, three marks, and a legend naming only the two real categories:
 
 (-> {:height [1 2 3 4] :weight [1 2 3 4] :species ["a" nil "b" "a"]}
@@ -95,7 +95,7 @@
 ;; value column holding the number. A cell left empty in the wide table
 ;; has no value to pivot, so its observation is dropped like any other
 ;; unplaceable one:
-;; `Warning: Removed 1 rows with a missing value among the columns read
+;; `Warning: Removed 1 row with a missing value among the columns read
 ;; as series (:height, :weight)`. Three rows and two measures are six
 ;; observations, and five are drawn:
 

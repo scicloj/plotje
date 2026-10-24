@@ -15,14 +15,15 @@
    chapter teaches the set, so a new reason belongs both here and
    there.
 
-   `reason` completes \"Removed N rows \": no leading space, no
-   trailing full stop. Nothing is printed for a count of zero.
+   `reason` completes \"Removed N rows \" (\"Removed 1 row \" for one):
+   no leading space, no trailing full stop. Nothing is printed for a
+   count of zero.
 
    Marks dropped at render time -- a bar with no height on a log scale
    -- are counted in bars rather than rows and say so themselves."
   [n reason]
   (when (pos? n)
-    (println (str "Warning: Removed " n " rows " reason "."))))
+    (println (str "Warning: Removed " n (if (= 1 n) " row " " rows ") reason "."))))
 
 ;; ---- Palette and Theme ----
 
