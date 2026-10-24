@@ -5339,6 +5339,14 @@
                          :columns (vec (sort-by str (or (:columns ctx)
                                                         (tc/column-names d))))}))))))
 
+(def ^:dynamic *blank-notes*
+  "Bound to an atom by `compositor/composite-pose->draft` while it drafts
+   the cells of an arrangement: `leaf->draft` collects there the Note for
+   a cell that draws nothing, in place of printing it. A blank cell beside
+   cells that draw is left to the Note `lay-*` prints when it adds a layer
+   on a cell of its own; the Note is printed where no cell draws."
+  nil)
+
 (defn leaf->draft
   "Emit a draft vector from a leaf pose. A draft has one entry per
    applicable layer; each entry is a flat map carrying the merged
@@ -5406,15 +5414,20 @@
         ;; `(-> data pj/lay-point)` on the same data reports that no
         ;; column is read by default; without it the figure is blank
         ;; and nothing says why.
+        ;; In an arrangement the compositor binds `*blank-notes*` and
+        ;; prints the note only where no cell draws.
         _            (when (and leaf-data (empty? applicable))
-                       (let [cols (tc/column-names (coerce-dataset leaf-data))]
-                         (println (str "Note: this pose draws nothing. It names no column on :x"
+                       (let [cols (tc/column-names (coerce-dataset leaf-data))
+                             note (str "Note: this pose draws nothing. It names no column on :x"
                                        " or :y and has no layer, and its data has "
                                        (count cols) " columns, so none is read by default."
                                        " Name the columns to draw -- (pj/pose data :x-column"
                                        " :y-column) -- or add a layer that names them."
                                        " Available columns: "
-                                       (vec (sort-by str cols))))))
+                                       (vec (sort-by str cols)))]
+                         (if *blank-notes*
+                           (swap! *blank-notes* conj note)
+                           (println note))))
         ;; What tells the overlaid layers apart, where they disagree
         ;; about a column and the writer has not said. Written as a
         ;; value read through the scale, which is the form that draws

@@ -676,38 +676,43 @@
         ;; redundant with the outer chrome.
         composite-chrome-suppress (filterv #(get-in composite [:opts %])
                                            [:title :subtitle :caption])
-        sub-drafts (mapv (fn [leaf]
-                           (let [rect (get layout (:path leaf))
-                                 [_ _ rw rh] rect
-                                 leaf' (dissoc leaf ::share)
-                                 leaf-opts (cond-> (assoc (or (:opts leaf') {})
-                                                          :width (max 1 (long-or rw 1))
-                                                          :height (max 1 (long-or rh 1)))
-                                             (seq suppress-keys)
-                                             (as-> $ (reduce #(assoc %1 %2 true)
-                                                             $ suppress-keys))
-                                             (seq composite-chrome-suppress)
-                                             (as-> $ (reduce #(dissoc %1 %2)
-                                                             $ composite-chrome-suppress)))
+        blank-notes (atom [])
+        sub-drafts (binding [pose/*blank-notes* blank-notes]
+                     (mapv (fn [leaf]
+                             (let [rect (get layout (:path leaf))
+                                   [_ _ rw rh] rect
+                                   leaf' (dissoc leaf ::share)
+                                   leaf-opts (cond-> (assoc (or (:opts leaf') {})
+                                                            :width (max 1 (long-or rw 1))
+                                                            :height (max 1 (long-or rh 1)))
+                                               (seq suppress-keys)
+                                               (as-> $ (reduce #(assoc %1 %2 true)
+                                                               $ suppress-keys))
+                                               (seq composite-chrome-suppress)
+                                               (as-> $ (reduce #(dissoc %1 %2)
+                                                               $ composite-chrome-suppress)))
                                  ;; The shared categories are in one order
                                  ;; for every cell, so each cell lists and
                                  ;; draws its own in that order rather than
                                  ;; in the order of its own rows -- the key
                                  ;; `pose/leaf->draft` writes for the
                                  ;; panels of a facet.
-                                 order-keys (cond-> {}
-                                              (seq (:color shared-categories))
-                                              (assoc :__color-order (:color shared-categories))
-                                              (seq (:shape shared-categories))
-                                              (assoc :__shape-order (:shape shared-categories)))
-                                 draft (cond->> (pose/leaf->draft leaf')
-                                         (seq order-keys) (mapv #(merge % order-keys)))]
-                             (cond-> {:path (:path leaf)
-                                      :rect rect
-                                      :draft draft
-                                      :opts leaf-opts}
-                               (::share leaf) (assoc :share (::share leaf)))))
-                         leaves)
+                                   order-keys (cond-> {}
+                                                (seq (:color shared-categories))
+                                                (assoc :__color-order (:color shared-categories))
+                                                (seq (:shape shared-categories))
+                                                (assoc :__shape-order (:shape shared-categories)))
+                                   draft (cond->> (pose/leaf->draft leaf')
+                                           (seq order-keys) (mapv #(merge % order-keys)))]
+                               (cond-> {:path (:path leaf)
+                                        :rect rect
+                                        :draft draft
+                                        :opts leaf-opts}
+                                 (::share leaf) (assoc :share (::share leaf)))))
+                           leaves))
+        ;; Once, and only where the whole arrangement draws nothing.
+        _ (when (every? (comp empty? :draft) sub-drafts)
+            (run! println (distinct (deref blank-notes))))
         chrome-spec (-> chrome
                         (assoc :y-ticks-inferred-off (set (:plotje/y-ticks-inferred-off composite)))
                         (assoc :shared? shared?)

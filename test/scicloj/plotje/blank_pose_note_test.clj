@@ -22,4 +22,13 @@
     (is (= "" (with-out-str (pj/plot (pj/pose wide :a :b)))))
     (is (= "" (with-out-str (pj/plot (pj/lay-point wide :a :b))))))
   (testing "no Note for the template with no data"
-    (is (= "" (with-out-str (pj/plan (pj/pose)))))))
+    (is (= "" (with-out-str (pj/plan (pj/pose))))))
+  (testing "in an arrangement, once, and only where no cell draws"
+    (let [cells [{:where {:a 1}} {:where {:a 2}}]]
+      (is (= 1 (count (re-seq #"Note: this pose draws nothing"
+                              (with-out-str (pj/plan (pj/arrange wide cells)))))))
+      ;; The layer is drawn on a cell of its own, and the Note `lay-*`
+      ;; prints already says that the other cells draw nothing.
+      (let [out (with-out-str (pj/plan (pj/lay-point (pj/arrange wide cells) :a :b)))]
+        (is (re-find #"2 cells, which name no column and hold no layer, draw nothing" out))
+        (is (not (re-find #"this pose draws nothing" out)))))))
