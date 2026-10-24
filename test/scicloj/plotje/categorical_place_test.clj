@@ -231,7 +231,7 @@
 ;; every place it was given, so a rule drew in the same place whatever
 ;; intercept it was written with, and a `:dx` moved nothing at all.
 ;; A one-category axis is reached by a dataset that carries one -- a
-;; filtered frame, one group of a grouping, a single series -- and not
+;; filtered dataset, one group of a grouping, a single series -- and not
 ;; by faceting, where the cells share the whole domain.
 
 (def one-category

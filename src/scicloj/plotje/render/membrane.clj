@@ -254,15 +254,23 @@
                {:elems [] :cur-x start-x}
                entries))))))
 
+(declare shape-legend-as-categorical)
+
 (defn- legends-under-row
-  "The size and alpha legends of a plot whose legend is at the top or
-   the bottom, each laid across in a row of its own below the row of
-   the colour (or shape) legend that starts at `y`. `row?` says whether
-   that row is drawn. The layout reserves the room
-   (`layout/pad-legend-h`)."
-  [size-legend alpha-legend row? x y cfg]
+  "The shape, size and alpha legends of a plot whose legend is at the
+   top or the bottom, each laid across in a row of its own below the
+   row of the colour (or shape) legend that starts at `y`. `first-rows`
+   is how many rows that legend takes: none when it is not drawn, two
+   for a gradient (the bar, and its labels under it), one otherwise.
+   `shape-legend` is a shape legend beside a colour legend, so it is
+   nil when the shape legend is the first row. The layout reserves the
+   room (`layout/pad-legend-h`)."
+  [shape-legend size-legend alpha-legend first-rows x y cfg]
   (let [step (layout/legend-row-step cfg)
-        size-y (+ y (if row? (- step 4) -6))
+        shape-y (+ y (* step first-rows))
+        size-y (if shape-legend
+                 (+ shape-y step -4)
+                 (if (pos? first-rows) (+ shape-y -4) (+ y -6)))
         size-h (if size-legend (layout/size-legend-row-h size-legend cfg) 0)
         alpha-y (+ size-y size-h)
         swatch-color [0.4 0.4 0.4 1.0]
@@ -284,6 +292,9 @@
                         sw])]
     (vec
      (concat
+      (when shape-legend
+        (render-legend-horizontal (shape-legend-as-categorical shape-legend cfg)
+                                  x shape-y cfg))
       (when size-legend
         (render-row-legend size-legend size-swatch size-h x size-y cfg))
       (when alpha-legend
@@ -675,13 +686,21 @@
                     (let [legend-y (+ title-pad 8)
                           l (or legend (shape-legend-as-categorical shape-legend cfg))]
                       (into (if l (render-legend-horizontal l (+ y-label-pad 10) legend-y cfg) [])
-                            (legends-under-row size-legend alpha-legend (some? l)
+                            (legends-under-row (when legend shape-legend)
+                                               size-legend alpha-legend
+                                               (cond (nil? l) 0
+                                                     (= :continuous (:type l)) 2
+                                                     :else 1)
                                                (+ y-label-pad 10) legend-y cfg)))
                     :bottom
                     (let [bottom-y (- total-height (or legend-h 30) -8)
                           l (or legend (shape-legend-as-categorical shape-legend cfg))]
                       (into (if l (render-legend-horizontal l (+ y-label-pad 10) bottom-y cfg) [])
-                            (legends-under-row size-legend alpha-legend (some? l)
+                            (legends-under-row (when legend shape-legend)
+                                               size-legend alpha-legend
+                                               (cond (nil? l) 0
+                                                     (= :continuous (:type l)) 2
+                                                     :else 1)
                                                (+ y-label-pad 10) bottom-y cfg)))
                     ;; Fallback to right
                     (when legend

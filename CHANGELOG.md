@@ -172,7 +172,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A warning about one removed row says `Removed 1 row`, and one about one removed bar `Removed 1 bar`.
 
-- A size or alpha legend at `:legend-position :top` or `:bottom` is drawn, each in a row of its own under the colour legend.
+- A shape, size or alpha legend at `:legend-position :top` or `:bottom` is drawn, each in a row of its own under the colour legend.
 
 - A straight line fitted with `{:stat :linear-model}` is drawn inside the panel: the axis covers the ends of the line where they reach past the data.
 

@@ -229,6 +229,9 @@
      :y-temporal y-temporal
      :legend-present? (boolean (or legend size-legend alpha-legend shape-legend))
      :legend-entry-count legend-entry-count
+     ;; At the top or bottom, a shape legend beside a colour legend is
+     ;; drawn in a row of its own under the colour row.
+     :shape-row? (boolean (and legend (seq (:entries shape-legend))))
      :legend-continuous? (= :continuous (:type legend))
      :legend-max-chars legend-max-chars
      :size-legend-entry-count (count (:entries size-legend))
@@ -538,7 +541,8 @@
   [legend-pos scene cfg]
   (if (#{:top :bottom} legend-pos)
     (let [{:keys [legend-entry-count legend-continuous? size-legend
-                  size-legend-entry-count alpha-legend-entry-count]} scene
+                  size-legend-entry-count alpha-legend-entry-count
+                  shape-row?]} scene
           header (double (:legend-header-pad cfg 20))
           row-h  (max (double (:legend-entry-height cfg 18))
                       (+ 8.0 (legend-font-size cfg)))
@@ -546,8 +550,11 @@
       (+ header
          ;; A gradient laid across: the bar and the labels under it.
          (* row-h (if legend-continuous? 2 (max 1 legend-entry-count)))
-         ;; A size or an alpha legend is laid across in a row of its
-         ;; own under that one, as tall as its largest swatch.
+         ;; A shape legend beside a colour legend, a size legend and
+         ;; an alpha legend are each laid across in a row of their own
+         ;; under that one; the size row is as tall as its largest
+         ;; swatch.
+         (if shape-row? row-h 0)
          (if (pos? size-legend-entry-count) size-row-h 0)
          (if (pos? alpha-legend-entry-count) row-h 0)))
     0.0))
