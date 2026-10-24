@@ -31,38 +31,85 @@
                 (ui/path [m py] [(- pw m) py]))))))))))
 
 (defn render-polar-grid
-  "Render polar grid: concentric circles and radial spokes."
-  [pw ph m cfg]
+  "Render a polar panel's grid: a circle at each tick of the radius
+   (`:y`) and a spoke at each tick of the angle (`:x`), through the
+   same projection the marks are drawn with (`coord-px`). With no ticks
+   on an axis, five evenly spaced circles or eight spokes."
+  [pw ph m cfg coord-px sx sy x-ticks y-ticks]
   (let [theme (:theme cfg)
         grid-rgba (defaults/hex->rgba (:grid theme))
         grid-w (:grid-stroke-width cfg)
         cx (/ pw 2.0) cy (/ ph 2.0)
-        ;; Clamp to a small positive minimum so tiny panels with large
-        ;; margins don't produce inverted grid circles. Mirrors the
-        ;; equivalent clamp in coord.clj.
-        r-max (max 1.0 (- (min cx cy) (double m)))
-        ;; Concentric circles (approximated as 40-segment polygons)
+        r-max (coord/polar-radius pw ph m)
+        stroke (fn [pts] (ui/with-color grid-rgba
+                           (ui/with-stroke-width grid-w
+                             (ui/with-style ::ui/style-stroke
+                               (apply ui/path pts)))))
         n-seg 40
-        circles (for [i (range 1 6)
-                      :let [r (* r-max (/ (double i) 5.0))]]
-                  (ui/with-color grid-rgba
-                    (ui/with-stroke-width grid-w
-                      (ui/with-style ::ui/style-stroke
-                        (apply ui/path
-                               (for [j (range (inc n-seg))
+        circle (fn [r] (stroke (for [j (range (inc n-seg))
                                      :let [a (* 2.0 Math/PI (/ (double j) n-seg))]]
-                                 [(+ cx (* r (Math/cos a)))
-                                  (+ cy (* r (Math/sin a)))]))))))
-        ;; Radial spokes (8 lines from center to edge)
-        spokes (for [i (range 8)
-                     :let [a (* (double i) (/ Math/PI 4.0))]]
-                 (ui/with-color grid-rgba
-                   (ui/with-stroke-width grid-w
-                     (ui/with-style ::ui/style-stroke
-                       (ui/path [cx cy]
-                                [(+ cx (* r-max (Math/cos a)))
-                                 (+ cy (* r-max (Math/sin a)))])))))]
+                                 [(+ cx (* r (Math/cos a))) (+ cy (* r (Math/sin a)))])))
+        ;; The radius a y tick stands at, read off the projection at
+        ;; angle zero, where the point lies straight above the centre.
+        radius-of (fn [t] (- cy (second (coord-px (double m) (sy t)))))
+        radii (if (seq (:values y-ticks))
+                (map radius-of (:values y-ticks))
+                (for [i (range 1 6)] (* r-max (/ (double i) 5.0))))
+        circles (for [r radii :when (< 0.5 r (+ r-max 0.5))] (circle r))
+        spokes (if (seq (:values x-ticks))
+                 (for [t (:values x-ticks)]
+                   (stroke [[cx cy] (coord-px (sx t) (double m))]))
+                 (for [i (range 8)
+                       :let [a (* (double i) (/ Math/PI 4.0))]]
+                   (stroke [[cx cy] [(+ cx (* r-max (Math/cos a))) (+ cy (* r-max (Math/sin a)))]])))]
     (vec (concat circles spokes))))
+
+(defn render-polar-tick-labels
+  "The angle (`:x`) tick labels of a polar panel, each just outside the
+   outer circle, in line with its spoke. Ticks that fall at one angle
+   -- the two ends of a numeric axis, which meet at the top -- are
+   labelled once, their labels joined by a slash, as ggplot2 does.
+   The radius labels are drawn at the left edge, `polar-radius-scale`."
+  [pw ph m cfg coord-px sx x-ticks]
+  (let [fsize (get-in cfg [:theme :font-size] (get-in defaults/defaults [:theme :font-size]))
+        tick-color [0.4 0.4 0.4 1.0]
+        cx (/ pw 2.0) cy (/ ph 2.0)
+        r-max (coord/polar-radius pw ph m)
+        gap 3.0
+        placed (for [[t text] (map vector (:values x-ticks) (:labels x-ticks))
+                     :let [[ex ey] (coord-px (sx t) (double m))]]
+                 {:ux (/ (- ex cx) r-max) :uy (/ (- ey cy) r-max) :text text})
+        same-angle? (fn [a b] (and (< (Math/abs (- (:ux a) (:ux b))) 0.02)
+                                   (< (Math/abs (- (:uy a) (:uy b))) 0.02)))
+        joined (reduce (fn [acc p]
+                         (if-let [i (first (keep-indexed (fn [i q] (when (same-angle? p q) i)) acc))]
+                           (update-in acc [i :text] #(str % "/" (:text p)))
+                           (conj acc p)))
+                       []
+                       placed)]
+    (vec
+     (for [{:keys [ux uy text]} joined
+           :let [r (+ r-max gap)
+                 x (+ cx (* r ux))
+                 y (+ cy (* r uy))
+                 anchor (cond (< (Math/abs (double ux)) 0.3) "middle"
+                              (pos? ux) "start"
+                              :else "end")
+                 ;; A label is drawn down from its top: above the circle
+                 ;; it is raised by its height, at the sides centred.
+                 y (cond (< uy -0.7) (- y fsize)
+                         (> uy 0.7) y
+                         :else (- y (/ fsize 2.0)))]]
+       (ui/translate (double x) (double y)
+                     (ui/with-color tick-color
+                       (assoc (ui/label text (ui/font nil fsize)) :text-anchor anchor)))))))
+
+(defn polar-radius-scale
+  "Where a radius tick's label stands on a polar panel's left edge:
+   level with the top of its circle, read off the projection at angle
+   zero."
+  [coord-px sy m]
+  (fn [t] (second (coord-px (double m) (sy t)))))
 
 ;; ---- Tick Labels ----
 
@@ -277,7 +324,10 @@
         ;; Pixel-space reprojection for arc interpolation (polar)
         coord-px (coord/make-coord-px coord-type sx sy pw ph m)
 
-        ;; Suppress ticks for polar coordinates
+        ;; A polar panel draws its tick labels around the circle
+        ;; (`render-polar-tick-labels`), not along the edges.
+        polar-x? (and show-x? (= :polar coord-type))
+        polar-y? (and show-y? (= :polar coord-type))
         show-x? (and show-x? (coord/show-ticks? coord-type))
         show-y? (and show-y? (coord/show-ticks? coord-type))
 
@@ -320,7 +370,7 @@
         ;; Grid -- polar gets circles + spokes; cartesian/flip get tick-aligned lines
         ;; For ridgeline panels, add horizontal guide lines at baseline positions
         grid (if (= coord-type :polar)
-               (render-polar-grid pw ph m cfg)
+               (render-polar-grid pw ph m cfg coord-px sx sy x-ticks y-ticks)
                (let [base-grid (render-grid-from-ticks sx sy x-ticks y-ticks pw ph m cfg)]
                  (if has-ridgeline?
                    (let [grid-rgba (defaults/hex->rgba (:grid theme))
@@ -365,7 +415,9 @@
         ;; Tick labels (conditional)
         ;; For ridgeline panels, y-tick labels must use ridgeline band positions
         ;; (with overlap padding) instead of the categorical scale positions.
-        x-tick-labels (when show-x? (render-tick-labels :x x-ticks sx pw ph m cfg))
+        x-tick-labels (cond
+                        show-x? (render-tick-labels :x x-ticks sx pw ph m cfg)
+                        polar-x? (render-polar-tick-labels pw ph m cfg coord-px sx x-ticks))
         y-tick-labels (when show-y?
                         (if has-ridgeline?
                           (let [fsize (get-in cfg [:theme :font-size] (get-in defaults/defaults [:theme :font-size]))
@@ -377,7 +429,10 @@
                                                    (ui/with-color tick-color
                                                      (assoc (ui/label label (ui/font nil fsize))
                                                             :text-anchor "end")))))))
-                          (render-tick-labels :y y-ticks sy pw ph m cfg)))]
+                          (render-tick-labels :y y-ticks sy pw ph m cfg)))
+        y-tick-labels (if polar-y?
+                        (render-tick-labels :y y-ticks (polar-radius-scale coord-px sy m) pw ph m cfg)
+                        y-tick-labels)]
     ;; Clip marks so geometry extending past the domain -- a line beyond
     ;; a narrowed y-scale, say -- cannot paint outside the panel. Each
     ;; region the marks declared resolves to a rectangle, and the marks

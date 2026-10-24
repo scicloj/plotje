@@ -224,7 +224,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__82520#] (= :text (:mark p1__82520#))))
+      (filter (fn* [p1__76858#] (= :text (:mark p1__76858#))))
       first
       :style
       :align-x)))
@@ -759,7 +759,7 @@
     [fr]
     (let
      [radii
-      (fn* [p1__82521#] (sort (:sizes (pj/svg-summary p1__82521#))))
+      (fn* [p1__76859#] (sort (:sizes (pj/svg-summary p1__76859#))))
       now
       (radii fr)
       before
@@ -1008,57 +1008,7 @@
 
 
 (def
- v164_l1065
- (->
-  (rdatasets/datasets-chickwts)
-  (pj/pose :feed)
-  pj/lay-bar
-  (pj/coord :polar)))
-
-
-(deftest
- t165_l1070
- (is
-  ((fn
-    [v]
-    (zero?
-     (count
-      (filter
-       #{"soybean"
-         "meatmeal"
-         "sunflower"
-         "horsebean"
-         "casein"
-         "linseed"}
-       (:texts (pj/svg-summary v))))))
-   v164_l1065)))
-
-
-(def
- v167_l1079
- (-> (rdatasets/datasets-chickwts) (pj/pose :feed) pj/lay-bar))
-
-
-(deftest
- t168_l1083
- (is
-  ((fn
-    [v]
-    (pos?
-     (count
-      (filter
-       #{"soybean"
-         "meatmeal"
-         "sunflower"
-         "horsebean"
-         "casein"
-         "linseed"}
-       (:texts (pj/svg-summary v))))))
-   v167_l1079)))
-
-
-(def
- v170_l1096
+ v164_l1060
  (try
   (->
    {:x ["a" "b" "c"], :y ["a" "b" "c"], :v [1 2 3]}
@@ -1068,14 +1018,14 @@
 
 
 (deftest
- t171_l1102
+ t165_l1066
  (is
   ((fn [msg] (re-find #"requires a numeric column for :x" msg))
-   v170_l1096)))
+   v164_l1060)))
 
 
 (def
- v173_l1109
+ v167_l1073
  (->
   (for
    [[i day]
@@ -1089,18 +1039,18 @@
 
 
 (deftest
- t174_l1115
+ t168_l1079
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v173_l1109)))
+   v167_l1073)))
 
 
 (def
- v176_l1129
+ v170_l1093
  (try
   (->
    {:group [], :measurement []}
@@ -1110,16 +1060,16 @@
 
 
 (deftest
- t177_l1135
+ t171_l1099
  (is
   ((fn
     [msg]
     (re-find #"requires a categorical column.*has no rows" msg))
-   v176_l1129)))
+   v170_l1093)))
 
 
 (def
- v179_l1142
+ v173_l1106
  (try
   (->
    {:group [nil nil], :measurement [nil nil]}
@@ -1129,24 +1079,24 @@
 
 
 (deftest
- t180_l1148
- (is ((fn [msg] (re-find #"has no values" msg)) v179_l1142)))
+ t174_l1112
+ (is ((fn [msg] (re-find #"has no values" msg)) v173_l1106)))
 
 
 (def
- v182_l1167
+ v176_l1131
  (try
   (-> {:x [1 2], :y [1 2]} (pj/lay-text :x :y {:text :nope}) pj/plot)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t183_l1173
- (is ((fn [msg] (re-find #"not a label either" msg)) v182_l1167)))
+ t177_l1137
+ (is ((fn [msg] (re-find #"not a label either" msg)) v176_l1131)))
 
 
 (def
- v185_l1190
+ v179_l1154
  (try
   (->
    {:height [1 2 3], :weight [1 2 3]}
@@ -1157,7 +1107,7 @@
 
 
 (deftest
- t186_l1197
+ t180_l1161
  (is
   ((fn [msg] (re-find #"not a pair of two finite numbers" msg))
-   v185_l1190)))
+   v179_l1154)))

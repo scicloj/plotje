@@ -177,9 +177,6 @@
 ;;   `tc/group-by`, or use `:dx` to shift a layer by a fraction of
 ;;   its band.
 ;;
-;; - Polar plots for bar-family marks don't auto-emit category
-;;   labels -- rose charts currently render with zero text.
-;;
 ;; - Stacked bars don't split positive and negative values;
 ;;   all-positive data works, but mixed-sign data stacks
 ;;   incorrectly.

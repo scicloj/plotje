@@ -13,6 +13,19 @@
     [(+ cx (* radius (Math/cos (- angle (/ Math/PI 2.0)))))
      (+ cy (* radius (Math/sin (- angle (/ Math/PI 2.0)))))]))
 
+(def polar-label-room
+  "Drawing units kept between the outer circle of a polar panel and the
+   edge of its drawing area, for the angle tick labels drawn there."
+  14.0)
+
+(defn polar-radius
+  "The radius of a polar panel's outer circle: the largest circle the
+   drawing area holds, less `polar-label-room`. The marks
+   (`make-coord`, `make-coord-px`) and the grid and tick labels
+   (`render/panel`) read it here, so they draw on one circle."
+  [pw ph m]
+  (max 1.0 (- (min (/ pw 2.0) (/ ph 2.0)) (double m) polar-label-room)))
+
 (defmulti make-coord
   "Build a coordinate function: (coord data-x data-y) -> [pixel-x pixel-y]."
   (fn [coord-type sx sy pw ph m] coord-type))
@@ -28,7 +41,7 @@
 
 (defmethod make-coord :polar [_ sx sy pw ph m]
   (let [cx (/ pw 2.0) cy (/ ph 2.0)
-        r-max (max 1.0 (- (min cx cy) m))
+        r-max (polar-radius pw ph m)
         x-lo (double m) x-span (double (- pw m m))
         y-lo (double m) y-span (double (- ph m m))]
     (fn [dx dy]
@@ -116,7 +129,7 @@
 
 (defmethod make-coord-px :polar [_ sx sy pw ph m]
   (let [cx (/ pw 2.0) cy (/ ph 2.0)
-        r-max (max 1.0 (- (min cx cy) m))
+        r-max (polar-radius pw ph m)
         x-lo (double m) x-span (double (- pw m m))
         y-lo (double m) y-span (double (- ph m m))]
     (fn [px py]

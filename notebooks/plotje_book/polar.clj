@@ -6,10 +6,12 @@
 ;; a polar plane. The angular spread is set by the x-column's range,
 ;; so a narrow range produces a wedge cluster rather than a full
 ;; circle. Supported marks today are `:point`, `:bar`, `:rect`,
-;; `:text`, and `:rug`; other marks report an error. Tick labels are
-;; not yet rendered under `:polar`. The axis titles are: the `:x` title
-;; below the panel names the column drawn as the angle, and the `:y`
-;; title beside it names the column drawn as the radius. Legends render
+;; `:text`, and `:rug`; other marks report an error. The `:x` title
+;; below the panel names the column drawn as the angle, and its tick
+;; labels stand around the circle, one at each spoke of the grid. The
+;; `:y` title beside the panel names the column drawn as the radius,
+;; and its tick labels stand at the left edge, each level with the top
+;; of its circle of the grid. Legends render
 ;; as they would on Cartesian coords -- a `:color` mapping produces a
 ;; normal legend that can be repositioned via `:legend-position` (see
 ;; [Customization](./plotje_book.customization.html#legend-position)).
@@ -75,10 +77,9 @@
 
 ;; ## Polar Stacked Bar
 ;;
-;; Stacked bars in polar show composition within each wedge. Without
-;; angular tick labels (not yet rendered under `:polar`), the legend
-;; carries the category identity -- read color back to species via
-;; the legend rather than around the wedge.
+;; Stacked bars in polar show composition within each wedge. The
+;; islands are named around the circle, and the legend names the
+;; species each colour stands for.
 
 (-> (rdatasets/palmerpenguins-penguins)
     (pj/lay-bar :island {:position :stack :color :species})
@@ -86,7 +87,8 @@
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
-                                (pos? (:polygons s)))))])
+                                (pos? (:polygons s))
+                                (every? (set (:texts s)) ["Biscoe" "Dream" "Torgersen"]))))])
 
 ;; ## Polar Histogram
 ;;

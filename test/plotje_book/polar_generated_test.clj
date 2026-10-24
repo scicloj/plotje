@@ -8,7 +8,7 @@
 
 
 (def
- v2_l26
+ v2_l28
  (def
   wind
   {:direction ["N" "NE" "E" "SE" "S" "SW" "W" "NW"],
@@ -16,7 +16,7 @@
 
 
 (def
- v4_l37
+ v4_l39
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -24,7 +24,7 @@
 
 
 (deftest
- t5_l41
+ t5_l43
  (is
   ((fn
     [v]
@@ -37,41 +37,41 @@
       (= 1 (:panels s))
       (= 150 (:points s))
       (= [4.3 7.9] [(reduce min lengths) (reduce max lengths)]))))
-   v4_l37)))
+   v4_l39)))
 
 
 (def
- v7_l55
+ v7_l57
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :polar)))
 
 
 (deftest
- t8_l59
+ t8_l61
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 3 (:polygons s)))))
-   v7_l55)))
+   v7_l57)))
 
 
-(def v10_l68 (-> wind (pj/lay-bar :direction :speed) (pj/coord :polar)))
+(def v10_l70 (-> wind (pj/lay-bar :direction :speed) (pj/coord :polar)))
 
 
 (deftest
- t11_l72
+ t11_l74
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 8 (:polygons s)))))
-   v10_l68)))
+   v10_l70)))
 
 
 (def
- v13_l83
+ v13_l84
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:position :stack, :color :species})
@@ -79,18 +79,21 @@
 
 
 (deftest
- t14_l87
+ t14_l88
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
-     (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v13_l83)))
+     (and
+      (= 1 (:panels s))
+      (pos? (:polygons s))
+      (every? (set (:texts s)) ["Biscoe" "Dream" "Torgersen"]))))
+   v13_l84)))
 
 
 (def
- v16_l96
+ v16_l98
  (->
   (rdatasets/datasets-iris)
   (pj/lay-histogram :sepal-length)
@@ -98,18 +101,18 @@
 
 
 (deftest
- t17_l100
+ t17_l102
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v16_l96)))
+   v16_l98)))
 
 
 (def
- v19_l110
+ v19_l112
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -121,7 +124,7 @@
 
 
 (deftest
- t20_l117
+ t20_l119
  (is
   ((fn
     [v]
@@ -134,4 +137,4 @@
        ["Iris in Polar Space"
         "Sepal length (angle)"
         "Sepal width (radius)"]))))
-   v19_l110)))
+   v19_l112)))

@@ -334,15 +334,15 @@
   "Over-estimate of the widest y-tick label in pixels. Runs the tick
    picker at a pixel budget of `:height` -- safe because tick label
    width is monotonic in tick count across every supported scale."
-  [{:keys [coord-type panel-y-domains y-scale-spec y-temporal]} cfg opts]
-  (if (= coord-type :polar)
-    0.0
-    (max-label-pixel-width-over-panels
-     panel-y-domains y-scale-spec y-temporal
-     (double (:height opts))
-     (:y-tick-spacing cfg)
-     (tick-font-size cfg)
-     (defaults/number-separators cfg))))
+  [{:keys [panel-y-domains y-scale-spec y-temporal]} cfg opts]
+  ;; A polar panel draws its radius labels at the left edge too, level
+  ;; with the top of each circle (`render/panel`), as ggplot2 does.
+  (max-label-pixel-width-over-panels
+   panel-y-domains y-scale-spec y-temporal
+   (double (:height opts))
+   (:y-tick-spacing cfg)
+   (tick-font-size cfg)
+   (defaults/number-separators cfg)))
 
 (defn- pad-y-label
   "y-label-pad = label-offset + max(0, tick-text-width - 12) when a
@@ -369,8 +369,7 @@
         w (y-tick-text-width scene cfg opts)
         ;; A rotated label reaches left of the axis by its width times
         ;; the cosine of the angle, plus its height times the sine.
-        tick-w (cond (= coord-type :polar) 0.0
-                     (:suppress-y-ticks opts) 0.0
+        tick-w (cond (:suppress-y-ticks opts) 0.0
                      (zero? angle) w
                      :else (let [rad (Math/toRadians (double angle))]
                              (+ (* w (Math/abs (Math/cos rad)))

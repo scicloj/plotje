@@ -1048,42 +1048,6 @@
 ;; Where x is a true quantity, distinguish the groups with `:color` or
 ;; `:shape`, or pre-compute small offsets in the data.
 
-;; ## Polar Bar Chart Has No Category Labels
-
-;; **Symptom**: A bar chart flipped to polar (`(pj/coord :polar)`)
-;; renders as a rose chart, but no category text appears anywhere
-;; around the wedges.
-;;
-;; **Cause**: Polar coord does not currently emit angular tick labels
-;; for bar-family marks -- the axis code places labels along Cartesian
-;; axes, which polar replaces with a circular layout, and angular
-;; ticks are not yet implemented.
-;;
-;; The polar version shows the wedges sized by category, but the
-;; category names are absent:
-
-(-> (rdatasets/datasets-chickwts)
-    (pj/pose :feed)
-    pj/lay-bar
-    (pj/coord :polar))
-
-(kind/test-last [(fn [v] (zero? (count (filter #{"casein" "horsebean" "linseed"
-                                                 "meatmeal" "soybean" "sunflower"}
-                                               (:texts (pj/svg-summary v))))))])
-
-;; **Fix for now**: Drop `(pj/coord :polar)` for the labeled view, or
-;; combine the polar plot with a separate Cartesian-coord version
-;; for the legend. The missing rose-chart labels are listed in
-;; [Known Limitations](./plotje_book.known_limitations.html).
-
-(-> (rdatasets/datasets-chickwts)
-    (pj/pose :feed)
-    pj/lay-bar)
-
-(kind/test-last [(fn [v] (pos? (count (filter #{"casein" "horsebean" "linseed"
-                                                "meatmeal" "soybean" "sunflower"}
-                                              (:texts (pj/svg-summary v))))))])
-
 ;; ## Heatmap with Categorical Axes
 ;;
 ;; **Symptom**: `"Stat :bin2d requires a numeric column for :x, but :x

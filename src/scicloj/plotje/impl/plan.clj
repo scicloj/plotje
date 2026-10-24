@@ -9,6 +9,7 @@
             [tech.v3.datatype.functional :as dfn]
             [tech.v3.datatype.casting :as casting]
             [clojure.string :as str]
+            [scicloj.plotje.impl.coord :as coord]
             [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.resolve :as resolve]
             [scicloj.plotje.impl.stat :as stat]
@@ -3255,8 +3256,13 @@
                   (compute-ticks x-dom x-px x-scale
                                  (defaults/scale-setting :x :tick-spacing x-scale cfg)
                                  x-te seps x-whole?))
+        ;; Under :polar the radius runs from the centre to the outer
+        ;; circle, so as many ticks are picked as that length holds.
+        y-tick-px (if (= :polar coord)
+                    [(coord/polar-radius pw ph m) 0.0]
+                    y-px)
         y-ticks (when (and y-dom y-informed?)
-                  (compute-ticks y-dom y-px y-scale
+                  (compute-ticks y-dom y-tick-px y-scale
                                  (defaults/scale-setting :y :tick-spacing y-scale cfg)
                                  y-te seps y-whole? true))]
     (cond-> {:x-domain (vec (if (sequential? x-dom) x-dom [x-dom]))
