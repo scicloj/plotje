@@ -563,6 +563,30 @@
                          (pr-str ["a" "b"]) " on one reading categories.")
                     {:caller where :channel channel :domain (:domain spec)}))))
 
+(defn spec-lists-as-vectors
+  "`spec` with each value that is an ordered sequence but not a Clojure
+   collection -- a dtype-next reader such as a column expression, a Java
+   list or array -- as a vector. Sets and maps are Clojure collections
+   and stay as written, to be refused where they are.
+
+   `:breaks`, `:domain`, `:tick-labels`, `:values` and `:range` hold
+   sequences of values, and the checks and the plan read them with
+   `sequential?`, which a reader answers no to: `(map str (s/ticks lin
+   5))` over a dtype buffer, written as `:breaks`, was refused as \"not a
+   sequence of tick values\". The two places a spec is written
+   (`pj/scale`, a mapping's `:scale`) and the one place it is read
+   (`pose/mapping-scale-spec`) pass it through here."
+  [spec]
+  (if (map? spec)
+    (into {} (map (fn [[k v]]
+                    [k (if (and (some? v)
+                                (not (coll? v))
+                                (or (instance? Iterable v) (.isArray (class v))))
+                         (vec v)
+                         v)]))
+          spec)
+    spec))
+
 (defn validate-spec-values!
   "Throw when a scale spec's `:breaks`, `:tick-labels` or `:values`
    holds something the channel cannot carry out.

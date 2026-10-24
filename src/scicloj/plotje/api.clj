@@ -4035,7 +4035,7 @@
     (when (map? scale-type)
       ;; The same three calls a mapping's `:scale` makes, in the same
       ;; order, so a spec means one thing wherever it is written.
-      (scale/validate-spec-values! aesthetic scale-type "pj/scale")
+      (scale/validate-spec-values! aesthetic (scale/spec-lists-as-vectors scale-type) "pj/scale")
       (scale/validate-drawn-range-options! aesthetic scale-type "pj/scale")
       (scale/validate-spec-keys! aesthetic scale-type "pj/scale"))
     ;; The spec is written as the caller stated it. A map that names no
@@ -4045,7 +4045,7 @@
     ;; (pj/scale :x :log). The default is applied once, after every
     ;; scope has accumulated, in pose/layer-scale-specs.
     (let [spec (if (map? scale-type)
-                 scale-type
+                 (scale/spec-lists-as-vectors scale-type)
                  {:type scale-type})]
       (update (->pose pose "pj/scale") :mapping
               pose/put-scale aesthetic spec)))))

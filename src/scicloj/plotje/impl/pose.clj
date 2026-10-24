@@ -1749,7 +1749,7 @@
                                " scale -- or a scale type such as :log, or a"
                                " spec map such as {:type :log :range [2 12]}.")
                           {:key k :value v :scale s})))
-        (let [spec (if (keyword? s) {:type s} s)
+        (let [spec (scale/spec-lists-as-vectors (if (keyword? s) {:type s} s))
               valid-types (defaults/channel-scale-types k)]
           ;; Before the unknown-key check, so that a drawn-range option
           ;; written on an aesthetic that has no such quantity is
@@ -2177,7 +2177,7 @@
    `{:scale :linear}` there overrides it for that one mapping."
   [scale]
   (cond
-    (map? scale)     scale
+    (map? scale)     (scale/spec-lists-as-vectors scale)
     (keyword? scale) {:type scale}
     :else            nil))
 
