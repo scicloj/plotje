@@ -188,7 +188,8 @@ weighted
 ;; A shared axis covers what the cells sharing it draw. What a cell
 ;; draws is not always what its column holds: a stack of bars reaches
 ;; the total of its segments, an error bar reaches its ends, and a
-;; smoothed line stays inside the points it was fitted to. Plotje
+;; smoothed line can dip below or rise above the points it was fitted
+;; to. Plotje
 ;; measures each cell after its statistics have run, pools the
 ;; measurements of the cells sharing the axis, and pads the pooled
 ;; extent once. Every sharing cell then draws the same axis, and no mark
@@ -272,6 +273,8 @@ weighted
 ;; an error naming both domains. To specify one domain for the cells, call
 ;; `pj/scale` on the composite: `(pj/scale composite :x {:domain [0
 ;; 10]})` is the domain of every cell that specifies none of its own.
+;; On a shared axis, remove the `:domain` from the cells first: a cell
+;; that keeps its own domain reports the same error.
 
 ;; ### Columns That Share an Axis
 ;;
@@ -281,7 +284,7 @@ weighted
 ;; wrong when they measure one quantity. Highway mileage and city
 ;; mileage are both in miles per gallon, and under `#{:x :y}` each
 ;; panel still fits its own `:y`. Plotje prints a warning that no two
-;; cells share `:y`, naming the form shown next:
+;; cells share `:y`, naming the group form used next:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose {:x :displ})
@@ -753,9 +756,9 @@ dashboard
 ;;
 ;; A layer can carry its own `:data`, written in the layer's mapping.
 ;; This is how reference lines, predictions drawn over the data, and
-;; small datasets of labels attach to a plot. The layer reads the
-;; columns it names from its own data, and the columns it leaves to the
-;; pose from its own data too.
+;; small datasets of labels attach to a plot. The layer reads every
+;; column from its own data: the columns it names, and the columns the
+;; pose's mapping names.
 ;;
 ;; A layer with data of its own is drawn on the pose's panel, like any
 ;; other layer of the pose. A separate panel for it comes from

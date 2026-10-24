@@ -8,7 +8,7 @@
 
 
 (def
- v3_l41
+ v3_l42
  (defn
   strip-data
   [pose]
@@ -17,13 +17,13 @@
    (:layers pose)
    (update
     :layers
-    (partial mapv (fn* [p1__79936#] (dissoc p1__79936# :data))))
+    (partial mapv (fn* [p1__77657#] (dissoc p1__77657# :data))))
    (:poses pose)
    (update :poses (partial mapv strip-data)))))
 
 
 (def
- v4_l46
+ v4_l47
  (defn
   pose-summary
   "Print pose structure without :data (for readability)."
@@ -32,7 +32,7 @@
 
 
 (def
- v6_l79
+ v6_l80
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -40,12 +40,12 @@
 
 
 (deftest
- t7_l83
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v6_l79)))
+ t7_l84
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v6_l80)))
 
 
 (def
- v9_l87
+ v9_l88
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -54,14 +54,14 @@
 
 
 (deftest
- t10_l92
+ t10_l93
  (is
   ((fn [m] (= :species (get-in m [:layers 0 :mapping :color])))
-   v9_l87)))
+   v9_l88)))
 
 
 (def
- v12_l165
+ v12_l168
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -71,12 +71,12 @@
 
 
 (deftest
- t13_l171
- (is ((fn [v] (some #{"Iris"} (:texts (pj/svg-summary v)))) v12_l165)))
+ t13_l174
+ (is ((fn [v] (some #{"Iris"} (:texts (pj/svg-summary v)))) v12_l168)))
 
 
 (def
- v15_l175
+ v15_l178
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -87,21 +87,21 @@
 
 
 (deftest
- t16_l182
+ t16_l185
  (is
   ((fn
     [m]
     (and
      (= "Iris" (get-in m [:opts :title]))
      (= :flip (get-in m [:opts :coord]))))
-   v15_l175)))
+   v15_l178)))
 
 
-(def v18_l254 (select-keys (pj/config) [:width :height :margin]))
+(def v18_l257 (select-keys (pj/config) [:width :height :margin]))
 
 
 (deftest
- t19_l256
+ t19_l259
  (is
   ((fn
     [m]
@@ -109,11 +109,11 @@
      (number? (:width m))
      (number? (:height m))
      (number? (:margin m))))
-   v18_l254)))
+   v18_l257)))
 
 
 (def
- v21_l267
+ v21_l270
  (def
   demo
   (->
@@ -124,21 +124,21 @@
    (pj/coord :flip))))
 
 
-(def v23_l278 demo)
+(def v23_l281 demo)
 
 
 (deftest
- t24_l280
+ t24_l283
  (is
   ((fn [v] (some #{"Iris measurements"} (:texts (pj/svg-summary v))))
-   v23_l278)))
+   v23_l281)))
 
 
-(def v26_l284 (pose-summary demo))
+(def v26_l287 (pose-summary demo))
 
 
 (deftest
- t27_l286
+ t27_l289
  (is
   ((fn
     [m]
@@ -146,4 +146,4 @@
      (= :species (get-in m [:layers 0 :mapping :color]))
      (= "Iris measurements" (get-in m [:opts :title]))
      (= :flip (get-in m [:opts :coord]))))
-   v26_l284)))
+   v26_l287)))

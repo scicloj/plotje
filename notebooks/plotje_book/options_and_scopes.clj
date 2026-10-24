@@ -6,12 +6,13 @@
 ;; - **Mappings** -- *how is this layer shown?* Its aesthetics
 ;;   (`:color`, `:size`, `:group`), and its **layer settings**: the
 ;;   parameters of its layer type (`:bandwidth`, `:bins`), its data,
-;;   its position adjustment. A mapping belongs to one layer, and its
-;;   aesthetics can be written on the pose to reach every layer.
+;;   its position adjustment. A layer's mapping describes that layer;
+;;   aesthetics and `:data` can also be written in the pose's mapping,
+;;   to reach every layer.
 ;; - **Plot options** -- *what describes this plot as a whole?*
-;;   Its title and labels, its axis scales, its coordinate
-;;   system, its facets. Per-plot by nature; there is one of each
-;;   per plot.
+;;   Its title and labels, its coordinate system, and how its
+;;   panels share their axes. Per-plot by nature; there is one of
+;;   each per plot.
 ;; - **Configuration** -- *what are the rendering defaults?*
 ;;   Palette, theme, default dimensions, color scale. Shared
 ;;   across every plot you render; any one plot can override a
@@ -97,8 +98,9 @@
 ;;
 ;; An aesthetic can also be written at a wider **scope** when it
 ;; should apply to more than one layer: `pj/pose` takes a mapping
-;; too, and a pose's mapping takes aesthetics. A layer setting is
-;; written on its own layer. For a single-panel plot the scope
+;; too, and a pose's mapping takes aesthetics and `:data`. The
+;; parameters of a layer type and `:mark`, `:stat` and `:position` are
+;; written on the layer itself. For a single-panel plot the scope
 ;; hierarchy has two levels, from narrow to broad:
 ;;
 ;; | Scope  | Set via              | Reaches                    |
@@ -121,7 +123,8 @@
 ;; ## Plot Options
 ;;
 ;; Plot options describe a plot as a whole: its title, labels,
-;; axis scales, coordinate system, facets. A single-panel plot has
+;; coordinate system, and how its panels share their axes. A
+;; single-panel plot has
 ;; one of each. A composite has a scope for them: every cell is a
 ;; pose, so each cell can have its own title and its own scales, and
 ;; the options written on the composite itself apply to every cell
@@ -144,7 +147,7 @@
 ;; `:facet` key. Both functions take a map of plot options as a last
 ;; argument and pass that map to `pj/options`.
 ;;
-;; `pj/scale` does not write to `:opts` either: a scale belongs to the
+;; `pj/scale` does not write to `:opts`: a scale belongs to the
 ;; aesthetic it reads, so it is written into that aesthetic's mapping.
 ;; It takes an axis (`:x`, `:y`) or a visual
 ;; aesthetic. Axis scales accept `:linear`, `:log`, `:categorical`; the
@@ -312,7 +315,8 @@ demo
 ;; | `geom_*(aes(...))`                           | a layer's mapping           |
 ;; | `ggplot(aes(...))`                           | a pose's mapping            |
 ;; | `+ geom_*()`                                 | a layer                     |
-;; | `+ scale_*()`, `+ coord_*()`, `+ facet_*()`  | plot option                 |
+;; | `+ coord_*()`                                | plot option                 |
+;; | `+ scale_*()`, `+ facet_*()`                 | the pose itself (`pj/scale`, `pj/facet`) |
 ;; | `+ labs(...)`, one-off `+ theme(...)`        | plot option                 |
 ;; | `theme_set(...)`, `options(...)`             | configuration               |
 

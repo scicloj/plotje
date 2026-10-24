@@ -104,7 +104,8 @@
 ;; gives them words. A vector of vectors given to `pj/arrange` means
 ;; something else -- pairs of column names, one panel each, shown under
 ;; [Identity](#identity) below. What tells the two apart is where the
-;; vector is written, not what it holds.
+;; vector is written -- in a mapping, or given to `pj/arrange` after
+;; the data -- not what it holds.
 
 ;; When the dataset has 1, 2, or 3 columns, you can omit the column
 ;; names entirely -- they are inferred from the order of the columns:
@@ -391,9 +392,11 @@ two-panel
                                 (not= (first a) (first b))
                                 (= (second a) (second b)))))])
 
-;; Both keep these pairs side by side regardless of whether they share
-;; columns. To put every pairing of x and y columns in a matrix, write
-;; `{:col {:x [...]} :row {:y [...]}}` -- the
+;; `pj/facet` and `pj/arrange` both keep these pairs side by side,
+;; whether or not the pairs share columns. To put every pairing of x
+;; and y columns in a matrix, call `pj/facet` with
+;; `{:col {:x [...]} :row {:y [...]}}`, or call `pj/facet-matrix`,
+;; which writes that map -- the
 ;; [Relationships](./plotje_book.relationships.html) chapter draws one.
 ;;
 ;; `pj/arrange` is also useful for combining independent poses, such as
@@ -505,7 +508,7 @@ two-panel
 ;; | 3 | `:x`, `:y`, `:color` |
 ;;
 ;; With four or more columns the library does not guess -- you
-;; have to name the columns you want, and a pose drawn without them
+;; have to name the columns you want, and a layer that names none
 ;; reports an error. Column inference is most useful for quick
 ;; sketches of small, focused datasets.
 
@@ -589,8 +592,8 @@ two-panel
                               (= 2 (count (:layers v)))
                               (= "Scatter with Regression" (get-in v [:opts :title]))))])
 
-;; Drawn before it has data, the template draws an empty panel that
-;; reads "no data":
+;; Before it has data, the template draws an empty panel that reads
+;; "no data":
 
 scatter-with-regression
 
@@ -828,8 +831,8 @@ scatter-with-regression
 
 ;; `:fixed` locks the aspect ratio so one data unit on x equals one
 ;; data unit on y -- useful for spatial data or when distances on
-;; the two axes should read the same. The canvas is made narrower
-;; until the panel has that ratio, so here, where both columns run
+;; the two axes should read the same. The canvas is made narrower or
+;; shorter until the panel has that ratio, so here, where both columns run
 ;; from -1 to 1, the panel is square:
 
 (-> {:x [-1 1 -1 1] :y [-1 -1 1 1]}
