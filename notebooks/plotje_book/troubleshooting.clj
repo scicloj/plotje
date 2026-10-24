@@ -139,11 +139,12 @@
 ;; **Symptom**: A column of discrete numbers (hour of day, year,
 ;; subject ID) is treated as a continuous axis. A categorical-axis
 ;; mark like `:boxplot`, `:violin`, or `:lollipop` rejects it with an
-;; error like `"requires a categorical column"`. (`pj/lay-bar` given a
-;; numeric `:x` column and a value column does not report an error --
-;; it draws a bar at each numeric value; use the same fix below to get
-;; evenly-spaced bands instead. A counting `pj/lay-bar`, given one
-;; numeric column, reports the error.)
+;; error like `"requires a categorical column"`.
+;;
+;; A `pj/lay-bar` given a numeric `:x` column and a value column draws
+;; a bar at each value and reports nothing; a counting `pj/lay-bar`
+;; given one numeric column reports the error. The fix below gives
+;; evenly spaced bands in both cases.
 ;;
 ;; **Cause**: The column contains numbers, so column-type inference
 ;; classifies it as `:numerical`. These marks need `:categorical`.
@@ -667,7 +668,8 @@
                                    (disj (:colors s) "none")))))])
 
 ;; Separately built plots go side by side with `pj/arrange`. The
-;; [Composition](./plotje_book.composition.html) chapter shows both.
+;; [Composition](./plotje_book.composition.html) chapter shows a facet
+;; over columns and an arrangement of separate poses.
 
 ;; ### Coming from 0.16.1
 ;;

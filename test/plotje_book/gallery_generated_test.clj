@@ -371,9 +371,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__80360#]
+    [p1__80222#]
     (#{"Australia" "Brazil" "Japan" "Nigeria" "Germany"}
-     (:country p1__80360#))))
+     (:country p1__80222#))))
   (pj/pose :year :life-exp {:color :country})
   pj/lay-line
   pj/lay-point
@@ -769,7 +769,7 @@
  v115_l601
  (->
   (rdatasets/gapminder-gapminder)
-  (tc/select-rows (fn* [p1__80361#] (= 2007 (:year p1__80361#))))
+  (tc/select-rows (fn* [p1__80223#] (= 2007 (:year p1__80223#))))
   (pj/lay-point :gdp-percap :life-exp {:color :continent, :size :pop})
   (pj/scale :x :log)
   (pj/options
@@ -789,9 +789,9 @@
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
    (fn*
-    [p1__80362#]
+    [p1__80224#]
     (#{"Brazil" "United States" "Japan" "China" "India"}
-     (:country p1__80362#))))
+     (:country p1__80224#))))
   (pj/lay-line :year :life-exp {:color :country})
   (pj/options
    {:title "Life Expectancy Over Time",
@@ -1125,8 +1125,8 @@
   (rdatasets/ggplot2-txhousing)
   (tc/select-rows
    (fn*
-    [p1__80363#]
-    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__80363#))))
+    [p1__80225#]
+    (#{"Houston" "Dallas" "San Antonio" "Austin"} (:city p1__80225#))))
   (pj/pose :date :median {:color :city})
   pj/lay-line
   (pj/options
@@ -1169,7 +1169,7 @@
  (->
   (rdatasets/lme4-sleepstudy)
   (tc/select-rows
-   (fn* [p1__80364#] (= "308" (str (:subject p1__80364#)))))
+   (fn* [p1__80226#] (= "308" (str (:subject p1__80226#)))))
   (pj/pose :days :reaction)
   pj/lay-step
   pj/lay-point
@@ -1287,7 +1287,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__80365#] (= 2007 (:year p1__80365#))))
+   (fn* [p1__80227#] (= 2007 (:year p1__80227#))))
   (pj/lay-point
    :gdp-percap
    :life-exp
@@ -1822,8 +1822,8 @@
      [ds]
      (map
       (fn*
-       [p1__80366#]
-       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__80366#))
+       [p1__80228#]
+       (get {5 "May", 6 "Jun", 7 "Jul", 8 "Aug", 9 "Sep"} p1__80228#))
       (ds :month)))))))
 
 
@@ -2120,10 +2120,10 @@
 (def
  v321_l1537
  (->
-  {:row (mapcat (fn* [p1__80367#] (repeat 6 p1__80367#)) (range 6)),
+  {:row (mapcat (fn* [p1__80229#] (repeat 6 p1__80229#)) (range 6)),
    :col (flatten (repeat 6 (range 6))),
    :value
-   (map (fn* [p1__80368#] (Math/sin (* p1__80368# 0.5))) (range 36))}
+   (map (fn* [p1__80230#] (Math/sin (* p1__80230# 0.5))) (range 36))}
   (pj/pose :col :row {:fill :value})
   pj/lay-tile
   (pj/options
@@ -2569,7 +2569,7 @@
  (->
   (tc/select-rows
    (rdatasets/gapminder-gapminder)
-   (fn* [p1__80369#] (= 2007 (:year p1__80369#))))
+   (fn* [p1__80231#] (= 2007 (:year p1__80231#))))
   (pj/pose :gdp-percap :life-exp)
   pj/lay-point
   (pj/scale :x :log)
@@ -2718,27 +2718,39 @@
  (->
   (rdatasets/reshape2-tips)
   (pj/pose :day :total-bill)
-  pj/lay-bar
-  pj/lay-point
+  (pj/lay-bar
+   {:data
+    (->
+     (rdatasets/reshape2-tips)
+     (tc/group-by [:day])
+     (tc/aggregate
+      {:total-bill
+       (fn*
+        [p1__80232#]
+        (/
+         (reduce + (:total-bill p1__80232#))
+         (tc/row-count p1__80232#)))})),
+    :alpha 0.4})
+  (pj/lay-point {:jitter true})
   (pj/options
-   {:title "Tips: Total Bill by Day, Bars and Points",
+   {:title "Tips: Mean Total Bill by Day, and Each Bill",
     :x-label "Day",
     :y-label "Total Bill ($)"})))
 
 
 (deftest
- t409_l1984
+ t409_l1988
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v) n (tc/row-count (rdatasets/reshape2-tips))]
-     (and (= n (:polygons s)) (= n (:points s)))))
+     (and (= 4 (:polygons s)) (= n (:points s)))))
    v408_l1976)))
 
 
 (def
- v411_l1999
+ v411_l2003
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -2750,12 +2762,12 @@
 
 
 (deftest
- t412_l2006
- (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v411_l1999)))
+ t412_l2010
+ (is ((fn [v] (pos? (:visible-tiles (pj/svg-summary v)))) v411_l2003)))
 
 
 (def
- v414_l2011
+ v414_l2015
  (->
   (rdatasets/ggplot2-diamonds)
   (tc/head 1000)
@@ -2769,18 +2781,18 @@
 
 
 (deftest
- t415_l2020
+ t415_l2024
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (pos? (:points s)) (pos? (:lines s)))))
-   v414_l2011)))
+   v414_l2015)))
 
 
 (def
- v417_l2032
+ v417_l2036
  (->
   {:task ["Design" "Build" "Integration" "Testing" "Launch"],
    :start
@@ -2801,11 +2813,11 @@
 
 
 (deftest
- t418_l2043
+ t418_l2047
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 5 (:polygons s)))))
-   v417_l2032)))
+   v417_l2036)))

@@ -200,7 +200,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__11199#] (Math/sin (* p1__11199# 0.3))) (range 30))}))
+   (map (fn* [p1__77960#] (Math/sin (* p1__77960# 0.3))) (range 30))}))
 
 
 (def v44_l170 (-> wave (pj/lay-line :x :y)))
@@ -408,9 +408,9 @@
     :y
     (mapv
      (fn*
-      [p1__11200#]
+      [p1__77961#]
       (+
-       (Math/sin (* p1__11200# 0.2))
+       (Math/sin (* p1__77961# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -1213,7 +1213,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__11201#] (-> p1__11201# :plan :panels first))
+       (fn* [p1__77962#] (-> p1__77962# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))
@@ -1473,7 +1473,7 @@
    (:canvas f)
    boxes
    (mapv
-    (fn* [p1__11202#] (-> p1__11202# :frames :panel-box))
+    (fn* [p1__77963#] (-> p1__77963# :frames :panel-box))
     (:panels f))
    inside?
    (fn
@@ -1484,7 +1484,7 @@
    :every-box-inside-the-canvas (every? inside? boxes),
    :panel-rectangle-keys
    (mapv
-    (fn* [p1__11203#] (vec (keys (:frames p1__11203#))))
+    (fn* [p1__77964#] (vec (keys (:frames p1__77964#))))
     (:panels f))}))
 
 
@@ -1499,7 +1499,7 @@
      (apply not= (map first (:panel-boxes m)))
      (true? (:every-box-inside-the-canvas m))
      (every?
-      (fn* [p1__11204#] (= [:panel-box :drawing-area] p1__11204#))
+      (fn* [p1__77965#] (= [:panel-box :drawing-area] p1__77965#))
       (:panel-rectangle-keys m))))
    v295_l999)))
 
@@ -1541,7 +1541,7 @@
   (->>
    (pj/to-drawing panel 2 5)
    (apply pj/to-data panel)
-   (mapv (fn* [p1__11205#] (Math/round (double p1__11205#)))))))
+   (mapv (fn* [p1__77966#] (Math/round (double p1__77966#)))))))
 
 
 (deftest t307_l1048 (is ((fn [v] (= [2 5] v)) v306_l1043)))
@@ -2022,7 +2022,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__11206#] (bit-and p1__11206# 255)) (vec bs))))))
+    (mapv (fn* [p1__77967#] (bit-and p1__77967# 255)) (vec bs))))))
 
 
 (deftest
@@ -2043,17 +2043,17 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__11207#] (bit-and p1__11207# 255)) (vec bs))))))
+    (mapv (fn* [p1__77968#] (bit-and p1__77968# 255)) (vec bs))))))
 
 
 (deftest t452_l1438 (is ((fn [bs] (= [137 80 78 71] bs)) v451_l1429)))
 
 
-(def v454_l1445 (kind/doc #'pj/overlay))
+(def v454_l1446 (kind/doc #'pj/overlay))
 
 
 (def
- v456_l1450
+ v456_l1451
  (->
   {:cohort [:a :b :c], :growth [12 19 15], :tax [3 5 4]}
   (pj/lay-bar :growth :cohort)
@@ -2063,4 +2063,4 @@
   :panels))
 
 
-(deftest t457_l1457 (is ((fn [n] (= 1 n)) v456_l1450)))
+(deftest t457_l1458 (is ((fn [n] (= 1 n)) v456_l1451)))

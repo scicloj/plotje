@@ -699,9 +699,9 @@ sales-by-region
 ;; #### Panels from the key column
 
 ;; Faceting a series by its key column draws one panel per measure.
-;; These are the panels `(pj/facet pose {:y [:revenue :cost :tax]})`
-;; draws, and Plotje draws them the same way: each panel draws one
-;; column, is titled by that column, and has a value axis of its own.
+;; These panels show what `(pj/facet pose {:y [:revenue :cost :tax]})`
+;; shows: each panel draws one column, is titled by that column, and
+;; has a value axis of its own.
 
 (-> sales
     (pj/lay-line :quarter [:revenue :cost :tax])
@@ -1031,7 +1031,8 @@ sales-by-region
                               (re-find #"Note: on :y one axis holds :revenue .*:cost .*:units"
                                        (with-out-str (pj/plan v)))))])
 
-;; Units and euros do not share a scale, and Plotje prints a Note that
+;; A count of units and an amount of money do not belong on one axis,
+;; and Plotje prints a Note that
 ;; `:units` takes a small part of the axis. Here the two belong in
 ;; panels of their own, arranged one above the other:
 
@@ -1154,14 +1155,20 @@ sales-by-region
 
 ;; #### A grid of panels of series
 
+;; A grid of panels of series is an arrangement of series poses, each
+;; pose reading its own columns:
+
 (pj/arrange
  [(-> sales (pj/lay-line :quarter [:revenue :cost]))
   (-> sales (pj/lay-line :quarter [:tax :units]))])
 
-;; Both routes to the same picture are on the long side. `pj/facet`
-;; reaches it where the split comes from a column, and `pj/arrange` of
-;; series poses where it does not -- which is what the sub-plot
-;; sections above do.
+(kind/test-last [(fn [v] (= {:panels 2 :lines 4}
+                            (select-keys (pj/svg-summary v) [:panels :lines])))])
+
+;; `pj/facet` splits a series into panels by a column, as in
+;; [Panels from the key column](#panels-from-the-key-column);
+;; `pj/arrange` places series poses that read different columns, as
+;; here.
 
 ;; ### Refusals and look-alikes
 

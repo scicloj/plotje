@@ -135,8 +135,8 @@
                                 (= 3 (count (distinct (map first boxes))))
                                 (= 1 (count (distinct (map second boxes)))))))])
 
-;; A layer is drawn in every panel where it names none of the facet's
-;; columns. Name the column the panels have in common on the pose, and
+;; A layer that names none of the facet's columns is drawn in every
+;; panel. Name the column the panels have in common on the pose, and
 ;; leave the other column to the facet:
 
 (-> (rdatasets/ggplot2-mpg)
@@ -397,7 +397,9 @@ measures
 ;; By default the panels of a facet share both axis ranges, so a mark
 ;; at the same height stands for the same value in every panel. The
 ;; `:share-scales` option names the axes the panels share, as a set. An
-;; axis left out of the set is fitted to the rows of each panel.
+;; axis left out of the set is fitted to the rows of each panel. A map,
+;; as in `{:y :all}`, shares an axis between panels that draw different
+;; columns, as the [Series](./plotje_book.series.html) chapter shows.
 ;;
 ;; Both axes shared -- the default, written out:
 
@@ -619,9 +621,10 @@ measures
                (re-find #"unexpected key\(s\): \[:share-scales\]" m)
                (re-find #"in a map of its own after this one" m)))])
 
-;; A facet draws its panels in one row or in one column, and does not
-;; wrap them onto further rows. Where a column holds so many values
-;; that the panels cannot be drawn, the error names the column and the
+;; A facet by one column draws its panels in one row, or in one column,
+;; and does not wrap them onto further rows. Where the column holds so
+;; many values that each panel would be narrower than the smallest
+;; panel size, the error names the column and the
 ;; number of its values, and suggests arranging one pose per value with
 ;; `pj/arrange`, which does wrap:
 
@@ -646,7 +649,8 @@ measures
 ;; for each category of a column, or a panel for each column the facet
 ;; names, all drawn from the same data with the same layers. An
 ;; arrangement lists its cells, and each cell is a pose of its own, with
-;; its own data, mapping and layers.
+;; its own mapping and layers. The cells read the data the arrangement
+;; is given, or each holds data of its own.
 ;;
 ;; Where both calls can draw a plot, they agree on what its panels show.
 ;; Here `:hwy` and `:cty` are drawn against `:displ`, one panel above the
@@ -670,11 +674,11 @@ measures
            ;; The shared :x axis is titled once, under the lower panel.
            (= 1 (count (filter #{"displ"} (:texts s)))))))])
 
-;; and then by an arrangement of two poses, in one column:
+;; and then by an arrangement of two pairs of columns, in one column:
 
-(pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
-             (pj/lay-point (rdatasets/ggplot2-mpg) :displ :cty)]
-            {:cols 1})
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [[:displ :hwy] [:displ :cty]] {:cols 1})
+    pj/lay-point)
 
 (kind/test-last
  [(fn [v]
@@ -691,14 +695,14 @@ measures
            (= 468 (:points s))
            ;; The same :x and :y domains, panel by panel, as the facet.
            (= (domains faceted) (domains v))
-           ;; Each cell titles its own :x axis.
-           (= 2 (count (filter #{"displ"} (:texts s)))))))])
+           ;; The shared :x axis is titled once, as in the facet.
+           (= 1 (count (filter #{"displ"} (:texts s)))))))])
 
-;; The two cells share the `:x` axis, because both draw `:displ` from the
-;; same dataset. Each cell is a plot of its own, so each draws its own
-;; `:x` ticks and title, where the facet draws the shared axis once.
+;; The two cells split the data of the arrangement and both draw
+;; `:displ`, so they share the `:x` axis, and the axis is titled once,
+;; under the lower cell, as in the facet.
 ;;
-;; Cells that hold data of their own share no axis. Here three cells
+;; Cells that each hold data of their own share no axis. Here three cells
 ;; each hold the rows of one kind of drive, and each `:y` axis covers
 ;; only its own cell's rows:
 

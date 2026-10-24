@@ -1967,24 +1967,28 @@
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; ### Bar + point overlay
-;; Source: [Vega-Lite: Layered Bar](https://vega.github.io/vega-lite/examples/bar_layered_transparent.html)
 
-;; Bars and points on one value column. `pj/lay-bar` given a value
-;; column draws a bar for each row, so the bars of one day overlap and
-;; the tallest one shows; the points mark each bill:
+;; Bars of the mean bill for each day, with every bill drawn over them.
+;; The bar layer reads a dataset of its own, the means computed with
+;; Tablecloth, and the points read the pose's rows. `:jitter` spreads
+;; the points across the band:
 
 (-> (rdatasets/reshape2-tips)
     (pj/pose :day :total-bill)
-    pj/lay-bar
-    pj/lay-point
-    (pj/options {:title "Tips: Total Bill by Day, Bars and Points"
+    (pj/lay-bar {:data (-> (rdatasets/reshape2-tips)
+                           (tc/group-by [:day])
+                           (tc/aggregate {:total-bill #(/ (reduce + (:total-bill %))
+                                                          (tc/row-count %))}))
+                 :alpha 0.4})
+    (pj/lay-point {:jitter true})
+    (pj/options {:title "Tips: Mean Total Bill by Day, and Each Bill"
                  :x-label "Day"
                  :y-label "Total Bill ($)"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
                                n (tc/row-count (rdatasets/reshape2-tips))]
-                           ;; a bar and a point for each row
-                           (and (= n (:polygons s))
+                           ;; a bar for each day, a point for each bill
+                           (and (= 4 (:polygons s))
                                 (= n (:points s)))))])
 
 ;; ---

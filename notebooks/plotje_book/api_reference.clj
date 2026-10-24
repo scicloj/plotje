@@ -1294,7 +1294,7 @@ plan1
 
 (kind/test-last [(fn [ks] (= #{:col :row} (set ks)))])
 
-;; `pj/aesthetic-roles` says what each aesthetic is put to work as:
+;; `pj/aesthetic-roles` gives the role of each aesthetic:
 
 (kind/doc #'pj/aesthetic-roles)
 
@@ -1440,7 +1440,8 @@ plan1
 ;; ## Retired
 
 ;; Public functions kept so that code written for an earlier release
-;; keeps drawing.
+;; still runs. `(pj/overlay pose)` returns the pose unchanged and prints
+;; a warning, and `(pj/overlay pose false)` reports an error.
 
 (kind/doc #'pj/overlay)
 
