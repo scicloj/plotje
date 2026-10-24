@@ -79,13 +79,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__78626#] (= :petal-length (:x p1__78626#)))
+        (fn* [p1__11199#] (= :petal-length (:x p1__11199#)))
         layers)
        (every?
-        (fn* [p1__78627#] (= :petal-width (:y p1__78627#)))
+        (fn* [p1__11200#] (= :petal-width (:y p1__11200#)))
         layers)
        (every?
-        (fn* [p1__78628#] (= :species (:color p1__78628#)))
+        (fn* [p1__11201#] (= :species (:color p1__11201#)))
         layers)))
      (= {} (:opts d))))
    v14_l211)))
@@ -139,8 +139,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__78629#]
-       (.startsWith (.getName (class p1__78629#)) "membrane.ui."))
+       [p1__11202#]
+       (.startsWith (.getName (class p1__11202#)) "membrane.ui."))
       (:drawables v))))
    v27_l269)))
 
@@ -232,13 +232,13 @@
        2
        (count
         (filter
-         (fn* [p1__78630#] (.startsWith p1__78630# "rgb"))
+         (fn* [p1__11203#] (.startsWith p1__11203# "rgb"))
          (:colors s)))))))
    v42_l512)))
 
 
 (def
- v45_l570
+ v45_l571
  (->>
   (->
    {:a [1 2 3 4], :b [2 4 3 5], :c ["u" "u" "v" "v"]}
@@ -248,11 +248,11 @@
    pj/pose->draft)
   :layers
   (mapv
-   (fn* [p1__78631#] (select-keys p1__78631# [:mark :x :y :color])))))
+   (fn* [p1__11204#] (select-keys p1__11204# [:mark :x :y :color])))))
 
 
 (deftest
- t46_l578
+ t46_l579
  (is
   ((fn
     [layers]
@@ -260,11 +260,11 @@
      [{:mark :point, :x :a, :y :b, :color :c}
       {:mark :line, :x :a, :y :b, :color :c}]
      layers))
-   v45_l570)))
+   v45_l571)))
 
 
 (def
- v48_l595
+ v48_l596
  (->
   {:week [1 2 3 4], :adults [30 25 28 35], :children [20 15 18 22]}
   (pj/lay-point :week :adults)
@@ -276,7 +276,7 @@
 
 
 (deftest
- t49_l605
+ t49_l606
  (is
   ((fn
     [elaborated]
@@ -287,11 +287,11 @@
        {:x :week, :y :children}
        {:x :week, :y :adults}]
       (mapv :mapping (:layers elaborated)))))
-   v48_l595)))
+   v48_l596)))
 
 
 (def
- v51_l658
+ v51_l660
  (def
   counted-beside-points
   (->
@@ -301,12 +301,12 @@
 
 
 (def
- v52_l664
+ v52_l666
  (->> counted-beside-points pose/elaborate :layers (mapv :mapping)))
 
 
 (deftest
- t53_l669
+ t53_l671
  (is
   ((fn
     [mappings]
@@ -315,11 +315,11 @@
      (=
       (pose/elaborate counted-beside-points)
       (pose/elaborate (pose/elaborate counted-beside-points)))))
-   v52_l664)))
+   v52_l666)))
 
 
 (def
- v55_l688
+ v55_l690
  (->
   {:height [1.6 1.7 1.8 1.7 1.75]}
   (pj/lay-histogram {:y :height})
@@ -329,18 +329,18 @@
 
 
 (deftest
- t56_l694
+ t56_l696
  (is
   ((fn
     [elaborated]
     (and
      (= {:coord :flip} (:opts elaborated))
      (= [{:x :height}] (mapv :mapping (:layers elaborated)))))
-   v55_l688)))
+   v55_l690)))
 
 
 (def
- v58_l721
+ v58_l723
  (def
   sepals-and-petals
   (->
@@ -351,7 +351,7 @@
 
 
 (def
- v59_l727
+ v59_l729
  (->>
   sepals-and-petals
   pj/draft
@@ -365,7 +365,7 @@
 
 
 (deftest
- t60_l736
+ t60_l738
  (is
   ((fn
     [colors]
@@ -387,11 +387,11 @@
         (pj/lay-point :sepal-length :sepal-width {:color :species})
         (pj/lay-point :petal-length :petal-width))]
       (nil? (:color (second (:layers (pj/draft colored))))))))
-   v59_l727)))
+   v59_l729)))
 
 
 (def
- v62_l760
+ v62_l762
  (def
   composite-pose
   (->
@@ -401,45 +401,45 @@
    (pj/pose {:color :species}))))
 
 
-(def v63_l766 composite-pose)
+(def v63_l768 composite-pose)
 
 
 (deftest
- t64_l768
+ t64_l770
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v63_l766)))
+   v63_l768)))
 
 
-(def v66_l776 (-> composite-pose pj/draft kind/pprint))
+(def v66_l778 (-> composite-pose pj/draft kind/pprint))
 
 
 (deftest
- t67_l778
+ t67_l780
  (is
   ((fn [d] (and (pj/composite-draft? d) (= 2 (count (:sub-drafts d)))))
-   v66_l776)))
+   v66_l778)))
 
 
-(def v69_l783 (pj/plan composite-pose))
+(def v69_l785 (pj/plan composite-pose))
 
 
 (deftest
- t70_l785
+ t70_l787
  (is
   ((fn [p] (and (pj/composite-plan? p) (= 2 (count (:sub-plots p)))))
-   v69_l783)))
+   v69_l785)))
 
 
-(def v72_l793 (pj/membrane composite-pose))
+(def v72_l795 (pj/membrane composite-pose))
 
 
 (deftest
- t73_l795
+ t73_l797
  (is
   ((fn
     [m]
@@ -448,25 +448,25 @@
      (pos? (count (:drawables m)))
      (number? (membrane.ui/width m))
      (number? (membrane.ui/height m))))
-   v72_l793)))
+   v72_l795)))
 
 
-(def v75_l804 (-> composite-pose pj/plot kind/pprint))
+(def v75_l806 (-> composite-pose pj/plot kind/pprint))
 
 
 (deftest
- t76_l806
+ t76_l808
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v75_l804)))
+   v75_l806)))
 
 
 (def
- v78_l834
+ v78_l836
  (def
   north
   {:week ["w1" "w1" "w2" "w2"],
@@ -475,7 +475,7 @@
 
 
 (def
- v79_l839
+ v79_l841
  (def
   south
   {:week ["w1" "w1" "w2" "w2"],
@@ -484,7 +484,7 @@
 
 
 (def
- v80_l844
+ v80_l846
  (def
   arranged-clinics
   (pj/arrange
@@ -493,16 +493,16 @@
    {:share-scales #{:y}})))
 
 
-(def v81_l849 arranged-clinics)
+(def v81_l851 arranged-clinics)
 
 
 (deftest
- t82_l851
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v81_l849)))
+ t82_l853
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v81_l851)))
 
 
 (def
- v83_l853
+ v83_l855
  (def
   faceted-clinics
   (->
@@ -523,11 +523,11 @@
    (pj/facet :clinic))))
 
 
-(def v84_l862 faceted-clinics)
+(def v84_l864 faceted-clinics)
 
 
 (deftest
- t85_l864
+ t85_l866
  (is
   ((fn
     [v]
@@ -535,21 +535,21 @@
      (pj/composite-plan? (pj/plan arranged-clinics))
      (not (pj/composite-plan? (pj/plan v)))
      (= 2 (count (:panels (pj/plan v))))))
-   v84_l862)))
+   v84_l864)))
 
 
-(def v87_l878 (->> arranged-clinics pj/draft :sub-drafts (mapv :share)))
+(def v87_l880 (->> arranged-clinics pj/draft :sub-drafts (mapv :share)))
 
 
 (deftest
- t88_l883
+ t88_l885
  (is
   ((fn [shares] (= [{:y {:group 0}} {:y {:group 0}}] shares))
-   v87_l878)))
+   v87_l880)))
 
 
 (def
- v90_l900
+ v90_l904
  (->>
   (pj/arrange
    [(pj/coord (pj/lay-bar north :week :visits) :flip)
@@ -561,14 +561,14 @@
 
 
 (deftest
- t91_l907
+ t91_l911
  (is
   ((fn [shares] (= [{:y {:group 0}} {:y {:group 0}}] shares))
-   v90_l900)))
+   v90_l904)))
 
 
 (def
- v93_l915
+ v93_l919
  (->>
   (pj/arrange
    {:week ["w2" "w1" "w2" "w1"],
@@ -581,7 +581,7 @@
 
 
 (deftest
- t94_l923
+ t94_l927
  (is
   ((fn
     [shares]
@@ -599,18 +599,18 @@
        pj/draft
        :sub-drafts
        (mapv :share)))))
-   v93_l915)))
+   v93_l919)))
 
 
 (def
- v96_l943
+ v96_l947
  (def
   weekly-visits
   {:week [1 2 3 4], :adults [30 25 28 35], :children [20 15 18 22]}))
 
 
 (def
- v97_l948
+ v97_l952
  (->>
   (pj/arrange
    [(pj/lay-point weekly-visits :week :adults)
@@ -626,16 +626,16 @@
 
 
 (deftest
- t98_l958
+ t98_l962
  (is
   ((fn
     [shares]
     (= [{:y {:group 0}} {:y {:group 0}} {:y {:group 0}}] shares))
-   v97_l948)))
+   v97_l952)))
 
 
 (def
- v100_l969
+ v100_l973
  (->>
   arranged-clinics
   pj/draft
@@ -647,14 +647,14 @@
 
 
 (deftest
- t101_l975
+ t101_l979
  (is
   ((fn [extents] (= [[0.0 50.0] [0.0 105.0]] (mapv :y extents)))
-   v100_l969)))
+   v100_l973)))
 
 
 (def
- v103_l986
+ v103_l990
  (->>
   arranged-clinics
   pj/plan
@@ -663,12 +663,12 @@
 
 
 (deftest
- t104_l991
- (is ((fn [domains] (= [[0.0 105.0] [0.0 105.0]] domains)) v103_l986)))
+ t104_l995
+ (is ((fn [domains] (= [[0.0 105.0] [0.0 105.0]] domains)) v103_l990)))
 
 
 (def
- v106_l996
+ v106_l1000
  (->>
   arranged-clinics
   pj/plan
@@ -678,19 +678,19 @@
 
 
 (deftest
- t107_l1001
+ t107_l1005
  (is
   ((fn
     [domains]
     (and (apply = domains) (< 105.0 (second (first domains)))))
-   v106_l996)))
+   v106_l1000)))
 
 
-(def v109_l1036 (->> faceted-clinics pj/plan :panels (mapv :y-domain)))
+(def v109_l1041 (->> faceted-clinics pj/plan :panels (mapv :y-domain)))
 
 
 (deftest
- t110_l1041
+ t110_l1046
  (is
   ((fn
     [domains]
@@ -699,11 +699,11 @@
      (mapv
       (fn [sub-plot] (:y-domain (first (:panels (:plan sub-plot)))))
       (:sub-plots (pj/plan arranged-clinics)))))
-   v109_l1036)))
+   v109_l1041)))
 
 
 (def
- v112_l1059
+ v112_l1064
  (def
   series-by-key
   (->
@@ -712,21 +712,21 @@
    (pj/facet :series))))
 
 
-(def v113_l1064 series-by-key)
+(def v113_l1069 series-by-key)
 
 
 (deftest
- t114_l1066
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v113_l1064)))
+ t114_l1071
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v113_l1069)))
 
 
 (def
- v116_l1072
+ v116_l1077
  (-> series-by-key pose/expand-facet-nodes (dissoc :data) kind/pprint))
 
 
 (deftest
- t117_l1077
+ t117_l1082
  (is
   ((fn
     [expanded]
@@ -735,11 +735,11 @@
      (=
       [{:y :adults} {:y :children}]
       (mapv :mapping (mapcat :poses (:poses expanded))))))
-   v116_l1072)))
+   v116_l1077)))
 
 
 (def
- v119_l1089
+ v119_l1093
  (->>
   (->
    weekly-visits
@@ -752,7 +752,7 @@
 
 
 (deftest
- t120_l1097
+ t120_l1101
  (is
   ((fn
     [mappings]
@@ -762,11 +762,11 @@
       {:x :adults, :y :children}
       {:x nil, :y :children}]
      mappings))
-   v119_l1089)))
+   v119_l1093)))
 
 
 (def
- v122_l1125
+ v122_l1131
  (->>
   (->
    (select-keys weekly-visits [:adults :children])
@@ -780,7 +780,7 @@
 
 
 (deftest
- t123_l1134
+ t123_l1140
  (is
   ((fn
     [marks]
@@ -814,21 +814,21 @@
           (pj/facet {:y [:adults :children]})))
         ""
         (catch Exception e (ex-message e)))))))
-   v122_l1125)))
+   v122_l1131)))
 
 
-(def v125_l1164 (->> series-by-key pj/draft :sub-drafts (mapv :share)))
+(def v125_l1170 (->> series-by-key pj/draft :sub-drafts (mapv :share)))
 
 
 (deftest
- t126_l1169
+ t126_l1175
  (is
   ((fn [shares] (= [{:x {:group 0}} {:x {:group 0}}] shares))
-   v125_l1164)))
+   v125_l1170)))
 
 
 (def
- v128_l1179
+ v128_l1185
  (let
   [points (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
   (->>
@@ -836,17 +836,17 @@
     [{:where {:drv "f"}} {:where {:drv "4"}}]]
    (mapv
     (fn*
-     [p1__78632#]
-     (pj/composite-plan? (pj/plan (pj/arrange points p1__78632#))))))))
+     [p1__11205#]
+     (pj/composite-plan? (pj/plan (pj/arrange points p1__11205#))))))))
 
 
 (deftest
- t129_l1184
- (is ((fn [composite?] (= [false true] composite?)) v128_l1179)))
+ t129_l1190
+ (is ((fn [composite?] (= [false true] composite?)) v128_l1185)))
 
 
 (def
- v131_l1201
+ v131_l1209
  (kind/table
   {:column-names
    ["Mistake" "Reported by" "First sentence of the message"],
@@ -859,7 +859,7 @@
        (fn*
         []
         (pj/pose weekly-visits [[:week :adults] [:week :children]]))]
-      ["A key the map of pj/facet does not read"
+      ["A key pj/facet's map does not accept"
        (fn*
         []
         (->
@@ -928,7 +928,7 @@
 
 
 (deftest
- t132_l1247
+ t132_l1255
  (is
   ((fn
     [table]
@@ -938,16 +938,16 @@
       (repeat 4 "pj/pose->draft")
       (repeat 3 "pj/draft->plan"))
      (map second (:row-vectors table))))
-   v131_l1201)))
+   v131_l1209)))
 
 
 (def
- v134_l1263
+ v134_l1271
  (kind/mermaid
   "\ngraph LR\n  A[\"Pose + draft\"] -->|plan| P[\"Plan\"]\n  P --> R[\"membrane + plot\"]\n  style A fill:#e8f5e9\n  style P fill:#fff3e0\n  style R fill:#e3f2fd\n"))
 
 
 (def
- v136_l1354
+ v136_l1362
  (kind/mermaid
   "\ngraph TD\n  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]\n  API --> RES[\"impl/resolve.clj\"]\n  API --> PL[\"impl/plan.clj\"]\n  API --> COMP[\"impl/compositor.clj\"]\n  POSE --> RES\n  COMP --> POSE\n  COMP --> PL\n  PL --> RES\n  PL --> STAT[\"impl/stat.clj\"]\n  PL --> SCALE[\"impl/scale.clj\"]\n  PL --> DEFAULTS[\"impl/defaults.clj\"]\n  PL --> PS[\"impl/plan_schema.clj\"]\n  API --> RENDER[\"impl/render.clj\"]\n  RENDER --> SVG[\"render/svg.clj\"]\n  SVG --> MEMBRANE[\"render/membrane.clj\"]\n  MEMBRANE --> PANEL[\"render/panel.clj\"]\n  PANEL --> MARK[\"render/mark.clj\"]\n  PANEL --> SCALE\n  PANEL --> COORD[\"impl/coord.clj\"]\n  API --> RC[\"render/composite.clj\"]\n  RC --> MEMBRANE\n  style API fill:#c8e6c9\n  style COMP fill:#d1c4e9\n  style PL fill:#d1c4e9\n  style SVG fill:#f8bbd0\n  style MEMBRANE fill:#f8bbd0\n  style RC fill:#f8bbd0\n"))

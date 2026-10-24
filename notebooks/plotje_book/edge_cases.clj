@@ -595,8 +595,8 @@
 
 ;; ### A second column given to a layer type that draws from one column
 ;;
-;; A histogram, a density and a rug each draw from one column. A second
-;; column in the argument slots of the call reports an error:
+;; A histogram, a density and a rug each draw from one column. Naming a
+;; second column, in the arguments or in the mapping, reports an error:
 
 (try
   (-> {:x [1 2 3] :y [4 5 6]}
@@ -607,7 +607,7 @@
 (kind/test-last [(fn [m] (re-find #"lay-histogram draws from one column, and was given" m))])
 
 ;; A bar is not among these layer types: `(pj/lay-bar data :x :y)` draws
-;; one bar per category, as long as the category's `:y` value. To draw a
+;; a bar for each row, whose length is that row's `:y` value. To draw a
 ;; histogram on its side, name the column on `:y` in the layer's
 ;; mapping:
 

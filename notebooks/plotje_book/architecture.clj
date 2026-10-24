@@ -524,7 +524,8 @@ graph LR
 ;; - **Mapping inference** fills in `:x`, `:y` and `:color` from the
 ;;   first one to three columns of the data: one column to `:x`, two
 ;;   columns to `:x` and `:y`, and a third column to `:color`. It runs
-;;   at the start of `pj/pose->draft`, on every leaf, cells of a
+;;   in `pj/pose->draft`, after a facet over columns is expanded into
+;;   cells, on every leaf, cells of a
 ;;   composite included. It writes the default where neither the
 ;;   pose's mapping nor any layer names an `:x` or a `:y` column, and
 ;;   where the first layer names no column, whatever the later layers
@@ -583,12 +584,12 @@ graph LR
 
 ;; ### The columns a layer reads
 ;;
-;; One choice is made at the start of `pj/pose->draft`, by
-;; `pose/elaborate`: which columns a layer reads where it names none, or
-;; names one of two. A
-;; `pj/lay-*` call keeps its columns on its own layer, so the pose
-;; below has no mapping. Its panel's columns are those of the first
-;; layer naming one on each axis. `pose/elaborate` writes them into
+;; One choice is made in `pj/pose->draft`, after a facet over columns
+;; is expanded into cells, by `pose/elaborate`: which columns a layer
+;; reads where it names no column, or names a column on only one of the
+;; two axes. A `pj/lay-*` call keeps its columns on its own layer, so
+;; the pose below has no mapping. Its panel's columns are, on each axis,
+;; the column of the first layer that names a column on that axis. `pose/elaborate` writes them into
 ;; each layer that needs them, and the draft then merges the pose's
 ;; mapping and each layer's mapping by scope and nothing else:
 
@@ -617,10 +618,11 @@ graph LR
 ;; ask for. The panel's columns are written into the pose in one place,
 ;; a facet over columns: its cells are made from the panel's columns,
 ;; with the facet's column on the axis it names
-;; (`pose/expand-facet-nodes`, below). Elaboration writes two other
-;; things on the pose: the default mapping of data with one to three
-;; columns, and the flip of a column named on `:y` alone (see "A column
-;; on `:y` alone" below).
+;; (`pose/expand-facet-nodes`, below). Elaboration also writes into
+;; the pose's mapping the default mapping of data with one to three
+;; columns and the columns of a pivoted series, and it turns a column
+;; named on `:y` alone on its side (see "A column on `:y` alone"
+;; below).
 ;;
 ;; The panel's columns are also what a `pj/lay-*` call on a composite
 ;; compares its columns with, to find the cell the layer joins:
@@ -699,8 +701,8 @@ graph LR
 ;; A layer that draws only from two columns, or that names an `:x`,
 ;; keeps the pose as it is written, and the layer left with no `:x`
 ;; column is then reported. A `:coord` other than `:flip` on a pose that
-;; would be turned on its side reports an error, since the flip is the
-;; one drawing for it. A layer type of an extension takes part by
+;; would be turned on its side reports an error, since such a pose can
+;; be drawn only with the coordinates flipped. A layer type of an extension takes part by
 ;; declaring `:column-counts`.
 ;;
 ;; ### The color a layer is given
@@ -820,8 +822,8 @@ composite-pose
 ;; ## How Panels Share an Axis
 ;;
 ;; Panels that are meant to be compared are drawn on one axis: the same
-;; numbers, or the same categories, in every panel. Plotje reaches
-;; several panels by two paths, and both follow one rule: **a shared
+;; numbers, or the same categories, in every panel. Plotje draws
+;; several panels in two ways, and both follow one rule: **a shared
 ;; axis covers what the panels sharing it draw.**
 ;;
 ;; - A facet by the categories of a column is one plan with several
@@ -890,7 +892,9 @@ faceted-clinics
 ;; group. `:share-scales` is a set of axes, as above, or a map from an
 ;; axis to `:same-column`, to the columns that go together on that
 ;; axis, `{:y [[:hwy :cty]]}`, or to `:all`, `{:y :all}`, which puts
-;; every cell in one group.
+;; together every cell that draws the same kind of thing on that axis
+;; -- values with values, counts with counts, densities with
+;; densities.
 ;;
 ;; `:share-scales` names an axis as it is drawn: `:x` is the horizontal
 ;; axis. The groups are recorded by the axis of each cell's own
@@ -1017,8 +1021,9 @@ faceted-clinics
 ;; - **A specified domain.** A `:domain` that one cell specifies for the
 ;;   shared axis is the domain of every cell sharing that axis: every
 ;;   cell is planned as though it had specified that domain, so no cell
-;;   pads the domain. Cells that specify different domains for one
-;;   shared axis report an error.
+;;   pads the domain. On an axis of categories, the specified domain
+;;   sets the order of the pooled categories. Cells that specify
+;;   different domains for one shared axis report an error.
 ;; - **Text labels.** A cell's numeric domain is widened after planning
 ;;   so that its text marks are drawn in full, by an amount that depends
 ;;   on the cell's own labels. Cells of a group that end on different
@@ -1052,7 +1057,7 @@ faceted-clinics
 ;;
 ;; A facet over columns is kept on the pose as written, and expanded
 ;; into a composite of one cell per column. A series faceted by the key
-;; column the series invents asks for the same panels, so it is first
+;; column the series pivot adds asks for the same panels, so it is first
 ;; rewritten into a facet over the columns of the series, and then
 ;; expanded like any other, here on the weekly visits above:
 
@@ -1081,10 +1086,9 @@ series-by-key
             (mapv :mapping (mapcat :poses (:poses expanded))))))])
 
 ;; Each cell holds what the facet specified for it and nothing else. On
-;; the diagonal of a matrix, `{:col {:x cols} :row {:y cols}}`, the cell
-;; names its column on both axes, the map `pj/arrange` writes for the
-;; same cell, and a `nil` in a list of
-;; columns stays in the cell as a `nil`:
+;; the diagonal of a matrix, `{:col {:x cols} :row {:y cols}}`, a cell
+;; names one column on both axes, `{:x :adults :y :adults}`. A `nil` in
+;; a list of columns stays in the cell as a `nil`:
 
 (->> (-> weekly-visits
          pj/pose
@@ -1110,8 +1114,10 @@ series-by-key
 ;; whose layer type can draw from one column or from two, counts the
 ;; rows of each category of such a cell (`resolve/infer-layer-type`),
 ;; and reports an error for a numerical column, as
-;; `(pj/lay-bar data :adults)` does. A scatter draws the column against
-;; itself.
+;; `(pj/lay-bar data :adults)` does. Written on one pose,
+;; `(pj/lay-point data :adults :adults)`, a scatter draws the column
+;; against itself; in a cell of a facet it does not fit, and the cell is
+;; given a histogram.
 ;;
 ;; A cell that no layer fits is left with no layer, and elaboration
 ;; gives it the layer its columns choose. A layer that fits no cell is
@@ -1185,12 +1191,14 @@ series-by-key
 
 ;; ## Where a Mistake Is Reported
 ;;
-;; When a pose cannot be drawn, the step that reports the error says
+;; When a pose cannot be drawn, which step reports the error depends on
 ;; what the error depends on. A call reports what its own arguments
-;; decide. What depends on the other layers, on the columns the data
-;; has, or on the cells of a facet is reported by `pj/pose->draft`. A
-;; layer whose stat or mark cannot draw the values it is given, and
-;; panels too small for the canvas, are reported by `pj/draft->plan`.
+;; decide. `pj/pose->draft` reports what depends on which columns the
+;; data has, and on how the layers of a panel or the cells of a facet
+;; relate. `pj/draft->plan` reports what is known once a layer's stat
+;; and mark meet the values of its columns -- a bar given two
+;; categorical columns, a mark polar coordinates have no drawing for --
+;; and panels too small for the canvas.
 ;; So `pj/lay-point` naming a column the data lacks returns a pose, and
 ;; drafting that pose reports the column.
 ;;
@@ -1206,7 +1214,7 @@ series-by-key
           #(pj/lay-histogram weekly-visits :adults :children)]
          ["Pairs of columns given to pj/pose"
           #(pj/pose weekly-visits [[:week :adults] [:week :children]])]
-         ["A key the map of pj/facet does not read"
+         ["A key pj/facet's map does not accept"
           #(-> weekly-visits
                (pj/lay-point :week :adults)
                (pj/facet {:y [:adults :children] :z [:week]}))]
