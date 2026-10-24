@@ -3682,16 +3682,29 @@
   "The plot options written last in a `pj/facet` or `pj/facet-grid`
    call, given to `pj/options`. `:cols`, which a reader arriving from
    ggplot2's `facet_wrap` writes here, is named by the call it was
-   written in: a facet does not wrap its panels."
+   written in and the facet it wrote: a facet does not wrap its panels.
+   A `pj/facet` given both `:col` and `:row` draws a grid, and the
+   message says so."
   [pose opts caller]
-  (let [opts (if (and (map? opts) (contains? opts :cols))
+  (let [grid? (or (= caller "pj/facet-grid")
+                  (every? #(contains? (:mapping pose) %) [:col :row])
+                  (every? #(contains? (:facet pose) %) [:col :row]))
+        opts (if (and (map? opts) (contains? opts :cols))
                (let [msg (str caller " does not recognize [:cols]. "
-                              (if (= caller "pj/facet-grid")
+                              (cond
+                                (= caller "pj/facet-grid")
                                 (str "A grid has a column of panels for each value"
                                      " of its first column and a row for each value"
                                      " of its second; for another number of columns,")
-                                (str "A facet draws its panels in one row or one"
-                                     " column; for rows of panels,"))
+                                grid?
+                                (str "A facet over :col and :row draws a grid, with a"
+                                     " column of panels for each entry under :col and"
+                                     " a row for each entry under :row; for another"
+                                     " number of columns,")
+                                :else
+                                (str "A facet over one column draws its panels in"
+                                     " one row (:col) or one column (:row) and does"
+                                     " not wrap them; for rows of panels,"))
                               " arrange one pose per value with pj/arrange.")]
                  (if (:strict (defaults/config))
                    (throw (ex-info msg {:caller caller :unknown [:cols]}))
