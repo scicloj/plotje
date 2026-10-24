@@ -172,6 +172,8 @@ All notable changes to this project will be documented in this file. This change
 
 - A size or alpha legend at `:legend-position :top` or `:bottom` is drawn, each in a row of its own under the colour legend.
 
+- A straight line fitted with `{:stat :linear-model}` is drawn inside the panel: the axis covers the ends of the line where they reach past the data.
+
 - A colour column of strings whose values are all missing in one panel of a facet is read as categories there, so the facet keeps the legend.
 
 

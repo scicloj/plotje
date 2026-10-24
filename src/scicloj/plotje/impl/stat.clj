@@ -929,10 +929,15 @@
                        (when (and (>= (tc/row-count ds) 3)
                                   (not (near-constant? (ds x))))
                          (cond-> (fit-lm (ds x) (ds y))
-                           (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))]
-          {:lines (vec (remove nil? lines))
+                           (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
+              lines (vec (remove nil? lines))
+              ;; A fitted line can end above or below every row, so the
+              ;; axis covers its ends as well as the data.
+              [y-lo y-hi] (numeric-extent (clean y))
+              ends (mapcat (juxt :y1 :y2) lines)]
+          {:lines lines
            :x-domain (numeric-extent (clean x))
-           :y-domain (numeric-extent (clean y))})))
+           :y-domain [(reduce min y-lo ends) (reduce max y-hi ends)]})))
       dropped (assoc :too-few-rows dropped))))
 
 ;; ---- LOESS Smoothing ----
