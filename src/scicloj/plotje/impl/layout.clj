@@ -546,8 +546,10 @@
       (+ header
          ;; A gradient laid across: the bar and the labels under it.
          (* row-h (if legend-continuous? 2 (max 1 legend-entry-count)))
-         (* size-row-h size-legend-entry-count)
-         (* row-h alpha-legend-entry-count)))
+         ;; A size or an alpha legend is laid across in a row of its
+         ;; own under that one, as tall as its largest swatch.
+         (if (pos? size-legend-entry-count) size-row-h 0)
+         (if (pos? alpha-legend-entry-count) row-h 0)))
     0.0))
 
 (defn- end-label-reach

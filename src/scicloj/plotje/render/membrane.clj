@@ -216,6 +216,80 @@
                         entries)]
             elems)))))))
 
+(declare size-swatch-box fmt-legend-number)
+
+(defn- render-row-legend
+  "A size or alpha legend laid out left to right in one row of height
+   `row-h` starting at `y`: its title, then a swatch and a number for
+   each entry. `swatch` returns the drawable for one entry and its
+   width."
+  [legend swatch row-h x y cfg]
+  (let [{:keys [title entries]} legend
+        fsize (layout/legend-font-size cfg)
+        title-color [0.2 0.2 0.2 1.0]
+        mid (+ y (* 0.5 row-h))
+        text-y (- mid (* 0.5 fsize) 1)
+        title-w (if title (* (count (defaults/fmt-name title)) (layout/legend-scaled cfg 6)) 0)
+        start-x (if title (+ title-w 8) 0)]
+    (vec
+     (concat
+      (when title
+        [(assoc (ui/translate x text-y
+                              (ui/with-color title-color
+                                (ui/label (defaults/fmt-name title)
+                                          (ui/font nil (layout/legend-title-font-size cfg)))))
+                :legend true)])
+      (:elems
+       (reduce (fn [{:keys [elems cur-x]} entry]
+                 (let [[drawable w] (swatch entry)
+                       label (fmt-legend-number (:value entry) cfg)
+                       label-w (* (count label) (layout/legend-scaled cfg 6))]
+                   {:elems (conj elems
+                                 (assoc (ui/translate (+ x cur-x) mid drawable) :legend true)
+                                 (assoc (ui/translate (+ x cur-x w 4) text-y
+                                                      (ui/with-color title-color
+                                                        (ui/label label (ui/font nil fsize))))
+                                        :legend true))
+                    :cur-x (+ cur-x w 4 label-w 12)}))
+               {:elems [] :cur-x start-x}
+               entries))))))
+
+(defn- legends-under-row
+  "The size and alpha legends of a plot whose legend is at the top or
+   the bottom, each laid across in a row of its own below the row of
+   the colour (or shape) legend that starts at `y`. `row?` says whether
+   that row is drawn. The layout reserves the room
+   (`layout/pad-legend-h`)."
+  [size-legend alpha-legend row? x y cfg]
+  (let [step (layout/legend-row-step cfg)
+        size-y (+ y (if row? (- step 4) -6))
+        size-h (if size-legend (layout/size-legend-row-h size-legend cfg) 0)
+        alpha-y (+ size-y size-h)
+        swatch-color [0.4 0.4 0.4 1.0]
+        size-swatch (fn [{:keys [magnitude]}]
+                      (let [kind (or (:swatch size-legend) :circle)
+                            [w h] (size-swatch-box kind magnitude)]
+                        [(ui/translate 0 (- (* 0.5 h))
+                                       (ui/with-color swatch-color
+                                         (ui/with-style ::ui/style-fill
+                                           (ui/rounded-rectangle
+                                            w h (if (= :square kind) 0.0 (* 0.5 h))))))
+                         w]))
+        sw defaults/legend-swatch-size
+        alpha-swatch (fn [{:keys [alpha]}]
+                       [(ui/translate 0 (- (* 0.5 sw))
+                                      (ui/with-color [0.3 0.3 0.3 alpha]
+                                        (ui/with-style ::ui/style-fill
+                                          (ui/rounded-rectangle sw sw 1))))
+                        sw])]
+    (vec
+     (concat
+      (when size-legend
+        (render-row-legend size-legend size-swatch size-h x size-y cfg))
+      (when alpha-legend
+        (render-row-legend alpha-legend alpha-swatch (layout/legend-row-step cfg)
+                           x alpha-y cfg))))))
+
 (defn- shape-legend-as-categorical
   "A shape legend recast in the categorical-legend shape the horizontal
    renderer consumes: each entry gains the default mark color, which is
@@ -598,15 +672,17 @@
                     ;; The reserved band runs from the title down to the
                     ;; panels; draw into it at the same inset the bottom
                     ;; legend takes from the top of its own band.
-                    (let [legend-y (+ title-pad 8)]
-                      (if-let [l (or legend (shape-legend-as-categorical shape-legend cfg))]
-                        (render-legend-horizontal l (+ y-label-pad 10) legend-y cfg)
-                        []))
+                    (let [legend-y (+ title-pad 8)
+                          l (or legend (shape-legend-as-categorical shape-legend cfg))]
+                      (into (if l (render-legend-horizontal l (+ y-label-pad 10) legend-y cfg) [])
+                            (legends-under-row size-legend alpha-legend (some? l)
+                                               (+ y-label-pad 10) legend-y cfg)))
                     :bottom
-                    (let [bottom-y (- total-height (or legend-h 30) -8)]
-                      (if-let [l (or legend (shape-legend-as-categorical shape-legend cfg))]
-                        (render-legend-horizontal l (+ y-label-pad 10) bottom-y cfg)
-                        []))
+                    (let [bottom-y (- total-height (or legend-h 30) -8)
+                          l (or legend (shape-legend-as-categorical shape-legend cfg))]
+                      (into (if l (render-legend-horizontal l (+ y-label-pad 10) bottom-y cfg) [])
+                            (legends-under-row size-legend alpha-legend (some? l)
+                                               (+ y-label-pad 10) bottom-y cfg)))
                     ;; Fallback to right
                     (when legend
                       (render-legend-from-plan legend legend-x base-y cfg))))))
