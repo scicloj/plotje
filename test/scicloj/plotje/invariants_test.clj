@@ -27,25 +27,10 @@
 
 ;; ---------------------------------------------------------------- known defects
 
-(defn- all-steps [rec] (concat (:steps rec) (mapcat all-steps (:cells rec))))
-
-(defn- grouped-dataset? [{:keys [rec]}]
-  (or (= :grouped (:ds rec)) (some #(= :grouped (:ds %)) (:cells rec))))
-
-(defn- no-layer-anywhere? [{:keys [rec]}]
-  (not-any? (fn [[f]] (str/starts-with? (name f) "lay-")) (all-steps rec)))
-
 (def known-defects
   "Invariant to a list of known defects, each a name and a predicate on a
    result. A violation matching one is printed and does not fail."
-  {:no-raw-exception
-   [{:defect "a grouped dataset fails inside Tablecloth (defects-stats-and-data 11, question 6)"
-     :match? grouped-dataset?}]
-   :no-silent-nothing
-   [{:defect "a grouped dataset under a facet draws a blank figure (defects-stats-and-data 11, question 6)"
-     :match? grouped-dataset?}
-    {:defect "a pose with no layer on data of four or more columns draws a blank figure (defects-layers-and-columns 8)"
-     :match? no-layer-anywhere?}]})
+  {})
 
 ;; ---------------------------------------------------------------- reporting
 

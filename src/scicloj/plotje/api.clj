@@ -582,6 +582,18 @@
   [d]
   (cond
     (nil? d)         nil
+    ;; A grouped dataset is a dataset of groups: `tc/row-count` answers
+    ;; the number of groups, and `tc/add-column` adds to each group. The
+    ;; plan read it as rows and failed inside Tablecloth on the size of
+    ;; a column, naming neither the data nor the grouping.
+    (and (tc/dataset? d) (tc/grouped? d))
+    (throw (ex-info (str "The data is a grouped dataset, the result of"
+                         " tc/group-by, which holds one row per group. A"
+                         " plot is drawn from the rows of a dataset:"
+                         " ungroup it first -- (tc/ungroup data). To tell"
+                         " the groups apart in the plot, map the grouping"
+                         " column to :color or :group, or facet by it.")
+                    {:groups (tc/row-count d)}))
     (tc/dataset? d)  d
     ;; A map whose value is itself a map is not a map of columns. It is
     ;; nearly always a pose written by hand without the key that marks
@@ -2382,7 +2394,25 @@
                                 (identity-columns (:mapping bare-layer)
                                                   (or (:data bare-layer)
                                                       (:data fr))))
-]
+        ;; The same request as a `:y` column in the argument slot, which
+        ;; `lay-layer-type` reports: a histogram or a density draws from
+        ;; one column and computes what it draws on `:y`. Written in the
+        ;; map, the second column was not read and titled the count
+        ;; axis. A rug is left alone: `{:side :both}` reads a `:y`.
+        _ (when (and (x-only? layer-type-key)
+                     (:y (stat/computes {:stat (:stat (layer-type/lookup layer-type-key))}))
+                     (contains? position-mapping :x)
+                     (contains? position-mapping :y))
+            (throw (ex-info (str "lay-" (layer-type-name layer-type-key)
+                                 " draws from one column, and this call names two: :x "
+                                 (pr-str (pose/mapping-source (:x position-mapping)))
+                                 " and :y "
+                                 (pr-str (pose/mapping-source (:y position-mapping)))
+                                 ". Name one column -- on :x, or on :y alone to draw it"
+                                 " on its side.")
+                            {:layer-type layer-type-key
+                             :x (pose/mapping-source (:x position-mapping))
+                             :y (pose/mapping-source (:y position-mapping))})))]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
       ;; The resolved flag rides onto the layer: it lands on a cell whose

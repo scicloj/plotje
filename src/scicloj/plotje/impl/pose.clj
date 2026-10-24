@@ -5401,6 +5401,20 @@
         ;; the split -- a faceted leaf has many panels and no disagreement
         ;; to report.
         _            (check-shared-panel! leaf)
+        ;; A pose with data, no layer and no column named, on data too
+        ;; wide for a default mapping, draws nothing. Said here, where
+        ;; `(-> data pj/lay-point)` on the same data reports that no
+        ;; column is read by default; without it the figure is blank
+        ;; and nothing says why.
+        _            (when (and leaf-data (empty? applicable))
+                       (let [cols (tc/column-names (coerce-dataset leaf-data))]
+                         (println (str "Note: this pose draws nothing. It names no column on :x"
+                                       " or :y and has no layer, and its data has "
+                                       (count cols) " columns, so none is read by default."
+                                       " Name the columns to draw -- (pj/pose data :x-column"
+                                       " :y-column) -- or add a layer that names them."
+                                       " Available columns: "
+                                       (vec (sort-by str cols))))))
         ;; What tells the overlaid layers apart, where they disagree
         ;; about a column and the writer has not said. Written as a
         ;; value read through the scale, which is the form that draws

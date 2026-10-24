@@ -1490,7 +1490,22 @@
                           #"pj/lay-density draws from one column, and was given :x on :x and :y on :y"
                           (pj/lay-density {:x [1 2 3] :y [4 5 6]} :x :y))))
   (testing "histogram with opts (not :y) still works"
-    (is (some? (pj/lay-histogram {:x [1 2 3 4 5]} :x {:color :x})))))
+    (is (some? (pj/lay-histogram {:x [1 2 3 4 5]} :x {:color :x}))))
+  (testing "two columns written in the map are reported as two in the arguments are"
+    ;; The map form drew counts on an axis titled with the :y column.
+    (doseq [lay [pj/lay-histogram pj/lay-density]]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"draws from one column, and this call names two: :x :a and :y :b"
+                            (lay {:a [1 2 3] :b [4 5 6]} {:x :a :y :b})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"draws from one column, and this call names two"
+                            (lay {:a [1 2 3] :b [4 5 6]} :a {:y :b}))))
+    (testing "one column, on either axis, is accepted"
+      (is (some? (pj/plan (pj/lay-histogram {:a [1 2 3] :b [4 5 6]} {:x :a}))))
+      (is (some? (pj/plan (pj/lay-histogram {:a [1 2 3] :b [4 5 6]} {:y :b})))))
+    (testing "a pose naming two columns still takes a histogram, and a rug still reads a :y"
+      (is (some? (pj/plan (-> {:a [1 2 3] :b [4 5 6]} (pj/pose :a :b) pj/lay-histogram))))
+      (is (some? (pj/plan (pj/lay-rug {:a [1 2 3] :b [4 5 6]} {:x :a :y :b :side :both})))))))
 
 (deftest multiple-layers-test
   (testing "plan with point + line layers"
