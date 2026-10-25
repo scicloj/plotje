@@ -5,6 +5,13 @@
             [clojure2d.color :as c]
             [scicloj.kindly.v4.api :as kindly]))
 
+(def ^:dynamic *report-removed-rows?*
+  "Whether `report-removed-rows!` prints. A composite plans its cells
+   more than once -- measuring what each draws, then planning, then
+   planning again to align them -- and drops the same rows each time;
+   it reports them on one pass and binds this false for the others."
+  true)
+
 (defn report-removed-rows!
   "Say that rows were removed before the plot was drawn, and why.
 
@@ -22,7 +29,7 @@
    Marks dropped at render time -- a bar with no height on a log scale
    -- are counted in bars rather than rows and say so themselves."
   [n reason]
-  (when (pos? n)
+  (when (and (pos? n) *report-removed-rows?*)
     (println (str "Warning: Removed " n (if (= 1 n) " row " " rows ") reason "."))))
 
 ;; ---- Palette and Theme ----

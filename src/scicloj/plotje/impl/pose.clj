@@ -948,13 +948,16 @@
           ;; Nor where a column drawn here is drawn on the other axis by
           ;; another cell: a marginal on the right draws the panel's
           ;; `:y` column along its own `:x` under a flip, and the two
-          ;; agree by each taking that column's extent.
-          :let [other (set (keys (dissoc (axis-buckets subtree (if (= axis :x) :y :x)) nil)))]
+          ;; agree by each taking that column's extent. A count is
+          ;; left out of that test: the column it counts is always on
+          ;; the other axis, the bars' own.
+          :let [other (set (keys (dissoc (axis-buckets subtree (if (= axis :x) :y :x)) nil)))
+                drawn-columns (remove counted-key? drawn-keys)]
           :when (and (< 1 (count buckets))
                      (not-any? #(next (:pairs %)) buckets)
                      (every? #(= 1 (count %))
                              (vals (dissoc (axis-buckets subtree axis) nil)))
-                     (not-any? other drawn))
+                     (not-any? other drawn-columns))
           ;; A group of these columns, or `:all`, is suggested only
           ;; where it would be accepted: the cells are checked as
           ;; `validate-share-bucket-compatibility!` would check them
@@ -1466,8 +1469,16 @@
              (when-not (contains? col-names col)
                (not-found! k col true))
              (when-let [types (heterogeneous-types (col-lookup col))]
-               (throw (ex-info (str "Column " col " (from " k ") has mixed value types: " (vec types)
-                                    ". Convert it to a single type (number, string, etc.) before plotting.")
+               ;; A series' value column is the writer's columns stacked;
+               ;; it is named by them (`pivot-mapping`).
+               (throw (ex-info (if-let [cols (:plotje/series-of (meta (col-lookup col)))]
+                                 (str "The series " (pr-str cols) " on " k " holds values of"
+                                      " different types: " (vec types) ". Its columns are"
+                                      " drawn on one axis; convert them to a single type,"
+                                      " or draw each on a panel of its own with"
+                                      " (pj/facet pose " (pr-str (:plotje/series-key (meta (col-lookup col)))) ").")
+                                 (str "Column " col " (from " k ") has mixed value types: " (vec types)
+                                      ". Convert it to a single type (number, string, etc.) before plotting."))
                                {:key k :column col :types types})))
              ;; Whether a column of this aesthetic can be drawn at all.
              ;; `:scale-default` says what the reading would mean and
@@ -2130,42 +2141,46 @@
         ;; `:domain` specifies (`panel-order`). A key is a tuple, one
         ;; value per column.
         ordered (fn [aesthetic refs ks domain]
-                  (panel-order aesthetic refs first (distinct ks) domain))]
-    (cond
-      (not (or crefs rrefs))
-      [{:data ds}]
+                  (panel-order aesthetic refs first (distinct ks) domain))
+        variants (cond
+                   (not (or crefs rrefs))
+                   [{:data ds}]
 
-      (and crefs rrefs)
-      (let [ck (facet-keys ds :col crefs)
-            rk (facet-keys ds :row rrefs)
-            rows (rows-by-key (mapv vector ck rk))
-            ;; Ordered once, outside the loop over the columns, so a
-            ;; warning about the domain is printed once.
-            rvs (ordered :row rrefs rk row-domain)]
-        (vec
-         (for [cv (ordered :col crefs ck col-domain)
-               rv rvs]
-           ;; A combination the data does not hold keeps its panel,
-           ;; with no rows.
-           {:data (tc/select-rows ds (get rows [cv rv] []))
-            :facet-col (facet-label cv)
-            :facet-row (facet-label rv)})))
+                   (and crefs rrefs)
+                   (let [ck (facet-keys ds :col crefs)
+                         rk (facet-keys ds :row rrefs)
+                         rows (rows-by-key (mapv vector ck rk))
+                         ;; Ordered once, outside the loop over the columns, so a
+                         ;; warning about the domain is printed once.
+                         rvs (ordered :row rrefs rk row-domain)]
+                     (vec
+                      (for [cv (ordered :col crefs ck col-domain)
+                            rv rvs]
+                        ;; A combination the data does not hold keeps its panel,
+                        ;; with no rows.
+                        {:data (tc/select-rows ds (get rows [cv rv] []))
+                         :facet-col (facet-label cv)
+                         :facet-row (facet-label rv)})))
 
-      crefs
-      (let [ck (facet-keys ds :col crefs)
-            rows (rows-by-key ck)]
-        (vec
-         (for [cv (ordered :col crefs ck col-domain)]
-           {:data (tc/select-rows ds (rows cv))
-            :facet-col (facet-label cv)})))
+                   crefs
+                   (let [ck (facet-keys ds :col crefs)
+                         rows (rows-by-key ck)]
+                     (vec
+                      (for [cv (ordered :col crefs ck col-domain)]
+                        {:data (tc/select-rows ds (rows cv))
+                         :facet-col (facet-label cv)})))
 
-      rrefs
-      (let [rk (facet-keys ds :row rrefs)
-            rows (rows-by-key rk)]
-        (vec
-         (for [rv (ordered :row rrefs rk row-domain)]
-           {:data (tc/select-rows ds (rows rv))
-            :facet-row (facet-label rv)}))))))
+                   rrefs
+                   (let [rk (facet-keys ds :row rrefs)
+                         rows (rows-by-key rk)]
+                     (vec
+                      (for [rv (ordered :row rrefs rk row-domain)]
+                        {:data (tc/select-rows ds (rows rv))
+                         :facet-row (facet-label rv)}))))]
+    ;; Data of no rows holds no value to facet by. It draws one panel,
+    ;; reading "no data", as the same pose with no facet does, rather
+    ;; than no panel and an empty image.
+    (if (seq variants) variants [{:data ds}])))
 
 (defn- mapping-scale-spec
   "The scale spec a mapping states, or nil where it states none.
@@ -2705,6 +2720,27 @@
                            available ".")
                       {:caller caller :missing missing :columns available})))))
 
+(defn- check-pair-column-kinds!
+  "Throw where the columns one side of a pair of series names hold
+   different kinds of value. They become one value column, which holds
+   one kind; checked here so the message names the columns written, not
+   the value column the pivot invents."
+  [caller ds cols]
+  (let [numerical (set (tc/column-names ds :type/numerical))
+        temporal (set (tc/column-names ds :type/datetime))
+        kind (fn [c] (cond (numerical c) :numerical
+                           (temporal c) :temporal
+                           :else :categorical))
+        kinds (into {} (map (juxt identity kind)) cols)]
+    (when (next (distinct (vals kinds)))
+      (throw (ex-info (str caller " was given " (pr-str (vec cols))
+                           " to read as series in pairs, and their values are"
+                           " of different kinds: " (pr-str kinds) ". The"
+                           " columns become one value column, so they must"
+                           " all be numerical, all temporal or all"
+                           " categorical.")
+                      {:caller caller :columns (vec cols) :kinds kinds})))))
+
 (defn- check-single-series!
   "Throw where one series cannot be pivoted out of `ds`: its columns
    (see `check-series-columns!`), an `:as` naming the value column, or
@@ -2780,27 +2816,6 @@
        (str "with a missing value among the columns read as series ("
             (str/join ", " (map pr-str cols)) ")"))
       pivoted)))
-
-(defn- check-pair-column-kinds!
-  "Throw where the columns one side of a pair of series names hold
-   different kinds of value. They become one value column, which holds
-   one kind; checked here so the message names the columns written, not
-   the value column the pivot invents."
-  [caller ds cols]
-  (let [numerical (set (tc/column-names ds :type/numerical))
-        temporal (set (tc/column-names ds :type/datetime))
-        kind (fn [c] (cond (numerical c) :numerical
-                           (temporal c) :temporal
-                           :else :categorical))
-        kinds (into {} (map (juxt identity kind)) cols)]
-    (when (next (distinct (vals kinds)))
-      (throw (ex-info (str caller " was given " (pr-str (vec cols))
-                           " to read as series in pairs, and their values are"
-                           " of different kinds: " (pr-str kinds) ". The"
-                           " columns become one value column, so they must"
-                           " all be numerical, all temporal or all"
-                           " categorical.")
-                      {:caller caller :columns (vec cols) :kinds kinds})))))
 
 (defn- series-pairs-label
   "The key column a pair of series names: the `:as` either names, or the
@@ -2969,6 +2984,17 @@
         pivoted (if pairs?
                   (pivot-series-pairs ds (:x specs) (:y specs))
                   (pivot-series ds (get specs (first ks))))
+        ;; The key column holds column names, and a message about it --
+        ;; grouping by it, in `impl.plan` -- names the columns written.
+        ;; Column metadata travels with the column through row selection.
+        tag {:plotje/series-of (vec (mapcat :cols (vals specs)))
+             :plotje/series-key label}
+        pivoted (reduce (fn [ds c]
+                          (if-let [col (get ds c)]
+                            (assoc ds c (vary-meta col merge tag))
+                            ds))
+                        pivoted
+                        (cons label (series-value-columns)))
         ;; `:from` rather than `:column`, so that a series reading
         ;; through a scale names the invented column as a plain one does.
         ;; A title names the columns the writer wrote, never the one the
@@ -4845,7 +4871,16 @@
                                  (mapv idxs kept))
                                (rows-where col v))))
                          nil
-                         w)]
+                         w)
+            ;; Each value is in its column, and no row holds them all.
+            _ (when (and (next w) (empty? absent) (empty? empty-sets)
+                         idxs (empty? idxs))
+                (let [msg (str "A row filter " (pr-str w) " selects no rows:"
+                               " each value is in its column, and no row holds"
+                               " them all.")]
+                  (if (:strict (defaults/config))
+                    (throw (ex-info msg {:where w}))
+                    (println (str "Warning: " msg)))))]
         (-> pose
             (assoc :data (if idxs (tc/select-rows ds idxs) ds))
             (dissoc :where)))

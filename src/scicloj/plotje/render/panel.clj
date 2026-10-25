@@ -325,8 +325,12 @@
         coord-px (coord/make-coord-px coord-type sx sy pw ph m)
 
         ;; A polar panel draws its tick labels around the circle
-        ;; (`render-polar-tick-labels`), not along the edges.
-        polar-x? (and show-x? (= :polar coord-type))
+        ;; (`render-polar-tick-labels`), not along the edges. The angle
+        ;; is read around each panel's own circle, so its labels are
+        ;; drawn in every panel of a facet, not on the bottom row only;
+        ;; the radius, read off the left edge, keeps the outer-panel
+        ;; rule, as in ggplot2.
+        polar-x? (= :polar coord-type)
         polar-y? (and show-y? (= :polar coord-type))
         show-x? (and show-x? (coord/show-ticks? coord-type))
         show-y? (and show-y? (coord/show-ticks? coord-type))

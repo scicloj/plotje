@@ -792,8 +792,8 @@
 ;; bar at the bottom instead of the top.
 ;;
 ;; **Cause**: `coord :flip` draws categories bottom-to-top in the
-;; order they appear in the data (matching ggplot2's
-;; `coord_flip()`).
+;; order they appear in the data. ggplot2's `coord_flip()` also runs
+;; bottom to top, in the order of the factor levels.
 ;;
 ;; Descending data plotted as-is -- "A" (the biggest) renders at
 ;; the bottom, not the top:

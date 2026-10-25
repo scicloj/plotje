@@ -762,8 +762,9 @@
                      (if (= 1 n) " row" " rows"))
                  " of cells")
             "its cells")
-          ", and the cell's labels and legend take " (r overhead) " (" breakdown
-          "). An arrangement keeps its " dim " however many cells it holds."
+          ", and the cell's labels and legend take " (r overhead)
+          (when breakdown (str " (" breakdown ")"))
+          ". An arrangement keeps its " dim " however many cells it holds."
           " Give the arrangement more " dim ", as in (pj/arrange cells {:" dim " ...})"
           " or (pj/options arrangement {:" dim " ...})"
           (if across?
@@ -805,6 +806,7 @@
    from a representative leaf draft (eliminating the rep-leaf-plan
    N+1 issue from the round-2 internals review)."
   [composite-draft]
+  (binding [defaults/*report-removed-rows?* false]
   (let [{:keys [width height sub-drafts chrome-spec layout]} composite-draft
         ;; The cells sharing an axis are measured and pooled first, and
         ;; every later pass plans a cell with its pooled extent.
@@ -836,7 +838,10 @@
         ;; second, aligning pass would raise them all again, so its
         ;; are dropped.
         warnings (atom [])
-        first-pass (binding [plan/*unread-option-warnings* warnings]
+        ;; The one pass that reports the rows each cell drops; the
+        ;; others, before it and after, drop the same rows again.
+        first-pass (binding [plan/*unread-option-warnings* warnings
+                             defaults/*report-removed-rows?* true]
                      (mapv plan-sub sub-drafts))
         ;; A cell beside a legend keeps its y tick labels, and is
         ;; planned again with them.
@@ -1033,5 +1038,4 @@
            ;; figure with no title and zero outer dimensions.
            :total-width width
            :total-height height
-           :title (:title chrome))))
-
+           :title (:title chrome)))))

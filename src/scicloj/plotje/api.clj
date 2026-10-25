@@ -916,6 +916,14 @@
       (defaults/renamed-to k)
       (str "Renamed to " (defaults/renamed-to k))
 
+      ;; `:where` is a key of the pose map itself, which no function
+      ;; but `pj/arrange` writes.
+      (= :where k)
+      (str "A row filter is written on a cell of pj/arrange, as in"
+           " (pj/arrange pose [{:where {:drv \"f\"}}]), or on the pose"
+           " map, (assoc pose :where {:drv \"f\"}); tc/select-rows"
+           " filters the data itself")
+
       (dedicated-function-keys k)
       (str "Set by " (dedicated-function-keys k) ", not by an options map")
 
@@ -1422,9 +1430,13 @@
                      :else
                      (throw (ex-info
                              (str "pj/arrange appends columns and pairs of columns"
-                                  " to a composite pose, and " (pr-str item)
-                                  " is neither. Write a column, as :a, or a pair"
-                                  " of columns, as [:a :b].")
+                                  " to a composite pose, and "
+                                  (if (pose? item)
+                                    (str "was given a pose. To place a pose beside a"
+                                         " composite, arrange the two:"
+                                         " (pj/arrange [composite pose]).")
+                                    (str (pr-str item) " is neither. Write a column,"
+                                         " as :a, or a pair of columns, as [:a :b].")))
                              {:item item :cols-or-pairs cols-or-pairs}))))
         cells    (mapv cell-of items)]
     (if-let [rows (and (seq items) (every? sequential? items) (pairs->rows items))]
@@ -2245,6 +2257,8 @@
               (layer-type/registered))
         layer-type-key)))
 
+(declare check-one-column-layer! identity-columns)
+
 (defn lay
   "Add a root-scope layer. The layer attaches to `:layers` and flows to
    every descendant leaf at plan time (composite) or renders on the
@@ -2258,8 +2272,13 @@
   ([pose-or-data layer-type-key mapping]
    (let [layer-type-key (lay-layer-type-key layer-type-key)]
      (validate-lay-layer-type-key layer-type-key)
-     (let [layer (build-layer layer-type-key mapping)]
-       (update (->pose pose-or-data "pj/lay") :layers (fnil conj []) layer)))))
+     (let [layer (build-layer layer-type-key mapping)
+           fr (->pose pose-or-data "pj/lay")]
+       (when (keyword? layer-type-key)
+         (check-one-column-layer! layer-type-key
+                                  (identity-columns (:mapping layer)
+                                                    (or (:data layer) (:data fr)))))
+       (update fr :layers (fnil conj []) layer)))))
 
 (defn- x-only?
   "True if layer-type-key is registered as x-only (rejects :y column)."
@@ -2354,6 +2373,25 @@
 
 (declare one-column-layer-given-two-message)
 
+(defn- check-one-column-layer!
+  "Throw where a layer type that draws from one column and computes
+   what it draws on `:y` -- a histogram, a density -- is given a column
+   on both `:x` and `:y`, in `position-mapping`. Asked by `pj/lay` and
+   by every `lay-*` call alike. A rug is left alone: `{:side :both}`
+   reads a `:y`."
+  [layer-type-key position-mapping]
+  (when (and (x-only? layer-type-key)
+             (:y (stat/computes {:stat (:stat (layer-type/lookup layer-type-key))}))
+             (contains? position-mapping :x)
+             (contains? position-mapping :y))
+    (throw (ex-info (one-column-layer-given-two-message
+                     layer-type-key
+                     (pose/mapping-source (:x position-mapping))
+                     (pose/mapping-source (:y position-mapping)))
+                    {:layer-type layer-type-key
+                     :x (pose/mapping-source (:x position-mapping))
+                     :y (pose/mapping-source (:y position-mapping))}))))
+
 (defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
@@ -2403,17 +2441,7 @@
         ;; one column and computes what it draws on `:y`. Written in the
         ;; map, the second column was not read and titled the count
         ;; axis. A rug is left alone: `{:side :both}` reads a `:y`.
-        _ (when (and (x-only? layer-type-key)
-                     (:y (stat/computes {:stat (:stat (layer-type/lookup layer-type-key))}))
-                     (contains? position-mapping :x)
-                     (contains? position-mapping :y))
-            (throw (ex-info (one-column-layer-given-two-message
-                             layer-type-key
-                             (pose/mapping-source (:x position-mapping))
-                             (pose/mapping-source (:y position-mapping)))
-                            {:layer-type layer-type-key
-                             :x (pose/mapping-source (:x position-mapping))
-                             :y (pose/mapping-source (:y position-mapping))})))]
+        _ (check-one-column-layer! layer-type-key position-mapping)]
     (cond
       (and (pose/composite? fr) (seq position-mapping))
       ;; The resolved flag rides onto the layer: it lands on a cell whose
@@ -3329,11 +3357,19 @@
                          :option :scales
                          :value v
                          :accepted (set (keys defaults/retired-scales))})))
-      (let [msg (if to
+      (let [msg (cond
+                  (contains? opts :share-scales)
+                  (str caller ": :scales is retired, and is dropped: the"
+                       " :share-scales written beside it says which axes the"
+                       " panels share. Remove {:scales " v "}.")
+
+                  to
                   (str caller ": :scales is retired. {:scales " v "} is read as"
                        " {:share-scales " (pr-str to) "} for now -- :share-scales"
                        " names the axes the panels share. Write {:share-scales "
                        (pr-str to) "}.")
+
+                  :else
                   (str caller ": :scales is retired. {:scales " v "} asked for"
                        " the default, so it is dropped. Remove it; to say which"
                        " axes the panels share, write :share-scales."))]
@@ -3343,6 +3379,56 @@
       (cond-> (dissoc opts :scales)
         (and to (not (contains? opts :share-scales))) (assoc :share-scales to)))))
 
+(defn- options*
+  "`pj/options`, with `caller` -- the function the writer called, such
+   as `pj/facet` given options last -- named in its messages."
+  [caller pose opts]
+  (when-not (or (nil? opts) (map? opts))
+    (throw (ex-info (str caller " expects a map of options as the second"
+                         " argument, got " (pr-str (type opts)) ": "
+                         (pr-str opts) ". Wrap plot-level options in"
+                         " a map, e.g. {:title \"...\" :width 800}.")
+                    {:caller caller :value opts})))
+  (let [fr (->pose pose caller)
+        opts (retire-scales caller opts)
+        opts (warn-and-strip-unknown-opts caller opts plot-options-keys)
+        opts (reduce (fn [m k]
+                       (if-let [v (get m k)]
+                         (do
+                           (when-not (number? v)
+                             (throw (ex-info (str caller " " k " must be a number, got "
+                                                  (pr-str (type v)) ": " (pr-str v) ".")
+                                             {:caller caller :option k :value v :type (type v)})))
+                           (let [rounded (long (Math/round (double v)))]
+                             (when-not (pos? rounded)
+                               (throw (ex-info (str caller " " k " must round to a positive integer, got: "
+                                                    (pr-str v) " (rounds to " rounded ")")
+                                               {:caller caller :option k :value v :rounded rounded})))
+                             (assoc m k rounded)))
+                         m))
+                     opts
+                     [:width :height])]
+    ;; Read as a number where the legend is laid out; anything else
+    ;; failed there with a cast error that named no option.
+    (when-let [v (:legend-font-size opts)]
+      (when-not (and (number? v) (pos? v))
+        (throw (ex-info (str caller " :legend-font-size must be a positive"
+                             " number, got " (pr-str v) ".")
+                        {:caller caller :option :legend-font-size :value v}))))
+    (when-let [pos (:legend-position opts)]
+      (when-not (contains? valid-legend-positions pos)
+        (throw (ex-info (str caller " :legend-position must be one of "
+                             (vec (sort valid-legend-positions))
+                             ", got: " (pr-str pos) ".")
+                        {:caller caller
+                         :option :legend-position
+                         :value pos
+                         :accepted valid-legend-positions}))))
+    (when (contains? opts :share-scales)
+      (defaults/check-share-scales! caller (:share-scales opts)))
+    (update-opts fr deep-merge opts)))
+
+
 (defn options
   "Set plot-level options (title, labels, width, height, etc.).
    Nested maps (e.g. `:theme`) are deep-merged.
@@ -3351,43 +3437,7 @@
    the options attach to the root so every descendant leaf inherits
    them at plan time."
   [pose opts]
-  (when-not (or (nil? opts) (map? opts))
-    (throw (ex-info (str "pj/options expects a map of options as the second"
-                         " argument, got " (pr-str (type opts)) ": "
-                         (pr-str opts) ". Wrap plot-level options in"
-                         " a map, e.g. {:title \"...\" :width 800}.")
-                    {:caller "pj/options" :value opts})))
-  (let [fr (->pose pose "pj/options")
-        opts (retire-scales "pj/options" opts)
-        opts (warn-and-strip-unknown-opts "pj/options" opts plot-options-keys)
-        opts (reduce (fn [m k]
-                       (if-let [v (get m k)]
-                         (do
-                           (when-not (number? v)
-                             (throw (ex-info (str "pj/options " k " must be a number, got "
-                                                  (pr-str (type v)) ": " (pr-str v) ".")
-                                             {:caller "pj/options" :option k :value v :type (type v)})))
-                           (let [rounded (long (Math/round (double v)))]
-                             (when-not (pos? rounded)
-                               (throw (ex-info (str "pj/options " k " must round to a positive integer, got: "
-                                                    (pr-str v) " (rounds to " rounded ")")
-                                               {:caller "pj/options" :option k :value v :rounded rounded})))
-                             (assoc m k rounded)))
-                         m))
-                     opts
-                     [:width :height])]
-    (when-let [pos (:legend-position opts)]
-      (when-not (contains? valid-legend-positions pos)
-        (throw (ex-info (str "pj/options :legend-position must be one of "
-                             (vec (sort valid-legend-positions))
-                             ", got: " (pr-str pos) ".")
-                        {:caller "pj/options"
-                         :option :legend-position
-                         :value pos
-                         :accepted valid-legend-positions}))))
-    (when (contains? opts :share-scales)
-      (defaults/check-share-scales! "pj/options" (:share-scales opts)))
-    (update-opts fr deep-merge opts)))
+  (options* "pj/options" pose opts))
 
 (defn- column-argument
   "Read an argument that names a column and nothing else.
@@ -3711,7 +3761,7 @@
                    (println (str "Warning: " msg)))
                  (dissoc opts :cols))
                opts)]
-    (options pose opts)))
+    (options* caller pose opts)))
 
 (defn- facet-with-direction
   "`pj/facet` given a column and a direction, a form retired in favour
@@ -3802,6 +3852,9 @@
    A map of plot options may come last, and is what `pj/options` takes:
    `(pj/facet my-pose :species {:share-scales #{:x}})` is
    `(-> my-pose (pj/facet :species) (pj/options {:share-scales #{:x}}))`."
+  ;; The retired `direction` argument is still read, and warns; the
+  ;; arglists show the calls to write.
+  {:arglists '([pose col] [pose col options])}
   ([pose col]
    (if (and (map? col) (not (contains? col :column)))
      (facet-map pose col)
@@ -4724,6 +4777,24 @@
                   c)))
           cells)))
 
+(defn- pose-shorthand-cells
+  "Rewrite each cell written `[pose :a]` or `[pose :a :b]`, at any depth
+   of rows, into that pose with those columns; leave every other cell
+   as it is."
+  [cells]
+  (if (sequential? cells)
+    (mapv (fn [c]
+            (cond
+              (and (sequential? c) (<= 2 (count c) 3) (pose? (first c))
+                   (every? column-ref? (rest c)))
+              (apply pose c)
+
+              (sequential? c) (pose-shorthand-cells c)
+
+              :else c))
+          cells)
+    cells))
+
 (defn- check-arrange-arguments!
   "Report cells given one by one, `(pj/arrange a b)`, and an options
    argument that is no options map. The cell list is one sequential
@@ -4760,6 +4831,18 @@
                                " the options with pj/options:"
                                " (-> composite (pj/arrange cells) (pj/options {...})).")
                           {:caller "pj/arrange" :opts opts})))
+        ;; A column appended to a composite is read from the data at
+        ;; its root; cells carrying data of their own leave none there.
+        (when (and (nil? (:data p))
+                   (some #(or (column-ref? %) (sequential? %)) cells))
+          (throw (ex-info (str "pj/arrange appends columns to a composite pose"
+                               " by reading them from the composite's data, and"
+                               " this composite has none: its cells carry their"
+                               " own. Give the data first and write every cell"
+                               " there, as in (pj/arrange data [[:a :b] [:a :c]]),"
+                               " or add a pose: (pj/arrange [composite"
+                               " (pj/lay-point data :a :c)]).")
+                          {:caller "pj/arrange" :cells cells})))
         (multi-pair-pose p cells))
 
     :else
@@ -4850,8 +4933,13 @@
    (if (sequential? opts-or-cells)
      (arrange plots-or-data opts-or-cells {})
      (do (check-arrange-arguments! plots-or-data opts-or-cells)
-         (arrange* plots-or-data opts-or-cells))))
+         ;; A cell `[pose :a :b]` carries its own data, so it is read
+         ;; with no data given, as it is after data. Columns alone
+         ;; still need data (`arrange*` says so).
+         (arrange* (pose-shorthand-cells plots-or-data) opts-or-cells))))
   ([data-or-pose cells opts]
+   ;; Three poses, `(pj/arrange a b c)`, are cells given one by one.
+   (check-arrange-arguments! cells opts)
    (if (pose? data-or-pose)
      (arrange-from-pose data-or-pose cells opts)
      (-> (arrange* (normalize-arrange-cells cells) opts)
@@ -5007,7 +5095,10 @@
                             " (-> data (pj/lay-point :x :y))," " or arrange"
                             " several poses with pj/arrange.")
                        {:caller caller :pose fr})))
-        _ (when-not (pose-has-data-anywhere? fr) (fail))
+        ;; A layer with no data draws a panel reading \"no data\", as
+        ;; `pj/plot` draws it: a template is saved as it is drawn.
+        has-layer? (some #(seq (:layers %)) (tree-seq :poses :poses fr))
+        _ (when-not (or (pose-has-data-anywhere? fr) has-layer?) (fail))
         the-plan (plan fr)]
     (when (zero? (plan-panel-count the-plan)) (fail))
     the-plan))

@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **Cells drawn from the data of the pose they are arranged into**, as in `(-> data (pj/arrange [{:x :a :y :b} {:x :a :y :c}]) pj/lay-point)`, share each axis on which they draw one column: the axis is titled once and its ticks are labelled on the outer cells only. `:share-scales` overrides the sharing, and `#{}` labels the ticks of every cell.
 
-- **A shared axis** covers the extent the panels sharing it draw, padded once, in a facet and in an arrangement alike, so the panels have the axes of the same plot drawn without the facet: `displ` from 1.6 to 7.0 runs `[1.33 7.27]` in every panel of `(pj/facet pose :drv)`. The extent is measured after the statistics, so it reaches the top of a stack and the ends of an error bar, and under a smooth drawn alone it fits the lines. In a `pj/facet-grid`, a cell holding one row does not widen the shared axis, and a cell with no rows takes it.
+- **A shared axis** covers the extent the panels sharing it draw, padded once, in a facet and in an arrangement alike, so the panels have the axes of the same plot drawn without the facet: `displ` from 1.6 to 7.0 runs `[1.33 7.27]` in every panel of `(pj/facet pose :drv)`. The extent is measured after the statistics, so it reaches the top of a stack and the ends of an error bar, and under a loess smooth drawn alone it fits the curves. In a `pj/facet-grid`, a cell holding one row does not widen the shared axis, and a cell with no rows takes it.
 
 - **A `:domain` specified on one cell of a shared axis** is the domain of every cell sharing that axis: under `{:share-scales {:y :all}}`, `{:y {:column :hwy :scale {:domain [0 100]}}}` on one cell draws every sharing cell on `[0 100]`, unpadded, as `(pj/scale arrangement :y {:domain [0 100]})` does. Cells specifying different domains for one shared axis report an error naming both, as does a `:domain` on one cell beside an `:include` on another. A categorical `:domain` orders the axis of every sharing cell.
 
@@ -76,7 +76,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A column named on `:y` alone is drawn on its side by a layer type that draws from one column, whether the column is named on the pose or in the layer: `(pj/pose data {:y :hwy})` draws a histogram on its side, or a bar chart of counts for a categorical column, and `(pj/lay-histogram pose {:y :hwy})`, `pj/lay-density` and `pj/lay-bar` draw theirs. Beside a layer that draws from two columns, such as `pj/lay-point`, the layer reports an error. Such a pose takes `:coord :flip` or none; `:cartesian`, `:polar` and `:fixed` report an error, also where the pose is a panel of a facet over columns.
 
-- A pose may carry `:where`, a map from column to value or set of values, and draws only the rows that match; numbers match by value, so `4` selects `4.0`. A cell of `pj/arrange` may be written `{:where {:drv "f"}}`, alone or beside a mapping, and cells that split the data of the pose they are arranged into by one column's values draw what `pj/facet` draws.
+- `:where`, a map from column to value or set of values, draws only the rows that match; numbers match by value, so `4` selects `4.0`. It is written on a cell of `pj/arrange`, as `{:where {:drv "f"}}`, alone or beside a mapping, or on a pose map; cells that split the data of the pose they are arranged into by one column's values draw what `pj/facet` draws. A filter that selects no rows warns.
 
 - `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. Undeclared, it is `#{1}` for an `:x-only` layer type and `#{2}` otherwise; `:bar` declares `#{1 2}`, and `layer-type/column-counts` reads it back.
 
@@ -94,11 +94,11 @@ All notable changes to this project will be documented in this file. This change
 
 - A layer left without a column its layer type draws from reports an error naming the layer, the axis that is missing, the columns the layer does name, and the columns of the data. The error is reported when the pose is drawn. A `pj/lay-*` call on a dataset of four or more columns returns a pose without naming columns, so a later step may name them: `(-> data pj/lay-point (pj/pose {:x :a :y :b}))` and `(-> data pj/lay-smooth (pj/lay-point :a :b))` draw. A pose with no column and no layer, `(pj/plot (pj/pose data))`, on data of four or more columns prints a Note that it draws nothing, listing the columns of the data.
 
-- A layer with no data draws a panel reading "no data" for any layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn before `pj/with-data` gives it data.
+- A layer with no data draws a panel reading "no data" for any layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn and saved before `pj/with-data` gives it data.
 
 - A `lay-*` call on an arrangement naming columns no cell draws prints a Note where the layer, drawn on a cell of its own, leaves something undrawn. Where the cells carry their own data, the Note says that the new cell has none, and names the columns the cells draw and the `{:data data}` spelling that gives the new cell its data. Beside cells that name no column and hold no layer, the Note says that those cells draw nothing, and names the spelling that draws the layer in every cell.
 
-- Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column; beside layers that fit every panel it is drawn in every panel. A layer naming one of the facet's columns prints a Note where it leaves another panel to the inferred layer type: `(-> mpg (pj/lay-smooth :displ :hwy) (pj/facet {:y [:hwy :cty]}))` draws a smooth of `:hwy` and a scatter of `:cty`. The Note names the spelling that draws the layer in every panel, `(-> mpg (pj/pose {:x :displ}) pj/lay-smooth (pj/facet {:y [:hwy :cty]}))`, and is not printed where the inferred layer is the layer as written.
+- Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column; beside layers that fit every panel it is drawn in every panel. A layer naming one of the facet's columns prints a Note where it leaves another panel to the inferred layer type: `(-> mpg (pj/lay-smooth :displ :hwy) (pj/facet {:y [:hwy :cty]}))` draws a smooth of `:hwy` and a scatter of `:cty`. The Note says how to draw the layer in every panel, as `(-> mpg (pj/pose {:x :displ}) pj/lay-smooth (pj/facet {:y [:hwy :cty]}))` does, and is not printed where the inferred layer is the layer as written.
 
 - Layers of one pose that draw columns of different kinds on one axis -- a categorical column beside a numeric one, or dates beside numbers -- report an error naming the layers, `pj/facet` and `pj/arrange`, and `:x-type :categorical` for a numeric column that should be read as categories.
 
@@ -126,19 +126,19 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/lay` reports an error at the call for a layer type that is neither a registered keyword nor a map naming its `:mark`. For a mapping given where the layer type goes, as in `(pj/lay pose {:y :hwy})`, the error says to name the layer type before the mapping.
 
-- Panels too small to draw report an error stating the size each panel would have and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`. Where the panels are those of a facet, the error names the facet's column and the number of its values, says that a facet does not wrap its panels, and suggests arranging one pose per value with `pj/arrange`. Where the panels are the cells of an arrangement, the error says that an arrangement keeps its width and height however many cells it holds, and suggests a larger `:width` or `:height`, or another `:cols`.
+- Panels too small to draw report an error stating the size each panel would have, the smallest panel size, and what the labels and legend take, in drawing units, and naming `:width`, `:panel-width` and `:min-panel-size`. Where the panels are those of a facet, the error names the facet's column and the number of its values, says that a facet does not wrap its panels, and suggests arranging one pose per value with `pj/arrange`. Where the panels are the cells of an arrangement, the error says that an arrangement keeps its width and height however many cells it holds, and suggests a larger `:width` or `:height`, or another `:cols`.
 
 - A grouped dataset, the result of `tc/group-by`, reports an error naming `tc/ungroup`.
 
 - A rule or a band given columns on a pose with one panel does not read columns the panel does not draw, and warns naming them; on a composite pose its columns pick the cell it is drawn in.
 
-- A line, step or area whose every group holds one row warns that it draws nothing visible, naming the column the groups come from; on data of one row the warning suggests `pj/lay-point`. A smooth warns about the groups with too few rows to fit, 4 for loess and 3 for `:stat :linear-model`.
+- A line, step or area whose every group holds one row warns that it draws nothing visible, naming the column the groups come from, or the columns of the series; on data of one row the warning suggests `pj/lay-point`. A smooth warns about the groups with too few rows to fit, 4 for loess and 3 for `:stat :linear-model`.
 
 - A message about a series names it by the columns written, not by the `:value` and `:series` columns it is pivoted into. A series whose columns include one the same mapping names on another aesthetic, as in `(pj/lay-point mpg :hwy [:hwy :cty])`, reports an error naming that column.
 
 - The warning for a categorical `:domain` that leaves out categories ends `List every category to control the whole axis order`. The errors for an error bar without its bounds and a text layer without `:text` show the call with the layer's own columns.
 
-- Under a facet over columns, a layer naming one of the facet's columns is drawn in that column's panel only. Where another panel is drawn by other layers, none of that layer's type, a Note names the panels the layer is drawn in and the form that draws it in every panel: `(pj/pose data {:x :displ})`, with the layer naming no column.
+- Under a facet over columns, a layer naming one of the facet's columns is drawn in that column's panel only. Where another panel is drawn by other layers, none of that layer's type, a Note names the panels the layer is drawn in and says how to draw it in every panel: name the column on the pose, as in `(pj/pose data {:x :displ})`, and none on the layer.
 
 ### Fixed
 
@@ -177,6 +177,12 @@ All notable changes to this project will be documented in this file. This change
 - A straight line fitted with `{:stat :linear-model}` is drawn inside the panel: the axis covers the ends of the line where they reach past the data.
 
 - A colour column of strings whose values are all missing in one panel of a facet is read as categories there, so the facet keeps the legend.
+
+- A bar, boxplot, violin or summary in a panel of a facet that holds no rows, as a combination of `pj/facet-grid` the data does not hold, draws "no data" there, as the other layer types do, and the other panels are drawn.
+
+- A facet by a category on data with no rows draws one panel reading "no data".
+
+- A panel whose categories are all missing adds no `?` category to its axis.
 
 
 ## [0.16.1 - 2026-10-02]

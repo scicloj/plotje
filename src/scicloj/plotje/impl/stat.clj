@@ -335,7 +335,7 @@
                 (format-category-column y))]
     (check-range-columns mark ds-cols y-min y-max)
     (if (zero? (tc/row-count clean))
-      {:points [] :x-domain [0 1] :y-domain [0 1]}
+      {:points [] :x-domain [0 1] :y-domain [0 1] :no-rows true}
       (let [xs-col (clean x)
             ys-col (if x-only? nil (clean y))
             cat-x? (= x-type :categorical)
@@ -668,7 +668,7 @@
                     (when (pos? (tc/row-count clean))
                       (double (dfn/reduce-min xs-col))))]
     (if (zero? (tc/row-count clean))
-      {:bins [] :max-count 0 :x-domain [0 1] :y-domain [0 1]}
+      {:bins [] :max-count 0 :x-domain [0 1] :y-domain [0 1] :no-rows true}
       (let [;; Determine bin method: :bins (exact count) > :binwidth
             ;; (exact width) > cfg heuristic.
             bin-arg (or (:bins draft-layer)
@@ -687,6 +687,20 @@
                                               (:bins-maps (stats/histogram (ds x) bin-arg))
                                               (:domain-padding (or cfg defaults/defaults))))]
                               (cond-> {:bin-maps bin-maps}
+                                ;; A group of one value is drawn as a bin
+                                ;; widened around it. It reports the
+                                ;; extent that, padded as every extent
+                                ;; is, gives the axis `scale/pad-domain`
+                                ;; builds around the value alone -- the
+                                ;; axis the bin was sized for.
+                                (and (not user-binwidth)
+                                     (pos? (tc/row-count ds))
+                                     (== (dfn/reduce-min (ds x)) (dfn/reduce-max (ds x))))
+                                (assoc :reach (let [v (double (dfn/reduce-min (ds x)))
+                                                    padding (double (:domain-padding (or cfg defaults/defaults)))
+                                                    [lo _] (scale/pad-domain [v v] nil padding)
+                                                    half (/ (- v (double lo)) (+ 1.0 (* 2.0 padding)))]
+                                                [(- v half) (+ v half)]))
                                 (some? (group-color draft-layer gv)) (assoc :color (group-color draft-layer gv))))))
             ;; When normalize=:density, convert counts to density (area integrates to 1)
             all-bin-data (if (= normalize :density)
@@ -716,7 +730,15 @@
             min-y (if (seq positive-counts) (reduce min positive-counts) floor)]
         {:bins all-bin-data
          :max-count max-count
-         :x-domain (numeric-extent xs-col)
+         ;; A group of one value is drawn as a bin widened around it
+         ;; (`widen-degenerate-bins`), past the values, and an axis
+         ;; shared with other panels has to reach it.
+         :x-domain (let [[lo hi] (numeric-extent xs-col)
+                         reach (mapcat :reach all-bin-data)]
+                     (if (seq reach)
+                       [(reduce min (double lo) reach)
+                        (reduce max (double hi) reach)]
+                       [lo hi]))
          :y-domain [min-y max-count]}))))
 
 ;; ---- Counting ----
@@ -737,7 +759,10 @@
         bars))
 
 (defmethod compute-stat :count [draft-layer]
-  (when-not (= (:x-type draft-layer) :categorical)
+  ;; A facet panel of no rows draws "no data" whatever its column's
+  ;; type, which nothing could be read from (`resolve/resolve-draft-layer`).
+  (when-not (or (= (:x-type draft-layer) :categorical)
+                (resolve/empty-facet-panel? draft-layer (:data draft-layer)))
     ;; The column is on `:x` here whichever axis it was written on:
     ;; `pose/side-on` moves a column named on `:y` alone to `:x` and
     ;; flips the coordinates, so the message names the column and both
@@ -770,7 +795,7 @@
                 (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)
-      {:categories [] :bars [] :max-count 0 :x-domain ["?"] :y-domain [0 1]}
+      {:categories [] :bars [] :max-count 0 :x-domain [] :y-domain [0 1] :no-rows true}
       ;; Use tc/group-by for efficient counting
       (let [color-col (first group-cols)
             has-color? (seq group-cols)
@@ -894,6 +919,7 @@
       (cond-> {:lines []
                :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
                :y-domain (if (pos? n) (numeric-extent (clean y)) [0 1])}
+        (zero? n) (assoc :no-rows true)
         se (assoc :ribbons []))
       (if se
         ;; With confidence band
@@ -1083,6 +1109,7 @@
       (cond-> {:points []
                :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
                :y-domain (if (pos? n) (numeric-extent (clean y)) [0 1])}
+        (zero? n) (assoc :no-rows true)
         se (assoc :ribbons []))
       (if se
         ;; With confidence band (bootstrap)
@@ -1216,9 +1243,10 @@
         trim? (get draft-layer :trim false)]
     (if (or (< n 2)
             (near-constant? (clean x)))
-      {:points []
-       :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
-       :y-domain [0 1]}
+      (cond-> {:points []
+               :x-domain (if (pos? n) (numeric-extent (clean x)) [0 1])
+               :y-domain [0 1]}
+        (zero? n) (assoc :no-rows true))
       (let [layer-interval (numeric-extent (clean x))
             curves (group-by-columns
                     clean (or group [])
@@ -1267,8 +1295,9 @@
         categories (distinct (clean cat-col))]
     (if (empty? categories)
       {:items [] :categories [] :color-categories nil
-       :x-domain (if flipped? [0 1] ["?"])
-       :y-domain (if flipped? ["?"] [0 1])}
+       :x-domain (if flipped? [0 1] [])
+       :y-domain (if flipped? [] [0 1])
+       :no-rows true}
       (let [group-cols (or group [])
             color-col (first group-cols)
             has-color? (and (seq group-cols) color-col)
@@ -1353,11 +1382,12 @@
                                     (cond-> (merge (five-number-summary y-col)
                                                    {:category cat})
                                       cc (assoc :color cc))))]
-    {:boxes (:items result)
-     :categories (:categories result)
-     :color-categories (:color-categories result)
-     :x-domain (:x-domain result)
-     :y-domain (:y-domain result)}))
+    (cond-> {:boxes (:items result)
+             :categories (:categories result)
+             :color-categories (:color-categories result)
+             :x-domain (:x-domain result)
+             :y-domain (:y-domain result)}
+      (:no-rows result) (assoc :no-rows true))))
 
 ;; ---- Violin ----
 
@@ -1405,11 +1435,12 @@
         y-domain (if (and (not flipped?) kde-num-domain)
                    kde-num-domain
                    (:y-domain result))]
-    {:violins (:items result)
-     :categories (:categories result)
-     :color-categories (:color-categories result)
-     :x-domain x-domain
-     :y-domain y-domain}))
+    (cond-> {:violins (:items result)
+             :categories (:categories result)
+             :color-categories (:color-categories result)
+             :x-domain x-domain
+             :y-domain y-domain}
+      (:no-rows result) (assoc :no-rows true))))
 
 ;; ---- 2D Binning (for heatmap/tile) ----
 
@@ -1421,7 +1452,7 @@
                 (= x-type :categorical) (format-category-column x))
         categories (distinct (clean x))]
     (if (empty? categories)
-      {:points [] :x-domain ["?"] :y-domain [0 1]}
+      {:points [] :x-domain [] :y-domain [0 1] :no-rows true}
       (let [group-cols (or group [])
             ;; Use tc/group-by for O(n) grouping instead of per-category select-rows
             all-groups (group-by-columns
@@ -1457,7 +1488,7 @@
         clean (drop-missing-reported data [x y])
         n (tc/row-count clean)]
     (if (zero? n)
-      {:tiles [] :x-domain [0 1] :y-domain [0 1] :fill-range [0 1]}
+      {:tiles [] :x-domain [0 1] :y-domain [0 1] :fill-range [0 1] :no-rows true}
       (let [xs-col (clean x)
             ys-col (clean y)
             [x-min x-max] (numeric-extent xs-col)

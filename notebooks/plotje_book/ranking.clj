@@ -119,8 +119,9 @@
            (= s (pj/svg-summary (-> (rdatasets/datasets-iris)
                                     (pj/lay-bar {:y :species})))))))])
 
-;; Both forms draw the categories **bottom-to-top in data order**,
-;; matching ggplot2's `coord_flip()`. For a ranking chart
+;; Both forms draw the categories **bottom-to-top in data order**.
+;; ggplot2's `coord_flip()` also runs bottom to top, in the order of
+;; the factor levels rather than of the data. For a ranking chart
 ;; where the biggest value should appear at the top, sort the data
 ;; ascending before plotting, e.g.
 ;; `(tc/order-by data [:value] [:asc])`.

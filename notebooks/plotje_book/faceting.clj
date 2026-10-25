@@ -122,7 +122,8 @@
                            (and (= 3 (:panels s))
                                 (= 150 (:points s)))))])
 
-;; `pj/facet-grid` splits by two columns -- one for rows, one for columns:
+;; `pj/facet-grid` splits by two columns -- the first gives a column of
+;; panels for each of its values, the second a row:
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-point :total-bill :tip {:color :sex})
@@ -428,8 +429,12 @@ measures
 
 ;; ## Free Scales (Independent Axis Ranges)
 ;;
-;; By default the panels of a facet share both axis ranges, so a mark
-;; at the same height stands for the same value in every panel. The
+;; By default the panels of a facet share each axis on which they draw
+;; the same column. In a facet over categories every panel draws the
+;; same columns, so the panels share both axis ranges, and a mark at
+;; the same height stands for the same value in every panel. In a facet
+;; over columns, the panels drawing different columns keep an axis
+;; range each. The
 ;; `:share-scales` option names the axes the panels share, as a set. An
 ;; axis left out of the set is fitted to the rows of each panel. A map,
 ;; as in `{:y :all}`, shares an axis between panels that draw different

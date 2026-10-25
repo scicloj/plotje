@@ -21,7 +21,7 @@
    (:layers pose)
    (update
     :layers
-    (partial mapv (fn* [p1__77140#] (dissoc p1__77140# :data))))
+    (partial mapv (fn* [p1__78644#] (dissoc p1__78644# :data))))
    (:poses pose)
    (update :poses (partial mapv strip-data)))))
 
@@ -41,7 +41,7 @@
   cells
   [pose]
   (filterv
-   (fn* [p1__77141#] (not (contains? p1__77141# :poses)))
+   (fn* [p1__78645#] (not (contains? p1__78645# :poses)))
    (rest (tree-seq :poses :poses pose)))))
 
 
@@ -471,7 +471,7 @@
       (=
        [1 1]
        (mapv
-        (fn* [p1__77142#] (count (:poses p1__77142#)))
+        (fn* [p1__78646#] (count (:poses p1__78646#)))
         (:poses one-per-row))))))
    v81_l401)))
 
@@ -592,8 +592,8 @@
        [pose]
        (mapv
         (fn*
-         [p1__77143#]
-         (mapv :mark (-> p1__77143# :plan :panels first :layers)))
+         [p1__78647#]
+         (mapv :mark (-> p1__78647# :plan :panels first :layers)))
         (:sub-plots (pj/plan pose))))]
      (and
       (= [0 1] counts)
@@ -664,7 +664,7 @@
      (=
       [[:point] [:point :smooth]]
       (mapv
-       (fn* [p1__77144#] (mapv :layer-type (:layers p1__77144#)))
+       (fn* [p1__78648#] (mapv :layer-type (:layers p1__78648#)))
        (cells pose)))
      (=
       {:panels 2, :points 300, :lines 1}
@@ -1487,8 +1487,8 @@
       rule
       (some
        (fn*
-        [p1__77145#]
-        (when (= :rule-h (:layer-type p1__77145#)) p1__77145#))
+        [p1__78649#]
+        (when (= :rule-h (:layer-type p1__78649#)) p1__78649#))
        layers)]
      (and (some? rule) (= 3.0 (get-in rule [:mapping :y-intercept])))))
    v215_l1286)))
@@ -1533,8 +1533,8 @@
     (let
      [y-domain
       (fn*
-       [p1__77146#]
-       (-> p1__77146# pj/plan :panels first :y-domain))
+       [p1__78650#]
+       (-> p1__78650# pj/plan :panels first :y-domain))
       points
       (-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)]
      (and
@@ -1742,8 +1742,8 @@
        [p]
        (mapv
         (fn*
-         [p1__77147#]
-         (get-in p1__77147# [:plan :panels 0 :x-domain]))
+         [p1__78651#]
+         (get-in p1__78651# [:plan :panels 0 :x-domain]))
         (:sub-plots (pj/plan p))))
       domains
       (x-domains pose)
@@ -1754,13 +1754,13 @@
         [(->
           iris
           (tc/select-rows
-           (fn* [p1__77148#] (= "setosa" (:species p1__77148#))))
+           (fn* [p1__78652#] (= "setosa" (:species p1__78652#))))
           (pj/pose :sepal-length :sepal-width)
           pj/lay-point)
          (->
           iris
           (tc/select-rows
-           (fn* [p1__77149#] (= "virginica" (:species p1__77149#))))
+           (fn* [p1__78653#] (= "virginica" (:species p1__78653#))))
           (pj/pose :sepal-length :petal-width)
           pj/lay-point)]
         (if share {:share-scales #{:x}} {})))]
@@ -1774,8 +1774,8 @@
        =
        (mapv
         (fn*
-         [p1__77150#]
-         (get-in p1__77150# [:plan :panels 0 :y-domain]))
+         [p1__78654#]
+         (get-in p1__78654# [:plan :panels 0 :y-domain]))
         (:sub-plots
          (pj/plan
           (->
@@ -1786,20 +1786,20 @@
        =
        (mapv
         (fn*
-         [p1__77151#]
-         (get-in p1__77151# [:plan :panels 0 :y-domain]))
+         [p1__78655#]
+         (get-in p1__78655# [:plan :panels 0 :y-domain]))
         (:sub-plots
          (pj/plan
           (pj/arrange
            [(->
              iris
              (tc/select-rows
-              (fn* [p1__77152#] (= "setosa" (:species p1__77152#))))
+              (fn* [p1__78656#] (= "setosa" (:species p1__78656#))))
              (pj/lay-histogram :sepal-length))
             (->
              iris
              (tc/select-rows
-              (fn* [p1__77153#] (= "virginica" (:species p1__77153#))))
+              (fn* [p1__78657#] (= "virginica" (:species p1__78657#))))
              (pj/lay-histogram :sepal-length))]
            {:share-scales #{:y}}))))))))
    v243_l1513)))

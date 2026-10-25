@@ -96,9 +96,9 @@
  v15_l149
  (mapv
   (fn*
-   [p1__78231#]
+   [p1__79927#]
    (select-keys
-    (layer-type/lookup p1__78231#)
+    (layer-type/lookup p1__79927#)
     [:mark :stat :defaults]))
   [:text :label]))
 

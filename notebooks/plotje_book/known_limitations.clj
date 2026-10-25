@@ -26,7 +26,8 @@
 ;; - Horizontal bars from `(pj/coord :flip)` render the first row of
 ;;   data at the bottom of the chart, so a dataset sorted descending
 ;;   (natural "top N" order) produces the biggest bar at the bottom.
-;;   The behavior matches ggplot2's `coord_flip()`. Workaround: sort
+;;   ggplot2's `coord_flip()` also runs bottom to top, in the order of
+;;   the factor levels rather than of the data. Workaround: sort
 ;;   the dataset ascending before plotting, e.g.
 ;;   `(tc/order-by data [:value] [:asc])`. A future opt-in flag such
 ;;   as `(pj/coord :flip {:reverse-categorical true})` would spare

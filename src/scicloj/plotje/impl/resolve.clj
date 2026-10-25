@@ -691,6 +691,14 @@
   [ds col]
   (not= "is numerical" (column-phrase ds col)))
 
+(defn empty-facet-panel?
+  "True of a draft layer drawn in a panel of a facet that holds no rows
+   of `ds`, the panel's data."
+  [v ds]
+  (boolean (and (or (contains? v :facet-col) (contains? v :facet-row))
+                (tc/dataset? ds)
+                (zero? (tc/row-count ds)))))
+
 (defn resolve-draft-layer
   "Resolve a single draft layer: infer column types, aesthetics, grouping, and layer type.
    Delegates to `infer-column-types`, `resolve-aesthetics`, `infer-grouping`,
@@ -759,7 +767,15 @@
           both-axes-marks  {:boxplot :boxplot :violin :violin}
           x-only-cat-marks {:lollipop :identity :summary :summary
                             :ridgeline :violin :pointrange :summary}
-          both-numerical?  (and (= x-type :numerical) (= y-type :numerical))
+          ;; A panel of a facet that holds no rows -- a combination of a
+          ;; `pj/facet-grid` the data does not hold -- has columns typed
+          ;; for want of anything to read, and the type says nothing
+          ;; about the column. Its stat draws "no data", as every other
+          ;; layer type draws in that panel. Data of no rows as a whole
+          ;; is still reported: a filter upstream matched nothing.
+          no-rows?         (empty-facet-panel? v resolved-ds)
+          both-numerical?  (and (not no-rows?)
+                                (= x-type :numerical) (= y-type :numerical))
           ;; Prefer the user-facing layer-function name (:layer-type) over the
           ;; internal :mark for error messages. The :layer-type key is stamped
           ;; onto the draft layer by resolve-layer-type-info in pose.clj;
@@ -781,6 +797,7 @@
                               {:mark mark :x (:x v) :y (:y v)})))
           _ (when (and (contains? x-only-cat-marks mark)
                        (= stat (x-only-cat-marks mark))
+                       (not no-rows?)
                        (= x-type :numerical))
               (throw (ex-info (str "pj/lay-" (name user-fn-name) " requires a categorical :x column, but "
                                    (pr-str (:x v)) " " (column-phrase resolved-ds (:x v)) ". "

@@ -26,7 +26,8 @@
    budget is baked into y-label-pad in `compute-padding` via the
    over-estimate trick. Real per-panel ticks are computed AFTER
    `compute-dims` when the final pw/ph are known."
-  (:require [scicloj.plotje.impl.defaults :as defaults]
+  (:require [clojure.string :as str]
+            [scicloj.plotje.impl.defaults :as defaults]
             [scicloj.plotje.impl.scale :as scale]
             [wadogo.scale :as ws]))
 
@@ -686,19 +687,35 @@
 (defn- min-panel-size [cfg]
   (double (or (:min-panel-size cfg) (:min-panel-size defaults/defaults))))
 
+(defn- overhead-parts
+  "What the room around the panels is taken by, as a phrase: each part
+   that takes any, by what it is, as \"38 for the y axis labels and 60
+   for the legend\"."
+  [parts]
+  (let [parts (for [[v what] parts
+                    :let [n (Math/round (double v))]
+                    :when (pos? n)]
+                (str n " for " what))]
+    (if (next parts)
+      (str (str/join ", " (butlast parts)) " and " (last parts))
+      (first parts))))
+
 (defn- too-small-error
   "The panels would be drawn smaller than `:min-panel-size`. Sizes are
    in drawing units, so the message names no unit, and the plot's width
    or height is quoted as a number rather than as an option the writer
    may not have set."
-  [axis computed total horiz-overhead grid-n component-breakdown]
+  [axis computed total horiz-overhead grid-n min-panel component-breakdown]
   (let [across? (= axis :panel-width)
         dim (if across? "width" "height")]
     (ex-info
      (str "Each panel would be " (Math/round (double computed)) " " (if across? "wide" "high")
-          ", which is below the smallest panel size. The plot's " dim ", "
+          ", which is below the smallest panel size, " (Math/round (double min-panel))
+          ". The plot's " dim ", "
           (Math/round (double total)) ", less " (Math/round (double horiz-overhead))
-          " for its labels and legend (" component-breakdown "), leaves "
+          " for its labels and legend"
+          (when component-breakdown (str " (" component-breakdown ")"))
+          ", leaves "
           (Math/round (double (- total horiz-overhead))) " for " grid-n " "
           (if across? (if (= 1 grid-n) "column" "columns") (if (= 1 grid-n) "row" "rows"))
           " of panels. Increase :" dim ", set :" (name axis) " directly, or lower"
@@ -708,7 +725,7 @@
      ;; arrangement is given its size (`compositor/cell-too-small`).
      {axis computed
       :too-small {:total total :overhead horiz-overhead :grid-n grid-n
-                  :breakdown component-breakdown}})))
+                  :min-panel min-panel :breakdown component-breakdown}})))
 
 (defn compute-dims
   "Derive panel-width, panel-height, total-width, total-height from
@@ -760,17 +777,19 @@
         min-panel (min-panel-size cfg)
         _ (when (< pw min-panel)
             (throw (too-small-error
-                    :panel-width pw width horiz-overhead grid-cols
-                    (str "y-label-pad=" (Math/round (double y-label-pad))
-                         ", strip-w=" (Math/round (double strip-w))
-                         ", legend-w=" (Math/round (double legend-w))))))
+                    :panel-width pw width horiz-overhead grid-cols min-panel
+                    (overhead-parts [[y-label-pad "the y axis labels"]
+                                     [strip-w "the strips"]
+                                     [legend-w "the legend"]]))))
         _ (when (< ph min-panel)
             (throw (too-small-error
-                    :panel-height ph height vert-overhead grid-rows
-                    (str "title-pad=" (Math/round (double title-pad))
-                         ", x-label-pad=" (Math/round (double x-label-pad))
-                         ", strip-h=" (Math/round (double strip-h))
-                         ", legend-h=" (Math/round (double legend-h))))))
+                    :panel-height ph height vert-overhead grid-rows min-panel
+                    (overhead-parts [[title-pad "the title"]
+                                     [subtitle-pad "the subtitle"]
+                                     [(+ top-legend-pad bottom-legend-pad) "the legend"]
+                                     [strip-h "the strips"]
+                                     [x-label-pad "the x axis labels"]
+                                     [caption-pad "the caption"]]))))
 
         ;; When :panel-width is pinned explicitly, the user's :width
         ;; becomes the derived total (horiz-overhead + grid * pw).

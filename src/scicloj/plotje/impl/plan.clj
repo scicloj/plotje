@@ -334,7 +334,16 @@
   ([stat-results axis-key scale-spec padding temporal? shared baseline]
    (let [aesthetic (if (= :x-domain axis-key) :x :y)
          parsed (parse-axis-domains aesthetic (map axis-key stat-results))]
-     (when (seq parsed)
+     (if (empty? parsed)
+       ;; A panel whose stats found nothing to draw -- a cell whose
+       ;; categories are all missing -- takes the shared extent as it
+       ;; stands, and has none of its own otherwise.
+       (when (seq shared)
+         (if (shared-extent shared true)
+           (pad-domain-anchored shared
+                                (include-anchors aesthetic scale-spec true temporal?)
+                                scale-spec padding)
+           (vec shared)))
        (let [vals (mapcat :vals parsed)
              numeric? (number? (first vals))
              ;; A baseline mark asks for zero through its mark;
@@ -1666,16 +1675,20 @@
                   (or (some :color (:tiles layer))
                       (some (fn [g] (or (:colors g) (some :color (:bars g))))
                             (:groups layer))))]
-    (when (and (some #(= :numerical (:color-type %)) resolved-all)
-               (not-any? varies? (mapcat :layers panels)))
-      (let [marks (vec (sort (distinct (keep #(when (= :numerical (:color-type %))
-                                                (:mark %))
-                                             resolved-all))))]
+    ;; A layer of no rows has a colour column typed numerical for want
+    ;; of anything to read (`resolve/column-phrase`), and draws nothing
+    ;; the warning could be about.
+    (when-let [numeric (seq (filter #(and (= :numerical (:color-type %))
+                                          (let [d (:data %)]
+                                            (and (tc/dataset? d) (pos? (tc/row-count d)))))
+                                    resolved-all))]
+     (when (not-any? varies? (mapcat :layers panels))
+      (let [marks (vec (sort (distinct (keep :mark numeric))))]
         (println (str "Warning: " marks " with a numeric :color draw one "
                       "color per group and do not read the column as a "
                       "gradient, though the legend shows one. Use "
                       ":color-type :categorical to give each category its "
-                      "own color."))))))
+                      "own color.")))))))
 
 (def ^:private row-joining-marks
   "Marks that draw each group as one path through its rows, so a group of
@@ -1702,18 +1715,30 @@
                              g (:groups layer)]
                          (count (:xs g)))]
           :when (and (seq groups) (every? #(= 1 %) groups))]
-    (let [split-by (->> resolved-all
-                        (filter #(= mark (:mark %)))
-                        (mapcat :group)
-                        distinct
-                        vec)]
+    (let [layers (filter #(= mark (:mark %)) resolved-all)
+          split-by (->> layers (mapcat :group) distinct vec)
+          ;; A key column a series pivot made is named by the columns
+          ;; the writer wrote (`pose/pivot-mapping`).
+          series-of (fn [c] (some #(when-let [d (:data %)]
+                                     (when (tc/dataset? d)
+                                       (some-> (get d c) meta :plotje/series-of)))
+                                  layers))
+          series (some series-of split-by)]
       (println (str "Warning: the " mark " mark joins the rows of each group, and every"
                     " group holds one row, so the layer draws nothing visible."
-                    (if (seq split-by)
+                    (cond
+                      series
+                      (str " The groups are the columns of the series " (pr-str series)
+                           ", and each holds one row in a panel. Draw them with"
+                           " pj/lay-point.")
+
+                      (seq split-by)
                       (str " The groups come from " (str/join ", " split-by)
                            ", which takes a different value on each row of a panel."
                            " Group the rows by a column that several of them share,"
                            " or draw them with pj/lay-point.")
+
+                      :else
                       " Draw a single row with pj/lay-point."))))))
 
 (defn- warn-too-few-rows!
@@ -1746,8 +1771,10 @@
                 (str ", and the layer has " (rows (first counts))
                      ", so it draws nothing.")
                 (empty? columns)
-                (str ", so it draws nothing in the " (count ds)
-                     " panels that have fewer.")
+                (if (= 1 (count ds))
+                  ", so it draws nothing in the panel that has fewer."
+                  (str ", so it draws nothing in the " (count ds)
+                       " panels that have fewer."))
                 :else
                 (str " per group, so it draws nothing for "
                      (if (next names) "the groups " "the group ") listed
@@ -3077,9 +3104,17 @@
                   (->> (map vector (:resolved pd) (:stat-results pd))
                        (filter (comp informs? first))
                        (mapv second)))
-        local-srs (srs-for x-informs?)
-        local-srs-y (srs-for y-informs?)
-        domain-layers (filterv y-informs? local-plan-layers)
+        ;; A stat that found no rows answers placeholder domains, which
+        ;; are no extent of the data (`:no-rows`); they still say, as
+        ;; before, that an empty panel's ticks are whole numbers.
+        whole-srs (srs-for x-informs?)
+        whole-srs-y (srs-for y-informs?)
+        local-srs (filterv (complement :no-rows) whole-srs)
+        local-srs-y (filterv (complement :no-rows) whole-srs-y)
+        domain-layers (->> (map vector local-plan-layers (:stat-results pd))
+                           (remove (comp :no-rows second))
+                           (map first)
+                           (filterv y-informs?))
         first-draft-layer (first (:draft-layers pd))
         ;; The first layer that *names* a spec, not the first layer's
         ;; value. A spec can now come from a mapping, so it may sit on
@@ -3143,9 +3178,9 @@
         ;; 0 and 1 with nothing between.
         fills? (boolean (some #(= :fill (:position %)) local-plan-layers))
         x-whole? (and (not fills?)
-                      (whole-axis-values? local-srs :x-domain :xs x-scale-spec))
+                      (whole-axis-values? whole-srs :x-domain :xs x-scale-spec))
         y-whole? (and (not fills?)
-                      (whole-axis-values? local-srs-y :y-domain :ys y-scale-spec))
+                      (whole-axis-values? whole-srs-y :y-domain :ys y-scale-spec))
         ;; Nil where nothing on the panel gives the axis a domain -- a
         ;; facet cell with no rows -- which then falls back to `[0 1]`.
         ;; Such a panel does not vote on a shared facet domain.
@@ -3191,9 +3226,13 @@
         ;; empty stat, and the `[0 1]` fallback where it reads none;
         ;; neither is a domain of the data, so the cell does not vote.
         ;; A domain written with `pj/scale` always votes.
-        has-rows? (boolean (some #(when-let [d (:data %)]
-                                    (pos? (tc/row-count d)))
-                                 resolved-draft-layers))
+        ;; A layer whose rows its stat dropped, as for a missing
+        ;; colour, has none either (`:no-rows` on the stat result).
+        has-rows? (boolean (some (fn [[l sr]]
+                                   (when-let [d (:data l)]
+                                     (and (pos? (tc/row-count d))
+                                          (not (:no-rows sr)))))
+                                 (map vector (:resolved pd) (:stat-results pd))))
         x-votes (boolean (or (:domain x-scale-spec) (and has-rows? x-found)))
         y-votes (boolean (or (:domain y-scale-spec) (and has-rows? y-found)))
         [x-votes? y-votes?] (if (= coord-type :flip)

@@ -79,13 +79,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__11199#] (= :petal-length (:x p1__11199#)))
+        (fn* [p1__88165#] (= :petal-length (:x p1__88165#)))
         layers)
        (every?
-        (fn* [p1__11200#] (= :petal-width (:y p1__11200#)))
+        (fn* [p1__88166#] (= :petal-width (:y p1__88166#)))
         layers)
        (every?
-        (fn* [p1__11201#] (= :species (:color p1__11201#)))
+        (fn* [p1__88167#] (= :species (:color p1__88167#)))
         layers)))
      (= {} (:opts d))))
    v14_l211)))
@@ -139,8 +139,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__11202#]
-       (.startsWith (.getName (class p1__11202#)) "membrane.ui."))
+       [p1__88168#]
+       (.startsWith (.getName (class p1__88168#)) "membrane.ui."))
       (:drawables v))))
    v27_l269)))
 
@@ -232,7 +232,7 @@
        2
        (count
         (filter
-         (fn* [p1__11203#] (.startsWith p1__11203# "rgb"))
+         (fn* [p1__88169#] (.startsWith p1__88169# "rgb"))
          (:colors s)))))))
    v42_l512)))
 
@@ -248,7 +248,7 @@
    pj/pose->draft)
   :layers
   (mapv
-   (fn* [p1__11204#] (select-keys p1__11204# [:mark :x :y :color])))))
+   (fn* [p1__88170#] (select-keys p1__88170# [:mark :x :y :color])))))
 
 
 (deftest
@@ -837,8 +837,8 @@
     [{:where {:drv "f"}} {:where {:drv "4"}}]]
    (mapv
     (fn*
-     [p1__11205#]
-     (pj/composite-plan? (pj/plan (pj/arrange points p1__11205#))))))))
+     [p1__88171#]
+     (pj/composite-plan? (pj/plan (pj/arrange points p1__88171#))))))))
 
 
 (deftest

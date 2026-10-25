@@ -192,8 +192,8 @@
     keys
     (filter
      (fn*
-      [p1__77464#]
-      (and (vector? p1__77464#) (= :computes (second p1__77464#)))))
+      [p1__89047#]
+      (and (vector? p1__89047#) (= :computes (second p1__89047#)))))
     (map first)
     sort
     (mapv
@@ -211,7 +211,7 @@
     (=
      [":bin" ":count" ":density"]
      (mapv
-      (fn* [p1__77465#] (first (get p1__77465# "Stat")))
+      (fn* [p1__89048#] (first (get p1__89048# "Stat")))
       (:row-maps t))))
    v30_l206)))
 
@@ -386,9 +386,9 @@
   scatter-stat
   :points
   first
-  (update :xs (fn* [p1__77466#] (vec (take 3 p1__77466#))))
-  (update :ys (fn* [p1__77467#] (vec (take 3 p1__77467#))))
-  (update :row-indices (fn* [p1__77468#] (vec (take 3 p1__77468#))))))
+  (update :xs (fn* [p1__89049#] (vec (take 3 p1__89049#))))
+  (update :ys (fn* [p1__89050#] (vec (take 3 p1__89050#))))
+  (update :row-indices (fn* [p1__89051#] (vec (take 3 p1__89051#))))))
 
 
 (deftest
@@ -586,7 +586,7 @@
 
 (deftest
  t98_l769
- (is ((fn* [p1__77469#] (= :drawing-area p1__77469#)) v97_l767)))
+ (is ((fn* [p1__89052#] (= :drawing-area p1__89052#)) v97_l767)))
 
 
 (def v99_l771 (mark/mark-clip-region :rug))
@@ -594,7 +594,7 @@
 
 (deftest
  t100_l773
- (is ((fn* [p1__77470#] (= :panel-box p1__77470#)) v99_l771)))
+ (is ((fn* [p1__89053#] (= :panel-box p1__89053#)) v99_l771)))
 
 
 (def
@@ -607,7 +607,7 @@
 
 (deftest
  t104_l787
- (is ((fn* [p1__77471#] (= :panel-box p1__77471#)) v103_l785)))
+ (is ((fn* [p1__89054#] (= :panel-box p1__89054#)) v103_l785)))
 
 
 (def v106_l791 (remove-method mark/mark-clip-region :margin-glyph))
