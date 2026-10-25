@@ -921,6 +921,29 @@ scatter-with-regression
 ;; layers, and options -- they are independent plots tiled into a
 ;; single rendered image.
 
+;; ### Columns and categories, inside and across panels
+;;
+;; The forms of this section, together with `:color` from Color and
+;; Grouping, answer one question in four ways. Two things to compare are
+;; either two columns or two categories of one column, and they are drawn
+;; either inside one panel or in panels of their own:
+;;
+;; | | inside one panel | across panels |
+;; |:--|:--|:--|
+;; | two columns | a series, `{:x [:sepal-length :sepal-width]}` | a facet over columns, `(pj/facet pose {:x [...]})`, or `pj/arrange` |
+;; | two categories | an aesthetic, `{:color :species}` | a facet over categories, `(pj/facet pose :species)` |
+;;
+;; Two operations lead from one cell of the table to another. A **pivot**
+;; turns columns into the categories of a key column, which is what a
+;; series does when it is drawn: it leads from the top row to the bottom
+;; row. A **split** moves a distinction from inside one panel to across
+;; panels, as `pj/facet` does for a category that `:color` would tell
+;; apart on one panel: it leads from the left column to the right column.
+;; The [Series](./plotje_book.series.html) chapter shows that a series
+;; split by its key column draws what a facet over its columns draws, and
+;; the [Faceting](./plotje_book.faceting.html) chapter that a facet over
+;; categories draws what an arrangement of one cell per category draws.
+
 ;; ## What's Next
 ;;
 ;; To start making plots, the chart-type chapters are the natural

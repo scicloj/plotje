@@ -198,6 +198,21 @@
                                 (some #{"Iris Petals"} (:texts s))
                                 (some #{"Petal Length (cm)"} (:texts s)))))])
 
+;; ## Panels
+;;
+;; The layers of a pose share one panel. For a panel per category of a
+;; column, facet the pose by that column:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/facet :species))
+
+(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
+
+;; `(pj/facet pose {:y [:sepal-width :petal-width]})` draws a panel per
+;; column instead. The [**Faceting**](./plotje_book.faceting.html)
+;; chapter teaches both.
+
 ;; ## Dashboards
 ;;
 ;; Combine multiple plots with `pj/arrange`:

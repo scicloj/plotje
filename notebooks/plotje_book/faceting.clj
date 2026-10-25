@@ -4,12 +4,14 @@
 ;; of a column, or one panel for each of several columns. Panels side by
 ;; side make it easy to compare patterns across groups.
 ;;
-;; A facet is a mapping: `:col` and `:row` are aesthetics, and
-;; `pj/facet` is the call that writes one. Everything else follows
-;; from that -- a facet reaches into a composite, a cell can override
-;; the facet it inherits, and several columns under `:col` unite into
-;; one distinction. The sections below teach those ideas, and the
-;; Examples section at the end shows faceted plots of several kinds.
+;; A facet over the categories of a column is a mapping: `:col` and
+;; `:row` are aesthetics, and `pj/facet` is the call that writes one.
+;; Much follows from that -- a facet reaches into a composite, a cell
+;; can override the facet it inherits, and several columns under `:col`
+;; unite into one distinction. A facet over columns is written beside
+;; the mapping, once, on a pose with one panel. The sections below teach
+;; those ideas, and the Examples section at the end shows faceted plots
+;; of several kinds.
 
 (ns plotje-book.faceting
   (:require
@@ -69,6 +71,24 @@
 (kind/test-last
  [(fn [v] (= ["r" "f" "4"]
              (filterv #{"r" "f" "4"} (drop-while #(not= "r" %) (:texts (pj/svg-summary v))))))])
+
+;; The panels, the categories of an axis and the entries of a legend
+;; follow one rule: the order the data holds them in, unless a `:domain`
+;; says otherwise. Colouring by the faceted column and giving both
+;; scales the same `:domain` lists the legend in the order of the
+;; panels:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy {:color :drv})
+    (pj/facet :drv)
+    (pj/scale :col {:domain ["r" "f" "4"]})
+    (pj/scale :color {:domain ["r" "f" "4"]}))
+
+(kind/test-last
+ [(fn [v] (let [plan (pj/plan v)]
+            (= ["r" "f" "4"]
+               (mapv :col-label (:panels plan))
+               (mapv :label (:entries (:legend plan))))))])
 
 ;; A category the `:domain` leaves out still draws its panel, after the
 ;; listed ones, and a name the `:domain` lists that the data does not
@@ -259,6 +279,20 @@
 ;; Two cells, three species, six panels. `pj/arrange` takes one vector
 ;; per row, so `[[a] [b]]` stacks the two cells and each has the full
 ;; width for its three panels.
+;;
+;; A facet over columns is not a mapping, so it does not reach into a
+;; composite: `pj/facet` given an arranged pose and a map of columns
+;; reports an error naming the spellings that draw -- a facet on each
+;; cell, or the columns arranged as cells.
+
+(kind/test-last
+ [(fn [_]
+    (try (pj/facet (pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+                                (pj/lay-point (rdatasets/ggplot2-mpg) :displ :cty)])
+                   {:y [:hwy :cty]})
+         false
+         (catch clojure.lang.ExceptionInfo e
+           (boolean (re-find #"on a composite pose" (ex-message e))))))])
 
 ;; ### One cell can be faceted differently from another
 
@@ -734,6 +768,24 @@ measures
            (apply = (map :y-domain panels))
            (apply = (map :x-domain panels)))))])
 
+;; A facet over categories is itself a shorthand for an arrangement:
+;; one cell per category, each holding the whole data and a `:where`,
+;; the row filter that keeps the rows of that category. Written out by
+;; hand, the cells draw the same plot as the facet:
+
+(pj/arrange (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+            [{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}])
+
+(kind/test-last
+ [(fn [v] (= (pj/plot v)
+             (pj/plot (-> (rdatasets/ggplot2-mpg)
+                          (pj/lay-point :displ :hwy)
+                          (pj/facet :drv)))))])
+
+;; The cells are parts of the arrangement's data, so they share both
+;; axes, as the panels of the facet do -- the cells holding data of
+;; their own, above, share none.
+;;
 ;; `{:share-scales #{:y}}` in the arrangement's options gives the three
 ;; cells one `:y` axis, as the Shared Scales section of the Composition
 ;; chapter shows.
@@ -757,6 +809,47 @@ measures
 ;; different layers, a dashboard -- or when the layout needs what only a
 ;; list of cells can say: a column count, an empty cell written `nil`,
 ;; rows of different lengths, or one arrangement placed inside another.
+
+;; ## The Order of the Calls
+;;
+;; `pj/facet` may be written anywhere in a pipeline. `pj/options`,
+;; `pj/scale` and `pj/coord` written before the facet give the pose they
+;; give written after it, and a layer added before or after the facet
+;; draws the same plot. These two pipelines write the same calls in
+;; different orders:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :drv)
+    (pj/scale :y {:domain [0 50]})
+    pj/lay-smooth)
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    pj/lay-smooth
+    (pj/scale :y {:domain [0 50]})
+    (pj/facet :drv))
+
+(kind/test-last
+ [(fn [v]
+    (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
+      (and (= (pj/plot v)
+              (pj/plot (-> p
+                           (pj/facet :drv)
+                           (pj/scale :y {:domain [0 50]})
+                           pj/lay-smooth)))
+           (= (-> p (pj/facet :drv) (pj/options {:title "T"}))
+              (-> p (pj/options {:title "T"}) (pj/facet :drv)))
+           (= (-> p (pj/facet :drv) (pj/coord :flip))
+              (-> p (pj/coord :flip) (pj/facet :drv))))))])
+
+;; The same holds under a facet over columns, where a layer added before
+;; or after the facet gives an equal pose.
+
+(kind/test-last
+ [(fn [_]
+    (= (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]}))
+       (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) (pj/facet {:y [:hwy :cty]}) pj/lay-point)))])
 
 ;; ## Examples
 

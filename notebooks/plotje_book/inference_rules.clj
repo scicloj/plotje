@@ -177,6 +177,13 @@ two-col-pose
 (kind/test-last [(fn [pose] (and (= {:x :x :y :y} (:mapping pose))
                                  (empty? (:layers pose))))])
 
+;; The inferred pose is one the reader could have written. Inferring
+;; from it again changes nothing, and it draws what the lean pose draws:
+
+(kind/test-last [(fn [_] (let [inferred (pj/infer-mapping two-col-pose)]
+                           (and (= inferred (pj/infer-mapping inferred))
+                                (= (pj/plot two-col-pose) (pj/plot inferred)))))])
+
 ;; ### A later layer on a pose whose columns are read by default
 ;;
 ;; A layer added to a pose leaves the layers before it as they were

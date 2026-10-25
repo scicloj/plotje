@@ -61,6 +61,27 @@ sales-by-region
 
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
+;; ## A series is a layer per column
+
+;; A series draws what one layer per column draws. The three layers
+;; below share the pose's one panel, and each takes a colour and a
+;; legend entry naming its column, as the measures of the series do --
+;; the two plots are equal, titles and legend included:
+
+(-> sales
+    (pj/lay-line :quarter :revenue)
+    (pj/lay-line :quarter :cost)
+    (pj/lay-line :quarter :tax))
+
+(kind/test-last
+ [(fn [v] (= (pj/plot v)
+             (pj/plot (pj/lay-line sales :quarter [:revenue :cost :tax]))))])
+
+;; The series is the shorter spelling, and the one that names the
+;; measures as one group: a position adjustment can place them against
+;; each other in a band, and a facet can split them by the key column,
+;; as the sections below show.
+
 ;; ## The same plot from long data
 
 ;; A series is the wide-side spelling of something the long shape
@@ -698,10 +719,9 @@ sales-by-region
 
 ;; #### Panels from the key column
 
-;; Faceting a series by its key column draws one panel per measure.
-;; These panels show what `(pj/facet pose {:y [:revenue :cost :tax]})`
-;; shows: each panel draws one column, is titled by that column, and
-;; has a value axis of its own.
+;; Faceting a series by its key column draws one panel per measure:
+;; each panel draws one column, is titled by that column, and has a
+;; value axis of its own.
 
 (-> sales
     (pj/lay-line :quarter [:revenue :cost :tax])
@@ -711,6 +731,38 @@ sales-by-region
  [(fn [v] (let [panels (mapcat (comp :panels :plan) (:sub-plots (pj/plan v)))]
             (and (= 3 (:panels (pj/svg-summary v)))
                  (= 3 (count (distinct (map :y-domain panels)))))))])
+
+;; Two other spellings draw the same plot: a facet over the three
+;; columns, placed across with `:col`, and an arrangement of the three
+;; pairs of columns.
+
+(-> sales
+    (pj/pose {:x :quarter})
+    pj/lay-line
+    (pj/facet {:col {:y [:revenue :cost :tax]}}))
+
+(kind/test-last
+ [(fn [v] (let [split (pj/plot (-> sales
+                                   (pj/lay-line :quarter [:revenue :cost :tax])
+                                   (pj/facet :series)))]
+            (and (= split (pj/plot v))
+                 (= split (pj/plot (-> sales
+                                       (pj/arrange [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+                                       pj/lay-line))))))])
+
+;; The panels have value axes of their own because they draw different
+;; columns, and the series keeps the names of the columns it reads. A
+;; table pivoted by hand with `tc/pivot->longer` and faceted by its key
+;; column draws one column, `:value`, in every panel, so its panels
+;; share one value axis.
+
+(kind/test-last
+ [(fn [_] (let [long-facet (-> sales
+                               (tc/pivot->longer #{:revenue :cost :tax}
+                                                 {:target-columns :series :value-column-name :value})
+                               (pj/lay-line :quarter :value)
+                               (pj/facet :series))]
+            (= 1 (count (distinct (map :y-domain (:panels (pj/plan long-facet))))))))])
 
 ;; To read the measures against each other, share the value axis
 ;; between the columns with `:share-scales`:
@@ -980,8 +1032,22 @@ sales-by-region
 
 ;; #### Two marks over one series
 
+;; A second mark over the same measures is written as a second series
+;; naming the same columns. Each layer draws its own series, in the
+;; same colours, on the pose's one panel:
+
+(-> sales
+    (pj/lay-line :quarter [:revenue :cost :tax])
+    (pj/lay-point :quarter [:revenue :cost :tax]))
+
+(kind/test-last
+ [(fn [v] (= (pj/plot v)
+             (pj/plot (-> sales
+                          (pj/lay-line :quarter [:revenue :cost :tax])
+                          (pj/lay-point :quarter :value {:color :series})))))])
+
 ;; The pivot replaces the pose's data when the pose is drawn, so a
-;; second layer reads the columns it invented -- `:value` for the number and `:series` for the key -- and
+;; second layer may also read the columns it invented -- `:value` for the number and `:series` for the key -- and
 ;; draws the same series in another mark. The key column is mapped to
 ;; `:color` on the layer that asked for the series, so a second layer
 ;; names it to be coloured the same way.

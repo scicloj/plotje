@@ -24,6 +24,21 @@
             (and (= 1 (:panels s))
                  (pos? (:polygons s)))))])
 
+;; ## Horizontal Histogram
+;;
+;; Naming the column on `:y` draws the histogram on its side, with the
+;; counts along `:x`. It is the plot the column on `:x` draws with the
+;; coordinates flipped.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-histogram {:y :sepal-length}))
+
+(kind/test-last
+ [(fn [v] (= (pj/plot v)
+             (pj/plot (-> (rdatasets/datasets-iris)
+                          (pj/lay-histogram {:x :sepal-length})
+                          (pj/coord :flip)))))])
+
 ;; ## Colored Histogram
 ;;
 ;; Split by species -- each group gets its own color.

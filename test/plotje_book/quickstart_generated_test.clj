@@ -211,7 +211,20 @@
 
 
 (def
- v48_l205
+ v48_l206
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width)
+  (pj/facet :species)))
+
+
+(deftest
+ t49_l210
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v48_l206)))
+
+
+(def
+ v51_l220
  (pj/arrange
   [(pj/lay-point
     (rdatasets/datasets-iris)
@@ -225,11 +238,11 @@
   {:cols 2}))
 
 
-(deftest t49_l209 (is ((fn [v] (pj/pose? v)) v48_l205)))
+(deftest t52_l224 (is ((fn [v] (pj/pose? v)) v51_l220)))
 
 
 (def
- v51_l222
+ v54_l237
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -237,12 +250,12 @@
 
 
 (deftest
- t52_l226
- (is ((fn [v] (and (vector? v) (= :svg (first v)))) v51_l222)))
+ t55_l241
+ (is ((fn [v] (and (vector? v) (= :svg (first v)))) v54_l237)))
 
 
 (def
- v54_l234
+ v57_l249
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -251,12 +264,12 @@
 
 
 (deftest
- t55_l239
- (is ((fn [v] (and (vector? v) (= :svg (first v)))) v54_l234)))
+ t58_l254
+ (is ((fn [v] (and (vector? v) (= :svg (first v)))) v57_l249)))
 
 
 (def
- v57_l246
+ v60_l261
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -264,5 +277,5 @@
 
 
 (deftest
- t58_l250
- (is ((fn [p] (and (instance? java.io.File p) (.exists p))) v57_l246)))
+ t61_l265
+ (is ((fn [p] (and (instance? java.io.File p) (.exists p))) v60_l261)))

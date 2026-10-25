@@ -54,15 +54,28 @@ iris-pose
 
 (kind/test-last [(fn [ks] (= [:data :layers :mapping] ks))])
 
-;; Four more keys may appear, and none of them is required:
+;; Other keys may appear, and none of them is required:
 ;;
 ;; - `:poses` holds sub-poses. A pose that has it is a composite; a
 ;;   pose without it is a leaf, and describes a single panel.
 ;; - `:layout` says how a composite's sub-poses tile their rectangle.
-;; - `:opts` holds the plot options set by `pj/options`, `pj/scale`,
-;;   `pj/coord` and `pj/facet`.
-;; - `:share-scales` names the axes whose domains a composite pools
-;;   across its descendants.
+;; - `:opts` holds the plot options set by `pj/options` and `pj/coord`,
+;;   among them `:share-scales`, which names the axes the panels share.
+;;   `pj/scale` and a facet over categories write into `:mapping`
+;;   instead: a scale beside its aesthetic, a facet as `:col` or `:row`.
+;; - `:facet` holds a facet over columns, such as `{:y [:hwy :cty]}`,
+;;   which `pj/facet` writes beside the mapping.
+;; - `:where` keeps the rows whose columns hold the values it names, as
+;;   in `{:where {:species "setosa"}}`.
+
+(kind/test-last
+ [(fn [_]
+    (let [p (pj/lay-point {:a [1 2] :b [3 4] :g ["x" "y"]} :a :b)]
+      (and (= {:share-scales #{}} (:opts (pj/options p {:share-scales #{}})))
+           (= {:coord :flip} (:opts (pj/coord p :flip)))
+           (= {:y {:scale {:domain [0 9]}}} (:mapping (pj/scale p :y {:domain [0 9]})))
+           (= {:col :g} (:mapping (pj/facet p :g)))
+           (= {:y [:b]} (:facet (pj/facet (pj/pose {:a [1 2] :b [3 4]} {:x :a}) {:y [:b]}))))))])
 ;;
 ;; Any pose may carry any of them, so there is one shape to read
 ;; rather than two. `pj/arrange` produces the composite form -- two

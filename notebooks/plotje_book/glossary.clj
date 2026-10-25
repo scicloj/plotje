@@ -1000,6 +1000,72 @@ my-pose
             (and (= 1 (:panels s))
                  (= 6 (:polygons s)))))])
 
+;; ## Series
+;;
+;; A **series** is a vector of columns written where one column goes, as
+;; in `{:y [:sepal-width :petal-width]}`. The columns are drawn on one
+;; panel, each in a colour of its own, and the axis is titled by them.
+;; A series draws the marks, colours and titles that one layer per
+;; column draws.
+
+(pj/lay-point (rdatasets/datasets-iris) :sepal-length [:sepal-width :petal-width])
+
+(kind/test-last
+ [(fn [v]
+    (= (pj/svg-summary v)
+       (pj/svg-summary (-> (rdatasets/datasets-iris)
+                           (pj/lay-point :sepal-length :sepal-width)
+                           (pj/lay-point :sepal-length :petal-width)))))])
+
+;; ## Pivot
+;;
+;; To **pivot** is to turn columns into the categories of a key column:
+;; each row of the wide table becomes one row per column, holding the
+;; column's name in the key column and its value in a value column. A
+;; series is pivoted when it is drawn, and its key column, `:series`,
+;; is mapped to `:color`; `tc/pivot->longer` pivots a dataset by hand.
+;; The series keeps the names of the columns it pivoted, so it titles
+;; its axis by them; a table pivoted by hand titles the axis by its
+;; value column.
+
+;; ## Split
+;;
+;; To **split** is to move a distinction from inside one panel to
+;; across panels: `{:color :species}` tells the species apart on one
+;; panel, and `(pj/facet :species)` gives each species a panel of its
+;; own. A series split by its key column, `(pj/facet :series)`, draws a
+;; panel per column, as a facet over those columns does.
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length [:sepal-width :petal-width])
+    (pj/facet :series))
+
+(kind/test-last
+ [(fn [v]
+    (= (pj/plot v)
+       (pj/plot (-> (rdatasets/datasets-iris)
+                    (pj/pose {:x :sepal-length})
+                    pj/lay-point
+                    (pj/facet {:col {:y [:sepal-width :petal-width]}})))))])
+
+;; ## Row Filter
+;;
+;; A **row filter** is the `:where` of a pose: a map from a column to a
+;; value, or to a set of values, that keeps the rows matching it. A pose
+;; with a `:where` draws what the filtered data draws. The cells a facet
+;; over categories stands for are poses with a `:where` each, so an
+;; arrangement of such cells draws what the facet draws.
+
+(pj/arrange (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)
+            [{:where {:species "setosa"}} {:where {:species "versicolor"}} {:where {:species "virginica"}}])
+
+(kind/test-last
+ [(fn [v]
+    (= (pj/plot v)
+       (pj/plot (-> (rdatasets/datasets-iris)
+                    (pj/lay-point :sepal-length :sepal-width)
+                    (pj/facet :species)))))])
+
 ;; ## Marginal
 ;;
 ;; A **marginal** is a distribution of one of a panel's columns, drawn
@@ -1411,6 +1477,10 @@ annotated
 ;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet`, `pj/facet-grid` |
 ;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/lay-*` on a leaf |
+;; | Series | A vector of columns written where one column goes, drawn on one panel | `{:y [:a :b]}` in a mapping |
+;; | Pivot | Turn columns into the categories of a key column | A series when drawn; `tc/pivot->longer` |
+;; | Split | Move a distinction from inside a panel to across panels | `pj/facet` |
+;; | Row filter | The rows a pose draws, by column values | `:where` on a pose or a cell |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make the panels of a facet, or the sibling poses of a composite, share data ranges across named axes | `:share-scales` in `:opts` |
 ;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
