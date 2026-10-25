@@ -261,8 +261,8 @@ temp-pose
 
 ;; `:share-scales #{:x}` pools the date column across the cells. The
 ;; pooled range is the union of both, so each series occupies the part
-;; of the axis it covers, and both panels carry the same tick labels.
-;; A month is at the same place in both panels.
+;; of the axis it covers, and the axis is labelled once, under the lower
+;; panel. A month is at the same place in both panels.
 
 (pj/arrange cities {:cols 1 :share-scales #{:x}})
 
@@ -276,7 +276,10 @@ temp-pose
       (and (= 2 (:panels (pj/svg-summary v)))
            (= 12 (:points (pj/svg-summary v)))
            (apply = (mapv :x-domain panels))
-           (apply = (mapv #(:labels (:x-ticks %)) panels))
+           ;; Ticked once: the upper panel draws no labels, the lower
+           ;; draws the shared axis's.
+           (empty? (:labels (:x-ticks (first panels))))
+           (seq (:labels (:x-ticks (second panels))))
            ;; And the panels are the same width, which is what puts a
            ;; month at the same place in both.
            (apply = widths))))])

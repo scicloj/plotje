@@ -28,6 +28,7 @@
    `compute-dims` when the final pw/ph are known."
   (:require [clojure.string :as str]
             [scicloj.plotje.impl.defaults :as defaults]
+            [scicloj.plotje.impl.text :as text]
             [scicloj.plotje.impl.scale :as scale]
             [wadogo.scale :as ws]))
 
@@ -218,6 +219,8 @@
      :caption? (boolean caption)
      :x-label? (boolean eff-x-label)
      :y-label? (boolean eff-y-label)
+     :x-label-text eff-x-label
+     :y-label-text eff-y-label
      :has-col-strips? has-col-strips?
      :has-row-strips? has-row-strips?
      :max-row-strip-chars max-row-strip-chars
@@ -443,12 +446,19 @@
   [cfg]
   (- (legend-row-step cfg) 16))
 
+(defn legend-swatch-size
+  "The side of a legend's swatch: `defaults/legend-swatch-size` at the
+   default `:legend-font-size`, and as much larger as the text is, so a
+   swatch keeps its size beside the words it marks."
+  [cfg]
+  (legend-scaled cfg defaults/legend-swatch-size))
+
 (defn legend-swatch-drop
   "How far a swatch sits below the top of its row, so that it stays
    centred on text drawn larger than the default: nothing at the
    default `:legend-font-size`."
   [cfg]
-  (/ (- (legend-font-size cfg) 10) 2))
+  (/ (- (legend-font-size cfg) 10 (- (legend-swatch-size cfg) defaults/legend-swatch-size)) 2))
 
 (def size-legend-swatch-length
   "How long a segment swatch is drawn, in drawing units. A width
@@ -502,7 +512,7 @@
           ;; Swatch + gap takes ~24px; estimate label font advance as
           ;; ~7px per char; leave ~8px right margin.
            char-px (legend-scaled cfg 7)
-           chrome  32
+           chrome  (+ 24 (legend-swatch-size cfg))
            margin  8
           ;; The legend column itself starts this far past the panels
           ;; (`legend-x` in render/membrane.clj), so the reserved width
@@ -529,7 +539,7 @@
                                   (:size-legend-title-chars scene 0))
                        0)
            alpha-need (if-let [al (:alpha-legend scene)]
-                        (text-need al defaults/legend-swatch-size
+                        (text-need al (legend-swatch-size cfg)
                                    (:alpha-legend-title-chars scene 0))
                         0)]
        (max base colour-need size-need alpha-need))
@@ -804,3 +814,99 @@
      :total-w total-w :total-h total-h
      :horiz-overhead horiz-overhead
      :vert-overhead vert-overhead}))
+
+;; ---- Axis titles in several lines ----
+
+(defn title-lines
+  "An axis title as the lines it is drawn in, given the length of the
+   axis, `avail`, and the font size. A title that fits is one line. One
+   that does not is broken after the commas that join the columns it
+   names, each line holding as many as fit; a column name too long for
+   a line of its own is broken at its spaces, and a word too long for a
+   line ends in \"...\". At most four lines are drawn, the last ending
+   in \"...\" where more would follow. The layout reserves room for these
+   lines and the renderer draws them, from this one rule."
+  [title fsize avail]
+  (let [w #(text/text-width fsize %)
+        avail (double avail)
+        per-char (* (double fsize) text/char-advance)
+        cut (fn [s] (str (subs s 0 (max 1 (min (count s) (- (long (/ avail per-char)) 3)))) "..."))
+        ;; A trailing comma may stand past the end of the line.
+        fits? (fn [s] (<= (w (str/replace s #",$" "")) avail))
+        ;; Greedy filling: each piece joins the line before it where the
+        ;; two fit together.
+        fill (fn [pieces sep]
+               (reduce (fn [lines piece]
+                         (let [cur (peek lines)]
+                           (if (and cur (fits? (str cur sep piece)))
+                             (conj (pop lines) (str cur sep piece))
+                             (conj lines piece))))
+                       []
+                       pieces))
+        max-lines 4]
+    (cond
+      (nil? title) []
+      (<= (w title) avail) [title]
+      :else
+      (let [parts (str/split title #", ")
+            parts (conj (mapv #(str % ",") (pop parts)) (peek parts))
+            lines (fill parts " ")
+            lines (vec (mapcat (fn [line]
+                                 (if (fits? line)
+                                   [line]
+                                   (mapv #(if (fits? %) % (cut %))
+                                         (fill (str/split line #" ") " "))))
+                               lines))]
+        (if (> (count lines) max-lines)
+          (conj (subvec lines 0 (dec max-lines))
+                (let [l (nth lines (dec max-lines))]
+                  (if (fits? (str l "...")) (str l "...") (cut l))))
+          lines)))))
+
+(defn title-line-height
+  "The distance between the lines of an axis title."
+  [cfg]
+  (* 1.2 (double (:label-font-size cfg))))
+
+(defn fit-axis-titles
+  "`padding` with room below the panels for an `:x` title, and left of
+   them for a `:y` title, broken into lines (`title-lines`), and the
+   lines under `:x-label-lines` and `:y-label-lines`. A title has the
+   length from its centre, the middle of the panels, to the nearer edge
+   of the plot on either side -- a title that is drawn whole stays one
+   line. The room taken for the lines shrinks the panels and moves
+   that centre, so this is repeated until it settles. Where the panels do
+   not fit at all, `padding` is returned as it is, for `compute-dims`
+   to report."
+  [scene padding cfg opts]
+  (let [{:keys [grid-rows grid-cols x-label-text y-label-text]} scene
+        fsize (:label-font-size cfg)
+        lh (title-line-height cfg)]
+    (loop [p padding
+           k 0]
+      (let [dims (try (compute-dims scene p cfg opts)
+                      (catch clojure.lang.ExceptionInfo _ nil))]
+        (if-not dims
+          padding
+          (let [;; A title is centred on the panels, and may run past
+                ;; them as far as the edge of the plot: the room it has
+                ;; is twice the distance from its centre to the nearer
+                ;; edge.
+                room (fn [centre total]
+                       (- (* 2.0 (min (double centre) (- (double total) (double centre)))) 4.0))
+                x-centre (+ (double (:y-label-pad p)) (/ (* grid-cols (double (:pw dims))) 2.0))
+                y-centre (+ (double (:title-pad p 0)) (double (:top-legend-pad p 0))
+                            (double (:strip-h p 0)) (/ (* grid-rows (double (:ph dims))) 2.0))
+                xl (title-lines x-label-text fsize (room x-centre (:total-w dims)))
+                yl (title-lines y-label-text fsize (room y-centre (:total-h dims)))
+                extra (fn [lines] (* lh (max 0 (dec (count lines)))))
+                ;; Added only where there is a line to make room for, so
+                ;; a pad that needs none keeps its value and its type.
+                grow (fn [p k lines]
+                       (if (next lines) (update p k + (extra lines)) p))
+                target (-> padding
+                           (grow :x-label-pad xl)
+                           (grow :y-label-pad yl))]
+            (if (or (= target p) (>= k 3))
+              (assoc target :x-label-lines xl :y-label-lines yl)
+              (recur target (inc k)))))))))

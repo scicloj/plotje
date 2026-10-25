@@ -863,13 +863,12 @@ dashboard
 ;; A few details about how composition renders today:
 ;;
 ;; - **Cells with data of their own draw their own axes, titles and
-;;   ticks.** In `(pj/arrange [pose-a pose-b])` a shared scale aligns
-;;   the data ranges, and each cell still titles and ticks its own
-;;   axes, so a stack of such cells reading one x column carries that
-;;   axis title once per cell. Cells that read the data of the pose
-;;   holding them, as in `(pj/arrange data [...])`, title a shared axis
-;;   once and label the ticks of that axis on the outer cells only, as
-;;   the panels of a facet do. A cell drops its own with
+;;   ticks**, unless `:share-scales` asks them to share an axis. In
+;;   `(pj/arrange [pose-a pose-b] {:share-scales #{:x}})`, and in cells
+;;   that read the data of the pose holding them, as in
+;;   `(pj/arrange data [...])`, a shared axis is titled once and its
+;;   ticks are labelled on the outer cells only, as the panels of a
+;;   facet do. A cell drops its own with
 ;;   `:suppress-x-ticks` and `:suppress-x-label` in that cell's
 ;;   `:opts`, which is what `pj/marginal` writes on the strip it
 ;;   builds. (Matrix layouts -- the SPLOM grid in particular --

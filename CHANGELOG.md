@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Plots that look different after upgrading
 
-- **A `pj/pose` call given a vector of columns in place of one column**, such as `(pj/pose data [:a :b :c])`, draws the columns as a series on one panel, with a colour and a legend entry per column. Where the call also specifies `:color`, the marks are coloured by that column. For a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
+- **A vector of columns given where one column goes**, as in `(pj/pose data [:a :b :c])` or `(pj/lay-density data [:a :b :c])`, draws the columns as a series on one panel, with a colour and a legend entry per column. Where the call also specifies `:color`, the marks are coloured by that column. For this release a Note says so; for a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
 - **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`; layers that name their own columns keep them. On a composite the mapping goes to the root, where the cells and layers that name no `:x` or `:y` read it. An `:x` or `:y` that every layer, or every cell, names for itself is not drawn, and drawing the pose warns so. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`.
 
@@ -16,7 +16,11 @@ All notable changes to this project will be documented in this file. This change
 
 - **A legend listing the values of two colour columns**, as where two layers of one pose are coloured by different columns, is titled by both: `drv, class`.
 
-- **Cells drawn from the data of the pose they are arranged into**, as in `(-> data (pj/arrange [{:x :a :y :b} {:x :a :y :c}]) pj/lay-point)`, share each axis on which they draw one column: the axis is titled once and its ticks are labelled on the outer cells only. `:share-scales` overrides the sharing, and `#{}` labels the ticks of every cell.
+- **An axis title that would run past the edge of the plot** is drawn in several lines, broken after the commas between the columns it names, and a column name too long for a line at its spaces. At most four lines are drawn; a word too long for a line, or a fifth line, ends in `...`.
+
+- **`pj/arrange` with `:cols` whose last row is short** draws the cells of that row at the size of the cells above, the rest of the row left empty. Cells that filter the data with `:where` and are labelled by no row or column of the grid each get a strip naming their filter's values, as the panels of a facet do.
+
+- **Cells drawn from the data of the pose they are arranged into**, as in `(-> data (pj/arrange [{:x :a :y :b} {:x :a :y :c}]) pj/lay-point)`, share each axis on which they draw one column: the axis is titled once and its ticks are labelled on the outer cells only. `:share-scales` overrides the sharing, and `#{}` labels the ticks of every cell. Cells carrying data of their own that `:share-scales` asks to share an axis are titled and ticked the same way.
 
 - **A shared axis** covers the extent the panels sharing it draw, padded once, in a facet and in an arrangement alike, so the panels have the axes of the same plot drawn without the facet: `displ` from 1.6 to 7.0 runs `[1.33 7.27]` in every panel of `(pj/facet pose :drv)`. The extent is measured after the statistics, so it reaches the top of a stack and the ends of an error bar, and under a loess smooth drawn alone it fits the curves. In a `pj/facet-grid`, a cell holding one row does not widen the shared axis, and a cell with no rows takes it.
 
@@ -26,7 +30,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **A colour or shape legend under a facet** lists its categories in the order the rows of the whole data hold them, as the same plot with no facet does, so a category keeps its colour and its symbol when a facet is added. A faceted plot whose first panel does not hold the data's first categories changes colours, and the order of a stack and of dodged marks follows the legend. A `:domain` on the scale sets the order. A shared categorical axis of a keyword column follows the order of the data's rows too.
 
-- **A series** titles the axis it is drawn on by its columns, `revenue, cost`; a series on `:x` together with a series on `:y` titles each axis by its own columns. Its legend entries and its groups are in the order the columns are written: `[:cost :revenue]` lists `cost` first. The legend has no title unless `:as` names the key column or a title is specified, with `:color-label` or a `:label` in the colour scale. `:x-label` and `:y-label` set the axis title.
+- **A series** titles the axis it is drawn on by its columns, `revenue, cost`; a series on `:x` together with a series on `:y` titles each axis by its own columns. Its legend entries, its groups and its axis title are in the order the columns are written, `[:cost :revenue]` listing `cost` first, or in the order a `:domain` on the colour scale gives. The legend has no title unless `:as` names the key column or a title is specified, with `:color-label` or a `:label` in the colour scale. `:x-label` and `:y-label` set the axis title.
 
 - **A layer beside a series**, such as `(-> data (pj/lay-line :quarter [:revenue :cost]) (pj/lay-point :quarter :units))`, is drawn on the series' panel: the axis title lists its column, and with no `:color` specified it takes a colour and a legend entry of its own. A layer naming one of the series' columns, `(pj/lay-point :quarter :revenue)`, is drawn in that column's colour. The pose keeps the data it was given, and the columns are pivoted when the pose is drawn.
 
@@ -38,7 +42,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **Strips above a grid of cells**, as in a scatter-plot matrix, are centred on each panel. They name the columns as the axis titles do: `sepal length`, not `sepal-length`.
 
-- **Plots under `(pj/coord :polar)`** draw axis titles and tick labels. The `:x` title names the column drawn as the angle and the `:y` title the column drawn as the radius, so the panels of a facet over columns are named. The angle's tick labels stand around the circle, where a rose chart's categories name their wedges, and the radius's at the left edge, level with each circle of the grid, which is drawn at the ticks. Where the two ends of a numeric angle meet, their labels are joined, as `0/400`.
+- **Plots under `(pj/coord :polar)`** draw axis titles and tick labels. The `:x` title names the column drawn as the angle and the `:y` title the column drawn as the radius, so the panels of a facet over columns are named. The angle's tick labels stand around the circle, where a rose chart's categories name their wedges, and the radius's at the left edge, level with each circle of the grid, which is drawn at the ticks. The angle is labelled in every panel of a facet. Where the two ends of a numeric angle meet, as under a `:domain` of `[0 400]`, their labels are joined, `0/400`.
 
 - **A short numeric axis**, as on a small panel, carries at least two tick labels where they fit. Where the count its length allows gives one tick, the axis is ticked as for a count of three or four, or at every other one of those ticks where the labels would otherwise touch; where neither fits, it keeps its one label.
 
@@ -56,7 +60,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `pj/facet-matrix` draws a grid of panels, one per pair of columns: `(pj/facet-matrix data cols)` crosses the columns with themselves, and `(pj/facet-matrix data xs ys)` places the `xs` across and the `ys` down. It writes the facet `{:col {:x xs} :row {:y ys}}`, so a layer added afterwards is drawn in the panels whose columns it draws: `pj/lay-point` off the diagonal, `pj/lay-rug` on it. A panel with the same column on both axes draws a histogram, or a bar chart of counts for a categorical column. A mapping may come last, and with no columns every column of the data is crossed.
+- `pj/facet-matrix` draws a grid of panels, one per pair of columns: `(pj/facet-matrix data cols)` crosses the columns with themselves, and `(pj/facet-matrix data xs ys)` places the `xs` across and the `ys` down. It writes the facet `{:col {:x xs} :row {:y ys}}`, so a layer added afterwards is drawn in the panels whose columns it draws: `pj/lay-point` off the diagonal, `pj/lay-rug` on it. A panel with the same column on both axes draws a histogram, or a bar chart of counts for a categorical column. A mapping may come last, as in `pj/pose`, and a plot option written there warns, naming `pj/options`. With no columns every column of the data is crossed.
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the columns and pairs of the list are appended to it as cells.
 
@@ -76,13 +80,13 @@ All notable changes to this project will be documented in this file. This change
 
 - A column named on `:y` alone is drawn on its side by a layer type that draws from one column, whether the column is named on the pose or in the layer: `(pj/pose data {:y :hwy})` draws a histogram on its side, or a bar chart of counts for a categorical column, and `(pj/lay-histogram pose {:y :hwy})`, `pj/lay-density` and `pj/lay-bar` draw theirs. Beside a layer that draws from two columns, such as `pj/lay-point`, the layer reports an error. Such a pose takes `:coord :flip` or none; `:cartesian`, `:polar` and `:fixed` report an error, also where the pose is a panel of a facet over columns.
 
-- `:where`, a map from column to value or set of values, draws only the rows that match; numbers match by value, so `4` selects `4.0`. It is written on a cell of `pj/arrange`, as `{:where {:drv "f"}}`, alone or beside a mapping, or on a pose map; cells that split the data of the pose they are arranged into by one column's values draw what `pj/facet` draws. A filter that selects no rows warns.
+- `:where`, a map from column to value or set of values, draws only the rows that match; numbers match by value, so `4` selects `4.0`. It is written on a cell of `pj/arrange`, as `{:where {:drv "f"}}`, alone or beside a mapping, or on a pose map; cells that split the data of the pose they are arranged into by one column's values draw what `pj/facet` draws. A filter that selects no rows warns, and its cell draws a panel reading "no data". A `:where` that is not a map reports an error.
 
 - `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. Undeclared, it is `#{1}` for an `:x-only` layer type and `#{2}` otherwise; `:bar` declares `#{1 2}`, and `layer-type/column-counts` reads it back.
 
 - A stat declares what it computes for an axis with a method on `[stat :computes]`, beside its `[stat :doc]`: `:bin` declares `{:y :count}`, or `{:y :density}` under `:normalize :density`. Sharing an axis, the Note for layers of one panel, and the check for a missing `:y` column read the declaration, so an extension's stat takes part in all three. See "What a stat computes" in the Extensibility chapter.
 
-- `:legend-font-size` is a plot option: the font size of a legend's entries and numbers, with the legend's title one size larger. The option reaches the colour, size, alpha and shape legends in every `:legend-position`, and the legend column widens to fit the text. The default is 10.
+- `:legend-font-size` is a plot option: the font size of a legend's entries and numbers, with the legend's title one size larger. The option reaches the colour, size, alpha and shape legends in every `:legend-position`; the swatches grow with the text, and the legend column widens to fit it. The default is 10.
 
 - `:min-panel-size`, the smallest width and height a panel is drawn at (default 20), is a configuration key: `pj/options` and `pj/with-config` take it.
 
@@ -106,13 +110,11 @@ All notable changes to this project will be documented in this file. This change
 
 - Numeric columns drawn on one axis, by the layers of a pose or as a series, print a Note where one of them takes less than a twentieth of that axis, as `:hwy` does beside `:year`. The Note names the columns and their extents and the `pj/facet` call that draws a panel per column. It is not printed where the axis has a `:domain` specified or a log scale.
 
-- `pj/overlay` and the `:overlay` layer option warn that they are ignored, since the layers of a pose share one panel; `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`.
+- `pj/overlay` and `:overlay`, wherever written -- a layer's mapping, `pj/pose`, `pj/options` or a pose map -- warn that they are ignored, since the layers of a pose share one panel, and report an error under `:strict`. `(pj/overlay pose false)` and `{:overlay false}` report an error naming `pj/facet` and `pj/arrange`. `pj/overlay` is marked deprecated.
 
 - The `:scales` option is retired: it warns and is read as the `:share-scales` value it stands for, on a facet and on an arrangement alike -- `#{:x}` for `:free-y`, `#{:y}` for `:free-x` and `#{}` for `:free`. `:shared` warns and is ignored. Under `:strict` each reports an error.
 
 - A `:share-scales` that names an axis no two cells share warns once, naming the columns the cells draw there and the group that would share them. Cells of an arrangement that specify a `:share-scales` leaving out an axis the arrangement shares are named in one warning.
-
-- `lay-*` given a vector of columns alone, such as `(pj/lay-density data [:a :b :c])`, draws a panel per column and warns. The warning names `(pj/arrange [:a :b :c])` for a panel per column and `{:x [:a :b :c]}` for a series on one panel. In the next release a vector of columns in a `lay-*` call is read as a series, drawn on one panel.
 
 - `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/facet-matrix data xs ys)`. `pj/arrange` given options while appending cells to a composite reports an error, as does `pj/arrange` given its cells one by one, `(pj/arrange a b)`, in place of one vector.
 
@@ -183,6 +185,8 @@ All notable changes to this project will be documented in this file. This change
 - A facet by a category on data with no rows draws one panel reading "no data".
 
 - A panel whose categories are all missing adds no `?` category to its axis.
+
+- `:share-scales` written at the top of a hand-written pose map is read on a single pose, as it is on a composite.
 
 
 ## [0.16.1 - 2026-10-02]

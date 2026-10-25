@@ -9,6 +9,11 @@
 
 (defn- cells [n] (vec (repeat n (pj/lay-point tiny :u :v))))
 
+(defn- drawn
+  "How many cells of a planned arrangement draw a panel."
+  [plan]
+  (count (filter #(seq (get-in % [:plan :panels])) (:sub-plots plan))))
+
 (defn- message [pose]
   (try (pj/plan pose) nil
        (catch clojure.lang.ExceptionInfo e (ex-message e))))
@@ -22,7 +27,8 @@
         "the cell's share is not called the plot's height")
     (is (not (re-find #":min-panel-size" msg))))
   (testing "the form the message suggests draws"
-    (is (= 38 (count (:sub-plots (pj/plan (pj/arrange (cells 38) {:cols 4 :height 1200}))))))))
+    ;; The short last row keeps its places, left empty: they plan no panel.
+    (is (= 38 (drawn (pj/plan (pj/arrange (cells 38) {:cols 4 :height 1200})))))))
 
 (deftest too-many-columns-names-the-arrangement-test
   (let [msg (message (pj/arrange (cells 15) {:cols 15}))]
@@ -45,7 +51,7 @@
     (is (= 1200 height))
     (testing "and the suggested form draws"
       (let [poses (mapv (fn [g] (pj/lay-point {:u [1.0 2.0] :v [1.0 2.0]} :u :v)) (:g data))]
-        (is (= 38 (count (:sub-plots (pj/plan (pj/arrange poses {:cols 4 :height height}))))))))))
+        (is (= 38 (drawn (pj/plan (pj/arrange poses {:cols 4 :height height})))))))))
 
 (deftest a-cell-pinning-its-own-panel-keeps-its-own-message-test
   (is (re-find #"Each panel would be"

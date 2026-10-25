@@ -28,8 +28,8 @@
    draws the default round mark; an entry carrying a `:shape` -- one
    column driving both `:color` and `:shape` -- draws that symbol
    instead, through the same `draw-shape` the point marks use."
-  [color shape]
-  (let [sw defaults/legend-swatch-size
+  [color shape cfg]
+  (let [sw (layout/legend-swatch-size cfg)
         sw-r (/ sw 2.0)
         [cr cg cb _] color]
     (ui/with-color [cr cg cb 1.0]
@@ -126,8 +126,8 @@
           (for [[i {:keys [label color shape]}] (map-indexed vector entries)]
             (assoc
              (ui/translate x (+ y (* i row-step))
-                           [(ui/translate 0 (layout/legend-swatch-drop cfg) (legend-swatch color shape))
-                            (ui/translate 12 0
+                           [(ui/translate 0 (layout/legend-swatch-drop cfg) (legend-swatch color shape cfg))
+                            (ui/translate (+ 4 (layout/legend-swatch-size cfg)) 0
                                           (ui/with-color title-color
                                             (ui/label label (ui/font nil fsize))))])
              :legend true))))))))
@@ -205,13 +205,13 @@
                 (reduce (fn [{:keys [elems cur-x]} {:keys [label color shape]}]
                           (let [label-w (* (count label) (layout/legend-scaled cfg 6))
                                 elem [(assoc (ui/translate (+ x cur-x) (+ y -1 (layout/legend-swatch-drop cfg))
-                                                           (legend-swatch color shape))
+                                                           (legend-swatch color shape cfg))
                                              :legend true)
-                                      (ui/translate (+ x cur-x 10) (- y 1)
+                                      (ui/translate (+ x cur-x (layout/legend-swatch-size cfg) (layout/legend-scaled cfg 2)) (- y 1)
                                                     (ui/with-color title-color
                                                       (ui/label label (ui/font nil fsize))))]]
                             {:elems (into elems elem)
-                             :cur-x (+ cur-x 10 label-w 12)}))
+                             :cur-x (+ cur-x (layout/legend-swatch-size cfg) (layout/legend-scaled cfg 2) label-w 12)}))
                         {:elems [] :cur-x start-x}
                         entries)]
             elems)))))))
@@ -283,7 +283,7 @@
                                            (ui/rounded-rectangle
                                             w h (if (= :square kind) 0.0 (* 0.5 h))))))
                          w]))
-        sw defaults/legend-swatch-size
+        sw (layout/legend-swatch-size cfg)
         alpha-swatch (fn [{:keys [alpha]}]
                        [(ui/translate 0 (- (* 0.5 sw))
                                       (ui/with-color [0.3 0.3 0.3 alpha]
@@ -387,7 +387,7 @@
   [alpha-legend x y cfg]
   (let [{:keys [title entries]} alpha-legend
         title-color [0.2 0.2 0.2 1.0]
-        sw defaults/legend-swatch-size
+        sw (layout/legend-swatch-size cfg)
         row-h (layout/legend-row-step cfg)]
     (vec
      (concat
@@ -419,7 +419,7 @@
   [shape-legend x y cfg]
   (let [{:keys [title entries]} shape-legend
         title-color [0.2 0.2 0.2 1.0]
-        sw defaults/legend-swatch-size
+        sw (layout/legend-swatch-size cfg)
         mark-color (defaults/hex->rgba (:default-color cfg))
         row-h (layout/legend-row-step cfg)]
     (vec
@@ -433,7 +433,7 @@
             :let [cy (+ y (layout/legend-title-room cfg) (* i row-h))]]
         (assoc
          (ui/translate 0 0
-                       [(assoc (ui/translate x (+ cy (layout/legend-swatch-drop cfg)) (legend-swatch mark-color shape))
+                       [(assoc (ui/translate x (+ cy (layout/legend-swatch-drop cfg)) (legend-swatch mark-color shape cfg))
                                :legend true)
                         (ui/translate (+ x sw 6) cy
                                       (ui/with-color title-color
@@ -625,21 +625,37 @@
                              (ui/with-color [0.4 0.4 0.4 1.0]
                                (assoc (ui/label subtitle (ui/font nil (- title-fsize 2)))
                                       :text-anchor "middle")))])
-            ;; Y-axis label
+            ;; Y-axis label, in the lines the layout made room for
+            ;; (`layout/fit-axis-titles`): the first at the left edge,
+            ;; each next one nearer the panels.
             (when y-label
-              (let [fsize label-fsize]
-                [(ui/translate 12 (+ content-top strip-h (/ (* grid-rows ph) 2.0))
-                               (membrane.ui.Rotate. -90
-                                                    (ui/with-color text-color
-                                                      (assoc (ui/label y-label (ui/font nil fsize))
-                                                             :text-anchor "middle"))))]))
-            ;; X-axis label
+              (let [fsize label-fsize
+                    lh (layout/title-line-height cfg)
+                    lines (or (seq (:y-label-lines plan)) [y-label])]
+                (vec (map-indexed
+                      (fn [i line]
+                        (ui/translate (+ 12 (* i lh)) (+ content-top strip-h (/ (* grid-rows ph) 2.0))
+                                      (membrane.ui.Rotate. -90
+                                                           (ui/with-color text-color
+                                                             (assoc (ui/label line (ui/font nil fsize))
+                                                                    :text-anchor "middle")))))
+                      lines))))
+            ;; X-axis label, in lines: the last where a title of one line
+            ;; stands, the others above it.
             (when x-label
-              (let [fsize label-fsize]
-                [(ui/translate (+ y-label-pad (/ (* grid-cols pw) 2.0)) (- total-height (:label-offset cfg) #_x-label-pad -20)
-                               (ui/with-color text-color
-                                 (assoc (ui/label x-label (ui/font nil fsize))
-                                        :text-anchor "middle")))]))
+              (let [fsize label-fsize
+                    lh (layout/title-line-height cfg)
+                    lines (or (seq (:x-label-lines plan)) [x-label])
+                    n (count lines)]
+                (vec (map-indexed
+                      (fn [i line]
+                        (ui/translate (+ y-label-pad (/ (* grid-cols pw) 2.0))
+                                      (- total-height (:label-offset cfg) #_x-label-pad -20
+                                         (* (- n 1 i) lh))
+                                      (ui/with-color text-color
+                                        (assoc (ui/label line (ui/font nil fsize))
+                                               :text-anchor "middle"))))
+                      lines))))
             ;; Legends -- stacked vertically on the right (or horizontal for top/bottom)
             (let [any-legend? (or legend size-legend alpha-legend shape-legend)]
               (when (and any-legend? (not= legend-pos :none))

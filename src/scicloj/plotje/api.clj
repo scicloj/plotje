@@ -815,7 +815,7 @@
     (pose/infer-default-mapping fr)
     fr))
 
-(declare retire-scales)
+(declare retire-scales retired-overlay!)
 
 (defn- retire-scales-in-tree
   "A pose with the retired `:scales` option read as `:share-scales`
@@ -852,7 +852,13 @@
                true pose/collapse-regular-split)]
     (if (pose/composite? pose)
       (compositor/composite-pose->draft pose)
-      (resolve/->LeafDraft (pose/leaf->draft pose) (or (:opts pose) {})))))
+      ;; `:share-scales` at the top of a hand-written pose is read as
+      ;; it is on a composite (`pose/share-spec`).
+      (resolve/->LeafDraft (pose/leaf->draft pose)
+                           (cond-> (or (:opts pose) {})
+                             (and (contains? pose :share-scales)
+                                  (not (contains? (:opts pose) :share-scales)))
+                             (assoc :share-scales (:share-scales pose)))))))
 
 (def ^:private pose-mapping-keys
   "Keys accepted in a pose mapping (column refs + per-pose
@@ -977,7 +983,11 @@
   [caller opts accepted]
   (if-not (and (map? opts) (seq opts))
     opts
-    (let [[opts accepted-renames] (defaults/apply-renames opts)
+    (let [;; Retired wherever it is written, with one message.
+          _ (when (and (contains? opts :overlay) (not (contains? accepted :overlay)))
+              (retired-overlay! caller (:overlay opts)))
+          opts (dissoc opts :overlay)
+          [opts accepted-renames] (defaults/apply-renames opts)
           unknown (remove accepted (keys opts))
           strict-val (:strict (defaults/config))]
       (when-not (or (nil? strict-val) (boolean? strict-val))
@@ -1027,7 +1037,7 @@
    outer-scope :mapping inherits downward and merges with each
    descendant's own mapping."
   #{:data :mapping :layers :opts :poses :layout :share-scales
-    :grid-strip-labels :grid-axis-titles :overlay :where :facet})
+    :grid-strip-labels :grid-axis-titles :where :facet})
 
 (def ^:private pose-print-order
   "Key order used by pj/prepare-pose to make printed pose maps
@@ -1035,13 +1045,15 @@
    each level's data stays visually bound to its own siblings rather
    than trailing past its children; :poses last since children can
    be heavy."
-  [:opts :where :mapping :facet :overlay :share-scales :grid-strip-labels :grid-axis-titles :layout :layers :data :poses])
+  [:opts :where :mapping :facet :share-scales :grid-strip-labels :grid-axis-titles :layout :layers :data :poses])
 
 (defn- warn-unknown-pose-keys
   "Warn once about top-level keys in fr that are not in pose-keys.
    Returns fr unchanged."
   [fr]
-  (let [unknown (remove pose-keys (keys fr))]
+  (when (contains? fr :overlay)
+    (retired-overlay! "A pose map" (:overlay fr)))
+  (let [unknown (remove (conj pose-keys :overlay) (keys fr))]
     (when (seq unknown)
       (println (str "Warning: pose has unexpected top-level key(s): "
                     (vec unknown)
@@ -1097,7 +1109,7 @@
    prepare-pose so a single literal map flowing through both paths
    is only validated once."
   [fr]
-  (let [coerced (cond-> fr
+  (let [coerced (cond-> (dissoc fr :overlay)
                   (:data fr)
                   (update :data coerce-dataset)
                   (:poses fr)
@@ -1277,7 +1289,7 @@
     (some? data) (assoc :data data)
     (seq mapping) (assoc :mapping mapping)))
 
-(declare pose with-data)
+(declare pose with-data note-lone-vector!)
 
 (defn- pairs->rows
   "Detect whether `pairs` forms a rectangular M x N grid -- every
@@ -1444,19 +1456,21 @@
       (grid-composite base rows)
       (prepare-pose (add-cells base cells)))))
 
-(defn- extend-mapping [p m]
-  (check-mapping-in-map-slot "pj/pose" m "its mapping map")
-  (let [opts      (or (warn-and-strip-unknown-opts "pj/pose" m pose-mapping-keys)
+(defn- extend-mapping
+  ([p m] (extend-mapping "pj/pose" p m))
+  ([caller p m]
+  (check-mapping-in-map-slot caller m "its mapping map")
+  (let [opts      (or (warn-and-strip-unknown-opts caller m pose-mapping-keys)
                       {})
         data-over (:data opts)
         mapping   (dissoc opts :data)]
-    (check-column-ref-types "pj/pose" mapping)
-    (check-explicit-mappings "pj/pose" mapping)
-    (check-position-mapping "pj/pose" mapping)
+    (check-column-ref-types caller mapping)
+    (check-explicit-mappings caller mapping)
+    (check-position-mapping caller mapping)
     (if (pose? p)
       (cond-> (prepare-pose (extend-pose p mapping))
         data-over (with-data data-over))
-      (prepare-pose (pose-from-data (or data-over p) mapping)))))
+      (prepare-pose (pose-from-data (or data-over p) mapping))))))
 
 (defn pose
   "Construct or extend a pose.
@@ -1529,12 +1543,16 @@
   ([pose-or-data x-or-mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
+   (when (and (sequential? x-or-mapping) (series-mapping? x-or-mapping))
+     (note-lone-vector! x-or-mapping nil))
    (if (map? x-or-mapping)
      (extend-mapping pose-or-data x-or-mapping)
      (extend-mapping pose-or-data {:x x-or-mapping})))
   ([pose-or-data x y-or-mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
+   (when (and (map? y-or-mapping) (sequential? x) (series-mapping? x))
+     (note-lone-vector! x nil))
    (if (map? y-or-mapping)
      ;; (pj/pose data x-col opts-map) -- univariate position plus opts
      (extend-mapping pose-or-data (merge y-or-mapping {:x x}))
@@ -1566,8 +1584,22 @@
                            " cell, or on the data, and arrange the results with"
                            " pj/arrange.")
                       {:caller "pj/facet-matrix"})))
-    (facet (cond-> p (seq mapping) (extend-mapping mapping))
-           {:col {:x (vec xcols)} :row {:y (vec ycols)}})))
+    ;; The last map is a mapping, as `pj/pose`'s is, and not the plot
+    ;; options `pj/facet` takes last; a plot option written there is
+    ;; named, with where it goes.
+    (let [misplaced (vec (filter plot-options-keys (keys mapping)))
+          mapping (apply dissoc mapping misplaced)]
+      (when (seq misplaced)
+        (let [msg (str "pj/facet-matrix reads its last map as a mapping, written"
+                       " on the pose as pj/pose writes one, and " misplaced
+                       (if (next misplaced) " are plot options" " is a plot option")
+                       ". Set plot options after the call: (-> (pj/facet-matrix"
+                       " data cols) (pj/options {" (str/join " " (map #(str % " ...") misplaced)) "}))")]
+          (if (:strict (defaults/config))
+            (throw (ex-info msg {:caller "pj/facet-matrix" :keys misplaced}))
+            (println (str "Warning: " msg)))))
+      (facet (cond-> p (seq mapping) (#(extend-mapping "pj/facet-matrix" % mapping)))
+             {:col {:x (vec xcols)} :row {:y (vec ycols)}}))))
 
 (defn facet-matrix
   "A matrix of panels, one for every pair of columns: the `xcols`
@@ -1581,8 +1613,14 @@
    `(pj/facet-matrix data cols)` is `(pj/facet (pj/pose data) {:col {:x
    cols} :row {:y cols}})`. A layer added afterwards is drawn in the
    panels of as many columns as its layer type draws from: `pj/lay-point`
-   in the panels of two columns, `pj/lay-rug` on the diagonal. A mapping
-   given last is written on the pose:
+   in the panels of two columns, `pj/lay-rug` on the diagonal; a layer
+   that fits no panel is drawn in every panel as written, so a matrix of
+   one column with `pj/lay-point` draws that column against itself.
+
+   The map given last is a mapping, written on the pose as `pj/pose`
+   writes one -- unlike `pj/facet`, whose last map is plot options. Plot
+   options are set after the call, as in `(-> (pj/facet-matrix data cols)
+   (pj/options {:title \"T\"}))`.
 
    - `(pj/facet-matrix data)` -- every column against every column.
    - `(pj/facet-matrix data cols)` -- the columns against each other.
@@ -1749,69 +1787,61 @@
    leaf whose effective :x/:y (after ancestor-merge) match
    `position-mapping`. On miss, append a fresh leaf at the root level
    (LP3) after firing the new-panel column-existence safety check."
-  ([fr position-mapping layer]
-   (add-leaf-layer-to-composite fr position-mapping layer false))
-  ([fr position-mapping layer overlay?]
-   (let [match-path (pose/last-matching-leaf-path fr position-mapping)
-         ;; Under overlay a miss is not a new panel. The layer joins the
-         ;; last leaf in reading order -- the one a reader would call
-         ;; "the panel being built" -- carrying its own columns, which
-         ;; the four-level merge in pose/leaf->draft honors over the
-         ;; leaf's.
-         path (or match-path (when overlay? (pose/last-leaf-path fr)))]
-     ;; The layer keeps the columns it names on its own mapping, on a
-     ;; matching cell and on a new one alike -- a cell's mapping is what
-     ;; `pj/pose` writes, and `lay-*` never writes it.
-     (let [layer (update layer :mapping #(merge position-mapping %))]
-       (if (some? path)
-         (update-in fr
-                    (conj (pose/path->update-in-path path) :layers)
-                    (fnil conj []) layer)
-         (do
-           (check-new-panel-columns (:layer-type layer)
-                                    position-mapping layer (:data fr))
-           ;; The new cell reads the root's data. Where the cells carry
-           ;; their own and the root has none, it has nothing to read
-           ;; and draws a panel reading "no data".
-           (when-not (or (:data layer) (:data fr))
-             (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
-                   cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])
-                   drawn (distinct (keep pose/leaf-place (pose/resolve-tree fr)))]
-               (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
-                             ", and no cell of this pose draws "
-                             (if (next cols) "those columns" "that column")
-                             ", so the layer is drawn on a cell of its own."
-                             " That cell has no data: the cells carry their own,"
-                             " and the pose they are arranged in has none."
-                             " To draw the layer on a cell, name that cell's columns"
-                             (when (seq drawn)
-                               (str " (the cells draw "
-                                    (str/join ", " (map #(str/join " / " (map pr-str (remove nil? %)))
-                                                        drawn))
-                                    ")"))
-                             ". To keep the new cell, pass its data: (" lay
-                             " pose " (str/join " " (map pr-str cols)) " {:data data})."))))
-           ;; Cells that name no column and hold no layer draw nothing,
-           ;; and the layer, naming columns none of them draws, does not
-           ;; reach them: the cells of a split written as filters, as
-           ;; `{:where {:drv "f"}}`, take their columns from the pose.
-           (let [idle (count (filter #(and (nil? (pose/leaf-place %))
-                                           (empty? (:layers %))
-                                           (not (:plotje/empty-cell %)))
-                                     (pose/resolve-tree fr)))]
-             (when (pos? idle)
-               (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
-                     cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])]
-                 (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
-                               ", which no cell of this pose draws, so the layer is"
-                               " drawn on a cell of its own, and " idle
-                               (if (= 1 idle) " cell, which names" " cells, which name")
-                               " no column and hold no layer, draw nothing. To draw"
-                               " the layer in every cell, name its columns on the pose"
-                               " and add the layer with none: (-> pose (pj/pose "
-                               (str/join " " (map pr-str cols)) ") " lay ").")))))
-           (update fr :poses (fnil conj [])
-                   {:layers [layer]})))))))
+  [fr position-mapping layer]
+  (let [path (pose/last-matching-leaf-path fr position-mapping)]
+    ;; The layer keeps the columns it names on its own mapping, on a
+    ;; matching cell and on a new one alike -- a cell's mapping is what
+    ;; `pj/pose` writes, and `lay-*` never writes it.
+    (let [layer (update layer :mapping #(merge position-mapping %))]
+      (if (some? path)
+        (update-in fr
+                   (conj (pose/path->update-in-path path) :layers)
+                   (fnil conj []) layer)
+        (do
+          (check-new-panel-columns (:layer-type layer)
+                                   position-mapping layer (:data fr))
+          ;; The new cell reads the root's data. Where the cells carry
+          ;; their own and the root has none, it has nothing to read
+          ;; and draws a panel reading "no data".
+          (when-not (or (:data layer) (:data fr))
+            (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
+                  cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])
+                  drawn (distinct (keep pose/leaf-place (pose/resolve-tree fr)))]
+              (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
+                            ", and no cell of this pose draws "
+                            (if (next cols) "those columns" "that column")
+                            ", so the layer is drawn on a cell of its own."
+                            " That cell has no data: the cells carry their own,"
+                            " and the pose they are arranged in has none."
+                            " To draw the layer on a cell, name that cell's columns"
+                            (when (seq drawn)
+                              (str " (the cells draw "
+                                   (str/join ", " (map #(str/join " / " (map pr-str (remove nil? %)))
+                                                       drawn))
+                                   ")"))
+                            ". To keep the new cell, pass its data: (" lay
+                            " pose " (str/join " " (map pr-str cols)) " {:data data})."))))
+          ;; Cells that name no column and hold no layer draw nothing,
+          ;; and the layer, naming columns none of them draws, does not
+          ;; reach them: the cells of a split written as filters, as
+          ;; `{:where {:drv "f"}}`, take their columns from the pose.
+          (let [idle (count (filter #(and (nil? (pose/leaf-place %))
+                                          (empty? (:layers %))
+                                          (not (:plotje/empty-cell %)))
+                                    (pose/resolve-tree fr)))]
+            (when (pos? idle)
+              (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
+                    cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])]
+                (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
+                              ", which no cell of this pose draws, so the layer is"
+                              " drawn on a cell of its own, and " idle
+                              (if (= 1 idle) " cell, which names" " cells, which name")
+                              " no column and hold no layer, draw nothing. To draw"
+                              " the layer in every cell, name its columns on the pose"
+                              " and add the layer with none: (-> pose (pj/pose "
+                              (str/join " " (map pr-str cols)) ") " lay ").")))))
+          (update fr :poses (fnil conj [])
+                  {:layers [layer]}))))))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -2117,13 +2147,17 @@
   "Report `:overlay`, or `pj/overlay`, written by `caller` with value `v`.
 
    The layers of a pose share one panel, so asking for that is ignored
-   with a warning -- the picture is the one asked for. Asking for the
+   with a warning, or reported as an error under `:strict` as the other
+   retired names are -- the picture is the one asked for. Asking for the
    opposite, `false`, cannot be done by a flag: separate panels come
    from a split or from `pj/arrange`, and the error names both."
   [caller v]
   (if v
-    (println (str "Warning: " caller " -- :overlay is retired and ignored. The"
-                  " layers of a pose share one panel without it."))
+    (let [msg (str caller " -- :overlay is retired and ignored. The"
+                   " layers of a pose share one panel without it.")]
+      (if (:strict (defaults/config))
+        (throw (ex-info msg {:caller caller :overlay v}))
+        (println (str "Warning: " msg))))
     (throw (ex-info (str caller " -- :overlay is retired. The layers of a pose"
                          " share one panel. To draw layers on separate panels,"
                          " split the pose over the columns, as in"
@@ -2420,10 +2454,6 @@
     (retired-overlay! (str "pj/lay-" (layer-type-name layer-type-key)) (:overlay opts)))
   (let [opts (dissoc opts :overlay)
         built (elide-empty-maps (build-layer layer-type-key opts))
-        ;; A composite's cells are separate poses, so a layer added to
-        ;; one has to be placed now; a hand-written `:overlay` on the
-        ;; composite still says to join the last cell.
-        overlay? (boolean (:overlay fr))
         bare-layer built
         ;; A position written in the final map is the layer's own
         ;; mapping and stays there, and it decides which panel the layer
@@ -2447,10 +2477,7 @@
       ;; The resolved flag rides onto the layer: it lands on a cell whose
       ;; own mapping it may disagree with, and the cell decides its
       ;; panels at draft time from what its layers carry.
-      (add-leaf-layer-to-composite fr position-mapping
-                                   (cond-> bare-layer
-                                     overlay? (assoc :overlay true))
-                                   overlay?)
+      (add-leaf-layer-to-composite fr position-mapping bare-layer)
 
       ;; A layer keeps the columns it names on its own mapping, and the
       ;; pose's mapping is left as it was: a later `pj/pose` retargets
@@ -2506,22 +2533,19 @@
          " layer on its side, name the column on :y, as in (" lay
          " data {:y " (pr-str x) "}).")))
 
-(defn- panel-per-column
-  "A `lay-*` call given a lone vector of columns, `(pj/lay-histogram
-   data [:a :b :c])`: for this release it draws a panel per column, as
-   0.16 did, and warns that the next release reads the vector as a
-   series on one panel. Returns the pose the layer is added to -- the
-   cells `pj/arrange` builds from the columns."
-  [layer-type-key fr cols]
-  (let [lay (str "pj/lay-" (layer-type-name layer-type-key))]
-    (println (str "Warning: " lay " was given a vector of columns, "
-                  (pr-str (vec cols)) ", and drew a panel for each. In the"
-                  " next release a vector of columns in a lay-* call is read"
-                  " as a series, drawn on one panel. For a panel per column,"
-                  " write (-> data (pj/arrange " (pr-str (vec cols)) ") " lay
-                  "); for one panel, write (" lay " data {:x "
-                  (pr-str (vec cols)) "}).")))
-  (arrange fr cols))
+(defn- note-lone-vector!
+  "Print, for this release, that a vector of columns given where one
+   column goes is read as a series on one panel, where 0.16.1 drew a
+   panel per column, and how to draw the panels. `then` is the layer
+   call to show after `pj/arrange`, or nil for `pj/pose`."
+  [cols then]
+  (println (str "Note: a vector of columns, " (pr-str (vec cols)) ", is read as a"
+                " series on one panel; in 0.16.1 it drew a panel per column."
+                " For a panel per column, write "
+                (if then
+                  (str "(-> data (pj/arrange " (pr-str (vec cols)) ") " then ")")
+                  (str "(pj/arrange data " (pr-str (vec cols)) ")"))
+                ".")))
 
 (defn- lay-layer-type
   "Shared implementation for all lay-* functions.
@@ -2533,15 +2557,16 @@
    1-arity: append a bare layer. Its columns are the panel's, or the
             first one to three columns of the data, read at draft time.
    2-arity: a column -> a layer naming it on `:x`;
-            a vector of columns -> a panel per column, with a warning;
+            a vector of columns -> a series on `:x`, with a Note for
+            this release;
             a vector of pairs -> an error;
             a map -> a layer with that mapping.
    3-arity: two columns -> a layer naming both;
             a column and a vector of columns -> a series;
             a column and a map -> a layer naming it on `:x`, with that
             mapping;
-            a vector of columns and a map -> a panel per column, with a
-            warning.
+            a vector of columns and a map -> a series on `:x`, with a
+            Note for this release.
    4-arity: two columns and a map."
   ([layer-type-key pose-or-data]
    ;; A layer naming no column is given its columns later: the panel's
@@ -2558,12 +2583,11 @@
             (lay-caller-name layer-type-key) x-or-opts "its mapping")
            (lay-on-pose fr layer-type-key nil x-or-opts))
 
-       ;; Sequential -> build a multi-panel composite via pj/pose, then
-       ;; attach the layer at the root so it flows to every panel via
-       ;; resolve-tree.
+       ;; A vector of columns is a series on `:x`, one panel, as in
+       ;; `pj/pose`.
        (and (sequential? x-or-opts) (series-mapping? x-or-opts))
-       (lay-on-pose (panel-per-column layer-type-key fr x-or-opts)
-                    layer-type-key nil nil)
+       (do (note-lone-vector! x-or-opts (lay-caller-name layer-type-key))
+           (lay-on-pose fr layer-type-key {:x (vec x-or-opts)} nil))
 
        (sequential? x-or-opts)
        (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x-or-opts})
@@ -2608,11 +2632,10 @@
        (lay-on-pose (pose fr (mapv vector x y-or-opts))
                     layer-type-key nil nil)
 
-       ;; Sequential + opts -> build a multi-panel composite via pj/pose,
-       ;; then attach a layer with opts at the root.
+       ;; A vector of columns and a mapping: a series on `:x`.
        (and (sequential? x) (series-mapping? x) (map? y-or-opts))
-       (lay-on-pose (panel-per-column layer-type-key fr x)
-                    layer-type-key nil y-or-opts)
+       (do (note-lone-vector! x (lay-caller-name layer-type-key))
+           (lay-on-pose fr layer-type-key {:x (vec x)} y-or-opts))
 
        (and (sequential? x) (map? y-or-opts))
        (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x})
@@ -3476,6 +3499,7 @@
    `(pj/overlay pose false)` reports an error: separate panels come from
    a split over the columns, as in `(pj/facet pose {:y [:a :b]})`, or
    from separate poses given to `pj/arrange`."
+  {:deprecated "0.17.0"}
   ([pose-or-data] (overlay pose-or-data true))
   ([pose-or-data on?]
    (retired-overlay! "pj/overlay" on?)
@@ -5036,6 +5060,17 @@
                                              (reduce + (map count (take (inc %) rows-in)))))
                                (range (count rows-in)))
                           (partition-all n-cols leaves))
+         ;; A short last row keeps the cells the size of the rows
+         ;; above, its other places left empty, as `nil` cells leave
+         ;; them: stretched to the full width, its axis was drawn at
+         ;; another length than the axes above it.
+         row-partitions (if (and (not nested?) (next row-partitions)
+                                 (< (count (last row-partitions)) n-cols))
+                          (concat (butlast row-partitions)
+                                  [(concat (last row-partitions)
+                                           (repeat (- n-cols (count (last row-partitions)))
+                                                   (assoc (pose) :plotje/empty-cell true)))])
+                          row-partitions)
          row-poses (mapv (fn [row]
                            {:layout {:direction :horizontal}
                             :poses (vec row)})

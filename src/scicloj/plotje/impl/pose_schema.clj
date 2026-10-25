@@ -331,7 +331,8 @@
       :layout       ?  Layout for composites
       :opts         ?  plot options (inheritable)
       :share-scales ?  ShareScales
-      :overlay      ?  true if layers added here join the panel}
+      :where        ?  row filter: column -> value or set of values
+      :facet        ?  a split written by pj/facet, expanded at draft}
 
    Permissive {:closed false} intentionally -- generators like facet
    and mosaic attach metadata keys (:panel-label, :facet-row, ...) to
@@ -344,7 +345,8 @@
                                [:layout {:optional true} Layout]
                                [:opts {:optional true} map?]
                                [:share-scales {:optional true} ShareScales]
-                               [:overlay {:optional true} boolean?]]}}
+                               [:where {:optional true} [:map-of any? any?]]
+                               [:facet {:optional true} any?]]}}
    [:ref ::pose]])
 
 ;; ---- Validation Helpers ----

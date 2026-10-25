@@ -1161,7 +1161,8 @@ sales-by-region
       (pj/facet :region))
   (-> sales-by-region
       (pj/lay-line :quarter :units)
-      (pj/facet :region))])
+      (pj/facet :region))]
+ {:width 900})
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 

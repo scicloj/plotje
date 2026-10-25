@@ -715,11 +715,12 @@
 ;; Some spellings 0.16.1 accepted report an error or warn in place of
 ;; drawing something else. A vector of column pairs given to `pj/pose`
 ;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
-;; `pj/facet-matrix`. A vector of columns given alone to a `pj/lay-*`
-;; call draws a panel per column, and warns that the next release reads
-;; the vector as a series. `pj/overlay` and `{:overlay true}` warn that
-;; they are ignored, and `{:overlay false}` reports an error. Here is
-;; the error for pairs of columns:
+;; `pj/facet-matrix`. A vector of columns given alone to `pj/pose` or
+;; to a `pj/lay-*` call is a series, drawn on one panel, where 0.16.1
+;; drew a panel per column; for this release a Note says so and names
+;; `pj/arrange`, which draws a panel per column. `pj/overlay` and
+;; `{:overlay true}` warn that they are ignored, and `{:overlay false}`
+;; reports an error. Here is the error for pairs of columns:
 
 (try
   (pj/lay-point (rdatasets/datasets-iris)

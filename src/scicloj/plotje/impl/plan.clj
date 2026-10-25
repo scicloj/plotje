@@ -341,7 +341,8 @@
        (when (seq shared)
          (if (shared-extent shared true)
            (pad-domain-anchored shared
-                                (include-anchors aesthetic scale-spec true temporal?)
+                                (concat baseline
+                                        (include-anchors aesthetic scale-spec true temporal?))
                                 scale-spec padding)
            (vec shared)))
        (let [vals (mapcat :vals parsed)
@@ -3200,10 +3201,18 @@
                                    ;; A panel whose every layer sits in a
                                    ;; drawing-space frame has no layer to
                                    ;; read a y extent from.
+                                   ;; A panel of no rows takes the shared
+                                   ;; extent, anchored at zero as the
+                                   ;; others are where its layer is a bar.
                                    (when (empty? domain-layers)
                                      (collect-domain local-srs-y :y-domain y-scale-spec padding
                                                      (some? y-temp-ext)
-                                                     (:y shared-domains))))
+                                                     (:y shared-domains)
+                                                     (when (and (not= :log (:type y-scale-spec))
+                                                                (some #(and (zero-baseline-marks (:mark %))
+                                                                            (not (baseline-along-x? %)))
+                                                                      (filter y-informs? local-plan-layers)))
+                                                       [0.0]))))
                                (some? y-temp-ext))
         y-dom (or y-found [0 1])
         ;; Whether anything on this panel gives the axis a meaning in
@@ -3291,8 +3300,17 @@
         ;; The spec names a tick spacing where the writer set one, and
         ;; the `:x-tick-spacing` / `:y-tick-spacing` plot option names
         ;; it one scope further out.
+        ;; Under :polar the angle runs around the circle, so the count
+        ;; follows the circle's size: half its circumference, or the
+        ;; panel's width where that is longer, as on a wide panel. A
+        ;; tall, narrow panel of a facet holds a circle as wide as
+        ;; itself, and its width alone gave two labels around it.
+        x-tick-px (if (= :polar coord)
+                    (let [r (double (coord/polar-radius pw ph m))]
+                      [0.0 (max (- (double pw) (* 2.0 m)) (* Math/PI r))])
+                    x-px)
         x-ticks (when (and x-dom x-informed?)
-                  (compute-ticks x-dom x-px x-scale
+                  (compute-ticks x-dom x-tick-px x-scale
                                  (defaults/scale-setting :x :tick-spacing x-scale cfg)
                                  x-te seps x-whole?))
         ;; Under :polar the radius runs from the centre to the outer
@@ -3846,7 +3864,8 @@
                              :size-legend size-legend
                              :alpha-legend alpha-legend
                              :shape-legend shape-legend})
-                     padding (layout/compute-padding scene cfg layout-opts)]
+                     padding (->> (layout/compute-padding scene cfg layout-opts)
+                                  (#(layout/fit-axis-titles scene % cfg layout-opts)))]
                  {:padding padding
                   :dims (try
                           (layout/compute-dims scene padding cfg layout-opts)
@@ -3979,6 +3998,8 @@
                :layout-type layout-type
                :title eff-title :subtitle subtitle :caption caption
                :x-label eff-x-label :y-label eff-y-label
+               :x-label-lines (:x-label-lines padding)
+               :y-label-lines (:y-label-lines padding)
                :legend legend :size-legend size-legend :alpha-legend alpha-legend
                :shape-legend shape-legend
                :legend-position (:legend-position padding)

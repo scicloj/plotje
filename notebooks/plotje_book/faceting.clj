@@ -438,7 +438,11 @@ measures
 ;; `:share-scales` option names the axes the panels share, as a set. An
 ;; axis left out of the set is fitted to the rows of each panel. A map,
 ;; as in `{:y :all}`, shares an axis between panels that draw different
-;; columns, as the [Series](./plotje_book.series.html) chapter shows.
+;; columns, as the [Series](./plotje_book.series.html) chapter shows. An
+;; axis the map leaves out is not shared: on a facet over columns,
+;; `{:y :all}` alone leaves `:x` unshared, so every panel labels its own
+;; `:x` ticks, and `{:x :same-column :y :all}` keeps `:x` shared among
+;; the panels drawing the same column, labelled once.
 ;;
 ;; Both axes shared -- the default, written out:
 
@@ -486,7 +490,9 @@ measures
            (= [3 3] (ranges #{})))))])
 
 ;; `#{:y}` shares `:y` and fits `:x` to each panel, and `#{}` fits both
-;; axes to each panel.
+;; axes to each panel. In a `pj/facet-grid` too, an axis left out of the
+;; set is fitted to each panel, where ggplot2's `facet_grid(scales =
+;; "free_y")` fits it to each row of panels.
 ;;
 ;; The options of a faceted plot may also be written in the facet call,
 ;; in a map after the column. `pj/facet` passes that map to
@@ -893,7 +899,8 @@ measures
 
 (-> (rdatasets/palmerpenguins-penguins)
     (pj/lay-bar :species {:color :species})
-    (pj/facet :island))
+    (pj/facet :island)
+    (pj/options {:width 800}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 3 (:panels s))

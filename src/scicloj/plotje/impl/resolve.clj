@@ -197,10 +197,24 @@
   (let [resolved (resolve-col-name ds col)
         c (when resolved (ds resolved))
         n (count c)]
-    (if (or (nil? c) (zero? n))
-      ;; Missing or empty column -- treat as numerical (can't infer, let
+    (cond
+      ;; Missing column -- treat as numerical (can't infer, let
       ;; downstream handle gracefully)
-      :numerical
+      (nil? c) :numerical
+
+      ;; An empty column keeps the type its dataset gave it: the rows a
+      ;; filter left none of are still a column of strings, or of
+      ;; dates, and read as numerical such a cell disagreed with its
+      ;; neighbours about what the axis holds. A column with no type of
+      ;; its own -- `[]` written as data -- is numerical, as before.
+      (zero? n)
+      (let [dt (dtype/elemwise-datatype c)]
+        (cond
+          (#{:string :keyword :symbol :text} dt) :categorical
+          (dt-dt/datetime-datatype? dt) :temporal
+          :else :numerical))
+
+      :else
       (let [dt (dtype/elemwise-datatype c)
             t (try (tcc/typeof c) (catch Exception _ nil))
             ;; All-missing columns (e.g., [##NaN ##NaN]) get :boolean dtype
@@ -692,10 +706,12 @@
   (not= "is numerical" (column-phrase ds col)))
 
 (defn empty-facet-panel?
-  "True of a draft layer drawn in a panel of a facet that holds no rows
-   of `ds`, the panel's data."
+  "True of a draft layer drawn in a panel of a facet, or in a cell of a
+   split written as row filters, that holds no rows of `ds`, the
+   panel's data."
   [v ds]
-  (boolean (and (or (contains? v :facet-col) (contains? v :facet-row))
+  (boolean (and (or (contains? v :facet-col) (contains? v :facet-row)
+                    (:__filtered v))
                 (tc/dataset? ds)
                 (zero? (tc/row-count ds)))))
 

@@ -260,7 +260,12 @@
                 :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                 :layers  (into (vec (:layers parent-ctx))
                                (:layers pose))
-                :opts    (merge {} (:opts parent-ctx) (:opts pose))})]
+                ;; `:share-scales` at the top of a hand-written single
+                ;; pose is read as it is at the top of a composite.
+                :opts    (merge {} (:opts parent-ctx)
+                                (when (and (leaf? pose) (contains? pose :share-scales))
+                                  {:share-scales (:share-scales pose)})
+                                (:opts pose))})]
      (if (leaf? pose)
        (let [structural-keys #{:data :mapping :layers :poses :layout
                                :opts :share-scales}
@@ -3281,8 +3286,26 @@
         ;; only where the writer named the key column with `:as`, or
         ;; titled the legend (`legend-titled?`). A `:shape` reading the
         ;; key column is the same legend, and is untitled with it.
-        rewrite (fn [m {:keys [data values label named?]} outer]
-                  (let [;; A `:color` that sets only a scale names no
+        rewrite (fn [m {:keys [data values label named? titled cols]} outer]
+                  (let [;; A `:domain` on the colour scale orders the
+                        ;; series (the key column is what the colour
+                        ;; reads); the axis title the pivot wrote lists
+                        ;; the columns in that order too, as the legend
+                        ;; does.
+                        dom (some (fn [mm] (let [c (:color mm)]
+                                             (when (map? c)
+                                               (:domain (mapping-scale-spec (:scale c))))))
+                                  [m outer])
+                        values (if (and (seq dom) (= 1 (count values)))
+                                 (let [nm (fn [v] (if (keyword? v) (name v) (str v)))
+                                       rank (into {} (map-indexed (fn [i v] [(nm v) i])) dom)
+                                       ordered (sort-by #(get rank (nm %) Long/MAX_VALUE) (distinct cols))
+                                       title (str/join ", " (map defaults/fmt-name ordered))]
+                                   (into {} (map (fn [[k v]]
+                                                   [k (if (titled k) (assoc-in v [:scale :label] title) v)]))
+                                         values))
+                                 values)
+                        ;; A `:color` that sets only a scale names no
                         ;; colour, so the key column takes that scale.
                         scale-only (let [c (:color m)]
                                      (when (and (map? c) (nil? (mapping-source c)))
@@ -3877,6 +3900,38 @@
            (apply = (map #(count (:poses %)) ps)))
       (mapv (comp vec :poses) ps))))
 
+(defn- label-each-cell
+  "A composite whose cells all filter the data, with each cell labelled
+   on its own, as the panels of a facet are, by the values its filter
+   holds that the others' do not all hold -- for cells no row or column
+   of a grid labels: a list wrapped onto rows with `:cols`, its last row
+   short, or a grid whose rows and columns share no value. Drawn as a
+   strip above the cell (`:plotje/strip-label`, read by `leaf->draft`).
+   Any other composite is returned as it is."
+  [composite]
+  (let [leaves (vec (remove :plotje/empty-cell (resolve-tree composite)))
+        where-of #(or (:plotje/where %) {})
+        common (apply clojure.set/intersection (map (comp set where-of) leaves))
+        key-order (vec (distinct (mapcat (comp keys where-of) leaves)))
+        label-of (fn [leaf]
+                   (let [m (into {} (clojure.set/difference (set (where-of leaf)) common))]
+                     (when (seq m)
+                       (facet-label (keep #(when (contains? m %)
+                                             (let [v (m %)]
+                                               (if (set? v)
+                                                 (str/join ", " (map defaults/fmt-category-label (sort-by str v)))
+                                                 v)))
+                                          key-order)))))]
+    (if (and (< 1 (count leaves)) (every? :plotje/where leaves))
+      (reduce (fn [c leaf]
+                (if-let [lbl (label-of leaf)]
+                  (update-in c (vec (interleave (repeat :poses) (:path leaf)))
+                             update :opts assoc :plotje/strip-label lbl)
+                  c))
+              composite
+              leaves)
+      composite)))
+
 (defn- infer-strips
   "Strips read from the filters the cells draw (`:plotje/where`, kept by
    `elaborate`): a column of cells is labelled by the filter values all
@@ -3938,22 +3993,37 @@
                                 [r c]))
             by-path (into {} (map (juxt :path identity)) (resolve-tree composite))
             leaf-at (fn [r c] (by-path (path-of r c)))
+            ;; A margin of a matrix -- a cell naming a column on one axis
+            ;; only, drawn on its side, or the empty corner -- stands in
+            ;; the grid too: it names no column on the other axis, and
+            ;; does not vote there (`axis-labels`).
+            margin? (fn [l] (or (:plotje/empty-cell l)
+                                (and (= :flip (get-in l [:opts :coord]))
+                                     (= 1 (count (leaf-columns l))))))
             regular? (and (> n-rows 1) (> n-cols 1)
                           (every? (fn [[r c]]
                                     (let [l (leaf-at r c)]
-                                      (and l (not (:plotje/empty-cell l))
-                                           (nil? (get-in l [:opts :coord])))))
+                                      (and l (or (margin? l)
+                                                 (nil? (get-in l [:opts :coord]))))))
                                   (for [r (range n-rows) c (range n-cols)] [r c])))
             axis-labels (fn [axis groups]
                           ;; A cell naming no column on the axis -- the
                           ;; matrix's diagonal, drawing one column's
                           ;; density -- does not vote.
-                          (let [cols (mapv (fn [g] (let [cs (set (keep #(get (leaf-columns (apply leaf-at %)) axis) g))]
+                          (let [named (fn [g] (set (keep #(let [l (apply leaf-at %)]
+                                                            (when-not (margin? l)
+                                                              (get (leaf-columns l) axis)))
+                                                         g)))
+                                cols (mapv (fn [g] (let [cs (named g)]
                                                      (when (= 1 (count cs))
                                                        (first cs))))
-                                           groups)]
-                            (when (and (every? some? cols) (< 1 (count (distinct cols))))
-                              (mapv defaults/fmt-name cols))))
+                                           groups)
+                                ;; A group of margins only names nothing.
+                                margins-only? (fn [g] (every? #(margin? (apply leaf-at %)) g))]
+                            (when (and (every? (fn [[g c]] (or (some? c) (margins-only? g)))
+                                               (map vector groups cols))
+                                       (< 1 (count (distinct (remove nil? cols)))))
+                              (mapv #(some-> % defaults/fmt-name) cols))))
             x-strips (when (and regular? (not-any? some? col-labels))
                        (axis-labels :x (for [c (range n-cols)] (for [r (range n-rows)] [r c]))))
             y-strips (when (and regular? (not-any? some? row-labels))
@@ -3965,28 +4035,58 @@
                      y-strips (assoc :row-labels y-strips))
             suppress (cond-> {}
                        x-strips (assoc :suppress-x-label true)
-                       y-strips (assoc :suppress-y-label true))]
+                       y-strips (assoc :suppress-y-label true))
+            ;; Strips naming the columns on one axis, and on the other a
+            ;; row (or a column) of cells drawing one column, as beside
+            ;; a matrix's margins: that column is titled once, at the
+            ;; row's first cell (the column's last), as one axis is.
+            one-column? (fn [axis cells]
+                          (= 1 (count (set (keep #(let [l (apply leaf-at %)]
+                                                    (when-not (margin? l)
+                                                      (get (leaf-columns l) axis)))
+                                                 cells)))))
+            suppress-at (fn [r cc]
+                          (cond-> suppress
+                            (and x-strips (not y-strips) (pos? cc)
+                                 (one-column? :y (for [c (range n-cols)] [r c])))
+                            (assoc :suppress-y-label true)
+                            (and y-strips (not x-strips) (< r (dec n-rows))
+                                 (one-column? :x (for [rr (range n-rows)] [rr cc])))
+                            (assoc :suppress-x-label true)))
+            cells (for [r (range n-rows) cc (range n-cols)] [r cc])]
         (cond-> composite
           (seq labels) (assoc :grid-strip-labels labels)
-          (seq suppress)
+          (empty? labels) label-each-cell
+          (some #(seq (apply suppress-at %)) cells)
           (as-> c (reduce (fn [c [r cc]]
                             (update-in c (vec (interleave (repeat :poses) (path-of r cc)))
-                                       update :opts #(merge suppress %)))
+                                       update :opts #(merge (suppress-at r cc) %)))
                           c
-                          (for [r (range n-rows) cc (range n-cols)] [r cc])))))
-      composite)))
+                          cells))))
+      (label-each-cell composite))))
 
 (defn infer-chrome
   "An elaborated composite with its chrome written in, where its cells
    are the parts of one declared split: the once-only axis titles and
    ticks (`infer-axis-chrome`) and the strips naming each cell's part
-   of the data (`infer-strips`). Anything written is kept."
+   of the data (`infer-strips`); where its cells are asked to share an
+   axis with `:share-scales`, the axis titles and ticks. Anything
+   written is kept."
   [composite]
-  (if (declared-split? composite)
+  (cond
+    (declared-split? composite)
     (-> composite
         infer-axis-chrome
         infer-strips)
-    composite))
+
+    ;; Cells carrying data of their own that are asked to share an axis
+    ;; draw it on one scale, so it is titled once and ticked on the
+    ;; outer cells, as the parts of one split are.
+    (or (contains? (:opts composite) :share-scales)
+        (contains? composite :share-scales))
+    (infer-axis-chrome composite)
+
+    :else composite))
 
 ;; ---- Expansion of a variation into listed cells ----
 
@@ -4832,6 +4932,11 @@
    The spelling `:where` is provisional."
   [pose]
   (let [w (:where pose)]
+    (when (and (some? w) (not (map? w)))
+      (throw (ex-info (str "A row filter is a map from column to value or set"
+                           " of values, as {:where {:drv \"f\"}}, and was given "
+                           (pr-str w) ".")
+                      {:where w})))
     (if (and (map? w) (some? (:data pose)))
       (let [ds (coerce-dataset (:data pose))
             names (set (tc/column-names ds))
@@ -5190,17 +5295,13 @@
                              (assoc :coord (:coord parent-ctx)))
                      :where (:where pose)
                      :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
-                     :layers (into anc-layers (:layers pose))
-                     :overlay (if (contains? pose :overlay)
-                                (:overlay pose)
-                                (:overlay parent-ctx))}
+                     :layers (into anc-layers (:layers pose))}
            done (elaborate-leaf resolved)
            own-layers (subvec (:layers done) (count anc-layers))]
-       (if (and (:where pose) (:data done) (zero? (tc/row-count (:data done))))
-         ;; A cell whose filter leaves no rows is an empty cell: it keeps
-         ;; its place, draws nothing, and does not vote on sharing.
-         {:layers [] :opts (:opts pose) :plotje/empty-cell true
-          :plotje/where (:where pose)}
+       ;; A cell whose filter leaves no rows draws a panel reading "no
+       ;; data", as a facet's panel of no rows does, and does not vote
+       ;; on a shared axis (`plan`, `:no-rows`).
+       (do
          (cond-> (dissoc pose :where)
            ;; The filter is consumed, and kept as a record of which part
            ;; of the data the cell draws -- `infer-chrome` labels the
@@ -5251,10 +5352,7 @@
                 :layers (into (vec (:layers parent-ctx)) (:layers pose))
                 :coord (if (contains? (:opts pose) :coord)
                          (get-in pose [:opts :coord])
-                         (:coord parent-ctx))
-                :overlay (if (contains? pose :overlay)
-                           (:overlay pose)
-                           (:overlay parent-ctx))}]
+                         (:coord parent-ctx))}]
        (-> pose
            (dissoc :where)
            (update :poses (fn [ps] (mapv #(elaborate % ctx) ps))))))))
@@ -5674,6 +5772,14 @@
               ;; of, which the plan names where the panels do not fit.
               (:facet-col variant) (assoc :facet-col (:facet-col variant)
                                           :__facet-col-column facet-col)
+              ;; A cell labelled on its own (`infer-strips`), drawn with
+              ;; a strip as one panel of a facet is.
+              (and (not (:facet-col variant)) (:plotje/strip-label opts))
+              (assoc :facet-col (:plotje/strip-label opts))
+              ;; A cell of a split written as row filters is a panel of
+              ;; that split (`resolve/empty-facet-panel?`).
+              (and (not layer-own-data?) (:plotje/where leaf))
+              (assoc :__filtered true)
               (:facet-row variant) (assoc :facet-row (:facet-row variant)
                                           :__facet-row-column facet-row)
               (and (not layer-own-data?) (categories-of resolved :x))

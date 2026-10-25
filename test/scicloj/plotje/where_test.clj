@@ -21,10 +21,14 @@
     (is (= (select-keys (pj/svg-summary faceted) [:panels :points])
            (select-keys (pj/svg-summary listed) [:panels :points])))))
 
-(deftest a-filter-keeping-no-rows-is-an-empty-cell-test
+(deftest a-filter-keeping-no-rows-draws-no-data-test
+  ;; As the panel of a facet holding no rows does: the cell keeps its
+  ;; panel and reads "no data".
   (let [p (assoc (pj/lay-point d :x :y) :layout {:direction :horizontal}
-                 :poses [{:where {:g "a"}} {:where {:g "none"}}])]
-    (is (= {:panels 1 :points 2} (select-keys (pj/svg-summary p) [:panels :points])))))
+                 :poses [{:where {:g "a"}} {:where {:g "none"}}])
+        s (binding [*out* (java.io.StringWriter.)] (pj/svg-summary p))]
+    (is (= {:panels 2 :points 2} (select-keys s [:panels :points])))
+    (is (some #{"no data"} (:texts s)))))
 
 (deftest a-filter-on-a-missing-column-is-reported-test
   (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A row filter names \[:nope\]"

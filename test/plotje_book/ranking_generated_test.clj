@@ -148,7 +148,7 @@
 
 
 (def
- v22_l132
+ v22_l133
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-bar :day {:color :time})
@@ -156,54 +156,54 @@
 
 
 (deftest
- t23_l136
+ t23_l137
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v22_l132)))
+   v22_l133)))
 
 
-(def v25_l150 (-> sales (pj/lay-bar :product :revenue)))
+(def v25_l151 (-> sales (pj/lay-bar :product :revenue)))
 
 
 (deftest
- t26_l153
+ t26_l154
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v25_l150)))
+   v25_l151)))
 
 
-(def v28_l161 (-> sales (pj/lay-bar :revenue :product)))
+(def v28_l162 (-> sales (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t29_l164
+ t29_l165
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v28_l161)))
+   v28_l162)))
 
 
 (def
- v31_l177
+ v31_l178
  (def sales-ranked (-> sales tc/dataset (tc/order-by :revenue :asc))))
 
 
-(def v32_l182 (-> sales-ranked (pj/lay-bar :revenue :product)))
+(def v32_l183 (-> sales-ranked (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t33_l185
+ t33_l186
  (is
   ((fn
     [v]
@@ -231,11 +231,11 @@
         first
         :y-domain
         vec)))))
-   v32_l182)))
+   v32_l183)))
 
 
 (def
- v35_l215
+ v35_l216
  (->
   {:department
    ["Office Supplies"
@@ -250,7 +250,7 @@
 
 
 (deftest
- t36_l221
+ t36_l222
  (is
   ((fn
     [v]
@@ -259,41 +259,41 @@
      (and
       (= 6 (:polygons s))
       (.contains (pr-str (pj/plot v)) "rotate(-45"))))
-   v35_l215)))
+   v35_l216)))
 
 
-(def v38_l233 (-> sales (pj/lay-lollipop :product :revenue)))
+(def v38_l234 (-> sales (pj/lay-lollipop :product :revenue)))
 
 
 (deftest
- t39_l236
+ t39_l237
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v38_l233)))
+   v38_l234)))
 
 
 (def
- v41_l244
+ v41_l245
  (-> sales (pj/lay-lollipop :product :revenue) (pj/coord :flip)))
 
 
 (deftest
- t42_l248
+ t42_l249
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v41_l244)))
+   v41_l245)))
 
 
 (def
- v44_l257
+ v44_l258
  (->
   {:product ["A" "B" "C" "D" "E" "F"],
    :revenue [120 95 150 80 200 110],
@@ -302,57 +302,57 @@
 
 
 (deftest
- t45_l262
+ t45_l263
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v) fills (disj (:colors s) "none")]
      (and (= 6 (:points s)) (= 2 (count fills)))))
-   v44_l257)))
+   v44_l258)))
 
 
-(def v47_l275 (-> sales (pj/lay-segment :product :revenue {:y-end 0})))
+(def v47_l276 (-> sales (pj/lay-segment :product :revenue {:y-end 0})))
 
 
 (deftest
- t48_l278
+ t48_l279
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:lines s)) (zero? (:points s)))))
-   v47_l275)))
+   v47_l276)))
 
 
 (def
- v50_l286
+ v50_l287
  (->
   {:index (range 1 41),
    :residual
    (map
     (fn*
-     [p1__80704#]
-     (* (Math/sin p1__80704#) (Math/exp (- (/ p1__80704# 30.0)))))
+     [p1__79686#]
+     (* (Math/sin p1__79686#) (Math/exp (- (/ p1__79686# 30.0)))))
     (range 1 41))}
   (pj/lay-segment :index :residual {:y-end 0})
   (pj/lay-rule-h {:y-intercept 0})))
 
 
 (deftest
- t51_l291
+ t51_l292
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 41 (:lines s)))))
-   v50_l286)))
+   v50_l287)))
 
 
 (def
- v53_l305
+ v53_l306
  (->
   {:team ["Ops" "Sales" "Support" "Research"],
    :before [62 48 71 55],
@@ -363,7 +363,7 @@
 
 
 (deftest
- t54_l312
+ t54_l313
  (is
   ((fn
     [v]
@@ -374,11 +374,11 @@
       (= 4 (:lines s))
       (= 8 (:points s))
       (= ["before" "after"] (mapv :label (:entries (:legend p)))))))
-   v53_l305)))
+   v53_l306)))
 
 
 (def
- v56_l325
+ v56_l326
  (->
   {:team ["Ops" "Sales" "Support" "Research"],
    :before [62 48 71 55],
@@ -389,7 +389,7 @@
 
 
 (deftest
- t57_l332
+ t57_l333
  (is
   ((fn
     [v]
@@ -424,4 +424,4 @@
       (=
        ["before" "after"]
        (mapv :label (:entries (:legend (pj/plan v))))))))
-   v56_l325)))
+   v56_l326)))
