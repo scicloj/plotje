@@ -1359,8 +1359,8 @@
            (:polygons (pj/svg-summary (pj/pose cars :drv :drv))))))
   (testing "the diagonal of a matrix holding a categorical column"
     (is (= [[:rect] [:boxplot] [:boxplot] [:bar]]
-           (panel-marks (pj/plan (pj/facet-matrix cars [:drv :hwy])))))
-    (is (pos? (:polygons (pj/svg-summary (pj/facet-matrix cars [:drv :hwy])))))
+           (panel-marks (pj/plan (pj/facet cars {:col {:x [:drv :hwy]} :row {:y [:drv :hwy]}})))))
+    (is (pos? (:polygons (pj/svg-summary (pj/facet cars {:col {:x [:drv :hwy]} :row {:y [:drv :hwy]}})))))
     (is (pos? (:polygons (pj/svg-summary (pj/arrange cars [[:drv :drv] [:drv :hwy]])))))
     (is (pos? (:polygons (pj/svg-summary (-> cars
                                              (pj/pose {:y :drv})
@@ -1369,7 +1369,7 @@
     ;; It was read as two columns and drew the column against itself.
     (doseq [pose [(pj/lay-bar cars :displ :displ)
                   (-> cars (pj/pose :displ :displ) pj/lay-bar)
-                  (-> cars (pj/facet-matrix [:displ :hwy]) pj/lay-bar)
+                  (-> cars (pj/facet {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}}) pj/lay-bar)
                   (-> cars
                       (pj/facet {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}})
                       pj/lay-bar)]]
@@ -1386,7 +1386,7 @@
     (is (pos? (:points (pj/svg-summary (pj/lay-point cars :displ :displ))))))
   (testing "a rug on the diagonal of a matrix leaves its row's axis as the column's"
     (let [y-domains (fn [pose] (mapv #(-> % :plan :panels first :y-domain) (:sub-plots (pj/plan pose))))
-          [rug-cell point-cell] (y-domains (-> cars (pj/facet-matrix [:displ :hwy]) pj/lay-point pj/lay-rug))]
+          [rug-cell point-cell] (y-domains (-> cars (pj/facet {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}}) pj/lay-point pj/lay-rug))]
       (is (= rug-cell point-cell))
       (is (pos? (first rug-cell)))))
   (testing "a bar of two different categorical columns has no length to read"

@@ -140,12 +140,12 @@
 ;; - `pj/coord` -- coordinate system (cartesian, flipped, polar,
 ;;   fixed).
 ;;
-;; `pj/facet` and `pj/facet-grid` split the plot into panels. A facet
+;; `pj/facet` splits the plot into panels. A facet
 ;; by category is a mapping: the column is written into the pose's
 ;; `:mapping` under `:col` or `:row`. A facet over columns,
 ;; `(pj/facet pose {:y [:hwy :cty]})`, is kept under the pose's
-;; `:facet` key. Both functions take a map of plot options as a last
-;; argument and pass that map to `pj/options`.
+;; `:facet` key. `pj/facet` takes a map of plot options as a last
+;; argument and passes that map to `pj/options`.
 ;;
 ;; `pj/scale` does not write to `:opts`: a scale belongs to the
 ;; aesthetic it reads, so it is written into that aesthetic's mapping.

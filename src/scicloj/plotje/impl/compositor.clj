@@ -262,11 +262,122 @@
    child merge would otherwise stamp them into every cell's chrome)."
   [:title :subtitle :caption])
 
+(defn- block-band-h
+  "Height a title band takes for `title` and `subtitle`: a line for
+   each that is set. The root's band and a nested composite's band are
+   the same height."
+  [title subtitle]
+  (+ (if title title-band-h 0) (if subtitle subtitle-band-h 0)))
+
+(declare grid-strip-h grid-strip-w)
+
+(defn- strip-nested-titles
+  "A composite nested in another -- an arrangement placed as a cell, a
+   facet over columns arranged beside another pose -- with its
+   `:title`, `:subtitle` and `:caption` moved out of its `:opts` into
+   `:plotje/block-title`, at every depth below the root.
+
+   Left in `:opts`, `resolve-tree` merged them into every leaf below,
+   so the title was drawn over each cell of the block. Moved, the
+   layout reserves a band above the block (`pose/compute-layout` reads
+   `:plotje/block-band-h`) and the title is drawn there once
+   (`block-titles`); the caption likewise, in a band below the block
+   (`:plotje/block-caption-h`). A nested grid's strips
+   (`:grid-strip-labels`) and the axis titles it draws once
+   (`:grid-axis-titles`) are drawn in bands beside its block, as the
+   root's are beside the grid."
+  [pose]
+  (if-not (seq (:poses pose))
+    pose
+    (update pose :poses
+            (fn [children]
+              (mapv (fn [child]
+                      (let [child (strip-nested-titles child)
+                            {:keys [title subtitle caption]} (:opts child)
+                            {:keys [col-labels row-labels]} (:grid-strip-labels child)
+                            strip-h (if (seq col-labels) grid-strip-h 0)
+                            strip-w (if (seq row-labels) (grid-strip-w row-labels) 0)
+                            axes (set (:grid-axis-titles child))]
+                        (if (and (seq (:poses child))
+                                 (or title subtitle caption (seq col-labels) (seq row-labels)
+                                     (seq axes)))
+                          (-> child
+                              (update :opts #(not-empty (dissoc % :title :subtitle :caption)))
+                              (assoc :plotje/block-title (cond-> {}
+                                                           title (assoc :title title)
+                                                           subtitle (assoc :subtitle subtitle)
+                                                           caption (assoc :caption caption)
+                                                           (seq col-labels) (assoc :col-labels (vec col-labels))
+                                                           (seq row-labels) (assoc :row-labels (vec row-labels))
+                                                           (seq axes) (assoc :axis-axes axes))
+                                     :plotje/block-band-h (+ (block-band-h title subtitle) strip-h)
+                                     :plotje/block-strip-h strip-h
+                                     :plotje/block-strip-w strip-w
+                                     :plotje/block-x-title-h (if (axes :x) axis-title-band 0)
+                                     :plotje/block-y-title-w (if (axes :y) axis-title-band 0)
+                                     :plotje/block-caption-h (if caption caption-band-h 0)))
+                          child)))
+                    children)))))
+
 (defn- composite-with-stripped-leaf-opts
   "Return the composite with composite-level chrome opts removed from
-   its root :opts, so resolve-tree doesn't propagate them into leaves."
+   its root :opts, so resolve-tree doesn't propagate them into leaves,
+   and the titles of the composites nested in it moved where they are
+   drawn once (`strip-nested-titles`)."
   [composite]
-  (update composite :opts #(apply dissoc % composite-chrome-opt-keys)))
+  (-> composite
+      (update :opts #(apply dissoc % composite-chrome-opt-keys))
+      strip-nested-titles))
+
+(defn- block-cells
+  "The cells of the nested composite `pose` at `path`, as rows of
+   `{:path :rect}`, for the strips drawn beside its block: rows of cells
+   as `pj/arrange` builds them, or one flat row, or a flat column under
+   `:vertical`."
+  [pose path layout]
+  (let [vertical? (= :vertical (get-in pose [:layout :direction]))
+        cell (fn [p] {:path p :rect (get layout p)})]
+    (if (every? :poses (:poses pose))
+      (vec (map-indexed (fn [r row]
+                          (mapv #(cell (conj path r %)) (range (count (:poses row)))))
+                        (:poses pose)))
+      (let [cells (mapv #(cell (conj path %)) (range (count (:poses pose))))]
+        (if vertical? (mapv vector cells) [cells])))))
+
+(defn- block-titles
+  "The title of each composite nested in `stripped`, with the band
+   reserved for it above its block: `{:title :subtitle :rect [x y w
+   h]}`, and its caption with the band below, `:caption-rect`. The block is where its leaves were laid out, so the band is
+   read from `layout` rather than computed a second time."
+  [stripped layout]
+  (letfn [(walk [pose path]
+            (concat
+             (when-let [bt (:plotje/block-title pose)]
+               (let [rects (keep (fn [[p r]] (when (= path (subvec p 0 (min (count p) (count path)))) r))
+                                 layout)]
+                 (when (seq rects)
+                   (let [x0 (reduce min (map #(nth % 0) rects))
+                         y0 (reduce min (map #(nth % 1) rects))
+                         x1 (reduce max (map #(+ (nth % 0) (nth % 2)) rects))
+                         y1 (reduce max (map #(+ (nth % 1) (nth % 3)) rects))
+                         band (double (:plotje/block-band-h pose))
+                         x-title-h (double (or (:plotje/block-x-title-h pose) 0))
+                         y-title-w (double (or (:plotje/block-y-title-w pose) 0))]
+                     [(cond-> (assoc bt :rect [x0 (- y0 band) (- x1 x0) band])
+                        (:caption bt)
+                        (assoc :caption-rect [x0 (+ y1 x-title-h) (- x1 x0)
+                                              (double (:plotje/block-caption-h pose))])
+                        (:axis-axes bt)
+                        (assoc :x-title-rect [x0 y1 (- x1 x0) x-title-h]
+                               :y-title-rect [(- x0 y-title-w) y0 y-title-w (- y1 y0)]
+                               :path path)
+                        (or (:col-labels bt) (:row-labels bt))
+                        (assoc :strip-h (double (:plotje/block-strip-h pose))
+                               :strip-w (double (:plotje/block-strip-w pose))
+                               :cells (block-cells pose path layout)))]))))
+             (mapcat (fn [i child] (walk child (conj path i)))
+                     (range) (:poses pose))))]
+    (vec (walk stripped []))))
 
 (def ^:private legend-bearing-aesthetics
   "Aesthetics that produce a legend at render time. Derived from
@@ -301,7 +412,16 @@
         leaves (remove :plotje/empty-cell (pose/resolve-tree composite))]
     (set
      (filter (fn [a]
-               (let [vss (mapv #(leaf-aesthetic-values % a) leaves)]
+               ;; A cell of a facet that maps nothing to `a` neither
+               ;; agrees nor disagrees: the facet is one plot, and the
+               ;; diagonal of a scatter plot matrix coloured on a layer
+               ;; draws a histogram the layer does not reach. A cell of an
+               ;; arrangement with no colour keeps the others' legends
+               ;; beside them.
+               (let [vss (keep (fn [leaf]
+                                 (let [vs (leaf-aesthetic-values leaf a)]
+                                   (when-not (and (empty? vs) (:plotje/facet-cell leaf)) vs)))
+                               leaves)]
                  (and (seq vss) (every? seq vss) (apply = vss))))
              legend-bearing-aesthetics))))
 
@@ -485,7 +605,7 @@
   20)
 
 (defn- grid-strip-w
-  "Pixel width reserved at the left of a grid composite for row strip
+  "Width reserved at the right of a grid composite for row strip
    labels. Scales with the longest label so long column names fit."
   [row-labels]
   (let [max-chars (reduce max 0 (map count row-labels))]
@@ -512,7 +632,7 @@
         caption (:caption opts)
         ;; A subtitle takes a line under the title band; a caption a
         ;; line under the grid.
-        top-pad (+ (if title title-band-h 0) (if subtitle subtitle-band-h 0))
+        top-pad (block-band-h title subtitle)
         caption-h (if caption caption-band-h 0)
         ;; Strip composite-chrome keys before resolve-tree so leaves
         ;; don't inherit them. The composite itself still renders
@@ -552,7 +672,7 @@
         ;; derived lazily from leaf positions via pose/matrix-axes.
         ;; Either way, we end up with :col-labels / :row-labels.
         ;; Reserve strip-h at the top for column labels and strip-w
-        ;; at the left for row labels, and draw the strips outside
+        ;; at the right for row labels, and draw the strips outside
         ;; the cell rects so per-cell layout stays untouched.
         matrix-axes (when (= :matrix (:direction (:layout composite)))
                       (pose/matrix-axes composite))
@@ -573,13 +693,14 @@
         x-title-h (if (axis-titles :x) axis-title-band 0)
         y-title-w (if (axis-titles :y) axis-title-band 0)
         grid-w (max 1 (- w legend-w strip-w y-title-w))
-        grid-rect [(double (+ strip-w y-title-w))
+        ;; Row strips stand at the right of the grid, as a facet's do.
+        grid-rect [(double y-title-w)
                    (double (+ top-pad strip-h))
                    (double grid-w)
                    (double (- h top-pad strip-h x-title-h caption-h))]
         layout (pose/compute-layout stripped grid-rect)
         ;; In matrix layout, the strip labels at the top carry the
-        ;; column's x-col name and the strip labels on the left carry
+        ;; column's x-col name and the strip labels on the right carry
         ;; the row's y-col name. Suppress the per-leaf x-label /
         ;; y-label so they don't render redundantly inside each cell.
         ;; Same idea SPLOM cells use, applied uniformly here.
@@ -596,6 +717,7 @@
                  leaves)
         chrome {:title title
                 :subtitle subtitle
+                :block-titles (block-titles stripped layout)
                 :caption caption
                 :title-band-h top-pad
                 :axis-title-axes axis-titles
@@ -662,20 +784,15 @@
         ;; concrete layer type for every inferred layer -- so sharing,
         ;; layout and the leaf drafts read layer types rather than
         ;; predicting them.
+        strip-mode (:strip-labels (defaults/resolve-config (:opts composite)))
         composite (-> composite
                       pose/fit-layers
                       pose/elaborate
-                      pose/infer-chrome)
+                      (pose/infer-chrome strip-mode)
+                      (pose/infer-nested-chrome strip-mode))
         {:keys [width height leaves layout shared? shared-aesthetics shared-categories chrome]}
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)
-        ;; When the composite carries its own title/subtitle/caption,
-        ;; suppress the same keys on each leaf so they don't double-
-        ;; render. The composite title sits in the title-band-h strip
-        ;; above the grid; per-leaf titles inside each cell would be
-        ;; redundant with the outer chrome.
-        composite-chrome-suppress (filterv #(get-in composite [:opts %])
-                                           [:title :subtitle :caption])
         blank-notes (atom [])
         sub-drafts (binding [pose/*blank-notes* blank-notes]
                      (mapv (fn [leaf]
@@ -687,10 +804,7 @@
                                                             :height (max 1 (long-or rh 1)))
                                                (seq suppress-keys)
                                                (as-> $ (reduce #(assoc %1 %2 true)
-                                                               $ suppress-keys))
-                                               (seq composite-chrome-suppress)
-                                               (as-> $ (reduce #(dissoc %1 %2)
-                                                               $ composite-chrome-suppress)))
+                                                               $ suppress-keys)))
                                  ;; The shared categories are in one order
                                  ;; for every cell, so each cell lists and
                                  ;; draws its own in that order rather than
@@ -946,7 +1060,19 @@
                                                  (:align-panels composite-draft)
                                                  (update :opts #(merge (floors-for sub) %)))))))
         shared-legend (when (:shared? chrome-spec)
-                        (when-let [first-sub (first sub-drafts)]
+                        (when-let [first-sub
+                                   ;; The legend is planned from a cell that
+                                   ;; draws it: a cell of a facet may map
+                                   ;; nothing to it, as the diagonal of a
+                                   ;; scatter plot matrix coloured on a layer
+                                   ;; does (`shared-aesthetics-by-leaves`).
+                                   (or (first (filter (fn [sub]
+                                                        (some (fn [layer]
+                                                                (some #(some? (get layer %))
+                                                                      (:shared-aesthetics chrome-spec)))
+                                                              (:draft sub)))
+                                                      sub-drafts))
+                                       (first sub-drafts))]
                           (let [shared-aes (:shared-aesthetics chrome-spec)
                                 shared-suppress-keys (mapv aesthetic->suppress-key shared-aes)
                                 rep-opts (-> (:opts first-sub)
@@ -1003,9 +1129,10 @@
         ;; The titles a composite draws once are the ones a cell would
         ;; draw: planned from one cell with its own titles left in, so a
         ;; written `:x-label` is read by the one rule that reads it.
-        axis-titles (when-let [axes (seq (:axis-title-axes chrome-spec))]
-                      (when-let [sub (first sub-drafts)]
-                        (let [p (binding [plan/*unread-option-warnings* (atom [])]
+        cell-axis-titles
+        (fn [axes sub]
+          (when sub
+            (let [p (binding [plan/*unread-option-warnings* (atom [])]
                                   ;; Planned at the cell's own size, so a
                                   ;; cell too narrow for its titles is
                                   ;; reported here although the titles
@@ -1020,14 +1147,30 @@
                                       (throw (if (:too-small (ex-data e))
                                                (cell-too-small e sub sub-drafts width height)
                                                e)))))]
-                          (into {} (keep (fn [k]
-                                           (when-let [t (get p (if (= k :x) :x-label :y-label))]
-                                             [k t])))
-                                axes))))
+              (into {} (keep (fn [k]
+                               (when-let [t (get p (if (= k :x) :x-label :y-label))]
+                                 [k t])))
+                    axes))))
+        axis-titles (when-let [axes (seq (:axis-title-axes chrome-spec))]
+                      (cell-axis-titles axes (first sub-drafts)))
+        ;; A grid nested as a cell titles its axes once beside its block,
+        ;; planned from its first cell as the root's are from the first.
+        block-titles (mapv (fn [bt]
+                             (if-let [axes (seq (:axis-axes bt))]
+                               (let [path (:path bt)
+                                     n (count path)
+                                     sub (first (filter #(and (<= n (count (:path %)))
+                                                              (= path (subvec (:path %) 0 n))
+                                                              (seq (:draft %)))
+                                                        sub-drafts))]
+                                 (assoc bt :axis-titles (cell-axis-titles axes sub)))
+                               bt))
+                           (:block-titles chrome-spec))
         chrome (-> chrome-spec
                    (dissoc :shared?)
                    (assoc :shared-legend shared-legend)
                    (assoc :axis-titles axis-titles)
+                   (assoc :block-titles block-titles)
                    (assoc :layout layout))]
     (assoc (resolve/->CompositePlan width height sub-plots chrome)
            :composite? true

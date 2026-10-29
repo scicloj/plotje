@@ -68,7 +68,8 @@
           drafted (-> pose pj/draft :layers first)]
       (is (= [:revenue :cost] (-> pose :layers first :mapping :y)))
       (is (= [:quarter :value] [(:x drafted) (:y drafted)]))
-      (is (= [:quarter :series :value] (vec (tc/column-names (:data drafted)))))
+      ;; and the row each pivoted row came from
+      (is (= [:quarter :scicloj.plotje/row :series :value] (vec (tc/column-names (:data drafted)))))
       (is (= 8 (tc/row-count (:data drafted))))))
 
   (testing "the columns it reads are consumed; the rest come through"

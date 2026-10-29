@@ -212,24 +212,35 @@ sales-rich
 
 ;; ## Cross-panel linked highlighting
 ;;
-;; Because brush selection is keyed by `data-row-idx` (a stable
-;; integer attached to each rendered shape at extract time), the same
-;; selection highlights matching rows in every panel of a faceted
-;; pose. Drag in one species panel; the corresponding rows in the
-;; other two species panels respond immediately.
+;; Brush selection is keyed by `data-row-idx`, the row of the pose's
+;; dataset a mark was drawn from. A facet keeps that number when it
+;; splits the data, so a row drawn in several panels carries one number
+;; in all of them, and selecting it in one panel highlights it in the
+;; others. Below, each flower is drawn twice, once against its sepal
+;; width and once against its petal width. Drag over the setosa cluster
+;; in the top panel, and the same flowers light up in the bottom one.
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width)
-    (pj/facet :species)
-    (pj/options {:title "Brush on one panel, see linked points in the others"
+    (pj/pose {:x :sepal-length})
+    pj/lay-point
+    (pj/facet {:y [:sepal-width :petal-width]})
+    (pj/options {:title "Brush on one panel, see linked points in the other"
                  :brush true
                  :tooltip true
-                 :height 320}))
+                 :height 420}))
 
 (kind/test-last [(fn [pose]
-                   (let [s (str (pj/plot pose))]
-                     (and (re-find #":data-row-idx" s)
-                          (re-find #"nsk-brush-sel" s))))])
+                   (let [s (str (pj/plot pose))
+                         ids (map second (re-seq #":data-row-idx (\d+)" s))]
+                     (and (re-find #"nsk-brush-sel" s)
+                          ;; 300 marks, each of the 150 rows twice
+                          (= 300 (count ids))
+                          (= 150 (count (distinct ids))))))])
+
+;; A series links its columns the same way: both points drawn from one
+;; row carry that row's number. A facet over the categories of a
+;; column draws each row in one panel only, so there a selection stays
+;; in the panel it was made in.
 
 ;; ## Interval (Gantt) tooltips
 ;;

@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__81191#]
+      [p1__78142#]
       (+
-       (Math/sin (* p1__81191# 0.2))
+       (Math/sin (* p1__78142# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -418,7 +418,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__81192#] (-> p1__81192# :plan :panels first))
+       (fn* [p1__78143#] (-> p1__78143# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -526,7 +526,7 @@
 
 
 (def
- v68_l391
+ v68_l389
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -535,7 +535,7 @@
 
 
 (deftest
- t69_l396
+ t69_l394
  (is
   ((fn
     [v]
@@ -547,11 +547,11 @@
        (let
         [[r c] path mark (-> plan :panels first :layers first :mark)]
         (= mark (if (= r c) :bar :point)))))))
-   v68_l391)))
+   v68_l389)))
 
 
 (def
- v71_l407
+ v71_l405
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -561,7 +561,7 @@
 
 
 (deftest
- t72_l413
+ t72_l411
  (is
   ((fn
     [v]
@@ -576,11 +576,11 @@
          marks
          (set (map :mark (-> plan :panels first :layers)))]
         (= marks (if (= r c) #{:area} #{:point})))))))
-   v71_l407)))
+   v71_l405)))
 
 
 (def
- v74_l424
+ v74_l422
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -594,7 +594,7 @@
 
 
 (deftest
- t75_l431
+ t75_l429
  (is
   ((fn
     [v]
@@ -616,4 +616,4 @@
         (map
          :mark
          (-> with-line first :plan :panels first :layers)))))))
-   v74_l424)))
+   v74_l422)))

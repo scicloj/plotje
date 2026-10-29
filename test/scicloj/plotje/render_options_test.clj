@@ -183,6 +183,8 @@
     :format
     ;; where the legend sits, tested in legend_position_test
     :legend-position
+    ;; read only by a facet's strips, tested in facet_laws_test
+    :strip-labels
     ;; turns a warning into a throw; tested in strict_test
     :strict})
 

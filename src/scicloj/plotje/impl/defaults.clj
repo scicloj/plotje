@@ -90,7 +90,7 @@
    :label-offset 38 :title-offset 18
    :fit-text-domain true
    ;; Facet strips
-   :strip-font-size 11 :strip-height 16
+   :strip-font-size 11 :strip-height 16 :strip-labels :value
    ;; Legends
    :legend-font-size 10
    ;; Number separators
@@ -255,7 +255,7 @@
 
 (def panel-aesthetics
   "The aesthetics that send a column's values to panels of their own.
-   `pj/facet` and `pj/facet-grid` are sugar over these."
+   `pj/facet` is sugar over these."
   (set (aesthetics-where #(= :panel (:role %)))))
 
 (def panel-aesthetic-docs
@@ -263,10 +263,10 @@
    `layer-type/layer-mapping-docs` for keys a layer does not accept.
 
    A panel aesthetic is written on a pose rather than on a layer,
-   because it divides every layer of that pose alike. `pj/facet` given a
-   column, and `pj/facet-grid`, write one."
-  {:col "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out across. A vector unites the columns into a compound key, so a panel is drawn for each combination the data holds. Written by pj/facet, and by pj/facet-grid for the across direction."
-   :row "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out down. The same readings as :col. Written by (pj/facet my-pose {:row col}), and by pj/facet-grid for the down direction."})
+   because it divides every layer of that pose alike. `pj/facet` writes
+   them."
+  {:col "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out across. A vector unites the columns into a compound key, so a panel is drawn for each combination the data holds. Written by (pj/facet my-pose col), and by (pj/facet my-pose {:col col :row ...}) for a grid, where the other entry may be categories or a map of columns."
+   :row "A column of the pose's data, or a vector of them, giving each value a panel of its own, laid out down. The same readings as :col. Written by (pj/facet my-pose {:row col}), and by (pj/facet my-pose {:col ... :row col}) for a grid, where the other entry may be categories or a map of columns."})
 
 (def positional-aesthetics
   "The aesthetics that place a mark, and so may be given as a value.
@@ -901,6 +901,26 @@
     (str/replace (name k) #"[-_]" " ")
     (str k)))
 
+(declare fmt-name)
+
+(def strip-label-modes
+  "What `:strip-labels` takes: `:value`, the default, prints a facet
+   strip's category alone; `:both` prints the column's name before it."
+  #{:value :both})
+
+(defn strip-text
+  "What a facet strip prints for the category `value-text` of the
+   column `cols` (a column, or the columns of a compound key): the
+   category alone under `:strip-labels :value`, the default, and the
+   column's name before it under `:both`, as `drv: f`. One function for
+   the panels of a facet (`plan`) and the cells of a split drawn as an
+   arrangement (`pose/infer-strips`), which ask one question."
+  [mode cols value-text]
+  (let [cols (if (sequential? cols) cols [cols])]
+    (if (and (= :both mode) (seq (remove nil? cols)) (some? value-text))
+      (str (str/join " / " (map fmt-name (remove nil? cols))) ": " value-text)
+      value-text)))
+
 (defn fmt-category-label
   "Format a category value (keyword, string, number, etc.) for display.
    Used for axis tick labels, legend entries, facet strip labels, and any
@@ -1109,6 +1129,7 @@
    :min-panel-size ["Layout" "Smallest width and height a panel is drawn at. A plot whose panels would be smaller reports an error naming the sizes; lower this for a sparkline-sized plot"]
    :legend-width ["Layout" "Width reserved for the legend column"]
    :legend-position ["Layout" "Legend placement -- :right, :bottom, :top, or :none"]
+   :strip-labels ["Labels" "What a facet strip prints: :value (the default) for the category alone, or :both for the column's name and the category, as drv: f"]
    :theme ["Theme" "Nested map {:bg :grid :font-size} -- visual identity"]
    :label-font-size ["Typography" "Font size for axis labels"]
    :title-font-size ["Typography" "Font size for the plot title"]

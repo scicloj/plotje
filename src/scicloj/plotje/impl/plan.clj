@@ -390,7 +390,10 @@
         ;; for zero on that axis instead -- see `baseline-along-x?`.
          needs-zero? (and (not log?)
                           (some #(and (zero-baseline-marks (:mark %))
-                                      (not (baseline-along-x? %)))
+                                      (not (baseline-along-x? %))
+                                      ;; A matrix diagonal stands on its
+                                      ;; column's smallest value (`fit-diagonal`).
+                                      (not (:baseline %)))
                                 plan-layers))]
      (cond
       ;; Fill mode: normalized to [0, 1], which `:include` may still
@@ -1180,6 +1183,46 @@
                           :when (resolve/column-ref? v)]
                       [v []]))))
 
+
+(defn- fit-diagonal
+  "The stat result `sr` of a layer on the diagonal of a scatter plot
+   matrix (`:__fit-y-to-x`, written by `pose/leaf->draft`), with the
+   count or density it computes on `:y` drawn within the extent of the
+   column it counts, so the diagonal panel reads on the axis of its
+   row: the tallest bar or peak reaches the column's largest value, and
+   the marks stand on its smallest (`::baseline`). The heights are
+   relative; the row's tick labels name the column.
+
+   A histogram (`:bins`) and a density (`:points`) are fitted; any other
+   result, a column not of numbers, a stacked or filled layer -- whose
+   groups are added together after this -- and a column of one value
+   are returned as they are."
+  [rv sr]
+  (let [col (when (and (:__fit-y-to-x rv) (tc/dataset? (:data rv))
+                       (some? (:y (stat/computes rv)))
+                       (not= :categorical (:x-type rv))
+                       (not (#{:stack :fill} (:position rv)))
+                       (contains? (set (tc/column-names (:data rv))) (:x rv)))
+              (remove nil? ((:data rv) (:x rv))))
+        values (when (and (seq col) (every? number? col))
+                 (cond (:bins sr) (map :count (mapcat :bin-maps (:bins sr)))
+                       (:points sr) (mapcat :ys (:points sr))))
+        mx (when (and (seq values) (every? number? values))
+             (reduce max 0.0 (map double values)))]
+    (if-not (and (seq col) (every? number? col) mx (pos? mx))
+      sr
+      (let [lo (double (reduce min (map double col)))
+            hi (double (reduce max (map double col)))]
+        (if-not (< lo hi)
+          sr
+          (let [k (/ (- hi lo) mx)
+                f (fn [v] (+ lo (* k (double v))))]
+            (cond-> (assoc sr :y-domain [lo hi] ::baseline lo)
+              (:bins sr) (update :bins (fn [bs] (mapv (fn [b] (update b :bin-maps
+                                                                      (fn [ms] (mapv #(update % :count f) ms))))
+                                                      bs)))
+              (:points sr) (update :points (fn [ps] (mapv #(update % :ys (fn [ys] (mapv f ys))) ps))))))))))
+
 (defn resolve-panel-draft-layers
   "Resolve draft layers and compute stats for a group of draft layers belonging to one panel.
    If pre-resolved draft layers are provided, skips resolve-draft-layer.
@@ -1196,9 +1239,10 @@
         ;; A layer with no data is given a dataset of no rows, so every
         ;; stat takes the route it takes for data that is all missing,
         ;; and the panel reads "no data" whatever the layer type.
-        stat-results (mapv #(stat/compute-stat
-                             (cond-> (assoc % :cfg (merge cfg (:cfg %)))
-                               (nil? (:data %)) (assoc :data (no-rows %))))
+        stat-results (mapv #(fit-diagonal %
+                                          (stat/compute-stat
+                                           (cond-> (assoc % :cfg (merge cfg (:cfg %)))
+                                             (nil? (:data %)) (assoc :data (no-rows %)))))
                            resolved)
         raw-plan-layers (vec (map (fn [rv sr]
                                     (-> (extract/stamp-group-keys
@@ -1207,6 +1251,7 @@
                                         (assoc :y-domain (:y-domain sr)
                                                :x-domain (:x-domain sr))
                                         (cond-> shape-map (assoc :shape-map shape-map))
+                                        (cond-> (::baseline sr) (assoc :baseline (::baseline sr)))
                                         (cond-> (:size extents) (assoc :size-extent (:size extents))
                                                 (:alpha extents) (assoc :alpha-extent (:alpha extents)))
                                         ;; A drawing-unit offset is carried whole rather than
@@ -3527,6 +3572,22 @@
                 (update :panels (fn [ps]
                                   (mapv #(assoc % :col-label nil :row-label nil)
                                         ps))))
+         ;; Under `:strip-labels :both` a facet's strip names its
+         ;; column before the category (`defaults/strip-text`). A strip
+         ;; that names a column, or labels a cell on its own, is left.
+         strip-mode (or (:strip-labels opts) (:strip-labels cfg))
+         grid (cond-> grid
+                (= :both strip-mode)
+                (update :panels
+                        (fn [ps]
+                          (mapv (fn [p]
+                                  (let [fl (first (:draft-layers p))]
+                                    (cond-> p
+                                      (and (:col-label p) (:__facet-col-column fl))
+                                      (update :col-label #(defaults/strip-text strip-mode (:__facet-col-column fl) %))
+                                      (and (:row-label p) (:__facet-row-column fl))
+                                      (update :row-label #(defaults/strip-text strip-mode (:__facet-row-column fl) %)))))
+                                ps))))
          {:keys [layout-type x-vars y-vars x-overlay-vars y-overlay-vars]} grid
          grid-rows-n (:grid-rows grid)
          grid-cols-n (:grid-cols grid)
@@ -3878,7 +3939,19 @@
                                           [:__facet-col-column grid-cols-n]
                                           (contains? (ex-data e) :panel-height)
                                           [:__facet-row-column grid-rows-n])
-                                  column (when k (some k draft-layers))]
+                                  column (when k (some k draft-layers))
+                                  ;; Measurement columns written as a
+                                  ;; facet's key read as one category per
+                                  ;; combination of their values; a panel
+                                  ;; per column is the likelier intent.
+                                  cols (when (vector? column) column)
+                                  ds (some (fn [dl] (when (k dl) (:data dl))) draft-layers)
+                                  numerical? (and ds
+                                                  (vector? column)
+                                                  (every? #(and (resolve/resolve-col-name ds %)
+                                                                (ds (resolve/resolve-col-name ds %))
+                                                                (= :numerical (resolve/column-type ds %)))
+                                                          cols))]
                               (throw (if (some? column)
                                        (ex-info
                                         (str (ex-message e)
@@ -3886,7 +3959,11 @@
                                              (pr-str column) ", which holds " n
                                              " values and draws them in one "
                                              (if (= k :__facet-col-column) "row" "column")
-                                             ": a facet does not wrap its panels. For"
+                                             ": a facet does not wrap its panels."
+                                             (when numerical?
+                                               (str " For a panel per column, write"
+                                                    " (pj/facet pose {:x " (pr-str cols) "})."))
+                                             " For"
                                              " several rows of panels, arrange one"
                                              " pose per value, each drawing the rows"
                                              " of that value, and give the"

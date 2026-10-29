@@ -81,7 +81,7 @@
   (testing ":scales :shared asked for the default and is dropped"
     (let [out (java.io.StringWriter.)
           retired (binding [*out* out] (pj/options by-kind {:scales :shared}))]
-      (is (re-find #"asked for the default, so it is dropped" (str out)))
+      (is (re-find #"asks for the default: remove it.*It is ignored\." (str out)))
       (is (not (contains? (:opts retired) :share-scales)))
       (is (= (pj/plot retired) (pj/plot by-kind)))))
   (testing "written by hand in a pose map, it is read when the pose is drawn"
@@ -226,7 +226,7 @@
       (is (= "" (printed over-columns)))
       (is (= "" (printed by-kind)))
       (is (= "" (printed (pj/options by-kind {:share-scales #{:x}}))))
-      (is (= "" (printed (pj/facet-matrix cars [:fast :slow])))))
+      (is (= "" (printed (pj/facet cars {:col {:x [:fast :slow]} :row {:y [:fast :slow]}})))))
     (testing "a conflict with the cells' own :share-scales is one message, however many cells"
       (let [free (pj/options by-kind {:share-scales #{}})
             out (printed (pj/arrange [free free] {:share-scales #{:y}}))]

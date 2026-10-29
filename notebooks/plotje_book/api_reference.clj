@@ -113,17 +113,14 @@
 (kind/test-last [(fn [v] (= [[:a 1] [:a 2] [:a 3] [:b 1] [:b 2] [:b 3]] v))])
 
 ;; The pairs go to `pj/arrange` as cells. For a grid of every `:x`
-;; column against every `:y` column, `pj/facet-matrix` takes the two
-;; lists itself.
-
-(kind/doc #'pj/facet-matrix)
-
-;; `pj/facet-matrix` draws a panel for every pair of columns, a scatter
-;; plot matrix (SPLOM):
+;; column against every `:y` column, give `pj/facet` the two lists,
+;; `{:col {:x xs} :row {:y ys}}`. The same list in both places draws a
+;; scatter plot matrix (SPLOM):
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet-matrix [:sepal-length :petal-length]
-                     {:color :species}))
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x [:sepal-length :petal-length]}
+              :row {:y [:sepal-length :petal-length]}}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))
@@ -720,11 +717,12 @@
                            (and (= 3 (:panels s))
                                 (= 150 (:points s)))))])
 
-(kind/doc #'pj/facet-grid)
+;; A map under `:col` and `:row` draws a grid of categories, a panel for
+;; every pair of values:
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-point :total-bill :tip {:color :sex})
-    (pj/facet-grid :smoker :sex))
+    (pj/facet {:col :smoker :row :sex}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))
@@ -1270,7 +1268,7 @@ plan1
 
 (count pj/config-key-docs)
 
-(kind/test-last [(fn [n] (= 47 n))])
+(kind/test-last [(fn [n] (= 48 n))])
 
 (kind/doc #'pj/plot-option-docs)
 
@@ -1442,6 +1440,8 @@ plan1
 ;; Public functions kept so that code written for an earlier release
 ;; still runs. `(pj/overlay pose)` returns the pose unchanged and prints
 ;; a warning, and `(pj/overlay pose false)` reports an error.
+;; `pj/facet-grid` prints a warning and returns the pose `pj/facet`
+;; writes for the same grid.
 
 (kind/doc #'pj/overlay)
 
@@ -1456,3 +1456,14 @@ plan1
     :panels)
 
 (kind/test-last [(fn [n] (= 1 n))])
+
+(kind/doc #'pj/facet-grid)
+
+;; `(pj/facet-grid pose :smoker :sex)` returns the pose
+;; `(pj/facet pose {:col :smoker :row :sex})` returns:
+
+(let [tips-pose (pj/lay-point (rdatasets/reshape2-tips) :total-bill :tip)]
+  (= (pj/facet-grid tips-pose :smoker :sex)
+     (pj/facet tips-pose {:col :smoker :row :sex})))
+
+(kind/test-last [true?])

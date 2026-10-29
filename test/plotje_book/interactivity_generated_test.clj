@@ -51,7 +51,7 @@
    sales
    :hover
    (fn*
-    [p1__85607#]
+    [p1__77883#]
     (map
      (fn
       [month revenue margin]
@@ -61,9 +61,9 @@
        (format "%.1fM" (/ (double revenue) 1000000.0))
        " at "
        (format "%.1f%%" (* 100.0 margin))))
-     (:month p1__85607#)
-     (:revenue p1__85607#)
-     (:margin p1__85607#))))))
+     (:month p1__77883#)
+     (:revenue p1__77883#)
+     (:margin p1__77883#))))))
 
 
 (def v10_l87 sales-labelled)
@@ -100,7 +100,7 @@
    sales
    :hover
    (fn*
-    [p1__85608#]
+    [p1__77884#]
     (map
      (fn
       [month revenue margin]
@@ -112,9 +112,9 @@
        [:br]
        "margin "
        [:code (format "%.1f%%" (* 100.0 margin))]])
-     (:month p1__85608#)
-     (:revenue p1__85608#)
-     (:margin p1__85608#))))))
+     (:month p1__77884#)
+     (:revenue p1__77884#)
+     (:margin p1__77884#))))))
 
 
 (def v16_l139 sales-rich)
@@ -161,8 +161,8 @@
        (tree-seq vector? seq (pj/plot pose))
        (filter
         (fn*
-         [p1__85609#]
-         (and (vector? p1__85609#) (map? (second p1__85609#)))))
+         [p1__77885#]
+         (and (vector? p1__77885#) (map? (second p1__77885#)))))
        (map second))]
      (=
       ["<b>one reading per point</b>"]
@@ -189,8 +189,8 @@
        (tree-seq vector? seq (pj/plot pose))
        (filter
         (fn*
-         [p1__85610#]
-         (and (vector? p1__85610#) (map? (second p1__85610#)))))
+         [p1__77886#]
+         (and (vector? p1__77886#) (map? (second p1__77886#)))))
        (map second))]
      (and
       (some :data-tooltip attrs)
@@ -224,31 +224,38 @@
 
 
 (def
- v30_l221
+ v30_l223
  (->
   (rdatasets/datasets-iris)
-  (pj/lay-point :sepal-length :sepal-width)
-  (pj/facet :species)
+  (pj/pose {:x :sepal-length})
+  pj/lay-point
+  (pj/facet {:y [:sepal-width :petal-width]})
   (pj/options
-   {:title "Brush on one panel, see linked points in the others",
+   {:title "Brush on one panel, see linked points in the other",
     :brush true,
     :tooltip true,
-    :height 320})))
+    :height 420})))
 
 
 (deftest
- t31_l229
+ t31_l232
  (is
   ((fn
     [pose]
     (let
-     [s (str (pj/plot pose))]
-     (and (re-find #":data-row-idx" s) (re-find #"nsk-brush-sel" s))))
-   v30_l221)))
+     [s
+      (str (pj/plot pose))
+      ids
+      (map second (re-seq #":data-row-idx (\d+)" s))]
+     (and
+      (re-find #"nsk-brush-sel" s)
+      (= 300 (count ids))
+      (= 150 (count (distinct ids))))))
+   v30_l223)))
 
 
 (def
- v33_l241
+ v33_l252
  (->
   {:start
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -272,18 +279,18 @@
 
 
 (deftest
- t34_l252
+ t34_l263
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-tooltip" s) (re-find #" → " s))))
-   v33_l241)))
+   v33_l252)))
 
 
 (def
- v36_l263
+ v36_l274
  (let
   [plot-svg
    (pj/plot
@@ -335,7 +342,7 @@
 
 
 (def
- v38_l307
+ v38_l318
  (with-out-str
   (->
    (rdatasets/datasets-iris)
@@ -345,7 +352,7 @@
 
 
 (deftest
- t39_l313
+ t39_l324
  (is
   ((fn
     [out]
@@ -365,4 +372,4 @@
          (pj/options {:tooltip true})
          (pj/plot {:format :bufimg}))))
       (instance? java.awt.image.BufferedImage (deref drawn)))))
-   v38_l307)))
+   v38_l318)))

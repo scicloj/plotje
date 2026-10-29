@@ -7,7 +7,7 @@
 ;; plane, and clusters or trends become visible. Regression
 ;; and smoothing draw trend lines through it; 2D density and
 ;; contours reveal where points are dense or sparse; the
-;; scatter-plot matrix (SPLOM) at the end shows every pair of
+;; scatter plot matrix (SPLOM) at the end shows every pair of
 ;; columns at once.
 
 (ns plotje-book.relationships
@@ -380,8 +380,6 @@
 ;; Per-cell inference picks the layer type for each panel: diagonal
 ;; cells (x = y) get histograms; off-diagonal cells get scatter
 ;; plots. All panels share the color aesthetic set on the pose.
-;; `pj/facet-matrix` writes the same facet in one call,
-;; `(pj/facet-matrix data cols {:color :species})`.
 
 ;; A layer written on the matrix is drawn in the panels whose columns it
 ;; draws. A scatter draws two columns, so `pj/lay-point` is drawn in the
@@ -448,7 +446,7 @@
 
 ;; ## See Also
 ;;
-;; - [**Composition**](./plotje_book.composition.html#marginal-plots) -- composite poses (the SPLOM and the marginal are two) and shared scales
+;; - [**Composition**](./plotje_book.composition.html#marginal-plots) -- composite poses, the marginal among them, and shared scales
 ;; - [**Distributions**](./plotje_book.distributions.html) -- one-variable shape and spread
 
 ;; ## What's Next

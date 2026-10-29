@@ -497,36 +497,25 @@
       (is (every? some? (mapv #(:legend (:plan %)) (:sub-plots plan)))
           "each leaf renders its own legend"))))
 
-(deftest composite-title-suppresses-leaf-titles-test
-  (testing "composite :title silences leaf :title (single-leaf wrap)"
-    (let [a (-> (tc/dataset {:x [1 2 3] :y [10 20 30]})
-                (pj/lay-point :x :y)
-                (pj/options {:title "Sub"}))
-          composite (-> (pj/arrange [a]) (pj/options {:title "Outer"}))
-          texts (:texts (pj/svg-summary (pj/plot composite)))]
-      (is (some #(= % "Outer") texts) "composite title renders")
-      (is (not-any? #(= % "Sub") texts) "leaf title suppressed")))
-
-  (testing "composite without :title leaves leaf :title alone"
-    (let [a (-> (tc/dataset {:x [1 2 3] :y [10 20 30]})
-                (pj/lay-point :x :y)
-                (pj/options {:title "Sub"}))
-          composite (pj/arrange [a])
-          texts (:texts (pj/svg-summary (pj/plot composite)))]
-      (is (some #(= % "Sub") texts)
-          "leaf title flows through when composite has no title")))
-
-  (testing "composite :title suppresses every leaf title in a multi-leaf grid"
+(deftest composite-title-keeps-leaf-titles-test
+  (testing "a titled arrangement draws its own title and each cell's"
     (let [a (-> (tc/dataset {:x [1 2 3] :y [10 20 30]})
                 (pj/lay-point :x :y)
                 (pj/options {:title "A"}))
           b (-> (tc/dataset {:x [4 5 6] :y [40 50 60]})
                 (pj/lay-point :x :y)
                 (pj/options {:title "B"}))
-          composite (-> (pj/arrange [a b]) (pj/options {:title "Outer"}))
-          texts (:texts (pj/svg-summary (pj/plot composite)))]
-      (is (some #(= % "Outer") texts))
-      (is (not-any? #(#{"A" "B"} %) texts)))))
+          texts (:texts (pj/svg-summary (pj/arrange [a b] {:title "Outer"})))]
+      (is (= {"Outer" 1 "A" 1 "B" 1}
+             (frequencies (filter #{"Outer" "A" "B"} texts))))))
+
+  (testing "the outer title, subtitle and caption are not drawn in untitled cells"
+    (let [a (-> (tc/dataset {:x [1 2 3] :y [10 20 30]})
+                (pj/lay-point :x :y))
+          texts (:texts (pj/svg-summary
+                         (pj/arrange [a a] {:title "Outer" :subtitle "Sub" :caption "Cap"})))]
+      (is (= {"Outer" 1 "Sub" 1 "Cap" 1}
+             (frequencies (filter #{"Outer" "Sub" "Cap"} texts)))))))
 
 (deftest composite-tooltip-propagates-to-leaves-test
   (testing "composite-level :tooltip true reaches every sub-plot's plan"

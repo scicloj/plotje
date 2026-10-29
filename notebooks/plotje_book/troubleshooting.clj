@@ -458,10 +458,10 @@
  [(fn [msg] (and (re-find #"panel aesthetic" msg)
                  (re-find #"read from a pose's mapping" msg)))])
 
-;; **Fix**: write the panel aesthetic on the pose -- with `pj/facet`
-;; for one direction, `pj/facet-grid` for both, or `:col` and `:row`
-;; in the pose's mapping. Faceting is a mapping and obeys the scope
-;; rules, so on a composite it goes on the cell whose panels it
+;; **Fix**: write the panel aesthetic on the pose -- `(pj/facet pose
+;; :species)` across, `(pj/facet pose {:row :species})` down, or
+;; `{:col ... :row ...}` for both -- or put `:col` and `:row` in the
+;; pose's mapping. Faceting is a mapping and obeys the scope rules, so on a composite it goes on the cell whose panels it
 ;; divides:
 
 (-> (rdatasets/datasets-iris)
@@ -714,13 +714,15 @@
 ;;
 ;; Some spellings 0.16.1 accepted report an error or warn in place of
 ;; drawing something else. A vector of column pairs given to `pj/pose`
-;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
-;; `pj/facet-matrix`. A vector of columns given alone to `pj/pose` or
-;; to a `pj/lay-*` call is a series, drawn on one panel, where 0.16.1
-;; drew a panel per column; for this release a Note says so and names
-;; `pj/arrange`, which draws a panel per column. `pj/overlay` and
-;; `{:overlay true}` warn that they are ignored, and `{:overlay false}`
-;; reports an error. Here is the error for pairs of columns:
+;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and the
+;; facet that crosses two lists of columns. A vector of columns given
+;; alone to `pj/pose` or to a `pj/lay-*` call is a series, drawn on one
+;; panel, where 0.16.1 drew a panel per column; for this release a Note
+;; says so and names `pj/arrange`, which draws a panel per column.
+;; `pj/overlay` and `{:overlay true}` warn that they are ignored, and
+;; `{:overlay false}` reports an error. `pj/facet-grid` is retired too:
+;; it warns, names the `pj/facet` call to write, and draws the same
+;; panels. Here is the error for pairs of columns:
 
 (try
   (pj/lay-point (rdatasets/datasets-iris)
@@ -730,7 +732,7 @@
 (kind/test-last
  [(fn [msg] (and (re-find #"was given pairs of columns" msg)
                  (re-find #"pj/arrange" msg)
-                 (re-find #"pj/facet-matrix" msg)))])
+                 (re-find #"pj/facet data \{:col \{:x xs\} :row \{:y ys\}\}" msg)))])
 
 ;; The plot below draws `:hwy` and `:year` on one axis, the first case
 ;; in the list:

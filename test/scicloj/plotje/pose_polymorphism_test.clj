@@ -262,7 +262,7 @@
 ;;            pj/lay-point
 ;;            (pj/arrange [[:a :b] [:c :d]]))
 ;;
-;; For the full SPLOM grid, see pj/facet-matrix (G1-G5 below).
+;; For the full SPLOM grid, see the facet crossing two lists (G1-G5 below).
 
 (deftest multi-pair-raw-data-bivariate-test
   (testing "M1: (pj/arrange data [[:a :b] [:c :d]]) -- vector of pairs"
@@ -308,9 +308,9 @@
       (is (= {:x :c :y :d} (-> f panels (nth 1) :mapping))))))
 
 (deftest multi-pair-cross-utility-test
-  (testing "M6: (pj/facet-matrix data cols) writes the facet map crossing cols"
+  (testing "M6: (pj/facet data {:col {:x cols} :row {:y cols}}) keeps the facet map"
     (let [cols [:a :b]
-          f (pj/facet-matrix iris cols)]
+          f (pj/facet iris {:col {:x cols} :row {:y cols}})]
       (is (= {:col {:x cols} :row {:y cols}} (:facet f)))
       (is (nil? (:poses f)) "a pose with one panel, split when drawn"))))
 
@@ -321,11 +321,11 @@
              (mapv :mapping (panels f)))))))
 
 ;; ============================================================
-;; pj/facet-matrix -- the facet map crossing two lists (G1-G5)
+;; The facet map crossing two lists (G1-G5)
 ;; ============================================================
 ;;
-;; pj/facet-matrix writes `{:col {:x xs} :row {:y ys}}` on a pose with
-;; one panel. When it is drawn the facet expands into a grid: a row per
+;; `(pj/facet pose {:col {:x xs} :row {:y ys}})` keeps the map on a pose
+;; with one panel. When it is drawn the facet expands into a grid: a row per
 ;; `:y` column and, across it, a cell per `:x` column. A cell's x is
 ;; named by the column it sits in and its y by the row, which is how a
 ;; scatterplot matrix is read; the assertions below pin that
@@ -340,7 +340,7 @@
 
 (deftest multi-pair-grid-splom-shape-test
   (testing "G1: two lists of columns cross into a grid, x across and y down"
-    (let [f (pj/facet-matrix iris [:a :b] [:c :d])]
+    (let [f (pj/facet iris {:col {:x [:a :b]} :row {:y [:c :d]}})]
       (is (= {:col {:x [:a :b]} :row {:y [:c :d]}} (:facet f)))
       (is (= [[{:x :a :y :c} {:x :b :y :c}]
               [{:x :a :y :d} {:x :b :y :d}]]
@@ -349,7 +349,7 @@
 
 (deftest multi-pair-grid-3x3-test
   (testing "G2: 3 x 3 SPLOM"
-    (let [f (pj/facet-matrix iris [:a :b :c])]
+    (let [f (pj/facet iris {:col {:x [:a :b :c]} :row {:y [:a :b :c]}})]
       (is (= 9 (:panels (pj/svg-summary f)))))))
 
 (deftest multi-pair-grid-root-aesthetic-test
@@ -357,22 +357,11 @@
     (let [f (-> iris
                 (pj/pose {:color :species})
                 pj/lay-point
-                (pj/facet-matrix [:a :b]))]
+                (pj/facet {:col {:x [:a :b]} :row {:y [:a :b]}}))]
       (is (= {:color :species} (:mapping f)) "aesthetic preserved")
       (is (= 1 (count (:layers f))) "layer preserved")
       (is (= :point (-> f :layers first :layer-type)))
       (is (= {:col {:x [:a :b]} :row {:y [:a :b]}} (:facet f))))))
-
-(deftest multi-pair-grid-with-opts-arity-test
-  (testing "G3b: (pj/facet-matrix data xs ys mapping) folds the two-call
-            idiom into one call"
-    (let [a (-> iris
-                (pj/pose {:color :species})
-                (pj/facet-matrix [:a :b] [:c :d]))
-          b (-> iris
-                (pj/facet-matrix [:a :b] [:c :d] {:color :species}))]
-      (is (= a b) "two-call and one-call forms are pose-equal")
-      (is (= {:color :species} (:mapping b))))))
 
 (deftest multi-pair-grid-non-rectangular-falls-through-test
   (testing "G4: a non-rectangular pair list goes through pj/arrange --
@@ -384,7 +373,7 @@
 
 (deftest multi-pair-grid-1xN-test
   (testing "G5: one :x column against three :y columns is a column of three panels"
-    (let [f (pj/facet-matrix iris [:a] [:b :c :d])]
+    (let [f (pj/facet iris {:col {:x [:a]} :row {:y [:b :c :d]}})]
       (is (= [[{:x :a :y :b}] [{:x :a :y :c}] [{:x :a :y :d}]]
              (cell-mappings f))))))
 

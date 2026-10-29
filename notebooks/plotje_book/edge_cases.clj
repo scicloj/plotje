@@ -499,14 +499,15 @@
 
 ;; ### Full grid -- a matrix of columns
 ;;
-;; `pj/facet-matrix` draws a panel for every pair of the columns it is
-;; given. Each column is named once above its column of panels and once
-;; beside its row of panels, and a panel with one column on both axes
+;; A facet crossing a list of columns with itself draws a panel for
+;; every pair of the columns. Each column is named once above its
+;; column of panels and once beside its row of panels, and a panel with one column on both axes
 ;; draws a histogram of that column.
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet-matrix [:sepal-length :sepal-width :petal-length]
-                     {:color :species}))
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x [:sepal-length :sepal-width :petal-length]}
+              :row {:y [:sepal-length :sepal-width :petal-length]}}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
                                texts (:texts s)

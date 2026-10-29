@@ -26,7 +26,7 @@
             ["" "2" [5]] ["" "1" [2]] ["" "" []]
             ["a" "2" [3 10]] ["a" "1" []] ["a" "" [7]]
             ["c" "2" []] ["c" "1" [6 9]] ["c" "" []]]
-           (panels (-> rows (pj/lay-point :v :v) (pj/facet-grid :g :h))))))
+           (panels (-> rows (pj/lay-point :v :v) (pj/facet {:col :g :row :h}))))))
   (testing "a compound key: one panel per combination the data holds"
     (is (= [["b / 2" nil [1 8]] [" / 1" nil [2]] ["a / 2" nil [3 10]] ["b / 1" nil [4]]
             [" / 2" nil [5]] ["c / 1" nil [6 9]] ["a / " nil [7]]]

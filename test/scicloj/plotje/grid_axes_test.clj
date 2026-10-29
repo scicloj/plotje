@@ -1,5 +1,5 @@
 (ns scicloj.plotje.grid-axes-test
-  "The grid `pj/facet-matrix` draws -- a facet crossing two lists of
+  "The grid a scatter plot matrix draws -- a facet crossing two lists of
    columns -- has one x per column of cells and one y per row, and
    each column's and row's axis is drawn.
 
@@ -25,8 +25,7 @@
 ;;   :petal-length [1.0 6.9]   :petal-width  [0.1 2.5]
 (def cross-2x2
   (-> (rdatasets/datasets-iris)
-      (pj/facet-matrix [:sepal-length :sepal-width]
-                       [:petal-length :petal-width])
+      (pj/facet {:col {:x [:sepal-length :sepal-width]} :row {:y [:petal-length :petal-width]}})
       (pj/options {:width 800 :height 600})))
 
 (defn- cell-mappings
@@ -88,7 +87,7 @@
                 [:sepal-length :sepal-width :petal-length :petal-width :species]]]
     (let [areas (mapv #(get-in % [:frames :drawing-area])
                       (:panels (pj/frames (-> (rdatasets/datasets-iris)
-                                              (pj/facet-matrix cols)
+                                              (pj/facet {:col {:x cols} :row {:y cols}})
                                               (pj/options {:width 600 :height 600})))))
           n (count cols)
           by-column (partition n (apply interleave (partition n areas)))]

@@ -871,9 +871,9 @@ dashboard
 ;;   facet do. A cell drops its own with
 ;;   `:suppress-x-ticks` and `:suppress-x-label` in that cell's
 ;;   `:opts`, which is what `pj/marginal` writes on the strip it
-;;   builds. (Matrix layouts -- the SPLOM grid in particular --
-;;   replace per-leaf x/y labels with shared strip labels, and
-;;   SPLOM additionally suppresses ticks on interior cells.)
+;;   builds. (A scatter plot matrix names its columns with strips in
+;;   place of each panel's axis titles, and labels its `:x` ticks
+;;   along the bottom row only.)
 ;; - **Plot-area edges may not line up** across composite siblings,
 ;;   since each leaf reserves its own padding for axes and labels --
 ;;   two sub-poses with different label lengths, or one drawing a

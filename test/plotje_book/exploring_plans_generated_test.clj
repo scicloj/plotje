@@ -61,40 +61,43 @@
      (every? (set ks) [:x-domain :y-domain :layers])
      (let
       [matrix-plan
-       (pj/plan (pj/facet-matrix {:a [1 2 3], :b [3 1 2]} [:a :b]))]
+       (pj/plan
+        (pj/facet
+         {:a [1 2 3], :b [3 1 2]}
+         {:col {:x [:a :b]}, :row {:y [:a :b]}}))]
       (and
        (pj/composite-plan? matrix-plan)
        (= 4 (count (:sub-plots matrix-plan)))))))
    v14_l82)))
 
 
-(def v17_l94 (:x-domain tiny-panel))
+(def v17_l95 (:x-domain tiny-panel))
 
 
 (deftest
- t18_l96
- (is ((fn [d] (and (<= (first d) 1) (>= (second d) 5))) v17_l94)))
+ t18_l97
+ (is ((fn [d] (and (<= (first d) 1) (>= (second d) 5))) v17_l95)))
 
 
-(def v19_l98 (:y-domain tiny-panel))
-
-
-(deftest
- t20_l100
- (is ((fn [d] (and (<= (first d) 1) (>= (second d) 5))) v19_l98)))
-
-
-(def v22_l104 (:x-scale tiny-panel))
-
-
-(deftest t23_l106 (is ((fn [s] (= :linear (:type s))) v22_l104)))
-
-
-(def v25_l110 (:x-ticks tiny-panel))
+(def v19_l99 (:y-domain tiny-panel))
 
 
 (deftest
- t26_l112
+ t20_l101
+ (is ((fn [d] (and (<= (first d) 1) (>= (second d) 5))) v19_l99)))
+
+
+(def v22_l105 (:x-scale tiny-panel))
+
+
+(deftest t23_l107 (is ((fn [s] (= :linear (:type s))) v22_l105)))
+
+
+(def v25_l111 (:x-ticks tiny-panel))
+
+
+(deftest
+ t26_l113
  (is
   ((fn
     [t]
@@ -102,29 +105,29 @@
      (vector? (:values t))
      (vector? (:labels t))
      (= (count (:values t)) (count (:labels t)))))
-   v25_l110)))
+   v25_l111)))
 
 
-(def v28_l124 (def tiny-layer (first (:layers tiny-panel))))
+(def v28_l125 (def tiny-layer (first (:layers tiny-panel))))
 
 
-(def v29_l126 tiny-layer)
+(def v29_l127 tiny-layer)
 
 
-(deftest t30_l128 (is ((fn [m] (= :point (:mark m))) v29_l126)))
+(deftest t30_l129 (is ((fn [m] (= :point (:mark m))) v29_l127)))
 
 
-(def v32_l133 (count (:groups tiny-layer)))
+(def v32_l134 (count (:groups tiny-layer)))
 
 
-(deftest t33_l135 (is ((fn [n] (= 1 n)) v32_l133)))
+(deftest t33_l136 (is ((fn [n] (= 1 n)) v32_l134)))
 
 
-(def v35_l140 (first (:groups tiny-layer)))
+(def v35_l141 (first (:groups tiny-layer)))
 
 
 (deftest
- t36_l142
+ t36_l143
  (is
   ((fn
     [g]
@@ -132,29 +135,29 @@
      (= 4 (count (:color g)))
      (= [1 2 3 4 5] (mapv int (:xs g)))
      (= [2 4 1 5 3] (mapv int (:ys g)))))
-   v35_l140)))
+   v35_l141)))
 
 
 (def
- v38_l156
+ v38_l157
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})))
 
 
 (deftest
- t39_l159
+ t39_l160
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 150 (:points s)))))
-   v38_l156)))
+   v38_l157)))
 
 
 (def
- v40_l163
+ v40_l164
  (def
   iris-plan
   (->
@@ -163,59 +166,59 @@
    pj/plan)))
 
 
-(def v42_l169 iris-plan)
+(def v42_l170 iris-plan)
 
 
 (deftest
- t43_l171
+ t43_l172
  (is
   ((fn
     [m]
     (and
      (= 3 (count (:entries (:legend m))))
      (= 1 (count (:panels m)))))
-   v42_l169)))
+   v42_l170)))
 
 
 (def
- v45_l176
+ v45_l177
  (def iris-layer (-> iris-plan :panels first :layers first)))
 
 
-(def v46_l178 (count (:groups iris-layer)))
+(def v46_l179 (count (:groups iris-layer)))
 
 
-(deftest t47_l180 (is ((fn [n] (= 3 n)) v46_l178)))
+(deftest t47_l181 (is ((fn [n] (= 3 n)) v46_l179)))
 
 
 (def
- v49_l184
+ v49_l185
  (mapv
   (fn [g] {:color (:color g), :n-points (count (:xs g))})
   (:groups iris-layer)))
 
 
 (deftest
- t50_l189
+ t50_l190
  (is
   ((fn
     [gs]
     (and
      (= 3 (count gs))
-     (every? (fn* [p1__88542#] (= 50 (:n-points p1__88542#))) gs)))
-   v49_l184)))
+     (every? (fn* [p1__80274#] (= 50 (:n-points p1__80274#))) gs)))
+   v49_l185)))
 
 
-(def v52_l194 (:legend iris-plan))
+(def v52_l195 (:legend iris-plan))
 
 
 (deftest
- t53_l196
- (is ((fn [leg] (= 3 (count (:entries leg)))) v52_l194)))
+ t53_l197
+ (is ((fn [leg] (= 3 (count (:entries leg)))) v52_l195)))
 
 
 (def
- v55_l206
+ v55_l207
  (def
   cont-plan
   (->
@@ -224,52 +227,52 @@
    pj/plan)))
 
 
-(def v56_l210 (:legend cont-plan))
+(def v56_l211 (:legend cont-plan))
 
 
-(deftest t57_l212 (is ((fn [m] (= :continuous (:type m))) v56_l210)))
+(deftest t57_l213 (is ((fn [m] (= :continuous (:type m))) v56_l211)))
 
 
 (def
- v59_l216
+ v59_l217
  (select-keys
   (:legend cont-plan)
   [:title :type :min :max :color-range]))
 
 
 (deftest
- t60_l218
+ t60_l219
  (is
   ((fn
     [m]
     (and (= :continuous (:type m)) (not (contains? m :gradient-fn))))
-   v59_l216)))
+   v59_l217)))
 
 
-(def v62_l223 (count (:stops (:legend cont-plan))))
+(def v62_l224 (count (:stops (:legend cont-plan))))
 
 
-(deftest t63_l225 (is ((fn [n] (= 20 n)) v62_l223)))
+(deftest t63_l226 (is ((fn [n] (= 20 n)) v62_l224)))
 
 
 (def
- v65_l232
+ v65_l233
  (-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length)))
 
 
 (deftest
- t66_l235
+ t66_l236
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v65_l232)))
+   v65_l233)))
 
 
 (def
- v67_l239
+ v67_l240
  (def
   hist-plan
   (->
@@ -278,60 +281,60 @@
    pj/plan)))
 
 
-(def v68_l243 hist-plan)
+(def v68_l244 hist-plan)
 
 
-(deftest t69_l245 (is ((fn [m] (= 1 (count (:panels m)))) v68_l243)))
+(deftest t69_l246 (is ((fn [m] (= 1 (count (:panels m)))) v68_l244)))
 
 
 (def
- v70_l247
+ v70_l248
  (def hist-layer (-> hist-plan :panels first :layers first)))
 
 
-(def v71_l249 (:mark hist-layer))
+(def v71_l250 (:mark hist-layer))
 
 
-(deftest t72_l251 (is ((fn [m] (= :bar m)) v71_l249)))
+(deftest t72_l252 (is ((fn [m] (= :bar m)) v71_l250)))
 
 
-(def v74_l255 (-> hist-layer :groups first :bars))
+(def v74_l256 (-> hist-layer :groups first :bars))
 
 
 (deftest
- t75_l257
+ t75_l258
  (is
   ((fn
     [bars]
     (and
      (> (count bars) 3)
      (every?
-      (fn* [p1__88543#] (< (:lo p1__88543#) (:hi p1__88543#)))
+      (fn* [p1__80275#] (< (:lo p1__80275#) (:hi p1__80275#)))
       bars)
-     (every? (fn* [p1__88544#] (pos? (:count p1__88544#))) bars)))
-   v74_l255)))
+     (every? (fn* [p1__80276#] (pos? (:count p1__80276#))) bars)))
+   v74_l256)))
 
 
 (def
- v77_l269
+ v77_l270
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:color :species})))
 
 
 (deftest
- t78_l272
+ t78_l273
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v77_l269)))
+   v77_l270)))
 
 
 (def
- v79_l276
+ v79_l277
  (def
   bar-plan
   (->
@@ -340,14 +343,14 @@
    pj/plan)))
 
 
-(def v80_l280 (def bar-layer (-> bar-plan :panels first :layers first)))
+(def v80_l281 (def bar-layer (-> bar-plan :panels first :layers first)))
 
 
-(def v82_l284 bar-layer)
+(def v82_l285 bar-layer)
 
 
 (deftest
- t83_l286
+ t83_l287
  (is
   ((fn
     [m]
@@ -355,39 +358,39 @@
      (= :rect (:mark m))
      (= :dodge (:position m))
      (= 3 (count (:categories m)))))
-   v82_l284)))
+   v82_l285)))
 
 
 (def
- v85_l292
+ v85_l293
  (mapv
   (fn [g] {:label (:label g), :counts (:counts g)})
   (:groups bar-layer)))
 
 
-(deftest t86_l297 (is ((fn [gs] (= 3 (count gs))) v85_l292)))
+(deftest t86_l298 (is ((fn [gs] (= 3 (count gs))) v85_l293)))
 
 
 (def
- v88_l307
+ v88_l308
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:position :stack, :color :species})))
 
 
 (deftest
- t89_l310
+ t89_l311
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 5 (:polygons s)))))
-   v88_l307)))
+   v88_l308)))
 
 
 (def
- v91_l318
+ v91_l319
  (def
   stacked-plan
   (->
@@ -397,18 +400,18 @@
 
 
 (def
- v92_l322
+ v92_l323
  (def stacked-layer (-> stacked-plan :panels first :layers first)))
 
 
-(def v93_l324 (:position stacked-layer))
+(def v93_l325 (:position stacked-layer))
 
 
-(deftest t94_l326 (is ((fn [p] (= :stack p)) v93_l324)))
+(deftest t94_l327 (is ((fn [p] (= :stack p)) v93_l325)))
 
 
 (def
- v96_l335
+ v96_l336
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -416,18 +419,18 @@
 
 
 (deftest
- t97_l339
+ t97_l340
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 1 (:lines s)))))
-   v96_l335)))
+   v96_l336)))
 
 
 (def
- v98_l343
+ v98_l344
  (def
   lm-plan
   (->
@@ -437,31 +440,31 @@
    pj/plan)))
 
 
-(def v100_l350 (mapv :mark (-> lm-plan :panels first :layers)))
+(def v100_l351 (mapv :mark (-> lm-plan :panels first :layers)))
 
 
 (deftest
- t101_l351
- (is ((fn [marks] (= [:point :line] marks)) v100_l350)))
+ t101_l352
+ (is ((fn [marks] (= [:point :line] marks)) v100_l351)))
 
 
-(def v102_l352 (def lm-layer (-> lm-plan :panels first :layers second)))
+(def v102_l353 (def lm-layer (-> lm-plan :panels first :layers second)))
 
 
-(def v104_l356 (first (:groups lm-layer)))
+(def v104_l357 (first (:groups lm-layer)))
 
 
 (deftest
- t105_l358
+ t105_l359
  (is
   ((fn
     [m]
     (and (< (:x1 m) (:x2 m)) (number? (:x1 m)) (number? (:y2 m))))
-   v104_l356)))
+   v104_l357)))
 
 
 (def
- v107_l370
+ v107_l371
  (->
   (rdatasets/datasets-iris)
   (pj/pose :petal-length :petal-width {:color :species})
@@ -470,18 +473,18 @@
 
 
 (deftest
- t108_l375
+ t108_l376
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 3 (:lines s)))))
-   v107_l370)))
+   v107_l371)))
 
 
 (def
- v109_l378
+ v109_l379
  (def
   grp-plan
   (->
@@ -493,7 +496,7 @@
 
 
 (def
- v110_l384
+ v110_l385
  (let
   [line-layer (-> grp-plan :panels first :layers second)]
   (mapv
@@ -505,91 +508,91 @@
    (:groups line-layer))))
 
 
-(deftest t111_l391 (is ((fn [gs] (= 3 (count gs))) v110_l384)))
+(deftest t111_l392 (is ((fn [gs] (= 3 (count gs))) v110_l385)))
 
 
 (def
- v113_l399
+ v113_l400
  (def
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__88545#] (Math/sin (* p1__88545# 0.3))) (range 30))}))
+   (map (fn* [p1__80277#] (Math/sin (* p1__80277# 0.3))) (range 30))}))
 
 
-(def v114_l402 (-> wave (pj/lay-line :x :y)))
+(def v114_l403 (-> wave (pj/lay-line :x :y)))
 
 
 (deftest
- t115_l405
+ t115_l406
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 1 (:lines s)))))
-   v114_l402)))
+   v114_l403)))
 
 
-(def v116_l409 (def wave-plan (-> wave (pj/lay-line :x :y) pj/plan)))
+(def v116_l410 (def wave-plan (-> wave (pj/lay-line :x :y) pj/plan)))
 
 
 (def
- v117_l413
+ v117_l414
  (def
   wave-group
   (-> wave-plan :panels first :layers first :groups first)))
 
 
 (def
- v118_l415
+ v118_l416
  {:n-points (count (:xs wave-group)),
   :first-x (first (:xs wave-group)),
   :last-x (last (:xs wave-group))})
 
 
-(deftest t119_l419 (is ((fn [m] (= 30 (:n-points m))) v118_l415)))
+(deftest t119_l420 (is ((fn [m] (= 30 (:n-points m))) v118_l416)))
 
 
 (def
- v121_l428
+ v121_l429
  (def
   sales
   {:product [:widget :gadget :gizmo :doohickey],
    :revenue [120 340 210 95]}))
 
 
-(def v122_l431 (-> sales (pj/lay-bar :product :revenue)))
+(def v122_l432 (-> sales (pj/lay-bar :product :revenue)))
 
 
 (deftest
- t123_l434
+ t123_l435
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:polygons s)))))
-   v122_l431)))
+   v122_l432)))
 
 
 (def
- v124_l438
+ v124_l439
  (def sales-plan (-> sales (pj/lay-bar :product :revenue) pj/plan)))
 
 
 (def
- v125_l442
+ v125_l443
  (let
   [g (-> sales-plan :panels first :layers first :groups first)]
   {:xs (:xs g), :ys (:ys g)}))
 
 
-(deftest t126_l446 (is ((fn [m] (= 4 (count (:xs m)))) v125_l442)))
+(deftest t126_l447 (is ((fn [m] (= 4 (count (:xs m)))) v125_l443)))
 
 
 (def
- v128_l452
+ v128_l453
  (def
   flip-plan
   (->
@@ -599,14 +602,14 @@
    pj/plan)))
 
 
-(def v129_l457 (:coord (first (:panels flip-plan))))
+(def v129_l458 (:coord (first (:panels flip-plan))))
 
 
-(deftest t130_l459 (is ((fn [c] (= :flip c)) v129_l457)))
+(deftest t130_l460 (is ((fn [c] (= :flip c)) v129_l458)))
 
 
 (def
- v132_l463
+ v132_l464
  (let
   [p (first (:panels flip-plan))]
   {:x-domain-type
@@ -616,18 +619,18 @@
 
 
 (deftest
- t133_l467
+ t133_l468
  (is
   ((fn
     [m]
     (and
      (= :numeric (:x-domain-type m))
      (= :categorical (:y-domain-type m))))
-   v132_l463)))
+   v132_l464)))
 
 
 (def
- v135_l477
+ v135_l478
  (def
   opts-plan
   (->
@@ -641,11 +644,11 @@
      :height 300}))))
 
 
-(def v136_l485 opts-plan)
+(def v136_l486 opts-plan)
 
 
 (deftest
- t137_l487
+ t137_l488
  (is
   ((fn
     [m]
@@ -653,14 +656,14 @@
      (= "My Custom Title" (:title m))
      (= 800 (:width m))
      (= 300 (:height m))))
-   v136_l485)))
+   v136_l486)))
 
 
-(def v139_l493 (:layout opts-plan))
+(def v139_l494 (:layout opts-plan))
 
 
 (deftest
- t140_l495
+ t140_l496
  (is
   ((fn
     [lay]
@@ -668,11 +671,11 @@
      (pos? (:title-pad lay))
      (pos? (:x-label-pad lay))
      (pos? (:y-label-pad lay))))
-   v139_l493)))
+   v139_l494)))
 
 
 (def
- v142_l506
+ v142_l507
  (def
   final-pose
   (->
@@ -683,44 +686,44 @@
 
 
 (def
- v143_l512
+ v143_l513
  (def final-plan (pj/plan final-pose {:title "Iris Petals"})))
 
 
-(def v144_l514 final-plan)
+(def v144_l515 final-plan)
 
 
 (deftest
- t145_l516
- (is ((fn [m] (= "Iris Petals" (:title m))) v144_l514)))
+ t145_l517
+ (is ((fn [m] (= "Iris Petals" (:title m))) v144_l515)))
 
 
 (def
- v147_l520
+ v147_l521
  (mapv
   (fn [l] {:mark (:mark l), :n-groups (count (:groups l))})
   (-> final-plan :panels first :layers)))
 
 
-(deftest t148_l525 (is ((fn [ls] (= 2 (count ls))) v147_l520)))
+(deftest t148_l526 (is ((fn [ls] (= 2 (count ls))) v147_l521)))
 
 
-(def v150_l529 (-> final-pose (pj/options {:title "Iris Petals"})))
+(def v150_l530 (-> final-pose (pj/options {:title "Iris Petals"})))
 
 
 (deftest
- t151_l531
+ t151_l532
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 3 (:lines s)))))
-   v150_l529)))
+   v150_l530)))
 
 
 (def
- v153_l541
+ v153_l542
  (def
   faceted-plan
   (->
@@ -730,43 +733,43 @@
    pj/plan)))
 
 
-(def v155_l549 (:grid faceted-plan))
+(def v155_l550 (:grid faceted-plan))
 
 
 (deftest
- t156_l551
- (is ((fn [g] (and (= 1 (:rows g)) (= 3 (:cols g)))) v155_l549)))
+ t156_l552
+ (is ((fn [g] (and (= 1 (:rows g)) (= 3 (:cols g)))) v155_l550)))
 
 
-(def v158_l555 (count (:panels faceted-plan)))
+(def v158_l556 (count (:panels faceted-plan)))
 
 
-(deftest t159_l557 (is ((fn [n] (= 3 n)) v158_l555)))
+(deftest t159_l558 (is ((fn [n] (= 3 n)) v158_l556)))
 
 
-(def v161_l561 (:panels faceted-plan))
+(def v161_l562 (:panels faceted-plan))
 
 
 (deftest
- t162_l563
+ t162_l564
  (is
-  ((fn [ps] (and (= 3 (count ps)) (every? :col-label ps))) v161_l561)))
+  ((fn [ps] (and (= 3 (count ps)) (every? :col-label ps))) v161_l562)))
 
 
-(def v164_l568 (:panels faceted-plan))
+(def v164_l569 (:panels faceted-plan))
 
 
-(deftest t165_l570 (is ((fn [ps] (every? :x-domain ps)) v164_l568)))
+(deftest t165_l571 (is ((fn [ps] (every? :x-domain ps)) v164_l569)))
 
 
-(def v167_l576 (mapv :y-domain (:panels faceted-plan)))
+(def v167_l577 (mapv :y-domain (:panels faceted-plan)))
 
 
-(deftest t168_l578 (is ((fn [ds] (apply = ds)) v167_l576)))
+(deftest t168_l579 (is ((fn [ds] (apply = ds)) v167_l577)))
 
 
 (def
- v170_l583
+ v170_l584
  (def
   free-y-plan
   (->
@@ -777,89 +780,89 @@
    pj/plan)))
 
 
-(def v171_l590 (mapv :y-domain (:panels free-y-plan)))
+(def v171_l591 (mapv :y-domain (:panels free-y-plan)))
 
 
-(deftest t172_l592 (is ((fn [ds] (not (apply = ds))) v171_l590)))
+(deftest t172_l593 (is ((fn [ds] (not (apply = ds))) v171_l591)))
 
 
 (def
- v174_l597
+ v174_l598
  (select-keys
   faceted-plan
   [:layout-type :grid :total-width :total-height]))
 
 
 (deftest
- t175_l599
- (is ((fn [m] (= :facet-grid (:layout-type m))) v174_l597)))
+ t175_l600
+ (is ((fn [m] (= :facet-grid (:layout-type m))) v174_l598)))
 
 
-(def v177_l603 (pj/valid-plan? faceted-plan))
+(def v177_l604 (pj/valid-plan? faceted-plan))
 
 
-(deftest t178_l605 (is (true? v177_l603)))
+(deftest t178_l606 (is (true? v177_l604)))
 
 
-(def v180_l615 (pj/valid-plan? tiny-plan))
+(def v180_l616 (pj/valid-plan? tiny-plan))
 
 
-(deftest t181_l617 (is (true? v180_l615)))
+(deftest t181_l618 (is (true? v180_l616)))
 
 
-(def v182_l619 (pj/valid-plan? iris-plan))
+(def v182_l620 (pj/valid-plan? iris-plan))
 
 
-(deftest t183_l621 (is (true? v182_l619)))
+(deftest t183_l622 (is (true? v182_l620)))
 
 
-(def v184_l623 (pj/valid-plan? hist-plan))
+(def v184_l624 (pj/valid-plan? hist-plan))
 
 
-(deftest t185_l625 (is (true? v184_l623)))
+(deftest t185_l626 (is (true? v184_l624)))
 
 
-(def v186_l627 (pj/valid-plan? bar-plan))
+(def v186_l628 (pj/valid-plan? bar-plan))
 
 
-(deftest t187_l629 (is (true? v186_l627)))
+(deftest t187_l630 (is (true? v186_l628)))
 
 
-(def v188_l631 (pj/valid-plan? lm-plan))
+(def v188_l632 (pj/valid-plan? lm-plan))
 
 
-(deftest t189_l633 (is (true? v188_l631)))
+(deftest t189_l634 (is (true? v188_l632)))
 
 
-(def v190_l635 (pj/valid-plan? final-plan))
+(def v190_l636 (pj/valid-plan? final-plan))
 
 
-(deftest t191_l637 (is (true? v190_l635)))
+(deftest t191_l638 (is (true? v190_l636)))
 
 
 (def
- v193_l641
+ v193_l642
  (pj/explain-plan (assoc tiny-plan :width "not-a-number")))
 
 
-(deftest t194_l643 (is (some? v193_l641)))
+(deftest t194_l644 (is (some? v193_l642)))
 
 
 (def
- v196_l652
+ v196_l653
  (-> tiny-plan :panels first :layers first :groups first :xs type))
 
 
 (deftest
- t197_l654
- (is ((fn [t] (not= clojure.lang.PersistentVector t)) v196_l652)))
+ t197_l655
+ (is ((fn [t] (not= clojure.lang.PersistentVector t)) v196_l653)))
 
 
 (def
- v199_l658
+ v199_l659
  (-> tiny-plan :panels first :layers first :groups first :xs vec))
 
 
 (deftest
- t200_l660
- (is ((fn [v] (and (vector? v) (number? (first v)))) v199_l658)))
+ t200_l661
+ (is ((fn [v] (and (vector? v) (number? (first v)))) v199_l659)))

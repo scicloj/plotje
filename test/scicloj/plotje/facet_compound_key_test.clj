@@ -23,5 +23,5 @@
   (is (= 8 (panels {:col [:kind :year] :row {:y [:height :weight]}})))
   (is (= 8 (panels {:col {:column [:kind :year]} :row {:y [:height :weight]}})))
   (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                        #"Column :nope \(from :facet\) not found"
+                        #"Column :nope \(from :col\) not found"
                         (panels {:col {:column [:kind :nope]} :row {:y [:height :weight]}}))))

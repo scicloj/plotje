@@ -37,11 +37,11 @@
         (is (= 1 (count (filter #{"sepal width"} texts))))
         (is (= 1 (count (filter #{"petal length"} texts))))))))
 
-(deftest a-grid-expands-like-facet-grid-test
+(deftest a-grid-expands-like-a-grid-of-categories-test
   (let [mpg (rdatasets/ggplot2-mpg)
         base (pj/lay-point mpg :displ :hwy)
         e (pose/expand-variation base {:col :drv :row :cyl})
-        g (pj/facet-grid base :drv :cyl)]
+        g (pj/facet base {:col :drv :row :cyl})]
     (is (= (:points (pj/svg-summary g)) (:points (pj/svg-summary e))))
     (testing "a regular grid draws as the facet grid, a no-data panel for each empty combination"
       (is (= (:panels (pj/svg-summary g)) (:panels (pj/svg-summary e)))))))
@@ -53,7 +53,7 @@
       (doseq [v [(pj/facet base :drv)
                  (pj/facet base {:row :drv})
                  (pj/facet base [:year :drv])
-                 (pj/facet-grid base :drv :cyl)
+                 (pj/facet base {:col :drv :row :cyl})
                  (-> base (pj/facet :drv) (pj/options {:scales :free}))]]
         (is (= (pj/plot v)
                (pj/plot (pose/expand-facets v)))))))
@@ -101,7 +101,7 @@
     (is (= {:y [:hwy :cty]} (:facet v)))
     (is (= {:x :displ} (:mapping v)))
     (is (= {:panels 2 :points 468} (select-keys (pj/svg-summary v) [:panels :points]))))
-  (testing "categories alone go in the mapping, as pj/facet-grid writes them"
+  (testing "categories alone go in the mapping"
     (let [v (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ :y :hwy}) pj/lay-point
                 (pj/facet {:col :year :row :drv}))]
       (is (nil? (:facet v)))
@@ -157,7 +157,7 @@
                   (mapv :mapping)))))
     (testing "a cell no layer fits keeps them all: a matrix of points draws its diagonal"
       (is (= 9 (:panels (pj/svg-summary (-> (tc/dataset {:a [1 2 3] :b [3 1 2] :c [2 3 1]})
-                                             (pj/facet-matrix [:a :b :c])
+                                             (pj/facet {:col {:x [:a :b :c]} :row {:y [:a :b :c]}})
                                              pj/lay-point))))))
     (testing "categories crossed with columns"
       (is (= {:panels 6 :points 300}

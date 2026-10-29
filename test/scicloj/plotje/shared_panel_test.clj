@@ -61,7 +61,7 @@
 (deftest overlay-is-retired-test
   (let [p (-> cars (pj/lay-point :displ :hwy) (pj/lay-point :displ :cty))]
     (testing "asking for one panel warns and changes nothing"
-      (is (re-find #"Warning: pj/overlay -- :overlay is retired and ignored"
+      (is (re-find #"Warning: pj/overlay -- :overlay is retired\. .*remove it\. It is ignored\."
                    (with-out-str (pj/overlay p))))
       (is (= p (binding [*out* (java.io.StringWriter.)] (pj/overlay p))))
       (is (re-find #"Warning: pj/lay-point -- :overlay is retired"

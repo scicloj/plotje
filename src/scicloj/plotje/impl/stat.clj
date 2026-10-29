@@ -1,5 +1,6 @@
 (ns scicloj.plotje.impl.stat
   (:require [clojure.string :as str]
+            [scicloj.plotje.impl.rowid :as rowid]
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.functional :as dfn]
@@ -271,7 +272,7 @@
    `{:y-min 2}` on a dataset whose columns are `[0 1 2 3]` while
    listing `2` among the ones available."
   [mark ds-cols y-min y-max]
-  (let [available (vec (sort-by str (remove #{:__row-idx} ds-cols)))]
+  (let [available (vec (sort-by str (remove #{:__row-idx :__pos-idx rowid/row-key} ds-cols)))]
     (doseq [[k v] [[:y-min y-min] [:y-max y-max]]]
       (when (and (some? v) (not (contains? ds-cols v)))
         (throw (ex-info (str "pj/lay-" (name mark) " " k " " (pr-str v) " is not a column of this "
@@ -307,7 +308,17 @@
         ;; the axis, with nothing said. Naming the same column twice is
         ;; a request, not an omission.
         x-only? (nil? y)
-        data-idx (tc/add-column data :__row-idx (range (tc/row-count data)))
+        ;; The identity is attached at the leaf, before a facet splits
+        ;; the data or a series pivots it, so a row index here says
+        ;; which row of the pose's dataset it is rather than which row
+        ;; of this panel. An untagged dataset -- a draft layer built by
+        ;; hand, in a test or an extension -- falls back to its own
+        ;; row numbers.
+        data-idx (-> data
+                     (tc/add-column :__row-idx (rowid/rows data))
+                     ;; Where each row sits in this layer's own data, for a
+                     ;; reader indexing the data with it (`extract`'s tiles).
+                     (tc/add-column :__pos-idx (range (tc/row-count data))))
         ds-cols (set (tc/column-names data-idx))
         col-ref? (fn [v] (and v (or (keyword? v) (string? v)) (contains? ds-cols v)))
         ;; Referenced numeric aesthetic columns that exist in the dataset
@@ -409,7 +420,8 @@
             zero-ys (fn [ds] (dtype/const-reader 0.0 (tc/row-count ds)))
             point-group (fn [ds group-val]
                           (cond-> {:xs (ds x) :ys (if x-only? (zero-ys ds) (ds y))
-                                   :row-indices (ds :__row-idx)}
+                                   :row-indices (ds :__row-idx)
+                                   :data-positions (ds :__pos-idx)}
                             ;; What separated these rows, kept whole.
                             ;; `:color` is the colour column's value
                             ;; alone, which is what the legend prints;

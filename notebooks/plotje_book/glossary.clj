@@ -219,7 +219,9 @@ my-pose
 ;;
 ;; Keys prefixed with double underscores (e.g. `:__panel-idx`) are
 ;; internal markers used by later stages and follow the Clojure
-;; convention "do not consume." Ignore them when reading a draft.
+;; convention "do not consume." Ignore them when reading a draft. Ignore
+;; the `:scicloj.plotje/row` column on a draft layer's `:data` too: it
+;; records the row of the pose's dataset each row came from.
 
 (-> my-pose pj/draft kind/pprint)
 
@@ -260,7 +262,7 @@ my-pose
 ;; - **Grouping aesthetic** (`:group`) splits the data and draws
 ;;   nothing of its own.
 ;; - **Panel aesthetics** (`:col`, `:row`) give each value a panel of
-;;   its own. `pj/facet` and `pj/facet-grid` write them.
+;;   its own. `pj/facet` writes them.
 ;;
 ;; A mapping can be written in full, saying which of its two readings
 ;; -- the column or the value -- it means, and which side of the scale
@@ -702,8 +704,8 @@ my-pose
 ;;
 ;; A **panel** is a single plotting area within a plan. It contains
 ;; x/y domains, scale specs, tick info, coordinate type, and layers.
-;; A simple plot has one panel; `pj/facet` and `pj/facet-grid`
-;; produce multiple.
+;; A simple plot has one panel; `pj/facet` and `pj/arrange` produce
+;; several.
 
 (kind/pprint (first (:panels my-plan)))
 
@@ -947,8 +949,9 @@ my-pose
 ;; - `pj/facet` given a column creates a panel per category of that
 ;;   column; given a map of columns, a panel per column or per pair of
 ;;   columns
-;; - `pj/facet-grid` creates a grid from two categorical columns, the
-;;   categories of the first across and those of the second down
+;; - `pj/facet` given `{:col ... :row ...}` creates a grid, the entries
+;;   under `:col` across and those under `:row` down -- the categories
+;;   of two columns, columns, or one of each
 ;;
 ;; By default the panels share each axis among the panels that draw
 ;; the same column on it, and a shared axis covers what those panels
@@ -1474,7 +1477,7 @@ annotated
 ;; | Drawing area | The panel background inside that margin, where data marks clip | `pj/frames`; `:in :drawing-area` |
 ;; | Scale | Data-to-drawing-units mapping (linear, log, categorical) | `pj/scale`, or `:scale` in a mapping |
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
-;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet`, `pj/facet-grid` |
+;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet` |
 ;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/lay-*` on a leaf |
 ;; | Series | A vector of columns written where one column goes, drawn on one panel | `{:y [:a :b]}` in a mapping |

@@ -14,6 +14,7 @@
       :opts         ?  plot options (inheritable)
       :share-scales ?  #{:x :y}  for composites}"
   (:require [clojure.set]
+            [scicloj.plotje.impl.rowid :as rowid]
             [clojure.string :as str]
             [tablecloth.api :as tc]
             [tech.v3.datatype :as dtype]
@@ -412,52 +413,66 @@
   ([pose rect]
    (compute-layout pose rect []))
   ([pose [x y w h] path]
-   (cond
-     (leaf? pose)
-     {path [(double x) (double y) (double w) (double h)]}
+   ;; A nested composite drawing a title of its own keeps a band of its
+   ;; rectangle for it, above its cells, for a caption a band below
+   ;; them, for row strips a band at their right, and for the axis
+   ;; titles it draws once a band below and one at the left
+   ;; (`compositor/strip-nested-titles`).
+   (let [band (double (or (:plotje/block-band-h pose) 0))
+         caption-band (double (or (:plotje/block-caption-h pose) 0))
+         strip-w (double (or (:plotje/block-strip-w pose) 0))
+         x-title-h (double (or (:plotje/block-x-title-h pose) 0))
+         y-title-w (double (or (:plotje/block-y-title-w pose) 0))
+         x (+ (double x) y-title-w)
+         w (max 1.0 (- (double w) strip-w y-title-w))
+         y (+ (double y) band)
+         h (max 1.0 (- (double h) band caption-band x-title-h))]
+     (cond
+       (leaf? pose)
+       {path [(double x) (double y) (double w) (double h)]}
 
-     (= :matrix (:direction (:layout pose)))
+       (= :matrix (:direction (:layout pose)))
      ;; Matrix layout: rect math handled by compute-matrix-layout, but
      ;; we still need to recurse into any nested composites that aren't
      ;; themselves matrix. For now we only support flat matrix
      ;; composites (children are leaves), since that's all
      ;; multi-pair-pose produces. Nested matrix-
      ;; in-matrix is reserved for a future iteration.
-     (let [cell-rects (compute-matrix-layout pose [x y w h])]
-       (into {}
-             (map (fn [[child-i [cx cy cw ch]]]
-                    (let [child (nth (:poses pose) child-i)
-                          full-path (into path [child-i])]
-                      [full-path [cx cy cw ch]])))
+       (let [cell-rects (compute-matrix-layout pose [x y w h])]
+         (into {}
+               (map (fn [[child-i [cx cy cw ch]]]
+                      (let [child (nth (:poses pose) child-i)
+                            full-path (into path [child-i])]
+                        [full-path [cx cy cw ch]])))
              ;; cell-rects keys are paths within the composite (single
              ;; integer for direct children); convert to absolute paths.
-             (map (fn [[child-path rect]]
-                    [(first child-path) rect])
-                  cell-rects)))
+               (map (fn [[child-path rect]]
+                      [(first child-path) rect])
+                    cell-rects)))
 
-     :else
-     (let [{:keys [direction weights] :or {direction :horizontal}}
-           (:layout pose)
-           children (:poses pose)
-           n (count children)
-           ws (normalize-weights (or weights (repeat n 1)))
-           horizontal? (= direction :horizontal)]
-       (loop [i 0
-              cursor (double (if horizontal? x y))
-              acc {}]
-         (if (>= i n)
-           acc
-           (let [child (nth children i)
-                 frac (nth ws i)
-                 child-span (if horizontal? (* (double w) frac) (* (double h) frac))
-                 child-rect (if horizontal?
-                              [cursor y child-span h]
-                              [x cursor w child-span])
-                 child-path (conj path i)
-                 sub (compute-layout child child-rect child-path)]
-             (recur (inc i)
-                    (+ cursor child-span)
-                    (merge acc sub)))))))))
+       :else
+       (let [{:keys [direction weights] :or {direction :horizontal}}
+             (:layout pose)
+             children (:poses pose)
+             n (count children)
+             ws (normalize-weights (or weights (repeat n 1)))
+             horizontal? (= direction :horizontal)]
+         (loop [i 0
+                cursor (double (if horizontal? x y))
+                acc {}]
+           (if (>= i n)
+             acc
+             (let [child (nth children i)
+                   frac (nth ws i)
+                   child-span (if horizontal? (* (double w) frac) (* (double h) frac))
+                   child-rect (if horizontal?
+                                [cursor y child-span h]
+                                [x cursor w child-span])
+                   child-path (conj path i)
+                   sub (compute-layout child child-rect child-path)]
+               (recur (inc i)
+                      (+ cursor child-span)
+                      (merge acc sub))))))))))
 
 ;; ---- Tree utilities ----
 
@@ -743,13 +758,34 @@
                                  :stat stat))
            axis))))
 
+(declare coerce-dataset)
+
+(defn- fitted-diagonal?
+  "Whether `leaf` is the diagonal of a scatter plot matrix over a
+   numerical column, whose count or density is drawn within that
+   column's extent (`plan/fit-diagonal`) -- so it shares the row's axis.
+   A categorical column's diagonal counts on an axis of its own."
+  [leaf]
+  (boolean
+   (when (:plotje/diagonal leaf)
+     (let [col (mapping-source (get-in leaf [:mapping :x]))
+           ds (some-> (:data leaf) coerce-dataset)]
+       (and col ds (contains? (set (tc/column-names ds)) col)
+            (= :numerical (resolve/column-type ds col))
+            ;; Dates are drawn as numbers but held as dates; the plan
+            ;; fits numbers only.
+            (number? (first (remove nil? (ds col)))))))))
+
 (defn- axis-computes
   "What every layer of this leaf computes for `axis`, where every layer
    computes something there: the first layer's answer. Nil where a
    layer draws a column on it, or the leaf has no layers."
   [leaf axis]
   (let [cs (map #(layer-computes % (:mapping leaf) (:data leaf) axis) (:layers leaf))]
-    (when (and (seq cs) (every? some? cs))
+    ;; A scatter plot matrix's diagonal draws its count within its
+    ;; column's extent, on the row's axis (`plan/fit-diagonal`).
+    (when (and (seq cs) (every? some? cs)
+               (not (and (= :y axis) (fitted-diagonal? leaf))))
       (first cs))))
 
 (defn- col-values
@@ -1442,7 +1478,10 @@
   ([resolved d] (validate-columns resolved d nil))
   ([resolved d ctx]
    (when d
-     (let [col-names (set (tc/column-names d))
+     ;; Without the identity Plotje attached (`impl/rowid`): it is not a
+     ;; column the writer wrote, so it neither resolves a mapping nor
+     ;; appears in the list of what they could have written instead.
+     (let [col-names (rowid/visible-names d)
            col-lookup #(get d %)
            {:keys [layer-mapping layer-type-info layer-type-key layer-own-data?]} ctx
            not-found! (fn [k col explicit-column?]
@@ -1921,7 +1960,7 @@
    than carrying it as a second kind of coordinate means the stat, the
    extract, the domains and every mark receive the shape they handle."
   [resolved d layer-own-data?]
-  (let [col-names (when d (set (tc/column-names d)))
+  (let [col-names (when d (rowid/visible-names d))
         ;; A dataset built without column names is given integer ones, so
         ;; a number here can be either a column name or a value to draw
         ;; at. The data decides: a number naming a column reads it.
@@ -2039,7 +2078,7 @@
   "Resolve a facet column ref against a dataset; throw with a clear
    message if the column is missing."
   [ds role ref]
-  (let [col-names (set (tc/column-names ds))
+  (let [col-names (rowid/visible-names ds)
         fname (resolve/resolve-col-name ds ref)]
     (when-not (contains? col-names fname)
       (throw (ex-info (str "Column " ref " (from " role ") not found in dataset. Available: " (sort-by str col-names))
@@ -2135,8 +2174,8 @@
    A facet aesthetic may name several columns, which are united into a
    compound key -- one panel per combination the data holds, labelled
    by each column's value in turn. That is the same reading `:group`
-   and `:color` give a vector, and it differs from `pj/facet-grid`,
-   which crosses two distinctions and fills the rectangle whether the
+   and `:color` give a vector, and it differs from a grid,
+   `{:col :a :row :b}`, which crosses two distinctions and fills the rectangle whether the
    data holds a combination or not."
   [data facet-col facet-row col-domain row-domain]
   (let [ds    (coerce-dataset data)
@@ -2986,9 +3025,13 @@
                 (:as (get specs (first ks))))
         ds (coerce-dataset data)
         _ (check-series! caller ds m)
+        ;; Tagged before the pivot, so each pivoted row carries the
+        ;; data row it was made from: both columns of row r carry r, as
+        ;; both panels of a facet over columns do (`impl/rowid`).
+        tagged (rowid/tag ds)
         pivoted (if pairs?
-                  (pivot-series-pairs ds (:x specs) (:y specs))
-                  (pivot-series ds (get specs (first ks))))
+                  (pivot-series-pairs tagged (:x specs) (:y specs))
+                  (pivot-series tagged (get specs (first ks))))
         ;; The key column holds column names, and a message about it --
         ;; grouping by it, in `impl.plan` -- names the columns written.
         ;; Column metadata travels with the column through row selection.
@@ -3171,8 +3214,8 @@
         ;; The layer's own column, or the leaf's where the layer names
         ;; none there: a layer reads the leaf's column by scope.
         own-column? (fn [k] (let [src (mapping-source (if (contains? m k)
-                                                          (get m k)
-                                                          (get (:mapping leaf) k)))]
+                                                        (get m k)
+                                                        (get (:mapping leaf) k)))]
                               (and (some? src) (not (map? src))
                                    (contains? wide-columns src))))
         reads-none? (fn [k] (and (nil? (get m k))
@@ -3637,6 +3680,17 @@
            (cons (:mapping leaf) (map :mapping layers))
            false))))))
 
+(defn panel-facet-call
+  "The `pj/facet` call that writes panel aesthetic `k` -- `:col` or
+   `:row`, or the retired `:facet-col` / `:facet-row` -- with `v`, as a
+   message shows it: `(pj/facet pose :drv)` across,
+   `(pj/facet pose {:row :drv})` down. One form for both messages that
+   report a panel aesthetic written on a layer."
+  [k v]
+  (if (#{:row :facet-row} k)
+    (str "(pj/facet pose {:row " (pr-str v) "})")
+    (str "(pj/facet pose " (pr-str v) ")")))
+
 (defn report-panel-aesthetic-on-layer
   "Report a panel aesthetic written on a layer.
 
@@ -3650,9 +3704,10 @@
     (when (seq panel-keys)
       (throw (ex-info (str "A panel aesthetic " (vec panel-keys) " was written on a"
                            " layer. A facet divides every layer of the pose, so"
-                           " write it on the pose: (pj/facet my-pose "
-                           (pr-str (get layer-mapping (first panel-keys)))
-                           "), or put it in the pose's mapping.")
+                           " write it on the pose: "
+                           (panel-facet-call (first panel-keys)
+                                             (get layer-mapping (first panel-keys)))
+                           ", or put it in the pose's mapping.")
                       {:layer-mapping layer-mapping
                        :panel-aesthetics (vec panel-keys)}))))
   layer-mapping)
@@ -3785,10 +3840,13 @@
   (set (keys (share-spec pose))))
 
 (defn unanimous-column
-  "The column every cell of `leaves` draws on `axis`, or nil where they
-   do not all draw the same one. Cells left empty do not vote."
+  "The column every cell of `leaves` draws along `axis` of the page, or
+   nil where they do not all draw the same one. Cells left empty do not
+   vote. Read along the page (`data-axis`), as the sharing is, because
+   the title it decides is drawn there: under a flip the column on a
+   cell's `:y` is titled along the bottom."
   [leaves axis]
-  (let [cols (map #(get (leaf-columns %) axis)
+  (let [cols (map #(get (leaf-columns %) (data-axis % axis))
                   (remove :plotje/empty-cell leaves))]
     (when (and (seq cols) (every? some? cols) (apply = cols))
       (first cols))))
@@ -3907,8 +3965,9 @@
    of a grid labels: a list wrapped onto rows with `:cols`, its last row
    short, or a grid whose rows and columns share no value. Drawn as a
    strip above the cell (`:plotje/strip-label`, read by `leaf->draft`).
-   Any other composite is returned as it is."
-  [composite]
+   Any other composite is returned as it is. A value is printed as
+   `:strip-labels` (`strip-mode`) says (`defaults/strip-text`)."
+  [composite strip-mode]
   (let [leaves (vec (remove :plotje/empty-cell (resolve-tree composite)))
         where-of #(or (:plotje/where %) {})
         common (apply clojure.set/intersection (map (comp set where-of) leaves))
@@ -3918,9 +3977,11 @@
                      (when (seq m)
                        (facet-label (keep #(when (contains? m %)
                                              (let [v (m %)]
-                                               (if (set? v)
-                                                 (str/join ", " (map defaults/fmt-category-label (sort-by str v)))
-                                                 v)))
+                                               (defaults/strip-text
+                                                strip-mode %
+                                                (if (set? v)
+                                                  (str/join ", " (map defaults/fmt-category-label (sort-by str v)))
+                                                  (defaults/fmt-category-label v)))))
                                           key-order)))))]
     (if (and (< 1 (count leaves)) (every? :plotje/where leaves))
       (reduce (fn [c leaf]
@@ -3947,8 +4008,9 @@
    matrix's strips), and likewise rows by `:y`; the cells then drop that
    axis title, which the strip carries. A single row or column of cells
    told apart by their columns gets no strip: its axis titles name them.
-   A written `:grid-strip-labels` is kept."
-  [composite]
+   A written `:grid-strip-labels` is kept. A filter value is printed as
+   `:strip-labels` (`strip-mode`) says (`defaults/strip-text`)."
+  [composite strip-mode]
   (if (contains? composite :grid-strip-labels)
     composite
     (if-let [grid (cell-grid composite)]
@@ -3977,7 +4039,10 @@
                                       (apply clojure.set/intersection (map entries cells))
                                       common))]
                       (when (seq m)
-                        (facet-label (keep #(when (contains? m %) (value-label % (m %)))
+                        (facet-label (keep #(when (contains? m %)
+                                              (defaults/strip-text
+                                               strip-mode %
+                                               (defaults/fmt-category-label (value-label % (m %)))))
                                            key-order)))))
             n-rows (count grid)
             n-cols (count (first grid))
@@ -4018,9 +4083,12 @@
                                                      (when (= 1 (count cs))
                                                        (first cs))))
                                            groups)
-                                ;; A group of margins only names nothing.
-                                margins-only? (fn [g] (every? #(margin? (apply leaf-at %)) g))]
-                            (when (and (every? (fn [[g c]] (or (some? c) (margins-only? g)))
+                                ;; A group naming no column on the axis --
+                                ;; margins only, or the matrix's `nil`
+                                ;; row, whose cells draw one column's
+                                ;; count on `:x` -- is labelled by nothing.
+                                names-none? (fn [g] (empty? (named g)))]
+                            (when (and (every? (fn [[g c]] (or (some? c) (names-none? g)))
                                                (map vector groups cols))
                                        (< 1 (count (distinct (remove nil? cols)))))
                               (mapv #(some-> % defaults/fmt-name) cols))))
@@ -4056,14 +4124,14 @@
             cells (for [r (range n-rows) cc (range n-cols)] [r cc])]
         (cond-> composite
           (seq labels) (assoc :grid-strip-labels labels)
-          (empty? labels) label-each-cell
+          (empty? labels) (label-each-cell strip-mode)
           (some #(seq (apply suppress-at %)) cells)
           (as-> c (reduce (fn [c [r cc]]
                             (update-in c (vec (interleave (repeat :poses) (path-of r cc)))
                                        update :opts #(merge (suppress-at r cc) %)))
                           c
                           cells))))
-      (label-each-cell composite))))
+      (label-each-cell composite strip-mode))))
 
 (defn infer-chrome
   "An elaborated composite with its chrome written in, where its cells
@@ -4071,13 +4139,14 @@
    ticks (`infer-axis-chrome`) and the strips naming each cell's part
    of the data (`infer-strips`); where its cells are asked to share an
    axis with `:share-scales`, the axis titles and ticks. Anything
-   written is kept."
-  [composite]
+   written is kept. `strip-mode` is `:strip-labels` (`defaults/strip-text`)."
+  ([composite] (infer-chrome composite nil))
+  ([composite strip-mode]
   (cond
     (declared-split? composite)
     (-> composite
         infer-axis-chrome
-        infer-strips)
+        (infer-strips strip-mode))
 
     ;; Cells carrying data of their own that are asked to share an axis
     ;; draw it on one scale, so it is titled once and ticked on the
@@ -4086,7 +4155,36 @@
         (contains? composite :share-scales))
     (infer-axis-chrome composite)
 
-    :else composite))
+    :else composite)))
+
+(defn infer-nested-chrome
+  "`composite` with the chrome of each composite nested below its root
+   written in as `infer-chrome` writes the root's -- a facet over
+   columns placed as a cell of an arrangement is drawn as it is drawn
+   alone: its axis titles once, its ticks on the outer cells, its
+   strips. A nested composite's strips and axis titles are drawn in
+   bands beside its block (`compositor/strip-nested-titles`). The cells
+   whose y tick labels it drops are recorded on the root
+   (`:plotje/y-ticks-inferred-off`), by their paths from the root."
+  ([composite] (infer-nested-chrome composite nil))
+  ([composite strip-mode]
+  (let [off (atom #{})]
+    (letfn [(walk [p path]
+              (if (seq (:poses p))
+                (update p :poses
+                        (fn [cs]
+                          (vec (map-indexed
+                                (fn [i c]
+                                  (let [cpath (conj path i)
+                                        c (if (seq (:poses c)) (infer-chrome c strip-mode) c)]
+                                    (swap! off into (map #(into cpath %))
+                                           (:plotje/y-ticks-inferred-off c))
+                                    (walk (dissoc c :plotje/y-ticks-inferred-off) cpath)))
+                                cs))))
+                p))]
+      (let [walked (walk composite [])]
+        (cond-> walked
+          (seq (deref off)) (update :plotje/y-ticks-inferred-off (fnil into #{}) (deref off))))))))
 
 ;; ---- Expansion of a variation into listed cells ----
 
@@ -4179,7 +4277,7 @@
   "A leaf whose mapping writes `:col` or `:row`, as the listed pose its
    facet expands to: `:col` alone is a row of cells, `:row` alone a
    column of them, both a grid with an empty cell for each combination
-   the data does not hold (as `pj/facet-grid` draws). The facet's
+   the data does not hold. The facet's
    `:share-scales` stays where it is, on the listed pose. Any other
    pose is returned as it is -- a composite, a leaf with no data of its
    own, a grid naming one column on both sides, and a facet wrapped by
@@ -4351,15 +4449,84 @@
   "One listed cell from the items of a row and a column, holding what
    the facet specified for it: the diagonal of a scatter plot matrix
    names its column on both axes, `{:x a :y a}`, as `pj/arrange` and
-   `pj/facet-matrix` write it, and a margin keeps its `nil`. One column
+   a facet `{:col {:x cols} :row {:y cols}}` write it, and a margin keeps its `nil`. One column
    named on both axes is read as one column by the fit
    (`columns-named`) and by inference."
   [row-item col-item]
   (let [w (merge (:where row-item) (:where col-item))
         m (merge (:mapping row-item) (:mapping col-item))]
-    (cond-> {}
+    ;; Marked, so the legends of the facet's cells are read as the
+    ;; legends of one plot (`compositor/shared-aesthetics-by-leaves`).
+    ;; A cell where a column across meets the same column down is the
+    ;; diagonal of a scatter plot matrix: what it computes on `:y` is
+    ;; drawn on the row's axis (`plan/fit-diagonal`).
+    (cond-> {:plotje/facet-cell true}
       (seq w) (assoc :where w)
-      (seq m) (assoc :mapping m))))
+      (seq m) (assoc :mapping m)
+      (let [x (get-in col-item [:mapping :x])]
+        (and (some? x) (= x (get-in row-item [:mapping :y]))))
+      (assoc :plotje/diagonal true))))
+
+(defn facet-columns-direction
+  "The direction a facet over columns with no direction of its own
+   places its panels in: down for columns of `:y` alone, so they share
+   the `:x` axis, and across otherwise."
+  [node]
+  (if (= [:y] (filterv #(sequential? (get node %)) [:x :y])) :row :col))
+
+(defn facet-node-directions
+  "The directions a facet node holds a part in, `nil` parts left out:
+   `[]` for a facet over columns with no direction of its own."
+  [node]
+  (if (map? node) (filterv #(some? (get node %)) [:col :row]) []))
+
+(defn fold-facet-categories
+  "A facet node with the categories `cats` -- a map from `:col` or
+   `:row` to the mapping value a pose, or a pose above it, writes there
+   -- crossed into it, as the grid they draw together. Columns with no
+   direction of their own take the direction the categories leave.
+   Categories in a direction the node holds, or in both directions
+   beside columns with none, report an error: the panels have no
+   direction left for them.
+
+   Categories are kept in the mapping, where they follow the scope
+   rules, and meet the facet over columns here, when the pose is drawn
+   -- so a facet over categories written on an arrangement crosses a
+   cell's facet over columns as it crosses the cell's own."
+  [node cats]
+  (let [other {:col :row :row :col}
+        shown (fn [v] (or (mapping-source v) v))
+        taken (fn [held given]
+                (ex-info (str "pj/facet: this pose divides its panels in both"
+                              " directions -- :col by " (pr-str (shown (:col held)))
+                              " and :row by " (pr-str (shown (:row held)))
+                              " -- and also by " (pr-str (shown given)) ". A further"
+                              " distinction has no direction left: map it to an"
+                              " aesthetic such as :color, or arrange one pose per"
+                              " value with pj/arrange.")
+                         {:caller "pj/facet" :facet node :categories cats}))
+        node-dirs (facet-node-directions node)]
+    (cond
+      (or (not (map? node)) (empty? cats)) node
+
+      (empty? node-dirs)
+      (if (= 1 (count cats))
+        (let [[d c] (first cats)] {d c (other d) node})
+        (throw (taken cats node)))
+
+      :else
+      (do (doseq [[d c] cats
+                  :when (some #{d} node-dirs)]
+            (throw (if (some #{(other d)} (concat node-dirs (keys cats)))
+                     (taken (merge cats (select-keys node node-dirs)) c)
+                     (ex-info (str "pj/facet: this pose facets " d " by "
+                                   (pr-str (mapping-source c)) " and also over "
+                                   (pr-str (get node d)) ". A pose divides its panels"
+                                   " once per direction; write the two in one map, one"
+                                   " in each direction: (pj/facet pose "
+                                   (pr-str {d (get node d) (other d) (mapping-source c)}) ").")
+                              {:caller "pj/facet" :facet node :categories cats}))))
+          (merge node cats)))))
 
 (defn expand-facet-node
   "A leaf holding a `:facet` node, as the listed pose it expands to;
@@ -4374,7 +4541,10 @@
    on a pose above -- orders the categories of that part of the node,
    where the part specifies no order of its own."
   [pose panel-mapping]
-  (let [node (:facet pose)
+  (let [cats (into {} (keep (fn [d] (let [v (get panel-mapping d)]
+                                      (when (some? (mapping-source v)) [d v]))))
+                   [:col :row])
+        node (fold-facet-categories (:facet pose) cats)
         node (if (and (map? node) (or (contains? node :col) (contains? node :row)))
                (reduce (fn [node k]
                          (let [part (get node k)
@@ -4393,6 +4563,10 @@
       pose
       (let [base (-> pose
                      (dissoc :facet)
+                     ;; The categories crossed into the grid are drawn by
+                     ;; it: `nil` stops them from reaching the cells, as
+                     ;; `(pj/facet cell nil)` stops a facet from above.
+                     (update :mapping #(reduce (fn [m d] (assoc m d nil)) (or % {}) (keys cats)))
                      (cond-> (:data pose) pivot-leaf-series)
                      write-panel-columns)
             ds (coerce-dataset (:data base))
@@ -4531,9 +4705,9 @@
          ;; order of panels specified above reaches a facet node here
          ;; (`expand-facet-node`), as it reaches a facet in the mapping
          ;; through `resolve-tree`.
+         pose (series-key-facet pose)
          panel-mapping (merge-mappings panel-mapping
                                        (select-keys (:mapping pose) defaults/panel-aesthetics))
-         pose (series-key-facet pose)
          pose (if (and (:facet pose) (not (composite? pose)))
                 (expand-facet-node (cond-> pose
                                      (and data (nil? (:data pose))) (assoc :data data))
@@ -4939,7 +5113,7 @@
                       {:where w})))
     (if (and (map? w) (some? (:data pose)))
       (let [ds (coerce-dataset (:data pose))
-            names (set (tc/column-names ds))
+            names (rowid/visible-names ds)
             missing (vec (remove names (keys w)))
             _ (when (seq missing)
                 (throw (ex-info (str "A row filter names " (pr-str missing)
@@ -4986,8 +5160,11 @@
                   (if (:strict (defaults/config))
                     (throw (ex-info msg {:where w}))
                     (println (str "Warning: " msg)))))]
+        ;; Tagged before the rows are selected, so a filtered cell
+        ;; numbers its rows as the dataset does, as a facet's panels do
+        ;; (`impl/rowid`).
         (-> pose
-            (assoc :data (if idxs (tc/select-rows ds idxs) ds))
+            (assoc :data (if idxs (tc/select-rows (rowid/tag ds) idxs) ds))
             (dissoc :where)))
       pose)))
 
@@ -5003,7 +5180,7 @@
   "The mapping raw data gets when nothing names a column: the first
    1-3 columns, as `:x`, `:y` and `:color`. Nil for 0 or 4+ columns."
   [d]
-  (let [cols (vec (tc/column-names d))]
+  (let [cols (vec (remove #{rowid/row-key} (tc/column-names d)))]
     (case (count cols)
       1 {:x (cols 0)}
       2 {:x (cols 0) :y (cols 1)}
@@ -5415,7 +5592,7 @@
         counts (layer-type/column-counts layer-type-key)
         ;; The columns of the data as the layer was given it: a written
         ;; value is a column of `d` by now, under a name nobody wrote.
-        cols (vec (sort-by str (or columns (tc/column-names d))))
+        cols (vec (sort-by str (or columns (rowid/visible-names d))))
         col-set (set cols)
         draws (cond
                 (= #{1} counts) "one column, on :x"
@@ -5534,7 +5711,7 @@
                          :x (:x resolved)
                          :y (:y resolved)
                          :columns (vec (sort-by str (or (:columns ctx)
-                                                        (tc/column-names d))))}))))))
+                                                        (rowid/visible-names d))))}))))))
 
 (def ^:dynamic *blank-notes*
   "Bound to an atom by `compositor/composite-pose->draft` while it drafts
@@ -5572,7 +5749,10 @@
   [leaf]
   (let [leaf         (elaborate-leaf leaf)
         leaf-mapping (or (:mapping leaf) {})
-        leaf-data    (:data leaf)
+        ;; Tagged before anything splits it, so that a facet's subsets
+        ;; carry where their rows came from rather than renumbering
+        ;; from zero. See `impl/rowid`.
+        leaf-data    (rowid/tag (coerce-dataset (:data leaf)))
         opts         (or (:opts leaf) {})
         coord-type   (:coord opts)
         ;; `elaborate-leaf` has written in the layer a leaf with a place
@@ -5614,7 +5794,7 @@
         ;; In an arrangement the compositor binds `*blank-notes*` and
         ;; prints the note only where no cell draws.
         _            (when (and leaf-data (empty? applicable))
-                       (let [cols (tc/column-names (coerce-dataset leaf-data))
+                       (let [cols (rowid/visible-names leaf-data)
                              note (str "Note: this pose draws nothing. It names no column on :x"
                                        " or :y and has no layer, and its data has "
                                        (count cols) " columns, so none is read by default."
@@ -5715,7 +5895,7 @@
                         resolved)
              layer-own-data?  (some? (:data layer))
              written          resolved
-             given-data       (coerce-dataset (or (:data layer) (:data variant)))
+             given-data       (rowid/tag (coerce-dataset (or (:data layer) (:data variant))))
              ;; An :x or :y given as a value becomes data before anything
              ;; else looks at the mapping, so every check and every later
              ;; stage sees the ordinary shape: columns named by a mapping.
@@ -5733,7 +5913,7 @@
                                 :leaf-mapping leaf-mapping
                                 :written written
                                 :side-on-blockers side-on-blockers
-                                :columns (when given-data (tc/column-names given-data))
+                                :columns (when given-data (rowid/visible-names given-data))
                                 :layer-type-key (:layer-type layer)})
          (validate-column-only-aesthetics resolved d)
          (validate-unscaled-channel-options resolved opts)
@@ -5780,6 +5960,9 @@
               ;; that split (`resolve/empty-facet-panel?`).
               (and (not layer-own-data?) (:plotje/where leaf))
               (assoc :__filtered true)
+              ;; The diagonal of a scatter plot matrix (`facet-cell`).
+              (and (not layer-own-data?) (:plotje/diagonal leaf))
+              (assoc :__fit-y-to-x true)
               (:facet-row variant) (assoc :facet-row (:facet-row variant)
                                           :__facet-row-column facet-row)
               (and (not layer-own-data?) (categories-of resolved :x))

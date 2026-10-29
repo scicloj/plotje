@@ -109,9 +109,9 @@
 
 ;; Among the places that read it:
 ;;
-;; - A layer added after `pj/facet-matrix`, or on the root of a
-;;   composite, is drawn in the panels whose number
-;;   of columns it draws from -- the
+;; - A layer added after a facet crossing two lists of columns, or on
+;;   the root of a composite, is drawn in the panels whose number of
+;;   columns it draws from -- the
 ;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;;   is the case where the panels differ.
 ;; - A pose that names a column only on `:y` draws a layer that draws

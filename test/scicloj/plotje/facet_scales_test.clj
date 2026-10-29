@@ -222,11 +222,11 @@
     (is (re-find #"for 38 columns of panels" msg))
     (is (not (re-find #"px|:width=" msg)))))
 
-(deftest an-empty-facet-grid-cell-does-not-stretch-the-shared-axes-test
+(deftest an-empty-grid-cell-does-not-stretch-the-shared-axes-test
   ;; A cell with no rows read a domain at zero, and every panel's axes
   ;; were pulled to it.
   (let [d {:a [1 1 2] :b [5 6 7] :x [10.0 11.0 12.0] :y [20.0 21.0 22.0]}
-        plan (pj/plan (-> d (pj/lay-point :x :y) (pj/facet-grid :a :b)))
+        plan (pj/plan (-> d (pj/lay-point :x :y) (pj/facet {:col :a :row :b})))
         doms (set (map (juxt :x-domain :y-domain) (:panels plan)))]
     (is (= 6 (count (:panels plan))))
     (is (= 1 (count doms)))
@@ -261,7 +261,7 @@
     (is (= [[[1.33 7.27] [10.4 45.6]]] unsplit))
     (testing "a facet, a grid with one-row cells, and a flipped facet"
       (is (= unsplit (domains (pj/facet base :drv))))
-      (is (= unsplit (domains (pj/facet-grid base :drv :cyl))))
+      (is (= unsplit (domains (pj/facet base {:col :drv :row :cyl}))))
       (is (= [[[10.4 45.6] [1.33 7.27]]] (domains (pj/coord (pj/facet base :drv) :flip)))))
     (testing "an axis left out of :share-scales is fitted to each panel, as before"
       (is (= [[1.33 7.27]]

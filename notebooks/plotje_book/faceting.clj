@@ -9,7 +9,7 @@
 ;; Much follows from that -- a facet reaches into a composite, a cell
 ;; can override the facet it inherits, and several columns under `:col`
 ;; unite into one distinction. A facet over columns is written beside
-;; the mapping, once, on a pose with one panel. The sections below teach
+;; the mapping, and a grid crosses the two kinds. The sections below teach
 ;; those ideas, and the Examples section at the end shows faceted plots
 ;; of several kinds.
 
@@ -110,7 +110,7 @@
                  (= 3 (:panels (pj/svg-summary omitting)))
                  (re-find #":domain omits \[.4.\]" (with-out-str (pj/plan omitting))))))])
 
-;; ## Vertical Facet and Facet Grid
+;; ## Panels Down, and a Grid of Categories
 ;;
 ;; `{:row :species}` puts the panels down, in one column:
 
@@ -122,18 +122,30 @@
                            (and (= 3 (:panels s))
                                 (= 150 (:points s)))))])
 
-;; `pj/facet-grid` splits by two columns -- the first gives a column of
-;; panels for each of its values, the second a row:
+;; `{:col ... :row ...}` splits by two columns -- the column under `:col`
+;; gives a column of panels for each of its values, the column under
+;; `:row` a row of panels:
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-point :total-bill :tip {:color :sex})
-    (pj/facet-grid :smoker :sex))
+    (pj/facet {:col :smoker :row :sex}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))
                                 (= 244 (:points s)))))])
 
-;; Row labels appear on the right, column labels on top.
+;; Row labels appear on the right, column labels on top. A strip prints
+;; the category alone, so in this grid nothing on the plot says which
+;; strips are values of `smoker` and which of `sex`. The plot option
+;; `{:strip-labels :both}` prints the column's name before each value:
+
+(-> (rdatasets/reshape2-tips)
+    (pj/lay-point :total-bill :tip {:color :sex})
+    (pj/facet {:col :smoker :row :sex} {:strip-labels :both}))
+
+(kind/test-last [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
+                           (and (texts "smoker: No")
+                                (texts "sex: Female"))))])
 
 ;; ## A Panel per Column
 ;;
@@ -191,14 +203,93 @@
                  (re-find #"\{:y :cty\} has no layer" out)
                  (re-find #"leave :y off the layer and name :x on the pose" out)))])
 
-;; ### A panel for every pair of columns
+;; ## Grids Crossing Categories and Columns
 ;;
-;; Columns across under `:col` and columns down under `:row` draw a panel
-;; for every pair of columns -- a **scatter plot matrix (SPLOM)**:
-;; `(pj/facet pose {:col {:x cols} :row {:y cols}})`. The
+;; A grid compares along two directions at once: species across and
+;; measurements down, or every measurement against every other. Every
+;; grid is one `pj/facet` call with a map under `:col` and `:row`, and
+;; each of the two entries is one of the two kinds of facet this chapter
+;; has shown -- a column of categories, as in `{:col :species}`, or a
+;; map of columns, as in `{:y [:hwy :cty]}`. The grid has a panel for
+;; every pair of a value across and a value down.
+;;
+;; | under `:col` | under `:row` | the grid |
+;; |:--|:--|:--|
+;; | a column of categories | a column of categories | categories by categories, `{:col :smoker :row :sex}` above |
+;; | a column of categories | a map of columns | each category across, each column down |
+;; | a map of columns | a column of categories | each column across, each category down |
+;; | a map of columns | a map of columns | each column against each column -- a scatter plot matrix when the two lists are the same |
+;;
+;; ### Categories crossed with columns
+;;
+;; Here the species run across and two measurements run down, each
+;; drawn against `:sepal-length`:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:x :sepal-length})
+    pj/lay-point
+    (pj/facet {:col :species :row {:y [:sepal-width :petal-width]}}))
+
+(kind/test-last [(fn [v] (let [base (-> (rdatasets/datasets-iris)
+                                        (pj/pose {:x :sepal-length})
+                                        pj/lay-point)
+                               ys [:sepal-width :petal-width]]
+                           (and (= {:panels 6 :points 300}
+                                   (select-keys (pj/svg-summary v) [:panels :points]))
+                                ;; the two calls, in either order, give this pose
+                                (= v (-> base (pj/facet :species) (pj/facet {:y ys})))
+                                (= v (-> base (pj/facet {:y ys}) (pj/facet :species)))
+                                ;; the prose below: a third facet suggests a colour or pj/arrange
+                                (let [m (try (pj/facet v {:row :species}) nil
+                                             (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+                                  (and (re-find #"both directions" m)
+                                       (re-find #":color" m)
+                                       (re-find #"pj/arrange" m))))))])
+
+;; The grid may also be written as two calls, one facet over the
+;; categories and one over the columns, in either order:
+;; `(-> pose (pj/facet {:y [...]}) (pj/facet :species))`. The categories
+;; go into the pose's mapping and the columns under its `:facet`, and
+;; the two are crossed when the pose is drawn. When both directions are
+;; taken, a third facet reports an error that suggests a colour or
+;; `pj/arrange` instead.
+
+;; ### Scatter plot matrix
+;;
+;; A **scatter plot matrix (SPLOM)** draws every column of a list
+;; against every column of the same list, to show all their pairwise
+;; relationships at once. The same list under `:col`, on `:x`, and
+;; under `:row`, on `:y`, gives the matrix, and the panel of a column
+;; against itself draws that one column, as a histogram. The histogram
+;; is drawn within the column's own range, so it shares its row's `:y`
+;; axis and the row's tick labels stand at the left edge; its bar
+;; heights are relative, with no count axis:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x [:sepal-length :sepal-width :petal-length]}
+               :row {:y [:sepal-length :sepal-width :petal-length]}})
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 9 (:panels s))
+                                ;; the six panels off the diagonal draw every row
+                                (= (* 6 150) (:points s))
+                                (pos? (:polygons s))
+                                ;; the diagonal panel of each row reads the row's :y domain
+                                (let [panels (into {} (map (juxt :path #(first (:panels (:plan %)))))
+                                                   (:sub-plots (pj/plan v)))]
+                                  (every? (fn [r] (= (:y-domain (panels [r r]))
+                                                     (:y-domain (panels [r (mod (inc r) 3)]))))
+                                          (range 3))))))])
+
+;; Two different lists cross the same way: `{:col {:x xs} :row {:y ys}}`
+;; draws each column of `xs` against each column of `ys`. Written
+;; without `:col` and `:row`, `{:x xs :y ys}` pairs the columns one by
+;; one instead, a panel per pair, as the section on layers on different
+;; columns shows below. The
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
-;; chapter builds scatter plot matrices this way. `pj/facet-matrix`
-;; writes the same facet in one call: `(pj/facet-matrix data cols)`.
+;; chapter builds scatter plot matrices with more layers.
 
 ;; ## Faceting is a mapping
 
@@ -233,11 +324,11 @@
  [(fn [fr] (= :species (get-in fr [:mapping :col])))])
 
 ;; `(pj/facet my-pose {:row col})` writes `:row` instead, and
-;; `pj/facet-grid` writes both.
+;; `(pj/facet my-pose {:col col-a :row col-b})` writes both.
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/lay-point :displ :hwy)
-    (pj/facet-grid :drv :cyl)
+    (pj/facet {:col :drv :row :cyl})
     kind/pprint)
 
 (kind/test-last
@@ -331,7 +422,9 @@
 
 ;; To give each pair of columns a row of its own as well, cross the
 ;; categories with the columns in one `pj/facet` call. Each layer is
-;; drawn in the row of the columns it names:
+;; drawn in the row of the columns it names. Two calls, one facet over
+;; the pairs and one over `:species`, write the same pose in either
+;; order:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -342,8 +435,22 @@
     (pj/options {:width 900 :height 480}))
 
 (kind/test-last
- [(fn [fr] (= {:panels 6 :points 300}
-              (select-keys (pj/svg-summary fr) [:panels :points])))])
+ [(fn [fr] (and (= {:panels 6 :points 300}
+                   (select-keys (pj/svg-summary fr) [:panels :points]))
+                (= fr (-> (rdatasets/datasets-iris)
+                          (pj/lay-point :sepal-length :sepal-width)
+                          (pj/lay-point :petal-length :petal-width)
+                          (pj/facet {:x [:sepal-length :petal-length]
+                                     :y [:sepal-width :petal-width]})
+                          (pj/facet :species)
+                          (pj/options {:width 900 :height 480})))
+                (= fr (-> (rdatasets/datasets-iris)
+                          (pj/lay-point :sepal-length :sepal-width)
+                          (pj/lay-point :petal-length :petal-width)
+                          (pj/facet :species)
+                          (pj/facet {:x [:sepal-length :petal-length]
+                                     :y [:sepal-width :petal-width]})
+                          (pj/options {:width 900 :height 480})))))])
 
 ;; ### A marginal follows the division
 
@@ -416,13 +523,13 @@ measures
                 (= ["sepal / length" "sepal / width" "petal / length"]
                    (mapv :col-label (:panels (pj/plan fr))))))])
 
-;; `pj/facet-grid` crosses two distinctions and fills the rectangle,
-;; so the combination the data does not hold is drawn as an empty
-;; panel.
+;; `{:col :part :row :dimension}` crosses two distinctions and fills the
+;; rectangle, so the combination the data does not hold is drawn as an
+;; empty panel.
 
 (-> measures
     (pj/lay-point :t :v)
-    (pj/facet-grid :part :dimension))
+    (pj/facet {:col :part :row :dimension}))
 
 (kind/test-last
  [(fn [fr] (= 4 (:panels (pj/svg-summary fr))))])
@@ -490,7 +597,7 @@ measures
            (= [3 3] (ranges #{})))))])
 
 ;; `#{:y}` shares `:y` and fits `:x` to each panel, and `#{}` fits both
-;; axes to each panel. In a `pj/facet-grid` too, an axis left out of the
+;; axes to each panel. In a grid of categories too, an axis left out of the
 ;; set is fitted to each panel, where ggplot2's `facet_grid(scales =
 ;; "free_y")` fits it to each row of panels.
 ;;
@@ -633,7 +740,6 @@ measures
                (re-find #"read from a pose's mapping" m)
                ;; and the places to write it instead
                (re-find #"pj/facet pose" m)
-               (re-find #"pj/facet-grid" m)
                (re-find #"in the pose's mapping" m)))])
 
 ;; A second facet in the same direction on one pose is reported rather
@@ -862,6 +968,48 @@ measures
     (= (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]}))
        (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) (pj/facet {:y [:hwy :cty]}) pj/lay-point)))])
 
+;; ## Coming from ggplot2
+;;
+;; A reader who knows ggplot2 looks for its faceting functions by name.
+;; Each has a Plotje spelling, or none:
+;;
+;; | ggplot2 | Plotje |
+;; |:--|:--|
+;; | `facet_wrap(~ drv)` | `(pj/facet pose :drv)` draws the panels in one row and does not wrap them; `pj/arrange` with `{:cols n}` wraps poses into rows |
+;; | `facet_grid(cyl ~ drv)` | `(pj/facet pose {:col :drv :row :cyl})` |
+;; | `facet_grid(scales = "free")` | `{:share-scales #{}}` in the options map after the facet |
+;; | `facet_grid(scales = "free_y")` | `{:share-scales #{:x}}`, which fits `:y` to each panel rather than to each row |
+;; | `GGally::ggpairs(data, columns = cols)` | `(pj/facet data {:col {:x cols} :row {:y cols}})`, the same layer above and below the diagonal |
+;; | `facet_grid(labeller = label_both)` | `{:strip-labels :both}` in the options map after the facet |
+;; | `facet_grid(margins = TRUE)` | no option; stack the data with a copy labelled `"(all)"`, as below |
+;;
+;; Panels follow the order the data holds the values, where ggplot2
+;; sorts them; `(pj/scale pose :col {:domain [...]})` gives another
+;; order, as the section on ordering the panels shows.
+;;
+;; ### A panel for all rows
+;;
+;; ggplot2's `margins = TRUE` adds a panel that draws every category
+;; together, so each panel can be compared with the whole. The same
+;; panel comes from the data: stack the dataset with a copy of itself
+;; whose facet column reads `"(all)"`, and facet the stacked rows. The
+;; copy is the last value the data holds, so its panel comes last:
+
+(let [mpg (rdatasets/ggplot2-mpg)]
+  (-> (tc/concat mpg (tc/add-column mpg :drv "(all)"))
+      (pj/lay-point :displ :hwy)
+      (pj/facet :drv)))
+
+(kind/test-last [(fn [v] (let [mpg (rdatasets/ggplot2-mpg)
+                               s (pj/svg-summary v)]
+                           (and (= (inc (count (distinct (mpg :drv)))) (:panels s))
+                                (= (* 2 (tc/row-count mpg)) (:points s))
+                                (some #{"(all)"} (:texts s)))))])
+
+;; Each row is drawn twice, in its own panel and in the `"(all)"` panel.
+;; For a grid, stack a copy for each direction and one more for the
+;; corner, where both columns read `"(all)"`.
+
 ;; ## Examples
 
 ;; Faceted plots of other kinds, each built from the ideas above.
@@ -884,7 +1032,7 @@ measures
     (pj/pose :total-bill :tip {:color :sex})
     pj/lay-point
     (pj/lay-smooth {:stat :linear-model})
-    (pj/facet-grid :smoker :sex))
+    (pj/facet {:col :smoker :row :sex}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:panels s))

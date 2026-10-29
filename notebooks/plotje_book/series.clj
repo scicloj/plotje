@@ -415,8 +415,7 @@ sales-by-region
 ;; `pj/facet` as `{:col {:x xs} :row {:y ys}}`, as the scatter plot
 ;; matrix in
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
-;; does. `pj/facet-matrix` takes the two lists itself:
-;; `(pj/facet-matrix data xs ys)`.
+;; does.
 
 ;; ## One series per pose
 
@@ -961,7 +960,7 @@ sales-by-region
 
 (-> sales-by-region
     (pj/lay-bar :quarter [:revenue :cost :tax] {:position :stack})
-    (pj/facet-grid :region :outlet))
+    (pj/facet {:col :region :row :outlet}))
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 

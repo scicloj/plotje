@@ -32,7 +32,7 @@
    ;; Rdatasets -- standard datasets
    [scicloj.metamorph.ml.rdatasets :as rdatasets]))
 
-;; ## Two spaces
+;; ## Data space and drawing space
 ;;
 ;; The number 12 does not say where a mark goes until you know what it
 ;; measures. Plotje measures positions in two spaces.

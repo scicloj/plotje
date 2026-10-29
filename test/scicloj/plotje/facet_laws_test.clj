@@ -69,7 +69,7 @@
       (let [plain (pj/lay-point d :x :y {:color :c})]
         (is (= ["b" "a" "c"] (legend plain) (legend (pj/facet plain :g))))
         (is (= (colors plain) (colors (pj/facet plain :g))))
-        (is (= ["b" "a" "c"] (legend (pj/facet-grid plain nil :g))))))
+        (is (= ["b" "a" "c"] (legend (pj/facet plain {:col nil :row :g}))))))
     (testing "the shape legend too"
       (is (= [["b" :circle] ["a" :square] ["c" :triangle]]
              (->> (-> d (pj/lay-point :x :y {:shape :c}) (pj/facet :g))
@@ -95,7 +95,7 @@
     (testing "a trailing map is what pj/options takes"
       (is (= (pj/facet p :drv share) (-> p (pj/facet :drv) (pj/options share))))
       (is (= (pj/facet p {:row :drv} share) (-> p (pj/facet {:row :drv}) (pj/options share))))
-      (is (= (pj/facet-grid p :drv :cyl share) (-> p (pj/facet-grid :drv :cyl) (pj/options share)))))
+      (is (= (pj/facet p {:col :drv :row :cyl} share) (-> p (pj/facet {:col :drv :row :cyl}) (pj/options share)))))
     (testing "and it is read"
       (is (= 1 (y-domains (pj/facet p :drv))))
       (is (= 3 (y-domains (pj/facet p :drv share)))))
@@ -110,7 +110,7 @@
     (testing "it draws as the map does, and warns naming the map"
       (let [printed (out #(is (= (pj/plot (pj/facet p :drv :row))
                                  (pj/plot (pj/facet p {:row :drv})))))]
-        (is (re-find #"direction argument is retired.*\(pj/facet pose :drv :row\).*write \(pj/facet pose \{:row :drv\}\)"
+        (is (re-find #"direction argument is retired\. Instead of \(pj/facet pose :drv :row\), write \(pj/facet pose \{:row :drv\}\)"
                      printed)))
       (is (re-find #"write \(pj/facet pose :drv\)" (out #(pj/facet p :drv :col))))
       (is (re-find #"retired" (out #(pj/facet p :drv :row {:share-scales #{:x}})))))
@@ -118,7 +118,7 @@
       (is (= "" (out #(pj/facet p :drv))))
       (is (= "" (out #(pj/facet p {:row :drv}))))
       (is (= "" (out #(pj/facet p :drv {:share-scales #{:x}}))))
-      (is (= "" (out #(pj/facet-grid p :drv :cyl)))))
+      (is (= "" (out #(pj/facet p {:col :drv :row :cyl})))))
     (testing "under :strict it reports an error"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"direction argument is retired"
                             (pj/with-config {:strict true} (pj/facet p :drv :row)))))))
@@ -238,7 +238,7 @@
         ;; Its marks are those of the matrix of the same two columns;
         ;; the tick labels on the left differ (decision 3.2).
         (is (= (select-keys (pj/svg-summary matrix) [:points :polygons :colors :panels])
-               (select-keys (pj/svg-summary (-> (pj/facet-matrix d3 [:a :b])
+               (select-keys (pj/svg-summary (-> (pj/facet d3 {:col {:x [:a :b]} :row {:y [:a :b]}})
                                                 pj/lay-point
                                                 pj/lay-density))
                             [:points :polygons :colors :panels])))))
@@ -250,3 +250,209 @@
       (is (= [[:c :a] [:c :b]]
              (mapv #(-> % :draft first ((juxt :x :y)))
                    (:sub-drafts (pj/draft (-> (pj/pose d3) (pj/facet {:y [:a :b]}) pj/lay-point)))))))))
+
+(deftest a-category-facet-and-a-facet-over-columns-compose-test
+  ;; Composed, the two drew a facet over columns nested in each
+  ;; category's panel, with the strips repeated. Every spelling of the
+  ;; grid gives one pose -- the categories in the mapping, the columns
+  ;; under `:facet` -- and drawing crosses the two.
+  (let [base (-> (rdatasets/datasets-iris) (pj/pose {:x :sepal-length}) pj/lay-point)
+        ys [:sepal-width :petal-width]
+        one (pj/facet base {:col :species :row {:y ys}})]
+    (is (= {:x :sepal-length :col :species} (:mapping one)))
+    (is (= {:y ys} (:facet one)))
+    (doseq [two [(-> base (pj/facet {:y ys}) (pj/facet :species))
+                 (-> base (pj/facet :species) (pj/facet {:y ys}))
+                 (-> base (pj/facet {:row {:y ys}}) (pj/facet :species))
+                 (-> base (pj/facet :species) (pj/facet {:row {:y ys}}))
+                 (-> base (pj/facet {:y ys}) (pj/pose {:col :species}))
+                 (-> base (pj/pose {:col :species}) (pj/facet {:y ys}))]]
+      (is (= one two)))
+    (is (= 6 (:panels (pj/svg-summary one))))
+    (testing "categories down put the columns across"
+      (let [down (-> base (pj/facet {:row :species}) (pj/facet {:y ys}))]
+        (is (= {:col {:y ys}} (:facet down)))
+        (is (= down (pj/facet base {:row :species :col {:y ys}})))))
+    (testing "pairs of columns compose the same way"
+      (let [pairs {:x [:sepal-length :petal-length] :y ys}
+            p (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)]
+        (is (= (pj/facet p {:col :species :row pairs})
+               (-> p (pj/facet pairs) (pj/facet :species))))))
+    (testing "a facet written on an arrangement crosses a cell's facet over columns"
+      (let [cell (pj/facet base {:y ys})]
+        (is (= (pj/plot (pj/facet (pj/arrange [cell cell]) :species))
+               (pj/plot (pj/arrange [(pj/facet cell :species) (pj/facet cell :species)]))))))
+    (testing "a third facet has no direction left"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"both directions"
+                            (pj/facet one {:row :species})))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"both directions"
+                            (-> base (pj/facet {:col :species :row :species}) (pj/facet {:y ys})))))))
+
+(deftest retired-facet-grid-warns-and-writes-the-map-test
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
+    (testing "pj/facet-grid warns, naming the facet to write, and returns its pose"
+      (let [printed (with-out-str
+                      (is (= (pj/facet p {:col :drv :row :cyl})
+                             (pj/facet-grid p :drv :cyl)))
+                      (is (= (pj/facet p :drv)
+                             (pj/facet-grid p :drv nil))))]
+        (is (re-find #"pj/facet-grid is retired\. Write \(pj/facet pose \{:col :drv :row :cyl\}\)" printed))
+        (is (re-find #"Write \(pj/facet pose :drv\)" printed))))
+    (testing "under :strict it reports an error"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"pj/facet-grid is retired"
+                            (pj/with-config {:strict true} (pj/facet-grid p :drv :cyl)))))))
+
+(deftest retired-names-report-in-one-shape-test
+  ;; Under :strict each retired name throws a message that stays true
+  ;; when it throws (nothing about what is drawn meanwhile), and
+  ;; ex-data naming what is retired and the form to write instead.
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+        thrown (fn [f] (try (pj/with-config {:strict true} (f)) nil
+                            (catch clojure.lang.ExceptionInfo e
+                              [(ex-message e) (select-keys (ex-data e) [:retired :to])])))]
+    (doseq [[f retired to] [[#(pj/facet-grid p :drv :cyl) :facet-grid {:col :drv :row :cyl}]
+                            [#(pj/facet p :drv :row) :direction {:row :drv}]
+                            [#(pj/overlay p) :overlay nil]
+                            [#(pj/options p {:scales :free-y}) :scales {:share-scales #{:x}}]]]
+      (let [[msg data] (thrown f)]
+        (is (= {:retired retired :to to} data))
+        (is (not (re-find #"ignored|for now|as before|is read as|dropped" msg)) msg)))))
+
+(deftest a-coloured-scatter-plot-matrix-draws-one-legend-test
+  ;; The diagonal draws a histogram the coloured layer does not reach;
+  ;; it maps nothing to :color, and the matrix keeps one legend.
+  (let [cols [:sepal-length :sepal-width :petal-length]
+        texts (fn [v] (:texts (pj/svg-summary v)))
+        on-layer (-> (rdatasets/datasets-iris)
+                     (pj/facet {:col {:x cols} :row {:y cols}})
+                     (pj/lay-point {:color :species}))]
+    (is (= 1 (count (filter #{"species"} (texts on-layer)))))
+    (testing "an arrangement keeps a legend beside its coloured cell"
+      (let [mpg (rdatasets/ggplot2-mpg)]
+        (is (= 1 (count (filter #{"drv"} (texts (pj/arrange [(pj/lay-point mpg :displ :hwy {:color :drv})
+                                                             (pj/lay-point mpg :displ :cty)]))))))))))
+
+(deftest facet-messages-name-what-can-be-written-test
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
+    (testing "nil options are no options"
+      (is (= (pj/facet p :drv) (pj/facet p :drv nil))))
+    (testing "the other direction is offered only when it is free"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"write the other direction, \(pj/facet pose \{:row :cyl\}\)"
+                            (-> p (pj/facet :drv) (pj/facet :cyl))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #":row is taken by :cyl: map :year to an aesthetic"
+                            (-> p (pj/facet {:col :drv :row :cyl}) (pj/facet :year)))))
+    (testing "one column inside a grid names the vector form"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"names its columns as a vector"
+                            (pj/facet (rdatasets/ggplot2-mpg) {:col {:x :displ} :row {:y :hwy}}))))))
+
+(deftest columns-by-columns-as-two-calls-test
+  (let [p (pj/lay-point (pj/pose (rdatasets/ggplot2-mpg)))
+        one (pj/facet p {:col {:x [:displ :cty]} :row {:y [:hwy :cty]}})]
+    (testing "a second facet over columns naming the other direction crosses the first"
+      (is (= one
+             (-> p (pj/facet {:col {:x [:displ :cty]}}) (pj/facet {:row {:y [:hwy :cty]}}))
+             (-> p (pj/facet {:x [:displ :cty]}) (pj/facet {:row {:y [:hwy :cty]}}))
+             (-> p (pj/facet {:row {:y [:hwy :cty]}}) (pj/facet {:col {:x [:displ :cty]}})))))
+    (testing "a bare second map would read as pairs, and the error names the direction to write"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"splits its columns once.*\(pj/facet pose \{:row \{:y \[:hwy :cty\]\}\}\)"
+                            (-> p (pj/facet {:x [:displ :cty]}) (pj/facet {:y [:hwy :cty]})))))))
+
+(deftest a-facet-over-columns-meets-what-the-pose-already-holds-test
+  (let [p (pj/lay-point (pj/pose (rdatasets/ggplot2-mpg)))
+        matrix {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}}]
+    (testing "an order for :col written before a facet over columns on :col is reported"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"drawn in the order the columns are written: remove the scale"
+                            (-> p (pj/scale :col {:domain [:hwy :displ]}) (pj/facet matrix))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"drawn in the order the columns are written: remove the scale"
+                            (-> p (pj/facet matrix) (pj/scale :col {:domain [:hwy :displ]})))))
+    (testing "categories written by pj/pose after a matrix are reported at the call"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"both directions"
+                            (-> p (pj/facet matrix) (pj/pose {:col :drv})))))
+    (testing "pj/pose {:row ..} after a facet over :y gives the pose pj/facet gives"
+      (is (= (-> p (pj/pose {:x :displ}) (pj/facet {:y [:hwy :cty]}) (pj/facet {:row :drv}))
+             (-> p (pj/pose {:x :displ}) (pj/facet {:y [:hwy :cty]}) (pj/pose {:row :drv})))))))
+
+(deftest an-empty-map-changes-nothing-test
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+        arr (pj/arrange [p p])]
+    (is (= p (pj/options p {})))
+    (is (= arr (pj/pose arr {})))
+    (is (= (pj/facet arr :drv) (pj/pose arr {:col :drv})))))
+
+(deftest pj-marginal-reads-only-size-test
+  (let [p (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"takes only :size.*no mapping"
+                          (pj/marginal p :top :density {:color :drv})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"takes only :size.*pj/options"
+                          (pj/marginal p :top :density {:title "T"})))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"between 0 and 1"
+                          (pj/marginal p :top :density {:size 2})))
+    (is (pj/pose? (pj/marginal p :top :density {:size 0.3})))))
+
+(deftest strips-of-margins-and-nested-grids-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        texts (fn [v] (set (:texts (pj/svg-summary v))))]
+    (testing "a matrix with a nil margin names its rows"
+      (is (every? (texts (-> (pj/pose mpg) pj/lay-point
+                             (pj/facet {:col {:x [:displ :hwy nil]} :row {:y [:displ :hwy nil]}})))
+                  ["displ" "hwy"]))
+      (is (= 2 (count (filter #{"hwy"} (:texts (pj/svg-summary
+                                                (-> (pj/pose mpg) pj/lay-point
+                                                    (pj/facet {:col {:x [:displ :hwy nil]}
+                                                               :row {:y [:displ :hwy nil]}})))))))))
+    (testing "a grid placed as a cell draws its strips, and a nested caption is drawn once"
+      (let [cell (-> (pj/pose mpg {:x :displ}) pj/lay-point
+                     (pj/facet {:col :drv :row {:y [:hwy :cty]}})
+                     (pj/options {:caption "inner cap"}))
+            v (pj/arrange [cell (pj/lay-point mpg :displ :hwy)])
+            ts (:texts (pj/svg-summary v))]
+        (is (every? (set ts) ["f" "4" "r" "hwy" "cty"]))
+        (is (= 1 (count (filter #{"inner cap"} ts))))))))
+
+(deftest a-grid-placed-as-a-cell-is-drawn-as-alone-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        grid (-> (pj/pose mpg {:x :displ}) pj/lay-point
+                 (pj/facet {:col :drv :row {:y [:hwy :cty]}}))
+        count-of (fn [v t] (count (filter #{t} (:texts (pj/svg-summary v)))))]
+    ;; alone and as a cell, :displ is titled once; beside it the scatter
+    ;; titles its own
+    (is (= 1 (count-of grid "displ")))
+    (is (= 2 (count-of (pj/arrange [grid (pj/lay-point mpg :displ :hwy)]) "displ")))))
+
+(deftest strip-labels-name-the-column-test
+  (let [mpg (rdatasets/ggplot2-mpg)
+        texts (fn [v] (set (:texts (pj/svg-summary v))))]
+    (testing "a facet over categories, a compound key and a mixed grid"
+      (is (every? (texts (-> mpg (pj/lay-point :displ :hwy)
+                             (pj/facet {:col :drv :row :year} {:strip-labels :both})))
+                  ["drv: f" "year: 1999"]))
+      (is ((texts (-> mpg (pj/lay-point :displ :hwy)
+                      (pj/facet [:drv :year] {:strip-labels :both})))
+           "drv / year: f / 1999"))
+      (let [ts (texts (-> (pj/pose mpg {:x :displ}) pj/lay-point
+                          (pj/facet {:col :drv :row {:y [:hwy :cty]}})
+                          (pj/options {:strip-labels :both})))]
+        ;; the categories name their column; the strips naming columns do not change
+        (is (every? ts ["drv: 4" "hwy" "cty"]))))
+    (testing "the default prints the value alone, and another value is an error"
+      (is ((texts (-> mpg (pj/lay-point :displ :hwy) (pj/facet :drv))) "f"))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #":strip-labels must be one of"
+                            (pj/options (pj/pose mpg) {:strip-labels :name}))))))
+
+(deftest a-compound-key-of-measurements-suggests-a-facet-over-columns-test
+  (let [iris (rdatasets/datasets-iris)
+        mpg (rdatasets/ggplot2-mpg)
+        message (fn [v] (try (pj/plan v) nil
+                             (catch clojure.lang.ExceptionInfo e (ex-message e))))
+        hint #"For a panel per column, write \(pj/facet pose \{:x \[:petal-length :petal-width\]\}\)"]
+    (testing "numerical columns in a compound key name the facet over columns"
+      (is (re-find hint (message (-> iris (pj/lay-point :sepal-length :sepal-width)
+                                     (pj/facet [:petal-length :petal-width]))))))
+    (testing "a single numerical column, or a key holding a category, does not"
+      (is (not (re-find #"panel per column"
+                        (message (-> iris (pj/lay-point :sepal-length :sepal-width)
+                                     (pj/facet :petal-length))))))
+      (is (not (re-find #"panel per column"
+                        (message (-> mpg (pj/lay-point :displ :hwy)
+                                     (pj/facet [:manufacturer :cty])))))))))

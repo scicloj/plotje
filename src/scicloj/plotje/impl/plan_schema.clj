@@ -203,6 +203,10 @@
    [:ribbons {:optional true} [:vector any?]]
    [:color-categories {:optional true} [:maybe [:vector any?]]]
    [:position {:optional true} keyword?]
+   ;; The value a bar or an area stands on, where it is not zero: a
+   ;; scatter plot matrix's diagonal stands on its column's smallest
+   ;; value (`plan/fit-diagonal`).
+   [:baseline {:optional true} number?]
    ;; Drawing-unit shift of the whole layer, applied after the scales.
    ;; Numbers, not columns: one value shifts everything the layer drew.
    [:offset-x {:optional true} number?]

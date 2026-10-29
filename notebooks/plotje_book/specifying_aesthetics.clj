@@ -276,7 +276,7 @@ plants
 ;; states it and shows what happens when two layers ask for different
 ;; ones.
 
-;; ## The four combinations
+;; ## Source and `:scale` combined
 ;;
 ;; | Source | `:scale` | What you supply | What is drawn |
 ;; |:--|:--|:--|:--|
@@ -776,7 +776,7 @@ integer-named
 ;; - [Glossary](./plotje_book.glossary.html#aesthetic) -- aesthetic,
 ;;   mapping, scale, legend
 
-;; ## Appendix: the same four in ggplot2
+;; ## Appendix: source and `:scale` in ggplot2
 ;;
 ;; ggplot2 has all four combinations and reaches them through
 ;; different syntax. The table uses `:size` as the example:

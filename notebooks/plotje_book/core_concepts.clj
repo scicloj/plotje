@@ -103,7 +103,7 @@
 ;; be mapped like any other column name. `(tc/rename-columns ds [:x :y])`
 ;; gives them words. A vector of vectors given to `pj/arrange` means
 ;; something else -- pairs of column names, one panel each, shown under
-;; [Identity](#identity) below. What tells the two apart is where the
+;; [Layer Placement](#layer-placement) below. What tells the two apart is where the
 ;; vector is written -- in a mapping, or given to `pj/arrange` after
 ;; the data -- not what it holds.
 
@@ -329,7 +329,7 @@ two-panel
 
 ;; Three panels, each with its own data subset.
 
-;; ## Identity
+;; ## Layer Placement
 ;;
 ;; Scope determines what each pose and layer sees. But how do
 ;; layers find their pose? The rule is:
@@ -395,9 +395,8 @@ two-panel
 ;; `pj/facet` and `pj/arrange` both keep these pairs side by side,
 ;; whether or not the pairs share columns. To put every pairing of x
 ;; and y columns in a matrix, call `pj/facet` with
-;; `{:col {:x [...]} :row {:y [...]}}`, or call `pj/facet-matrix`,
-;; which writes that map -- the
-;; [Relationships](./plotje_book.relationships.html) chapter draws one.
+;; `{:col {:x [...]} :row {:y [...]}}` -- the next chapter,
+;; [Panels](./plotje_book.panels.html), draws such a matrix.
 ;;
 ;; `pj/arrange` is also useful for combining independent poses, such as
 ;; plots with different layer kinds, a scatter and a histogram say:

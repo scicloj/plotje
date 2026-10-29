@@ -101,9 +101,7 @@
 (def v19_l100 (-> composite-pose keys sort vec))
 
 
-(deftest
- t20_l102
- (is ((fn [ks] (= [:layout :opts :poses] ks)) v19_l100)))
+(deftest t20_l102 (is ((fn [ks] (= [:layout :poses] ks)) v19_l100)))
 
 
 (def v22_l110 (-> composite-pose :poses count))

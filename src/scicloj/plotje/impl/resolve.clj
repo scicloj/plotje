@@ -784,7 +784,7 @@
           x-only-cat-marks {:lollipop :identity :summary :summary
                             :ridgeline :violin :pointrange :summary}
           ;; A panel of a facet that holds no rows -- a combination of a
-          ;; `pj/facet-grid` the data does not hold -- has columns typed
+          ;; grid the data does not hold -- has columns typed
           ;; for want of anything to read, and the type says nothing
           ;; about the column. Its stat draws "no data", as every other
           ;; layer type draws in that panel. Data of no rows as a whole

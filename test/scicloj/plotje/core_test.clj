@@ -976,7 +976,7 @@
   (let [iris (rdatasets/datasets-iris)
         cols [:sepal-length :sepal-width]
         size (fn [pose] (let [s (pj/svg-summary pose)] [(:width s) (:height s)]))
-        matrix (fn [] (pj/facet-matrix iris cols))
+        matrix (fn [] (pj/facet iris {:col {:x cols} :row {:y cols}}))
         arranged (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
                               (pj/lay-point iris :petal-length :petal-width)])]
     (try
@@ -1535,7 +1535,7 @@
   (testing "cross plot (full grid) shows all strip labels"
     (let [ds (tc/dataset {:a [1 2 3 4 5] :b [5 4 3 2 1] :c [2 4 6 8 10]})
           views (-> ds
-                    (pj/facet-matrix [:a :b :c])
+                    (pj/facet {:col {:x [:a :b :c]} :row {:y [:a :b :c]}})
                     pj/lay-point)
           svg (pj/plot views)
           s (pj/svg-summary svg)
@@ -1918,7 +1918,7 @@
     (let [cols [:mpg :hp :wt :qsec]
           plan (-> (rdatasets/datasets-mtcars)
                    (tc/select-columns cols)
-                   (pj/facet-matrix cols)
+                   (pj/facet {:col {:x cols} :row {:y cols}})
                    (pj/options {:width 400 :height 400})
                    pj/plan)
           bottom-hp (some #(when (= [3 1] (:path %)) %) (:sub-plots plan))
@@ -2493,10 +2493,10 @@
     (testing "a vector facet is a compound key: one panel per observed combination"
       ;; :g and :h move together in this data, so only two of the four
       ;; combinations occur. That is the whole difference between a
-      ;; compound facet and pj/facet-grid, which fills the rectangle --
+      ;; compound facet and a grid {:col :g :row :h}, which fills the rectangle --
       ;; asserted together so neither can drift into the other.
       (is (= 2 (-> data (pj/lay-point :x :y) (pj/facet [:g :h]) pj/plan :panels count)))
-      (is (= 4 (-> data (pj/lay-point :x :y) (pj/facet-grid :g :h) pj/plan :panels count))))
+      (is (= 4 (-> data (pj/lay-point :x :y) (pj/facet {:col :g :row :h}) pj/plan :panels count))))
 
     (testing "a compound facet labels a panel by each column's value in turn"
       (is (= ["a / x" "b / y"]
@@ -2511,13 +2511,13 @@
     (testing "valid facet column still works"
       (is (= 2 (-> data (pj/lay-point :x :y) (pj/facet :g) pj/plan :panels count))))
 
-    (testing "facet-grid with valid columns still works"
-      (is (= 4 (-> data (pj/lay-point :x :y) (pj/facet-grid :g :h) pj/plan :panels count))))
+    (testing "a grid with valid columns still works"
+      (is (= 4 (-> data (pj/lay-point :x :y) (pj/facet {:col :g :row :h}) pj/plan :panels count))))
 
-    (testing "typoed facet-grid column throws"
+    (testing "a typoed grid column throws"
       (is (thrown-with-msg? clojure.lang.ExceptionInfo
                             #"Column :speices \(from :col\) not found"
-                            (-> data (pj/lay-point :x :y) (pj/facet-grid :speices :h) pj/plan))))))
+                            (-> data (pj/lay-point :x :y) (pj/facet {:col :speices :row :h}) pj/plan))))))
 
 (deftest lay-method-auto-infer-test
   ;; persona-16 B4. Closes Skept-R4 F1, P5-R2 C2.
@@ -3536,7 +3536,7 @@
 
     (testing "SPLOM inference"
       (let [s (summary (-> (pj/pose iris {:color :species})
-                           (pj/facet-matrix [:sepal_length :sepal_width :petal_length])))]
+                           (pj/facet {:col {:x [:sepal_length :sepal_width :petal_length]} :row {:y [:sepal_length :sepal_width :petal_length]}})))]
         (is (= 9 (:panels s)))
         (is (= 900 (:points s)))))
 
@@ -3600,7 +3600,7 @@
             s (summary (-> (pj/pose tips {:color :smoker})
                            (pj/pose :total_bill :tip)
                            (pj/lay-point {:alpha 0.5})
-                           (pj/facet-grid :day :sex)))]
+                           (pj/facet {:col :day :row :sex})))]
         (is (= 8 (:panels s)))))
 
     (testing "Options pass through"

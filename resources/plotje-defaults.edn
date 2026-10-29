@@ -63,6 +63,9 @@
 
  ;; Facet strips
  :strip-height 16
+ ;; :value prints a strip's category alone; :both prints the column's
+ ;; name before it, as drv: f
+ :strip-labels :value
 
  ;; Behavior
  ;; :validate -- run Malli plan validation at plot time

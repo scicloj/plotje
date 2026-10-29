@@ -840,12 +840,14 @@
                                 :as-maps)))
                 ;; identity path -- derive tile bounds from point coordinates
                 (let [data (:data draft-layer)
-                      ;; Read through each group's row indices, so the
-                      ;; values come in the order the bounds below do --
+                      ;; Read through each group's places in the data, so
+                      ;; the values come in the order the bounds below do --
                       ;; group by group, without the rows the stat dropped.
+                      ;; Not its row indices: those number the rows of the
+                      ;; pose's dataset, before a facet split them.
                       fill-vals (when fill-col
                                   (dtype/indexed-buffer
-                                   (vec (mapcat :row-indices (:points stat)))
+                                   (vec (mapcat :data-positions (:points stat)))
                                    (data fill-col)))
                       [f-lo f-hi] (scale/numeric-color-domain
                                    spec

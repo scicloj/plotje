@@ -99,7 +99,7 @@ composite-pose
 
 (-> composite-pose keys sort vec)
 
-(kind/test-last [(fn [ks] (= [:layout :opts :poses] ks))])
+(kind/test-last [(fn [ks] (= [:layout :poses] ks))])
 
 ;; Its sub-poses are not the two panels. A composite is a tree, and
 ;; `pj/arrange` builds a grid out of it: the top pose holds one

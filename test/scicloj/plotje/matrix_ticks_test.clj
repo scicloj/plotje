@@ -1,7 +1,7 @@
 (ns scicloj.plotje.matrix-ticks-test
   "Which cells of a matrix keep their tick labels is decided in one
-   place (`pose/infer-chrome`), so `pj/facet-matrix` and the same panels
-   written as a facet over columns are ticked alike."
+   place (`pose/infer-chrome`), so a scatter plot matrix is ticked alike
+   whether `pj/facet` is given the data or a pose."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]
             [scicloj.metamorph.ml.rdatasets :as rdatasets]))
@@ -9,10 +9,10 @@
 (deftest a-matrix-is-ticked-as-the-same-facet-is-test
   (let [mpg (rdatasets/ggplot2-mpg)
         cols [:displ :hwy :cty]
-        matrix (pj/facet-matrix mpg cols)
+        matrix (pj/facet mpg {:col {:x cols} :row {:y cols}})
         facet (pj/facet (pj/pose mpg) {:col {:x cols} :row {:y cols}})
         texts #(sort (:texts (pj/svg-summary %)))]
-    (testing "the two spellings draw the same text"
+    (testing "the data and a pose draw the same text"
       (is (= (texts facet) (texts matrix))))
     (testing "the first row's column is ticked on :y as well as on :x"
       ;; Written by row and column, only the leftmost cell of a row kept

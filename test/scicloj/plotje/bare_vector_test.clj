@@ -45,20 +45,20 @@
 (deftest a-tooltip-vector-is-markup
   (is (= 1 (panels (-> ds (pj/lay-point :t :a {:tooltip [:div "hi"]}))))))
 
-(deftest facet-grid-reports-a-second-facet
+(deftest a-grid-reports-a-second-facet
   ;; `pj/facet` reported a second facet in the same direction; the grid
   ;; form called no such guard and replaced whatever was there.
   (testing "after an ordinary pj/facet, in either direction"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"pj/facet-grid was given"
-         (-> ds (pj/lay-point :t :a) (pj/facet :part) (pj/facet-grid :dim :part))))
+         #"pj/facet was given"
+         (-> ds (pj/lay-point :t :a) (pj/facet :part) (pj/facet {:col :dim :row :part}))))
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"pj/facet-grid was given"
-         (-> ds (pj/lay-point :t :a) (pj/facet :part :row) (pj/facet-grid :part :dim)))))
+         #"pj/facet was given"
+         (-> ds (pj/lay-point :t :a) (pj/facet {:row :part}) (pj/facet {:col :part :row :dim})))))
   (testing "on a pose that facets by nothing yet"
-    (is (= 4 (panels (-> ds (pj/lay-point :t :a) (pj/facet-grid :part :dim)))))))
+    (is (= 4 (panels (-> ds (pj/lay-point :t :a) (pj/facet {:col :part :row :dim})))))))
 
 (deftest a-series-writes-nothing-onto-the-options
   ;; `:opts` is the map a writer wrote with pj/options, so a series

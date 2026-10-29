@@ -67,7 +67,7 @@
                   "Category" cat
                   "Description" desc}))))})
 
-(kind/test-last [(fn [t] (= 47 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 48 (count (:row-maps t))))])
 
 ;; ### Plot Options
 ;;
@@ -149,15 +149,17 @@
 (-> (base-plot))
 
 ;; A plot of several panels takes the width as well -- here a
-;; scatterplot matrix, which writes no size of its own:
+;; scatter plot matrix, which writes no size of its own:
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet-matrix [:sepal-length :sepal-width]))
+    (pj/facet {:col {:x [:sepal-length :sepal-width]}
+              :row {:y [:sepal-length :sepal-width]}}))
 
 ;; Its width, measured while the override is in place:
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet-matrix [:sepal-length :sepal-width])
+    (pj/facet {:col {:x [:sepal-length :sepal-width]}
+              :row {:y [:sepal-length :sepal-width]}})
     pj/svg-summary
     :width)
 

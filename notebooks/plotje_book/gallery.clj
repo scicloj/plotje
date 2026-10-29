@@ -385,7 +385,7 @@
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy {:color :class})
     pj/lay-point
-    (pj/facet-grid :drv nil)
+    (pj/facet :drv)
     (pj/options {:title "Highway MPG by Engine Size, faceted by Drive"
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
@@ -398,7 +398,7 @@
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :hwy)
     pj/lay-histogram
-    (pj/facet-grid :drv nil)
+    (pj/facet :drv)
     (pj/options {:title "Highway MPG by Drive Type"
                  :x-label "Highway MPG"
                  :y-label "Count"}))
@@ -416,8 +416,9 @@
 ;; the layer type:
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet-matrix [:sepal-length :sepal-width :petal-length :petal-width]
-                     {:color :species})
+    (pj/pose {:color :species})
+    (pj/facet {:col {:x [:sepal-length :sepal-width :petal-length :petal-width]}
+              :row {:y [:sepal-length :sepal-width :petal-length :petal-width]}})
     (pj/options {:title "Iris SPLOM"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -1721,13 +1722,13 @@
 
 (kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
 
-;; ### Facet-grid: columns by drive, rows by year
+;; ### Grid of categories: columns by drive, rows by year
 ;; Source: [Vega-Lite: Trellis Grid](https://vega.github.io/vega-lite/examples/trellis_barley.html)
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy)
     pj/lay-point
-    (pj/facet-grid :drv :year)
+    (pj/facet {:col :drv :row :year})
     (pj/options {:title "MPG: Drive Type x Model Year"
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
@@ -1738,30 +1739,30 @@
                                 (= ["f" "4" "r"] (distinct (map :col-label panels)))
                                 (= ["1999" "2008"] (distinct (map :row-label panels))))))])
 
-;; ### Facet-grid: columns by drive, rows by class
+;; ### Grid of categories: columns by drive, rows by class
 ;; Source: [Vega-Lite: Trellis Grid Multi](https://vega.github.io/vega-lite/examples/trellis_scatter.html)
 ;;
-;; The Vega-Lite original facets by `:cyl`. Plotje's `pj/facet-grid`
+;; The Vega-Lite original facets by `:cyl`. A Plotje grid
 ;; accepts any column type -- distinct values become panel labels --
 ;; so this example uses `:class` purely for visual variety.
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy)
     pj/lay-point
-    (pj/facet-grid :drv :class)
+    (pj/facet {:col :drv :row :class})
     (pj/options {:title "MPG: Drive x Class"
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
 
 (kind/test-last [(fn [v] (pos? (:panels (pj/svg-summary v))))])
 
-;; ### Facet-grid, rows only
+;; ### Facet by rows
 ;; Source: [Vega-Lite: Column Facet](https://vega.github.io/vega-lite/examples/trellis_bar.html)
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy)
     pj/lay-point
-    (pj/facet-grid nil :drv)
+    (pj/facet {:row :drv})
     (pj/options {:title "MPG: Row Facets by Drive Type"
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
@@ -1843,13 +1844,13 @@
                                 (= 3 (:lines s))
                                 (= 3 (:panels s)))))])
 
-;; ### Facet-grid with boxplot
+;; ### Grid of categories with boxplot
 ;; Source: [Vega-Lite: Faceted Box](https://vega.github.io/vega-lite/examples/boxplot.html)
 
 (-> (rdatasets/reshape2-tips)
     (pj/pose :day :total-bill)
     pj/lay-boxplot
-    (pj/facet-grid :time :smoker)
+    (pj/facet {:col :time :row :smoker})
     (pj/options {:title "Tips: Day x Time x Smoker"
                  :x-label "Day"
                  :y-label "Total Bill ($)"}))
@@ -1909,7 +1910,8 @@
 ;; Source: [Vega-Lite: SPLOM](https://vega.github.io/vega-lite/examples/interactive_splom.html)
 
 (-> (rdatasets/datasets-mtcars)
-    (pj/facet-matrix [:mpg :hp :wt])
+    (pj/facet {:col {:x [:mpg :hp :wt]}
+              :row {:y [:mpg :hp :wt]}})
     (pj/options {:title "Motor Trend Cars: 3x3 SPLOM"}))
 
 (kind/test-last [(fn [v] (= 9 (:panels (pj/svg-summary v))))])
@@ -1918,7 +1920,8 @@
 ;; Source: [D3 Graph Gallery: SPLOM](https://d3-graph-gallery.com/graph/correlogram_basic.html)
 
 (-> (rdatasets/datasets-mtcars)
-    (pj/facet-matrix [:mpg :wt])
+    (pj/facet {:col {:x [:mpg :wt]}
+              :row {:y [:mpg :wt]}})
     (pj/options {:title "MPG vs Weight: 2x2 SPLOM"}))
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])

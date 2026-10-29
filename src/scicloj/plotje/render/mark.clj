@@ -570,7 +570,7 @@
         ;; axis is x there, and reading the y domain gave the column's
         ;; minimum instead: a density closed at 4.12 on a 0-to-0.42
         ;; scale ran about ten panel widths wide.
-        baseline (numeric-baseline ctx (= :flip (:coord-type ctx)))]
+        baseline (or (:baseline layer) (numeric-baseline ctx (= :flip (:coord-type ctx))))]
     (if (and (#{:stack :fill} position) (some :y0s groups))
       ;; Stacked: use pre-computed y0s from position/apply-positions
       (vec
@@ -1164,7 +1164,9 @@
         {:keys [flipped? band-s num-s]} (orient-scales ctx)
         coord-px (:coord-px ctx)
         {:keys [opacity]} style
-        base (numeric-baseline ctx flipped?)
+        ;; A matrix diagonal stands on its column's smallest value
+        ;; (`plan/fit-diagonal`).
+        base (or (:baseline layer) (numeric-baseline ctx flipped?))
         scaled (for [{:keys [color bars]} groups
                      {:keys [lo hi count] :as bar} bars]
                  {:color (or (:color bar) color)

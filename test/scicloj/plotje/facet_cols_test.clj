@@ -12,9 +12,6 @@
     (let [printed (with-out-str (is (= 4 (:panels (pj/svg-summary (pj/facet p :g {:cols 2}))))))]
       (is (re-find #"pj/facet does not recognize \[:cols\]\. A facet over one column draws its panels in one row" printed))
       (is (re-find #"pj/arrange" printed))))
-  (testing "pj/facet-grid says what its columns are"
-    (is (re-find #"pj/facet-grid does not recognize \[:cols\]\. A grid has a column of panels for each value of its first column"
-                 (with-out-str (pj/facet-grid p :g :h {:cols 2})))))
   (testing "pj/facet given :col and :row is described as a grid"
     (is (re-find #"pj/facet does not recognize \[:cols\]\. A facet over :col and :row draws a grid"
                  (with-out-str (pj/facet p {:col :g :row :h} {:cols 2}))))

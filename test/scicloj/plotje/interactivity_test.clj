@@ -108,3 +108,30 @@
     (let [html (->html (pj/plot (scatter {})))]
       (is (empty? (scripts html)))
       (is (not (str/includes? html "nsk-tooltip"))))))
+
+(defn- row-ids
+  "The `data-row-idx` of every mark a plot draws."
+  [pose]
+  (mapv parse-long (map second (re-seq #":data-row-idx (\d+)" (str (pj/plot pose))))))
+
+(deftest a-faceted-plot-numbers-each-row-once
+  ;; Each panel of a facet numbered its rows from zero, so brushing one
+  ;; panel highlighted a different row in each of the others.
+  (let [ids (row-ids (-> {:x [1 2 3 4 5 6] :y [2 1 4 3 6 5] :g ["a" "b" "a" "b" "a" "b"]}
+                         (pj/lay-point :x :y)
+                         (pj/facet :g)))]
+    (is (= (range 6) (sort ids)))))
+
+(deftest a-series-numbers-its-marks-by-the-data-row
+  ;; The marks of a series carried the row of the pivoted table, 0..11
+  ;; for six rows and two columns; both columns of row r carry r.
+  (let [ids (row-ids (pj/lay-point {:x [1 2 3 4 5 6] :u [2 1 4 3 6 5] :v [1 1 2 2 3 3]}
+                                   :x [:u :v]))]
+    (is (= (sort (concat (range 6) (range 6))) (sort ids)))))
+
+(deftest filtered-cells-number-rows-as-the-data-does
+  ;; A `:where` cell filtered its rows before they were numbered, so two
+  ;; cells of one dataset both had a row 0.
+  (let [d {:x [1 2 3 4] :y [4 3 2 1] :g ["a" "b" "a" "b"]}
+        ids (row-ids (pj/arrange (pj/lay-point d :x :y) [{:where {:g "a"}} {:where {:g "b"}}]))]
+    (is (= [0 1 2 3] (sort ids)))))

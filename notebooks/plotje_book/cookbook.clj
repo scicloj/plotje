@@ -517,7 +517,9 @@ longest-per-species
             {:title "Iris Dashboard" :cols 2})
 
 (kind/test-last [(fn [v] (and (pj/pose? v)
-                              (= "Iris Dashboard" (-> v :opts :title))))])
+                              ;; the arrangement's title and each cell's own
+                              (every? (set (:texts (pj/svg-summary v)))
+                                      ["Iris Dashboard" "Sepal" "Petal"])))])
 
 ;; ### Labeled scatter
 
@@ -1077,7 +1079,7 @@ quarterly-revenue
 ;;     (pj/save out-path {:format :png}))
 ;; ```
 
-;; ### Two vocabularies: plot return type vs save file format
+;; ### Plot return type and save file format
 ;;
 ;; The two paths above use the same `:format` keyword for different
 ;; jobs. `pj/plot` names a JVM return type:
@@ -1098,7 +1100,7 @@ quarterly-revenue
 
 ;; ## See Also
 ;;
-;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping, scope, and identity rules behind these recipes
+;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- the mapping, scope, and placement rules behind these recipes
 ;; - [**Composition**](./plotje_book.composition.html) -- composite poses for multi-panel layouts
 
 ;; ## What's Next

@@ -204,6 +204,15 @@ trace-pose
 ;; underscores (e.g. `:__panel-idx`) are internal markers; they pass
 ;; through the plan stage and follow the Clojure "do not consume"
 ;; convention.
+;;
+;; A draft layer's `:data` carries one column the pose was not given:
+;; `:scicloj.plotje/row`, the row of the pose's dataset each row came
+;; from. A facet splits the data and a series pivots it, and either
+;; numbers the resulting rows from zero again, so the row number is
+;; attached before both. `:brush true` reads it, which is how
+;; highlighting a point in one panel highlights the same row in the
+;; others. Like the double-underscore keys, the column is Plotje's: no
+;; mapping can name it, and no list of available columns shows it.
 
 (def trace-draft
   (pj/pose->draft trace-pose))

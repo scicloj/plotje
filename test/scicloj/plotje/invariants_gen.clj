@@ -186,7 +186,7 @@
                          {:steps (-> [ar] (into layers) (into tail))})
          :facet-matrix (let [cols (vec (take 2 (shuffle-r (:num ds))))
                              layers (vec (repeatedly (pick-w {0 30 1 70}) #(let [l (gen-layer ds)] [(first l)])))]
-                         {:steps (-> [['pj/facet-matrix cols]]
+                         {:steps (-> [['pj/facet {:col {:x cols} :row {:y cols}}]]
                                      (into layers)
                                      (cond-> trailing-opts (conj ['pj/options trailing-opts]))
                                      (into tail))})

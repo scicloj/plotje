@@ -12,6 +12,8 @@
 ;; - **`pj/arrange`** -- a panel per pose given to it.
 ;;
 ;; This chapter shows each, and how they combine.
+;; [Faceting](./plotje_book.faceting.html) and
+;; [Composition](./plotje_book.composition.html) teach each in depth.
 ;;
 ;; Read [Poses](./plotje_book.pose_model.html) first for what a leaf is.
 
@@ -28,7 +30,7 @@
    :depth   [2 3 4 5]
    :species ["a" "a" "b" "b"]})
 
-;; ## One leaf is one panel
+;; ## The panel of a leaf pose
 
 ;; A pose built from one dataset with one mapping is a single leaf, and
 ;; draws a single panel:
@@ -213,7 +215,26 @@
 (pj/arrange [(pj/lay-point measurements :height :weight)
              (pj/lay-point measurements :depth :weight)])
 
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 2 (count (filter #{"weight"} (:texts s)))))))])
+
+;; Each pose above carries the dataset, so each cell computes its own
+;; axes and titles `weight` beside its own panel. Given the dataset
+;; first, `pj/arrange` makes its cells parts of one dataset. Cells that
+;; draw the same column on an axis then share that axis, titled once
+;; beside the grid, as the panels of a facet are:
+
+(-> (pj/arrange measurements [{:x :height :y :weight}
+                              {:x :depth :y :weight}])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 1 (count (filter #{"weight"} (:texts s)))))))])
+
+;; [Composition](./plotje_book.composition.html#shared-scales) gives the
+;; rule for which cells share an axis, and how `:share-scales` changes it.
 
 ;; A composite pose can also be written directly, which
 ;; [Composition](./plotje_book.composition.html#explicit-composite-poses)
@@ -240,8 +261,48 @@
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
 ;; Every panel of a facet over categories shares one axis range, so the
-;; panels can be read against each other. That is what makes faceting different from
-;; arranging two poses that happen to hold the same columns.
+;; panels can be read against each other.
+
+;; ## Cells that filter the data
+
+;; A cell of `pj/arrange` may hold `:where`, a map from a column to a
+;; value, and draws only the rows that match. Cells that split one
+;; dataset by the values of one column draw what `pj/facet` draws over
+;; that column:
+
+(-> measurements
+    (pj/pose {:x :height :y :weight})
+    (pj/arrange [{:where {:species "a"}}
+                 {:where {:species "b"}}])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (= (pj/svg-summary v)
+                            (pj/svg-summary (-> measurements
+                                                (pj/pose {:x :height :y :weight})
+                                                pj/lay-point
+                                                (pj/facet :species)))))])
+
+;; [Faceting](./plotje_book.faceting.html#facet-or-arrange) compares the
+;; two forms.
+
+;; ## A matrix of columns
+
+;; A facet over columns can cross a list of columns with itself:
+;; `{:col {:x columns} :row {:y columns}}` draws a panel for every pair
+;; of columns, the columns across drawn on `:x` and the same columns down
+;; drawn on `:y`. A layer added after it is drawn in the panels whose
+;; columns it draws, and a panel with the same column on both axes draws
+;; a histogram:
+
+(-> measurements
+    (pj/facet {:col {:x [:height :weight :depth]}
+              :row {:y [:height :weight :depth]}})
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (and (= {:col {:x [:height :weight :depth]}
+                                  :row {:y [:height :weight :depth]}}
+                                 (:facet v))
+                              (= 9 (:panels (pj/svg-summary v)))))])
 
 ;; ## Combining them
 
@@ -257,14 +318,28 @@
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
 ;; Columns and categories cross in one `pj/facet` call, the categories
-;; across and the columns down:
+;; across and the columns down. Each entry under `:col` and `:row` is one
+;; of the two kinds of facet, as in the matrix above:
 
 (-> measurements
-    (pj/pose {:y :weight})
+    (pj/pose {:x :height})
     pj/lay-point
-    (pj/facet {:col :species :row {:x [:height :depth]}}))
+    (pj/facet {:col :species :row {:y [:weight :depth]}}))
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
+
+;; Two `pj/facet` calls, one over the categories and one over the
+;; columns, write the same grid, in either order:
+
+(-> measurements
+    (pj/pose {:x :height})
+    pj/lay-point
+    (pj/facet {:y [:weight :depth]})
+    (pj/facet :species))
+
+(kind/test-last [(fn [v] (let [base (-> measurements (pj/pose {:x :height}) pj/lay-point)]
+                           (and (= v (pj/facet base {:col :species :row {:y [:weight :depth]}}))
+                                (= v (-> base (pj/facet :species) (pj/facet {:y [:weight :depth]}))))))])
 
 ;; `:col` and `:row` are aesthetics, so a facet written on an arranged
 ;; pose reaches every cell:
