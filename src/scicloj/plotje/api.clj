@@ -1329,6 +1329,11 @@
      the same pose.
    - `(pj/pose fr {:data X :color :c})` -- extend mapping AND replace the
      top-level data with X.
+   - `(pj/pose fr {:where {:drv \"f\"}})` -- a row filter, kept on the
+     pose: it draws only the rows whose columns hold those values. A
+     second `:where` merges into the first, a column at a time. Written
+     beside a mapping on raw data too, and as `(pj/pose nil {:where
+     ...})` it is the cell of `pj/arrange` written `{:where ...}`.
 
    **On a hand-built pose-shaped map (1-arity, input has `:layers`,
    `:poses`, or a map-valued `:mapping`):** the map is validated and tagged with Kindly auto-render
