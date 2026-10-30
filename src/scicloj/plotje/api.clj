@@ -4817,15 +4817,9 @@
   "Append `cells` to the composite `p`, read as a cell list given after
    data is read (`normalize-arrange-cells`), from the data at its root:
    each cell of a flat list joins the composite's cells, and each row of
-   a list of rows joins it as a row. A pose is reported; beside a
-   composite it is a cell of a new arrangement."
+   a list of rows joins it as a row. A pose is a cell here as in one
+   call, so two calls draw what one call with both lists draws."
   [p cells]
-  (when (some pose? (tree-seq sequential? seq cells))
-    (throw (ex-info (str "pj/arrange appends columns and mappings to a"
-                         " composite pose, and was given a pose. To place a"
-                         " pose beside a composite, arrange the two:"
-                         " (pj/arrange [composite pose]).")
-                    {:caller "pj/arrange" :cells cells})))
   (let [cells (normalize-arrange-cells cells)
         coerce (fn [i c] (coerce-arrange-input c i))
         rows? (sequential? (first cells))]

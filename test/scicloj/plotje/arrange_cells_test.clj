@@ -102,6 +102,9 @@
                  (pj/arrange tiny [:u nil :w])))
       (is (same? (pj/arrange (pj/arrange tiny [:u :v :w :u :v]) [:w])
                  (pj/arrange tiny [:u :v :w :u :v :w]))))
+    (testing "a pose is a cell when appended, as in one call"
+      (is (= (pj/plot (pj/arrange (pj/arrange tiny [{:x :u :y :v}]) [(pj/lay-point tiny :u :w)]))
+             (pj/plot (pj/arrange tiny [{:x :u :y :v} (pj/lay-point tiny :u :w)])))))
     (testing "a lay-* naming new columns adds its cell the same way"
       (is (= [[{:x :u :y :v} [{:x :u :y :w}]]]
              (mapv (fn [row] (mapv #(or (:mapping %) (mapv :mapping (:layers %))) (:poses row)))
