@@ -1260,7 +1260,7 @@
     (some? data) (assoc :data data)
     (seq mapping) (assoc :mapping mapping)))
 
-(declare pose with-data note-lone-vector! compose-facets)
+(declare pose with-data note-lone-vector! compose-facets append-cells)
 
 (defn- extend-mapping
   ([p m] (extend-mapping "pj/pose" p m))
@@ -1580,8 +1580,7 @@
                               " the layer in every cell, name its columns on the pose"
                               " and add the layer with none: (-> pose (pj/pose "
                               (str/join " " (map pr-str cols)) ") " lay ").")))))
-          (update fr :poses (fnil conj [])
-                  {:layers [layer]}))))))
+          (append-cells fr [{:layers [layer]}] false))))))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -4692,6 +4691,52 @@
 ;; where the list is a list of rows, and otherwise an arrangement of its
 ;; own. A pair is written as a mapping, `{:x :a :y :b}`.
 
+(def ^:private flow-padding
+  "A place a short last row leaves empty. It draws nothing, as a `nil`
+   cell does, and is marked so that cells appended later can take it."
+  {:layers [] :plotje/empty-cell true :plotje/padding true})
+
+(defn- flow-rows
+  "Lay `cells` out in rows of `n-cols`, the last row filled out with
+   padding. A short last row keeps the cells the size of the rows
+   above: stretched to the full width, its axis was drawn at another
+   length than the axes above it."
+  [cells n-cols]
+  (let [rows (partition-all n-cols cells)
+        rows (if (and (next rows) (< (count (last rows)) n-cols))
+               (concat (butlast rows)
+                       [(concat (last rows)
+                                (repeat (- n-cols (count (last rows))) flow-padding))])
+               rows)]
+    (mapv (fn [row] {:layout {:direction :horizontal} :poses (vec row)}) rows)))
+
+(defn- append-cells
+  "Add `added`, poses already read as cells, to the composite `p`. An
+   arrangement made from a flat list (`:cols` on its layout) is laid out
+   again with the added cells after its own, so two calls draw what one
+   call with both lists draws. Elsewhere a flat list joins a vertical
+   composite as one row, and a list of rows as rows. `lay-*` adds the
+   cell for a layer naming new columns here too."
+  [p added rows?]
+  (let [cols (get-in p [:layout :cols])
+        vertical? (= :vertical (get-in p [:layout :direction]))]
+    (prepare-pose
+     (cond
+       (and cols (not rows?) (every? #(= :horizontal (get-in % [:layout :direction])) (:poses p)))
+       (let [own (into [] (comp (mapcat :poses) (remove :plotje/padding)) (:poses p))
+             cells (into own added)]
+         (assoc p :poses (flow-rows cells (if (= :auto cols) (min 4 (count cells)) cols))))
+
+       (and vertical? (not rows?))
+       (update p :poses (fnil conj []) {:layout {:direction :horizontal} :poses (vec added)})
+
+       (and vertical? rows?)
+       (update p :poses (fnil into [])
+               (map (fn [row] {:layout {:direction :horizontal} :poses (vec row)}) added))
+
+       :else
+       (update p :poses (fnil into []) (if rows? (apply concat added) added))))))
+
 (defn- hiccup?
   "True of rendered hiccup, `[:svg {...} ...]`: a keyword, then an
    attribute map. Read only to report it; it is never a cell."
@@ -4768,12 +4813,12 @@
                     {:caller "pj/arrange" :cells cells})))
   (let [cells (normalize-arrange-cells cells)
         coerce (fn [i c] (coerce-arrange-input c i))
-        added (if (sequential? (first cells))
-                (map (fn [row] {:layout {:direction :horizontal}
-                                :poses (vec (map-indexed coerce row))})
-                     cells)
-                (map-indexed coerce cells))]
-    (prepare-pose (update p :poses (fnil into []) added))))
+        rows? (sequential? (first cells))]
+    (append-cells p
+                  (if rows?
+                    (mapv #(vec (map-indexed coerce %)) cells)
+                    (vec (map-indexed coerce cells)))
+                  rows?)))
 
 (defn- arrange-from-pose
   "Arrange `cells` beside what the pose `p` already holds."
@@ -4994,27 +5039,15 @@
                         (min 4 n-plots)))
          _ (when-not (pos? (long n-cols))
              (throw (ex-info ":cols must be a positive integer." {:cols cols})))
-         row-partitions (if nested?
-                          (map #(mapv (fn [i] (nth leaves i))
-                                      (range (reduce + (map count (take % rows-in)))
-                                             (reduce + (map count (take (inc %) rows-in)))))
-                               (range (count rows-in)))
-                          (partition-all n-cols leaves))
-         ;; A short last row keeps the cells the size of the rows
-         ;; above, its other places left empty, as `nil` cells leave
-         ;; them: stretched to the full width, its axis was drawn at
-         ;; another length than the axes above it.
-         row-partitions (if (and (not nested?) (next row-partitions)
-                                 (< (count (last row-partitions)) n-cols))
-                          (concat (butlast row-partitions)
-                                  [(concat (last row-partitions)
-                                           (repeat (- n-cols (count (last row-partitions)))
-                                                   (assoc (pose) :plotje/empty-cell true)))])
-                          row-partitions)
-         row-poses (mapv (fn [row]
-                           {:layout {:direction :horizontal}
-                            :poses (vec row)})
-                         row-partitions)
+         row-poses (if nested?
+                     (mapv (fn [row]
+                             {:layout {:direction :horizontal}
+                              :poses (vec row)})
+                           (map #(mapv (fn [i] (nth leaves i))
+                                       (range (reduce + (map count (take % rows-in)))
+                                              (reduce + (map count (take (inc %) rows-in)))))
+                                (range (count rows-in))))
+                     (flow-rows leaves n-cols))
          ;; The size is written only where the caller gave one. The
          ;; configuration's is read when the composite is drawn
          ;; (`compositor/outer-dimensions`), as a leaf's is, so a
@@ -5031,7 +5064,11 @@
                                                                                   share-scales
                                                                                   (set share-scales)))
                             align-panels (assoc :align-panels true))
-                    :layout {:direction :vertical}
+                    ;; A flat list records its column count, `:auto`
+                    ;; where none was given, so cells appended later
+                    ;; are laid out with it (`append-cells`).
+                    :layout (cond-> {:direction :vertical}
+                              (not nested?) (assoc :cols (or cols :auto)))
                     :poses row-poses}]
      (cond-> (kind/fn (elide-empty-maps composite)
                {:kindly/f (render-composite defaults/*config*)})

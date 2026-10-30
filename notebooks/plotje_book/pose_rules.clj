@@ -672,12 +672,15 @@ composite-pose
     (and (nil? (:poses pose))
          (= 2 (count (:layers pose)))))])
 
-;; ### Rule LP3: on a composite, a `lay-*` naming columns no leaf draws appends a new leaf at the root
+;; ### Rule LP3: on a composite, a `lay-*` naming columns no leaf draws appends a new leaf
 ;;
 ;; When a `lay-*` call names `:x` and `:y` and the panel of **no** leaf
-;; draws those two columns, a new leaf is appended at the composite's
-;; root `:poses`. It holds the one layer, and the layer's
-;; own `:mapping` carries the columns the call named.
+;; draws those two columns, a new leaf is appended to the composite. It
+;; holds the one layer, and the layer's own `:mapping` carries the
+;; columns the call named. On an arrangement made from a flat list of
+;; cells, the new leaf joins that list, and the arrangement is laid out
+;; as one `pj/arrange` call with the longer list would lay it out: here
+;; the new leaf joins the row as its third cell.
 ;; A leaf given other columns stays a leaf instead, and its layers share
 ;; its panel -- see LP2 above.
 
@@ -688,6 +691,7 @@ composite-pose
 (kind/test-last
  [(fn [pose]
     (and (= 3 (count (cells pose)))
+         (= [3] (mapv #(count (:poses %)) (:poses pose)))
          (nil? (:mapping (nth (cells pose) 2)))
          (= [{:x :sepal-length :y :petal-length}]
             (mapv :mapping (:layers (nth (cells pose) 2))))))])

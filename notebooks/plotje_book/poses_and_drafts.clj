@@ -111,11 +111,16 @@ composite-pose
 
 (kind/test-last [(fn [n] (= 1 n))])
 
+;; The top pose's layout says its rows are stacked vertically, and
+;; records how many panels a row holds -- `:auto`, since the call gave
+;; no `:cols` -- so that cells appended later are laid out with the
+;; others. Each row lays its panels out horizontally:
+
 [(:layout composite-pose)
  (-> composite-pose :poses first :layout)]
 
 (kind/test-last
- [(fn [ls] (= [{:direction :vertical} {:direction :horizontal}] ls))])
+ [(fn [ls] (= [{:direction :vertical :cols :auto} {:direction :horizontal}] ls))])
 
 ;; One level further down are the leaves:
 

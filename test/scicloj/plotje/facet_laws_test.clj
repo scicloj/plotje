@@ -456,3 +456,16 @@
       (is (not (re-find #"panel per column"
                         (message (-> mpg (pj/lay-point :displ :hwy)
                                      (pj/facet [:manufacturer :cty])))))))))
+
+(deftest nil-places-in-both-directions-title-each-axis-once-test
+  ;; With `nil` across and down, the grid's x holds two `displ` cells
+  ;; and a count, so it is not titled once beside the grid; each cell
+  ;; whose ticks are dropped for the cell below (x) or at its left (y)
+  ;; drops its title too where that cell draws the same column.
+  (let [mpg (rdatasets/ggplot2-mpg)
+        titles (fn [p] (frequencies (filter #{"displ" "hwy"} (:texts (pj/svg-summary p)))))]
+    (is (= {"displ" 1 "hwy" 1}
+           (titles (-> mpg (pj/facet {:col {:x [:displ nil]} :row {:y [nil :hwy]}}) pj/lay-point))))
+    (testing "as with nil in one direction"
+      (is (= {"displ" 1 "hwy" 1}
+             (titles (-> mpg (pj/facet {:col {:x [:displ]} :row {:y [nil :hwy]}}) pj/lay-point)))))))

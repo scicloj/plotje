@@ -111,43 +111,47 @@
 
 
 (def
- v24_l114
+ v25_l119
  [(:layout composite-pose) (-> composite-pose :poses first :layout)])
 
 
 (deftest
- t25_l117
+ t26_l122
  (is
-  ((fn [ls] (= [{:direction :vertical} {:direction :horizontal}] ls))
-   v24_l114)))
+  ((fn
+    [ls]
+    (=
+     [{:direction :vertical, :cols :auto} {:direction :horizontal}]
+     ls))
+   v25_l119)))
 
 
-(def v27_l122 (-> composite-pose :poses first :poses count))
+(def v28_l127 (-> composite-pose :poses first :poses count))
 
 
-(deftest t28_l124 (is ((fn [n] (= 2 n)) v27_l122)))
+(deftest t29_l129 (is ((fn [n] (= 2 n)) v28_l127)))
 
 
 (def
- v30_l130
+ v31_l135
  (-> composite-pose :poses first :poses first keys sort vec))
 
 
-(deftest t31_l132 (is ((fn [ks] (= [:data :layers] ks)) v30_l130)))
+(deftest t32_l137 (is ((fn [ks] (= [:data :layers] ks)) v31_l135)))
 
 
 (def
- v32_l134
+ v33_l139
  (-> composite-pose :poses first :poses first :layers first :mapping))
 
 
 (deftest
- t33_l136
- (is ((fn [m] (= {:x :petal-length, :y :petal-width} m)) v32_l134)))
+ t34_l141
+ (is ((fn [m] (= {:x :petal-length, :y :petal-width} m)) v33_l139)))
 
 
 (def
- v35_l183
+ v36_l188
  (def
   jittered-pose
   (->
@@ -158,69 +162,69 @@
     {:jitter 5, :in :data, :size 5}))))
 
 
-(def v36_l187 jittered-pose)
+(def v37_l192 jittered-pose)
 
 
 (deftest
- t37_l189
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v36_l187)))
+ t38_l194
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v37_l192)))
 
 
-(def v38_l191 (kind/pprint jittered-pose))
+(def v39_l196 (kind/pprint jittered-pose))
 
 
-(def v40_l196 (-> jittered-pose :layers first :mapping))
+(def v41_l201 (-> jittered-pose :layers first :mapping))
 
 
 (deftest
- t41_l198
+ t42_l203
  (is
   ((fn
     [m]
     (=
      {:x :petal-length, :y :petal-width, :jitter 5, :in :data, :size 5}
      m))
-   v40_l196)))
+   v41_l201)))
 
 
-(def v43_l217 (:mapping jittered-pose))
+(def v44_l222 (:mapping jittered-pose))
 
 
-(deftest t44_l219 (is (nil? v43_l217)))
+(deftest t45_l224 (is (nil? v44_l222)))
 
 
-(def v46_l227 (def iris-draft (pj/draft iris-pose)))
+(def v47_l232 (def iris-draft (pj/draft iris-pose)))
 
 
-(def v47_l229 (kind/pprint iris-draft))
+(def v48_l234 (kind/pprint iris-draft))
 
 
-(def v48_l231 (-> iris-draft :layers count))
+(def v49_l236 (-> iris-draft :layers count))
 
 
-(deftest t49_l233 (is ((fn [n] (= 2 n)) v48_l231)))
+(deftest t50_l238 (is ((fn [n] (= 2 n)) v49_l236)))
 
 
-(def v51_l238 (-> iris-draft :layers first keys sort vec))
+(def v52_l243 (-> iris-draft :layers first keys sort vec))
 
 
 (deftest
- t52_l240
+ t53_l245
  (is
   ((fn
     [ks]
     (= [:__panel-idx :color :data :layer-type :mark :stat :x :y] ks))
-   v51_l238)))
+   v52_l243)))
 
 
-(def v54_l257 (-> iris-draft keys sort vec))
+(def v55_l262 (-> iris-draft keys sort vec))
 
 
-(deftest t55_l259 (is ((fn [ks] (= [:layers :opts] ks)) v54_l257)))
+(deftest t56_l264 (is ((fn [ks] (= [:layers :opts] ks)) v55_l262)))
 
 
 (def
- v57_l268
+ v58_l273
  (def
   annotated
   (->
@@ -229,97 +233,97 @@
    (pj/lay-text {:x 2, :y 2, :text "a note"}))))
 
 
-(def v58_l273 annotated)
+(def v59_l278 annotated)
 
 
 (deftest
- t59_l275
+ t60_l280
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (contains? (set (:texts s)) "a note"))))
-   v58_l273)))
+   v59_l278)))
 
 
-(def v61_l283 (kind/pprint annotated))
+(def v62_l288 (kind/pprint annotated))
 
 
-(def v62_l285 (-> annotated :layers second :mapping))
+(def v63_l290 (-> annotated :layers second :mapping))
 
 
 (deftest
- t63_l287
- (is ((fn [m] (= {:x 2, :y 2, :text "a note"} m)) v62_l285)))
+ t64_l292
+ (is ((fn [m] (= {:x 2, :y 2, :text "a note"} m)) v63_l290)))
 
 
-(def v65_l293 (def annotated-draft (pj/draft annotated)))
+(def v66_l298 (def annotated-draft (pj/draft annotated)))
 
 
-(def v66_l295 (kind/pprint annotated-draft))
+(def v67_l300 (kind/pprint annotated-draft))
 
 
 (def
- v67_l297
+ v68_l302
  (-> annotated-draft :layers second (select-keys [:x :y :text])))
 
 
 (deftest
- t68_l299
- (is ((fn [m] (= {:x :x, :y :y, :text :text} m)) v67_l297)))
+ t69_l304
+ (is ((fn [m] (= {:x :x, :y :y, :text :text} m)) v68_l302)))
 
 
-(def v70_l307 (-> annotated-draft :layers second :data))
+(def v71_l312 (-> annotated-draft :layers second :data))
 
 
 (deftest
- t71_l309
+ t72_l314
  (is
   ((fn
     [ds]
     (and
      (= [:x :y :text] (vec (tc/column-names ds)))
      (= 1 (tc/row-count ds))))
-   v70_l307)))
+   v71_l312)))
 
 
-(def v73_l339 (def composite-draft (pj/draft composite-pose)))
+(def v74_l344 (def composite-draft (pj/draft composite-pose)))
 
 
-(def v74_l341 (kind/pprint composite-draft))
+(def v75_l346 (kind/pprint composite-draft))
 
 
-(def v75_l343 (-> composite-draft keys sort vec))
+(def v76_l348 (-> composite-draft keys sort vec))
 
 
 (deftest
- t76_l345
+ t77_l350
  (is
   ((fn [ks] (= [:chrome-spec :height :layout :sub-drafts :width] ks))
-   v75_l343)))
+   v76_l348)))
 
 
-(def v78_l351 (:layout composite-draft))
+(def v79_l356 (:layout composite-draft))
 
 
 (deftest
- t79_l353
+ t80_l358
  (is
   ((fn
     [m]
     (= {[0 0] [0.0 0.0 300.0 400.0], [0 1] [300.0 0.0 300.0 400.0]} m))
-   v78_l351)))
+   v79_l356)))
 
 
-(def v81_l370 (-> iris-pose pj/plan pj/valid-plan?))
+(def v82_l375 (-> iris-pose pj/plan pj/valid-plan?))
 
 
-(deftest t82_l372 (is (true? v81_l370)))
+(deftest t83_l377 (is (true? v82_l375)))
 
 
 (def
- v84_l376
+ v85_l381
  (->
   iris-pose
   pj/plan
@@ -328,4 +332,4 @@
   some?))
 
 
-(deftest t85_l378 (is (true? v84_l376)))
+(deftest t86_l383 (is (true? v85_l381)))

@@ -43,12 +43,14 @@
 (def Layout
   "Compositor layout spec for a composite pose. `:matrix` places
    leaves on a grid derived from their `:x` / `:y` mappings and
-   ignores `:weights`; it is what `pj/pose` stamps when a threaded
-   `:x` or `:y` promotes a leaf into a composite. See
+   ignores `:weights`. `:cols` marks an arrangement made from a flat
+   list of cells -- its column count, or `:auto` -- so cells appended
+   later are laid out with the others. See
    `impl.pose/compute-layout`."
   [:map
    [:direction {:optional true} [:enum :horizontal :vertical :matrix]]
-   [:weights {:optional true} [:vector pos?]]])
+   [:weights {:optional true} [:vector pos?]]
+   [:cols {:optional true} [:or pos-int? [:= :auto]]]])
 
 (def ShareScales
   "The axes cells share: a set of axes, or a map from an axis to

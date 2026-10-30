@@ -3918,15 +3918,27 @@
                    (and (> y2 y) (same? x x2) (same? w w2)))
           left? (fn [[x y _ h] [x2 y2 _ h2]]
                   (and (< x2 x) (same? y y2) (same? h h2)))
+          column-of (fn [leaf axis] (get (leaf-columns leaf) (data-axis leaf axis)))
+          by-path (into {} (map (juxt :path identity)) live-leaves)
+          ;; A cell drops its title where the cell that keeps its tick
+          ;; labels -- below it (x) or at its left (y), sharing the axis
+          ;; -- draws the same column, so the title is drawn once, at
+          ;; the ticks. An axis whose cells all draw one column is
+          ;; titled beside the grid instead (`once-x?`, `once-y?`).
+          titled-there? (fn [leaf axis other]
+                          (let [col (column-of leaf axis)]
+                            (and (some? col) (= col (column-of (by-path (:path other)) axis)))))
           chrome (fn [leaf]
-                   (let [rect (rects (:path leaf))]
+                   (let [rect (rects (:path leaf))
+                         x-below (filter #(and (together? :x leaf %) (below? rect (:rect %))) live)
+                         y-left (filter #(and (together? :y leaf %) (left? rect (:rect %))) live)]
                      (cond-> {}
-                       once-x? (assoc :suppress-x-label true)
-                       (some #(and (together? :x leaf %) (below? rect (:rect %))) live)
-                       (assoc :suppress-x-ticks true)
-                       once-y? (assoc :suppress-y-label true)
-                       (some #(and (together? :y leaf %) (left? rect (:rect %))) live)
-                       (assoc :suppress-y-ticks true))))]
+                       (or once-x? (some #(titled-there? leaf :x %) x-below))
+                       (assoc :suppress-x-label true)
+                       (seq x-below) (assoc :suppress-x-ticks true)
+                       (or once-y? (some #(titled-there? leaf :y %) y-left))
+                       (assoc :suppress-y-label true)
+                       (seq y-left) (assoc :suppress-y-ticks true))))]
       (cond-> (reduce (fn [c leaf]
                         (let [ch (when-not (:plotje/empty-cell leaf) (chrome leaf))]
                           (if (seq ch)

@@ -87,3 +87,25 @@
   (testing "appended to a composite, a list is read the same way"
     (is (= [[{:x :u} {:x :v}] [{:x :w} {:x :u}]]
            (cell-structure (pj/arrange (pj/arrange tiny [:u :v]) [[:w :u]]))))))
+
+(deftest appending-is-concatenation-test
+  (let [same? (fn [a b] (= (pj/plot (pj/lay-histogram a)) (pj/plot (pj/lay-histogram b))))]
+    (testing "two calls draw what one call with both lists draws"
+      (is (same? (pj/arrange (pj/arrange tiny [:u :v]) [:w])
+                 (pj/arrange tiny [:u :v :w])))
+      (is (same? (pj/arrange (pj/arrange tiny [:u :v :w :u]) [:v])
+                 (pj/arrange tiny [:u :v :w :u :v])))
+      (is (same? (pj/arrange (pj/arrange tiny [:u :v] {:cols 1}) [:w])
+                 (pj/arrange tiny [:u :v :w] {:cols 1}))))
+    (testing "a nil cell is kept, and the padding of a short last row is taken"
+      (is (same? (pj/arrange (pj/arrange tiny [:u nil]) [:w])
+                 (pj/arrange tiny [:u nil :w])))
+      (is (same? (pj/arrange (pj/arrange tiny [:u :v :w :u :v]) [:w])
+                 (pj/arrange tiny [:u :v :w :u :v :w]))))
+    (testing "a lay-* naming new columns adds its cell the same way"
+      (is (= [[{:x :u :y :v} [{:x :u :y :w}]]]
+             (mapv (fn [row] (mapv #(or (:mapping %) (mapv :mapping (:layers %))) (:poses row)))
+                   (:poses (pj/lay-point (pj/arrange tiny [{:x :u :y :v}]) :u :w))))))
+    (testing "an arrangement written as rows takes an appended list as a new row"
+      (is (= [2 1] (mapv #(count (:poses %))
+                         (:poses (pj/arrange (pj/arrange tiny [[:u :v]]) [:w]))))))))
