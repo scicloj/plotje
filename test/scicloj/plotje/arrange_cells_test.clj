@@ -126,3 +126,16 @@
                         [:panels :points]))))
   (testing "nil alone is reported, as (pj/pose nil) is"
     (is (re-find #"requires data, but got nil" (message #(pj/lay-point nil))))))
+
+(deftest where-in-pose-test
+  (testing "pj/pose takes :where beside a mapping, kept on the pose"
+    (is (= {:u 1.0} (:where (pj/pose tiny :u :v {:where {:u 1.0}}))))
+    (is (= 2 (:points (pj/svg-summary (pj/lay-point (pj/pose tiny :u :v {:where {:u #{1.0 2.0}}})))))))
+  (testing "a second :where merges into the first, a column at a time"
+    (is (= {:u 1.0 :v 4.0} (:where (-> tiny (pj/pose {:where {:u 1.0}}) (pj/pose {:where {:v 4.0}}))))))
+  (testing "a :where cell is what (pj/pose nil {:where ...}) writes"
+    (is (= (pj/plot (pj/lay-point (pj/arrange (pj/pose tiny :u :v) [{:where {:u 1.0}} {:where {:u 2.0}}])))
+           (pj/plot (pj/lay-point (pj/arrange (pj/pose tiny :u :v) [(pj/pose nil {:where {:u 1.0}})
+                                                                   (pj/pose nil {:where {:u 2.0}})]))))))
+  (testing "a :where that is not a map reports an error"
+    (is (re-find #"takes :where as a map" (message #(pj/pose tiny {:where :u}))))))

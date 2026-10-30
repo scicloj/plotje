@@ -266,7 +266,9 @@
 ;; ## Cells that filter the data
 
 ;; A cell of `pj/arrange` may hold `:where`, a map from a column to a
-;; value, and draws only the rows that match. Cells that split one
+;; value, and draws only the rows that match. The cell is what
+;; `(pj/pose nil {:where {:species "a"}})` writes, as any cell is what
+;; one argument after the data is to `pj/pose`. Cells that split one
 ;; dataset by the values of one column draw what `pj/facet` draws over
 ;; that column:
 

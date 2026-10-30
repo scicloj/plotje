@@ -1057,9 +1057,11 @@ my-pose
 ;;
 ;; A **row filter** is the `:where` of a pose: a map from a column to a
 ;; value, or to a set of values, that keeps the rows matching it. A pose
-;; with a `:where` draws what the filtered data draws. The cells a facet
-;; over categories stands for are poses with a `:where` each, so an
-;; arrangement of such cells draws what the facet draws.
+;; with a `:where` draws what the filtered data draws. `pj/pose` writes
+;; one beside a mapping, as in `(pj/pose data {:where {:species
+;; "setosa"}})`. The cells a facet over categories stands for are poses
+;; with a `:where` each, so an arrangement of such cells draws what the
+;; facet draws.
 
 (pj/arrange (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)
             [{:where {:species "setosa"}} {:where {:species "versicolor"}} {:where {:species "virginica"}}])

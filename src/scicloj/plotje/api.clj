@@ -937,13 +937,13 @@
       (defaults/renamed-to k)
       (str "Renamed to " (defaults/renamed-to k))
 
-      ;; `:where` is a key of the pose map itself, which no function
-      ;; but `pj/arrange` writes.
+      ;; `:where` is a key of the pose itself, which `pj/pose` and a
+      ;; cell of `pj/arrange` write.
       (= :where k)
-      (str "A row filter is written on a cell of pj/arrange, as in"
-           " (pj/arrange pose [{:where {:drv \"f\"}}]), or on the pose"
-           " map, (assoc pose :where {:drv \"f\"}); tc/select-rows"
-           " filters the data itself")
+      (str "A row filter is written in pj/pose, as in"
+           " (pj/pose pose {:where {:drv \"f\"}}), or as a cell of"
+           " pj/arrange, as in (pj/arrange pose [{:where {:drv \"f\"}}]);"
+           " tc/select-rows filters the data itself")
 
       (dedicated-function-keys k)
       (str "Set by " (dedicated-function-keys k) ", not by an options map")
@@ -1266,21 +1266,32 @@
   ([p m] (extend-mapping "pj/pose" p m))
   ([caller p m]
    (check-mapping-in-map-slot caller m "its mapping map")
-   (let [opts      (or (warn-and-strip-unknown-opts caller m pose-mapping-keys)
+   ;; `:where`, a row filter, is written beside the mapping and kept on
+   ;; the pose itself, where a cell of `pj/arrange` keeps it: the pose
+   ;; draws only the rows that match. A second filter merges into the
+   ;; first, a column at a time, as a mapping does.
+   (let [where     (:where m)
+         _         (when (and (contains? m :where) (not (map? where)))
+                     (throw (ex-info (str caller " takes :where as a map from column to"
+                                          " value or set of values, as in {:where {:drv \"f\"}},"
+                                          " and was given " (pr-str where) ".")
+                                     {:caller caller :where where})))
+         opts      (or (warn-and-strip-unknown-opts caller (dissoc m :where) pose-mapping-keys)
                        {})
          data-over (:data opts)
-         mapping   (dissoc opts :data)]
+         mapping   (dissoc opts :data)
+         add-where (fn [q] (if (seq where) (update q :where merge where) q))]
      (check-column-ref-types caller mapping)
      (check-explicit-mappings caller mapping)
      (check-position-mapping caller mapping)
      (if (pose? p)
-       (cond-> (prepare-pose (extend-pose p mapping))
+       (cond-> (prepare-pose (add-where (extend-pose p mapping)))
         ;; Categories written beside a facet over columns meet it in
         ;; the normal form `pj/facet` writes, and a direction with no
         ;; room left is reported here rather than when drawn.
          (and (:facet p) (some #(contains? mapping %) [:col :row])) compose-facets
          data-over (with-data data-over))
-       (prepare-pose (pose-from-data (or data-over p) mapping))))))
+       (prepare-pose (add-where (pose-from-data (or data-over p) mapping)))))))
 
 (defn pose
   "Construct or extend a pose.
