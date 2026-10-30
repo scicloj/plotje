@@ -79,13 +79,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__79841#] (= :petal-length (:x p1__79841#)))
+        (fn* [p1__79438#] (= :petal-length (:x p1__79438#)))
         layers)
        (every?
-        (fn* [p1__79842#] (= :petal-width (:y p1__79842#)))
+        (fn* [p1__79439#] (= :petal-width (:y p1__79439#)))
         layers)
        (every?
-        (fn* [p1__79843#] (= :species (:color p1__79843#)))
+        (fn* [p1__79440#] (= :species (:color p1__79440#)))
         layers)))
      (= {} (:opts d))))
    v14_l220)))
@@ -139,8 +139,8 @@
      (pos? (count (:drawables v)))
      (every?
       (fn*
-       [p1__79844#]
-       (.startsWith (.getName (class p1__79844#)) "membrane.ui."))
+       [p1__79441#]
+       (.startsWith (.getName (class p1__79441#)) "membrane.ui."))
       (:drawables v))))
    v27_l278)))
 
@@ -232,7 +232,7 @@
        2
        (count
         (filter
-         (fn* [p1__79845#] (.startsWith p1__79845# "rgb"))
+         (fn* [p1__79442#] (.startsWith p1__79442# "rgb"))
          (:colors s)))))))
    v42_l521)))
 
@@ -248,7 +248,7 @@
    pj/pose->draft)
   :layers
   (mapv
-   (fn* [p1__79846#] (select-keys p1__79846# [:mark :x :y :color])))))
+   (fn* [p1__79443#] (select-keys p1__79443# [:mark :x :y :color])))))
 
 
 (deftest
@@ -397,7 +397,8 @@
   (->
    (rdatasets/datasets-iris)
    (pj/arrange
-    [[:petal-length :petal-width] [:sepal-length :sepal-width]])
+    [{:x :petal-length, :y :petal-width}
+     {:x :sepal-length, :y :sepal-width}])
    (pj/pose {:color :species}))))
 
 
@@ -574,7 +575,7 @@
    {:week ["w2" "w1" "w2" "w1"],
     :adults [30 25 28 35],
     :children [20 15 18 22]}
-   [[:week :adults] [:week :children]])
+   [{:x :week, :y :adults} {:x :week, :y :children}])
   pj/draft
   :sub-drafts
   (mapv :share)))
@@ -837,8 +838,8 @@
     [{:where {:drv "f"}} {:where {:drv "4"}}]]
    (mapv
     (fn*
-     [p1__79847#]
-     (pj/composite-plan? (pj/plan (pj/arrange points p1__79847#))))))))
+     [p1__79444#]
+     (pj/composite-plan? (pj/plan (pj/arrange points p1__79444#))))))))
 
 
 (deftest

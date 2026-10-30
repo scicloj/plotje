@@ -199,10 +199,10 @@
   ;; A composite's cells are separate poses; decision 3c (a layer goes
   ;; to every cell naming its columns) is not built.
   (testing "a miss appends a panel"
-    (let [base (pj/arrange weather [[:day :reading] [:day :humidity]])]
+    (let [base (pj/arrange weather [{:x :day :y :reading} {:x :day :y :humidity}])]
       (is (= 3 (panels (pj/lay-point base :day :other))))))
   (testing "a hit lands on the matching leaf"
-    (let [base (pj/arrange weather [[:day :reading] [:day :humidity]])]
+    (let [base (pj/arrange weather [{:x :day :y :reading} {:x :day :y :humidity}])]
       (is (= 2 (panels (pj/lay-point base :day :humidity)))))))
 
 (deftest layers-are-told-apart-however-they-were-added-test

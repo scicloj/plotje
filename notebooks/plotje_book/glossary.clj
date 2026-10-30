@@ -81,8 +81,10 @@ my-pose
 ;; ## Arrange
 ;;
 ;; `pj/arrange` builds a composite pose from cells. A cell is a pose, a
-;; composite, a column, a pair of columns, a mapping, or `nil` for a
-;; cell left empty. Data or a pose written first reaches every cell.
+;; composite, a column, a mapping, or `nil` for a cell left empty. A
+;; vector in the list of cells is never a cell: it is a row of cells, or
+;; an arrangement of its own. Data or a pose written first reaches every
+;; cell.
 ;; The composite holds one sub-pose per row, and each row holds the
 ;; cells of that row. `pj/arrange` accepts `:cols`, `:align-panels`,
 ;; `:share-scales`, and every plot option `pj/options` takes, such as

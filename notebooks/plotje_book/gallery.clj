@@ -1587,12 +1587,12 @@
 ;; Source: [Vega-Lite: Layered Line](https://vega.github.io/vega-lite/examples/layer_line_color_rule.html)
 
 ;; Two different y columns, each in a panel of its own. `pj/arrange`
-;; takes a pair of columns as a cell, and the layer added afterwards is
-;; drawn in every cell.
+;; takes a mapping naming two columns as a cell, and the layer added
+;; afterwards is drawn in every cell.
 
 (-> (rdatasets/ggplot2-economics)
-    (pj/arrange [[:date :unemploy]
-                 [:date :uempmed]])
+    (pj/arrange [{:x :date :y :unemploy}
+                 {:x :date :y :uempmed}])
     pj/lay-line
     (pj/options {:title "Unemployment: Total vs Median Duration"}))
 
@@ -1602,9 +1602,9 @@
 ;; Source: [ECharts: Multi Line](https://echarts.apache.org/examples/en/editor.html?c=line-smooth)
 
 (-> (rdatasets/ggplot2-economics)
-    (pj/arrange [[:date :unemploy]
-                 [:date :uempmed]
-                 [:date :psavert]])
+    (pj/arrange [{:x :date :y :unemploy}
+                 {:x :date :y :uempmed}
+                 {:x :date :y :psavert}])
     pj/lay-line
     (pj/options {:title "US Economic Indicators"}))
 

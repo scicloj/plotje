@@ -2104,7 +2104,13 @@
                    (-> iris (pj/pose :sepl_length :sepal_width)
                        pj/lay-point pj/plot)))))
   (testing "pj/cross is purely structural -- still works with strings"
-    (is (= 9 (count (pj/cross ["a" "b" "c"] ["a" "b" "c"]))))))
+    (is (= 9 (count (pj/cross ["a" "b" "c"] ["a" "b" "c"])))))
+  (testing "pj/cross is deprecated: it warns naming the facet, and errors under :strict"
+    (let [out (with-out-str (pj/cross [:a :b] [:c :d]))]
+      (is (re-find #"pj/cross is deprecated" out))
+      (is (re-find #"\(pj/facet data \{:col \{:x \[:a :b\]\} :row \{:y \[:c :d\]\}\}\)" out)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"pj/cross is deprecated"
+                          (pj/with-config {:strict true} (pj/cross [:a :b] [:c :d]))))))
 
 (deftest string-column-in-lay-test
   (testing "String column names in lay-point directly (no explicit pj/pose)"
@@ -3857,15 +3863,15 @@
       (is (= 3 (:panels (summary (-> (pj/arrange d [:a :b :c]) (pj/lay-histogram)))))))
     (testing "bivariate pairs"
       (is (= {:panels 2 :points 6}
-             (summary (-> (pj/arrange d [[:a :b] [:c :d]]) (pj/lay-point))))))
+             (summary (-> (pj/arrange d [{:x :a :y :b} {:x :c :y :d}]) (pj/lay-point))))))
     (testing "a pose supplies data and layers"
       (is (= {:panels 2 :points 6}
-             (summary (pj/arrange (pj/lay-point (pj/pose d)) [[:a :b] [:c :d]])))))
+             (summary (pj/arrange (pj/lay-point (pj/pose d)) [{:x :a :y :b} {:x :c :y :d}])))))
     (testing "a composite pose has panels appended"
-      (is (= 4 (:panels (summary (pj/arrange (pj/arrange d [[:a :b] [:c :d]])
-                                             [[:a :c] [:b :d]]))))))
+      (is (= 4 (:panels (summary (pj/arrange (pj/arrange d [{:x :a :y :b} {:x :c :y :d}])
+                                             [{:x :a :y :c} {:x :b :y :d}]))))))
     (testing "mixed forms"
-      (is (= 3 (:panels (summary (-> (pj/arrange d [[(pj/pose d) :a] [:b :c] [[:a :d]]])
+      (is (= 3 (:panels (summary (-> (pj/arrange d [(pj/pose d :a) {:x :b :y :c} [{:x :a :y :d}]])
                                      (pj/lay-histogram)))))))))
 
 (deftest tile-grouped-fill-follows-its-row-test

@@ -198,10 +198,11 @@
            (re-find #"a pose maps :x to :petal-length, and every layer drawn on it names its own :x" printed)
            (re-find #"a pose maps :y to :petal-width" printed))))])
 
-;; For panels side by side, `pj/arrange` takes the pairs of columns:
+;; For panels side by side, `pj/arrange` takes a cell for each panel,
+;; here a mapping naming the panel's two columns:
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     pj/lay-point)
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
@@ -276,12 +277,12 @@
 ;; an aesthetic that no cell maps itself reaches every cell:
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/pose {:color :species})
     pj/lay-point)
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/pose {:color :species})
     pj/lay-point
     pose-summary)
@@ -299,7 +300,7 @@
 ;; that the column written on the composite is not drawn:
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/pose :sepal-length :petal-length)
     pj/lay-point)
 
@@ -339,7 +340,7 @@ leaf-pose
 
 (def composite-pose
   (-> iris
-      (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+      (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
       pj/lay-point))
 
 composite-pose
@@ -357,11 +358,15 @@ composite-pose
 ;; ### Rule C8: `pj/arrange` composes poses into a composite
 ;;
 ;; `pj/arrange` returns a composite. It takes a vector of cells, or
-;; data or a pose first and then the cells. A cell is a pose, a
-;; composite, a column (a panel of that column), a pair of columns (a
-;; panel of the two columns), a mapping, or `nil` for a cell left
-;; empty. The cells are placed in rows: the composite's `:poses` are
-;; the rows, and each row's `:poses` are the cells of that row.
+;; data or a pose first and then the cells. A cell is what one argument
+;; after the data is to `pj/pose`: a pose, a composite, a column (a
+;; panel of that column), a mapping such as `{:x :a :y :b}` (a panel of
+;; the columns the mapping names), or `nil` for a cell left empty. A
+;; vector is never a cell. A vector in the cell list is a list of cells:
+;; a row, where the cell list is a list of rows, and otherwise an
+;; arrangement of its own. The cells are placed in rows: the
+;; composite's `:poses` are the rows, and each row's `:poses` are the
+;; cells of that row.
 
 (pj/arrange
  [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)
@@ -391,6 +396,20 @@ composite-pose
          ;; The supplied composite is still a composite where it
          ;; landed: root -> row -> the cell it was given as.
          (seq (:poses (first (:poses (first (:poses pose))))))))])
+
+;; Given data first, a list of vectors of columns is a list of rows,
+;; with a panel for each column, as a list of vectors of poses is:
+
+(-> iris
+    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    pj/lay-histogram)
+
+(kind/test-last
+ [(fn [pose]
+    (and (= 4 (:panels (pj/svg-summary pose)))
+         (= [2 2] (mapv #(count (:poses %)) (:poses pose)))
+         (= [{:x :sepal-length} {:x :sepal-width}]
+            (mapv :mapping (:poses (first (:poses pose)))))))])
 
 ;; `pj/arrange` writes the options it is given into the composite's
 ;; `:opts`: `:title`, `:width`, `:height`, `:share-scales`, and any plot
@@ -566,7 +585,7 @@ composite-pose
 ;; user typed, and the two forms are not interchangeable.
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/lay-point :sepal-length :sepal-width))
 
 (kind/test-last
@@ -663,7 +682,7 @@ composite-pose
 ;; its panel -- see LP2 above.
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/lay-point :sepal-length :petal-length))
 
 (kind/test-last
@@ -720,7 +739,7 @@ composite-pose
                     (pj/facet {:x [:sepal-length :petal-length]
                                :y [:sepal-width :petal-width]}))
       via-arrange (-> iris
-                      (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+                      (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
                       (pj/lay-point :sepal-length :sepal-width)
                       (pj/lay-point :petal-length :petal-width))
       drawn (fn [pose] (select-keys (pj/svg-summary pose) [:panels :points]))]
@@ -874,7 +893,7 @@ composite-pose
 ;; draws is a cell of its own.
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/lay-point :sepal-length :sepal-width {:color "#377eb8"})
     (pj/lay-point :petal-length :petal-width {:color "#e6550d"})
     (pj/lay-point :sepal-width :petal-width {:color "#4daf4a"}))
@@ -1320,7 +1339,7 @@ s2-tree
 ;; draws them and is drawn in that leaf's panel only:
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     (pj/lay-rule-h :sepal-length :sepal-width {:y-intercept 3.0}))
 
 (kind/test-last
@@ -1364,7 +1383,7 @@ s2-tree
 ;; has a layer inferred for it.
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     pj/lay-point                            ;; written on the root; reaches both
     (pj/lay-smooth :sepal-length :sepal-width
                    {:stat :linear-model}))  ;; written on sub-pose 1 only
@@ -1424,7 +1443,7 @@ s2-tree
 ;; the plan of a composite does.
 
 (-> iris
-    (pj/arrange [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
     pj/lay-point)
 
 (kind/test-last
@@ -1612,7 +1631,8 @@ l4-shared
          (= {:color :species} (:mapping pose))
          (nil? (:poses pose))
          ;; pj/pose given pairs points at the two spellings.
-         (let [msg (try (pj/pose iris (pj/cross [:sepal-length] [:petal-length :petal-width]))
+         (let [msg (try (pj/pose iris [[:sepal-length :petal-length]
+                                       [:sepal-length :petal-width]])
                         ""
                         (catch Exception e (ex-message e)))]
            (and (re-find #"pj/pose was given pairs of columns" msg)
@@ -1622,23 +1642,22 @@ l4-shared
 ;; ---
 ;; ## A Note on `pj/cross`
 ;;
-;; `pj/cross` is not a rule. It returns the pairs
-;; `(for [x xs y ys] [x y])` and draws nothing. `pj/arrange` takes the
-;; pairs as cells, one panel per pair, and `pj/facet` given
-;; `{:col {:x xs} :row {:y ys}}` crosses the two lists of columns (Rule
-;; L5).
-;; `pj/pose` given the pairs reports an error.
+;; `pj/cross` is deprecated, and calling it prints a warning. It returns
+;; the pairs `(for [x xs y ys] [x y])`, and a pair of columns is not a
+;; cell of `pj/arrange`, where a vector is a list of cells. For a panel
+;; for every column of `xs` crossed with every column of `ys`, write the
+;; facet of Rule L5:
 
-(pj/cross [:a :b] [:c :d])
+(-> iris
+    (pj/facet {:col {:x [:sepal-length :sepal-width]}
+               :row {:y [:petal-length :petal-width]}})
+    pj/lay-point)
 
 (kind/test-last
- [(fn [pairs]
-    (and (= [[:a :c] [:a :d] [:b :c] [:b :d]] pairs)
-         (= 4 (:panels (pj/svg-summary
-                        (-> iris
-                            (pj/arrange (pj/cross [:sepal-length :sepal-width]
-                                                  [:petal-length :petal-width]))
-                            pj/lay-point))))))])
+ [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
+
+;; For a panel per pair of columns chosen one by one, write each pair as
+;; a mapping, as in Rule C8.
 
 ;; ## What's Next
 ;;

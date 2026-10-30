@@ -432,11 +432,11 @@
          #"must be a pose\. Got: java.lang.Long"
          (pj/arrange [42]))))
 
-  (testing "plain vector inside an explicit grid hits the plain-vector branch"
+  (testing "a vector inside a row is an arrangement of its own, read cell by cell"
     (let [p (pj/lay-point tiny :x :y)]
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
-           #"is a plain vector"
+           #"must be a pose\. Got: java.lang.Long"
            (pj/arrange [[p [1 2 3]]]))))))
 
 (deftest arrange-share-scales-validation
@@ -958,7 +958,7 @@
 
   (testing "composite with data at root + mapping-only sub-poses is plannable"
     (is (some? (pj/plan (-> tiny
-                            (pj/arrange [[:x :y] [:y :x]])
+                            (pj/arrange [{:x :x :y :y} {:x :y :y :x}])
                             pj/lay-point))))))
 
 (deftest lay-2arity-opts-map-auto-infers-from-raw-data
@@ -1361,7 +1361,7 @@
     (is (= [[:rect] [:boxplot] [:boxplot] [:bar]]
            (panel-marks (pj/plan (pj/facet cars {:col {:x [:drv :hwy]} :row {:y [:drv :hwy]}})))))
     (is (pos? (:polygons (pj/svg-summary (pj/facet cars {:col {:x [:drv :hwy]} :row {:y [:drv :hwy]}})))))
-    (is (pos? (:polygons (pj/svg-summary (pj/arrange cars [[:drv :drv] [:drv :hwy]])))))
+    (is (pos? (:polygons (pj/svg-summary (pj/arrange cars [{:x :drv :y :drv} {:x :drv :y :hwy}])))))
     (is (pos? (:polygons (pj/svg-summary (-> cars
                                              (pj/pose {:y :drv})
                                              (pj/facet {:x [:drv :hwy]})))))))
@@ -1484,7 +1484,7 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"pj/lay-point draws from two columns.*no column on :x\. It names :y :hwy"
                           (pj/plan (-> wide
-                                       (pj/arrange [[:displ :hwy] [:displ :cty]])
+                                       (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
                                        (pj/lay-point {:y :hwy}))))))
   (testing "a bar naming :y alone beside points is not given the panel's :x"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo

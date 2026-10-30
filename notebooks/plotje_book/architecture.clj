@@ -770,8 +770,8 @@ graph LR
 
 (def composite-pose
   (-> (rdatasets/datasets-iris)
-      (pj/arrange [[:petal-length :petal-width]
-                   [:sepal-length :sepal-width]])
+      (pj/arrange [{:x :petal-length :y :petal-width}
+                   {:x :sepal-length :y :sepal-width}])
       (pj/pose {:color :species})))
 
 composite-pose
@@ -928,7 +928,7 @@ faceted-clinics
 (->> (pj/arrange {:week ["w2" "w1" "w2" "w1"]
                   :adults [30 25 28 35]
                   :children [20 15 18 22]}
-                 [[:week :adults] [:week :children]])
+                 [{:x :week :y :adults} {:x :week :y :children}])
      pj/draft
      :sub-drafts
      (mapv :share))

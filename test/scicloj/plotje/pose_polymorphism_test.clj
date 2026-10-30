@@ -180,7 +180,7 @@
     (testing "W3: writing a mapping twice is writing it once"
       (is (= (pj/pose p {:size :c}) (pj/pose (pj/pose p {:size :c}) {:size :c}))))
     (testing "W4: on a composite, an aesthetic merges into the root"
-      (let [c (pj/arrange iris [[:a :b] [:c :d]])]
+      (let [c (pj/arrange iris [{:x :a :y :b} {:x :c :y :d}])]
         (is (= {:color :species} (:mapping (pj/pose c {:color :species}))))
         (is (= c (pj/pose c {})))))))
 
@@ -199,7 +199,7 @@
       (is (= leaf again))))
 
   (testing "N2: (pj/pose composite) returns composite unchanged"
-    (let [composite (pj/arrange iris [[:a :b] [:c :d]])
+    (let [composite (pj/arrange iris [{:x :a :y :b} {:x :c :y :d}])
           again (pj/pose composite)]
       (is (= composite again)))))
 
@@ -212,14 +212,14 @@
             their own override it, and the draft warns that it is not drawn"
     (let [real-iris (rdatasets/datasets-iris)
           c (-> real-iris
-                (pj/arrange [[:sepal-length :sepal-width]])
+                (pj/arrange [{:x :sepal-length :y :sepal-width}])
                 (pj/pose :petal-length :petal-width)
                 pj/lay-point)
           out (with-out-str (pj/plan c))]
       (is (= {:x :petal-length :y :petal-width} (:mapping c)))
       (is (re-find #"not drawn" out))
       (is (= (pj/plot c)
-             (pj/plot (-> real-iris (pj/arrange [[:sepal-length :sepal-width]]) pj/lay-point))))))
+             (pj/plot (-> real-iris (pj/arrange [{:x :sepal-length :y :sepal-width}]) pj/lay-point))))))
   (testing "K2: no warning where a cell reads the root's position"
     (let [real-iris (rdatasets/datasets-iris)]
       (is (= "" (with-out-str
@@ -235,23 +235,22 @@
       (is (re-find #"maps :y to :petal-width" out))
       (is (= "" (with-out-str (pj/plan (pj/arrange cells)))))))
   (testing "K3: cells are appended with pj/arrange"
-    (let [f (-> iris (pj/arrange [[:a :b]]) (pj/arrange [[:c :d] [:e :f]]))]
+    (let [f (-> iris (pj/arrange [{:x :a :y :b}]) (pj/arrange [{:x :c :y :d} {:x :e :y :f}]))]
       (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
              (mapv :mapping (panels f))))))
-  (testing "K3: a column and a pair are each read the same wherever they stand"
-    (let [base (pj/arrange iris [[:a :b]])
+  (testing "K3: a column and a mapping are each read the same wherever they stand"
+    (let [base (pj/arrange iris [{:x :a :y :b}])
           cells (fn [f] (mapv :mapping (rest (panels f))))]
-      (is (= [{:x :c :y :d} {:x :e}] (cells (pj/arrange base [[:c :d] :e]))))
-      (is (= [{:x :e} {:x :c :y :d}] (cells (pj/arrange base [:e [:c :d]]))))
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                            #"appends columns and pairs of columns.*\[:c :d :e\] is neither"
-                            (pj/arrange base [[:c :d :e]]))))))
+      (is (= [{:x :c :y :d} {:x :e}] (cells (pj/arrange base [{:x :c :y :d} :e]))))
+      (is (= [{:x :e} {:x :c :y :d}] (cells (pj/arrange base [:e {:x :c :y :d}]))))
+      (is (= [{:x :c} {:x :d} {:x :e}] (cells (pj/arrange base [[:c :d :e]])))
+          "a vector is a list of cells, appended as a row"))))
 
 ;; ============================================================
 ;; Multi-pair pj/arrange -- N panels in one call (M1-M7)
 ;; ============================================================
 ;;
-;; (pj/arrange fr [[:a :b] [:c :d]]) and (pj/arrange fr [:a :b :c])
+;; (pj/arrange fr [{:x :a :y :b} {:x :c :y :d}]) and (pj/arrange fr [:a :b :c])
 ;; make one panel per pair or column. pj/arrange lays the panels out
 ;; as a grid: a vertical composite of horizontal rows, so the panels
 ;; are the leaves of that tree, not (:poses f). The `panels` helper
@@ -260,13 +259,13 @@
 ;;
 ;;   (-> data (pj/pose {:color :species})
 ;;            pj/lay-point
-;;            (pj/arrange [[:a :b] [:c :d]]))
+;;            (pj/arrange [{:x :a :y :b} {:x :c :y :d}]))
 ;;
 ;; For the full SPLOM grid, see the facet crossing two lists (G1-G5 below).
 
 (deftest multi-pair-raw-data-bivariate-test
-  (testing "M1: (pj/arrange data [[:a :b] [:c :d]]) -- vector of pairs"
-    (let [f (pj/arrange iris [[:a :b] [:c :d]])]
+  (testing "M1: (pj/arrange data [{:x :a :y :b} {:x :c :y :d}]) -- a mapping per pair"
+    (let [f (pj/arrange iris [{:x :a :y :b} {:x :c :y :d}])]
       (is (= 2 (count (panels f))))
       (is (= {:x :a :y :b} (-> f panels (nth 0) :mapping)))
       (is (= {:x :c :y :d} (-> f panels (nth 1) :mapping))))))
@@ -282,7 +281,7 @@
 (deftest multi-pair-extend-existing-test
   (testing "M3: arranged from a pose with a position -- the position stays
             at the root and the pairs become the panels"
-    (let [f (-> iris (pj/pose :a :b) (pj/arrange [[:c :d] [:e :f]]))]
+    (let [f (-> iris (pj/pose :a :b) (pj/arrange [{:x :c :y :d} {:x :e :y :f}]))]
       (is (= {:x :a :y :b} (:mapping f)))
       (is (= 2 (count (panels f))))
       (is (= {:x :c :y :d} (-> f panels (nth 0) :mapping)))
@@ -290,7 +289,7 @@
 
 (deftest multi-pair-root-layer-flows-test
   (testing "M4: root layer flows to every panel via resolve-tree"
-    (let [f (-> iris pj/pose pj/lay-point (pj/arrange [[:a :b] [:c :d]]))]
+    (let [f (-> iris pj/pose pj/lay-point (pj/arrange [{:x :a :y :b} {:x :c :y :d}]))]
       (is (= 2 (count (panels f))))
       (is (= 1 (count (:layers f))))
       (is (= :point (-> f :layers (nth 0) :layer-type))))))
@@ -300,7 +299,7 @@
     (let [f (-> iris
                 (pj/pose {:color :species})
                 pj/lay-point
-                (pj/arrange [[:a :b] [:c :d]]))]
+                (pj/arrange [{:x :a :y :b} {:x :c :y :d}]))]
       (is (= {:color :species} (:mapping f)))
       (is (= 2 (count (panels f))))
       (is (= 1 (count (:layers f))))
@@ -316,7 +315,7 @@
 
 (deftest multi-pair-iteration-equivalence-test
   (testing "M7: (pj/arrange data pairs) -- one panel per pair, in order"
-    (let [f (pj/arrange iris [[:a :b] [:c :d] [:e :f]])]
+    (let [f (pj/arrange iris [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}])]
       (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
              (mapv :mapping (panels f)))))))
 
@@ -364,9 +363,9 @@
       (is (= {:col {:x [:a :b]} :row {:y [:a :b]}} (:facet f))))))
 
 (deftest multi-pair-grid-non-rectangular-falls-through-test
-  (testing "G4: a non-rectangular pair list goes through pj/arrange --
-            one leaf panel per pair, no grid reshape"
-    (let [f (pj/arrange iris [[:a :b] [:c :d]])
+  (testing "G4: a list of mappings goes through pj/arrange --
+            one leaf panel per mapping, no grid reshape"
+    (let [f (pj/arrange iris [{:x :a :y :b} {:x :c :y :d}])
           ps (panels f)]
       (is (= 2 (count ps)))
       (is (every? #(not (contains? % :poses)) ps)))))
@@ -383,7 +382,7 @@
 
 (deftest integration-lay-resolve-test
   (testing "I1: root-origin layer reaches both panels through resolve-tree"
-    (let [f (-> iris (pj/arrange [[:a :b] [:c :d]]) pj/lay-point)
+    (let [f (-> iris (pj/arrange [{:x :a :y :b} {:x :c :y :d}]) pj/lay-point)
           leaves (pose/resolve-tree f)]
       (is (= 2 (count leaves)))
       (is (every? (fn [leaf] (= 1 (count (:layers leaf)))) leaves)
@@ -391,7 +390,7 @@
 
   (testing "I2: panel-specific layer does not leak across panels"
     (let [f (-> iris
-                (pj/arrange [[:a :b] [:c :d]])
+                (pj/arrange [{:x :a :y :b} {:x :c :y :d}])
                 (pj/lay-point :a :b))
           leaves (pose/resolve-tree f)
           layers-per-leaf (mapv #(count (:layers %)) leaves)]
@@ -400,7 +399,7 @@
 
   (testing "I3: root aesthetic merges into both resolved leaves' mappings"
     (let [f (-> iris
-                (pj/arrange [[:a :b] [:c :d]])
+                (pj/arrange [{:x :a :y :b} {:x :c :y :d}])
                 (pj/pose {:color :species}))
           leaves (pose/resolve-tree f)]
       (is (= 2 (count leaves)))
@@ -416,14 +415,14 @@
     (is (no-empty-map-output? (pj/pose)))
     (is (no-empty-map-output? (pj/pose iris)))
     (is (no-empty-map-output? (pj/pose iris :a :b)))
-    (is (no-empty-map-output? (pj/arrange iris [[:a :b] [:c :d]])))
+    (is (no-empty-map-output? (pj/arrange iris [{:x :a :y :b} {:x :c :y :d}])))
     (is (no-empty-map-output? (-> iris (pj/pose :a :b) pj/lay-point)))
     (is (no-empty-map-output?
-         (-> iris (pj/arrange [[:a :b] [:c :d]]) pj/lay-point)))))
+         (-> iris (pj/arrange [{:x :a :y :b} {:x :c :y :d}]) pj/lay-point)))))
 
 (deftest poses-preserve-call-order-test
   (testing "Cells appear in the order pj/arrange is given them"
-    (let [f (pj/arrange iris [[:a :b] [:c :d] [:e :f]])]
+    (let [f (pj/arrange iris [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}])]
       (is (= [{:x :a :y :b} {:x :c :y :d} {:x :e :y :f}]
              (mapv :mapping (panels f)))))))
 

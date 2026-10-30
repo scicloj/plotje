@@ -4,13 +4,13 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-`pj/pose` builds one pose: data or a pose, then columns, then a mapping. The layers of a pose share one panel, and panels drawn from several columns come from `pj/facet`, which takes a map of columns and crosses two lists of columns or categories in a grid, and from `pj/arrange`, which takes columns as cells. Panels share axes by one option, `:share-scales`, in a facet and in an arrangement alike, and a shared axis covers what its panels draw. Contributed in [#61](https://github.com/scicloj/plotje/pull/61) - thanks, @timothypratley
+`pj/pose` builds one pose: data or a pose, then columns, then a mapping. The layers of a pose share one panel, and panels drawn from several columns come from `pj/facet`, which takes a map of columns and crosses two lists of columns or categories in a grid, and from `pj/arrange`, whose cells are columns, mappings and poses, and in which a vector is a list of cells. Panels share axes by one option, `:share-scales`, in a facet and in an arrangement alike, and a shared axis covers what its panels draw. Contributed in [#61](https://github.com/scicloj/plotje/pull/61) - thanks, @timothypratley
 
 ### Plots that look different after upgrading
 
 - **A vector of columns given where one column goes**, as in `(pj/pose data [:a :b :c])` or `(pj/lay-density data [:a :b :c])`, draws the columns as a series on one panel, with a colour and a legend entry per column. Where the call also specifies `:color`, the marks are coloured by that column. For this release a Note says so; for a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
-- **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`; layers that name their own columns keep them. On a composite the mapping goes to the root, where the cells and layers that name no `:x` or `:y` read it. An `:x` or `:y` that every layer, or every cell, names for itself is not drawn, and drawing the pose warns so. For panels side by side, write `(pj/arrange data [[:a :b] [:c :d]])`.
+- **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`; layers that name their own columns keep them. On a composite the mapping goes to the root, where the cells and layers that name no `:x` or `:y` read it. An `:x` or `:y` that every layer, or every cell, names for itself is not drawn, and drawing the pose warns so. For panels side by side, write `(pj/arrange data [{:x :a :y :b} {:x :c :y :d}])`.
 
 - **Layers of one pose that name different columns** share one panel: `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width))` draws one panel, each axis covering and titled by every column drawn on it. A layer with no `:color` specified, on the pose or on the layer, takes a colour and a legend entry naming its columns. A layer that specifies a colour, such as a black trend line, leaves the other layers theirs, and no layer takes the default on a panel where a layer is coloured by a column. For a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
 
@@ -66,7 +66,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `pj/arrange` takes columns as cells: a column is a panel of that column, a pair of columns a panel of the two, and `[pose :a :b]` that pose with those columns. Its first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the columns and pairs of the list are appended to it as cells.
+- `pj/arrange` takes columns as cells: a column is a panel of that column, and a mapping such as `{:x :a :y :b}` a panel of the columns it names. A vector in the list of cells is a list of cells -- a row in a list of rows, and otherwise an arrangement of its own -- so `(pj/arrange data [[:a :b] [:c :d]])` is a 2x2 grid of panels, a column each. A pose with no data, such as `(pj/pose nil :a :b)`, is drawn from the data given first. The first argument may be a pose, whose data, mapping and layers reach every cell; given a composite, the cells of the list are appended to it.
 
 - `pj/facet` takes a map. `{:y [:hwy :cty]}` draws a panel per column, and `{:x [..] :y [..]}` a panel per pair, the columns paired one by one. Under `:col` and `:row` the map draws a grid, a panel for every value across with every value down, each entry a column of categories or a map of columns: `{:col :year :row :drv}`, `{:col :drv :row {:y [:hwy :cty]}}`, and `{:col {:x xs} :row {:y ys}}`, a scatter plot matrix when the two lists are the same. `nil` in a list of columns leaves the place for a marginal distribution; `nil` under `:col` or `:row` cancels the facet of a pose above. The panels of a grid are of equal width.
 
@@ -110,7 +110,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A `lay-*` call on an arrangement naming columns no cell draws prints a Note where the layer, drawn on a cell of its own, leaves something undrawn. Where the cells carry their own data, the Note says that the new cell has none, and names the columns the cells draw and the `{:data data}` spelling that gives the new cell its data. Beside cells that name no column and hold no layer, the Note says that those cells draw nothing, and names the spelling that draws the layer in every cell.
 
-- Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column; beside layers that fit every panel it is drawn in every panel. A layer naming one of the facet's columns prints a Note where it leaves another panel to the inferred layer type: `(-> mpg (pj/lay-smooth :displ :hwy) (pj/facet {:y [:hwy :cty]}))` draws a smooth of `:hwy` and a scatter of `:cty`. The Note says how to draw the layer in every panel, as `(-> mpg (pj/pose {:x :displ}) pj/lay-smooth (pj/facet {:y [:hwy :cty]}))` does, and is not printed where the inferred layer is the layer as written.
+- Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column; beside layers that fit every panel it is drawn in every panel. A layer naming one of the facet's columns prints a Note where it leaves another panel to the inferred layer type, or to layers of other types: `(-> mpg (pj/lay-smooth :displ :hwy) (pj/facet {:y [:hwy :cty]}))` draws a smooth of `:hwy` and a scatter of `:cty`. The Note says how to draw the layer in every panel, as `(-> mpg (pj/pose {:x :displ}) pj/lay-smooth (pj/facet {:y [:hwy :cty]}))` does, and is not printed where the inferred layer is the layer as written.
 
 - Layers of one pose that draw columns of different kinds on one axis -- a categorical column beside a numeric one, or dates beside numbers -- report an error naming the layers, `pj/facet` and `pj/arrange`, and `:x-type :categorical` for a numeric column that should be read as categories.
 
@@ -124,7 +124,9 @@ All notable changes to this project will be documented in this file. This change
 
 - A `:share-scales` that names an axis no two cells share warns once, naming the columns the cells draw there and the group that would share them. Cells of an arrangement that specify a `:share-scales` leaving out an axis the arrangement shares are named in one warning.
 
-- `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [[:a :b] [:c :d]])` or `(pj/facet data {:col {:x xs} :row {:y ys}})`. `pj/arrange` given options while appending cells to a composite reports an error, as does `pj/arrange` given its cells one by one, `(pj/arrange a b)`, in place of one vector.
+- `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [{:x :a :y :b} {:x :c :y :d}])` or `(pj/facet data {:col {:x xs} :row {:y ys}})`. `pj/arrange` given options while appending cells to a composite reports an error, as does `pj/arrange` given its cells one by one, `(pj/arrange a b)`, in place of one vector.
+
+- `pj/cross` is deprecated: it warns, or reports an error under `:strict`, and returns its pairs. A pair of columns is not a cell of `pj/arrange`. For a grid of panels with one list of columns across and another down, write `(pj/facet data {:col {:x xs} :row {:y ys}})`.
 
 - `pj/facet` given a column the data does not hold reports an error when it is called, as does `pj/facet` given a map of columns on a composite, on a pose that already holds one, or with a vector of columns on one axis beside a single column on the other. A `:where` naming a column the data does not hold reports an error; a `:where` value that appears nowhere in its column, or an empty set, warns.
 
@@ -149,8 +151,6 @@ All notable changes to this project will be documented in this file. This change
 - A message about a series names it by the columns written, not by the `:value` and `:series` columns it is pivoted into. A series whose columns include one the same mapping names on another aesthetic, as in `(pj/lay-point mpg :hwy [:hwy :cty])`, reports an error naming that column.
 
 - The warning for a categorical `:domain` that leaves out categories ends `List every category to control the whole axis order`. The errors for an error bar without its bounds and a text layer without `:text` show the call with the layer's own columns.
-
-- Under a facet over columns, a layer naming one of the facet's columns is drawn in that column's panel only. Where another panel is drawn by other layers, none of that layer's type, a Note names the panels the layer is drawn in and says how to draw it in every panel: name the column on the pose, as in `(pj/pose data {:x :displ})`, and none on the layer.
 
 ### Fixed
 

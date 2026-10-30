@@ -825,10 +825,11 @@ measures
            ;; The shared :x axis is titled once, under the lower panel.
            (= 1 (count (filter #{"displ"} (:texts s)))))))])
 
-;; and then by an arrangement of two pairs of columns, in one column:
+;; and then by an arrangement of two mappings, each naming a pair of
+;; columns, in one column:
 
 (-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [[:displ :hwy] [:displ :cty]] {:cols 1})
+    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}] {:cols 1})
     pj/lay-point)
 
 (kind/test-last

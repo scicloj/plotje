@@ -334,13 +334,19 @@
 
 ;; ---- Cross ----
 
+(declare report-retired!)
+
 (defn cross
-  "Build a vector of `[x y]` pairs from two column-name sequences, as
-   cells for `pj/arrange`: `(pj/arrange data (pj/cross xs ys))` draws a
-   panel per pair. For a grid of panels with the `xs` across and the
-   `ys` down, use `(pj/facet data {:col {:x xs} :row {:y ys}})`.
+  "Deprecated: it will be removed in a future release. Builds a vector
+   of `[x y]` pairs from two column-name sequences, and warns, or
+   reports an error under `:strict` as the retired names do. A pair is
+   no cell of `pj/arrange`, where a vector is a list of cells. For a
+   grid of panels with the `xs` across and the `ys` down, write
+   `(pj/facet data {:col {:x xs} :row {:y ys}})`; for a panel per pair,
+   write each pair as a mapping, `{:x :a :y :c}`.
 
    - `(pj/cross [:a :b] [:c :d])` returns `[[:a :c] [:a :d] [:b :c] [:b :d]]`."
+  {:deprecated "0.17.0"}
   [xs ys]
   (when-not (sequential? xs)
     (throw (ex-info (str "pj/cross expects two sequentials of column"
@@ -359,6 +365,14 @@
                          (pr-str xs) ", ys: " (pr-str ys) "). Provide"
                          " at least one column reference per side.")
                     {:caller "pj/cross" :xs xs :ys ys})))
+  (report-retired! (str "pj/cross is deprecated. For a grid of panels with"
+                        " the first columns across and the second down, write"
+                        " (pj/facet data {:col {:x " (pr-str (vec xs)) "} :row {:y "
+                        (pr-str (vec ys)) "}}). A pair of columns is no cell of"
+                        " pj/arrange: write a mapping, {:x :a :y :b}.")
+                   "It returns the pairs."
+                   {:caller "pj/cross" :retired :cross
+                    :to {:col {:x xs} :row {:y ys}}})
   (resolve/cross xs ys))
 
 ;; ---- Series: the wide-side reading of a grouping ----
@@ -1217,29 +1231,8 @@
 
 ;; ---- pj/pose polymorphism (Phase 6) ----
 
-(defn- layer-has-position? [layer]
-  (boolean (or (:x (:mapping layer))
-               (:y (:mapping layer)))))
-
-(defn- leaf-has-position? [leaf]
-  (or (boolean (or (:x (:mapping leaf))
-                   (:y (:mapping leaf))))
-      (boolean (some layer-has-position? (:layers leaf)))))
-
 (defn- position-mapping [m]
   (select-keys m [:x :y]))
-
-(defn- aesthetic-mapping [m]
-  (apply dissoc m [:x :y]))
-
-(defn- partition-layers-by-position
-  "Returns [root-origin-layers panel-origin-layers]. A layer is
-   panel-origin if its own :mapping carries :x or :y, else root-origin."
-  [layers]
-  (let [{panel :panel root :root}
-        (group-by #(if (layer-has-position? %) :panel :root) (or layers []))]
-    [(vec (or root []))
-     (vec (or panel []))]))
 
 (defn- extend-mapping-of
   "Merge `incoming-mapping` into the pose's own `:mapping` -- the root's,
@@ -1250,35 +1243,6 @@
     (cond-> fr
       (seq merged)    (assoc :mapping merged)
       (empty? merged) (dissoc :mapping))))
-
-(defn- add-cells
-  "One sub-pose per mapping in `ms`, for `multi-pair-pose`. Appended to
-   a composite; on a leaf, the leaf's own position and the layers that
-   name one become the first cell, and its aesthetics, other layers,
-   data and options go to the composite's root. A single mapping on a
-   leaf with no position is merged into it."
-  [base ms]
-  (let [cell (fn [m] {:mapping m :layers []})]
-    (cond
-      (pose/composite? base)
-      (update base :poses (fnil into []) (map cell ms))
-
-      (and (= 1 (count ms)) (not (leaf-has-position? base)))
-      (extend-mapping-of base (first ms))
-
-      :else
-      (let [[root-layers panel-layers] (partition-layers-by-position (:layers base))
-            leaf-pos   (position-mapping (:mapping base))
-            leaf-aesth (aesthetic-mapping (:mapping base))
-            own        (when (leaf-has-position? base)
-                         [(cond-> {:layers panel-layers}
-                            (seq leaf-pos) (assoc :mapping leaf-pos))])]
-        (cond-> {:poses (into (vec own) (map cell ms))
-                 :layout {:direction :matrix}}
-          (:data base)      (assoc :data (:data base))
-          (seq leaf-aesth)  (assoc :mapping leaf-aesth)
-          (seq root-layers) (assoc :layers root-layers)
-          (seq (:opts base)) (assoc :opts (:opts base)))))))
 
 (defn- extend-pose
   "`(pj/pose existing-pose incoming-mapping)`: the mapping is merged into
@@ -1298,190 +1262,25 @@
 
 (declare pose with-data note-lone-vector! compose-facets)
 
-(defn- pairs->rows
-  "Detect whether `pairs` forms a rectangular M x N grid -- every
-   combination of unique first-elements with unique second-elements,
-   in cross order. Returns a vec of row-vecs when rectangular, nil
-   otherwise. Requires M >= 2 and N >= 2 so a single row or column
-   stays flat (not a grid).
-
-   The rows are indexed by y and their cells by x: one row per
-   distinct y, each row running across the distinct x values. That is
-   the way every scatter plot matrix is read -- a cell's x is named by
-   the column it sits in, its y by the row -- and it is the same
-   arrangement `pose/matrix-axes` gives the `:matrix` layout, which
-   the non-rectangular case uses. The two must agree: the grid a
-   reader sees is the one the tick suppression in `grid-composite`
-   assumes, which keeps x ticks on the bottom row and y ticks in the
-   leftmost column.
-
-   The input order is unchanged -- `pj/cross` pairs x-major, and the
-   rectangularity check above still reads them that way."
-  [pairs]
-  (let [pairs  (vec pairs)
-        xs     (vec (distinct (map first pairs)))
-        ys     (vec (distinct (map second pairs)))
-        m      (count xs)
-        n      (count ys)]
-    (when (and (<= 2 m) (<= 2 n)
-               (= (count pairs) (* m n))
-               (= pairs (vec (for [x xs y ys] [x y]))))
-      (mapv (fn [y] (mapv (fn [x] [x y]) xs)) ys))))
-
-(defn- grid-composite
-  "Build a 2D rows-of-cols composite from `base` (a leaf or composite)
-   and a rectangular grid of [x-col y-col] pairs. Each cell becomes a
-   leaf carrying only its position mapping; the base's :data,
-   :mapping, :layers, and :opts move to the new composite's root so
-   they inherit into every cell via resolve-tree. :share-scales is
-   stamped as #{:x :y} so columns share x-axis domains and rows share
-   y-axis domains -- SPLOM behavior.
-
-   `rows` arrives from `pairs->rows` with one row per y column and one
-   cell per x column, so a cell's x is named by the column it sits in
-   and its y by the row. Everything below depends on that: the strip
-   labels, and which cells keep their tick numbers.
-
-   Each cell also carries :opts:
-   - :suppress-legend on every cell -- one shared legend at composite
-     level.
-   - :suppress-x-label and :suppress-y-label on every cell -- the
-     strip labels carry the axis-variable name; per-cell axis labels
-     would duplicate them.
-   - :suppress-x-ticks on every cell except the bottom row -- only
-     the bottom row's tick numbers stay, since every cell in a column
-     carries the same x and so the same tick scale, shared via
-     :share-scales.
-   - :suppress-y-ticks on every cell except the leftmost column --
-     same reasoning across a row, whose cells share one y.
-
-   The composite root carries :grid-strip-labels so the compositor
-   can draw column strip labels above the top row and row strip
-   labels to the left of the leftmost column (matching the legacy
-   SPLOM chrome)."
-  [base rows]
-  (let [root-data (:data base)
-        root-m    (:mapping base)
-        root-l    (:layers base)
-        root-o    (:opts base)
-        n-rows    (count rows)
-        ;; One formatter for every name a reader sees -- strips, axis
-        ;; titles, legend titles: `sepal length`, not `sepal-length`.
-        col->name defaults/fmt-name
-        ;; Each column shares its x column; each row shares its y
-        ;; column. Strip labels live at the composite root, not on
-        ;; individual cells, so cell layout stays untouched. A column
-        ;; header therefore names the x of the cells beneath it, and a
-        ;; row header the y of the cells beside it.
-        col-labels (when (seq rows)
-                     (mapv (fn [[x _]] (col->name x)) (first rows)))
-        row-labels (mapv (fn [row] (col->name (second (first row)))) rows)
-        cells      (fn [row-idx row]
-                     (let [bottom? (= row-idx (dec n-rows))]
-                       (vec
-                        (map-indexed
-                         (fn [col-idx [x y]]
-                           (let [leftmost? (zero? col-idx)]
-                             {:mapping {:x x :y y}
-                              ;; Which cells keep their tick labels is
-                              ;; left to `pose/infer-chrome`, which a
-                              ;; facet over columns goes through: a cell
-                              ;; loses them where a cell below it, or to
-                              ;; its left, draws the same scale. Written
-                              ;; here by row and column, a row whose
-                              ;; leftmost cell is the diagonal histogram
-                              ;; kept that cell's counts and dropped the
-                              ;; ticks of the column the rest of the row
-                              ;; draws.
-                              :opts {:suppress-legend true
-                                     :suppress-x-label true
-                                     :suppress-y-label true}
-                              :layers []}))
-                         row))))
-        row-poses (vec
-                   (map-indexed
-                    (fn [row-idx row]
-                      {:layout {:direction :horizontal}
-                       :poses (cells row-idx row)})
-                    rows))
-        composite (cond-> {:layout             {:direction :vertical}
-                           :grid-strip-labels  {:col-labels col-labels
-                                                :row-labels row-labels}
-                           :opts              (merge {:share-scales #{:x :y}
-                                                      :align-panels true}
-                                                     root-o)
-                           :poses             row-poses}
-                    (some? root-data) (assoc :data root-data)
-                    (seq root-m)      (assoc :mapping root-m)
-                    (seq root-l)      (assoc :layers root-l))]
-    (prepare-pose composite)))
-
-(defn- multi-pair-pose
-  "Iteratively apply pj/pose to each column or pair in cols-or-pairs.
-   The ground case -- x a non-pose -- first lifts x into a leaf via
-   (pj/pose x). Each element in cols-or-pairs may be a column
-   reference (keyword or string) -> univariate panel, or a two-element
-   sequential -> bivariate panel. Any mixture is accepted.
-
-   When the elements form a rectangular M x N grid of pairs (e.g. the
-   output of pj/cross cols cols), the result is a nested rows-of-cols
-   composite with :share-scales #{:x :y} -- the canonical SPLOM shape.
-   Non-rectangular pair lists and mixed/univariate lists fall through
-   to the flat per-element reduce."
-  [x cols-or-pairs]
-  (let [;; Bare data-only leaf (no inferred :mapping) -- each pair or
-        ;; column in `items` contributes its own sub-pose, so the base
-        ;; must not carry a position mapping of its own.
-        base     (if (pose? x) x (prepare-pose (pose-from-data x {})))
-        items    (vec cols-or-pairs)
-        column?  (fn [c] (or (keyword? c) (string? c)))
-        ;; One reading of an element, wherever it stands in the list: a
-        ;; column is a panel of that column, a pair a panel of the two.
-        ;; (Read by the first element alone, a pair after a column was a
-        ;; series, and a column after a pair failed to destructure.)
-        cell-of  (fn [item]
-                   (cond
-                     (column? item) {:x item}
-
-                     (and (sequential? item) (= 2 (count item)) (every? column? item))
-                     {:x (first item) :y (second item)}
-
-                     :else
-                     (throw (ex-info
-                             (str "pj/arrange appends columns and pairs of columns"
-                                  " to a composite pose, and "
-                                  (if (pose? item)
-                                    (str "was given a pose. To place a pose beside a"
-                                         " composite, arrange the two:"
-                                         " (pj/arrange [composite pose]).")
-                                    (str (pr-str item) " is neither. Write a column,"
-                                         " as :a, or a pair of columns, as [:a :b].")))
-                             {:item item :cols-or-pairs cols-or-pairs}))))
-        cells    (mapv cell-of items)]
-    (if-let [rows (and (seq items) (every? sequential? items) (pairs->rows items))]
-      ;; A rectangular grid of pairs.
-      (grid-composite base rows)
-      (prepare-pose (add-cells base cells)))))
-
 (defn- extend-mapping
   ([p m] (extend-mapping "pj/pose" p m))
   ([caller p m]
-  (check-mapping-in-map-slot caller m "its mapping map")
-  (let [opts      (or (warn-and-strip-unknown-opts caller m pose-mapping-keys)
-                      {})
-        data-over (:data opts)
-        mapping   (dissoc opts :data)]
-    (check-column-ref-types caller mapping)
-    (check-explicit-mappings caller mapping)
-    (check-position-mapping caller mapping)
-    (if (pose? p)
-      (cond-> (prepare-pose (extend-pose p mapping))
+   (check-mapping-in-map-slot caller m "its mapping map")
+   (let [opts      (or (warn-and-strip-unknown-opts caller m pose-mapping-keys)
+                       {})
+         data-over (:data opts)
+         mapping   (dissoc opts :data)]
+     (check-column-ref-types caller mapping)
+     (check-explicit-mappings caller mapping)
+     (check-position-mapping caller mapping)
+     (if (pose? p)
+       (cond-> (prepare-pose (extend-pose p mapping))
         ;; Categories written beside a facet over columns meet it in
         ;; the normal form `pj/facet` writes, and a direction with no
         ;; room left is reported here rather than when drawn.
-        (and (:facet p) (some #(contains? mapping %) [:col :row])) compose-facets
-        data-over (with-data data-over))
-      (prepare-pose (pose-from-data (or data-over p) mapping))))))
+         (and (:facet p) (some #(contains? mapping %) [:col :row])) compose-facets
+         data-over (with-data data-over))
+       (prepare-pose (pose-from-data (or data-over p) mapping))))))
 
 (defn pose
   "Construct or extend a pose.
@@ -1500,7 +1299,7 @@
    - `(pj/pose data [:a :b :c])` -- several columns where one column
      goes are a series, drawn on one panel with a colour for each
      column. Pairs of columns, `[[:a :b] [:c :d]]`, report an error:
-     `pj/arrange` takes them as cells.
+     `pj/arrange` takes each pair as a mapping, `{:x :a :y :b}`.
 
    **Threaded over an existing pose (first argument is a pose):**
 
@@ -1822,8 +1621,9 @@
       (when (and (sequential? v) (seq v) (every? sequential? v))
         (throw (ex-info (str context " was given pairs of columns, "
                              (pr-str (vec v)) ". A pose draws one panel."
-                             " For a panel per pair, write (pj/arrange data "
-                             (pr-str (vec (map vec v))) "); for every :x"
+                             " For a panel per pair, write each pair as a"
+                             " mapping: (pj/arrange data "
+                             (pr-str (mapv (fn [[a b]] {:x a :y b}) v)) "); for every :x"
                              " column against every :y column, write"
                              " (pj/facet data {:col {:x xs} :row {:y ys}}).")
                         {:option k :value v})))
@@ -4253,60 +4053,60 @@
                                                (get-in fr [:facet aesthetic])
                                                (get-in fr [:mapping aesthetic])))
         fr))
-  (let [k (or (aesthetic->scale-key aesthetic)
-              (throw (ex-info (str "pj/scale takes one of the aesthetics "
-                                   (vec (sort (keys aesthetic->scale-key)))
-                                   ", got: " aesthetic)
-                              {:aesthetic aesthetic})))
-        cont-visual? (continuous-appearance-aesthetics aesthetic)
-        disc-visual? (discrete-appearance-aesthetics aesthetic)
-        valid-types (defaults/channel-scale-types aesthetic)
-        type-kw (if (map? scale-type) (:type scale-type) scale-type)]
-    (when-not (or (nil? type-kw) (valid-types type-kw))
-      (throw (ex-info
-              (cond
+    (let [k (or (aesthetic->scale-key aesthetic)
+                (throw (ex-info (str "pj/scale takes one of the aesthetics "
+                                     (vec (sort (keys aesthetic->scale-key)))
+                                     ", got: " aesthetic)
+                                {:aesthetic aesthetic})))
+          cont-visual? (continuous-appearance-aesthetics aesthetic)
+          disc-visual? (discrete-appearance-aesthetics aesthetic)
+          valid-types (defaults/channel-scale-types aesthetic)
+          type-kw (if (map? scale-type) (:type scale-type) scale-type)]
+      (when-not (or (nil? type-kw) (valid-types type-kw))
+        (throw (ex-info
+                (cond
                 ;; `:color` draws categories too; what it has no scale
                 ;; type for is reading numbers as categories, which a
                 ;; layer setting does.
-                (and (= aesthetic :color) (= type-kw :categorical))
-                (str "A :color scale has no :categorical type; its types are "
-                     (vec (sort valid-types)) ". A column of categories is"
-                     " coloured as categories already. To colour each"
-                     " distinct number of a numeric column as a category of"
-                     " its own, write :color-type :categorical on the layer,"
-                     " for example (pj/lay-point data :x :y {:color :cyl"
-                     " :color-type :categorical}).")
+                  (and (= aesthetic :color) (= type-kw :categorical))
+                  (str "A :color scale has no :categorical type; its types are "
+                       (vec (sort valid-types)) ". A column of categories is"
+                       " coloured as categories already. To colour each"
+                       " distinct number of a numeric column as a category of"
+                       " its own, write :color-type :categorical on the layer,"
+                       " for example (pj/lay-point data :x :y {:color :cyl"
+                       " :color-type :categorical}).")
 
-                (and cont-visual? (= type-kw :categorical))
-                (str "The aesthetic " aesthetic " is continuous and does not"
-                     " support a :categorical scale. Supported: "
-                     (vec (sort valid-types)) ".")
-                (and disc-visual? (#{:linear :log} type-kw))
-                (str "The aesthetic " aesthetic " is discrete and does not"
-                     " support a continuous scale (" type-kw "). Supported: "
-                     (vec (sort valid-types)) ".")
-                :else
-                (str "Unknown scale type: " type-kw ". Supported for "
-                     aesthetic ": " (vec (sort valid-types)) "."))
-              {:aesthetic aesthetic :scale-type type-kw
-               :supported (vec (sort valid-types))})))
-    (when (map? scale-type)
+                  (and cont-visual? (= type-kw :categorical))
+                  (str "The aesthetic " aesthetic " is continuous and does not"
+                       " support a :categorical scale. Supported: "
+                       (vec (sort valid-types)) ".")
+                  (and disc-visual? (#{:linear :log} type-kw))
+                  (str "The aesthetic " aesthetic " is discrete and does not"
+                       " support a continuous scale (" type-kw "). Supported: "
+                       (vec (sort valid-types)) ".")
+                  :else
+                  (str "Unknown scale type: " type-kw ". Supported for "
+                       aesthetic ": " (vec (sort valid-types)) "."))
+                {:aesthetic aesthetic :scale-type type-kw
+                 :supported (vec (sort valid-types))})))
+      (when (map? scale-type)
       ;; The same three calls a mapping's `:scale` makes, in the same
       ;; order, so a spec means one thing wherever it is written.
-      (scale/validate-spec-values! aesthetic (scale/spec-lists-as-vectors scale-type) "pj/scale")
-      (scale/validate-drawn-range-options! aesthetic scale-type "pj/scale")
-      (scale/validate-spec-keys! aesthetic scale-type "pj/scale"))
+        (scale/validate-spec-values! aesthetic (scale/spec-lists-as-vectors scale-type) "pj/scale")
+        (scale/validate-drawn-range-options! aesthetic scale-type "pj/scale")
+        (scale/validate-spec-keys! aesthetic scale-type "pj/scale"))
     ;; The spec is written as the caller stated it. A map that names no
     ;; :type does not mean the scale is linear -- it means this call had
     ;; no opinion about the type -- so filling one in here would make
     ;; (pj/scale :x {:breaks ...}) silently undo an earlier
     ;; (pj/scale :x :log). The default is applied once, after every
     ;; scope has accumulated, in pose/layer-scale-specs.
-    (let [spec (if (map? scale-type)
-                 (scale/spec-lists-as-vectors scale-type)
-                 {:type scale-type})]
-      (update (->pose pose "pj/scale") :mapping
-              pose/put-scale aesthetic spec)))))
+      (let [spec (if (map? scale-type)
+                   (scale/spec-lists-as-vectors scale-type)
+                   {:type scale-type})]
+        (update (->pose pose "pj/scale") :mapping
+                pose/put-scale aesthetic spec)))))
 
 (defn coord
   "Set coordinate transform on a pose. The coord applies to the pose it
@@ -4843,22 +4643,6 @@
                            " written nil, as in (pj/arrange [a nil b]).")
                       {:index idx :type (type p)}))
 
-      ;; Columns and nothing else: one, or three or more. A pair was
-      ;; read as a cell before it came here (`shorthand-cell`), so this
-      ;; is not rendered hiccup, whose head is a keyword too.
-      (and (sequential? p) (every? column-ref? p))
-      (throw (ex-info (if (= 2 (count p))
-                        ;; With data first a pair is a cell by now.
-                        (str prefix " is a pair of columns, " (pr-str (vec p))
-                             ", and pj/arrange was given no data to read them"
-                             " from. Give the data first: (pj/arrange data cells).")
-                        (str prefix " is a vector of " (count p)
-                             (if (= 1 (count p)) " column, " " columns, ") (pr-str (vec p))
-                             ". A cell drawing one column is the column itself, "
-                             (pr-str (first p)) ", and a cell drawing two is a pair,"
-                             " as in [:a :b]."))
-                      {:index idx :columns (vec p)}))
-
       (and (vector? p) (keyword? (first p)))
       (throw (ex-info (str prefix " looks like rendered hiccup (head: "
                            (pr-str (first p)) "). pj/arrange takes "
@@ -4902,58 +4686,47 @@
 
 (declare arrange*)
 
-;; Cell shorthand for `pj/arrange`: a column is a univariate panel, a
-;; pair of columns is a bivariate one, and a pose followed by one or two
-;; columns is that pose extended. Anything else is left as it is.
+;; A cell of `pj/arrange` is what one argument to `pj/pose` is after
+;; the data: a column is `{:x column}`, a mapping is a mapping, a pose
+;; is a pose. A vector is never a cell. It is a list of cells: a row
+;; where the list is a list of rows, and otherwise an arrangement of its
+;; own. A pair is written as a mapping, `{:x :a :y :b}`.
 
-(defn- shorthand-cell
-  "The pose-shaped cell a shorthand cell stands for, or nil when `c`
-   is not a shorthand."
-  [c]
-  (cond
-    (column-ref? c) {:x c}
-
-    (and (sequential? c) (= 2 (count c)) (every? column-ref? c))
-    {:x (first c) :y (second c)}
-
-    (and (sequential? c) (<= 2 (count c) 3) (pose? (first c))
-         (every? column-ref? (rest c)))
-    (apply pose c)))
+(defn- hiccup?
+  "True of rendered hiccup, `[:svg {...} ...]`: a keyword, then an
+   attribute map. Read only to report it; it is never a cell."
+  [x]
+  (and (vector? x) (keyword? (first x)) (map? (second x))))
 
 (defn- normalize-arrange-cells
-  "Rewrite shorthand cells into poses and mappings. A sequential that
-   is no shorthand is a row of cells when the list is already a list of
-   rows, and otherwise a nested arrangement of its own."
+  "Rewrite the columns of a cell list, read from the data given first,
+   into mappings, and each vector in it into a row or a nested
+   arrangement."
   [cells]
   (let [cells (vec cells)
-        rows? (and (seq cells)
-                   (sequential? (first cells))
-                   (nil? (shorthand-cell (first cells))))]
-    (mapv (fn [c]
-            (or (shorthand-cell c)
-                (if (and (sequential? c) (seq c) (not (column-ref? (first c))))
-                  (let [inner (normalize-arrange-cells c)]
-                    (if rows? inner (arrange* inner {})))
-                  c)))
-          cells)))
-
-(defn- pose-shorthand-cells
-  "Rewrite each cell written `[pose :a]` or `[pose :a :b]`, at any depth
-   of rows, into that pose with those columns; leave every other cell
-   as it is."
-  [cells]
-  (if (sequential? cells)
+        rows? (and (seq cells) (sequential? (first cells)) (not (hiccup? (first cells))))]
     (mapv (fn [c]
             (cond
-              (and (sequential? c) (<= 2 (count c) 3) (pose? (first c))
-                   (every? column-ref? (rest c)))
-              (apply pose c)
+              (column-ref? c) {:x c}
 
-              (sequential? c) (pose-shorthand-cells c)
+              (and (sequential? c) (seq c) (not (hiccup? c)))
+              (let [inner (normalize-arrange-cells c)]
+                (if rows? inner (arrange* inner {})))
 
               :else c))
-          cells)
-    cells))
+          cells)))
+
+(defn- check-no-column-cells!
+  "Report a column in a cell list given no data to read it from.
+   Rendered hiccup is left to `coerce-arrange-input`, which names it."
+  [cells]
+  (when-let [c (->> (tree-seq #(and (sequential? %) (not (hiccup? %))) seq cells)
+                    rest
+                    (some #(when (column-ref? %) %)))]
+    (throw (ex-info (str "pj/arrange was given the column " (pr-str c)
+                         " as a cell, and no data to read it from. Give the"
+                         " data first: (pj/arrange data [" (pr-str c) " ...]).")
+                    {:caller "pj/arrange" :column c}))))
 
 (defn- check-arrange-arguments!
   "Report cells given one by one, `(pj/arrange a b)`, and an options
@@ -4980,6 +4753,28 @@
                            " where the options map goes.")
                       {:caller "pj/arrange"})))))
 
+(defn- append-arrange-cells
+  "Append `cells` to the composite `p`, read as a cell list given after
+   data is read (`normalize-arrange-cells`), from the data at its root:
+   each cell of a flat list joins the composite's cells, and each row of
+   a list of rows joins it as a row. A pose is reported; beside a
+   composite it is a cell of a new arrangement."
+  [p cells]
+  (when (some pose? (tree-seq sequential? seq cells))
+    (throw (ex-info (str "pj/arrange appends columns and mappings to a"
+                         " composite pose, and was given a pose. To place a"
+                         " pose beside a composite, arrange the two:"
+                         " (pj/arrange [composite pose]).")
+                    {:caller "pj/arrange" :cells cells})))
+  (let [cells (normalize-arrange-cells cells)
+        coerce (fn [i c] (coerce-arrange-input c i))
+        added (if (sequential? (first cells))
+                (map (fn [row] {:layout {:direction :horizontal}
+                                :poses (vec (map-indexed coerce row))})
+                     cells)
+                (map-indexed coerce cells))]
+    (prepare-pose (update p :poses (fnil into []) added))))
+
 (defn- arrange-from-pose
   "Arrange `cells` beside what the pose `p` already holds."
   [p cells opts]
@@ -4994,16 +4789,18 @@
         ;; A column appended to a composite is read from the data at
         ;; its root; cells carrying data of their own leave none there.
         (when (and (nil? (:data p))
-                   (some #(or (column-ref? %) (sequential? %)) cells))
+                   (some #(or (column-ref? %) (sequential? %)
+                              (and (map? %) (not (pose? %))))
+                         cells))
           (throw (ex-info (str "pj/arrange appends columns to a composite pose"
                                " by reading them from the composite's data, and"
                                " this composite has none: its cells carry their"
                                " own. Give the data first and write every cell"
-                               " there, as in (pj/arrange data [[:a :b] [:a :c]]),"
+                               " there, as in (pj/arrange data [{:x :a :y :b} {:x :a :y :c}]),"
                                " or add a pose: (pj/arrange [composite"
                                " (pj/lay-point data :a :c)]).")
                           {:caller "pj/arrange" :cells cells})))
-        (multi-pair-pose p cells))
+        (append-arrange-cells p cells))
 
     :else
     (let [{:keys [data mapping layers]} p]
@@ -5080,23 +4877,30 @@
    the cell list, so the first is data or a pose; a map is the options,
    so the first is the cells.
 
-   A cell may also be written as columns:
+   A cell is what one argument after the data is to `pj/pose`: a
+   column, `:a`, is the cell `{:x :a}`; a mapping is a mapping; a pose
+   is a pose. A vector is never a cell. It is a list of cells -- a row,
+   in a list of rows, and otherwise an arrangement of its own:
 
-   - `(arrange data [:a :b :c])` -- N univariate panels.
-   - `(arrange data [[:a :b] [:c :d]])` -- N bivariate panels.
-   - `(arrange pose [[:a :b] [:c :d]])` -- the pose's data, mapping and
-     layers with N panels; on a composite pose, N panels appended.
-   - `(arrange data [[pose1 :a] [:b :c] [[:e :f]]])` -- a pose extended
-     by a column, a pair, and a nested arrangement, mixed freely."
+   - `(arrange data [:a :b :c])` -- a panel per column.
+   - `(arrange data [{:x :a :y :b} {:x :c :y :d}])` -- a panel per
+     pair of columns.
+   - `(arrange data [[:a :b] [:c :d]])` -- a 2x2 grid of panels, a
+     column each.
+   - `(arrange data [:a [:b :c]])` -- a panel of `:a` beside an
+     arrangement of `:b` and `:c`.
+   - `(arrange pose [:a :b])` -- the pose's data, mapping and layers
+     with a panel per column; on a composite pose, the cells appended.
+   - `(arrange data [(pj/pose nil :a :b) (pj/pose nil :c :d)])` -- a
+     pose with no data is drawn from the data given first, so a list of
+     pairs is `(mapv #(apply pj/pose nil %) pairs)`."
   ([plots] (arrange plots {}))
   ([plots-or-data opts-or-cells]
    (if (sequential? opts-or-cells)
      (arrange plots-or-data opts-or-cells {})
      (do (check-arrange-arguments! plots-or-data opts-or-cells)
-         ;; A cell `[pose :a :b]` carries its own data, so it is read
-         ;; with no data given, as it is after data. Columns alone
-         ;; still need data (`arrange*` says so).
-         (arrange* (pose-shorthand-cells plots-or-data) opts-or-cells))))
+         (check-no-column-cells! plots-or-data)
+         (arrange* (normalize-arrange-cells plots-or-data) opts-or-cells))))
   ([data-or-pose cells opts]
    ;; Three poses, `(pj/arrange a b c)`, are cells given one by one.
    (check-arrange-arguments! cells opts)

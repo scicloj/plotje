@@ -392,13 +392,16 @@ sales-by-region
 
 ;; Every `:x` column against every `:y` column is the product of the two
 ;; lists. It is useful where the columns share units, so that each pair
-;; can be compared on one set of axes. `pj/cross` returns the product
-;; as a vector of pairs, `(apply map vector)` turns the pairs into the
-;; list of `:x` columns and the list of `:y` columns, and `apply` passes
-;; the two lists to the `lay-*` call. Here the two lengths of an iris
-;; flower are drawn against its two widths, all in centimetres:
+;; can be compared on one set of axes. A `for` over the two lists
+;; returns the product as a sequence of pairs, `(apply map vector)`
+;; turns the pairs into the list of `:x` columns and the list of `:y`
+;; columns, and `apply` passes the two lists to the `lay-*` call. Here
+;; the two lengths of an iris flower are drawn against its two widths,
+;; all in centimetres:
 
-(->> (pj/cross [:sepal-length :petal-length] [:sepal-width :petal-width])
+(->> (for [x [:sepal-length :petal-length]
+           y [:sepal-width :petal-width]]
+       [x y])
      (apply map vector)
      (apply pj/lay-point (rdatasets/datasets-iris)))
 
@@ -732,8 +735,8 @@ sales-by-region
                  (= 3 (count (distinct (map :y-domain panels)))))))])
 
 ;; Two other spellings draw the same plot: a facet over the three
-;; columns, placed across with `:col`, and an arrangement of the three
-;; pairs of columns.
+;; columns, placed across with `:col`, and an arrangement of three
+;; mappings, each naming `:quarter` and one of the columns.
 
 (-> sales
     (pj/pose {:x :quarter})
@@ -746,7 +749,9 @@ sales-by-region
                                    (pj/facet :series)))]
             (and (= split (pj/plot v))
                  (= split (pj/plot (-> sales
-                                       (pj/arrange [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+                                       (pj/arrange [{:x :quarter :y :revenue}
+                                                    {:x :quarter :y :cost}
+                                                    {:x :quarter :y :tax}])
                                        pj/lay-line))))))])
 
 ;; The panels have value axes of their own because they draw different

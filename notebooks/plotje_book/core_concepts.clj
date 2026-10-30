@@ -367,13 +367,14 @@ two-panel
                             (select-keys (pj/svg-summary v) [:panels :points])))])
 
 ;; The pose stays one leaf, holding the split under `:facet`; the cells
-;; are made when it is drawn. `pj/arrange` given the same pairs builds
-;; the cells at once, as a composite pose. Printed, it has a vertical
-;; root containing one horizontal row of two sub-poses:
+;; are made when it is drawn. `pj/arrange` given the same pairs, each
+;; written as a mapping, builds the cells at once, as a composite pose.
+;; Printed, it has a vertical root containing one horizontal row of two
+;; sub-poses:
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [[:sepal-length :sepal-width]
-                 [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :petal-length :y :petal-width}])
     (kind/pprint))
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])

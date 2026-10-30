@@ -1078,4 +1078,4 @@
                           [:panels :points :lines]))))
     (testing "a cell naming its columns in its own mapping is matched as before"
       (is (= [[:line] []]
-             (types (-> d (pj/arrange [[:a :b] [:a :c]]) (pj/lay-line :a :b))))))))
+             (types (-> d (pj/arrange [{:x :a :y :b} {:x :a :y :c}]) (pj/lay-line :a :b))))))))

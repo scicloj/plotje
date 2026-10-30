@@ -102,7 +102,7 @@ sales-long
 ;; | the question | long side, from a column's **values** | wide side, from **column names** |
 ;; |:--|:--|:--|
 ;; | several measures shown together | `:color`, `:group` | a layer per column, or several columns in one slot (a series) |
-;; | several measures in their own panels | `pj/facet` with a column | `pj/facet` with a map of columns, `pj/arrange` with columns as cells |
+;; | several measures in their own panels | `pj/facet` with a column | `pj/facet` with a map of columns, `pj/arrange` with mappings as cells |
 ;; | whether those panels share a scale | `:share-scales` | `:share-scales` |
 ;; | how competitors share a place | `:position` | `:position` on a series; `:dodge` alone across layers |
 
@@ -123,13 +123,13 @@ sales-long
 ;; ## Where both sides exist, one construct serves both
 
 ;; The same information, drawn from each shape. From the wide table,
-;; `pj/arrange` takes a pair of columns as a cell:
+;; `pj/arrange` takes a mapping naming two columns as a cell:
 
 (def wide-cells
   (-> sales-wide
-      (pj/arrange [[:quarter :revenue]
-                   [:quarter :cost]
-                   [:quarter :tax]])
+      (pj/arrange [{:x :quarter :y :revenue}
+                   {:x :quarter :y :cost}
+                   {:x :quarter :y :tax}])
       (pj/lay-point)))
 
 wide-cells
@@ -172,9 +172,9 @@ long-facet
 (kind/test-last
  [(fn [_]
     (let [w (pj/svg-summary (-> sales-wide
-                                (pj/arrange [[:quarter :revenue]
-                                             [:quarter :cost]
-                                             [:quarter :tax]])
+                                (pj/arrange [{:x :quarter :y :revenue}
+                                             {:x :quarter :y :cost}
+                                             {:x :quarter :y :tax}])
                                 (pj/lay-point)))
           l (pj/svg-summary (-> sales-long (pj/lay-point :quarter :value)
                                 (pj/facet :measure)))]
@@ -204,25 +204,25 @@ long-facet
    (pr-str (y-ticks (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure))))
    (pr-str (y-ticks (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure)
                         (pj/options {:share-scales {:y :all}}))))]
-  ["wide side, pairs grid"
+  ["wide side, `pj/arrange`"
    (pr-str (y-ticks (-> sales-wide
-                        (pj/arrange [[:quarter :revenue]
-                                     [:quarter :cost]
-                                     [:quarter :tax]])
+                        (pj/arrange [{:x :quarter :y :revenue}
+                                     {:x :quarter :y :cost}
+                                     {:x :quarter :y :tax}])
                         (pj/lay-point))))
    (pr-str (y-ticks (-> sales-wide
-                        (pj/arrange [[:quarter :revenue]
-                                     [:quarter :cost]
-                                     [:quarter :tax]])
+                        (pj/arrange [{:x :quarter :y :revenue}
+                                     {:x :quarter :y :cost}
+                                     {:x :quarter :y :tax}])
                         (pj/lay-point)
                         (pj/options {:share-scales {:y :all}}))))]])
 
 (kind/test-last
  [(fn [_]
     (let [grid (fn [opts] (-> sales-wide
-                              (pj/arrange [[:quarter :revenue]
-                                           [:quarter :cost]
-                                           [:quarter :tax]])
+                              (pj/arrange [{:x :quarter :y :revenue}
+                                           {:x :quarter :y :cost}
+                                           {:x :quarter :y :tax}])
                               (pj/lay-point)
                               (pj/options opts)))
           facet (fn [opts] (-> sales-long (pj/lay-point :quarter :value) (pj/facet :measure)
@@ -901,9 +901,9 @@ tooltip-slots
            pj/lay-point
            (pj/facet {:y [:revenue :cost :tax]}))
        (-> sales-wide
-           (pj/arrange [[:quarter :revenue]
-                        [:quarter :cost]
-                        [:quarter :tax]])
+           (pj/arrange [{:x :quarter :y :revenue}
+                        {:x :quarter :y :cost}
+                        {:x :quarter :y :tax}])
            pj/lay-point)])
 
 (kind/test-last

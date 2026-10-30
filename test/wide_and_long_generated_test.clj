@@ -42,16 +42,16 @@
           [xs
            (->>
             (str/split (str/trim (str (:points attrs))) #"[\s,]+")
-            (map (fn* [p1__84957#] (Double/parseDouble p1__84957#)))
+            (map (fn* [p1__83177#] (Double/parseDouble p1__83177#)))
             (partition 2)
             (map first))]
           [[(+ dx (apply min xs)) (+ dx (apply max xs))]]))]
        (into
         (vec own)
-        (mapcat (fn* [p1__84958#] (walk p1__84958# (+ dx tx))))
+        (mapcat (fn* [p1__83178#] (walk p1__83178# (+ dx tx))))
         kids))
       (sequential? node)
-      (into [] (mapcat (fn* [p1__84959#] (walk p1__84959# dx))) node)
+      (into [] (mapcat (fn* [p1__83179#] (walk p1__83179# dx))) node)
       :else
       []))]
    (vec (sort (walk (pj/plot pose {:width 600, :height 400}) 0.0))))))
@@ -117,7 +117,10 @@
   wide-cells
   (->
    sales-wide
-   (pj/arrange [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+   (pj/arrange
+    [{:x :quarter, :y :revenue}
+     {:x :quarter, :y :cost}
+     {:x :quarter, :y :tax}])
    (pj/lay-point))))
 
 
@@ -183,7 +186,9 @@
        (->
         sales-wide
         (pj/arrange
-         [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+         [{:x :quarter, :y :revenue}
+          {:x :quarter, :y :cost}
+          {:x :quarter, :y :tax}])
         (pj/lay-point)))
       l
       (pj/svg-summary
@@ -205,7 +210,7 @@
   y-ticks
   [pose]
   (filterv
-   (fn* [p1__84960#] (re-matches #"\d+" p1__84960#))
+   (fn* [p1__83180#] (re-matches #"\d+" p1__83180#))
    (:texts (pj/svg-summary pose)))))
 
 
@@ -227,20 +232,24 @@
        (pj/lay-point :quarter :value)
        (pj/facet :measure)
        (pj/options {:share-scales {:y :all}}))))]
-   ["wide side, pairs grid"
+   ["wide side, `pj/arrange`"
     (pr-str
      (y-ticks
       (->
        sales-wide
        (pj/arrange
-        [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+        [{:x :quarter, :y :revenue}
+         {:x :quarter, :y :cost}
+         {:x :quarter, :y :tax}])
        (pj/lay-point))))
     (pr-str
      (y-ticks
       (->
        sales-wide
        (pj/arrange
-        [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+        [{:x :quarter, :y :revenue}
+         {:x :quarter, :y :cost}
+         {:x :quarter, :y :tax}])
        (pj/lay-point)
        (pj/options {:share-scales {:y :all}}))))]]))
 
@@ -257,7 +266,9 @@
        (->
         sales-wide
         (pj/arrange
-         [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+         [{:x :quarter, :y :revenue}
+          {:x :quarter, :y :cost}
+          {:x :quarter, :y :tax}])
         (pj/lay-point)
         (pj/options opts)))
       facet
@@ -908,7 +919,7 @@
      (apply
       =
       (map
-       (fn* [p1__84961#] (-> p1__84961# :plan :panels first :y-domain))
+       (fn* [p1__83181#] (-> p1__83181# :plan :panels first :y-domain))
        (:sub-plots (pj/plan v))))))
    v110_l620)))
 
@@ -1294,14 +1305,14 @@
        (tree-seq sequential? seq (pj/plot v))
        (filter
         (fn*
-         [p1__84962#]
+         [p1__83182#]
          (and
-          (vector? p1__84962#)
-          (= :rect (first p1__84962#))
-          (map? (second p1__84962#))
-          (number? (:width (second p1__84962#)))
-          (> (:width (second p1__84962#)) 100))))
-       (keep (fn* [p1__84963#] (:fill (second p1__84963#))))
+          (vector? p1__83182#)
+          (= :rect (first p1__83182#))
+          (map? (second p1__83182#))
+          (number? (:width (second p1__83182#)))
+          (> (:width (second p1__83182#)) 100))))
+       (keep (fn* [p1__83183#] (:fill (second p1__83183#))))
        distinct
        vec)]
      (= ["rgb(255,255,255)" "rgb(232,232,232)"] fills)))
@@ -1324,7 +1335,7 @@
       first
       :groups
       (mapv
-       (fn* [p1__84964#] (vec (take 2 (:tooltips p1__84964#))))))])
+       (fn* [p1__83184#] (vec (take 2 (:tooltips p1__83184#))))))])
    [["a column" {:tooltip :units}]
     ["valid hiccup" {:tooltip [:b "a note"]}]])))
 
@@ -1359,7 +1370,10 @@
     (pj/facet {:y [:revenue :cost :tax]}))
    (->
     sales-wide
-    (pj/arrange [[:quarter :revenue] [:quarter :cost] [:quarter :tax]])
+    (pj/arrange
+     [{:x :quarter, :y :revenue}
+      {:x :quarter, :y :cost}
+      {:x :quarter, :y :tax}])
     pj/lay-point)]))
 
 

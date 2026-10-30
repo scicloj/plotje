@@ -108,11 +108,9 @@
 
 (kind/doc #'pj/cross)
 
-(pj/cross [:a :b] [1 2 3])
-
-(kind/test-last [(fn [v] (= [[:a 1] [:a 2] [:a 3] [:b 1] [:b 2] [:b 3]] v))])
-
-;; The pairs go to `pj/arrange` as cells. For a grid of every `:x`
+;; `pj/cross` is deprecated, and a call to it prints a warning. A pair
+;; of columns is not a cell of `pj/arrange`, where a vector is a list of
+;; cells. For a grid of every `:x`
 ;; column against every `:y` column, give `pj/facet` the two lists,
 ;; `{:col {:x xs} :row {:y ys}}`. The same list in both places draws a
 ;; scatter plot matrix (SPLOM):
@@ -742,12 +740,13 @@
                               (= 2 (:panels (pj/svg-summary v)))
                               (= [0.0 0.0 600.0 250.0] (:canvas (pj/frames v)))))])
 
-;; Columns as cells -- a pair of columns is a panel of the two columns,
+;; Mappings as cells -- given the data first, a mapping such as
+;; `{:x :sepal-length :y :sepal-width}` is a panel of its two columns,
 ;; and a layer added afterwards is drawn in every cell:
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [[:sepal-length :sepal-width]
-                 [:petal-length :petal-width]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :petal-length :y :petal-width}])
     (pj/lay-point {:color :species}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

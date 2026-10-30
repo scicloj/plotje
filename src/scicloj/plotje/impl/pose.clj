@@ -435,8 +435,8 @@
      ;; Matrix layout: rect math handled by compute-matrix-layout, but
      ;; we still need to recurse into any nested composites that aren't
      ;; themselves matrix. For now we only support flat matrix
-     ;; composites (children are leaves), since that's all
-     ;; multi-pair-pose produces. Nested matrix-
+     ;; composites (children are leaves), the shape a matrix layout
+     ;; written by hand has. Nested matrix-
      ;; in-matrix is reserved for a future iteration.
        (let [cell-rects (compute-matrix-layout pose [x y w h])]
          (into {}
@@ -1033,8 +1033,8 @@
 (defn- declared-split?
   "True of a composite whose cells are the parts of one declared split:
    the composite carries the data and no cell brings data of its own,
-   so every cell draws a part of the same dataset -- a column, a pair,
-   or a `:where` subset. Cells that each carry their own data were
+   so every cell draws a part of the same dataset -- a column, a
+   mapping, or a `:where` subset. Cells that each carry their own data were
    handed over as separate plots. Provisional (Rule 1, PR #61 agenda);
    a grouped dataset is the case this does not yet read."
   [pose]
@@ -2681,8 +2681,8 @@
    same thing written out, and the only reason to write it is to name
    the key column the pivot invents.
 
-   A vector of pairs is not a series -- that is the multi-panel form
-   `pj/pose` reads -- so a vector whose elements are themselves
+   A vector of pairs is not a series -- `pj/pose` reports it, naming
+   `pj/arrange` -- so a vector whose elements are themselves
    sequential answers nil and is left to it."
   [v]
   (cond
@@ -3779,7 +3779,7 @@
             ", and every cell below it names its own " k
             ", on its mapping or on its layers, so it is not drawn."
             " To change the columns of the cells,"
-            " arrange them anew: (pj/arrange data [[:a :b] [:c :d]]).")
+            " arrange them anew: (pj/arrange data [{:x :a :y :b} {:x :c :y :d}]).")
        ;; The layers of a pose share one panel, and a layer naming a
        ;; column of its own draws that column there. Nothing is added
        ;; for the pose's column, so it is said.
@@ -4815,7 +4815,7 @@
   "The report for a layer naming a column no panel draws
    (`columns-no-cell-has`). The cells are those of a facet over columns,
    or those `pj/arrange` makes from columns for a pose that already has
-   the layer: `(-> (pj/lay-point data :a :b) (pj/arrange [[:c :d]]))`.
+   the layer: `(-> (pj/lay-point data :a :b) (pj/arrange [{:x :c :y :d}]))`.
    A `lay-*` call on an arrangement joins a cell or adds one at the
    call, and does not reach this report."
   [layer clashes entries]

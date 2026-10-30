@@ -178,9 +178,9 @@
                                    (into (if before? (conj layers f) (into [f] layers)))
                                    (into tail))})
          :arrange-cols (let [[a b c] (shuffle-r (:num ds))
-                             cells (pick (remove nil? [[[a b] [a (or c b)]]
+                             cells (pick (remove nil? [[{:x a :y b} {:x a :y (or c b)}]
                                                        [a b]
-                                                       [[(col-of ds :cat) a] [(col-of ds :cat) b]]]))
+                                                       [{:x (col-of ds :cat) :y a} {:x (col-of ds :cat) :y b}]]))
                              ar (cond-> ['pj/arrange cells] trailing-opts (conj trailing-opts))
                              layers (vec (repeatedly (pick-w {1 70 2 30}) #(gen-layer ds)))]
                          {:steps (-> [ar] (into layers) (into tail))})

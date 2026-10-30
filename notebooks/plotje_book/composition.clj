@@ -64,14 +64,17 @@
                  ;; four slots, the empty one included
                  (= #{[0 0] [0 1] [1 0] [1 1]} (set (keys layout))))))])
 
-;; `pj/arrange` also takes data first, with columns as its cells: a
-;; pair of columns is a panel drawing the first column on `:x` and the
-;; second on `:y`, and a single column is a panel drawing that column.
-;; The layers are added afterwards, once, and are drawn in every cell:
+;; `pj/arrange` also takes data first. A cell is then what one argument
+;; after the data is to `pj/pose`: a mapping such as
+;; `{:x :sepal-length :y :sepal-width}` is a panel drawing those two
+;; columns, and a single column, `:sepal-length`, is a panel drawing
+;; that column. A vector in the list of cells is never a cell: it is a
+;; row of cells, or an arrangement of its own. The layers are added
+;; afterwards, once, and are drawn in every cell:
 
 (-> (rdatasets/datasets-iris)
-    (pj/arrange [[:sepal-length :sepal-width]
-                 [:sepal-length :petal-length]])
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :sepal-length :y :petal-length}])
     pj/lay-point)
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
