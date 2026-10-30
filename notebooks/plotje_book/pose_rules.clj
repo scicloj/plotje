@@ -840,6 +840,19 @@ composite-pose
          (= 1 (count (:layers pose)))
          (not (contains? pose :poses))))])
 
+;; `nil` in place of the data, followed by columns or a mapping, is a
+;; template, as it is for `pj/pose`: a leaf pose holding the layer and no
+;; data, completed by `pj/with-data` or by an arrangement given data
+;; first. `nil` alone reports an error.
+
+(pj/lay-point nil :a :b)
+
+(kind/test-last
+ [(fn [pose]
+    (and (nil? (:data pose))
+         (= [{:x :a :y :b}] (mapv :mapping (:layers pose)))
+         (= 5 (:points (pj/svg-summary (pj/with-data pose tiny))))))])
+
 ;; ### Rule LP5: the layers of a leaf share its panel
 ;;
 ;; A leaf draws one panel, and every layer on it draws there, whatever
