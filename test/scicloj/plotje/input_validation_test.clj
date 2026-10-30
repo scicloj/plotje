@@ -16,11 +16,12 @@
          #"requires data, but got nil"
          (pj/pose nil))))
 
-  (testing "(pj/lay-point nil :x :y) throws (via ->pose)"
+  (testing "(pj/lay-point nil) throws (via ->pose); with columns it is a template"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #"requires data, but got nil"
-         (pj/lay-point nil :x :y))))
+         (pj/lay-point nil)))
+    (is (pj/pose? (pj/lay-point nil :x :y))))
 
   (testing "(pj/options nil ...) throws (via ->pose)"
     (is (thrown-with-msg?
@@ -210,7 +211,7 @@
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
          #"^pj/lay-point requires data"
-         (pj/lay-point nil :x :y))))
+         (pj/lay-point nil))))
 
   (testing "error from pj/options on nil names pj/options"
     (is (thrown-with-msg?

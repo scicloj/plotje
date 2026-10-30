@@ -4905,6 +4905,12 @@
    where inference chooses the layer's own type and the layer carries
    nothing but its columns, so the cell is drawn as the layer would be.
 
+   An arrangement prints no such Note: its cells are written out, and a
+   layer naming a cell's columns is how a layer is added to that one
+   cell (Rule LP2 in `pose_rules.clj`). A facet's panels come from one
+   pose written once, where a layer drawn in some of them is the
+   surprise the Note is for.
+
    The same holds for a cell that other layers draw, none of them of the
    layer's type: a scatter naming the facet's first column beside a
    smooth naming only `:x` leaves the other panels a smooth without its

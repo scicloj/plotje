@@ -624,6 +624,21 @@ scatter-with-regression
                            (and (= 6 (:points s))
                                 (= 2 (:lines s)))))])
 
+;; `pj/lay-*` reads `nil` the way `pj/pose` does: `nil` followed by
+;; columns or a mapping is a template. A template is also a cell of an
+;; arrangement given data first, drawn from that data -- here a cell
+;; with layers of its own beside a cell drawn by inference:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [(-> (pj/lay-point nil :displ :hwy)
+                     (pj/lay-smooth {:stat :linear-model}))
+                 {:x :displ :y :cty}]))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 1 (:lines s))
+                                (= 468 (:points s)))))])
+
 ;; `pj/with-data` validates at attach time: if the dataset is
 ;; missing a column the pose references, it reports an error naming
 ;; the missing columns.

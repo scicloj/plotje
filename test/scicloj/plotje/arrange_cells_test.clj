@@ -109,3 +109,17 @@
     (testing "an arrangement written as rows takes an appended list as a new row"
       (is (= [2 1] (mapv #(count (:poses %))
                          (:poses (pj/arrange (pj/arrange tiny [[:u :v]]) [:w]))))))))
+
+(deftest lay-on-nil-is-a-template-test
+  (testing "nil with columns or a mapping is a template, as in pj/pose"
+    (is (= [{:layer-type :point :mapping {:x :u :y :v}}]
+           (:layers (pj/lay-point nil :u :v))))
+    (is (nil? (:data (pj/lay-point nil {:x :u :y :v}))))
+    (is (= (pj/plot (pj/with-data (pj/lay-point nil :u :v) tiny))
+           (pj/plot (pj/lay-point tiny :u :v)))))
+  (testing "as a cell, drawn from the data given first"
+    (is (= {:panels 2 :points 6}
+           (select-keys (pj/svg-summary (pj/arrange tiny [(pj/lay-point nil :u :v) {:x :u :y :w}]))
+                        [:panels :points]))))
+  (testing "nil alone is reported, as (pj/pose nil) is"
+    (is (re-find #"requires data, but got nil" (message #(pj/lay-point nil))))))

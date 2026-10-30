@@ -2297,6 +2297,17 @@
                   (str "(pj/arrange data " (pr-str (vec cols)) ")"))
                 ".")))
 
+
+(defn- lay-target
+  "The pose a `lay-*` call adds its layer to. `nil` with columns or a
+   mapping is a template, as in `pj/pose`: `(pj/lay-point nil :a :b)` is
+   a pose with that layer and no data, completed by `pj/with-data` or by
+   the arrangement it is a cell of. `nil` alone is reported, as
+   `(pj/pose nil)` is, since nothing comes with it."
+  [layer-type-key pose-or-data columns?]
+  (if (and (nil? pose-or-data) columns?)
+    (pose)
+    (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))))
 (defn- lay-layer-type
   "Shared implementation for all lay-* functions.
 
@@ -2317,7 +2328,11 @@
             mapping;
             a vector of columns and a map -> a series on `:x`, with a
             Note for this release.
-   4-arity: two columns and a map."
+   4-arity: two columns and a map.
+
+   `nil` in place of the pose, with columns or a map, is a template, as
+   in `pj/pose`: `(pj/lay-point nil :a :b)` is a pose with that layer
+   and no data. `nil` alone is reported."
   ([layer-type-key pose-or-data]
    ;; A layer naming no column is given its columns later: the panel's
    ;; columns at elaboration, or the first one to three columns of the
@@ -2326,7 +2341,7 @@
    (lay-on-pose (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))
                 layer-type-key nil nil))
   ([layer-type-key pose-or-data x-or-opts]
-   (let [fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
+   (let [fr (lay-target layer-type-key pose-or-data (some? x-or-opts))]
      (cond
        (map? x-or-opts)
        (do (check-mapping-in-map-slot
@@ -2352,7 +2367,7 @@
        :else
        (lay-on-pose fr layer-type-key nil nil))))
   ([layer-type-key pose-or-data x y-or-opts]
-   (let [fr (->pose pose-or-data (str "pj/lay-" (name layer-type-key)))]
+   (let [fr (lay-target layer-type-key pose-or-data (or (some? x) (some? y-or-opts)))]
      ;; Checked before any reading of the y slot, so a series written
      ;; there is refused as a single column is.
      (when (and (x-only? layer-type-key) (some? y-or-opts) (not (map? y-or-opts)))
@@ -2415,7 +2430,7 @@
                           " a map, as in {:color :species}.")
                      {:caller (str "pj/lay-" (name layer-type-key))
                       :value opts})))
-   (lay-on-pose (->pose pose-or-data (str "pj/lay-" (name layer-type-key))) layer-type-key {:x x :y y} opts)))
+   (lay-on-pose (lay-target layer-type-key pose-or-data true) layer-type-key {:x x :y y} opts)))
 
 (defn lay-point
   "Add a `:point` (scatter) layer to a pose.
@@ -4938,7 +4953,10 @@
      with a panel per column; on a composite pose, the cells appended.
    - `(arrange data [(pj/pose nil :a :b) (pj/pose nil :c :d)])` -- a
      pose with no data is drawn from the data given first, so a list of
-     pairs is `(mapv #(apply pj/pose nil %) pairs)`."
+     pairs is `(mapv #(apply pj/pose nil %) pairs)`.
+   - `(arrange data [(pj/lay-point nil :a :b) {:x :c :y :d}])` -- a cell
+     with a layer of its own, beside a cell left to the layers of the
+     arrangement."
   ([plots] (arrange plots {}))
   ([plots-or-data opts-or-cells]
    (if (sequential? opts-or-cells)
