@@ -199,3 +199,19 @@
 
 (deftest pj-lay-takes-a-nil-template-test
   (is (= 3 (:points (pj/svg-summary (pj/with-data (pj/lay nil :point {:x :u :y :v}) tiny4))))))
+
+(deftest a-pose-after-the-data-test
+  (let [p (pj/lay-point nil :u :v)]
+    (testing "(pj/pose nil p) is p, so a pose cell obeys the cell rule"
+      (is (= p (pj/pose nil p)))
+      (is (= (pj/svg-summary (pj/arrange tiny4 [p {:x :u :y :w}]))
+             (pj/svg-summary (pj/arrange tiny4 [(pj/pose nil p) (pj/pose nil {:x :u :y :w})])))))
+    (testing "(pj/pose data p) is p drawn from data"
+      (is (= 3 (:points (pj/svg-summary (pj/pose tiny4 p))))))
+    (testing "a pose with data of its own keeps it"
+      (is (= a (pj/pose tiny4 a))))
+    (testing "a mapping after the pose merges in"
+      (is (= :g (get-in (pj/pose tiny4 p {:color :g}) [:mapping :color]))))
+    (testing "columns after the pose, or a pose before it, report an error"
+      (is (re-find #"followed by the columns \[:w :u\]" (message #(pj/pose tiny4 p :w :u))))
+      (is (re-find #"given two poses" (message #(pj/pose (pj/pose tiny4) p)))))))

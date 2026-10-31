@@ -1293,6 +1293,31 @@
          data-over (with-data data-over))
        (prepare-pose (add-where (pose-from-data (or data-over p) mapping)))))))
 
+(defn- pose-after-data
+  "`(pj/pose data p)` for a pose `p`: the pose drawn from `data`, as a
+   cell of `pj/arrange` is. `nil` data leaves `p` as it is; a pose
+   carrying data of its own keeps it, as a cell does. A pose before it
+   is reported: two poses are placed side by side by `pj/arrange`."
+  [pose-or-data p]
+  (when (pose? pose-or-data)
+    (throw (ex-info (str "pj/pose was given two poses. A pose draws one panel;"
+                         " to place two poses side by side, use pj/arrange:"
+                         " (pj/arrange [pose-a pose-b]).")
+                    {:caller "pj/pose"})))
+  (let [p (->pose p "pj/pose")]
+    (if (or (nil? pose-or-data) (some? (:data p)))
+      p
+      (with-data p pose-or-data))))
+
+(defn- report-columns-after-pose!
+  [cols]
+  (throw (ex-info (str "pj/pose was given a pose followed by the columns "
+                       (pr-str (vec cols)) ". A pose after the data names its"
+                       " own columns. To change them, write the columns in a"
+                       " second call: (-> data (pj/pose p) (pj/pose "
+                       (str/join " " (map pr-str cols)) ")).")
+                  {:caller "pj/pose" :columns (vec cols)})))
+
 (defn pose
   "Construct or extend a pose.
 
@@ -1307,6 +1332,11 @@
    - `(pj/pose data :x-col {:color :c})` -- `:x` and a mapping.
    - `(pj/pose data :x-col :y-col)` -- leaf with `:x` and `:y`.
    - `(pj/pose data :x-col :y-col {:color :c})` -- `:x`, `:y` and a mapping.
+   - `(pj/pose data p)`, where `p` is a pose -- `p` drawn from `data`,
+     as a cell of `pj/arrange` is; `(pj/pose nil p)` is `p`. A pose
+     carrying data of its own keeps it. A mapping after `p` merges into
+     its mapping; columns after `p`, or a pose before it, report an
+     error.
    - `(pj/pose data [:a :b :c])` -- several columns where one column
      goes are a series, drawn on one panel with a colour for each
      column. Pairs of columns, `[[:a :b] [:c :d]]`, report an error:
@@ -1371,22 +1401,39 @@
      (validate-template-data! "pj/pose" pose-or-data))
    (when (and (sequential? x-or-mapping) (series-mapping? x-or-mapping))
      (note-lone-vector! x-or-mapping nil))
-   (if (map? x-or-mapping)
+   (cond
+     (pose? x-or-mapping)
+     (pose-after-data pose-or-data x-or-mapping)
+
+     (map? x-or-mapping)
      (extend-mapping pose-or-data x-or-mapping)
+     :else
      (extend-mapping pose-or-data {:x x-or-mapping})))
   ([pose-or-data x y-or-mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
+   (when (and (pose? x) (pose? y-or-mapping))
+     (pose-after-data x y-or-mapping))
+   (when (and (pose? x) (not (map? y-or-mapping)))
+     (report-columns-after-pose! [y-or-mapping]))
    (when (and (map? y-or-mapping) (sequential? x) (series-mapping? x))
      (note-lone-vector! x nil))
-   (if (map? y-or-mapping)
+   (cond
+     ;; (pj/pose data p mapping) -- the pose drawn from the data, with
+     ;; the mapping merged in as (pj/pose p mapping) merges it
+     (pose? x)
+     (pose (pose-after-data pose-or-data x) y-or-mapping)
+
+     (map? y-or-mapping)
      ;; (pj/pose data x-col opts-map) -- univariate position plus opts
      (extend-mapping pose-or-data (merge y-or-mapping {:x x}))
-     ;; else
+     :else
      (extend-mapping pose-or-data {:x x :y y-or-mapping})))
   ([pose-or-data x y mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
+   (when (pose? x)
+     (report-columns-after-pose! (if (map? mapping) [y] [y mapping])))
    (when-not (or (nil? mapping) (map? mapping))
      (throw (ex-info
              (str "pj/pose 4-arity expects a mapping as the last"
@@ -4740,7 +4787,8 @@
 
 ;; A cell of `pj/arrange` is what one argument to `pj/pose` is after
 ;; the data: a column is `{:x column}`, a mapping is a mapping, a pose
-;; is a pose. A vector is never a cell. It is a list of cells: a row
+;; is a pose (`pose-after-data`). `nil` is the exception: a cell left
+;; empty here, no column in `pj/pose`. A vector is never a cell. It is a list of cells: a row
 ;; where the list is a list of rows, and otherwise an arrangement of its
 ;; own. A pair is written as a mapping, `{:x :a :y :b}`.
 
@@ -5000,7 +5048,9 @@
 
    A cell is what one argument after the data is to `pj/pose`: a
    column, `:a`, is the cell `{:x :a}`; a mapping is a mapping; a pose
-   is a pose. A vector is never a cell. It is a list of cells -- a row,
+   is a pose. So a cell and `(pj/pose nil cell)` draw the same. `nil`
+   is the exception: here a cell left empty, where after the data in
+   `pj/pose` it names no column. A vector is never a cell. It is a list of cells -- a row,
    in a list of rows, and otherwise an arrangement of its own. A list
    is a list of rows when its first element is a vector, and then every
    element is a row:

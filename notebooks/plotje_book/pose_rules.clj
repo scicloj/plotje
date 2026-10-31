@@ -360,8 +360,10 @@ composite-pose
 ;; `pj/arrange` returns a composite. It takes a vector of cells, or
 ;; data or a pose first and then the cells. A cell is what one argument
 ;; after the data is to `pj/pose`: a pose, a composite, a column (a
-;; panel of that column), a mapping such as `{:x :a :y :b}` (a panel of
-;; the columns the mapping names), or `nil` for a cell left empty. A
+;; panel of that column), or a mapping such as `{:x :a :y :b}` (a panel
+;; of the columns the mapping names). So a cell and `(pj/pose nil cell)`
+;; draw the same. `nil` is the exception: in `pj/arrange` it is a cell
+;; left empty, where after the data in `pj/pose` it names no column. A
 ;; vector is never a cell. A vector in the cell list is a list of cells:
 ;; a row, where the cell list is a list of rows, and otherwise an
 ;; arrangement of its own. The cells are placed in rows: the
@@ -379,7 +381,13 @@ composite-pose
          ;; arrange wraps in rows-of-columns: outer :poses is
          ;; rows, each row's :poses is cells
          (= 1 (count (:poses pose)))
-         (= 2 (count (:poses (first (:poses pose)))))))])
+         (= 2 (count (:poses (first (:poses pose)))))
+         ;; A cell and (pj/pose nil cell) draw the same, for a pose
+         ;; as for a mapping.
+         (let [p (pj/lay-point nil :sepal-length :sepal-width)]
+           (= (pj/svg-summary (pj/arrange iris [p {:x :petal-length :y :petal-width}]))
+              (pj/svg-summary (pj/arrange iris [(pj/pose nil p)
+                                                (pj/pose nil {:x :petal-length :y :petal-width})]))))))])
 
 ;; A cell may itself be a composite, and nests rather than being
 ;; flattened -- which is the shape `pj/arrange` builds for itself, one

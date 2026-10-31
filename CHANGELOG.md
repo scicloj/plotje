@@ -70,6 +70,8 @@ All notable changes to this project will be documented in this file. This change
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, and a mapping such as `{:x :a :y :b}` a panel of the columns it names. A vector in the list of cells is a list of cells -- a row in a list of rows, and otherwise an arrangement of its own -- so `(pj/arrange data [[:a :b] [:c :d]])` is a 2x2 grid of panels, a column each. A pose with no data, such as `(pj/pose nil :a :b)`, is drawn from the data given first. The first argument may be a pose, whose data, mapping, layers, row filter and plot options reach every cell; a pose faceted over columns reports an error there.
 
+- `pj/pose` given a pose after the data, `(pj/pose data p)`, is `p` drawn from that data, as a cell of `pj/arrange` is, so a cell and `(pj/pose nil cell)` draw the same; a pose carrying data of its own keeps it. A mapping after the pose merges into its mapping. Columns after the pose, or a pose before it, report an error.
+
 - `pj/lay-*` given `nil` and columns or a mapping, as in `(pj/lay-point nil :a :b)`, builds a pose with that layer and no data, as `pj/pose` given `nil` and a mapping does. `pj/with-data`, or an arrangement given data first, completes it: `(pj/arrange data [(pj/lay-point nil :a :b) {:x :a :y :c}])` gives the first cell a layer of its own. `nil` alone, `(pj/lay-point nil)`, reports an error. `pj/lay` takes `nil` and a mapping the same way.
 
 - `pj/arrange` given a composite appends the cells of the list to its list of cells, and the arrangement is laid out as one `pj/arrange` call with the longer list lays it out: `(-> (pj/arrange data [:a :b]) (pj/arrange [:c]))` draws one row of three panels. An arrangement written as rows takes an appended list as a new row.
