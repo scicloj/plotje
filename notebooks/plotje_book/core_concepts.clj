@@ -261,16 +261,27 @@ two-panel
 
 ;; ### How scope is applied
 ;;
-;; The same scoping principle governs three things -- mappings,
-;; layers, and data -- but each combines differently when pose
-;; level meets layer level:
+;; The same scoping principle governs mappings, layers, data, row
+;; filters and plot options. Where two values for one key meet -- a
+;; later `pj/pose` on the same pose, a layer under its pose, a cell
+;; under its composite -- they combine the same way at every level. A
+;; key holds either one value, which the later or inner value
+;; replaces, or a map of independent settings, which combines key by
+;; key:
 ;;
 ;; - **Mappings**: pose and layer mappings merge; the innermost
 ;;   wins on conflict, and an explicit `nil` erases a mapping
 ;;   inherited from above. The one part that combines rather than
 ;;   being replaced is a mapping's `:scale`, whose settings accumulate
-;;   down the chain -- see
+;;   down the chain, and also when `pj/pose` writes into a pose that
+;;   already has a mapping -- see
 ;;   [Scales](./plotje_book.scales.html#scales-accumulate).
+;; - **Row filters**: two `:where` maps combine column by column; a
+;;   column named in both takes the later or inner value. A
+;;   composite's filter reaches every cell -- see
+;;   [Cells that filter the data](./plotje_book.panels.html#cells-that-filter-the-data).
+;; - **Plot options**: the later or inner value wins, except `:theme`,
+;;   whose settings combine key by key.
 ;; - **Layers**: every `pj/lay-*` accumulates a new layer; layers
 ;;   do not override, they pile up.
 ;; - **Data**: the first argument to `pj/pose`/`pj/lay-*` sets the

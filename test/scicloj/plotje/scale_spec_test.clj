@@ -1210,3 +1210,51 @@
            (:x-label-pad (layout (-> pose (pj/options {:x-tick-angle -45}))))))
     (is (< (:y-label-pad (layout (-> pose (pj/scale :x {:breaks []}) (pj/coord :flip))))
            (:y-label-pad (layout (-> pose (pj/coord :flip))))))))
+
+;; ---- A scale survives a later mapping, whichever function writes it ----
+
+(def scaled-data {:gdp [100 1000 10000] :life [50 60 70] :year [1990 2000 2010]})
+
+(defn- x-scale-of [fr]
+  (-> fr pj/plan :panels first :x-scale))
+
+(deftest pj-pose-keeps-a-scale-set-before-it-test
+  (let [base (-> scaled-data (pj/pose :gdp :life) (pj/scale :x :log))]
+    (testing "the same column again, in a map or as columns"
+      (is (= {:type :log} (x-scale-of (pj/lay-point (pj/pose base {:x :gdp})))))
+      (is (= {:type :log} (x-scale-of (pj/lay-point (pj/pose base :gdp :life))))))
+    (testing "two scale specs written in pj/pose combine key by key"
+      (is (= {:x {:column :gdp :scale {:type :log :domain [10 100000]}} :y :life}
+             (:mapping (-> scaled-data
+                           (pj/pose {:x {:column :gdp :scale {:type :log}} :y :life})
+                           (pj/pose {:x {:column :gdp :scale {:domain [10 100000]}}}))))))
+    (testing "pj/scale before pj/pose, as before lay-*"
+      (is (= {:type :log}
+             (-> scaled-data (pj/pose {}) (pj/scale :x :log) (pj/pose :gdp :life)
+                 pj/lay-point x-scale-of))))
+    (testing "nil starts the aesthetic afresh"
+      (is (= {:type :linear}
+             (-> base (pj/pose {:x nil}) (pj/pose {:x :year}) pj/lay-point x-scale-of))))))
+
+(deftest a-scale-carried-to-another-column-test
+  (let [base (-> scaled-data (pj/pose :gdp :life) (pj/scale :x {:type :log :label "GDP"}))]
+    (testing "the scale follows the aesthetic, as it does into a layer"
+      (is (= {:type :log :label "GDP"}
+             (let [fr (atom nil)]
+               (with-out-str (reset! fr (pj/pose base {:x :year})))
+               (x-scale-of (pj/lay-point @fr))))))
+    (testing "a setting written for the first column is named in a warning"
+      (is (re-find #"(?s)pj/pose maps :x to :year.*written for :gdp.*\{:label \"GDP\"\}"
+                   (with-out-str (pj/pose base {:x :year})))))
+    (testing "a type alone carries without a word"
+      (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/scale :x :log)
+                                  (pj/pose {:x :year}))))))))
+
+(deftest lay-columns-and-a-scale-in-one-call-test
+  (testing "the column argument and a scale written in the map make one mapping"
+    (is (= {:type :log}
+           (x-scale-of (pj/lay-point scaled-data :gdp :life {:x {:scale :log}}))))
+    (is (= [:gdp]
+           (-> scaled-data (pj/pose :year :life)
+               (pj/lay-point :gdp :life {:x {:scale :log}})
+               pj/draft :layers (->> (mapv :x)))))))

@@ -238,7 +238,8 @@
                   scale settings accumulating (see `merge-mappings`).
    - :layers   -- concatenated (ancestor layers distribute down, then
                   the leaf's own layers append).
-   - :opts     -- merged (child overrides on key collision). So a
+   - :opts     -- combined (`defaults/combine-options`: child overrides on key
+                  collision, and a `:theme` combines key by key). So a
                   `:share-scales` written on a composite reaches a
                   faceted leaf below that writes none, and its panels
                   share the same axes.
@@ -256,17 +257,18 @@
                ;; mark: inheriting the root's data and layers, it would
                ;; be an ordinary cell asked to draw with no columns.
                {:data nil :mapping {} :layers []
-                :opts (merge {} (:opts parent-ctx) (:opts pose))}
+                :opts (defaults/combine-options (:opts parent-ctx) (:opts pose))}
                {:data    (or (:data pose) (:data parent-ctx))
                 :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                 :layers  (into (vec (:layers parent-ctx))
                                (:layers pose))
                 ;; `:share-scales` at the top of a hand-written single
                 ;; pose is read as it is at the top of a composite.
-                :opts    (merge {} (:opts parent-ctx)
-                                (when (and (leaf? pose) (contains? pose :share-scales))
-                                  {:share-scales (:share-scales pose)})
-                                (:opts pose))})]
+                :opts    (defaults/combine-options
+                          (merge {} (:opts parent-ctx)
+                                 (when (and (leaf? pose) (contains? pose :share-scales))
+                                   {:share-scales (:share-scales pose)}))
+                          (:opts pose))})]
      (if (leaf? pose)
        (let [structural-keys #{:data :mapping :layers :poses :layout
                                :opts :share-scales}
@@ -5120,6 +5122,19 @@
 
 ;; ---- Row filter ----
 
+(def ^:dynamic *where-warnings*
+  "Within one `elaborate`, the row-filter warnings already printed: a
+   composite's filter reaches every cell, and a value it misspells is
+   reported once rather than once per cell."
+  nil)
+
+(defn- warn-where! [msg]
+  (if-let [printed *where-warnings*]
+    (when-not (contains? @printed msg)
+      (swap! printed conj msg)
+      (println (str "Warning: " msg)))
+    (println (str "Warning: " msg))))
+
 (defn apply-where
   "A pose whose written row filter, `:where`, is applied to its data:
    `{:where {:species \"setosa\"}}` keeps the rows whose `:species` is
@@ -5173,7 +5188,7 @@
                                ", which selects no rows.")]
                   (if (:strict (defaults/config))
                     (throw (ex-info msg {:where w :absent absent}))
-                    (println (str "Warning: " msg)))))
+                    (warn-where! msg))))
             ;; The first key's matches, narrowed by each further key.
             idxs (reduce (fn [idxs [c v]]
                            (let [col (ds c)]
@@ -5191,7 +5206,7 @@
                                " them all.")]
                   (if (:strict (defaults/config))
                     (throw (ex-info msg {:where w}))
-                    (println (str "Warning: " msg)))))]
+                    (warn-where! msg))))]
         ;; Tagged before the rows are selected, so a filtered cell
         ;; numbers its rows as the dataset does, as a facet's panels do
         ;; (`impl/rowid`).
@@ -5457,7 +5472,7 @@
         place-mapping (fn [layer]
                         (let [k (or (layer-place leaf layer)
                                     (leaf-place leaf))]
-                          (cond-> (merge (:mapping leaf) (:mapping layer))
+                          (cond-> (merge-mappings (:mapping leaf) (:mapping layer))
                             (first k) (assoc :x (first k))
                             (second k) (assoc :y (second k)))))]
     (-> leaf
@@ -5478,7 +5493,7 @@
    its ancestors give it, and each leaf's choices written back onto that
    leaf. An ancestor's `:infer` layer, which reaches several leaves, is
    left to the plan."
-  ([pose] (elaborate pose {}))
+  ([pose] (binding [*where-warnings* (atom #{})] (elaborate pose {})))
   ([pose parent-ctx]
    (cond
      (:plotje/empty-cell pose) pose
@@ -5502,7 +5517,10 @@
                              (and (some? (:coord parent-ctx))
                                   (not (contains? (:opts pose) :coord)))
                              (assoc :coord (:coord parent-ctx)))
-                     :where (:where pose)
+                     ;; The row filters above the leaf and its own, column
+                     ;; by column: a cell's value for a column replaces its
+                     ;; composite's, as a later `pj/pose` does.
+                     :where (not-empty (merge (:where parent-ctx) (:where pose)))
                      :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                      :layers (into anc-layers (:layers pose))}
            done (elaborate-leaf resolved)
@@ -5517,8 +5535,9 @@
            ;; cells by it.
            (:where pose) (assoc :plotje/where (:where pose))
 
-         ;; A filter above the leaf narrowed the data it inherits, which
-         ;; `resolve-tree` would otherwise hand it unfiltered.
+         ;; A filter above the leaf, merged with its own, narrowed the
+         ;; data it draws, which `resolve-tree` would otherwise hand it
+         ;; unfiltered.
            (or (:filtered? parent-ctx)
                (not (identical? (:data resolved) (:data done))))
            (assoc :data (:data done))
@@ -5554,9 +5573,12 @@
            (assoc-in [:opts :coord] (get-in done [:opts :coord])))))
 
      :else
+     ;; A composite's row filter is not applied here: it travels down,
+     ;; merged column by column with the filters below it, and each leaf
+     ;; applies the result once to the data it draws.
      (let [ctx {:filtered? (boolean (or (:filtered? parent-ctx) (:where pose)))
-                :data (:data (apply-where {:data (or (:data pose) (:data parent-ctx))
-                                           :where (:where pose)}))
+                :data (or (:data pose) (:data parent-ctx))
+                :where (merge (:where parent-ctx) (:where pose))
                 :mapping (merge-mappings (:mapping parent-ctx) (:mapping pose))
                 :layers (into (vec (:layers parent-ctx)) (:layers pose))
                 :coord (if (contains? (:opts pose) :coord)

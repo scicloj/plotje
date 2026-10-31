@@ -454,7 +454,7 @@
   ([draft] (draft->membrane draft {}))
   ([draft opts]
    (membrane/plan->membrane (draft->plan draft)
-                            (merge (:opts draft) opts))))
+                            (defaults/combine-options (:opts draft) opts))))
 
 (defn draft->plot
   "Compose draft -> plan -> plot for the given format.
@@ -468,7 +468,7 @@
   [draft format opts]
   (render-impl/plan->plot (draft->plan draft)
                           format
-                          (merge (:opts draft) opts)))
+                          (defaults/combine-options (:opts draft) opts)))
 
 (defn plan->membrane
   "Convert a plan into a `PlotjeMembrane` -- a Membrane UI component
@@ -891,7 +891,7 @@
 
 (def ^:private plot-options-keys
   "Keys accepted by pj/options (top-level only; nested theme/config keys
-   are validated separately by deep-merge)."
+   are validated separately)."
   (into plot-text-keys config-keys))
 
 (def ^:private dedicated-function-keys
@@ -1234,12 +1234,40 @@
 (defn- position-mapping [m]
   (select-keys m [:x :y]))
 
+(def ^:private column-specific-scale-keys
+  "Scale settings that describe one column's values or name: carried to
+   another column, they title or bound its axis with the first column's."
+  [:label :domain :breaks :tick-labels :values :include])
+
+(defn- note-scale-carried-to-another-column!
+  "Warn where `pj/pose` moves an aesthetic to another column and the
+   scale it keeps holds settings written for the first column."
+  [mapping incoming-mapping]
+  (doseq [[k inner] incoming-mapping
+          :let [outer (get mapping k)
+                scale (when (map? outer) (:scale outer))
+                carried (when (map? scale)
+                          (filterv #(contains? scale %) column-specific-scale-keys))
+                before (pose/mapping-source outer)
+                after (pose/mapping-source inner)]
+          :when (and (seq carried) (some? before) (some? after) (not= before after))]
+    (println (str "Warning: pj/pose maps " k " to " (pr-str after) ", and the " k
+                  " scale written for " (pr-str before) " carries over to it, with "
+                  (pr-str (select-keys scale carried)) ". A scale belongs to the"
+                  " aesthetic, not to the column. To start " k " afresh, write"
+                  " (pj/pose pose {" k " nil}) before naming the new column."))))
+
 (defn- extend-mapping-of
   "Merge `incoming-mapping` into the pose's own `:mapping` -- the root's,
    for a composite. Writing the same mapping twice gives the same pose,
-   and an empty mapping changes nothing."
+   and an empty mapping changes nothing.
+
+   The merge is `pose/merge-mappings`, the one a layer's mapping and a
+   cell's meet their pose's with: a column written here replaces the
+   one before it, and a scale set before it stays, key by key."
   [fr incoming-mapping]
-  (let [merged (merge (:mapping fr) incoming-mapping)]
+  (note-scale-carried-to-another-column! (:mapping fr) incoming-mapping)
+  (let [merged (pose/merge-mappings (:mapping fr) incoming-mapping)]
     (cond-> fr
       (seq merged)    (assoc :mapping merged)
       (empty? merged) (dissoc :mapping))))
@@ -1595,7 +1623,7 @@
     ;; The layer keeps the columns it names on its own mapping, on a
     ;; matching cell and on a new one alike -- a cell's mapping is what
     ;; `pj/pose` writes, and `lay-*` never writes it.
-    (let [layer (update layer :mapping #(merge position-mapping %))]
+    (let [layer (update layer :mapping #(pose/merge-mappings position-mapping %))]
       (if (some? path)
         (update-in fr
                    (conj (pose/path->update-in-path path) :layers)
@@ -2320,7 +2348,7 @@
                    ;; column, and `{:x 2.0}` on a label is the place
                    ;; the label goes, not the panel's column.
                    (update bare-layer :mapping
-                           #(merge position-mapping %)))))
+                           #(pose/merge-mappings position-mapping %)))))
       :else
       (update fr :layers (fnil conj []) bare-layer))))
 
@@ -3168,13 +3196,6 @@
 (doseq [k (keys (layer-type/registered))]
   (append-accepted-options-block! k))
 
-(defn- deep-merge
-  "Recursively merge maps. Non-map values are overwritten."
-  [a b]
-  (if (and (map? a) (map? b))
-    (merge-with deep-merge a b)
-    b))
-
 (defn- update-opts
   "Update the root :opts of a pose. Non-pose inputs are coerced via
    ->pose first. resolve-tree merges root :opts into every leaf,
@@ -3297,11 +3318,13 @@
                          :accepted valid-legend-positions}))))
     (when (contains? opts :share-scales)
       (defaults/check-share-scales! caller (:share-scales opts)))
-    (update-opts fr deep-merge opts)))
+    (update-opts fr defaults/combine-options opts)))
 
 (defn options
   "Set plot-level options (title, labels, width, height, etc.).
-   Nested maps (e.g. `:theme`) are deep-merged.
+   A later value replaces an earlier one, except `:theme` and `:config`,
+   whose settings combine key by key -- as a composite's options combine
+   with a cell's.
    `:width` and `:height` are coerced to long (rounded) so the plan carries
    integer dimensions through to render. On a composite pose
    the options attach to the root so every descendant leaf inherits
@@ -4975,7 +4998,7 @@
         (seq mapping) (assoc :mapping mapping)
         (seq layers) (assoc :layers layers)
         (seq where) (assoc :where where)
-        (seq pose-opts) (update :opts #(merge pose-opts %))))))
+        (seq pose-opts) (update :opts #(defaults/combine-options pose-opts %))))))
 
 (defn arrange
   "Arrange multiple poses in a grid. Returns a composite pose

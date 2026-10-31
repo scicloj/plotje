@@ -1059,9 +1059,11 @@ my-pose
 ;; value, or to a set of values, that keeps the rows matching it. A pose
 ;; with a `:where` draws what the filtered data draws. `pj/pose` writes
 ;; one beside a mapping, as in `(pj/pose data {:where {:species
-;; "setosa"}})`. The cells a facet over categories stands for are poses
-;; with a `:where` each, so an arrangement of such cells draws what the
-;; facet draws.
+;; "setosa"}})`. Two filters that meet -- a later `pj/pose`, a cell
+;; under its composite -- combine column by column: a column named in
+;; both takes the later or inner value. The cells a facet over
+;; categories stands for are poses with a `:where` each, so an
+;; arrangement of such cells draws what the facet draws.
 
 (pj/arrange (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)
             [{:where {:species "setosa"}} {:where {:species "versicolor"}} {:where {:species "virginica"}}])

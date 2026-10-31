@@ -254,6 +254,37 @@ gapminder-2007
 ;; `:scale false` does not accumulate: it says the value passes through
 ;; no scale at all, so it replaces whatever was set above.
 ;;
+;; The same holds when `pj/pose` writes a mapping into a pose that
+;; already has one: the column is replaced and the scale settings stay.
+;; So a scale can be set before the columns are named:
+
+(-> gapminder-2007
+    (pj/pose {})
+    (pj/scale :x :log)
+    (pj/pose :gdp-percap :life-exp)
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [fr] (= {:type :log} (-> fr pj/plan :panels first :x-scale)))])
+
+;; A scale set for `:x` stays with `:x` when `:x` is given another
+;; column, as it does for a layer naming its own `:x`. Plotje prints a
+;; warning when the scale it keeps holds a setting written for the
+;; first column's values -- a `:label`, a `:domain`, `:breaks`,
+;; `:tick-labels`, `:values` or `:include`. To start an aesthetic
+;; afresh, map it to `nil` and then to the new column:
+
+(-> gapminder-2007
+    (pj/pose :gdp-percap :life-exp)
+    (pj/scale :x :log)
+    (pj/pose {:x nil})
+    (pj/pose {:x :pop})
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [fr] (= {:type :linear} (-> fr pj/plan :panels first :x-scale)))])
+
+;;
 ;; A scale set on the pose configures the scale and does not send a
 ;; value through it. The pose below titles the color legend, and the
 ;; line layer specifies `:color "black"`. The line is drawn black and

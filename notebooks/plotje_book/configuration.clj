@@ -312,10 +312,10 @@ precedence-point-radius
 
 (kind/test-last [(fn [s] (= #{:bg :grid :font-size} s))])
 
-;; All configuration merging uses **deep-merge** -- nested maps like `:theme`
-;; are merged recursively at every level (`pj/options`, `pj/with-config`,
-;; `pj/set-config!`, and `plotje.edn`). You only need to specify the
-;; keys you want to change.
+;; At every level (`pj/options`, `pj/with-config`, `pj/set-config!`,
+;; and `plotje.edn`) a `:theme` is merged key by key into the one below
+;; it, so you only need to specify the theme keys you want to change.
+;; Every other key is replaced whole by the higher level's value.
 
 ;; Override only `:bg`, keep default `:grid` and `:font-size`:
 

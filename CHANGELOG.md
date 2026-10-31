@@ -66,6 +66,10 @@ All notable changes to this project will be documented in this file. This change
 
 - **A plot option in `pj/arrange`'s options map**, such as `{:x-label "X"}`, is written on the arrangement as `pj/options` writes it. A key `pj/arrange` does not read warns, and reports an error under `:strict`.
 
+- **`pj/pose` given a mapping for a pose that has one** keeps the scale settings already there, key by key, as a layer and a cell do: after `(pj/scale pose :x :log)`, `(pj/pose pose :a :b {:color :c})` keeps the log scale, and `pj/scale` written before the columns are named reaches them. A scale stays with its aesthetic when the aesthetic is given another column; a warning names a `:label`, `:domain`, `:breaks`, `:tick-labels`, `:values` or `:include` kept from the first column, and `(pj/pose pose {:x nil})` starts the aesthetic afresh.
+
+- **A `:theme` given at two levels** combines key by key wherever two meet: `pj/options` twice, a composite's options reaching a cell that gives its own, and the configuration chain from `plotje.edn` to `pj/with-config`. Every other option is replaced whole by the later or inner value, a `:share-scales` map and a `:color-range` map included.
+
 ### Added
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, and a mapping such as `{:x :a :y :b}` a panel of the columns it names. A vector in the list of cells is a list of cells -- a row in a list of rows, and otherwise an arrangement of its own -- so `(pj/arrange data [[:a :b] [:c :d]])` is a 2x2 grid of panels, a column each. A pose with no data, such as `(pj/pose nil :a :b)`, is drawn from the data given first. The first argument may be a pose, whose data, mapping, layers, row filter and plot options reach every cell; a pose faceted over columns reports an error there.
@@ -94,7 +98,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A column named on `:y` alone is drawn on its side by a layer type that draws from one column, whether the column is named on the pose or in the layer: `(pj/pose data {:y :hwy})` draws a histogram on its side, or a bar chart of counts for a categorical column, and `(pj/lay-histogram pose {:y :hwy})`, `pj/lay-density` and `pj/lay-bar` draw theirs. Beside a layer that draws from two columns, such as `pj/lay-point`, the layer reports an error. Such a pose takes `:coord :flip` or none; `:cartesian`, `:polar` and `:fixed` report an error, also where the pose is a panel of a facet over columns.
 
-- `:where`, a map from column to value or set of values, draws only the rows that match; numbers match by value, so `4` selects `4.0`. It is written in `pj/pose` beside a mapping, as in `(pj/pose data :displ :hwy {:where {:drv "f"}})`, or as a cell of `pj/arrange`, `{:where {:drv "f"}}`, alone or beside a mapping; cells that split the data of the pose they are arranged into by one column's values draw what `pj/facet` draws. A filter that selects no rows warns, and its cell draws a panel reading "no data". A `:where` that is not a map reports an error.
+- `:where`, a map from column to value or set of values, draws only the rows that match; numbers match by value, so `4` selects `4.0`. It is written in `pj/pose` beside a mapping, as in `(pj/pose data :displ :hwy {:where {:drv "f"}})`, or as a cell of `pj/arrange`, `{:where {:drv "f"}}`, alone or beside a mapping; cells that split the data of the pose they are arranged into by one column's values draw what `pj/facet` draws. Two filters that meet -- a later `pj/pose` on the same pose, or a cell under the pose it is arranged into -- combine column by column: a column named in both takes the later or inner value, and a column named in one keeps its value. A pose's filter reaches every cell, a cell carrying data of its own included. A filter that selects no rows warns, and its cell draws a panel reading "no data". A `:where` that is not a map reports an error.
 
 - `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. Undeclared, it is `#{1}` for an `:x-only` layer type and `#{2}` otherwise; `:bar` declares `#{1 2}`, and `layer-type/column-counts` reads it back.
 
@@ -207,6 +211,8 @@ All notable changes to this project will be documented in this file. This change
 - A panel whose categories are all missing adds no `?` category to its axis.
 
 - `:share-scales` written at the top of a hand-written pose map is read on a single pose, as it is on a composite.
+
+- `lay-*` given columns and a scale for one of them in its map, as in `(pj/lay-point data :a :b {:x {:scale :log}})`, draws column `:a` on a log scale.
 
 
 ## [0.16.1 - 2026-10-02]

@@ -286,6 +286,23 @@
 
 ;; [Faceting](./plotje_book.faceting.html#facet-or-arrange) compares the
 ;; two forms.
+;;
+;; A filter written on the pose reaches every cell, and combines with a
+;; cell's filter column by column. A column named in both takes the
+;; cell's value; a column named in one of them keeps its value. Below,
+;; the pose keeps species "a", the first cell names species "b" in its
+;; place, and the second cell keeps species "a" and adds a depth:
+
+(-> measurements
+    (pj/pose {:x :height :y :weight :where {:species "a"}})
+    (pj/arrange [{:where {:species "b"}}
+                 {:where {:depth 3}}])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+
+;; The first cell draws the two rows of species "b", and the second the
+;; one row of species "a" whose depth is 3 -- three points in all.
 
 ;; ## A matrix of columns
 

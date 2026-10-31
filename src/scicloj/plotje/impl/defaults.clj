@@ -1190,10 +1190,39 @@
    :share-scales ["Layout" "The axes the panels of a facet, or the cells of an arrangement, share -- a set of axes (#{:x :y}, #{:x}, #{:y}, #{}), or a map from an axis to :same-column, :all, or groups of columns, as in {:y [[:hwy :cty]]}"]
    :config ["Config" "Nested config map merged into resolved config"]})
 
+(def settings-options
+  "Plot options whose value is a map of independent settings, combined
+   key by key wherever two are given -- `{:theme {:bg ...}}` and
+   `{:theme {:grid ...}}` give both. Every other option is one value,
+   replaced whole: a `:share-scales` map says which axes are shared and
+   an axis it leaves out is not, and a `:color-range` map is one
+   gradient."
+  #{:theme :config})
+
+(defn- merge-settings [a b]
+  (if (and (map? a) (map? b))
+    (merge-with merge-settings a b)
+    b))
+
+(defn combine-options
+  "Combine plot options given earlier, or further out, with `inner`:
+   the inner value wins per key, and a `settings-options` map is
+   combined key by key. `pj/options`, a composite's options reaching its
+   cells, a pose arranged into cells, and the configuration chain
+   (`config`) all combine with this."
+  [outer inner]
+  (reduce-kv (fn [acc k v]
+               (assoc acc k (if (contains? settings-options k)
+                              (merge-settings (get acc k) v)
+                              v)))
+             (or outer {})
+             (or inner {})))
+
 (defn config
   "Return the effective resolved configuration as a map.
-   Deep-merges: library defaults < plotje.edn < set-config! < *config*.
-   Nested maps (e.g. :theme) are merged recursively.
+   Combines, later winning: library defaults < plotje.edn < set-config!
+   < *config*, with `combine-options` -- a `:theme` combines key by key,
+   and every other key is replaced.
    Useful for inspecting which values are in effect."
   []
   (let [base @library-defaults
@@ -1201,9 +1230,9 @@
         from-atom @config-atom
         from-binding *config*]
     (cond-> base
-      from-edn (kindly/deep-merge from-edn)
-      from-atom (kindly/deep-merge from-atom)
-      from-binding (kindly/deep-merge from-binding))))
+      from-edn (combine-options from-edn)
+      from-atom (combine-options from-atom)
+      from-binding (combine-options from-binding))))
 
 (defn- backfill-nil-theme-values
   "Replace any nil entries in the resolved theme with the library defaults.
@@ -1454,7 +1483,7 @@
           (let [;; Deep-merge the nested :config escape hatch first (lowest priority
                 ;; among plot-opts, highest priority over the cfg chain).
                 cfg (if-let [nested (:config plot-opts)]
-                      (kindly/deep-merge
+                      (combine-options
                        cfg (validate-config-keys! "The :config option" nested))
                       cfg)
                 ;; Deep-merge :theme (map value, not scalar)

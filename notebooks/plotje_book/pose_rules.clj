@@ -1039,9 +1039,16 @@ composite-pose
 ;; ---
 ;; ## Scope
 ;;
-;; How mappings and data flow through the pose tree. Four rules
-;; covering the root, then composite, then leaf, then layer chain
-;; at arbitrary depth.
+;; How mappings, data and row filters flow through the pose tree:
+;; from the root, through each composite, to the leaf and its layers,
+;; at any depth.
+;;
+;; Where two values for one key meet -- a later `pj/pose` on the same
+;; pose, a layer under its pose, a cell under its composite -- they
+;; combine the same way at every level. A key holds either one value,
+;; which the later or inner value replaces, or a map of independent
+;; settings, which combines key by key: a scale spec (Rule S6), a row
+;; filter (Rule S5), a `:theme` (Rule O5).
 
 ;; ### Rule S1: mapping scope is a tree-walk merge; narrower wins
 ;;
@@ -1164,6 +1171,65 @@ s2-tree
             (and (= 150 (:points s))
                  (= 1 (:lines s)))))])
 
+;; ### Rule S5: a row filter combines column by column at every level
+;;
+;; A `:where` is a map from a column to the values kept, and each
+;; column is a separate condition. Where two filters meet, a column
+;; named in both takes the later or inner value, and columns named in
+;; one of them are kept as they are. A composite's filter reaches every
+;; cell below it, a cell carrying data of its own included, as the
+;; composite's mapping does.
+
+;; Under a composite that keeps setosa, a cell naming versicolor draws
+;; versicolor; a cell naming a petal width keeps setosa too:
+
+(-> iris
+    (pj/pose {:x :sepal-length :y :sepal-width :where {:species "setosa"}})
+    (pj/arrange [{:where {:species "versicolor"}}
+                 {:where {:petal-width 0.2}}])
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v]
+    (let [cell-points (fn [w] (-> iris
+                                  (pj/pose :sepal-length :sepal-width {:where w})
+                                  pj/lay-point
+                                  pj/svg-summary
+                                  :points))]
+      (= (:points (pj/svg-summary v))
+         (+ (cell-points {:species "versicolor"})
+            (cell-points {:species "setosa" :petal-width 0.2})))))])
+
+;; The same two filters written with `pj/pose`, one after the other,
+;; give the same rows as the cell does:
+
+(-> iris
+    (pj/pose {:x :sepal-length :y :sepal-width :where {:species "setosa"}})
+    (pj/pose {:where {:species "versicolor"}})
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v] (= {:species "versicolor"} (:where v)))])
+
+;; ### Rule S6: a scale combines key by key, whichever function writes the mapping
+;;
+;; A mapping value names one column and may carry a scale. Where two
+;; meet, the column is replaced and the scale settings combine key by
+;; key, as [Scales](./plotje_book.scales.html#scales-accumulate)
+;; describes. This holds for a layer under its pose, a cell under its
+;; composite, `pj/scale`, and `pj/pose` writing into a pose that
+;; already has a mapping -- so a scale set before the columns are named
+;; reaches them:
+
+(-> iris
+    (pj/pose {})
+    (pj/scale :x :log)
+    (pj/pose :sepal-length :sepal-width)
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v] (= {:type :log} (-> v pj/plan :panels first :x-scale)))])
+
 ;; ---
 ;; ## Options
 ;;
@@ -1175,8 +1241,9 @@ s2-tree
 ;;
 ;; `pj/options` merges its argument into the current pose's
 ;; `:opts`. On a leaf, that is the leaf's `:opts`. On a composite,
-;; the root's. Options do not flow down like mappings -- they are
-;; plot-level, not layer-level.
+;; the root's. The root's options reach every cell below it, and a
+;; cell's own options win key by key (Rule O5); they configure panels
+;; and the plot, not layers.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -1397,6 +1464,38 @@ s2-tree
            (= (y-domain points) (y-domain pose))
            (re-find #"pj/lay-rule-h names :petal-length on :x and :petal-width on :y, columns the panel does not draw, so they are not read"
                     (with-out-str (pj/plan pose))))))])
+
+;; ### Rule O5: a `:theme` combines key by key; other options are replaced
+;;
+;; `:theme` and `:config` are maps of independent settings, so two of
+;; them combine key by key: `pj/options` twice, and a composite's
+;; options reaching a cell that writes its own. Every other option is
+;; one value, replaced by the later or inner one -- a `:share-scales`
+;; map included, since an axis it leaves out is not shared.
+
+(-> iris
+    (pj/pose :sepal-length :sepal-width)
+    pj/lay-point
+    (pj/options {:theme {:bg "#FFFFFF"}})
+    (pj/options {:theme {:grid "#DDDDDD"}}))
+
+(kind/test-last
+ [(fn [pose] (= {:bg "#FFFFFF" :grid "#DDDDDD"} (get-in pose [:opts :theme])))])
+
+;; A cell with a theme of its own keeps the composite's background:
+
+(-> iris
+    (pj/arrange [(-> (pj/pose nil {:x :sepal-length :y :sepal-width})
+                     (pj/options {:theme {:grid "#DDDDDD"}}))
+                 {:x :petal-length :y :petal-width}])
+    (pj/options {:theme {:bg "#FFFFFF"}})
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v]
+    ;; The renderer writes the background as rgb(255,255,255); the
+    ;; default grey, rgb(232,232,232), would mean the cell lost it.
+    (not (re-find #"rgb\(232,232,232\)" (str (pj/plot v)))))])
 
 ;; ---
 ;; ## Assembly

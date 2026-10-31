@@ -479,7 +479,7 @@
   [leaf a]
   (set
    (for [[m ds] (cons [(:mapping leaf) (:data leaf)]
-                      (map (fn [l] [(merge (:mapping leaf) (:mapping l))
+                      (map (fn [l] [(pose/merge-mappings (:mapping leaf) (:mapping l))
                                     (or (:data l) (:data leaf))])
                            (:layers leaf)))
          :let [c (mapping-column (get m a))]
