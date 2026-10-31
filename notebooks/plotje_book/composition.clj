@@ -582,6 +582,57 @@ weighted
 ;; against one another. `pj/marginal` sets both for you -- the next
 ;; section takes one apart.
 
+;; ### A Facet Placed as a Cell
+;;
+;; A facet shares both axes across its panels by default. Placed as a
+;; cell of an arrangement, the facet takes the arrangement's options
+;; wherever it writes none of its own, as any cell does -- and
+;; `:share-scales` is one of those options. Below, the arrangement
+;; shares `:x` across all its cells, and the facet over `:drv`, which
+;; writes no `:share-scales`, takes `{:x :all}` as its own: its three
+;; panels share `:x` and each keeps its own `:y` range.
+
+(def drv-facet
+  (-> (pj/pose nil :displ :hwy)
+      (pj/facet :drv)))
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [[drv-facet]
+                 [{:x :displ :y :cty} {:x :displ :y :hwy}]]
+                {:share-scales {:x :all}})
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v] (let [facet-y (->> (pj/plan v)
+                             :sub-plots
+                             first
+                             :plan
+                             :panels
+                             (mapv :y-domain))]
+            ;; the facet's three panels
+            (and (= 3 (count facet-y))
+                 (= 3 (count (distinct facet-y))))))])
+
+;; Written on the facet, `:share-scales` replaces the arrangement's
+;; value for the facet's own panels, and they share `:y` again:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [[(pj/options drv-facet {:share-scales #{:x :y}})]
+                 [{:x :displ :y :cty} {:x :displ :y :hwy}]]
+                {:share-scales {:x :all}})
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v] (let [facet-y (->> (pj/plan v)
+                             :sub-plots
+                             first
+                             :plan
+                             :panels
+                             (mapv :y-domain))]
+            ;; the facet's three panels
+            (and (= 3 (count facet-y))
+                 (= 1 (count (distinct facet-y))))))])
+
 ;; ## Marginal Plots
 ;;
 ;; The classic "scatter with top density" -- a distribution strip beside

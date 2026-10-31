@@ -241,8 +241,10 @@
    - :opts     -- combined (`defaults/combine-options`: child overrides on key
                   collision, and a `:theme` combines key by key). So a
                   `:share-scales` written on a composite reaches a
-                  faceted leaf below that writes none, and its panels
-                  share the same axes.
+                  faceted leaf below that writes none, in place of
+                  the facet's own default: under an outer
+                  `{:x :all}` the facet's panels share `:x` only. A
+                  facet that writes its own keeps it.
 
    Extra keys on a leaf (anything not in
    #{:data :mapping :layers :poses :layout :opts :share-scales})
