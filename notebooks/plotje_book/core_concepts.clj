@@ -102,10 +102,9 @@
 ;; Those integer names are what the axes are titled with, and they can
 ;; be mapped like any other column name. `(tc/rename-columns ds [:x :y])`
 ;; gives them words. A vector of vectors given to `pj/arrange` means
-;; something else -- pairs of column names, one panel each, shown under
-;; [Layer Placement](#layer-placement) below. What tells the two apart is where the
-;; vector is written -- in a mapping, or given to `pj/arrange` after
-;; the data -- not what it holds.
+;; something else -- rows of cells, each cell one panel. What tells the
+;; two apart is where the vector is written -- in a mapping, or in
+;; `pj/arrange`'s list of cells -- not what it holds.
 
 ;; When the dataset has 1, 2, or 3 columns, you can omit the column
 ;; names entirely -- they are inferred from the order of the columns:

@@ -413,8 +413,11 @@ composite-pose
 
 ;; `pj/arrange` writes the options it is given into the composite's
 ;; `:opts`: `:title`, `:width`, `:height`, `:share-scales`, and any plot
-;; option `pj/options` takes. `:cols` is not stored: it decides how many
-;; cells each row holds.
+;; option `pj/options` takes. `:cols` decides how many cells each row
+;; holds, and is written on the composite's `:layout` rather than its
+;; `:opts`: an arrangement made from a flat list keeps it there, as
+;; `:auto` where no `:cols` was given, so that cells appended later are
+;; laid out as one call with the longer list lays them out.
 
 (pj/arrange
  [(pj/pose iris :sepal-length :sepal-width)
@@ -430,8 +433,10 @@ composite-pose
            (= #{:y} (get-in pose [:opts :share-scales]))
            ;; A plot option is written into :opts too.
            (= "X" (get-in one-per-row [:opts :x-label]))
-           ;; :cols is read and not stored: one cell per row.
+           ;; :cols lives on :layout, not :opts: one cell per row.
            (not (contains? (:opts one-per-row) :cols))
+           (= 1 (get-in one-per-row [:layout :cols]))
+           (= :auto (get-in pose [:layout :cols]))
            (= [1 1] (mapv #(count (:poses %)) (:poses one-per-row))))))])
 
 ;; ### Rule C9: a facet crossing two lists of columns is a leaf pose
@@ -1543,7 +1548,7 @@ s2-tree
 ;; A composite pose carries a `:layout` map, which holds the direction
 ;; of its rows and, in each row, the direction of the cells.
 ;; `pj/arrange` writes `:title`, `:width`, `:height` and `:share-scales`
-;; into the composite's `:opts`, and `:cols` is not stored (Rule C8).
+;; into the composite's `:opts`, and `:cols` into its `:layout` (Rule C8).
 ;; An optional
 ;; `:share-scales` (a subset of `#{:x :y}`, or a map from an axis to
 ;; `:same-column`, `:all`, or groups of columns) enables shared-scale

@@ -306,7 +306,7 @@
       (is (= {:x :a :y :b} (-> f panels (nth 0) :mapping)))
       (is (= {:x :c :y :d} (-> f panels (nth 1) :mapping))))))
 
-(deftest multi-pair-cross-utility-test
+(deftest facet-crossing-map-test
   (testing "M6: (pj/facet data {:col {:x cols} :row {:y cols}}) keeps the facet map"
     (let [cols [:a :b]
           f (pj/facet iris {:col {:x cols} :row {:y cols}})]

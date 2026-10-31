@@ -921,53 +921,53 @@
    N+1 issue from the round-2 internals review)."
   [composite-draft]
   (binding [defaults/*report-removed-rows?* false]
-  (let [{:keys [width height sub-drafts chrome-spec layout]} composite-draft
+    (let [{:keys [width height sub-drafts chrome-spec layout]} composite-draft
         ;; The cells sharing an axis are measured and pooled first, and
         ;; every later pass plans a cell with its pooled extent.
-        shared (shared-extents sub-drafts)
-        sub-drafts (mapv #(update % :opts merge (get shared (:path %))) sub-drafts)
+          shared (shared-extents sub-drafts)
+          sub-drafts (mapv #(update % :opts merge (get shared (:path %))) sub-drafts)
         ;; `:opts` rides along so the render stage can read what the
         ;; cell asked for. Plan-stage options already reach the cell
         ;; through `draft->plan` here; render-stage ones -- `:theme`
         ;; above all -- are resolved where the drawables are made, and
         ;; the composite used to hand every cell its own options there,
         ;; so a per-cell `{:theme {:bg ...}}` was accepted and dropped.
-        plan-sub (fn [{:keys [path rect draft opts] :as sub}]
-                   {:path path
-                    :rect rect
-                    :opts opts
-                    :plan (try
-                            (plan/draft->plan draft opts)
-                            (catch clojure.lang.ExceptionInfo e
+          plan-sub (fn [{:keys [path rect draft opts] :as sub}]
+                     {:path path
+                      :rect rect
+                      :opts opts
+                      :plan (try
+                              (plan/draft->plan draft opts)
+                              (catch clojure.lang.ExceptionInfo e
                               ;; A size the cell pins itself is the
                               ;; cell's own, and its message stands.
-                              (throw (if (and (:too-small (ex-data e))
-                                              (not (:facet (ex-data e)))
-                                              (not (or (:panel-width opts) (:panel-height opts))))
-                                       (cell-too-small e sub sub-drafts width height)
-                                       e))))})
+                                (throw (if (and (:too-small (ex-data e))
+                                                (not (:facet (ex-data e)))
+                                                (not (or (:panel-width opts) (:panel-height opts))))
+                                         (cell-too-small e sub sub-drafts width height)
+                                         e))))})
         ;; Each cell's unread-option warnings are collected rather
         ;; than printed, and a line is printed only where every cell
         ;; raised it -- see `plan/*unread-option-warnings*`. The
         ;; second, aligning pass would raise them all again, so its
         ;; are dropped.
-        warnings (atom [])
+          warnings (atom [])
         ;; The one pass that reports the rows each cell drops; the
         ;; others, before it and after, drop the same rows again.
-        first-pass (binding [plan/*unread-option-warnings* warnings
-                             defaults/*report-removed-rows?* true]
-                     (mapv plan-sub sub-drafts))
+          first-pass (binding [plan/*unread-option-warnings* warnings
+                               defaults/*report-removed-rows?* true]
+                       (mapv plan-sub sub-drafts))
         ;; A cell beside a legend keeps its y tick labels, and is
         ;; planned again with them.
-        keep-ticks (keep-ticks-beside-a-legend (:y-ticks-inferred-off chrome-spec) first-pass)
-        sub-drafts (mapv #(cond-> % (keep-ticks (:path %)) (update :opts dissoc :suppress-y-ticks))
-                         sub-drafts)
-        first-pass (if (seq keep-ticks)
-                     (binding [plan/*unread-option-warnings* (atom [])]
-                       (mapv (fn [sub plot] (if (keep-ticks (:path sub)) (plan-sub sub) plot))
-                             sub-drafts first-pass))
-                     first-pass)
-        direction (:align-direction composite-draft)
+          keep-ticks (keep-ticks-beside-a-legend (:y-ticks-inferred-off chrome-spec) first-pass)
+          sub-drafts (mapv #(cond-> % (keep-ticks (:path %)) (update :opts dissoc :suppress-y-ticks))
+                           sub-drafts)
+          first-pass (if (seq keep-ticks)
+                       (binding [plan/*unread-option-warnings* (atom [])]
+                         (mapv (fn [sub plot] (if (keep-ticks (:path sub)) (plan-sub sub) plot))
+                               sub-drafts first-pass))
+                       first-pass)
+          direction (:align-direction composite-draft)
         ;; In an aligned grid, the cells of one grid column share their
         ;; left edge, so each reserves the widest y-label pad of its
         ;; column, whether it draws its own tick labels or not. A column
@@ -978,50 +978,50 @@
         ;; column is as wide as the common drawing width plus its own
         ;; pad, as a facet's margin sits outside its panels. Only where
         ;; nothing else a cell reserves differs between the columns.
-        {:keys [sub-drafts layout column-pad]}
-        (let [grid-columns (when (and (:align-panels composite-draft) (= direction :grid))
-                             (->> first-pass
-                                  (group-by (fn [{[x _ w _] :rect}] [(Math/round (double x)) (Math/round (double w))]))
-                                  (sort-by ffirst)
-                                  vec))
-              pad-of (fn [p] (double (or (get-in p [:plan :layout :y-label-pad]) 0.0)))
-              legend-ws (set (map #(Math/round (double (or (get-in % [:plan :layout :legend-w]) 0.0))) first-pass))]
-          (if (and (next grid-columns) (= 1 (count legend-ws)))
-            (let [pads (mapv (fn [[_ ps]] (reduce max 0.0 (map pad-of ps))) grid-columns)
-                  xs (mapv (comp first first) grid-columns)
-                  ws (mapv (comp second first) grid-columns)
-                  gaps (mapv (fn [i] (- (nth xs (inc i)) (+ (nth xs i) (nth ws i)))) (range (dec (count xs))))
-                  drawing (/ (- (reduce + ws) (reduce + pads)) (count ws))
-                  new-ws (mapv #(Math/round (double (+ drawing %))) pads)
+          {:keys [sub-drafts layout column-pad]}
+          (let [grid-columns (when (and (:align-panels composite-draft) (= direction :grid))
+                               (->> first-pass
+                                    (group-by (fn [{[x _ w _] :rect}] [(Math/round (double x)) (Math/round (double w))]))
+                                    (sort-by ffirst)
+                                    vec))
+                pad-of (fn [p] (double (or (get-in p [:plan :layout :y-label-pad]) 0.0)))
+                legend-ws (set (map #(Math/round (double (or (get-in % [:plan :layout :legend-w]) 0.0))) first-pass))]
+            (if (and (next grid-columns) (= 1 (count legend-ws)))
+              (let [pads (mapv (fn [[_ ps]] (reduce max 0.0 (map pad-of ps))) grid-columns)
+                    xs (mapv (comp first first) grid-columns)
+                    ws (mapv (comp second first) grid-columns)
+                    gaps (mapv (fn [i] (- (nth xs (inc i)) (+ (nth xs i) (nth ws i)))) (range (dec (count xs))))
+                    drawing (/ (- (reduce + ws) (reduce + pads)) (count ws))
+                    new-ws (mapv #(Math/round (double (+ drawing %))) pads)
                   ;; Rounding is settled on the last column, so the grid
                   ;; keeps its width.
-                  new-ws (update new-ws (dec (count new-ws)) + (- (reduce + ws) (reduce + new-ws)))
-                  new-xs (reductions + (first xs) (map + new-ws gaps))
-                  resize (into {} (map-indexed (fn [i [k _]] [k [(nth new-xs i) (nth new-ws i)]])) grid-columns)
-                  column-pad (into {} (mapcat (fn [[_ ps] pad] (map (fn [p] [(:path p) pad]) ps)) grid-columns pads))
-                  moved (fn [[x y w h]]
-                          (if-let [[nx nw] (get resize [(Math/round (double x)) (Math/round (double w))])]
-                            [nx y nw h]
-                            [x y w h]))
-                  sub-drafts (mapv (fn [sub]
-                                     (let [[_ _ nw _ :as r] (moved (:rect sub))]
-                                       (-> sub
-                                           (assoc :rect r)
-                                           (assoc-in [:opts :width] (max 1 (long nw))))))
-                                   sub-drafts)]
-              {:sub-drafts sub-drafts
-               :layout (into {} (map (fn [[k r]] [k (moved r)])) layout)
-               :column-pad column-pad})
-            {:sub-drafts sub-drafts :layout layout :column-pad nil}))
+                    new-ws (update new-ws (dec (count new-ws)) + (- (reduce + ws) (reduce + new-ws)))
+                    new-xs (reductions + (first xs) (map + new-ws gaps))
+                    resize (into {} (map-indexed (fn [i [k _]] [k [(nth new-xs i) (nth new-ws i)]])) grid-columns)
+                    column-pad (into {} (mapcat (fn [[_ ps] pad] (map (fn [p] [(:path p) pad]) ps)) grid-columns pads))
+                    moved (fn [[x y w h]]
+                            (if-let [[nx nw] (get resize [(Math/round (double x)) (Math/round (double w))])]
+                              [nx y nw h]
+                              [x y w h]))
+                    sub-drafts (mapv (fn [sub]
+                                       (let [[_ _ nw _ :as r] (moved (:rect sub))]
+                                         (-> sub
+                                             (assoc :rect r)
+                                             (assoc-in [:opts :width] (max 1 (long nw))))))
+                                     sub-drafts)]
+                {:sub-drafts sub-drafts
+                 :layout (into {} (map (fn [[k r]] [k (moved r)])) layout)
+                 :column-pad column-pad})
+              {:sub-drafts sub-drafts :layout layout :column-pad nil}))
         ;; Aligning drawing areas takes a second pass, because the pad a
         ;; cell needs is only known once that cell has been planned.
         ;; Pass one measures every cell's pads; pass two re-plans them
         ;; all with the widest of each as a floor. A cell whose own
         ;; labels need more still gets more, so one extra pass reaches a
         ;; common value and a third would change nothing.
-        widest (fn [k] (->> first-pass
-                            (map #(double (or (get-in % [:plan :layout k]) 0.0)))
-                            (reduce max 0.0)))
+          widest (fn [k] (->> first-pass
+                              (map #(double (or (get-in % [:plan :layout k]) 0.0)))
+                              (reduce max 0.0)))
         ;; Which pads have to agree depends on which way the cells run.
         ;; A column of cells shares its left and right edges, so the
         ;; y-label pad and the legend column are floored: only a cell
@@ -1029,156 +1029,156 @@
         ;; legend reserves the second. A row shares its top and bottom
         ;; edges instead, so the x-label pad is floored. A layout that
         ;; is neither -- a grid -- shares both.
-        align-floors (cond-> {}
-                       (not= direction :horizontal)
-                       (assoc :min-y-label-pad (widest :y-label-pad)
-                              :min-legend-w (widest :legend-w))
-                       (not= direction :vertical)
-                       (assoc :min-x-label-pad (widest :x-label-pad)))
+          align-floors (cond-> {}
+                         (not= direction :horizontal)
+                         (assoc :min-y-label-pad (widest :y-label-pad)
+                                :min-legend-w (widest :legend-w))
+                         (not= direction :vertical)
+                         (assoc :min-x-label-pad (widest :x-label-pad)))
         ;; Elsewhere a cell that draws no :y tick labels takes no floor
         ;; for them: its pad stays zero, so its drawing area keeps the
         ;; width of its neighbours that draw none either.
-        floors-for (fn [sub]
-                     (cond
-                       column-pad
-                       (assoc align-floors :min-y-label-pad (get column-pad (:path sub) 0.0))
+          floors-for (fn [sub]
+                       (cond
+                         column-pad
+                         (assoc align-floors :min-y-label-pad (get column-pad (:path sub) 0.0))
 
-                       (get-in sub [:opts :suppress-y-ticks])
-                       (dissoc align-floors :min-y-label-pad)
+                         (get-in sub [:opts :suppress-y-ticks])
+                         (dissoc align-floors :min-y-label-pad)
 
-                       :else align-floors))
-        sub-plots (if (:align-panels composite-draft)
-                    (binding [plan/*unread-option-warnings* (atom [])]
-                      (mapv (fn [sub]
-                              (plan-sub (update sub :opts merge (floors-for sub))))
-                            sub-drafts))
-                    first-pass)
-        sub-plots (settle-shared sub-drafts sub-plots
-                                 (fn [sub]
-                                   (binding [plan/*unread-option-warnings* (atom [])]
-                                     (plan-sub (cond-> sub
-                                                 (:align-panels composite-draft)
-                                                 (update :opts #(merge (floors-for sub) %)))))))
-        shared-legend (when (:shared? chrome-spec)
-                        (when-let [first-sub
+                         :else align-floors))
+          sub-plots (if (:align-panels composite-draft)
+                      (binding [plan/*unread-option-warnings* (atom [])]
+                        (mapv (fn [sub]
+                                (plan-sub (update sub :opts merge (floors-for sub))))
+                              sub-drafts))
+                      first-pass)
+          sub-plots (settle-shared sub-drafts sub-plots
+                                   (fn [sub]
+                                     (binding [plan/*unread-option-warnings* (atom [])]
+                                       (plan-sub (cond-> sub
+                                                   (:align-panels composite-draft)
+                                                   (update :opts #(merge (floors-for sub) %)))))))
+          shared-legend (when (:shared? chrome-spec)
+                          (when-let [first-sub
                                    ;; The legend is planned from a cell that
                                    ;; draws it: a cell of a facet may map
                                    ;; nothing to it, as the diagonal of a
                                    ;; scatter plot matrix coloured on a layer
                                    ;; does (`shared-aesthetics-by-leaves`).
-                                   (or (first (filter (fn [sub]
-                                                        (some (fn [layer]
-                                                                (some #(some? (get layer %))
-                                                                      (:shared-aesthetics chrome-spec)))
-                                                              (:draft sub)))
-                                                      sub-drafts))
-                                       (first sub-drafts))]
-                          (let [shared-aes (:shared-aesthetics chrome-spec)
-                                shared-suppress-keys (mapv aesthetic->suppress-key shared-aes)
-                                rep-opts (-> (:opts first-sub)
-                                             (dissoc :suppress-legend)
-                                             (as-> $ (reduce #(dissoc %1 %2)
-                                                             $ shared-suppress-keys))
-                                             (assoc :width 600 :height 400))
-                                plan-legends (fn [sub]
-                                               (plan/draft->plan (:draft sub)
-                                                                 (merge (:opts sub) (select-keys rep-opts [:width :height]))))
-                                rep-plan (binding [plan/*unread-option-warnings* warnings]
-                                           (plan/draft->plan (:draft first-sub) rep-opts))
-                                shared-keys (mapv aesthetic->legend-plan-key shared-aes)
+                                     (or (first (filter (fn [sub]
+                                                          (some (fn [layer]
+                                                                  (some #(some? (get layer %))
+                                                                        (:shared-aesthetics chrome-spec)))
+                                                                (:draft sub)))
+                                                        sub-drafts))
+                                         (first sub-drafts))]
+                            (let [shared-aes (:shared-aesthetics chrome-spec)
+                                  shared-suppress-keys (mapv aesthetic->suppress-key shared-aes)
+                                  rep-opts (-> (:opts first-sub)
+                                               (dissoc :suppress-legend)
+                                               (as-> $ (reduce #(dissoc %1 %2)
+                                                               $ shared-suppress-keys))
+                                               (assoc :width 600 :height 400))
+                                  plan-legends (fn [sub]
+                                                 (plan/draft->plan (:draft sub)
+                                                                   (merge (:opts sub) (select-keys rep-opts [:width :height]))))
+                                  rep-plan (binding [plan/*unread-option-warnings* warnings]
+                                             (plan/draft->plan (:draft first-sub) rep-opts))
+                                  shared-keys (mapv aesthetic->legend-plan-key shared-aes)
                                 ;; The first cell's legend lists only the
                                 ;; categories it holds. Where the cells
                                 ;; hold more between them, every cell's
                                 ;; entries are gathered, in the order of
                                 ;; the union their colours were given by.
-                                cats (:shared-categories chrome-spec)
-                                merge-entries
-                                (fn [legends k]
-                                  (let [legend (get rep-plan k)
-                                        aes ({:legend :color :shape-legend :shape} k)
-                                        n (count (get cats aes))]
-                                    (if (and (:entries legend) (> n (count (:entries legend))))
-                                      (let [all (binding [plan/*unread-option-warnings* (atom [])]
-                                                  (mapv #(get (plan-legends
-                                                               (update % :opts
-                                                                       (fn [o] (reduce dissoc (dissoc o :suppress-legend)
-                                                                                       shared-suppress-keys))))
-                                                              k)
-                                                        sub-drafts))]
-                                        (assoc legends k
-                                               (assoc legend :entries
+                                  cats (:shared-categories chrome-spec)
+                                  merge-entries
+                                  (fn [legends k]
+                                    (let [legend (get rep-plan k)
+                                          aes ({:legend :color :shape-legend :shape} k)
+                                          n (count (get cats aes))]
+                                      (if (and (:entries legend) (> n (count (:entries legend))))
+                                        (let [all (binding [plan/*unread-option-warnings* (atom [])]
+                                                    (mapv #(get (plan-legends
+                                                                 (update % :opts
+                                                                         (fn [o] (reduce dissoc (dissoc o :suppress-legend)
+                                                                                         shared-suppress-keys))))
+                                                                k)
+                                                          sub-drafts))]
+                                          (assoc legends k
+                                                 (assoc legend :entries
                                                       ;; Gathered cell by cell, then put in
                                                       ;; the order of the union: an entry's
                                                       ;; label is the display form of its
                                                       ;; category.
-                                                      (plan/order-categories-by
-                                                       :label
-                                                       (:out (reduce (fn [{:keys [seen] :as acc} e]
-                                                                       (if (seen (:label e))
-                                                                         acc
-                                                                         (-> acc
-                                                                             (update :seen conj (:label e))
-                                                                             (update :out conj e))))
-                                                                     {:seen #{} :out []}
-                                                                     (mapcat :entries all)))
-                                                       (map defaults/fmt-category-label (get cats aes))))))
-                                      legends)))]
-                            (reduce merge-entries (select-keys rep-plan shared-keys) shared-keys))))
-        _ (when (seq (deref warnings))
-            (run! println (sort (reduce clojure.set/intersection (deref warnings)))))
+                                                        (plan/order-categories-by
+                                                         :label
+                                                         (:out (reduce (fn [{:keys [seen] :as acc} e]
+                                                                         (if (seen (:label e))
+                                                                           acc
+                                                                           (-> acc
+                                                                               (update :seen conj (:label e))
+                                                                               (update :out conj e))))
+                                                                       {:seen #{} :out []}
+                                                                       (mapcat :entries all)))
+                                                         (map defaults/fmt-category-label (get cats aes))))))
+                                        legends)))]
+                              (reduce merge-entries (select-keys rep-plan shared-keys) shared-keys))))
+          _ (when (seq (deref warnings))
+              (run! println (sort (reduce clojure.set/intersection (deref warnings)))))
         ;; The titles a composite draws once are the ones a cell would
         ;; draw: planned from one cell with its own titles left in, so a
         ;; written `:x-label` is read by the one rule that reads it.
-        cell-axis-titles
-        (fn [axes sub]
-          (when sub
-            (let [p (binding [plan/*unread-option-warnings* (atom [])]
+          cell-axis-titles
+          (fn [axes sub]
+            (when sub
+              (let [p (binding [plan/*unread-option-warnings* (atom [])]
                                   ;; Planned at the cell's own size, so a
                                   ;; cell too narrow for its titles is
                                   ;; reported here although the titles
                                   ;; are drawn beside the grid: fifteen
                                   ;; cells in a row of 600 fit without
                                   ;; them, on panels a few units wide.
-                                  (try
-                                    (plan/draft->plan (:draft sub)
-                                                      (dissoc (:opts sub) :suppress-x-label
-                                                              :suppress-y-label))
-                                    (catch clojure.lang.ExceptionInfo e
-                                      (throw (if (:too-small (ex-data e))
-                                               (cell-too-small e sub sub-drafts width height)
-                                               e)))))]
-              (into {} (keep (fn [k]
-                               (when-let [t (get p (if (= k :x) :x-label :y-label))]
-                                 [k t])))
-                    axes))))
-        axis-titles (when-let [axes (seq (:axis-title-axes chrome-spec))]
-                      (cell-axis-titles axes (first sub-drafts)))
+                        (try
+                          (plan/draft->plan (:draft sub)
+                                            (dissoc (:opts sub) :suppress-x-label
+                                                    :suppress-y-label))
+                          (catch clojure.lang.ExceptionInfo e
+                            (throw (if (:too-small (ex-data e))
+                                     (cell-too-small e sub sub-drafts width height)
+                                     e)))))]
+                (into {} (keep (fn [k]
+                                 (when-let [t (get p (if (= k :x) :x-label :y-label))]
+                                   [k t])))
+                      axes))))
+          axis-titles (when-let [axes (seq (:axis-title-axes chrome-spec))]
+                        (cell-axis-titles axes (first (filter #(seq (:draft %)) sub-drafts))))
         ;; A grid nested as a cell titles its axes once beside its block,
         ;; planned from its first cell as the root's are from the first.
-        block-titles (mapv (fn [bt]
-                             (if-let [axes (seq (:axis-axes bt))]
-                               (let [path (:path bt)
-                                     n (count path)
-                                     sub (first (filter #(and (<= n (count (:path %)))
-                                                              (= path (subvec (:path %) 0 n))
-                                                              (seq (:draft %)))
-                                                        sub-drafts))]
-                                 (assoc bt :axis-titles (cell-axis-titles axes sub)))
-                               bt))
-                           (:block-titles chrome-spec))
-        chrome (-> chrome-spec
-                   (dissoc :shared?)
-                   (assoc :shared-legend shared-legend)
-                   (assoc :axis-titles axis-titles)
-                   (assoc :block-titles block-titles)
-                   (assoc :layout layout))]
-    (assoc (resolve/->CompositePlan width height sub-plots chrome)
-           :composite? true
+          block-titles (mapv (fn [bt]
+                               (if-let [axes (seq (:axis-axes bt))]
+                                 (let [path (:path bt)
+                                       n (count path)
+                                       sub (first (filter #(and (<= n (count (:path %)))
+                                                                (= path (subvec (:path %) 0 n))
+                                                                (seq (:draft %)))
+                                                          sub-drafts))]
+                                   (assoc bt :axis-titles (cell-axis-titles axes sub)))
+                                 bt))
+                             (:block-titles chrome-spec))
+          chrome (-> chrome-spec
+                     (dissoc :shared?)
+                     (assoc :shared-legend shared-legend)
+                     (assoc :axis-titles axis-titles)
+                     (assoc :block-titles block-titles)
+                     (assoc :layout layout))]
+      (assoc (resolve/->CompositePlan width height sub-plots chrome)
+             :composite? true
            ;; Mirror the LeafPlan keys read by the plan->plot
            ;; defmethods (render/svg.clj, render/bufimg.clj) -- these
            ;; are how render-opts flow into membrane->plot. Without
            ;; them, plan->plot on a CompositePlan would build a
            ;; figure with no title and zero outer dimensions.
-           :total-width width
-           :total-height height
-           :title (:title chrome)))))
+             :total-width width
+             :total-height height
+             :title (:title chrome)))))

@@ -91,5 +91,5 @@
       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"A row filter names \[:nope\]"
                             (pj/plan (pj/arrange base [{:where {:nope 1}}])))))
     (testing "a map holding a filter and a key no mapping takes is still not a cell"
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"is a map but not a pose"
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"map holding \[:bogus\], which is neither a mapping nor a pose"
                             (pj/arrange base [{:where {:g "a"} :bogus 1}]))))))

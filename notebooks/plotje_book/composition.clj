@@ -86,6 +86,34 @@
 ;; on which both draw `:sepal-length`, and that axis is titled once (see
 ;; Shared Scales below).
 ;;
+;; An arrangement can be built in steps, as a plot is built layer by
+;; layer. `pj/arrange` given an arrangement adds the new cells after
+;; its own and lays out the longer list as one call with that list
+;; would, so a third panel joins the row:
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :sepal-length :y :petal-length}])
+    (pj/arrange [{:x :sepal-length :y :petal-width}])
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v]
+    (and (= 3 (:panels (pj/svg-summary v)))
+         ;; Appending in steps draws what one call draws.
+         (= (pj/svg-summary v)
+            (pj/svg-summary
+             (-> (rdatasets/datasets-iris)
+                 (pj/arrange [{:x :sepal-length :y :sepal-width}
+                              {:x :sepal-length :y :petal-length}
+                              {:x :sepal-length :y :petal-width}])
+                 pj/lay-point)))))])
+
+;; A cell can also hold a row filter, `{:where {:species "setosa"}}`,
+;; and draw the rows that match it, as
+;; [Cells that filter the data](./plotje_book.panels.html#cells-that-filter-the-data)
+;; shows.
+;;
 ;; `pj/arrange` divides space equally among its sub-poses. For
 ;; unequal splits (e.g., give the first cell twice the width of the
 ;; second), construct the composite as an explicit map; the next

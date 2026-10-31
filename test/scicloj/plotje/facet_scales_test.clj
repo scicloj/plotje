@@ -93,9 +93,9 @@
       (is (apply = x) "still shared")
       (is (= [0 100] (first x)) "user-set domain wins"))))
 
-(deftest multi-pair-composite-not-coordinated
-  (testing "multi-pair poses become composites; coordination does not apply"
-    ;; Two-pair pose: panel 1 uses :x-A,:y-A; panel 2 uses :x-B,:y-B.
+(deftest arranged-cells-not-coordinated
+  (testing "cells arranged into a composite; facet coordination does not apply"
+    ;; Two cells: panel 1 draws :x-A on both axes, panel 2 draws :x-B.
     ;; This goes through the compositor (a separate path from
     ;; faceting) and is unaffected by the :scales opt or by
     ;; coordinate-facet-domains.
@@ -108,7 +108,7 @@
                                 (pj/pose nil :x-B :x-B)])
                    pj/lay-point)
           pl   (pj/plan pose)]
-      (is (:composite? pl) "multi-pair becomes a composite plan")
+      (is (:composite? pl) "an arrangement becomes a composite plan")
       (let [sub-domains (mapv #(get-in % [:plan :panels 0 :x-domain])
                               (:sub-plots pl))]
         (is (= 2 (count sub-domains)))

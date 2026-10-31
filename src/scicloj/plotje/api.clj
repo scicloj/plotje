@@ -2066,14 +2066,20 @@
 
    The layer type is named either by its keyword or by the entry
    `pj/layer-type-lookup` answers with; both behave the same. An entry
-   is a map naming its `:mark`; any other value reports an error."
+   is a map naming its `:mark`; any other value reports an error.
+
+   `nil` with a mapping is a template, as in `pj/lay-*`:
+   `(pj/lay nil :point {:x :a :y :b})` is a pose with that layer and
+   no data."
   ([pose-or-data layer-type-key]
    (lay pose-or-data layer-type-key nil))
   ([pose-or-data layer-type-key mapping]
    (let [layer-type-key (lay-layer-type-key layer-type-key)]
      (validate-lay-layer-type-key layer-type-key)
      (let [layer (build-layer layer-type-key mapping)
-           fr (->pose pose-or-data "pj/lay")]
+           fr (if (and (nil? pose-or-data) (seq mapping))
+                (pose)
+                (->pose pose-or-data "pj/lay"))]
        (when (keyword? layer-type-key)
          (check-one-column-layer! layer-type-key
                                   (identity-columns (:mapping layer)
@@ -2312,7 +2318,6 @@
                   (str "(-> data (pj/arrange " (pr-str (vec cols)) ") " then ")")
                   (str "(pj/arrange data " (pr-str (vec cols)) ")"))
                 ".")))
-
 
 (defn- lay-target
   "The pose a `lay-*` call adds its layer to. `nil` with columns or a
@@ -4662,6 +4667,16 @@
           (assoc (->pose m "pj/arrange") :where (:where p))
           {:where (:where p)}))
 
+      ;; Any other mapping -- written in full, `{:x {:column :a}}`, or
+      ;; holding values only, `{:alpha 0.5}` -- is read as `pj/pose`
+      ;; reads it after the data, so the cell is `(pj/pose nil c)`.
+      ;; A value that is a sequence makes the map data, which a cell
+      ;; never is.
+      (and (map? p) (not (pose? p))
+           (every? #(contains? pose-mapping-keys %) (keys p))
+           (not-any? sequential? (vals p)))
+      (pose nil p)
+
       ;; `nil` is a cell left empty: it keeps its place in the layout
       ;; and draws nothing, whatever data and layers the composite
       ;; carries (see `pose/resolve-tree`).
@@ -4682,8 +4697,8 @@
                       {:index idx :head (first p)}))
 
       (vector? p)
-      (throw (ex-info (str prefix " is a plain vector, and a cell is a pose"
-                           " or nil. pj/arrange takes its cells in one flat"
+      (throw (ex-info (str prefix " is a plain vector, and a cell is a column,"
+                           " a mapping, a pose or nil. pj/arrange takes its cells in one flat"
                            " vector, (pj/arrange [a b c]) -- cells held in"
                            " several vectors go in with (into [a] more) -- or"
                            " as rows for an explicit grid, every element a"
@@ -4691,9 +4706,16 @@
                       {:index idx :type (type p)}))
 
       (map? p)
-      (throw (ex-info (str prefix " is a map but not a pose (no :layers "
-                           "or :poses key). Build a pose first via "
-                           "pj/pose / pj/lay-* and pass that.")
+      (throw (ex-info (let [extra (vec (remove #(or (contains? pose-mapping-keys %) (= :where %)) (keys p)))]
+                        (str prefix
+                             (if (seq extra)
+                               (str " is a map holding " (pr-str extra)
+                                    ", which is neither a mapping nor a pose.")
+                               (str " is a map holding sequences, which is read as"
+                                    " data, and a cell holds no data of its own."
+                                    " Give the data first, (pj/arrange data [...])."))
+                             " A cell is a column, a mapping such as {:x :a :y :b},"
+                             " a pose or nil."))
                       {:index idx :type (type p)}))
 
       :else
@@ -4836,9 +4858,21 @@
    a list of rows joins it as a row. A pose is a cell here as in one
    call, so two calls draw what one call with both lists draws."
   [p cells]
+  ;; One call with no cell, or with an empty row, reports an error, so
+  ;; appending them does too.
+  (when (empty? cells)
+    (throw (ex-info "pj/arrange requires at least one cell." {:caller "pj/arrange" :plots cells})))
   (let [cells (normalize-arrange-cells cells)
         coerce (fn [i c] (coerce-arrange-input c i))
         rows? (sequential? (first cells))]
+    (when rows?
+      (doseq [[i row] (map-indexed vector cells)
+              :when (and (sequential? row) (empty? row))]
+        (throw (ex-info (str "pj/arrange was given rows of cells, and row "
+                             i " is an empty vector. A row holds at least"
+                             " one cell; a cell left empty is written nil,"
+                             " as in (pj/arrange [[a b] [nil c]]).")
+                        {:caller "pj/arrange" :index i}))))
     (append-cells p
                   (if rows?
                     (mapv #(vec (map-indexed coerce %)) cells)
@@ -4852,40 +4886,57 @@
     (pose/composite? p)
     (do (when (seq opts)
           (throw (ex-info (str "pj/arrange takes no options when it appends cells"
-                               " to a composite pose. Append the cells, then set"
-                               " the options with pj/options:"
-                               " (-> composite (pj/arrange cells) (pj/options {...})).")
+                               " to a composite pose. Plot options, such as a title,"
+                               " are set after appending with pj/options:"
+                               " (-> composite (pj/arrange cells) (pj/options {...}))."
+                               " The layout options :cols and :share-scales are given"
+                               " in one pj/arrange call holding every cell.")
                           {:caller "pj/arrange" :opts opts})))
         ;; A column appended to a composite is read from the data at
         ;; its root; cells carrying data of their own leave none there.
         (when (and (nil? (:data p))
-                   (some #(or (column-ref? %) (sequential? %)
-                              (and (map? %) (not (pose? %))))
-                         cells))
+                   (some #(or (column-ref? %) (and (map? %) (not (pose? %))))
+                         (tree-seq #(and (sequential? %) (not (hiccup? %))) seq cells)))
           (throw (ex-info (str "pj/arrange appends columns to a composite pose"
                                " by reading them from the composite's data, and"
                                " this composite has none: its cells carry their"
                                " own. Give the data first and write every cell"
                                " there, as in (pj/arrange data [{:x :a :y :b} {:x :a :y :c}]),"
-                               " or add a pose: (pj/arrange [composite"
-                               " (pj/lay-point data :a :c)]).")
+                               " or append a pose: (pj/arrange composite"
+                               " [(pj/lay-point data :a :c)]).")
                           {:caller "pj/arrange" :cells cells})))
         (append-arrange-cells p cells))
 
     :else
-    (let [{:keys [data mapping layers]} p]
+    ;; Everything the pose holds reaches its cells: its data, mapping,
+    ;; layers, row filter and plot options (a title, a coordinate
+    ;; system). Options given to this call win over the pose's.
+    (let [{:keys [data mapping layers where facet] pose-opts :opts} p]
+      ;; A facet over columns splits one panel, and an arrangement has
+      ;; several, as `pj/facet` on a composite reports.
+      (when (seq facet)
+        (throw (ex-info (str "pj/arrange was given a pose faceted over columns, "
+                             (pr-str facet) ", to arrange cells from. A facet over"
+                             " columns splits a pose with one panel. Facet each"
+                             " cell, as in (pj/arrange data [(pj/facet cell "
+                             (pr-str facet) ") ...]), or arrange the columns as"
+                             " cells.")
+                        {:caller "pj/arrange" :facet facet})))
       (cond-> (arrange* (normalize-arrange-cells cells) opts)
         (some? data) (with-data data)
         (seq mapping) (assoc :mapping mapping)
-        (seq layers) (assoc :layers layers)))))
+        (seq layers) (assoc :layers layers)
+        (seq where) (assoc :where where)
+        (seq pose-opts) (update :opts #(merge pose-opts %))))))
 
 (defn arrange
   "Arrange multiple poses in a grid. Returns a composite pose
    that renders through the compositor via membrane -- so `:svg`,
    `:bufimg`, and any other membrane target work uniformly.
 
-   Each input is a pose, leaf or composite. A composite input becomes a
-   cell holding its own grid. `nil` is a cell left empty: it keeps its
+   Each cell is a pose, leaf or composite, or -- drawn from data given
+   first, below -- a column or a mapping. A composite cell holds its
+   own grid. `nil` is a cell left empty: it keeps its
    place in the layout and draws nothing, whatever data and layers the
    composite carries. Pre-rendered hiccup is not accepted;
    build your own `[:div ...]` if you need to combine already-rendered
@@ -4950,7 +5001,9 @@
    A cell is what one argument after the data is to `pj/pose`: a
    column, `:a`, is the cell `{:x :a}`; a mapping is a mapping; a pose
    is a pose. A vector is never a cell. It is a list of cells -- a row,
-   in a list of rows, and otherwise an arrangement of its own:
+   in a list of rows, and otherwise an arrangement of its own. A list
+   is a list of rows when its first element is a vector, and then every
+   element is a row:
 
    - `(arrange data [:a :b :c])` -- a panel per column.
    - `(arrange data [{:x :a :y :b} {:x :c :y :d}])` -- a panel per
@@ -4959,8 +5012,10 @@
      column each.
    - `(arrange data [:a [:b :c]])` -- a panel of `:a` beside an
      arrangement of `:b` and `:c`.
-   - `(arrange pose [:a :b])` -- the pose's data, mapping and layers
-     with a panel per column; on a composite pose, the cells appended.
+   - `(arrange pose [:a :b])` -- the pose's data, mapping, layers, row
+     filter and plot options, with a panel per column; on a composite
+     pose, the cells appended, laid out as one call with the longer
+     list lays them out.
    - `(arrange data [(pj/pose nil :a :b) (pj/pose nil :c :d)])` -- a
      pose with no data is drawn from the data given first, so a list of
      pairs is `(mapv #(apply pj/pose nil %) pairs)`.

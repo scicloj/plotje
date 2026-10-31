@@ -139,3 +139,63 @@
                                                                    (pj/pose nil {:where {:u 2.0}})]))))))
   (testing "a :where that is not a map reports an error"
     (is (re-find #"takes :where as a map" (message #(pj/pose tiny {:where :u}))))))
+
+(def tiny4 {:u [1.0 2.0 3.0] :v [4.0 5.0 6.0] :w [70.0 90.0 80.0] :g ["a" "b" "a"]})
+
+(defn- texts [p] (:texts (pj/svg-summary p)))
+
+(deftest ticks-left-to-the-adjacent-cell-test
+  (testing "a cell keeps its ticks and title where the cell beside it draws another column"
+    (let [t (texts (-> tiny4 (pj/arrange [{:x :u :y :v} {:x :u :y :w} {:x :u :y :v}]) pj/lay-point))]
+      (is (= 2 (count (filter #{"v"} t))))))
+  (testing "beside a cell drawing the same column, it leaves them to that cell"
+    (let [t (texts (-> tiny4 (pj/arrange [{:x :u :y :v} {:x :u :y :v}]) pj/lay-point))]
+      (is (= 1 (count (filter #{"v"} t))))))
+  (testing "a panel under :coord :fixed keeps its own ticks"
+    (let [cell (fn [x] (-> tiny4 (pj/lay-point x :v) (pj/coord :fixed)))
+          pl (pj/plan (pj/arrange [(cell :u) (cell :w)] {:share-scales #{:y}}))]
+      (is (not-any? #(get-in % [:plan :suppress-y-ticks]) (:sub-plots pl))))))
+
+(deftest an-empty-first-cell-keeps-the-shared-titles-test
+  (doseq [first-cell [nil (pj/pose) {:where {:g "a"}}]]
+    (let [t (texts (-> tiny4 (pj/arrange [first-cell {:x :u :y :v} {:x :u :y :v}]) pj/lay-point))]
+      (is (some #{"u"} t))
+      (is (some #{"v"} t)))))
+
+(deftest a-pose-arranged-into-keeps-its-filter-and-options-test
+  (let [base (-> tiny4 (pj/pose {:where {:g "a"}}) pj/lay-point (pj/options {:title "only a"}))
+        p (pj/arrange base [{:x :u :y :v} {:x :u :y :w}])]
+    (is (= 4 (:points (pj/svg-summary p))))
+    (is (some #{"only a"} (texts p))))
+  (testing "a coordinate system reaches the cells"
+    (is (= :flip (get-in (-> tiny4 (pj/lay-point :u :v) (pj/coord :flip) (pj/arrange [{:x :u :y :w}]))
+                         [:opts :coord]))))
+  (testing "a facet over columns reports an error"
+    (is (re-find #"faceted over columns"
+                 (message #(-> tiny4 (pj/pose :u :v) (pj/facet {:x [:u :w]}) (pj/arrange [{:color :g}])))))))
+
+(deftest appending-equals-one-call-test
+  (testing "a row of poses appended to a composite with no data"
+    (is (= (pj/svg-summary (pj/arrange (pj/arrange [[a b]]) [[a b]]))
+           (pj/svg-summary (pj/arrange [[a b] [a b]])))))
+  (testing "no cell, or an empty row, reports an error as one call does"
+    (let [c (pj/arrange [[a b]])]
+      (is (re-find #"at least one cell" (message #(pj/arrange c []))))
+      (is (re-find #"row 0 is an empty vector" (message #(pj/arrange c [[]]))))))
+  (testing "the options message names what pj/options takes"
+    (is (re-find #":cols and :share-scales are given in one pj/arrange call"
+                 (message #(pj/arrange (pj/arrange tiny4 [:u :v]) [:w] {:cols 1})))))
+  (testing "the dataless message suggests appending, not nesting"
+    (is (re-find #"\(pj/arrange composite \[\(pj/lay-point"
+                 (message #(pj/arrange (pj/arrange [a b]) [:u]))))))
+
+(deftest any-mapping-is-a-cell-test
+  (let [base (pj/pose tiny4 :u :v)]
+    (doseq [c [{:alpha 0.3} {:x {:column :w}}]]
+      (is (= (pj/svg-summary (pj/lay-point (pj/arrange base [c])))
+             (pj/svg-summary (pj/lay-point (pj/arrange base [(pj/pose nil c)])))))))
+  (is (re-find #"map holding \[:colour\], which is neither a mapping nor a pose"
+               (message #(pj/arrange tiny4 [{:colour :g}])))))
+
+(deftest pj-lay-takes-a-nil-template-test
+  (is (= 3 (:points (pj/svg-summary (pj/with-data (pj/lay nil :point {:x :u :y :v}) tiny4))))))

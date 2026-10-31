@@ -3928,10 +3928,24 @@
           titled-there? (fn [leaf axis other]
                           (let [col (column-of leaf axis)]
                             (and (some? col) (= col (column-of (by-path (:path other)) axis)))))
+          ;; Only the nearest live cell below (x) or at the left (y) is
+          ;; the one a reader reads a panel against: a cell further away
+          ;; drawing the same column does not keep ticks for this one
+          ;; when the cell between draws another scale. A panel of
+          ;; `:coord :fixed` is sized by its data, so it does not line
+          ;; up with its neighbour, and keeps its ticks.
+          fixed? #(= :fixed (get-in % [:opts :coord]))
+          nearest (fn [leaf axis pred key-fn]
+                    (let [rect (rects (:path leaf))
+                          cands (filter #(pred rect (:rect %)) live)
+                          n (when (seq cands) (apply min-key key-fn cands))]
+                      (when (and n (together? axis leaf n)
+                                 (not (fixed? leaf))
+                                 (not (fixed? (by-path (:path n)))))
+                        [n])))
           chrome (fn [leaf]
-                   (let [rect (rects (:path leaf))
-                         x-below (filter #(and (together? :x leaf %) (below? rect (:rect %))) live)
-                         y-left (filter #(and (together? :y leaf %) (left? rect (:rect %))) live)]
+                   (let [x-below (nearest leaf :x below? #(second (:rect %)))
+                         y-left (nearest leaf :y left? #(- (first (:rect %))))]
                      (cond-> {}
                        (or once-x? (some #(titled-there? leaf :x %) x-below))
                        (assoc :suppress-x-label true)
@@ -4154,20 +4168,20 @@
    written is kept. `strip-mode` is `:strip-labels` (`defaults/strip-text`)."
   ([composite] (infer-chrome composite nil))
   ([composite strip-mode]
-  (cond
-    (declared-split? composite)
-    (-> composite
-        infer-axis-chrome
-        (infer-strips strip-mode))
+   (cond
+     (declared-split? composite)
+     (-> composite
+         infer-axis-chrome
+         (infer-strips strip-mode))
 
     ;; Cells carrying data of their own that are asked to share an axis
     ;; draw it on one scale, so it is titled once and ticked on the
     ;; outer cells, as the parts of one split are.
-    (or (contains? (:opts composite) :share-scales)
-        (contains? composite :share-scales))
-    (infer-axis-chrome composite)
+     (or (contains? (:opts composite) :share-scales)
+         (contains? composite :share-scales))
+     (infer-axis-chrome composite)
 
-    :else composite)))
+     :else composite)))
 
 (defn infer-nested-chrome
   "`composite` with the chrome of each composite nested below its root
@@ -4180,23 +4194,23 @@
    (`:plotje/y-ticks-inferred-off`), by their paths from the root."
   ([composite] (infer-nested-chrome composite nil))
   ([composite strip-mode]
-  (let [off (atom #{})]
-    (letfn [(walk [p path]
-              (if (seq (:poses p))
-                (update p :poses
-                        (fn [cs]
-                          (vec (map-indexed
-                                (fn [i c]
-                                  (let [cpath (conj path i)
-                                        c (if (seq (:poses c)) (infer-chrome c strip-mode) c)]
-                                    (swap! off into (map #(into cpath %))
-                                           (:plotje/y-ticks-inferred-off c))
-                                    (walk (dissoc c :plotje/y-ticks-inferred-off) cpath)))
-                                cs))))
-                p))]
-      (let [walked (walk composite [])]
-        (cond-> walked
-          (seq (deref off)) (update :plotje/y-ticks-inferred-off (fnil into #{}) (deref off))))))))
+   (let [off (atom #{})]
+     (letfn [(walk [p path]
+               (if (seq (:poses p))
+                 (update p :poses
+                         (fn [cs]
+                           (vec (map-indexed
+                                 (fn [i c]
+                                   (let [cpath (conj path i)
+                                         c (if (seq (:poses c)) (infer-chrome c strip-mode) c)]
+                                     (swap! off into (map #(into cpath %))
+                                            (:plotje/y-ticks-inferred-off c))
+                                     (walk (dissoc c :plotje/y-ticks-inferred-off) cpath)))
+                                 cs))))
+                 p))]
+       (let [walked (walk composite [])]
+         (cond-> walked
+           (seq (deref off)) (update :plotje/y-ticks-inferred-off (fnil into #{}) (deref off))))))))
 
 ;; ---- Expansion of a variation into listed cells ----
 

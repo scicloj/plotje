@@ -414,10 +414,10 @@
          #"given 1 cell, and every one is nil, a cell left empty"
          (pj/arrange [nil]))))
 
-  (testing "(pj/arrange [non-pose-map]) names the missing :layers/:poses"
+  (testing "(pj/arrange [non-pose-map]) names the keys no mapping takes"
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"is a map but not a pose"
+         #"map holding \[:not-a\], which is neither a mapping nor a pose"
          (pj/arrange [{:not-a :pose}]))))
 
   (testing "(pj/arrange [hiccup-vector]) keeps hiccup-specific guidance"
