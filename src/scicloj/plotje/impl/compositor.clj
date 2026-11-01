@@ -17,6 +17,7 @@
    cell hides its own legend, and the rendering side (render/
    composite.clj) draws ONE shared legend in the reserved strip."
   (:require [clojure.set]
+            [clojure.string :as str]
             [tablecloth.api :as tc]
             [scicloj.plotje.impl.pose :as pose]
             [scicloj.plotje.impl.plan :as plan]
@@ -760,6 +761,48 @@
         (if (> n-cols 1) :grid d))
       d)))
 
+(defn- pairs-written-as-rows
+  "The rows of `composite` where they have the shape of pairs of columns
+   written out of the habit of 0.16.1's `pj/pose` -- every row two cells,
+   each cell a bare column on `:x` with no layer of its own, as
+   `(pj/arrange data [[:a :b] [:c :d]])` writes -- as `[[:a :b] ...]`;
+   nil otherwise."
+  [composite]
+  (let [rows (:poses composite)
+        column-of (fn [cell]
+                    (let [m (:mapping cell)]
+                      (when (and (= [:x] (keys m))
+                                 (keyword? (:x m))
+                                 (empty? (:layers cell))
+                                 (nil? (:poses cell)))
+                        (:x m))))
+        pairs (mapv #(mapv column-of (:poses %)) rows)]
+    (when (and (seq rows)
+               ;; Written as rows: a flat list records its `:cols`.
+               (not (contains? (:layout composite) :cols))
+               (every? #(= :horizontal (get-in % [:layout :direction])) rows)
+               (every? #(and (= 2 (count %)) (every? some? %)) pairs))
+      pairs)))
+
+(defn- hint-pairs-written-as-rows
+  "Report the error `e` again, with a sentence added where the cells
+   have the shape of pairs (`pairs-written-as-rows`) and a layer was
+   missing its `:y` column: in `pj/arrange` a pair is a row of two cells."
+  [composite e]
+  (let [pairs (pairs-written-as-rows composite)]
+    (if (and pairs (= [:y] (:missing (ex-data e))))
+      (throw (ex-info (str (ex-message e)
+                           (when-not (str/ends-with? (ex-message e) ".") ".")
+                           " In pj/arrange, " (pr-str (first pairs))
+                           " is a row of two cells, one column each. For a panel"
+                           " per pair, write each pair as a mapping: (pj/arrange data ["
+                           (str/join " " (map (fn [[x y]] (str "{:x " (pr-str x) " :y " (pr-str y) "}"))
+                                              pairs))
+                           "]).")
+                      (ex-data e)
+                      e))
+      (throw e))))
+
 (defn composite-pose->draft
   "Resolve a composite pose into a CompositeDraft. Each sub-draft entry
    carries the leaf's path, its rect inside the composite, the
@@ -780,7 +823,10 @@
    not need to recompute layout from the original pose tree."
   [composite]
   (pose/report-unread-positions! composite :composites)
-  (let [;; The draft's choices written in first -- a default mapping, a
+  (let [;; The cells as written, before layers are fitted into them, for
+        ;; `hint-pairs-written-as-rows`.
+        written composite
+        ;; The draft's choices written in first -- a default mapping, a
         ;; concrete layer type for every inferred layer -- so sharing,
         ;; layout and the leaf drafts read layer types rather than
         ;; predicting them.
@@ -794,7 +840,8 @@
         (resolve-composite-chrome composite)
         suppress-keys (mapv aesthetic->suppress-key shared-aesthetics)
         blank-notes (atom [])
-        sub-drafts (binding [pose/*blank-notes* blank-notes]
+        sub-drafts (try
+                    (binding [pose/*blank-notes* blank-notes]
                      (mapv (fn [leaf]
                              (let [rect (get layout (:path leaf))
                                    [_ _ rw rh] rect
@@ -824,6 +871,8 @@
                                         :opts leaf-opts}
                                  (::share leaf) (assoc :share (::share leaf)))))
                            leaves))
+                    (catch clojure.lang.ExceptionInfo e
+                      (hint-pairs-written-as-rows written e)))
         ;; Where the whole arrangement draws nothing, the Notes the
         ;; cells collected, once. Where other cells draw, a Note for each
         ;; blank cell that is not `nil`: written `nil` is a cell left

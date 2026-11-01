@@ -289,3 +289,14 @@
       (is (= (numbers (grid mixed {:x :all :y :all})) (numbers (grid mixed #{})))))
     (testing "the same column on a shared axis is still labelled on the outer cells only"
       (is (< (numbers (grid crossing #{:x :y})) (numbers (grid crossing #{})))))))
+
+(deftest pairs-written-as-rows-get-a-hint-test
+  (testing "rows of two bare columns under a two-column layer"
+    (let [msg (message #(pj/plan (-> four (pj/arrange [[:p :q] [:r :s]]) pj/lay-point)))]
+      (is (re-find #"has no column on :y" msg))
+      (is (re-find #"In pj/arrange, \[:p :q\] is a row of two cells, one column each" msg))
+      (is (re-find #"\(pj/arrange data \[\{:x :p :y :q\} \{:x :r :y :s\}\]\)" msg))))
+  (testing "no hint for a flat list, or for a one-column layer, which draws"
+    (is (not (re-find #"In pj/arrange"
+                      (message #(pj/plan (-> four (pj/arrange [:p :q :r :s] {:cols 2}) pj/lay-point))))))
+    (is (= 4 (:panels (pj/svg-summary (-> four (pj/arrange [[:p :q] [:r :s]]) pj/lay-histogram)))))))

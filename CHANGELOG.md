@@ -136,7 +136,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A `:share-scales` that names an axis no two cells share warns once, naming the columns the cells draw there and the group that would share them. Cells of an arrangement that specify a `:share-scales` leaving out an axis the arrangement shares are named in one warning.
 
-- `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [{:x :a :y :b} {:x :c :y :d}])` or `(pj/facet data {:col {:x xs} :row {:y ys}})`. `pj/arrange` given options while appending cells to a composite reports an error, as does `pj/arrange` given its cells one by one, `(pj/arrange a b)`, in place of one vector.
+- `pj/pose` and `lay-*` given a vector of column pairs, such as `[[:a :b] [:c :d]]` or `(pj/cross xs ys)`, report an error. Write `(pj/arrange data [{:x :a :y :b} {:x :c :y :d}])` or `(pj/facet data {:col {:x xs} :row {:y ys}})`. `pj/arrange` given the same rows, `[[:a :b] [:c :d]]`, reads them as rows of one-column cells, and where a layer then lacks its `:y` column the error says so and suggests the mappings. `pj/arrange` given options while appending cells to a composite reports an error, as does `pj/arrange` given its cells one by one, `(pj/arrange a b)`, in place of one vector.
 
 - `pj/cross` is deprecated: it warns, or reports an error under `:strict`, and returns its pairs. A pair of columns is not a cell of `pj/arrange`. For a grid of panels with one list of columns across and another down, write `(pj/facet data {:col {:x xs} :row {:y ys}})`.
 
