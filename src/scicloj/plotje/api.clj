@@ -830,7 +830,7 @@
     (pose/infer-default-mapping fr)
     fr))
 
-(declare retire-scales retired-overlay!)
+(declare retire-scales retired-overlay! note-layers-without-data!)
 
 (defn- retire-scales-in-tree
   "A pose with the retired `:scales` option read as `:share-scales`
@@ -857,7 +857,8 @@
   [pose]
   (expect-type pose pose? "pose" "pj/pose->draft")
   (check-pose-shape! pose)
-  (let [pose (-> pose
+  (let [written pose
+        pose (-> pose
                  retire-scales-in-tree
                  pose/coerce-data-in-tree)
         ;; Asked of the pose as written, before a facet makes cells.
@@ -865,15 +866,19 @@
         pose (cond-> pose
                true pose/expand-facet-nodes
                true pose/collapse-regular-split)]
-    (if (pose/composite? pose)
-      (compositor/composite-pose->draft pose)
-      ;; `:share-scales` at the top of a hand-written pose is read as
-      ;; it is on a composite (`pose/share-spec`).
-      (resolve/->LeafDraft (pose/leaf->draft pose)
-                           (cond-> (or (:opts pose) {})
-                             (and (contains? pose :share-scales)
-                                  (not (contains? (:opts pose) :share-scales)))
-                             (assoc :share-scales (:share-scales pose)))))))
+    (let [draft (if (pose/composite? pose)
+                  (compositor/composite-pose->draft pose)
+                  ;; `:share-scales` at the top of a hand-written pose is read as
+                  ;; it is on a composite (`pose/share-spec`).
+                  (resolve/->LeafDraft (pose/leaf->draft pose)
+                                       (cond-> (or (:opts pose) {})
+                                         (and (contains? pose :share-scales)
+                                              (not (contains? (:opts pose) :share-scales)))
+                                         (assoc :share-scales (:share-scales pose)))))]
+      ;; Printed once the pose drafts, so a pose that reports an error
+      ;; prints the error alone.
+      (note-layers-without-data! written)
+      draft)))
 
 (def ^:private pose-mapping-keys
   "Keys accepted in a pose mapping (column refs + per-pose
@@ -4380,6 +4385,31 @@
                              :unused-keys unused
                              :scope (if (= p root) :root :sub-pose)}))
             (println (str "Warning: " msg))))))))
+
+(defn- note-layers-without-data!
+  "Print a Note for each panel whose layers have no data -- none on a
+   layer, on its pose, or on a pose holding it -- which draws a panel
+   reading \"no data\", as data of no rows does. A template, as
+   `(pj/lay-point nil :a :b)`, drawn before it was given data is the
+   usual case."
+  [pose]
+  (doseq [msg (distinct
+               (for [leaf (pose/resolve-tree pose)
+                     :when (and (not (:plotje/empty-cell leaf))
+                                (nil? (:data leaf))
+                                (some #(nil? (:data %)) (:layers leaf)))]
+                 (let [place (remove nil? (pose/leaf-place leaf))
+                       lay (str "pj/lay-" (layer-type-name
+                                           (:layer-type (first (filter #(nil? (:data %)) (:layers leaf))))))]
+                   (str "Note: the panel"
+                        (when (seq place)
+                          (str " drawing " (str/join " / " (map pr-str place))))
+                        " has no data -- not on its layers, its pose, or a pose"
+                        " holding it -- so it reads \"no data\". Give the data"
+                        " with (pj/with-data pose data), or with the layer,"
+                        " as in (" lay " data"
+                        (apply str (map #(str " " (pr-str %)) place)) ")."))))]
+    (println msg)))
 
 (defn- check-pose-shape!
   "Precondition for pj/pose->draft (and so for every shortcut that

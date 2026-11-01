@@ -603,14 +603,16 @@ two-panel
                               (= "Scatter with Regression" (get-in v [:opts :title]))))])
 
 ;; Before it has data, the template draws an empty panel that reads
-;; "no data":
+;; "no data", and prints a Note saying where to give the data:
 
 scatter-with-regression
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (some #{"no data"} (:texts s))
                                 (zero? (:points s))
-                                (zero? (:lines s)))))])
+                                (zero? (:lines s))
+                                (re-find #"Note: the panel drawing :x / :y has no data"
+                                         (with-out-str (pj/plan v))))))])
 
 ;; Apply to one dataset:
 

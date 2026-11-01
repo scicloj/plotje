@@ -163,3 +163,22 @@
            (printed (pj/lay-smooth {:week [1 2 3] :units [4 6 5]} :week :units))))
     ;; Enough rows: nothing printed.
     (is (= "" (printed (pj/lay-smooth sales :week :units))))))
+
+(deftest a-panel-with-no-data-prints-a-note-test
+  (testing "a template drawn before it was given data"
+    (let [out (with-out-str (pj/plan (pj/lay-point nil :a :b)))]
+      (is (re-find #"Note: the panel drawing :a / :b has no data" out))
+      (is (re-find #"\(pj/with-data pose data\)" out))
+      (is (re-find #"\(pj/lay-point data :a :b\)" out))))
+  (testing "once per panel, in an arrangement of templates"
+    (is (= 2 (count (re-seq #"Note: the panel"
+                            (with-out-str
+                              (pj/plan (pj/arrange [(pj/lay-point nil :a :b)
+                                                    (pj/lay-smooth nil :a :c)
+                                                    (pj/lay-point nil :a :b)]))))))))
+  (testing "no Note where the data has no rows, or the template is given data"
+    (is (= "" (with-out-str (pj/plan (pj/lay-point {:a [] :b []} :a :b)))))
+    (is (= "" (with-out-str (pj/plan (pj/with-data (pj/lay-point nil :a :b)
+                                                   {:a [1 2] :b [3 4]})))))
+    (is (= "" (with-out-str (pj/plan (pj/arrange {:a [1 2] :b [3 4]}
+                                                 [(pj/lay-point nil :a :b)])))))))

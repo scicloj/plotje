@@ -118,7 +118,7 @@ All notable changes to this project will be documented in this file. This change
 
 - A layer left without a column its layer type draws from reports an error naming the layer, the axis that is missing, the columns the layer does name, and the columns of the data. The error is reported when the pose is drawn. A `pj/lay-*` call on a dataset of four or more columns returns a pose without naming columns, so a later step may name them: `(-> data pj/lay-point (pj/pose {:x :a :y :b}))` and `(-> data pj/lay-smooth (pj/lay-point :a :b))` draw. A pose with no column and no layer, `(pj/plot (pj/pose data))`, on data of four or more columns prints a Note that it draws nothing, listing the columns of the data.
 
-- A layer with no data draws a panel reading "no data" for any layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn and saved before `pj/with-data` gives it data.
+- A layer with no data draws a panel reading "no data" for any layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn and saved before `pj/with-data` gives it data. Drawing it prints a Note naming the panel and saying where to give the data; data with no rows draws the same panel with no Note.
 
 - A `lay-*` call on an arrangement naming columns no cell draws prints a Note where the layer, drawn on a cell of its own, leaves something undrawn. Where the cells carry their own data, the Note says that the new cell has none, and names the columns the cells draw and the `{:data data}` spelling that gives the new cell its data. Beside cells that name no column and hold no layer, the Note says that those cells draw nothing, and names the spelling that draws the layer in every cell.
 
