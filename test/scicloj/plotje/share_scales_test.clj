@@ -134,7 +134,7 @@
       (is (= 2 (second (distinct-counts (pj/arrange [a b])))))
       (is (= 1 (second (distinct-counts
                         (pj/arrange [a b] {:share-scales {:y [[:indoor :outdoor]]}})))))))
-  (testing "panels sharing through a group label the ticks once, on the outer panel"
+  (testing "panels sharing through a group keep each column's tick labels beside its title"
     (let [texts (fn [pose] (count (filter #(re-matches #"\d+(\.\d+)?" %)
                                           (:texts (pj/svg-summary pose)))))
           side-by-side (fn [share]
@@ -144,8 +144,11 @@
                              (assoc :layout {:direction :horizontal}
                                     :poses [{:mapping {:y :fast}} {:mapping {:y :slow}}])
                              (pj/options {:share-scales share})))]
-      (is (< (texts (side-by-side {:x :same-column :y [[:fast :slow]]}))
-             (texts (side-by-side {:x :same-column})))))))
+      ;; Each panel titles another column, so each keeps its numbers;
+      ;; the group still gives the two one domain.
+      (is (= (texts (side-by-side {:x :same-column :y [[:fast :slow]]}))
+             (texts (side-by-side {:x :same-column}))))
+      (is (apply = (map second (domains (side-by-side {:x :same-column :y [[:fast :slow]]}))))))))
 
 (deftest share-scales-errors-test
   (testing "columns of different kinds cannot go together"

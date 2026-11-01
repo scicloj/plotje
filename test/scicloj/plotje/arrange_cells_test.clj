@@ -272,3 +272,20 @@
                         (pj/plan (-> tiny
                                      (pj/facet {:col {:x [:u nil]} :row {:y [nil :v]}})
                                      pj/lay-point))))))))
+
+(deftest tick-labels-stay-beside-their-title-test
+  (let [numbers (fn [p] (count (filter #(re-matches #"-?\d+(\.\d+)?" %)
+                                       (:texts (pj/svg-summary p)))))
+        grid (fn [cells share] (-> four
+                                   (pj/arrange cells {:share-scales share})
+                                   pj/lay-point))
+        ;; Each neighbour draws another column on both axes.
+        mixed [[{:x :p :y :q} {:x :p :y :r}]
+               [{:x :s :y :q} {:x :s :y :r}]]
+        ;; Each grid column draws one :x, each row one :y.
+        crossing [[{:x :p :y :q} {:x :s :y :q}]
+                  [{:x :p :y :r} {:x :s :y :r}]]]
+    (testing "under :all, a cell drawing another column than its neighbour keeps its numbers"
+      (is (= (numbers (grid mixed {:x :all :y :all})) (numbers (grid mixed #{})))))
+    (testing "the same column on a shared axis is still labelled on the outer cells only"
+      (is (< (numbers (grid crossing #{:x :y})) (numbers (grid crossing #{})))))))

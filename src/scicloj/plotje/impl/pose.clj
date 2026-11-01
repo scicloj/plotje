@@ -3947,16 +3947,27 @@
                                  (not (fixed? leaf))
                                  (not (fixed? (by-path (:path n)))))
                         [n])))
+          ;; The tick labels go with the title: a cell drops them only
+          ;; where its title is drawn elsewhere too -- the neighbour draws
+          ;; the same column, or the axis is titled beside the grid -- or
+          ;; where the cell names no column there, as a count axis. Under
+          ;; `:all`, a cell drawing another column than its neighbour
+          ;; keeps its numbers beside its title.
+          ticks-there? (fn [leaf axis once? others]
+                         (and (seq others)
+                              (or once?
+                                  (some #(titled-there? leaf axis %) others)
+                                  (nil? (column-of leaf axis)))))
           chrome (fn [leaf]
                    (let [x-below (nearest leaf :x below? #(second (:rect %)))
                          y-left (nearest leaf :y left? #(- (first (:rect %))))]
                      (cond-> {}
                        (or once-x? (some #(titled-there? leaf :x %) x-below))
                        (assoc :suppress-x-label true)
-                       (seq x-below) (assoc :suppress-x-ticks true)
+                       (ticks-there? leaf :x once-x? x-below) (assoc :suppress-x-ticks true)
                        (or once-y? (some #(titled-there? leaf :y %) y-left))
                        (assoc :suppress-y-label true)
-                       (seq y-left) (assoc :suppress-y-ticks true))))]
+                       (ticks-there? leaf :y once-y? y-left) (assoc :suppress-y-ticks true))))]
       (cond-> (reduce (fn [c leaf]
                         (let [ch (when-not (:plotje/empty-cell leaf) (chrome leaf))]
                           (if (seq ch)

@@ -950,7 +950,9 @@ dashboard
 ;;   that read the data of the pose holding them, as in
 ;;   `(pj/arrange data [...])`, a shared axis is titled once and its
 ;;   ticks are labelled on the outer cells only, as the panels of a
-;;   facet do. A cell drops its own with
+;;   facet do. Cells drawing different columns on one shared scale --
+;;   under `:all`, or a group such as `{:y [[:hwy :cty]]}` -- each keep
+;;   their title and its tick labels. A cell drops its own with
 ;;   `:suppress-x-ticks` and `:suppress-x-label` in that cell's
 ;;   `:opts`, which is what `pj/marginal` writes on the strip it
 ;;   builds. (A scatter plot matrix names its columns with strips in
