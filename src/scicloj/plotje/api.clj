@@ -1277,11 +1277,35 @@
       (seq merged)    (assoc :mapping merged)
       (empty? merged) (dissoc :mapping))))
 
+(defn- note-pose-replaces-columns!
+  "Print, for this release, that `pj/pose` given another `:x` or `:y`
+   column replaces the pose's, where 0.16.1 added a panel for it, and
+   how to draw the panels side by side."
+  [mapping incoming-mapping]
+  (let [changed (for [k [:x :y]
+                      :let [before (pose/mapping-source (get mapping k))
+                            after (pose/mapping-source (get incoming-mapping k))]
+                      :when (and (some? before) (some? after) (not= before after))]
+                  [k before after])
+        pair (fn [m] (str "{" (str/join " " (for [k [:x :y]
+                                                  :let [c (pose/mapping-source (get m k))]
+                                                  :when (some? c)]
+                                              (str k " " (pr-str c))))
+                          "}"))]
+    (when (seq changed)
+      (println (str "Note: on this pose, pj/pose replaces "
+                    (str/join " and " (for [[k before after] changed]
+                                        (str k " " (pr-str before) " with " (pr-str after))))
+                    "; in 0.16.1 it added a panel. For panels side by"
+                    " side, write (pj/arrange data [" (pair mapping) " "
+                    (pair (merge mapping incoming-mapping)) "]).")))))
+
 (defn- extend-pose
   "`(pj/pose existing-pose incoming-mapping)`: the mapping is merged into
    the pose's own -- the root's, on a composite. A new `:x` or `:y`
    replaces the one the pose had; `pj/pose` never adds a panel."
   [fr incoming-mapping]
+  (note-pose-replaces-columns! (:mapping fr) incoming-mapping)
   (extend-mapping-of fr incoming-mapping))
 
 (defn- pose-from-data

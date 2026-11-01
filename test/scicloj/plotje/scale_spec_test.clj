@@ -1246,9 +1246,9 @@
     (testing "a setting written for the first column is named in a warning"
       (is (re-find #"(?s)pj/pose maps :x to :year.*written for :gdp.*\{:label \"GDP\"\}"
                    (with-out-str (pj/pose base {:x :year})))))
-    (testing "a type alone carries without a word"
-      (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/scale :x :log)
-                                  (pj/pose {:x :year}))))))))
+    (testing "a type alone carries without a warning"
+      (is (not (re-find #"Warning" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/scale :x :log)
+                                                     (pj/pose {:x :year})))))))))
 
 (deftest lay-columns-and-a-scale-in-one-call-test
   (testing "the column argument and a scale written in the map make one mapping"
@@ -1258,3 +1258,14 @@
            (-> scaled-data (pj/pose :year :life)
                (pj/lay-point :gdp :life {:x {:scale :log}})
                pj/draft :layers (->> (mapv :x)))))))
+
+(deftest pj-pose-replacing-a-column-prints-a-note-test
+  ;; For this release only: 0.16.1 added a panel here.
+  (testing "another :x or :y column"
+    (is (re-find #"Note: on this pose, pj/pose replaces :x :gdp with :year; in 0.16.1 it added a panel.*\(pj/arrange data \[\{:x :gdp :y :life\} \{:x :year :y :life\}\]\)"
+                 (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x :year}))))))
+  (testing "no Note for the same column, a first mapping, nil, or another aesthetic"
+    (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x :gdp})))))
+    (is (= "" (with-out-str (-> scaled-data pj/pose (pj/pose :gdp :life)))))
+    (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x nil})))))
+    (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:color :year})))))))
