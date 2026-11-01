@@ -2396,6 +2396,23 @@
       (nil? (second k)) [:y]
       :else [])))
 
+(defn- rug-side-from-columns
+  "The `:side` a rug draws on when none is written: `:y` where its own
+   mapping names a column on `:y` and none on `:x`, and the panel gives
+   it an `:x`. So `(pj/lay-rug pose {:y :cty})` marks `:cty` along the
+   left, the column it names. Nil otherwise, and the default `:side :x`
+   stands. A rug naming only `:y` on a pose with no `:x` is not covered
+   here: it is drawn on its side under `:coord :flip`."
+  [mark own leaf-mapping]
+  (let [from-panel (or (::from-panel (meta own)) #{})]
+    (when (and (= :rug mark)
+               (not (contains? own :side))
+               (mapping-source (:y own))
+               (not (contains? from-panel :y))
+               (or (not (contains? own :x)) (contains? from-panel :x))
+               (or (contains? from-panel :x) (mapping-source (:x leaf-mapping))))
+      :y)))
+
 (defn- layer-panel-columns
   "The panel's columns one layer of a leaf reads, as a mapping to put
    under the layer's own, on the axes `panel-axes-read` answers. Nothing
@@ -5943,6 +5960,11 @@
                                 unread-axes
                                 (as-> m (apply dissoc m (mapcat (fn [a] [a ({:x :x-type :y :y-type} a)])
                                                                 unread-axes)))
+                                (rug-side-from-columns (or (:mark (:mapping layer))
+                                                           (:mark layer-type-info))
+                                                       (or (:mapping layer) {})
+                                                       leaf-mapping)
+                                (assoc :side :y)
                                 (and (nth ov-colors layer-idx nil)
                                      (nth ov-labels layer-idx nil))
                                 (assoc :color

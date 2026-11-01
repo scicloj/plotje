@@ -166,6 +166,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- `pj/lay-rug` naming a column on `:y` and none on `:x`, on a pose that has an `:x`, draws that column's ticks along `:y`: `(-> mpg (pj/pose :displ :hwy) pj/lay-point (pj/lay-rug {:y :cty}))` marks `:cty` on the left. A written `:side` decides the axis, and a rug naming no column marks `:x`.
 - Brushing a faceted plot, or cells filtered with `:where`, highlights the same rows in every panel, and a series' marks carry the row of the data they were drawn from: both columns of a row carry its number. A draft layer's `:data` holds that number in a `:scicloj.plotje/row` column, which no mapping can name and no list of available columns shows.
 
 - A pose naming a column only on `:y`, under a layer type that draws from two columns such as `lay-point`, takes the first other column of 1-3 column data as its `:x`.

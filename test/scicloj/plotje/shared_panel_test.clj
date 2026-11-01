@@ -374,3 +374,28 @@
     (is (= 20 (rug-ticks (-> d (pj/pose :temp) pj/lay-rug (pj/lay-line :temp :reading)))))
     ;; `:side :both` draws ticks on `:y` too, so it reads the `:y`.
     (is (= 16 (rug-ticks (-> d (pj/lay-point :temp :reading) (pj/lay-rug {:side :both})))))))
+
+(deftest rug-naming-only-y-draws-on-y-test
+  ;; A rug whose own mapping names a column on `:y` and none on `:x`
+  ;; marks that column along `:y`, as the `pj/lay-rug` docstring says.
+  ;; A written `:side` wins, and a rug naming no column keeps `:side :x`.
+  (let [rug (fn [pose]
+              (binding [*out* (java.io.StringWriter.)]
+                (->> (pj/plan pose) :panels first :layers
+                     (filter #(= :rug (:mark %)))
+                     first)))
+        ys (fn [l] (vec (mapcat :ys (:groups l))))
+        scatter (-> cars (pj/pose :displ :hwy) pj/lay-point)]
+    (testing "the column named on :y is the one the ticks mark"
+      (let [l (rug (pj/lay-rug scatter {:y :cty}))]
+        (is (= :y (:side l)))
+        (is (= (:cty cars) (ys l)))))
+    (testing "on a pose naming only :x"
+      (is (= :y (:side (rug (-> cars (pj/pose {:x :displ}) (pj/lay-rug {:y :hwy})))))))
+    (testing "a written :side wins"
+      (is (= :x (:side (rug (pj/lay-rug scatter {:y :cty :side :x}))))))
+    (testing "a rug naming no column, or one on :x, keeps :side :x"
+      (is (= :x (:side (rug (pj/lay-rug scatter)))))
+      (is (= :x (:side (rug (pj/lay-rug scatter :displ))))))
+    (testing "on data alone the rug is drawn on its side, as before"
+      (is (= :x (:side (rug (pj/lay-rug cars {:y :hwy}))))))))

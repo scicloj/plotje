@@ -3132,8 +3132,9 @@
 (defn lay-rug
   "Add `:rug` layer type -- short tick marks along the axis showing individual values.
    Draws from one column: `(lay-rug pose :hwy)` marks the values along
-   `:x`, and `(lay-rug pose {:y :hwy})` along `:y`. Often layered with
-   density or scatter."
+   `:x`, and `(lay-rug pose {:y :hwy})` along `:y`. A rug naming no
+   column marks the panel's `:x`; a written `:side` (`:x`, `:y` or
+   `:both`) decides the axis. Often layered with density or scatter."
   ([pose-or-data] (lay-layer-type :rug pose-or-data))
   ([pose-or-data x-or-mapping] (lay-layer-type :rug pose-or-data x-or-mapping))
   ([pose-or-data x y-or-mapping] (lay-layer-type :rug pose-or-data x y-or-mapping))
