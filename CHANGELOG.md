@@ -219,7 +219,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `nil` in `pj/arrange` is a cell left empty: it keeps its place in the layout and draws nothing, also when the composite carries data and layers, so `(pj/arrange [[a nil] [b c]])` leaves the top-right cell blank. An empty cell does not keep the other cells from sharing a legend.
+- `nil` in `pj/arrange` is a cell left empty: it keeps its place in the layout and draws nothing, also when the composite carries data and layers, so `(pj/arrange [[a nil] [b c]])` leaves the top-right cell blank. An empty cell does not keep the other cells from sharing a legend. Any other cell that draws nothing -- one naming no column on `:x` or `:y`, which no layer of the arrangement reaches -- keeps its place too, and drawing the arrangement prints a Note naming the cell's row and column.
 
 ### Warnings and errors
 

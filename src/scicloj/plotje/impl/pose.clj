@@ -5121,11 +5121,19 @@
                                             (seq ls) (update leaf :layers #(into (vec ls) %))
                                             ;; Nothing to draw, and nothing to infer
                                             ;; from: an empty cell, as `pj/arrange`
-                                            ;; marks a nil one.
+                                            ;; marks a nil one -- and marked as not
+                                            ;; written nil, so the compositor prints
+                                            ;; a Note for it.
                                             (and (empty? (:layers leaf))
                                                  (zero? (columns-named (:mapping e)))
                                                  (nil? (:data leaf)))
-                                            (assoc leaf :plotje/empty-cell true)
+                                            ;; A `nil` written for both axes is a
+                                            ;; matrix's corner, empty on purpose.
+                                            (cond-> (assoc leaf :plotje/empty-cell true)
+                                              (not (or (:plotje/empty-cell leaf)
+                                                       (and (contains? (:mapping e) :x)
+                                                            (contains? (:mapping e) :y))))
+                                              (assoc :plotje/names-nothing true))
                                             :else leaf))))
                            (dissoc pose :layers)
                            (map vector entries kept)))]

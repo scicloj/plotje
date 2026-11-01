@@ -253,3 +253,22 @@
     (is (= {:col-labels [] :row-labels []}
            (strips [[{:x :p :y :q} {:x :r :y :q}]
                     [{:x :p :y :q} {:x :r :y :q}]])))))
+
+(deftest a-cell-naming-nothing-prints-a-note-test
+  (testing "a cell other than nil that draws nothing, beside cells that draw"
+    (doseq [cell [{} {:alpha 0.5} {:where {:u 1.0}}]]
+      (is (re-find #"Note: the cell in row 1, column 1 draws nothing: it names no column on :x or :y"
+                   (with-out-str
+                     (pj/plan (pj/lay-point (pj/arrange tiny [cell {:x :u :y :v}]))))))))
+  (testing "no Note for nil, for the padding of a short row, or for a matrix's corner"
+    (is (= "" (with-out-str
+                (pj/plan (pj/lay-point (pj/arrange tiny [nil {:x :u :y :v}]))))))
+    (is (= "" (with-out-str
+                (pj/plan (pj/lay-point (pj/arrange tiny
+                                                   [{:x :u :y :v} {:x :u :y :w} {:x :v :y :w}]
+                                                   {:cols 2}))))))
+    (is (not (re-find #"draws nothing"
+                      (with-out-str
+                        (pj/plan (-> tiny
+                                     (pj/facet {:col {:x [:u nil]} :row {:y [nil :v]}})
+                                     pj/lay-point))))))))

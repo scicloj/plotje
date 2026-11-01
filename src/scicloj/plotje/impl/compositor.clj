@@ -824,9 +824,30 @@
                                         :opts leaf-opts}
                                  (::share leaf) (assoc :share (::share leaf)))))
                            leaves))
-        ;; Once, and only where the whole arrangement draws nothing.
-        _ (when (every? (comp empty? :draft) sub-drafts)
-            (run! println (distinct (deref blank-notes))))
+        ;; Where the whole arrangement draws nothing, the Notes the
+        ;; cells collected, once. Where other cells draw, a Note for each
+        ;; blank cell that is not `nil`: written `nil` is a cell left
+        ;; empty on purpose, and any other cell drawing nothing has
+        ;; nothing to say why.
+        blank-cells (keep (fn [[leaf sub]]
+                            (when (or (:plotje/names-nothing leaf)
+                                      (and (empty? (:draft sub))
+                                           (not (:plotje/empty-cell leaf))))
+                              (:path leaf)))
+                          (map vector leaves sub-drafts))
+        _ (if (every? (comp empty? :draft) sub-drafts)
+            (run! println (distinct (deref blank-notes)))
+            (doseq [path blank-cells]
+              (println (str "Note: "
+                            (case (count path)
+                              2 (str "the cell in row " (inc (first path))
+                                     ", column " (inc (second path)))
+                              1 (str "cell " (inc (first path)))
+                              "a cell of a nested arrangement")
+                            " draws nothing: it names no column on :x or :y,"
+                            " and no layer of the arrangement reaches it. Name its"
+                            " columns, as in {:x :a :y :b}, or write nil for a"
+                            " cell left empty."))))
         chrome-spec (-> chrome
                         (assoc :y-ticks-inferred-off (set (:plotje/y-ticks-inferred-off composite)))
                         (assoc :shared? shared?)
