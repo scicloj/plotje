@@ -4871,10 +4871,11 @@
   "Rewrite the columns of a cell list, read from the data given first,
    into mappings, and each vector in it into a row or a nested
    arrangement."
-  [cells]
-  (let [cells (vec cells)
-        rows? (and (seq cells) (sequential? (first cells)) (not (hiccup? (first cells))))]
-    (mapv (fn [c]
+  ([cells]
+   (normalize-arrange-cells cells
+                            (and (seq cells) (sequential? (first cells)) (not (hiccup? (first cells))))))
+  ([cells rows?]
+   (mapv (fn [c]
             (cond
               (column-ref? c) {:x c}
 
@@ -4883,7 +4884,7 @@
                 (if rows? inner (arrange* inner {})))
 
               :else c))
-          cells)))
+         (vec cells))))
 
 (defn- check-no-column-cells!
   "Report a column in a cell list given no data to read it from.
@@ -4923,19 +4924,37 @@
                       {:caller "pj/arrange"})))))
 
 (defn- append-arrange-cells
-  "Append `cells` to the composite `p`, read as a cell list given after
-   data is read (`normalize-arrange-cells`), from the data at its root:
-   each cell of a flat list joins the composite's cells, and each row of
-   a list of rows joins it as a row. A pose is a cell here as in one
-   call, so two calls draw what one call with both lists draws."
+  "Append `cells` to the composite `p`, read from the data at its root
+   as the rest of the list `p` was made from, so two calls draw what one
+   call with both lists draws. After a flat list, each entry is a cell,
+   and a vector is an arrangement of its own in that place, as in
+   `[a b [c d]]`. After a list of rows, each entry is a row, and an
+   entry that is not one reports the error one call reports. A
+   composite made otherwise takes a flat list as one row and a list of
+   rows as rows. A pose is a cell here as in one call."
   [p cells]
   ;; One call with no cell, or with an empty row, reports an error, so
   ;; appending them does too.
   (when (empty? cells)
     (throw (ex-info "pj/arrange requires at least one cell." {:caller "pj/arrange" :plots cells})))
-  (let [cells (normalize-arrange-cells cells)
-        coerce (fn [i c] (coerce-arrange-input c i))
-        rows? (sequential? (first cells))]
+  (let [flat-made? (some? (get-in p [:layout :cols]))
+        rows-made? (and (not flat-made?)
+                        (= :vertical (get-in p [:layout :direction]))
+                        (seq (:poses p))
+                        (every? #(= :horizontal (get-in % [:layout :direction])) (:poses p)))
+        own-rows? (and (sequential? (first cells)) (not (hiccup? (first cells))))
+        _ (when rows-made?
+            (doseq [[i row] (map-indexed vector cells)
+                    :when (not (and (sequential? row) (not (hiccup? row))))]
+              (throw (ex-info (str "pj/arrange appends to an arrangement written as"
+                                   " rows, so the appended list is read as more rows,"
+                                   " and element " i " is not a row. Write every"
+                                   " appended entry as a row, as in (pj/arrange"
+                                   " composite [[c]]).")
+                              {:caller "pj/arrange" :index i}))))
+        rows? (if flat-made? false own-rows?)
+        cells (normalize-arrange-cells cells rows?)
+        coerce (fn [i c] (coerce-arrange-input c i))]
     (when rows?
       (doseq [[i row] (map-indexed vector cells)
               :when (and (sequential? row) (empty? row))]

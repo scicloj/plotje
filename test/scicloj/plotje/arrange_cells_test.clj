@@ -84,9 +84,11 @@
   (testing "a pose with no data is drawn from the data given first, as a mapping is"
     (is (= (pj/plot (pj/lay-point (pj/arrange tiny [{:x :u :y :v} {:x :u :y :w}])))
            (pj/plot (pj/lay-point (pj/arrange tiny [(pj/pose nil :u :v) (pj/pose nil :u :w)]))))))
-  (testing "appended to a composite, a list is read the same way"
+  (testing "appended to a composite, a list is read as the rest of the list"
+    (is (= (cell-structure (pj/arrange tiny [:u :v [:w :u]]))
+           (cell-structure (pj/arrange (pj/arrange tiny [:u :v]) [[:w :u]]))))
     (is (= [[{:x :u} {:x :v}] [{:x :w} {:x :u}]]
-           (cell-structure (pj/arrange (pj/arrange tiny [:u :v]) [[:w :u]]))))))
+           (cell-structure (pj/arrange (pj/arrange tiny [[:u :v]]) [[:w :u]]))))))
 
 (deftest appending-is-concatenation-test
   (let [same? (fn [a b] (= (pj/plot (pj/lay-histogram a)) (pj/plot (pj/lay-histogram b))))]
@@ -109,9 +111,16 @@
       (is (= [[{:x :u :y :v} [{:x :u :y :w}]]]
              (mapv (fn [row] (mapv #(or (:mapping %) (mapv :mapping (:layers %))) (:poses row)))
                    (:poses (pj/lay-point (pj/arrange tiny [{:x :u :y :v}]) :u :w))))))
-    (testing "an arrangement written as rows takes an appended list as a new row"
+    (testing "rows appended to cells nest, as in one call"
+      (is (same? (pj/arrange (pj/arrange tiny [:u :v]) [[:w :u]])
+                 (pj/arrange tiny [:u :v [:w :u]]))))
+    (testing "an arrangement written as rows takes rows, and reports a cell as one call does"
       (is (= [2 1] (mapv #(count (:poses %))
-                         (:poses (pj/arrange (pj/arrange tiny [[:u :v]]) [:w]))))))))
+                         (:poses (pj/arrange (pj/arrange tiny [[:u :v]]) [[:w]])))))
+      (is (re-find #"element 0 is not a row"
+                   (message #(pj/arrange (pj/arrange tiny [[:u :v]]) [:w]))))
+      (is (re-find #"element 1 is not a row"
+                   (message #(pj/arrange tiny [[:u :v] :w])))))))
 
 (deftest lay-on-nil-is-a-template-test
   (testing "nil with columns or a mapping is a template, as in pj/pose"
