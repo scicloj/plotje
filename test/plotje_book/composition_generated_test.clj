@@ -1059,7 +1059,7 @@
 
 
 (def
- v120_l998
+ v120_l1004
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -1070,7 +1070,7 @@
 
 
 (deftest
- t121_l1004
+ t121_l1010
  (is
   ((fn
     [v]
@@ -1092,11 +1092,11 @@
        pj/plan
        :chrome
        :shared-aesthetics))))
-   v120_l998)))
+   v120_l1004)))
 
 
 (def
- v123_l1020
+ v123_l1026
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -1111,7 +1111,7 @@
 
 
 (deftest
- t124_l1028
+ t124_l1034
  (is
   ((fn
     [v]
@@ -1136,11 +1136,11 @@
        (mapv :label (-> plan :chrome :shared-legend :legend :entries)))
       (some? (versicolor left))
       (= (versicolor left) (versicolor right)))))
-   v123_l1020)))
+   v123_l1026)))
 
 
 (def
- v126_l1044
+ v126_l1050
  (pj/arrange
   [(pj/arrange
     [(->
@@ -1154,5 +1154,5 @@
 
 
 (deftest
- t127_l1054
- (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v126_l1044)))
+ t127_l1060
+ (is ((fn [v] (= 3 (:panels (pj/svg-summary v)))) v126_l1050)))

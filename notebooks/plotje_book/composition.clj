@@ -955,7 +955,13 @@ dashboard
 ;;   `:opts`, which is what `pj/marginal` writes on the strip it
 ;;   builds. (A scatter plot matrix names its columns with strips in
 ;;   place of each panel's axis titles, and labels its `:x` ticks
-;;   along the bottom row only.)
+;;   along the bottom row only. A grid of cells written by hand gets
+;;   these strips where it crosses a list of `:x` columns with a list
+;;   of `:y` columns, as a matrix does: each grid column draws one
+;;   `:x` column and each row one `:y` column. A grid whose grid
+;;   columns each draw one `:x` column, while its rows do not each
+;;   draw one `:y` column, titles that `:x` column once below each
+;;   grid column, as a shared axis is titled.)
 ;; - **Plot-area edges may not line up** across composite siblings,
 ;;   since each leaf reserves its own padding for axes and labels --
 ;;   two sub-poses with different label lengths, or one drawing a

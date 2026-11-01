@@ -4035,8 +4035,10 @@
    drawn on its side -- a side the filters do not label is labelled by
    the column the cells draw on its axis, where every cell of a grid
    column draws one `:x` column and they differ across the grid (the
-   matrix's strips), and likewise rows by `:y`; the cells then drop that
-   axis title, which the strip carries. A single row or column of cells
+   matrix's strips), and likewise rows by `:y` -- but only where the
+   other side is labelled too, by its columns or its filters, so the
+   grid is a crossing; the cells then drop that axis title, which the
+   strip carries. A single row or column of cells
    told apart by their columns gets no strip: its axis titles name them.
    A written `:grid-strip-labels` is kept. A filter value is printed as
    `:strip-labels` (`strip-mode`) says (`defaults/strip-text`)."
@@ -4122,10 +4124,17 @@
                                                (map vector groups cols))
                                        (< 1 (count (distinct (remove nil? cols)))))
                               (mapv #(some-> % defaults/fmt-name) cols))))
-            x-strips (when (and regular? (not-any? some? col-labels))
-                       (axis-labels :x (for [c (range n-cols)] (for [r (range n-rows)] [r c]))))
-            y-strips (when (and regular? (not-any? some? row-labels))
-                       (axis-labels :y (for [r (range n-rows)] (for [c (range n-cols)] [r c]))))
+            x-columns (when (and regular? (not-any? some? col-labels))
+                        (axis-labels :x (for [c (range n-cols)] (for [r (range n-rows)] [r c]))))
+            y-columns (when (and regular? (not-any? some? row-labels))
+                        (axis-labels :y (for [r (range n-rows)] (for [c (range n-cols)] [r c]))))
+            ;; Columns are named by strips only on a crossing: the other
+            ;; side is labelled too, by its columns or by its filters, so
+            ;; each cell reads as its grid column's label against its
+            ;; row's. Elsewhere an aligned axis is titled once, as a
+            ;; shared axis is (`infer-axis-chrome`).
+            x-strips (when (or y-columns (some some? row-labels)) x-columns)
+            y-strips (when (or x-columns (some some? col-labels)) y-columns)
             labels (cond-> {}
                      (some some? col-labels) (assoc :col-labels col-labels)
                      (some some? row-labels) (assoc :row-labels row-labels)

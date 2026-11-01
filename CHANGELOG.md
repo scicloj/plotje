@@ -46,7 +46,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **Bars drawn across**, with the value on `:x` and the category on `:y`, start on the panel edge: the `:x` axis begins at zero and is padded only past the longest bar, as the `:y` axis under upright bars is. The same holds where `:share-scales` names `:x`, as in `(pj/arrange [bars-a bars-b] {:share-scales #{:x}})`.
 
-- **Strips of a grid of cells**, as in a scatter plot matrix, stand where a facet's do: column strips above, centred on each panel, and row strips at the right of the grid. They name the columns as the axis titles do: `sepal length`, not `sepal-length`.
+- **Strips of a grid of cells**, as in a scatter plot matrix, stand where a facet's do: column strips above, centred on each panel, and row strips at the right of the grid. They name the columns as the axis titles do: `sepal length`, not `sepal-length`. A grid of cells written by hand gets these strips where it crosses columns, each grid column drawing one `:x` column and each row one `:y` column, or each row filtering its own values with `:where`. A grid whose cells line up on one axis only titles that axis once at the outer cells, as a shared axis is.
 
 - **The diagonal of a scatter plot matrix** over a numerical column draws its histogram or density within that column's range, on its row's `:y` axis, so each row's tick labels stand at the left edge. The bar heights and density peaks are relative, with the tallest reaching the column's largest value; a categorical column's diagonal keeps its count axis.
 

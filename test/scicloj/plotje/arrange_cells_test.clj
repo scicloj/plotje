@@ -215,3 +215,32 @@
     (testing "columns after the pose, or a pose before it, report an error"
       (is (re-find #"followed by the columns \[:w :u\]" (message #(pj/pose tiny4 p :w :u))))
       (is (re-find #"given two poses" (message #(pj/pose (pj/pose tiny4) p)))))))
+
+(def four {:p [1.0 2.0 3.0] :q [4.0 5.0 6.0] :r [7.0 9.0 8.0] :s [2.0 1.0 3.0]
+           :g ["a" "b" "a"]})
+
+(defn- strips [cells]
+  (-> four
+      (pj/arrange cells)
+      pj/lay-point
+      pj/plan
+      :chrome
+      (select-keys [:col-labels :row-labels])))
+
+(deftest strips-name-columns-only-on-a-crossing-test
+  (testing "a crossing: each grid column draws one :x, each row one :y"
+    (is (= {:col-labels ["p" "r"] :row-labels ["q" "s"]}
+           (strips [[{:x :p :y :q} {:x :r :y :q}]
+                    [{:x :p :y :s} {:x :r :y :s}]]))))
+  (testing ":x lines up and :y does not: no strips on either side"
+    (is (= {:col-labels [] :row-labels []}
+           (strips [[{:x :p :y :q} {:x :r :y :s}]
+                    [{:x :p :y :r} {:x :r :y :q}]]))))
+  (testing "rows told apart by a filter: a crossing of columns and categories"
+    (is (= {:col-labels ["p" "r"] :row-labels ["a" "b"]}
+           (strips [[{:x :p :y :q :where {:g "a"}} {:x :r :y :q :where {:g "a"}}]
+                    [{:x :p :y :q :where {:g "b"}} {:x :r :y :q :where {:g "b"}}]]))))
+  (testing "rows told apart by nothing: no strips"
+    (is (= {:col-labels [] :row-labels []}
+           (strips [[{:x :p :y :q} {:x :r :y :q}]
+                    [{:x :p :y :q} {:x :r :y :q}]])))))
