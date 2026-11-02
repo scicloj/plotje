@@ -1,13 +1,12 @@
+<img src="Plotje.svg" alt="Plotje logo" width="48" align="right"/>
+
 
 # Plotje
-Composable plotting in Clojure
+
+A Clojure library for composable plotting, inspired by the Grammar of Graphics.
 
 ![](readme_files/image0.svg)
 
----------------------
-
-Plotje is a Clojure library for composable plotting, inspired by
-the Grammar of Graphics.
 
 
 ## General information

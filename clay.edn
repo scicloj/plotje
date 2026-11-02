@@ -1,6 +1,7 @@
 {:keep-sync-root false
  :remote-repo {:git-url "https://github.com/scicloj/plotje"
                :branch "main"}
+ :favicon "Plotje.png"
  :quarto {:format {:html {:toc true
                           :number-depth 1
                           :toc-depth 4
