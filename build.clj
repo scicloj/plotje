@@ -24,11 +24,21 @@
            :src-dirs ["src"]
            :resource-dirs ["resources"])))
 
+(def test-namespaces
+  "The namespaces the suite runs: the hand-written tests, the tests
+   generated from the book's chapters, and the one generated from
+   `notebooks/wide_and_long.clj`. Draft notebooks also write generated
+   tests under `test/`, kept out of git; naming the suite here keeps
+   a stale draft from failing the release."
+  "^(scicloj\\.plotje\\..*|plotje-book\\..*|wide-and-long-generated-test)$")
+
 (defn run-tests
-  "Run tests via cognitect test runner. Throws if any test fails so
-   `ci` does not silently proceed to JAR/pom on a red suite."
+  "Run the suite's namespaces (`test-namespaces`) via cognitect test
+   runner. Throws if any test fails so `ci` does not silently proceed
+   to JAR/pom on a red suite."
   [opts]
-  (let [{:keys [exit]} (b/process {:command-args ["clojure" "-M:test" "-m" "cognitect.test-runner"]})]
+  (let [{:keys [exit]} (b/process {:command-args ["clojure" "-M:test" "-m" "cognitect.test-runner"
+                                                  "-r" test-namespaces]})]
     (when-not (zero? exit)
       (throw (ex-info (str "Tests failed (exit code " exit "); aborting build.")
                       {:exit exit}))))

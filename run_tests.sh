@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
+# The suite's namespaces are named in build.clj (`test-namespaces`).
 cd "$(dirname "$0")"
-clojure -M:dev:test -m cognitect.test-runner
+clojure -T:build run-tests
