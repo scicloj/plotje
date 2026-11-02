@@ -69,7 +69,9 @@
 
 (deftest align-panels-is-usable-on-its-own-test
   (testing ":align-panels equalises drawing areas in any composite"
-    (let [cells [(pj/lay-density iris :sepal-length)
+    (let [cells [(-> iris
+                     (pj/lay-density :sepal-length)
+                     (pj/options {:y-label ""}))
                  (pj/lay-point iris :sepal-length :sepal-width)]
           plain {:poses cells
                  :layout {:direction :vertical :weights [0.25 0.75]}

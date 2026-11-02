@@ -56,7 +56,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **Plots under `(pj/coord :fixed)`** draw one data unit at the same length on both axes, measured inside the panel's padding.
 
-- **A histogram or a density on a pose that names a `:y` column**, such as `(-> mpg (pj/pose :displ :cty) pj/lay-histogram)`, draws its count or density axis with no title: the `:y` column, which the layer does not read, does not title it.
+- **A histogram, a density or a count bar** titles the axis it computes by what it computes, `count` or `density`, also on a pose that names a `:y` column the layer does not read, such as `(-> mpg (pj/pose :displ :cty) pj/lay-histogram)`. A count beside a density leaves the axis untitled. `{:y-label ""}` or `{:x-label ""}` removes an axis title and the room it takes. Reported on Zulip - thanks, @timothypratley
 
 - **A histogram, a density, a summary or a smooth grouped or coloured by a column with missing values** removes the rows that have no value in that column and prints how many, as the other layer types do: `Removed 2 rows with a missing category in :g.`
 
@@ -120,6 +120,8 @@ All notable changes to this project will be documented in this file. This change
 
 - A layer with no data draws a panel reading "no data" for any layer type, so a template such as `(-> (pj/pose) (pj/lay-smooth :a :b))` can be drawn and saved before `pj/with-data` gives it data. Drawing it prints a Note naming the panel and saying where to give the data; data with no rows draws the same panel with no Note.
 
+- A cell of an arrangement that draws nothing, other than `nil` -- one naming no column on `:x` or `:y`, which no layer of the arrangement reaches -- keeps its place, and drawing the arrangement prints a Note naming the cell's row and column.
+
 - A `lay-*` call on an arrangement naming columns no cell draws prints a Note where the layer, drawn on a cell of its own, leaves something undrawn. Where the cells carry their own data, the Note says that the new cell has none, and names the columns the cells draw and the `{:data data}` spelling that gives the new cell its data. Beside cells that name no column and hold no layer, the Note says that those cells draw nothing, and names the spelling that draws the layer in every cell.
 
 - Under a facet over columns, a layer naming a column that is not among the facet's reports an error where it would leave a panel with no layer drawing that panel's own column; beside layers that fit every panel it is drawn in every panel. A layer naming one of the facet's columns prints a Note where it leaves another panel to the inferred layer type, or to layers of other types: `(-> mpg (pj/lay-smooth :displ :hwy) (pj/facet {:y [:hwy :cty]}))` draws a smooth of `:hwy` and a scatter of `:cty`. The Note says how to draw the layer in every panel, as `(-> mpg (pj/pose {:x :displ}) pj/lay-smooth (pj/facet {:y [:hwy :cty]}))` does, and is not printed where the inferred layer is the layer as written.
@@ -167,6 +169,7 @@ All notable changes to this project will be documented in this file. This change
 ### Fixed
 
 - `pj/lay-rug` naming a column on `:y` and none on `:x`, on a pose that has an `:x`, draws that column's ticks along `:y`: `(-> mpg (pj/pose :displ :hwy) pj/lay-point (pj/lay-rug {:y :cty}))` marks `:cty` on the left. A written `:side` decides the axis, and a rug naming no column marks `:x`.
+
 - Brushing a faceted plot, or cells filtered with `:where`, highlights the same rows in every panel, and a series' marks carry the row of the data they were drawn from: both columns of a row carry its number. A draft layer's `:data` holds that number in a `:scicloj.plotje/row` column, which no mapping can name and no list of available columns shows.
 
 - A pose naming a column only on `:y`, under a layer type that draws from two columns such as `lay-point`, takes the first other column of 1-3 column data as its `:x`.
@@ -220,7 +223,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `nil` in `pj/arrange` is a cell left empty: it keeps its place in the layout and draws nothing, also when the composite carries data and layers, so `(pj/arrange [[a nil] [b c]])` leaves the top-right cell blank. An empty cell does not keep the other cells from sharing a legend. Any other cell that draws nothing -- one naming no column on `:x` or `:y`, which no layer of the arrangement reaches -- keeps its place too, and drawing the arrangement prints a Note naming the cell's row and column.
+- `nil` in `pj/arrange` is a cell left empty: it keeps its place in the layout and draws nothing, also when the composite carries data and layers, so `(pj/arrange [[a nil] [b c]])` leaves the top-right cell blank. An empty cell does not keep the other cells from sharing a legend.
 
 ### Warnings and errors
 

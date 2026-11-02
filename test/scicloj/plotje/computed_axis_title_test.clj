@@ -1,7 +1,8 @@
 (ns scicloj.plotje.computed-axis-title-test
   "The title of an axis a histogram or a density computes: a `:y` column
    that reaches such a layer from the pose's mapping or from the panel's
-   columns is not read by it, and does not title the axis."
+   columns is not read by it, and does not title the axis. The axis is
+   titled by what the layer computes, `count` or `density`."
   (:require [clojure.test :refer [deftest testing is]]
             [scicloj.plotje.api :as pj]))
 
@@ -22,11 +23,21 @@
 (deftest a-computed-axis-is-not-titled-with-a-column-test
   ;; A histogram on a pose naming two columns titled its count axis
   ;; "width".
-  (testing "the layer alone: the count axis has no column title"
-    (is (= ["length" nil] (labels (pj/lay-histogram flowers :length))))
-    (doseq [layer [pj/lay-histogram pj/lay-density]]
-      (is (= ["length" nil] (labels (-> flowers (pj/pose :length :width) layer))))
-      (is (= ["length" nil] (labels (-> flowers (pj/pose {:y :width}) (layer :length)))))))
+  (testing "the layer alone: the axis is titled by what it computes"
+    (is (= ["length" "count"] (labels (pj/lay-histogram flowers :length))))
+    (is (= ["length" "density"] (labels (pj/lay-histogram flowers :length {:normalize :density}))))
+    (is (= ["kind" "count"] (labels (pj/lay-bar {:kind ["a" "b" "b"]} :kind))))
+    (doseq [[layer title] [[pj/lay-histogram "count"] [pj/lay-density "density"]]]
+      (is (= ["length" title] (labels (-> flowers (pj/pose :length :width) layer))))
+      (is (= ["length" title] (labels (-> flowers (pj/pose {:y :width}) (layer :length)))))))
+  (testing "a count beside a density reads in two units and is not titled"
+    (is (= ["length" nil] (labels (-> flowers (pj/lay-histogram :length) (pj/lay-density :length))))))
+  (testing "a rule or a rug on the x side leaves the title alone"
+    (is (= ["length" "count"] (labels (-> flowers (pj/lay-histogram :length) (pj/lay-rule-v {:x-intercept 6})))))
+    (is (= ["length" "count"] (labels (-> flowers (pj/lay-histogram :length) pj/lay-rug)))))
+  (testing "an empty title removes it, and a written one replaces it"
+    (is (= ["length" nil] (labels (-> flowers (pj/lay-histogram :length) (pj/options {:y-label ""})))))
+    (is (= ["length" "n"] (labels (-> flowers (pj/lay-histogram :length) (pj/options {:y-label "n"}))))))
   (testing "the draft layer holds no :y column"
     (is (= [[:bar :length nil]]
            (draft-columns (-> flowers (pj/pose :length :width) pj/lay-histogram)))))
@@ -41,4 +52,4 @@
     (is (= [[:point :length :width] [:rug :length :width]]
            (draft-columns (-> flowers (pj/lay-point :length :width) (pj/lay-rug {:side :both}))))))
   (testing "a column on :y alone is still drawn on its side and titled"
-    (is (= [nil "width"] (labels (-> flowers (pj/pose {:y :width}) pj/lay-histogram))))))
+    (is (= ["count" "width"] (labels (-> flowers (pj/pose {:y :width}) pj/lay-histogram))))))

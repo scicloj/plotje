@@ -1073,7 +1073,7 @@
     ;; The guard used to run before the final map was applied, so it
     ;; refused the mapping it was asking for, on data too wide to guess.
     (is (= ["t" "a"] (axis-labels (pj/lay-point four-columns {:x :t :y :a}))))
-    (is (= ["a" nil] (axis-labels (pj/lay-histogram four-columns {:x :a})))
+    (is (= ["a" "count"] (axis-labels (pj/lay-histogram four-columns {:x :a})))
         "an x-only layer type needs only :x to count as mapped"))
 
   (testing "a mapping naming no column leaves the layer without one"

@@ -1123,8 +1123,9 @@ iris-label-pose
            (= "sepal width" (:y-label plan)))))])
 
 ;; When only one column is specified, the y-axis shows computed
-;; counts. There is no y source column, so there is no column name to
-;; draw a y-label from, and the y-label stays empty:
+;; counts. There is no column on `:y` to name, so the y-label names
+;; what the layer computes, `count` -- or `density` for a density
+;; layer. `{:y-label ""}` in `pj/options` removes it:
 
 (def x-only-pose
   (-> five-points (pj/pose :x)))
@@ -1135,7 +1136,7 @@ x-only-pose
  [(fn [_]
     (let [plan (pj/plan x-only-pose)]
       (and (= "x" (:x-label plan))
-           (nil? (:y-label plan)))))])
+           (= "count" (:y-label plan)))))])
 
 ;; Explicit labels override inference:
 

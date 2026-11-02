@@ -1325,9 +1325,10 @@
                                   (pj/coord :polar)))))
                 ["hwy" "cty" "displ"])))
   (testing "a polar plot without a y title reserves room for its tick labels only"
-    ;; A counting bar leaves `:y` untitled.
+    ;; An empty title leaves `:y` untitled.
     (let [pad (double (get-in (-> {:kind ["a" "b" "b"]}
                                   (pj/lay-bar :kind)
+                                  (pj/options {:y-label ""})
                                   (pj/coord :polar)
                                   pj/plan)
                               [:layout :y-label-pad]))]

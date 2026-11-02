@@ -3822,6 +3822,31 @@
                              title x-label y-label
                              (:x mergeable)
                              (:y mergeable))
+             ;; An axis no layer draws a column on, whose every layer
+             ;; computes the same thing for it (`stat/computes`), is
+             ;; titled by that thing: a histogram's count axis reads
+             ;; `count`, a density's `density`. Layers computing
+             ;; different things -- a count beside a density -- leave
+             ;; it untitled, as does a column drawn beside a count,
+             ;; which titles the axis itself. A rule or a band, drawn
+             ;; from written values, a layer placed in the drawing area,
+             ;; and a rug drawing no ticks on `:y` are not asked.
+             eff-y-label (or eff-y-label
+                             (let [ls (remove #(or (resolve/written-position-marks (:mark %))
+                                                   (= :drawing-area (:in %))
+                                                   (and (= :rug (:mark %))
+                                                        (not (#{:y :both} (:side %)))))
+                                              resolved-all)
+                                   computed (distinct (map #(:y (stat/computes %)) ls))]
+                               (when (and (seq ls)
+                                          (every? #(nil? (:y %)) ls)
+                                          (= 1 (count computed))
+                                          (keyword? (first computed)))
+                                 (name (first computed)))))
+             ;; An empty title is no title: `{:y-label ""}` removes
+             ;; the one inferred above, and reserves no room for it.
+             eff-x-label (when-not (= "" eff-x-label) eff-x-label)
+             eff-y-label (when-not (= "" eff-y-label) eff-y-label)
              swap-labels? (or (= rep-coord :flip) has-ridgeline?)
              [eff-x-label eff-y-label] (if swap-labels?
                                          [eff-y-label eff-x-label]

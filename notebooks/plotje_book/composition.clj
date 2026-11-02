@@ -975,7 +975,10 @@ dashboard
 ;;   `pj/options`, `pj/scale` and `pj/coord` written on it apply to
 ;;   that cell: one cell can be log-scaled and its neighbour linear,
 ;;   and each can have its own title. Written on the composite itself,
-;;   they apply to every cell that does not set them. This is also the
+;;   a scale, a coordinate system or an option such as `:x-label`
+;;   applies to every cell that does not set its own. The `:title`,
+;;   `:subtitle` and `:caption` written there are drawn once, around
+;;   the whole arrangement, and not in each cell. This is also the
 ;;   way around a limitation within one pose -- two layers cannot read
 ;;   one aesthetic through different scales, but two cells can.
 ;; - **Cells that map the same column share one scale and one
