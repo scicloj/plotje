@@ -170,6 +170,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- Rotated x tick labels (`:x-tick-angle`) take at most 30% of the height of a plot or of a cell of an arrangement, so a scatter plot matrix drawn with `{:x-tick-angle -45}` keeps its panels, and its bottom row's panels are as tall as the rest.
+
 - `pj/lay-rug` naming a column on `:y` and none on `:x`, on a pose that has an `:x`, draws that column's ticks along `:y`: `(-> mpg (pj/pose :displ :hwy) pj/lay-point (pj/lay-rug {:y :cty}))` marks `:cty` on the left. A written `:side` decides the axis, and a rug naming no column marks `:x`.
 
 - Brushing a faceted plot, or cells filtered with `:where`, highlights the same rows in every panel, and a series' marks carry the row of the data they were drawn from: both columns of a row carry its number. A draft layer's `:data` holds that number in a `:scicloj.plotje/row` column, which no mapping can name and no list of available columns shows.

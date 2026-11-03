@@ -1041,10 +1041,12 @@
             gaps (mapv (fn [i] (- (nth starts (inc i)) (+ (nth starts i) (nth sizes i)))) (range (dec (count starts))))
             total (double (reduce + sizes))
             share (/ (- total (reduce + pads)) total)
-            new-sizes (mapv #(Math/round (double (+ %2 (* share %1)))) sizes pads)
-            ;; Rounding is settled on the last track, so the grid keeps
-            ;; its size.
-            new-sizes (update new-sizes (dec (count new-sizes)) + (- (reduce + sizes) (reduce + new-sizes)))
+            ;; The running total is rounded, not each size, so no track
+            ;; is more than one drawing unit off and the grid keeps its
+            ;; size.
+            edges (mapv #(Math/round (double %))
+                        (reductions + 0.0 (map #(+ %2 (* share %1)) sizes pads)))
+            new-sizes (mapv - (rest edges) edges)
             new-starts (reductions + (first starts) (map + new-sizes gaps))
             resize (into {} (map-indexed (fn [i [k _]] [k [(nth new-starts i) (nth new-sizes i)]])) tracks)
             track-pad (into {} (mapcat (fn [[_ ps] pad] (map (fn [p] [(:path p) pad]) ps)) tracks pads))
@@ -1078,6 +1080,13 @@
         ;; every later pass plans a cell with its pooled extent.
           shared (shared-extents sub-drafts)
           sub-drafts (mapv #(update % :opts merge (get shared (:path %))) sub-drafts)
+        ;; The room a cell's rotated x tick labels may take is capped by
+        ;; the height the cell was laid out at, which resizing its row
+        ;; (`drawing-tracks`) leaves alone: capped by the resized height,
+        ;; the room would grow after the rows were sized for it.
+          sub-drafts (mapv (fn [{[_ _ _ h] :rect :as sub}]
+                             (assoc-in sub [:opts :laid-out-height] h))
+                           sub-drafts)
         ;; `:opts` rides along so the render stage can read what the
         ;; cell asked for. Plan-stage options already reach the cell
         ;; through `draft->plan` here; render-stage ones -- `:theme`

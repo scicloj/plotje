@@ -33,3 +33,16 @@
       ;; pad; rounding to whole drawing units leaves at most one apart.
       (let [heights (map #(double (get-in % [:plan :panel-height])) subs)]
         (is (<= (- (apply max heights) (apply min heights)) 1.0))))))
+
+(deftest a-matrix-takes-rotated-tick-labels-test
+  (let [cols [:sepal-length :sepal-width :petal-length :petal-width :species]
+        subs (:sub-plots (pj/plan (-> (pj/facet (rdatasets/datasets-iris) {:col {:x cols} :row {:y cols}})
+                                      (pj/options {:x-tick-angle -45}))))
+        heights (map #(double (get-in % [:plan :panel-height])) subs)]
+    (testing "a cell 76 high keeps a panel under rotated labels"
+      ;; The room for rotated labels is capped at 30% of the cell's
+      ;; height, its least as well as its most; uncapped, the least
+      ;; left the bottom row's panels 16 high, and the plot failed.
+      (is (= 25 (count subs))))
+    (testing "and every panel is as tall, the bottom row's labels below it"
+      (is (<= (- (apply max heights) (apply min heights)) 1.0)))))

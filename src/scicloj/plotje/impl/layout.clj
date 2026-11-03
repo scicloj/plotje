@@ -315,6 +315,11 @@
    before labels were measured. A ceiling of 30% of `:height` keeps a
    very long label from taking the panel's room: past it the label is
    clipped at the canvas edge rather than the plot refusing to draw.
+   The ceiling bounds the floor too, so a short cell -- one of a
+   five-column scatter plot matrix is 76 high at the default size --
+   keeps a panel. A cell of an arrangement takes the ceiling from
+   `:laid-out-height`, the height it was laid out at, which does not
+   change when its row is resized.
    An axis with no tick labels (`:breaks []`) gets no rotation room.
 
    A panel whose `:x` tick labels are suppressed reserves no room for
@@ -338,8 +343,8 @@
                           cos (Math/abs (Math/cos rad))
                           fsize (double (tick-font-size cfg))
                           reach (+ (* text-w sin) (* fsize cos))
-                          ceiling (* 0.3 (double (:height opts)))]
-                      (+ (long (max (* 50 sin) (min ceiling (- reach fsize))))
+                          ceiling (* 0.3 (double (or (:laid-out-height opts) (:height opts))))]
+                      (+ (long (min ceiling (max (* 50 sin) (- reach fsize))))
                          8))))
         computed (+ base extra)]
     (if-let [floor (:min-x-label-pad opts)]
