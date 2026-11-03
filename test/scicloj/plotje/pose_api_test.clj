@@ -203,13 +203,19 @@
                      :poses [{:layers [{:layer-type :point}]}
                              {:layers [{:layer-type :point}]}]}
           p (pj/plan composite)
-          [[x1 y1 w1 h1] [x2 y2 w2 h2]] (map :rect (:sub-plots p))]
+          [[x1 y1 w1 h1] [x2 y2 w2 h2]] (map :rect (:sub-plots p))
+          [pw1 pw2] (map #(get-in % [:plan :panel-width]) (:sub-plots p))]
       ;; The axis titles the two cells share are drawn once, beside the
       ;; grid, so the cells tile what is left of the width, not all of
       ;; it.
-      (is (and (== w1 w2) (== (+ x1 w1) x2) (== 600 (+ x2 w2))
+      (is (and (== (+ x1 w1) x2) (== 600 (+ x2 w2))
                (== y1 y2) (== h1 h2))
-          "two leaves split the grid evenly left/right, up to its right edge"))))
+          "two leaves split the grid left/right, up to its right edge")
+      ;; The right cell draws no :y tick labels, so it is narrower by
+      ;; their room and the two panels are as wide, up to rounding.
+      (is (< w2 w1))
+      (is (<= (Math/abs (- (double pw1) (double pw2))) 1.0)
+          "the two panels are as wide"))))
 
 (deftest composite-plan-nested-paths-test
   (testing "paths in :sub-plots match the DFS order of leaves"

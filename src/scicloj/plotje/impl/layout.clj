@@ -315,13 +315,22 @@
    before labels were measured. A ceiling of 30% of `:height` keeps a
    very long label from taking the panel's room: past it the label is
    clipped at the canvas edge rather than the plot refusing to draw.
-   An axis with no tick labels (`:breaks []`) gets no rotation room."
+   An axis with no tick labels (`:breaks []`) gets no rotation room.
+
+   A panel whose `:x` tick labels are suppressed reserves no room for
+   them, only for its `:x` title where it draws one -- the mirror of
+   `pad-y-label`. The rows of a matrix above the last draw no tick
+   labels, and reserving the last row's height there left a band of
+   empty room under every row."
   [{:keys [x-label?] :as scene} cfg opts]
-  (let [base (cond x-label? (:label-offset cfg)
+  (let [suppressed? (:suppress-x-ticks opts)
+        base (cond x-label? (:label-offset cfg)
+                   suppressed? 0
                    :else (+ (tick-font-size cfg) 6))
         angle (get cfg :x-tick-angle 0)
-        text-w (when-not (zero? angle) (x-tick-text-width scene cfg opts))
-        extra (or (:x-tick-label-pad cfg)
+        text-w (when-not (or suppressed? (zero? angle)) (x-tick-text-width scene cfg opts))
+        extra (or (when suppressed? 0)
+                  (:x-tick-label-pad cfg)
                   (if (or (zero? angle) (zero? text-w))
                     0
                     (let [rad (Math/toRadians (double angle))

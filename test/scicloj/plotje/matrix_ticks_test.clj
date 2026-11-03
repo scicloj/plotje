@@ -19,3 +19,17 @@
       ;; its ticks, and in the first row that cell is the histogram: the
       ;; tick label 6 of :displ was drawn once, under the first column.
       (is (= 2 (count (filter #{"6"} (texts matrix))))))))
+
+(deftest a-matrix-reserves-tick-room-only-where-ticks-are-drawn-test
+  (let [cols [:sepal-length :sepal-width :petal-length :petal-width]
+        subs (:sub-plots (pj/plan (pj/facet (rdatasets/datasets-iris) {:col {:x cols} :row {:y cols}})))
+        x-pad #(get-in % [:plan :layout :x-label-pad])
+        last-row? #(= 3 (first (:path %)))]
+    (testing "the rows above the last draw no :x tick labels and reserve no room for them"
+      (is (every? #(zero? (double (x-pad %))) (remove last-row? subs)))
+      (is (every? #(pos? (double (x-pad %))) (filter last-row? subs))))
+    (testing "the last row is taller by its tick labels, so every panel is as tall"
+      ;; Each row is as tall as the common drawing height plus its own
+      ;; pad; rounding to whole drawing units leaves at most one apart.
+      (let [heights (map #(double (get-in % [:plan :panel-height])) subs)]
+        (is (<= (- (apply max heights) (apply min heights)) 1.0))))))
