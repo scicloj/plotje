@@ -74,9 +74,8 @@ my-pose
 ;; and are tiled into the final plot.
 ;;
 ;; A composite may hold a composite: a cell that is itself a composite
-;; draws its own grid. Unequal cell weights are the one layout feature
-;; `pj/arrange` does not expose -- build the composite as a literal map
-;; with `:weights` and pass the map to `pj/pose`.
+;; draws its own grid. `:col-weights` and `:row-weights` give the
+;; columns and rows of cells unequal shares of the plot.
 
 ;; ## Arrange
 ;;
@@ -1397,7 +1396,7 @@ annotated
 
 (kind/test-last
  [(fn [ks]
-    (and (= 14 (count ks))
+    (and (= 16 (count ks))
          (some #{:title :subtitle :caption :x-label :y-label} ks)))])
 
 ;; ## Layer Settings

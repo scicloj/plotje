@@ -726,6 +726,17 @@
                            (and (= 4 (:panels s))
                                 (= 244 (:points s)))))])
 
+;; `pj/matrix` writes the grid that crosses columns with columns:
+
+(kind/doc #'pj/matrix)
+
+(pj/matrix (rdatasets/datasets-iris) [:sepal-length :sepal-width :petal-length])
+
+(kind/test-last [(fn [v] (and (= 9 (:panels (pj/svg-summary v)))
+                              (= v (pj/facet (rdatasets/datasets-iris)
+                                             {:col {:x [:sepal-length :sepal-width :petal-length]}
+                                              :row {:y [:sepal-length :sepal-width :petal-length]}}))))])
+
 ;; ## Composition
 
 (kind/doc #'pj/arrange)
@@ -1273,7 +1284,7 @@ plan1
 
 (count pj/plot-option-docs)
 
-(kind/test-last [(fn [n] (= 14 n))])
+(kind/test-last [(fn [n] (= 16 n))])
 
 (kind/doc #'pj/layer-mapping-docs)
 

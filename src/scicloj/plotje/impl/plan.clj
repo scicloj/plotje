@@ -3541,6 +3541,24 @@
   ([draft] (draft->plan draft {}))
   ([draft {:keys [x-label y-label title subtitle caption
                   scales legend-position grid-cols grid-rows] :as opts}]
+   ;; The weights share out the cells of a composite, and are removed
+   ;; there before any cell is planned (`pose/apply-track-weights`). On
+   ;; a plot planned as one -- a single panel, or a facet over
+   ;; categories, whose panels are drawn at one size -- nothing reads
+   ;; them.
+   (when-let [k (first (filter #(contains? opts %) [:col-weights :row-weights]))]
+     (throw (ex-info (str (pr-str k) " shares out the columns and rows of panels of an"
+                          " arrangement, or of a facet over columns such as a"
+                          " scatter plot matrix. This plot is planned as one: a"
+                          " panel, or a facet over categories, whose panels are"
+                          " drawn at one size.")
+                     {:caller "pj/options" :key k})))
+   (when-let [k (first (filter #(sequential? (get opts %)) [:panel-width :panel-height]))]
+     (throw (ex-info (str (pr-str k) " given a vector pins the panels of each column or"
+                          " row of an arrangement, or of a facet over columns. This plot"
+                          " is planned as one -- a panel, or a facet over categories,"
+                          " whose panels are drawn at one size -- so give it one number.")
+                     {:caller "pj/options" :key k :value (get opts k)})))
    (let [cfg (defaults/resolve-config opts)
          validate? (:validate cfg true)
          ;; Effective width/height: user opts override cfg. These are

@@ -283,8 +283,24 @@
                                                      (:y-domain (panels [r (mod (inc r) 3)]))))
                                           (range 3))))))])
 
-;; Two different lists cross the same way: `{:col {:x xs} :row {:y ys}}`
-;; draws each column of `xs` against each column of `ys`. Written
+;; `pj/matrix` writes this facet: `(pj/matrix data cols)` crosses a
+;; list of columns with itself, and the pose it returns is the one
+;; `pj/facet` returns for the map above.
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/matrix [:sepal-length :sepal-width :petal-length])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (= v (-> (rdatasets/datasets-iris)
+                                  (pj/pose {:color :species})
+                                  (pj/facet {:col {:x [:sepal-length :sepal-width :petal-length]}
+                                             :row {:y [:sepal-length :sepal-width :petal-length]}})
+                                  pj/lay-point)))])
+
+;; Two different lists cross the same way: `{:col {:x xs} :row {:y ys}}`,
+;; or `(pj/matrix data xs ys)`, draws each column of `xs` against each
+;; column of `ys`. Written
 ;; without `:col` and `:row`, `{:x xs :y ys}` pairs the columns one by
 ;; one instead, a panel per pair, as the section on layers on different
 ;; columns shows below. The

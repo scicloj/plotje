@@ -72,6 +72,8 @@ All notable changes to this project will be documented in this file. This change
 
 - **A `:theme` given at two levels** combines key by key wherever two meet: `pj/options` twice, a composite's options reaching a cell that gives its own, and the configuration chain from `plotje.edn` to `pj/with-config`. Every other option is replaced whole by the later or inner value, a `:share-scales` map and a `:color-range` map included.
 
+- **`:panel-width` or `:panel-height` written on an arrangement** pins the panels of its cells, and the arrangement's size is worked out from them, as a single plot's is: `{:panel-width 150}` on a row of two cells draws each panel 150 wide, and the plot as wide as the two panels and their labels.
+
 ### Added
 
 - `pj/arrange` takes columns as cells: a column is a panel of that column, and a mapping such as `{:x :a :y :b}` a panel of the columns it names. A vector in the list of cells is a list of cells -- a row in a list of rows, and otherwise an arrangement of its own -- so `(pj/arrange data [[:a :b] [:c :d]])` is a 2x2 grid of panels, a column each. A pose with no data, such as `(pj/pose nil :a :b)`, is drawn from the data given first. The first argument may be a pose, whose data, mapping, layers, row filter and plot options reach every cell; a pose faceted over columns reports an error there.
@@ -89,6 +91,10 @@ All notable changes to this project will be documented in this file. This change
 - A `:domain` on `:col` or `:row`, as in `(pj/scale pose :col {:domain ["r" "f" "4"]})`, orders the panels of a facet. Categories the domain leaves out are drawn after the listed ones, and a category the data does not hold draws no panel; each case warns.
 
 - `pj/facet` takes a map of plot options last, which is the map `pj/options` takes: `(pj/facet pose :drv {:share-scales #{:x}})` builds the pose that `(-> pose (pj/facet :drv) (pj/options {:share-scales #{:x}}))` builds.
+
+- `pj/matrix` writes the grid that crosses columns with columns: `(pj/matrix data xs ys)` returns the pose `(pj/facet data {:col {:x xs} :row {:y ys}})` returns, and `(pj/matrix data cols)` crosses one list with itself, a scatter plot matrix. A map of plot options may come last. `(pj/matrix data [:a nil] [nil :b])` draws a scatter plot of `:a` and `:b` with a marginal distribution of each, the corner left empty.
+
+- `:col-weights` and `:row-weights`, plot options, share out the columns and rows of panels of an arrangement or of a facet over columns: `{:col-weights [3 1]}` draws the first column's panels three times as wide as the second's, and the plot keeps its `:width`. On the same plots `:panel-width` and `:panel-height` take a vector, one size per column or row in drawing units, as well as a number. A vector of the wrong length, `:panel-width` given with `:col-weights`, and either on a single panel or a facet over categories report an error.
 
 - Under a facet over columns, a layer is drawn in the panels whose columns it draws. A layer naming no column is drawn in every panel, on the panel's own columns with the facet's column on the axis it names: `(-> data (pj/pose {:x :week}) pj/lay-line (pj/facet {:y [:adults :children]}))` draws a line of `:adults` and a line of `:children`, each against `:week`. A layer naming one of the facet's columns is drawn only in that column's panels. A panel no layer draws takes the layer type inferred from its columns: `(-> iris (pj/facet {:col {:x cols} :row {:y cols}}) pj/lay-point)` draws histograms on the diagonal.
 

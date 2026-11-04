@@ -327,6 +327,7 @@
    drawn once (`strip-nested-titles`)."
   [composite]
   (-> composite
+      pose/apply-track-weights
       (update :opts #(apply dissoc % composite-chrome-opt-keys))
       strip-nested-titles))
 
@@ -803,7 +804,9 @@
                       e))
       (throw e))))
 
-(defn composite-pose->draft
+(declare composite-draft->plan)
+
+(defn- composite-pose->draft*
   "Resolve a composite pose into a CompositeDraft. Each sub-draft entry
    carries the leaf's path, its rect inside the composite, the
    contextualized leaf draft (shared-scale domains injected,
@@ -903,7 +906,10 @@
                         (assoc :shared-aesthetics shared-aesthetics)
                         (assoc :shared-categories shared-categories))]
     (cond-> (resolve/->CompositeDraft width height sub-drafts chrome-spec layout)
-      (get-in composite [:opts :align-panels])
+      ;; Weights share out the drawing areas, which takes the alignment
+      ;; `drawing-tracks` does, as `pj/marginal` asks for it.
+      (or (get-in composite [:opts :align-panels])
+          (some #(get-in composite [:opts %]) pose/track-weight-keys))
       ;; The direction as the composite wrote it, not as the computed
       ;; layout holds it: `layout` here is a map of path to rect, and
       ;; which pads have to agree is a question about how the cells
@@ -1320,3 +1326,63 @@
              :total-width width
              :total-height height
              :title (:title chrome)))))
+
+(defn composite-pose->draft
+  "Resolve a composite pose into a CompositeDraft
+   (`composite-pose->draft*`), first sizing it where it pins its panels.
+
+   `:panel-width` and `:panel-height` on a composite pin the panels of
+   its columns and rows, as they pin a single plot's panel: a number for
+   every column (row), a vector for each. They are the composite's
+   column (row) weights, and its width (height) is worked out from
+   them, as a single plot's is: the composite is planned once at its
+   given size to measure what its labels, strips and legend take, and
+   that room plus the pinned panels is its size. No cell reads them."
+  [composite]
+  (let [{:keys [panel-width panel-height col-weights row-weights]} (:opts composite)]
+    (if-not (or panel-width panel-height)
+      (composite-pose->draft* composite)
+      (let [{:keys [n-cols n-rows]} (pose/track-counts composite)
+            both (fn [pinned weights]
+                   (throw (ex-info (str (pr-str pinned) " pins the panels in drawing units and "
+                                        (pr-str weights) " shares them out of the plot's size;"
+                                        " give one of the two.")
+                                   {:caller "pj/options" :keys [pinned weights]})))
+            _ (when (and panel-width col-weights) (both :panel-width :col-weights))
+            _ (when (and panel-height row-weights) (both :panel-height :row-weights))
+            sizes (fn [k v n what]
+                    (let [v (if (number? v) (vec (repeat n v)) v)]
+                      (pose/check-track-weights! k v n what)
+                      (mapv double v)))
+            pws (some-> panel-width (as-> v (sizes :panel-width v n-cols "column")))
+            phs (some-> panel-height (as-> v (sizes :panel-height v n-rows "row")))
+            weighted (update composite :opts
+                             #(cond-> (dissoc % :panel-width :panel-height)
+                                pws (assoc :col-weights pws)
+                                phs (assoc :row-weights phs)))
+            [w0 h0] (outer-dimensions weighted)
+            ;; The measuring pass prints nothing: its Notes and warnings
+            ;; are the final pass's to print.
+            plan0 (binding [*out* (java.io.StringWriter.)]
+                    (composite-draft->plan (composite-pose->draft* weighted)))
+            ;; The panel of each column (row), read by the left (top)
+            ;; edge of its cells.
+            measured (fn [pos-i k n]
+                       (let [tracks (->> (:sub-plots plan0)
+                                         (group-by #(Math/round (double (nth (:rect %) pos-i))))
+                                         (sort-by key)
+                                         (mapv (fn [[_ ss]] (reduce max 0.0 (map #(double (or (get-in % [:plan k]) 0)) ss)))))]
+                         (when-not (= n (count tracks))
+                           (throw (ex-info (str (pr-str k) " pins the panels of an arrangement's"
+                                                " columns and rows, and this arrangement's cells"
+                                                " do not stand in " n
+                                                (if (= k :panel-width) " columns" " rows") ".")
+                                           {:caller "pj/options" :key k})))
+                         tracks))
+            size (fn [given pinned pos-i k n]
+                   (Math/round (+ (- (double given) (reduce + (measured pos-i k n)))
+                                  (reduce + pinned))))]
+        (composite-pose->draft*
+         (cond-> weighted
+           pws (assoc-in [:opts :width] (size w0 pws 0 :panel-width n-cols))
+           phs (assoc-in [:opts :height] (size h0 phs 1 :panel-height n-rows))))))))

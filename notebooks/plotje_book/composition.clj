@@ -168,6 +168,45 @@ weighted
 ;; dataset. Subsequent examples in this chapter follow the same
 ;; shape and show only the rendered plot.
 
+;; ## Panels of Unequal Size
+;;
+;; A histogram beside a scatter plot reads well narrower than the
+;; scatter, and a plot printed beside others may need panels of an exact
+;; size. An arrangement's columns and rows of cells are equal by
+;; default; two pairs of plot options change that.
+;;
+;; `:col-weights` and `:row-weights` give each column and row of panels
+;; its share of the plot, which keeps its `:width` and `:height`. The
+;; tick labels, strips and titles take their room first, and the
+;; weights share out the rest, so `[2 1]` draws the first panel twice
+;; as wide as the second:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [{:x :displ :y :hwy} :hwy] {:col-weights [2 1]}))
+
+(kind/test-last [(fn [v] (let [[a b] (mapv #(get-in % [:plan :panel-width]) (:sub-plots (pj/plan v)))]
+                           (and (= [0.0 0.0 600.0 400.0] (:canvas (pj/frames v)))
+                                (<= (Math/abs (- a (* 2 b))) 2.0))))])
+
+;; `:panel-width` and `:panel-height` pin the panels in drawing units
+;; instead, and the plot's size is worked out from them, as it is for a
+;; single plot. A number pins every column's (row's) panels, and a
+;; vector each column's (row's):
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [{:x :displ :y :hwy} :hwy] {:panel-width [300 150] :panel-height 200}))
+
+(kind/test-last [(fn [v] (every? (fn [[got want]] (<= (Math/abs (- got want)) 1.0))
+                                 (map vector
+                                      (mapcat (fn [s] [(get-in s [:plan :panel-width]) (get-in s [:plan :panel-height])])
+                                              (:sub-plots (pj/plan v)))
+                                      [300 200 150 200])))])
+
+;; Giving both kinds for one direction, `:panel-width` with
+;; `:col-weights`, reports an error. A facet over categories draws its
+;; panels at one size, so a vector there reports an error too; a facet
+;; over columns, such as a scatter plot matrix, takes them.
+
 ;; ## Shared Scales
 ;;
 ;; Two cells that draw the same column are often read against each
@@ -737,6 +776,24 @@ marginal
 ;; `:bottom` and `:left` are not drawn: a strip there would sit between
 ;; the panel and the axis that describes it.
 
+;; ### Marginals on both sides
+;;
+;; `pj/marginal` adds one strip. For a marginal on each side, write the
+;; grid with `pj/matrix`: `nil` in a list of columns leaves a place with
+;; no column on that axis, so that cell draws the distribution of the
+;; other column, and the corner, `nil` on both axes, is left empty. The
+;; weights draw the marginals a third the size of the scatter:
+
+(pj/matrix (rdatasets/ggplot2-mpg) [:displ nil] [nil :hwy]
+           {:col-weights [3 1] :row-weights [1 3]})
+
+(kind/test-last [(fn [v] (let [subs (:sub-plots (pj/plan v))
+                               w (into {} (map (juxt :path #(get-in % [:plan :panel-width]))) subs)
+                               h (into {} (map (juxt :path #(get-in % [:plan :panel-height]))) subs)]
+                           (and (= 3 (:panels (pj/svg-summary v)))
+                                (<= (Math/abs (- (w [1 0]) (* 3 (w [1 1])))) 3.0)
+                                (<= (Math/abs (- (h [1 0]) (* 3 (h [0 0])))) 3.0))))])
+
 ;; ### What a marginal is made of
 ;;
 ;; A `:top` marginal is a vertical composite with a shared x, which can
@@ -999,9 +1056,9 @@ dashboard
 ;;   built by passing nested vectors of poses to `pj/arrange` (the
 ;;   dashboard example above shows the shape). A cell may be a
 ;;   composite itself, so an arranged pose can be arranged again and
-;;   the cell draws its own grid. Unequal cell weights are the one
-;;   layout feature `pj/arrange` does not reach: write `:weights` in
-;;   a literal composite map and pass the map to `pj/pose`.
+;;   the cell draws its own grid. Cells of unequal size are written
+;;   with `:col-weights` and `:row-weights`, or with `:panel-width`
+;;   and `:panel-height` -- see the section on panels of unequal size.
 
 ;; Both cells below map `:color` to the same column, so the composite
 ;; draws one legend for both:

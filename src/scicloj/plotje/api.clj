@@ -3973,6 +3973,51 @@
   ([pose col direction opts]
    (facet-options (compose-facets (facet-with-direction pose col direction)) opts "pj/facet")))
 
+(defn matrix
+  "A grid of panels crossing columns with columns: every column of `xs`
+   across against every column of `ys` down. It is the facet
+   `{:col {:x xs} :row {:y ys}}`, and returns the pose `pj/facet`
+   returns for it:
+
+   `(pj/matrix data xs ys options)` is
+   `(pj/facet data {:col {:x xs} :row {:y ys}} options)`.
+
+   - `(pj/matrix data cols)` -- a scatter plot matrix, the columns
+     crossed with themselves. The panel of a column against itself
+     draws that one column: a histogram, or the counts of a categorical
+     column.
+   - `(pj/matrix data xs ys)` -- `xs` across, `ys` down.
+   - `(pj/matrix data [:a nil] [nil :b])` -- `nil` leaves a place with
+     no column on that axis, so the cell draws the distribution of the
+     other: a scatter plot of `:a` and `:b` with a marginal
+     distribution of each. The corner, `nil` on both axes, is left
+     empty. `{:col-weights [3 1] :row-weights [1 3]}` draws the
+     marginals smaller.
+
+   The first argument is data or a pose; a mapping such as
+   `{:color :species}` is written with `pj/pose`, before or after.
+   A map of plot options may come last, as `pj/facet` takes it. Layers
+   added afterwards are drawn as in any facet over columns: a layer
+   reading one column on the diagonal, a layer reading two off it."
+  {:arglists '([data-or-pose cols] [data-or-pose cols options]
+               [data-or-pose xs ys] [data-or-pose xs ys options])}
+  ([data-or-pose cols]
+   (matrix data-or-pose cols cols nil))
+  ([data-or-pose xs ys-or-options]
+   (if (map? ys-or-options)
+     (matrix data-or-pose xs xs ys-or-options)
+     (matrix data-or-pose xs ys-or-options nil)))
+  ([data-or-pose xs ys options]
+   (doseq [[what cols] [["columns across" xs] ["columns down" ys]]]
+     (when-not (and (sequential? cols) (seq cols))
+       (throw (ex-info (str "pj/matrix takes its " what " as a vector of"
+                            " columns, as in (pj/matrix data [:a :b]), and was"
+                            " given " (pr-str cols) ".")
+                       {:caller "pj/matrix" :value cols}))))
+   (cond-> (facet data-or-pose {:col {:x (vec xs)} :row {:y (vec ys)}})
+     ;; As `pj/facet` reads its options, under this call's name.
+     (some? options) (facet-options options "pj/matrix"))))
+
 (defn facet-grid
   "Retired. `(pj/facet-grid my-pose :a :b)` warns, or reports an error
    under `:strict` as the other retired names do, and returns

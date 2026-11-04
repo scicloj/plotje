@@ -293,6 +293,95 @@
                       {:weights (vec weights)})))
     (mapv #(/ (double %) total) weights)))
 
+(def track-weight-keys
+  "The plot options that share out a composite's columns and rows of
+   panels. Each is read on the composite it is written on and reaches
+   none of its cells (`apply-track-weights`)."
+  [:col-weights :row-weights])
+
+(defn check-track-weights!
+  "Report a weight vector that is not one positive number for each of
+   the `n` columns or rows (`what`) it shares out."
+  [k weights n what]
+  (when-not (and (sequential? weights)
+                 (seq weights)
+                 (every? #(and (number? %) (pos? %)) weights))
+    (throw (ex-info (str (pr-str k) " takes " (when (#{:panel-width :panel-height} k) "a positive number, or ")
+                         "a vector of positive numbers, one per "
+                         what ", as in [3 1]; it was given " (pr-str weights) ".")
+                    {:caller "pj/options" :key k :value weights})))
+  (when-not (= n (count weights))
+    (throw (ex-info (str (pr-str k) " " (pr-str (vec weights)) " gives "
+                         (count weights) (if (= 1 (count weights)) " value" " values")
+                         ", and the panels stand in " n " " what
+                         (when (not= 1 n) "s") ". Give one positive number per " what ".")
+                    {:caller "pj/options" :key k :value weights :count n}))))
+
+(defn track-counts
+  "How many columns and rows of cells a composite lays out:
+   `{:n-cols :n-rows :row-lengths :rows? :direction}`. A vertical
+   composite of rows -- as `pj/arrange` and a facet over columns build
+   them -- has a row per child; a horizontal one is one row, and a
+   vertical one of single cells one column."
+  [pose]
+  (let [direction (get-in pose [:layout :direction] :horizontal)
+        children (:poses pose)
+        row? (fn [c] (and (not (leaf? c))
+                          (= :horizontal (get-in c [:layout :direction] :horizontal))))
+        rows? (and (= :vertical direction) (every? row? children))
+        row-lengths (if rows? (vec (distinct (map (comp count :poses) children))) [(count children)])]
+    {:direction direction
+     :rows? rows?
+     :row-lengths row-lengths
+     :n-rows (if (= :vertical direction) (count children) 1)
+     :n-cols (cond rows? (first row-lengths)
+                   (= :vertical direction) 1
+                   :else (count children))}))
+
+(defn apply-track-weights
+  "The composite with its `:col-weights` and `:row-weights` written as
+   the `:weights` of its layout, at every depth: the rows of cells a
+   vertical composite holds take the column weights, and the composite
+   the row weights. A horizontal composite is one row, and a vertical
+   one of single cells one column. The keys are then removed from the
+   options, so no cell reads them.
+
+   The cells are laid out in these proportions, and the composite is
+   aligned (`compositor/drawing-tracks`), so its drawing areas keep
+   them once the tick labels have taken their room."
+  [pose]
+  (if (leaf? pose)
+    pose
+    (let [{:keys [col-weights row-weights]} (:opts pose)
+          {:keys [direction rows? row-lengths n-rows n-cols]} (track-counts pose)
+          children (:poses pose)
+          _ (when (and (or col-weights row-weights) (= :matrix direction))
+              (throw (ex-info (str ":col-weights and :row-weights share out an"
+                                   " arrangement's rows and columns of cells; a"
+                                   " layout with :direction :matrix places its cells"
+                                   " by their columns and takes no weights.")
+                              {:caller "pj/options"})))
+          _ (when (and col-weights (next row-lengths))
+              (throw (ex-info (str ":col-weights weights the columns of panels, and the"
+                                   " rows of this arrangement hold different numbers of"
+                                   " cells: " (str/join ", " row-lengths) ". Write every row"
+                                   " with as many cells, nil for a cell left empty.")
+                              {:caller "pj/options" :key :col-weights :row-lengths (vec row-lengths)})))
+          _ (when col-weights (check-track-weights! :col-weights col-weights n-cols "column"))
+          _ (when row-weights (check-track-weights! :row-weights row-weights n-rows "row"))
+          children (cond->> children
+                     (and col-weights rows?)
+                     (mapv #(assoc-in % [:layout :weights] (vec col-weights))))]
+      (cond-> (assoc pose :poses (mapv apply-track-weights children))
+        (and col-weights (= :horizontal direction))
+        (assoc-in [:layout :weights] (vec col-weights))
+
+        (and row-weights (= :vertical direction))
+        (assoc-in [:layout :weights] (vec row-weights))
+
+        (or col-weights row-weights)
+        (update :opts #(apply dissoc % track-weight-keys))))))
+
 (def ^:private no-x-key
   "Sentinel row/col key for leaves that have no :x mapping (univariate
    on y) or no :y mapping (univariate on x). They get their own grid

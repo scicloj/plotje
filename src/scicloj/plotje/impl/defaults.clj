@@ -1185,8 +1185,10 @@
    :size-label ["Content" "Size legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:size` scale spec, so a spec written on a mapping or a layer wins over it"]
    :alpha-label ["Content" "Alpha legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in an `:alpha` scale spec, so a spec written on a mapping or a layer wins over it"]
    :shape-label ["Content" "Shape legend title, overriding the inferred column name. The outermost scope of the same setting `:label` names in a `:shape` scale spec, so a spec written on a mapping or a layer wins over it"]
-   :panel-width ["Layout" "Pin panel width (escape hatch; :width becomes derived total)"]
-   :panel-height ["Layout" "Pin panel height (escape hatch; :height becomes derived total)"]
+   :panel-width ["Layout" "Pin the panel width; the plot's :width is then worked out from it. On an arrangement or a facet over columns, a number pins every column's panels, and a vector one number per column, as in [300 100]"]
+   :panel-height ["Layout" "Pin the panel height; the plot's :height is then worked out from it. On an arrangement or a facet over columns, a number pins every row's panels, and a vector one number per row, as in [100 300]"]
+   :col-weights ["Layout" "The relative widths of the columns of panels of an arrangement or of a facet over columns: a vector with one positive number per column, so [3 1] draws the first column's panels three times as wide as the second's. The plot keeps its :width; the tick labels, strips and titles take their room first, and the weights share out the rest"]
+   :row-weights ["Layout" "The relative heights of the rows of panels of an arrangement or of a facet over columns: a vector with one positive number per row, so [1 3] draws the second row's panels three times as tall as the first's. The plot keeps its :height; the tick labels, strips and titles take their room first, and the weights share out the rest"]
    :share-scales ["Layout" "The axes the panels of a facet, or the cells of an arrangement, share -- a set of axes (#{:x :y}, #{:x}, #{:y}, #{}), or a map from an axis to :same-column, :all, or groups of columns, as in {:y [[:hwy :cty]]}"]
    :config ["Config" "Nested config map merged into resolved config"]})
 
