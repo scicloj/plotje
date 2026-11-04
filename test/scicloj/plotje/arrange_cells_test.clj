@@ -60,7 +60,13 @@
                  (message #(pj/arrange [[:u :v]])))))
   (testing "rendered hiccup is still reported as hiccup"
     (is (re-find #"looks like rendered hiccup"
-                 (message #(pj/arrange [(pj/plot a) (pj/plot b)]))))))
+                 (message #(pj/arrange [(pj/plot a) (pj/plot b)])))))
+  (testing "a row of a column and a mapping is a row, not rendered hiccup"
+    ;; `[:u {:x :u :y :v}]` has the shape of hiccup, a keyword and then a
+    ;; map; only the Kindly kind pj/plot attaches marks rendered output.
+    (is (= 4 (:panels (pj/svg-summary
+                       (pj/lay-point (pj/arrange tiny [[:u {:x :u :y :v}]
+                                                       [:v {:x :v :y :u}]]))))))))
 
 (defn- cell-structure
   "The rows of an arrangement, each the mappings of its cells, with a

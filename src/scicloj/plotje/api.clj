@@ -635,6 +635,16 @@
                                   (pr-str d))
                              {:value d :type (type d)}))))
 
+(defn- rendered-plot?
+  "True of what `pj/plot` returns as hiccup: a vector carrying the
+   Kindly kind `pj/plot` attaches. Read only to report it where a pose
+   or a cell goes. A vector the caller wrote carries no such kind, so
+   `[:hwy {:x :displ :y :hwy}]`, a row of a column and a mapping, is
+   never taken for rendered output."
+  [x]
+  (and (vector? x)
+       (contains? #{:kind/hiccup :kind/hiccup2} (:kindly/kind (meta x)))))
+
 (defn- validate-pose-input!
   "Throw on nil or non-collection scalars when the caller needs real
    data. Used by ->pose and pj/pose 1-arity, where nil cannot
@@ -668,7 +678,7 @@
                  " an empty pose.")
             {:caller caller :value nil}))
 
-    (and (vector? x) (keyword? (first x)) (not (every? keyword? x)))
+    (rendered-plot? x)
     (throw (ex-info
             (str caller " expects a pose, but got what looks like a "
                  "rendered hiccup vector (head: " (pr-str (first x))
@@ -4813,7 +4823,7 @@
                            " written nil, as in (pj/arrange [a nil b]).")
                       {:index idx :type (type p)}))
 
-      (and (vector? p) (keyword? (first p)))
+      (rendered-plot? p)
       (throw (ex-info (str prefix " looks like rendered hiccup (head: "
                            (pr-str (first p)) "). pj/arrange takes "
                            "poses, not pre-rendered output; pass "
@@ -4916,25 +4926,19 @@
        :else
        (update p :poses (fnil into []) (if rows? (apply concat added) added))))))
 
-(defn- hiccup?
-  "True of rendered hiccup, `[:svg {...} ...]`: a keyword, then an
-   attribute map. Read only to report it; it is never a cell."
-  [x]
-  (and (vector? x) (keyword? (first x)) (map? (second x))))
-
 (defn- normalize-arrange-cells
   "Rewrite the columns of a cell list, read from the data given first,
    into mappings, and each vector in it into a row or a nested
    arrangement."
   ([cells]
    (normalize-arrange-cells cells
-                            (and (seq cells) (sequential? (first cells)) (not (hiccup? (first cells))))))
+                            (and (seq cells) (sequential? (first cells)) (not (rendered-plot? (first cells))))))
   ([cells rows?]
    (mapv (fn [c]
             (cond
               (column-ref? c) {:x c}
 
-              (and (sequential? c) (seq c) (not (hiccup? c)))
+              (and (sequential? c) (seq c) (not (rendered-plot? c)))
               (let [inner (normalize-arrange-cells c)]
                 (if rows? inner (arrange* inner {})))
 
@@ -4945,7 +4949,7 @@
   "Report a column in a cell list given no data to read it from.
    Rendered hiccup is left to `coerce-arrange-input`, which names it."
   [cells]
-  (when-let [c (->> (tree-seq #(and (sequential? %) (not (hiccup? %))) seq cells)
+  (when-let [c (->> (tree-seq #(and (sequential? %) (not (rendered-plot? %))) seq cells)
                     rest
                     (some #(when (column-ref? %) %)))]
     (throw (ex-info (str "pj/arrange was given the column " (pr-str c)
@@ -4997,10 +5001,10 @@
                         (= :vertical (get-in p [:layout :direction]))
                         (seq (:poses p))
                         (every? #(= :horizontal (get-in % [:layout :direction])) (:poses p)))
-        own-rows? (and (sequential? (first cells)) (not (hiccup? (first cells))))
+        own-rows? (and (sequential? (first cells)) (not (rendered-plot? (first cells))))
         _ (when rows-made?
             (doseq [[i row] (map-indexed vector cells)
-                    :when (not (and (sequential? row) (not (hiccup? row))))]
+                    :when (not (and (sequential? row) (not (rendered-plot? row))))]
               (throw (ex-info (str "pj/arrange appends to an arrangement written as"
                                    " rows, so the appended list is read as more rows,"
                                    " and element " i " is not a row. Write every"
@@ -5041,7 +5045,7 @@
         ;; its root; cells carrying data of their own leave none there.
         (when (and (nil? (:data p))
                    (some #(or (column-ref? %) (and (map? %) (not (pose? %))))
-                         (tree-seq #(and (sequential? %) (not (hiccup? %))) seq cells)))
+                         (tree-seq #(and (sequential? %) (not (rendered-plot? %))) seq cells)))
           (throw (ex-info (str "pj/arrange appends columns to a composite pose"
                                " by reading them from the composite's data, and"
                                " this composite has none: its cells carry their"

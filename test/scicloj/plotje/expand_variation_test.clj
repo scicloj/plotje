@@ -129,6 +129,11 @@
       (is (= [#{:bar} #{} #{:point} #{:bar}]
              (marks-per-cell (-> cars pj/pose pj/lay-point pj/lay-histogram
                                  (pj/facet {:col {:x [:displ nil]} :row {:y [nil :hwy]}}))))))
+    (testing "the corner, nil on both axes, is empty on purpose: no Note"
+      (doseq [p [(pj/facet cars {:col {:x [:displ nil]} :row {:y [nil :hwy]}})
+                 (-> cars pj/lay-point (pj/facet {:col {:x [:displ nil]} :row {:y [nil :hwy]}}))]]
+        (is (= 3 (:panels (pj/svg-summary p))))
+        (is (= "" (with-out-str (pj/plot p))))))
     (testing "a layer naming both columns is drawn only in the cell of those columns"
       (let [matrix {:col {:x [:displ :hwy]} :row {:y [:displ :hwy]}}]
         (is (= [#{:bar} #{:point} #{:point} #{:bar}]

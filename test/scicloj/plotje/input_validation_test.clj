@@ -572,8 +572,9 @@
 (deftest hiccup-vector-input-throws-test
   ;; user-report-3 issue 3: saving the hiccup output of pj/plot
   ;; previously failed with a deep "Tensors must be 2 dimensional" error
-  ;; from tc/dataset. Detect a hiccup-shaped vector at the input gate.
-  (let [hiccup [:svg {:width 100} [:rect {:x 1 :y 1 :width 50 :height 50}]]]
+  ;; from tc/dataset. The output of pj/plot carries the Kindly kind
+  ;; pj/plot attaches, and that kind is what the input gate reads.
+  (let [hiccup (pj/plot (pj/lay-point {:x [1 2] :y [3 4]} :x :y))]
     (testing "(pj/pose hiccup) throws with rendered-hiccup guidance"
       (is (thrown-with-msg?
            clojure.lang.ExceptionInfo
@@ -611,11 +612,14 @@
   (testing "vector of keywords -> single :value column (not hiccup)"
     (is (= [:value] (tc/column-names (:data (pj/pose [:a :b :c :a]))))))
 
-  (testing "keyword-headed vector with non-keyword elements is still hiccup"
+  (testing "a hiccup-shaped vector written by hand is not taken for rendered output"
+    ;; Only pj/plot's output carries the Kindly kind. A vector written by
+    ;; hand is read as data, and drawing it reports its mixed values
+    ;; -- not the deep tc/dataset error of user-report-3.
     (is (thrown-with-msg?
          clojure.lang.ExceptionInfo
-         #"rendered hiccup vector"
-         (pj/pose [:svg {:width 100} [:g]])))))
+         #"mixed value types"
+         (pj/plot (pj/pose [:svg {:width 100} [:g]]))))))
 
 (deftest empty-collection-data-throws
   (testing "(pj/pose []) throws with empty-collection guidance"

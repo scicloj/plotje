@@ -4532,7 +4532,13 @@
       (seq m) (assoc :mapping m)
       (let [x (get-in col-item [:mapping :x])]
         (and (some? x) (= x (get-in row-item [:mapping :y]))))
-      (assoc :plotje/diagonal true))))
+      (assoc :plotje/diagonal true)
+      ;; `nil` written on both axes, as in the corner of
+      ;; `{:col {:x [:a nil]} :row {:y [nil :b]}}`, is a cell left empty
+      ;; on purpose, as a `nil` cell of `pj/arrange` is: it draws
+      ;; nothing and prints no Note.
+      (and (contains? m :x) (contains? m :y) (nil? (:x m)) (nil? (:y m)))
+      (assoc :plotje/empty-cell true))))
 
 (defn facet-columns-direction
   "The direction a facet over columns with no direction of its own
