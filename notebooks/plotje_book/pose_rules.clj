@@ -1745,7 +1745,8 @@ l4-shared
 ;; with `pj/lay-*` is drawn in the panels whose number of columns its
 ;; layer type draws from, so `pj/lay-point` after the facet leaves the
 ;; histograms on the diagonal (Property P-LP1). `pj/pose` given pairs of
-;; columns reports an error that suggests `pj/arrange` and this facet.
+;; columns reports an error that suggests `pj/arrange` and `pj/matrix`,
+;; which writes this facet.
 
 (-> iris
     (pj/pose {:color :species})
@@ -1766,7 +1767,7 @@ l4-shared
                         (catch Exception e (ex-message e)))]
            (and (re-find #"pj/pose was given pairs of columns" msg)
                 (re-find #"pj/arrange" msg)
-                (re-find #"pj/facet data \{:col \{:x xs\} :row \{:y ys\}\}" msg)))))])
+                (re-find #"pj/matrix data xs ys" msg)))))])
 
 ;; ---
 ;; ## A Note on `pj/cross`
@@ -1774,16 +1775,19 @@ l4-shared
 ;; `pj/cross` is deprecated, and calling it prints a warning. It returns
 ;; the pairs `(for [x xs y ys] [x y])`, and a pair of columns is not a
 ;; cell of `pj/arrange`, where a vector is a list of cells. For a panel
-;; for every column of `xs` crossed with every column of `ys`, write the
-;; facet of Rule L5:
+;; for every column of `xs` crossed with every column of `ys`, write
+;; `(pj/matrix data xs ys)`, which writes the facet of Rule L5:
 
 (-> iris
-    (pj/facet {:col {:x [:sepal-length :sepal-width]}
-               :row {:y [:petal-length :petal-width]}})
+    (pj/matrix [:sepal-length :sepal-width] [:petal-length :petal-width])
     pj/lay-point)
 
 (kind/test-last
- [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
+ [(fn [v] (and (= 4 (:panels (pj/svg-summary v)))
+               (= v (-> iris
+                        (pj/facet {:col {:x [:sepal-length :sepal-width]}
+                                   :row {:y [:petal-length :petal-width]}})
+                        pj/lay-point))))])
 
 ;; For a panel per pair of columns chosen one by one, write each pair as
 ;; a mapping, as in Rule C8.

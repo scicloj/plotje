@@ -2106,10 +2106,10 @@
                        pj/lay-point pj/plot)))))
   (testing "pj/cross is purely structural -- still works with strings"
     (is (= 9 (count (pj/cross ["a" "b" "c"] ["a" "b" "c"])))))
-  (testing "pj/cross is deprecated: it warns naming the facet, and errors under :strict"
+  (testing "pj/cross is deprecated: it warns naming pj/matrix, and errors under :strict"
     (let [out (with-out-str (pj/cross [:a :b] [:c :d]))]
       (is (re-find #"pj/cross is deprecated" out))
-      (is (re-find #"\(pj/facet data \{:col \{:x \[:a :b\]\} :row \{:y \[:c :d\]\}\}\)" out)))
+      (is (re-find #"\(pj/matrix data \[:a :b\] \[:c :d\]\)" out)))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"pj/cross is deprecated"
                           (pj/with-config {:strict true} (pj/cross [:a :b] [:c :d]))))))
 

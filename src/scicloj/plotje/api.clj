@@ -342,7 +342,7 @@
    reports an error under `:strict` as the retired names do. A pair is
    no cell of `pj/arrange`, where a vector is a list of cells. For a
    grid of panels with the `xs` across and the `ys` down, write
-   `(pj/facet data {:col {:x xs} :row {:y ys}})`; for a panel per pair,
+   `(pj/matrix data xs ys)`; for a panel per pair,
    write each pair as a mapping, `{:x :a :y :c}`.
 
    - `(pj/cross [:a :b] [:c :d])` returns `[[:a :c] [:a :d] [:b :c] [:b :d]]`."
@@ -367,8 +367,8 @@
                     {:caller "pj/cross" :xs xs :ys ys})))
   (report-retired! (str "pj/cross is deprecated. For a grid of panels with"
                         " the first columns across and the second down, write"
-                        " (pj/facet data {:col {:x " (pr-str (vec xs)) "} :row {:y "
-                        (pr-str (vec ys)) "}}). A pair of columns is no cell of"
+                        " (pj/matrix data " (pr-str (vec xs)) " "
+                        (pr-str (vec ys)) "). A pair of columns is no cell of"
                         " pj/arrange: write a mapping, {:x :a :y :b}.")
                    "It returns the pairs."
                    {:caller "pj/cross" :retired :cross
@@ -1754,7 +1754,7 @@
                              " mapping: (pj/arrange data "
                              (pr-str (mapv (fn [[a b]] {:x a :y b}) v)) "); for every :x"
                              " column against every :y column, write"
-                             " (pj/facet data {:col {:x xs} :row {:y ys}}).")
+                             " (pj/matrix data xs ys).")
                         {:option k :value v})))
       ;; A series passes: several columns on a positional aesthetic are
       ;; read by name, and the draft pivots them -- on a layer for that

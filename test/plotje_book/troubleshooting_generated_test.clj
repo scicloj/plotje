@@ -224,7 +224,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__79262#] (= :text (:mark p1__79262#))))
+      (filter (fn* [p1__78785#] (= :text (:mark p1__78785#))))
       first
       :style
       :align-x)))
@@ -644,7 +644,7 @@
     (and
      (re-find #"was given pairs of columns" msg)
      (re-find #"pj/arrange" msg)
-     (re-find #"pj/facet data \{:col \{:x xs\} :row \{:y ys\}\}" msg)))
+     (re-find #"pj/matrix data xs ys" msg)))
    v110_l727)))
 
 
@@ -759,7 +759,7 @@
     [fr]
     (let
      [radii
-      (fn* [p1__79263#] (sort (:sizes (pj/svg-summary p1__79263#))))
+      (fn* [p1__78786#] (sort (:sizes (pj/svg-summary p1__78786#))))
       now
       (radii fr)
       before

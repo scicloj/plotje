@@ -714,8 +714,8 @@
 ;;
 ;; Some spellings 0.16.1 accepted report an error or warn in place of
 ;; drawing something else. A vector of column pairs given to `pj/pose`
-;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and the
-;; facet that crosses two lists of columns. A vector of columns given
+;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
+;; `pj/matrix`, which crosses two lists of columns. A vector of columns given
 ;; alone to `pj/pose` or to a `pj/lay-*` call is a series, drawn on one
 ;; panel, where 0.16.1 drew a panel per column; for this release a Note
 ;; says so and names `pj/arrange`, which draws a panel per column.
@@ -732,7 +732,7 @@
 (kind/test-last
  [(fn [msg] (and (re-find #"was given pairs of columns" msg)
                  (re-find #"pj/arrange" msg)
-                 (re-find #"pj/facet data \{:col \{:x xs\} :row \{:y ys\}\}" msg)))])
+                 (re-find #"pj/matrix data xs ys" msg)))])
 
 ;; The plot below draws `:hwy` and `:year` on one axis, the first case
 ;; in the list:
