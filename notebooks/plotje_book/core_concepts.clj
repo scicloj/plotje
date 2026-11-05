@@ -344,10 +344,15 @@ two-panel
 ;; Scope determines what each pose and layer sees. But how do
 ;; layers find their pose? The rule is:
 ;;
-;; - On a leaf, `pj/lay-*` **adds the layer to that leaf**, and the
-;;   layers of a leaf share its one panel, whatever columns they name.
-;; - On a composite, `pj/lay-*` with columns **finds the most recent
-;;   leaf** whose columns match, or appends a new leaf if none matches.
+;; - On a leaf, `pj/lay-*` **adds the layer to that leaf**. A leaf
+;;   draws one panel, and its layers share it, whatever columns they
+;;   name. A facet splits that panel into several, and under a facet
+;;   over columns a layer naming columns is drawn only in the panels of
+;;   those columns.
+;; - On a composite, `pj/lay-*` naming columns **joins the last cell**
+;;   whose panel draws those columns, or appends a new cell if none
+;;   does. A `pj/lay-*` call naming no columns is added at the root and
+;;   drawn in every cell.
 ;;
 ;; This makes the threading pipeline sequential and predictable. Here
 ;; the second layer joins the first:
@@ -406,8 +411,9 @@ two-panel
 ;; `pj/facet` and `pj/arrange` both keep these pairs side by side,
 ;; whether or not the pairs share columns. To put every pairing of x
 ;; and y columns in a matrix, call `pj/facet` with
-;; `{:col {:x [...]} :row {:y [...]}}` -- the next chapter,
-;; [Panels](./plotje_book.panels.html), draws such a matrix.
+;; `{:col {:x [...]} :row {:y [...]}}`, or `pj/matrix`, which writes
+;; that facet -- the next chapter, [Panels](./plotje_book.panels.html),
+;; draws such a matrix.
 ;;
 ;; `pj/arrange` is also useful for combining independent poses, such as
 ;; plots with different layer kinds, a scatter and a histogram say:
