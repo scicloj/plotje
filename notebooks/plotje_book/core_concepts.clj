@@ -966,16 +966,11 @@ scatter-with-regression
 ;; | two columns | a series, `{:x [:sepal-length :sepal-width]}` | a facet over columns, `(pj/facet pose {:x [...]})`, or `pj/arrange` |
 ;; | two categories | an aesthetic, `{:color :species}` | a facet over categories, `(pj/facet pose :species)` |
 ;;
-;; Two operations lead from one cell of the table to another. A **pivot**
-;; turns columns into the categories of a key column, which is what a
-;; series does when it is drawn: it leads from the top row to the bottom
-;; row. A **split** moves a distinction from inside one panel to across
-;; panels, as `pj/facet` does for a category that `:color` would tell
-;; apart on one panel: it leads from the left column to the right column.
-;; The [Series](./plotje_book.series.html) chapter shows that a series
-;; split by its key column draws what a facet over its columns draws, and
-;; the [Faceting](./plotje_book.faceting.html) chapter that a facet over
-;; categories draws what an arrangement of one cell per category draws.
+;; A series is drawn by pivoting its columns into a key column,
+;; `:series`, mapped to `:color`, so two columns on one panel are drawn
+;; as two categories are: a colour and a legend entry each. See the
+;; [Series](./plotje_book.series.html) and
+;; [Faceting](./plotje_book.faceting.html) chapters.
 
 ;; ## What's Next
 ;;

@@ -1032,26 +1032,6 @@ my-pose
 ;; its axis by them; a table pivoted by hand titles the axis by its
 ;; value column.
 
-;; ## Split
-;;
-;; To **split** is to move a distinction from inside one panel to
-;; across panels: `{:color :species}` tells the species apart on one
-;; panel, and `(pj/facet :species)` gives each species a panel of its
-;; own. A series split by its key column, `(pj/facet :series)`, draws a
-;; panel per column, as a facet over those columns does.
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length [:sepal-width :petal-width])
-    (pj/facet :series))
-
-(kind/test-last
- [(fn [v]
-    (= (pj/plot v)
-       (pj/plot (-> (rdatasets/datasets-iris)
-                    (pj/pose {:x :sepal-length})
-                    pj/lay-point
-                    (pj/facet {:col {:y [:sepal-width :petal-width]}})))))])
-
 ;; ## Row Filter
 ;;
 ;; A **row filter** is the `:where` of a pose: a map from a column to a
@@ -1487,7 +1467,6 @@ annotated
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/lay-*` on a leaf |
 ;; | Series | A vector of columns written where one column goes, drawn on one panel | `{:y [:a :b]}` in a mapping |
 ;; | Pivot | Turn columns into the categories of a key column | A series when drawn; `tc/pivot->longer` |
-;; | Split | Move a distinction from inside a panel to across panels | `pj/facet` |
 ;; | Row filter | The rows a pose draws, by column values | `:where` on a pose or a cell |
 ;; | Marginal | A distribution of a panel's `:x` or `:y` column, drawn above it or beside it on a shared axis | `pj/marginal` |
 ;; | Share scales | Make the panels of a facet, or the sibling poses of a composite, share data ranges across named axes | `:share-scales` in `:opts` |
