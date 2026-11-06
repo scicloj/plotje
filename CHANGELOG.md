@@ -228,6 +228,12 @@ All notable changes to this project will be documented in this file. This change
 
 - `lay-*` given columns and a scale for one of them in its map, as in `(pj/lay-point data :a :b {:x {:scale :log}})`, draws column `:a` on a log scale.
 
+### Book and project
+
+- The book's plots scale to the width of the page. (PR #60) - thanks, @timothypratley
+
+- Plotje has an icon: the README's logo and the book's browser-tab icon. (PR #62) - thanks, @timothypratley
+
 
 ## [0.16.1 - 2026-10-02]
 
