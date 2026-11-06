@@ -5,10 +5,10 @@
 ;; layers it holds and whatever columns they name. More panels come from
 ;; three places:
 ;;
-;; - **`pj/facet` over the categories of a column** -- a panel per
-;;   category.
 ;; - **`pj/facet` over columns** -- a panel per column, or per pair of
 ;;   columns.
+;; - **`pj/facet` over the categories of a column** -- a panel per
+;;   category.
 ;; - **`pj/arrange`** -- a panel per pose given to it.
 ;;
 ;; This chapter shows each, and how they combine.
@@ -58,58 +58,19 @@
     (pj/lay-point :height :weight)
     (pj/lay-point :depth :weight))
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)
+                               plan (pj/plan v)
+                               [lo hi] (:x-domain (first (:panels plan)))]
                            (and (= 1 (:panels s))
-                                (some #{"height, depth"} (:texts s)))))])
+                                (= "height, depth" (:x-label plan))
+                                ;; :height runs 1-4 and :depth 2-5
+                                (< lo 1) (> hi 5)
+                                (= ["height" "depth"]
+                                   (mapv :label (:entries (:legend plan)))))))])
 
-;; The colour per column is a default, and it is decided layer by
-;; layer: a layer with no `:color` specified takes the colour and the
-;; legend entry of its column. A layer that specifies a colour is drawn
-;; in that colour and has no legend entry. Here a black line is added,
-;; and the two point layers keep the default colours:
-
-(-> measurements
-    (pj/lay-point :height :weight)
-    (pj/lay-point :depth :weight)
-    (pj/lay-line :height :weight {:color "black"}))
-
-(kind/test-last [(fn [v] (let [plan (pj/plan v)]
-                           (and (= ["height" "depth"]
-                                   (mapv :label (:entries (:legend plan))))
-                                (contains? (:colors (pj/svg-summary v)) "rgb(0,0,0)"))))])
-
-;; A `:color` on the pose reaches every layer, so every layer has a
-;; colour specified and none takes the default. The layers are coloured
-;; by the pose's `:color`, and the axis is still titled by every column:
-
-(-> measurements
-    (pj/pose {:color :species})
-    (pj/lay-point :height :weight)
-    (pj/lay-point :depth :weight))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (some #{"height, depth"} (:texts s))
-                                (some #{"species"} (:texts s))
-                                ;; no entry naming a column
-                                (not-any? #{"height" "depth"} (:texts s)))))])
-
-;; The default is also left out of a panel where one layer is coloured
-;; by a column. The legend of that panel lists the values of the column,
-;; and a column name among them would read as one more value. The
-;; second layer below has no `:color` specified and is drawn in the
-;; default colour:
-
-(-> measurements
-    (pj/lay-point :height :weight {:color :species})
-    (pj/lay-point :depth :weight))
-
-(kind/test-last [(fn [v] (= ["a" "b"]
-                            (mapv :label (:entries (:legend (pj/plan v))))))])
-
-;; To name the second layer in that legend, specify its colour as a
-;; value read through the color scale: `{:color {:value "depth" :scale
-;; true}}`.
+;; How the colour of each layer is decided -- a colour it specifies, a
+;; `:color` on the pose, or a layer coloured by a column -- is in
+;; [Inference Rules](./plotje_book.inference_rules.html#multi-layer-plots).
 
 ;; ### The panel's columns
 
@@ -207,6 +168,60 @@
                            (and (= 2 (:panels s))
                                 (= 1 (count (filter #{"weight"} (:texts s)))))))])
 
+;; ## A matrix of columns
+
+;; A facet over columns can cross a list of columns with itself:
+;; `{:col {:x columns} :row {:y columns}}` draws a panel for every pair
+;; of columns, the columns across drawn on `:x` and the same columns down
+;; drawn on `:y`. A layer added after it is drawn in the panels whose
+;; columns it draws, and a panel with the same column on both axes draws
+;; a histogram:
+
+(-> measurements
+    (pj/facet {:col {:x [:height :weight :depth]}
+              :row {:y [:height :weight :depth]}})
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (and (= {:col {:x [:height :weight :depth]}
+                                  :row {:y [:height :weight :depth]}}
+                                 (:facet v))
+                              (= 9 (:panels (pj/svg-summary v)))
+                              ;; bars on the diagonal, points elsewhere
+                              (= [:bar :point :point :point :bar :point :point :point :bar]
+                                 (mapv #(:mark (first (:layers (first (:panels (:plan %))))))
+                                       (:sub-plots (pj/plan v))))))])
+
+;; `pj/matrix` writes that facet from the list of columns:
+
+(-> measurements
+    (pj/matrix [:height :weight :depth])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (= v (-> measurements
+                                  (pj/facet {:col {:x [:height :weight :depth]}
+                                             :row {:y [:height :weight :depth]}})
+                                  pj/lay-point)))])
+
+;; ## A panel per category
+
+;; A facet over the categories of a column draws one panel per category,
+;; each drawing the rows of its category. Two species give two panels:
+
+(-> measurements
+    (pj/lay-point :height :weight)
+    (pj/facet :species))
+
+(kind/test-last [(fn [v] (let [panels (:panels (pj/plan v))
+                               [lo hi] (:x-domain (first panels))]
+                           (and (= 2 (:panels (pj/svg-summary v)))
+                                (apply = (map :x-domain panels))
+                                (apply = (map :y-domain panels))
+                                (< lo 1) (> hi 4))))])
+
+;; The panels share both axes, so the categories can be read against
+;; each other: species "a" spans 1 to 2 on `:height` and species "b" 3
+;; to 4, and both panels run from below 1 to above 4.
+
 ;; ## Arranging poses side by side
 
 ;; `pj/arrange` takes finished poses and makes each one a cell of a
@@ -240,29 +255,6 @@
 ;; [Composition](./plotje_book.composition.html#explicit-composite-poses)
 ;; covers. It is the same structure `pj/arrange` builds.
 
-;; ## Faceting multiplies the panels
-
-;; Faceting takes the leaf and cuts it into one panel per category of
-;; the faceting column. Two species give two panels:
-
-(-> measurements
-    (pj/lay-point :height :weight)
-    (pj/facet :species))
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-;; The count follows the data, not the call. The same call on a column
-;; with four categories gives four panels:
-
-(-> {:height [1 2 3 4] :weight [1 2 3 4] :site ["p" "q" "r" "s"]}
-    (pj/lay-point :height :weight)
-    (pj/facet :site))
-
-(kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
-
-;; Every panel of a facet over categories shares one axis range, so the
-;; panels can be read against each other.
-
 ;; ## Cells that filter the data
 
 ;; A cell of `pj/arrange` may hold `:where`, a map from a column to a
@@ -285,56 +277,11 @@
                                                 (pj/facet :species)))))])
 
 ;; [Faceting](./plotje_book.faceting.html#facet-or-arrange) compares the
-;; two forms.
-;;
-;; A filter written on the pose reaches every cell, and combines with a
-;; cell's filter column by column. A column named in both takes the
-;; cell's value; a column named in one of them keeps its value. Below,
-;; the pose keeps species "a", the first cell names species "b" in its
-;; place, and the second cell keeps species "a" and adds a depth:
+;; two forms, and
+;; [Pose Rules](./plotje_book.pose_rules.html#rule-s5-a-row-filter-combines-column-by-column-at-every-level)
+;; says how a filter on the pose combines with a cell's.
 
-(-> measurements
-    (pj/pose {:x :height :y :weight :where {:species "a"}})
-    (pj/arrange [{:where {:species "b"}}
-                 {:where {:depth 3}}])
-    pj/lay-point)
-
-(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
-
-;; The first cell draws the two rows of species "b", and the second the
-;; one row of species "a" whose depth is 3 -- three points in all.
-
-;; ## A matrix of columns
-
-;; A facet over columns can cross a list of columns with itself:
-;; `{:col {:x columns} :row {:y columns}}` draws a panel for every pair
-;; of columns, the columns across drawn on `:x` and the same columns down
-;; drawn on `:y`. A layer added after it is drawn in the panels whose
-;; columns it draws, and a panel with the same column on both axes draws
-;; a histogram:
-
-(-> measurements
-    (pj/facet {:col {:x [:height :weight :depth]}
-              :row {:y [:height :weight :depth]}})
-    pj/lay-point)
-
-(kind/test-last [(fn [v] (and (= {:col {:x [:height :weight :depth]}
-                                  :row {:y [:height :weight :depth]}}
-                                 (:facet v))
-                              (= 9 (:panels (pj/svg-summary v)))))])
-
-;; ## Combining them
-
-;; A facet over categories cuts each panel a pose draws into one per
-;; category. A pose whose layers name different columns draws one panel,
-;; so faceting it by `:species` draws two:
-
-(-> measurements
-    (pj/lay-point :height :weight)
-    (pj/lay-point :depth :weight)
-    (pj/facet :species))
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
+;; ## Combining facets and arrangements
 
 ;; Columns and categories cross in one `pj/facet` call, the categories
 ;; across and the columns down. Each entry under `:col` and `:row` is one

@@ -259,7 +259,7 @@
   setosa
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__11193#] (= "setosa" (:species p1__11193#))))))
+   (fn* [p1__75868#] (= "setosa" (:species p1__75868#))))))
 
 
 (def
@@ -268,7 +268,7 @@
   versicolor
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__11194#] (= "versicolor" (:species p1__11194#))))))
+   (fn* [p1__75869#] (= "versicolor" (:species p1__75869#))))))
 
 
 (def
@@ -396,7 +396,7 @@
       (=
        [[] [:smooth] [:smooth]]
        (mapv
-        (fn* [p1__11195#] (mapv :layer-type (:layers p1__11195#)))
+        (fn* [p1__75870#] (mapv :layer-type (:layers p1__75870#)))
         cells))
       (=
        {:panels 3, :points 702, :lines 2}

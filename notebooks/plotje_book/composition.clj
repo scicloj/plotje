@@ -1060,30 +1060,10 @@ dashboard
 ;;   with `:col-weights` and `:row-weights`, or with `:panel-width`
 ;;   and `:panel-height` -- see the section on panels of unequal size.
 
-;; Both cells below map `:color` to the same column, so the composite
-;; draws one legend for both:
-
-(pj/arrange
- [(-> (rdatasets/datasets-iris)
-      (pj/lay-point :sepal-length :sepal-width {:color :species}))
-  (-> (rdatasets/datasets-iris)
-      (pj/lay-point :petal-length :petal-width {:color :species}))])
-
-(kind/test-last
- [(fn [v]
-    (and (= #{:color} (-> v pj/plan :chrome :shared-aesthetics))
-         ;; The dashboard above pairs a histogram with a colored
-         ;; scatter, so its siblings do not agree and nothing merges.
-         (= #{} (-> (pj/arrange
-                     [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length))
-                      (-> (rdatasets/datasets-iris)
-                          (pj/lay-point :petal-length :petal-width {:color :species}))])
-                    pj/plan :chrome :shared-aesthetics))))])
-
-;; The cells need not hold the same rows. Below, the left cell holds
-;; setosa and versicolor and the right cell versicolor and virginica.
-;; Versicolor is drawn in the same colour in both, and the one legend
-;; lists all three species:
+;; Below, both cells map `:color` to `:species`, and they hold different
+;; rows: the left cell holds setosa and versicolor, the right cell
+;; versicolor and virginica. Versicolor is drawn in the same colour in
+;; both, and the one legend lists all three species:
 
 (pj/arrange
  [(-> (rdatasets/datasets-iris)
@@ -1100,10 +1080,18 @@ dashboard
           versicolor (fn [sp] (some #(when (= "versicolor" (:label %)) (:color %))
                                     (-> sp :plan :panels first :layers first :groups)))
           [left right] (:sub-plots plan)]
-      (and (= ["setosa" "versicolor" "virginica"]
+      (and (= #{:color} (-> plan :chrome :shared-aesthetics))
+           (= ["setosa" "versicolor" "virginica"]
               (mapv :label (-> plan :chrome :shared-legend :legend :entries)))
            (some? (versicolor left))
-           (= (versicolor left) (versicolor right)))))])
+           (= (versicolor left) (versicolor right))
+           ;; The dashboard above pairs a histogram with a colored
+           ;; scatter, so its siblings do not agree and nothing merges.
+           (= #{} (-> (pj/arrange
+                       [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length))
+                        (-> (rdatasets/datasets-iris)
+                            (pj/lay-point :petal-length :petal-width {:color :species}))])
+                      pj/plan :chrome :shared-aesthetics)))))])
 
 ;; A cell that is itself a composite draws its own grid. Here the left
 ;; cell holds two panels of its own and the right cell holds one, so

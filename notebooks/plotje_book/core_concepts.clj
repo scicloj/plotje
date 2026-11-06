@@ -279,7 +279,7 @@ two-panel
 ;; - **Row filters**: two `:where` maps combine column by column; a
 ;;   column named in both takes the later or inner value. A
 ;;   composite's filter reaches every cell -- see
-;;   [Cells that filter the data](./plotje_book.panels.html#cells-that-filter-the-data).
+;;   [Pose Rules](./plotje_book.pose_rules.html#rule-s5-a-row-filter-combines-column-by-column-at-every-level).
 ;; - **Plot options**: the later or inner value wins, except `:theme`,
 ;;   whose settings combine key by key.
 ;; - **Layers**: every `pj/lay-*` accumulates a new layer; layers

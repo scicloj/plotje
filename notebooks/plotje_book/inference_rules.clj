@@ -1246,9 +1246,7 @@ alpha-legend-pose
            (= :a (:title leg))
            (= 4 (count (:entries leg))))))])
 
-;; No alpha mapping means no alpha legend:
-
-scatter-pose
+;; As with size, a plot with no alpha mapping has no alpha legend.
 
 (kind/test-last
  [(fn [_] (nil? (:alpha-legend (pj/plan scatter-pose))))])

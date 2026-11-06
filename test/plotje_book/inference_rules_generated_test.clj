@@ -373,15 +373,15 @@
     [m]
     (and
      (every?
-      (fn* [p1__80651#] (re-matches #"\d{2}:\d{2}" p1__80651#))
+      (fn* [p1__79104#] (re-matches #"\d{2}:\d{2}" p1__79104#))
       (:six-hours m))
      (every?
       (fn*
-       [p1__80652#]
-       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__80652#))
+       [p1__79105#]
+       (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__79105#))
       (:three-days m))
      (every?
-      (fn* [p1__80653#] (re-matches #"\d{4}" p1__80653#))
+      (fn* [p1__79106#] (re-matches #"\d{4}" p1__79106#))
       (:nine-years m))
      (= 9 (count (:nine-years m)))))
    v57_l371)))
@@ -1307,20 +1307,17 @@
    v207_l1240)))
 
 
-(def v210_l1251 scatter-pose)
-
-
 (deftest
- t211_l1253
+ t210_l1251
  (is
-  ((fn [_] (nil? (:alpha-legend (pj/plan scatter-pose)))) v210_l1251)))
+  ((fn [_] (nil? (:alpha-legend (pj/plan scatter-pose)))) v207_l1240)))
 
 
-(def v213_l1263 scatter-pose)
+(def v212_l1261 scatter-pose)
 
 
 (def
- v214_l1265
+ v213_l1263
  (def
   full-layout-pose
   (->
@@ -1329,11 +1326,11 @@
    (pj/options {:title "My Plot"}))))
 
 
-(def v215_l1272 full-layout-pose)
+(def v214_l1270 full-layout-pose)
 
 
 (deftest
- t216_l1274
+ t215_l1272
  (is
   ((fn
     [_]
@@ -1344,14 +1341,14 @@
       (pos? (get-in full [:layout :title-pad]))
       (zero? (get-in bare [:layout :legend-w]))
       (= 100 (get-in full [:layout :legend-w])))))
-   v215_l1272)))
+   v214_l1270)))
 
 
-(def v218_l1296 scatter-pose)
+(def v217_l1294 scatter-pose)
 
 
 (deftest
- t219_l1298
+ t218_l1296
  (is
   ((fn
     [_]
@@ -1387,31 +1384,31 @@
         (=
          [:single :single]
          (mapv
-          (fn* [p1__80654#] (get-in p1__80654# [:plan :layout-type]))
+          (fn* [p1__79107#] (get-in p1__79107# [:plan :layout-type]))
           (:sub-plots plan))))))))
-   v218_l1296)))
+   v217_l1294)))
 
 
 (def
- v221_l1322
+ v220_l1320
  (def normal-pose (-> animals (pj/lay-bar :animal :count))))
 
 
-(def v222_l1326 normal-pose)
+(def v221_l1324 normal-pose)
 
 
 (def
- v223_l1328
+ v222_l1326
  (def
   flip-pose
   (-> animals (pj/lay-bar :animal :count) (pj/coord :flip))))
 
 
-(def v224_l1333 flip-pose)
+(def v223_l1331 flip-pose)
 
 
 (deftest
- t225_l1335
+ t224_l1333
  (is
   ((fn
     [v]
@@ -1426,32 +1423,32 @@
       (not (:categorical? (:y-ticks np)))
       (not (:categorical? (:x-ticks fp)))
       (true? (:categorical? (:y-ticks fp))))))
-   v224_l1333)))
+   v223_l1331)))
 
 
 (def
- v227_l1350
+ v226_l1348
  (def
   flipped-labels-pose
   (-> five-points (pj/lay-point :x :y) (pj/coord :flip))))
 
 
-(def v228_l1355 flipped-labels-pose)
+(def v227_l1353 flipped-labels-pose)
 
 
 (deftest
- t229_l1357
+ t228_l1355
  (is
   ((fn
     [_]
     (let
      [plan (pj/plan flipped-labels-pose)]
      (and (= "y" (:x-label plan)) (= "x" (:y-label plan)))))
-   v228_l1355)))
+   v227_l1353)))
 
 
 (def
- v231_l1374
+ v230_l1372
  (def
   multi-pose
   (->
@@ -1461,11 +1458,11 @@
    (pj/lay-smooth {:stat :linear-model}))))
 
 
-(def v232_l1380 multi-pose)
+(def v231_l1378 multi-pose)
 
 
 (deftest
- t233_l1382
+ t232_l1380
  (is
   ((fn
     [v]
@@ -1475,11 +1472,11 @@
       (= 5 (:points s))
       (= 1 (:lines s))
       (= 2 (count (:layers p))))))
-   v232_l1380)))
+   v231_l1378)))
 
 
 (def
- v235_l1398
+ v234_l1396
  (def
   two-columns-pose
   (->
@@ -1489,11 +1486,11 @@
    (pj/lay-point {:y :petal-width}))))
 
 
-(def v236_l1404 two-columns-pose)
+(def v235_l1402 two-columns-pose)
 
 
 (deftest
- t237_l1406
+ t236_l1404
  (is
   ((fn
     [_]
@@ -1505,11 +1502,11 @@
        (mapv :label (:entries (:legend plan))))
       (= "sepal length" (:x-label plan))
       (= "sepal width, petal width" (:y-label plan)))))
-   v236_l1404)))
+   v235_l1402)))
 
 
 (def
- v239_l1418
+ v238_l1416
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length)
@@ -1518,7 +1515,7 @@
 
 
 (deftest
- t240_l1423
+ t239_l1421
  (is
   ((fn
     [v]
@@ -1536,10 +1533,10 @@
       (=
        ["setosa" "versicolor" "virginica"]
        (mapv :label (:entries (:legend (pj/plan by-column))))))))
-   v239_l1418)))
+   v238_l1416)))
 
 
 (def
- v242_l1441
+ v241_l1439
  (kind/mermaid
   "\ngraph TD\n  POSE[\"pose + options\"]\n  POSE --> CT[\"Column types\"]\n  POSE --> AE[\"Aesthetics\"]\n  CT --> GR[\"Grouping\"]\n  AE --> GR\n  CT --> ME[\"Layer type\"]\n  GR --> STATS[\"Statistics\"]\n  ME --> STATS\n\n  STATS --> DOM[\"Domains\"]\n  DOM --> TK[\"Ticks\"]\n\n  POSE --> LBL[\"Axis labels\"]\n  AE --> LEG[\"Color legend\"]\n  AE --> SLEG[\"Size legend\"]\n  AE --> ALEG[\"Alpha legend\"]\n\n  DOM --> LAYOUT[\"Layout\"]\n  LBL --> LAYOUT\n  LEG --> LAYOUT\n  SLEG --> LAYOUT\n  ALEG --> LAYOUT\n\n  DOM --> PLOT[\"Rendered plot\"]\n  TK --> PLOT\n  LBL --> PLOT\n  LEG --> PLOT\n  SLEG --> PLOT\n  ALEG --> PLOT\n  LAYOUT --> PLOT\n  STATS --> PLOT\n\n  style POSE fill:#e8f5e9\n  style PLOT fill:#fff3e0\n  style STATS fill:#e3f2fd\n  style DOM fill:#e3f2fd\n"))
