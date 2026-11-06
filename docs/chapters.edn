@@ -2,6 +2,7 @@
  "🧱 Foundations" ["datasets"
                    "pose_model"
                    "core_concepts"
+                   "panels"
                    "specifying_aesthetics"
                    "composition"
                    "options_and_scopes"

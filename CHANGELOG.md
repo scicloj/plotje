@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+## [0.17.0 - 2026-11-06]
+
 **This release breaks with 0.16.1 on where a layer is drawn when it names columns other than its pose's.** In 0.17.0, a layer added to a pose that draws one panel is drawn on that panel, whatever columns the layer names. In 0.16.1, a layer naming other columns was given a panel of its own, unless the pose was given to `pj/overlay`. Separate panels are made with `pj/facet` or `pj/arrange`. Three other ways of writing a plot that drew several panels in 0.16.1 also change:
 
 - `pj/pose` given other columns on an existing pose replaces the pose's columns;
