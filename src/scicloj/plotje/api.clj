@@ -2312,6 +2312,22 @@
                      :x (pose/mapping-source (:x position-mapping))
                      :y (pose/mapping-source (:y position-mapping))}))))
 
+(defn- note-layer-joins-panel!
+  "Print, for this release, that a layer naming other columns than the
+   pose's is drawn on the pose's panel, where 0.16.1 gave it a panel of
+   its own, and how to draw a panel per column. `differing` holds
+   `[axis pose-column layer-column]` for each axis where the two differ."
+  [layer-type-key differing]
+  (println (str "Note: pj/lay-" (layer-type-name layer-type-key) " names "
+                (str/join " and " (for [[k _ c] differing] (str (pr-str c) " on " k)))
+                " where this pose draws "
+                (str/join " and " (for [[k p _] differing] (str (pr-str p) " on " k)))
+                ", and is drawn on the same panel; in 0.16.1 it was given a panel of"
+                " its own. For a panel per " (if (next differing) "pair of columns" "column")
+                ", write (pj/facet pose {"
+                (str/join " " (for [[k p c] differing] (str k " " (pr-str [p c]))))
+                "}), or arrange separate poses with pj/arrange.")))
+
 (defn- lay-on-pose*
   "Append a layer to a pose following the DFS-last identity rule.
 
@@ -2371,15 +2387,19 @@
       ;; as scope says. Which panel the layer draws on is decided at
       ;; draft time, from every layer's columns read together.
       (seq position-mapping)
-      (do (when (some (fn [k]
-                        (let [pos-v (pose/mapping-source (get position-mapping k))
-                              leaf-v (get (pose/leaf-columns fr) k)]
-                          (and pos-v leaf-v (not= pos-v leaf-v))))
-                      [:x :y])
+      (do (when-let [differing (seq (for [k [:x :y]
+                                          :let [pos-v (pose/mapping-source (get position-mapping k))
+                                                leaf-v (get (pose/leaf-columns fr) k)]
+                                          :when (and pos-v leaf-v (not= pos-v leaf-v))]
+                                      [k leaf-v pos-v]))]
             ;; The layer names columns the pose does not draw: say which
             ;; column is missing here rather than deep in the plan.
             (check-new-panel-columns layer-type-key position-mapping
-                                     bare-layer (:data fr)))
+                                     bare-layer (:data fr))
+            ;; Under a facet over columns the layer is placed in the
+            ;; panels of its columns, which has a Note of its own.
+            (when-not (:facet fr)
+              (note-layer-joins-panel! layer-type-key differing)))
           (update fr :layers (fnil conj [])
                   (elide-empty-maps
                    ;; The layer's own mapping wins: the final map may

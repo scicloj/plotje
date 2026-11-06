@@ -399,3 +399,15 @@
       (is (= :x (:side (rug (pj/lay-rug scatter :displ))))))
     (testing "on data alone the rug is drawn on its side, as before"
       (is (= :x (:side (rug (pj/lay-rug cars {:y :hwy}))))))))
+
+(deftest a-layer-on-other-columns-prints-a-note-for-this-release-test
+  (testing "the Note names the columns, the 0.16.1 panel, and the facet that draws a panel per column"
+    (is (= (str "Note: pj/lay-point names :cty on :x where this pose draws :displ on :x,"
+                " and is drawn on the same panel; in 0.16.1 it was given a panel of its own."
+                " For a panel per column, write (pj/facet pose {:x [:displ :cty]}),"
+                " or arrange separate poses with pj/arrange.\n")
+           (with-out-str (-> cars (pj/lay-point :displ :hwy) (pj/lay-point :cty :hwy))))))
+  (testing "no Note for a layer on the pose's columns, a written value, or a cell of an arrangement"
+    (is (= "" (with-out-str (-> cars (pj/lay-point :displ :hwy) (pj/lay-line :displ :hwy)))))
+    (is (= "" (with-out-str (-> cars (pj/lay-point :displ :hwy) (pj/lay-text {:x 3 :y 25 :text "a"})))))
+    (is (= "" (with-out-str (-> cars (pj/arrange [{:x :displ :y :hwy}]) (pj/lay-point :cty :hwy)))))))

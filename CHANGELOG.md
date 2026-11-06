@@ -4,7 +4,25 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-`pj/pose` builds one pose: data or a pose, then columns, then a mapping. The layers of a pose share one panel, and panels drawn from several columns come from `pj/facet`, which takes a map of columns and crosses two lists of columns or categories in a grid, and from `pj/arrange`, whose cells are columns, mappings and poses, and in which a vector is a list of cells. Panels share axes by one option, `:share-scales`, in a facet and in an arrangement alike, and a shared axis covers what its panels draw. Contributed in [#61](https://github.com/scicloj/plotje/pull/61) - thanks, @timothypratley
+**This release breaks with 0.16.1 on which layers are drawn on the same panel.** In 0.16.1, a layer naming columns other than its pose's was drawn on a panel of its own, unless the pose was given to `pj/overlay`. In 0.17.0, every layer of a pose is drawn on one panel, whatever columns it names. Three other ways of writing a plot that drew several panels in 0.16.1 also change:
+
+- `pj/pose` given other columns on an existing pose replaces the pose's columns;
+- a vector of columns draws the columns on one panel;
+- a vector of column pairs reports an error that shows how to write the panels.
+
+For this release, a layer naming other columns, `pj/pose` replacing a column, and a vector of columns each print a Note that names the 0.16.1 behaviour. Panels side by side are written with `pj/facet` or `pj/arrange`.
+
+The main changes:
+
+- **The layers of a pose are drawn on one panel**, whatever columns they name. Each axis is titled by every column drawn on it, and a layer with no colour of its own takes a colour and a legend entry. `pj/overlay` is retired.
+- **More ways to create panels with `pj/facet` and `pj/arrange`.** `pj/facet` takes a map, and draws a panel for each category of a column, a panel for each of several columns, or a grid that crosses the two. `pj/matrix` draws a scatter plot matrix. A cell of `pj/arrange` can be anything `pj/pose` accepts after the data -- a column, a mapping or a pose -- and a vector in the list of cells is a list of cells.
+- **A vector of columns, written where one column goes, draws those columns on one panel**, as a series with a colour and a legend entry for each column.
+- **`pj/pose` given an existing pose updates that pose** instead of adding a panel. Its mapping is merged into the pose's mapping, and a column given again replaces the old one. A scale, `:where` or `:theme` given twice is combined key by key.
+- **One option, `:share-scales`, says which axes panels share**, on a facet and on an arrangement alike. A shared axis spans the values drawn in all the panels that share it.
+
+Also new: `:where` filters the rows a pose draws, panels can be given unequal sizes, and an axis that shows a computed count or density is titled `count` or `density`.
+
+The signature of `pj/pose` -- data or a pose, then columns, then a mapping -- began in [#61](https://github.com/scicloj/plotje/pull/61), which also moved the crossing of columns out of `pj/pose` into a function of its own, the idea behind `pj/matrix`, and let `pj/arrange` take columns and poses as cells. Thanks to @timothypratley for that pull request, and for the questions, discussions and reports on Zulip that shaped this release.
 
 ### Plots that look different after upgrading
 
@@ -12,7 +30,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **`pj/pose` given a mapping on an existing pose** merges it into that pose's mapping and does not add a panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`; layers that name their own columns keep them. On a composite the mapping goes to the root, where the cells and layers that name no `:x` or `:y` read it. An `:x` or `:y` that every layer, or every cell, names for itself is not drawn, and drawing the pose warns so. For this release a Note says when `pj/pose` replaces a column; for panels side by side, write `(pj/arrange data [{:x :a :y :b} {:x :c :y :d}])`.
 
-- **Layers of one pose that name different columns** share one panel: `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width))` draws one panel, each axis covering and titled by every column drawn on it. A layer with no `:color` specified, on the pose or on the layer, takes a colour and a legend entry naming its columns. A layer that specifies a colour, such as a black trend line, leaves the other layers theirs, and no layer takes the default on a panel where a layer is coloured by a column. For a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
+- **Layers of one pose that name different columns** share one panel: `(-> iris (pj/lay-point :sepal-length :sepal-width) (pj/lay-point :petal-length :petal-width))` draws one panel, each axis covering and titled by every column drawn on it. A layer with no `:color` specified, on the pose or on the layer, takes a colour and a legend entry naming its columns. A layer that specifies a colour, such as a black trend line, leaves the other layers theirs, and no layer takes the default on a panel where a layer is coloured by a column. For this release a Note says so; for a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
 
 - **A legend listing the values of two colour columns**, as where two layers of one pose are coloured by different columns, is titled by both: `drv, class`.
 
