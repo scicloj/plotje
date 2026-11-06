@@ -360,6 +360,8 @@ two-panel
 
 ;; Each layer takes a colour and a legend entry naming its column, and
 ;; the axis title names both columns.
+;; Separate panels come from `pj/facet` and `pj/arrange` -- see
+;; [Faceting and Multi-Panel Layouts](#faceting-and-multi-panel-layouts) below.
 ;;
 ;; - On a composite, `pj/lay-*` naming no columns is **added at the
 ;;   root** and drawn in every cell.
@@ -389,71 +391,6 @@ two-panel
                                    (mapv #(mapv :layer-type (:layers %)) cells))
                                 (= {:panels 3 :points 702 :lines 2}
                                    (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
-
-;; ### Separate panels from `pj/facet` and `pj/arrange`
-;;
-;; Since the layers of a leaf share its panel, separate panels come
-;; from splitting the leaf with `pj/facet` or from arranging cells with
-;; `pj/arrange`. A facet over pairs of columns draws a panel per pair:
-;; the first `:x` column goes with the first `:y` column, the second
-;; with the second, and a layer naming columns is drawn only in the
-;; panel of those columns.
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width)
-    (pj/lay-point :petal-length :petal-width)
-    (pj/facet {:x [:sepal-length :petal-length]
-               :y [:sepal-width :petal-width]}))
-
-(kind/test-last [(fn [v] (and (= {:panels 2 :points 300}
-                                 (select-keys (pj/svg-summary v) [:panels :points]))
-                              ;; One layer drawn in each panel; the facet
-                              ;; over columns is planned as a composite.
-                              (= [[1] [1]] (mapv (fn [s] (mapv (comp count :layers) (:panels (:plan s))))
-                                                 (:sub-plots (pj/plan v))))))])
-
-;; The pose stays one leaf, holding the split under `:facet`; the cells
-;; are made when it is drawn. `pj/arrange` given the same pairs, each
-;; written as a mapping, builds the cells at once, as a composite pose.
-;; Printed, it has a vertical root containing one horizontal row of two
-;; sub-poses:
-
-(-> (rdatasets/datasets-iris)
-    (pj/arrange [{:x :sepal-length :y :sepal-width}
-                 {:x :petal-length :y :petal-width}])
-    (kind/pprint))
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-(kind/test-last [(fn [v] (let [row (first (:poses v))
-                               cells (:poses row)
-                               [a b] (map (comp :panel-box :frames)
-                                          (:panels (pj/frames v)))]
-                           (and (= :vertical (get-in v [:layout :direction]))
-                                (= :horizontal (get-in row [:layout :direction]))
-                                (= 2 (count cells))
-                                (= :sepal-length (get-in cells [0 :mapping :x]))
-                                (= :sepal-width  (get-in cells [0 :mapping :y]))
-                                (= :petal-length (get-in cells [1 :mapping :x]))
-                                (= :petal-width  (get-in cells [1 :mapping :y]))
-                                (not= (first a) (first b))
-                                (= (second a) (second b)))))])
-
-;; `pj/facet` and `pj/arrange` both keep these pairs side by side,
-;; whether or not the pairs share columns. To put every pairing of x
-;; and y columns in a matrix, call `pj/facet` with
-;; `{:col {:x [...]} :row {:y [...]}}`, or `pj/matrix`, which writes
-;; that facet -- the next chapter, [Panels](./plotje_book.panels.html),
-;; draws such a matrix.
-
-;; `pj/arrange` is also useful for combining independent poses, such as
-;; plots with different layer types, a histogram and a density say:
-
-(pj/arrange
- [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-width))
-  (-> (rdatasets/datasets-iris) (pj/lay-density :sepal-width))])
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
 ;; ## The Pose
 ;;
@@ -952,13 +889,12 @@ scatter-with-regression
 
 (kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
-;; To place whole poses side by side, use `pj/arrange`:
+;; To place whole poses side by side, use `pj/arrange`. Here a
+;; histogram and a density of one column:
 
 (pj/arrange
- [(-> (rdatasets/datasets-iris)
-      (pj/lay-point :sepal-length :sepal-width))
-  (-> (rdatasets/datasets-iris)
-      (pj/lay-point :petal-length :petal-width))])
+ [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-width))
+  (-> (rdatasets/datasets-iris) (pj/lay-density :sepal-width))])
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
