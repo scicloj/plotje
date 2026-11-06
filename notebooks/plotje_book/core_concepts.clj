@@ -342,44 +342,43 @@ two-panel
 ;; ## Layer Placement
 ;;
 ;; Scope determines what each pose and layer sees. But how do
-;; layers find their pose? The rule is:
+;; layers find their pose? The rule depends on whether the pose is a
+;; leaf or a composite.
 ;;
 ;; - On a leaf, `pj/lay-*` **adds the layer to that leaf**. A leaf
 ;;   draws one panel, and its layers share it, whatever columns they
-;;   name. A facet splits that panel into several, and under a facet
-;;   over columns a layer naming columns is drawn only in the panels of
-;;   those columns.
-;; - On a composite, `pj/lay-*` naming columns **joins the last cell**
-;;   whose panel draws those columns, or appends a new cell if none
-;;   does. A `pj/lay-*` call naming no columns is added at the root and
-;;   drawn in every cell.
-;;
-;; This makes the threading pipeline sequential and predictable. Here
-;; the second layer joins the first:
+;;   name.
 
-(-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width)
-    (pj/lay-smooth :sepal-length :sepal-width {:stat :linear-model}))
+(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+    (pj/lay-bar :growth :cohort)
+    (pj/lay-bar :tax :cohort {:bar-width 0.4}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
-                                (= 150 (:points s))
-                                (= 1 (:lines s)))))])
+                                (= 6 (:polygons s))
+                                (some #{"growth, tax"} (:texts s)))))])
 
-;; One pose, two layers: scatter points and a regression line
-;; sharing the same axes.
+;; Each layer takes a colour and a legend entry naming its column, and
+;; the axis title names both columns. A written value is not a column,
+;; so a label at `{:x 5 :y 10}` annotates the panel it is added to.
 ;;
-;; To draw two pairs of columns as panels of their own, split the pose
-;; over them with `pj/facet`. The first `:x` column goes with the first
-;; `:y` column, the second with the second:
+;; For a panel per pair of columns, split the leaf with `pj/facet`. The
+;; first `:x` column goes with the first `:y` column, the second with
+;; the second, and a layer naming columns is drawn only in the panel of
+;; those columns:
 
 (-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/lay-point :petal-length :petal-width)
     (pj/facet {:x [:sepal-length :petal-length]
-               :y [:sepal-width :petal-width]})
-    pj/lay-point)
+               :y [:sepal-width :petal-width]}))
 
-(kind/test-last [(fn [v] (= {:panels 2 :points 300}
-                            (select-keys (pj/svg-summary v) [:panels :points])))])
+(kind/test-last [(fn [v] (and (= {:panels 2 :points 300}
+                                 (select-keys (pj/svg-summary v) [:panels :points]))
+                              ;; One layer drawn in each panel; the facet
+                              ;; over columns is planned as a composite.
+                              (= [[1] [1]] (mapv (fn [s] (mapv (comp count :layers) (:panels (:plan s))))
+                                                 (:sub-plots (pj/plan v))))))])
 
 ;; The pose stays one leaf, holding the split under `:facet`; the cells
 ;; are made when it is drawn. `pj/arrange` given the same pairs, each
@@ -415,33 +414,43 @@ two-panel
 ;; that facet -- the next chapter, [Panels](./plotje_book.panels.html),
 ;; draws such a matrix.
 ;;
+;; - On a composite, `pj/lay-*` naming no columns is **added at the
+;;   root** and drawn in every cell.
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (and (= [{:layer-type :point}] (:layers v))
+                              (= {:panels 2 :points 468}
+                                 (select-keys (pj/svg-summary v) [:panels :points]))))])
+
+;; - On a composite, `pj/lay-*` naming columns **joins the last cell**
+;;   whose panel draws those columns, or appends a new cell if none
+;;   does. Here the smoother of `:cty` against `:displ` joins the second
+;;   cell, and the smoother of `:hwy` against `:cty` appends a third,
+;;   where the points added at the root are drawn too.
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
+    pj/lay-point
+    (pj/lay-smooth :displ :cty)
+    (pj/lay-smooth :cty :hwy))
+
+(kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
+                           (and (= [[] [:smooth] [:smooth]]
+                                   (mapv #(mapv :layer-type (:layers %)) cells))
+                                (= {:panels 3 :points 702 :lines 2}
+                                   (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
+
 ;; `pj/arrange` is also useful for combining independent poses, such as
-;; plots with different layer kinds, a scatter and a histogram say:
+;; plots with different layer types, a histogram and a density say:
 
 (pj/arrange
  [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-width))
   (-> (rdatasets/datasets-iris) (pj/lay-density :sepal-width))])
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-;; The layers of one pose share its panel, whatever columns they name.
-;; Two measures that belong on one axis are two layers, and the axis
-;; covers both. A written value is not a column, so a label at `{:x 5
-;; :y 10}` annotates the panel it is added to.
-
-(-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
-    (pj/lay-bar :growth :cohort)
-    (pj/lay-bar :tax :cohort {:bar-width 0.4}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 6 (:polygons s))
-                                (some #{"growth, tax"} (:texts s)))))])
-
-;; Each layer takes a colour and a legend entry naming its column, and
-;; the axis title names both columns. For a panel per column, split the
-;; pose with `(pj/facet pose {:x [:growth :tax]})`, or arrange separate
-;; poses with `pj/arrange`.
 
 ;; ## The Pose
 ;;

@@ -306,3 +306,16 @@
     (is (not (re-find #"In pj/arrange"
                       (message #(pj/plan (-> four (pj/arrange [:p :q :r :s] {:cols 2}) pj/lay-point))))))
     (is (= 4 (:panels (pj/svg-summary (-> four (pj/arrange [[:p :q] [:r :s]]) pj/lay-histogram)))))))
+
+(deftest a-root-layer-reaches-an-appended-cell-test
+  ;; A cell a `lay-*` call appended names its columns only on its layer;
+  ;; a layer naming no column is drawn there as in every other cell.
+  (let [base (pj/arrange tiny [{:x :u :y :v}])]
+    (testing "the root layer added before the cell is appended"
+      (is (= {:panels 2 :points 6 :lines 1}
+             (select-keys (pj/svg-summary (-> base pj/lay-point (pj/lay-line :v :w)))
+                          [:panels :points :lines]))))
+    (testing "and after"
+      (is (= {:panels 2 :points 6 :lines 1}
+             (select-keys (pj/svg-summary (-> base (pj/lay-line :v :w) pj/lay-point))
+                          [:panels :points :lines]))))))

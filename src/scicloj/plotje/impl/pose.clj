@@ -5190,6 +5190,18 @@
                           (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
                       "."))))))
 
+(defn- cell-panel-mapping
+  "A cell's mapping as merged from the composite down, with the panel's
+   columns on an axis it names none (`leaf-columns`): a cell that a
+   `lay-*` call appended names its columns only on its layer, and a
+   layer naming no column fits it as it fits a cell naming them."
+  [entry data]
+  (let [leaf (:leaf entry)]
+    (merge (leaf-columns (assoc leaf
+                                :mapping (:mapping entry)
+                                :data (or (:data leaf) data)))
+           (:mapping entry))))
+
 (defn fit-layers
   "A composite whose layers are fitted to its cells, as above. Returned
    unchanged where every layer fits every cell it reaches.
@@ -5209,8 +5221,9 @@
            data (or (:data pose) data)
            layers (vec (:layers pose))
            entries (vec (leaf-entries (dissoc pose :mapping) m {} []))
-           fits (vec (for [e entries]
-                       (mapv #(layer-fits-cell? (:mapping e) (:own e) %) layers)))
+           fits (vec (for [e entries
+                           :let [cell-mapping (cell-panel-mapping e data)]]
+                       (mapv #(layer-fits-cell? cell-mapping (:own e) %) layers)))
            fit-somewhere (set (for [row fits [i f] (map-indexed vector row) :when f] i))
            _ (doseq [[i layer] (map-indexed vector layers)
                      :when (not (fit-somewhere i))]
