@@ -4,19 +4,19 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-**This release breaks with 0.16.1 on which layers are drawn on the same panel.** In 0.16.1, a layer naming columns other than its pose's was drawn on a panel of its own, unless the pose was given to `pj/overlay`. In 0.17.0, every layer of a pose is drawn on one panel, whatever columns it names. Three other ways of writing a plot that drew several panels in 0.16.1 also change:
+**This release breaks with 0.16.1 on where a layer is drawn when it names columns other than its pose's.** In 0.17.0, a layer added to a pose that draws one panel is drawn on that panel, whatever columns the layer names. In 0.16.1, a layer naming other columns was given a panel of its own, unless the pose was given to `pj/overlay`. Separate panels are made with `pj/facet` or `pj/arrange`. Three other ways of writing a plot that drew several panels in 0.16.1 also change:
 
 - `pj/pose` given other columns on an existing pose replaces the pose's columns;
-- a vector of columns draws the columns on one panel;
+- a vector of columns draws all the columns together on a single panel;
 - a vector of column pairs reports an error that shows how to write the panels.
 
-For this release, a layer naming other columns, `pj/pose` replacing a column, and a vector of columns each print a Note that names the 0.16.1 behaviour. Panels side by side are written with `pj/facet` or `pj/arrange`.
+For this release, a layer naming other columns, `pj/pose` replacing a column, and a vector of columns each print a Note that names the 0.16.1 behaviour.
 
 The main changes:
 
-- **The layers of a pose are drawn on one panel**, whatever columns they name. Each axis is titled by every column drawn on it, and a layer with no colour of its own takes a colour and a legend entry. `pj/overlay` is retired.
+- **A layer added to a pose that draws one panel is drawn on that panel**, whatever columns the layer names. Each axis is titled by every column drawn on it, and a layer with no colour of its own takes a colour and a legend entry. `pj/overlay` is retired.
 - **More ways to create panels with `pj/facet` and `pj/arrange`.** `pj/facet` takes a map, and draws a panel for each category of a column, a panel for each of several columns, or a grid that crosses the two. `pj/matrix` draws a scatter plot matrix. A cell of `pj/arrange` can be anything `pj/pose` accepts after the data -- a column, a mapping or a pose -- and a vector in the list of cells is a list of cells.
-- **A vector of columns, written where one column goes, draws those columns on one panel**, as a series with a colour and a legend entry for each column.
+- **A vector of columns, written where one column goes, draws all those columns together on a single panel**, as a series with a colour and a legend entry for each column.
 - **`pj/pose` given an existing pose updates that pose** instead of adding a panel. Its mapping is merged into the pose's mapping, and a column given again replaces the old one. A scale, `:where` or `:theme` given twice is combined key by key.
 - **One option, `:share-scales`, says which axes panels share**, on a facet and on an arrangement alike. A shared axis spans the values drawn in all the panels that share it.
 
@@ -26,9 +26,9 @@ The signature of `pj/pose` -- data or a pose, then columns, then a mapping -- be
 
 ### Plots that look different after upgrading
 
-- **Layers of one pose that name different columns** are drawn on one panel, and each axis is titled by every column drawn on it. A layer with no colour of its own takes a colour and a legend entry naming its columns, and a layer that specifies a colour, such as a black trend line, keeps it. A layer beside a series is drawn on the series' panel in the same way. For this release a Note says so; for a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
+- **A layer naming columns other than its pose's**, added to a pose that draws one panel, is drawn on that panel, and each axis is titled by every column drawn on it. A layer with no colour of its own takes a colour and a legend entry naming its columns, and a layer that specifies a colour, such as a black trend line, keeps it. A layer beside a series is drawn on the series' panel in the same way. For this release a Note says so; for a panel per column, write `(pj/facet pose {:y [:hwy :cty]})` or use `pj/arrange`.
 
-- **A vector of columns given where one column goes**, as in `(pj/lay-density data [:a :b :c])`, draws the columns on one panel, as a series with a colour and a legend entry for each column. For this release a Note says so; for a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
+- **A vector of columns given where one column goes**, as in `(pj/lay-density data [:a :b :c])`, draws all the columns together on a single panel, as a series with a colour and a legend entry for each column. For this release a Note says so; for a panel per column, write `(-> data (pj/arrange [:a :b :c]) pj/lay-density)`.
 
 - **`pj/pose` given a mapping on an existing pose** merges the mapping into the pose's mapping and adds no panel. A new `:x` or `:y` replaces the old one, so `(-> data (pj/pose :a :b) (pj/pose :c :d))` draws one plot of `:c` and `:d`. On a composite the mapping goes to the root. For this release a Note says when `pj/pose` replaces a column; for panels side by side, write `(pj/arrange data [{:x :a :y :b} {:x :c :y :d}])`.
 
@@ -114,7 +114,7 @@ The signature of `pj/pose` -- data or a pose, then columns, then a mapping -- be
 
 - `layer-type/register!` takes `:column-counts`, the set of numbers of columns a layer type draws from: `#{1}` for an x column alone, `#{2}` for x and y, `#{1 2}` for either. It decides which panels of a facet a layer is drawn in, and whether a pose naming only `:y` draws the layer on its side. `layer-type/column-counts` reads it back.
 
-- A stat declares what it computes for an axis with a method on `[stat :computes]`: `:bin` declares `{:y :count}`, or `{:y :density}` under `:normalize :density`. Sharing an axis, the Note for layers of one panel, and the check for a missing `:y` column read the declaration, so an extension's stat takes part in all three. See "What a stat computes" in the Extensibility chapter.
+- A stat declares what it computes for an axis with a method on `[stat :computes]`: `:bin` declares `{:y :count}`, or `{:y :density}` under `:normalize :density`. Sharing an axis, the Note for layers sharing a panel, and the check for a missing `:y` column read the declaration, so an extension's stat takes part in all three. See "What a stat computes" in the Extensibility chapter.
 
 - `:legend-font-size`, a plot option, sets the font size of a legend's entries, with the legend's title one size larger. The default is 10.
 
