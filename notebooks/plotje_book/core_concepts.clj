@@ -359,13 +359,45 @@ two-panel
                                 (some #{"growth, tax"} (:texts s)))))])
 
 ;; Each layer takes a colour and a legend entry naming its column, and
-;; the axis title names both columns. A written value is not a column,
-;; so a label at `{:x 5 :y 10}` annotates the panel it is added to.
+;; the axis title names both columns.
 ;;
-;; For a panel per pair of columns, split the leaf with `pj/facet`. The
-;; first `:x` column goes with the first `:y` column, the second with
-;; the second, and a layer naming columns is drawn only in the panel of
-;; those columns:
+;; - On a composite, `pj/lay-*` naming no columns is **added at the
+;;   root** and drawn in every cell.
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
+    pj/lay-point)
+
+(kind/test-last [(fn [v] (and (= [{:layer-type :point}] (:layers v))
+                              (= {:panels 2 :points 468}
+                                 (select-keys (pj/svg-summary v) [:panels :points]))))])
+
+;; - On a composite, `pj/lay-*` naming columns **joins the last cell**
+;;   whose panel draws those columns, or appends a new cell if none
+;;   does. Here the smoother of `:cty` against `:displ` joins the second
+;;   cell, and the smoother of `:hwy` against `:cty` appends a third,
+;;   where the points added at the root are drawn too.
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
+    pj/lay-point
+    (pj/lay-smooth :displ :cty)
+    (pj/lay-smooth :cty :hwy))
+
+(kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
+                           (and (= [[] [:smooth] [:smooth]]
+                                   (mapv #(mapv :layer-type (:layers %)) cells))
+                                (= {:panels 3 :points 702 :lines 2}
+                                   (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
+
+;; ### Separate panels from `pj/facet` and `pj/arrange`
+;;
+;; Since the layers of a leaf share its panel, separate panels come
+;; from splitting the leaf with `pj/facet` or from arranging cells with
+;; `pj/arrange`. A facet over pairs of columns draws a panel per pair:
+;; the first `:x` column goes with the first `:y` column, the second
+;; with the second, and a layer naming columns is drawn only in the
+;; panel of those columns.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -413,35 +445,6 @@ two-panel
 ;; `{:col {:x [...]} :row {:y [...]}}`, or `pj/matrix`, which writes
 ;; that facet -- the next chapter, [Panels](./plotje_book.panels.html),
 ;; draws such a matrix.
-;;
-;; - On a composite, `pj/lay-*` naming no columns is **added at the
-;;   root** and drawn in every cell.
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
-    pj/lay-point)
-
-(kind/test-last [(fn [v] (and (= [{:layer-type :point}] (:layers v))
-                              (= {:panels 2 :points 468}
-                                 (select-keys (pj/svg-summary v) [:panels :points]))))])
-
-;; - On a composite, `pj/lay-*` naming columns **joins the last cell**
-;;   whose panel draws those columns, or appends a new cell if none
-;;   does. Here the smoother of `:cty` against `:displ` joins the second
-;;   cell, and the smoother of `:hwy` against `:cty` appends a third,
-;;   where the points added at the root are drawn too.
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
-    pj/lay-point
-    (pj/lay-smooth :displ :cty)
-    (pj/lay-smooth :cty :hwy))
-
-(kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
-                           (and (= [[] [:smooth] [:smooth]]
-                                   (mapv #(mapv :layer-type (:layers %)) cells))
-                                (= {:panels 3 :points 702 :lines 2}
-                                   (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
 
 ;; `pj/arrange` is also useful for combining independent poses, such as
 ;; plots with different layer types, a histogram and a density say:
