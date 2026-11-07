@@ -625,6 +625,27 @@ composite-pose
          (= {:panels 2 :points 300 :lines 1}
             (select-keys (pj/svg-summary pose) [:panels :points :lines]))))])
 
+;; A `lay-*` call naming one column attaches to the last leaf whose
+;; panel draws that column on that axis, and reads that panel's column
+;; on the other axis -- as a layer naming one column on a leaf does
+;; (Rule LP6). A leaf whose panel draws that column and nothing on the
+;; other axis, such as a histogram's cell, is preferred. Here a trend line
+;; naming only `:sepal-width` on `:y` joins the first cell and is drawn
+;; against that cell's `:sepal-length`:
+
+(-> iris
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :sepal-length :y :petal-width}])
+    pj/lay-point
+    (pj/lay-smooth {:y :sepal-width}))
+
+(kind/test-last
+ [(fn [pose]
+    (and (= [[:smooth] []]
+            (mapv #(mapv :layer-type (:layers %)) (cells pose)))
+         (= {:panels 2 :points 300 :lines 1}
+            (select-keys (pj/svg-summary pose) [:panels :points :lines]))))])
+
 ;; **Note on leaf-input with other columns.**
 ;; A leaf that already carries columns, called with a `lay-*` that
 ;; names **different** columns, keeps the layer with the columns the
@@ -688,7 +709,8 @@ composite-pose
 ;; ### Rule LP3: on a composite, a `lay-*` naming columns no leaf draws appends a new leaf
 ;;
 ;; When a `lay-*` call names `:x` and `:y` and the panel of **no** leaf
-;; draws those two columns, a new leaf is appended to the composite. It
+;; draws those two columns -- or names one column and no leaf's panel
+;; draws it on that axis -- a new leaf is appended to the composite. It
 ;; holds the one layer, and the layer's own `:mapping` carries the
 ;; columns the call named. On an arrangement made from a flat list of
 ;; cells, the new leaf joins that list, and the arrangement is laid out
@@ -1170,6 +1192,30 @@ s2-tree
             ;; layer does not (one overall regression line).
             (and (= 150 (:points s))
                  (= 1 (:lines s)))))])
+
+;; A series is the exception. A vector of columns written on one layer
+;; reshapes the pose's dataset into one row per column and value, and
+;; the other layers of the pose read the reshaped rows. Here a point
+;; layer naming no columns follows a line layer drawing two columns as
+;; a series, and draws a point for each row of the reshaped data -- two
+;; for each flower:
+
+(-> iris
+    (pj/lay-line :sepal-length [:sepal-width :petal-width])
+    pj/lay-point)
+
+(kind/test-last
+ [(fn [v]
+    (and (= 300 (:points (pj/svg-summary v)))
+         ;; The same two layers without the series draw a point per flower.
+         (= 150 (-> iris
+                    (pj/lay-line :sepal-length :sepal-width)
+                    pj/lay-point
+                    pj/svg-summary
+                    :points))))])
+
+;; [Series](./plotje_book.series.html#other-layers-beside-a-series)
+;; shows what the other layers can read.
 
 ;; ### Rule S5: a row filter combines column by column at every level
 ;;

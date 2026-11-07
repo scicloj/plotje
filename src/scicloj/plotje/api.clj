@@ -774,8 +774,8 @@
   "Lift the input to a pose. The first atomic step of the pipeline.
    Polymorphic on input:
 
-   - a pose-shaped map flows through `pose-kind` (validated, `*config*`
-     captured, Kindly auto-render metadata attached); idempotent on
+   - a pose-shaped map flows through `pose-kind` (validated, Kindly
+     auto-render metadata attached); idempotent on
      input that already carries the metadata, so repeated lifts are
      cheap;
    - raw data (a dataset, vector of row maps, or column map) becomes
@@ -953,6 +953,9 @@
     (cond
       (defaults/renamed-to k)
       (str "Renamed to " (defaults/renamed-to k))
+
+      (defaults/retired-keys k)
+      (str "Retired: " (defaults/retired-keys k))
 
       ;; `:where` is a key of the pose itself, which `pj/pose` and a
       ;; cell of `pj/arrange` write.
@@ -1159,21 +1162,19 @@
 (declare plot)
 
 (defn- render-pose-map
-  "Kindly render function that restores captured *config* and routes
-   a pose map (leaf or composite) through pj/plot."
-  [captured-config]
-  (fn [fr]
-    (if captured-config
-      (binding [defaults/*config* captured-config]
-        (plot fr))
-      (plot fr))))
+  "Kindly render function for a pose map, leaf or composite: `pj/plot`,
+   under whatever configuration is in effect when the pose is shown.
+   Nothing about the configuration is recorded on the pose, so a pose
+   draws the same whether Clay shows it or `pj/plot` or `pj/save` renders
+   it; `pj/with-config` applies to rendering inside its body."
+  [fr]
+  (plot fr))
 
 (defn- prepare-pose
   "Internal: fully prepare a pose built by a constructor path
    (pj/pose typed arities, pj/lay-*, pj/options, pj/facet, pj/arrange,
    etc.). Coerces :data at every depth, applies cosmetic cleanup
-   (key reordering, empty-map elision), captures the current *config*
-   for render-time restoration, and attaches Kindly auto-render
+   (key reordering, empty-map elision), and attaches Kindly auto-render
    metadata. Idempotent on already-tagged input -- skips revalidation
    so a pose that flowed through pose-kind earlier does not warn
    twice. Literal user-typed maps go through pose-kind instead, which
@@ -1185,10 +1186,8 @@
                     {:got fr-map})))
   (when-not (-> fr-map meta :kindly/kind)
     (validate-pose-shape fr-map "pj/pose"))
-  (let [prepared (normalize-pose fr-map)
-        captured defaults/*config*]
-    (kind/fn prepared
-      {:kindly/f (render-pose-map captured)})))
+  (kind/fn (normalize-pose fr-map)
+    {:kindly/f render-pose-map}))
 
 (defn- validate-pose-shape
   "Walk a pose-shaped map and validate it: warn on unknown top-level
@@ -1217,12 +1216,11 @@
 (defn- pose-kind
   "Lift a pose-shaped map into a notebook-renderable pose: validate
    the shape (recursive unknown-key warnings, position-mapping check),
-   capture the current *config* for render-time restoration, and
-   attach Kindly auto-render metadata.
+   and attach Kindly auto-render metadata.
 
    Idempotent: if the map already carries Kindly metadata (e.g. from
    a prior pose-kind or prepare-pose call), pass it through unchanged.
-   This keeps validation and *config* capture single-shot per pose,
+   This keeps validation single-shot per pose,
    so a literal map flowing through pj/plot -- which calls ->pose
    on the way in and again indirectly via pj/plan -- warns once, not
    twice.
@@ -1243,8 +1241,7 @@
     ;; three plots builds exactly that shape, which made the advice the
     ;; message gave produce what it refused.
     (do (validate-pose-shape fr "pj/pose")
-        (let [captured defaults/*config*]
-          (kind/fn fr {:kindly/f (render-pose-map captured)})))))
+        (kind/fn fr {:kindly/f render-pose-map}))))
 
 ;; ---- pj/pose polymorphism (Phase 6) ----
 
@@ -2338,12 +2335,13 @@
    `pj/pose` writes.
 
    Composite + columns: the layer lands on the last leaf whose
-   effective :x/:y match (via add-leaf-layer-to-composite), or a
-   fresh sub-pose holding it is appended at the root (LP3).
+   effective :x/:y match (via add-leaf-layer-to-composite) -- for one
+   column, the last leaf drawing it on that axis where none matches
+   exactly -- or a fresh sub-pose holding it is appended at the root
+   (LP3).
 
-   Leaf + columns: the layer is appended, and the leaf draws one panel
-   per place its layers name, worked out at draft time -- the leaf
-   stays a leaf.
+   Leaf + columns: the layer is appended and drawn on the leaf's one
+   panel (LP5) -- the leaf stays a leaf.
 
    No columns (leaf or composite + aesthetic-only): append the bare /
    aesthetic layer to :layers; it is drawn on every panel, reading
@@ -4929,19 +4927,6 @@
                            (pr-str (type p)) ".")
                       {:index idx :type (type p)})))))
 
-(defn- render-composite
-  "Kindly render function for a composite pose returned by pj/arrange.
-   Captures the config snapshot so theme/palette/config bindings at
-   construction time survive into render time. Delegates to pj/plot,
-   which honors :format from :opts uniformly across composite and
-   leaf paths."
-  [captured-config]
-  (fn [composite]
-    (if captured-config
-      (binding [defaults/*config* captured-config]
-        (plot composite))
-      (plot composite))))
-
 (declare arrange*)
 
 ;; A cell of `pj/arrange` is what one argument to `pj/pose` is after
@@ -5376,7 +5361,7 @@
                               (not nested?) (assoc :cols (or cols :auto)))
                     :poses row-poses}]
      (cond-> (kind/fn (elide-empty-maps composite)
-               {:kindly/f (render-composite defaults/*config*)})
+               {:kindly/f render-pose-map})
        ;; Every other plot option is written on the arrangement, as
        ;; `pj/options` writes it, and reaches every cell that does not
        ;; set it.
@@ -5580,10 +5565,8 @@
      ;; Through prepare-pose, as every other composite-building path is
      ;; (`pj/arrange`, `pj/pose`'s promoting arities): it coerces :data
      ;; at every depth, puts the printed keys in the book's order, and
-     ;; attaches the Kindly metadata that captures the current *config*
-     ;; for render time. Returned raw, a marginal printed in a different
-     ;; key order from its neighbours and lost a surrounding
-     ;; `pj/with-config`.
+     ;; attaches the Kindly metadata. Returned raw, a marginal printed in
+     ;; a different key order from its neighbours.
      (prepare-pose
       {:poses (if right? [pose marginal-leaf] [marginal-leaf main-pose])
        :layout {:direction (if right? :horizontal :vertical)

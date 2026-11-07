@@ -68,8 +68,8 @@ graph LR
 ;; | `mark-clip-region` | `render/mark.clj` | `:mark` key | Name the panel region a mark's geometry clips to |
 ;; | `plan->plot` | `impl/render.clj` | format keyword | Convert a plan directly into a figure (the direct path) |
 ;; | `membrane->plot` | `impl/render.clj` | format keyword | Convert a membrane tree into a figure (the membrane path) |
-;; | `make-scale` | `impl/scale.clj` | domain type + spec | Build a wadogo scale |
-;; | `make-coord` | `impl/coord.clj` | coord-type keyword | Build a coordinate function |
+;; | `make-scale` | `impl/scale.clj` | domain type + spec | Build a wadogo scale -- for the built-in scale types only (see below) |
+;; | `make-coord` | `impl/coord.clj` | coord-type keyword | Build a coordinate function -- for the built-in coordinate systems only (see below) |
 ;; | `apply-position` | `impl/position.clj` | position keyword | Adjust group layout (dodge, stack, fill) |
 
 ;; ## `compute-stat`
@@ -962,12 +962,20 @@ graph LR
 ;;             :yaxis {:title (:y-label plan)}}})
 ;; ```
 ;;
-;; Then users opt in by requiring the namespace:
+;; Then users opt in by requiring the namespace, and call the format
+;; through `pj/plan->plot`:
 ;;
 ;; ```clojure
 ;; (require '[mylib.render.plotly])
-;; (pj/plot pose {:format :plotly})
+;; (-> pose
+;;     pj/plan
+;;     (pj/plan->plot :plotly {}))
 ;; ```
+;;
+;; `pj/plot` always renders through the membrane, so
+;; `(pj/plot pose {:format :plotly})` reports an unknown format for a
+;; format registered on `plan->plot` alone. `pj/save` writes `:svg` and
+;; `:png` only.
 
 ;; ## `membrane->plot`
 ;;
@@ -1040,10 +1048,9 @@ graph LR
 ;;     ;; canvas draw calls at the correct canvas size
 ;;     (canvas-walk membrane-tree w h title)))
 ;;
-;; ;; Optionally register plan->plot for users who want a one-call
-;; ;; plan-to-figure path; pj/plot, pj/membrane, and pj/save do not
-;; ;; need it -- they go through plan->membrane and membrane->plot
-;; ;; directly.
+;; ;; Optionally register plan->plot for users who call
+;; ;; pj/plan->plot with this format; pj/plot and pj/membrane do not
+;; ;; need it -- they go through plan->membrane and membrane->plot.
 ;; (defmethod render/plan->plot :canvas [plan _ opts]
 ;;   (-> plan
 ;;       (membrane/plan->membrane opts)
@@ -1053,6 +1060,11 @@ graph LR
 ;; ## `make-scale`
 ;;
 ;; Builds a wadogo scale from a domain and a drawing-space range.
+;;
+;; The scale types are a fixed set: `pj/scale` and a scale spec accept
+;; the three types below and report an error for any other, so a
+;; `defmethod` on `make-scale` for a new type is never called. This
+;; section shows how the built-in scales are made.
 ;;
 (kind/table
  {:column-names ["Dispatch value" "Scale type"]
@@ -1075,6 +1087,11 @@ graph LR
 ;; Builds a coordinate function that maps data-space (x, y) to
 ;; drawing units (px, py).
 ;;
+;; The coordinate systems are a fixed set: `pj/coord` accepts the four
+;; below and reports an error for any other, so a `defmethod` on
+;; `make-coord` for a new coordinate system is never called. This
+;; section shows how the built-in coordinate systems are made.
+;;
 (kind/table
  {:column-names ["Dispatch value" "Behavior"]
   :row-maps
@@ -1095,8 +1112,8 @@ graph LR
 ;;
 ;; The other direction: canvas coordinates back to data-space x and y.
 ;; `pj/to-data` reads it, and so does anything answering which value
-;; sits under a pointer. A coordinate system needs a method here only
-;; if it can be inverted coordinate by coordinate:
+;; sits under a pointer. The built-in coordinate systems that can be
+;; inverted coordinate by coordinate have a method here:
 
 (->> (methods scicloj.plotje.impl.coord/make-inverse)
      keys
@@ -1220,8 +1237,6 @@ graph LR
 ;; | A new mark type | `extract-layer` + `layer->membrane` |
 ;; | A new output format (direct) | `plan->plot` |
 ;; | A new output format (membrane-based) | `membrane->plot` + `plan->plot` |
-;; | A new scale type | `make-scale` |
-;; | A new coordinate system | `make-coord` |
 ;; | A new position adjustment | `apply-position` |
 
 ;; ## Background

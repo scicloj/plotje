@@ -604,6 +604,10 @@
 
    `position-mapping` may carry either or both of `:x` and `:y`; a
    `nil` value matches a leaf whose panel has no column on that axis.
+   Where it names one column only, and no leaf matches exactly, the last
+   leaf drawing that column on that axis matches, whatever it draws on
+   the other: the layer reads that panel's other column, as a layer
+   naming one column on a leaf does (Rule LP6).
 
    The panel's columns are the leaf's own, and on an axis its mapping
    names none, those of its first layer naming one: a `lay-*` call
@@ -615,13 +619,18 @@
    a mapping that names only a scale names no column at all."
   [pose position-mapping]
   (let [px (mapping-source (:x position-mapping))
-        py (mapping-source (:y position-mapping))]
-    (->> (resolve-tree pose)
-         (keep (fn [leaf]
-                 (let [[x y] (leaf-place leaf)]
-                   (when (and (= x px) (= y py))
-                     (:path leaf)))))
-         last)))
+        py (mapping-source (:y position-mapping))
+        places (map (fn [leaf]
+                      (let [[x y] (leaf-place leaf)]
+                        [x y (:path leaf)]))
+                    (resolve-tree pose))
+        last-path (fn [pred] (->> places
+                                  (keep (fn [[x y path]] (when (pred x y) path)))
+                                  last))]
+    (or (last-path (fn [x y] (and (= x px) (= y py))))
+        (cond
+          (and px (nil? py)) (last-path (fn [x _] (= x px)))
+          (and py (nil? px)) (last-path (fn [_ y] (= y py)))))))
 
 ;; ---- Shared scales: who shares with whom ----
 ;;

@@ -171,8 +171,7 @@
    the set cannot grow in silence: a key added to the registry lands
    here as a failure until it is either probed or listed with a reason."
   #{;; not read on the leaf render path at all
-    :bin-method :domain-padding :legend-width :margin-multi
-    :panel-size :validate
+    :bin-method :domain-padding :legend-width :validate
     ;; interaction, tested in interactivity_test
     :tooltip :brush
     ;; a map, not a scalar

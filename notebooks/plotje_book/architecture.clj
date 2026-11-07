@@ -479,9 +479,11 @@ graph LR
 ;; an output format yet -- for example a custom backend, or a target
 ;; that Membrane supports but Plotje has not wired in yet.
 ;;
-;; Because the compositions call the steps, redefining a step
-;; (with `with-redefs` for testing, or with a custom `defmethod` for
-;; plan->membrane) takes effect in every user-facing function.
+;; Because the compositions call the steps, redefining a step with
+;; `with-redefs` takes effect in `pj/draft`, `pj/plan`, `pj/membrane`
+;; and `pj/plot`. `pj/save` calls the render multimethods without
+;; going through the public step functions, so a `with-redefs` of
+;; `pj/plan->membrane` does not reach it.
 
 ;; The composition holds at runtime:
 
@@ -1373,9 +1375,11 @@ graph LR
 ;; tree registers a `defmethod` on the render multimethod
 ;; `scicloj.plotje.impl.render/membrane->plot` (the public
 ;; `pj/membrane->plot` dispatches through it). A new format that
-;; goes from a plan directly to bytes (skipping membrane -- for
+;; goes from a plan directly to a figure (skipping membrane -- for
 ;; example a Plotly-spec target) registers a `defmethod` on
-;; `scicloj.plotje.impl.render/plan->plot` instead. The
+;; `scicloj.plotje.impl.render/plan->plot` instead, and is called
+;; with `pj/plan->plot`; `pj/plot` always renders through the
+;; membrane. The
 ;; [Extensibility](./plotje_book.extensibility.html) chapter shows a
 ;; worked backend registration.
 ;;

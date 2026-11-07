@@ -1486,11 +1486,21 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"pj/lay-point draws from two columns.*no column on :x\. It names :y :hwy\. Name the :x column on the layer -- \(pj/lay-point pose :x-column :hwy\)"
                           (pj/plan (-> wide pj/pose (pj/lay-point {:y :hwy})))))
+    ;; On an arrangement, a cell drawing :hwy on :y gives the layer its :x
+    ;; (Rule LP2, one column); a column no cell draws on :y still reports.
+    ;; Six rows: the layer's points in the first cell, and the second
+    ;; cell, holding no layer, draws its inferred points.
+    (is (= {:panels 2 :points 12}
+           (select-keys (pj/svg-summary
+                         (-> wide
+                             (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
+                             (pj/lay-point {:y :hwy})))
+                        [:panels :points])))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"pj/lay-point draws from two columns.*no column on :x\. It names :y :hwy"
+                          #"pj/lay-point draws from two columns.*no column on :x\. It names :y :drv"
                           (pj/plan (-> wide
                                        (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
-                                       (pj/lay-point {:y :hwy}))))))
+                                       (pj/lay-point {:y :drv}))))))
   (testing "a bar naming :y alone beside points is not given the panel's :x"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"pj/lay-bar draws from one column on :x, or two on :x and :y, and this layer has no column on :x\. It names :y :hwy\. Name the :x column on the layer"

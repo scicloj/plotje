@@ -71,7 +71,7 @@
    lookup in `(or cfg defaults)` patterns in stat/layout code."
   {;; Layout -- must match EDN
    :width 600 :height 400
-   :margin 10 :margin-multi 10 :panel-size 200 :legend-width 100
+   :margin 10 :legend-width 100
    :min-panel-size 20
    ;; Ticks
    :x-tick-spacing 60 :y-tick-spacing 40
@@ -1124,8 +1124,6 @@
   {:width ["Layout" "Plot width"]
    :height ["Layout" "Plot height"]
    :margin ["Layout" "Margin around single-panel plots"]
-   :margin-multi ["Layout" "Margin around multi-panel plots"]
-   :panel-size ["Layout" "Default panel size for faceted/multi-variable grids"]
    :min-panel-size ["Layout" "Smallest width and height a panel is drawn at. A plot whose panels would be smaller reports an error naming the sizes; lower this for a sparkline-sized plot"]
    :legend-width ["Layout" "Width reserved for the legend column"]
    :legend-position ["Layout" "Legend placement -- :right, :bottom, :top, or :none"]
@@ -1298,6 +1296,16 @@
    :nudge-x {:to :dx :mode :accept}
    :nudge-y {:to :dy :mode :accept}})
 
+(def retired-keys
+  "Options and configuration keys a release retired with no one key to
+   carry them on, and what to write instead. Reported where they are
+   written, as configuration or as a plot option, and the plot draws
+   without them -- nothing read them by the time they were retired.
+   Beside `renamed-options`, for a key whose replacement is not a
+   rename."
+  {:panel-size "set :panel-width or :panel-height for the size of each panel, or :width and :height for the whole plot"
+   :margin-multi "the margin of every plot, with one panel or several, is :margin"})
+
 ;; ---- Which axes cells share ----
 ;;
 ;; `:share-scales` is read by the composite path (`pose/shared-axis-groups`)
@@ -1449,8 +1457,10 @@
     (when (map? m)
       (let [accepted (set (keys config-key-docs))
             unknown (remove accepted (keys m))
-            renamed (keep (fn [k] (when-let [to (renamed-to k)]
-                                    (str "  " k " was renamed to " to)))
+            renamed (keep (fn [k] (if-let [to (renamed-to k)]
+                                    (str "  " k " was renamed to " to)
+                                    (when-let [hint (retired-keys k)]
+                                      (str "  " k " is retired: " hint))))
                           unknown)]
         (when (seq unknown)
           (let [msg (str where " does not recognize configuration key(s): "
@@ -1479,8 +1489,6 @@
    escape hatch for arbitrary overrides."
   [plot-opts]
   (let [cfg (config)]
-    (when (:panel-size plot-opts)
-      (println "Warning: :panel-size is a legacy option and no longer used by the layout pipeline. Use :panel-width and/or :panel-height, or :width/:height for total SVG size."))
     (-> (if (seq plot-opts)
           (let [;; Deep-merge the nested :config escape hatch first (lowest priority
                 ;; among plot-opts, highest priority over the cfg chain).

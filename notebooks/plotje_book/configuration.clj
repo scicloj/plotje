@@ -67,7 +67,7 @@
                   "Category" cat
                   "Description" desc}))))})
 
-(kind/test-last [(fn [t] (= 48 (count (:row-maps t))))])
+(kind/test-last [(fn [t] (= 46 (count (:row-maps t))))])
 
 ;; ### Plot Options
 ;;
@@ -178,27 +178,49 @@
 ;; the duration of its body, then automatically reverts. This is useful
 ;; for one-off experiments or when different sections of a notebook
 ;; need different settings.
+;;
+;; The overrides apply to what is rendered inside the body, so each
+;; example below ends in `pj/plot` within it. A pose returned from the
+;; body and shown afterwards is drawn under the configuration in effect
+;; when it is shown -- the pose does not keep the overrides.
 
 ;; A dark theme, scoped to this block:
 
 (pj/with-config {:theme {:bg "#1a1a2e" :grid "#16213e" :font-size 8}}
   (-> (base-plot)
-      (pj/options {:title "Dark Theme via with-config"})))
+      (pj/options {:title "Dark Theme via with-config"})
+      pj/plot))
 
 (kind/test-last
  [(fn [v]
-    (= 150 (:points (pj/svg-summary v))))])
+    (and (= 150 (:points (pj/svg-summary v)))
+         ;; #1a1a2e is rgb(26,26,46) in the SVG.
+         (boolean (re-find #"rgb\(26,26,46\)" (str v)))))])
+
+;; The same pose returned from the body without `pj/plot` is shown
+;; after the body has exited, under the default theme:
+
+(pj/with-config {:theme {:bg "#1a1a2e" :grid "#16213e" :font-size 8}}
+  (-> (base-plot)
+      (pj/options {:title "Default theme: shown outside the body"})))
+
+(kind/test-last
+ [(fn [v]
+    (not (re-find #"rgb\(26,26,46\)" (str (pj/plot v)))))])
 
 ;; Partial theme override -- only `:bg` changes; `:grid` and `:font-size`
 ;; keep the values of the defaults, merged key by key:
 
 (pj/with-config {:theme {:bg "#F5F5DC"}}
   (-> (base-plot)
-      (pj/options {:title "Partial Theme Override"})))
+      (pj/options {:title "Partial Theme Override"})
+      pj/plot))
 
 (kind/test-last
  [(fn [v]
-    (= 150 (:points (pj/svg-summary v))))])
+    (and (= 150 (:points (pj/svg-summary v)))
+         ;; #F5F5DC is rgb(245,245,220) in the SVG.
+         (boolean (re-find #"rgb\(245,245,220\)" (str v)))))])
 
 ;; Outside the body, the default theme is back:
 
@@ -423,10 +445,15 @@ precedence-point-radius
 ;; Thread-local palette via with-config:
 
 (pj/with-config {:color-values :accent}
-  (-> (base-plot)))
+  (-> (base-plot)
+      pj/plot))
 
 (kind/test-last
- [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+ [(fn [v]
+    (and (= 150 (:points (pj/svg-summary v)))
+         ;; The species are drawn in other colours than the default palette's.
+         (not= (:colors (pj/svg-summary v))
+               (:colors (pj/svg-summary (base-plot))))))])
 
 ;; ## Color Scale Configuration
 ;;
@@ -463,9 +490,17 @@ precedence-point-radius
 
 (pj/with-config {:color-range :plasma}
   (-> {:x (range 50) :y (range 50) :c (range 50)}
-      (pj/lay-point :x :y {:color :c})))
+      (pj/lay-point :x :y {:color :c})
+      pj/plot))
 
-(kind/test-last [(fn [v] (= 50 (:points (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v]
+    (and (= 50 (:points (pj/svg-summary v)))
+         ;; The gradient differs from the default dark-to-light blue.
+         (not= (:colors (pj/svg-summary v))
+               (:colors (pj/svg-summary
+                         (-> {:x (range 50) :y (range 50) :c (range 50)}
+                             (pj/lay-point :x :y {:color :c})))))))])
 
 ;; ## Validation Control
 ;;
@@ -589,7 +624,8 @@ precedence-point-radius
 (pj/with-config {:strict false}
   (-> (rdatasets/datasets-iris)
       (pj/lay-point :sepal-length :sepal-width)
-      (pj/options {:nonsense-key 42})))
+      (pj/options {:nonsense-key 42})
+      pj/plot))
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 

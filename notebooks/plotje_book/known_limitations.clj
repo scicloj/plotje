@@ -181,6 +181,12 @@
 ;;   one-line note in the surrounding prose if the chart's flipped
 ;;   state is non-obvious.
 ;;
+;; - `pj/lay-line` joins each group's points in order of their `:x`,
+;;   and no built-in layer type joins them in the order of the rows. A
+;;   connected scatter plot -- two measures drawn against each other and
+;;   joined in time order -- or any path that turns back on itself cannot
+;;   be drawn.
+;;
 ;; - `:position :dodge` draws no offset on `lay-line`, and is dropped
 ;;   between the pose and the plan on `lay-summary`. `lay-point`
 ;;   honours it on a categorical x, and ignores it on a numeric x,
@@ -256,11 +262,6 @@
 ;;
 
 ;; ## Options and Configuration
-;;
-;; - `:panel-size` is a legacy configuration key from the
-;;   pre-total-first layout. It now emits a deprecation warning and
-;;   is ignored. Use `:panel-width` / `:panel-height` (which set the
-;;   panel size directly).
 ;;
 ;; - The `:width` key on a `pj/plan` result preserves the user's
 ;;   original request even when `:panel-width` pins the real size --

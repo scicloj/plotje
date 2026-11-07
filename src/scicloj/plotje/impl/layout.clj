@@ -150,7 +150,7 @@
 
    Inputs map keys:
 
-     :layout-type             :single / :facet-grid / :multi-variable
+     :layout-type             :single / :facet-grid
      :grid-rows, :grid-cols   grid dimensions from infer-grid
      :eff-title / :subtitle / :caption / :eff-x-label / :eff-y-label
                               resolved title/label strings (or nil)
@@ -174,13 +174,9 @@
            x-temporal y-temporal
            panel-row-labels panel-col-labels
            legend size-legend alpha-legend shape-legend]}]
-  (let [multi? (and (= layout-type :multi-variable)
-                    (> grid-cols 1) (> grid-rows 1))
-        has-col-strips? (or (and (= layout-type :facet-grid) (seq facet-col-vals))
-                            multi?
+  (let [has-col-strips? (or (and (= layout-type :facet-grid) (seq facet-col-vals))
                             (some some? panel-col-labels))
         has-row-strips? (or (and (= layout-type :facet-grid) (seq facet-row-vals))
-                            multi?
                             (some some? panel-row-labels))
         max-row-strip-chars (reduce max 0
                                     (keep #(when % (count %)) panel-row-labels))
@@ -211,7 +207,6 @@
                                             ls)))
         legend-max-chars (widest-text legend shape-legend)]
     {:layout-type layout-type
-     :multi? multi?
      :grid-rows grid-rows
      :grid-cols grid-cols
      :title? (boolean eff-title)
@@ -769,8 +764,6 @@
    SPLOMs with many variables may end up with very small panels at
    the default 600x400 total -- raise `:width` / `:height` or set
    `:panel-width` / `:panel-height` explicitly when that happens.
-   The `:panel-size` cfg key is no longer consulted; it lingers as
-   an ignored legacy key for now.
 
    Throws with a detailed error when the derived panel is smaller
    than `:min-panel-size` (cfg, default 20) -- the user gave more

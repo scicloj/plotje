@@ -2832,7 +2832,13 @@
         layout-type (cond
                       faceted? :facet-grid
                       (and (= 1 max-row) (= 1 max-col)) :single
-                      :else :multi-variable)]
+                      ;; A leaf draws one panel, and a facet over columns
+                      ;; is drawn as a composite, so no other grid reaches
+                      ;; here.
+                      :else (throw (ex-info (str "Internal: a leaf without a facet"
+                                                 " laid out " max-row "x" max-col
+                                                 " panels; a leaf draws one panel.")
+                                            {:rows max-row :cols max-col})))]
     {:grid-cols max-col
      :grid-rows max-row
      :layout-type layout-type
@@ -3829,11 +3835,6 @@
              ;; about y. Under `:polar`, which draws no tick labels, the
              ;; axis title is the one text naming the column, so it is
              ;; drawn there too.
-             ;; Kept for the margin below, which is the one thing that does
-             ;; want the grid's shape: a two-dimensional multi-variable
-             ;; grid is drawn with tighter margins than a single panel.
-             multi? (and (= layout-type :multi-variable)
-                         (> grid-cols-n 1) (> grid-rows-n 1))
              {:keys [eff-title eff-x-label eff-y-label]}
              (resolve-labels x-vars y-vars x-overlay-vars y-overlay-vars
                              rep-x-scale rep-y-scale
@@ -4022,7 +4023,7 @@
                                         e)
                                        e)))))}))
 
-             m (if multi? (:margin-multi cfg) (:margin cfg))
+             m (:margin cfg)
 
              ;; --- Phase 3b: fit text marks into the panel ---
              ;; A text mark is sized in pixels, so a data label at the edge of

@@ -159,7 +159,9 @@ my-pose
 ;; - **On a composite** -- a call naming no columns is added at the
 ;;   root and drawn in every cell whose number of columns its layer
 ;;   type draws from. A call naming columns joins the last cell whose
-;;   panel draws those columns, or appends a new cell if none does.
+;;   panel draws those columns, or appends a new cell if none does. A
+;;   call naming one column joins the last cell drawing it on that axis,
+;;   and reads the cell's other column.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
@@ -1358,8 +1360,9 @@ annotated
 ;; transition from a plan) or `pj/membrane` (composition shortcut
 ;; from a pose). The record carries `:width` and `:height` as
 ;; fields (read via `(membrane.ui/width m)`/`(membrane.ui/height m)`),
-;; and the title as `:plotje/title`. Direct renderers (such as Plotly)
-;; skip the membrane entirely. The
+;; and the title as `:plotje/title`. A format registered on
+;; `plan->plot` alone skips the membrane, and is called with
+;; `pj/plan->plot` rather than `pj/plot`. The
 ;; [Membranes](./plotje_book.membranes.html) chapter walks the stage
 ;; in depth.
 

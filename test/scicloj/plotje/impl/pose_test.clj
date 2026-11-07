@@ -209,7 +209,28 @@
   (testing "nil position components match bare leaves (no :x/:y mapping)"
     (is (= [0] (pose/last-matching-leaf-path
                 {:poses [{:layers []}]}
-                {:x nil :y nil})))))
+                {:x nil :y nil}))))
+
+  (testing "one column: the last leaf drawing it on that axis, whatever the other (Rule LP6)"
+    (is (= [1] (pose/last-matching-leaf-path
+                {:poses [{:layers [] :mapping {:x :a :y :b}}
+                         {:layers [] :mapping {:x :a :y :c}}]}
+                {:x :a})))
+    (is (= [0] (pose/last-matching-leaf-path
+                {:poses [{:layers [] :mapping {:x :a :y :b}}
+                         {:layers [] :mapping {:x :a :y :c}}]}
+                {:y :b}))))
+
+  (testing "one column: a leaf drawing that column alone is preferred"
+    (is (= [0] (pose/last-matching-leaf-path
+                {:poses [{:layers [] :mapping {:x :a}}
+                         {:layers [] :mapping {:x :a :y :c}}]}
+                {:x :a}))))
+
+  (testing "one column no leaf draws on that axis: no match"
+    (is (nil? (pose/last-matching-leaf-path
+               {:poses [{:layers [] :mapping {:x :a :y :b}}]}
+               {:y :a})))))
 
 ;; ============================================================
 ;; shared-axis-groups

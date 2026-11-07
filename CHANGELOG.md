@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+### Plots that look different after upgrading
+
+- **A pose built inside `pj/with-config` and shown after the body returns**, as a notebook shows the value of a form, is drawn under the configuration in effect when it is shown -- the same picture `pj/plot` and `pj/save` draw for it. `pj/with-config` applies to what is rendered inside its body: to keep its theme, end the body in `pj/plot`, as in `(pj/with-config {:theme {:bg "#1a1a2e"}} (-> pose pj/plot))`.
+
+- **A `pj/lay-*` call naming one column on an arrangement**, such as `(pj/lay-smooth {:y :hwy})` on cells drawing `:hwy` and `:cty` against `:displ`, joins the last cell drawing that column on that axis and is drawn against that cell's other column, as a layer naming one column on a single panel is. A cell drawing that column and nothing on the other axis is preferred. Where no cell draws the column on that axis, the layer is drawn on a cell of its own.
+
+### Warnings and errors
+
+- **`:panel-size` and `:margin-multi` are retired.** Written as configuration or as a plot option, each warns once, names what to write instead -- `:panel-width` or `:panel-height` for the size of each panel, and `:margin` for the margin of every plot -- and the plot draws without it. Neither changed a plot in 0.17.0, and neither is listed in `pj/config-key-docs`.
+
 ## [0.17.0 - 2026-11-06]
 
 **This release breaks with 0.16.1 on where a layer is drawn when it names columns other than its pose's.** In 0.17.0, a layer added to a pose that draws one panel is drawn on that panel, whatever columns the layer names. In 0.16.1, a layer naming other columns was given a panel of its own, unless the pose was given to `pj/overlay`. Separate panels are made with `pj/facet` or `pj/arrange`. Three other ways of writing a plot that drew several panels in 0.16.1 also change:

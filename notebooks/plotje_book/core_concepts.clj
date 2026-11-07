@@ -291,6 +291,13 @@ two-panel
 ;; - **Data**: the first argument to `pj/pose`/`pj/lay-*` sets the
 ;;   pose-level dataset; writing `:data` in a layer's mapping
 ;;   overrides it for that layer alone (innermost non-nil wins).
+;;
+;; A series is the one mapping that reaches past its layer. A vector of
+;; columns written where one column goes, as in
+;; `(pj/lay-line data :month [:rain :snow])`, is drawn by reshaping the
+;; pose's dataset into one row per column and value, and every layer of
+;; the pose reads the reshaped rows -- see
+;; [Series](./plotje_book.series.html#other-layers-beside-a-series).
 
 ;; ### Layer-level data
 ;;
@@ -403,7 +410,9 @@ two-panel
 ;;   whose panel draws those columns, or appends a new cell if none
 ;;   does. Here the smoother of `:cty` against `:displ` joins the second
 ;;   cell, and the smoother of `:hwy` against `:cty` appends a third,
-;;   where the points added at the root are drawn too.
+;;   where the points added at the root are drawn too. A call naming one
+;;   column joins the last cell drawing that column on that axis and
+;;   reads the cell's other column, as on a leaf.
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])

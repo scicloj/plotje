@@ -690,29 +690,29 @@
 (deftest t119_l943 (is ((fn [v] (true? v)) v118_l941)))
 
 
-(def v121_l993 (def my-membrane (pj/plan->membrane my-plan)))
+(def v121_l1001 (def my-membrane (pj/plan->membrane my-plan)))
 
 
-(def v122_l995 (pj/membrane? my-membrane))
+(def v122_l1003 (pj/membrane? my-membrane))
 
 
-(deftest t123_l997 (is ((fn [v] (true? v)) v122_l995)))
+(deftest t123_l1005 (is ((fn [v] (true? v)) v122_l1003)))
 
 
-(def v124_l999 (membrane.ui/width my-membrane))
+(def v124_l1007 (membrane.ui/width my-membrane))
 
 
-(deftest t125_l1001 (is ((fn [v] (number? v)) v124_l999)))
+(deftest t125_l1009 (is ((fn [v] (number? v)) v124_l1007)))
 
 
-(def v126_l1003 (first (pj/membrane->plot my-membrane :svg {})))
+(def v126_l1011 (first (pj/membrane->plot my-membrane :svg {})))
 
 
-(deftest t127_l1005 (is ((fn [v] (= :svg v)) v126_l1003)))
+(deftest t127_l1013 (is ((fn [v] (= :svg v)) v126_l1011)))
 
 
 (def
- v129_l1011
+ v129_l1019
  (def
   shortcut-membrane
   (pj/membrane
@@ -721,14 +721,14 @@
     (pj/lay-point :sepal-length :sepal-width {:color :species})))))
 
 
-(def v130_l1016 (pj/membrane? shortcut-membrane))
+(def v130_l1024 (pj/membrane? shortcut-membrane))
 
 
-(deftest t131_l1018 (is ((fn [v] (true? v)) v130_l1016)))
+(deftest t131_l1026 (is ((fn [v] (true? v)) v130_l1024)))
 
 
 (def
- v133_l1057
+ v133_l1069
  (kind/table
   {:column-names ["Dispatch value" "Scale type"],
    :row-maps
@@ -745,12 +745,12 @@
 
 
 (deftest
- t134_l1067
- (is ((fn [t] (= 3 (count (:row-maps t)))) v133_l1057)))
+ t134_l1079
+ (is ((fn [t] (= 3 (count (:row-maps t)))) v133_l1069)))
 
 
 (def
- v136_l1078
+ v136_l1095
  (kind/table
   {:column-names ["Dispatch value" "Behavior"],
    :row-maps
@@ -768,12 +768,12 @@
 
 
 (deftest
- t137_l1089
- (is ((fn [t] (= 4 (count (:row-maps t)))) v136_l1078)))
+ t137_l1106
+ (is ((fn [t] (= 4 (count (:row-maps t)))) v136_l1095)))
 
 
 (def
- v139_l1101
+ v139_l1118
  (->>
   (methods scicloj.plotje.impl.coord/make-inverse)
   keys
@@ -784,28 +784,28 @@
 
 
 (deftest
- t140_l1108
- (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v139_l1101)))
+ t140_l1125
+ (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v139_l1118)))
 
 
 (def
- v142_l1119
+ v142_l1136
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t143_l1123
+ t143_l1140
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v142_l1119)))
+   v142_l1136)))
 
 
 (def
- v145_l1137
+ v145_l1154
  (kind/table
   {:column-names ["Dispatch value" "What it does"],
    :row-maps
@@ -823,12 +823,12 @@
 
 
 (deftest
- t146_l1148
- (is ((fn [t] (= 4 (count (:row-maps t)))) v145_l1137)))
+ t146_l1165
+ (is ((fn [t] (= 4 (count (:row-maps t)))) v145_l1154)))
 
 
 (def
- v148_l1156
+ v148_l1173
  (->
   {:site ["north" "north" "south" "south"],
    :yield [3 5 4 6],
@@ -846,12 +846,12 @@
 
 
 (deftest
- t149_l1167
- (is ((fn [v] (= [:dodge {:n-groups 2} [0 1]] v)) v148_l1156)))
+ t149_l1184
+ (is ((fn [v] (= [:dodge {:n-groups 2} [0 1]] v)) v148_l1173)))
 
 
 (def
- v151_l1181
+ v151_l1198
  (defmethod
   stat/compute-stat
   :quantile
@@ -860,7 +860,7 @@
 
 
 (def
- v152_l1184
+ v152_l1201
  (defmethod
   stat/compute-stat
   [:quantile :doc]
@@ -868,32 +868,32 @@
   "Quantile regression bands"))
 
 
-(def v154_l1189 (pj/stat-doc :quantile))
+(def v154_l1206 (pj/stat-doc :quantile))
 
 
 (deftest
- t155_l1191
- (is ((fn [v] (= "Quantile regression bands" v)) v154_l1189)))
+ t155_l1208
+ (is ((fn [v] (= "Quantile regression bands" v)) v154_l1206)))
 
 
-(def v157_l1199 (remove-method stat/compute-stat [:quantile :doc]))
+(def v157_l1216 (remove-method stat/compute-stat [:quantile :doc]))
 
 
-(def v158_l1201 (pj/stat-doc :quantile))
+(def v158_l1218 (pj/stat-doc :quantile))
 
 
-(deftest t159_l1203 (is ((fn [v] (= "(no description)" v)) v158_l1201)))
+(deftest t159_l1220 (is ((fn [v] (= "(no description)" v)) v158_l1218)))
 
 
-(def v161_l1209 (remove-method stat/compute-stat :quantile))
+(def v161_l1226 (remove-method stat/compute-stat :quantile))
 
 
 (def
- v162_l1211
+ v162_l1228
  (count
   (remove
    #{:default}
    (filter keyword? (keys (methods stat/compute-stat))))))
 
 
-(deftest t163_l1213 (is ((fn [v] (= 11 v)) v162_l1211)))
+(deftest t163_l1230 (is ((fn [v] (= 11 v)) v162_l1228)))

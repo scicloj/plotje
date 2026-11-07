@@ -368,7 +368,7 @@
    [:panel-width number?]
    [:panel-height number?]
    [:grid [:map [:rows pos-int?] [:cols pos-int?]]]
-   [:layout-type [:enum :single :facet-grid :multi-variable]]
+   [:layout-type [:enum :single :facet-grid]]
    [:title {:optional true} [:maybe string?]]
    [:subtitle {:optional true} [:maybe string?]]
    [:caption {:optional true} [:maybe string?]]

@@ -807,26 +807,7 @@
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
 ;; ---
-;; ## Connected Scatter and Evolution Charts
-
-;; ### Connected scatter plot
-;; Source: [D3 Graph Gallery: Connected Scatter](https://d3-graph-gallery.com/graph/connectedscatter_basic.html)
-
-;; Economy variables plotted against each other over time create a
-;; connected scatter plot. Subsampling every 12th month keeps it readable:
-
-(-> (rdatasets/ggplot2-economics)
-    (as-> econ (tc/select-rows econ (range 0 (tc/row-count econ) 12)))
-    (pj/pose :unemploy :pce)
-    pj/lay-line
-    pj/lay-point
-    (pj/options {:title "US Economy: Unemployment vs Personal Consumption"
-                 :x-label "Unemployed (thousands)"
-                 :y-label "Personal Consumption Expenditures"}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (pos? (:lines s))
-                                (pos? (:points s)))))])
+;; ## Evolution Charts
 
 ;; ### Step chart with filled area
 ;; Source: [Vega-Lite: Step Chart](https://vega.github.io/vega-lite/examples/line_step.html)
@@ -1626,7 +1607,6 @@
 (kind/test-last [(fn [v] (>= (:lines (pj/svg-summary v)) 3))])
 
 ;; ### Scatter + line, one per panel
-;; Source: [D3 Graph Gallery: Connected Scatter](https://d3-graph-gallery.com/graph/connectedscatter_basic.html)
 
 ;; Highway MPG as a scatter and city MPG as a line, side by side.
 ;; The two columns get separate panels. Each panel uses
