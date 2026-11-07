@@ -54,12 +54,12 @@
 ;; | Key | On | Purpose |
 ;; |:----|:---|:--------|
 ;; | `:data` | leaf or any ancestor | dataset (Tablecloth) |
-;; | `:mapping` | pose or layer | column-to-aesthetic bindings |
+;; | `:mapping` | pose or layer | column-to-aesthetic mappings (on a layer, also the parameters of its layer type) |
 ;; | `:layers` | pose | per-scope layers |
 ;; | `:poses` | composite only | sub-poses |
 ;; | `:layout` | composite | direction + weights |
 ;; | `:facet` | leaf | a facet over columns, expanded into cells when the pose is drawn (Rule O3) |
-;; | `:opts` | root | plot-level options (incl. composite-level keys like `:share-scales`) |
+;; | `:opts` | root | plot-level options (including composite-level keys like `:share-scales`) |
 ;; | `:share-scales` | composite | the axes the cells share; `pj/arrange` writes it under `:opts`, and `pj/marginal` writes it on the composite itself |
 ;; | `:where` | any pose | a map from a column to a value or a set of values; the pose draws only the rows that match |
 ;;
@@ -358,10 +358,10 @@ composite-pose
 ;; ### Rule C8: `pj/arrange` composes poses into a composite
 ;;
 ;; `pj/arrange` returns a composite. It takes a vector of cells, or
-;; data or a pose first and then the cells. A cell is what one argument
-;; after the data is to `pj/pose`: a pose, a composite, a column (a
-;; panel of that column), or a mapping such as `{:x :a :y :b}` (a panel
-;; of the columns the mapping names). So a cell and `(pj/pose nil cell)`
+;; data or a pose first and then the cells. Each cell is written the
+;; way the argument after the data is written in `pj/pose`: a pose, a
+;; composite, a column (a panel of that column), or a mapping such as
+;; `{:x :a :y :b}` (a panel of the columns the mapping names). So a cell and `(pj/pose nil cell)`
 ;; draw the same. `nil` is the exception: in `pj/arrange` it is a cell
 ;; left empty, where after the data in `pj/pose` it names no column. A
 ;; vector is never a cell. A vector in the cell list is a list of cells:
@@ -425,7 +425,7 @@ composite-pose
 ;; holds, and is written on the composite's `:layout` rather than its
 ;; `:opts`: an arrangement made from a flat list keeps it there, as
 ;; `:auto` where no `:cols` was given, so that cells appended later are
-;; laid out as one call with the longer list lays them out.
+;; laid out the same way as if they had been in the original list.
 
 (pj/arrange
  [(pj/pose iris :sepal-length :sepal-width)
@@ -775,14 +775,14 @@ composite-pose
 ;; draws another column, it first checks that those columns exist in the data the layer would draw
 ;; from -- the layer's own `:data` if present, otherwise the inherited
 ;; data. A missing column is almost always a typing mistake, so the
-;; call reports it at once, with the columns the data has. A first
-;; `lay-*` call on raw data is not checked at the call; a missing column
-;; there is reported when the pose is drawn.
+;; call reports an error at once, naming the columns the data has. A
+;; first `lay-*` call on raw data is not checked at the call; a missing
+;; column there reports an error when the pose is drawn.
 ;;
 ;; The check at the call covers the columns written in the argument
 ;; slots. A name written in the layer's mapping may be a column or a
 ;; value, which the data decides when the pose is drawn, so a name there
-;; that matches no column is reported when the pose is drawn.
+;; that matches no column reports an error when the pose is drawn.
 
 (try
   (-> iris
@@ -873,10 +873,10 @@ composite-pose
 ;; `:mapping`, and the leaf's `:mapping` is left as it was.
 ;;
 ;; Each axis is titled by every column drawn on it. A layer with no
-;; `:color` specified, on the pose or on the layer, also takes a colour
+;; `:color` specified, on the pose or on the layer, also takes a color
 ;; and a legend entry naming its columns by default, unless a layer of
-;; the panel is coloured by a column. Each layer below specifies its
-;; colour, so no colour and no legend entry is added.
+;; the panel is colored by a column. Each layer below specifies its
+;; color, so no color and no legend entry is added.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -890,7 +890,7 @@ composite-pose
                                     (:texts s))]
             (and (= 1 (:panels s))
                  (= 300 (:points s))
-                 ;; Both layers drew, each in its own colour.
+                 ;; Both layers drew, each in its own color.
                  (contains? (:colors s) "rgb(55,126,184)")
                  (contains? (:colors s) "rgb(230,85,13)")
                  ;; Each axis is titled by both columns drawn on it,
@@ -1015,7 +1015,7 @@ composite-pose
 ;; `pj/lay-point` call returns a pose, and a later step may name the
 ;; columns:
 
-(-> (tc/dataset {:a [1 2] :b [3 4] :c [5 6] :d [7 8]})
+(-> {:a [1 2] :b [3 4] :c [5 6] :d [7 8]}
     pj/lay-point
     (pj/pose {:x :a :y :b}))
 
@@ -1026,7 +1026,7 @@ composite-pose
 ;; layer and the columns of the data:
 
 (try
-  (-> (tc/dataset {:a [1 2] :b [3 4] :c [5 6] :d [7 8]})
+  (-> {:a [1 2] :b [3 4] :c [5 6] :d [7 8]}
       pj/lay-point
       pj/plan)
   (catch Exception e
@@ -1181,13 +1181,15 @@ s2-tree
 ;; composite's mapping does.
 
 ;; Under a composite that keeps setosa, a cell naming versicolor draws
-;; versicolor; a cell naming a petal width keeps setosa too:
+;; versicolor; a cell naming a petal width of 0.2 keeps setosa too. The
+;; points are colored by species, so each cell shows which species it
+;; kept:
 
 (-> iris
     (pj/pose {:x :sepal-length :y :sepal-width :where {:species "setosa"}})
     (pj/arrange [{:where {:species "versicolor"}}
                  {:where {:petal-width 0.2}}])
-    pj/lay-point)
+    (pj/lay-point {:color :species}))
 
 (kind/test-last
  [(fn [v]
@@ -1215,7 +1217,7 @@ s2-tree
 ;;
 ;; A mapping value names one column and may carry a scale. Where two
 ;; meet, the column is replaced and the scale settings combine key by
-;; key, as [Scales](./plotje_book.scales.html#scales-accumulate)
+;; key, as [Scales](./plotje_book.scales.html#a-scale-set-higher-up-combines-with-one-set-below)
 ;; describes. This holds for a layer under its pose, a cell under its
 ;; composite, `pj/scale`, and `pj/pose` writing into a pose that
 ;; already has a mapping -- so a scale set before the columns are named
@@ -1233,9 +1235,10 @@ s2-tree
 ;; ---
 ;; ## Options
 ;;
-;; Plot-level options and modifiers. Unlike mappings, layers, and
-;; data (which live in the scope hierarchy), options configure the
-;; whole rendered plot and attach to the root's `:opts`.
+;; Plot options describe a plot rather than a layer. They are written
+;; in a pose's `:opts` and reach every cell below it, where a cell's
+;; own value replaces the inherited one -- key by key for `:theme` and
+;; `:config` (Rule O5).
 
 ;; ### Rule O1: `pj/options` writes to the root's `:opts`
 ;;
@@ -1292,7 +1295,7 @@ s2-tree
          (= :flip (get-in pose [:opts :coord]))))])
 
 ;; Where the aesthetic is already mapped, the scale joins that mapping.
-;; A mapping written plainly has no room for one, so it is rewritten in
+;; A mapping written plainly has no room for a scale, so it is rewritten in
 ;; the full form under `:from` -- the plain reading spelled out, which
 ;; leaves what the mapping names unchanged:
 
@@ -1339,17 +1342,20 @@ s2-tree
 (kind/test-last
  [(fn [pose] (= :species (get-in pose [:mapping :col])))])
 
-;; A 2D grid uses both keys:
+;; A 2D grid uses both keys, each naming a different column -- here
+;; whether the party had a smoker across, and the sex of the person
+;; who paid down:
 
-(-> iris
-    (pj/pose :sepal-length :sepal-width)
+(-> (rdatasets/reshape2-tips)
+    (pj/pose :total-bill :tip)
     pj/lay-point
-    (pj/facet {:col :species :row :species}))
+    (pj/facet {:col :smoker :row :sex}))
 
 (kind/test-last
  [(fn [pose]
-    (and (= :species (get-in pose [:mapping :col]))
-         (= :species (get-in pose [:mapping :row]))))])
+    (and (= :smoker (get-in pose [:mapping :col]))
+         (= :sex (get-in pose [:mapping :row]))
+         (= 4 (:panels (pj/svg-summary pose)))))])
 
 ;; A grid crossing categories with columns keeps the two apart: the
 ;; categories in the mapping, the columns under `:facet`. The two are
@@ -1513,9 +1519,11 @@ s2-tree
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
-    pj/lay-point                            ;; written on the root; reaches both
+    ;; written on the root; reaches both
+    pj/lay-point
+    ;; written on sub-pose 1 only
     (pj/lay-smooth :sepal-length :sepal-width
-                   {:stat :linear-model}))  ;; written on sub-pose 1 only
+                   {:stat :linear-model}))
 
 (kind/test-last
  [(fn [pose]
@@ -1664,7 +1672,7 @@ s2-tree
 ;; **Column-bucketing**: when `:x` is shared, sub-poses whose
 ;; effective `:x` column is the same share that scale's domain;
 ;; sub-poses with different `:x` columns get independent
-;; x-domains. Same for `:y`. Marginal plots rest on this: a top strip draws the scatter's `:x` column on the
+;; x-domains. `:y` is shared the same way. Marginal plots rest on this: a top strip draws the scatter's `:x` column on the
 ;; horizontal axis and shares `:x` with the scatter. A right strip is
 ;; drawn with `:coord :flip`, so the scatter's `:y` column runs up the
 ;; strip's vertical axis, and the strip and the scatter share `:y`. In

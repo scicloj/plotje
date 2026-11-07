@@ -92,7 +92,7 @@ scatter-pose
 ;; | Column type | dtype inspection | `:x-type`, `:y-type`, `:color-type` in a pose's or a layer's mapping |
 ;; | Aesthetic classification | the data decides: a name it carries is a column, anything else is a value | `{:color {:column "red"}}` / `{:color {:value "red"}}` |
 ;; | Grouping | categorical color column | `:group` aesthetic |
-;; | Layer type (mark + stat) | column types (see Layer Type section) | `pj/lay-point`, `pj/lay-histogram`, etc. |
+;; | Layer type (mark + stat) | column types (see Layer Type section) | `pj/lay-point`, `pj/lay-histogram`, and the others |
 ;; | Domain extent | data range + 5% padding | `(pj/scale pose :x {:domain [0 10]})` |
 ;; | Domain reach | the axis spans what the data covers | `(pj/scale pose :y {:include 0})` |
 ;; | Domain zero-anchor | bar/stacked charts include zero | `(pj/scale pose :y {:domain [5 20]})` |
@@ -107,8 +107,8 @@ scatter-pose
 ;; | Layout type | single, facet-grid | `pj/facet` |
 ;; | Coordinate system | `:cartesian` | `(pj/coord :flip)`, `(pj/coord :polar)` |
 ;;
-;; The sections below walk each rule in detail. The order roughly
-;; follows how a pose is resolved into a plot -- column selection,
+;; The sections follow roughly the order in which a pose is resolved
+;; into a plot -- column selection,
 ;; column types, aesthetics, grouping, layer type, domains, ticks,
 ;; labels, legends, layout, coord flip -- with two cross-cutting
 ;; closing sections on how the rules combine in multi-layer plots
@@ -138,21 +138,26 @@ scatter-pose
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; Two columns:
+;; Two columns -- the first, `:weight`, goes on the x axis and the
+;; second, `:height`, on the y axis:
 
-(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+(-> {:weight [1 2 3 4 5] :height [2 4 3 5 4]}
     pj/lay-point)
 
-(kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 5 (:points (pj/svg-summary v)))
+                              (= ["weight" "height"]
+                                 ((juxt :x-label :y-label) (pj/plan v)))))])
 
-;; Three columns -- the third becomes `:color`:
+;; Three columns -- the third, `:site`, becomes `:color`:
 
-(-> {:x [1 2 3 4] :y [4 5 6 7] :g ["a" "a" "b" "b"]}
+(-> {:weight [1 2 3 4] :height [4 5 6 7] :site ["a" "a" "b" "b"]}
     pj/lay-point)
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 4 (:points s))
-                                (some #{"a"} (:texts s)))))])
+                                (some #{"a"} (:texts s))
+                                (= {:x :weight :y :height :color :site}
+                                   (:mapping (pj/infer-mapping v))))))])
 
 ;; ### The mapping is inferred when the pose is drawn
 ;;
@@ -162,8 +167,8 @@ scatter-pose
 ;; below) then supplies the mark.
 
 (def two-col-pose
-  (pj/pose {:x [1.0 2.0 3.0 4.0 5.0]
-            :y [1.0 4.0 9.0 16.0 25.0]}))
+  (pj/pose {:side [1.0 2.0 3.0 4.0 5.0]
+            :area [1.0 4.0 9.0 16.0 25.0]}))
 
 two-col-pose
 
@@ -172,9 +177,12 @@ two-col-pose
 ;; `pj/infer-mapping` is the step the drawing functions run, and it
 ;; shows the mapping the rule chooses:
 
-(-> two-col-pose pj/infer-mapping (select-keys [:mapping :layers]) kind/pprint)
+(-> two-col-pose
+    pj/infer-mapping
+    (select-keys [:mapping :layers])
+    kind/pprint)
 
-(kind/test-last [(fn [pose] (and (= {:x :x :y :y} (:mapping pose))
+(kind/test-last [(fn [pose] (and (= {:x :side :y :area} (:mapping pose))
                                  (empty? (:layers pose))))])
 
 ;; The inferred pose is one the reader could have written. Inferring
@@ -191,7 +199,7 @@ two-col-pose
 ;; the first three columns of the data. The trend line names the two
 ;; columns the points are already drawn at. The default also maps the
 ;; third column, `:bed`, to `:color`. Every layer of the pose reads
-;; that mapping, the trend line among them, so the points are coloured
+;; that mapping, the trend line among them, so the points are colored
 ;; by bed and there is one trend line per bed:
 
 (def seedlings
@@ -224,7 +232,7 @@ two-col-pose
 
 ;; A later layer naming other columns leaves the points where they were
 ;; too: the trend line below names `:height` and `:day` the other way
-;; round, and the points stay at `:day` against `:height`, coloured by
+;; round, and the points stay at `:day` against `:height`, colored by
 ;; bed. The trend line is drawn on the same panel, so each axis is
 ;; titled by both of the columns drawn on it:
 
@@ -240,7 +248,7 @@ two-col-pose
                                 (= [:height :day] ((juxt :x :y) line)))))])
 
 ;; Where the first layer names its columns, no column is read by
-;; default, and a layer added after it names no colour either:
+;; default, and a layer added after it names no color either:
 
 (-> seedlings
     (pj/lay-point :day :height)
@@ -394,7 +402,7 @@ temporal-pose
 
 ;; ### Overriding inferred types with `:x-type` / `:y-type`
 ;;
-;; Sometimes a numeric column is really categorical -- for example,
+;; Sometimes a numeric column holds categories -- for example,
 ;; hours of the day, years, or subject IDs. Inference treats a column
 ;; of numbers as numerical, but you may want discrete categorical
 ;; bands. Write `:x-type :categorical` (or `:y-type`) in the pose's or
@@ -456,8 +464,9 @@ colored-pose
 ;; with its own color drawn from the palette. A legend appears on the
 ;; right (100 drawing units wide) and the panel shrinks to make room.
 ;;
-;; The next section explores why a categorical color column creates
-;; groups while a numeric color column does not.
+;; [Categorical color implies grouping](#categorical-color-implies-grouping)
+;; below explains why a categorical color column creates groups while a
+;; numeric color column does not.
 
 ;; ### Fixed color string -- single color, no legend
 
@@ -502,7 +511,7 @@ fixed-color-pose
 ;;
 ;; The rule is: **check the dataset first**. If the value names a
 ;; column of the layer's data, it is a column reference. Otherwise it
-;; is asked whether it is a color.
+;; is read as a color, if it names one.
 ;;
 ;; Here is the full resolution order for a `:color` value:
 ;;
@@ -511,18 +520,18 @@ fixed-color-pose
 ;;    (`"#E74C3C"`, `"#F00"`)
 ;; 3. If it is a CSS color name, it is that color -- as a string
 ;;    (`"red"`, `"steelblue"`) or as a keyword (`:red`, `:steelblue`)
-;; 4. Otherwise, error. A string is reported against both readings,
-;;    since a hex code written without its `#` arrives that way. A
-;;    keyword is reported as a missing column alone: a keyword naming a
+;; 4. Otherwise, error. For a string the error names both readings,
+;;    since a hex code written without its `#` arrives that way. For a
+;;    keyword the error names only the missing column: a keyword naming a
 ;;    color would have been drawn at step 3, so the only reading left
 ;;    to name is the column.
 ;;
-;; A keyword and a string are asked the same two questions, in the same
+;; A keyword and a string go through the same two checks, in the same
 ;; order. Matching is strict: `:species` finds a keyword-named column
 ;; and `"species"` finds a string-named one. The errors for the two
 ;; differ in how much they say.
 ;;
-;; Hex without its `#` is **not** a color. clojure2d reads a bare `abc`
+;; Hex without its `#` is **not** a color. Clojure2D reads a bare `abc`
 ;; as `#aabbcc`, which would make `"beef"` and `"fff"` colors -- far
 ;; likelier mistyped column names. Write the `#`.
 ;;
@@ -630,7 +639,7 @@ numeric-color-pose
 
 ;; ### Overriding color type with `:color-type`
 ;;
-;; Sometimes a numeric column is really a categorical identifier -- for
+;; Sometimes a numeric column holds categorical identifiers -- for
 ;; example, subject IDs in a repeated-measures study. Inference
 ;; treats numeric columns as continuous, but you want discrete
 ;; groups. Setting `:color-type :categorical` overrides this so
@@ -783,7 +792,7 @@ explicit-group-pose
 ;; an explicit `pj/lay-*` call; the inferred layer type is only a
 ;; default.
 ;;
-;; When you use `pj/lay-point`, `pj/lay-histogram`, etc., the layer
+;; When you use `pj/lay-point`, `pj/lay-histogram` or another layer function, the layer
 ;; type's stat takes precedence -- column-type inference is bypassed.
 ;;
 ;; One numerical column named on both axes draws its histogram:
@@ -1390,7 +1399,7 @@ multi-pose
 ;;
 ;; When the layers of a pose name different columns, each axis is
 ;; titled by every column drawn on it, and each layer with no `:color`
-;; specified takes a colour and a legend entry naming its columns. Here
+;; specified takes a color and a legend entry naming its columns. Here
 ;; both layers draw `:sepal-length` on `:x`, and each names its own `:y`:
 
 (def two-columns-pose
@@ -1409,9 +1418,9 @@ two-columns-pose
            (= "sepal length" (:x-label plan))
            (= "sepal width, petal width" (:y-label plan)))))])
 
-;; A layer that specifies a colour keeps that colour and has no legend
-;; entry, and no layer takes a colour by default on a panel where a
-;; layer is coloured by a column.
+;; A layer that specifies a color keeps that color and has no legend
+;; entry, and no layer takes a color by default on a panel where a
+;; layer is colored by a column.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length)

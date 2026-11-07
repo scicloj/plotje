@@ -8,14 +8,14 @@
   [clojure.test :refer [deftest is]]))
 
 
-(def v3_l42 (def numerical {:k [1 2 3 4], :v [10 20 30 40]}))
+(def v3_l41 (def numerical {:k [1 2 3 4], :v [10 20 30 40]}))
 
 
-(def v4_l45 (def categorical {:k ["a" "b" "c" "d"], :v [10 20 30 40]}))
+(def v4_l44 (def categorical {:k ["a" "b" "c" "d"], :v [10 20 30 40]}))
 
 
 (def
- v5_l48
+ v5_l47
  (def
   temporal
   {:k
@@ -27,12 +27,12 @@
 
 
 (def
- v7_l58
+ v7_l57
  (def ratios {:k [(/ 1 3) (/ 2 3) (/ 4 3) (/ 5 3)], :v [10 20 30 40]}))
 
 
 (def
- v9_l64
+ v9_l63
  (tc/dataset
   (for
    [[label d]
@@ -44,33 +44,33 @@
 
 
 (deftest
- t10_l72
+ t10_l71
  (is
   ((fn
     [ds]
     (=
      [:int64 :string :packed-local-date :object]
      (vec (:datatype ds))))
-   v9_l64)))
+   v9_l63)))
 
 
-(def v12_l80 (-> ratios (pj/lay-point :k :v)))
+(def v12_l79 (-> ratios (pj/lay-point :k :v)))
 
 
 (deftest
- t13_l83
+ t13_l82
  (is
   ((fn
     [v]
     (false? (:categorical? (-> v pj/plan :panels first :x-ticks))))
-   v12_l80)))
+   v12_l79)))
 
 
-(def v15_l92 (-> numerical (pj/lay-point :k :v)))
+(def v15_l91 (-> numerical (pj/lay-point :k :v)))
 
 
 (deftest
- t16_l95
+ t16_l94
  (is
   ((fn
     [v]
@@ -79,14 +79,14 @@
      (and
       (false? (:categorical? ticks))
       (contains? (set (:labels ticks)) "2"))))
-   v15_l92)))
+   v15_l91)))
 
 
-(def v18_l104 (-> categorical (pj/lay-point :k :v)))
+(def v18_l103 (-> categorical (pj/lay-point :k :v)))
 
 
 (deftest
- t19_l107
+ t19_l106
  (is
   ((fn
     [v]
@@ -95,11 +95,11 @@
      (and
       (true? (:categorical? ticks))
       (= ["a" "b" "c" "d"] (vec (:labels ticks))))))
-   v18_l104)))
+   v18_l103)))
 
 
 (def
- v21_l117
+ v21_l116
  (->
   numerical
   (pj/lay-point :k :v)
@@ -107,7 +107,7 @@
 
 
 (deftest
- t22_l121
+ t22_l120
  (is
   ((fn
     [v]
@@ -123,11 +123,11 @@
        first
        :y-domain)]
      (and (< (first with) (first without)) (< (first with) 1.5))))
-   v21_l117)))
+   v21_l116)))
 
 
 (def
- v24_l134
+ v24_l133
  (->
   categorical
   (pj/lay-point :k :v)
@@ -135,7 +135,7 @@
 
 
 (deftest
- t25_l138
+ t25_l137
  (is
   ((fn
     [v]
@@ -147,14 +147,14 @@
      (and
       (= ["a" "b" "c" "d"] (-> v pj/plan :panels first :x-domain))
       (< (abs (- (at 1.5) (/ (+ (at "a") (at "b")) 2.0))) 1.0E-9))))
-   v24_l134)))
+   v24_l133)))
 
 
-(def v27_l152 (-> temporal (pj/lay-point :k :v)))
+(def v27_l151 (-> temporal (pj/lay-point :k :v)))
 
 
 (deftest
- t28_l155
+ t28_l154
  (is
   ((fn
     [v]
@@ -165,38 +165,38 @@
       (some
        (fn [l] (re-find #"^[A-Z][a-z]{2}-\d\d$" l))
        (:labels ticks)))))
-   v27_l152)))
+   v27_l151)))
 
 
-(def v30_l166 (-> categorical (pj/lay-point :v :v {:color :k})))
+(def v30_l165 (-> categorical (pj/lay-point :v :v {:color :k})))
 
 
 (deftest
- t31_l169
+ t31_l168
  (is
   ((fn [v] (= 4 (count (disj (:colors (pj/svg-summary v)) "none"))))
-   v30_l166)))
+   v30_l165)))
 
 
-(def v33_l176 (-> numerical (pj/lay-point :v :v {:color :k})))
+(def v33_l175 (-> numerical (pj/lay-point :v :v {:color :k})))
 
 
 (deftest
- t34_l179
+ t34_l178
  (is
   ((fn [v] (< 4 (count (disj (:colors (pj/svg-summary v)) "none"))))
-   v33_l176)))
+   v33_l175)))
 
 
 (def
- v36_l189
+ v36_l188
  (->
   {:k ["a" "b" "c" "d"], :v [10 20 30 40], :warmth [7 30 12 21]}
   (pj/lay-bar :k :v {:color :warmth})))
 
 
 (deftest
- t37_l192
+ t37_l191
  (is
   ((fn
     [v]
@@ -209,7 +209,7 @@
       (= 4 (:polygons (pj/svg-summary v)))
       (= 4 (count (distinct colors)))
       (> (lightness (nth colors 1)) (lightness (nth colors 3))))))
-   v36_l189)))
+   v36_l188)))
 
 
 (def
@@ -410,7 +410,7 @@
 
 
 (def
- v71_l410
+ v71_l411
  (try
   (->
    numerical
@@ -421,35 +421,35 @@
 
 
 (deftest
- t72_l418
+ t72_l419
  (is
   ((fn [m] (re-find #"set :x-type or :y-type to :categorical" m))
-   v71_l410)))
+   v71_l411)))
 
 
 (def
- v74_l424
+ v74_l425
  (try
   (-> categorical (pj/lay-point :k :v) (pj/scale :x :log) pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t75_l432
- (is ((fn [m] (re-find #"requires numeric data" m)) v74_l424)))
+ t75_l433
+ (is ((fn [m] (re-find #"requires numeric data" m)) v74_l425)))
 
 
 (def
- v77_l440
+ v77_l441
  (-> categorical (pj/lay-point :k :v) (pj/scale :x :linear)))
 
 
 (deftest
- t78_l444
+ t78_l445
  (is
   ((fn
     [v]
     (=
      (pj/svg-summary v)
      (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))
-   v77_l440)))
+   v77_l441)))

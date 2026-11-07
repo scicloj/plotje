@@ -157,14 +157,14 @@ iris-membrane
 ;; first set so a `PlotjeMembrane` participates in every Membrane
 ;; consumer that walks a tree generically. Drawing is delegated to the
 ;; children: when a Membrane backend draws our record, the default
-;; `IDraw` impl walks `(children record)` and draws each child
+;; `IDraw` implementation walks `(children record)` and draws each child
 ;; individually -- the existing `Translate`, `WithColor`, `Path`,
 ;; `Label` primitives already have per-backend draw implementations.
 
 ;; ## Title and namespaced attributes
 ;;
 ;; The plot title is stored as `:plotje/title` -- not a defrecord
-;; field but a namespaced map entry assoc'd onto the record. This
+;; field but a namespaced map entry added to the record with `assoc`. This
 ;; keeps the record's arity stable as we add per-membrane attributes
 ;; in the future. A pose without a title produces a membrane without
 ;; that key:
@@ -212,8 +212,8 @@ iris-membrane
          (= 400 (:height info))))])
 
 ;; The combined component is no longer a `PlotjeMembrane` (it is
-;; whatever `horizontal-layout` chose to return -- here, a vector of
-;; the two children), but it implements the same protocols, so any
+;; what `horizontal-layout` returns -- here, a vector of the two
+;; children), but it implements the same protocols, so any
 ;; Membrane backend can render it. To produce a raster image we bypass
 ;; `pj/membrane->plot` (which validates a `PlotjeMembrane`
 ;; specifically) and call Membrane's Java2D backend directly:
@@ -231,9 +231,8 @@ iris-membrane
 
 two-up-png
 
-;; The membrane stage is a separate boundary for this reason: Plotje
-;; produces values that any Membrane consumer understands, and Plotje
-;; plots compose with hand-built Membrane elements. Nothing about the
+;; Plotje produces values that any Membrane consumer can draw, so
+;; Plotje plots compose with hand-built Membrane elements. Nothing about the
 ;; value type is Plotje-specific beyond the namespaced title key.
 
 ;; ## Rendering through Plotje's backends

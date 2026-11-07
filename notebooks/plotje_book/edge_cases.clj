@@ -116,7 +116,7 @@
 ;; ## Numeric Range
 ;; ### Negative Values
 
-;; Data spanning positive and negative ranges.
+;; Data spanning positive and negative values.
 
 (-> {:x [-5 -3 0 3 5] :y [-2 4 0 -4 2]}
     (pj/lay-point :x :y))
@@ -243,7 +243,7 @@
 
 (kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
-;; ### Confidence ribbon -- small n
+;; ### Confidence ribbon -- few rows
 
 ;; Linear regression with `:confidence-band true` on exactly 3 points
 ;; (the minimum for a linear model).
@@ -464,7 +464,8 @@
 ;;
 ;; When every value is equal there is nothing to compare, so every mark
 ;; is drawn halfway across the domain rather than at one of its ends.
-;; Halfway is read through the scale's own spread method, so a constant
+;; Halfway is read through the scale's own spread method (`:by` -- how
+;; the values spread across the range), so a constant
 ;; column and a nearly-constant one are drawn alike.
 
 (-> {:x [1 2 3] :y [1 2 3] :n [5 5 5]}
@@ -548,8 +549,8 @@
 ;;
 ;; A layer that names no columns reads the panel's columns. When the
 ;; layer carries its own `:data` and that data lacks one of them, the
-;; error names the column and asks for the axis to be set on the layer
-;; call, to a column of the layer's data. This error covers a second
+;; error names the column and says to set the axis on the layer call,
+;; to a column of the layer's data. This error covers a second
 ;; layer attached with its own dataset whose columns do not match the
 ;; panel's axes, a pattern common in ggplot2.
 

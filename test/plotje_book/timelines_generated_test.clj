@@ -96,9 +96,9 @@
    (rdatasets/ggplot2-economics)
    (tc/select-rows
     (fn*
-     [p1__81047#]
+     [p1__82500#]
      (let
-      [d (:date p1__81047#)]
+      [d (:date p1__82500#)]
       (and (>= (.getYear d) 2000) (<= (.getYear d) 2014))))))))
 
 
@@ -579,7 +579,48 @@
 
 
 (def
- v46_l461
+ v46_l460
+ (->
+  project
+  (pj/lay-interval-h :start :task {:x-end :end, :color :team})
+  (pj/facet {:row :team} {:share-scales #{:x}})
+  (pj/options
+   {:title "Project plan by team",
+    :y-label "task",
+    :x-label "",
+    :height 360})))
+
+
+(deftest
+ t47_l468
+ (is
+  ((fn
+    [v]
+    (let
+     [panels
+      (:panels (pj/plan v))
+      shared
+      (->
+       project
+       (pj/lay-interval-h :start :task {:x-end :end, :color :team})
+       (pj/facet {:row :team})
+       pj/plan
+       :panels)]
+     (and
+      (= 3 (:panels (pj/svg-summary v)))
+      (= 5 (:polygons (pj/svg-summary v)))
+      (=
+       [["Design" "Document"] ["Build" "Deploy"] ["Test"]]
+       (mapv :y-domain panels))
+      (apply = (mapv :x-domain panels))
+      (every?
+       (fn* [p1__82501#] (= 5 (count (:y-domain p1__82501#))))
+       shared))))
+   v46_l460)))
+
+
+(def
+ v49_l494
  (->
   (rdatasets/ggplot2-presidential)
   (pj/lay-interval-h :start :name {:x-end :end, :color :party})
@@ -591,11 +632,11 @@
 
 
 (deftest
- t47_l468
+ t50_l501
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-tooltip" s) (re-find #" → " s))))
-   v46_l461)))
+   v49_l494)))

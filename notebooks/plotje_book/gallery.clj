@@ -43,10 +43,12 @@
 ;; Source: [R Graph Gallery: Bubble Chart](https://r-graph-gallery.com/bubble-chart.html)
 
 ;; Mapping a third variable to point size produces a bubble chart.
-;; Here, diamond depth controls bubble size:
+;; Here, diamond depth controls bubble size. The diamonds dataset is
+;; large, so this example and the others below draw a random sample of
+;; its rows, with a fixed seed so the picture is the same on every run:
 
 (-> (rdatasets/ggplot2-diamonds)
-    (tc/head 500)
+    (tc/random 500 {:seed 1 :repeat? false})
     (pj/pose :carat :price {:color :cut :size :depth})
     pj/lay-point
     (pj/options {:title "Diamond Price vs Carat (bubble)"
@@ -118,7 +120,7 @@
 ;; Density with rug marks showing individual observations:
 
 (-> (rdatasets/ggplot2-diamonds)
-    (tc/head 500)
+    (tc/random 500 {:seed 1 :repeat? false})
     (pj/pose :carat)
     pj/lay-density
     pj/lay-rug
@@ -330,7 +332,7 @@
 ;; Two-dimensional density estimate for diamond carat vs price:
 
 (-> (rdatasets/ggplot2-diamonds)
-    (tc/head 2000)
+    (tc/random 2000 {:seed 1 :repeat? false})
     (pj/pose :carat :price)
     pj/lay-density-2d
     (pj/options {:title "Diamond Carat vs Price (density)"
@@ -417,8 +419,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x [:sepal-length :sepal-width :petal-length :petal-width]}
-              :row {:y [:sepal-length :sepal-width :petal-length :petal-width]}})
+    (pj/matrix [:sepal-length :sepal-width :petal-length :petal-width])
     (pj/options {:title "Iris SPLOM"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -426,7 +427,7 @@
                                 (= (* 12 150) (:points s))
                                 (pos? (:polygons s)))))])
 
-;; ## Composition
+;; ## Parts of a Whole
 
 ;; ### Stacked bar
 ;; Source: [R Graph Gallery: Stacked Barplot](https://r-graph-gallery.com/stacked-barplot.html)
@@ -698,12 +699,21 @@
 ;; ### Horizontal lollipop (ranked)
 ;; Source: [R Graph Gallery: Lollipop](https://r-graph-gallery.com/lollipop-plot.html)
 
+;; The categories follow the order of the rows, so sorting the rows by
+;; `:mpg` ranks the cars:
+
 (-> (rdatasets/datasets-mtcars)
+    (tc/order-by :mpg)
     (pj/lay-lollipop :rownames :mpg)
     (pj/coord :flip)
     (pj/options {:title "Cars Ranked by MPG"}))
 
-(kind/test-last [(fn [v] (pos? (:points (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (let [mtcars (rdatasets/datasets-mtcars)
+                               by-name (zipmap (:rownames mtcars) (:mpg mtcars))
+                               cars (-> v pj/plan :panels first :y-domain)]
+                           (and (= 32 (:points (pj/svg-summary v)))
+                                (= 32 (count cars))
+                                (apply <= (map by-name cars)))))])
 
 ;; ### Stacked bar (proportional / fill)
 ;; Source: [Vega-Lite: Stacked Bar Normalized](https://vega.github.io/vega-lite/examples/stacked_bar_normalize.html)
@@ -719,17 +729,22 @@
 ;; ### Density normalized histogram overlay
 ;; Source: [Python Graph Gallery: Histogram + Density](https://python-graph-gallery.com/density-and-histogram-together/)
 
+;; Both layers would be drawn in the default grey, so the density is
+;; given a colour of its own, partly transparent, to stand apart from the
+;; bars:
+
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length)
     (pj/lay-histogram {:normalize :density})
-    pj/lay-density
+    (pj/lay-density {:color "steelblue" :alpha 0.4})
     (pj/options {:title "Sepal Length: Histogram + Density Curve"}))
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
 ;; ### Equal aspect ratio scatter
 ;; Source: [D3 Graph Gallery: scatter basic](https://d3-graph-gallery.com/graph/scatter_basic.html)
-;; Using coord :fixed to ensure 1 data unit = 1 data unit on both axes.
+;; `(pj/coord :fixed)` draws one data unit at the same length on both
+;; axes.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1091,7 +1106,7 @@
 (-> (rdatasets/datasets-faithful)
     (pj/pose :eruptions)
     (pj/lay-histogram {:normalize :density :binwidth 0.25})
-    pj/lay-density
+    (pj/lay-density {:color "steelblue" :alpha 0.4})
     (pj/options {:title "Old Faithful: Histogram + Density"
                  :x-label "Eruption Duration (min)"
                  :y-label "Density"}))
@@ -1131,7 +1146,7 @@
 (-> (rdatasets/ggplot2-diamonds)
     (pj/pose :depth)
     (pj/lay-histogram {:normalize :density})
-    pj/lay-density
+    (pj/lay-density {:color "steelblue" :alpha 0.4})
     (pj/options {:title "Diamond Depth: Histogram + Density"
                  :x-label "Depth (%)"
                  :y-label "Density"}))
@@ -1182,7 +1197,7 @@
                                   -3.0))})
     (pj/pose :value)
     (pj/lay-histogram {:bins 30 :normalize :density})
-    pj/lay-density
+    (pj/lay-density {:color "steelblue" :alpha 0.4})
     (pj/options {:title "Simulated Distribution: Histogram + Density"
                  :x-label "Value"
                  :y-label "Density"}))
@@ -1508,7 +1523,7 @@
 ;; Source: [Python Graph Gallery: 2D Density](https://python-graph-gallery.com/2d-density-plot-with-ggplot2/)
 
 (-> (rdatasets/ggplot2-diamonds)
-    (tc/head 3000)
+    (tc/random 3000 {:seed 1 :repeat? false})
     (pj/pose :carat :price)
     pj/lay-point
     pj/lay-density-2d
@@ -1744,7 +1759,7 @@
 ;;
 ;; The Vega-Lite original facets by `:cyl`. A Plotje grid
 ;; accepts any column type -- distinct values become panel labels --
-;; so this example uses `:class` purely for visual variety.
+;; so this example uses `:class` for visual variety.
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy)
@@ -1910,8 +1925,7 @@
 ;; Source: [Vega-Lite: SPLOM](https://vega.github.io/vega-lite/examples/interactive_splom.html)
 
 (-> (rdatasets/datasets-mtcars)
-    (pj/facet {:col {:x [:mpg :hp :wt]}
-              :row {:y [:mpg :hp :wt]}})
+    (pj/matrix [:mpg :hp :wt])
     (pj/options {:title "Motor Trend Cars: 3x3 SPLOM"}))
 
 (kind/test-last [(fn [v] (= 9 (:panels (pj/svg-summary v))))])
@@ -1920,8 +1934,7 @@
 ;; Source: [D3 Graph Gallery: SPLOM](https://d3-graph-gallery.com/graph/correlogram_basic.html)
 
 (-> (rdatasets/datasets-mtcars)
-    (pj/facet {:col {:x [:mpg :wt]}
-              :row {:y [:mpg :wt]}})
+    (pj/matrix [:mpg :wt])
     (pj/options {:title "MPG vs Weight: 2x2 SPLOM"}))
 
 (kind/test-last [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
@@ -1933,7 +1946,7 @@
 ;; Source: [ECharts: Scatter Logarithmic](https://echarts.apache.org/examples/en/editor.html?c=scatter-logarithmic-regression)
 
 (-> (rdatasets/ggplot2-diamonds)
-    (tc/head 2000)
+    (tc/random 2000 {:seed 1 :repeat? false})
     (pj/lay-point :carat :price {:alpha 0.15})
     (pj/scale :y :log)
     (pj/options {:title "Diamond Price (Log Scale)"
@@ -2016,7 +2029,7 @@
 ;; Source: [D3 Graph Gallery: Contour](https://d3-graph-gallery.com/graph/density2d_contour.html)
 
 (-> (rdatasets/ggplot2-diamonds)
-    (tc/head 1000)
+    (tc/random 1000 {:seed 1 :repeat? false})
     (pj/pose :carat :price)
     pj/lay-contour
     pj/lay-point

@@ -51,8 +51,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x [:sepal-length :sepal-width :petal-length :petal-width]}
-              :row {:y [:sepal-length :sepal-width :petal-length :petal-width]}})
+    (pj/matrix [:sepal-length :sepal-width :petal-length :petal-width])
     (pj/options {:title "Iris SPLOM"}))
 
 ;; ## License

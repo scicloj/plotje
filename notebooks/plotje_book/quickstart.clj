@@ -6,8 +6,13 @@
 ;;
 ;; Add Plotje to your `deps.edn`. Current release: [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/plotje.svg)](https://clojars.org/org.scicloj/plotje)
 ;;
+;; ```clojure
+;; org.scicloj/plotje {:mvn/version "0.17.0"}
+;; ```
+;;
 ;; For this demo, you will also need:
-;; * [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/clay.svg)](clay) - to visualize plots with [Clay](https://scicloj.github.io/clay). Follow Clay documentation for recommended usage. You may find the [videos](https://scicloj.github.io/clay/#videos) useful. It is recommended to set Clay up using the [Setup](https://scicloj.github.io/clay/#setup) for your specific IDE or editor.
+;;
+;; * [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/clay.svg)](https://clojars.org/org.scicloj/clay) - to visualize plots with [Clay](https://scicloj.github.io/clay). Follow Clay documentation for recommended usage. You may find the [videos](https://scicloj.github.io/clay/#videos) useful. It is recommended to set Clay up using the [Setup](https://scicloj.github.io/clay/#setup) for your specific IDE or editor.
 ;; * [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/metamorph.ml.svg)](https://clojars.org/org.scicloj/metamorph.ml) - for [the RDatasets collection](./plotje_book.datasets.html#the-rdatasets-collection)
 
 ;; Then require the API:
@@ -46,30 +51,33 @@
 ;; data and coerces it into a dataset internally.
 ;; A map of columns works directly:
 
-(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
-    (pj/lay-point :x :y))
+(-> {:height [1 2 3 4 5] :weight [2 4 3 5 4]}
+    (pj/lay-point :height :weight))
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
 ;; When the dataset has few columns, you can skip the column names --
-;; Plotje infers them from the dataset shape:
+;; Plotje infers them from the dataset shape. The first column goes on
+;; the x axis and the second on the y axis, so here `:weight` is on x:
 
-(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+(-> {:weight [1 2 3 4 5] :height [2 4 3 5 4]}
     pj/lay-point)
 
-(kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 5 (:points (pj/svg-summary v)))
+                              ;; column order, not column name, decides the axis
+                              (= "weight" (:x-label (pj/plan v)))))])
 
 ;; Auto-inference covers 1-3 column datasets. With 4 or more columns
 ;; no column is read by default -- pass column names like
-;; `(pj/lay-point data :x :y)`.
+;; `(pj/lay-point data :height :weight)`.
 
 ;; See [**Core Concepts**](./plotje_book.core_concepts.html#input-formats) for more input formats.
 
 ;; String column names also work -- keywords are conventional but not
 ;; required:
 
-(-> {"x" [1 2 3 4 5] "y" [2 4 3 5 4]}
-    (pj/lay-point "x" "y"))
+(-> {"height" [1 2 3 4 5] "weight" [2 4 3 5 4]}
+    (pj/lay-point "height" "weight"))
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
@@ -119,9 +127,9 @@
 
 ;; **Line chart** -- connect points in order:
 
-(-> {:x [1 2 3 4 5 6 7 8]
-     :y [3 5 4 7 6 8 7 9]}
-    (pj/lay-line :x :y))
+(-> {:day [1 2 3 4 5 6 7 8]
+     :visits [3 5 4 7 6 8 7 9]}
+    (pj/lay-line :day :visits))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:lines s))
@@ -209,9 +217,21 @@
 
 (kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
-;; `(pj/facet pose {:y [:sepal-width :petal-width]})` draws a panel per
-;; column instead. The [**Faceting**](./plotje_book.faceting.html)
-;; chapter teaches both.
+;; For a panel per column, write the column the panels share on the pose,
+;; add a layer that names no columns, and facet over the other columns.
+;; Each panel draws the layer on its own column:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:x :sepal-length})
+    pj/lay-point
+    (pj/facet {:y [:sepal-width :petal-width]}))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 2 (:panels s))
+                                (= 300 (:points s)))))])
+
+;; The [**Faceting**](./plotje_book.faceting.html) chapter teaches both
+;; kinds of facet.
 
 ;; ## Dashboards
 ;;
@@ -265,7 +285,9 @@
 (kind/test-last [(fn [p] (and (instance? java.io.File p) (.exists p)))])
 
 ;; For PNG output, `(pj/save pose "x.png")` writes a raster image via
-;; the Java2D backend; see the Cookbook for other export paths.
+;; the Java2D backend; see the
+;; [**Cookbook**](./plotje_book.cookbook.html#saving-to-png) for other
+;; export paths.
 
 ;; ## What's Next
 ;;

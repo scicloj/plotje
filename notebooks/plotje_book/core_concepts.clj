@@ -74,9 +74,9 @@
 ;;
 ;; **Map of columns** -- keys are column names, values are sequences:
 
-(-> {:x [1 2 3 4 5]
-     :y [2 4 3 5 4]}
-    (pj/lay-point :x :y))
+(-> {:height [1 2 3 4 5]
+     :weight [2 4 3 5 4]}
+    (pj/lay-point :height :weight))
 
 (kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
 
@@ -100,7 +100,7 @@
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
 ;; Those integer names are what the axes are titled with, and they can
-;; be mapped like any other column name. `(tc/rename-columns ds [:x :y])`
+;; be mapped like any other column name. `(tc/rename-columns ds [:height :weight])`
 ;; gives them words. A vector of vectors given to `pj/arrange` means
 ;; something else -- rows of cells, each cell one panel. What tells the
 ;; two apart is where the vector is written -- in a mapping, or in
@@ -109,12 +109,15 @@
 ;; When the dataset has 1, 2, or 3 columns, you can omit the column
 ;; names entirely -- they are inferred from the order of the columns:
 ;; the first column becomes x, the second becomes y, the third becomes
-;; color.
+;; color. Here the first column is `:weight`, so `:weight` is on the x
+;; axis:
 
-(-> {:x [1 2 3 4 5] :y [2 4 3 5 4]}
+(-> {:weight [1 2 3 4 5] :height [2 4 3 5 4]}
     pj/lay-point)
 
-(kind/test-last [(fn [v] (= 5 (:points (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 5 (:points (pj/svg-summary v)))
+                              (= ["weight" "height"]
+                                 ((juxt :x-label :y-label) (pj/plan v)))))])
 
 ;; With four or more columns no column is read by default: name the
 ;; columns, in the `pj/lay-*` call or in `pj/pose`.
@@ -174,9 +177,9 @@ two-panel
 ;;
 ;; A **mapping** maps a column (or a written value) to a visual
 ;; property -- like mapping `:species` to color. Where you write a
-;; mapping determines who sees it. There are two levels:
+;; mapping determines which layers read it. There are two levels:
 ;;
-;; | Where you write it | What sees it |
+;; | Where you write it | What it reaches |
 ;; |:-------------------|:-------------|
 ;; | `(pj/pose ... {:color :c})` | All layers on this pose |
 ;; | `(pj/lay-point ... {:color :c})` | This layer only |
@@ -195,7 +198,7 @@ two-panel
 
 (kind/test-last [(fn [v] (= 3 (:lines (pj/svg-summary v))))])
 
-;; Both point and smooth layers see `:color :species`. Three
+;; Both point and smooth layers read `:color :species`. Three
 ;; regression lines -- one per species.
 
 ;; ### Layer-level mapping
@@ -212,7 +215,7 @@ two-panel
                                 (= 1 (:lines s)))))])
 
 ;; Printed, `:color` lives on the point layer's own `:mapping`, not
-;; on the pose -- so only the point layer sees it:
+;; on the pose -- so only the point layer reads it:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)
@@ -224,7 +227,7 @@ two-panel
                               (not (contains? (or (get-in v [:layers 1 :mapping]) {})
                                               :color))))])
 
-;; Color is on the point layer. The smooth layer does not see it --
+;; Color is on the point layer. The smooth layer does not read it --
 ;; one overall regression line.
 
 ;; ### Override
@@ -272,18 +275,19 @@ two-panel
 ;; - **Mappings**: pose and layer mappings merge; the innermost
 ;;   wins on conflict, and an explicit `nil` erases a mapping
 ;;   inherited from above. The one part that combines rather than
-;;   being replaced is a mapping's `:scale`, whose settings accumulate
-;;   down the chain, and also when `pj/pose` writes into a pose that
-;;   already has a mapping -- see
-;;   [Scales](./plotje_book.scales.html#scales-accumulate).
+;;   being replaced is a mapping's `:scale`: a scale set on a pose and
+;;   a scale set on one of its layers combine key by key, and so do
+;;   two scales that `pj/pose` writes into a pose that already has a
+;;   mapping -- see
+;;   [Scales](./plotje_book.scales.html#a-scale-set-higher-up-combines-with-one-set-below).
 ;; - **Row filters**: two `:where` maps combine column by column; a
 ;;   column named in both takes the later or inner value. A
 ;;   composite's filter reaches every cell -- see
 ;;   [Pose Rules](./plotje_book.pose_rules.html#rule-s5-a-row-filter-combines-column-by-column-at-every-level).
-;; - **Plot options**: the later or inner value wins, except `:theme`,
-;;   whose settings combine key by key.
-;; - **Layers**: every `pj/lay-*` accumulates a new layer; layers
-;;   do not override, they pile up.
+;; - **Plot options**: the later or inner value wins, except `:theme`
+;;   and `:config`, whose settings combine key by key.
+;; - **Layers**: every `pj/lay-*` adds a new layer; layers do not
+;;   override one another.
 ;; - **Data**: the first argument to `pj/pose`/`pj/lay-*` sets the
 ;;   pose-level dataset; writing `:data` in a layer's mapping
 ;;   overrides it for that layer alone (innermost non-nil wins).
@@ -327,7 +331,7 @@ two-panel
 ;; Points from setosa (50 rows), regression from versicolor.
 ;; Same pose, different data per layer.
 ;;
-;; Faceting splits a single dataset into panels automatically:
+;; Faceting splits the pose's dataset into panels automatically:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -338,10 +342,31 @@ two-panel
                                 (= 150 (:points s)))))])
 
 ;; Three panels, each with its own data subset.
+;;
+;; The facet divides the pose's data only. A layer that carries `:data`
+;; of its own is drawn whole in every panel -- in ggplot2 the facet
+;; divides a layer's own data too. Here the regression fitted to the
+;; setosa rows is drawn in all three panels:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose :sepal-length :sepal-width)
+    pj/lay-point
+    (pj/lay-smooth {:stat :linear-model :data setosa})
+    (pj/facet :species))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 3 (:panels s))
+                                (= 150 (:points s))
+                                ;; one setosa line in each panel
+                                (= 3 (:lines s)))))])
+
+;; For layer data that differs per panel, build the panels with
+;; `pj/arrange`, so each cell is a pose with its own layer data -- see
+;; [Known Limitations](./plotje_book.known_limitations.html#ggplot2-features-not-yet-implemented).
 
 ;; ## Layer Placement
 ;;
-;; Scope determines what each pose and layer sees. But how do
+;; Scope determines which mappings each pose and layer reads. But how do
 ;; layers find their pose? The rule depends on whether the pose is a
 ;; leaf or a composite.
 ;;
@@ -358,7 +383,7 @@ two-panel
                                 (= 6 (:polygons s))
                                 (some #{"growth, tax"} (:texts s)))))])
 
-;; Each layer takes a colour and a legend entry naming its column, and
+;; Each layer takes a color and a legend entry naming its column, and
 ;; the axis title names both columns.
 ;; Separate panels come from `pj/facet` and `pj/arrange` -- see
 ;; [Faceting and Multi-Panel Layouts](#faceting-and-multi-panel-layouts) below.
@@ -405,7 +430,7 @@ two-panel
 ;; | `:mapping` | pose-level mappings, and their scales, and a facet's categories under `:col` and `:row` | `pj/pose`, `pj/scale`, `pj/facet` |
 ;; | `:layers` | layers attached to the pose | `pj/lay-*` |
 ;; | `:facet` | a facet over columns, when `pj/facet` is given them | `pj/facet` |
-;; | `:opts` | title, width, theme, coord | `pj/options`, `pj/coord` |
+;; | `:opts` | title, width, theme, coordinate system | `pj/options`, `pj/coord` |
 ;;
 ;; A composite pose adds `:poses` (sub-poses) and optionally
 ;; `:layout` and `:share-scales`; see the
@@ -434,7 +459,9 @@ two-panel
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; A regression: stat `:linear-model` fits a line, mark `:line` shows it:
+;; A smoother: stat `:loess` fits a curve, mark `:line` draws it.
+;; `(pj/lay-smooth {:stat :linear-model})` replaces the stat with a
+;; straight-line fit, as in the examples above:
 
 (pj/layer-type-lookup :smooth)
 
@@ -543,7 +570,7 @@ two-panel
 ;; be applied to many datasets:
 
 (def scatter-with-regression
-  (-> (pj/pose nil {:x :x :y :y :color :group})
+  (-> (pj/pose nil {:x :height :y :weight :color :cohort})
       pj/lay-point
       (pj/lay-smooth {:stat :linear-model})
       (pj/options {:title "Scatter with Regression"})))
@@ -566,15 +593,15 @@ scatter-with-regression
                            (and (some #{"no data"} (:texts s))
                                 (zero? (:points s))
                                 (zero? (:lines s))
-                                (re-find #"Note: the panel drawing :x / :y has no data"
+                                (re-find #"Note: the panel drawing :height / :weight has no data"
                                          (with-out-str (pj/plan v))))))])
 
 ;; Apply to one dataset:
 
 (-> scatter-with-regression
-    (pj/with-data {:x [1 2 3 4 5 6]
-                   :y [2 4 3 5 6 8]
-                   :group ["a" "a" "a" "b" "b" "b"]}))
+    (pj/with-data {:height [1 2 3 4 5 6]
+                   :weight [2 4 3 5 6 8]
+                   :cohort ["a" "a" "a" "b" "b" "b"]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 6 (:points s))
@@ -583,18 +610,19 @@ scatter-with-regression
 ;; Apply the same template to a different dataset:
 
 (-> scatter-with-regression
-    (pj/with-data {:x [10 20 30 40 50 60]
-                   :y [15 18 22 20 25 28]
-                   :group ["x" "x" "x" "y" "y" "y"]}))
+    (pj/with-data {:height [10 20 30 40 50 60]
+                   :weight [15 18 22 20 25 28]
+                   :cohort ["c" "c" "c" "d" "d" "d"]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 6 (:points s))
                                 (= 2 (:lines s)))))])
 
-;; `pj/lay-*` reads `nil` the way `pj/pose` does: `nil` followed by
-;; columns or a mapping is a template. A template is also a cell of an
-;; arrangement given data first, drawn from that data -- here a cell
-;; with layers of its own beside a cell drawn by inference:
+;; `pj/lay-*` given `nil` in place of data also makes a template:
+;; `(pj/lay-point nil :displ :hwy)` is a pose with a point layer and no
+;; data. When `pj/arrange` is given data first, a template can be one
+;; of its cells, and the cell draws from the arrangement's data. Here a
+;; cell with layers of its own sits beside a cell drawn by inference:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/arrange [(-> (pj/lay-point nil :displ :hwy)
@@ -642,12 +670,12 @@ scatter-with-regression
 ;; **Coming from ggplot2.** In ggplot2, `colour="blue"` is always a
 ;; CSS color. In Plotje, `{:color "blue"}` is a column reference if
 ;; **a column with that exact name exists in the data**, otherwise the
-;; CSS color. A keyword is asked the same two questions in the same
+;; CSS color. A keyword goes through the same two checks in the same
 ;; order, so `{:color :blue}` is the column `:blue` where there is one
 ;; and the color blue where there is not. Matching is strict: a string
 ;; only matches a string column name, and a keyword only matches a
 ;; keyword column name. Hex codes like `"#0000ff"` are practically
-;; unambiguous -- the dataset is asked first for those too, but no
+;; unambiguous -- the dataset is checked first for those too, but no
 ;; dataset carries a column called `#0000ff`. To settle a genuine
 ;; collision, say which you mean: `{:color {:column "blue"}}` or
 ;; `{:color {:value "blue"}}`.
@@ -656,8 +684,8 @@ scatter-with-regression
 ;; names. With a string column named `"blue"`, the column wins --
 ;; three palette colors render, not a single blue:
 
-(-> (tc/dataset {"x" [1 2 3] "y" [1 2 3] "blue" ["a" "b" "c"]})
-    (pj/lay-point "x" "y" {:color "blue"}))
+(-> {"height" [1 2 3] "weight" [1 2 3] "blue" ["a" "b" "c"]}
+    (pj/lay-point "height" "weight" {:color "blue"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
                                colors (disj (:colors s) "none")]
@@ -666,8 +694,8 @@ scatter-with-regression
 ;; Same string `:color`, dataset without a `"blue"` column -- "blue"
 ;; parses as a CSS color:
 
-(-> (tc/dataset {"x" [1 2 3] "y" [1 2 3]})
-    (pj/lay-point "x" "y" {:color "blue"}))
+(-> {"height" [1 2 3] "weight" [1 2 3]}
+    (pj/lay-point "height" "weight" {:color "blue"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
                                colors (disj (:colors s) "none")]
@@ -817,8 +845,8 @@ scatter-with-regression
 ;; shorter until the panel has that ratio, so here, where both columns run
 ;; from -1 to 1, the panel is square:
 
-(-> {:x [-1 1 -1 1] :y [-1 -1 1 1]}
-    (pj/lay-point :x :y)
+(-> {:east [-1 1 -1 1] :north [-1 -1 1 1]}
+    (pj/lay-point :east :north)
     (pj/coord :fixed))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
@@ -841,8 +869,10 @@ scatter-with-regression
 (kind/test-last [(fn [v] (= 6 (:points (pj/svg-summary v))))])
 
 ;; Both are written on the pose and reach every layer and panel
-;; beneath it. A mapping written out in full can name its own scale
-;; for one aesthetic, which takes precedence there.
+;; beneath it. A mapping
+;; [written out in full](./plotje_book.specifying_aesthetics.html#a-mapping-written-in-full)
+;; can name its own scale for one aesthetic, which takes precedence
+;; there.
 
 ;; ## Faceting and Multi-Panel Layouts
 ;;
@@ -859,8 +889,8 @@ scatter-with-regression
                                 (= 150 (:points s)))))])
 
 ;; Printed, the facet column lives in the mapping under `:col`, beside
-;; `:x` and `:y`. Faceting is a mapping like any other -- the pose
-;; itself is not split until render time:
+;; `:x` and `:y`. A facet over categories is a mapping like any other --
+;; the pose itself is not split until render time:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)
@@ -871,8 +901,9 @@ scatter-with-regression
 
 (kind/test-last [(fn [v] (= :species (get-in v [:mapping :col])))])
 
-;; Several columns in the mapping, `{:x [...]}`, are read as a series
-;; on one panel:
+;; Several columns in the mapping, `{:x [...]}`, are read as a
+;; **series**: the columns are drawn on one panel, each in a color of
+;; its own:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-histogram {:x [:sepal-length :sepal-width :petal-length]}))
@@ -887,7 +918,13 @@ scatter-with-regression
     (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
     (pj/lay-histogram))
 
-(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 3 (:panels (pj/svg-summary v)))
+                              (= {:x [:sepal-length :sepal-width :petal-length]}
+                                 (:facet v))
+                              (nil? (:mapping v))))])
+
+;; A facet over columns is kept under the pose's `:facet` key rather
+;; than in its mapping.
 
 ;; To place whole poses side by side, use `pj/arrange`. Here a
 ;; histogram and a density of one column:
@@ -904,10 +941,10 @@ scatter-with-regression
 
 ;; ### Columns and categories, inside and across panels
 ;;
-;; The forms of this section, together with `:color` from Color and
-;; Grouping, answer one question in four ways. Two things to compare are
-;; either two columns or two categories of one column, and they are drawn
-;; either inside one panel or in panels of their own:
+;; Two things to compare are either two columns or two categories of
+;; one column, and they are drawn either inside one panel or in panels
+;; of their own. The table names the form of this section, or the
+;; `:color` from Color and Grouping, that draws each combination:
 ;;
 ;; | | inside one panel | across panels |
 ;; |:--|:--|:--|
@@ -916,7 +953,7 @@ scatter-with-regression
 ;;
 ;; A series is drawn by pivoting its columns into a key column,
 ;; `:series`, mapped to `:color`, so two columns on one panel are drawn
-;; as two categories are: a colour and a legend entry each. See the
+;; as two categories are: a color and a legend entry each. See the
 ;; [Series](./plotje_book.series.html) and
 ;; [Faceting](./plotje_book.faceting.html) chapters.
 

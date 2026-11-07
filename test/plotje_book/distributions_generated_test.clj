@@ -97,7 +97,7 @@
       (= 1 (:panels s))
       (pos? (:polygons s))
       (some
-       (fn* [p1__79113#] (= "Distribution of Total Bill" p1__79113#))
+       (fn* [p1__81892#] (= "Distribution of Total Bill" p1__81892#))
        (:texts s)))))
    v15_l68)))
 
@@ -120,8 +120,8 @@
       (pj/svg-summary v)
       domain
       (fn*
-       [p1__79114#]
-       (-> p1__79114# pj/plan :panels first :x-domain))]
+       [p1__81893#]
+       (-> p1__81893# pj/plan :panels first :x-domain))]
      (and
       (= 1 (:panels s))
       (= 10 (:polygons s))
@@ -312,8 +312,8 @@
       (pj/svg-summary v)
       domain
       (fn*
-       [p1__79115#]
-       (-> p1__79115# pj/plan :panels first :x-domain))]
+       [p1__81894#]
+       (-> p1__81894# pj/plan :panels first :x-domain))]
      (and
       (= 1 (:panels s))
       (= 1 (:polygons s))
@@ -387,7 +387,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__79116#] (= :boxplot (:mark p1__79116#))))
+       (filter (fn* [p1__81895#] (= :boxplot (:mark p1__81895#))))
        first
        :boxes)
       within-fences?
@@ -438,7 +438,7 @@
       box-layer
       (first
        (filter
-        (fn* [p1__79117#] (= :boxplot (:mark p1__79117#)))
+        (fn* [p1__81896#] (= :boxplot (:mark p1__81896#)))
         (:layers (first (:panels plan)))))]
      (and
       (= 1 (:panels s))
@@ -522,7 +522,7 @@
       viol-layer
       (first
        (filter
-        (fn* [p1__79118#] (= :violin (:mark p1__79118#)))
+        (fn* [p1__81897#] (= :violin (:mark p1__81897#)))
         (:layers (first (:panels plan)))))]
      (and
       (= 1 (:panels s))
@@ -626,7 +626,7 @@
 
 
 (def
- v82_l445
+ v82_l450
  (->
   (rdatasets/datasets-iris)
   (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
@@ -634,29 +634,42 @@
 
 
 (deftest
- t83_l449
+ t83_l454
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
-     (and (= 3 (:panels s)) (pos? (:polygons s)))))
-   v82_l445)))
+     (and
+      (= 3 (:panels s))
+      (pos? (:polygons s))
+      (=
+       ["setosa" "versicolor" "virginica"]
+       (->>
+        (pj/lay-histogram
+         (rdatasets/datasets-iris)
+         {:x [:sepal-length :sepal-width :petal-length],
+          :color :species})
+        pj/plan
+        :legend
+        :entries
+        (mapv :label))))))
+   v82_l450)))
 
 
 (def
- v85_l460
+ v85_l475
  (pj/lay-boxplot
   (rdatasets/datasets-iris)
   {:x :species, :y [:sepal-length :sepal-width :petal-length]}))
 
 
 (deftest
- t86_l464
+ t86_l479
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 9 (:polygons s)))))
-   v85_l460)))
+   v85_l475)))

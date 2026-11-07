@@ -123,7 +123,7 @@
 ;; ggplot2's `coord_flip()` also runs bottom to top, in the order of
 ;; the factor levels rather than of the data. For a ranking chart
 ;; where the biggest value should appear at the top, sort the data
-;; ascending before plotting, e.g.
+;; ascending before plotting, for example with
 ;; `(tc/order-by data [:value] [:asc])`.
 
 ;; ### Horizontal, colored
@@ -282,7 +282,8 @@
 
 ;; The x axis can hold numbers as well as categories. One stem per
 ;; observation over its index is a stem plot, the shape of a
-;; residual or Cook's distance diagnostic:
+;; residual or Cook's distance (how much each observation moves a
+;; fitted regression) diagnostic:
 
 (-> {:index (range 1 41)
      :residual (map #(* (Math/sin %) (Math/exp (- (/ % 30.0)))) (range 1 41))}

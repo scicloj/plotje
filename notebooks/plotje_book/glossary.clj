@@ -22,7 +22,8 @@
 ;; describes one plot panel; a composite pose contains other poses
 ;; arranged together. Every pose-shaping function in the API
 ;; (`pj/pose`, `pj/lay-*`, `pj/facet`, `pj/arrange`, `pj/options`,
-;; `pj/scale`, `pj/coord`) takes a pose and returns a pose.
+;; `pj/scale`, `pj/coord`) takes a pose and returns a pose, and
+;; `pj/matrix` and `pj/marginal` return poses too.
 ;; `pj/->pose` is the polymorphic lift (a function that wraps a
 ;; value into a richer type) -- it accepts raw data or a pose and
 ;; returns a pose, so any of the output functions can start from a
@@ -88,8 +89,47 @@ my-pose
 ;; cells of that row. `pj/arrange` accepts `:cols`, `:align-panels`,
 ;; `:share-scales`, and every plot option `pj/options` takes, such as
 ;; `:title`, `:width` and `:height`. A cell that is a composite draws
-;; its own grid. For unequal cell weights, which `pj/arrange` does not
-;; expose, pass a literal map to `pj/pose`.
+;; its own grid. `:col-weights` and `:row-weights` give the columns and
+;; rows of cells unequal shares of the plot.
+
+(pj/arrange (rdatasets/datasets-iris)
+            [{:x :sepal-length :y :sepal-width} :sepal-length]
+            {:col-weights [2 1]})
+
+(kind/test-last
+ [(fn [v]
+    (let [[wide narrow] (->> (pj/frames v)
+                             :panels
+                             (mapv (comp #(nth % 2) :drawing-area :frames)))]
+      ;; the first column of cells is given two shares, the second one
+      (and (= 2 (:panels (pj/svg-summary v)))
+           (> wide (* 1.5 narrow)))))])
+
+;; ## Cell
+;;
+;; A **cell** is one place in the grid of a plot. The word has two
+;; senses.
+;;
+;; - In an arrangement, a cell is one entry of the list `pj/arrange` is
+;;   given: a pose, a composite, a column, a mapping, or `nil` for a
+;;   cell left empty. A cell is written the way the argument after the
+;;   data is written in `pj/pose`.
+;; - In a facet over columns, a cell is the panel of one column, or of
+;;   one pair of columns: the pose is expanded into a cell per column
+;;   when it is drawn.
+;;
+;; Each cell is planned as a [sub-plot](#sub-plot). Below, an
+;; arrangement of three cells: a column, a mapping, and a cell left
+;; empty, which draws no panel:
+
+(pj/arrange (rdatasets/datasets-iris)
+            [:sepal-length {:x :sepal-length :y :sepal-width} nil])
+
+(kind/test-last
+ [(fn [v]
+    (and (= 3 (count (:sub-plots (pj/plan v))))
+         (= {:panels 2 :points 150}
+            (select-keys (pj/svg-summary v) [:panels :points]))))])
 
 ;; ## Layer Type
 ;;
@@ -105,21 +145,21 @@ my-pose
 ;; A **layer** is a layer type placed on a pose, optionally with
 ;; scoped mappings. Created by `pj/lay-*`.
 ;;
-;; Layers attach to poses in three ways, depending on what you
-;; pass to `pj/lay-*`:
+;; Where a layer goes depends on whether `pj/lay-*` is called on a leaf
+;; or on a composite:
 ;;
-;; - **Bare** -- `pj/lay-*` without columns attaches a layer that is
-;;   drawn on every panel of the pose whose number of columns its
-;;   layer type draws from, reading that panel's columns --
-;;   the ones `pj/pose` wrote, or the ones the first `pj/lay-*` call
-;;   naming columns named. A layer naming one column reads the panel's
-;;   other column where its layer type draws from two.
-;; - **Matching columns** -- `pj/lay-*` with columns that match the
-;;   most recent matching leaf reuses that leaf, so the new layer
-;;   joins the existing panel.
-;; - **Non-matching columns** -- on a leaf, the layer keeps the
-;;   columns it names and draws on the leaf's panel; on a composite, a
-;;   new leaf is appended with the layer attached.
+;; - **On a leaf** -- every `pj/lay-*` adds its layer to the leaf, and
+;;   the layer draws on the leaf's one panel, whatever columns it
+;;   names. A layer naming no columns reads the panel's columns -- the
+;;   ones `pj/pose` wrote, or the ones the first `pj/lay-*` call naming
+;;   columns named -- and under a facet crossing two lists of columns
+;;   it is drawn in the panels whose number of columns its layer type
+;;   draws from. A layer naming one column reads the panel's other
+;;   column where its layer type draws from two.
+;; - **On a composite** -- a call naming no columns is added at the
+;;   root and drawn in every cell whose number of columns its layer
+;;   type draws from. A call naming columns joins the last cell whose
+;;   panel draws those columns, or appends a new cell if none does.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
@@ -218,7 +258,7 @@ my-pose
 ;; will consume before any domains, ticks, or coordinate math are
 ;; computed.
 ;;
-;; Keys prefixed with double underscores (e.g. `:__panel-idx`) are
+;; Keys prefixed with double underscores (such as `:__panel-idx`) are
 ;; internal markers used by later stages and follow the Clojure
 ;; convention "do not consume." Ignore them when reading a draft. Ignore
 ;; the `:scicloj.plotje/row` column on a draft layer's `:data` too: it
@@ -240,7 +280,11 @@ my-pose
 ;; or ticks are computed. The plan layer (entry below) is the same
 ;; idea after geometry has been resolved.
 
-(-> my-pose pj/draft :layers first kind/pprint)
+(-> my-pose
+    pj/draft
+    :layers
+    first
+    kind/pprint)
 
 (kind/test-last
  [(fn [d]
@@ -283,6 +327,37 @@ my-pose
 ;; aesthetics, `:data`, and the type a column is read as (`:x-type`,
 ;; `:y-type`, `:color-type`). A layer's mapping takes aesthetics and that layer's
 ;; [layer settings](#layer-settings).
+
+;; ## Scope
+;;
+;; **Scope** is how far a value written on a pose or a layer reaches.
+;; A mapping, a row filter, data and plot options written on a pose
+;; reach every layer of that pose, and in a composite every cell below
+;; it. A mapping written on a layer reaches that layer only.
+;;
+;; Where two values for one key meet -- a layer under its pose, a cell
+;; under its composite, a later `pj/pose` or `pj/options` call -- the
+;; inner or later value wins. A key that holds one value is replaced. A
+;; key that holds a map of independent settings combines key by key: a
+;; mapping's `:scale`, a `:theme`, a `:config`, and a `:where`, which
+;; combines column by column. An explicit `nil` in a mapping cancels
+;; the value inherited from above.
+;; [Core Concepts](./plotje_book.core_concepts.html#scope) teaches scope,
+;; and [Pose Rules](./plotje_book.pose_rules.html#scope) S1 to S6 state
+;; the rules. Below, the pose maps `:species` to color, and the point
+;; layer cancels it, so the points are drawn in one color while the
+;; smooth layer draws a line per species:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose :sepal-length :sepal-width {:color :species})
+    (pj/lay-point {:color nil})
+    (pj/lay-smooth {:stat :linear-model}))
+
+(kind/test-last
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      (and (= 150 (:points s))
+           (= 3 (:lines s)))))])
 
 ;; ## Aesthetic
 ;;
@@ -330,15 +405,15 @@ my-pose
 ;; `"#E74C3C"`, `"red"` or `:red` on `:color`, `0.5` on `:alpha` --
 ;; setting that aesthetic for every mark. It has to be a value the
 ;; aesthetic can draw: `0.5` on `:text` names no column and is no
-;; label either, so it is reported rather than drawn. Two aesthetics
+;; label either, so Plotje reports an error rather than drawing it. Two aesthetics
 ;; have no reading for a value at all and say so -- `:fill` and
 ;; `:group` take a column and nothing else.
 ;;
 ;; To say which you mean where both readings fit, write the mapping in
 ;; full: `{:column "red"}` or `{:value "red"}`.
 ;;
-;; A single layer can mix the readings: positional column refs (`:x`,
-;; `:y`), an appearance column ref (`:color :species`,
+;; A single layer can mix the readings: positional column references
+;; (`:x`, `:y`), an appearance column reference (`:color :species`,
 ;; `:size :petal-length`), and a written appearance value (`:alpha 0.7`,
 ;; the same opacity for every point):
 
@@ -376,7 +451,7 @@ my-pose
 ;; | Role | Where the marks go | How they are told apart |
 ;; |:--|:--|:--|
 ;; | `:positional` | at the value, along an axis | by where they sit |
-;; | `:appearance` | in one place | by a colour, a size, a shape, under a legend |
+;; | `:appearance` | in one place | by a color, a size, a shape, under a legend |
 ;; | `:grouping` | in one place | not at all -- the split is in the data, not in the picture |
 ;; | `:panel` | a panel each | by a strip label |
 ;;
@@ -396,11 +471,6 @@ my-pose
 ;;   each column a panel of its own. It is kept under the pose's
 ;;   `:facet` key, and what it separates is columns rather than the
 ;;   values of one column.
-;;
-;; So the same question -- what becomes of a distinction -- is
-;; answered by an aesthetic for four roles, by a layer setting for one,
-;; by a call for another, and by the pose's `:facet` key for the
-;; last.
 
 ;; ## Group
 ;;
@@ -437,7 +507,7 @@ my-pose
 
 ;; ## Drawing Space
 
-;; **Drawing space** is where the rendered output lives: positions
+;; **Drawing space** is where the rendered output lives: locations
 ;; measured in **drawing units** from the top left of the canvas, x
 ;; rightward and y downward. A **scale** maps one axis from data
 ;; space into drawing space and a **coord** decides how the two axes
@@ -462,7 +532,7 @@ my-pose
 ;; [Interactivity](./plotje_book.interactivity.html#brush-selection) chapter is
 ;; three CSS pixels, not three drawing units.
 ;;
-;; A position in drawing space is measured from the corner of some
+;; A location in drawing space is measured from the corner of some
 ;; rectangle, and this book names three of them: the **canvas**, the
 ;; **panel box** and the **drawing area**, each with its own entry
 ;; below. `pj/frames` reports the panel box and the drawing area for
@@ -476,7 +546,7 @@ my-pose
 ;; origin of drawing space. Everything else a plot draws -- panels,
 ;; axis labels, title, legend -- sits inside it.
 ;;
-;; It is the outermost of the three frames, and the only one shared by
+;; The canvas is the outermost of the three frames, and the only one shared by
 ;; every panel. In a composite, each cell's panels report their
 ;; rectangles against this same canvas, so all of them can be compared
 ;; directly.
@@ -486,7 +556,7 @@ my-pose
 ;; The **panel box** is one panel including the axis margin around it:
 ;; the rectangle a panel is given in the grid, before anything is
 ;; drawn inside it. In a faceted plot the panel boxes tile the grid
-;; edge to edge, one per facet variant, each offset from the last by a
+;; edge to edge, one per panel of the facet, each offset from the last by a
 ;; panel's width or height.
 ;;
 ;; A mark that draws in the margin clips to this box rather than to the
@@ -499,7 +569,7 @@ my-pose
 ;; margin: the panel box less that margin on all four sides. Data marks
 ;; are drawn here and clipped to it.
 ;;
-;; A `:in :drawing-area` layer measures its positions from this
+;; A `:in :drawing-area` layer measures its `:x` and `:y` from this
 ;; rectangle's top left corner, so a note at drawing-space `[12 12]`
 ;; lands 12 units right and 12 units down from that corner.
 
@@ -521,8 +591,8 @@ my-pose
 ;; two. Such an axis carries bands rather than a range of values, so it
 ;; cannot widen to reach a number the way a numerical axis widens to
 ;; reach a value. It runs from `0.5` to half a place past the last
-;; category, and a number outside that is reported, naming the value,
-;; the categories and where the axis ends.
+;; category, and a number outside that reports an error naming the
+;; value, the categories and where the axis ends.
 ;;
 ;; Every number written for a categorical axis is read as a place: a
 ;; value in an `:x` or `:y` slot, a rule's `:x-intercept`, a band's
@@ -572,7 +642,7 @@ my-pose
 ;; `pj/to-data` reads it back.
 ;;
 ;; Reading back does not always return what went in. `pj/to-data`
-;; answers the category whose band holds a coordinate, so a place on a
+;; returns the category whose band holds a coordinate, so a place on a
 ;; categorical axis comes back as one of the two categories it fell
 ;; between rather than as the number that produced it.
 ;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis)
@@ -664,9 +734,15 @@ my-pose
 
 ;; ## Inference
 ;;
-;; **Inference** is the automatic selection of a layer type
-;; (mark + stat + position) when you bypass `pj/lay-*` and pass
-;; columns to `pj/pose`. Plotje picks a layer type based on
+;; **Inference** is Plotje filling in, from the data, what a pose
+;; leaves unsaid: which columns to read when none is named, the type of
+;; each column, the layer type when no `pj/lay-*` is called, groups,
+;; domains, ticks, axis titles, legends and layout. Each inferred
+;; choice has an explicit override, and
+;; [Inference Rules](./plotje_book.inference_rules.html) lists them.
+;;
+;; The layer type is the best-known case: when you pass columns to
+;; `pj/pose` and call no `pj/lay-*`, Plotje picks a layer type based on
 ;; column types: numerical x and y defaults to `:point`, categorical
 ;; x with numerical y to `:boxplot`, a single numerical column to
 ;; `:histogram`, and so on. Use `:x-type` / `:y-type` on a pose or
@@ -681,10 +757,10 @@ my-pose
 ;;
 ;; A **plan** is the fully resolved description of the plot --
 ;; a plain Clojure map containing everything needed to render a
-;; plot: data-space geometry, domains, tick info, legend, layout
+;; plot: data-space geometry, domains, ticks, legend, layout
 ;; dimensions. No membrane types, no datasets, no scale objects.
 ;;
-;; Created with `pj/plan`. Numeric arrays (`:xs`, `:ys`, etc.) are
+;; Created with `pj/plan`. Numeric arrays (`:xs`, `:ys` and the others) are
 ;; [dtype-next](https://github.com/cnuernber/dtype-next) buffers for
 ;; efficiency -- they print with their length and a small preview
 ;; rather than every element.
@@ -703,10 +779,16 @@ my-pose
 
 ;; ## Panel
 ;;
-;; A **panel** is a single plotting area within a plan. It contains
-;; x/y domains, scale specs, tick info, coordinate type, and layers.
-;; A simple plot has one panel; `pj/facet` and `pj/arrange` produce
-;; several.
+;; A **panel** is one set of axes in the rendered plot, with the marks
+;; drawn against them. A leaf pose draws one panel, which its layers
+;; share; a facet over categories draws a panel per category, and a
+;; facet over columns and `pj/arrange` draw a panel per cell.
+;;
+;; In a plan, a panel is a map holding the x and y domains, scale
+;; specs, ticks, coordinate type, and layers. A facet over categories
+;; adds panels to the plan's `:panels`; a facet over columns and an
+;; arrangement add [sub-plots](#sub-plot) instead, each with its own
+;; panels.
 
 (kind/pprint (first (:panels my-plan)))
 
@@ -714,7 +796,14 @@ my-pose
  [(fn [p]
     (and (= :cartesian (:coord p))
          (= [4.12 8.08] (:x-domain p))
-         (= 1 (count (:layers p)))))])
+         (= 1 (count (:layers p)))
+         ;; a facet over columns plans as sub-plots, not panels
+         (let [plan (pj/plan (-> (rdatasets/datasets-iris)
+                                 (pj/pose {:x :sepal-length})
+                                 pj/lay-point
+                                 (pj/facet {:y [:sepal-width :petal-width]})))]
+           (and (empty? (:panels plan))
+                (= 2 (count (:sub-plots plan)))))))])
 
 ;; ## Plan Layer
 ;;
@@ -791,7 +880,7 @@ my-pose
 ;;   `LocalDateTime`, `Instant`, and `java.util.Date` automatically).
 ;;   Tick labels stay calendar-aware.
 ;; - Categorical: a vector of distinct values **in the order they
-;;   first appear in the data**, not alphabetical (e.g., iris
+;;   first appear in the data**, not alphabetical (for example, iris
 ;;   gives `["setosa" "versicolor" "virginica"]`).
 ;;
 ;; Each panel carries its own `:x-domain` and `:y-domain`. By default
@@ -831,7 +920,10 @@ my-pose
 ;; -- one per panel for the data marks, plus one per panel that also
 ;; carries a margin mark such as rug.
 
-(-> my-pose pj/plot pj/svg-summary :clips)
+(-> my-pose
+    pj/plot
+    pj/svg-summary
+    :clips)
 
 (kind/test-last [(fn [n] (= 1 n))])
 
@@ -882,11 +974,11 @@ my-pose
 ;; logarithmically, whatever `pj/scale` says on the pose around it.
 ;; `pj/scale` and a mapping's `:scale` take the same spec. On `:x` and
 ;; `:y` a panel carries one scale per axis, so two layers naming
-;; different ones are refused.
+;; different scales for one axis report an error.
 ;;
 ;; Two aesthetics have no scale at all -- `:text`, which draws a label
 ;; as it stands, and `:group`, which draws nothing of its own -- so
-;; both report a `:scale` rather than accepting one.
+;; a `:scale` written on either reports an error.
 ;;
 ;; | Type | Use |
 ;; |:-----|:----|
@@ -994,6 +1086,9 @@ my-pose
 ;; panel, each keeping its own columns, and each axis covers every
 ;; column drawn on it. Separate panels come from `pj/facet` over the
 ;; columns or from `pj/arrange`.
+;;
+;; `pj/overlay` and the `:overlay` layer setting are retired: written
+;; as `true`, they print a warning and are ignored.
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
@@ -1008,8 +1103,8 @@ my-pose
 ;;
 ;; A **series** is a vector of columns written where one column goes, as
 ;; in `{:y [:sepal-width :petal-width]}`. The columns are drawn on one
-;; panel, each in a colour of its own, and the axis is titled by them.
-;; A series draws the marks, colours and titles that one layer per
+;; panel, each in a color of its own, and the axis is titled by them.
+;; A series draws the marks, colors and titles that one layer per
 ;; column draws.
 
 (pj/lay-point (rdatasets/datasets-iris) :sepal-length [:sepal-width :petal-width])
@@ -1040,19 +1135,34 @@ my-pose
 ;; one beside a mapping, as in `(pj/pose data {:where {:species
 ;; "setosa"}})`. Two filters that meet -- a later `pj/pose`, a cell
 ;; under its composite -- combine column by column: a column named in
-;; both takes the later or inner value. The cells a facet over
-;; categories stands for are poses with a `:where` each, so an
-;; arrangement of such cells draws what the facet draws.
+;; both takes the later or inner value. An arrangement of cells with a
+;; `:where` each, in the order the categories appear in the data, draws
+;; what a facet over categories draws. The two poses differ: the facet
+;; is one leaf and the arrangement is a composite, so a `pj/lay-*`
+;; naming other columns, added afterwards, draws in every panel of the
+;; facet but appends a new cell to the arrangement.
 
 (pj/arrange (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)
             [{:where {:species "setosa"}} {:where {:species "versicolor"}} {:where {:species "virginica"}}])
 
 (kind/test-last
  [(fn [v]
-    (= (pj/plot v)
-       (pj/plot (-> (rdatasets/datasets-iris)
-                    (pj/lay-point :sepal-length :sepal-width)
-                    (pj/facet :species)))))])
+    (and (= (pj/plot v)
+            (pj/plot (-> (rdatasets/datasets-iris)
+                         (pj/lay-point :sepal-length :sepal-width)
+                         (pj/facet :species))))
+         ;; A later lay-* naming other columns: on the facet it draws in
+         ;; the three panels, on the arrangement it appends a fourth cell.
+         (let [base (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+               panels (fn [pose]
+                        (-> pose
+                            (pj/lay-point :displ :cty)
+                            pj/svg-summary
+                            :panels))]
+           (and (= 3 (panels (pj/facet base :drv)))
+                (= 4 (panels (pj/arrange base [{:where {:drv "f"}}
+                                               {:where {:drv "4"}}
+                                               {:where {:drv "r"}}])))))))])
 
 ;; ## Marginal
 ;;
@@ -1106,10 +1216,11 @@ my-pose
 ;;   placed in drawing units from the corner of the panel background
 ;;   and the axis domains are unaffected. See **Drawing Area**.
 ;;
-;; Annotations are regular layers, so they attach under the same
-;; three cases as any `lay-*`: bare call sits on the pose, and a call
-;; naming columns joins the leaf's panel -- on a composite, the most
-;; recent matching leaf, or a new leaf where none matches.
+;; Annotations are regular layers, so they are placed as any `lay-*`
+;; is: on a leaf they draw on its panel; on a composite, a call naming
+;; no columns is added at the root, and a call naming columns joins the
+;; last cell whose panel draws them, or appends a new cell where none
+;; does.
 ;;
 ;; | Constructor | What |
 ;; |:------------|:-----|
@@ -1124,8 +1235,9 @@ my-pose
 ;; rules; `:y-min`/`:y-max` or `:x-min`/`:x-max` for bands), as a
 ;; written value rather than a column reference, and draws at exactly
 ;; one place.
-;; `{:value 1.5}` says the same thing at more length; a `{:column ...}`
-;; there is reported, since these read no column.
+;; Writing `{:value 1.5}` draws the same mark as writing `1.5`; writing
+;; `{:column ...}` there reports an error, since rules and bands read no
+;; column.
 ;; Column-mapped intercepts, producing one mark per row like ggplot2's
 ;; `geom_hline(aes(yintercept = ...))`, are planned but not yet
 ;; implemented.
@@ -1149,7 +1261,19 @@ annotated
 (kind/test-last
  [(fn [layer]
     (and (= :rule-h (:layer-type layer))
-         (= 3.0 (get-in layer [:mapping :y-intercept]))))])
+         (= 3.0 (get-in layer [:mapping :y-intercept]))
+         ;; {:value 3.0} draws what 3.0 draws; {:column ...} is an error
+         (= (pj/plot annotated)
+            (pj/plot (-> (rdatasets/datasets-iris)
+                         (pj/lay-point :sepal-length :sepal-width)
+                         (pj/lay-rule-h {:y-intercept {:value 3.0}}))))
+         (re-find #"there is no column for \{:column \.\.\.\} to name"
+                  (try (-> (rdatasets/datasets-iris)
+                           (pj/lay-point :sepal-length :sepal-width)
+                           (pj/lay-rule-h {:y-intercept {:column :sepal-width}})
+                           pj/plan)
+                       "no error"
+                       (catch clojure.lang.ExceptionInfo e (ex-message e))))))])
 
 ;; ## Legend
 ;;
@@ -1223,7 +1347,7 @@ annotated
 ;;
 ;; A **membrane** is a `PlotjeMembrane` -- a record carrying a tree
 ;; of layout and drawing primitives (`Translate`, `WithColor`,
-;; `RoundedRectangle`, `Label`, etc.) sized to a complete plot
+;; `RoundedRectangle`, `Label` and others) sized to a complete plot
 ;; canvas. The record itself implements the
 ;; [Membrane](https://github.com/phronmophobic/membrane) library's
 ;; UI protocols (`IOrigin`, `IBounds`, `IChildren`), so it composes
@@ -1234,7 +1358,7 @@ annotated
 ;; transition from a plan) or `pj/membrane` (composition shortcut
 ;; from a pose). The record carries `:width` and `:height` as
 ;; fields (read via `(membrane.ui/width m)`/`(membrane.ui/height m)`),
-;; and the title as `:plotje/title`. Direct renderers (e.g., Plotly)
+;; and the title as `:plotje/title`. Direct renderers (such as Plotly)
 ;; skip the membrane entirely. The
 ;; [Membranes](./plotje_book.membranes.html) chapter walks the stage
 ;; in depth.
@@ -1293,7 +1417,7 @@ annotated
 ;; aesthetics. When `:color` maps to a categorical column, colors
 ;; are assigned from the active palette in order.
 ;;
-;; Plotje uses [clojure2d](https://github.com/Clojure2D/clojure2d)
+;; Plotje uses [Clojure2D](https://github.com/Clojure2D/clojure2d)
 ;; for palettes. Set with `:values` in a `:color` scale spec, or with
 ;; the `:color-values` option one scope further out:
 
@@ -1304,7 +1428,7 @@ annotated
 (kind/test-last
  [(fn [v] (= 150 (:points (pj/svg-summary v))))])
 
-;; clojure2d provides thousands of named palettes -- the count below
+;; Clojure2D provides thousands of named palettes -- the count below
 ;; is the size of the catalogue:
 
 (count (c2d/find-palette #".*"))
@@ -1348,7 +1472,7 @@ annotated
 ;; plot options > `pj/with-config` > `pj/set-config!` > `plotje.edn` > library defaults
 ;;
 ;; `plotje.edn` is an optional file in your project root that provides
-;; project-level defaults (e.g., a consistent palette or theme across all plots).
+;; project-level defaults (such as a consistent palette or theme across all plots).
 ;;
 ;; See the Configuration chapter for details. The active configuration
 ;; is itself a Clojure map -- `pj/config` returns a snapshot:
@@ -1394,7 +1518,9 @@ annotated
 ;;
 ;; A layer setting is written in the mapping of a layer function
 ;; (`pj/lay-point`, `pj/lay-histogram`, and the rest), beside the
-;; layer's aesthetics. Some keys are accepted by every layer type, and
+;; layer's aesthetics. In the printed pose, `:mark`, `:stat`,
+;; `:position` and `:data` are stored on the layer next to its
+;; `:mapping`, and the other layer settings stay in the `:mapping`. Some keys are accepted by every layer type, and
 ;; each layer type may accept more. The
 ;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-keys) chapter lists the
 ;; keys each layer type accepts. `pj/layer-mapping-docs` describes every
@@ -1434,6 +1560,7 @@ annotated
 ;; | Leaf pose | Pose with no sub-poses; it draws one panel, which a facet multiplies | `pj/pose`, `pj/lay-*` |
 ;; | Composite pose | Pose containing other poses (in `:poses`) and a layout | `pj/arrange`, `pj/marginal` |
 ;; | Mapping | Column-to-aesthetic association on a pose or layer | `pj/pose` mapping, `pj/lay-*` mapping |
+;; | Scope | How far a value written on a pose or a layer reaches; the inner or later value wins | `pj/pose`, `pj/lay-*`, `pj/options` |
 ;; | Layer | Layer type attached to a pose, optionally with scoped mappings | `pj/lay-*` |
 ;; | Dataset | Tabular data backing a plot -- a `tech.ml.dataset`, conveniently built and manipulated via the Tablecloth API | `:data` slot, `pj/with-data` |
 ;; | Pipeline | Five-stage flow `pose -> draft -> plan -> membrane -> plot` | Architecture chapter |
@@ -1445,18 +1572,18 @@ annotated
 ;; | Mark | Visual shape: point, line, bar, area, ... | Key in layer-type map |
 ;; | Stat | Data transform: identity, bin, count, linear-model, density, ... | Key in layer-type map |
 ;; | Position | How overlapping marks are placed: identity, dodge, stack, fill | Key in layer-type map |
-;; | Inference | Auto-choosing mark/stat from column types | When `pj/lay-*` is omitted |
-;; | Aesthetic | Mark property bindable to a column, each carrying a role | Key in mapping or layer |
+;; | Inference | Filling in, from the data, what a pose leaves unsaid: columns, column types, layer type, groups, domains, labels | When columns or `pj/lay-*` are omitted |
+;; | Aesthetic | Visual property of a mark, mapped to a column or a written value, each carrying a role | Key in mapping or layer |
 ;; | Role | What a distinction given to an aesthetic is put to work as: positional, appearance, grouping, panel | `pj/aesthetic-roles` |
 ;; | Group | Subset of data rendered together | From `:color` or `:group` |
 ;; | Plan | Fully resolved plot description | `pj/plan` |
-;; | Panel | One plotting area (domain, ticks, layers) | One or more per plan |
+;; | Panel | One set of axes in the rendered plot (domain, ticks, layers) | One per leaf, per category of a facet, or per cell |
 ;; | Plan layer | Resolved geometry + style for one mark | Inside plan panels |
-;; | Domain | Data range on an axis | Part of panel |
+;; | Domain | Extent of data values a scale reads | Part of panel |
 ;; | Place | Where a mark is drawn, in data space -- a value on a numerical axis, a count among the categories on a categorical one | Any number written for an axis; `pj/to-drawing` |
 ;; | Tick | Axis mark with label at a domain value | Part of panel |
 ;; | Data space | Values in their original units -- what mappings, stats, domains, and ticks hold | Every stage up to the plan |
-;; | Drawing space | Positions in drawing units on the output canvas | Membrane and plot stages |
+;; | Drawing space | Locations in drawing units on the output canvas | Membrane and plot stages |
 ;; | Canvas | The whole output image, and the origin of drawing space | `:width` / `:height`; `pj/frames` |
 ;; | Panel box | One panel including its axis margin | `pj/frames` |
 ;; | Drawing area | The panel background inside that margin, where data marks clip | `pj/frames`; `:in :drawing-area` |
@@ -1464,7 +1591,8 @@ annotated
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet` |
 ;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
-;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names | `pj/lay-*` on a leaf |
+;; | Cell | One entry of an arrangement, or the panel of one column in a facet over columns | `pj/arrange`, `pj/facet` |
+;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names; `pj/overlay` and `:overlay` are retired | `pj/lay-*` on a leaf |
 ;; | Series | A vector of columns written where one column goes, drawn on one panel | `{:y [:a :b]}` in a mapping |
 ;; | Pivot | Turn columns into the categories of a key column | A series when drawn; `tc/pivot->longer` |
 ;; | Row filter | The rows a pose draws, by column values | `:where` on a pose or a cell |
@@ -1473,7 +1601,7 @@ annotated
 ;; | Annotation | Reference marks (rules, bands); where they draw is a written value in `:mapping` today, data-driven planned | `pj/lay-rule-*`, `pj/lay-band-*` |
 ;; | Legend | Color/size/alpha key from aesthetic mappings | Automatic in plan |
 ;; | Plot options | Title, subtitle, caption, labels, dimensions | `pj/options` |
-;; | Layer settings | The keys of a layer's mapping that are not aesthetics: `:stat`, `:position`, `:bins`, `:data` | `pj/lay-*` mapping |
+;; | Layer settings | The keys of the map passed to `pj/lay-*` that are not aesthetics: `:stat`, `:position`, `:bins`, `:data` | `pj/lay-*` mapping |
 ;; | Theme | Visual styling: background, grid, fonts | `:theme` in `pj/options` |
 ;; | Palette | Ordered color set for categorical aesthetics | `:values` in a `:color` scale spec |
 ;; | Gradient | Continuous color ramp for numerical mappings | `:range` in a `:color` scale spec |

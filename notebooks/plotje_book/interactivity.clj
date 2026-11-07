@@ -1,22 +1,21 @@
 ;; # Interactivity
 ;;
-;; Plotje produces SVG hiccup. Two layers of interaction are
-;; available:
+;; Plotje produces SVG hiccup, and offers interaction in two ways:
 ;;
-;; - **Built-in**: pass `:tooltip true` or `:brush true` in pose
+;; - **Built-in**: pass `:tooltip true` or `:brush true` in the plot
 ;;   options. Plotje injects `data-tooltip` / `data-row-idx`
 ;;   attributes on the points and interval bars it draws, and includes
 ;;   the matching browser-side script automatically.
 ;; - **Custom wrappers**: wrap the SVG output with `kind/hiccup`
 ;;   plus a small `[:script ...]` form for behaviours not built in
-;;   (e.g. save-as-PNG).
+;;   (for example, a save-as-PNG button).
 ;;
-;; The static GFM render of this notebook shows the SVGs as
+;; The static Markdown render of this notebook shows the SVGs as
 ;; flat images. Open the HTML rendering to see the interactions
 ;; live.
 ;;
-;; Both layers are drawn by a browser reading the figure, so SVG is the
-;; only format that answers them -- see
+;; Both kinds of interaction run in a browser reading the figure, so SVG
+;; is the only format that carries them -- see
 ;; [Formats that draw interaction](#formats-that-draw-interaction) at
 ;; the end of the chapter.
 
@@ -62,8 +61,8 @@
 ;; 1,653,346 read as 1.7M, or a column the plot does not draw at all.
 ;;
 ;; Rather than a formatting option per case, `:tooltip` is an aesthetic
-;; like any other, mapped to a column whose values are what each point
-;; says. Building that column is ordinary data work, with the whole
+;; like any other, mapped to a column whose values are the text each
+;; point shows. Building that column is ordinary data work, with the whole
 ;; language available.
 
 (def sales
@@ -113,9 +112,8 @@ sales-labelled
 ;; - **It scopes like every mapping.** On the pose it covers each layer;
 ;;   on one layer it covers that layer, and the nearer one wins.
 ;;
-;; A newline in the string breaks the line. A written string rather than
-;; a column says the same thing for every mark of the layer:
-;; `{:tooltip "one reading per bar"}`.
+;; A written string rather than a column gives every mark of the layer
+;; the same tooltip: `{:tooltip "one reading per bar"}`.
 
 ;; ### Tooltips with markup
 ;;
@@ -310,10 +308,10 @@ sales-rich
 ;; finished before anyone hovers over it, and has no elements for a
 ;; script to attach to.
 ;;
-;; Asking for one on such a format is reported. One message covers the
-;; plot, naming both requests where both were written, the format they
-;; were asked of, and the formats that answer them. The figure still
-;; renders -- what is dropped is the request, not the plot:
+;; A tooltip or a brush requested on such a format prints a warning, and
+;; the figure still renders without them. One warning covers the plot,
+;; naming both requests where both were written, the format, and the
+;; formats that draw interaction:
 
 (with-out-str
   (-> (rdatasets/datasets-iris)
@@ -338,7 +336,7 @@ sales-rich
                                (pj/plot {:format :bufimg}))))
            (instance? java.awt.image.BufferedImage (deref drawn)))))])
 
-;; `pj/save` to a PNG reports the same thing, since a PNG file is that
+;; `pj/save` to a PNG prints the same warning, since a PNG file is that
 ;; format written to disk. Saving the SVG keeps the attributes on the
 ;; marks, and a browser opening the file runs the script that reads
 ;; them.
@@ -349,6 +347,6 @@ sales-rich
 
 ;; ## What's Next
 ;;
-;; - [**Timelines**](./plotje_book.timelines.html) -- where most of the example data came from
+;; - [**Timelines**](./plotje_book.timelines.html) -- interval charts, whose tooltips are shown above
 ;; - [**Customization**](./plotje_book.customization.html) -- titles, palettes, scales
 ;; - [**Architecture**](./plotje_book.architecture.html) -- how the pipeline produces the SVG

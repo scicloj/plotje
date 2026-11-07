@@ -6,12 +6,11 @@
 ;;
 ;; A facet over the categories of a column is a mapping: `:col` and
 ;; `:row` are aesthetics, and `pj/facet` is the call that writes one.
-;; Much follows from that -- a facet reaches into a composite, a cell
+;; Because the facet is a mapping, it reaches into a composite, a cell
 ;; can override the facet it inherits, and several columns under `:col`
 ;; unite into one distinction. A facet over columns is written beside
-;; the mapping, and a grid crosses the two kinds. The sections below teach
-;; those ideas, and the Examples section at the end shows faceted plots
-;; of several kinds.
+;; the mapping, and a grid crosses the two kinds. The Examples section
+;; at the end shows faceted plots of several kinds.
 
 (ns plotje-book.faceting
   (:require
@@ -92,7 +91,7 @@
 
 ;; A category the `:domain` leaves out still draws its panel, after the
 ;; listed ones, and a name the `:domain` lists that the data does not
-;; hold draws no panel. Each prints a warning:
+;; hold draws no panel. Both cases print a warning:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/lay-point :displ :hwy)
@@ -189,8 +188,11 @@
 
 ;; A layer that names one of the facet's columns is drawn only in the
 ;; panel of that column. A panel left with no layer draws the layer type
-;; inferred from its columns, and Plotje prints a Note naming the layer,
-;; the panels, and the change that draws the layer in every panel:
+;; inferred from its columns. Plotje then prints a Note naming the
+;; layer, the panels, and the change that draws the layer in every
+;; panel -- unless the layer is the one inference draws in those panels
+;; and carries nothing but its columns. Inference draws a scatter there,
+;; and this layer is a smooth, so the Note is printed:
 
 (with-out-str
   (-> (rdatasets/ggplot2-mpg)
@@ -201,7 +203,14 @@
 (kind/test-last
  [(fn [out] (and (re-find #"pj/lay-smooth names :hwy on :y" out)
                  (re-find #"\{:y :cty\} has no layer" out)
-                 (re-find #"leave :y off the layer and name :x on the pose" out)))])
+                 (re-find #"leave :y off the layer and name :x on the pose" out)
+                 ;; A scatter with nothing but its columns is the layer
+                 ;; inference draws in the other panel: no Note.
+                 (= "" (with-out-str
+                         (-> (rdatasets/ggplot2-mpg)
+                             (pj/lay-point :displ :hwy)
+                             (pj/facet {:y [:hwy :cty]})
+                             pj/plan)))))])
 
 ;; ## Grids Crossing Categories and Columns
 ;;
@@ -307,7 +316,7 @@
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;; chapter builds scatter plot matrices with more layers.
 
-;; ## Faceting is a mapping
+;; ## A facet over categories is a mapping
 
 ;; The panel aesthetics `:col` and `:row` give each value of a column
 ;; a panel of its own, told apart by a strip label -- where `:color`
@@ -496,9 +505,10 @@
 ;; Under some aesthetics, several columns in a vector are one
 ;; distinction made of those columns united -- a compound key. That is
 ;; what `{:group [:a :b]}` means, and the panel aesthetics read a vector
-;; the same way. `pj/compound-key-aesthetics` names the set, and it is
-;; the set the check reads, so an aesthetic outside it reports several
-;; columns where one goes rather than uniting them:
+;; the same way. `pj/compound-key-aesthetics` names the aesthetics that
+;; read a vector of columns as a compound key. Plotje checks a vector
+;; against this set, so under an aesthetic outside the set, several
+;; columns where one goes report an error rather than being united:
 
 (pj/compound-key-aesthetics)
 
@@ -732,13 +742,13 @@ measures
            (> (first radii) 2.0)
            (< (last radii) 8.0))))])
 
-;; ## Where it is refused
+;; ## A panel aesthetic on a layer is an error
 
 ;; A facet divides every layer of the pose alike, and a panel aesthetic
 ;; is read from a pose's mapping and not from a layer's, so a panel
-;; aesthetic belongs on the pose. Written in a `pj/lay-*` mapping
-;; it is reported, and the report names the places to write it
-;; instead.
+;; aesthetic belongs on the pose. Written in a `pj/lay-*` mapping, a
+;; panel aesthetic reports an error, and the message names the places
+;; to write it instead.
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -902,10 +912,10 @@ measures
            (apply = (map :y-domain panels))
            (apply = (map :x-domain panels)))))])
 
-;; A facet over categories is itself a shorthand for an arrangement:
-;; one cell per category, each holding the whole data and a `:where`,
-;; the row filter that keeps the rows of that category. Written out by
-;; hand, the cells draw the same plot as the facet:
+;; A facet over categories draws what an arrangement of `:where` cells
+;; draws: one cell per category, each holding the whole data and a
+;; `:where`, the row filter that keeps the rows of that category.
+;; Written out by hand, the cells draw the same plot as the facet:
 
 (pj/arrange (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
             [{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}])
@@ -919,6 +929,22 @@ measures
 ;; The cells are parts of the arrangement's data, so they share both
 ;; axes, as the panels of the facet do -- the cells holding data of
 ;; their own, above, share none.
+;;
+;; The plots agree and the poses do not. The arrangement holds its cells
+;; under `:poses`, and the faceted pose holds no `:poses`, so a layer
+;; added afterwards meets two different poses: on the facet,
+;; `(pj/lay-point :displ :cty)` draws on the three panels, and on the
+;; arrangement it is added as a fourth cell.
+
+(kind/test-last
+ [(fn [v]
+    (let [faceted (-> (rdatasets/ggplot2-mpg)
+                      (pj/lay-point :displ :hwy)
+                      (pj/facet :drv))]
+      (and (contains? v :poses)
+           (not (contains? faceted :poses))
+           (= 3 (:panels (pj/svg-summary (pj/lay-point faceted :displ :cty))))
+           (= 4 (:panels (pj/svg-summary (pj/lay-point v :displ :cty)))))))])
 ;;
 ;; `{:share-scales #{:y}}` in the arrangement's options gives the three
 ;; cells one `:y` axis, as the Shared Scales section of the Composition
@@ -994,15 +1020,17 @@ measures
 ;; |:--|:--|
 ;; | `facet_wrap(~ drv)` | `(pj/facet pose :drv)` draws the panels in one row and does not wrap them; `pj/arrange` with `{:cols n}` wraps poses into rows |
 ;; | `facet_grid(cyl ~ drv)` | `(pj/facet pose {:col :drv :row :cyl})` |
-;; | `facet_grid(scales = "free")` | `{:share-scales #{}}` in the options map after the facet |
+;; | `facet_wrap(scales = "free")` | `{:share-scales #{}}` in the options map after the facet, which fits each panel to its own rows |
+;; | `facet_grid(scales = "free")` | `{:share-scales #{}}`, which fits `:x` and `:y` to each panel; ggplot2 fits `:x` to each column of panels and `:y` to each row, which has no Plotje spelling |
 ;; | `facet_grid(scales = "free_y")` | `{:share-scales #{:x}}`, which fits `:y` to each panel rather than to each row |
-;; | `GGally::ggpairs(data, columns = cols)` | `(pj/facet data {:col {:x cols} :row {:y cols}})`, the same layer above and below the diagonal |
+;; | `GGally::ggpairs(data, columns = cols)` | `(pj/matrix data cols)`, which writes the facet `{:col {:x cols} :row {:y cols}}`: a scatter off the diagonal and a histogram on it |
 ;; | `facet_grid(labeller = label_both)` | `{:strip-labels :both}` in the options map after the facet |
 ;; | `facet_grid(margins = TRUE)` | no option; stack the data with a copy labelled `"(all)"`, as below |
 ;;
-;; Panels follow the order the data holds the values, where ggplot2
-;; sorts them; `(pj/scale pose :col {:domain [...]})` gives another
-;; order, as the section on ordering the panels shows.
+;; Panels follow the order the data holds the values. ggplot2 sorts a
+;; text column and follows the levels of a factor;
+;; `(pj/scale pose :col {:domain [...]})` plays the part of
+;; `factor(levels = ...)`, as the section on ordering the panels shows.
 ;;
 ;; ### A panel for all rows
 ;;

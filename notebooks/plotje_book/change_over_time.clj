@@ -230,9 +230,9 @@ temp-pose
 ;; ## Two Series on One Date Axis
 ;;
 ;; Two series measured over different stretches of time read against
-;; each other only if their axes agree. Stacked without saying so, each
-;; panel spans its own dates across the same width, so a reading above
-;; another stands for a different month.
+;; each other only if their axes agree. Stacked by `pj/arrange` with no
+;; other option, each panel spans its own dates across the same width. A
+;; reading directly above another then stands for a different month.
 
 (def zurich
   {:date [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"
@@ -245,8 +245,12 @@ temp-pose
    :temperature [25 28 31 32 27 22]})
 
 (def cities
-  [(-> zurich (pj/lay-line :date :temperature) pj/lay-point)
-   (-> athens (pj/lay-line :date :temperature) pj/lay-point)])
+  [(-> zurich
+       (pj/lay-line :date :temperature)
+       pj/lay-point)
+   (-> athens
+       (pj/lay-line :date :temperature)
+       pj/lay-point)])
 
 (pj/arrange cities {:cols 1})
 
@@ -260,7 +264,7 @@ temp-pose
            (apply not= (mapv #(:labels (:x-ticks %)) panels)))))])
 
 ;; `:share-scales #{:x}` pools the date column across the cells. The
-;; pooled range is the union of both, so each series occupies the part
+;; pooled domain spans the dates of both series, so each series occupies the part
 ;; of the axis it covers, and the axis is labelled once, under the lower
 ;; panel. A month is at the same place in both panels.
 
@@ -285,7 +289,7 @@ temp-pose
            (apply = widths))))])
 
 ;; An axis holds a date as a number of milliseconds, which is what lets
-;; the two ranges be pooled at all.
+;; the two date domains be pooled at all.
 ;;
 ;; The two panels line up here because their y axes label at the same
 ;; width. Where they do not -- one series in single digits and one in
@@ -298,7 +302,7 @@ temp-pose
 
 ;; ## A Distribution of the Dates
 ;;
-;; A time series says what the readings were, and less about when they
+;; A time series shows what the readings were, and less about when they
 ;; were taken. `pj/marginal` puts a distribution of the pose's `:x`
 ;; column in a thin panel above the plot, sharing its axis -- and on a
 ;; date column that distribution is how the observations are spread
@@ -333,8 +337,8 @@ temp-pose
 ;; ## Smoothed Time Series
 
 ;; A LOESS smoother overlaid on a noisy time series makes the
-;; underlying trend easier to see. `pj/lay-smooth` works on any
-;; numerical y axis, including dates on x.
+;; underlying trend easier to see. `pj/lay-smooth` fits a numerical `:y`
+;; against dates on `:x` as it does against numbers.
 
 (-> {:date  [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"
              #inst "2024-04-01" #inst "2024-05-01" #inst "2024-06-01"

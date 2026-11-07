@@ -47,7 +47,7 @@
 
 ;; ## Petal Dimensions
 
-;; Petal length vs width -- a strongly correlated pair, set up
+;; Petal length against petal width -- a strongly correlated pair, set up
 ;; here as the running example for the regression sections below.
 
 (-> (rdatasets/datasets-iris)
@@ -299,13 +299,37 @@
                     (:y-domain (second panels))))))])
 
 ;; A pose takes one marginal: `pj/marginal` returns a composite, and a
-;; composite has no single panel for a second strip to sit against. A
-;; scatter with a distribution on both edges has to be written out as a
-;; composite by hand.
-;;
-;; A `:color` mapping does not reach the strip -- it describes the
-;; column as a whole. Faceting does reach it, giving one distribution
-;; per panel, so facet first and add the marginal after:
+;; composite has no single panel for a second strip to sit against. For
+;; a distribution on both edges, `pj/matrix` with `nil` in each list of
+;; columns draws the scatter and both marginals. A `nil` leaves a place
+;; with no column on that axis, so that panel draws the distribution of
+;; the other column, and the corner, `nil` on both axes, is left empty.
+;; The marginals are histograms, where `pj/marginal` draws a density by
+;; default, and the weights draw them a third the size of the scatter:
+
+(pj/matrix (rdatasets/datasets-iris)
+           [:sepal-length nil]
+           [nil :sepal-width]
+           {:col-weights [3 1] :row-weights [1 3]})
+
+(kind/test-last
+ [(fn [v] (let [s (pj/svg-summary v)
+                subs (:sub-plots (pj/plan v))
+                marks (into {} (map (juxt :path #(mapv :mark (-> % :plan :panels first :layers)))) subs)
+                w (into {} (map (juxt :path #(get-in % [:plan :panel-width]))) subs)
+                h (into {} (map (juxt :path #(get-in % [:plan :panel-height]))) subs)]
+            (and (= 3 (:panels s))
+                 (= 150 (:points s))
+                 ;; scatter at the lower left, a histogram above it and
+                 ;; one at its right, the corner empty
+                 (= {[0 0] [:bar] [0 1] [] [1 0] [:point] [1 1] [:bar]} marks)
+                 (<= (Math/abs (- (w [1 0]) (* 3 (w [1 1])))) 3.0)
+                 (<= (Math/abs (- (h [1 0]) (* 3 (h [0 0])))) 3.0))))])
+
+;; A `:color` mapping does not reach the strip that `pj/marginal` adds
+;; -- the strip describes the column as a whole. Faceting does reach
+;; the strip, giving one distribution per panel, so facet first and add
+;; the marginal after:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -332,11 +356,11 @@
 
 ;; ## Scatter Plot Matrix (SPLOM)
 ;;
-;; `pj/facet` given columns across, `{:col {:x [...]}}`, and columns
-;; down, `{:row {:y [...]}}`, draws a grid with a panel for every pair --
-;; a scatter plot matrix. With no layer written, each panel takes the
-;; layer its columns call for: a histogram where a column meets itself,
-;; on the diagonal, and a scatter elsewhere.
+;; `pj/matrix` given a list of columns draws a grid with a panel for
+;; every pair of those columns -- a scatter plot matrix. With no layer
+;; written, each panel draws the layer type inferred from its columns:
+;; a histogram where a column meets itself, on the diagonal, and a
+;; scatter elsewhere.
 ;;
 ;; Start small: two variables crossed with themselves give a 2x2 grid.
 
@@ -344,7 +368,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x small-cols} :row {:y small-cols}}))
+    (pj/matrix small-cols))
 
 (kind/test-last
  [(fn [v]
@@ -356,6 +380,16 @@
       (and (= 4 (:panels (pj/svg-summary v)))
            (every? (fn [[r c m]] (= m (if (= r c) :bar :point))) marks))))])
 
+;; `pj/matrix` writes a facet over columns: the columns across under
+;; `:col` and the columns down under `:row`, so
+;; `(pj/matrix data cols)` is `(pj/facet data {:col {:x cols} :row {:y cols}})`,
+;; as [Faceting](./plotje_book.faceting.html#scatter-plot-matrix) shows.
+
+(kind/test-last
+ [(fn [v] (= v (-> (rdatasets/datasets-iris)
+                   (pj/pose {:color :species})
+                   (pj/facet {:col {:x small-cols} :row {:y small-cols}}))))])
+
 ;; The full 4x4 SPLOM follows the same pattern with iris's four
 ;; numeric columns:
 
@@ -363,7 +397,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x cols} :row {:y cols}}))
+    (pj/matrix cols))
 
 (kind/test-last
  [(fn [v]
@@ -377,9 +411,10 @@
                                 mark (-> plan :panels first :layers first :mark)]
                             (= mark (if (= r c) :bar :point)))))))))])
 
-;; Per-cell inference picks the layer type for each panel: diagonal
-;; cells (x = y) get histograms; off-diagonal cells get scatter
-;; plots. All panels share the color aesthetic set on the pose.
+;; Inference picks the layer type for each panel: diagonal panels,
+;; where a column meets itself, get histograms; panels off the diagonal
+;; get scatter plots. All panels share the color aesthetic set on the
+;; pose.
 
 ;; A layer written on the matrix is drawn in the panels whose columns it
 ;; draws. A scatter draws two columns, so `pj/lay-point` is drawn in the
@@ -388,7 +423,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x small-cols} :row {:y small-cols}})
+    (pj/matrix small-cols)
     pj/lay-point)
 
 (kind/test-last
@@ -404,7 +439,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x small-cols} :row {:y small-cols}})
+    (pj/matrix small-cols)
     pj/lay-point
     pj/lay-density)
 
@@ -421,7 +456,7 @@
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
-    (pj/facet {:col {:x small-cols} :row {:y small-cols}})
+    (pj/matrix small-cols)
     pj/lay-point
     pj/lay-density
     (pj/lay-smooth (first small-cols) (second small-cols) {:color "black"}))

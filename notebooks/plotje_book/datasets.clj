@@ -74,8 +74,8 @@
 ;;
 ;; ### From a map of columns
 
-(tc/dataset {:x [1 2 3 4 5]
-             :y [10 20 15 30 25]})
+(tc/dataset {:height [1 2 3 4 5]
+             :weight [10 20 15 30 25]})
 
 (kind/test-last [(fn [ds] (= 5 (tc/row-count ds)))])
 
@@ -113,8 +113,8 @@
 ;; without names -- an integer. Plotje reads all three, and derives an
 ;; axis title from the name whenever you do not supply one.
 ;;
-;; A keyword cannot hold a space, so hyphens and underscores in one
-;; stand for word breaks. The derived title is spaced rather than
+;; A keyword cannot hold a space, so hyphens and underscores in a
+;; keyword stand for word breaks. The derived title is spaced rather than
 ;; punctuated:
 
 (-> {:sepal-length [5.1 4.9 4.7 5.0]
@@ -125,8 +125,8 @@
                             ((juxt :x-label :y-label) (pj/plan v))))])
 
 ;; A string is left as written. A string can hold a space, so a hyphen
-;; in one was chosen rather than substituted, and replacing it would
-;; corrupt a name that meant it:
+;; in a string name was written on purpose, and replacing the hyphen
+;; would change the name:
 
 (-> {"sepal_length"       [5.1 4.9 4.7 5.0]
      "Cost-Benefit Ratio" [3.5 3.0 3.2 3.6]}
@@ -168,12 +168,13 @@
 ;; is a value to place a mark at. So the same code can mean different
 ;; things on differently named data --
 ;; [Known Limitations](./plotje_book.known_limitations.html#integer-column-names)
-;; has the detail, and `{:x {:column 0}}` or `{:x {:value 0}}` settles
-;; it in place. Renaming the columns is the other remedy:
+;; has the detail, and writing `{:x {:column 0}}` or `{:x {:value 0}}`
+;; chooses the reading in the mapping itself. Renaming the columns is
+;; the other remedy:
 
 (-> (tc/dataset [[1 2] [3 4] [5 7]])
-    (tc/rename-columns [:x :y])
-    (pj/lay-point :x :y))
+    (tc/rename-columns [:height :weight])
+    (pj/lay-point :height :weight))
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
@@ -286,15 +287,15 @@
 
 ;; Plain data:
 
-(-> {:x [1 2 3] :y [4 5 6]}
-    (pj/lay-point :x :y))
+(-> {:height [1 2 3] :weight [4 5 6]}
+    (pj/lay-point :height :weight))
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
 ;; Dataset:
 
-(-> (tc/dataset {:x [1 2 3] :y [4 5 6]})
-    (pj/lay-point :x :y))
+(-> (tc/dataset {:height [1 2 3] :weight [4 5 6]})
+    (pj/lay-point :height :weight))
 
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 

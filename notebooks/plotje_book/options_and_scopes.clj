@@ -3,12 +3,14 @@
 ;; Plotje has three kinds of values you set, each answering
 ;; a different question:
 ;;
-;; - **Mappings** -- *how is this layer shown?* Its aesthetics
-;;   (`:color`, `:size`, `:group`), and its **layer settings**: the
-;;   parameters of its layer type (`:bandwidth`, `:bins`), its data,
-;;   its position adjustment. A layer's mapping describes that layer;
-;;   aesthetics and `:data` can also be written in the pose's mapping,
-;;   to reach every layer.
+;; - **Mappings** -- *what does this layer draw from, and how?* Its
+;;   aesthetics (`:color`, `:size`, `:group`), and its **layer
+;;   settings**: the parameters of its layer type (`:bandwidth`,
+;;   `:bins`), its data, its position adjustment. A layer's mapping
+;;   describes that layer; aesthetics and `:data` can also be written
+;;   in the pose's mapping, to reach every layer. The word "mapping"
+;;   names both the column-to-aesthetic pairs and the map they are
+;;   written in -- see [Mapping](./plotje_book.glossary.html#mapping).
 ;; - **Plot options** -- *what describes this plot as a whole?*
 ;;   Its title and labels, its coordinate system, and how its
 ;;   panels share their axes. Per-plot by nature; there is one of
@@ -18,8 +20,8 @@
 ;;   across every plot you render; any one plot can override a
 ;;   configuration key.
 ;;
-;; The distinguishing test: **can this kind of value meaningfully have
-;; a cross-plot default?** A title cannot -- each plot needs its own.
+;; **Configuration holds the values that can meaningfully have a
+;; cross-plot default.** A title cannot -- each plot needs its own.
 ;; A palette can -- a whole project can share one. A layer's color
 ;; mapping is per-layer, but when several layers should share the
 ;; mapping, you set it at a wider scope.
@@ -60,8 +62,8 @@
 ;; `:text` and `:fill`. An aesthetic is either mapped from a column
 ;; (`:color :species`) or given as a constant (`:alpha 0.3`).
 ;;
-;; **Layer settings** are the other keys of a layer's mapping. A layer
-;; setting says how the layer is computed or drawn:
+;; **Layer settings** are the other keys of that map. A layer setting
+;; says how the layer is computed or drawn:
 ;;
 ;; - **The parts of the layer type** -- the rendering recipe is a mark
 ;;   (point, line, bar, ...), a stat (identity, linear-model, density,
@@ -74,6 +76,31 @@
 ;;   `pj/lay-histogram`.
 ;; - **Data** -- a per-layer `:data` key, if the layer should
 ;;   use a different dataset from the rest of the pose.
+;;
+;; All of these are written in the one map passed to `pj/lay-*`. In
+;; the printed pose, the parameters of the layer type stay in the
+;; layer's `:mapping` beside its aesthetics, while `:mark`, `:stat`,
+;; `:position` and `:data` are stored on the layer next to its
+;; `:mapping`:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose :sepal-length :sepal-width)
+    (pj/lay-smooth {:stat :loess :bandwidth 0.5})
+    pose-summary)
+
+(kind/test-last
+ [(fn [m]
+    (and (= :loess (get-in m [:layers 0 :stat]))
+         (= {:bandwidth 0.5} (get-in m [:layers 0 :mapping]))
+         ;; :data is stored on the layer, outside its :mapping
+         (let [layer (-> (rdatasets/datasets-iris)
+                         (pj/pose :sepal-length :sepal-width)
+                         (pj/lay-point {:data (rdatasets/datasets-iris)})
+                         :layers
+                         first)]
+           (and (contains? layer :data)
+                (not (contains? (:mapping layer) :data))))))])
+
 ;;
 ;; An aesthetic written in the mapping of `pj/lay-*`:
 
@@ -113,12 +140,14 @@
 ;; Composite poses introduce a third level: an outer pose's
 ;; mapping flows into each of its descendant leaves, where it
 ;; combines with the leaf's own mapping. See
-;; [Composition](./plotje_book.composition.html#explicit-composite-poses) for examples.
+;; [Pose Rule S1](./plotje_book.pose_rules.html#rule-s1-mapping-scope-is-a-tree-walk-merge-narrower-wins)
+;; for an example.
 ;;
 ;; The layer type itself is chosen per layer -- you pick which
 ;; `pj/lay-*` to call. [Core Concepts](./plotje_book.core_concepts.html#scope)
-;; teaches how layer placement interacts with pose mappings, and
-;; the detailed combination rules for each kind of aesthetic.
+;; teaches where layers go and how values combine at each scope;
+;; [Pose Rules](./plotje_book.pose_rules.html#scope) S1 to S6 state the
+;; rules.
 
 ;; ## Plot Options
 ;;
@@ -130,8 +159,8 @@
 ;; the options written on the composite itself apply to every cell
 ;; that does not set them.
 ;;
-;; Two functions write plot options to the pose's `:opts`
-;; field:
+;; Two functions are dedicated to plot options, and write them to the
+;; pose's `:opts` field:
 ;;
 ;; - `pj/options` -- plot text (title, subtitle, caption, axis
 ;;   and legend labels) and panel dimensions. It also accepts
@@ -145,7 +174,8 @@
 ;; `:mapping` under `:col` or `:row`. A facet over columns,
 ;; `(pj/facet pose {:y [:hwy :cty]})`, is kept under the pose's
 ;; `:facet` key. `pj/facet` takes a map of plot options as a last
-;; argument and passes that map to `pj/options`.
+;; argument and passes that map to `pj/options`. `pj/arrange` takes
+;; the same map of plot options as its last argument.
 ;;
 ;; `pj/scale` does not write to `:opts`: a scale belongs to the
 ;; aesthetic it reads, so it is written into that aesthetic's mapping.
@@ -154,7 +184,8 @@
 ;; continuous visual ones (`:size`, `:alpha`, `:fill`, `:color`) accept
 ;; `:linear` and `:log`; `:shape` accepts `:categorical`. `:group` has
 ;; no scale to set -- it splits a layer into one drawn group per value
-;; and draws nothing of its own -- and is refused.
+;; and draws nothing of its own -- so `(pj/scale pose :group ...)`
+;; reports an error.
 
 ;; Reference lines and shaded bands -- `pj/lay-rule-h`,
 ;; `pj/lay-rule-v`, `pj/lay-band-h`, `pj/lay-band-v` -- are layers,
@@ -193,7 +224,7 @@
 ;;
 ;; On a faceted plot, a scale has two parts:
 ;;
-;; - Scale **type** (log, categorical, linear, etc.) is shared
+;; - Scale **type** (log, categorical, linear, and so on) is shared
 ;;   across all panels -- if you set `pj/scale :x :log` on a
 ;;   faceted pose, every panel has a log x-axis.
 ;; - Scale **domain** (the extent of values shown) is shared as well,
@@ -202,12 +233,12 @@
 ;;   `:y` domain, and `{:share-scales #{}}` its own on both axes -- and
 ;;   the appearance aesthetics keep one domain either way.
 ;;
-;; A note on the scope of scales and coord: `pj/scale` and `pj/coord`
+;; `pj/scale` and `pj/coord`
 ;; write at the pose they are called on and flow down from there, so
 ;; called on the pose you are building they cover the whole plot, and
 ;; called on one cell before the cells are arranged, that cell alone.
 ;; A scale written in a mapping is the same setting written closer to
-;; the layer, and the two accumulate. What has no spelling yet is a
+;; the layer, and the two combine key by key. What has no spelling yet is a
 ;; type that varies across the panels of a facet: those panels come
 ;; from one pose, so they share it.
 ;;
@@ -301,9 +332,9 @@ demo
 ;;   at layer scope.
 ;; - `:title` and `:coord` are in `:opts` -- plot options, which on
 ;;   this single-panel plot describe the whole of it.
-;; - Configuration does not appear in the pose. The renderer
-;;   will consult `(pj/config)` for theme, default dimensions,
-;;   and other defaults.
+;; - Configuration does not appear in the pose. `(pj/config)`
+;;   supplies the theme, default dimensions and other defaults when
+;;   the plot is drawn.
 
 ;; ## Coming from ggplot2
 ;;
@@ -316,7 +347,8 @@ demo
 ;; | `ggplot(aes(...))`                           | a pose's mapping            |
 ;; | `+ geom_*()`                                 | a layer                     |
 ;; | `+ coord_*()`                                | plot option                 |
-;; | `+ scale_*()`, `+ facet_*()`                 | the pose itself (`pj/scale`, `pj/facet`) |
+;; | `+ scale_*()`                                | a pose's mapping: the aesthetic's `:scale` (`pj/scale`) |
+;; | `+ facet_*()`                                | a pose's mapping: the panel aesthetics `:col` and `:row` (`pj/facet`); a facet over columns is kept beside the mapping, under `:facet` |
 ;; | `+ labs(...)`, one-off `+ theme(...)`        | plot option                 |
 ;; | `theme_set(...)`, `options(...)`             | configuration               |
 

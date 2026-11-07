@@ -27,7 +27,7 @@
 (def measurements
   {:height  [1 2 3 4]
    :weight  [1 2 3 4]
-   :depth   [2 3 4 5]
+   :depth   [1.6 2.3 3.4 4.7]
    :species ["a" "a" "b" "b"]})
 
 ;; ## The panel of a leaf pose
@@ -41,7 +41,7 @@
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
 ;; Adding a layer does not add a panel. The layers of a pose share its
-;; axes and paint over one another, which is the point of them:
+;; axes and are drawn over one another:
 
 (-> measurements
     (pj/lay-point :height :weight)
@@ -49,10 +49,10 @@
 
 (kind/test-last [(fn [v] (= 1 (:panels (pj/svg-summary v))))])
 
-;; That holds for a layer naming other columns too. Its columns are drawn
-;; against the axes the panel already has, each axis covers every column
-;; drawn on it and is titled by all of them, and each layer takes a
-;; colour and a legend entry naming its columns:
+;; A layer naming other columns adds no panel either. The layer's
+;; columns are drawn against the axes the panel already has, each axis
+;; covers every column drawn on it and is titled by all of them, and
+;; each layer takes a colour and a legend entry naming its columns:
 
 (-> measurements
     (pj/lay-point :height :weight)
@@ -63,14 +63,17 @@
                                [lo hi] (:x-domain (first (:panels plan)))]
                            (and (= 1 (:panels s))
                                 (= "height, depth" (:x-label plan))
-                                ;; :height runs 1-4 and :depth 2-5
-                                (< lo 1) (> hi 5)
+                                ;; :height runs 1-4 and :depth 1.6-4.7
+                                (< lo 1) (> hi 4.7)
                                 (= ["height" "depth"]
                                    (mapv :label (:entries (:legend plan)))))))])
 
 ;; How the colour of each layer is decided -- a colour it specifies, a
 ;; `:color` on the pose, or a layer coloured by a column -- is in
-;; [Inference Rules](./plotje_book.inference_rules.html#multi-layer-plots).
+;; [Pose Rules](./plotje_book.pose_rules.html#rule-lp5-the-layers-of-a-leaf-share-its-panel),
+;; and [Inference Rules](./plotje_book.inference_rules.html#multi-layer-plots)
+;; shows a colour specified on each layer and a layer coloured by a
+;; column.
 
 ;; ### The panel's columns
 
@@ -140,7 +143,7 @@
 ;; and the facet replaces the column on the axis it names. Below, the
 ;; point layer names `:weight`, so it is drawn in the `:weight` panel.
 ;; The `:depth` panel keeps the panel's `:height` on `:x`. No layer
-;; names `:depth`, so that panel draws the layer the data chooses for
+;; names `:depth`, so that panel draws the layer type inferred from
 ;; `:height` and `:depth`, which is a scatter too:
 
 (-> measurements
@@ -258,9 +261,10 @@
 ;; ## Cells that filter the data
 
 ;; A cell of `pj/arrange` may hold `:where`, a map from a column to a
-;; value, and draws only the rows that match. The cell is what
-;; `(pj/pose nil {:where {:species "a"}})` writes, as any cell is what
-;; one argument after the data is to `pj/pose`. Cells that split one
+;; value, and draws only the rows that match. A cell is written as the
+;; argument after the data in `pj/pose` is written, so the cell
+;; `{:where {:species "a"}}` is read as it is read in
+;; `(pj/pose nil {:where {:species "a"}})`. Cells that split one
 ;; dataset by the values of one column draw what `pj/facet` draws over
 ;; that column:
 

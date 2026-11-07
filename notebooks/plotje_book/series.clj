@@ -149,8 +149,8 @@ sales-by-region
 ;; A series written out takes three keys: `:series` for the columns it
 ;; reads, `:as` for the key column the pivot invents, and `:scale` for
 ;; the scale its value column is read through. Any other key reports an
-;; error, so a misspelled `:as` is caught where it is written rather
-;; than leaving the legend untitled.
+;; error, so a misspelled `:as` is caught at the call that writes it
+;; rather than leaving the legend untitled.
 
 (try
   (-> sales
@@ -415,10 +415,11 @@ sales-by-region
                     (mapv :label (:entries (:legend (pj/plan v))))))))])
 
 ;; For a panel per pair in place of one panel, give the two lists to
-;; `pj/facet` as `{:col {:x xs} :row {:y ys}}`, as the scatter plot
+;; `pj/matrix` as `(pj/matrix data xs ys)`: each column of `xs` is drawn
+;; against each column of `ys` in a panel of its own. The scatter plot
 ;; matrix in
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
-;; does.
+;; crosses one list of columns with itself.
 
 ;; ## One series per pose
 
@@ -450,8 +451,8 @@ sales-by-region
 
 ;; Each example below combines a series with one more thing -- another
 ;; mark, a scale, the key column in another role, panels, another
-;; layer, a composite. The last group lists what a series refuses, and
-;; the vectors that are not series at all.
+;; layer, a composite. The last group lists the series that report an
+;; error, and the vectors that are not series at all.
 
 ;; ### Other marks
 
@@ -543,9 +544,9 @@ sales-by-region
  [(fn [v] (and (= 2 (:lines (pj/svg-summary v)))
                (= :log (-> v pj/plan :panels first :y-scale :type))))])
 
-;; A stat needing a numeric axis column runs here where it reported on
-;; the quarters above, since a date is not a category -- one smooth per
-;; measure:
+;; A stat needing a numeric axis column reported an error on the
+;; quarters above, and runs on these dates, since a date is not a
+;; category -- one smooth per measure:
 
 (-> (rdatasets/ggplot2-economics)
     (pj/lay-smooth :date {:series [:pop :unemploy] :scale {:type :log}}))
@@ -658,8 +659,8 @@ sales-by-region
              (mapv :label (:entries (:legend (pj/plan v))))))])
 
 ;; The pivot happens when the pose is drawn, so the `:color-type` it
-;; writes is visible in the draft. A writer who wants the gradient after
-;; all asks for it with the same key:
+;; writes is visible in the draft. To draw the gradient after all,
+;; write the same key on the layer:
 
 (-> {"country" ["a" "b" "c"]
      "2019"    [10 20 30]
@@ -809,7 +810,7 @@ sales-by-region
 
 ;; #### Another aesthetic from the key column
 
-;; The layer that asks for a series may map the key column again. Shape
+;; The layer that writes a series may map the key column again. Shape
 ;; beside colour separates the measures twice over, which survives
 ;; printing in one colour. Colour and shape share one legend, each entry
 ;; drawn in its colour and its shape:
@@ -842,7 +843,7 @@ sales-by-region
                         (-> v pj/plan :panels first :layers first :groups)))))])
 
 ;; `:size` and `:alpha` draw a magnitude, and a measure's name is not
-;; one, so both report:
+;; one, so a series key on either reports an error:
 
 (try
   (pj/plot (-> sales
@@ -930,7 +931,7 @@ sales-by-region
                  (= 8 (:lines s)))))])
 
 ;; A `:color` written on the pose does not reach the marks. The pivot
-;; writes `:color` on the layer that asks for the series, and a layer's
+;; writes `:color` on the layer that writes the series, and a layer's
 ;; own mapping wins over the pose's, so the region separates nothing and
 ;; each line runs through both regions -- the same plot as one with no
 ;; `:color` on the pose at all. Write `:color` on the layer, as the two
@@ -1241,12 +1242,12 @@ sales-by-region
 ;; `pj/arrange` places series poses that read different columns, as
 ;; here.
 
-;; ### Refusals and look-alikes
+;; ### Errors and look-alikes
 
-;; #### What a series refuses
+;; #### Series that report an error
 
-;; The sections above work through the refusals a writer meets most
-;; often. The rest of the set, with the message each one gives:
+;; The sections above show the errors a writer meets most often. The
+;; rest of the set, with the message each one gives:
 
 (kind/table
  {:column-names ["written" "what it reports"]

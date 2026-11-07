@@ -23,8 +23,9 @@
 
 ;; ### Boxplot with jittered points
 ;;
-;; Overlay raw observations on a boxplot summary. The auto-[jitter](https://en.wikipedia.org/wiki/Jitter)
-;; detects the categorical axis and constrains points to the band width.
+;; Overlay raw observations on a boxplot summary. On a categorical axis,
+;; the [jitter](https://en.wikipedia.org/wiki/Jitter) spreads the points
+;; only within the width of each band.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-boxplot :species :sepal-length)
@@ -166,6 +167,12 @@
 ;; Each `lay-*` accepts `{:data ...}` to override the pose-level
 ;; dataset. This lets you overlay marks from two different tables --
 ;; ggplot2's `geom_line(data=df2) + geom_point(data=df1)` pattern.
+;;
+;; Unlike ggplot2, `pj/facet` does not divide a layer's own `:data`:
+;; each panel draws every row of it. A reference value that differs from
+;; panel to panel is built with `pj/arrange` instead, as
+;; [Known Limitations](./plotje_book.known_limitations.html#ggplot2-features-not-yet-implemented)
+;; describes.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:alpha 0.3})
@@ -174,7 +181,13 @@
                    :x :sepal-length :y :sepal-width
                    :color "red" :size 6}))
 
-(kind/test-last [(fn [v] (= 152 (:points (pj/svg-summary v))))])
+(kind/test-last
+ [(fn [v]
+    (and (= 152 (:points (pj/svg-summary v)))
+         ;; Faceted by species, the pose's rows are divided among three
+         ;; panels and the layer's two rows are drawn in each of them.
+         (= (+ 150 (* 3 2))
+            (:points (pj/svg-summary (pj/facet v :species))))))])
 
 ;; ### An annotation arrow
 ;;
@@ -470,7 +483,7 @@ longest-per-species
 ;; ### Diverging color scale
 ;;
 ;; Use a `:diverging` color range with a `:midpoint` to center
-;; a red-white-blue gradient on a meaningful value (e.g., zero).
+;; a red-white-blue gradient on a meaningful value (for example, zero).
 
 (-> {:x (range 20)
      :y (map #(Math/sin (/ % 3.0)) (range 20))
@@ -570,7 +583,7 @@ longest-per-species
 ;;
 ;; The simplest annotations have their own layer types. A rule draws a
 ;; line across the panel at one value; a band shades the region between
-;; two. Both take their positions as values rather than columns, and
+;; two. Both take their `:x` or `:y` as values rather than columns, and
 ;; both take `:alpha` -- a band's fill opacity, a rule's line opacity.
 
 (-> (rdatasets/datasets-iris)
@@ -689,7 +702,7 @@ longest-per-species
 ;;
 ;; One country, with four layers doing the annotating: a marker on the
 ;; point being discussed, a dotted leader from the note to the marker,
-;; the note itself at a position given as values rather than columns,
+;; the note itself at an `:x` and `:y` given as values rather than columns,
 ;; and a caption placed on the panel with `:in :drawing-area`.
 
 (-> (rdatasets/gapminder-gapminder)
@@ -716,9 +729,9 @@ longest-per-species
                  (= 1 (:points s)))))])
 
 ;; The two text layers are placed in different spaces on purpose. The
-;; callout's position is a year and a life expectancy, so it tracks the
-;; shape it describes when the axis changes. The caption's position is
-;; in drawing units from the corner of the panel background, so it does
+;; callout is placed at a year and a life expectancy, so it tracks the
+;; shape it describes when the axis changes. The caption is placed in
+;; drawing units from the corner of the panel background, so it does
 ;; not move with the data.
 
 ;; ### A few named series over many pale ones
@@ -919,7 +932,7 @@ longest-per-species
                            (and (= 244 (:points s))
                                 (= 2 (:lines s)))))])
 
-;; Tip amounts by day, colored by meal time.
+;; Visits by day, colored by meal time.
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-bar :day {:color :time})
@@ -939,7 +952,7 @@ longest-per-species
                            (and (= 1 (:panels s))
                                 (pos? (:polygons s)))))])
 
-;; Horizontal bar chart of party sizes.
+;; Visits by day and sex, as horizontal bars.
 
 (-> (rdatasets/reshape2-tips)
     (pj/lay-bar :day {:color :sex})
@@ -993,7 +1006,7 @@ longest-per-species
 ;; dataset (53,940 rows) produces an 11 MB SVG file.
 ;;
 ;; Setting `:format :bufimg` renders the plot to a
-;; `java.awt.image.BufferedImage` via membrane's Java2D backend instead
+;; `java.awt.image.BufferedImage` via Membrane's Java2D backend instead
 ;; of SVG. For plots with many thousands of points, the raster output
 ;; is substantially smaller than the equivalent SVG.
 
@@ -1029,7 +1042,8 @@ longest-per-species
 ;; label centers on its tick, and `:x-tick-angle` turns each one about its
 ;; own origin.
 ;;
-;; One pose exercising all three, first as SVG:
+;; One pose with y tick labels, x tick labels and an `:x-tick-angle`,
+;; first as SVG:
 
 (def quarterly-revenue
   (-> {:quarter ["Q1 2024" "Q2 2024" "Q3 2024" "Q4 2024"]

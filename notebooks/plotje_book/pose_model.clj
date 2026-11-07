@@ -29,7 +29,7 @@
 
 ;; ## A pose describes a plot
 ;;
-;; A pose flows through the pipeline. The composition functions --
+;; The composition functions --
 ;; `pj/pose`, `pj/lay-*`, `pj/options`, `pj/scale`, `pj/coord`,
 ;; `pj/facet`, `pj/arrange` -- all take a pose and return a pose,
 ;; so plots build up through ordinary `->` threading. When the pose
@@ -64,9 +64,11 @@
 
 ;; ## Poses carry mappings
 ;;
-;; A **mapping** connects columns to visual properties. We added
-;; `:x` and `:y` above; the pose also accepts appearance
-;; aesthetics like `:color`, `:size`, `:alpha`, and `:shape`:
+;; An **aesthetic** is a visual property of a mark: `:x` and `:y`
+;; (where the mark sits), `:color`, `:size`, `:alpha` and `:shape`.
+;; A **mapping** says which column, or which written value, an
+;; aesthetic takes. We mapped columns to `:x` and `:y` above; the pose
+;; also accepts mappings for `:color`, `:size`, `:alpha` and `:shape`:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width {:color :species}))
@@ -87,8 +89,11 @@
 
 ;; ## Poses carry layers
 ;;
-;; A **layer** is a chart-type recipe -- mark, stat, position --
-;; attached to a pose. The pose says what to plot (its mapping
+;; A **layer** is a layer type placed on a pose. The layer type is a
+;; chart-type recipe made of a mark (the shape drawn), a stat (the
+;; computation applied before drawing) and a **position** (how marks
+;; of different groups share space, such as bars stacked on one
+;; another or dodged side by side). The pose says what to plot (its mapping
 ;; picks the columns); the layer says how it is drawn (points, a
 ;; smooth, error bars). Several layers attached to one pose share
 ;; its mapping and coordinate system, so a scatter and its
@@ -146,15 +151,15 @@ multi-layer
 ;;
 ;; Layers paint in the order they are added: the first `lay-*` call
 ;; renders first, and each later one on top of it. When layers overlap,
-;; that decides what stays visible -- so add the layer you want on top
-;; last.
+;; the order of the layers decides which marks stay visible -- so add
+;; the layer you want on top last.
 ;;
 ;; Two points at one spot. The large one is added first and the small
 ;; one second, so the small dot reads on top of the large one:
 
-(-> {:x [1] :y [1]}
-    (pj/lay-point :x :y {:size 30 :color "#a6cee3"})
-    (pj/lay-point :x :y {:size 12 :color "#1f78b4"}))
+(-> {:height [1] :weight [1]}
+    (pj/lay-point :height :weight {:size 30 :color "#a6cee3"})
+    (pj/lay-point :height :weight {:size 12 :color "#1f78b4"}))
 
 (kind/test-last
  [(fn [fr]
@@ -217,12 +222,13 @@ multi-layer
 
 (kind/test-last [(fn [v] (empty? (:layers v)))])
 
-;; The principle: **the inferred value fills in only when you have
-;; not specified one yourself.** An explicit choice is always kept;
-;; inference supplies only what you leave out. (How explicit choices
-;; override inherited ones -- including the special case of an
-;; explicit `nil` -- comes up once scope is in play; see Core
-;; Concepts and Pose Rule S3.)
+;; **The inferred value fills in only when you have not specified
+;; one yourself.** An explicit choice is always kept; inference
+;; supplies only what you leave out. (How explicit choices override
+;; inherited ones -- including the special case of an explicit
+;; `nil` -- comes up once scope is in play; see
+;; [Core Concepts](./plotje_book.core_concepts.html#override) and
+;; [Pose Rule S3](./plotje_book.pose_rules.html#rule-s3-nil-in-a-mapping-cancels-an-inherited-value).)
 ;;
 ;; Inference covers marks (the shape shown, like points or bars),
 ;; stats (the computation before rendering, like binning), color
@@ -234,7 +240,7 @@ multi-layer
 ;;
 ;; The poses we have built so far are **leaf** poses -- each
 ;; describes a single plot panel with its own data, mapping, and
-;; layers. A **composite** pose is the other shape: a plain map
+;; layers. A **composite** pose is a plain map
 ;; that holds sub-poses under `:poses` and an optional `:layout`
 ;; describing how to tile them. Composition functions take any
 ;; pose and return a pose. Here is a two-panel composite written
@@ -279,8 +285,9 @@ two-panel
 ;; Printed, `pj/arrange` always wraps its plots in a top-level
 ;; vertical layout whose rows are horizontal strips -- a single
 ;; row of two panels shows up here as a vertical-of-horizontal
-;; composite. The sub-poses themselves are clean leaf maps that
-;; match the shape of the explicit-map form above:
+;; composite. The sub-poses are leaf maps of the explicit-map form
+;; above, except that each leaf carries its own `:data`, because each
+;; pose was built with its data:
 
 (-> (pj/arrange
      [(-> (rdatasets/datasets-iris)
@@ -294,24 +301,16 @@ two-panel
 (kind/test-last [(fn [v] (and (= :vertical (get-in v [:layout :direction]))
                               (= 1 (count (:poses v)))
                               (= 2 (count (:poses (first (:poses v)))))
-                              (= :horizontal (get-in v [:poses 0 :layout :direction]))))])
+                              (= :horizontal (get-in v [:poses 0 :layout :direction]))
+                              ;; the root has no :data; each leaf carries its own
+                              (nil? (:data v))
+                              (every? (comp some? :data) (:poses (first (:poses v))))))])
 
 ;; Composites nest the same
 ;; shape inside `:poses`. The
 ;; [Composition](./plotje_book.composition.html) chapter covers
 ;; the multi-pose patterns in depth.
 
-;; ## Summary
-;;
-;; | Concept | In code |
-;; |:--------|:--------|
-;; | A pose describes a plot | `pj/pose`, `pj/lay-*` return poses; inspect with `kind/pprint` |
-;; | Poses carry mappings | Column-to-aesthetic pairs live in `:mapping` |
-;; | Poses carry layers | Chart-type recipes attached via `pj/lay-*`, listed in `:layers` |
-;; | What vs how | `pj/pose` declares what; `pj/lay-*` declares how |
-;; | Inference fills gaps | Omit choices, the library infers from data |
-;; | Poses compose | `pj/arrange` tiles sibling poses; composites nest under `:poses` |
-;;
 ;; ## What's Next
 ;;
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- data formats, marks, stats, color, grouping, coordinates

@@ -106,30 +106,12 @@
                            (and (= 1 (:panels s))
                                 (= 150 (:points s)))))])
 
-(kind/doc #'pj/cross)
-
-;; `pj/cross` is deprecated, and a call to it prints a warning. A pair
-;; of columns is not a cell of `pj/arrange`, where a vector is a list of
-;; cells. For a grid of every `:x`
-;; column against every `:y` column, give `pj/facet` the two lists,
-;; `{:col {:x xs} :row {:y ys}}`. The same list in both places draws a
-;; scatter plot matrix (SPLOM):
-
-(-> (rdatasets/datasets-iris)
-    (pj/pose {:color :species})
-    (pj/facet {:col {:x [:sepal-length :petal-length]}
-              :row {:y [:sepal-length :petal-length]}}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 4 (:panels s))
-                                (= 300 (:points s)))))])
-
 ;; ## Layer Functions
 
 (kind/doc #'pj/lay)
 
-;; The generic layer adder. `pj/lay-point`, `pj/lay-bar`, etc. are
-;; convenience wrappers around `pj/lay` with a registered layer-type
+;; The generic layer adder. `pj/lay-point`, `pj/lay-bar` and the other
+;; `pj/lay-*` functions are convenience wrappers around `pj/lay` with a registered layer-type
 ;; key. Use `pj/lay` directly when you have a custom layer type (from
 ;; `pj/layer-type-lookup` on a registered key, or a raw layer-type
 ;; map from an extension):
@@ -144,10 +126,10 @@
 ;; `pj/lay-point`. The intended use of `pj/lay` is with a layer
 ;; type that isn't a built-in convenience: a registered custom
 ;; layer type from an extension, or a raw layer-type map. See
-;; the [Extension Example](./plotje_book.waterfall_extension.html)
+;; the [Waterfall Extension](./plotje_book.waterfall_extension.html)
 ;; chapter for the full pattern -- registering a `:waterfall`
-;; layer type and calling `(pj/lay pose (layer-type/lookup :waterfall))`
-;; or wrapping it in a `pj/lay-waterfall` convenience function.
+;; layer type and calling `(pj/lay pose :waterfall)`, or wrapping it
+;; in a `lay-waterfall` function of your own.
 
 (kind/doc #'pj/lay-point)
 
@@ -511,7 +493,7 @@
 ;; categories, counted from one, as a number written for `:x` or `:y`
 ;; is: `(pj/lay-rule-v {:x-intercept 2})` draws down the middle of the
 ;; second band. Such an axis cannot widen to reach a value, so a place
-;; past its ends is reported rather than drawn off the panel. [Placing
+;; past its ends reports an error rather than being drawn off the panel. [Placing
 ;; Marks](./plotje_book.placing_marks.html#giving-x-and-y-as-values)
 ;; teaches the reading.
 ;;
@@ -521,7 +503,7 @@
 ;; `lay-rule-v` example below.
 ;;
 ;; **Note on `:y-min`/`:y-max`.** The same option keys carry two
-;; meanings depending on the layer kind. On `lay-band-h`/`-v` they
+;; meanings depending on the layer type. On `lay-band-h`/`-v` they
 ;; are written numeric bounds (the band sits at fixed coordinates,
 ;; independent of the data). On `lay-errorbar` (above) they are
 ;; column references -- one row per error bar, with `:y-min` and
@@ -532,7 +514,7 @@
 ;; errorbar, `{:value 12}` on the band -- says which reading you mean
 ;; without changing which one the mark accepts.
 ;;
-;; Writing a band's number on an errorbar is reported. The message
+;; Writing a band's number on an errorbar reports an error. The message
 ;; names the mark, the key, the value, the columns the layer's data
 ;; holds, and the mark that reads these two keys as numbers:
 
@@ -547,7 +529,7 @@
                  (re-find #"one bound per row" msg)
                  (re-find #"pj/lay-band-h" msg)))])
 
-;; One bound given without the other is reported too, naming the one it
+;; One bound given without the other reports an error too, naming the one it
 ;; got. An errorbar reads both, one bound per row:
 
 (try (-> measurements
@@ -618,7 +600,8 @@
 ;; Flip axes:
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-bar :species) (pj/coord :flip))
+    (pj/lay-bar :species)
+    (pj/coord :flip))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 3 (:polygons s))))])
@@ -626,7 +609,8 @@
 ;; Polar coordinates:
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-bar :species) (pj/coord :polar))
+    (pj/lay-bar :species)
+    (pj/coord :polar))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
@@ -636,7 +620,8 @@
 ;; Log scale:
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width) (pj/scale :x :log))
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/scale :x :log))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
@@ -644,7 +629,8 @@
 ;; Fixed domain:
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width) (pj/scale :x {:domain [3 9]}))
+    (pj/lay-point :sepal-length :sepal-width)
+    (pj/scale :x {:domain [3 9]}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (= 150 (:points s))))])
@@ -659,7 +645,7 @@
 (kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
 
 ;; What a size spans, and how the values spread across it -- `:range`
-;; in the quantity the mark draws (a radius here), `:by` the method,
+;; the radii the marks run between, `:by` the method,
 ;; and `:from-zero` to make the ink proportional to the value:
 
 (-> {:user [:a :b :c] :n [10 100 1000]}
@@ -934,7 +920,7 @@
 
 (kind/doc #'pj/series-mapping?)
 
-;; Check whether a mapping value asks for a series. A vector of columns
+;; Check whether a mapping value is a series. A vector of columns
 ;; does, and one column does not:
 
 [(pj/series-mapping? [:revenue :cost])
@@ -944,7 +930,7 @@
 
 (kind/doc #'pj/series-mapping)
 
-;; The series a mapping value asks for -- its columns, and the name of
+;; The series a mapping value names -- its columns, and the name of
 ;; the key column:
 
 (pj/series-mapping {:series [:revenue :cost] :as :measure})
@@ -986,7 +972,7 @@ plan1
 (kind/doc #'pj/frames)
 
 ;; The whole result for this single-panel plot: the canvas, and one
-;; entry per panel with its position in the grid, its domains and scale
+;; entry per panel with its row and column in the grid, its domains and scale
 ;; specs, whether it can be mapped back to data, and its two frames.
 
 (-> plan1 pj/frames kind/pprint)
@@ -997,7 +983,7 @@ plan1
                (true? (-> m :panels first :invertible?))
                (= 4 (count (-> m :panels first :frames :drawing-area)))))])
 
-;; The canvas is reported once rather than on every panel: it belongs to
+;; The canvas is given once rather than on every panel: it belongs to
 ;; the plot. Each panel's rectangles are given in canvas coordinates, so
 ;; they nest inside it and can be compared with each other directly.
 ;; That holds for a composite too, where the panels come from separate
@@ -1055,7 +1041,7 @@ plan1
 
 (kind/test-last [(fn [v] (= [2 5] v))])
 
-;; A categorical axis answers with a category, which is what an
+;; A categorical axis gives back a category, which is what an
 ;; interaction reads it for. So a place between two categories does not
 ;; come back as that place: `1.5` goes in and the category whose band
 ;; holds the coordinate comes back.
@@ -1074,7 +1060,8 @@ plan1
 (kind/doc #'pj/svg-summary)
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species}) pj/svg-summary)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    pj/svg-summary)
 
 (kind/test-last [(fn [m] (and (= 1 (:panels m))
                               (= 150 (:points m))))])
@@ -1230,7 +1217,7 @@ plan1
 
 ;; The `draft->*` family lets the same pipeline start from a draft
 ;; instead of a fully-resolved plan. Useful when you have a draft in
-;; hand (e.g. from inspection) and want to skip re-running the
+;; hand (for example from inspection) and want to skip re-running the
 ;; layer-flattening step.
 
 (kind/doc #'pj/draft->plan)
@@ -1270,9 +1257,10 @@ plan1
 
 (kind/test-last [(fn [p] (= :pastel1 p))])
 
-;; ### Documentation Metadata
+;; ## Documentation Metadata
 
-;; Three maps document the option keys at each scope level.
+;; Three maps document the keys written at each level: configuration,
+;; plot options, and a layer's mapping.
 
 (kind/doc #'pj/config-key-docs)
 
@@ -1418,7 +1406,8 @@ plan1
 (kind/test-last [true?])
 
 ;; Save a plot to a PNG file. Extension inference picks the raster
-;; backend; the returned bytes start with the PNG magic header:
+;; backend; the file starts with the PNG signature, the four bytes that
+;; open every PNG file:
 
 (let [path (str (java.io.File/createTempFile "plotje-example" ".png"))]
   (-> (rdatasets/datasets-iris)
@@ -1451,7 +1440,10 @@ plan1
 ;; still runs. `(pj/overlay pose)` returns the pose unchanged and prints
 ;; a warning, and `(pj/overlay pose false)` reports an error.
 ;; `pj/facet-grid` prints a warning and returns the pose `pj/facet`
-;; writes for the same grid.
+;; writes for the same grid. `pj/cross` prints a warning and returns
+;; its pairs of columns; `(pj/matrix data xs ys)` draws the grid of
+;; every `:x` column against every `:y` column. `pj/layer-option-docs`
+;; is the earlier name of `pj/layer-mapping-docs`.
 
 (kind/doc #'pj/overlay)
 
@@ -1475,5 +1467,45 @@ plan1
 (let [tips-pose (pj/lay-point (rdatasets/reshape2-tips) :total-bill :tip)]
   (= (pj/facet-grid tips-pose :smoker :sex)
      (pj/facet tips-pose {:col :smoker :row :sex})))
+
+(kind/test-last [true?])
+
+(kind/doc #'pj/cross)
+
+;; A pair of columns is not a cell of `pj/arrange`, where a vector is a
+;; list of cells, so `pj/cross` returns its pairs and prints a warning
+;; that names `pj/matrix`:
+
+(let [pairs (atom nil)
+      printed (with-out-str
+                (reset! pairs (pj/cross [:sepal-length :petal-length]
+                                        [:sepal-width :petal-width])))]
+  {:pairs (deref pairs)
+   :warns-with-pj-matrix (some? (re-find #"pj/matrix" printed))})
+
+(kind/test-last [(fn [m]
+                   (and (= [[:sepal-length :sepal-width]
+                            [:sepal-length :petal-width]
+                            [:petal-length :sepal-width]
+                            [:petal-length :petal-width]]
+                           (:pairs m))
+                        (:warns-with-pj-matrix m)))])
+
+;; `pj/matrix` draws the grid the pairs describe:
+
+(-> (rdatasets/datasets-iris)
+    (pj/pose {:color :species})
+    (pj/matrix [:sepal-length :petal-length]
+               [:sepal-width :petal-width]))
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (and (= 4 (:panels s))
+                                (= 600 (:points s)))))])
+
+(kind/doc #'pj/layer-option-docs)
+
+;; `pj/layer-option-docs` is the same map as `pj/layer-mapping-docs`:
+
+(identical? pj/layer-option-docs pj/layer-mapping-docs)
 
 (kind/test-last [true?])

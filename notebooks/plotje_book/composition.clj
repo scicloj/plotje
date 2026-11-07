@@ -64,8 +64,8 @@
                  ;; four slots, the empty one included
                  (= #{[0 0] [0 1] [1 0] [1 1]} (set (keys layout))))))])
 
-;; `pj/arrange` also takes data first. A cell is then what one argument
-;; after the data is to `pj/pose`: a mapping such as
+;; `pj/arrange` also takes data first. Each cell is then written as
+;; the argument after the data in `pj/pose` is written: a mapping such as
 ;; `{:x :sepal-length :y :sepal-width}` is a panel drawing those two
 ;; columns, and a single column, `:sepal-length`, is a panel drawing
 ;; that column. A vector in the list of cells is never a cell: it is a
@@ -88,8 +88,8 @@
 ;;
 ;; An arrangement can be built in steps, as a plot is built layer by
 ;; layer. `pj/arrange` given an arrangement adds the new cells after
-;; its own and lays out the longer list as one call with that list
-;; would, so a third panel joins the row:
+;; its own and draws what one `pj/arrange` call with the longer list
+;; draws, so a third panel joins the row:
 
 (-> (rdatasets/datasets-iris)
     (pj/arrange [{:x :sepal-length :y :sepal-width}
@@ -114,17 +114,16 @@
 ;; [Cells that filter the data](./plotje_book.panels.html#cells-that-filter-the-data)
 ;; shows.
 ;;
-;; `pj/arrange` divides space equally among its sub-poses. For
-;; unequal splits (e.g., give the first cell twice the width of the
-;; second), construct the composite as an explicit map; the next
-;; section shows how.
+;; `pj/arrange` divides space equally among its cells unless the plot
+;; options `:col-weights` or `:row-weights` give the columns and rows
+;; of cells unequal shares, as
+;; [Panels of Unequal Size](#panels-of-unequal-size) below shows.
 
 ;; ## Explicit Composite Poses
 ;;
 ;; Under `pj/arrange` there is a plain-map composite pose. You can
-;; construct one directly when you need finer control -- unequal
-;; weights, shared scales, or (in future work) non-plot leaves like
-;; text panels and key performance indicators.
+;; construct one directly when you want to write the tree of sub-poses
+;; as a literal map, with a weight for each sub-pose under `:layout`.
 ;;
 ;; An explicit `:layout` accepts `:direction` (`:horizontal` or
 ;; `:vertical`) and `:weights` (one weight per sub-pose). Here the
@@ -190,8 +189,10 @@ weighted
 
 ;; `:panel-width` and `:panel-height` pin the panels in drawing units
 ;; instead, and the plot's size is worked out from them, as it is for a
-;; single plot. A number pins every column's (row's) panels, and a
-;; vector each column's (row's):
+;; single plot. A number gives every column of panels the same width
+;; (or every row the same height), and a vector gives one value for
+;; each column (or row) in turn. Here the two columns are 300 and 150
+;; wide, and the row is 200 high:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/arrange [{:x :displ :y :hwy} :hwy] {:panel-width [300 150] :panel-height 200}))
@@ -218,9 +219,10 @@ weighted
 ;; `(pj/arrange data [...])` -- share each axis on which they draw the
 ;; same column, as the panels of a facet do. Cells that each carry data
 ;; of their own, as in `(pj/arrange [pose-a pose-b])`, compute their
-;; own domains. `:share-scales` names the axes the cells share,
-;; whichever the default was, and the cells drawing the same column on
-;; such an axis are given one range. Below, each cell holds the rows of
+;; own domains (the extent of data values each axis covers).
+;; `:share-scales` names the axes the cells share, whichever the default
+;; was, and the cells drawing the same column on such an axis are given
+;; one domain. Below, each cell holds the rows of
 ;; one species, and `:x` is shared:
 
 (pj/arrange
@@ -1002,7 +1004,7 @@ dashboard
 ;; A few details about how composition renders today:
 ;;
 ;; - **Cells with data of their own draw their own axes, titles and
-;;   ticks**, unless `:share-scales` asks them to share an axis. In
+;;   ticks**, unless `:share-scales` names an axis for them to share. In
 ;;   `(pj/arrange [pose-a pose-b] {:share-scales #{:x}})`, and in cells
 ;;   that read the data of the pose holding them, as in
 ;;   `(pj/arrange data [...])`, a shared axis is titled once and its
@@ -1035,12 +1037,13 @@ dashboard
 ;;   a scale, a coordinate system or an option such as `:x-label`
 ;;   applies to every cell that does not set its own. The `:title`,
 ;;   `:subtitle` and `:caption` written there are drawn once, around
-;;   the whole arrangement, and not in each cell. This is also the
-;;   way around a limitation within one pose -- two layers cannot read
-;;   one aesthetic through different scales, but two cells can.
+;;   the whole arrangement, and not in each cell. Two layers of one
+;;   pose cannot read one aesthetic through different scales, and two
+;;   cells can, so a second scale for an aesthetic is drawn in a cell
+;;   of its own.
 ;; - **Cells that map the same column share one scale and one
 ;;   legend.** If every leaf maps an aesthetic to the same column
-;;   (e.g., `:color :species` in all cells), each cell is given one
+;;   (for example `:color :species` in all cells), each cell is given one
 ;;   scale for it -- the categories of all the cells together, or the
 ;;   range of all their values -- and a single legend is drawn for the
 ;;   composite. A category is then the same colour, and a value the
@@ -1114,7 +1117,7 @@ dashboard
 ;; - [**Options and Scopes**](./plotje_book.options_and_scopes.html) --
 ;;   the taxonomy of mappings, plot options, and configuration
 ;;   (next chapter in Foundations)
-;; - [**Faceting**](./plotje_book.faceting.html) -- panel splits by
-;;   a categorical column (a data-driven composite, covered in How-to)
+;; - [**Faceting**](./plotje_book.faceting.html) -- panels per
+;;   category or per column of one pose (covered in How-to)
 ;; - [**Gallery**](./plotje_book.gallery.html) -- more composition
 ;;   examples alongside single-plot chart types

@@ -37,7 +37,8 @@
 (try
   (-> (tc/dataset {"sepal_length" [5.0 6.0] "sepal_width" [3.0 3.5]})
       (pj/pose :sepal_length :sepal_width)
-      pj/lay-point pj/plot)
+      pj/lay-point
+      pj/plot)
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
@@ -54,7 +55,8 @@
 (try
   (-> (tc/dataset {"sepal length" [5.0 6.0] "sepal width" [3.0 3.5]})
       (pj/pose :sepal-length :sepal-width)
-      pj/lay-point pj/plot)
+      pj/lay-point
+      pj/plot)
   (catch clojure.lang.ExceptionInfo e (ex-message e)))
 
 (kind/test-last
@@ -274,8 +276,8 @@
 ;; scale is set with `pj/scale`, called on the pose, or inside a
 ;; mapping written out in full -- `{:x {:column :carat :scale :log}}`.
 ;;
-;; The wrong form does not throw; it warns and silently falls back
-;; to a linear axis:
+;; The wrong form does not throw; it warns and falls back to a linear
+;; axis:
 
 (with-out-str
   (-> (rdatasets/ggplot2-diamonds)
@@ -308,7 +310,7 @@
 ;;
 ;; **Cause**: Histogram, density, and rug layer types draw from one
 ;; column. Two columns given as arguments to one of them, as in
-;; `(pj/lay-histogram data :sepal-length :sepal-width)`, are reported.
+;; `(pj/lay-histogram data :sepal-length :sepal-width)`, report an error.
 ;; (`lay-bar` is not among them -- it uses a second column as the bar
 ;; length.) One column named on `:y` is not an error:
 ;; `(pj/lay-histogram data {:y :sepal-width})` draws the histogram on
@@ -406,10 +408,10 @@
 ;; scripts.
 ;;
 ;; **A second cause**: the plot was rendered to a format that draws no
-;; interaction. Both are drawn by a browser reading the figure, so SVG
-;; is the only format that draws them; `{:format :bufimg}` and
-;; `pj/save` to a PNG report that the request draws nothing and name
-;; the formats that do. Read the message the plot printed before
+;; interaction. A tooltip and a brush are drawn by a browser reading
+;; the figure, so SVG is the only format that draws them;
+;; `{:format :bufimg}` and `pj/save` to a PNG print a warning that the
+;; request draws nothing, naming the formats that do. Read the message the plot printed before
 ;; looking at the viewer.
 
 (with-out-str
@@ -444,8 +446,8 @@
 ;; **Cause**: `:col` and `:row` are panel aesthetics, and a panel
 ;; aesthetic is read from a pose's mapping and not from a layer's. A
 ;; facet divides every layer of the pose, so a division named on one
-;; layer is a division the draft cannot build, and it is reported
-;; rather than dropped.
+;; layer is a division the draft cannot build, and it reports an error
+;; rather than being dropped.
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -675,8 +677,11 @@
 ;;
 ;; Plotje 0.16.1 drew a panel for each pair of columns its layers named,
 ;; and printed a note saying so. The layers now share the panel, so a
-;; plot written for 0.16.1 can draw something different, in most cases
-;; with no message. An axis stretches to fit everything drawn
+;; plot written for 0.16.1 can draw something different. For this
+;; release, a Note names the 0.16.1 behaviour where a layer names
+;; columns other than the ones the pose draws, and where `pj/pose`
+;; replaces a column; the two retired spellings in the list warn.
+;; An axis stretches to fit everything drawn
 ;; on it, so the layers sharing a panel should agree on units. Check
 ;; these cases:
 ;;
@@ -708,7 +713,7 @@
 ;;
 ;; For each of the first two, split the pose with `pj/facet`, or draw
 ;; the layers as separate poses with `pj/arrange`. A series and a facet
-;; over columns on one pose are reported, so for a layer beside a
+;; over columns on one pose report an error, so for a layer beside a
 ;; series draw the series and the layer as separate poses with
 ;; `pj/arrange`.
 ;;
@@ -752,7 +757,14 @@
                            (and (< lo 50) (> hi 2000)
                                 (< (* 20 (- (reduce max hwy) (reduce min hwy))) (- hi lo))
                                 (re-find #"Note: the :y axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)" printed)
-                                (re-find #"\(pj/facet pose \{:y \[:hwy :year\]\}\)" printed))))])
+                                (re-find #"\(pj/facet pose \{:y \[:hwy :year\]\}\)" printed)
+                                ;; The Note naming the 0.16.1 behaviour
+                                ;; is printed where the pose is built.
+                                (re-find #"in 0\.16\.1 it was given a panel of its own"
+                                         (with-out-str
+                                           (-> (rdatasets/ggplot2-mpg)
+                                               (pj/lay-point :displ :hwy)
+                                               (pj/lay-point :displ :year)))))))])
 
 ;; ## Dataset Missing Columns a Template References
 ;;
@@ -873,7 +885,7 @@
 ;; **Cause**: A band shades the region between two values. Where the two
 ;; are equal the region is empty, so the band covered nothing and drew a
 ;; rectangle of zero thickness -- present in the SVG, invisible on the
-;; plot, and reported by nothing. It is refused now.
+;; plot, and named by no message. It reports an error now.
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -897,12 +909,12 @@
 
 ;; ## A Configuration Key From an Earlier Release
 ;;
-;; **Symptom**: A configuration key that used to set something is
-;; reported as unrecognized, and the plot draws the default.
+;; **Symptom**: A configuration key that used to set something prints a
+;; warning that it is not recognized, and the plot draws the default.
 ;;
-;; **Cause**: The key was renamed. Plotje reports what it does not read
-;; rather than merging it in silence, and where a release renamed a key
-;; the report names the one that replaced it. `:annotation-stroke` sets
+;; **Cause**: The key was renamed. Plotje warns about a key it does not
+;; read rather than merging it with no message, and where a release
+;; renamed a key the warning names the one that replaced it. `:annotation-stroke` sets
 ;; the colour a rule draws in where its layer names none, and it is
 ;; `:rule-color` now.
 
@@ -913,7 +925,7 @@
  [(fn [msg] (and (re-find #"does not recognize configuration key" msg)
                  (re-find #":annotation-stroke was renamed to :rule-color" msg)))])
 
-;; The same report reaches `pj/set-config!`, a `plotje.edn` file, the
+;; The same warning is printed for `pj/set-config!`, a `plotje.edn` file, the
 ;; `:config` option and `pj/options`, so the key is named wherever it
 ;; can be written.
 ;;
@@ -934,8 +946,8 @@
 ;; did.
 ;;
 ;; **Cause**: The layer setting was renamed. `:nudge-x` and `:nudge-y` are
-;; `:dx` and `:dy`. A retired layer setting is not handled the way the
-;; retired configuration key above is: dropping a shift would move a
+;; `:dx` and `:dy`. A renamed layer setting is not handled the way the
+;; renamed configuration key above is: dropping a shift would move a
 ;; label back onto the mark it was written to clear, so the old name is
 ;; read as the new one and the warning names the edit. The warning is
 ;; printed where the layer is built rather than where the plan is
@@ -983,9 +995,9 @@
                                             :align-x :center :offset-y -10
                                             :text "half a band"})))))))])
 
-;; Under `:strict` the retired name reports an error instead of
-;; warning, so a notebook run that way names every retired name still
-;; written in it.
+;; Under `:strict` the old name reports an error instead of warning,
+;; so a notebook run that way names every old name still written in
+;; it.
 ;; [Configuration](./plotje_book.configuration.html#strict-option-checking)
 ;; covers the setting.
 

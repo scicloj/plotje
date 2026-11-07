@@ -11,8 +11,8 @@
 ;; column-to-aesthetic mapping in
 ;; [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers), reference
 ;; lines and bands in
-;; [Core Concepts](./plotje_book.core_concepts.html#plot-options-and-reference-lines) (constant
-;; positions) and
+;; [Core Concepts](./plotje_book.core_concepts.html#plot-options-and-reference-lines) (at
+;; written values) and
 ;; [Timelines](./plotje_book.timelines.html#annotated-time-series) (temporal intercepts),
 ;; and tooltips/brushing in
 ;; [Interactivity](./plotje_book.interactivity.html#tooltips).
@@ -394,7 +394,7 @@
 
 ;; ## Tick placement and text
 ;;
-;; An axis scale carries the options that place and word its tick
+;; An axis scale carries the keys that place and word its tick
 ;; marks. What each of those keys means, and everything else a scale
 ;; does, is in [Scales](./plotje_book.scales.html). The recipe here is
 ;; the case where the axis is indexed by number and the labels should
@@ -416,7 +416,7 @@
  [(fn [v] (let [texts (set (:texts (pj/svg-summary v)))]
             (every? texts ["Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun"])))])
 
-;; Crowded tick labels have two other answers: rotate them, which the
+;; Crowded tick labels have two other remedies: rotate them, which the
 ;; Rotating tick labels section above covers, or thin them to a chosen
 ;; count with `:n-ticks`, which
 ;; [Scales](./plotje_book.scales.html#where-the-ticks-go) covers. How
@@ -685,17 +685,17 @@
                               (:color band))))])
 
 ;; An intercept and a band edge must be written values (numbers, or
-;; temporal values on a time axis) in this release. A faceted plot
-;; with a different reference value per panel (column-mapped
-;; intercept, ggplot2's `geom_hline(aes(yintercept=...))`) is on the
-;; post-alpha roadmap. Today, a rule added once with the same
-;; intercept appears on every panel of the faceted pose.
+;; temporal values on a time axis); a column name in their place
+;; reports an error. So a faceted plot cannot take a different
+;; reference value per panel from a column, as ggplot2's
+;; `geom_hline(aes(yintercept=...))` does, and a rule added once
+;; appears at the same intercept on every panel of the faceted pose.
 ;;
 ;; Giving a line layer its own two-point dataset does not stand in for
-;; it: a layer's own `:data` is not split by `pj/facet` either, so each
-;; panel draws every row of it. To vary a reference value across
-;; panels today, build them with `pj/arrange` -- each cell is its own
-;; pose, and takes its own intercept.
+;; a column-mapped intercept: a layer's own `:data` is not split by
+;; `pj/facet` either, so each panel draws every row of it. To vary a
+;; reference value across panels, build them with `pj/arrange` -- each
+;; cell is its own pose, and takes its own intercept.
 ;;
 ;; Reference lines accept `:stroke-dash` too, so a threshold or target
 ;; line can read as dashed or dotted rather than solid:
@@ -707,7 +707,17 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 150 (:points s))
                                 (= 1 (:dashed-lines s))
-                                (contains? (:dash-patterns s) "6.00 4.00"))))])
+                                (contains? (:dash-patterns s) "6.00 4.00")
+                                ;; A column name as the intercept reports
+                                ;; an error, as the paragraph above says.
+                                (try (-> (rdatasets/datasets-iris)
+                                         (pj/lay-point :sepal-length :sepal-width)
+                                         (pj/lay-rule-h {:y-intercept :petal-width})
+                                         pj/plan)
+                                     false
+                                     (catch Exception e
+                                       (boolean (re-find #"requires a finite numeric or temporal :y-intercept"
+                                                         (ex-message e))))))))])
 
 ;; A rule's width comes from `:size` and its opacity from `:alpha`, so a
 ;; broad faint line can sit behind the data rather than cutting across

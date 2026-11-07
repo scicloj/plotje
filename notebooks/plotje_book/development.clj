@@ -9,13 +9,15 @@
 ;; ## REPL Setup
 ;;
 ;; Start an nREPL server with the `:dev` alias, which adds
-;; notebooks, tests, Clay, and related dependencies to the classpath. One way to do it is the following:
+;; notebooks, tests, Clay, and related dependencies to the classpath.
+;; One way to start the server is the following:
 ;;
 ;; ```bash
 ;; clojure -M:dev -m nrepl.cmdline
 ;; ```
 ;;
-;; Connect to the REPL from your editor (Calva, CIDER, Cursive, etc.)
+;; Connect to the REPL from your editor (Calva, CIDER, Cursive, or
+;; another)
 ;; using the port printed to the console (also written to `.nrepl-port`).
 ;;
 ;; ## Running Tests
@@ -35,7 +37,7 @@
 ;; There are two kinds of tests:
 ;;
 ;; - **Hand-written tests** in `test/scicloj/plotje/` -- unit tests for
-;; core logic (pose resolution, plan resolution, rendering, etc.)
+;; core logic (pose resolution, plan resolution, rendering, and more)
 ;;
 ;; - **Generated tests** in `test/plotje_book/` -- produced from notebooks
 ;; every time [Clay](https://scicloj.github.io/clay/) renders notebooks

@@ -166,8 +166,8 @@ gapminder-2007
 ;;
 ;; Both ways take the scale in the same two forms: a type keyword, or
 ;; a spec map. The keyword is shorthand -- `:log` is read as
-;; `{:type :log}` where it is written, and every stage after that
-;; reads the map.
+;; `{:type :log}` by the call that writes it, and every stage after
+;; that call reads the map.
 ;;
 ;; With `pj/scale`, the two spellings leave the same scale on the axis:
 
@@ -204,8 +204,8 @@ gapminder-2007
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
 ;; Which keys the map may carry depends on the aesthetic, and a key the
-;; aesthetic does not read is refused rather than ignored -- in
-;; `pj/scale` and in a mapping alike:
+;; aesthetic does not read reports an error rather than being ignored
+;; -- in `pj/scale` and in a mapping alike:
 
 (try
   (-> gapminder-2007
@@ -217,12 +217,13 @@ gapminder-2007
 (kind/test-last
  [(fn [m] (re-find #"unexpected key\(s\): \[:rnge\]" m))])
 
-;; ### Scales accumulate
+;; ### A scale set higher up combines with one set below
 ;;
 ;; Wherever a scale is set -- with `pj/scale`, in a pose's mapping, in
-;; a layer's mapping -- the settings accumulate down the scope chain,
-;; and the innermost wins for each key it names. So a range set once on
-;; the pose and a type named on a layer give a plot with both:
+;; a layer's mapping -- a scale set higher up carries down to the
+;; layers below, combined key by key, and the setting nearest the layer
+;; wins for each key it names. So a range set once on the pose and a
+;; type named on a layer give a plot with both:
 
 (-> gapminder-2007
     (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale {:range [3 16]}}})
@@ -248,10 +249,10 @@ gapminder-2007
 
 ;; The rest of a mapping is replaced by the mapping below it, because a
 ;; mapping states one source and two sources cannot combine --
-;; `{:column :n :value 7}` is refused by name. A scale is a set of
-;; independent settings, so it accumulates.
+;; `{:column :n :value 7}` reports an error that names both sources. A
+;; scale is a set of independent settings, so its settings combine.
 ;;
-;; `:scale false` does not accumulate: it says the value passes through
+;; `:scale false` does not combine: it says the value passes through
 ;; no scale at all, so it replaces whatever was set above.
 ;;
 ;; The same holds when `pj/pose` writes a mapping into a pose that
@@ -400,9 +401,9 @@ gapminder-2007
     (= #{:x :y :size :alpha :color :fill :shape :col :row}
        (set (map :aesthetic pj/aesthetic-scales))))])
 
-;; A spec key an aesthetic does not read is refused where it is
-;; written, rather than accepted and ignored. An axis has no range to set,
-;; because the panel size determines it:
+;; A spec key an aesthetic does not read reports an error at the call
+;; that writes it, rather than being accepted and ignored. An axis has
+;; no range to set, because the panel size determines it:
 
 (try
   (-> gapminder-2007
@@ -416,8 +417,8 @@ gapminder-2007
 
 ;; The aesthetics absent from the table have no scale to set. `:text`
 ;; and `:group` have none at all: a label is drawn as written, and
-;; grouping only splits the data into drawn groups, so `:scale` is
-;; refused on both. The aesthetics drawn *through* the axes --
+;; grouping only splits the data into drawn groups, so a `:scale` on
+;; either reports an error. The aesthetics drawn *through* the axes --
 ;; `:x-end`, `:x-min`, `:x-max`, `:y-min`, `:y-max` -- take no
 ;; `:scale` either. Their values are read on the panel's axis, which is
 ;; where that scale is set.
@@ -439,8 +440,8 @@ gapminder-2007
 ;; The table above says which types each aesthetic accepts: the axes
 ;; take all three, `:size`, `:alpha`, `:color` and `:fill` take
 ;; `:linear` and `:log`, and `:shape` takes `:categorical` alone.
-;; Asking an aesthetic for a type it does not accept is refused, and
-;; the message lists the ones it does:
+;; Setting a type an aesthetic does not accept reports an error, and
+;; the message lists the types it does accept:
 
 (try
   (-> gapminder-2007
@@ -453,7 +454,7 @@ gapminder-2007
 (kind/test-last
  [(fn [m] (re-find #"has no :categorical type; its types are \[:linear :log\]" m))])
 
-;; That refusal is about the scale type, not about the column: a
+;; That error is about the scale type, not about the column: a
 ;; categorical column mapped to `:color` is drawn from a palette
 ;; without any type being named. Which of the two happens is settled
 ;; below.
@@ -511,7 +512,7 @@ gapminder-2007
 ;; numbers is read as a quantity, a column of anything else as a set of
 ;; categories, and a scale's `:type` then chooses between `:linear` and
 ;; `:log` for the numbers. Writing `:categorical` as a scale type cannot
-;; make a column categorical -- on a numeric column it is refused, and
+;; make a column categorical -- on a numeric column it reports an error, and
 ;; on a categorical one the scale's `:type` is not read at all.
 ;; [Column Types](./plotje_book.column_types.html#the-columns-type-and-the-scales-type)
 ;; sets the two side by side.
@@ -604,9 +605,8 @@ gapminder-2007
 ;; An axis follows the column it reads, so life expectancies from the
 ;; high thirties to the mid eighties give an axis that starts in the
 ;; high thirties. A reader comparing the heights of those marks is then
-;; comparing distances from the high thirties rather than from zero,
-;; which is what makes a chart drawn that way misleading. `:include`
-;; names a value the axis has to reach:
+;; comparing distances from the high thirties rather than from zero.
+;; `:include` names a value the axis has to reach:
 
 (-> gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)
@@ -620,8 +620,10 @@ gapminder-2007
 ;; padded as any domain is, which is where `pj/lay-bar` already draws
 ;; its baseline: a bar chart and a scatter of the same column span the
 ;; same axis. ggplot2 spells this `expand_limits(y = 0)`, and neither
-;; library reaches zero on its own -- measured on this data, ggplot2
-;; 4.0.0 expands the axis to the same extent Plotje does.
+;; library reaches zero on its own. The two differ at zero: measured on
+;; this data, ggplot2 4.0.0 pads beyond zero as it pads any end of an
+;; axis, so its axis starts a little below zero, while Plotje stops at
+;; zero. The upper end is padded the same in both.
 ;;
 ;; A collection names more than one value, which is how an axis is
 ;; given room the data does not fill:
@@ -648,10 +650,10 @@ gapminder-2007
 
 ;; The two cannot both be written for one aesthetic. A `:domain`
 ;; replaces the extent the data gives and an `:include` adds to it, so
-;; a scale carrying both asks for two answers and reports. `:include`
-;; is reported on a log scale as well, which has no reading for zero,
-;; and on a categorical axis, which is ticked at its categories and has
-;; no extent between them.
+;; a scale carrying both reports an error. `:include` reports an error
+;; on a log scale as well, which has no reading for zero, and on a
+;; categorical axis, which is ticked at its categories and has no
+;; extent between them.
 
 ;; ### Where the ticks go
 ;;
@@ -769,12 +771,12 @@ gapminder-2007
  [(fn [v] (= [0.0 5.0 10.0 15.0]
              (->> v pj/plan :panels first :x-ticks :values (mapv double))))])
 
-;; `:tick-spacing` asks the same question the other way round: about
-;; how much room, in drawing units, each tick should have. The count
+;; `:tick-spacing` sets the count the other way round: it says how
+;; much room, in drawing units, each tick should have. The count
 ;; is then how many fit. It is a target in the way `:n-ticks` is, and
 ;; for the same reason -- the chooser still rounds to values a reader
 ;; can read off, so the room each tick ends up with can come out under
-;; the number asked for.
+;; the number written.
 
 (-> {:hour (range 20) :load (range 20)}
     (pj/lay-point :hour :load)
@@ -1009,7 +1011,7 @@ gapminder-2007
 ;; numbers for the first pair, a gradient for the second.
 ;;
 ;; An axis has none to set, since the panel size determines it -- the
-;; refusal is [above](#what-each-aesthetics-scale-takes). `:shape` spans
+;; error is shown [above](#what-each-aesthetics-scale-takes). `:shape` spans
 ;; a list of symbols, written with `:values` rather than `:range`,
 ;; because symbols are named one by one rather than spanned between two
 ;; ends; a categorical `:color` spans a palette, written the same way.
@@ -1097,11 +1099,16 @@ gapminder-2007
 ;; The same six values under all three:
 
 (-> (pj/arrange
-     [(-> squares (pj/lay-point :step :row {:size :n})
+     [(-> squares
+          (pj/lay-point :step :row {:size :n})
           (pj/options {:title ":sqrt (default)"}))
-      (-> squares (pj/lay-point :step :row {:size :n}) (pj/scale :size {:by :linear})
+      (-> squares
+          (pj/lay-point :step :row {:size :n})
+          (pj/scale :size {:by :linear})
           (pj/options {:title ":linear"}))
-      (-> squares (pj/lay-point :step :row {:size :n}) (pj/scale :size {:by :area})
+      (-> squares
+          (pj/lay-point :step :row {:size :n})
+          (pj/scale :size {:by :area})
           (pj/options {:title ":area"}))])
     (pj/options {:width 900 :height 340}))
 
@@ -1183,10 +1190,10 @@ gapminder-2007
                   true))
               by-value)))])
 
-;; `:alpha` takes the key too. It asks a different question there --
-;; not how a value spreads, but whether the drawn quantity is
-;; proportional to it. An opacity can answer that, since zero opacity
-;; is absence the way zero area is:
+;; `:alpha` takes the key too. There it decides not how a value
+;; spreads, but whether the opacity drawn is proportional to the value.
+;; An opacity can be proportional, since zero opacity is absence the way
+;; zero area is:
 
 (-> squares
     (pj/lay-point :step :row {:alpha :n})
@@ -1204,22 +1211,22 @@ gapminder-2007
                   true))
               by-value)))])
 
-;; `:color` cannot answer it, and does not take the key: the low end of
-;; a gradient is a color rather than an absence, so there is no
-;; quantity there for a value to be proportional to.
+;; `:color` does not take the key: the low end of a gradient is a color
+;; rather than an absence, so there is nothing at that end for a value
+;; to be proportional to.
 ;;
 ;; `:from-zero` cannot be combined with a log scale either, since a log
-;; scale has no value for zero. Setting both is refused.
+;; scale has no value for zero. Setting both reports an error.
 
-;; ### Which quantity a mark draws
+;; ### What a mark draws an aesthetic as
 ;;
-;; `:by :area` works the same way on every mark, because the quantity
-;; each mark draws an aesthetic as is known before any value is
-;; scaled. `:point` is the one built-in layer type that says so
+;; `:by :area` works the same way on every mark, because what each mark
+;; draws an aesthetic as -- a radius, an opacity -- is known before any
+;; value is scaled. `:point` is the one built-in layer type that says so
 ;; itself, under `:varies`: it draws `:size` as a radius and `:alpha`
 ;; as an opacity. A registered mark drawing a stroke would say it
-;; draws a width. The quantity also fixes how the area grows with it:
-;; as the square for a radius, linearly for a width.
+;; draws a width. What the mark draws also fixes how the area grows
+;; with it: as the square for a radius, linearly for a width.
 
 (:varies (layer-type/lookup :point))
 
@@ -1634,14 +1641,14 @@ gapminder-2007
 ;;
 ;; One legend per aesthetic is also the reason an aesthetic has one
 ;; scale. A panel has one of each axis, so two layers naming different
-;; scales for `:x` are refused; a plot has one legend per appearance
-;; aesthetic, so two layers reading `:size` through different scales
-;; are refused in the same way.
+;; scales for `:x` report an error; a plot has one legend per
+;; appearance aesthetic, so two layers reading `:size` through
+;; different scales report an error in the same way.
 ;;
 ;; A layer that names no scale is no disagreement, on any aesthetic:
 ;; it is drawn against whichever scale the plot settles on. Only the
 ;; layers that named one are compared. Two layers naming different
-;; scales are refused, and the message says the two ways out -- name
+;; scales report an error, and the message says the two ways out -- name
 ;; the same scale in each mapping, or set it once with `pj/scale`.
 
 (try

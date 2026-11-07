@@ -112,7 +112,7 @@
 
 
 (def
- v12_l112
+ v12_l118
  (defmethod
   mark/layer->membrane
   :waterfall
@@ -120,48 +120,36 @@
   (let
    [{:keys [bars style]}
     layer
-    {:keys [sx sy coord-fn]}
+    {:keys [coord-fn]}
     ctx
     {:keys [opacity]}
-    style
-    sample-info
-    (sx (-> bars first :category) true)
-    bw
-    (- (:rend sample-info) (:rstart sample-info))
-    w
-    (* 0.8 bw)]
+    style]
    (vec
     (for
-     [{:keys [category start end color]}
-      bars
+     [[i {:keys [start end color]}]
+      (map-indexed vector bars)
       :let
       [[cr cg cb ca]
        color
-       band
-       (sx category true)
-       mid-x
-       (:point band)
-       py-start
-       (double (sy start))
-       py-end
-       (double (sy end))
-       top
-       (min py-start py-end)
-       bot
-       (max py-start py-end)
-       x0
-       (- mid-x (/ w 2.0))
-       x1
-       (+ mid-x (/ w 2.0))]]
+       place
+       (inc i)
+       left
+       (- place 0.4)
+       right
+       (+ place 0.4)]]
      (ui/with-color
       [cr cg cb (or opacity ca)]
       (ui/with-style
        :membrane.ui/style-fill
-       (ui/path [x0 top] [x1 top] [x1 bot] [x0 bot]))))))))
+       (ui/path
+        (coord-fn left start)
+        (coord-fn right start)
+        (coord-fn right end)
+        (coord-fn left end)))))))))
 
 
 (def
- v14_l141
+ v14_l139
  (layer-type/register!
   :waterfall
   {:mark :waterfall,
@@ -170,13 +158,13 @@
 
 
 (def
- v16_l156
+ v16_l150
  (def
   waterfall-bars
   (->
    pnl-data
    (pj/pose :category :amount)
-   (pj/lay (layer-type/lookup :waterfall))
+   (pj/lay :waterfall)
    pj/plan
    :panels
    first
@@ -186,18 +174,18 @@
 
 
 (def
- v17_l163
+ v17_l157
  (->
   pnl-data
   (pj/pose :category :amount)
-  (pj/lay (layer-type/lookup :waterfall))
+  (pj/lay :waterfall)
   (pj/options
    {:title "Profit & Loss Waterfall", :width 500, :height 350})
   pj/plot))
 
 
 (deftest
- t18_l170
+ t18_l164
  (is
   ((fn
     [v]
@@ -209,54 +197,68 @@
       red
       [0.85 0.25 0.25 1.0]
       positive-bars
-      (mapv (fn* [p1__89398#] (nth waterfall-bars p1__89398#)) [0 2 5])
+      (mapv (fn* [p1__91128#] (nth waterfall-bars p1__91128#)) [0 2 5])
       negative-bars
       (mapv
-       (fn* [p1__89399#] (nth waterfall-bars p1__89399#))
+       (fn* [p1__91129#] (nth waterfall-bars p1__91129#))
        [1 3 4])]
      (and
       (= 1 (:panels s))
       (= 6 (:polygons s))
       (every?
-       (fn* [p1__89400#] (= green (:color p1__89400#)))
+       (fn* [p1__91130#] (= green (:color p1__91130#)))
        positive-bars)
       (every?
-       (fn* [p1__89401#] (= red (:color p1__89401#)))
+       (fn* [p1__91131#] (= red (:color p1__91131#)))
        negative-bars))))
-   v17_l163)))
+   v17_l157)))
 
 
 (def
- v20_l191
- (defn
-  lay-waterfall
-  ([pose] (pj/lay pose (layer-type/lookup :waterfall)))
-  ([data x y]
-   (-> data (pj/pose x y) (pj/lay (layer-type/lookup :waterfall))))
-  ([data x y opts]
-   (->
-    data
-    (pj/pose x y)
-    (pj/lay (merge (layer-type/lookup :waterfall) opts))))))
-
-
-(def
- v22_l198
+ v20_l183
  (->
   pnl-data
-  (lay-waterfall :category :amount)
-  (pj/options {:title "Quarterly Cash Flow", :width 500})
+  (pj/pose :category :amount)
+  (pj/lay :waterfall)
+  (pj/coord :flip)
+  (pj/options
+   {:title "Profit & Loss Waterfall", :width 500, :height 350})
   pj/plot))
 
 
 (deftest
- t23_l203
+ t21_l191
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v22_l198)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v20_l183)))
 
 
 (def
- v25_l211
+ v23_l199
+ (defn
+  lay-waterfall
+  ([pose] (pj/lay pose :waterfall))
+  ([data x y] (-> data (pj/pose x y) (pj/lay :waterfall)))
+  ([data x y mapping]
+   (-> data (pj/pose x y) (pj/lay :waterfall mapping)))))
+
+
+(def
+ v25_l213
+ (->
+  pnl-data
+  (lay-waterfall :category :amount)
+  (pj/options {:width 500})
+  pj/plot))
+
+
+(deftest
+ t26_l218
+ (is
+  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v25_l213)))
+
+
+(def
+ v28_l226
  (defmethod
   stat/compute-stat
   [:waterfall :doc]
@@ -265,7 +267,7 @@
 
 
 (def
- v26_l214
+ v29_l229
  (defmethod
   extract/extract-layer
   [:waterfall :doc]
@@ -274,7 +276,7 @@
 
 
 (def
- v27_l217
+ v30_l232
  (defmethod
   mark/layer->membrane
   [:waterfall :doc]
@@ -282,43 +284,43 @@
   "Filled rectangles positioned by running total"))
 
 
-(def v28_l220 (pj/stat-doc :waterfall))
+(def v31_l235 (pj/stat-doc :waterfall))
 
 
 (deftest
- t29_l222
+ t32_l237
  (is
   ((fn [v] (= "Compute running totals for waterfall bars" v))
-   v28_l220)))
+   v31_l235)))
 
 
-(def v31_l228 (remove-method stat/compute-stat :waterfall))
+(def v34_l243 (remove-method stat/compute-stat :waterfall))
 
 
-(def v32_l229 (remove-method stat/compute-stat [:waterfall :doc]))
+(def v35_l244 (remove-method stat/compute-stat [:waterfall :doc]))
 
 
-(def v33_l230 (remove-method extract/extract-layer :waterfall))
+(def v36_l245 (remove-method extract/extract-layer :waterfall))
 
 
-(def v34_l231 (remove-method extract/extract-layer [:waterfall :doc]))
+(def v37_l246 (remove-method extract/extract-layer [:waterfall :doc]))
 
 
-(def v35_l232 (remove-method mark/layer->membrane :waterfall))
+(def v38_l247 (remove-method mark/layer->membrane :waterfall))
 
 
-(def v36_l233 (remove-method mark/layer->membrane [:waterfall :doc]))
+(def v39_l248 (remove-method mark/layer->membrane [:waterfall :doc]))
 
 
 (def
- v37_l234
+ v40_l249
  (swap!
   @(resolve 'scicloj.plotje.layer-type/registry*)
   dissoc
   :waterfall))
 
 
-(def v39_l238 (nil? (layer-type/lookup :waterfall)))
+(def v42_l253 (nil? (layer-type/lookup :waterfall)))
 
 
-(deftest t40_l240 (is ((fn [v] (true? v)) v39_l238)))
+(deftest t43_l255 (is ((fn [v] (true? v)) v42_l253)))

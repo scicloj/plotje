@@ -43,8 +43,8 @@
 ;; the start and end of each bar.
 ;;
 ;; The stat must always return `:x-domain` and `:y-domain`. Beyond
-;; that, the shape is a contract between the stat and its paired
-;; extractor -- here we use `:waterfall-bars`.
+;; that, the shape is a contract between the stat and the extractor
+;; that reads it -- here we use `:waterfall-bars`.
 
 (defmethod stat/compute-stat :waterfall [{:keys [data x y x-type] :as draft-layer}]
   (let [clean (tc/drop-missing data [x y])
@@ -102,67 +102,61 @@
 ;; `layer->membrane` turns the plan layer into membrane drawable
 ;; primitives. The rendering context (`ctx`) provides:
 ;;
-;; - `:sx` -- the x scale function, data value to drawing-space x
-;; - `:sy` -- the y scale function, data value to drawing-space y
-;; - `:panel-height`, `:panel-width`, `:margin` -- layout dimensions
+;; - `:coord-fn` -- takes an `:x` and a `:y` value in data space and
+;;   returns the point `[px py]` in drawing units, through the panel's
+;;   coordinate system, so a mark drawn through it is flipped under
+;;   `(pj/coord :flip)`
+;; - `:sx`, `:sy` -- the two scales, for a mark that needs a scale
+;;   itself, such as the width of a band
+;; - `:coord-type` -- `:cartesian`, `:flip`, `:polar` or `:fixed`
 ;;
-;; For a band (categorical) x-scale, `(sx category true)` returns
-;; band information including `:rstart`, `:rend`, and `:point`.
+;; On a categorical axis a number is a place among the categories,
+;; counted from one, so bar `i` spans the places from `i + 0.6` to
+;; `i + 1.4` -- four fifths of its band. The renderer gives `coord-fn`
+;; the four corners of each bar in data space:
 
 (defmethod mark/layer->membrane :waterfall [layer ctx]
   (let [{:keys [bars style]} layer
-        {:keys [sx sy coord-fn]} ctx
-        {:keys [opacity]} style
-        ;; Get band info from the scale to find bar width.
-        ;; (sx category true) returns {:rstart :rend :point} for that band.
-        sample-info (sx (-> bars first :category) true)
-        bw (- (:rend sample-info) (:rstart sample-info))
-        w (* 0.8 bw)]
+        {:keys [coord-fn]} ctx
+        {:keys [opacity]} style]
     (vec
-     (for [{:keys [category start end color]} bars
+     (for [[i {:keys [start end color]}] (map-indexed vector bars)
            :let [[cr cg cb ca] color
-                 ;; Use the band info for precise positioning
-                 band (sx category true)
-                 mid-x (:point band)
-                 py-start (double (sy start))
-                 py-end (double (sy end))
-                 top (min py-start py-end)
-                 bot (max py-start py-end)
-                 x0 (- mid-x (/ w 2.0))
-                 x1 (+ mid-x (/ w 2.0))]]
+                 place (inc i)
+                 left (- place 0.4)
+                 right (+ place 0.4)]]
        (ui/with-color [cr cg cb (or opacity ca)]
          (ui/with-style :membrane.ui/style-fill
-           (ui/path [x0 top] [x1 top] [x1 bot] [x0 bot])))))))
+           (ui/path (coord-fn left start)
+                    (coord-fn right start)
+                    (coord-fn right end)
+                    (coord-fn left end))))))))
 
 ;; ## Step 4: Register and Plot
 ;;
-;; Register the layer type so the pipeline recognizes `:waterfall`:
+;; Register the layer type, so that `pj/lay` accepts `:waterfall`:
 
 (layer-type/register! :waterfall
                       {:mark :waterfall :stat :waterfall
                        :doc "Waterfall -- running total with increase/decrease bars."})
 
-;; Now we can plot it using the pose API. Since there is
-;; no built-in `pj/lay-waterfall`, we use `pj/lay` with
-;; the layer-type lookup.
+;; Now we can plot it using the pose API. There is no built-in
+;; `pj/lay-waterfall`, so `pj/lay` takes the registered key.
 ;;
-;; We use `pj/plot` to force eager rendering to SVG before the
-;; cleanup section at the end of this notebook removes the
-;; extension's defmethods:
-
-;; Capture the plan eagerly too, so the bar-color check works after
-;; the cleanup section below removes the extension's defmethods:
+;; The plan and the plot are both computed here, while the extension's
+;; methods exist; the cleanup section at the end of this notebook
+;; removes them.
 
 (def waterfall-bars
   (-> pnl-data
       (pj/pose :category :amount)
-      (pj/lay (layer-type/lookup :waterfall))
+      (pj/lay :waterfall)
       pj/plan
       :panels first :layers first :bars))
 
 (-> pnl-data
     (pj/pose :category :amount)
-    (pj/lay (layer-type/lookup :waterfall))
+    (pj/lay :waterfall)
     (pj/options {:title "Profit & Loss Waterfall"
                  :width 500 :height 350})
     pj/plot)
@@ -172,7 +166,7 @@
     (let [s (pj/svg-summary v)
           green [0.2 0.7 0.3 1.0]
           red [0.85 0.25 0.25 1.0]
-          ;; Categories at positions 0, 2, 5 are positive.
+          ;; Categories 0, 2 and 5 are positive.
           positive-bars (mapv #(nth waterfall-bars %) [0 2 5])
           negative-bars (mapv #(nth waterfall-bars %) [1 3 4])]
       (and (= 1 (:panels s))
@@ -182,6 +176,20 @@
 
 ;; Six bars -- one per category. Green for positive amounts (Revenue,
 ;; Gross Profit, Net Income), red for negative (COGS, OpEx, Tax).
+;;
+;; Because the renderer places each bar through `coord-fn`,
+;; `(pj/coord :flip)` turns the waterfall on its side:
+
+(-> pnl-data
+    (pj/pose :category :amount)
+    (pj/lay :waterfall)
+    (pj/coord :flip)
+    (pj/options {:title "Profit & Loss Waterfall"
+                 :width 500 :height 350})
+    pj/plot)
+
+(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
+                           (= 6 (:polygons s))))])
 
 ;; ## Optional: Convenience Function
 ;;
@@ -189,15 +197,22 @@
 ;; pose-compatible function:
 
 (defn lay-waterfall
-  ([pose] (pj/lay pose (layer-type/lookup :waterfall)))
-  ([data x y] (-> data (pj/pose x y) (pj/lay (layer-type/lookup :waterfall))))
-  ([data x y opts] (-> data (pj/pose x y) (pj/lay (merge (layer-type/lookup :waterfall) opts)))))
+  ([pose]
+   (pj/lay pose :waterfall))
+  ([data x y]
+   (-> data
+       (pj/pose x y)
+       (pj/lay :waterfall)))
+  ([data x y mapping]
+   (-> data
+       (pj/pose x y)
+       (pj/lay :waterfall mapping))))
 
 ;; Now the call matches any built-in layer type:
 
 (-> pnl-data
     (lay-waterfall :category :amount)
-    (pj/options {:title "Quarterly Cash Flow" :width 500})
+    (pj/options {:width 500})
     pj/plot)
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]

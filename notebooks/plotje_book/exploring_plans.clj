@@ -25,8 +25,7 @@
 
 ;; ## A Minimal Scatter Plot
 ;;
-;; Let's start with the simplest plot: 5 points, no color,
-;; no title.
+;; The simplest plot: 5 points, no color, no title.
 
 (def tiny {:x [1 2 3 4 5]
            :y [2 4 1 5 3]})
@@ -40,8 +39,8 @@
                            (and (= 1 (:panels s))
                                 (= 5 (:points s)))))])
 
-;; And here is the plan -- the data structure that drives the rendering.
-;; We'll use `pj/plan` with the same pose:
+;; And here is the plan -- the data structure that drives the rendering,
+;; from `pj/plan` on the same pose:
 
 (def tiny-plan (-> tiny
                    (pj/lay-point :x :y)
@@ -50,11 +49,12 @@
 ;; ### What's in a plan?
 ;;
 ;; At the top level, a plan describes dimensions and layout.
-;; Here is the entire plan -- a plain Clojure map:
+;; Here is the entire plan -- a `Plan` record, which behaves as a map:
 
 tiny-plan
 
-(kind/test-last [(fn [m] (and (= 600 (:width m))
+(kind/test-last [(fn [m] (and (record? m)
+                              (= 600 (:width m))
                               (= 400 (:height m))
                               (== 10 (:margin m))
                               (nil? (:title m))
@@ -90,7 +90,8 @@ tiny-plan
                           (and (pj/composite-plan? matrix-plan)
                                (= 4 (count (:sub-plots matrix-plan)))))))])
 
-;; **Domains** -- the numeric range of the data, with a small padding:
+;; **Domains** -- the extent of the data on each axis, with a small
+;; padding:
 
 (:x-domain tiny-panel)
 
@@ -251,7 +252,8 @@ hist-plan
 
 (kind/test-last [(fn [m] (= :bar m))])
 
-;; The geometry is in `:bars` -- each bin has a lo edge, hi edge, and count:
+;; The geometry is in `:bars` -- each bin has a lower edge, an upper
+;; edge, and a count:
 
 (-> hist-layer :groups first :bars)
 
@@ -468,7 +470,7 @@ bar-layer
 (kind/test-last [(fn [m] (and (= :numeric (:x-domain-type m))
                               (= :categorical (:y-domain-type m))))])
 
-;; The layer data is unchanged -- the coord type signals an axis
+;; The layer data is unchanged -- the coordinate type signals an axis
 ;; swap during mapping.
 
 ;; ## Options Affect the Plan
@@ -502,7 +504,7 @@ opts-plan
 ;; `pj/plan` and `pj/plot` accept the same pose.
 ;; `pj/plan` returns the intermediate data map; `pj/plot` returns the final SVG.
 
-;; The plan (a plain Clojure map):
+;; The plan (a `Plan` record, which behaves as a map):
 
 (def final-pose
   (-> (rdatasets/datasets-iris)
@@ -557,12 +559,13 @@ final-plan
 
 (kind/test-last [(fn [n] (= 3 n))])
 
-;; Each panel has a grid position and strip label:
+;; Each panel has its row and column in the grid, and a strip label:
 
 (:panels faceted-plan)
 
 (kind/test-last [(fn [ps] (and (= 3 (count ps))
-                               (every? :col-label ps)))])
+                               (every? :col-label ps)
+                               (= [[0 0] [0 1] [0 2]] (mapv (juxt :row :col) ps))))])
 
 ;; Panel-level domains show the data range for each subset:
 

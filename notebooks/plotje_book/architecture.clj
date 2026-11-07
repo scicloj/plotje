@@ -1,7 +1,7 @@
 ;; # Architecture
 ;;
-;; Plotje has a five-stage pipeline: **pose** -> **draft** -> **plan**
-;; -> **membrane** -> **plot**. Each stage is produced from the
+;; Plotje has a five-stage pipeline: a **pose** becomes a **draft**,
+;; then a **plan**, a **membrane**, and finally a **plot**. Each stage is produced from the
 ;; previous one by a single step. The user-facing functions
 ;; `pj/draft`, `pj/plan`, and `pj/plot` are literal compositions of
 ;; those steps, with `pj/options` folded in to inject
@@ -67,15 +67,20 @@ graph LR
 ;;   `:layers` (a vector of one map per applicable layer with all
 ;;   scope merged in -- `:data`, `:x`, `:y`, `:mark`, `:stat`, and
 ;;   aesthetic keys) and `:opts` (the pose-level options that flow
-;;   into the plan stage). A composite pose produces a
+;;   into the plan stage). A composite pose, and a leaf with a facet
+;;   over columns, which is drawn as one cell per column, produce a
 ;;   `CompositeDraft` instead, carrying per-leaf drafts
 ;;   (`:sub-drafts`), the resolved composite-framing geometry (`:chrome-spec`),
 ;;   the layout map from leaf path to rect (`:layout`), and the
-;;   composite's overall dimensions (`:width`, `:height`). Produced by
+;;   composite's overall dimensions (`:width`, `:height`). A leaf draft
+;;   holds no geometry. A composite draft already holds where each cell
+;;   sits on the canvas, in drawing units, because the sizes of the
+;;   cells are decided before the cells are planned. Produced by
 ;;   `pj/pose->draft`.
 ;;
 ;; - **Plan** -- fully resolved geometry in data space (domains,
-;;   ticks, legends, computed shapes). A `Plan` record (composite
+;;   ticks, legends, computed shapes), and the layout of the canvas in
+;;   drawing units. A `Plan` record (composite
 ;;   plots use `CompositePlan`) holding panels as plain maps, layers
 ;;   as `PlanLayer` records, and numeric arrays as dtype-next
 ;;   buffers. Produced by `pj/draft->plan`. No rendering primitives
@@ -132,8 +137,8 @@ graph LR
 ;; - The **plot** is the format-specific output: SVG hiccup, a
 ;;   `BufferedImage`, or any other format a backend supports.
 ;;
-;; This structure has two consequences. Every intermediate value
-;; can be inspected with `kind/pprint`. The same pipeline can be
+;; Every intermediate value can be inspected with `kind/pprint`. The
+;; same pipeline can be
 ;; extended by registering new methods at any stage -- mark, stat,
 ;; scale, coordinate system, output format -- without modifying the
 ;; core.
@@ -300,7 +305,7 @@ trace-pose
 ;; format's bytes.
 ;; The membrane carries its plan-derived dimensions as record
 ;; fields (read via `(membrane.ui/width m)`/`(height m)`), so
-;; `pj/membrane->plot` does not need them respelled in opts:
+;; `pj/membrane->plot` does not need them written again in its options:
 
 (def trace-plot
   (pj/membrane->plot trace-membrane :svg {}))
@@ -330,11 +335,15 @@ trace-pose
 ;;   column arguments (`(pj/pose data :x :y)`) and a mapping, and on an
 ;;   existing pose it merges them into that pose's mapping. It infers
 ;;   nothing: the default mapping is filled in when the pose is drafted.
-;; - **pj/draft** -- raw input -> draft.
-;; - **pj/plan** -- raw input -> plan.
-;; - **pj/membrane** -- raw input -> membrane tree.
-;; - **pj/plot** -- raw input -> rendered figure.
-;; - **pj/save** -- raw input -> file on disk (renders, then writes).
+;; - **pj/draft** -- from raw input to a draft.
+;; - **pj/plan** -- from raw input to a plan.
+;; - **pj/membrane** -- from raw input to a membrane tree.
+;; - **pj/plot** -- from raw input to a rendered figure.
+;; - **pj/save** -- from raw input to a file on disk (renders, then
+;;   writes).
+;;
+;; `pj/draft->membrane` and `pj/draft->plot` start the same chain from
+;; a draft rather than from raw input.
 ;;
 ;; Each shortcut starts from raw input and stops at a different
 ;; stage along the same chain. The solid line is the stage-to-stage
@@ -443,9 +452,9 @@ graph LR
 ;;                   infer-mapping)
 ;;          pose (if opts (options pose opts) pose)
 ;;          fmt  (resolve-format pose path)]  ; :format opt, else path extension
-;;      ;; render the plan to fmt bytes and write them to path
-;;      (write-file path (plan->plot (plan pose) fmt (:opts pose)))
-;;      path)))
+;;      ;; render the plan to fmt bytes, write them to path,
+;;      ;; and return the java.io.File written
+;;      (write-file path (plan->plot (plan pose) fmt (:opts pose))))))
 ;; ```
 ;;
 ;; In `plot`, the `let` binds `pose`, `opts`, and `fmt` for use in
@@ -458,14 +467,15 @@ graph LR
 ;; `pj/save` is the file-output sibling: it lifts and infers the same
 ;; way, resolves the file format (from a `:format` option or the path
 ;; extension), renders the plan to those bytes, and writes them to
-;; disk, returning the path. `resolve-format` and `write-file` above
-;; stand in for that format-resolution and file-writing detail.
+;; disk, returning the file it wrote as a `java.io.File` (`str` of it
+;; is the path). `resolve-format` and `write-file` above stand in for
+;; that format-resolution and file-writing detail.
 ;;
 ;; The 2-arity of each function folds the options map into the pose
 ;; using `pj/options` before recursing into the 1-arity.
 ;;
 ;; `pj/membrane` is the analogous shortcut for the membrane stage,
-;; useful for consumers that want a membrane tree without choosing
+;; useful for a caller that needs a membrane tree without choosing
 ;; an output format yet -- for example a custom backend, or a target
 ;; that Membrane supports but Plotje has not wired in yet.
 ;;
@@ -535,11 +545,11 @@ graph LR
 ;;   columns to `:x` and `:y`, and a third column to `:color`. It runs
 ;;   in `pj/pose->draft`, after a facet over columns is expanded into
 ;;   cells, on every leaf, cells of a
-;;   composite included. It writes the default where neither the
-;;   pose's mapping nor any layer names an `:x` or a `:y` column, and
-;;   where the first layer names no column, whatever the later layers
-;;   name (the example below this list shows a later layer naming the
-;;   default's columns).
+;;   composite included. It writes the default in two cases: where no
+;;   mapping and no layer names an `:x` or a `:y` column, and where the
+;;   first layer names no column, whatever later layers name (the
+;;   example below this list shows a later layer naming the default's
+;;   columns).
 ;;   `pj/infer-mapping` is the same step as a public function: it
 ;;   writes the default onto the pose, where it can be read before
 ;;   drafting. `pj/->pose`, `pj/pose` and the `pj/lay-*` functions read
@@ -765,8 +775,8 @@ graph LR
 ;; A composite pose -- one with `:poses` inside --
 ;; flows through the same steps. Each step dispatches
 ;; internally on shape: a leaf pose produces a `LeafDraft`; a
-;; composite pose produces a `CompositeDraft`. The user-facing
-;; pipeline is unchanged.
+;; composite pose, and a leaf with a facet over columns, produce a
+;; `CompositeDraft`. The user-facing pipeline is unchanged.
 
 (def composite-pose
   (-> (rdatasets/datasets-iris)
@@ -789,12 +799,46 @@ composite-pose
 (kind/test-last [(fn [d] (and (pj/composite-draft? d)
                               (= 2 (count (:sub-drafts d)))))])
 
+;; Each entry of `:sub-drafts` is a map. It holds the cell's place on
+;; the canvas (`:path` in the grid, and `:rect` in drawing units), the
+;; options the arrangement decided for the cell under `:opts` -- its
+;; size, and which legends, ticks and axis titles it suppresses -- and
+;; the cell's draft layers under `:draft`, the vector a `LeafDraft`
+;; holds as `:layers`. With the draft layers counted, so that the entry
+;; prints readably:
+
+(-> composite-pose
+    pj/draft
+    :sub-drafts
+    first
+    (update :draft count))
+
+(kind/test-last [(fn [sub-draft]
+                   (and (= #{:path :rect :opts :draft} (set (keys sub-draft)))
+                        (= [0 0] (:path sub-draft))
+                        (= 1 (:draft sub-draft))
+                        ;; One legend for the arrangement, drawn beside
+                        ;; it rather than in this cell.
+                        (true? (-> sub-draft :opts :suppress-color-legend))))])
+
 ;; `pj/plan` returns a `CompositePlan`:
 
 (pj/plan composite-pose)
 
 (kind/test-last [(fn [p] (and (pj/composite-plan? p)
                               (= 2 (count (:sub-plots p)))))])
+
+;; Each entry of `:sub-plots` holds the same place and options, and the
+;; cell's leaf `Plan` under `:plan`:
+
+(-> composite-pose
+    pj/plan
+    :sub-plots
+    first
+    :plan
+    pj/leaf-plan?)
+
+(kind/test-last [true?])
 
 ;; `pj/membrane` returns a `PlotjeMembrane` whose `:drawables` carry
 ;; one `Translate` per leaf plus composite framing (column strip
@@ -1014,7 +1058,7 @@ faceted-clinics
 (kind/test-last [(fn [domains] (and (apply = domains)
                                     (< 105.0 (second (first domains)))))])
 
-;; These details complete the picture:
+;; Further details of how cells share an axis:
 ;;
 ;; - **Categories.** Where the cells of a group are parts of one
 ;;   dataset, the pooled categories are listed in the order of that
@@ -1274,8 +1318,9 @@ series-by-key
 ;; The plan is the first pipeline boundary: the boundary between
 ;; description and rendering. The
 ;; pose and draft stages assemble the description. The plan resolves
-;; it into computed geometry, domains, ticks, and legend -- still as
-;; inspectable data, before any layout. The membrane and plot stages
+;; it into computed geometry, domains, ticks, legend and the layout of
+;; the canvas -- still as inspectable data, before anything is drawn.
+;; The membrane and plot stages
 ;; then produce the rendered output.
 
 ^:kindly/hide-code
@@ -1306,10 +1351,10 @@ graph LR
 ;;
 ;; The membrane is the second pipeline boundary: it separates
 ;; data-space geometry from output-format bytes. The plan describes
-;; what to draw in data coordinates (e.g. a point at (3.4, 7.1) in
-;; the color for species `setosa`); the membrane describes the same
-;; content in drawing coordinates (e.g. a translation to (218, 134)
-;; carrying a colored shape). The plan is renderer-agnostic; the
+;; what to draw in data coordinates -- for example a point at
+;; (3.4, 7.1) in the color for species `setosa`; the membrane describes
+;; the same content in drawing coordinates -- for example a translation
+;; to (218, 134) carrying a colored shape. The plan is renderer-agnostic; the
 ;; membrane is format-agnostic.
 ;;
 ;; Clipping -- keeping each panel's marks within the panel -- is an
@@ -1328,8 +1373,8 @@ graph LR
 ;; tree registers a `defmethod` on the render multimethod
 ;; `scicloj.plotje.impl.render/membrane->plot` (the public
 ;; `pj/membrane->plot` dispatches through it). A new format that
-;; goes from a plan directly to bytes (skipping membrane -- e.g., a
-;; Plotly-spec target) registers a `defmethod` on
+;; goes from a plan directly to bytes (skipping membrane -- for
+;; example a Plotly-spec target) registers a `defmethod` on
 ;; `scicloj.plotje.impl.render/plan->plot` instead. The
 ;; [Extensibility](./plotje_book.extensibility.html) chapter shows a
 ;; worked backend registration.
@@ -1347,13 +1392,13 @@ graph LR
 ;;   notebooks via Kindly/Clay, and writes to `.svg` files.
 ;; - **Java2D / `BufferedImage`** -- raster output via
 ;;   Membrane's Java2D backend. Used for `.png` files and any
-;;   consumer that wants a Java image.
+;;   caller that needs a Java image.
 ;;
 ;; Membrane itself supports more rendering targets (terminal,
 ;; native GUI, GL, ...) than Plotje currently exposes. Wiring a new
 ;; target into Plotje has not been done end-to-end yet -- the
 ;; defmethod registration is the extension point, but each backend
-;; has its own conventions for opts and interactivity that need to
+;; has its own conventions for options and interactivity that need to
 ;; be worked out. As Membrane grows, Plotje can incorporate new
 ;; targets without changing how plots are described.
 
@@ -1362,8 +1407,8 @@ graph LR
 ;; | Stage | Type | Coordinates |
 ;; |:------|:-----|:------------|
 ;; | Pose | Plain map (leaf or composite) | N/A (declarative) |
-;; | Draft | `LeafDraft` (`:layers`, `:opts`) or `CompositeDraft` (`:sub-drafts`, `:chrome-spec`, `:layout`, `:width`, `:height`) record | N/A (declarative) |
-;; | Plan | `Plan` or `CompositePlan` record (with `PlanLayer` records and dtype buffers) | Data space |
+;; | Draft | `LeafDraft` (`:layers`, `:opts`) or `CompositeDraft` (`:sub-drafts`, `:chrome-spec`, `:layout`, `:width`, `:height`) record | None for a leaf; drawing units for where a composite's cells sit (`:layout`) |
+;; | Plan | `Plan` or `CompositePlan` record (with `PlanLayer` records and dtype buffers) | Data space (marks); drawing units (layout) |
 ;; | Membrane | Record tree (membrane.ui primitives in a vector) | Drawing units |
 ;; | Plot | Hiccup vector (`:svg`) or `BufferedImage` (`:bufimg`) | Drawing units |
 
@@ -1384,15 +1429,24 @@ graph TD
   PL --> SCALE[\"impl/scale.clj\"]
   PL --> DEFAULTS[\"impl/defaults.clj\"]
   PL --> PS[\"impl/plan_schema.clj\"]
+  PL --> LAYOUT[\"impl/layout.clj\"]
+  API --> FRAMES[\"impl/frames.clj\"]
+  API --> IMEM[\"impl/membrane.clj\"]
   API --> RENDER[\"impl/render.clj\"]
   RENDER --> SVG[\"render/svg.clj\"]
+  RENDER -.->|loaded on first use| BUFIMG[\"render/bufimg.clj\"]
   SVG --> MEMBRANE[\"render/membrane.clj\"]
+  BUFIMG --> MEMBRANE
+  MEMBRANE --> IMEM
+  MEMBRANE --> FRAMES
+  MEMBRANE --> LAYOUT
   MEMBRANE --> PANEL[\"render/panel.clj\"]
   PANEL --> MARK[\"render/mark.clj\"]
   PANEL --> SCALE
   PANEL --> COORD[\"impl/coord.clj\"]
   API --> RC[\"render/composite.clj\"]
   RC --> MEMBRANE
+  RC --> IMEM
   style API fill:#c8e6c9
   style COMP fill:#d1c4e9
   style PL fill:#d1c4e9
@@ -1416,14 +1470,25 @@ graph TD
 ;; `impl/plan.clj` holds the leaf-plan computation (domains, ticks,
 ;; legends, layout) that the public `pj/draft->plan` calls.
 ;;
+;; `impl/layout.clj` sizes the canvas: the room the axes, titles and
+;; legends take, and the size of each panel. `impl/frames.clj` turns a
+;; plan into the rectangles each panel occupies on the canvas, which
+;; `pj/frames` returns.
+;;
+;; `impl/membrane.clj` defines the `PlotjeMembrane` record, the value
+;; of the membrane stage.
+;;
 ;; `impl/resolve.clj` defines the `Plan`, `CompositePlan`,
 ;; `LeafDraft`, `CompositeDraft`, `PlanLayer`, and `LayerType`
 ;; records, and holds `resolve-draft-layer` (single draft layer
 ;; resolution, column type inference, grouping).
 ;;
-;; The `impl/` directory is pure data with no membrane dependency.
-;; The `render/` directory uses membrane for layout and SVG/raster
-;; conversion. `render/composite.clj` carries the composite
+;; The `impl/` directory holds data with no Membrane dependency,
+;; except `impl/membrane.clj`, whose `PlotjeMembrane` is a Membrane
+;; component by definition. The `render/` directory uses Membrane for
+;; drawing and for SVG and raster conversion; `render/bufimg.clj`, the
+;; raster backend, is loaded the first time a `:bufimg` or `:png` plot
+;; is rendered. `render/composite.clj` carries the composite
 ;; `plan->membrane` defmethod and the membrane drawables for
 ;; composite framing (title, strip labels, shared legend).
 

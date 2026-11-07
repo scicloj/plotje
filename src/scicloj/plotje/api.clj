@@ -859,9 +859,11 @@
    scope -- and `:opts` -- the pose-level options that flow into the
    plan stage); a composite pose, and a leaf with a facet over columns,
    which is drawn as one cell per column, becomes a `CompositeDraft` carrying
-   per-leaf drafts (each contextualized with shared-scale domains and
-   chrome-driven opt adjustments), the resolved chrome geometry, and
-   the layout (path -> rect).
+   per-leaf drafts (each with the options the arrangement decided for
+   its cell -- which axes it shares and which ticks, axis titles and legends
+   it suppresses), the resolved chrome geometry, and the layout (path
+   -> rect). Shared domains are not in the draft: `pj/draft->plan`
+   measures each cell and pools the extents of the axes it shares.
 
    - `(pose->draft (pj/lay-point data :x :y))`"
   [pose]
@@ -1625,10 +1627,10 @@
     :else "*"))
 
 (defn- check-new-panel-columns
-  "Safety check fired when a `lay-*` names columns no panel draws, so the
-   layer would take a panel of its own: LP2 on a leaf, where the leaf
-   draws one more panel, or LP3 on a composite, where a new leaf is
-   appended. Verify each non-nil column in `position-mapping` exists in
+  "Safety check fired when a `lay-*` names columns the pose does not
+   draw -- on a leaf, where the layer joins the panel (Rule LP5), or on
+   a composite, where no leaf draws them and a new cell is appended
+   (Rule LP3). Verify each non-nil column in `position-mapping` exists in
    the data that layer will draw from: its own `:data` if it has one,
    otherwise `fallback-data`, the pose's. A focused error here saves the
    user from a deep plan-stage 'column not found' on a column they
@@ -3951,6 +3953,8 @@
      histogram, or a bar chart of counts for a categorical column).
      `{:col {:x xs} :row {:y ys}}` crosses two lists, and `nil` in a
      vector of columns leaves that place for a marginal distribution.
+     `(pj/matrix my-pose cols)` and `(pj/matrix my-pose xs ys)` write
+     these facets.
 
    Categories are written into the pose's mapping and columns under its
    `:facet`, and the two are crossed when the pose is drawn. So a grid
@@ -4358,9 +4362,11 @@
    stage). For a composite pose, and for a leaf with a facet over
    columns, which is drawn as one cell per column, returns a
    `CompositeDraft` carrying
-   per-leaf drafts (each contextualized -- shared-scale domains
-   injected, suppress-* flags applied), the resolved chrome geometry,
-   and the layout (path -> rect).
+   per-leaf drafts (each with the options the arrangement decided for
+   its cell -- which axes it shares and which ticks, axis titles and legends
+   it suppresses), the resolved chrome geometry, and the layout (path
+   -> rect). Shared domains are not in the draft: `pj/draft->plan`
+   measures each cell and pools the extents of the axes it shares.
 
    - `(draft pose)`
    - `(draft pose {:width 800 :title \"Plot\"})`"

@@ -3,8 +3,8 @@
 ;; For [polar coordinates](https://en.wikipedia.org/wiki/Polar_coordinate_system),
 ;; `(pj/coord :polar)` maps x to angle and y to radius. Bars become
 ;; arc-interpolated wedges (rose charts), and scatter points wrap onto
-;; a polar plane. The angular spread is set by the x-column's range,
-;; so a narrow range produces a wedge cluster rather than a full
+;; a polar plane. The angular spread is set by the x-column's domain,
+;; so a narrow domain produces a wedge cluster rather than a full
 ;; circle. Supported marks today are `:point`, `:bar`, `:rect`,
 ;; `:text`, and `:rug`; other marks report an error. The `:x` title
 ;; below the panel names the column drawn as the angle, and its tick
@@ -12,7 +12,7 @@
 ;; `:y` title beside the panel names the column drawn as the radius,
 ;; and its tick labels stand at the left edge, each level with the top
 ;; of its circle of the grid. Legends render
-;; as they would on Cartesian coords -- a `:color` mapping produces a
+;; as they would on Cartesian coordinates -- a `:color` mapping produces a
 ;; normal legend that can be repositioned via `:legend-position` (see
 ;; [Customization](./plotje_book.customization.html#legend-position)).
 
@@ -33,7 +33,7 @@
 ;; The same scatter plot, wrapped onto a polar plane. x maps to angle
 ;; (clockwise from 12 o'clock), y maps to radius (center = minimum,
 ;; edge = maximum). Iris's `:sepal-length` spans roughly 4.3 to 7.9 --
-;; a narrow numeric range -- so the points cluster in an arc rather
+;; a narrow interval of values -- so the points cluster in an arc rather
 ;; than spreading across the full circle.
 
 (-> (rdatasets/datasets-iris)
@@ -93,7 +93,7 @@
 ;; ## Polar Histogram
 ;;
 ;; A histogram in polar wraps bins around the circle. Useful for
-;; circular distributions (e.g., time of day, compass bearing).
+;; circular distributions, such as time of day or compass bearing.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-histogram :sepal-length)
@@ -103,11 +103,40 @@
                            (and (= 1 (:panels s))
                                 (pos? (:polygons s)))))])
 
+;; ## Facets on Polar Coordinates
+;;
+;; `pj/facet` splits a polar plot into panels as it does a Cartesian
+;; one, and each panel draws its own circle. The circle fits the shorter
+;; side of its panel's drawing area, so three panels side by side on the
+;; default canvas are tall and narrow and draw small circles. A wider,
+;; shorter canvas gives each circle more room:
+
+(-> (rdatasets/datasets-iris)
+    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/coord :polar)
+    (pj/facet :species)
+    (pj/options {:width 900 :height 340}))
+
+(kind/test-last
+ [(fn [v]
+    (let [area (fn [fr] (-> fr pj/frames :panels first :frames :drawing-area))
+          [_ _ w h] (area (-> (rdatasets/datasets-iris)
+                              (pj/lay-point :sepal-length :sepal-width {:color :species})
+                              (pj/coord :polar)
+                              (pj/facet :species)))
+          [_ _ wide-w _] (area v)]
+      (and (= 3 (:panels (pj/svg-summary v)))
+           (= 150 (:points (pj/svg-summary v)))
+           ;; On the default canvas each drawing area is taller than wide.
+           (< w h)
+           ;; The wider canvas widens each drawing area.
+           (> wide-w w))))])
+
 ;; ## Explicit Labels with Polar
 ;;
 ;; The axis titles name the angle's column and the radius's column, as
-;; on Cartesian coords. `pj/options` replaces them, and sets a title,
-;; as it does there:
+;; on Cartesian coordinates. `pj/options` replaces them, and sets a
+;; title, as it does on Cartesian coordinates:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species})

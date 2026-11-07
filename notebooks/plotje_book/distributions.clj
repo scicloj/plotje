@@ -156,7 +156,7 @@
                  (= [4.12 8.08] (-> v pj/plan :panels first :x-domain))
                  (= [[4.3 7.9] [4.3 7.9] [4.3 7.9]] per-group))))])
 
-;; Each curve is estimated across every species' values, not just its
+;; Each curve is estimated across every species' values, not only its
 ;; own, so all three share one interval and each falls away to nothing at
 ;; both ends. Pass `{:trim true}` to estimate each species over its own
 ;; values instead. Trimming shows where each group's data lies, at the
@@ -216,7 +216,7 @@
 
 ;; ## Rug
 ;;
-;; A rug shows the raw data positions as short tick marks along the
+;; A rug shows each observation's value as a short tick mark along the
 ;; axis. Layered with a density curve, it shows the smooth shape and
 ;; the underlying observations together.
 ;;
@@ -247,7 +247,7 @@
 ;; ## Strip Plot (Jitter)
 ;;
 ;; When plotting a numeric column against a categorical column,
-;; points stack on the same band positions. `:jitter true` spreads
+;; points fall on the same place in each band. `:jitter true` spreads
 ;; them with small random offsets along the categorical axis.
 
 (-> (rdatasets/datasets-iris)
@@ -440,7 +440,12 @@
             (and (= 3 (:panels s))
                  (pos? (:polygons s)))))])
 
-;; Combine with `:color` to see group differences within each column.
+;; A `:color` column written beside the several columns of a series
+;; replaces the colour per column. `{:x [:sepal-length :sepal-width
+;; :petal-length] :color :species}` colours the bars by species, and the
+;; legend lists the species and no longer the columns, so the three
+;; columns cannot be told apart. To see both, give each column its own
+;; panel and colour by species within it:
 
 (-> (rdatasets/datasets-iris)
     (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
@@ -449,7 +454,17 @@
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 3 (:panels s))
-                 (pos? (:polygons s)))))])
+                 (pos? (:polygons s))
+                 ;; On one panel, the colour column replaces the colour
+                 ;; per column: the legend names only the species.
+                 (= ["setosa" "versicolor" "virginica"]
+                    (->> (pj/lay-histogram (rdatasets/datasets-iris)
+                                           {:x [:sepal-length :sepal-width :petal-length]
+                                            :color :species})
+                         pj/plan
+                         :legend
+                         :entries
+                         (mapv :label))))))])
 
 ;; Several columns on `:x` suit the layer types that draw from one
 ;; column, such as histograms, densities and rugs. A boxplot or a violin

@@ -56,15 +56,17 @@
 ;; ## Dropped: a value a log scale has no room for
 
 ;; A log scale has no place for zero or for a negative number. Asking
-;; for one drops those rows, and says which axis it happened on:
+;; for one drops those rows, and the warning names the column:
 ;; `Warning: Removed 1 row containing non-positive values (log scale
-;; on :y)`.
+;; on :weight).`
 
 (-> {:height [1 2 3 4] :weight [1 0 10 100]}
     (pj/lay-point :height :weight)
     (pj/scale :y :log))
 
-(kind/test-last [(fn [v] (= 3 (:points (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= 3 (:points (pj/svg-summary v)))
+                              (re-find #"Removed 1 row containing non-positive values \(log scale on :weight\)"
+                                       (with-out-str (pj/plan v)))))])
 
 ;; ## Dropped: a category with no value
 
@@ -115,7 +117,7 @@
 ;; Narrowing an axis with `pj/scale` does not remove anything. The
 ;; domain is a view window: every row is still placed, still counted,
 ;; and still contributes to what the layer computes -- the ones outside
-;; the window are simply not shown, because each panel clips to its own
+;; the window are not shown, because each panel clips to its own
 ;; drawing area.
 ;;
 ;; Here the fourth row sits at 40 on an axis stopping at 5. The plot

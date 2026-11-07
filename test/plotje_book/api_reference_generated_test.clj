@@ -125,35 +125,11 @@
    v23_l101)))
 
 
-(def v25_l109 (kind/doc #'pj/cross))
+(def v26_l111 (kind/doc #'pj/lay))
 
 
 (def
- v27_l118
- (->
-  (rdatasets/datasets-iris)
-  (pj/pose {:color :species})
-  (pj/facet
-   {:col {:x [:sepal-length :petal-length]},
-    :row {:y [:sepal-length :petal-length]}})))
-
-
-(deftest
- t28_l123
- (is
-  ((fn
-    [v]
-    (let
-     [s (pj/svg-summary v)]
-     (and (= 4 (:panels s)) (= 300 (:points s)))))
-   v27_l118)))
-
-
-(def v30_l129 (kind/doc #'pj/lay))
-
-
-(def
- v32_l137
+ v28_l119
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -161,197 +137,197 @@
 
 
 (deftest
- t33_l141
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v32_l137)))
+ t29_l123
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v28_l119)))
 
 
-(def v35_l152 (kind/doc #'pj/lay-point))
+(def v31_l134 (kind/doc #'pj/lay-point))
 
 
 (def
- v36_l154
+ v32_l136
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})))
 
 
 (deftest
- t37_l157
+ t33_l139
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s)))) v36_l154)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s)))) v32_l136)))
 
 
-(def v38_l160 (kind/doc #'pj/lay-line))
+(def v34_l142 (kind/doc #'pj/lay-line))
 
 
 (def
- v39_l162
+ v35_l144
  (def
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__11199#] (Math/sin (* p1__11199# 0.3))) (range 30))}))
+   (map (fn* [p1__87818#] (Math/sin (* p1__87818# 0.3))) (range 30))}))
 
 
-(def v40_l165 (-> wave (pj/lay-line :x :y)))
+(def v36_l147 (-> wave (pj/lay-line :x :y)))
 
 
 (deftest
- t41_l168
- (is ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:lines s)))) v40_l165)))
+ t37_l150
+ (is ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:lines s)))) v36_l147)))
 
 
-(def v42_l171 (kind/doc #'pj/lay-histogram))
+(def v38_l153 (kind/doc #'pj/lay-histogram))
 
 
 (def
- v43_l173
+ v39_l155
  (-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length)))
 
 
 (deftest
- t44_l176
+ t40_l158
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v43_l173)))
+   v39_l155)))
 
 
 (def
- v46_l182
+ v42_l164
  (pj/lay-histogram
   (rdatasets/datasets-iris)
   {:x [:sepal-length :sepal-width]}))
 
 
 (deftest
- t47_l184
+ t43_l166
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v46_l182)))
+   v42_l164)))
 
 
-(def v48_l188 (kind/doc #'pj/lay-bar))
+(def v44_l170 (kind/doc #'pj/lay-bar))
 
 
-(def v49_l190 (-> (rdatasets/datasets-iris) (pj/lay-bar :species)))
+(def v45_l172 (-> (rdatasets/datasets-iris) (pj/lay-bar :species)))
 
 
 (deftest
- t50_l193
+ t46_l175
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v49_l190)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v45_l172)))
 
 
 (def
- v52_l198
+ v48_l180
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:position :stack, :color :species})))
 
 
 (deftest
- t53_l201
+ t49_l183
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v52_l198)))
+   v48_l180)))
 
 
 (def
- v55_l206
+ v51_l188
  (->
   (rdatasets/palmerpenguins-penguins)
   (pj/lay-bar :island {:position :fill, :color :species})))
 
 
 (deftest
- t56_l209
+ t52_l191
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v55_l206)))
+   v51_l188)))
 
 
-(def v58_l215 (-> sales (pj/lay-bar :product :revenue)))
+(def v54_l197 (-> sales (pj/lay-bar :product :revenue)))
 
 
 (deftest
- t59_l218
+ t55_l200
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s)))) v58_l215)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s)))) v54_l197)))
 
 
-(def v61_l224 (-> sales (pj/lay-bar :product :revenue {:stat :count})))
+(def v57_l206 (-> sales (pj/lay-bar :product :revenue {:stat :count})))
 
 
 (deftest
- t62_l227
+ t58_l209
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v61_l224)))
+   v57_l206)))
 
 
 (def
- v64_l234
+ v60_l216
  (->
   {:hour [9 10 11], :sales [3 5 4]}
   (pj/lay-bar :hour :sales {:x-type :categorical})))
 
 
 (deftest
- t65_l237
+ t61_l219
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v64_l234)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v60_l216)))
 
 
-(def v67_l244 (-> sales (pj/lay-bar :revenue :product)))
+(def v63_l226 (-> sales (pj/lay-bar :revenue :product)))
 
 
 (deftest
- t68_l247
+ t64_l229
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s)))) v67_l244)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s)))) v63_l226)))
 
 
 (def
- v70_l259
+ v66_l241
  (-> sales (pj/lay-bar :product :revenue {:bar-width 0.4})))
 
 
 (deftest
- t71_l262
+ t67_l244
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s)))) v70_l259)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s)))) v66_l241)))
 
 
 (def
- v73_l269
+ v69_l251
  (-> {:x [1 2 3 4 5], :y [10 20 15 30 25]} (pj/lay-bar :x :y)))
 
 
 (deftest
- t74_l272
+ t70_l254
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 5 (:polygons s)))) v73_l269)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 5 (:polygons s)))) v69_l251)))
 
 
 (def
- v76_l279
+ v72_l261
  (->
   {:x [1 2 3 4 5], :y [10 20 15 30 25]}
   (pj/lay-bar :x :y {:bar-width 0.3})))
 
 
 (deftest
- t77_l282
+ t73_l264
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 5 (:polygons s)))) v76_l279)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 5 (:polygons s)))) v72_l261)))
 
 
 (def
- v79_l287
+ v75_l269
  (->
   {:month
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -362,16 +338,16 @@
 
 
 (deftest
- t80_l291
+ t76_l273
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v79_l287)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v75_l269)))
 
 
-(def v81_l294 (kind/doc #'pj/lay-smooth))
+(def v77_l276 (kind/doc #'pj/lay-smooth))
 
 
 (def
- v83_l298
+ v79_l280
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -379,18 +355,18 @@
 
 
 (deftest
- t84_l302
+ t80_l284
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (= 1 (:lines s)))))
-   v83_l298)))
+   v79_l280)))
 
 
 (def
- v85_l306
+ v81_l288
  (->
   (let
    [r (rng/rng :jdk 42) xs (vec (range 50))]
@@ -398,9 +374,9 @@
     :y
     (mapv
      (fn*
-      [p1__11200#]
+      [p1__87819#]
       (+
-       (Math/sin (* p1__11200# 0.2))
+       (Math/sin (* p1__87819# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -408,44 +384,44 @@
 
 
 (deftest
- t86_l315
+ t82_l297
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 50 (:points s)) (= 1 (:lines s)))))
-   v85_l306)))
+   v81_l288)))
 
 
-(def v87_l319 (kind/doc #'pj/lay-density))
+(def v83_l301 (kind/doc #'pj/lay-density))
 
 
 (def
- v88_l321
+ v84_l303
  (-> (rdatasets/datasets-iris) (pj/lay-density :sepal-length)))
 
 
 (deftest
- t89_l324
+ t85_l306
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:polygons s)))) v88_l321)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:polygons s)))) v84_l303)))
 
 
-(def v90_l327 (kind/doc #'pj/lay-area))
+(def v86_l309 (kind/doc #'pj/lay-area))
 
 
-(def v91_l329 (-> wave (pj/lay-area :x :y)))
+(def v87_l311 (-> wave (pj/lay-area :x :y)))
 
 
 (deftest
- t92_l332
+ t88_l314
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:polygons s)))) v91_l329)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 1 (:polygons s)))) v87_l311)))
 
 
 (def
- v94_l337
+ v90_l319
  (->
   {:x (concat (range 10) (range 10) (range 10)),
    :y
@@ -458,37 +434,37 @@
 
 
 (deftest
- t95_l344
+ t91_l326
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v94_l337)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s)))) v90_l319)))
 
 
-(def v96_l347 (kind/doc #'pj/lay-text))
+(def v92_l329 (kind/doc #'pj/lay-text))
 
 
 (def
- v97_l349
+ v93_l331
  (->
   {:x [1 2 3 4], :y [4 7 5 8], :name ["A" "B" "C" "D"]}
   (pj/lay-text :x :y {:text :name})))
 
 
 (deftest
- t98_l352
+ t94_l334
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (every? (set (:texts s)) ["A" "B" "C" "D"])))
-   v97_l349)))
+   v93_l331)))
 
 
-(def v99_l355 (kind/doc #'pj/lay-label))
+(def v95_l337 (kind/doc #'pj/lay-label))
 
 
 (def
- v100_l357
+ v96_l339
  (->
   {:x [1 2 3 4], :y [4 7 5 8], :name ["A" "B" "C" "D"]}
   (pj/lay-point :x :y {:size 5})
@@ -496,7 +472,7 @@
 
 
 (deftest
- t101_l361
+ t97_l343
  (is
   ((fn
     [v]
@@ -505,48 +481,48 @@
      (and
       (= 4 (:points s))
       (every? (set (:texts s)) ["A" "B" "C" "D"]))))
-   v100_l357)))
+   v96_l339)))
 
 
-(def v102_l365 (kind/doc #'pj/lay-boxplot))
+(def v98_l347 (kind/doc #'pj/lay-boxplot))
 
 
 (def
- v103_l367
+ v99_l349
  (-> (rdatasets/datasets-iris) (pj/lay-boxplot :species :sepal-width)))
 
 
 (deftest
- t104_l370
+ t100_l352
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:polygons s)) (pos? (:lines s)))))
-   v103_l367)))
+   v99_l349)))
 
 
-(def v105_l374 (kind/doc #'pj/lay-violin))
+(def v101_l356 (kind/doc #'pj/lay-violin))
 
 
 (def
- v106_l376
+ v102_l358
  (-> (rdatasets/reshape2-tips) (pj/lay-violin :day :total-bill)))
 
 
 (deftest
- t107_l379
+ t103_l361
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 4 (:polygons s))))
-   v106_l376)))
+   v102_l358)))
 
 
-(def v108_l382 (kind/doc #'pj/lay-errorbar))
+(def v104_l364 (kind/doc #'pj/lay-errorbar))
 
 
 (def
- v109_l384
+ v105_l366
  (->
   measurements
   (pj/lay-point :treatment :mean)
@@ -554,105 +530,105 @@
 
 
 (deftest
- t110_l388
+ t106_l370
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 12 (:lines s)))))
-   v109_l384)))
+   v105_l366)))
 
 
-(def v111_l392 (kind/doc #'pj/lay-lollipop))
+(def v107_l374 (kind/doc #'pj/lay-lollipop))
 
 
-(def v112_l394 (-> sales (pj/lay-lollipop :product :revenue)))
+(def v108_l376 (-> sales (pj/lay-lollipop :product :revenue)))
 
 
 (deftest
- t113_l397
+ t109_l379
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:points s)) (= 4 (:lines s)))))
-   v112_l394)))
+   v108_l376)))
 
 
-(def v114_l401 (kind/doc #'pj/lay-tile))
+(def v110_l383 (kind/doc #'pj/lay-tile))
 
 
 (def
- v115_l403
+ v111_l385
  (->
   (rdatasets/datasets-iris)
   (pj/lay-tile :sepal-length :sepal-width)))
 
 
 (deftest
- t116_l406
+ t112_l388
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:visible-tiles s))))
-   v115_l403)))
+   v111_l385)))
 
 
-(def v117_l409 (kind/doc #'pj/lay-density-2d))
+(def v113_l391 (kind/doc #'pj/lay-density-2d))
 
 
 (def
- v118_l411
+ v114_l393
  (->
   (rdatasets/datasets-iris)
   (pj/lay-density-2d :sepal-length :sepal-width)))
 
 
 (deftest
- t119_l414
+ t115_l396
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:visible-tiles s))))
-   v118_l411)))
+   v114_l393)))
 
 
-(def v120_l417 (kind/doc #'pj/lay-contour))
+(def v116_l399 (kind/doc #'pj/lay-contour))
 
 
 (def
- v121_l419
+ v117_l401
  (->
   (rdatasets/datasets-iris)
   (pj/lay-contour :sepal-length :sepal-width)))
 
 
 (deftest
- t122_l422
+ t118_l404
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (pos? (:lines s)))) v121_l419)))
+  ((fn [v] (let [s (pj/svg-summary v)] (pos? (:lines s)))) v117_l401)))
 
 
-(def v123_l425 (kind/doc #'pj/lay-ridgeline))
+(def v119_l407 (kind/doc #'pj/lay-ridgeline))
 
 
 (def
- v124_l427
+ v120_l409
  (->
   (rdatasets/datasets-iris)
   (pj/lay-ridgeline :species :sepal-length)))
 
 
 (deftest
- t125_l430
+ t121_l412
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v124_l427)))
+   v120_l409)))
 
 
-(def v126_l433 (kind/doc #'pj/lay-rug))
+(def v122_l415 (kind/doc #'pj/lay-rug))
 
 
 (def
- v127_l435
+ v123_l417
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -660,52 +636,52 @@
 
 
 (deftest
- t128_l439
+ t124_l421
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 300 (:lines s)))) v127_l435)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 300 (:lines s)))) v123_l417)))
 
 
-(def v129_l442 (kind/doc #'pj/lay-step))
+(def v125_l424 (kind/doc #'pj/lay-step))
 
 
-(def v130_l444 (-> tiny (pj/lay-step :x :y) pj/lay-point))
+(def v126_l426 (-> tiny (pj/lay-step :x :y) pj/lay-point))
 
 
 (deftest
- t131_l448
+ t127_l430
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 5 (:points s)) (= 1 (:lines s)))))
-   v130_l444)))
+   v126_l426)))
 
 
-(def v132_l452 (kind/doc #'pj/lay-summary))
+(def v128_l434 (kind/doc #'pj/lay-summary))
 
 
 (def
- v133_l454
+ v129_l436
  (-> (rdatasets/datasets-iris) (pj/lay-summary :species :sepal-length)))
 
 
 (deftest
- t134_l457
+ t130_l439
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:points s)) (= 3 (:lines s)))))
-   v133_l454)))
+   v129_l436)))
 
 
-(def v135_l461 (kind/doc #'pj/lay-interval-h))
+(def v131_l443 (kind/doc #'pj/lay-interval-h))
 
 
 (def
- v136_l463
+ v132_l445
  (->
   {:start
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -720,35 +696,35 @@
 
 
 (deftest
- t137_l468
+ t133_l450
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s))))
-   v136_l463)))
+   v132_l445)))
 
 
-(def v138_l471 (kind/doc #'pj/lay-segment))
+(def v134_l453 (kind/doc #'pj/lay-segment))
 
 
 (def
- v139_l473
+ v135_l455
  (->
   {:x0 [1 2 4], :y0 [1 3 2], :x1 [3 3 5], :y1 [2 1 4]}
   (pj/lay-segment :x0 :y0 {:x-end :x1, :y-end :y1, :arrow :end})))
 
 
 (deftest
- t140_l476
+ t136_l458
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:lines s)) (= 3 (:polygons s)))))
-   v139_l473)))
+   v135_l455)))
 
 
 (def
- v142_l539
+ v138_l521
  (try
   (->
    measurements
@@ -759,7 +735,7 @@
 
 
 (deftest
- t143_l545
+ t139_l527
  (is
   ((fn
     [msg]
@@ -767,11 +743,11 @@
      (re-find #"lay-errorbar :y-min 0.5 is not a column" msg)
      (re-find #"one bound per row" msg)
      (re-find #"pj/lay-band-h" msg)))
-   v142_l539)))
+   v138_l521)))
 
 
 (def
- v145_l553
+ v141_l535
  (try
   (->
    measurements
@@ -782,21 +758,21 @@
 
 
 (deftest
- t146_l559
+ t142_l541
  (is
   ((fn
     [msg]
     (and
      (re-find #"requires :y-min and :y-max columns" msg)
      (re-find #"got :y-min alone" msg)))
-   v145_l553)))
+   v141_l535)))
 
 
-(def v147_l563 (kind/doc #'pj/lay-rule-v))
+(def v143_l545 (kind/doc #'pj/lay-rule-v))
 
 
 (def
- v148_l565
+ v144_l547
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -804,18 +780,18 @@
 
 
 (deftest
- t149_l569
+ t145_l551
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (pos? (:lines s)))))
-   v148_l565)))
+   v144_l547)))
 
 
 (def
- v151_l576
+ v147_l558
  (->
   {:date
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -829,21 +805,21 @@
 
 
 (deftest
- t152_l582
+ t148_l564
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 2 (:lines s)))))
-   v151_l576)))
+   v147_l558)))
 
 
-(def v153_l586 (kind/doc #'pj/lay-rule-h))
+(def v149_l568 (kind/doc #'pj/lay-rule-h))
 
 
 (def
- v154_l588
+ v150_l570
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -851,21 +827,21 @@
 
 
 (deftest
- t155_l592
+ t151_l574
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 150 (:points s)) (pos? (:lines s)))))
-   v154_l588)))
+   v150_l570)))
 
 
-(def v156_l596 (kind/doc #'pj/lay-band-v))
+(def v152_l578 (kind/doc #'pj/lay-band-v))
 
 
 (def
- v157_l598
+ v153_l580
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -873,17 +849,17 @@
 
 
 (deftest
- t158_l602
+ t154_l584
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s))))
-   v157_l598)))
+   v153_l580)))
 
 
-(def v159_l605 (kind/doc #'pj/lay-band-h))
+(def v155_l587 (kind/doc #'pj/lay-band-h))
 
 
 (def
- v160_l607
+ v156_l589
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -891,44 +867,44 @@
 
 
 (deftest
- t161_l611
+ t157_l593
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s))))
-   v160_l607)))
+   v156_l589)))
 
 
-(def v163_l616 (kind/doc #'pj/coord))
+(def v159_l598 (kind/doc #'pj/coord))
 
 
 (def
- v165_l620
+ v161_l602
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t166_l623
+ t162_l606
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 3 (:polygons s))))
-   v165_l620)))
+   v161_l602)))
 
 
 (def
- v168_l628
+ v164_l611
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :polar)))
 
 
 (deftest
- t169_l631
+ t165_l615
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (pos? (:polygons s))))
-   v168_l628)))
+   v164_l611)))
 
 
-(def v170_l634 (kind/doc #'pj/scale))
+(def v166_l618 (kind/doc #'pj/scale))
 
 
 (def
- v172_l638
+ v168_l622
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -936,14 +912,14 @@
 
 
 (deftest
- t173_l641
+ t169_l626
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s))))
-   v172_l638)))
+   v168_l622)))
 
 
 (def
- v175_l646
+ v171_l631
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -951,14 +927,14 @@
 
 
 (deftest
- t176_l649
+ t172_l635
  (is
   ((fn [v] (let [s (pj/svg-summary v)] (= 150 (:points s))))
-   v175_l646)))
+   v171_l631)))
 
 
 (def
- v178_l655
+ v174_l641
  (->
   {:user [:a :b :c], :n [10 100 1000]}
   (pj/lay-point :user :n {:size :n, :x-type :categorical})
@@ -966,12 +942,12 @@
 
 
 (deftest
- t179_l659
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v178_l655)))
+ t175_l645
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v174_l641)))
 
 
 (def
- v181_l665
+ v177_l651
  (->
   {:user [:a :b :c], :n [10 100 1000]}
   (pj/lay-point :user :n {:size :n, :x-type :categorical})
@@ -979,7 +955,7 @@
 
 
 (deftest
- t182_l669
+ t178_l655
  (is
   ((fn
     [v]
@@ -992,11 +968,11 @@
       :entries
       (map :magnitude)
       (apply max))))
-   v181_l665)))
+   v177_l651)))
 
 
 (def
- v184_l676
+ v180_l662
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:shape :species})
@@ -1007,7 +983,7 @@
 
 
 (deftest
- t185_l681
+ t181_l667
  (is
   ((fn
     [v]
@@ -1016,22 +992,22 @@
      (mapv
       (juxt :label :shape)
       (:entries (:shape-legend (pj/plan v))))))
-   v184_l676)))
+   v180_l662)))
 
 
-(def v186_l687 (kind/doc #'pj/shape-symbols))
+(def v182_l673 (kind/doc #'pj/shape-symbols))
 
 
-(def v187_l689 (pj/shape-symbols))
+(def v183_l675 (pj/shape-symbols))
 
 
 (deftest
- t188_l691
- (is ((fn [syms] (and (seq syms) (every? keyword? syms))) v187_l689)))
+ t184_l677
+ (is ((fn [syms] (and (seq syms) (every? keyword? syms))) v183_l675)))
 
 
 (def
- v190_l696
+ v186_l682
  (->
   (for [d (range 1 8)] {:day d, :v (mod d 3)})
   (pj/lay-point :day :v)
@@ -1043,21 +1019,21 @@
 
 
 (deftest
- t191_l702
+ t187_l688
  (is
   ((fn
     [v]
     (let
      [texts (set (:texts (pj/svg-summary v)))]
      (every? texts ["Mon" "Sun"])))
-   v190_l696)))
+   v186_l682)))
 
 
-(def v193_l708 (kind/doc #'pj/facet))
+(def v189_l694 (kind/doc #'pj/facet))
 
 
 (def
- v194_l710
+ v190_l696
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1065,18 +1041,18 @@
 
 
 (deftest
- t195_l714
+ t191_l700
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (= 150 (:points s)))))
-   v194_l710)))
+   v190_l696)))
 
 
 (def
- v197_l721
+ v193_l707
  (->
   (rdatasets/reshape2-tips)
   (pj/lay-point :total-bill :tip {:color :sex})
@@ -1084,28 +1060,28 @@
 
 
 (deftest
- t198_l725
+ t194_l711
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 4 (:panels s)) (= 244 (:points s)))))
-   v197_l721)))
+   v193_l707)))
 
 
-(def v200_l731 (kind/doc #'pj/matrix))
+(def v196_l717 (kind/doc #'pj/matrix))
 
 
 (def
- v201_l733
+ v197_l719
  (pj/matrix
   (rdatasets/datasets-iris)
   [:sepal-length :sepal-width :petal-length]))
 
 
 (deftest
- t202_l735
+ t198_l721
  (is
   ((fn
     [v]
@@ -1117,14 +1093,14 @@
        (rdatasets/datasets-iris)
        {:col {:x [:sepal-length :sepal-width :petal-length]},
         :row {:y [:sepal-length :sepal-width :petal-length]}}))))
-   v201_l733)))
+   v197_l719)))
 
 
-(def v204_l742 (kind/doc #'pj/arrange))
+(def v200_l728 (kind/doc #'pj/arrange))
 
 
 (def
- v205_l744
+ v201_l730
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -1136,7 +1112,7 @@
 
 
 (deftest
- t206_l750
+ t202_l736
  (is
   ((fn
     [v]
@@ -1144,11 +1120,11 @@
      (pj/pose? v)
      (= 2 (:panels (pj/svg-summary v)))
      (= [0.0 0.0 600.0 250.0] (:canvas (pj/frames v)))))
-   v205_l744)))
+   v201_l730)))
 
 
 (def
- v208_l758
+ v204_l744
  (->
   (rdatasets/datasets-iris)
   (pj/arrange
@@ -1158,21 +1134,21 @@
 
 
 (deftest
- t209_l763
+ t205_l749
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v208_l758)))
+   v204_l744)))
 
 
-(def v210_l767 (kind/doc #'pj/marginal))
+(def v206_l753 (kind/doc #'pj/marginal))
 
 
 (def
- v211_l769
+ v207_l755
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -1180,18 +1156,18 @@
 
 
 (deftest
- t212_l773
+ t208_l759
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 150 (:points s)))))
-   v211_l769)))
+   v207_l755)))
 
 
 (def
- v214_l780
+ v210_l766
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -1199,18 +1175,18 @@
 
 
 (deftest
- t215_l784
+ t211_l770
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 150 (:points s)) (= 9 (:polygons s)))))
-   v214_l780)))
+   v210_l766)))
 
 
 (def
- v217_l792
+ v213_l778
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -1218,7 +1194,7 @@
 
 
 (deftest
- t218_l796
+ t214_l782
  (is
   ((fn
     [v]
@@ -1227,48 +1203,48 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__11201#] (-> p1__11201# :plan :panels first))
+       (fn* [p1__87820#] (-> p1__87820# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))
       (= 150 (:points s))
       (= (:y-domain (first panels)) (:y-domain (second panels))))))
-   v217_l792)))
+   v213_l778)))
 
 
-(def v220_l808 (kind/doc #'pj/plot))
+(def v216_l794 (kind/doc #'pj/plot))
 
 
-(def v222_l813 (-> tiny (pj/lay-point :x :y)))
+(def v218_l799 (-> tiny (pj/lay-point :x :y)))
 
 
 (deftest
- t223_l816
+ t219_l802
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 5 (:points s)))) v222_l813)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 5 (:points s)))) v218_l799)))
 
 
 (def
- v225_l823
+ v221_l809
  (pj/plot {:height [150 160 170 175], :weight [50 60 72 78]}))
 
 
 (deftest
- t226_l826
+ t222_l812
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:points s)))))
-   v225_l823)))
+   v221_l809)))
 
 
-(def v227_l830 (kind/doc #'pj/options))
+(def v223_l816 (kind/doc #'pj/options))
 
 
 (def
- v229_l834
+ v225_l820
  (->
   tiny
   (pj/lay-point :x :y)
@@ -1277,7 +1253,7 @@
 
 
 (deftest
- t230_l838
+ t226_l824
  (is
   ((fn
     [v]
@@ -1287,140 +1263,140 @@
       (== 400 (:width s))
       (== 200 (:height s))
       (some #{"Twice as wide as tall"} (:texts s)))))
-   v229_l834)))
+   v225_l820)))
 
 
-(def v232_l845 (kind/doc #'pj/pose?))
+(def v228_l831 (kind/doc #'pj/pose?))
 
 
-(def v234_l849 (pj/pose? (-> tiny (pj/pose :x :y) pj/lay-point)))
+(def v230_l835 (pj/pose? (-> tiny (pj/pose :x :y) pj/lay-point)))
 
 
-(deftest t235_l851 (is (true? v234_l849)))
+(deftest t231_l837 (is (true? v230_l835)))
 
 
-(def v236_l853 (kind/doc #'pj/plan?))
+(def v232_l839 (kind/doc #'pj/plan?))
 
 
-(def v238_l857 (pj/plan? (pj/plan (pj/lay-point tiny :x :y))))
+(def v234_l843 (pj/plan? (pj/plan (pj/lay-point tiny :x :y))))
 
 
-(deftest t239_l859 (is (true? v238_l857)))
+(deftest t235_l845 (is (true? v234_l843)))
 
 
-(def v240_l861 (kind/doc #'pj/leaf-plan?))
+(def v236_l847 (kind/doc #'pj/leaf-plan?))
 
 
-(def v242_l866 (pj/leaf-plan? (pj/plan (pj/lay-point tiny :x :y))))
+(def v238_l852 (pj/leaf-plan? (pj/plan (pj/lay-point tiny :x :y))))
 
 
-(deftest t243_l868 (is (true? v242_l866)))
+(deftest t239_l854 (is (true? v238_l852)))
 
 
-(def v244_l870 (kind/doc #'pj/composite-plan?))
+(def v240_l856 (kind/doc #'pj/composite-plan?))
 
 
 (def
- v246_l875
+ v242_l861
  (pj/composite-plan?
   (pj/plan
    (pj/arrange [(pj/lay-point tiny :x :y) (pj/lay-point tiny :x :y)]))))
 
 
-(deftest t247_l879 (is (true? v246_l875)))
+(deftest t243_l865 (is (true? v242_l861)))
 
 
-(def v248_l881 (kind/doc #'pj/draft?))
+(def v244_l867 (kind/doc #'pj/draft?))
 
 
-(def v250_l886 (pj/draft? (pj/draft (pj/lay-point tiny :x :y))))
+(def v246_l872 (pj/draft? (pj/draft (pj/lay-point tiny :x :y))))
 
 
-(deftest t251_l888 (is (true? v250_l886)))
+(deftest t247_l874 (is (true? v246_l872)))
 
 
-(def v252_l890 (kind/doc #'pj/leaf-draft?))
+(def v248_l876 (kind/doc #'pj/leaf-draft?))
 
 
-(def v254_l895 (pj/leaf-draft? (pj/draft (pj/lay-point tiny :x :y))))
+(def v250_l881 (pj/leaf-draft? (pj/draft (pj/lay-point tiny :x :y))))
 
 
-(deftest t255_l897 (is (true? v254_l895)))
+(deftest t251_l883 (is (true? v250_l881)))
 
 
-(def v256_l899 (kind/doc #'pj/composite-draft?))
+(def v252_l885 (kind/doc #'pj/composite-draft?))
 
 
 (def
- v258_l904
+ v254_l890
  (pj/composite-draft?
   (pj/draft
    (pj/arrange [(pj/lay-point tiny :x :y) (pj/lay-point tiny :x :y)]))))
 
 
-(deftest t259_l908 (is (true? v258_l904)))
+(deftest t255_l894 (is (true? v254_l890)))
 
 
-(def v260_l910 (kind/doc #'pj/plan-layer?))
+(def v256_l896 (kind/doc #'pj/plan-layer?))
 
 
 (def
- v262_l914
+ v258_l900
  (pj/plan-layer?
   (first
    (:layers (first (:panels (pj/plan (pj/lay-point tiny :x :y))))))))
 
 
-(deftest t263_l916 (is (true? v262_l914)))
+(deftest t259_l902 (is (true? v258_l900)))
 
 
-(def v264_l918 (kind/doc #'pj/layer-type?))
+(def v260_l904 (kind/doc #'pj/layer-type?))
 
 
-(def v266_l922 (pj/layer-type? (pj/layer-type-lookup :point)))
+(def v262_l908 (pj/layer-type? (pj/layer-type-lookup :point)))
 
 
-(deftest t267_l924 (is (true? v266_l922)))
+(deftest t263_l910 (is (true? v262_l908)))
 
 
-(def v268_l926 (kind/doc #'pj/membrane?))
+(def v264_l912 (kind/doc #'pj/membrane?))
 
 
-(def v270_l931 (pj/membrane? (pj/membrane (pj/lay-point tiny :x :y))))
+(def v266_l917 (pj/membrane? (pj/membrane (pj/lay-point tiny :x :y))))
 
 
-(deftest t271_l933 (is (true? v270_l931)))
+(deftest t267_l919 (is (true? v266_l917)))
 
 
-(def v272_l935 (kind/doc #'pj/series-mapping?))
+(def v268_l921 (kind/doc #'pj/series-mapping?))
 
 
 (def
- v274_l940
+ v270_l926
  [(pj/series-mapping? [:revenue :cost]) (pj/series-mapping? :revenue)])
 
 
-(deftest t275_l943 (is ((fn [v] (= [true false] v)) v274_l940)))
+(deftest t271_l929 (is ((fn [v] (= [true false] v)) v270_l926)))
 
 
-(def v276_l945 (kind/doc #'pj/series-mapping))
+(def v272_l931 (kind/doc #'pj/series-mapping))
 
 
 (def
- v278_l950
+ v274_l936
  (pj/series-mapping {:series [:revenue :cost], :as :measure}))
 
 
 (deftest
- t279_l952
- (is ((fn [m] (= {:cols [:revenue :cost], :as :measure} m)) v278_l950)))
+ t275_l938
+ (is ((fn [m] (= {:cols [:revenue :cost], :as :measure} m)) v274_l936)))
 
 
-(def v281_l956 (kind/doc #'pj/draft))
+(def v277_l942 (kind/doc #'pj/draft))
 
 
 (def
- v283_l963
+ v279_l949
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -1430,7 +1406,7 @@
 
 
 (deftest
- t284_l969
+ t280_l955
  (is
   ((fn
     [d]
@@ -1438,32 +1414,32 @@
      (pj/leaf-draft? d)
      (= 1 (count (:layers d)))
      (= :point (:mark (first (:layers d))))))
-   v283_l963)))
+   v279_l949)))
 
 
-(def v285_l973 (kind/doc #'pj/plan))
+(def v281_l959 (kind/doc #'pj/plan))
 
 
-(def v287_l977 (def plan1 (-> tiny (pj/lay-point :x :y) pj/plan)))
+(def v283_l963 (def plan1 (-> tiny (pj/lay-point :x :y) pj/plan)))
 
 
-(def v288_l981 plan1)
+(def v284_l967 plan1)
 
 
 (deftest
- t289_l983
+ t285_l969
  (is
-  ((fn [m] (and (= 600 (:width m)) (= "x" (:x-label m)))) v288_l981)))
+  ((fn [m] (and (= 600 (:width m)) (= "x" (:x-label m)))) v284_l967)))
 
 
-(def v290_l986 (kind/doc #'pj/frames))
+(def v286_l972 (kind/doc #'pj/frames))
 
 
-(def v292_l992 (-> plan1 pj/frames kind/pprint))
+(def v288_l978 (-> plan1 pj/frames kind/pprint))
 
 
 (deftest
- t293_l994
+ t289_l980
  (is
   ((fn
     [m]
@@ -1472,11 +1448,11 @@
      (= 1 (count (:panels m)))
      (true? (-> m :panels first :invertible?))
      (= 4 (count (-> m :panels first :frames :drawing-area)))))
-   v292_l992)))
+   v288_l978)))
 
 
 (def
- v295_l1007
+ v291_l993
  (let
   [f
    (pj/frames
@@ -1487,7 +1463,7 @@
    (:canvas f)
    boxes
    (mapv
-    (fn* [p1__11202#] (-> p1__11202# :frames :panel-box))
+    (fn* [p1__87821#] (-> p1__87821# :frames :panel-box))
     (:panels f))
    inside?
    (fn
@@ -1498,12 +1474,12 @@
    :every-box-inside-the-canvas (every? inside? boxes),
    :panel-rectangle-keys
    (mapv
-    (fn* [p1__11203#] (vec (keys (:frames p1__11203#))))
+    (fn* [p1__87822#] (vec (keys (:frames p1__87822#))))
     (:panels f))}))
 
 
 (deftest
- t296_l1019
+ t292_l1005
  (is
   ((fn
     [m]
@@ -1513,56 +1489,56 @@
      (apply not= (map first (:panel-boxes m)))
      (true? (:every-box-inside-the-canvas m))
      (every?
-      (fn* [p1__11204#] (= [:panel-box :drawing-area] p1__11204#))
+      (fn* [p1__87823#] (= [:panel-box :drawing-area] p1__87823#))
       (:panel-rectangle-keys m))))
-   v295_l1007)))
+   v291_l993)))
 
 
-(def v298_l1033 (kind/doc #'pj/to-drawing))
+(def v294_l1019 (kind/doc #'pj/to-drawing))
 
 
-(def v299_l1035 (pj/to-drawing (-> plan1 pj/frames :panels first) 2 5))
+(def v295_l1021 (pj/to-drawing (-> plan1 pj/frames :panels first) 2 5))
 
 
-(deftest t300_l1037 (is ((fn [v] (= 2 (count v))) v299_l1035)))
+(deftest t296_l1023 (is ((fn [v] (= 2 (count v))) v295_l1021)))
 
 
-(def v301_l1039 (kind/doc #'pj/to-data))
+(def v297_l1025 (kind/doc #'pj/to-data))
 
 
 (def
- v303_l1043
+ v299_l1029
  (pj/to-drawing
   (-> plan1 pj/frames :panels first)
   {:x [2 3], :y [5 6]}))
 
 
 (deftest
- t304_l1046
+ t300_l1032
  (is
   ((fn
     [ds]
     (and
      (= [:x :y] (vec (tc/column-names ds)))
      (= 2 (tc/row-count ds))))
-   v303_l1043)))
+   v299_l1029)))
 
 
 (def
- v306_l1051
+ v302_l1037
  (let
   [panel (-> plan1 pj/frames :panels first)]
   (->>
    (pj/to-drawing panel 2 5)
    (apply pj/to-data panel)
-   (mapv (fn* [p1__11205#] (Math/round (double p1__11205#)))))))
+   (mapv (fn* [p1__87824#] (Math/round (double p1__87824#)))))))
 
 
-(deftest t307_l1056 (is ((fn [v] (= [2 5] v)) v306_l1051)))
+(deftest t303_l1042 (is ((fn [v] (= [2 5] v)) v302_l1037)))
 
 
 (def
- v309_l1063
+ v305_l1049
  (let
   [panel
    (->
@@ -1580,15 +1556,15 @@
 
 
 (deftest
- t310_l1072
- (is ((fn [m] (= "versicolor" (:back m))) v309_l1063)))
+ t306_l1058
+ (is ((fn [m] (= "versicolor" (:back m))) v305_l1049)))
 
 
-(def v311_l1074 (kind/doc #'pj/svg-summary))
+(def v307_l1060 (kind/doc #'pj/svg-summary))
 
 
 (def
- v312_l1076
+ v308_l1062
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -1596,51 +1572,51 @@
 
 
 (deftest
- t313_l1079
- (is ((fn [m] (and (= 1 (:panels m)) (= 150 (:points m)))) v312_l1076)))
+ t309_l1066
+ (is ((fn [m] (and (= 1 (:panels m)) (= 150 (:points m)))) v308_l1062)))
 
 
-(def v314_l1082 (kind/doc #'pj/valid-pose?))
+(def v310_l1069 (kind/doc #'pj/valid-pose?))
 
 
-(def v315_l1084 (pj/valid-pose? (pj/lay-point tiny :x :y)))
+(def v311_l1071 (pj/valid-pose? (pj/lay-point tiny :x :y)))
 
 
-(deftest t316_l1086 (is (true? v315_l1084)))
+(deftest t312_l1073 (is (true? v311_l1071)))
 
 
-(def v317_l1088 (kind/doc #'pj/explain-pose))
+(def v313_l1075 (kind/doc #'pj/explain-pose))
 
 
-(def v318_l1090 (pj/explain-pose (pj/lay-point tiny :x :y)))
+(def v314_l1077 (pj/explain-pose (pj/lay-point tiny :x :y)))
 
 
-(deftest t319_l1092 (is (nil? v318_l1090)))
+(deftest t315_l1079 (is (nil? v314_l1077)))
 
 
-(def v320_l1094 (kind/doc #'pj/valid-plan?))
+(def v316_l1081 (kind/doc #'pj/valid-plan?))
 
 
-(def v321_l1096 (pj/valid-plan? plan1))
+(def v317_l1083 (pj/valid-plan? plan1))
 
 
-(deftest t322_l1098 (is (true? v321_l1096)))
+(deftest t318_l1085 (is (true? v317_l1083)))
 
 
-(def v323_l1100 (kind/doc #'pj/explain-plan))
+(def v319_l1087 (kind/doc #'pj/explain-plan))
 
 
-(def v324_l1102 (pj/explain-plan plan1))
+(def v320_l1089 (pj/explain-plan plan1))
 
 
-(deftest t325_l1104 (is (nil? v324_l1102)))
+(deftest t321_l1091 (is (nil? v320_l1089)))
 
 
-(def v327_l1121 (kind/doc #'pj/membrane))
+(def v323_l1108 (kind/doc #'pj/membrane))
 
 
 (def
- v329_l1131
+ v325_l1118
  (let
   [m (pj/membrane (pj/lay-point tiny :x :y))]
   {:membrane? (pj/membrane? m),
@@ -1650,7 +1626,7 @@
 
 
 (deftest
- t330_l1137
+ t326_l1124
  (is
   ((fn
     [info]
@@ -1659,23 +1635,23 @@
      (= 600 (:width info))
      (= 400 (:height info))
      (= [:drawables :height :width] (:record-keys info))))
-   v329_l1131)))
+   v325_l1118)))
 
 
-(def v331_l1143 (kind/doc #'pj/->pose))
+(def v327_l1130 (kind/doc #'pj/->pose))
 
 
-(def v333_l1150 (pj/pose? (pj/->pose tiny)))
+(def v329_l1137 (pj/pose? (pj/->pose tiny)))
 
 
-(deftest t334_l1152 (is (true? v333_l1150)))
+(deftest t330_l1139 (is (true? v329_l1137)))
 
 
-(def v335_l1154 (kind/doc #'pj/infer-mapping))
+(def v331_l1141 (kind/doc #'pj/infer-mapping))
 
 
 (def
- v337_l1160
+ v333_l1147
  (->
   {:height [150 160 170], :weight [50 60 72]}
   pj/->pose
@@ -1684,190 +1660,190 @@
 
 
 (deftest
- t338_l1165
- (is ((fn [m] (= {:x :height, :y :weight} m)) v337_l1160)))
+ t334_l1152
+ (is ((fn [m] (= {:x :height, :y :weight} m)) v333_l1147)))
 
 
 (def
- v340_l1172
+ v336_l1159
  (let
   [built (pj/lay-point tiny :x :y)]
   [(:mapping built) (:mapping (pj/infer-mapping built))]))
 
 
-(deftest t341_l1176 (is ((fn [v] (= [nil nil] v)) v340_l1172)))
+(deftest t337_l1163 (is ((fn [v] (= [nil nil] v)) v336_l1159)))
 
 
 (def
- v343_l1181
+ v339_l1168
  (-> tiny (pj/pose {:color :group}) pj/infer-mapping :mapping))
 
 
 (deftest
- t344_l1186
- (is ((fn [m] (= {:x :x, :y :y, :color :group} m)) v343_l1181)))
+ t340_l1173
+ (is ((fn [m] (= {:x :x, :y :y, :color :group} m)) v339_l1168)))
 
 
-(def v345_l1188 (kind/doc #'pj/pose->draft))
+(def v341_l1175 (kind/doc #'pj/pose->draft))
 
 
 (def
- v347_l1194
+ v343_l1181
  (pj/leaf-draft? (pj/pose->draft (pj/lay-point tiny :x :y))))
 
 
-(deftest t348_l1197 (is (true? v347_l1194)))
+(deftest t344_l1184 (is (true? v343_l1181)))
 
 
-(def v349_l1199 (kind/doc #'pj/plan->membrane))
+(def v345_l1186 (kind/doc #'pj/plan->membrane))
 
 
-(def v350_l1201 (def m1 (pj/plan->membrane plan1)))
+(def v346_l1188 (def m1 (pj/plan->membrane plan1)))
 
 
-(def v351_l1203 (pj/membrane? m1))
+(def v347_l1190 (pj/membrane? m1))
 
 
-(deftest t352_l1205 (is (true? v351_l1203)))
+(deftest t348_l1192 (is (true? v347_l1190)))
 
 
-(def v353_l1207 (kind/doc #'pj/valid-membrane?))
+(def v349_l1194 (kind/doc #'pj/valid-membrane?))
 
 
-(def v354_l1209 (pj/valid-membrane? m1))
+(def v350_l1196 (pj/valid-membrane? m1))
 
 
-(deftest t355_l1211 (is (true? v354_l1209)))
+(deftest t351_l1198 (is (true? v350_l1196)))
 
 
-(def v356_l1213 (kind/doc #'pj/explain-membrane))
+(def v352_l1200 (kind/doc #'pj/explain-membrane))
 
 
-(def v357_l1215 (pj/explain-membrane m1))
+(def v353_l1202 (pj/explain-membrane m1))
 
 
-(deftest t358_l1217 (is (nil? v357_l1215)))
+(deftest t354_l1204 (is (nil? v353_l1202)))
 
 
-(def v359_l1219 (kind/doc #'pj/membrane->plot))
+(def v355_l1206 (kind/doc #'pj/membrane->plot))
 
 
-(def v360_l1221 (first (pj/membrane->plot m1 :svg {})))
+(def v356_l1208 (first (pj/membrane->plot m1 :svg {})))
 
 
-(deftest t361_l1223 (is ((fn [v] (= :svg v)) v360_l1221)))
+(deftest t357_l1210 (is ((fn [v] (= :svg v)) v356_l1208)))
 
 
-(def v362_l1225 (kind/doc #'pj/plan->plot))
+(def v358_l1212 (kind/doc #'pj/plan->plot))
 
 
-(def v363_l1227 (first (pj/plan->plot plan1 :svg {})))
+(def v359_l1214 (first (pj/plan->plot plan1 :svg {})))
 
 
-(deftest t364_l1229 (is ((fn [v] (= :svg v)) v363_l1227)))
+(deftest t360_l1216 (is ((fn [v] (= :svg v)) v359_l1214)))
 
 
-(def v366_l1236 (kind/doc #'pj/draft->plan))
+(def v362_l1223 (kind/doc #'pj/draft->plan))
 
 
-(def v367_l1238 (def draft1 (pj/draft (pj/lay-point tiny :x :y))))
+(def v363_l1225 (def draft1 (pj/draft (pj/lay-point tiny :x :y))))
 
 
-(def v368_l1240 (pj/plan? (pj/draft->plan draft1)))
+(def v364_l1227 (pj/plan? (pj/draft->plan draft1)))
 
 
-(deftest t369_l1242 (is (true? v368_l1240)))
+(deftest t365_l1229 (is (true? v364_l1227)))
 
 
-(def v370_l1244 (kind/doc #'pj/draft->membrane))
+(def v366_l1231 (kind/doc #'pj/draft->membrane))
 
 
-(def v371_l1246 (pj/membrane? (pj/draft->membrane draft1)))
+(def v367_l1233 (pj/membrane? (pj/draft->membrane draft1)))
 
 
-(deftest t372_l1248 (is (true? v371_l1246)))
+(deftest t368_l1235 (is (true? v367_l1233)))
 
 
-(def v373_l1250 (kind/doc #'pj/draft->plot))
+(def v369_l1237 (kind/doc #'pj/draft->plot))
 
 
-(def v374_l1252 (first (pj/draft->plot draft1 :svg {})))
+(def v370_l1239 (first (pj/draft->plot draft1 :svg {})))
 
 
-(deftest t375_l1254 (is ((fn [v] (= :svg v)) v374_l1252)))
+(deftest t371_l1241 (is ((fn [v] (= :svg v)) v370_l1239)))
 
 
-(def v377_l1258 (kind/doc #'pj/config))
+(def v373_l1245 (kind/doc #'pj/config))
 
 
-(def v378_l1260 (pj/config))
+(def v374_l1247 (pj/config))
 
 
-(deftest t379_l1262 (is ((fn [m] (map? m)) v378_l1260)))
+(deftest t375_l1249 (is ((fn [m] (map? m)) v374_l1247)))
 
 
-(def v380_l1264 (kind/doc #'pj/set-config!))
+(def v376_l1251 (kind/doc #'pj/set-config!))
 
 
-(def v381_l1266 (kind/doc #'pj/with-config))
+(def v377_l1253 (kind/doc #'pj/with-config))
 
 
 (def
- v382_l1268
+ v378_l1255
  (pj/with-config {:color-values :pastel1} (:color-values (pj/config))))
 
 
-(deftest t383_l1271 (is ((fn [p] (= :pastel1 p)) v382_l1268)))
+(deftest t379_l1258 (is ((fn [p] (= :pastel1 p)) v378_l1255)))
 
 
-(def v385_l1277 (kind/doc #'pj/config-key-docs))
+(def v381_l1265 (kind/doc #'pj/config-key-docs))
 
 
-(def v386_l1279 (count pj/config-key-docs))
+(def v382_l1267 (count pj/config-key-docs))
 
 
-(deftest t387_l1281 (is ((fn [n] (= 48 n)) v386_l1279)))
+(deftest t383_l1269 (is ((fn [n] (= 48 n)) v382_l1267)))
 
 
-(def v388_l1283 (kind/doc #'pj/plot-option-docs))
+(def v384_l1271 (kind/doc #'pj/plot-option-docs))
 
 
-(def v389_l1285 (count pj/plot-option-docs))
+(def v385_l1273 (count pj/plot-option-docs))
 
 
-(deftest t390_l1287 (is ((fn [n] (= 16 n)) v389_l1285)))
+(deftest t386_l1275 (is ((fn [n] (= 16 n)) v385_l1273)))
 
 
-(def v391_l1289 (kind/doc #'pj/layer-mapping-docs))
+(def v387_l1277 (kind/doc #'pj/layer-mapping-docs))
 
 
-(def v392_l1291 (count pj/layer-mapping-docs))
+(def v388_l1279 (count pj/layer-mapping-docs))
 
 
-(deftest t393_l1293 (is ((fn [n] (= 57 n)) v392_l1291)))
+(deftest t389_l1281 (is ((fn [n] (= 57 n)) v388_l1279)))
 
 
-(def v395_l1299 (kind/doc #'pj/panel-aesthetic-docs))
+(def v391_l1287 (kind/doc #'pj/panel-aesthetic-docs))
 
 
-(def v396_l1301 (keys pj/panel-aesthetic-docs))
+(def v392_l1289 (keys pj/panel-aesthetic-docs))
 
 
 (deftest
- t397_l1303
- (is ((fn [ks] (= #{:col :row} (set ks))) v396_l1301)))
+ t393_l1291
+ (is ((fn [ks] (= #{:col :row} (set ks))) v392_l1289)))
 
 
-(def v399_l1307 (kind/doc #'pj/aesthetic-roles))
+(def v395_l1295 (kind/doc #'pj/aesthetic-roles))
 
 
 (def
- v400_l1309
+ v396_l1297
  (select-keys (pj/aesthetic-roles) [:x :color :group :col]))
 
 
 (deftest
- t401_l1311
+ t397_l1299
  (is
   ((fn
     [m]
@@ -1877,140 +1853,140 @@
       :group :grouping,
       :col :panel}
      m))
-   v400_l1309)))
+   v396_l1297)))
 
 
-(def v403_l1319 (kind/doc #'pj/aesthetic-scales))
+(def v399_l1307 (kind/doc #'pj/aesthetic-scales))
 
 
-(def v404_l1321 (first pj/aesthetic-scales))
+(def v400_l1309 (first pj/aesthetic-scales))
 
 
 (deftest
- t405_l1323
+ t401_l1311
  (is
   ((fn
     [m]
     (and
      (= :x (:aesthetic m))
      (= [:linear :log :categorical] (:types m))))
-   v404_l1321)))
+   v400_l1309)))
 
 
-(def v407_l1329 (kind/doc #'pj/compound-key-aesthetics))
+(def v403_l1317 (kind/doc #'pj/compound-key-aesthetics))
 
 
-(def v408_l1331 (pj/compound-key-aesthetics))
-
-
-(deftest
- t409_l1333
- (is ((fn [s] (= #{:group :col :row} s)) v408_l1331)))
-
-
-(def v411_l1338 (kind/doc #'pj/shape-palette))
-
-
-(def v412_l1340 (pj/shape-palette))
+(def v404_l1319 (pj/compound-key-aesthetics))
 
 
 (deftest
- t413_l1342
+ t405_l1321
+ (is ((fn [s] (= #{:group :col :row} s)) v404_l1319)))
+
+
+(def v407_l1326 (kind/doc #'pj/shape-palette))
+
+
+(def v408_l1328 (pj/shape-palette))
+
+
+(deftest
+ t409_l1330
  (is
   ((fn [syms] (and (seq syms) (every? (set (pj/shape-symbols)) syms)))
-   v412_l1340)))
+   v408_l1328)))
 
 
-(def v415_l1347 (kind/doc #'pj/layer-type-lookup))
+(def v411_l1335 (kind/doc #'pj/layer-type-lookup))
 
 
-(def v416_l1349 (pj/layer-type-lookup :smooth))
+(def v412_l1337 (pj/layer-type-lookup :smooth))
 
 
 (deftest
- t417_l1351
+ t413_l1339
  (is
-  ((fn [m] (and (= :line (:mark m)) (= :loess (:stat m)))) v416_l1349)))
+  ((fn [m] (and (= :line (:mark m)) (= :loess (:stat m)))) v412_l1337)))
 
 
-(def v418_l1354 (kind/doc #'pj/registered-layer-types))
+(def v414_l1342 (kind/doc #'pj/registered-layer-types))
 
 
-(def v419_l1356 (count (pj/registered-layer-types)))
+(def v415_l1344 (count (pj/registered-layer-types)))
 
 
-(deftest t420_l1358 (is ((fn [n] (= 26 n)) v419_l1356)))
+(deftest t416_l1346 (is ((fn [n] (= 26 n)) v415_l1344)))
 
 
-(def v421_l1360 (first (pj/registered-layer-types)))
+(def v417_l1348 (first (pj/registered-layer-types)))
 
 
 (deftest
- t422_l1362
+ t418_l1350
  (is
   ((fn [[k m]] (and (keyword? k) (some? (:mark m)) (some? (:stat m))))
-   v421_l1360)))
+   v417_l1348)))
 
 
-(def v424_l1370 (kind/doc #'pj/stat-doc))
+(def v420_l1358 (kind/doc #'pj/stat-doc))
 
 
-(def v425_l1372 (pj/stat-doc :linear-model))
+(def v421_l1360 (pj/stat-doc :linear-model))
 
 
-(deftest t426_l1374 (is ((fn [s] (string? s)) v425_l1372)))
+(deftest t422_l1362 (is ((fn [s] (string? s)) v421_l1360)))
 
 
-(def v427_l1376 (kind/doc #'pj/mark-doc))
+(def v423_l1364 (kind/doc #'pj/mark-doc))
 
 
-(def v428_l1378 (pj/mark-doc :point))
+(def v424_l1366 (pj/mark-doc :point))
 
 
-(deftest t429_l1380 (is ((fn [s] (string? s)) v428_l1378)))
+(deftest t425_l1368 (is ((fn [s] (string? s)) v424_l1366)))
 
 
-(def v430_l1382 (kind/doc #'pj/position-doc))
+(def v426_l1370 (kind/doc #'pj/position-doc))
 
 
-(def v431_l1384 (pj/position-doc :dodge))
+(def v427_l1372 (pj/position-doc :dodge))
 
 
-(deftest t432_l1386 (is ((fn [s] (string? s)) v431_l1384)))
+(deftest t428_l1374 (is ((fn [s] (string? s)) v427_l1372)))
 
 
-(def v433_l1388 (kind/doc #'pj/scale-doc))
+(def v429_l1376 (kind/doc #'pj/scale-doc))
 
 
-(def v434_l1390 (pj/scale-doc :linear))
+(def v430_l1378 (pj/scale-doc :linear))
 
 
-(deftest t435_l1392 (is ((fn [s] (string? s)) v434_l1390)))
+(deftest t431_l1380 (is ((fn [s] (string? s)) v430_l1378)))
 
 
-(def v436_l1394 (kind/doc #'pj/coord-doc))
+(def v432_l1382 (kind/doc #'pj/coord-doc))
 
 
-(def v437_l1396 (pj/coord-doc :cartesian))
+(def v433_l1384 (pj/coord-doc :cartesian))
 
 
-(deftest t438_l1398 (is ((fn [s] (string? s)) v437_l1396)))
+(deftest t434_l1386 (is ((fn [s] (string? s)) v433_l1384)))
 
 
-(def v439_l1400 (kind/doc #'pj/membrane-mark-doc))
+(def v435_l1388 (kind/doc #'pj/membrane-mark-doc))
 
 
-(def v440_l1402 (pj/membrane-mark-doc :point))
+(def v436_l1390 (pj/membrane-mark-doc :point))
 
 
-(deftest t441_l1404 (is ((fn [s] (string? s)) v440_l1402)))
+(deftest t437_l1392 (is ((fn [s] (string? s)) v436_l1390)))
 
 
-(def v443_l1408 (kind/doc #'pj/save))
+(def v439_l1396 (kind/doc #'pj/save))
 
 
 (def
- v445_l1412
+ v441_l1400
  (let
   [path (str (java.io.File/createTempFile "plotje-example" ".svg"))]
   (->
@@ -2020,11 +1996,11 @@
   (.contains (slurp path) "<svg")))
 
 
-(deftest t446_l1418 (is (true? v445_l1412)))
+(deftest t442_l1406 (is (true? v441_l1400)))
 
 
 (def
- v448_l1423
+ v444_l1412
  (let
   [path (str (java.io.File/createTempFile "plotje-example" ".png"))]
   (->
@@ -2036,16 +2012,16 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__11206#] (bit-and p1__11206# 255)) (vec bs))))))
+    (mapv (fn* [p1__87825#] (bit-and p1__87825# 255)) (vec bs))))))
 
 
 (deftest
- t449_l1432
- (is ((fn [bs] (= [137 80 78 71 13 10 26 10] bs)) v448_l1423)))
+ t445_l1421
+ (is ((fn [bs] (= [137 80 78 71 13 10 26 10] bs)) v444_l1412)))
 
 
 (def
- v451_l1437
+ v447_l1426
  (let
   [path (str (java.io.File/createTempFile "plotje-example" ".out"))]
   (->
@@ -2057,17 +2033,17 @@
    (let
     [bs (byte-array 4)]
     (.read in bs)
-    (mapv (fn* [p1__11207#] (bit-and p1__11207# 255)) (vec bs))))))
+    (mapv (fn* [p1__87826#] (bit-and p1__87826# 255)) (vec bs))))))
 
 
-(deftest t452_l1446 (is ((fn [bs] (= [137 80 78 71] bs)) v451_l1437)))
+(deftest t448_l1435 (is ((fn [bs] (= [137 80 78 71] bs)) v447_l1426)))
 
 
-(def v454_l1456 (kind/doc #'pj/overlay))
+(def v450_l1448 (kind/doc #'pj/overlay))
 
 
 (def
- v456_l1461
+ v452_l1453
  (->
   {:cohort [:a :b :c], :growth [12 19 15], :tax [3 5 4]}
   (pj/lay-bar :growth :cohort)
@@ -2077,14 +2053,14 @@
   :panels))
 
 
-(deftest t457_l1468 (is ((fn [n] (= 1 n)) v456_l1461)))
+(deftest t453_l1460 (is ((fn [n] (= 1 n)) v452_l1453)))
 
 
-(def v458_l1470 (kind/doc #'pj/facet-grid))
+(def v454_l1462 (kind/doc #'pj/facet-grid))
 
 
 (def
- v460_l1475
+ v456_l1467
  (let
   [tips-pose (pj/lay-point (rdatasets/reshape2-tips) :total-bill :tip)]
   (=
@@ -2092,4 +2068,69 @@
    (pj/facet tips-pose {:col :smoker, :row :sex}))))
 
 
-(deftest t461_l1479 (is (true? v460_l1475)))
+(deftest t457_l1471 (is (true? v456_l1467)))
+
+
+(def v458_l1473 (kind/doc #'pj/cross))
+
+
+(def
+ v460_l1479
+ (let
+  [pairs
+   (atom nil)
+   printed
+   (with-out-str
+    (reset!
+     pairs
+     (pj/cross
+      [:sepal-length :petal-length]
+      [:sepal-width :petal-width])))]
+  {:pairs (deref pairs),
+   :warns-with-pj-matrix (some? (re-find #"pj/matrix" printed))}))
+
+
+(deftest
+ t461_l1486
+ (is
+  ((fn
+    [m]
+    (and
+     (=
+      [[:sepal-length :sepal-width]
+       [:sepal-length :petal-width]
+       [:petal-length :sepal-width]
+       [:petal-length :petal-width]]
+      (:pairs m))
+     (:warns-with-pj-matrix m)))
+   v460_l1479)))
+
+
+(def
+ v463_l1496
+ (->
+  (rdatasets/datasets-iris)
+  (pj/pose {:color :species})
+  (pj/matrix
+   [:sepal-length :petal-length]
+   [:sepal-width :petal-width])))
+
+
+(deftest
+ t464_l1501
+ (is
+  ((fn
+    [v]
+    (let
+     [s (pj/svg-summary v)]
+     (and (= 4 (:panels s)) (= 600 (:points s)))))
+   v463_l1496)))
+
+
+(def v465_l1505 (kind/doc #'pj/layer-option-docs))
+
+
+(def v467_l1509 (identical? pj/layer-option-docs pj/layer-mapping-docs))
+
+
+(deftest t468_l1511 (is (true? v467_l1509)))

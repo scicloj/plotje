@@ -183,7 +183,7 @@ composite-pose
 ;; A layer's `:mapping` is not only aesthetics. Every option a `lay-*`
 ;; call accepts that is not `:data`, `:mark`, `:stat` or `:position`
 ;; lands there beside them. This pose jitters its points, fixes their
-;; radius, and says which space its positions are in:
+;; radius, and says which space its `:x` and `:y` values are in:
 
 (def jittered-pose
   (-> (rdatasets/datasets-iris)
@@ -361,14 +361,15 @@ annotated
              m))])
 
 ;; A leaf draft carries none of that, and not because the information
-;; is unavailable at that point. The difference is arity: a leaf draft
-;; is a vector of per-layer maps, and where two panels sit relative to
+;; is unavailable at that point. The difference is arity: a leaf draft's
+;; `:layers` is a vector of per-layer maps, and where two panels sit relative to
 ;; each other is a fact about the set rather than about any one layer.
 ;; A leaf draft has nowhere to put it.
 
 ;; ## The plan is the stage that is checked
 
-;; All three stages have a Malli schema. Only the plan's runs: `pj/plan`
+;; The pose, the draft, the plan and the membrane each have a Malli
+;; schema. Only the plan's runs: `pj/plan`
 ;; validates its result unless the `:validate` configuration key turns
 ;; it off, and `pj/valid-plan?` runs the same check by hand.
 

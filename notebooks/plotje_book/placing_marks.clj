@@ -3,12 +3,12 @@
 ;; This chapter is about where a mark is drawn, and about the units the
 ;; numbers that place it are measured in.
 ;;
-;; A scale turns each data value into a position on the page, and for most
+;; A scale turns each data value into a place on the page, and for most
 ;; plots that is all the placement anyone needs to think about. Three
 ;; situations call for more control:
 ;;
 ;; - a label that would otherwise be drawn on top of the point it names
-;; - a note that belongs at a position no row of the data holds
+;; - a note that belongs at an `:x` and `:y` that no row of the data holds
 ;; - code that needs to know where a value was drawn, so that it can draw
 ;;   something else beside it
 ;;
@@ -35,7 +35,7 @@
 ;; ## Data space and drawing space
 ;;
 ;; The number 12 does not say where a mark goes until you know what it
-;; measures. Plotje measures positions in two spaces.
+;; measures. Plotje measures where marks sit in two spaces.
 ;;
 ;; **Data space** holds values in their original units -- a sepal length
 ;; of 6.5, a year of 2007, the category `"setosa"`. **Drawing space**
@@ -230,8 +230,8 @@ cars
 ;; Every layer type accepts these two options. `:offset-y -6` lifts each
 ;; value label six drawing units above its bar -- negative, because a
 ;; positive `:offset-y` moves down the page, as drawing coordinates do.
-;; The categories are on x here, and an offset works on that axis just
-;; as it does on a numeric one:
+;; The categories are on x here, and an offset works on that axis as it
+;; does on a numeric one:
 
 (-> {:team ["red" "green" "blue"] :score [3 5 4]}
     (pj/lay-bar :team :score)
@@ -428,8 +428,9 @@ cars
       (and (= (at 1) (at "red"))
            (= (at 2) (at "green")))))])
 
-;; A value past the ends of the axis is refused here as it is on a
-;; mapping, naming the value, the categories and where the axis ends:
+;; A value past the ends of the axis reports an error here, as it does on
+;; a mapping. The error names the value, the categories and where the
+;; axis ends:
 
 (try (-> {:team ["red" "green" "blue"] :score [3 5 4]}
          (pj/lay-bar :team :score)
@@ -501,7 +502,7 @@ scatter
 
 (-> scatter pj/frames kind/pprint)
 
-;; The `:canvas` is reported once for the whole plot. `:panels` holds one
+;; The `:canvas` appears once for the whole plot. `:panels` holds one
 ;; entry per panel, each carrying its `:row` and `:col`, its domains, and
 ;; the two rectangles described above. The axis margin is not stored
 ;; separately; it is the difference between those two rectangles.
@@ -529,7 +530,7 @@ scatter
 ;; Both functions also accept a dataset of coordinates, with `:x` and
 ;; `:y` columns, and return a dataset with the same two columns. This
 ;; form maps whole columns and builds the panel's scales only once, so it
-;; is the one to use when placing many positions at a time:
+;; is the one to use when placing many points at a time:
 
 (pj/to-drawing (-> scatter pj/frames :panels first)
                {:x [2.62 3.44 5.25] :y [21.0 18.1 10.4]})
@@ -570,10 +571,10 @@ scatter
 ;; kinds of value on it. A category maps to the middle of its band. A
 ;; number maps to a place among the categories, counted from one, so a
 ;; number between two whole ones lands between the bands they name and
-;; the axis reaches half a place past each end. What it refuses is a
-;; value that is neither -- a category the axis does not carry, or a
-;; number past the ends of the axis -- naming the value and the
-;; categories it could have been.
+;; the axis reaches half a place past each end. A value that is neither
+;; -- a category the axis does not carry, or a number past the ends of
+;; the axis -- reports an error naming the value and the categories it
+;; could have been.
 ;;
 ;; The two directions are not symmetrical. `pj/to-data` reads back the
 ;; category whose band holds the coordinate, and answers nil outside
@@ -664,7 +665,7 @@ scatter
 ;; The frames report canvas coordinates, measured from the top left of
 ;; the whole image. A `{:in :drawing-area}` layer measures from the top
 ;; left of the drawing area instead. The two origins are different, so
-;; drawing a mapped position back onto the plot means subtracting the
+;; drawing a mapped point back onto the plot means subtracting the
 ;; drawing area's corner from it first:
 
 (let [panel     (-> scatter pj/frames :panels first)
@@ -746,7 +747,7 @@ scatter
     (pj/lay-label :tickets :violation {:text :tickets})
     (pj/options {:fit-text-domain false}))
 
-;; The two axes carry that difference. Reading the upper end of each:
+;; The upper end of the x axis, with `:fit-text-domain` on and off:
 
 (let [top-end (fn [opts]
                 (-> tickets-by-violation

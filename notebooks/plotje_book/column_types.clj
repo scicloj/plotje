@@ -21,9 +21,8 @@
 ;; is the background on that. Where the datatype does not settle the
 ;; question, Plotje reads the values instead.
 ;;
-;; The sections below take each of those in turn. The last one sets the
-;; column's type beside a scale's type, a separate setting that shares
-;; the word `:categorical`.
+;; The last section compares the column's type with a scale's type, a
+;; separate setting that shares the word `:categorical`.
 
 (ns plotje-book.column-types
   (:require
@@ -52,8 +51,8 @@
        (java.time.LocalDate/parse "2026-04-15")]
    :v [10 20 30 40]})
 
-;; A fourth holds ratios, which is the case the datatype does not
-;; settle.
+;; A fourth dataset holds ratios, which is the case the datatype does
+;; not settle.
 
 (def ratios
   {:k [(/ 1 3) (/ 2 3) (/ 4 3) (/ 5 3)] :v [10 20 30 40]})
@@ -203,11 +202,12 @@
 ;; A mark that draws one shape from many rows cannot do this.
 ;; `pj/lay-line` connects the rows in order with a single stroke, a
 ;; histogram bar counts the rows that fall in its bin, and a boxplot
-;; summarizes a whole category. Each covers rows of different colors and
-;; can only be drawn in one, so Plotje draws it in the default color and
-;; reports that the column was not used.
+;; summarizes a whole category. Each of these marks covers rows of
+;; different colors and can only be drawn in one color, so Plotje draws
+;; the mark in the default color and reports that the column was not
+;; used.
 ;; [Troubleshooting](./plotje_book.troubleshooting.html#numeric-ids-treated-as-continuous-color)
-;; has that case, where a numeric identifier was meant as a category.
+;; covers a numeric identifier that was meant as a category.
 
 ;; Beyond the colors themselves, a categorical mapping divides the rows
 ;; into groups, and every layer computes itself once per group. A
@@ -404,8 +404,9 @@
 (kind/test-last
  [(fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))])
 
-;; Asking that same column for a `:categorical` scale is refused, and
-;; the message names the setting that would do it instead:
+;; Setting a `:categorical` scale on that same column reports an error,
+;; and the message names the setting that would make the axis
+;; categorical instead:
 
 (try
   (-> numerical
@@ -418,8 +419,8 @@
 (kind/test-last
  [(fn [m] (re-find #"set :x-type or :y-type to :categorical" m))])
 
-;; A categorical column is refused in the other direction: it has
-;; nothing to take a logarithm of, so `:log` is refused on one:
+;; In the other direction, `:log` on a categorical column reports an
+;; error, since the column has nothing to take a logarithm of:
 
 (try
   (-> categorical

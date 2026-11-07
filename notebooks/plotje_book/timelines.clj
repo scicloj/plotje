@@ -24,7 +24,7 @@
   (:require
    ;; Tablecloth -- dataset manipulation
    [tablecloth.api :as tc]
-   ;; rdatasets -- bundled R datasets (ggplot2-presidential, etc.)
+   ;; rdatasets -- bundled R datasets (ggplot2-presidential and others)
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]
@@ -34,9 +34,9 @@
 ;; ## Historical event timeline
 ;;
 ;; Five milestones in computing history. Each event is a point on
-;; a single horizontal line, with a text label shifted above. The
-;; vertical position is fixed (`y = 1`) because the y-axis here
-;; carries no meaning -- it provides a baseline.
+;; a single horizontal line, with a text label shifted above. Every
+;; event has the same `:y`, 1, because the y-axis here carries no
+;; meaning -- it provides a baseline.
 ;;
 ;; Sources for the milestones:
 ;;
@@ -142,7 +142,7 @@
 ;;
 ;; The
 ;; [Gantt chart](https://en.wikipedia.org/wiki/Gantt_chart) (Henry
-;; Gantt, ~1910) is the canonical "tasks-and-dates" picture: each
+;; Gantt, around 1910) is the canonical "tasks-and-dates" picture: each
 ;; row is a task, each bar's left edge is the start, the right
 ;; edge is the end.
 ;;
@@ -224,7 +224,7 @@
 ;; Pass a numeric column to `:color` and Plotje grades each bar
 ;; along a continuous gradient instead of a categorical palette.
 ;; A continuous-color legend appears on the side, showing the
-;; mapped data range. The gradient uses the configured color
+;; domain of the mapped column. The gradient uses the configured color
 ;; scale (default linear; `(pj/scale :color :log)` on the pose
 ;; for log-spaced ticks).
 
@@ -246,7 +246,7 @@
 
 ;; ## Vertical bars via `coord :flip`
 ;;
-;; `lay-interval-h` always binds the lane to the y data axis.
+;; `lay-interval-h` always draws the lane on the y axis.
 ;; To render visually vertical bars (lanes on the horizontal
 ;; axis, time running upward), apply `pj/coord :flip` to the
 ;; pose -- the renderer detects which axis carries the band and
@@ -448,6 +448,39 @@
                                 (= [[0 0] [1 0]]
                                    (mapv (juxt :row :col)
                                          (:panels (pj/frames v)))))))])
+
+;; Every day has both kinds of activity, so the two panels share the
+;; day lanes and no lane is empty. The project Gantt is different: each
+;; task belongs to one team, so faceting it by `:team` with the lane axis
+;; shared repeats all five task lanes in every panel, most of them empty.
+;; `{:share-scales #{:x}}` in the options map after the facet shares only
+;; the time axis, and each panel keeps the lanes of its own tasks -- see
+;; [Faceting](./plotje_book.faceting.html#free-scales-independent-axis-ranges):
+
+(-> project
+    (pj/lay-interval-h :start :task {:x-end :end :color :team})
+    (pj/facet {:row :team} {:share-scales #{:x}})
+    (pj/options {:title "Project plan by team"
+                 :y-label "task"
+                 :x-label ""
+                 :height 360}))
+
+(kind/test-last
+ [(fn [v]
+    (let [panels (:panels (pj/plan v))
+          shared (-> project
+                     (pj/lay-interval-h :start :task {:x-end :end :color :team})
+                     (pj/facet {:row :team})
+                     pj/plan
+                     :panels)]
+      (and (= 3 (:panels (pj/svg-summary v)))
+           (= 5 (:polygons (pj/svg-summary v)))
+           ;; Each team keeps its own lanes, on one time axis.
+           (= [["Design" "Document"] ["Build" "Deploy"] ["Test"]]
+              (mapv :y-domain panels))
+           (apply = (mapv :x-domain panels))
+           ;; With the lane axis shared, every panel holds all five lanes.
+           (every? #(= 5 (count (:y-domain %))) shared))))])
 
 ;; ## Interactive timelines
 ;;

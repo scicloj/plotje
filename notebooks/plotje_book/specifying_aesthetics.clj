@@ -41,9 +41,9 @@
 ;; `{:color :species}` is a mapping. What it supplies may differ from
 ;; row to row, or be a single value for the whole layer. A mapping is
 ;; written either on a [pose](./plotje_book.glossary.html#pose), where
-;; every layer of that pose sees it, or in the mapping of a single
-;; [layer](./plotje_book.glossary.html#layer), where only that layer
-;; does. See [Mapping](./plotje_book.glossary.html#mapping).
+;; it reaches every layer of that pose, or in the mapping of a single
+;; [layer](./plotje_book.glossary.html#layer), where it reaches only that
+;; layer. See [Mapping](./plotje_book.glossary.html#mapping).
 ;;
 ;; A **scale** turns data into something visible. The color scale turns
 ;; categories into colors; the size scale turns numbers into radii; the
@@ -185,18 +185,23 @@ plants
 ;; is why a drawn column reaches only the marks that draw one shape per
 ;; row. A line drawn from every row, a histogram bar counting the rows in
 ;; its bin and a boxplot summarizing a category can each be drawn in one
-;; color only, so Plotje reports the mapping instead of drawing it:
+;; color only, so Plotje reports an error instead of drawing it:
 
-(-> {:x [1 2 3] :y [4 5 6] :shade ["#EE7733" "#AA3377" "#000000"]}
-    (pj/lay-line :x :y {:color {:column :shade :scale false}})
-    (pj/valid-pose?))
+(try
+  (-> {:day [1 2 3] :visits [4 5 6] :shade ["#EE7733" "#AA3377" "#000000"]}
+      (pj/lay-line :day :visits {:color {:column :shade :scale false}})
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
 
-(kind/test-last [(fn [ok] (true? ok))])
+(kind/test-last
+ [(fn [m] (and (re-find #"A :scale false on :color" m)
+               (re-find #"For one color over the layer, write the value itself" m)
+               (re-find #"drop the :scale" m)))])
 
-;; The pose is well formed -- what cannot be done is drawing it, and
-;; `pj/plan` says so, naming the mark and both ways out: write one color
-;; for the layer, or drop the `:scale` so the column is read through the
-;; color scale.
+;; The pose itself is well formed; the error comes when it is drawn. It
+;; names the mark and both ways out: write one color for the layer, or
+;; drop the `:scale` so the column is read through the color scale.
 
 ;; ## A written value, drawn as it stands
 ;;
@@ -289,8 +294,9 @@ plants
 ;; which `:species` is. A column of numbers is read as a quantity
 ;; instead and drawn through a gradient, with a bar in place of the
 ;; per-value legend rows -- `:weight` and `:height` on this data are
-;; both of those. What decides is the column's type, in
-;; [Column Types](./plotje_book.column_types.html#what-the-type-decides-about-color).
+;; both of those. The column's type decides, as
+;; [Column Types](./plotje_book.column_types.html#what-the-type-decides-about-color)
+;; explains.
 
 (-> plants
     (pj/lay-point :height :weight {:color :weight}))
@@ -298,7 +304,7 @@ plants
 (kind/test-last
  [(fn [fr] (= :continuous (-> fr pj/plan :legend :type)))])
 
-;; The same four exist for `:size`, where the scale turns numbers into
+;; The same four combinations exist for `:size`, where the scale turns numbers into
 ;; radii, and for `:alpha`, where it turns numbers into opacities.
 
 ;; ## The short form
@@ -354,7 +360,8 @@ plants
       (and (= 9 (:radius (:style (-> p :panels first :layers first))))
            (nil? (:legend p)))))])
 
-;; On the positional aesthetics -- `:x`, `:y` and the range endpoints --
+;; On the positional aesthetics -- `:x`, `:y` and the range endpoints
+;; `:x-min`, `:x-max`, `:y-min`, `:y-max`, `:x-end` and `:y-end` --
 ;; a written value is read through the scale instead. It is a data
 ;; value, so the axis takes it into account. The text below is placed at
 ;; a `:weight` of 6.0, which is past the largest measured weight of 4.6,
@@ -372,10 +379,11 @@ plants
 ;; threshold to mark, a point to label -- and only rarely a distance
 ;; across the page. A number written for `:size` or `:alpha` is usually
 ;; the appearance itself, and only rarely a measurement to be scaled.
-;; Each convention takes the common case, and `:scale` says the other
-;; one where it is meant.
+;; Each convention takes the common case, and writing `:scale` gives
+;; the less common reading where it is meant.
 ;;
-;; A layer's `:x` and `:y` can both be given in drawing units at once,
+;; A layer's `:x` and `:y` can both be given in
+;; [drawing units](./plotje_book.glossary.html#drawing-space) at once,
 ;; rather than one at a time, with `{:in :drawing-area}`, described in
 ;; [Placing Marks](./plotje_book.placing_marks.html#placing-a-mark-on-the-panel-instead-of-in-the-data).
 
@@ -415,8 +423,8 @@ plants
                (= 3 (count (:species-short m)))
                (= #{"rgb(0,119,187)"} (:written-short m))))])
 
-;; The positional short form works the same way: `{:x 6.0}` is
-;; `{:x {:value 6.0 :scale true}}`, which is what stretched the y axis
+;; The positional short form works the same way: `{:y 6.0}` is
+;; `{:y {:value 6.0 :scale true}}`, which is what stretched the y axis
 ;; in the example above.
 
 ;; ### Naming the source without choosing the scale
@@ -504,8 +512,8 @@ plants
 ;; rather than a data value. Drawing units are explained in
 ;; [Drawing Space](./plotje_book.glossary.html#drawing-space).
 ;;
-;; It is asked one axis at a time. Below, the note's `:x` is a data
-;; value, so it sits at a height of 20 on the x axis; its `:y` is 14
+;; `:scale false` is read for each axis on its own. Below, the note's
+;; `:x` is a data value, so it sits at a `:height` value of 20; its `:y` is 14
 ;; drawing units down from the top of the panel, wherever the weights
 ;; happen to run.
 
@@ -525,7 +533,8 @@ plants
 ;; above still ends near the largest weight rather than stretching to
 ;; 14. The marks that can read an axis in drawing units are the marks
 ;; placed through the panel's coordinates; a bar or a boxplot reads the
-;; axis scale directly and reports the request rather than ignoring it.
+;; axis scale directly and reports an error rather than ignoring the
+;; `:scale false`.
 
 ;; ## When the conventions cannot decide
 ;;
@@ -671,8 +680,8 @@ integer-named
                          (pj/lay-point :height :weight {:shape :species})
                          (pj/scale :shape {:values [:blob]}))]))))])
 
-;; A type written here reads **that one mapping** through it, which is
-;; what distinguishes it from `pj/scale`. `pj/scale` sets the scale on
+;; A type written here applies to **that one mapping** only. `pj/scale`
+;; sets the scale on
 ;; the pose it is called on and everything below: called on the pose
 ;; you are building, it covers the whole plot; called on one cell
 ;; before the cells are arranged, that cell alone. Where
@@ -688,8 +697,8 @@ integer-named
 ;; be made without the other. Which keys a spec may carry depends on
 ;; the aesthetic -- `:size` reads `:range`, `:by` and `:from-zero`
 ;; beside `:type` and `:domain`, an axis reads `:breaks` and
-;; `:tick-labels` -- and a key the aesthetic does not read is refused
-;; rather than dropped. [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
+;; `:tick-labels` -- and a key the aesthetic does not read reports an
+;; error rather than being dropped. [Scales](./plotje_book.scales.html#what-each-aesthetics-scale-takes)
 ;; has each of them.
 ;;
 ;; ### The axes take one scale per panel
@@ -704,8 +713,8 @@ integer-named
 
 ;; A panel has one x axis and one y axis, and every layer is drawn
 ;; against them, so a panel carries one scale per axis. Two layers
-;; naming different ones are refused; a layer naming none is drawn
-;; against whichever the panel has.
+;; naming different scales for one axis report an error; a layer naming
+;; no scale is drawn against whichever scale the panel has.
 
 (try
   (-> plants
@@ -721,8 +730,8 @@ integer-named
 
 ;; ### Aesthetics with no scale
 ;;
-;; Two aesthetics have no scale at all, so `:scale` has nothing to
-;; select and is reported on both.
+;; Two aesthetics have no scale at all, so a `:scale` written on either
+;; of them reports an error.
 ;;
 ;; `:text` draws a label as it stands, whether the label comes from a
 ;; column or is written in the mapping. `:group` splits a layer into one
@@ -760,7 +769,7 @@ integer-named
              (set (vals (pj/aesthetic-roles)))))])
 
 ;; `:color` puts a distinction in one place and tells the marks apart
-;; by colour, under a legend. `:group` puts it in one place and tells
+;; by color, under a legend. `:group` puts it in one place and tells
 ;; them apart not at all. The panel aesthetics `:col` and `:row` give
 ;; each value a panel of its own, told apart by a strip label -- see
 ;; [Faceting](./plotje_book.faceting.html).

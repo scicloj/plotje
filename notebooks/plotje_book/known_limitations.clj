@@ -6,6 +6,8 @@
 
 (ns plotje-book.known-limitations
   (:require
+   ;; Plotje -- the configuration whose defaults this chapter names
+   [scicloj.plotje.api :as pj]
    ;; Kindly -- notebook rendering protocol
    [scicloj.kindly.v4.kind :as kind]))
 
@@ -13,14 +15,14 @@
 ;;
 ;; - Multi-layer overlays like
 ;;   `(-> data (pj/lay-point ...) (pj/lay-smooth {:stat :linear-model}) (pj/lay-smooth {:stat :loess}))`
-;;   do not auto-generate a layer-kind legend to distinguish the two
+;;   do not draw a legend entry per layer to distinguish the two
 ;;   regression curves. Workaround: color each layer explicitly.
 ;;
 ;; - Histograms, stacked bars, step plots, and other stat-derived
 ;;   marks do not default to a `"count"` or `"density"` y-label.
 ;;
-;; - SPLOMs with 6+ variables at the default 600x400 have tight
-;;   panels. Increase `:width`/`:height` or pin
+;; - A scatter plot matrix of many variables at the default
+;;   `:width` and `:height` has tight panels. Increase `:width`/`:height` or pin
 ;;   `:panel-width`/`:panel-height`.
 ;;
 ;; - Horizontal bars from `(pj/coord :flip)` render the first row of
@@ -37,7 +39,8 @@
 ;;   marks near its edge are drawn in full. Nothing widens the domain
 ;;   for a mark whose size is in drawing units for another reason: a
 ;;   `pj/lay-point` given a large `:size` at the extreme of its domain is
-;;   cut at the panel edge, as is a long rug tick. The 5% domain padding absorbs
+;;   cut at the panel edge, as is a long rug tick. The domain padding
+;;   (`:domain-padding`) absorbs
 ;;   this at ordinary radii, and a scale given a wide `:range` -- say
 ;;   `(pj/scale pose :size {:range [3 20]})` -- reaches past it.
 ;;   Workaround: widen the domain with `pj/scale`.
@@ -46,8 +49,8 @@
 ;;   room from one another. Y-tick labels at 90 or -90 (`:y-tick-angle`)
 ;;   run along the axis, and a label longer than the space between two
 ;;   ticks is drawn over its neighbours. The room a rotated label is
-;;   given stops at 30% of the plot's size, so a label longer than that
-;;   is clipped at the edge. Workaround: shorten the labels, choose
+;;   given has a ceiling, a fixed share of the plot's width or height,
+;;   so a label longer than that is clipped at the edge. Workaround: shorten the labels, choose
 ;;   another angle, or thin the ticks with `:n-ticks`.
 ;;
 ;; - A mark that occupies a band cannot be drawn at a place between two
@@ -87,7 +90,7 @@
 ;;
 ;; - `pj/marginal` draws on `:top` and `:right`. `:bottom` and `:left`
 ;;   would put the strip between the panel and the axis that describes
-;;   it, so they are reported rather than drawn.
+;;   it, so they report an error.
 ;;
 ;; - A pose gets one marginal at a time. `pj/marginal` takes a leaf
 ;;   pose and returns a composite, and a composite has no single panel
@@ -97,8 +100,8 @@
 ;;
 ;; - `(pj/marginal pose :top :histogram)` draws its tallest bar close to
 ;;   the top of the marginal panel. The value axis is padded by the same
-;;   fraction any axis is, and the strip is a quarter of the height, so
-;;   the gap comes to a few drawing units -- which a density hides,
+;;   fraction any axis is, and the strip is much shorter than the
+;;   panel, so the gap comes to a few drawing units -- which a density hides,
 ;;   since its tail approaches zero, and a histogram does not.
 ;;   Workaround: `pj/marginal` builds a composite whose marginal cell is
 ;;   the first sub-pose for `:top` and the second for `:right`, so
@@ -111,6 +114,15 @@
 ;;   carries. Workaround: facet instead of
 ;;   coloring -- faceting does reach the marginal, giving one
 ;;   distribution per panel.
+;;
+;; The default size and the domain padding named above are
+;; configuration values:
+
+(select-keys (pj/config) [:width :height :domain-padding])
+
+(kind/test-last
+ [(fn [m]
+    (= {:width 600 :height 400 :domain-padding 0.05} m))])
 
 ;; ## Marks
 ;;
@@ -121,24 +133,24 @@
 ;;
 ;;   | Aesthetic | Consumed on | Elsewhere |
 ;;   |:----------|:------------|:------------------|
-;;   | `:size` (column ref) | `lay-point` | warned, and no legend is drawn for it |
-;;   | `:alpha` (column ref) | `lay-point` | warned, and no legend is drawn for it (a written `:alpha N` works on most via `:fixed-alpha`) |
+;;   | `:size` (a column) | `lay-point` | warned, and no legend is drawn for it |
+;;   | `:alpha` (a column) | `lay-point` | warned, and no legend is drawn for it (a written `:alpha N` works on most via `:fixed-alpha`) |
 ;;   | numeric (continuous) `:color` | every mark drawn once per row | a mark drawn once for many rows -- a line, an area, a histogram bin, a box -- draws one color and reports that the column is not painted on it |
-;;   | `:tooltip`, and the row-index plumbing beside it | `lay-point`, `lay-interval-h` | warned, and no tooltip is drawn |
+;;   | `:tooltip`, and the row index written beside it | `lay-point`, `lay-interval-h` | warned, and no tooltip is drawn |
 ;;
 ;;   Only `lay-point` varies a radius or an opacity from row to row, so
-;;   `{:size {:column :r :scale false}}` -- which asks for the column's
-;;   own values as radii -- is refused elsewhere rather than warned:
-;;   there is no reading for it at all. The warning and the refusal both
-;;   name `lay-point`. Which marks those are is read from the registry,
+;;   `{:size {:column :r :scale false}}` -- the column's own values as
+;;   radii -- reports an error on any other layer type, rather than a
+;;   warning: there is no reading for it at all. The warning and the
+;;   error both name the `:point` mark. Which marks those are is read from the registry,
 ;;   where each layer type declares what its mark varies under
 ;;   `:varies`, so an extension that draws a per-row size says so and is
 ;;   named alongside `lay-point`.
 ;;
-;;   `:shape` is not in this table: it is drawn only by `lay-point`, and
-;;   passing it anywhere else is rejected rather than ignored -- every
-;;   other layer type warns and names `lay-point` as the one that takes
-;;   it. `:text` is the same, and names `lay-text` and `lay-label`.
+;;   `:shape` is not in this table: it is drawn only by `lay-point`.
+;;   Passing it to any other layer type prints a warning naming the
+;;   `:point` layer type, and the setting is ignored. `:text` is the
+;;   same, and the warning names the `:label` and `:text` layer types.
 ;;
 ;;   Workaround for `:size` and `:alpha`: use `lay-point` where the
 ;;   aesthetic must vary per row. For a numeric `:color` on a mark drawn
@@ -156,9 +168,9 @@
 ;;   brush are behaviours a browser runs over the figure, so a plot
 ;;   rendered to `:bufimg`, or saved as a PNG, carries neither. The
 ;;   table above is the per-mark half of the same question; this is the
-;;   per-format half. Asking for either on such a format is reported,
-;;   naming the format and the ones that answer, and the figure still
-;;   renders.
+;;   per-format half. Writing either for such a format prints a warning
+;;   naming the format and the formats that draw interaction, and the
+;;   figure still renders.
 ;;   [Interactivity](./plotje_book.interactivity.html#formats-that-draw-interaction)
 ;;   covers it. Workaround: render to SVG, and save the SVG rather than
 ;;   a PNG where the reader is meant to hover.
@@ -210,25 +222,27 @@
 ;;   are measured from a baseline: `pj/lay-area` and `pj/lay-lollipop` rest
 ;;   on the panel's smallest value there, as a count bar does.
 ;;
-;; - Rules and bands are refused under `(pj/coord :polar)`. A polar
+;; - Rules and bands report an error under `(pj/coord :polar)`. A polar
 ;;   rule would need to draw as a circle (fixed radius) or a spoke
 ;;   (fixed angle); those shapes are not implemented, and the message
-;;   names the marks polar does draw. Use Cartesian or flip coords for
-;;   annotated plots.
+;;   names the marks polar does draw. Use Cartesian or flipped
+;;   coordinates for annotated plots.
 ;;
-;; - Large scatters produce large SVGs (~220 bytes/point). For >10k
-;;   points, use `:format :bufimg` for raster output.
+;; - Large scatters produce large SVGs, since each point is an
+;;   element of its own. For many thousands of points, use
+;;   `:format :bufimg` for raster output.
 ;;
-;; - LOESS with confidence bands is O(n^2); subsample above ~5k
-;;   rows.
+;; - LOESS with a confidence band fits the curve again on many
+;;   resamples of the rows, so it is slow on large data. Subsample
+;;   large data before smoothing it.
 
 ;; ## Scales
 ;;
 ;; - One pose reads an aesthetic through one scale. Two layers asking
 ;;   for different scales on `:size`, `:alpha`, `:color` or `:fill`
-;;   are refused rather than drawn, since a plot has one legend per
+;;   report an error rather than draw, since a plot has one legend per
 ;;   aesthetic. Two layers naming different scales for `:x` or `:y`
-;;   are refused as well, because a panel has one of each axis.
+;;   report an error as well, because a panel has one of each axis.
 ;;   Workaround in every case: put the layers in separate poses with
 ;;   `pj/arrange`, and write each cell's scale on that cell. A cell
 ;;   that writes its own scale keeps it and draws its own legend;
@@ -257,10 +271,10 @@
 ;; - Mapping the same column with a keyword in one place and a
 ;;   string in another (e.g. `(pj/pose ds {:color :group})` then
 ;;   `(pj/lay-point :x :y {:color "group"})`) is not normalized: the
-;;   scope hierarchy treats them as different keys. The mismatch is
-;;   reported rather than drawn -- the spelling that does not match a
-;;   column name is looked up, found missing, and named alongside the
-;;   columns the data does carry. The exception is a string that
+;;   scope hierarchy treats them as different keys. The mismatch
+;;   reports an error rather than drawing -- the spelling that does not
+;;   match a column name is looked up, found missing, and named
+;;   alongside the columns the data does carry. The exception is a string that
 ;;   happens to name something the aesthetic can draw: `"red"` on
 ;;   `:color` is that color, so the mapping quietly stops grouping
 ;;   instead. Workaround: pick one form (keyword or string) and use it
@@ -295,7 +309,7 @@
 ;;   paints the interior; there is no separate stroke aesthetic.
 ;;
 ;; - The `:linetype` aesthetic (ggplot2's `aes(linetype=...)` for
-;;   solid vs. dashed lines) is not implemented. Workaround: encode
+;;   solid versus dashed lines) is not implemented. Workaround: encode
 ;;   the same distinction via `:color` instead.
 ;;
 ;; - A layer's own `:data` is not split by `pj/facet`. The pose's data
@@ -325,9 +339,14 @@
 ;;   `:y-tick-angle` plot options rather than through the theme -- see
 ;;   [Customization](./plotje_book.customization.html#rotating-tick-labels).
 ;;
-;; - `guides()` for per-aesthetic legend control,
-;;   `scale_*_sqrt`/`reverse`/`date`. All tracked in the backlog. The
-;;   axis types are `:linear`, `:log` and `:categorical`; a square-root
-;;   axis is not among them. (`pj/scale :size {:by :sqrt}` is a
-;;   different setting -- it says how a size spreads across the radii,
-;;   not how an axis is transformed.)
+;; - `guides()` for per-aesthetic legend control, and a square-root
+;;   axis (`scale_*_sqrt`). Both are tracked in the backlog. The axis
+;;   types are `:linear`, `:log` and `:categorical`. ggplot2's
+;;   `scale_x_reverse()` is a `:domain` written high to low, as in
+;;   `{:domain [100 0]}` -- see
+;;   [Scales](./plotje_book.scales.html#making-an-axis-reach-a-value) --
+;;   and a date column gives a date axis without a separate scale.
+;;   (`pj/scale :size {:by :sqrt}` is a different setting -- it says
+;;   how a size spreads across the radii, not how an axis is
+;;   transformed.)
+

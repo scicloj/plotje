@@ -24,7 +24,7 @@ The main changes:
 
 Also new: `:where` filters the rows a pose draws, panels can be given unequal sizes, and an axis that shows a computed count or density is titled `count` or `density`.
 
-The signature of `pj/pose` -- data or a pose, then columns, then a mapping -- began in [#61](https://github.com/scicloj/plotje/pull/61), which also moved the crossing of columns out of `pj/pose` into a function of its own, the idea behind `pj/matrix`, and let `pj/arrange` take columns and poses as cells. Thanks to @timothypratley for that pull request, and for the questions, discussions and reports on Zulip that shaped this release.
+The updated signature of `pj/pose` -- data or a pose, then columns, then a mapping -- began in [#61](https://github.com/scicloj/plotje/pull/61), which also gave the scatter plot matrix a function of its own, the idea behind `pj/matrix`, so that `pj/pose` no longer needs to take a list of pairs of columns, and let `pj/arrange` take columns and poses as cells. Thanks to @timothypratley for that pull request, and for the questions, discussions and reports on Zulip that shaped this release.
 
 ### Plots that look different after upgrading
 

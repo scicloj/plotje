@@ -8,7 +8,7 @@
 ;; - **position** -- how overlapping groups share space (identity, dodge, stack, fill)
 ;;
 ;; Layer functions (`pj/lay-point`, `pj/lay-histogram`, `pj/lay-bar`,
-;; `(pj/lay-smooth {:stat :linear-model})`, etc.) each add a layer
+;; `(pj/lay-smooth {:stat :linear-model})`, and the others) each add a layer
 ;; with the corresponding layer type. When no layer is added,
 ;; Plotje infers a layer type from the column types.
 ;;
@@ -105,7 +105,12 @@
            (= [[:a :b] [:c nil]]
               (columns (-> data
                            (pj/lay-point :a :b)
-                           (pj/lay-rug {:x :c})))))))])
+                           (pj/lay-rug {:x :c}))))
+           ;; Backs the second bullet: a numerical column on :y alone
+           ;; is drawn as a histogram turned on its side.
+           (= [:histogram :flip]
+              ((juxt :layer-type :coord)
+               (first (:layers (pj/draft (pj/pose data {:y :a})))))))))])
 
 ;; Among the places that read it:
 ;;
@@ -114,8 +119,9 @@
 ;;   columns it draws from -- the
 ;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;;   is the case where the panels differ.
-;; - A pose that names a column only on `:y` draws a layer that draws
-;;   from one column on its side.
+;; - A pose that names a column on `:y` alone, with no `:x`, is drawn
+;;   with a layer type that draws from one column, turned on its side
+;;   -- a numerical column gives a horizontal histogram.
 ;; - A layer that names one column is given the panel's column on the
 ;;   other axis only where its layer type cannot draw from one column:
 ;;   after `(pj/lay-point data :a :b)`, `(pj/lay-line {:y :c})` draws
@@ -158,10 +164,10 @@
 ;; The "Position" column shows each layer-type's registered default.
 ;; A few marks (`:bar`, `:lollipop`, `:boxplot`,
 ;; `:violin`) carry no registered default and the table therefore
-;; lists `:identity` for them, but they apply `:dodge` at extract
-;; time when a categorical color or group splits the data into
+;; lists `:identity` for them, but they apply `:dodge` when the plot
+;; is planned, if a categorical color or group splits the data into
 ;; multiple sub-bars per category. So a colored
-;; `(pj/lay-bar :species {:color :group})` produces dodged bars
+;; `(pj/lay-bar :cohort {:color :site})` produces dodged bars
 ;; even though the table shows `:identity` for `:bar`. To force a
 ;; different layout, write `:position` in the layer's mapping.
 

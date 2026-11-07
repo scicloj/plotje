@@ -112,7 +112,42 @@
 
 
 (def
- v19_l112
+ v19_l114
+ (->
+  (rdatasets/datasets-iris)
+  (pj/lay-point :sepal-length :sepal-width {:color :species})
+  (pj/coord :polar)
+  (pj/facet :species)
+  (pj/options {:width 900, :height 340})))
+
+
+(deftest
+ t20_l120
+ (is
+  ((fn
+    [v]
+    (let
+     [area
+      (fn [fr] (-> fr pj/frames :panels first :frames :drawing-area))
+      [_ _ w h]
+      (area
+       (->
+        (rdatasets/datasets-iris)
+        (pj/lay-point :sepal-length :sepal-width {:color :species})
+        (pj/coord :polar)
+        (pj/facet :species)))
+      [_ _ wide-w _]
+      (area v)]
+     (and
+      (= 3 (:panels (pj/svg-summary v)))
+      (= 150 (:points (pj/svg-summary v)))
+      (< w h)
+      (> wide-w w))))
+   v19_l114)))
+
+
+(def
+ v22_l141
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -124,7 +159,7 @@
 
 
 (deftest
- t20_l119
+ t23_l148
  (is
   ((fn
     [v]
@@ -137,4 +172,4 @@
        ["Iris in Polar Space"
         "Sepal length (angle)"
         "Sepal width (radius)"]))))
-   v19_l112)))
+   v22_l141)))

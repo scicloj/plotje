@@ -33,7 +33,7 @@
 ;; ## Inspecting the Current Configuration
 ;;
 ;; `pj/config` returns the resolved configuration as a plain map.
-;; It merges all active configuration layers into one map.
+;; It merges every active level of configuration into one map.
 
 (pj/config)
 
@@ -110,8 +110,9 @@
       (and (= 150 (:points s))
            (> (:width s) 800))))])
 
-;; Theme deep-merge -- only the specified keys change. Here we set a
-;; white background; `:grid` and `:font-size` keep their defaults:
+;; A theme is merged key by key -- only the keys written change. Here
+;; we set a white background; `:grid` and `:font-size` keep their
+;; defaults:
 
 (-> (base-plot)
     (pj/options {:theme {:bg "#FFFFFF"}}))
@@ -152,14 +153,12 @@
 ;; scatter plot matrix, which writes no size of its own:
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet {:col {:x [:sepal-length :sepal-width]}
-              :row {:y [:sepal-length :sepal-width]}}))
+    (pj/matrix [:sepal-length :sepal-width]))
 
 ;; Its width, measured while the override is in place:
 
 (-> (rdatasets/datasets-iris)
-    (pj/facet {:col {:x [:sepal-length :sepal-width]}
-              :row {:y [:sepal-length :sepal-width]}})
+    (pj/matrix [:sepal-length :sepal-width])
     pj/svg-summary
     :width)
 
@@ -191,7 +190,7 @@
     (= 150 (:points (pj/svg-summary v))))])
 
 ;; Partial theme override -- only `:bg` changes; `:grid` and `:font-size`
-;; are deep-merged from the defaults:
+;; keep the values of the defaults, merged key by key:
 
 (pj/with-config {:theme {:bg "#F5F5DC"}}
   (-> (base-plot)
@@ -209,8 +208,8 @@
 
 ;; ## The Precedence Chain
 ;;
-;; When multiple configuration layers are active, the highest-priority
-;; layer wins for each key.  The chain from highest to lowest:
+;; When several levels of configuration are active, the highest-priority
+;; level wins for each key.  The chain from highest to lowest:
 ;;
 ;; ```
 ;; plot options  >  with-config  >  set-config!  >  plotje.edn  >  library defaults
@@ -229,7 +228,7 @@
 
 (pj/set-config! {:width 800 :height 350 :point-radius 5.0})
 
-;; Layer a thread-local override on top for width and height
+;; Add a thread-local override on top for width and height
 ;; (but not point-radius). The rendered plot reflects the merged
 ;; configuration:
 
@@ -296,7 +295,7 @@ precedence-point-radius
 ;;  :point-radius 3}
 ;; ```
 ;;
-;; This layer sits between library defaults and `set-config!` in the
+;; This level sits between library defaults and `set-config!` in the
 ;; precedence chain -- it overrides defaults but is overridden by any
 ;; programmatic configuration.
 
@@ -374,7 +373,7 @@ precedence-point-radius
 ;;
 ;; - a keyword -- any palette name from the
 ;;   [clojure2d](https://github.com/Clojure2D/clojure2d) color library
-;;   (thousands available: [ColorBrewer](https://colorbrewer2.org/), Wes Anderson, thi.ng, paletteer, etc.)
+;;   (thousands available: [ColorBrewer](https://colorbrewer2.org/), Wes Anderson, thi.ng, paletteer and others)
 ;; - a vector of hex strings: `["#E74C3C" "#3498DB" "#2ECC71"]`
 ;; - a map of `{category-value "#hex"}` for explicit assignment
 ;;
@@ -616,8 +615,6 @@ precedence-point-radius
 ;; | `set-config!` | global | until reset | `(pj/set-config! {:width 800})` |
 ;; | `plotje.edn` | project | file on disk | `{:width 800}` in project root |
 ;; | library defaults | everywhere | built-in | `resources/plotje-defaults.edn` |
-;;
-;; Precedence: plot options > with-config > set-config! > plotje.edn > library defaults.
 ;;
 ;; Use `pj/config` at any time to see the resolved configuration.
 

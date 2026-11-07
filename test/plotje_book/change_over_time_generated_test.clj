@@ -13,7 +13,7 @@
   wave
   {:x (range 30),
    :y
-   (map (fn* [p1__11193#] (Math/sin (* p1__11193# 0.3))) (range 30))}))
+   (map (fn* [p1__82322#] (Math/sin (* p1__82322# 0.3))) (range 30))}))
 
 
 (def v4_l21 (-> wave (pj/lay-line :x :y)))
@@ -37,10 +37,10 @@
   (tc/dataset
    {:x (range 30),
     :sin
-    (map (fn* [p1__11194#] (Math/sin (* p1__11194# 0.3))) (range 30)),
+    (map (fn* [p1__82323#] (Math/sin (* p1__82323# 0.3))) (range 30)),
     :cos
     (map
-     (fn* [p1__11195#] (Math/cos (* p1__11195# 0.3)))
+     (fn* [p1__82324#] (Math/cos (* p1__82324# 0.3)))
      (range 30))})))
 
 
@@ -181,7 +181,7 @@
  (->
   {:x (range 30),
    :y
-   (map (fn* [p1__11196#] (Math/sin (* p1__11196# 0.3))) (range 30))}
+   (map (fn* [p1__82325#] (Math/sin (* p1__82325# 0.3))) (range 30))}
   (pj/lay-area :x :y)))
 
 
@@ -256,7 +256,7 @@
       (= 6 (:points s))
       (= 1 (:lines s))
       (some
-       (fn* [p1__11197#] (re-find #"[A-Z][a-z]{2}" p1__11197#))
+       (fn* [p1__82326#] (re-find #"[A-Z][a-z]{2}" p1__82326#))
        tick-labels))))
    v35_l178)))
 
@@ -355,18 +355,18 @@
    (-> athens (pj/lay-line :date :temperature) pj/lay-point)]))
 
 
-(def v48_l251 (pj/arrange cities {:cols 1}))
+(def v48_l255 (pj/arrange cities {:cols 1}))
 
 
 (deftest
- t49_l253
+ t49_l257
  (is
   ((fn
     [v]
     (let
      [panels
       (mapv
-       (fn* [p1__11198#] (-> p1__11198# :plan :panels first))
+       (fn* [p1__82327#] (-> p1__82327# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -375,36 +375,36 @@
       (apply
        not=
        (mapv
-        (fn* [p1__11199#] (:labels (:x-ticks p1__11199#)))
+        (fn* [p1__82328#] (:labels (:x-ticks p1__82328#)))
         panels)))))
-   v48_l251)))
+   v48_l255)))
 
 
-(def v51_l267 (pj/arrange cities {:cols 1, :share-scales #{:x}}))
+(def v51_l271 (pj/arrange cities {:cols 1, :share-scales #{:x}}))
 
 
 (deftest
- t52_l269
+ t52_l273
  (is
   ((fn
     [v]
     (let
      [panels
       (mapv
-       (fn* [p1__11200#] (-> p1__11200# :plan :panels first))
+       (fn* [p1__82329#] (-> p1__82329# :plan :panels first))
        (:sub-plots (pj/plan v)))
       widths
       (->>
        (tree-seq vector? seq (pj/plot v))
        (filter
         (fn*
-         [p1__11201#]
+         [p1__82330#]
          (and
-          (vector? p1__11201#)
-          (= :rect (first p1__11201#))
-          (= "rgb(232,232,232)" (:fill (second p1__11201#))))))
+          (vector? p1__82330#)
+          (= :rect (first p1__82330#))
+          (= "rgb(232,232,232)" (:fill (second p1__82330#))))))
        (mapv
-        (fn* [p1__11202#] (double (:width (second p1__11202#))))))]
+        (fn* [p1__82331#] (double (:width (second p1__82331#))))))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
       (= 12 (:points (pj/svg-summary v)))
@@ -412,11 +412,11 @@
       (empty? (:labels (:x-ticks (first panels))))
       (seq (:labels (:x-ticks (second panels))))
       (apply = widths))))
-   v51_l267)))
+   v51_l271)))
 
 
 (def
- v54_l307
+ v54_l311
  (def
   sightings
   {:date
@@ -436,7 +436,7 @@
 
 
 (def
- v55_l314
+ v55_l318
  (->
   sightings
   (pj/lay-point :date :count)
@@ -444,7 +444,7 @@
 
 
 (deftest
- t56_l318
+ t56_l322
  (is
   ((fn
     [v]
@@ -453,7 +453,7 @@
       (pj/svg-summary v)
       panels
       (mapv
-       (fn* [p1__11203#] (-> p1__11203# :plan :panels first))
+       (fn* [p1__82332#] (-> p1__82332# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels s))
@@ -461,11 +461,11 @@
       (= 5 (:polygons s))
       (apply = (mapv :x-domain panels))
       (= [] (:values (:x-ticks (first panels)))))))
-   v55_l314)))
+   v55_l318)))
 
 
 (def
- v58_l339
+ v58_l343
  (->
   {:date
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -487,18 +487,18 @@
 
 
 (deftest
- t59_l348
+ t59_l352
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 2 (:lines s)))))
-   v58_l339)))
+   v58_l343)))
 
 
 (def
- v61_l363
+ v61_l367
  (->
   {:t (range 12), :delta [-3 -1 -2 0 2 4 -1 3 5 -2 1 4]}
   (pj/lay-line :t :delta)
@@ -507,11 +507,11 @@
 
 
 (deftest
- t62_l369
+ t62_l373
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 12 (:points s)) (= 2 (:lines s)))))
-   v61_l363)))
+   v61_l367)))

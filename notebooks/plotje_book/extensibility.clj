@@ -19,6 +19,8 @@
    [tablecloth.api :as tc]
    [tech.v3.datatype :as dtype]
    [tech.v3.datatype.functional :as dfn]
+   ;; String splitting -- for reading drawn coordinates in one check
+   [clojure.string :as str]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
    ;; Layer-type registry -- for inspecting layer-type data
@@ -27,6 +29,7 @@
    [scicloj.plotje.impl.resolve :as resolve]
    [scicloj.plotje.impl.stat :as stat]
    [scicloj.plotje.impl.extract :as extract]
+   [scicloj.plotje.impl.position :as position]
    [scicloj.plotje.render.mark :as mark]
    [scicloj.plotje.render.svg :as svg]
    [scicloj.plotje.impl.render :as render]
@@ -59,7 +62,7 @@ graph LR
 
 ;; | Multimethod | Namespace | Dispatches on | Purpose |
 ;; |:------------|:----------|:--------------|:--------|
-;; | `compute-stat` | `impl/stat.clj` | `:stat` key | Transform data (identity, bin, count, lm, loess, kde, boxplot) |
+;; | `compute-stat` | `impl/stat.clj` | `:stat` key | Transform data (identity, bin, count, linear-model, loess, density, boxplot) |
 ;; | `extract-layer` | `impl/extract.clj` | `:mark` key | Convert a stat result into a plan layer descriptor |
 ;; | `layer->membrane` | `render/mark.clj` | `:mark` key | Render a plan layer as membrane drawables |
 ;; | `mark-clip-region` | `render/mark.clj` | `:mark` key | Name the panel region a mark's geometry clips to |
@@ -158,6 +161,36 @@ graph LR
     pj/plot)
 
 (kind/test-last [(fn [v] (= 2 (:lines (pj/svg-summary v))))])
+
+;; A stat is called once per panel, with that panel's rows. Faceted by
+;; half of the year, the running maximum starts again in the second
+;; panel, at the rain of July rather than at the higher rain of May:
+
+(-> rainfall
+    (assoc :half (concat (repeat 6 "January to June")
+                         (repeat 6 "July to December")))
+    (pj/lay-line :month :rain {:stat :running-max})
+    (pj/facet :half)
+    pj/plot)
+
+(kind/test-last
+ [(fn [v]
+    ;; Read from the drawn SVG, not from a plan: the generated test runs
+    ;; after the cleanup below has removed the stat. The data lines are
+    ;; the thick polylines, one per panel. The second panel's line starts
+    ;; lower on the canvas -- a larger drawing y -- than the first panel's
+    ;; line ends, since July's rain is below May's on the shared y axis.
+    (let [ys (fn [line]
+               (mapv #(parse-double (second (str/split % #",")))
+                     (str/split (:points (second line)) #" ")))
+          lines (filterv #(and (vector? %)
+                               (= :polyline (first %))
+                               (< 1 (:stroke-width (second %))))
+                         (tree-seq vector? seq v))]
+      (and (= 2 (:panels (pj/svg-summary v)))
+           (= 2 (count lines))
+           (> (first (ys (second lines)))
+              (peek (ys (first lines)))))))])
 
 ;; Cleanup -- remove the example stat, and confirm it is gone:
 
@@ -351,7 +384,7 @@ graph LR
 ;; tabulated per layer type in
 ;; [Layer Types](./plotje_book.layer_types.html#layer-type-specific-keys).
 ;; `:varies` names the appearance aesthetics its mark varies from row
-;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. A
+;; to row -- `:point` declares `{:size :radius :alpha :opacity}`. An
 ;; aesthetic left out of `:varies` is one the mark draws once for the
 ;; whole layer, so a column mapped to it varies nothing, and the plan
 ;; says so rather than drawing a legend for an encoding the panel does
@@ -364,13 +397,18 @@ graph LR
   (-> (rdatasets/datasets-iris)
       (pj/lay-point :sepal-length :sepal-width {:color :species})))
 
-(-> grouped-scatter pj/plot pj/svg-summary :points)
+(-> grouped-scatter
+    pj/plot
+    pj/svg-summary
+    :points)
 
 (kind/test-last [(fn [n] (= 150 n))])
 
 ;; ### What a stat receives
 ;;
-;; A stat is handed one layer, as a map. It is not the draft layer
+;; A stat is handed one layer, as a map, holding the rows of one panel:
+;; under a facet the stat runs once per panel, so a running total or a
+;; rank starts again in each panel. The map is not the draft layer
 ;; `pj/draft` returns: planning first infers the column types, resolves each
 ;; aesthetic to either a column name or a fixed value, and works out the
 ;; grouping, so that a stat can read those decisions instead of repeating
@@ -379,7 +417,11 @@ graph LR
 ;; resolving first.
 
 (def resolved-layer
-  (-> grouped-scatter pj/draft :layers first resolve/resolve-draft-layer))
+  (-> grouped-scatter
+      pj/draft
+      :layers
+      first
+      resolve/resolve-draft-layer))
 
 ;; The keys a stat reads, on that layer (`:data` holds the dataset itself
 ;; and is left out here so the rest prints readably):
@@ -422,7 +464,7 @@ graph LR
 
 ;; | Shape | Carries | Produced by | Read by |
 ;; |:------|:--------|:------------|:--------|
-;; | `:points` | a vector of point groups | `:identity`, `:linear-model`, `:loess`, `:density`, `:summary`, `:count` | the ten point-reading marks: `:point`, `:line`, `:step`, `:area`, `:text`, `:rug`, `:lollipop`, `:errorbar`, `:pointrange`, `:interval-h` |
+;; | `:points` | a vector of point groups | `:identity`, `:linear-model`, `:loess`, `:density`, `:summary`, `:count` | the point-reading marks: `:point`, `:line`, `:step`, `:area`, `:text`, `:rug`, `:lollipop`, `:errorbar`, `:pointrange`, `:interval-h`, `:segment` |
 ;; | `:bins` | histogram bins, per group | `:bin` | `:bar` |
 ;; | `:bars` with `:categories` | a count per category, per group | `:count` | `:rect`, when counting |
 ;; | `:boxes` with `:categories` | a five-number summary per category | `:boxplot` | `:boxplot` |
@@ -507,7 +549,8 @@ graph LR
 ;; | `:alphas` | `:alpha` maps a column | `:point` |
 ;; | `:shapes` | `:shape` maps a column | `:point` |
 ;; | `:color-values` | `:color` maps a numerical column | `:point`, `:interval-h` |
-;; | `:x-ends` | `:x-end` maps a column | `:interval-h` |
+;; | `:x-ends` | `:x-end` maps a column | `:interval-h`, `:segment` |
+;; | `:y-ends` | `:y-end` maps a column | `:segment` |
 
 ;; #### `:color` in a stat result is a category, not a color
 ;;
@@ -531,7 +574,8 @@ graph LR
 ;; The stat and the extractor are two halves of one contract, but they are
 ;; not paired one to one. Most of the mark extractors read `:points`, and
 ;; most of those go through one shared reader, `extract-xy-groups`, which
-;; is why they agree about what a group means. So a stat returning
+;; is why they agree about what a group means. `extract-xy-groups` is
+;; internal, so a mark of your own reads the groups itself. So a stat returning
 ;; `:points` is readable by any of them, not only by the layer type it was
 ;; written for -- and an explicit `{:stat ...}` is how a caller says so.
 ;;
@@ -571,6 +615,19 @@ graph LR
 ;; category value becomes a color.
 ;;
 ;; Dispatch function: `(fn [draft-layer stat all-colors cfg] (:mark draft-layer))`
+;;
+;; `all-colors` is the vector of categories of the column mapped to
+;; `:color`, or nil where no column is mapped to it.
+;; `(extract/resolve-color all-colors color draft-layer cfg)` turns one
+;; group's category into its color.
+;;
+;; The map an `extract-layer` method returns needs `:mark` and `:style`
+;; -- a map, which may be empty. The plan is checked against its schema,
+;; and a plan layer without `:style` makes `pj/plot` report
+;; `Plan does not conform to schema`. The geometry goes under `:groups`,
+;; or under keys of the mark's own. A layer takes part in a `:position`
+;; adjustment such as `:dodge` only when it carries the draft layer's
+;; `:position` -- see [`apply-position`](#apply-position).
 
 (kind/table
  {:column-names ["Dispatch value" "Output"]
@@ -608,9 +665,25 @@ graph LR
 ;;
 ;; Renders a plan layer descriptor into membrane drawable primitives.
 ;; This is the "membrane path" -- used when the target format goes through
-;; membrane (e.g., SVG).
+;; membrane, as SVG does.
 ;;
 ;; Dispatch function: `(fn [layer ctx] (:mark layer))`
+;;
+;; The rendering context `ctx` carries, among other keys:
+;;
+;; - `:coord-fn` -- takes an `:x` and a `:y` value in data space and
+;;   returns the point `[px py]` in drawing units, through the panel's
+;;   coordinate system. A renderer that places its marks through
+;;   `coord-fn` is drawn correctly under `(pj/coord :flip)`; one that
+;;   calls the scales directly is not. On a categorical axis a number
+;;   is a place among the categories, counted from one, so `coord-fn`
+;;   also places the edges of a band.
+;; - `:sx`, `:sy` -- the two scales themselves, for a renderer that
+;;   needs a scale object, such as the width of a band
+;; - `:coord-type` -- `:cartesian`, `:flip`, `:polar` or `:fixed`
+;;
+;; The [Waterfall Extension](./plotje_book.waterfall_extension.html)
+;; chapter draws its bars through `coord-fn` and shows them flipped.
 
 (kind/table
  {:column-names ["Dispatch value" "Membrane output"]
@@ -635,8 +708,8 @@ graph LR
 ;; sizes its own legend does not explain.
 ;;
 ;; `layer-type/aesthetic-magnitude-fn` is that shared function. It turns
-;; a value from the layer's per-row buffers into the quantity the mark
-;; draws -- a radius, a width, an opacity:
+;; a value from the layer's per-row buffers into the drawn size -- for
+;; the `:point` mark, a radius for `:size` and an opacity for `:alpha`:
 
 (def bubble-layer
   (-> {:x [1 2 3] :y [1 2 3] :n [1 4 9]}
@@ -654,33 +727,54 @@ graph LR
     ;; The ends of the size range, which is what the legend explains.
     (= [2.0 8.0] [(first radii) (last radii)]))])
 
-;; It answers `identity` where the mapping asked for the column's
-;; values as they stand (`{:scale false}`), so a renderer applies the
-;; result either way, and nil where the layer carries nothing to draw.
+;; It returns `identity` where the mapping gives the column's values as
+;; they stand (`{:scale false}`), so a renderer applies the result
+;; either way, and nil where the layer carries nothing to draw.
 ;;
-;; A mark that declares an aesthetic and then draws no per-row values
-;; for it is reported at `pj/plan`, naming the mark and the aesthetic.
+;; A layer type of your own declares `:varies`, and lists the same
+;; aesthetic under `:accepts`, so that its mapping takes the key at all:
+;;
+;; Pseudocode:
+;;
+;; ```clojure
+;; (layer-type/register! :blob
+;;   {:mark :point
+;;    :stat :identity
+;;    :varies {:size :radius}
+;;    :accepts [:size]})
+;; ```
+;;
+;; Without `:accepts`, `{:size :n}` on that layer prints a warning that
+;; the key is not recognized, and is dropped. The stat has to attach
+;; the per-row values to each group, as `:sizes`; `:identity` does. A
+;; mark that declares an aesthetic and then draws no per-row values
+;; for it prints a warning at `pj/plan`, naming the mark and the
+;; aesthetic.
 
 ;; ### How to extend: add a new mark type
 ;;
-;; Adding a new mark (e.g., `:area` for area charts) requires methods
-;; on both `extract-layer` and `layer->membrane`.
+;; Adding a new mark, such as a `:dumbbell` that joins two values per
+;; row, requires methods on both `extract-layer` and `layer->membrane`.
 ;;
 ;; Pseudocode:
 ;;
 ;; ```clojure
 ;; ;; 1. Extract geometry from stat result
-;; (defmethod extract/extract-layer :area [draft-layer stat all-colors cfg]
-;;   {:mark :area
-;;    :style {:opacity 0.5}
+;; (defmethod extract/extract-layer :dumbbell [draft-layer stat all-colors cfg]
+;;   {:mark :dumbbell
+;;    :style {:opacity 0.8}
+;;    :position (:position draft-layer)
 ;;    :groups (vec (for [{:keys [color xs ys]} (:points stat)]
-;;                   {:color (extract/resolve-color ...)
-;;                    :xs xs :ys ys}))})
+;;                   {:color (extract/resolve-color all-colors color
+;;                                                  draft-layer cfg)
+;;                    :label color
+;;                    :xs xs
+;;                    :ys ys}))})
 ;;
-;; ;; 2. Render to membrane drawables
-;; (defmethod mark/layer->membrane :area [layer ctx]
-;;   ;; Build filled polygon from xs/ys + baseline
-;;   ...)
+;; ;; 2. Render to membrane drawables, placing each point with coord-fn
+;; (defmethod mark/layer->membrane :dumbbell [layer ctx]
+;;   (let [{:keys [coord-fn]} ctx]
+;;     ...))
 ;; ```
 ;;
 ;; ### How to extend: register a layer type and create a pose-compatible layer function
@@ -695,18 +789,33 @@ graph LR
 ;; ```clojure
 ;; ;; Register the layer type
 ;; (layer-type/register! :waterfall
-;;   {:mark :waterfall :stat :waterfall
+;;   {:mark :waterfall
+;;    :stat :waterfall
 ;;    :doc "Waterfall -- running total with increase/decrease bars."})
 ;;
 ;; ;; Users can then call:
-;; ;; (pj/lay data (layer-type/lookup :waterfall))
+;; ;; (pj/lay pose :waterfall)
 ;;
 ;; ;; Or create a convenience function using lay:
 ;; (defn lay-waterfall
-;;   ([pose] (pj/lay pose (layer-type/lookup :waterfall)))
-;;   ([data x y] (-> data (pj/pose x y) (pj/lay (layer-type/lookup :waterfall))))
-;;   ([data x y opts] (-> data (pj/pose x y) (pj/lay (merge (layer-type/lookup :waterfall) opts)))))
+;;   ([pose]
+;;    (pj/lay pose :waterfall))
+;;   ([data x y]
+;;    (-> data
+;;        (pj/pose x y)
+;;        (pj/lay :waterfall)))
+;;   ([data x y mapping]
+;;    (-> data
+;;        (pj/pose x y)
+;;        (pj/lay :waterfall mapping))))
 ;; ```
+;;
+;; `pj/lay` given the key checks the mapping's keys against the layer
+;; type's, and prints a warning naming a key it does not recognize. A
+;; layer type whose mapping takes a key of its own lists the key under
+;; `:accepts`, as in
+;; `{:mark :dumbbell :stat :dumbbell :accepts [:y-end]}`; without it,
+;; `{:y-end :after}` on that layer prints the same warning.
 ;;
 ;; Users can then call `(lay-waterfall data :category :amount)`.
 ;;
@@ -910,7 +1019,7 @@ graph LR
 
 ;; ### How to extend: add a new membrane-based format
 ;;
-;; To add a format that reuses the membrane tree (e.g., Canvas, PDF),
+;; To add a format that reuses the membrane tree, such as Canvas or PDF,
 ;; register a `membrane->plot` defmethod. The defmethod reads
 ;; canvas dimensions via the Membrane UI protocols and the title via
 ;; `:plotje/title`, so it operates without the plan:
@@ -1014,6 +1123,48 @@ graph LR
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
                                 (pos? (:polygons s)))))])
+
+;; ## `apply-position`
+;;
+;; Adjusts the plan layers of one panel that share a `:position` value
+;; -- `:dodge` places groups side by side in a band, `:stack` and
+;; `:fill` pile them. It runs after `extract-layer`, on the layers that
+;; method returned.
+;;
+;; Dispatch function: `(fn [position layers] position)`. It returns
+;; the vector of adjusted layers.
+
+(kind/table
+ {:column-names ["Dispatch value" "What it does"]
+  :row-maps
+  (->> (methods position/apply-position)
+       keys
+       (filter keyword?)
+       (remove #{:default})
+       sort
+       (mapv (fn [k] {"Dispatch value" (kind/code (pr-str k))
+                      "What it does" (pj/position-doc k)})))})
+
+(kind/test-last [(fn [t] (= 4 (count (:row-maps t))))])
+
+;; The adjustment reads the plan layer's own `:position`, so an
+;; `extract-layer` method copies `(:position draft-layer)` onto the
+;; layer it returns. `:dodge` then writes a `:dodge-idx` on each group
+;; and a `:dodge-ctx` on the layer, and the renderer reads the two to
+;; place each group in its share of the band. A dodged point layer:
+
+(-> {:site ["north" "north" "south" "south"]
+     :yield [3 5 4 6]
+     :year ["2024" "2025" "2024" "2025"]}
+    (pj/lay-point :site :yield {:color :year :position :dodge})
+    pj/plan
+    :panels
+    first
+    :layers
+    first
+    ((juxt :position :dodge-ctx #(mapv :dodge-idx (:groups %)))))
+
+(kind/test-last [(fn [v] (= [:dodge {:n-groups 2} [0 1]] v))])
 
 ;; ## Self-Documenting Extensions
 ;;

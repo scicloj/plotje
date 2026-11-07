@@ -223,7 +223,7 @@
    [r (rng/rng :jdk 99)]
    {:category
     (map
-     (fn* [p1__80989#] (keyword (str "cat-" p1__80989#)))
+     (fn* [p1__91275#] (keyword (str "cat-" p1__91275#)))
      (range 12)),
     :value (repeatedly 12 (fn* [] (+ 10 (rng/irandom r 90))))})
   (pj/lay-bar :category :value)))
@@ -265,7 +265,7 @@
  (->
   (rdatasets/datasets-iris)
   (tc/select-rows
-   (fn* [p1__80990#] (= "setosa" (p1__80990# :species))))
+   (fn* [p1__91276#] (= "setosa" (p1__91276# :species))))
   (pj/lay-point :sepal-length :sepal-width)
   (pj/lay-smooth {:stat :linear-model})
   (pj/options {:title "Setosa Only"})))
@@ -425,8 +425,8 @@
  v78_l316
  (->
   {:x (range 20),
-   :y (map (fn* [p1__80991#] (- p1__80991# 10)) (range 20)),
-   :val (map (fn* [p1__80992#] (- p1__80992# 10.0)) (range 20))}
+   :y (map (fn* [p1__91277#] (- p1__91277# 10)) (range 20)),
+   :val (map (fn* [p1__91278#] (- p1__91278# 10.0)) (range 20))}
   (pj/lay-point :x :y {:color :val})
   (pj/options {:color-range :diverging, :color-midpoint 0})))
 
@@ -455,11 +455,11 @@
   {:time
    (dt-dt/plus-temporal-amount
     (dtype/const-reader (jt/local-date-time 2025 3 15 8 0) 24)
-    (map (fn* [p1__80993#] (* (long p1__80993#) 15)) (range 24))
+    (map (fn* [p1__91279#] (* (long p1__91279#) 15)) (range 24))
     :minutes),
    :value
    (map
-    (fn* [p1__80994#] (+ 18.0 (* 4.0 (Math/sin (* p1__80994# 0.3)))))
+    (fn* [p1__91280#] (+ 18.0 (* 4.0 (Math/sin (* p1__91280# 0.3)))))
     (range 24))}
   (pj/lay-line :time :value)
   pj/lay-point))
@@ -486,7 +486,7 @@
     :hours),
    :temp
    (map
-    (fn* [p1__80995#] (+ 20.0 (* 5.0 (Math/sin (* p1__80995# 0.5)))))
+    (fn* [p1__91281#] (+ 20.0 (* 5.0 (Math/sin (* p1__91281# 0.5)))))
     (range 12))}
   (pj/lay-line :time :temp)
   pj/lay-point))
@@ -503,7 +503,7 @@
       (= 12 (:points s))
       (= 1 (:lines s))
       (some
-       (fn* [p1__80996#] (re-find #":\d\d" p1__80996#))
+       (fn* [p1__91282#] (re-find #":\d\d" p1__91282#))
        (:texts s)))))
    v87_l355)))
 
@@ -514,11 +514,11 @@
   {:date
    (dt-dt/plus-temporal-amount
     (dtype/const-reader (jt/local-date 2020 1 1) 20)
-    (map (fn* [p1__80997#] (* (long p1__80997#) 120)) (range 20))
+    (map (fn* [p1__91283#] (* (long p1__91283#) 120)) (range 20))
     :days),
    :value
    (map
-    (fn* [p1__80998#] (+ 100 (* 50 (Math/sin (* p1__80998# 0.4)))))
+    (fn* [p1__91284#] (+ 100 (* 50 (Math/sin (* p1__91284# 0.4)))))
     (range 20))}
   (pj/lay-line :date :value)
   pj/lay-point))
@@ -540,7 +540,7 @@
  (->
   (let
    [r (rng/rng :jdk 12)]
-   {:cat (map (fn* [p1__80999#] (str "cat-" p1__80999#)) (range 12)),
+   {:cat (map (fn* [p1__91285#] (str "cat-" p1__91285#)) (range 12)),
     :val (repeatedly 12 (fn* [] (rng/irandom r 100)))})
   (pj/lay-bar :cat :val)
   (pj/coord :polar)))
@@ -629,21 +629,21 @@
 
 
 (def
- v108_l470
+ v108_l471
  (->
   {:x [1 2 3], :y [1 2 3], :n [5 5 5]}
   (pj/lay-point :x :y {:size :n})))
 
 
 (deftest
- t109_l473
+ t109_l474
  (is
   ((fn [v] (= [6.242640687119286] (vec (:sizes (pj/svg-summary v)))))
-   v108_l470)))
+   v108_l471)))
 
 
 (def
- v111_l481
+ v111_l482
  (->
   {:x [1 2 3], :y [1 2 3], :n [1 5 10]}
   (pj/lay-point :x :y {:size :n})
@@ -651,18 +651,18 @@
 
 
 (deftest
- t112_l485
+ t112_l486
  (is
   ((fn
     [v]
     (let
      [ms (->> v pj/plan :size-legend :entries (mapv :magnitude))]
      (and (= 2.0 (last ms)) (apply > ms))))
-   v111_l481)))
+   v111_l482)))
 
 
 (def
- v114_l494
+ v114_l495
  (->
   {:x (range 100), :y (range 0 10 0.1)}
   (pj/lay-point :x :y)
@@ -670,12 +670,12 @@
 
 
 (deftest
- t115_l498
- (is ((fn [v] (= 100 (:points (pj/svg-summary v)))) v114_l494)))
+ t115_l499
+ (is ((fn [v] (= 100 (:points (pj/svg-summary v)))) v114_l495)))
 
 
 (def
- v117_l507
+ v117_l508
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -685,7 +685,7 @@
 
 
 (deftest
- t118_l512
+ t118_l513
  (is
   ((fn
     [v]
@@ -695,7 +695,7 @@
       texts
       (:texts s)
       col-label?
-      (fn* [p1__81000#] (re-find #"sepal|petal" p1__81000#))]
+      (fn* [p1__91286#] (re-find #"sepal|petal" p1__91286#))]
      (and
       (= 9 (:panels s))
       (=
@@ -706,28 +706,28 @@
        (count
         (filter
          (fn*
-          [p1__81001#]
+          [p1__91287#]
           (=
            [:bar]
            (mapv
             :mark
-            (:layers (first (:panels (:plan p1__81001#)))))))
+            (:layers (first (:panels (:plan p1__91287#)))))))
          (:sub-plots (pj/plan v))))))))
-   v117_l507)))
+   v117_l508)))
 
 
 (def
- v120_l527
+ v120_l528
  (try
   (-> {:x [1 2 3], :y [4 5 6]} (pj/lay-point :nonexistent :y) pj/plot)
   (catch Exception e (ex-message e))))
 
 
-(deftest t121_l534 (is ((fn [m] (string? m)) v120_l527)))
+(deftest t121_l535 (is ((fn [m] (string? m)) v120_l528)))
 
 
 (def
- v123_l538
+ v123_l539
  (try
   (->
    {:x [1 2 3], :y [4 5 6]}
@@ -736,11 +736,11 @@
   (catch Exception e (ex-message e))))
 
 
-(deftest t124_l545 (is ((fn [m] (string? m)) v123_l538)))
+(deftest t124_l546 (is ((fn [m] (string? m)) v123_l539)))
 
 
 (def
- v126_l556
+ v126_l557
  (try
   (->
    (tc/dataset {:fitted [1 2 3], :residual [1 2 3]})
@@ -752,7 +752,7 @@
 
 
 (deftest
- t127_l566
+ t127_l567
  (is
   ((fn
     [m]
@@ -761,11 +761,11 @@
      (re-find #"lay-text" m)
      (re-find #"absent from this layer's :data" m)
      (re-find #"on the layer call" m)))
-   v126_l556)))
+   v126_l557)))
 
 
 (def
- v129_l575
+ v129_l576
  (try
   (->
    {:x [1 2 3], :y [4 5 6]}
@@ -776,12 +776,12 @@
 
 
 (deftest
- t130_l583
- (is ((fn [m] (re-find #"not supported with polar" m)) v129_l575)))
+ t130_l584
+ (is ((fn [m] (re-find #"not supported with polar" m)) v129_l576)))
 
 
 (def
- v132_l587
+ v132_l588
  (try
   (->
    {:x [1 2 3]}
@@ -792,33 +792,33 @@
 
 
 (deftest
- t133_l595
- (is ((fn [m] (re-find #"must contain :boxes" m)) v132_l587)))
+ t133_l596
+ (is ((fn [m] (re-find #"must contain :boxes" m)) v132_l588)))
 
 
 (def
- v135_l602
+ v135_l603
  (try
   (-> {:x [1 2 3], :y [4 5 6]} (pj/lay-histogram :x :y))
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t136_l608
+ t136_l609
  (is
   ((fn
     [m]
     (re-find #"lay-histogram draws from one column, and was given" m))
-   v135_l602)))
+   v135_l603)))
 
 
 (def
- v138_l615
+ v138_l616
  (pj/lay-histogram (rdatasets/datasets-iris) {:y :sepal-length}))
 
 
 (deftest
- t139_l617
+ t139_l618
  (is
   ((fn
     [v]
@@ -833,4 +833,4 @@
        first
        :layers
        (mapv :mark)))))
-   v138_l615)))
+   v138_l616)))

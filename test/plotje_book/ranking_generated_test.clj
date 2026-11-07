@@ -327,32 +327,32 @@
 
 
 (def
- v50_l287
+ v50_l288
  (->
   {:index (range 1 41),
    :residual
    (map
     (fn*
-     [p1__79686#]
-     (* (Math/sin p1__79686#) (Math/exp (- (/ p1__79686# 30.0)))))
+     [p1__82159#]
+     (* (Math/sin p1__82159#) (Math/exp (- (/ p1__82159# 30.0)))))
     (range 1 41))}
   (pj/lay-segment :index :residual {:y-end 0})
   (pj/lay-rule-h {:y-intercept 0})))
 
 
 (deftest
- t51_l292
+ t51_l293
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 41 (:lines s)))))
-   v50_l287)))
+   v50_l288)))
 
 
 (def
- v53_l306
+ v53_l307
  (->
   {:team ["Ops" "Sales" "Support" "Research"],
    :before [62 48 71 55],
@@ -363,7 +363,7 @@
 
 
 (deftest
- t54_l313
+ t54_l314
  (is
   ((fn
     [v]
@@ -374,11 +374,11 @@
       (= 4 (:lines s))
       (= 8 (:points s))
       (= ["before" "after"] (mapv :label (:entries (:legend p)))))))
-   v53_l306)))
+   v53_l307)))
 
 
 (def
- v56_l326
+ v56_l327
  (->
   {:team ["Ops" "Sales" "Support" "Research"],
    :before [62 48 71 55],
@@ -389,7 +389,7 @@
 
 
 (deftest
- t57_l333
+ t57_l334
  (is
   ((fn
     [v]
@@ -424,4 +424,4 @@
       (=
        ["before" "after"]
        (mapv :label (:entries (:legend (pj/plan v))))))))
-   v56_l326)))
+   v56_l327)))
