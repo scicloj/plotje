@@ -399,18 +399,57 @@
  (is ((fn [m] (re-find #"which holds categorical values" m)) v65_l435)))
 
 
-(def v68_l468 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
+(def
+ v68_l453
+ (->
+  {:time [1700000000000 1700003600000 1700007200000 1700010800000],
+   :level [3 5 4 6]}
+  tc/dataset
+  (tc/map-columns
+   :time
+   [:time]
+   (fn* [p1__80545#] (java.time.Instant/ofEpochMilli p1__80545#)))
+  (pj/lay-line :time :level)))
 
 
 (deftest
- t69_l472
+ t69_l459
+ (is
+  ((fn
+    [v]
+    (let
+     [ticks (-> v pj/plan :panels first :x-ticks)]
+     (and
+      (false? (:categorical? ticks))
+      (every?
+       (fn* [p1__80546#] (re-matches #"\d\d:\d\d" p1__80546#))
+       (:labels ticks))
+      (try
+       (->
+        {:time [1700000000000 1700003600000], :level [3 5]}
+        (pj/lay-line :time :level {:x-type :temporal})
+        pj/plan)
+       false
+       (catch
+        clojure.lang.ExceptionInfo
+        e
+        (boolean
+         (re-find #"which holds numerical values" (ex-message e))))))))
+   v68_l453)))
+
+
+(def v71_l499 (-> numerical (pj/lay-point :k :v) (pj/scale :x :log)))
+
+
+(deftest
+ t72_l503
  (is
   ((fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))
-   v68_l468)))
+   v71_l499)))
 
 
 (def
- v71_l484
+ v74_l515
  (try
   (->
    numerical
@@ -421,35 +460,35 @@
 
 
 (deftest
- t72_l492
+ t75_l523
  (is
   ((fn [m] (re-find #"set :x-type or :y-type to :categorical" m))
-   v71_l484)))
+   v74_l515)))
 
 
 (def
- v74_l498
+ v77_l529
  (try
   (-> categorical (pj/lay-point :k :v) (pj/scale :x :log) pj/plan)
   (catch clojure.lang.ExceptionInfo e (ex-message e))))
 
 
 (deftest
- t75_l506
- (is ((fn [m] (re-find #"requires numeric data" m)) v74_l498)))
+ t78_l537
+ (is ((fn [m] (re-find #"requires numeric data" m)) v77_l529)))
 
 
 (def
- v77_l514
+ v80_l545
  (-> categorical (pj/lay-point :k :v) (pj/scale :x :linear)))
 
 
 (deftest
- t78_l518
+ t81_l549
  (is
   ((fn
     [v]
     (=
      (pj/svg-summary v)
      (pj/svg-summary (-> categorical (pj/lay-point :k :v)))))
-   v77_l514)))
+   v80_l545)))

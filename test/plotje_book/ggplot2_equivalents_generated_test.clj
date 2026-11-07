@@ -46,7 +46,7 @@
     :data
     (tc/select-rows
      (rdatasets/datasets-iris)
-     (fn* [p1__88907#] (= "setosa" (:species p1__88907#))))})
+     (fn* [p1__80469#] (= "setosa" (:species p1__80469#))))})
   (pj/facet :species)))
 
 
@@ -139,7 +139,7 @@
 
 
 (def
- v18_l179
+ v18_l180
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy)
@@ -147,7 +147,7 @@
 
 
 (deftest
- t19_l183
+ t19_l184
  (is
   ((fn
     [v]
@@ -171,11 +171,11 @@
          (pj/matrix
           (rdatasets/datasets-iris)
           [:sepal-length :petal-length])))))))
-   v18_l179)))
+   v18_l180)))
 
 
 (def
- v21_l210
+ v21_l211
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -187,7 +187,7 @@
 
 
 (deftest
- t22_l217
+ t22_l218
  (is
   ((fn
     [v]
@@ -199,11 +199,11 @@
        "Length (cm)"
        "Width (cm)"
        "Species"])))
-   v21_l210)))
+   v21_l211)))
 
 
 (def
- v24_l237
+ v24_l238
  (try
   (->
    (rdatasets/datasets-iris)
@@ -214,7 +214,7 @@
 
 
 (deftest
- t25_l245
+ t25_l246
  (is
   ((fn
     [m]
@@ -229,4 +229,4 @@
          :quarter
          :revenue
          {:stroke-dash [5 5]}))))))
-   v24_l237)))
+   v24_l238)))

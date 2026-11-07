@@ -395,7 +395,7 @@ two-panel
 ;; [Panels](./plotje_book.panels.html).
 ;;
 ;; On a composite, a layer naming no columns is drawn in every cell,
-;; and a layer naming columns joins the cell that draws them -- see
+;; and a layer naming columns is drawn in the cells that draw them -- see
 ;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
 
 ;; ## The Pose

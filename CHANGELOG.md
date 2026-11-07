@@ -8,11 +8,19 @@ All notable changes to this project will be documented in this file. This change
 
 - **A pose built inside `pj/with-config` and shown after the body returns**, as a notebook shows the value of a form, is drawn under the configuration in effect when it is shown -- the same picture `pj/plot` and `pj/save` draw for it. `pj/with-config` applies to what is rendered inside its body: to keep its theme, end the body in `pj/plot`, as in `(pj/with-config {:theme {:bg "#1a1a2e"}} (-> pose pj/plot))`.
 
-- **A `pj/lay-*` call naming one column on an arrangement**, such as `(pj/lay-smooth {:y :hwy})` on cells drawing `:hwy` and `:cty` against `:displ`, joins the last cell drawing that column on that axis and is drawn against that cell's other column, as a layer naming one column on a single panel is. A cell drawing that column and nothing on the other axis is preferred. Where no cell draws the column on that axis, the layer is drawn on a cell of its own.
+- **A `pj/lay-*` call naming columns on an arrangement** is drawn in every cell whose panel draws no other column on `:x` or `:y` than the call names, and where the call names one column it reads that cell's other column. A smooth naming `:displ` and `:hwy`, added to cells that split the data with `:where`, is drawn in each cell, as it is drawn in each panel of `(pj/facet :drv)`. The layer is drawn under a cell's own layers, as a layer naming no columns is. Where every cell's panel draws another column, the layer is drawn on a cell of its own.
+
+### Added
+
+- **`:cols` wraps a facet into rows.** `(pj/facet pose :class {:cols 4})` draws the panels of a facet by one category in rows of four, each under its strip, sharing both axes -- what ggplot2 writes as `facet_wrap(~ class, ncol = 4)`. The facet draws what `pj/arrange` draws from the cells of that facet given the same `:cols`. When a facet has too many panels to fit, the error suggests `:cols` and a height.
 
 ### Warnings and errors
 
 - **`:panel-size` and `:margin-multi` are retired.** Written as configuration or as a plot option, each warns once, names what to write instead -- `:panel-width` or `:panel-height` for the size of each panel, and `:margin` for the margin of every plot -- and the plot draws without it. Neither changed a plot in 0.17.0, and neither is listed in `pj/config-key-docs`.
+
+### Fixed
+
+- **`pj/lay-line` and `pj/lay-smooth` under `(pj/coord :flip)`** join their points in order of the data's `:x`, as `pj/lay-step`, `pj/lay-area` and ggplot2's `geom_line` do. A flipped time series follows time, and a flipped smooth whose fit turns is drawn as one curve. To join the points in order of the other column, swap the columns in the mapping.
 
 ## [0.17.0 - 2026-11-06]
 

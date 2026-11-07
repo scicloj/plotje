@@ -266,11 +266,12 @@
 ;; A `pj/lay-*` call on an arrangement places its layer by the columns
 ;; it names. In the arrangement above, `pj/lay-point` names no columns,
 ;; so it is **added at the root** of the composite and drawn in every
-;; cell. A call naming columns **joins the last cell** whose panel draws
-;; those columns, or appends a new cell if none does. Here the line of
-;; `:weight` against `:depth` joins the second cell, and the line of
-;; `:height` against `:weight` appends a third, where the points added
-;; at the root are drawn too:
+;; cell. A call naming columns is added at the root too, and is
+;; **drawn in every cell whose panel draws those columns**; where no
+;; cell's panel draws them, the call appends a new cell. Here the line
+;; of `:weight` against `:depth` is drawn in the second cell, and the
+;; line of `:height` against `:weight` appends a third, where the points
+;; added at the root are drawn too:
 
 (-> (pj/arrange measurements [{:x :height :y :weight}
                               {:x :depth :y :weight}])
@@ -279,14 +280,15 @@
     (pj/lay-line :weight :height))
 
 (kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
-                           (and (= [{:layer-type :point}] (:layers v))
-                                (= [[] [:line] [:line]]
+                           (and (= [:point :line] (mapv :layer-type (:layers v)))
+                                (= [[] [] [:line]]
                                    (mapv #(mapv :layer-type (:layers %)) cells))
                                 (= {:panels 3 :points 12 :lines 2}
                                    (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
 
-;; A call naming one column joins the last cell drawing that column on
-;; that axis and reads the cell's other column, as on a leaf.
+;; A call naming one column is drawn in every cell whose panel draws no
+;; other column on that axis, and reads the cell's other column, as on
+;; a leaf.
 
 ;; A cell may also be a template -- a pose with layers and no data, as
 ;; [Reusable Pose Templates](./plotje_book.core_concepts.html#reusable-pose-templates)

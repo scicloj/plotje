@@ -158,10 +158,11 @@ my-pose
 ;;   column where its layer type draws from two.
 ;; - **On a composite** -- a call naming no columns is added at the
 ;;   root and drawn in every cell whose number of columns its layer
-;;   type draws from. A call naming columns joins the last cell whose
-;;   panel draws those columns, or appends a new cell if none does. A
-;;   call naming one column joins the last cell drawing it on that axis,
-;;   and reads the cell's other column.
+;;   type draws from. A call naming columns is added at the root too,
+;;   and drawn in every cell whose panel draws no other column on `:x`
+;;   or `:y` than the call names; where every cell's panel draws another
+;;   column, the call appends a new cell. A call naming one column reads the cell's
+;;   other column.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
@@ -1222,9 +1223,9 @@ my-pose
 ;;
 ;; Annotations are regular layers, so they are placed as any `lay-*`
 ;; is: on a leaf they draw on its panel; on a composite, a call naming
-;; no columns is added at the root, and a call naming columns joins the
-;; last cell whose panel draws them, or appends a new cell where none
-;; does.
+;; no columns is added at the root, and a call naming columns is drawn
+;; in every cell whose panel draws them, or appends a new cell where
+;; none does.
 ;;
 ;; | Constructor | What |
 ;; |:------------|:-----|

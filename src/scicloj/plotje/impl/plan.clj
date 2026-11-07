@@ -4003,20 +4003,19 @@
                                              (pr-str column) ", which holds " n
                                              " values and draws them in one "
                                              (if (= k :__facet-col-column) "row" "column")
-                                             ": a facet does not wrap its panels."
+                                             "."
                                              (when numerical?
                                                (str " For a panel per column, write"
                                                     " (pj/facet pose {:x " (pr-str cols) "})."))
                                              " For"
-                                             " several rows of panels, arrange one"
-                                             " pose per value, each drawing the rows"
-                                             " of that value, and give the"
-                                             " arrangement a height its rows fit in:"
-                                             " (pj/arrange poses {:cols 4 :height "
+                                             " several rows of panels, give the facet"
+                                             " across a number of panels per row with"
+                                             " :cols, and the plot a height its rows"
+                                             " fit in: (pj/facet pose " (pr-str column)
+                                             " {:cols 4 :height "
                                              ;; 120 for each row of four: the
-                                             ;; cells of an arrangement divide
-                                             ;; its height, which does not grow
-                                             ;; with its rows.
+                                             ;; rows divide the plot's height,
+                                             ;; which does not grow with them.
                                              (* 120 (long (Math/ceil (/ n 4.0))))
                                              "}).")
                                         (assoc (ex-data e) :facet column :values n)

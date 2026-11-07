@@ -3413,7 +3413,7 @@
           pv
           (:titled pv)))
 
-(declare note-columns-of-different-size!)
+(declare note-columns-of-different-size! names-another-column?)
 
 (defn pivot-leaf-series
   "A leaf whose series are pivoted: the columns a series reads become a
@@ -3864,7 +3864,8 @@
               ;; layers drawn on it -- its own, and those of the poses
               ;; above it, which every cell below draws.
               ;; A layer naming the column the leaf names draws it.
-              (let [layers (into above (:layers node))]
+              (let [layers (into (vec (remove #(names-another-column? (:mapping node) %) above))
+                                 (:layers node))]
                 (for [k [:x :y]
                       :let [col (mapping-source (get (:mapping node) k))]
                       :when (and (some? col)
@@ -4894,7 +4895,9 @@
 ;; drawn in the cells whose columns it draws: the number of columns the
 ;; cell names is one its layer type draws from (`layer-type/column-counts`
 ;; -- one for a histogram, two for a scatter, either for a bar), and the
-;; layer names no other column on an axis the cell's own mapping names.
+;; layer names no other column on an axis where the cell's panel draws
+;; one -- whether the cell's mapping, a pose above it, or the cell's own
+;; layers name that column.
 ;; A cell left with no layer is a pose with no layers, so it draws what
 ;; inference chooses for its columns -- the histogram on the diagonal of
 ;; a matrix of points -- and a cell naming no column draws nothing.
@@ -4921,8 +4924,14 @@
                              (and (contains? own-mapping k) mine (not= varied mine))))
                    [:x :y]))))
 
-(defn- layer-fits-cell? [cell-mapping own-mapping layer]
-  (and (not (names-another-column? own-mapping layer))
+(defn- layer-fits-cell?
+  "Whether `layer` fits a cell: the cell's panel draws no other column
+   on `:x` or `:y` than the layer names -- wherever the panel's columns
+   are written, on the cell, above it, or on the cell's layers
+   (`cell-mapping`) -- and the layer type draws from the number of
+   columns named."
+  [cell-mapping layer]
+  (and (not (names-another-column? cell-mapping layer))
        (contains? (layer-type/column-counts (:layer-type layer))
                   (columns-named (merge cell-mapping (:mapping layer))))))
 
@@ -5080,82 +5089,85 @@
 
    `fits` and `kept` are per cell, as `fit-layers` computes them."
   [layers entries fits kept data]
-  (let [cell-columns (fn [e] (into {} (for [k [:x :y]
-                                            :let [c (mapping-source (get (:own e) k))]
-                                            :when c]
-                                        [k c])))
-        left (for [[e ls] (map vector entries kept)
-                   :when (and (empty? ls)
-                              (empty? (:layers (:leaf e)))
-                              (pos? (columns-named (:mapping e))))]
-               e)
+  ;; The cells of a facet are marked (`facet-cell`); an arrangement's
+  ;; are not.
+  (when (every? #(:plotje/facet-cell (:leaf %)) entries)
+    (let [cell-columns (fn [e] (into {} (for [k [:x :y]
+                                              :let [c (mapping-source (get (:own e) k))]
+                                              :when c]
+                                          [k c])))
+          left (for [[e ls] (map vector entries kept)
+                     :when (and (empty? ls)
+                                (empty? (:layers (:leaf e)))
+                                (pos? (columns-named (:mapping e))))]
+                 e)
         ;; Cells other layers draw, with the layers each draws.
-        drawn (for [[e ls] (map vector entries kept)
-                    :when (seq ls)]
-                [e ls])]
-    (doseq [[i layer] (map-indexed vector layers)
-            :when (some #(nth % i) fits)
-            :let [lm (:mapping layer)
+          drawn (for [[e ls] (map vector entries kept)
+                      :when (seq ls)]
+                  [e ls])]
+      (doseq [[i layer] (map-indexed vector layers)
+              :when (some #(nth % i) fits)
+              :let [lm (:mapping layer)
                   ;; The axes on which the layer names a column the
                   ;; cell's own mapping does not.
-                  other-axes (fn [e] (filterv (fn [k]
-                                                (let [mine (mapping-source (get lm k))]
-                                                  (and (contains? (:own e) k) mine
-                                                       (not= mine (mapping-source (get (:own e) k))))))
-                                              [:x :y]))
-                  missed (filterv (fn [e]
-                                    (let [axes (other-axes e)]
-                                      (and (seq axes)
+                    other-axes (fn [e] (filterv (fn [k]
+                                                  (let [mine (mapping-source (get lm k))]
+                                                    (and (contains? (:own e) k) mine
+                                                         (not= mine (mapping-source (get (:own e) k))))))
+                                                [:x :y]))
+                    missed (filterv (fn [e]
+                                      (let [axes (other-axes e)]
+                                        (and (seq axes)
                                            ;; Not where inference draws the
                                            ;; layer as written: the same type,
                                            ;; and nothing on the layer but its
                                            ;; columns.
-                                           (not (and (empty? (dissoc lm :x :y))
-                                                     (= (:layer-type layer)
-                                                        (infer-layer-type-key
-                                                         (:mapping e)
-                                                         (or (:data (:leaf e)) data)))))
-                                           (layer-fits-cell? (:mapping e) (:own e)
-                                                             (update layer :mapping
-                                                                     #(apply dissoc % axes))))))
-                                  left)]
-            :when (seq missed)]
-      (let [caller (layer-series-caller layer)
-            axes (vec (distinct (mapcat other-axes missed)))
-            named (str/join " and " (for [k axes] (str (pr-str (mapping-source (get lm k))) " on " k)))
-            panels (fn [es] (str/join ", " (map (comp pr-str cell-columns) es)))
-            drawn-in (filterv (fn [[_ row]] (nth row i)) (map vector entries fits))
-            inferred (vec (distinct (keep (fn [e] (infer-layer-type-key
-                                                   (:mapping e)
-                                                   (or (:data (:leaf e)) data)))
-                                          missed)))
-            many? (next missed)]
-        (println (str "Note: " caller " names " named ", so it is drawn in the "
-                      (if (next drawn-in) "panels" "panel") " of "
-                      (if (next axes) "those columns" "that column")
-                      " only: " (panels (map first drawn-in)) ". "
-                      (if (> (count missed) 3)
-                        (str (count missed) " other panels have")
-                        (str (if many? "The panels " "The panel ") (panels missed)
-                             (if many? " have" " has")))
-                      " no layer, and " (if many? "draw" "draws") " what inference chooses for "
-                      (if many? "their" "its") " columns"
-                      (when (seq inferred)
-                        (str " (" (str/join ", " (map #(str "pj/lay-" (name %)) inferred)) ")"))
-                      ". To draw " caller " in every panel, leave "
-                      (str/join " and " (map str axes)) " off the layer"
-                      (let [kept-axes (remove (set axes) (filter #(mapping-source (get lm %)) [:x :y]))]
-                        (when (seq kept-axes)
-                          (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
-                      "."))))
-    (doseq [[i layer] (map-indexed vector layers)
-            :when (some #(nth % i) fits)
-            :let [lm (:mapping layer)
-                  other-axes (fn [e] (filterv (fn [k]
-                                                (let [mine (mapping-source (get lm k))]
-                                                  (and (contains? (:own e) k) mine
-                                                       (not= mine (mapping-source (get (:own e) k))))))
-                                              [:x :y]))
+                                             (not (and (empty? (dissoc lm :x :y))
+                                                       (= (:layer-type layer)
+                                                          (infer-layer-type-key
+                                                           (:mapping e)
+                                                           (or (:data (:leaf e)) data)))))
+                                             (layer-fits-cell? (:mapping e)
+                                                               (update layer :mapping
+                                                                       #(apply dissoc % axes))))))
+                                    left)]
+              :when (seq missed)]
+        (let [caller (layer-series-caller layer)
+              axes (vec (distinct (mapcat other-axes missed)))
+              named (str/join " and " (for [k axes] (str (pr-str (mapping-source (get lm k))) " on " k)))
+              panels (fn [es] (str/join ", " (map (comp pr-str cell-columns) es)))
+              drawn-in (filterv (fn [[_ row]] (nth row i)) (map vector entries fits))
+              inferred (vec (distinct (keep (fn [e] (infer-layer-type-key
+                                                     (:mapping e)
+                                                     (or (:data (:leaf e)) data)))
+                                            missed)))
+              many? (next missed)]
+          (println (str "Note: " caller " names " named ", so it is drawn in the "
+                        (if (next drawn-in) "panels" "panel") " of "
+                        (if (next axes) "those columns" "that column")
+                        " only: " (panels (map first drawn-in)) ". "
+                        (if (> (count missed) 3)
+                          (str (count missed) " other panels have")
+                          (str (if many? "The panels " "The panel ") (panels missed)
+                               (if many? " have" " has")))
+                        " no layer, and " (if many? "draw" "draws") " what inference chooses for "
+                        (if many? "their" "its") " columns"
+                        (when (seq inferred)
+                          (str " (" (str/join ", " (map #(str "pj/lay-" (name %)) inferred)) ")"))
+                        ". To draw " caller " in every panel, leave "
+                        (str/join " and " (map str axes)) " off the layer"
+                        (let [kept-axes (remove (set axes) (filter #(mapping-source (get lm %)) [:x :y]))]
+                          (when (seq kept-axes)
+                            (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
+                        "."))))
+      (doseq [[i layer] (map-indexed vector layers)
+              :when (some #(nth % i) fits)
+              :let [lm (:mapping layer)
+                    other-axes (fn [e] (filterv (fn [k]
+                                                  (let [mine (mapping-source (get lm k))]
+                                                    (and (contains? (:own e) k) mine
+                                                         (not= mine (mapping-source (get (:own e) k))))))
+                                                [:x :y]))
                   ;; Cells the layer is not drawn in, though it would be
                   ;; with its column left to the facet, whose own layers
                   ;; include none of its type. Only where the layer
@@ -5163,41 +5175,41 @@
                   ;; layers name no column there: a layer naming a
                   ;; cell's two columns, or one layer per panel each
                   ;; naming its own column, is placed on purpose.
-                  missed (filterv (fn [[e ls]]
-                                    (let [axes (other-axes e)]
-                                      (and (= 1 (count axes))
-                                           (not-any? #(mapping-source (get (:mapping %) (first axes))) ls)
-                                           (not-any? #(= (:layer-type layer) (:layer-type %)) ls)
-                                           (layer-fits-cell? (:mapping e) (:own e)
-                                                             (update layer :mapping
-                                                                     #(apply dissoc % axes))))))
-                                  drawn)]
-            :when (seq missed)]
-      (let [caller (layer-series-caller layer)
-            axes (vec (distinct (mapcat (comp other-axes first) missed)))
-            named (str/join " and " (for [k axes] (str (pr-str (mapping-source (get lm k))) " on " k)))
-            panels (fn [es] (str/join ", " (map (comp pr-str cell-columns) es)))
-            drawn-in (filterv (fn [[_ row]] (nth row i)) (map vector entries fits))
-            others (vec (distinct (for [[_ ls] missed l ls]
-                                    (if (keyword? (:layer-type l))
-                                      (str "pj/lay-" (name (:layer-type l)))
-                                      "a layer"))))
-            many? (next missed)]
-        (println (str "Note: " caller " names " named ", so it is drawn in the "
-                      (if (next drawn-in) "panels" "panel") " of "
-                      (if (next axes) "those columns" "that column")
-                      " only: " (panels (map first drawn-in)) ". "
-                      (if (> (count missed) 3)
-                        (str (count missed) " other panels draw")
-                        (str (if many? "The panels " "The panel ") (panels (map first missed))
-                             (if many? " draw" " draws")))
-                      " only " (str/join " and " others)
-                      ". To draw " caller " in every panel, leave "
-                      (str/join " and " (map str axes)) " off the layer"
-                      (let [kept-axes (remove (set axes) (filter #(mapping-source (get lm %)) [:x :y]))]
-                        (when (seq kept-axes)
-                          (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
-                      "."))))))
+                    missed (filterv (fn [[e ls]]
+                                      (let [axes (other-axes e)]
+                                        (and (= 1 (count axes))
+                                             (not-any? #(mapping-source (get (:mapping %) (first axes))) ls)
+                                             (not-any? #(= (:layer-type layer) (:layer-type %)) ls)
+                                             (layer-fits-cell? (:mapping e)
+                                                               (update layer :mapping
+                                                                       #(apply dissoc % axes))))))
+                                    drawn)]
+              :when (seq missed)]
+        (let [caller (layer-series-caller layer)
+              axes (vec (distinct (mapcat (comp other-axes first) missed)))
+              named (str/join " and " (for [k axes] (str (pr-str (mapping-source (get lm k))) " on " k)))
+              panels (fn [es] (str/join ", " (map (comp pr-str cell-columns) es)))
+              drawn-in (filterv (fn [[_ row]] (nth row i)) (map vector entries fits))
+              others (vec (distinct (for [[_ ls] missed l ls]
+                                      (if (keyword? (:layer-type l))
+                                        (str "pj/lay-" (name (:layer-type l)))
+                                        "a layer"))))
+              many? (next missed)]
+          (println (str "Note: " caller " names " named ", so it is drawn in the "
+                        (if (next drawn-in) "panels" "panel") " of "
+                        (if (next axes) "those columns" "that column")
+                        " only: " (panels (map first drawn-in)) ". "
+                        (if (> (count missed) 3)
+                          (str (count missed) " other panels draw")
+                          (str (if many? "The panels " "The panel ") (panels (map first missed))
+                               (if many? " draw" " draws")))
+                        " only " (str/join " and " others)
+                        ". To draw " caller " in every panel, leave "
+                        (str/join " and " (map str axes)) " off the layer"
+                        (let [kept-axes (remove (set axes) (filter #(mapping-source (get lm %)) [:x :y]))]
+                          (when (seq kept-axes)
+                            (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
+                        ".")))))))
 
 (defn- cell-panel-mapping
   "A cell's mapping as merged from the composite down, with the panel's
@@ -5232,7 +5244,7 @@
            entries (vec (leaf-entries (dissoc pose :mapping) m {} []))
            fits (vec (for [e entries
                            :let [cell-mapping (cell-panel-mapping e data)]]
-                       (mapv #(layer-fits-cell? cell-mapping (:own e) %) layers)))
+                       (mapv #(layer-fits-cell? cell-mapping %) layers)))
            fit-somewhere (set (for [row fits [i f] (map-indexed vector row) :when f] i))
            _ (doseq [[i layer] (map-indexed vector layers)
                      :when (not (fit-somewhere i))]
@@ -5283,6 +5295,22 @@
                            (dissoc pose :layers)
                            (map vector entries kept)))]
        (update pose' :poses (fn [ps] (mapv #(fit-layers % m data) ps)))))))
+
+(defn cells-fitting-layer
+  "The panel mappings of the cells of the composite `pose` that `layer`
+   fits, by the rule `fit-layers` draws a layer at a composite's root
+   with: the cell's panel draws no other column on `:x` or `:y` than the
+   layer names, and the layer type draws from the number of columns
+   named. A `lay-*` call on a composite asks this to
+   decide where its layer goes."
+  [pose layer]
+  (let [m (or (:mapping pose) {})
+        entries (leaf-entries (dissoc pose :mapping) m {} [])]
+    (vec (for [e entries
+               :let [cell-mapping (cell-panel-mapping e (:data pose))]
+               :when (and (not (:plotje/empty-cell (:leaf e)))
+                          (layer-fits-cell? cell-mapping layer))]
+           cell-mapping))))
 
 ;; ---- Row filter ----
 

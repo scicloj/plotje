@@ -442,6 +442,37 @@
 (kind/test-last
  [(fn [m] (re-find #"which holds categorical values" m))])
 
+;; ### Numbers that stand for instants
+;;
+;; Many logs and web services write a moment in time as a number: the
+;; milliseconds since the start of 1970. A column of such numbers is
+;; numerical, and asking for `:x-type :temporal` on it reports an error,
+;; as the section above describes. Converting the numbers to instants
+;; in the data gives a temporal column, drawn against a time axis:
+
+(-> {:time [1700000000000 1700003600000 1700007200000 1700010800000]
+     :level [3 5 4 6]}
+    tc/dataset
+    (tc/map-columns :time [:time] #(java.time.Instant/ofEpochMilli %))
+    (pj/lay-line :time :level))
+
+(kind/test-last
+ [(fn [v]
+    (let [ticks (-> v
+                    pj/plan
+                    :panels
+                    first
+                    :x-ticks)]
+      (and (false? (:categorical? ticks))
+           (every? #(re-matches #"\d\d:\d\d" %) (:labels ticks))
+           ;; Asking for :temporal on the numbers themselves reports an error.
+           (try (-> {:time [1700000000000 1700003600000] :level [3 5]}
+                    (pj/lay-line :time :level {:x-type :temporal})
+                    pj/plan)
+                false
+                (catch clojure.lang.ExceptionInfo e
+                  (boolean (re-find #"which holds numerical values" (ex-message e))))))))])
+
 ;; ## The column's type and the scale's type
 ;;
 ;; Two settings are written with the word `:categorical`, and they are

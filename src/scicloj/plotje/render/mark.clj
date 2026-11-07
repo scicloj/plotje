@@ -1239,9 +1239,13 @@
                             (ui/with-stroke-width (or stroke-width 2)
                               (ui/with-style ::ui/style-stroke
                                 (ui/path [px1 py1] [px2 py2]))))))
-            ;; Polyline (connected points)
+            ;; Polyline (connected points), joined in order of data x.
+            ;; The points are sorted after projection so that a
+            ;; categorical x keeps its band order; data x is drawn
+            ;; vertically under `:coord :flip`, horizontally otherwise.
             (let [{:keys [xs ys]} group
-                  projected (sort-by first (map coord-fn xs ys))]
+                  projected (sort-by (if (= :flip (:coord-type ctx)) second first)
+                                     (map coord-fn xs ys))]
               (maybe-dash dash
                           (ui/with-color [cr cg cb op]
                             (ui/with-stroke-width (or stroke-width 2)

@@ -4,12 +4,20 @@
    literal-map poses)."
   (:require [clojure.test :refer [deftest testing is]]
             [tablecloth.api :as tc]
-            [scicloj.plotje.api :as pj]))
+            [scicloj.plotje.api :as pj]
+            [scicloj.plotje.impl.pose :as pose]))
 
 (def tiny-ds
   (tc/dataset {:x [1.0 2.0 3.0 4.0 5.0]
                :y [2.0 4.0 1.0 5.0 3.0]
                :g ["a" "a" "b" "b" "b"]}))
+
+(defn- drawn
+  "The layer types each leaf of a composite draws, in reading order:
+   the composite's own layers fitted to the leaves they fit, then each
+   leaf's layers."
+  [fr]
+  (mapv #(mapv :layer-type (:layers %)) (pose/resolve-tree (pose/fit-layers fr))))
 
 (defn- prelifted
   "Tag a literal pose-shape map with Kindly metadata so it bypasses the
@@ -642,21 +650,22 @@
 ;; ============================================================
 ;;
 ;; The rule extends the Layer Placement section of pose_rules.clj
-;; into composite poses: position-carrying lay-* targets the last leaf
-;; (DFS) whose effective :x/:y match, else appends a new leaf at the
-;; root level. Aesthetic-only or bare
+;; into composite poses: a lay-* naming columns that some leaf's panel
+;; draws is added at the root and drawn in every leaf whose panel draws
+;; no other column on :x or :y; a lay-* naming columns no leaf's panel
+;; draws appends a new leaf at the root level. Aesthetic-only or bare
 ;; lay-* attaches at the root's :layers so descendants inherit it.
 
-(deftest composite-lay-hit-last-matching-leaf-test
-  (testing "two leaves with identical position mapping -- layer attaches to the last"
+(deftest composite-lay-every-matching-leaf-test
+  (testing "two leaves with identical columns -- the layer is drawn in both"
     (let [fr {:poses [{:layers [] :mapping {:x :x :y :y}}
                       {:layers [] :mapping {:x :x :y :y}}]}
           result (pj/lay-point fr :x :y)]
-      (is (empty? (get-in result [:poses 0 :layers]))
-          "first leaf stays empty")
-      (is (= 1 (count (get-in result [:poses 1 :layers])))
-          "layer lands on the last matching leaf (Rule 6)")
-      (is (= :point (get-in result [:poses 1 :layers 0 :layer-type]))))))
+      (is (= [:point] (mapv :layer-type (:layers result)))
+          "the layer is added at the root")
+      (is (every? #(empty? (:layers %)) (:poses result))
+          "no leaf is modified")
+      (is (= [[:point] [:point]] (drawn result))))))
 
 (deftest composite-lay-miss-creates-root-leaf-test
   (testing "no matching leaf -- new leaf appended at root :poses"
@@ -718,8 +727,8 @@
     (let [fr {:mapping {:x :x :y :y}
               :poses  [{:layers []}]}
           result (pj/lay-point fr :x :y)]
-      (is (= 1 (count (get-in result [:poses 0 :layers])))
-          "leaf inherited :x/:y from root and matched the lay-* call"))))
+      (is (= [[:point]] (drawn result))
+          "leaf inherited :x/:y from root and draws the lay-* call's layer"))))
 
 (deftest composite-lay-nested-deep-match-test
   (testing "DFS finds a match at arbitrary depth"
@@ -727,28 +736,21 @@
               {:poses [{:layers [] :mapping {:x :a :y :b}}
                        {:poses [{:layers [] :mapping {:x :a :y :b}}]}]})
           result (pj/lay-point fr :a :b)]
-      (is (empty? (get-in result [:poses 0 :layers]))
-          "shallow match is not picked")
-      (is (= 1 (count (get-in result [:poses 1 :poses 0 :layers])))
-          "deep-last match gets the layer"))))
+      (is (= [[:point] [:point]] (drawn result))
+          "the layer is drawn in the shallow and the deep leaf"))))
 
 (deftest composite-lay-threading-respects-identity-test
-  (testing "threading multiple lay-* on a composite puts each on the matching leaf"
+  (testing "threading multiple lay-* on a composite draws each in every matching leaf"
     (let [fr {:poses [{:layers [] :mapping {:x :a :y :b}}
                       {:layers [] :mapping {:x :a :y :b}}]}
           result (-> fr
                      (pj/lay-point :a :b)
                      (pj/lay-line  :a :b))]
-      (is (empty? (get-in result [:poses 0 :layers]))
-          "first leaf never matches last -- untouched")
-      (is (= [:point :line]
-             (mapv :layer-type (get-in result [:poses 1 :layers])))
-          "both layers accumulate on the last-matching leaf"))))
+      (is (= [:point :line] (mapv :layer-type (:layers result))))
+      (is (= [[:point :line] [:point :line]] (drawn result))))))
 
 (deftest composite-lay-rule5-two-poses-different-layers-test
-  (testing "scatter on leaf 0, view created, then smooth -- ends up on leaf 1"
-    ;; DFS-last identity applied twice: starting from a composite with
-    ;; two same-position leaves, one lay-* lands on each in turn.
+  (testing "a leaf with layers of its own and a bare leaf both draw a smooth naming their columns"
     (let [fr {:poses [{:layers [{:layer-type :point} {:layer-type :placeholder}]
                        :mapping {:x :x :y :y}}
                       {:layers [] :mapping {:x :x :y :y}}]}
@@ -756,8 +758,8 @@
       (is (= [:point :placeholder]
              (mapv :layer-type (get-in result [:poses 0 :layers])))
           "pre-existing leaf is unchanged")
-      (is (= :smooth (get-in result [:poses 1 :layers 0 :layer-type]))
-          "new layer lands on the last matching leaf"))))
+      (is (= [[:smooth :point :placeholder] [:smooth]] (drawn result))
+          "the root's layer is drawn first in each leaf"))))
 
 (deftest composite-lay-preserves-non-matching-leaves-test
   (testing "miss on a composite with a non-matching leaf preserves the leaf"
@@ -879,8 +881,8 @@
       (is (= {:type :log} (get-in result [:mapping :x :scale]))
           "pj/scale writes the mapping, where the scale is read")
       (is (= :polar (get-in result [:opts :coord])))
-      (is (= 1 (count (get-in result [:poses 0 :layers])))
-          "lay-* still landed on the one matching leaf"))))
+      (is (= [[:point]] (drawn result))
+          "lay-* is drawn on the one matching leaf"))))
 
 ;; ============================================================
 ;; pj/pose 4-arity: positional x/y + opts map
@@ -1068,20 +1070,17 @@
 
 (deftest a-layer-joins-a-cell-built-by-lay-test
   ;; A `lay-*` call keeps its columns on its layer, so a cell built by
-  ;; one has no mapping of its own. A composite matches a new layer
-  ;; against the panel's columns, which are the same either way.
+  ;; one has no mapping of its own. A composite fits a new layer to the
+  ;; panel's columns, which are the same either way.
   (let [d {:a [1 2 3 4 5 6] :b [2 3 1 5 4 6] :c [3 1 2 6 5 4]}
-        leaves (fn leaves [pose]
-                 (if (:poses pose) (mapcat leaves (:poses pose)) [pose]))
-        types (fn [pose] (mapv #(mapv :layer-type (:layers %)) (leaves pose)))
         arranged (pj/arrange [(pj/lay-point d :a :b) (pj/lay-point d :a :c)])]
-    (testing "the layer joins the cell drawing its columns"
-      (is (= [[:point :line] [:point]] (types (pj/lay-line arranged :a :b))))
-      (is (= [[:point] [:point :line]] (types (pj/lay-line arranged :a :c)))))
+    (testing "the layer is drawn in the cell drawing its columns"
+      (is (= [[:line :point] [:point]] (drawn (pj/lay-line arranged :a :b))))
+      (is (= [[:point] [:line :point]] (drawn (pj/lay-line arranged :a :c)))))
     (testing "the cells carry their own data, and the pose draws"
       (is (= {:panels 2 :points 12 :lines 1}
              (select-keys (pj/svg-summary (pj/lay-line arranged :a :b))
                           [:panels :points :lines]))))
     (testing "a cell naming its columns in its own mapping is matched as before"
       (is (= [[:line] []]
-             (types (-> d (pj/arrange [{:x :a :y :b} {:x :a :y :c}]) (pj/lay-line :a :b))))))))
+             (drawn (-> d (pj/arrange [{:x :a :y :b} {:x :a :y :c}]) (pj/lay-line :a :b))))))))

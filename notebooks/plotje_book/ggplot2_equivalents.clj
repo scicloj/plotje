@@ -166,7 +166,8 @@
 ;;
 ;; | ggplot2 | Plotje | Taught in |
 ;; |:--|:--|:--|
-;; | `+ facet_wrap(~ drv)` | `(pj/facet pose :drv)`, which draws its panels in one row; `pj/arrange` with `{:cols n}` wraps cells into rows | [Faceting](./plotje_book.faceting.html#coming-from-ggplot2), [Facet or Arrange](./plotje_book.faceting.html#facet-or-arrange) |
+;; | `+ facet_wrap(~ drv)` | `(pj/facet pose :drv)`, which draws its panels in one row | [Faceting](./plotje_book.faceting.html#coming-from-ggplot2) |
+;; | `+ facet_wrap(~ class, ncol = 4)` | `(pj/facet pose :class {:cols 4})` | [Wrapping the panels into rows](./plotje_book.faceting.html#wrapping-the-panels-into-rows) |
 ;; | `+ facet_grid(cyl ~ drv)` | `(pj/facet pose {:col :drv :row :cyl})` | [Faceting](./plotje_book.faceting.html#coming-from-ggplot2) |
 ;; | patchwork's <code>p1 &#124; p2</code> | `(pj/arrange [p1 p2])` | [Composition](./plotje_book.composition.html#side-by-side-via-pjarrange) |
 ;; | `GGally::ggpairs(df, columns = cols)` | `(pj/matrix df cols)` | [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom) |

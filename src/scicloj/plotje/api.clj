@@ -852,6 +852,53 @@
     (contains? (:opts pose) :scales) (update :opts #(retire-scales "A pose's :opts" %))
     (seq (:poses pose)) (update :poses #(mapv retire-scales-in-tree %))))
 
+(declare arrange elide-empty-maps)
+
+(defn- wrap-facets
+  "A pose with each leaf faceted across by one category and given
+   `:cols` (`pj/facet` records it on the leaf's `:layout`) written as
+   the arrangement `pj/arrange` builds from the cells of that facet --
+   one cell per category, each keeping the rows of its category -- with
+   the same `:cols`. So the facet is drawn in rows of that many panels,
+   each under its strip, and draws what the arrangement draws. The
+   categories are read from the data the leaf draws, its own or the
+   nearest above it."
+  ([pose] (wrap-facets pose nil))
+  ([pose data]
+   (let [data (or (:data pose) data)
+         n (get-in pose [:layout :cols])]
+     (cond
+       (seq (:poses pose))
+       (update pose :poses (fn [ps] (mapv #(wrap-facets % data) ps)))
+
+       (or (nil? n) (nil? data))
+       pose
+
+       ;; A facet down or over columns written after the wrapped one
+       ;; makes a grid, whose columns are its own.
+       (or (contains? (:mapping pose) :row) (seq (:facet pose)))
+       (do (println (str "Warning: pj/facet :cols " n " wraps a facet by one"
+                         " category across, and this pose is also faceted "
+                         (if (seq (:facet pose)) "over columns" "down, by :row")
+                         ", which makes a grid; :cols is not used."))
+           (update pose :layout #(not-empty (dissoc % :cols))))
+
+       :else
+       (let [layout (not-empty (dissoc (:layout pose) :cols))
+             leaf (cond-> (assoc pose :data data)
+                    layout (assoc :layout layout)
+                    (nil? layout) (dissoc :layout))
+             listed (pose/expand-facets leaf)
+             cells (-> listed :poses first :poses)
+             ;; The data `expand-facets` left on the leaf: a series
+             ;; pivoted, so the cells filter the long table.
+             base (-> (dissoc listed :poses :layout)
+                      (update :opts #(not-empty (dissoc % :align-panels)))
+                      elide-empty-maps)]
+         (if (seq cells)
+           (arrange base cells {:cols n})
+           pose))))))
+
 (defn pose->draft
   "Single-step transition: convert a pose into a draft. Dispatches on
    pose shape -- a leaf pose becomes a `LeafDraft` (a record carrying
@@ -876,6 +923,7 @@
         ;; Asked of the pose as written, before a facet makes cells.
         _ (pose/report-unread-positions! pose :leaves)
         pose (cond-> pose
+               true wrap-facets
                true pose/expand-facet-nodes
                true pose/collapse-regular-split)]
     (let [draft (if (pose/composite? pose)
@@ -1652,23 +1700,24 @@
                  :key k :column col :available (sort col-names)}))))))
 
 (defn- add-leaf-layer-to-composite
-  "Walk the composite depth-first and append the layer to the last
-   leaf whose effective :x/:y (after ancestor-merge) match
-   `position-mapping`. On miss, append a fresh leaf at the root level
-   (LP3) after firing the new-panel column-existence safety check."
+  "Add a layer naming columns to a composite. A layer that fits some
+   cell (`pose/cells-fitting-layer`) is written at the root, and the
+   draft draws it in every cell it fits (`pose/fit-layers`): a cell
+   excludes it where the cell's panel draws another column on `:x` or
+   `:y`. A layer that fits no cell is drawn on a cell of its own,
+   appended at the root (LP3) after the new-panel column-existence
+   safety check."
   [fr position-mapping layer]
-  (let [path (pose/last-matching-leaf-path fr position-mapping)]
-    ;; The layer keeps the columns it names on its own mapping, on a
-    ;; matching cell and on a new one alike -- a cell's mapping is what
-    ;; `pj/pose` writes, and `lay-*` never writes it.
-    (let [layer (update layer :mapping #(pose/merge-mappings position-mapping %))]
-      (if (some? path)
-        (update-in fr
-                   (conj (pose/path->update-in-path path) :layers)
-                   (fnil conj []) layer)
-        (do
-          (check-new-panel-columns (:layer-type layer)
-                                   position-mapping layer (:data fr))
+  ;; The layer keeps the columns it names on its own mapping, at the
+  ;; root and on a new cell alike -- a cell's mapping is what `pj/pose`
+  ;; writes, and `lay-*` never writes it.
+  (let [layer (update layer :mapping #(pose/merge-mappings position-mapping %))
+        fits-some-cell? (seq (pose/cells-fitting-layer fr layer))]
+    (check-new-panel-columns (:layer-type layer)
+                             position-mapping layer (:data fr))
+    (if fits-some-cell?
+      (update fr :layers (fnil conj []) layer)
+      (do
           ;; The new cell reads the root's data. Where the cells carry
           ;; their own and the root has none, it has nothing to read
           ;; and draws a panel reading "no data".
@@ -1690,26 +1739,7 @@
                                    ")"))
                             ". To keep the new cell, pass its data: (" lay
                             " pose " (str/join " " (map pr-str cols)) " {:data data})."))))
-          ;; Cells that name no column and hold no layer draw nothing,
-          ;; and the layer, naming columns none of them draws, does not
-          ;; reach them: the cells of a split written as filters, as
-          ;; `{:where {:drv "f"}}`, take their columns from the pose.
-          (let [idle (count (filter #(and (nil? (pose/leaf-place %))
-                                          (empty? (:layers %))
-                                          (not (:plotje/empty-cell %)))
-                                    (pose/resolve-tree fr)))]
-            (when (pos? idle)
-              (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
-                    cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])]
-                (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
-                              ", which no cell of this pose draws, so the layer is"
-                              " drawn on a cell of its own, and " idle
-                              (if (= 1 idle) " cell, which names" " cells, which name")
-                              " no column and hold no layer, draw nothing. To draw"
-                              " the layer in every cell, name its columns on the pose"
-                              " and add the layer with none: (-> pose (pj/pose "
-                              (str/join " " (map pr-str cols)) ") " lay ").")))))
-          (append-cells fr [{:layers [layer]}] false))))))
+          (append-cells fr [{:layers [layer]}] false)))))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -3767,32 +3797,53 @@
 
 (defn- facet-options
   "The plot options written last in a `pj/facet` call, given to
-   `pj/options`. `:cols`, which a reader arriving from
-   ggplot2's `facet_wrap` writes here, is named by the call it was
-   written in and the facet it wrote: a facet does not wrap its panels.
-   A `pj/facet` given both `:col` and `:row` draws a grid, and the
-   message says so."
+   `pj/options`, and `:cols`, the number of panels across. A facet by
+   one category across (`:col`) takes `:cols`, recorded on the pose's
+   `:layout` as `pj/arrange` records it, and is drawn in rows of that
+   many panels (`wrap-facets`). Any other facet names `:cols` in a
+   warning: a facet down (`:row`) is one column of panels, a grid has
+   its own columns, and a facet over columns draws a panel per column."
   [pose opts caller]
   (let [held (fn [d] (or (contains? (:mapping pose) d)
                          (and (map? (:facet pose)) (contains? (:facet pose) d))))
         grid? (every? held [:col :row])
-        opts (if (and (map? opts) (contains? opts :cols))
-               (let [msg (str caller " does not recognize [:cols]. "
-                              (cond
-                                grid?
-                                (str "A facet over :col and :row draws a grid, with a"
-                                     " column of panels for each entry under :col and"
-                                     " a row for each entry under :row; for another"
-                                     " number of columns,")
-                                :else
-                                (str "A facet over one column draws its panels in"
-                                     " one row (:col) or one column (:row) and does"
-                                     " not wrap them; for rows of panels,"))
-                              " arrange one pose per value with pj/arrange.")]
-                 (if (:strict (defaults/config))
-                   (throw (ex-info msg {:caller caller :unknown [:cols]}))
-                   (println (str "Warning: " msg)))
-                 (dissoc opts :cols))
+        wraps? (and (contains? (:mapping pose) :col)
+                    (not (held :row))
+                    (empty? (:facet pose))
+                    (not (pose/composite? pose)))
+        cols? (and (map? opts) (contains? opts :cols))
+        cols (when cols? (:cols opts))
+        _ (when (and cols? wraps? (not (pos-int? cols)))
+            (throw (ex-info (str caller " takes :cols as a positive whole number,"
+                                 " the number of panels across, and was given "
+                                 (pr-str cols) ".")
+                            {:caller caller :cols cols})))
+        pose (if (and cols? wraps?)
+               (assoc-in pose [:layout :cols] cols)
+               pose)
+        opts (if cols?
+               (do (when-not wraps?
+                     (let [msg (str caller " does not recognize [:cols]. "
+                                    (cond
+                                      grid?
+                                      (str "A facet over :col and :row draws a grid, with a"
+                                           " column of panels for each entry under :col and"
+                                           " a row for each entry under :row; for another"
+                                           " number of columns,")
+                                      (held :row)
+                                      (str "A facet over :row draws its panels in one"
+                                           " column; :cols wraps a facet across, as in"
+                                           " (pj/facet pose :species {:cols 3}); for rows"
+                                           " of other panels,")
+                                      :else
+                                      (str ":cols wraps a facet by one category, as in"
+                                           " (pj/facet pose :species {:cols 3}); for rows"
+                                           " of other panels,"))
+                                    " arrange one pose per value with pj/arrange.")]
+                       (if (:strict (defaults/config))
+                         (throw (ex-info msg {:caller caller :unknown [:cols]}))
+                         (println (str "Warning: " msg)))))
+                   (dissoc opts :cols))
                opts)]
     (options* caller pose opts)))
 
@@ -3975,7 +4026,11 @@
 
    A map of plot options may come last, and is what `pj/options` takes:
    `(pj/facet my-pose :species {:share-scales #{:x}})` is
-   `(-> my-pose (pj/facet :species) (pj/options {:share-scales #{:x}}))`."
+   `(-> my-pose (pj/facet :species) (pj/options {:share-scales #{:x}}))`.
+   The map may also hold `:cols`, the number of panels across, for a
+   facet by one category across: `(pj/facet my-pose :class {:cols 4})`
+   draws the panels in rows of four, each under its strip, as
+   `pj/arrange` draws the cells of that facet given the same `:cols`."
   ;; The retired `direction` argument is still read, and warns; the
   ;; arglists show the calls to write.
   {:arglists '([pose col] [pose col options])}
@@ -5197,7 +5252,9 @@
    - `(-> data (pose {:x :a :y :b}) (arrange [{:where {:g \"u\"}} {:where {:g \"v\"}}]) (lay-point))`
      -- a cell holding `:where` draws the rows that match, alone or
      beside a mapping. Cells that split the data by one column's
-     values, in the data's order, draw what `pj/facet` draws.
+     values, in the data's order, draw what `pj/facet` given the same
+     `:cols` draws. Without `:cols` an arrangement wraps its cells in
+     rows of four, and a facet draws one row.
 
    The arity is decided by the second argument: a sequential one is
    the cell list, so the first is data or a pose; a map is the options,

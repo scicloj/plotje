@@ -590,38 +590,69 @@ composite-pose
                                     :row {:y [:sepal-length :sepal-width]}})
                          pj/lay-point))))))])
 
-;; ### Rule LP2: on a composite, a `lay-*` naming columns attaches to the last matching leaf
+;; ### Rule LP2: on a composite, a `lay-*` naming columns is drawn in every cell whose panel draws them
 ;;
 ;; When a `lay-*` call names `:x` and `:y` on a composite, and the
-;; panel of at least one leaf draws those two columns, the layer
-;; attaches to the **last such leaf in left-to-right depth-first
-;; order**. The columns of a leaf's panel are the `:x` and `:y` of the
-;; leaf's mapping after the mappings above the leaf are merged in;
-;; where that mapping names no column on an axis, the panel's column on
-;; that axis is the column of the leaf's first layer that names a
-;; column there. The layer's own `:mapping` carries the columns the
-;; call named. This is the
-;; same "most recent matching leaf" rule the teaching chapters
-;; describe, formalized for composite poses where reading-order
-;; depth-first traversal gives the precise answer. Matching is by
-;; strict equality: a column reference is the keyword or string the
-;; user typed, and the two forms are not interchangeable.
+;; panel of at least one cell draws those two columns, the layer is
+;; added to the composite's root `:layers`, as a bare layer is (Rule
+;; LP1), and its own `:mapping` carries the columns the call named.
+;; It is drawn in **every cell whose panel draws no other column** on
+;; `:x` or `:y` than the layer names. The columns of a cell's panel
+;; are the `:x` and `:y` of the cell's mapping after the mappings above
+;; the cell are merged in; where that mapping names no column on an
+;; axis, the panel's column on that axis is the column of the cell's
+;; first layer that names a column there. Matching is by strict
+;; equality: a column reference is the keyword or string the user
+;; typed, and the two forms are not interchangeable.
+;;
+;; Here the trend line names the first cell's columns, so it is drawn
+;; in the first cell only. The second cell draws the points added at
+;; the root:
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
-    (pj/lay-point :sepal-length :sepal-width))
+    pj/lay-point
+    (pj/lay-smooth :sepal-length :sepal-width))
 
 (kind/test-last
  [(fn [pose]
     (and (= 2 (count (cells pose)))
-         (= 1 (count (:layers (first (cells pose)))))
-         (= 0 (count (:layers (second (cells pose)))))
-         (= :point
-            (:layer-type (first (:layers (first (cells pose))))))))])
+         (= [:point :smooth] (mapv :layer-type (:layers pose)))
+         (every? #(empty? (:layers %)) (cells pose))
+         (= [[:point :line] [:point]]
+            (mapv #(mapv :mark (-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :layers))
+                  (:sub-plots (pj/plan pose))))))])
+
+;; Cells that split the data with `:where` all draw the pose's columns,
+;; so a layer naming those columns is drawn in every cell, as it is
+;; drawn in every panel of the facet the cells split:
+
+(-> iris
+    (pj/pose :sepal-length :sepal-width)
+    (pj/arrange [{:where {:species "setosa"}}
+                 {:where {:species "versicolor"}}
+                 {:where {:species "virginica"}}])
+    pj/lay-point
+    (pj/lay-smooth :sepal-length :sepal-width))
+
+(kind/test-last
+ [(fn [pose]
+    (and (= {:panels 3 :points 150 :lines 3}
+            (select-keys (pj/svg-summary pose) [:panels :points :lines]))
+         (= (pj/plot pose)
+            (pj/plot (-> iris
+                         (pj/pose :sepal-length :sepal-width)
+                         pj/lay-point
+                         (pj/lay-smooth :sepal-length :sepal-width)
+                         (pj/facet :species))))))])
 
 ;; A cell built by `lay-*` names its columns on its layer and not in
 ;; its own mapping. The panel's columns are the same either way, so the
-;; layer attaches to that cell too:
+;; layer is drawn in the cell whose layers draw its columns:
 
 (-> (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
                  (pj/lay-point iris :petal-length :petal-width)])
@@ -630,18 +661,22 @@ composite-pose
 (kind/test-last
  [(fn [pose]
     (and (= 2 (count (cells pose)))
-         (= [[:point] [:point :smooth]]
-            (mapv #(mapv :layer-type (:layers %)) (cells pose)))
+         (= [[:point] [:line :point]]
+            (mapv #(mapv :mark (-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :layers))
+                  (:sub-plots (pj/plan pose))))
          (= {:panels 2 :points 300 :lines 1}
             (select-keys (pj/svg-summary pose) [:panels :points :lines]))))])
 
-;; A `lay-*` call naming one column attaches to the last leaf whose
-;; panel draws that column on that axis, and reads that panel's column
-;; on the other axis -- as a layer naming one column on a leaf does
-;; (Rule LP6). A leaf whose panel draws that column and nothing on the
-;; other axis, such as a histogram's cell, is preferred. Here a trend line
-;; naming only `:sepal-width` on `:y` joins the first cell and is drawn
-;; against that cell's `:sepal-length`:
+;; A `lay-*` call naming one column follows the same rule: it is drawn
+;; in every cell whose panel draws no other column on that axis, and
+;; reads that panel's column on the other axis -- as a layer naming one
+;; column on a leaf does (Rule LP6). Here a trend line naming only
+;; `:sepal-width` on `:y` is drawn in the first cell, against that
+;; cell's `:sepal-length`:
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width}
@@ -651,10 +686,18 @@ composite-pose
 
 (kind/test-last
  [(fn [pose]
-    (and (= [[:smooth] []]
-            (mapv #(mapv :layer-type (:layers %)) (cells pose)))
+    (and (= [[:point :line] [:point]]
+            (mapv #(mapv :mark (-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :layers))
+                  (:sub-plots (pj/plan pose))))
          (= {:panels 2 :points 300 :lines 1}
-            (select-keys (pj/svg-summary pose) [:panels :points :lines]))))])
+            (select-keys (pj/svg-summary pose) [:panels :points :lines]))
+         ;; An arrangement's cells are written out, so a layer drawn in
+         ;; some of them prints no Note.
+         (= "" (with-out-str (pj/plan pose)))))])
 
 ;; **Note on leaf-input with other columns.**
 ;; A leaf that already carries columns, called with a `lay-*` that
@@ -718,9 +761,9 @@ composite-pose
 
 ;; ### Rule LP3: on a composite, a `lay-*` naming columns no leaf draws appends a new leaf
 ;;
-;; When a `lay-*` call names `:x` and `:y` and the panel of **no** leaf
-;; draws those two columns -- or names one column and no leaf's panel
-;; draws it on that axis -- a new leaf is appended to the composite. It
+;; When a `lay-*` call names columns and the panel of **every** leaf
+;; draws another column on `:x` or `:y` than the call names, a new leaf
+;; is appended to the composite. It
 ;; holds the one layer, and the layer's own `:mapping` carries the
 ;; columns the call named. On an arrangement made from a flat list of
 ;; cells, the new leaf joins that list, and the arrangement is laid out
@@ -777,7 +820,7 @@ composite-pose
 ;; **Property: a split and an arrangement draw the same panels.**
 ;; Two layers on different columns, split over those columns with
 ;; `pj/facet`, and the same layers attached to a composite built with
-;; `pj/arrange` (LP2 sends each to its matching cell) draw the same
+;; `pj/arrange` (LP2 draws each in its matching cell) draw the same
 ;; panels with the same marks. The pose values differ: the facet keeps
 ;; one leaf and expands it into cells when it is drawn, while
 ;; `pj/arrange` builds a composite.
@@ -1516,8 +1559,8 @@ s2-tree
       (and (some? rule)
            (= 3.0 (get-in rule [:mapping :y-intercept])))))])
 
-;; A rule naming two columns, on a composite, attaches to the leaf that
-;; draws them and is drawn in that leaf's panel only:
+;; A rule naming two columns, on a composite, is drawn in the panel of
+;; the cell that draws them only:
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
@@ -1526,10 +1569,16 @@ s2-tree
 (kind/test-last
  [(fn [pose]
     (and (= 2 (count (cells pose)))
-         (= 1 (count (:layers (first (cells pose)))))
-         (= 0 (count (:layers (second (cells pose)))))
-         (= :rule-h (:layer-type
-                     (first (:layers (first (cells pose))))))))])
+         (= [:rule-h] (mapv :layer-type (:layers pose)))
+         ;; The second cell has no layer, and draws what inference
+         ;; chooses for its columns.
+         (= [[:rule-h] [:point]]
+            (mapv #(mapv :mark (-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :layers))
+                  (:sub-plots (pj/plan pose))))))])
 
 ;; The same call on a pose with one panel draws the rule on that panel.
 ;; The petal columns are not read, so the axes are those of the

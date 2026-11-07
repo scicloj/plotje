@@ -392,10 +392,10 @@
     (let [f (-> iris
                 (pj/arrange [{:x :a :y :b} {:x :c :y :d}])
                 (pj/lay-point :a :b))
-          leaves (pose/resolve-tree f)
+          leaves (pose/resolve-tree (pose/fit-layers f))
           layers-per-leaf (mapv #(count (:layers %)) leaves)]
       (is (= [1 0] layers-per-leaf)
-          "leaf 1 has the layer; leaf 2 does not")))
+          "leaf 1 draws the layer; leaf 2 does not")))
 
   (testing "I3: root aesthetic merges into both resolved leaves' mappings"
     (let [f (-> iris

@@ -43,15 +43,15 @@
       (is (re-find #"is divided among 15 columns of cells" msg))
       (is (not (re-find #"The plot's width" msg))))))
 
-(deftest a-facet-that-does-not-fit-suggests-an-arrangement-that-does-test
+(deftest a-facet-that-does-not-fit-suggests-a-wrapped-facet-that-does-test
   (let [data {:u (vec (range 38)) :v (vec (range 38))
               :g (mapv #(str "g" %) (range 38))}
-        msg (message (-> data (pj/lay-point :u :v) (pj/facet :g)))
+        p (pj/lay-point data :u :v)
+        msg (message (pj/facet p :g))
         height (some->> msg (re-find #"\{:cols 4 :height (\d+)\}") second parse-long)]
     (is (= 1200 height))
     (testing "and the suggested form draws"
-      (let [poses (mapv (fn [g] (pj/lay-point {:u [1.0 2.0] :v [1.0 2.0]} :u :v)) (:g data))]
-        (is (= 38 (drawn (pj/plan (pj/arrange poses {:cols 4 :height height})))))))))
+      (is (= 38 (drawn (pj/plan (pj/facet p :g {:cols 4 :height height}))))))))
 
 (deftest a-cell-pinning-its-own-panel-keeps-its-own-message-test
   (is (re-find #"Each panel would be"

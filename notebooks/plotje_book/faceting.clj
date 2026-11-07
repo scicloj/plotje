@@ -109,6 +109,38 @@
                  (= 3 (:panels (pj/svg-summary omitting)))
                  (re-find #":domain omits \[.4.\]" (with-out-str (pj/plan omitting))))))])
 
+;; ### Wrapping the panels into rows
+;;
+;; A column with many categories gives many narrow panels in one row.
+;; `:cols` in the options map after the facet gives the number of
+;; panels across, and the panels continue on further rows, each under
+;; its strip. Here the seven classes of cars are drawn in rows of four:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :class {:cols 4}))
+
+(kind/test-last
+ [(fn [v]
+    (let [boxes (map (comp :panel-box :frames)
+                     (:panels (pj/frames v)))
+          texts (set (:texts (pj/svg-summary v)))
+          panels (for [sp (:sub-plots (pj/plan v))
+                       panel (:panels (:plan sp))]
+                   panel)]
+      (and (= 7 (:panels (pj/svg-summary v)))
+           (apply = (map :x-domain panels))
+           (apply = (map :y-domain panels))
+           ;; Four columns and two rows of panels.
+           (= 4 (count (distinct (map first boxes))))
+           (= 2 (count (distinct (map second boxes))))
+           ;; A strip per panel.
+           (every? texts ["compact" "midsize" "suv" "2seater"
+                          "minivan" "pickup" "subcompact"]))))])
+
+;; The panels still share both axes. Each column of panels is ticked
+;; once on `:x`, below its lowest panel.
+
 ;; ## Panels Down, and a Grid of Categories
 ;;
 ;; `{:row :species}` puts the panels down, in one column:
@@ -806,12 +838,11 @@ measures
                (re-find #"unexpected key\(s\): \[:share-scales\]" m)
                (re-find #"in a map of its own after this one" m)))])
 
-;; A facet by one column draws its panels in one row, or in one column,
-;; and does not wrap them onto further rows. Where the column holds so
-;; many values that each panel would be narrower than the smallest
-;; panel size, the error names the column and the
-;; number of its values, and suggests arranging one pose per value with
-;; `pj/arrange`, which does wrap:
+;; Where a facet's column holds so many values that each panel would be
+;; narrower than the smallest panel size, the error names the column and
+;; the number of its values, and suggests wrapping the panels with
+;; `:cols` and a height the rows fit in, as in "Wrapping the panels into
+;; rows" above:
 
 (try
   (-> (rdatasets/ggplot2-mpg)
@@ -823,8 +854,8 @@ measures
 (kind/test-last
  [(fn [m] (and (string? m)
                (re-find #"a facet by :model" m)
-               (re-find #"does not wrap its panels" m)
-               (re-find #"pj/arrange poses" m)))])
+               (re-find #"holds 38 values" m)
+               (re-find #"\(pj/facet pose :model \{:cols 4 :height 1200\}\)" m)))])
 
 ;; ## Facet or Arrange
 ;;
@@ -903,9 +934,9 @@ measures
 ;; axes, as the panels of the facet do -- the cells holding data of
 ;; their own, above, share none.
 ;;
-;; The plots agree and the poses do not. The arrangement holds its cells
-;; under `:poses`, and the faceted pose holds no `:poses`, so a layer
-;; added afterwards meets two different poses. Added to the facet,
+;; The plots agree and the poses do not: the arrangement holds its cells
+;; under `:poses`, and the faceted pose holds no `:poses`. A layer added
+;; afterwards is drawn alike in both. Added to the facet,
 ;; `(pj/lay-point :displ :cty)` draws in each of the three panels, in a
 ;; second colour:
 
@@ -923,10 +954,9 @@ measures
            (= 468 (:points s))
            (= ["hwy" "cty"] (mapv :label (:entries (:legend (pj/plan v))))))))])
 
-;; Added to the arrangement, the same layer becomes a fourth cell. The
-;; fourth cell has no `:where`, so it reads every row, and the layer
-;; written on the arrangement reaches it as it reaches the other cells,
-;; so the fourth cell draws `:hwy` and `:cty`:
+;; Added to the arrangement, the same layer is drawn in each of the
+;; three cells, since no cell draws another column on `:x` or `:y`, and
+;; the plot is the facet's:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/lay-point :displ :hwy)
@@ -935,12 +965,12 @@ measures
 
 (kind/test-last
  [(fn [v]
-    (let [s (pj/svg-summary v)]
-      (and (contains? v :poses)
-           (= 4 (:panels s))
-           ;; 234 :hwy points across the three :where cells, and every
-           ;; row twice, :hwy and :cty, in the fourth cell.
-           (= (+ 234 (* 2 234)) (:points s)))))])
+    (and (contains? v :poses)
+         (= (pj/plot v)
+            (pj/plot (-> (rdatasets/ggplot2-mpg)
+                         (pj/lay-point :displ :hwy)
+                         (pj/facet :drv)
+                         (pj/lay-point :displ :cty))))))])
 
 ;; The cells of an arrangement can also be plots of different kinds,
 ;; which the panels of a facet cannot. Here a cell naming two columns
@@ -957,10 +987,10 @@ measures
                   layer (:layers panel)]
               (:mark layer)))))])
 
-;; A facet by one column does not wrap its panels onto further rows. An
-;; arrangement wraps its cells into rows: `{:cols 2}` in its options
-;; places the three `:where` cells in two columns. Each cell keeps its
-;; strip, and the cells still share both axes:
+;; An arrangement wraps its cells into rows with `:cols`, as a facet
+;; wraps its panels. `{:cols 2}` places the three `:where` cells in two
+;; columns, and draws what the facet by `:drv` given `{:cols 2}` draws.
+;; Each cell keeps its strip, and the cells still share both axes:
 
 (-> (rdatasets/ggplot2-mpg)
     (pj/lay-point :displ :hwy)
@@ -982,7 +1012,11 @@ measures
            ;; A strip per cell.
            (every? texts ["f" "4" "r"])
            (apply = (map :x-domain panels))
-           (apply = (map :y-domain panels)))))])
+           (apply = (map :y-domain panels))
+           (= (pj/plot v)
+              (pj/plot (-> (rdatasets/ggplot2-mpg)
+                           (pj/lay-point :displ :hwy)
+                           (pj/facet :drv {:cols 2})))))))])
 
 ;; So write `pj/facet` when the panels are parts of one plot: one
 ;; dataset and the same layers, divided by the categories of a column or
@@ -990,8 +1024,8 @@ measures
 ;; is written on, as "A composite can be faceted" above shows. Write
 ;; `pj/arrange` when the cells are different plots -- different data,
 ;; different layers, a dashboard -- or when the layout needs what only a
-;; list of cells can say: a column count, an empty cell written `nil`,
-;; rows of different lengths, or one arrangement placed inside another.
+;; list of cells can say: an empty cell written `nil`, rows of different
+;; lengths, or one arrangement placed inside another.
 ;; A layer holding data of its own is drawn whole in every panel of a
 ;; facet, so a reference line computed for each category needs an
 ;; arrangement, as
@@ -1060,7 +1094,8 @@ measures
 ;;
 ;; | ggplot2 | Plotje |
 ;; |:--|:--|
-;; | `facet_wrap(~ drv)` | `(pj/facet pose :drv)` draws the panels in one row and does not wrap them; `pj/arrange` with `{:cols n}` wraps poses into rows |
+;; | `facet_wrap(~ drv)` | `(pj/facet pose :drv)`, which draws the panels in one row |
+;; | `facet_wrap(~ class, ncol = 4)` | `(pj/facet pose :class {:cols 4})` |
 ;; | `facet_grid(cyl ~ drv)` | `(pj/facet pose {:col :drv :row :cyl})` |
 ;; | `facet_wrap(scales = "free")` | `{:share-scales #{}}` in the options map after the facet, which fits each panel to its own rows |
 ;; | `facet_grid(scales = "free")` | `{:share-scales #{}}`, which fits `:x` and `:y` to each panel; ggplot2 fits `:x` to each column of panels and `:y` to each row, which has no Plotje spelling |
