@@ -164,7 +164,11 @@ multi-layer
 (kind/test-last
  [(fn [fr]
     (= [30 12]
-       (->> fr pj/plan :panels first :layers
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
             (mapv (comp :radius :style)))))])
 
 ;; The same rule lets a value label sit on a bar: add the label after
@@ -185,7 +189,12 @@ multi-layer
 (kind/test-last
  [(fn [fr]
     (= [:rect :text]
-       (->> fr pj/plan :panels first :layers (mapv :mark))))])
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
+            (mapv :mark))))])
 
 ;; Swapping the two calls swaps which layer paints on top -- paint
 ;; order follows the order layers were added, not the layer type. Ask
@@ -200,7 +209,12 @@ multi-layer
 (kind/test-last
  [(fn [fr]
     (= [:text :rect]
-       (->> fr pj/plan :panels first :layers (mapv :mark))))])
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
+            (mapv :mark))))])
 
 ;; ## Inference fills the gaps
 ;;

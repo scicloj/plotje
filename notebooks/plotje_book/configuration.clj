@@ -656,6 +656,7 @@ precedence-point-radius
 
 ;; ## What's Next
 ;;
+;; - [**Scales**](./plotje_book.scales.html) -- types, domains, ranges, and the scale spec each aesthetic reads
 ;; - [**Customization**](./plotje_book.customization.html) -- titles, color scales, palettes, and themes
 ;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes, and in what units
 ;; - [**Faceting**](./plotje_book.faceting.html) -- split plots into panels by category

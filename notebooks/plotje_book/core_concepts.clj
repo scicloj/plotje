@@ -377,9 +377,8 @@ two-panel
 ;; layers find their pose? The rule depends on whether the pose is a
 ;; leaf or a composite.
 ;;
-;; - On a leaf, `pj/lay-*` **adds the layer to that leaf**. A leaf
-;;   draws one panel, and its layers share it, whatever columns they
-;;   name.
+;; On a leaf, `pj/lay-*` **adds the layer to that leaf**. A leaf draws
+;; one panel, and its layers share it, whatever columns they name:
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     (pj/lay-bar :growth :cohort)
@@ -393,38 +392,11 @@ two-panel
 ;; Each layer takes a color and a legend entry naming its column, and
 ;; the axis title names both columns.
 ;; Separate panels come from `pj/facet` and `pj/arrange` -- see
-;; [Faceting and Multi-Panel Layouts](#faceting-and-multi-panel-layouts) below.
+;; [Panels](./plotje_book.panels.html).
 ;;
-;; - On a composite, `pj/lay-*` naming no columns is **added at the
-;;   root** and drawn in every cell.
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
-    pj/lay-point)
-
-(kind/test-last [(fn [v] (and (= [{:layer-type :point}] (:layers v))
-                              (= {:panels 2 :points 468}
-                                 (select-keys (pj/svg-summary v) [:panels :points]))))])
-
-;; - On a composite, `pj/lay-*` naming columns **joins the last cell**
-;;   whose panel draws those columns, or appends a new cell if none
-;;   does. Here the smoother of `:cty` against `:displ` joins the second
-;;   cell, and the smoother of `:hwy` against `:cty` appends a third,
-;;   where the points added at the root are drawn too. A call naming one
-;;   column joins the last cell drawing that column on that axis and
-;;   reads the cell's other column, as on a leaf.
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
-    pj/lay-point
-    (pj/lay-smooth :displ :cty)
-    (pj/lay-smooth :cty :hwy))
-
-(kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
-                           (and (= [[] [:smooth] [:smooth]]
-                                   (mapv #(mapv :layer-type (:layers %)) cells))
-                                (= {:panels 3 :points 702 :lines 2}
-                                   (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
+;; On a composite, a layer naming no columns is drawn in every cell,
+;; and a layer naming columns joins the cell that draws them -- see
+;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
 
 ;; ## The Pose
 ;;
@@ -629,19 +601,9 @@ scatter-with-regression
 
 ;; `pj/lay-*` given `nil` in place of data also makes a template:
 ;; `(pj/lay-point nil :displ :hwy)` is a pose with a point layer and no
-;; data. When `pj/arrange` is given data first, a template can be one
-;; of its cells, and the cell draws from the arrangement's data. Here a
-;; cell with layers of its own sits beside a cell drawn by inference:
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [(-> (pj/lay-point nil :displ :hwy)
-                     (pj/lay-smooth {:stat :linear-model}))
-                 {:x :displ :y :cty}]))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (= 1 (:lines s))
-                                (= 468 (:points s)))))])
+;; data. A template can also be a cell of an arrangement given data
+;; first -- see
+;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
 
 ;; `pj/with-data` validates at attach time: if the dataset is
 ;; missing a column the pose references, it reports an error naming
@@ -742,7 +704,12 @@ scatter-with-regression
 
 (kind/test-last
  [(fn [v]
-    (let [layer (-> v pj/plan :panels first :layers first)
+    (let [layer (-> v
+                    pj/plan
+                    :panels
+                    first
+                    :layers
+                    first)
           shape-values (set (mapcat :shapes (:groups layer)))
           s (pj/svg-summary v)]
       (and (= 3 (count shape-values))
@@ -859,7 +826,11 @@ scatter-with-regression
     (pj/coord :fixed))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
-                               [_ _ w h] (-> (pj/frames v) :panels first :frames :drawing-area)]
+                               [_ _ w h] (-> (pj/frames v)
+                                             :panels
+                                             first
+                                             :frames
+                                             :drawing-area)]
                            (and (= 4 (:points s))
                                 ;; :fixed narrowed the canvas; the
                                 ;; default width is 600.
@@ -883,7 +854,7 @@ scatter-with-regression
 ;; can name its own scale for one aesthetic, which takes precedence
 ;; there.
 
-;; ## Faceting and Multi-Panel Layouts
+;; ## Panels
 ;;
 ;; **Faceting** splits a pose into panels by a column's values:
 
@@ -910,66 +881,22 @@ scatter-with-regression
 
 (kind/test-last [(fn [v] (= :species (get-in v [:mapping :col])))])
 
-;; Several columns in the mapping, `{:x [...]}`, are read as a
-;; **series**: the columns are drawn on one panel, each in a color of
-;; its own:
-
-(-> (rdatasets/datasets-iris)
-    (pj/lay-histogram {:x [:sepal-length :sepal-width :petal-length]}))
-
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 3 (count (disj (:colors s) "none"))))))])
-
-;; Use `pj/facet` over the columns to create one panel per variable:
-
-(-> (rdatasets/datasets-iris)
-    (pj/facet {:x [:sepal-length :sepal-width :petal-length]})
-    (pj/lay-histogram))
-
-(kind/test-last [(fn [v] (and (= 3 (:panels (pj/svg-summary v)))
-                              (= {:x [:sepal-length :sepal-width :petal-length]}
-                                 (:facet v))
-                              (nil? (:mapping v))))])
-
-;; A facet over columns is kept under the pose's `:facet` key rather
-;; than in its mapping.
-
-;; To place whole poses side by side, use `pj/arrange`. Here a
-;; histogram and a density of one column:
-
-(pj/arrange
- [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-width))
-  (-> (rdatasets/datasets-iris) (pj/lay-density :sepal-width))])
-
-(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
-
-;; Each sub-pose inside `pj/arrange` can have its own data, mapping,
-;; layers, and options -- they are independent plots tiled into a
-;; single rendered image.
-
-;; ### Columns and categories, inside and across panels
-;;
-;; Two things to compare are either two columns or two categories of
-;; one column, and they are drawn either inside one panel or in panels
-;; of their own. The table names the form of this section, or the
-;; `:color` from Color and Grouping, that draws each combination:
-;;
-;; | | inside one panel | across panels |
-;; |:--|:--|:--|
-;; | two columns | a series, `{:x [:sepal-length :sepal-width]}` | a facet over columns, `(pj/facet pose {:x [...]})`, or `pj/arrange` |
-;; | two categories | an aesthetic, `{:color :species}` | a facet over categories, `(pj/facet pose :species)` |
-;;
-;; A series is drawn by pivoting its columns into a key column,
-;; `:series`, mapped to `:color`, so two columns on one panel are drawn
-;; as two categories are: a color and a legend entry each. See the
-;; [Series](./plotje_book.series.html) and
-;; [Faceting](./plotje_book.faceting.html) chapters.
+;; A facet over columns, `(pj/facet pose {:x [:sepal-length :sepal-width]})`,
+;; draws a panel per column, and is kept under the pose's `:facet` key
+;; rather than in its mapping. `pj/arrange` places whole poses side by
+;; side, each pose a cell of one composite.
+;; [Panels](./plotje_book.panels.html) shows each form, which form draws
+;; two columns or two categories inside one panel or across panels, and
+;; how the forms combine.
 
 ;; ## What's Next
 ;;
-;; To start making plots, the chart-type chapters are the natural
-;; next stop:
+;; On a first read, the path through Foundations continues here:
+;;
+;; - [**Panels**](./plotje_book.panels.html) -- where panels come from, and which forms draw two things inside one panel or across panels
+;; - [**Specifying Aesthetics**](./plotje_book.specifying_aesthetics.html) -- how to write what a mapping means, in full or in shorthand
+;;
+;; To start making plots, the chart-type chapters follow:
 ;;
 ;; - [**Distributions**](./plotje_book.distributions.html), [**Ranking**](./plotje_book.ranking.html), [**Change Over Time**](./plotje_book.change_over_time.html), and [**Relationships**](./plotje_book.relationships.html) -- recipes for common plotting goals
 ;;

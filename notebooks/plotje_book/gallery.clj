@@ -710,7 +710,11 @@
 
 (kind/test-last [(fn [v] (let [mtcars (rdatasets/datasets-mtcars)
                                by-name (zipmap (:rownames mtcars) (:mpg mtcars))
-                               cars (-> v pj/plan :panels first :y-domain)]
+                               cars (-> v
+                                        pj/plan
+                                        :panels
+                                        first
+                                        :y-domain)]
                            (and (= 32 (:points (pj/svg-summary v)))
                                 (= 32 (count cars))
                                 (apply <= (map by-name cars)))))])

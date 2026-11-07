@@ -151,9 +151,22 @@ plants
            ;; One group, and the colors ride on it one per row: a column
            ;; drawn as it stands holds drawn values, not data, so it
            ;; does not split the rows.
-           (= 1 (count (-> p :panels first :layers first :groups)))
+           (= 1 (count (-> p
+                           :panels
+                           first
+                           :layers
+                           first
+                           :groups)))
            (= [(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
-              (-> p :panels first :layers first :groups first :colors first)))))])
+              (-> p
+                  :panels
+                  first
+                  :layers
+                  first
+                  :groups
+                  first
+                  :colors
+                  first)))))])
 
 ;; The first plant's `:shade` is `"#EE7733"`, and the first mark is
 ;; drawn in exactly that color.
@@ -174,7 +187,12 @@ plants
 
 (kind/test-last
  [(fn [fr]
-    (let [layer (-> fr pj/plan :panels first :layers first)]
+    (let [layer (-> fr
+                    pj/plan
+                    :panels
+                    first
+                    :layers
+                    first)]
       (and (= 1 (count (:groups layer)))
            (= 3 (count (:colors (first (:groups layer))))))))])
 
@@ -219,7 +237,12 @@ plants
  [(fn [fr]
     (let [p (pj/plan fr)]
       (and (nil? (:legend p))
-           (= 1 (count (-> p :panels first :layers first :groups))))))])
+           (= 1 (count (-> p
+                           :panels
+                           first
+                           :layers
+                           first
+                           :groups))))))])
 
 ;; ## A written value, read through the scale
 ;;
@@ -256,12 +279,22 @@ plants
 (kind/test-last
  [(fn [fr]
     (let [p (pj/plan fr)
-          ivy (->> p :legend :entries
+          ivy (->> p
+                   :legend
+                   :entries
                    (filter (fn [e] (= "ivy" (:label e))))
-                   first :color)]
+                   first
+                   :color)]
       ;; The line is the second layer, and it draws a single group.
       (and (= ["fern" "moss" "ivy"] (mapv :label (:entries (:legend p))))
-           (= ivy (-> p :panels first :layers second :groups first :color)))))])
+           (= ivy (-> p
+                      :panels
+                      first
+                      :layers
+                      second
+                      :groups
+                      first
+                      :color)))))])
 
 ;; So a layer with no column of its own can be drawn in the color the
 ;; scale already gives a category. A value the column does not hold is a
@@ -302,7 +335,10 @@ plants
     (pj/lay-point :height :weight {:color :weight}))
 
 (kind/test-last
- [(fn [fr] (= :continuous (-> fr pj/plan :legend :type)))])
+ [(fn [fr] (= :continuous (-> fr
+                              pj/plan
+                              :legend
+                              :type)))])
 
 ;; The same four combinations exist for `:size`, where the scale turns numbers into
 ;; radii, and for `:alpha`, where it turns numbers into opacities.
@@ -357,7 +393,11 @@ plants
 (kind/test-last
  [(fn [fr]
     (let [p (pj/plan fr)]
-      (and (= 9 (:radius (:style (-> p :panels first :layers first))))
+      (and (= 9 (:radius (:style (-> p
+                                     :panels
+                                     first
+                                     :layers
+                                     first))))
            (nil? (:legend p)))))])
 
 ;; On the positional aesthetics -- `:x`, `:y` and the range endpoints
@@ -372,7 +412,11 @@ plants
     (pj/lay-text {:x 20 :y 6.0 :text "target"}))
 
 (kind/test-last
- [(fn [fr] (<= 6.0 (second (-> fr pj/plan :panels first :y-domain))))])
+ [(fn [fr] (<= 6.0 (second (-> fr
+                               pj/plan
+                               :panels
+                               first
+                               :y-domain))))])
 
 ;; The two groups differ because what people usually mean differs. A
 ;; number written for `:x` or `:y` is usually a place in the data -- a
@@ -478,7 +522,15 @@ plants
         [(/ 170.0 255) (/ 51.0 255) (/ 119.0 255) 1.0]
         [(/ 238.0 255) (/ 119.0 255) (/ 51.0 255) 1.0]
         [0.0 0.0 0.0 1.0]]
-       (-> fr pj/plan :panels first :layers first :groups first :colors)))])
+       (-> fr
+           pj/plan
+           :panels
+           first
+           :layers
+           first
+           :groups
+           first
+           :colors)))])
 
 ;; `{:column :shade :scale false}` draws the same plot here, and the
 ;; two differ on data that carries no such column. `:column` requires
@@ -492,7 +544,14 @@ plants
 (kind/test-last
  [(fn [fr]
     (and (= [[1.0 0.0 0.0 1.0]]
-            (->> fr pj/plan :panels first :layers first :groups (mapv :color)))
+            (->> fr
+                 pj/plan
+                 :panels
+                 first
+                 :layers
+                 first
+                 :groups
+                 (mapv :color)))
          ;; The same name under :column, on the same data, is refused.
          (re-find #"Column :red \(from :color\) not found"
                   (try (-> plants
@@ -525,7 +584,10 @@ plants
 
 (kind/test-last
  [(fn [fr]
-    (let [panel (-> fr pj/plan :panels first)]
+    (let [panel (-> fr
+                    pj/plan
+                    :panels
+                    first)]
       (and (true? (:y-drawn? (last (:layers panel))))
            (< (second (:y-domain panel)) 14))))])
 
@@ -565,7 +627,13 @@ named-after-a-color
     (let [p (pj/plan fr)]
       (and (nil? (:legend p))
            (= [[0.0 0.0 1.0 1.0]]
-              (->> p :panels first :layers first :groups (mapv :color))))))])
+              (->> p
+                   :panels
+                   first
+                   :layers
+                   first
+                   :groups
+                   (mapv :color))))))])
 
 ;; `{:column "blue"}` is the column. Two groups, two palette colors, and
 ;; a legend reading the column's two values.
@@ -598,7 +666,11 @@ integer-named
     (pj/lay-point {:x 0 :y 1}))
 
 (kind/test-last
- [(fn [fr] (= [0.9 3.1] (-> fr pj/plan :panels first :x-domain)))])
+ [(fn [fr] (= [0.9 3.1] (-> fr
+                            pj/plan
+                            :panels
+                            first
+                            :x-domain)))])
 
 ;; That is the reading the data gives it, not a reading of the number.
 ;; On a dataset with no column named 0 the same mapping places every
@@ -609,7 +681,11 @@ integer-named
     (pj/lay-point {:x 0 :y :weight}))
 
 (kind/test-last
- [(fn [fr] (= [-1.0 1.0] (-> fr pj/plan :panels first :x-domain)))])
+ [(fn [fr] (= [-1.0 1.0] (-> fr
+                             pj/plan
+                             :panels
+                             first
+                             :x-domain)))])
 
 ;; So the same code means different things on differently named data.
 ;; Where that matters, write the mapping in full, and the data does
@@ -620,7 +696,11 @@ integer-named
     (pj/lay-point {:x {:column 0} :y 1}))
 
 (kind/test-last
- [(fn [fr] (= [0.9 3.1] (-> fr pj/plan :panels first :x-domain)))])
+ [(fn [fr] (= [0.9 3.1] (-> fr
+                            pj/plan
+                            :panels
+                            first
+                            :x-domain)))])
 
 ;; and `{:value 0}` places every mark at zero even where a column named
 ;; 0 is there to be read:
@@ -629,7 +709,11 @@ integer-named
     (pj/lay-point {:x {:value 0} :y 1}))
 
 (kind/test-last
- [(fn [fr] (= [-1.0 1.0] (-> fr pj/plan :panels first :x-domain)))])
+ [(fn [fr] (= [-1.0 1.0] (-> fr
+                             pj/plan
+                             :panels
+                             first
+                             :x-domain)))])
 
 ;; ## What `:scale` accepts
 ;;
@@ -643,7 +727,10 @@ integer-named
     (pj/lay-point :height :weight {:size {:column :weight :scale :log}}))
 
 (kind/test-last
- [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
+ [(fn [fr] (= :log (-> fr
+                       pj/plan
+                       :size-legend
+                       :scale-type)))])
 
 ;; A spec is the same map `pj/scale` takes -- the same keys, checked
 ;; the same way -- so a mapping can set the range an aesthetic spans
@@ -663,9 +750,16 @@ integer-named
                     ;; the planning.
                     (try (pj/plan (build)) "no error"
                          (catch clojure.lang.ExceptionInfo e (ex-message e))))]
-      (and (= (->> fr pj/plan :size-legend :entries (mapv :magnitude))
+      (and (= (->> fr
+                   pj/plan
+                   :size-legend
+                   :entries
+                   (mapv :magnitude))
               (->> (-> plants (pj/lay-point :height :weight {:size :weight}))
-                   pj/plan :size-legend :entries (mapv #(* 2 (:magnitude %)))))
+                   pj/plan
+                   :size-legend
+                   :entries
+                   (mapv #(* 2 (:magnitude %)))))
            ;; "Checked the same way": a value neither can carry out is
            ;; refused from a mapping as it is from pj/scale. The
            ;; mapping used to accept this one and draw every mark with
@@ -709,7 +803,12 @@ integer-named
     (pj/lay-point {:x {:column :height :scale {:type :log}} :y :weight}))
 
 (kind/test-last
- [(fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))])
+ [(fn [fr] (= :log (-> fr
+                       pj/plan
+                       :panels
+                       first
+                       :x-scale
+                       :type)))])
 
 ;; A panel has one x axis and one y axis, and every layer is drawn
 ;; against them, so a panel carries one scale per axis. Two layers
@@ -807,3 +906,7 @@ integer-named
 ;; spread across three places -- inside `aes()`, outside it, and in a
 ;; `scale_*` call. In Plotje the two questions are answered in the
 ;; mapping itself, by the two keys.
+;;
+;; [ggplot2 Equivalents](./plotje_book.ggplot2_equivalents.html)
+;; collects the Plotje spellings of other ggplot2 functions -- layers,
+;; scales, coordinates, facets and labels.

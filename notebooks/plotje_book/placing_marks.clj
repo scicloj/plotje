@@ -91,7 +91,11 @@
 (kind/test-last
  [(fn [fr]
     (= [:left :center :right]
-       (->> fr pj/plan :panels first :layers
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
             (filter #(= :text (:mark %)))
             (mapv #(-> % :style :align-x)))))])
 
@@ -110,16 +114,25 @@
 
 (kind/test-last
  [(fn [fr]
-    (let [style-of (->> fr pj/plan :panels first :layers
+    (let [style-of (->> fr
+                        pj/plan
+                        :panels
+                        first
+                        :layers
                         (filter #(= :text (:mark %)))
-                        first :style)
+                        first
+                        :style)
           text-style
           (fn [layer-fn opts]
             (->> (-> {:x [1] :y [1] :t ["a"]}
                      (layer-fn :x :y (merge {:text :t} opts)))
-                 pj/plan :panels first :layers
+                 pj/plan
+                 :panels
+                 first
+                 :layers
                  (filter #(= :text (:mark %)))
-                 first :style
+                 first
+                 :style
                  (#(select-keys % [:align-x :align-y]))))]
       (and
        (= :center (:align-x style-of))
@@ -188,7 +201,10 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (let [panel (-> fr pj/frames :panels first)
+    (let [panel (-> fr
+                    pj/frames
+                    :panels
+                    first)
           at    #(first (pj/to-drawing panel % 20.0))]
       ;; Wider bounds than the bare scatter would give: this pose carries
       ;; the labels, so its axis was widened to make room for them.
@@ -205,7 +221,10 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (let [panel (-> fr pj/frames :panels first)
+    (let [panel (-> fr
+                    pj/frames
+                    :panels
+                    first)
           at    #(first (pj/to-drawing panel % 20.0))]
       (and (= [79.0 460.0]
               [(reduce min (cars :disp)) (reduce max (cars :disp))])
@@ -225,7 +244,12 @@ cars
 (kind/test-last
  [(fn [fr]
     (= [nil 10]
-       (->> fr pj/plan :panels first :layers (mapv :offset-x))))])
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
+            (mapv :offset-x))))])
 
 ;; Every layer type accepts these two options. `:offset-y -6` lifts each
 ;; value label six drawing units above its bar -- negative, because a
@@ -240,7 +264,12 @@ cars
 (kind/test-last
  [(fn [fr]
     (= [nil -6]
-       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
+            (mapv :offset-y))))])
 
 ;; A `:dx` along a categorical axis is a fraction of a band. The
 ;; categories carry no numbers of their own, so the amount is counted in
@@ -262,7 +291,12 @@ cars
 (kind/test-last
  [(fn [fr]
     (and (= [nil 0.5]
-            (->> fr pj/plan :panels first :layers (mapv :dx)))
+            (->> fr
+                 pj/plan
+                 :panels
+                 first
+                 :layers
+                 (mapv :dx)))
          ;; Half a band along from a category is the place halfway to the
          ;; next one, so a `:dx` draws what writing that place draws. The
          ;; picture above shifts every row from its own bar, which no one
@@ -354,8 +388,14 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (let [panel (-> fr pj/plan :panels first)
-          panel-entry (-> fr pj/frames :panels first)
+    (let [panel (-> fr
+                    pj/plan
+                    :panels
+                    first)
+          panel-entry (-> fr
+                          pj/frames
+                          :panels
+                          first)
           at (fn [v] (first (pj/to-drawing panel-entry v 4.5)))]
       (and (= ["red" "green" "blue"] (:x-domain panel))
            (= ["red" "green" "blue"] (:values (:x-ticks panel)))
@@ -394,7 +434,10 @@ cars
     (and (some #{"the 2021 cohort"} (:texts (pj/svg-summary (pj/plot fr))))
          ;; The named category is the middle band, which is place 2 --
          ;; the two readings meet there, and part elsewhere.
-         (let [panel (-> fr pj/frames :panels first)]
+         (let [panel (-> fr
+                         pj/frames
+                         :panels
+                         first)]
            (= (first (pj/to-drawing panel "2021" 5.5))
               (first (pj/to-drawing panel 2 5.5))))
          ;; The bare number is the reading this example is not asking
@@ -421,7 +464,10 @@ cars
 
 (kind/test-last
  [(fn [fr]
-    (let [panel (-> fr pj/frames :panels first)
+    (let [panel (-> fr
+                    pj/frames
+                    :panels
+                    first)
           at (fn [v] (first (pj/to-drawing panel v 4.0)))]
       ;; An intercept and a mapping's value read the one axis the one
       ;; way, so a place and the category it counts to meet.
@@ -500,7 +546,9 @@ cars
 
 scatter
 
-(-> scatter pj/frames kind/pprint)
+(-> scatter
+    pj/frames
+    kind/pprint)
 
 ;; The `:canvas` appears once for the whole plot. `:panels` holds one
 ;; entry per panel, each carrying its `:row` and `:col`, its domains, and
@@ -510,7 +558,10 @@ scatter
 ;; `pj/to-drawing` maps a data point into drawing space and `pj/to-data`
 ;; maps back, both taking one panel entry:
 
-(let [panel (-> scatter pj/frames :panels first)]
+(let [panel (-> scatter
+                pj/frames
+                :panels
+                first)]
   {:mazda-rx4-at      (pj/to-drawing panel 2.62 21.0)
    :under-the-pointer (pj/to-data panel 300 200)
    :round-trip        (->> (pj/to-drawing panel 2.62 21.0)
@@ -532,7 +583,10 @@ scatter
 ;; form maps whole columns and builds the panel's scales only once, so it
 ;; is the one to use when placing many points at a time:
 
-(pj/to-drawing (-> scatter pj/frames :panels first)
+(pj/to-drawing (-> scatter
+                   pj/frames
+                   :panels
+                   first)
                {:x [2.62 3.44 5.25] :y [21.0 18.1 10.4]})
 
 (kind/test-last [(fn [ds] (= [:x :y] (vec (tc/column-names ds))))])
@@ -629,7 +683,9 @@ scatter
                                                            "Stop Prohibited"]
                                                :tickets   [462389 181444 163294]}
                                               (pj/lay-bar :tickets :violation)
-                                              pj/frames :panels first)
+                                              pj/frames
+                                              :panels
+                                              first)
                                           300000 v)))]
                  (< (abs (- (second (:halfway-up m))
                             (/ (+ (mid "Meter Expired") (mid "Over Time Limit")) 2.0)))
@@ -668,8 +724,13 @@ scatter
 ;; drawing a mapped point back onto the plot means subtracting the
 ;; drawing area's corner from it first:
 
-(let [panel     (-> scatter pj/frames :panels first)
-      [dax day] (-> panel :frames :drawing-area)
+(let [panel     (-> scatter
+                    pj/frames
+                    :panels
+                    first)
+      [dax day] (-> panel
+                    :frames
+                    :drawing-area)
       ;; The Mazda RX4 and the Lincoln Continental, at their own values.
       canvas    (pj/to-drawing panel {:x [2.62 5.424] :y [21.0 10.4]})]
   (pj/lay-point scatter {:in :drawing-area
@@ -703,7 +764,12 @@ scatter
 ;; below goes in the bottom left corner, which requires the panel's
 ;; height:
 
-(let [[_ _ _ h] (-> scatter pj/frames :panels first :frames :drawing-area)]
+(let [[_ _ _ h] (-> scatter
+                    pj/frames
+                    :panels
+                    first
+                    :frames
+                    :drawing-area)]
   (pj/lay-text scatter {:in :drawing-area :x 12 :y (- h 16)
                         :text "n = 6" :align-x :left :color "#555555"}))
 

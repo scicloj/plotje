@@ -24,11 +24,9 @@
    [scicloj.metamorph.ml.rdatasets :as rdatasets]
    ;; Plotje -- composable plotting
    [scicloj.plotje.api :as pj]
-   ;; Plotje internals -- read in "The columns a layer reads" and "How Panels Share an Axis"
+   ;; Plotje internals -- read in "How Panels Share an Axis" and "Poses rewritten before drafting"
    [scicloj.plotje.impl.pose :as pose]
-   [scicloj.plotje.impl.plan :as plan]
-   ;; Membrane UI protocols
-   [membrane.ui]))
+   [scicloj.plotje.impl.plan :as plan]))
 
 ;; ## Pipeline Overview
 
@@ -275,20 +273,28 @@ trace-pose
 
 (def trace-membrane (pj/plan->membrane trace-plan))
 
-;; The membrane carries the rendered drawables plus the canvas size
-;; and title. The drawables sit inside the record's `:drawables`
-;; field; record fields `:width` and `:height` give the canvas
-;; size; and `:plotje/title` carries the title (when set):
+;; The membrane carries the drawables plus the canvas size and title.
+;; The record fields `:width` and `:height` give the canvas size, the
+;; size the plan settled on, and `:plotje/title` carries the title
+;; when one is set. This plot sets none:
 
-(kind/pprint trace-membrane)
+(select-keys trace-membrane [:width :height :plotje/title])
+
+(kind/test-last [(fn [m] (and (= #{:width :height} (set (keys m)))
+                              (== (:total-width trace-plan) (:width m))
+                              (== (:total-height trace-plan) (:height m))))])
+
+;; The drawables sit in the record's `:drawables` field, a vector of
+;; Membrane primitives. Their class names:
+
+(->> trace-membrane
+     :drawables
+     (mapv #(.getSimpleName (class %))))
 
 (kind/test-last
- [(fn [v]
-    (and (pj/membrane? v)
-         (pos? (count (:drawables v)))
-         (every? #(.startsWith (.getName (class %))
-                               "membrane.ui.")
-                 (:drawables v))))])
+ [(fn [names]
+    (and (seq names)
+         (every? #{"Translate"} names)))])
 
 ;; The dedicated [Membranes](./plotje_book.membranes.html#the-membrane-protocols) chapter
 ;; walks the record's protocols, the namespaced-attribute convention,
@@ -298,7 +304,7 @@ trace-pose
 ;; ### Step 5: pj/membrane->plot
 ;;
 ;; Convert the membrane into the rendered output for a chosen
-;; format. Dispatches on the format keyword; `:svg` is built in.
+;; format. Dispatches on the format keyword.
 ;; This is the only stage whose output is format-native rather than
 ;; portable: every earlier stage is the same across backends, while
 ;; here the membrane becomes SVG hiccup, a BufferedImage, or another
@@ -310,18 +316,37 @@ trace-pose
 (def trace-plot
   (pj/membrane->plot trace-membrane :svg {}))
 
-(kind/pprint trace-plot)
+;; The plot is SVG hiccup, a vector starting with `:svg`.
+;; `pj/svg-summary` counts what it draws -- one panel, a point per row
+;; of the data, and a regression line per species:
 
-(kind/test-last [(fn [v] (and (vector? v) (= :svg (first v))))])
+(pj/svg-summary trace-plot)
+
+(kind/test-last [(fn [s] (and (vector? trace-plot)
+                              (= :svg (first trace-plot))
+                              (= 1 (:panels s))
+                              (= 150 (:points s))
+                              (= 3 (:lines s))))])
 
 ;; Rendered:
 
 (kind/hiccup trace-plot)
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 1 (:panels s))
-                                (= 150 (:points s))
-                                (= 3 (:lines s)))))])
+(kind/test-last [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+
+;; Two formats are built in. `:svg` gives SVG hiccup, which renders in
+;; browsers and in notebooks through Kindly and Clay, and is written to
+;; `.svg` files. `:bufimg` gives a Java2D `BufferedImage` through
+;; Membrane's Java2D backend, and is used for `.png` files. A new format
+;; that consumes the membrane registers a `defmethod` on the render
+;; multimethod `scicloj.plotje.impl.render/membrane->plot`, which the
+;; public `pj/membrane->plot` dispatches through. A format that goes from
+;; a plan directly to a figure, skipping the membrane -- for example a
+;; Plotly-spec target -- registers a `defmethod` on
+;; `scicloj.plotje.impl.render/plan->plot` instead, and is called with
+;; `pj/plan->plot`; `pj/plot` always renders through the membrane. The
+;; [Extensibility](./plotje_book.extensibility.html) chapter shows a
+;; worked backend registration.
 
 ;; ## Pipeline Shortcuts: pj/pose, pj/draft, pj/plan, pj/membrane, pj/plot, pj/save
 ;;
@@ -603,174 +628,25 @@ graph LR
         {:mark :line :x :a :y :b :color :c}]
        layers))])
 
-;; ### The columns a layer reads
-;;
-;; One choice is made in `pj/pose->draft`, after a facet over columns
-;; is expanded into cells, by `pose/elaborate`: which columns a layer
-;; reads where it names no column, or names a column on only one of the
-;; two axes. A `pj/lay-*` call keeps its columns on its own layer, so
-;; the pose below has no mapping. Its panel's columns are, on each axis,
-;; the column of the first layer that names a column on that axis. `pose/elaborate` writes them into
-;; each layer that needs them, and the draft then merges the pose's
-;; mapping and each layer's mapping by scope and nothing else:
-
-(-> {:week [1 2 3 4]
-     :adults [30 25 28 35]
-     :children [20 15 18 22]}
-    (pj/lay-point :week :adults)
-    (pj/lay-line {:y :children})
-    pj/lay-smooth
-    pose/elaborate
-    (dissoc :data)
-    kind/pprint)
-
-(kind/test-last
- [(fn [elaborated]
-    (and (nil? (:mapping elaborated))
-         (= [{:x :week :y :adults}
-             {:x :week :y :children}
-             {:x :week :y :adults}]
-            (mapv :mapping (:layers elaborated)))))])
-
-;; The column is written into the layer and not into the pose's
-;; mapping. Written into the pose, it would reach every layer by
-;; scope, and a layer type that can draw from one column -- a bar that
-;; counts, a histogram -- would be given a second column it did not
-;; ask for. The panel's columns are written into the pose in one place,
-;; a facet over columns: its cells are made from the panel's columns,
-;; with the facet's column on the axis it names
-;; (`pose/expand-facet-nodes`, below). Elaboration also writes into
-;; the pose's mapping the default mapping of data with one to three
-;; columns and the columns of a pivoted series, and it turns a column
-;; named on `:y` alone on its side (see "A column on `:y` alone"
-;; below).
-;;
-;; The panel's columns are also what a `pj/lay-*` call on a composite
-;; compares its columns with, to find the cell the layer joins:
-;; `pose/last-matching-leaf-path` reads `pose/leaf-place`, the function
-;; `pose/elaborate` reads. A cell built by `pj/lay-*` names its columns
-;; on its layers and not in its mapping. Such a cell is matched by its
-;; columns all the same, because the panel's columns are read from the
-;; layers where the mapping names none.
-;;
-;; A layer may reach the plan with no data at all: a template drawn
-;; before `pj/with-data`, or a cell added to an arrangement whose root
-;; has no data. `plan/resolve-panel-draft-layers` gives such a layer a
-;; dataset of no rows before its stat runs, so every stat takes the
-;; route it takes for data that is all missing, and the panel reads
-;; "no data".
-
 ;; ### What elaboration writes
 ;;
-;; `pose/elaborate` writes into a pose what the draft would otherwise
-;; have to choose, in this order: the rows the pose keeps
-;; (`apply-where`); a series pivoted into a key column and a value
-;; column; the default mapping of data with one to three columns; one
-;; layer, where the pose names columns and has no layer; the panel's
-;; columns, into each layer that reads them; a layer type for each
-;; layer left to inference; and the flip of a column named on `:y`
-;; alone, described in the next section.
+;; Before it flattens a pose, `pj/pose->draft` writes into the pose
+;; what the draft would otherwise have to choose, in this order: the
+;; rows the pose keeps (its `:where`); a series pivoted into a key
+;; column and a value column; the default mapping of data with one to
+;; three columns; one layer, where the pose names columns and has no
+;; layer; the panel's columns, into each layer that reads them; a layer
+;; type for each layer left to inference; and the flip of a column
+;; named on `:y` alone. The function that does this is `pose/elaborate`.
+;; [Panels](./plotje_book.panels.html#the-panels-columns) shows which
+;; of the panel's columns a layer reads, and
+;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from)
+;; shows the flip.
 ;;
-;; A layer naming no column is given both of the panel's columns. A
-;; layer naming one column is given the other only where its layer type
-;; cannot draw from one column, which `layer-type/column-counts` says.
-;; The line naming `:children` above is given `:week`. A bar naming
-;; `:day` beside points of `:day` against `:visits` is given nothing,
-;; and counts:
-
-(def counted-beside-points
-  (-> {:day ["mon" "tue" "mon" "wed"]
-       :visits [3 5 2 4]}
-      (pj/lay-point :day :visits)
-      (pj/lay-bar :day)))
-
-(->> counted-beside-points
-     pose/elaborate
-     :layers
-     (mapv :mapping))
-
-(kind/test-last
- [(fn [mappings]
-    (and (= [{:x :day :y :visits} {:x :day}] mappings)
-         ;; A second call changes nothing.
-         (= (pose/elaborate counted-beside-points)
-            (pose/elaborate (pose/elaborate counted-beside-points)))))])
-
-;; A second call to `pose/elaborate` changes nothing, so the draft can
-;; run it on a pose that was elaborated already.
-;;
-;; ### A column on `:y` alone
-;;
-;; A histogram, a density, a rug and a counting bar draw from one
-;; column, which their stat reads on `:x`. Where a pose names a column
-;; on `:y` and none on `:x`, in its mapping or in its layers, and every
-;; layer can draw from one column, `pose/elaborate` moves the column to
-;; `:x` and writes `:coord :flip` into the pose's options, so the marks
-;; run along the vertical axis:
-
-(-> {:height [1.6 1.7 1.8 1.7 1.75]}
-    (pj/lay-histogram {:y :height})
-    pose/elaborate
-    (dissoc :data)
-    kind/pprint)
-
-(kind/test-last
- [(fn [elaborated]
-    (and (= {:coord :flip} (:opts elaborated))
-         (= [{:x :height}] (mapv :mapping (:layers elaborated)))))])
-
-;; A layer that draws only from two columns, or that names an `:x`,
-;; keeps the pose as it is written, and the layer left with no `:x`
-;; column is then reported. A `:coord` other than `:flip` on a pose that
-;; would be turned on its side reports an error, since such a pose can
-;; be drawn only with the coordinates flipped. A layer type of an extension takes part by
-;; declaring `:column-counts`.
-;;
-;; ### The color a layer is given
-;;
-;; Where the layers of a pose draw different columns, nothing on the
-;; panel says which marks belong to which columns. `pose/leaf->draft`
-;; gives each layer a label made of the columns the layer draws
-;; (`pose/overlay-labels`), and each axis is titled with the columns of
-;; every layer. Each layer whose mapping specifies no `:color` is then
-;; given its label as a color: one palette color and one legend entry
-;; per layer. A layer that specifies a color keeps that color. On a
-;; panel where a layer is colored by a column, no layer is given the
-;; default, because the legend of that panel lists the column's values.
-;; The color is written into the draft and not into the pose: each
-;; draft layer below maps `:color` to a column of labels the draft adds
-;; to its data, except the smooth, which keeps its black:
-
-(def sepals-and-petals
-  (-> (rdatasets/datasets-iris)
-      (pj/lay-point :sepal-length :sepal-width)
-      (pj/lay-point :petal-length :petal-width)
-      (pj/lay-smooth {:color "black"})))
-
-(->> sepals-and-petals
-     pj/draft
-     :layers
-     (mapv (fn [layer]
-             (let [color (:color layer)]
-               (if (keyword? color)
-                 (first ((:data layer) color))
-                 color)))))
-
-(kind/test-last
- [(fn [colors]
-    (and (= ["sepal length / sepal width" "petal length / petal width" "black"]
-            colors)
-         ;; Nothing is written into the pose's layers.
-         (= [{:x :sepal-length :y :sepal-width}
-             {:x :petal-length :y :petal-width}
-             {:color "black"}]
-            (mapv :mapping (:layers sepals-and-petals)))
-         ;; A layer colored by a column leaves the other layer with no
-         ;; color.
-         (let [colored (-> (rdatasets/datasets-iris)
-                           (pj/lay-point :sepal-length :sepal-width {:color :species})
-                           (pj/lay-point :petal-length :petal-width))]
-           (nil? (:color (second (:layers (pj/draft colored))))))))])
+;; Where the layers of a panel draw different columns and no layer is
+;; colored by a column, `pj/pose->draft` also gives each layer that
+;; specifies no `:color` a color and a legend entry naming its columns,
+;; as [Panels](./plotje_book.panels.html#the-panel-of-a-leaf-pose) shows.
 
 ;; ## Composite Poses
 ;;
@@ -796,7 +672,9 @@ composite-pose
 ;; `pose->draft`) returns a `CompositeDraft` -- wrap in `kind/pprint` to
 ;; inspect:
 
-(-> composite-pose pj/draft kind/pprint)
+(-> composite-pose
+    pj/draft
+    kind/pprint)
 
 (kind/test-last [(fn [d] (and (pj/composite-draft? d)
                               (= 2 (count (:sub-drafts d)))))])
@@ -821,7 +699,9 @@ composite-pose
                         (= 1 (:draft sub-draft))
                         ;; One legend for the arrangement, drawn beside
                         ;; it rather than in this cell.
-                        (true? (-> sub-draft :opts :suppress-color-legend))))])
+                        (true? (-> sub-draft
+                                   :opts
+                                   :suppress-color-legend))))])
 
 ;; `pj/plan` returns a `CompositePlan`:
 
@@ -847,22 +727,29 @@ composite-pose
 ;; labels, shared legend, title if any). Plan-derived width and height
 ;; are record fields, and the title is `:plotje/title`.
 
-(pj/membrane composite-pose)
+(-> composite-pose
+    pj/membrane
+    (select-keys [:width :height :plotje/title]))
 
-(kind/test-last [(fn [m] (and (pj/membrane? m)
-                              (pos? (count (:drawables m)))
-                              (number? (membrane.ui/width m))
-                              (number? (membrane.ui/height m))))])
+(kind/test-last [(fn [m] (and (number? (:width m))
+                              (number? (:height m))))])
 
-;; `pj/plot` (the full pipeline) returns the SVG hiccup -- the
-;; same value `composite-pose` auto-renders to at the top of this
-;; section, produced explicitly:
+(->> composite-pose
+     pj/membrane
+     :drawables
+     (mapv #(.getSimpleName (class %))))
 
-(-> composite-pose pj/plot kind/pprint)
+(kind/test-last [(fn [names] (every? #{"Translate"} names))])
 
-(kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (= 2 (:panels s))
-                                (= 300 (:points s)))))])
+;; `pj/plot` (the full pipeline) returns the SVG hiccup that
+;; `composite-pose` auto-renders to at the top of this section:
+
+(-> composite-pose
+    pj/plot
+    pj/svg-summary)
+
+(kind/test-last [(fn [s] (and (= 2 (:panels s))
+                              (= 300 (:points s))))])
 
 ;; The composition holds for both leaf and composite poses --
 ;; `pj/plan` is `(-> pose pj/->pose pj/pose->draft pj/draft->plan)`
@@ -944,78 +831,9 @@ faceted-clinics
 ;; one column -- a count, a density -- which the stat declares (see
 ;; [What a stat computes](./plotje_book.extensibility.html#what-a-stat-computes)).
 ;; A count of a column and the values of that column are never in one
-;; group. `:share-scales` is a set of axes, as above, or a map from an
-;; axis to `:same-column`, to the columns that go together on that
-;; axis, `{:y [[:hwy :cty]]}`, or to `:all`, `{:y :all}`, which puts
-;; together every cell that draws the same kind of thing on that axis
-;; -- values with values, counts with counts, densities with
-;; densities.
-;;
-;; `:share-scales` names an axis as it is drawn: `:x` is the horizontal
-;; axis. The groups are recorded by the axis of each cell's own
-;; mapping, so two flipped cells sharing `:x` are in a group on their
-;; `:y`, which is the column that runs across:
-
-(->> (pj/arrange [(pj/coord (pj/lay-bar north :week :visits) :flip)
-                  (pj/coord (pj/lay-bar south :week :visits) :flip)]
-                 {:share-scales #{:x}})
-     pj/draft
-     :sub-drafts
-     (mapv :share))
-
-(kind/test-last [(fn [shares] (= [{:y {:group 0}} {:y {:group 0}}] shares))])
-
-;; With no `:share-scales` written, cells that split the data of one
-;; pose -- the cells of `(pj/arrange data [...])` and of a facet over
-;; columns -- share each axis on which two of them draw one column.
-;; Below, the two cells draw `:week` on `:x` and share it, and the group
-;; lists the weeks in the order of the data's rows:
-
-(->> (pj/arrange {:week ["w2" "w1" "w2" "w1"]
-                  :adults [30 25 28 35]
-                  :children [20 15 18 22]}
-                 [{:x :week :y :adults} {:x :week :y :children}])
-     pj/draft
-     :sub-drafts
-     (mapv :share))
-
-(kind/test-last
- [(fn [shares]
-    (and (= [{:x {:group 0 :order ["w2" "w1"]}}
-             {:x {:group 0 :order ["w2" "w1"]}}]
-            shares)
-         ;; Poses with data of their own share nothing by default.
-         (= [nil nil]
-            (->> (pj/arrange [(pj/lay-bar north :week :visits)
-                              (pj/lay-bar south :week :visits)])
-                 pj/draft
-                 :sub-drafts
-                 (mapv :share)))))])
-
-;; Poses that carry data of their own, arranged with
-;; `(pj/arrange [pose-a pose-b])`, share no axis unless `:share-scales`
-;; names it, as the two clinics above do. A cell whose layers draw two
-;; columns on an axis belongs to the groups of both columns, and the two
-;; groups become one: three cells sharing `:y`, drawing `:adults`,
-;; `:children`, and both, are one group.
-
-(def weekly-visits
-  {:week [1 2 3 4]
-   :adults [30 25 28 35]
-   :children [20 15 18 22]})
-
-(->> (pj/arrange [(pj/lay-point weekly-visits :week :adults)
-                  (pj/lay-point weekly-visits :week :children)
-                  (-> weekly-visits
-                      (pj/lay-point :week :adults)
-                      (pj/lay-line :week :children))]
-                 {:share-scales #{:y}})
-     pj/draft
-     :sub-drafts
-     (mapv :share))
-
-(kind/test-last
- [(fn [shares] (= [{:y {:group 0}} {:y {:group 0}} {:y {:group 0}}] shares))])
+;; group. Which axes are shared by default, and the other values
+;; `:share-scales` takes, are in
+;; [Composition](./plotje_book.composition.html#shared-scales).
 
 ;; ### The plan stage decides what the axis covers
 ;;
@@ -1060,33 +878,17 @@ faceted-clinics
 (kind/test-last [(fn [domains] (and (apply = domains)
                                     (< 105.0 (second (first domains)))))])
 
-;; Further details of how cells share an axis:
+;; Two details complete the grouping. A cell whose layers draw two
+;; columns on an axis belongs to the groups of both columns, and the two
+;; groups become one: three cells sharing `:y`, drawing `:adults`,
+;; `:children`, and both, are one group. And a cell's numeric domain is
+;; widened after planning so that its text marks are drawn in full;
+;; cells of a group that end on different domains are planned again with
+;; the widest domain as a floor, so that they agree.
 ;;
-;; - **Categories.** Where the cells of a group are parts of one
-;;   dataset, the pooled categories are listed in the order of that
-;;   dataset's rows, so the split has the axis of the same plot drawn
-;;   without the split. Cells with data of their own are listed cell by
-;;   cell.
-;; - **Legends.** A color legend and a shape legend follow the same
-;;   rule: the categories of the legend are listed in the order of the
-;;   rows of the dataset the panels are parts of. One function,
-;;   `pose/data-category-order`, gives that order to the axis and to the
-;;   legend. The palette, the order of a stack and the order of dodged
-;;   marks follow the order of the legend.
-;; - **A specified domain.** A `:domain` that one cell specifies for the
-;;   shared axis is the domain of every cell sharing that axis: every
-;;   cell is planned as though it had specified that domain, so no cell
-;;   pads the domain. On an axis of categories, the specified domain
-;;   sets the order of the pooled categories. Cells that specify
-;;   different domains for one shared axis report an error.
-;; - **Text labels.** A cell's numeric domain is widened after planning
-;;   so that its text marks are drawn in full, by an amount that depends
-;;   on the cell's own labels. Cells of a group that end on different
-;;   domains are planned again with the widest domain as a floor, so
-;;   that they agree.
-;; - **Cost.** A sharing cell's stats run twice: once to measure it, and
-;;   once to plan it with the pooled extent. A cell that shares with no
-;;   other cell is not measured.
+;; A sharing cell's stats run twice: once to measure it, and once to
+;; plan it with the pooled extent. A cell that shares with no other
+;; cell is not measured.
 ;;
 ;; A facet in one plan follows the same steps inside `pj/draft->plan`:
 ;; its panels are measured without padding, pooled, and each panel is
@@ -1114,7 +916,12 @@ faceted-clinics
 ;; into a composite of one cell per column. A series faceted by the key
 ;; column the series pivot adds asks for the same panels, so it is first
 ;; rewritten into a facet over the columns of the series, and then
-;; expanded like any other, here on the weekly visits above:
+;; expanded like any other, here on weekly counts of visits:
+
+(def weekly-visits
+  {:week [1 2 3 4]
+   :adults [30 25 28 35]
+   :children [20 15 18 22]})
 
 (def series-by-key
   (-> weekly-visits
@@ -1140,88 +947,11 @@ series-by-key
          (= [{:y :adults} {:y :children}]
             (mapv :mapping (mapcat :poses (:poses expanded))))))])
 
-;; Each cell holds what the facet specified for it and nothing else. On
-;; the diagonal of a matrix, `{:col {:x cols} :row {:y cols}}`, a cell
-;; names one column on both axes, `{:x :adults :y :adults}`. A `nil` in
-;; a list of columns stays in the cell as a `nil`:
-
-(->> (-> weekly-visits
-         pj/pose
-         (pj/facet {:col {:x [:adults nil]} :row {:y [:adults :children]}})
-         pose/expand-facet-nodes)
-     (tree-seq :poses :poses)
-     (remove :poses)
-     (mapv :mapping))
-
-(kind/test-last
- [(fn [mappings]
-    (= [{:x :adults :y :adults} {:x nil :y :adults}
-        {:x :adults :y :children} {:x nil :y :children}]
-       mappings))])
-
-;; The steps after this one read such a cell without a special case.
-;; `pose/fit-layers` keeps a layer in a cell where the layer names no
-;; column other than the cell's and its layer type can draw from the
-;; number of distinct columns the cell names: one for `{:x :adults :y
-;; :adults}`, so a density fits and a scatter does not. Inference reads
-;; one column on both axes as one column and chooses a histogram, and
-;; the stat reads the column on `:x` and puts its count on `:y`. A bar,
-;; whose layer type can draw from one column or from two, counts the
-;; rows of each category of such a cell (`resolve/infer-layer-type`),
-;; and reports an error for a numerical column, as
-;; `(pj/lay-bar data :adults)` does. Written on one pose,
-;; `(pj/lay-point data :adults :adults)`, a scatter draws the column
-;; against itself; in a cell of a facet it does not fit, and the cell is
-;; given a histogram.
-;;
-;; A cell that no layer fits is left with no layer, and elaboration
-;; gives it the layer its columns choose. A layer that fits no cell is
-;; drawn in every cell, as a histogram written on a faceted scatter is.
-;; Where such a layer names a column on an axis on which every cell
-;; names another, and some cell would be left with no layer drawing that
-;; cell's own columns, `pose/fit-layers` reports an error. On a
-;; two-by-two matrix, a scatter fits the two cells off the diagonal and
-;; a density fits the two cells on it:
-
-(->> (-> (select-keys weekly-visits [:adults :children])
-         pj/lay-point
-         pj/lay-density
-         (pj/facet {:col {:x [:adults :children]}
-                    :row {:y [:adults :children]}}))
-     pj/draft
-     :sub-drafts
-     (mapv (fn [sub-draft] (mapv :mark (:draft sub-draft)))))
-
-(kind/test-last
- [(fn [marks]
-    (let [marks-per-cell (fn [pose]
-                           (->> pose
-                                pj/draft
-                                :sub-drafts
-                                (mapv (fn [sub-draft] (mapv :mark (:draft sub-draft))))))]
-      (and (= [[:area] [:point] [:point] [:area]] marks)
-           ;; A histogram fits no cell of a faceted scatter, and is
-           ;; drawn in both.
-           (= [[:point :bar] [:point :bar]]
-              (marks-per-cell (-> weekly-visits
-                                  (pj/pose {:x :week})
-                                  pj/lay-point
-                                  (pj/lay-histogram {:x :week})
-                                  (pj/facet {:y [:adults :children]}))))
-           ;; A layer naming :week on :y, where every cell names its
-           ;; own :y, leaves the cells with no layer of their own.
-           (re-find #"no panel draws it"
-                    (try (pj/draft (-> weekly-visits
-                                       (pj/pose {:x :week})
-                                       (pj/lay-point {:y :week})
-                                       (pj/facet {:y [:adults :children]})))
-                         ""
-                         (catch Exception e (ex-message e)))))))])
-
 ;; From here the pose is an ordinary composite: its cells are grouped,
-;; measured and planned as the two clinics above were. In the series
-;; faceted by its key, each cell draws a column of its own on `:y`, so
-;; by default the two cells share `:x` and not `:y`:
+;; measured and planned as the two clinics above were. Cells that
+;; split the data of one pose share by default each axis on which they
+;; draw one column. In the series faceted by its key, each cell draws a
+;; column of its own on `:y`, so the two cells share `:x` and not `:y`:
 
 (->> series-by-key
      pj/draft
@@ -1234,16 +964,7 @@ series-by-key
 ;; Cells written by hand, each keeping the rows of one value of a
 ;; column with `:where`, that together keep every value of the column
 ;; are rewritten the other way, into one pose faceted by that column
-;; (`pose/collapse-regular-split`). A list that leaves a value out
-;; stays a composite. Here the three drive types of the mpg data
-;; plan as one faceted pose, and two of them as a composite:
-
-(let [points (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)]
-  (->> [[{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}]
-        [{:where {:drv "f"}} {:where {:drv "4"}}]]
-       (mapv #(pj/composite-plan? (pj/plan (pj/arrange points %))))))
-
-(kind/test-last [(fn [composite?] (= [false true] composite?))])
+;; (`pose/collapse-regular-split`).
 
 ;; ## Where a Mistake Is Reported
 ;;
@@ -1315,97 +1036,6 @@ series-by-key
                (repeat 3 "pj/draft->plan"))
        (map second (:row-vectors table))))])
 
-;; ## The Plan Boundary
-;;
-;; The plan is the first pipeline boundary: the boundary between
-;; description and rendering. The
-;; pose and draft stages assemble the description. The plan resolves
-;; it into computed geometry, domains, ticks, legend and the layout of
-;; the canvas -- still as inspectable data, before anything is drawn.
-;; The membrane and plot stages
-;; then produce the rendered output.
-
-^:kindly/hide-code
-(kind/mermaid "
-graph LR
-  A[\"Pose + draft\"] -->|plan| P[\"Plan\"]
-  P --> R[\"membrane + plot\"]
-  style A fill:#e8f5e9
-  style P fill:#fff3e0
-  style R fill:#e3f2fd
-")
-
-;; The plan is inspectable as data -- `Plan` and `PlanLayer` records
-;; (which behave as maps), plain maps, numbers, strings, keywords,
-;; and dtype-next buffers for numeric arrays. It validates against a
-;; Malli schema.
-;;
-;; This separation enables:
-;;
-;; - Inspecting the plan without rendering
-;;
-;; - Validating plot structure with Malli
-;;
-;; - Adding alternate backends that consume plans (SVG and raster
-;;   are implemented today)
-
-;; ## The Membrane Stage
-;;
-;; The membrane is the second pipeline boundary: it separates
-;; data-space geometry from output-format bytes. The plan describes
-;; what to draw in data coordinates -- for example a point at
-;; (3.4, 7.1) in the color for species `setosa`; the membrane describes
-;; the same content in drawing coordinates -- for example a translation
-;; to (218, 134) carrying a colored shape. The plan is renderer-agnostic; the
-;; membrane is format-agnostic.
-;;
-;; Clipping -- keeping each panel's marks within the panel -- is an
-;; instance of this same translation. A panel's domain, resolved at the
-;; plan stage, is a data-space fact: the range of values the panel
-;; shows. The membrane turns it into a drawing-space clip that hides
-;; any geometry reaching past that window, so a mark cannot paint
-;; outside its panel, or into a neighbor in a multi-panel layout. The
-;; [Membranes](./plotje_book.membranes.html#clipping-marks-to-the-panel) chapter shows the
-;; mechanism; the [Glossary](./plotje_book.glossary.html#clip) has an entry
-;; for **clip**.
-;;
-;; This boundary lets one membrane tree be rendered to many output
-;; formats. The pose, draft, plan, and membrane stages are reused
-;; unchanged across formats. A new format that consumes the membrane
-;; tree registers a `defmethod` on the render multimethod
-;; `scicloj.plotje.impl.render/membrane->plot` (the public
-;; `pj/membrane->plot` dispatches through it). A new format that
-;; goes from a plan directly to a figure (skipping membrane -- for
-;; example a Plotly-spec target) registers a `defmethod` on
-;; `scicloj.plotje.impl.render/plan->plot` instead, and is called
-;; with `pj/plan->plot`; `pj/plot` always renders through the
-;; membrane. The
-;; [Extensibility](./plotje_book.extensibility.html) chapter shows a
-;; worked backend registration.
-;;
-;; The membrane stage of Plotje is built on
-;; [Membrane](https://github.com/phronmophobic/membrane) -- the
-;; library that defines the primitive types Plotje uses
-;; (`Translate`, `WithColor`, `Path`, `Label`, `RoundedRectangle`,
-;; ...) and provides the rendering backends. Plotje constructs a
-;; membrane tree from a plan; Membrane renders it.
-;;
-;; Backends Plotje wires into Membrane today:
-;;
-;; - **SVG hiccup** -- the default. Renders in browsers, in
-;;   notebooks via Kindly/Clay, and writes to `.svg` files.
-;; - **Java2D / `BufferedImage`** -- raster output via
-;;   Membrane's Java2D backend. Used for `.png` files and any
-;;   caller that needs a Java image.
-;;
-;; Membrane itself supports more rendering targets (terminal,
-;; native GUI, GL, ...) than Plotje currently exposes. Wiring a new
-;; target into Plotje has not been done end-to-end yet -- the
-;; defmethod registration is the extension point, but each backend
-;; has its own conventions for options and interactivity that need to
-;; be worked out. As Membrane grows, Plotje can incorporate new
-;; targets without changing how plots are described.
-
 ;; ## Pipeline Summary
 
 ;; | Stage | Type | Coordinates |
@@ -1415,86 +1045,6 @@ graph LR
 ;; | Plan | `Plan` or `CompositePlan` record (with `PlanLayer` records and dtype buffers) | Data space (marks); drawing units (layout) |
 ;; | Membrane | Record tree (membrane.ui primitives in a vector) | Drawing units |
 ;; | Plot | Hiccup vector (`:svg`) or `BufferedImage` (`:bufimg`) | Drawing units |
-
-;; ## Namespace Structure
-
-^:kindly/hide-code
-(kind/mermaid "
-graph TD
-  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]
-  API --> RES[\"impl/resolve.clj\"]
-  API --> PL[\"impl/plan.clj\"]
-  API --> COMP[\"impl/compositor.clj\"]
-  POSE --> RES
-  COMP --> POSE
-  COMP --> PL
-  PL --> RES
-  PL --> STAT[\"impl/stat.clj\"]
-  PL --> SCALE[\"impl/scale.clj\"]
-  PL --> DEFAULTS[\"impl/defaults.clj\"]
-  PL --> PS[\"impl/plan_schema.clj\"]
-  PL --> LAYOUT[\"impl/layout.clj\"]
-  API --> FRAMES[\"impl/frames.clj\"]
-  API --> IMEM[\"impl/membrane.clj\"]
-  API --> RENDER[\"impl/render.clj\"]
-  RENDER --> SVG[\"render/svg.clj\"]
-  RENDER -.->|loaded on first use| BUFIMG[\"render/bufimg.clj\"]
-  SVG --> MEMBRANE[\"render/membrane.clj\"]
-  BUFIMG --> MEMBRANE
-  MEMBRANE --> IMEM
-  MEMBRANE --> FRAMES
-  MEMBRANE --> LAYOUT
-  MEMBRANE --> PANEL[\"render/panel.clj\"]
-  PANEL --> MARK[\"render/mark.clj\"]
-  PANEL --> SCALE
-  PANEL --> COORD[\"impl/coord.clj\"]
-  API --> RC[\"render/composite.clj\"]
-  RC --> MEMBRANE
-  RC --> IMEM
-  style API fill:#c8e6c9
-  style COMP fill:#d1c4e9
-  style PL fill:#d1c4e9
-  style SVG fill:#f8bbd0
-  style MEMBRANE fill:#f8bbd0
-  style RC fill:#f8bbd0
-")
-
-;; `impl/pose.clj` holds the pose operations: `resolve-tree` (merges
-;; mappings, data and options from the root down to every leaf),
-;; `elaborate` (writes in what the draft chooses), `expand-facet-nodes`
-;; and `fit-layers` (a facet over columns as cells, and the layers each
-;; cell draws), `shared-axis-groups` (which cells share an axis), and
-;; `leaf->draft` (the leaf flattening that the public `pj/pose->draft`
-;; calls).
-;;
-;; `impl/compositor.clj` handles composite framing layout,
-;; `composite-pose->draft`, and `composite-draft->plan` -- pure
-;; data-side, no membrane dependency.
-;;
-;; `impl/plan.clj` holds the leaf-plan computation (domains, ticks,
-;; legends, layout) that the public `pj/draft->plan` calls.
-;;
-;; `impl/layout.clj` sizes the canvas: the room the axes, titles and
-;; legends take, and the size of each panel. `impl/frames.clj` turns a
-;; plan into the rectangles each panel occupies on the canvas, which
-;; `pj/frames` returns.
-;;
-;; `impl/membrane.clj` defines the `PlotjeMembrane` record, the value
-;; of the membrane stage.
-;;
-;; `impl/resolve.clj` defines the `Plan`, `CompositePlan`,
-;; `LeafDraft`, `CompositeDraft`, `PlanLayer`, and `LayerType`
-;; records, and holds `resolve-draft-layer` (single draft layer
-;; resolution, column type inference, grouping).
-;;
-;; The `impl/` directory holds data with no Membrane dependency,
-;; except `impl/membrane.clj`, whose `PlotjeMembrane` is a Membrane
-;; component by definition. The `render/` directory uses Membrane for
-;; drawing and for SVG and raster conversion; `render/bufimg.clj`, the
-;; raster backend, is loaded the first time a `:bufimg` or `:png` plot
-;; is rendered. `render/composite.clj` carries the composite
-;; `plan->membrane` defmethod and the membrane drawables for
-;; composite framing (title, strip labels, shared legend).
 
 ;; ## Dependencies
 ;;

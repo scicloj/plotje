@@ -117,7 +117,10 @@
 
 (kind/test-last
  [(fn [v]
-    (let [panel (-> v pj/plan :panels first)
+    (let [panel (-> v
+                    pj/plan
+                    :panels
+                    first)
           [lo hi] (:y-domain panel)]
       (and (= :log (:type (:y-scale panel)))
            (pos? lo)
@@ -134,10 +137,20 @@
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)
-                curve-xs (mapcat :xs (-> v pj/plan :panels first :layers first :groups))]
+                curve-xs (mapcat :xs (-> v
+                                         pj/plan
+                                         :panels
+                                         first
+                                         :layers
+                                         first
+                                         :groups))]
             (and (= 1 (:panels s))
                  (= 1 (:polygons s))
-                 (= [4.12 8.08] (-> v pj/plan :panels first :x-domain))
+                 (= [4.12 8.08] (-> v
+                                    pj/plan
+                                    :panels
+                                    first
+                                    :x-domain))
                  (= [4.3 7.9] [(apply min curve-xs) (apply max curve-xs)]))))])
 
 ;; ## Grouped Density
@@ -150,10 +163,20 @@
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)
                 per-group (mapv (fn [g] [(apply min (:xs g)) (apply max (:xs g))])
-                                (-> v pj/plan :panels first :layers first :groups))]
+                                (-> v
+                                    pj/plan
+                                    :panels
+                                    first
+                                    :layers
+                                    first
+                                    :groups))]
             (and (= 1 (:panels s))
                  (= 3 (:polygons s))
-                 (= [4.12 8.08] (-> v pj/plan :panels first :x-domain))
+                 (= [4.12 8.08] (-> v
+                                    pj/plan
+                                    :panels
+                                    first
+                                    :x-domain))
                  (= [[4.3 7.9] [4.3 7.9] [4.3 7.9]] per-group))))])
 
 ;; Each curve is estimated across every species' values, not only its
@@ -167,9 +190,19 @@
 
 (kind/test-last
  [(fn [v] (let [per-group (mapv (fn [g] [(apply min (:xs g)) (apply max (:xs g))])
-                                (-> v pj/plan :panels first :layers first :groups))]
+                                (-> v
+                                    pj/plan
+                                    :panels
+                                    first
+                                    :layers
+                                    first
+                                    :groups))]
             (and (= [[4.3 5.8] [4.9 7.0] [4.9 7.9]] per-group)
-                 (= [4.12 8.08] (-> v pj/plan :panels first :x-domain)))))])
+                 (= [4.12 8.08] (-> v
+                                    pj/plan
+                                    :panels
+                                    first
+                                    :x-domain)))))])
 
 ;; ## Density with Custom Bandwidth
 ;;
@@ -184,8 +217,13 @@
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)
-                peak (fn [pose] (apply max (:ys (first (-> pose pj/plan :panels first
-                                                           :layers first :groups)))))]
+                peak (fn [pose] (apply max (:ys (first (-> pose
+                                                           pj/plan
+                                                           :panels
+                                                           first
+                                                           :layers
+                                                           first
+                                                           :groups)))))]
             (and (= 1 (:panels s))
                  (= 1 (:polygons s))
                  (> (peak v)
@@ -241,7 +279,13 @@
                  (= (domain v)
                     (domain (-> (rdatasets/datasets-iris)
                                 (pj/lay-rug :sepal-length))))
-                 (let [curve-xs (mapcat :xs (-> v pj/plan :panels first :layers first :groups))]
+                 (let [curve-xs (mapcat :xs (-> v
+                                                pj/plan
+                                                :panels
+                                                first
+                                                :layers
+                                                first
+                                                :groups))]
                    (= [4.3 7.9] [(apply min curve-xs) (apply max curve-xs)])))))])
 
 ;; ## Strip Plot (Jitter)
@@ -279,9 +323,13 @@
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
-          boxes (->> (pj/plan v) :panels first :layers
+          boxes (->> (pj/plan v)
+                     :panels
+                     first
+                     :layers
                      (filter #(= :boxplot (:mark %)))
-                     first :boxes)
+                     first
+                     :boxes)
           within-fences? (fn [{:keys [q1 q3 whisker-lo whisker-hi outliers]}]
                            (let [iqr (- q3 q1)
                                  lo-fence (- q1 (* 1.5 iqr))
@@ -342,7 +390,13 @@
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)
-                bodies (-> v pj/plan :panels first :layers first :violins)
+                bodies (-> v
+                           pj/plan
+                           :panels
+                           first
+                           :layers
+                           first
+                           :violins)
                 col (:total-bill (rdatasets/reshape2-tips))
                 lo (apply min col)
                 hi (apply max col)]

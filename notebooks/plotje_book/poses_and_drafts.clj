@@ -50,7 +50,10 @@ iris-pose
 ;; `pj/pose` set `:data` and `:mapping`, and the two `pj/lay-*` calls
 ;; conjoined onto `:layers`.
 
-(-> iris-pose keys sort vec)
+(-> iris-pose
+    keys
+    sort
+    vec)
 
 (kind/test-last [(fn [ks] (= [:data :layers :mapping] ks))])
 
@@ -97,7 +100,10 @@ composite-pose
 
 (kind/pprint composite-pose)
 
-(-> composite-pose keys sort vec)
+(-> composite-pose
+    keys
+    sort
+    vec)
 
 (kind/test-last [(fn [ks] (= [:layout :poses] ks))])
 
@@ -107,7 +113,9 @@ composite-pose
 ;; in it, side by side. Two panels make one row, so `:poses` has a
 ;; single entry:
 
-(-> composite-pose :poses count)
+(-> composite-pose
+    :poses
+    count)
 
 (kind/test-last [(fn [n] (= 1 n))])
 
@@ -117,14 +125,21 @@ composite-pose
 ;; others. Each row lays its panels out horizontally:
 
 [(:layout composite-pose)
- (-> composite-pose :poses first :layout)]
+ (-> composite-pose
+     :poses
+     first
+     :layout)]
 
 (kind/test-last
  [(fn [ls] (= [{:direction :vertical :cols :auto} {:direction :horizontal}] ls))])
 
 ;; One level further down are the leaves:
 
-(-> composite-pose :poses first :poses count)
+(-> composite-pose
+    :poses
+    first
+    :poses
+    count)
 
 (kind/test-last [(fn [n] (= 2 n))])
 
@@ -132,51 +147,34 @@ composite-pose
 ;; columns were named in the `pj/lay-*` calls, and a `lay-*` call keeps
 ;; the columns it names on its own layer:
 
-(-> composite-pose :poses first :poses first keys sort vec)
+(-> composite-pose
+    :poses
+    first
+    :poses
+    first
+    keys
+    sort
+    vec)
 
 (kind/test-last [(fn [ks] (= [:data :layers] ks))])
 
-(-> composite-pose :poses first :poses first :layers first :mapping)
+(-> composite-pose
+    :poses
+    first
+    :poses
+    first
+    :layers
+    first
+    :mapping)
 
 (kind/test-last [(fn [m] (= {:x :petal-length :y :petal-width} m))])
 
 ;; ## What a mapping value may be
 
-;; A mapping's key is an aesthetic. Its value says two things: where
-;; the value comes from, and which side of the aesthetic's scale it is
-;; read on. Written plainly, two conventions answer for it -- **the
-;; layer's data decides the source, and the aesthetic's category
-;; decides the scale.**
-;;
-;; | Reading | When | Example |
-;; |:--------|:-----|:--------|
-;; | a column, scaled | the layer's data has a column of that name | `{:color :species}` |
-;; | a value, drawn | the value is one the aesthetic can draw | `{:color "steelblue"}`, `{:size 4}` |
-;; | a value, scaled | written out in full | `{:color {:value "Model A" :scale true}}` |
-;; | a column, drawn | written out in full | `{:color {:column :hex :scale false}}` |
-;;
-;; The value's type decides nothing, which is what lets a dataset
-;; built without column names -- whose columns are integers -- map an
-;; aesthetic to column 2. A value that is neither is reported, naming
-;; both places it was looked for.
-;;
-;; `{:column c}` and `{:value v}` say which source you want where the
-;; data would pick the other source, and `:scale` says which side of the
-;; scale, overriding the convention in either direction. `:scale` also
-;; takes a scale type or a whole spec, which names *which* scale that
-;; one mapping is read through.
-;;
-;; `nil` is a legal value for every aesthetic. It names nothing, and
-;; cancels a mapping inherited from an outer scope.
-;;
-;; Not every aesthetic has every reading. `:fill` and `:group` take a
-;; column and nothing else, so a value that names no column is refused
-;; there; `:text` and `:group` have no scale, so a `:scale` is refused
-;; on them.
-;;
 ;; [Specifying Aesthetics](./plotje_book.specifying_aesthetics.html)
-;; teaches this with a worked example for each reading. What matters
-;; here is where it happens: once, at `pj/pose->draft`.
+;; teaches what a mapping value may be, with a worked example for each
+;; reading. What matters here is where the reading happens: once, at
+;; `pj/pose->draft`.
 
 ;; ## A mapping carries more than mappings
 
@@ -198,7 +196,10 @@ jittered-pose
 ;; The three options went into the layer's `:mapping`, beside the two
 ;; columns the call named:
 
-(-> jittered-pose :layers first :mapping)
+(-> jittered-pose
+    :layers
+    first
+    :mapping)
 
 (kind/test-last
  [(fn [m] (= {:x :petal-length :y :petal-width :jitter 5 :in :data :size 5} m))])
@@ -233,14 +234,21 @@ jittered-pose
 
 (kind/pprint iris-draft)
 
-(-> iris-draft :layers count)
+(-> iris-draft
+    :layers
+    count)
 
 (kind/test-last [(fn [n] (= 2 n))])
 
 ;; Each entry is a flat map, and every key on it came from one of four
 ;; places:
 
-(-> iris-draft :layers first keys sort vec)
+(-> iris-draft
+    :layers
+    first
+    keys
+    sort
+    vec)
 
 (kind/test-last
  [(fn [ks] (= [:__panel-idx :color :data :layer-type :mark :stat :x :y] ks))])
@@ -259,7 +267,10 @@ jittered-pose
 ;; A leaf draft holds those entries and the pose's options, and nothing
 ;; else:
 
-(-> iris-draft keys sort vec)
+(-> iris-draft
+    keys
+    sort
+    vec)
 
 (kind/test-last [(fn [ks] (= [:layers :opts] ks))])
 
@@ -287,7 +298,10 @@ annotated
 
 (kind/pprint annotated)
 
-(-> annotated :layers second :mapping)
+(-> annotated
+    :layers
+    second
+    :mapping)
 
 (kind/test-last
  [(fn [m] (= {:x 2 :y 2 :text "a note"} m))])
@@ -299,7 +313,10 @@ annotated
 
 (kind/pprint annotated-draft)
 
-(-> annotated-draft :layers second (select-keys [:x :y :text]))
+(-> annotated-draft
+    :layers
+    second
+    (select-keys [:x :y :text]))
 
 (kind/test-last
  [(fn [m] (= {:x :x :y :y :text :text} m))])
@@ -309,7 +326,10 @@ annotated
 ;; the single mark it asks for, and the synthesized columns take the
 ;; aesthetics' own names:
 
-(-> annotated-draft :layers second :data)
+(-> annotated-draft
+    :layers
+    second
+    :data)
 
 (kind/test-last
  [(fn [ds] (and (= [:x :y :text] (vec (tc/column-names ds)))
@@ -345,7 +365,10 @@ annotated
 
 (kind/pprint composite-draft)
 
-(-> composite-draft keys sort vec)
+(-> composite-draft
+    keys
+    sort
+    vec)
 
 (kind/test-last
  [(fn [ks] (= [:chrome-spec :height :layout :sub-drafts :width] ks))])
@@ -373,13 +396,19 @@ annotated
 ;; validates its result unless the `:validate` configuration key turns
 ;; it off, and `pj/valid-plan?` runs the same check by hand.
 
-(-> iris-pose pj/plan pj/valid-plan?)
+(-> iris-pose
+    pj/plan
+    pj/valid-plan?)
 
 (kind/test-last [true?])
 
 ;; A malformed plan reports which part failed:
 
-(-> iris-pose pj/plan (assoc :width "not-a-number") pj/explain-plan some?)
+(-> iris-pose
+    pj/plan
+    (assoc :width "not-a-number")
+    pj/explain-plan
+    some?)
 
 (kind/test-last [true?])
 

@@ -23,6 +23,10 @@
 ;;
 ;; The last section compares the column's type with a scale's type, a
 ;; separate setting that shares the word `:categorical`.
+;;
+;; On a first read through the book you can skim or skip this chapter,
+;; and return when an axis or a legend treats a column differently than
+;; you expected.
 
 (ns plotje-book.column-types
   (:require
@@ -80,7 +84,11 @@
     (pj/lay-point :k :v))
 
 (kind/test-last
- [(fn [v] (false? (:categorical? (-> v pj/plan :panels first :x-ticks))))])
+ [(fn [v] (false? (:categorical? (-> v
+                                     pj/plan
+                                     :panels
+                                     first
+                                     :x-ticks))))])
 
 ;; ## What the type decides about the axis
 
@@ -92,7 +100,11 @@
     (pj/lay-point :k :v))
 
 (kind/test-last
- [(fn [v] (let [ticks (-> v pj/plan :panels first :x-ticks)]
+ [(fn [v] (let [ticks (-> v
+                          pj/plan
+                          :panels
+                          first
+                          :x-ticks)]
             (and (false? (:categorical? ticks))
                  (contains? (set (:labels ticks)) "2"))))])
 
@@ -104,7 +116,11 @@
     (pj/lay-point :k :v))
 
 (kind/test-last
- [(fn [v] (let [ticks (-> v pj/plan :panels first :x-ticks)]
+ [(fn [v] (let [ticks (-> v
+                          pj/plan
+                          :panels
+                          first
+                          :x-ticks)]
             (and (true? (:categorical? ticks))
                  (= ["a" "b" "c" "d"] (vec (:labels ticks))))))])
 
@@ -119,9 +135,17 @@
 
 (kind/test-last
  [(fn [v]
-    (let [with    (-> v pj/plan :panels first :y-domain)
-          without (-> numerical (pj/lay-point :k :v)
-                      pj/plan :panels first :y-domain)]
+    (let [with    (-> v
+                      pj/plan
+                      :panels
+                      first
+                      :y-domain)
+          without (-> numerical
+                      (pj/lay-point :k :v)
+                      pj/plan
+                      :panels
+                      first
+                      :y-domain)]
       (and (< (first with) (first without))
            (< (first with) 1.5))))])
 
@@ -136,9 +160,16 @@
 
 (kind/test-last
  [(fn [v]
-    (let [panel (-> v pj/frames :panels first)
+    (let [panel (-> v
+                    pj/frames
+                    :panels
+                    first)
           at (fn [c] (first (pj/to-drawing panel c 25)))]
-      (and (= ["a" "b" "c" "d"] (-> v pj/plan :panels first :x-domain))
+      (and (= ["a" "b" "c" "d"] (-> v
+                                    pj/plan
+                                    :panels
+                                    first
+                                    :x-domain))
            (< (abs (- (at 1.5) (/ (+ (at "a") (at "b")) 2.0))) 1e-9))))])
 
 ;; [Placing Marks](./plotje_book.placing_marks.html#mapping-a-categorical-axis)
@@ -152,7 +183,11 @@
     (pj/lay-point :k :v))
 
 (kind/test-last
- [(fn [v] (let [ticks (-> v pj/plan :panels first :x-ticks)]
+ [(fn [v] (let [ticks (-> v
+                          pj/plan
+                          :panels
+                          first
+                          :x-ticks)]
             (and (false? (:categorical? ticks))
                  (some (fn [l] (re-find #"^[A-Z][a-z]{2}-\d\d$" l))
                        (:labels ticks)))))])
@@ -189,8 +224,15 @@
     (pj/lay-bar :k :v {:color :warmth}))
 
 (kind/test-last
- [(fn [v] (let [colors (-> v pj/plan :panels first :layers first
-                           :groups first :colors)
+ [(fn [v] (let [colors (-> v
+                           pj/plan
+                           :panels
+                           first
+                           :layers
+                           first
+                           :groups
+                           first
+                           :colors)
                 lightness (fn [c] (reduce + (take 3 c)))]
             (and (= 4 (:polygons (pj/svg-summary v)))
                  (= 4 (count (distinct colors)))
@@ -226,7 +268,13 @@
 (defn inferred-mark
   "The mark a pose is drawn with when no layer type is named."
   [pose]
-  (-> pose pj/plan :panels first :layers first :mark))
+  (-> pose
+      pj/plan
+      :panels
+      first
+      :layers
+      first
+      :mark))
 
 (tc/dataset
  [{:x-column "numerical"   :y-column "none"        :mark (inferred-mark (pj/pose numerical :k))}
@@ -275,8 +323,15 @@
 (kind/test-last
  [(fn [v] (and (= :rect (inferred-mark v))
                (= 3 (:polygons (pj/svg-summary v)))
-               (= [4 3 2] (->> (pj/plan v) :panels first :layers first
-                               :groups first :counts (mapv :count)))))])
+               (= [4 3 2] (->> (pj/plan v)
+                               :panels
+                               first
+                               :layers
+                               first
+                               :groups
+                               first
+                               :counts
+                               (mapv :count)))))])
 
 ;; Two numerical columns are a scatter, which is the case every
 ;; combination not listed above falls back to.
@@ -325,7 +380,11 @@
     (pj/lay-bar :year :revenue {:x-type :categorical}))
 
 (kind/test-last
- [(fn [v] (let [ticks (-> v pj/plan :panels first :x-ticks)]
+ [(fn [v] (let [ticks (-> v
+                          pj/plan
+                          :panels
+                          first
+                          :x-ticks)]
             (and (true? (:categorical? ticks))
                  (= ["2020" "2021" "2022" "2023"] (vec (:labels ticks))))))])
 
@@ -338,12 +397,21 @@
 
 (kind/test-last
  [(fn [v]
-    (let [ticks (-> v pj/plan :panels first :x-ticks)
+    (let [ticks (-> v
+                    pj/plan
+                    :panels
+                    first
+                    :x-ticks)
           groups (fn [mapping]
                    (-> {:year [2020 2021 2022 2023] :revenue [10 20 30 40]}
                        (pj/lay-point :year :revenue mapping)
                        pj/plan
-                       :panels first :layers first :groups count))]
+                       :panels
+                       first
+                       :layers
+                       first
+                       :groups
+                       count))]
       (and (false? (:categorical? ticks))
            (contains? (set (:labels ticks)) "2020.5")
            ;; The same override on :color: one group shaded from a
@@ -402,7 +470,12 @@
     (pj/scale :x :log))
 
 (kind/test-last
- [(fn [v] (= :log (-> v pj/plan :panels first :x-scale :type)))])
+ [(fn [v] (= :log (-> v
+                      pj/plan
+                      :panels
+                      first
+                      :x-scale
+                      :type)))])
 
 ;; Setting a `:categorical` scale on that same column reports an error,
 ;; and the message names the setting that would make the axis

@@ -96,9 +96,9 @@
    (rdatasets/ggplot2-economics)
    (tc/select-rows
     (fn*
-     [p1__82500#]
+     [p1__82484#]
      (let
-      [d (:date p1__82500#)]
+      [d (:date p1__82484#)]
       (and (>= (.getYear d) 2000) (<= (.getYear d) 2014))))))))
 
 
@@ -248,7 +248,7 @@
 
 
 (def
- v25_l231
+ v25_l239
  (->
   {:start
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -273,18 +273,18 @@
 
 
 (deftest
- t26_l243
+ t26_l251
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 5 (:polygons s)))))
-   v25_l231)))
+   v25_l239)))
 
 
 (def
- v28_l255
+ v28_l263
  (->
   project
   (pj/lay-interval-h :start :task {:x-end :end, :color :team})
@@ -294,18 +294,18 @@
 
 
 (deftest
- t29_l261
+ t29_l269
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 5 (:polygons s)))))
-   v28_l255)))
+   v28_l263)))
 
 
 (def
- v31_l289
+ v31_l297
  (def
   trains
   (let
@@ -334,7 +334,7 @@
 
 
 (def
- v32_l310
+ v32_l318
  (->
   trains
   (pj/lay-line
@@ -353,18 +353,18 @@
 
 
 (deftest
- t33_l318
+ t33_l326
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 4 (:lines s)) (= 20 (:points s)))))
-   v32_l310)))
+   v32_l318)))
 
 
 (def
- v35_l342
+ v35_l350
  (def
   activity-datetime
   {:start
@@ -434,7 +434,7 @@
 
 
 (def
- v36_l363
+ v36_l371
  (->
   activity-datetime
   (pj/lay-interval-h :start :day {:x-end :end, :color :kind})
@@ -446,18 +446,18 @@
 
 
 (deftest
- t37_l370
+ t37_l378
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 15 (:polygons s)))))
-   v36_l363)))
+   v36_l371)))
 
 
 (def
- v39_l387
+ v39_l395
  (def
   activity
   {:start
@@ -527,7 +527,7 @@
 
 
 (def
- v40_l411
+ v40_l419
  (->
   activity
   (pj/lay-interval-h :start :day {:x-end :end, :color :kind})
@@ -539,18 +539,18 @@
 
 
 (deftest
- t41_l418
+ t41_l426
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 15 (:polygons s)))))
-   v40_l411)))
+   v40_l419)))
 
 
 (def
- v43_l436
+ v43_l444
  (->
   activity
   (pj/lay-interval-h :start :day {:x-end :end, :color :kind})
@@ -563,7 +563,7 @@
 
 
 (deftest
- t44_l444
+ t44_l452
  (is
   ((fn
     [v]
@@ -575,11 +575,11 @@
       (=
        [[0 0] [1 0]]
        (mapv (juxt :row :col) (:panels (pj/frames v)))))))
-   v43_l436)))
+   v43_l444)))
 
 
 (def
- v46_l460
+ v46_l468
  (->
   project
   (pj/lay-interval-h :start :task {:x-end :end, :color :team})
@@ -592,7 +592,7 @@
 
 
 (deftest
- t47_l468
+ t47_l476
  (is
   ((fn
     [v]
@@ -614,13 +614,13 @@
        (mapv :y-domain panels))
       (apply = (mapv :x-domain panels))
       (every?
-       (fn* [p1__82501#] (= 5 (count (:y-domain p1__82501#))))
+       (fn* [p1__82485#] (= 5 (count (:y-domain p1__82485#))))
        shared))))
-   v46_l460)))
+   v46_l468)))
 
 
 (def
- v49_l494
+ v49_l502
  (->
   (rdatasets/ggplot2-presidential)
   (pj/lay-interval-h :start :name {:x-end :end, :color :party})
@@ -632,11 +632,11 @@
 
 
 (deftest
- t50_l501
+ t50_l509
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-tooltip" s) (re-find #" → " s))))
-   v49_l494)))
+   v49_l502)))

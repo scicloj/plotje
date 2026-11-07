@@ -27,6 +27,7 @@
                      "interactivity"
                      "troubleshooting"]
  "📖 Reference" ["api_reference"
+                 "ggplot2_equivalents"
                  "known_limitations"]
  "🖼 Gallery" ["gallery"]
  "🔬 Internals" ["architecture"

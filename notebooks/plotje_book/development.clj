@@ -4,7 +4,10 @@
 ;; author notebooks, and release new versions.
 
 ^:kindly/hide-code
-(ns plotje-book.development)
+(ns plotje-book.development
+  (:require
+   ;; Kindly -- notebook rendering protocol
+   [scicloj.kindly.v4.kind :as kind]))
 
 ;; ## REPL Setup
 ;;
@@ -20,6 +23,95 @@
 ;; another)
 ;; using the port printed to the console (also written to `.nrepl-port`).
 ;;
+;; ## Namespace Structure
+;;
+;; The source is split by pipeline stage (see
+;; [Architecture](./plotje_book.architecture.html#pipeline-overview)).
+;; In the diagram, an arrow runs from a namespace to a namespace it
+;; requires, and the dashed arrow points to a namespace that is loaded
+;; the first time it is needed. The diagram leaves out helper
+;; namespaces such as `impl/text.clj` and `impl/rowid.clj`.
+
+^:kindly/hide-code
+(kind/mermaid "
+graph TD
+  API[\"api.clj\"] --> POSE[\"impl/pose.clj\"]
+  API --> RES[\"impl/resolve.clj\"]
+  API --> PL[\"impl/plan.clj\"]
+  API --> COMP[\"impl/compositor.clj\"]
+  POSE --> RES
+  COMP --> POSE
+  COMP --> PL
+  PL --> RES
+  PL --> STAT[\"impl/stat.clj\"]
+  PL --> SCALE[\"impl/scale.clj\"]
+  PL --> DEFAULTS[\"impl/defaults.clj\"]
+  PL --> PS[\"impl/plan_schema.clj\"]
+  PL --> LAYOUT[\"impl/layout.clj\"]
+  API --> FRAMES[\"impl/frames.clj\"]
+  API --> IMEM[\"impl/membrane.clj\"]
+  API --> RENDER[\"impl/render.clj\"]
+  API --> SVG[\"render/svg.clj\"]
+  SVG --> RENDER
+  BUFIMG[\"render/bufimg.clj\"] --> RENDER
+  RENDER -.->|loaded on first use| BUFIMG
+  SVG --> MEMBRANE[\"render/membrane.clj\"]
+  BUFIMG --> MEMBRANE
+  MEMBRANE --> IMEM
+  MEMBRANE --> FRAMES
+  MEMBRANE --> LAYOUT
+  MEMBRANE --> PANEL[\"render/panel.clj\"]
+  PANEL --> MARK[\"render/mark.clj\"]
+  PANEL --> SCALE
+  PANEL --> COORD[\"impl/coord.clj\"]
+  API --> RC[\"render/composite.clj\"]
+  RC --> MEMBRANE
+  RC --> IMEM
+  style API fill:#c8e6c9
+  style COMP fill:#d1c4e9
+  style PL fill:#d1c4e9
+  style SVG fill:#f8bbd0
+  style MEMBRANE fill:#f8bbd0
+  style RC fill:#f8bbd0
+")
+
+;; `impl/pose.clj` holds the pose operations: `resolve-tree` (merges
+;; mappings, data and options from the root down to every leaf),
+;; `elaborate` (writes in what the draft chooses), `expand-facet-nodes`
+;; and `fit-layers` (a facet over columns as cells, and the layers each
+;; cell draws), `shared-axis-groups` (which cells share an axis), and
+;; `leaf->draft` (the leaf flattening that the public `pj/pose->draft`
+;; calls).
+;;
+;; `impl/compositor.clj` handles composite framing layout,
+;; `composite-pose->draft`, and `composite-draft->plan` -- pure
+;; data-side, no membrane dependency.
+;;
+;; `impl/plan.clj` holds the leaf-plan computation (domains, ticks,
+;; legends, layout) that the public `pj/draft->plan` calls.
+;;
+;; `impl/layout.clj` sizes the canvas: the room the axes, titles and
+;; legends take, and the size of each panel. `impl/frames.clj` turns a
+;; plan into the rectangles each panel occupies on the canvas, which
+;; `pj/frames` returns.
+;;
+;; `impl/membrane.clj` defines the `PlotjeMembrane` record, the value
+;; of the membrane stage.
+;;
+;; `impl/resolve.clj` defines the `Plan`, `CompositePlan`,
+;; `LeafDraft`, `CompositeDraft`, `PlanLayer`, and `LayerType`
+;; records, and holds `resolve-draft-layer` (single draft layer
+;; resolution, column type inference, grouping).
+;;
+;; The `impl/` directory holds data with no Membrane dependency,
+;; except `impl/membrane.clj`, whose `PlotjeMembrane` is a Membrane
+;; component by definition. The `render/` directory uses Membrane for
+;; drawing and for SVG and raster conversion; `render/bufimg.clj`, the
+;; raster backend, is loaded the first time a `:bufimg` or `:png` plot
+;; is rendered. `render/composite.clj` carries the composite
+;; `plan->membrane` defmethod and the membrane drawables for
+;; composite framing (title, strip labels, shared legend).
+
 ;; ## Running Tests
 ;;
 ;; The test suite runs via [cognitect test-runner](https://github.com/cognitect-labs/test-runner):

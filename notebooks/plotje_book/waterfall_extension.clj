@@ -152,7 +152,11 @@
       (pj/pose :category :amount)
       (pj/lay :waterfall)
       pj/plan
-      :panels first :layers first :bars))
+      :panels
+      first
+      :layers
+      first
+      :bars))
 
 (-> pnl-data
     (pj/pose :category :amount)

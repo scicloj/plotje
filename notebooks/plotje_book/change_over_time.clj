@@ -121,7 +121,13 @@
 (kind/test-last
  [(fn [v]
     (let [s (pj/svg-summary v)
-          groups (-> v pj/plan :panels first :layers first :groups)]
+          groups (-> v
+                     pj/plan
+                     :panels
+                     first
+                     :layers
+                     first
+                     :groups)]
       (and (= 1 (:panels s))
            (= 3 (:lines s))
            ;; Stacked, not three lines drawn at their own values: C

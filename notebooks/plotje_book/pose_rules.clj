@@ -371,8 +371,12 @@ composite-pose
 ;; cells of that row.
 
 (pj/arrange
- [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)
-  (-> iris (pj/pose :petal-length :petal-width) pj/lay-point)])
+ [(-> iris
+      (pj/pose :sepal-length :sepal-width)
+      pj/lay-point)
+  (-> iris
+      (pj/pose :petal-length :petal-width)
+      pj/lay-point)])
 
 (kind/test-last
  [(fn [pose]
@@ -458,7 +462,7 @@ composite-pose
 (-> iris
     (pj/pose {:color :species})
     (pj/facet {:col {:x [:sepal-length :sepal-width]}
-              :row {:y [:sepal-length :sepal-width]}}))
+               :row {:y [:sepal-length :sepal-width]}}))
 
 (kind/test-last
  [(fn [pose]
@@ -556,7 +560,11 @@ composite-pose
 (kind/test-last
  [(fn [counts]
     (let [marks (fn [pose]
-                  (mapv #(mapv :mark (-> % :plan :panels first :layers))
+                  (mapv #(mapv :mark (-> %
+                                         :plan
+                                         :panels
+                                         first
+                                         :layers))
                         (:sub-plots (pj/plan pose))))]
       (and (= [0 1] counts)
            ;; The root's point layer is drawn first, under the cell's
@@ -564,7 +572,9 @@ composite-pose
            ;; root's layer and has none inferred.
            (= [[:point :line] [:point]]
               (marks (-> (pj/arrange
-                          [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-smooth)
+                          [(-> iris
+                               (pj/pose :sepal-length :sepal-width)
+                               pj/lay-smooth)
                            (pj/pose iris :petal-length :petal-width)])
                          pj/lay-point)))
            (= [[:line] [:line]]
@@ -577,7 +587,7 @@ composite-pose
            (= [[:bar] [:point] [:point] [:bar]]
               (marks (-> iris
                          (pj/facet {:col {:x [:sepal-length :sepal-width]}
-                                   :row {:y [:sepal-length :sepal-width]}})
+                                    :row {:y [:sepal-length :sepal-width]}})
                          pj/lay-point))))))])
 
 ;; ### Rule LP2: on a composite, a `lay-*` naming columns attaches to the last matching leaf
@@ -997,13 +1007,15 @@ composite-pose
 
 (-> iris
     (pj/lay-point :sepal-length :sepal-width)
-    (pj/lay-rug {:x :petal-length})
-    pj/draft
-    :layers
-    second
-    (select-keys [:mark :x :y]))
+    (pj/lay-rug {:x :petal-length}))
 
-(kind/test-last [(fn [m] (= {:mark :rug :x :petal-length} m))])
+(kind/test-last
+ [(fn [v] (= {:mark :rug :x :petal-length}
+             (-> v
+                 pj/draft
+                 :layers
+                 second
+                 (select-keys [:mark :x :y]))))])
 
 ;; ---
 ;; ## Inferred Columns
@@ -1121,7 +1133,9 @@ s1-siblings
     (let [sub-plots (:sub-plots (pj/plan pose))
           panel-groups (mapv (fn [sp]
                                (count (:groups (first (:layers
-                                                       (first (-> sp :plan :panels)))))))
+                                                       (first (-> sp
+                                                                  :plan
+                                                                  :panels)))))))
                              sub-plots)]
       ;; Sub-plot 0: no color -> 1 group. Sub-plot 1: :color :species -> 3.
       (= [1 3] panel-groups)))])
@@ -1149,8 +1163,16 @@ s2-tree
  [(fn [pose]
     (let [sub-plots (:sub-plots (pj/plan pose))
           counts (mapv (fn [sp]
-                         (-> sp :plan :panels first :layers first
-                             :groups first :xs count))
+                         (-> sp
+                             :plan
+                             :panels
+                             first
+                             :layers
+                             first
+                             :groups
+                             first
+                             :xs
+                             count))
                        sub-plots)]
       ;; Sub-plot 0 inherits root's iris (150 rows). Sub-plot 1 uses its own (3).
       (= [150 3] counts)))])
@@ -1188,8 +1210,9 @@ s2-tree
 
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)]
-            ;; Point layer sees :species (colored points); smooth
-            ;; layer does not (one overall regression line).
+            ;; The :species mapping reaches the point layer (colored
+            ;; points) and not the smooth layer (one overall
+            ;; regression line).
             (and (= 150 (:points s))
                  (= 1 (:lines s)))))])
 
@@ -1276,7 +1299,11 @@ s2-tree
     pj/lay-point)
 
 (kind/test-last
- [(fn [v] (= {:type :log} (-> v pj/plan :panels first :x-scale)))])
+ [(fn [v] (= {:type :log} (-> v
+                              pj/plan
+                              :panels
+                              first
+                              :x-scale)))])
 
 ;; ---
 ;; ## Options
@@ -1366,7 +1393,12 @@ s2-tree
 (kind/test-last
  [(fn [pose]
     (and (= {:scale {:type :log}} (get-in pose [:mapping :size]))
-         (= {:type :log} (-> pose pj/plan :panels first :layers first
+         (= {:type :log} (-> pose
+                             pj/plan
+                             :panels
+                             first
+                             :layers
+                             first
                              :size-scale))))])
 
 ;; ### Rule O3: `pj/facet` writes a faceting column to the mapping, and a facet over columns to `:facet`
@@ -1510,8 +1542,14 @@ s2-tree
 
 (kind/test-last
  [(fn [pose]
-    (let [y-domain #(-> % pj/plan :panels first :y-domain)
-          points (-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)]
+    (let [y-domain #(-> %
+                        pj/plan
+                        :panels
+                        first
+                        :y-domain)
+          points (-> iris
+                     (pj/pose :sepal-length :sepal-width)
+                     pj/lay-point)]
       (and (= 1 (:panels (pj/svg-summary pose)))
            (= (y-domain points) (y-domain pose))
            (re-find #"pj/lay-rule-h names :petal-length on :x and :petal-width on :y, columns the panel does not draw, so they are not read"
@@ -1575,7 +1613,9 @@ s2-tree
  [(fn [pose]
     (let [plan (pj/plan pose)
           panel-layer-counts (mapv (fn [sp]
-                                     (count (:layers (first (-> sp :plan :panels)))))
+                                     (count (:layers (first (-> sp
+                                                                :plan
+                                                                :panels)))))
                                    (:sub-plots plan))]
       ;; sub-plot 0: point + smooth (2); sub-plot 1: point only (1)
       (= [2 1] panel-layer-counts)))])
@@ -1729,8 +1769,12 @@ s2-tree
 
 (def l4-shared
   (pj/arrange
-   [(-> iris (pj/pose :sepal-length :sepal-width) pj/lay-point)
-    (-> iris (pj/pose :sepal-length :petal-width) pj/lay-point)]
+   [(-> iris
+        (pj/pose :sepal-length :sepal-width)
+        pj/lay-point)
+    (-> iris
+        (pj/pose :sepal-length :petal-width)
+        pj/lay-point)]
    {:share-scales #{:x}}))
 
 l4-shared
@@ -1805,7 +1849,7 @@ l4-shared
 (-> iris
     (pj/pose {:color :species})
     (pj/facet {:col {:x [:sepal-length :sepal-width]}
-              :row {:y [:petal-length :petal-width]}}))
+               :row {:y [:petal-length :petal-width]}}))
 
 (kind/test-last
  [(fn [pose]
@@ -1848,6 +1892,8 @@ l4-shared
 
 ;; ## What's Next
 ;;
+;; - [**Column Types**](./plotje_book.column_types.html) -- the three
+;;   types a column can have, and what each decides about the axis
 ;; - [**Inference Rules**](./plotje_book.inference_rules.html) --
 ;;   how Plotje fills in defaults (column types, marks, stats,
 ;;   scales) when you do not specify them

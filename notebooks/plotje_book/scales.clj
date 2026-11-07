@@ -123,7 +123,12 @@ gapminder-2007
     (pj/scale :x :log))
 
 (kind/test-last
- [(fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))])
+ [(fn [fr] (= :log (-> fr
+                       pj/plan
+                       :panels
+                       first
+                       :x-scale
+                       :type)))])
 
 ;; Written on one pose of a composite, a scale covers that pose alone,
 ;; so two of them can differ:
@@ -142,7 +147,8 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= [:linear :log]
-              (->> (pj/plan fr) :sub-plots
+              (->> (pj/plan fr)
+                   :sub-plots
                    (mapv #(-> % :plan :panels first :x-scale :type)))))])
 
 ;; On the left most countries are pressed against the edge, because a
@@ -160,7 +166,10 @@ gapminder-2007
     (pj/scale :x :log))
 
 (kind/test-last
- [(fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))])
+ [(fn [fr] (= :log (-> fr
+                       pj/plan
+                       :size-legend
+                       :scale-type)))])
 
 ;; ### A type, or a map
 ;;
@@ -175,7 +184,9 @@ gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)
     (pj/scale :x :log)
     pj/plan
-    :panels first :x-scale)
+    :panels
+    first
+    :x-scale)
 
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
@@ -183,7 +194,9 @@ gapminder-2007
     (pj/lay-point :gdp-percap :life-exp)
     (pj/scale :x {:type :log})
     pj/plan
-    :panels first :x-scale)
+    :panels
+    first
+    :x-scale)
 
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
@@ -192,14 +205,18 @@ gapminder-2007
 (-> gapminder-2007
     (pj/lay-point {:x {:column :gdp-percap :scale :log} :y :life-exp})
     pj/plan
-    :panels first :x-scale)
+    :panels
+    first
+    :x-scale)
 
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
 (-> gapminder-2007
     (pj/lay-point {:x {:column :gdp-percap :scale {:type :log}} :y :life-exp})
     pj/plan
-    :panels first :x-scale)
+    :panels
+    first
+    :x-scale)
 
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
@@ -232,7 +249,13 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= {:range [3 16] :type :log}
-              (-> fr pj/plan :panels first :layers first :size-scale)))])
+              (-> fr
+                  pj/plan
+                  :panels
+                  first
+                  :layers
+                  first
+                  :size-scale)))])
 
 ;; The same holds when the range comes from `pj/scale` rather than from
 ;; the pose's mapping:
@@ -245,7 +268,13 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= {:type :log :range [3 16]}
-              (-> fr pj/plan :panels first :layers first :size-scale)))])
+              (-> fr
+                  pj/plan
+                  :panels
+                  first
+                  :layers
+                  first
+                  :size-scale)))])
 
 ;; The rest of a mapping is replaced by the mapping below it, because a
 ;; mapping states one source and two sources cannot combine --
@@ -266,7 +295,11 @@ gapminder-2007
     pj/lay-point)
 
 (kind/test-last
- [(fn [fr] (= {:type :log} (-> fr pj/plan :panels first :x-scale)))])
+ [(fn [fr] (= {:type :log} (-> fr
+                               pj/plan
+                               :panels
+                               first
+                               :x-scale)))])
 
 ;; A scale set for `:x` stays with `:x` when `:x` is given another
 ;; column, as it does for a layer naming its own `:x`. Plotje prints a
@@ -283,7 +316,11 @@ gapminder-2007
     pj/lay-point)
 
 (kind/test-last
- [(fn [fr] (= {:type :linear} (-> fr pj/plan :panels first :x-scale)))])
+ [(fn [fr] (= {:type :linear} (-> fr
+                                  pj/plan
+                                  :panels
+                                  first
+                                  :x-scale)))])
 
 ;;
 ;; A scale set on the pose configures the scale and does not send a
@@ -332,7 +369,13 @@ gapminder-2007
     (pj/lay-point {:size {:column :spread :scale false}}))
 
 (kind/test-last
- [(fn [fr] (nil? (-> fr pj/plan :panels first :layers first :size-scale)))])
+ [(fn [fr] (nil? (-> fr
+                     pj/plan
+                     :panels
+                     first
+                     :layers
+                     first
+                     :size-scale)))])
 
 ;; On `:x` and `:y`, `:scale false` means the value is a distance in
 ;; drawing units from the top left of the panel background rather than
@@ -357,7 +400,11 @@ gapminder-2007
     (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale :log}})
     pj/lay-point
     pj/plan
-    :panels first :layers first :size-scale)
+    :panels
+    first
+    :layers
+    first
+    :size-scale)
 
 (kind/test-last [(fn [spec] (= {:type :log} spec))])
 
@@ -368,7 +415,11 @@ gapminder-2007
     pj/lay-point
     (pj/scale :size :log)
     pj/plan
-    :panels first :layers first :size-scale)
+    :panels
+    first
+    :layers
+    first
+    :size-scale)
 
 (kind/test-last
  [(fn [spec]
@@ -377,7 +428,11 @@ gapminder-2007
            (pj/pose :gdp-percap :life-exp {:size {:column :pop :scale :log}})
            pj/lay-point
            pj/plan
-           :panels first :layers first :size-scale)))])
+           :panels
+           first
+           :layers
+           first
+           :size-scale)))])
 
 ;; `:scale` is written where the mapping is, so the source can be named
 ;; beside it. `pj/scale` names no source, so it can set the scale for an
@@ -503,7 +558,10 @@ gapminder-2007
     (pj/scale :x :log))
 
 (kind/test-last
- [(fn [fr] (= :log (-> fr pj/plan :legend :scale-type)))])
+ [(fn [fr] (= :log (-> fr
+                       pj/plan
+                       :legend
+                       :scale-type)))])
 
 ;; ### What settles continuous or categorical
 ;;
@@ -526,7 +584,12 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= ["Asia" "Europe" "Africa" "Americas" "Oceania"]
-              (->> fr pj/plan :panels first :x-domain vec)))])
+              (->> fr
+                   pj/plan
+                   :panels
+                   first
+                   :x-domain
+                   vec)))])
 
 ;; Where the column's type is not what the values mean, `:x-type`,
 ;; `:y-type` and `:color-type` say so in the mapping. `:cyl` counts
@@ -538,7 +601,12 @@ gapminder-2007
     (pj/lay-point :cyl :hwy {:x-type :categorical}))
 
 (kind/test-last
- [(fn [fr] (= ["4" "6" "8" "5"] (->> fr pj/plan :panels first :x-domain vec)))])
+ [(fn [fr] (= ["4" "6" "8" "5"] (->> fr
+                                     pj/plan
+                                     :panels
+                                     first
+                                     :x-domain
+                                     vec)))])
 
 ;; `:color` reads the same column the same way. Left alone, four counts
 ;; of cylinders are drawn through a gradient, as a continuous quantity:
@@ -547,7 +615,10 @@ gapminder-2007
     (pj/lay-point :displ :hwy {:color :cyl}))
 
 (kind/test-last
- [(fn [fr] (= :continuous (-> fr pj/plan :legend :type)))])
+ [(fn [fr] (= :continuous (-> fr
+                              pj/plan
+                              :legend
+                              :type)))])
 
 ;; `:color-type :categorical` reads them as categories instead, and a
 ;; palette with one entry per count replaces the gradient:
@@ -557,7 +628,11 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= ["4" "6" "8" "5"]
-              (->> fr pj/plan :legend :entries (mapv :label))))])
+              (->> fr
+                   pj/plan
+                   :legend
+                   :entries
+                   (mapv :label))))])
 
 ;; Both plots put the five-cylinder cars last, because the bands and
 ;; the legend rows follow the order the rows arrive in. Ordering them
@@ -614,7 +689,12 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= [0.0 86.73315]
-              (-> fr pj/plan :panels first :y-domain vec)))])
+              (-> fr
+                  pj/plan
+                  :panels
+                  first
+                  :y-domain
+                  vec)))])
 
 ;; The value sits exactly at the edge of the panel and the other end is
 ;; padded as any domain is, which is where `pj/lay-bar` already draws
@@ -634,7 +714,12 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= [0.0 100.0]
-              (-> fr pj/plan :panels first :y-domain vec)))])
+              (-> fr
+                  pj/plan
+                  :panels
+                  first
+                  :y-domain
+                  vec)))])
 
 ;; `:include` is a set of values, so `[0 100]` and `[100 0]` say the
 ;; same thing. A `:domain` is an ordered pair, and writing it the other
@@ -646,7 +731,13 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= [100.0 90.0 80.0 70.0 60.0 50.0 40.0 30.0 20.0 10.0 0.0]
-              (-> fr pj/plan :panels first :y-ticks :values vec)))])
+              (-> fr
+                  pj/plan
+                  :panels
+                  first
+                  :y-ticks
+                  :values
+                  vec)))])
 
 ;; The two cannot both be written for one aesthetic. A `:domain`
 ;; replaces the extent the data gives and an `:include` adds to it, so
@@ -666,7 +757,13 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= [40.0 50.0 60.0 70.0 80.0]
-              (->> fr pj/plan :panels first :y-ticks :values (mapv double))))])
+              (->> fr
+                   pj/plan
+                   :panels
+                   first
+                   :y-ticks
+                   :values
+                   (mapv double))))])
 
 ;; An empty `:breaks` draws the axis with no ticks, no tick labels and
 ;; no grid lines, and keeps its title -- ggplot2's `breaks = NULL`.
@@ -679,11 +776,20 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (let [plan (pj/plan fr)]
-             (and (empty? (-> plan :panels first :y-ticks :values))
+             (and (empty? (-> plan
+                              :panels
+                              first
+                              :y-ticks
+                              :values))
                   (contains? (set (:texts (pj/svg-summary fr))) "life exp")
                   ;; `nil` in place of `[]`: the default ticks.
-                  (seq (-> fr (pj/scale :y {:breaks nil}) pj/plan
-                           :panels first :y-ticks :values)))))])
+                  (seq (-> fr
+                           (pj/scale :y {:breaks nil})
+                           pj/plan
+                           :panels
+                           first
+                           :y-ticks
+                           :values)))))])
 
 ;; `:tick-labels` pairs custom text with those breaks, one label each. It is
 ;; how an axis that is numerically indexed gets worded labels -- days
@@ -720,7 +826,12 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= ["2016" "2020" "2024"]
-              (->> fr pj/plan :panels first :x-ticks :labels)))])
+              (->> fr
+                   pj/plan
+                   :panels
+                   first
+                   :x-ticks
+                   :labels)))])
 
 ;; A `LocalDate`, a `LocalDateTime` and a `java.util.Date` are all
 ;; accepted, and `:tick-labels` rewords them as it does any other break.
@@ -739,7 +850,13 @@ gapminder-2007
 (kind/test-last
  [(fn [fr] (= ["2010" "2012" "2014" "2016" "2018" "2020" "2022" "2024"
                "2026" "2028" "2030"]
-              (->> fr pj/plan :panels first :x-ticks :labels vec)))])
+              (->> fr
+                   pj/plan
+                   :panels
+                   first
+                   :x-ticks
+                   :labels
+                   vec)))])
 
 ;; A categorical axis labels every category by default, so with many of
 ;; them the labels overlap. `:n-ticks` keeps roughly that many
@@ -769,7 +886,13 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v] (= [0.0 5.0 10.0 15.0]
-             (->> v pj/plan :panels first :x-ticks :values (mapv double))))])
+             (->> v
+                  pj/plan
+                  :panels
+                  first
+                  :x-ticks
+                  :values
+                  (mapv double))))])
 
 ;; `:tick-spacing` sets the count the other way round: it says how
 ;; much room, in drawing units, each tick should have. The count
@@ -783,7 +906,13 @@ gapminder-2007
     (pj/scale :x {:tick-spacing 200}))
 
 (kind/test-last
- [(fn [v] (= 2 (->> v pj/plan :panels first :x-ticks :values count)))])
+ [(fn [v] (= 2 (->> v
+                    pj/plan
+                    :panels
+                    first
+                    :x-ticks
+                    :values
+                    count)))])
 
 ;; `:x-tick-spacing` and `:y-tick-spacing` in `pj/options` name that
 ;; setting one scope further out, and a spec wins over them. There is
@@ -807,7 +936,12 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= ["Oceania" "Africa" "Asia" "Americas" "Europe"]
-              (->> fr pj/plan :panels first :x-domain vec)))])
+              (->> fr
+                   pj/plan
+                   :panels
+                   first
+                   :x-domain
+                   vec)))])
 
 ;; Categories are matched by the text they are drawn with, so a column
 ;; of numbers read as categories can be ordered by those numbers. The
@@ -818,7 +952,12 @@ gapminder-2007
     (pj/scale :x {:domain [4 5 6 8]}))
 
 (kind/test-last
- [(fn [fr] (= ["4" "5" "6" "8"] (->> fr pj/plan :panels first :x-domain vec)))])
+ [(fn [fr] (= ["4" "5" "6" "8"] (->> fr
+                                     pj/plan
+                                     :panels
+                                     first
+                                     :x-domain
+                                     vec)))])
 
 ;; `:color` and `:shape` read a categorical `:domain` the same way.
 ;; For `:color` the palette is assigned in the order given, so the
@@ -853,7 +992,12 @@ gapminder-2007
 (kind/test-last
  [(fn [fr]
     (let [plan (pj/plan fr)
-          groups (-> plan :panels first :layers first :groups)]
+          groups (-> plan
+                     :panels
+                     first
+                     :layers
+                     first
+                     :groups)]
       (and
        ;; The legend reads down in the order the domain gives.
        (= ["dinner" "lunch" "breakfast"]
@@ -887,14 +1031,22 @@ gapminder-2007
                       (pj/lay-point :grade :score {:x-type :categorical})
                       (pj/scale :x {:domain [2 1]})
                       pj/plan
-                      :panels first :x-domain vec)
+                      :panels
+                      first
+                      :x-domain
+                      vec)
           on-shape (-> two-grades
                        (pj/lay-point :hours :score {:shape :grade})
                        (pj/scale :shape {:domain [2 1]})
                        pj/plan
-                       :shape-legend :entries
+                       :shape-legend
+                       :entries
                        (->> (mapv :label)))
-          on-color (-> fr pj/plan :legend :entries (->> (mapv :label)))]
+          on-color (-> fr
+                       pj/plan
+                       :legend
+                       :entries
+                       (->> (mapv :label)))]
       (= ["2" "1"] on-axis on-color on-shape)))])
 
 ;; A category the domain leaves out is still drawn, ordered after the
@@ -1066,11 +1218,18 @@ gapminder-2007
  [(fn [fr]
     ;; Compared against the same plot rather than stated in prose, so
     ;; the claim stays true if the default ever moves.
-    (= (->> fr pj/plan :alpha-legend :entries (mapv :alpha))
+    (= (->> fr
+            pj/plan
+            :alpha-legend
+            :entries
+            (mapv :alpha))
        (->> (-> gapminder-2007
                 (pj/lay-point :gdp-percap :life-exp {:alpha :pop})
                 (pj/scale :x :log))
-            pj/plan :alpha-legend :entries (mapv :alpha))))])
+            pj/plan
+            :alpha-legend
+            :entries
+            (mapv :alpha))))])
 
 ;; ### How a size spreads across its range
 ;;
@@ -1179,7 +1338,9 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr]
-    (let [{:keys [entries]} (-> fr pj/plan :size-legend)
+    (let [{:keys [entries]} (-> fr
+                                pj/plan
+                                :size-legend)
           area (fn [e] (Math/pow (:magnitude e) 2))
           by-value (into {} (map (juxt :value area) entries))]
       ;; Where the legend labels both a value and its half, the areas
@@ -1201,7 +1362,10 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr]
-    (let [entries (->> fr pj/plan :alpha-legend :entries)
+    (let [entries (->> fr
+                       pj/plan
+                       :alpha-legend
+                       :entries)
           by-value (into {} (map (juxt :value :alpha) entries))]
       ;; Where the legend labels both a value and its half, the
       ;; opacities are in the same 2-to-1 ratio.
@@ -1347,7 +1511,10 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v] (= {:low "#2166AC" :mid "#F7F7F7" :high "#B2182B"}
-             (-> v pj/plan :legend :color-range)))])
+             (-> v
+                 pj/plan
+                 :legend
+                 :color-range)))])
 
 ;; Left without `:mid`, the map runs straight from one end to the
 ;; other, with no middle colour of its own -- here from blue to red,
@@ -1359,7 +1526,10 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v]
-    (let [stops (-> v pj/plan :legend :stops)
+    (let [stops (-> v
+                    pj/plan
+                    :legend
+                    :stops)
           [r g b] (:color (nth stops (quot (count stops) 2)))]
       ;; The middle of the bar is a mix of the two ends -- red and
       ;; blue, and next to no green -- rather than a grey stop.
@@ -1374,7 +1544,10 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v]
-    (let [stops (-> v pj/plan :legend :stops)]
+    (let [stops (-> v
+                    pj/plan
+                    :legend
+                    :stops)]
       ;; The bar is built from the function that colors the marks, so
       ;; its ends are the two the function answers with.
       (and (= [0.0 0.0 1.0 1.0] (:color (first stops)))
@@ -1393,7 +1566,9 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v]
-    (let [legend (-> v pj/plan :legend)]
+    (let [legend (-> v
+                     pj/plan
+                     :legend)]
       (and (= :log (:scale-type legend))
            (= :viridis (:color-range legend)))))])
 
@@ -1410,9 +1585,20 @@ gapminder-2007
 
 (kind/test-last
  [(fn [v]
-    (let [colors (fn [p] (-> p pj/plan :panels first :layers first
-                             :groups first :colors vec))
-          stops (-> v pj/plan :legend :stops)]
+    (let [colors (fn [p] (-> p
+                             pj/plan
+                             :panels
+                             first
+                             :layers
+                             first
+                             :groups
+                             first
+                             :colors
+                             vec))
+          stops (-> v
+                    pj/plan
+                    :legend
+                    :stops)]
       (and
        ;; The centre of the gradient sits at zero rather than at 10,
        ;; the middle of -40 to 60, so the marks are drawn in different
@@ -1430,7 +1616,10 @@ gapminder-2007
        (== 1.0 (:gradient-t (last stops)))
        ;; The bar's labels, as the prose below lists them.
        (= ["-40" "-20" "0" "20" "40" "60"]
-          (mapv :label (-> v pj/plan :legend :ticks))))))])
+          (mapv :label (-> v
+                           pj/plan
+                           :legend
+                           :ticks))))))])
 
 ;; The gradient is centred on the midpoint and widened until it reaches
 ;; whichever end of the domain is further from it, so a departure of
@@ -1578,7 +1767,9 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (= ["GDP per capita, log scale" "Continent"]
-              (-> fr pj/plan ((juxt :x-label (comp :title :legend))))))])
+              (-> fr
+                  pj/plan
+                  ((juxt :x-label (comp :title :legend))))))])
 
 ;; Each has a plot option of the same name one scope further out:
 ;; `:x-label` and `:y-label` for the axes, and `:color-label`,
@@ -1606,7 +1797,10 @@ gapminder-2007
 
 (kind/test-last
  [(fn [fr] (let [texts (set (:texts (pj/svg-summary fr)))]
-             (and (= "From the spec" (-> fr pj/plan :legend :title))
+             (and (= "From the spec" (-> fr
+                                         pj/plan
+                                         :legend
+                                         :title))
                   (not (texts "From the options")))))])
 
 ;; ## One legend per aesthetic
@@ -1678,7 +1872,10 @@ gapminder-2007
       (and
        ;; Both layers on the panel, both reading the one scale.
        (= [{:type :log} {:type :log}]
-          (mapv :size-scale (-> plan :panels first :layers)))
+          (mapv :size-scale (-> plan
+                                :panels
+                                first
+                                :layers)))
        ;; The same shape on :x answers the same way, which is the
        ;; point: an aesthetic that names nothing has no opinion,
        ;; whichever aesthetic it is.
@@ -1688,7 +1885,9 @@ gapminder-2007
               (pj/lay-point {:x {:column :gdp-percap :scale :log}})
               (pj/lay-point {})
               pj/plan
-              :panels first :x-scale)))))])
+              :panels
+              first
+              :x-scale)))))])
 
 ;; ## Not supported yet
 ;;

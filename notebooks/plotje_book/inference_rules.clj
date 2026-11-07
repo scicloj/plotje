@@ -52,7 +52,13 @@ scatter-pose
           explicit-default-color (-> {:x [1] :y [1]}
                                      (pj/lay-point :x :y {:color default-hex})
                                      pj/plan
-                                     :panels first :layers first :groups first :color)]
+                                     :panels
+                                     first
+                                     :layers
+                                     first
+                                     :groups
+                                     first
+                                     :color)]
       (and (= 5 (:points (pj/svg-summary v)))
            (= "#333" (:default-color (pj/config)))
            (= :single (:layout-type plan))
@@ -345,10 +351,13 @@ bar-pose
 temporal-pose
 
 (kind/test-last
- [(fn [_]
-    (let [p (first (:panels (pj/plan temporal-pose)))]
-      (and (number? (first (:x-domain p)))
+ [(fn [v]
+    (let [p (first (:panels (pj/plan v)))]
+      (and (= {:type :linear} (:x-scale p))
+           (= 2 (count (:x-domain p)))
+           (every? number? (:x-domain p))
            (= 6 (count (:values (:x-ticks p))))
+           (= 6 (count (:labels (:x-ticks p))))
            (= "Jan 2024" (first (:labels (:x-ticks p)))))))])
 
 ;; The axis reads as dates. The plan underneath it holds none: the
@@ -358,17 +367,6 @@ temporal-pose
 ;; "numerical, with calendar-aware ticks" -- it describes the scaling,
 ;; not the display.
 
-(let [panel (first (:panels (pj/plan temporal-pose)))]
-  {:x-scale       (:x-scale panel)
-   :x-domain      (:x-domain panel)
-   :x-tick-labels (:labels (:x-ticks panel))})
-
-(kind/test-last
- [(fn [m]
-    (and (= {:type :linear} (:x-scale m))
-         (every? number? (:x-domain m))
-         (= 6 (count (:x-tick-labels m)))))])
-
 ;; A tick is labelled at the granularity of the calendar unit it steps
 ;; by, and no finer: ticks a year apart carry the year alone, and ticks
 ;; a month apart carry the month, with the year beside it once the axis
@@ -376,21 +374,33 @@ temporal-pose
 ;; saying which one. The same two-point layer over three spans gives
 ;; clock time, weekday and hour, and year:
 
-(let [labels (fn [a b]
-               (-> {:when [a b] :level [1 2]}
-                   (pj/lay-point :when :level)
-                   pj/plan :panels first :x-ticks :labels))]
-  {:six-hours  (labels #inst "2024-01-15T00:00" #inst "2024-01-15T06:00")
-   :three-days (labels #inst "2024-01-15" #inst "2024-01-18")
-   :nine-years (labels #inst "2015-01-15" #inst "2024-01-15")})
+(pj/arrange
+ [(-> {:when [#inst "2024-01-15T00:00" #inst "2024-01-15T06:00"] :level [1 2]}
+      (pj/lay-point :when :level)
+      (pj/options {:title "Six hours"}))
+  (-> {:when [#inst "2024-01-15" #inst "2024-01-18"] :level [1 2]}
+      (pj/lay-point :when :level)
+      (pj/options {:title "Three days"}))
+  (-> {:when [#inst "2015-01-15" #inst "2024-01-15"] :level [1 2]}
+      (pj/lay-point :when :level)
+      (pj/options {:title "Nine years"}))]
+ {:cols 1})
 
 (kind/test-last
- [(fn [m]
-    (and (every? #(re-matches #"\d{2}:\d{2}" %) (:six-hours m))
-         (every? #(re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" %) (:three-days m))
-         (every? #(re-matches #"\d{4}" %) (:nine-years m))
-         ;; backs "one tick per year" in the prose below
-         (= 9 (count (:nine-years m)))))])
+ [(fn [v]
+    (let [[six-hours three-days nine-years]
+          (mapv #(-> %
+                     :plan
+                     :panels
+                     first
+                     :x-ticks
+                     :labels)
+                (:sub-plots (pj/plan v)))]
+      (and (every? #(re-matches #"\d{2}:\d{2}" %) six-hours)
+           (every? #(re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" %) three-days)
+           (every? #(re-matches #"\d{4}" %) nine-years)
+           ;; backs "one tick per year" in the prose below
+           (= 9 (count nine-years)))))])
 
 ;; The tick values sit on the calendar as well as the labels do, at
 ;; every resolution. The step is a round number of years, months,
@@ -422,7 +432,11 @@ hour-bar-pose
          ;; Without the override: four bars on a numerical axis whose
          ;; ticks are not one per hour.
          (let [plain (pj/lay-bar {:hour [9 10 11 12] :count [5 8 12 7]} :hour :count)
-               ticks (-> plain pj/plan :panels first :x-ticks)]
+               ticks (-> plain
+                         pj/plan
+                         :panels
+                         first
+                         :x-ticks)]
            (and (= 4 (:polygons (pj/svg-summary plain)))
                 (false? (:categorical? ticks))
                 (not= ["9" "10" "11" "12"] (:labels ticks))))))])
@@ -604,7 +618,12 @@ colored-pose
 
 (kind/test-last
  [(fn [fr]
-    (let [layer (-> fr pj/plan :panels first :layers first)]
+    (let [layer (-> fr
+                    pj/plan
+                    :panels
+                    first
+                    :layers
+                    first)]
       (and (= 1 (count (:groups layer)))
            (= 3 (count (:colors (first (:groups layer))))))))])
 
@@ -802,7 +821,13 @@ explicit-group-pose
 
 (kind/test-last
  [(fn [v]
-    (let [mark-of (fn [pose] (-> pose pj/plan :panels first :layers first :mark))
+    (let [mark-of (fn [pose] (-> pose
+                                 pj/plan
+                                 :panels
+                                 first
+                                 :layers
+                                 first
+                                 :mark))
           dates {:t [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"]
                  :u [#inst "2023-01-01" #inst "2023-02-01" #inst "2023-03-01"]
                  :c ["a" "b" "a"]

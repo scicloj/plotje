@@ -395,10 +395,16 @@ longest-per-species
 
 (kind/test-last
  [(fn [fr]
-    (let [text-layer (->> fr pj/plan :panels first :layers
+    (let [text-layer (->> fr
+                          pj/plan
+                          :panels
+                          first
+                          :layers
                           (filter #(= :text (:mark %)))
                           first)]
-      (= :right (-> text-layer :style :align-x))))])
+      (= :right (-> text-layer
+                    :style
+                    :align-x))))])
 
 ;; ### Labelling counted bars with their counts
 ;;
@@ -415,9 +421,16 @@ longest-per-species
 (kind/test-last
  [(fn [fr]
     (= ["50" "50" "50"]
-       (->> fr pj/plan :panels first :layers
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
             (filter #(= :text (:mark %)))
-            first :groups first :labels)))])
+            first
+            :groups
+            first
+            :labels)))])
 
 ;; ### Labels on grouped bars
 ;;
@@ -436,10 +449,15 @@ longest-per-species
 
 (kind/test-last
  [(fn [fr]
-    (let [layers (->> fr pj/plan :panels first :layers)
+    (let [layers (->> fr
+                      pj/plan
+                      :panels
+                      first
+                      :layers)
           groups (fn [mark] (->> layers
                                  (filter #(= mark (:mark %)))
-                                 first :groups
+                                 first
+                                 :groups
                                  (mapv (juxt :label :dodge-idx))))]
       (= (groups :rect) (groups :text))))])
 
@@ -758,7 +776,8 @@ longest-per-species
       (tc/select-rows #(= 2007 (:year %)))
       (tc/order-by :life-exp :desc)
       (tc/rows :as-maps)
-      first :country))
+      first
+      :country))
 
 (def gained-most
   (-> life-history
@@ -767,7 +786,8 @@ longest-per-species
                                        (reduce min (:life-exp ds))))})
       (tc/order-by :gain :desc)
       (tc/rows :as-maps)
-      first :$group-name))
+      first
+      :$group-name))
 
 ;; The sharpest fall, as a country and as the size of the drop between
 ;; two consecutive readings:

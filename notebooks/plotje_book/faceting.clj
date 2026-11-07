@@ -246,8 +246,12 @@
                            (and (= {:panels 6 :points 300}
                                    (select-keys (pj/svg-summary v) [:panels :points]))
                                 ;; the two calls, in either order, give this pose
-                                (= v (-> base (pj/facet :species) (pj/facet {:y ys})))
-                                (= v (-> base (pj/facet {:y ys}) (pj/facet :species)))
+                                (= v (-> base
+                                         (pj/facet :species)
+                                         (pj/facet {:y ys})))
+                                (= v (-> base
+                                         (pj/facet {:y ys})
+                                         (pj/facet :species)))
                                 ;; the prose below: a third facet suggests a colour or pj/arrange
                                 (let [m (try (pj/facet v {:row :species}) nil
                                              (catch clojure.lang.ExceptionInfo e (ex-message e)))]
@@ -493,7 +497,8 @@
 
 (kind/test-last
  [(fn [fr] (let [s (pj/svg-summary fr)
-                 labelled (->> (pj/plan fr) :sub-plots
+                 labelled (->> (pj/plan fr)
+                               :sub-plots
                                (mapcat (comp :panels :plan))
                                (keep :col-label))]
              (and (= 6 (:panels s))
@@ -689,7 +694,10 @@ measures
 
 (kind/test-last
  [(fn [v]
-    (let [layers (->> v pj/plan :panels (mapcat :layers))]
+    (let [layers (->> v
+                      pj/plan
+                      :panels
+                      (mapcat :layers))]
       (and
        ;; One extent for the plot rather than one per panel -- the
        ;; lowest and highest value anywhere, which is what the legend
@@ -829,57 +837,6 @@ measures
 ;; its own mapping and layers. The cells read the data the arrangement
 ;; is given, or each holds data of its own.
 ;;
-;; Where both calls can draw a plot, they agree on what its panels show.
-;; Here `:hwy` and `:cty` are drawn against `:displ`, one panel above the
-;; other, first by a facet over the two columns:
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/pose {:x :displ})
-    pj/lay-point
-    (pj/facet {:y [:hwy :cty]}))
-
-(kind/test-last
- [(fn [v]
-    (let [s (pj/svg-summary v)
-          plan (pj/plan v)
-          x-domains (for [sp (:sub-plots plan)
-                          panel (:panels (:plan sp))]
-                      (:x-domain panel))]
-      (and (= 2 (:panels s))
-           (= 468 (:points s))
-           (apply = x-domains)
-           ;; The shared :x axis is titled once, under the lower panel.
-           (= 1 (count (filter #{"displ"} (:texts s)))))))])
-
-;; and then by an arrangement of two mappings, each naming a pair of
-;; columns, in one column:
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}] {:cols 1})
-    pj/lay-point)
-
-(kind/test-last
- [(fn [v]
-    (let [s (pj/svg-summary v)
-          domains (fn [pose]
-                    (vec (for [sp (:sub-plots (pj/plan pose))
-                               panel (:panels (:plan sp))]
-                           [(:x-domain panel) (:y-domain panel)])))
-          faceted (-> (rdatasets/ggplot2-mpg)
-                      (pj/pose {:x :displ})
-                      pj/lay-point
-                      (pj/facet {:y [:hwy :cty]}))]
-      (and (= 2 (:panels s))
-           (= 468 (:points s))
-           ;; The same :x and :y domains, panel by panel, as the facet.
-           (= (domains faceted) (domains v))
-           ;; The shared :x axis is titled once, as in the facet.
-           (= 1 (count (filter #{"displ"} (:texts s)))))))])
-
-;; The two cells split the data of the arrangement and both draw
-;; `:displ`, so they share the `:x` axis, and the axis is titled once,
-;; under the lower cell, as in the facet.
-;;
 ;; Cells that each hold data of their own share no axis. Here three cells
 ;; each hold the rows of one kind of drive, and each `:y` axis covers
 ;; only its own cell's rows:
@@ -897,6 +854,21 @@ measures
                       (:y-domain panel))]
       (and (= 3 (count y-domains))
            (= 3 (count (distinct y-domains))))))])
+
+;; `{:share-scales #{:y}}` in the arrangement's options gives the three
+;; cells one `:y` axis, as the Shared Scales section of the Composition
+;; chapter shows.
+
+(kind/test-last
+ [(fn [_]
+    (let [arranged (pj/arrange (vec (for [drive ["4" "f" "r"]]
+                                      (-> (rdatasets/ggplot2-mpg)
+                                          (tc/select-rows #(= drive (:drv %)))
+                                          (pj/lay-point :displ :hwy))))
+                               {:share-scales #{:y}})]
+      (apply = (for [sp (:sub-plots (pj/plan arranged))
+                     panel (:panels (:plan sp))]
+                 (:y-domain panel)))))])
 
 ;; A facet over `:drv` divides one dataset, so its three panels share
 ;; both axes:
@@ -917,8 +889,9 @@ measures
 ;; `:where`, the row filter that keeps the rows of that category.
 ;; Written out by hand, the cells draw the same plot as the facet:
 
-(pj/arrange (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
-            [{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}])
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/arrange [{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}]))
 
 (kind/test-last
  [(fn [v] (= (pj/plot v)
@@ -932,34 +905,84 @@ measures
 ;;
 ;; The plots agree and the poses do not. The arrangement holds its cells
 ;; under `:poses`, and the faceted pose holds no `:poses`, so a layer
-;; added afterwards meets two different poses: on the facet,
-;; `(pj/lay-point :displ :cty)` draws on the three panels, and on the
-;; arrangement it is added as a fourth cell.
+;; added afterwards meets two different poses. Added to the facet,
+;; `(pj/lay-point :displ :cty)` draws in each of the three panels, in a
+;; second colour:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :drv)
+    (pj/lay-point :displ :cty))
 
 (kind/test-last
  [(fn [v]
-    (let [faceted (-> (rdatasets/ggplot2-mpg)
-                      (pj/lay-point :displ :hwy)
-                      (pj/facet :drv))]
-      (and (contains? v :poses)
-           (not (contains? faceted :poses))
-           (= 3 (:panels (pj/svg-summary (pj/lay-point faceted :displ :cty))))
-           (= 4 (:panels (pj/svg-summary (pj/lay-point v :displ :cty)))))))])
-;;
-;; `{:share-scales #{:y}}` in the arrangement's options gives the three
-;; cells one `:y` axis, as the Shared Scales section of the Composition
-;; chapter shows.
+    (let [s (pj/svg-summary v)]
+      (and (not (contains? v :poses))
+           (= 3 (:panels s))
+           ;; 234 rows, drawn once for :hwy and once for :cty.
+           (= 468 (:points s))
+           (= ["hwy" "cty"] (mapv :label (:entries (:legend (pj/plan v))))))))])
+
+;; Added to the arrangement, the same layer becomes a fourth cell. The
+;; fourth cell has no `:where`, so it reads every row, and the layer
+;; written on the arrangement reaches it as it reaches the other cells,
+;; so the fourth cell draws `:hwy` and `:cty`:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/arrange [{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}])
+    (pj/lay-point :displ :cty))
 
 (kind/test-last
- [(fn [_]
-    (let [arranged (pj/arrange (vec (for [drive ["4" "f" "r"]]
-                                      (-> (rdatasets/ggplot2-mpg)
-                                          (tc/select-rows #(= drive (:drv %)))
-                                          (pj/lay-point :displ :hwy))))
-                               {:share-scales #{:y}})]
-      (apply = (for [sp (:sub-plots (pj/plan arranged))
-                     panel (:panels (:plan sp))]
-                 (:y-domain panel)))))])
+ [(fn [v]
+    (let [s (pj/svg-summary v)]
+      (and (contains? v :poses)
+           (= 4 (:panels s))
+           ;; 234 :hwy points across the three :where cells, and every
+           ;; row twice, :hwy and :cty, in the fourth cell.
+           (= (+ 234 (* 2 234)) (:points s)))))])
+
+;; The cells of an arrangement can also be plots of different kinds,
+;; which the panels of a facet cannot. Here a cell naming two columns
+;; draws a scatter, and a cell naming one column draws a histogram:
+
+(pj/arrange (rdatasets/ggplot2-mpg) [{:x :displ :y :hwy} :hwy])
+
+(kind/test-last
+ [(fn [v]
+    (and (= 2 (:panels (pj/svg-summary v)))
+         (= [:point :bar]
+            (for [sp (:sub-plots (pj/plan v))
+                  panel (:panels (:plan sp))
+                  layer (:layers panel)]
+              (:mark layer)))))])
+
+;; A facet by one column does not wrap its panels onto further rows. An
+;; arrangement wraps its cells into rows: `{:cols 2}` in its options
+;; places the three `:where` cells in two columns. Each cell keeps its
+;; strip, and the cells still share both axes:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/arrange [{:where {:drv "f"}} {:where {:drv "4"}} {:where {:drv "r"}}]
+                {:cols 2}))
+
+(kind/test-last
+ [(fn [v]
+    (let [boxes (map (comp :panel-box :frames)
+                     (:panels (pj/frames v)))
+          panels (for [sp (:sub-plots (pj/plan v))
+                       panel (:panels (:plan sp))]
+                   panel)
+          texts (set (:texts (pj/svg-summary v)))]
+      (and (= 3 (count panels))
+           ;; Two columns and two rows of cells.
+           (= 2 (count (distinct (map first boxes))))
+           (= 2 (count (distinct (map second boxes))))
+           ;; A strip per cell.
+           (every? texts ["f" "4" "r"])
+           (apply = (map :x-domain panels))
+           (apply = (map :y-domain panels)))))])
 
 ;; So write `pj/facet` when the panels are parts of one plot: one
 ;; dataset and the same layers, divided by the categories of a column or
@@ -969,6 +992,11 @@ measures
 ;; different layers, a dashboard -- or when the layout needs what only a
 ;; list of cells can say: a column count, an empty cell written `nil`,
 ;; rows of different lengths, or one arrangement placed inside another.
+;; A layer holding data of its own is drawn whole in every panel of a
+;; facet, so a reference line computed for each category needs an
+;; arrangement, as
+;; [Known Limitations](./plotje_book.known_limitations.html#ggplot2-features-not-yet-implemented)
+;; says.
 
 ;; ## The Order of the Calls
 ;;
@@ -998,18 +1026,32 @@ measures
                            (pj/facet :drv)
                            (pj/scale :y {:domain [0 50]})
                            pj/lay-smooth)))
-           (= (-> p (pj/facet :drv) (pj/options {:title "T"}))
-              (-> p (pj/options {:title "T"}) (pj/facet :drv)))
-           (= (-> p (pj/facet :drv) (pj/coord :flip))
-              (-> p (pj/coord :flip) (pj/facet :drv))))))])
+           (= (-> p
+                  (pj/facet :drv)
+                  (pj/options {:title "T"}))
+              (-> p
+                  (pj/options {:title "T"})
+                  (pj/facet :drv)))
+           (= (-> p
+                  (pj/facet :drv)
+                  (pj/coord :flip))
+              (-> p
+                  (pj/coord :flip)
+                  (pj/facet :drv))))))])
 
 ;; The same holds under a facet over columns, where a layer added before
 ;; or after the facet gives an equal pose.
 
 (kind/test-last
  [(fn [_]
-    (= (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) pj/lay-point (pj/facet {:y [:hwy :cty]}))
-       (-> (rdatasets/ggplot2-mpg) (pj/pose {:x :displ}) (pj/facet {:y [:hwy :cty]}) pj/lay-point)))])
+    (= (-> (rdatasets/ggplot2-mpg)
+           (pj/pose {:x :displ})
+           pj/lay-point
+           (pj/facet {:y [:hwy :cty]}))
+       (-> (rdatasets/ggplot2-mpg)
+           (pj/pose {:x :displ})
+           (pj/facet {:y [:hwy :cty]})
+           pj/lay-point)))])
 
 ;; ## Coming from ggplot2
 ;;
@@ -1031,6 +1073,10 @@ measures
 ;; text column and follows the levels of a factor;
 ;; `(pj/scale pose :col {:domain [...]})` plays the part of
 ;; `factor(levels = ...)`, as the section on ordering the panels shows.
+;;
+;; [ggplot2 Equivalents](./plotje_book.ggplot2_equivalents.html)
+;; collects the ggplot2 spellings outside faceting -- layers, scales,
+;; coordinates, labels -- with the Plotje spelling of each.
 ;;
 ;; ### A panel for all rows
 ;;

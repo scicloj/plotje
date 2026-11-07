@@ -51,7 +51,7 @@
    sales
    :hover
    (fn*
-    [p1__87264#]
+    [p1__87277#]
     (map
      (fn
       [month revenue margin]
@@ -61,9 +61,9 @@
        (format "%.1fM" (/ (double revenue) 1000000.0))
        " at "
        (format "%.1f%%" (* 100.0 margin))))
-     (:month p1__87264#)
-     (:revenue p1__87264#)
-     (:margin p1__87264#))))))
+     (:month p1__87277#)
+     (:revenue p1__87277#)
+     (:margin p1__87277#))))))
 
 
 (def v10_l86 sales-labelled)
@@ -100,7 +100,7 @@
    sales
    :hover
    (fn*
-    [p1__87265#]
+    [p1__87278#]
     (map
      (fn
       [month revenue margin]
@@ -112,9 +112,9 @@
        [:br]
        "margin "
        [:code (format "%.1f%%" (* 100.0 margin))]])
-     (:month p1__87265#)
-     (:revenue p1__87265#)
-     (:margin p1__87265#))))))
+     (:month p1__87278#)
+     (:revenue p1__87278#)
+     (:margin p1__87278#))))))
 
 
 (def v16_l137 sales-rich)
@@ -161,8 +161,8 @@
        (tree-seq vector? seq (pj/plot pose))
        (filter
         (fn*
-         [p1__87266#]
-         (and (vector? p1__87266#) (map? (second p1__87266#)))))
+         [p1__87279#]
+         (and (vector? p1__87279#) (map? (second p1__87279#)))))
        (map second))]
      (=
       ["<b>one reading per point</b>"]
@@ -189,8 +189,8 @@
        (tree-seq vector? seq (pj/plot pose))
        (filter
         (fn*
-         [p1__87267#]
-         (and (vector? p1__87267#) (map? (second p1__87267#)))))
+         [p1__87280#]
+         (and (vector? p1__87280#) (map? (second p1__87280#)))))
        (map second))]
      (and
       (some :data-tooltip attrs)

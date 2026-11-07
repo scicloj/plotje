@@ -76,7 +76,7 @@
 
 
 (def
- v12_l171
+ v12_l184
  (->
   {:cohort ["a" "b" "c"],
    :growth [10 20 30],
@@ -85,7 +85,7 @@
 
 
 (deftest
- t13_l175
+ t13_l188
  (is
   ((fn
     [fr]
@@ -94,11 +94,11 @@
      (and
       (= 1 (count (:groups layer)))
       (= 3 (count (:colors (first (:groups layer))))))))
-   v12_l171)))
+   v12_l184)))
 
 
 (def
- v15_l190
+ v15_l208
  (try
   (->
    {:day [1 2 3],
@@ -110,7 +110,7 @@
 
 
 (deftest
- t16_l197
+ t16_l215
  (is
   ((fn
     [m]
@@ -120,11 +120,11 @@
       #"For one color over the layer, write the value itself"
       m)
      (re-find #"drop the :scale" m)))
-   v15_l190)))
+   v15_l208)))
 
 
 (def
- v18_l214
+ v18_l232
  (->
   plants
   (pj/lay-point
@@ -134,7 +134,7 @@
 
 
 (deftest
- t19_l218
+ t19_l236
  (is
   ((fn
     [fr]
@@ -143,11 +143,11 @@
      (and
       (nil? (:legend p))
       (= 1 (count (-> p :panels first :layers first :groups))))))
-   v18_l214)))
+   v18_l232)))
 
 
 (def
- v21_l236
+ v21_l259
  (->
   plants
   (pj/lay-point
@@ -157,16 +157,16 @@
 
 
 (deftest
- t22_l240
+ t22_l263
  (is
   ((fn
     [fr]
     (= ["Model A"] (mapv :label (:entries (:legend (pj/plan fr))))))
-   v21_l236)))
+   v21_l259)))
 
 
 (def
- v24_l251
+ v24_l274
  (->
   plants
   (pj/pose :height :weight)
@@ -175,7 +175,7 @@
 
 
 (deftest
- t25_l256
+ t25_l279
  (is
   ((fn
     [fr]
@@ -195,11 +195,11 @@
       (=
        ivy
        (-> p :panels first :layers second :groups first :color)))))
-   v24_l251)))
+   v24_l274)))
 
 
 (def
- v27_l270
+ v27_l303
  (->
   plants
   (pj/pose :height :weight)
@@ -208,47 +208,47 @@
 
 
 (deftest
- t28_l275
+ t28_l308
  (is
   ((fn
     [fr]
     (=
      ["fern" "moss" "ivy" "predicted"]
      (mapv :label (:entries (:legend (pj/plan fr))))))
-   v27_l270)))
+   v27_l303)))
 
 
 (def
- v30_l301
+ v30_l334
  (-> plants (pj/lay-point :height :weight {:color :weight})))
 
 
 (deftest
- t31_l304
+ t31_l337
  (is
-  ((fn [fr] (= :continuous (-> fr pj/plan :legend :type))) v30_l301)))
+  ((fn [fr] (= :continuous (-> fr pj/plan :legend :type))) v30_l334)))
 
 
 (def
- v33_l340
+ v33_l376
  (-> plants (pj/lay-point :height :weight {:color :shade})))
 
 
 (deftest
- t34_l343
+ t34_l379
  (is
-  ((fn [fr] (= 3 (count (:entries (:legend (pj/plan fr)))))) v33_l340)))
+  ((fn [fr] (= 3 (count (:entries (:legend (pj/plan fr)))))) v33_l376)))
 
 
 (def
- v36_l354
+ v36_l390
  (->
   plants
   (pj/lay-point :height :weight {:color "steelblue", :size 9})))
 
 
 (deftest
- t37_l357
+ t37_l393
  (is
   ((fn
     [fr]
@@ -257,11 +257,11 @@
      (and
       (= 9 (:radius (:style (-> p :panels first :layers first))))
       (nil? (:legend p)))))
-   v36_l354)))
+   v36_l390)))
 
 
 (def
- v39_l370
+ v39_l410
  (->
   plants
   (pj/lay-point :height :weight)
@@ -269,14 +269,14 @@
 
 
 (deftest
- t40_l374
+ t40_l414
  (is
   ((fn [fr] (<= 6.0 (second (-> fr pj/plan :panels first :y-domain))))
-   v39_l370)))
+   v39_l410)))
 
 
 (def
- v42_l403
+ v42_l447
  (defn
   drawn-colors
   "The colors a `:color` mapping draws on the plants scatter."
@@ -290,7 +290,7 @@
 
 
 (def
- v43_l412
+ v43_l456
  {:species-short (drawn-colors {:color :species}),
   :species-full
   (drawn-colors {:color {:column :species, :scale true}}),
@@ -302,7 +302,7 @@
 
 
 (deftest
- t44_l419
+ t44_l463
  (is
   ((fn
     [m]
@@ -312,11 +312,11 @@
      (= (:written-short m) (:written-full m))
      (= 3 (count (:species-short m)))
      (= #{"rgb(0,119,187)"} (:written-short m))))
-   v43_l412)))
+   v43_l456)))
 
 
 (def
- v46_l436
+ v46_l480
  {:column-alone (drawn-colors {:color {:column :shade}}),
   :column-scaled (drawn-colors {:color {:column :shade, :scale true}}),
   :value-alone (drawn-colors {:color {:value "#0077BB"}}),
@@ -325,23 +325,23 @@
 
 
 (deftest
- t47_l441
+ t47_l485
  (is
   ((fn
     [m]
     (and
      (= (:column-alone m) (:column-scaled m))
      (= (:value-alone m) (:value-drawn m))))
-   v46_l436)))
+   v46_l480)))
 
 
 (def
- v49_l455
+ v49_l499
  (-> plants (pj/lay-point :height :weight {:color {:from :shade}})))
 
 
 (deftest
- t50_l458
+ t50_l502
  (is
   ((fn
     [fr]
@@ -351,18 +351,18 @@
       plants
       (pj/lay-point :height :weight {:color :shade})
       pj/svg-summary)))
-   v49_l455)))
+   v49_l499)))
 
 
 (def
- v52_l469
+ v52_l513
  (->
   plants
   (pj/lay-point :height :weight {:color {:from :shade, :scale false}})))
 
 
 (deftest
- t53_l472
+ t53_l516
  (is
   ((fn
     [fr]
@@ -381,18 +381,18 @@
       :groups
       first
       :colors)))
-   v52_l469)))
+   v52_l513)))
 
 
 (def
- v55_l489
+ v55_l541
  (->
   plants
   (pj/lay-point :height :weight {:color {:from :red}, :size 9})))
 
 
 (deftest
- t56_l492
+ t56_l544
  (is
   ((fn
     [fr]
@@ -417,11 +417,11 @@
         pj/plan)
        "no error"
        (catch clojure.lang.ExceptionInfo e (ex-message e))))))
-   v55_l489)))
+   v55_l541)))
 
 
 (def
- v58_l520
+ v58_l579
  (->
   plants
   (pj/lay-point :height :weight)
@@ -430,7 +430,7 @@
 
 
 (deftest
- t59_l526
+ t59_l585
  (is
   ((fn
     [fr]
@@ -439,28 +439,28 @@
      (and
       (true? (:y-drawn? (last (:layers panel))))
       (< (second (:y-domain panel)) 14))))
-   v58_l520)))
+   v58_l579)))
 
 
 (def
- v61_l551
+ v61_l613
  (def
   named-after-a-color
   {:height [12 25], :weight [1.4 3.9], "blue" ["p" "q"]}))
 
 
-(def v62_l556 named-after-a-color)
+(def v62_l618 named-after-a-color)
 
 
 (def
- v64_l560
+ v64_l622
  (->
   named-after-a-color
   (pj/lay-point :height :weight {:color {:value "blue"}, :size 9})))
 
 
 (deftest
- t65_l563
+ t65_l625
  (is
   ((fn
     [fr]
@@ -471,73 +471,73 @@
       (=
        [[0.0 0.0 1.0 1.0]]
        (->> p :panels first :layers first :groups (mapv :color))))))
-   v64_l560)))
+   v64_l622)))
 
 
 (def
- v67_l573
+ v67_l641
  (->
   named-after-a-color
   (pj/lay-point :height :weight {:color {:column "blue"}, :size 9})))
 
 
 (deftest
- t68_l576
+ t68_l644
  (is
   ((fn
     [fr]
     (= ["p" "q"] (mapv :label (:entries (:legend (pj/plan fr))))))
-   v67_l573)))
+   v67_l641)))
 
 
-(def v70_l587 (def integer-named {0 [1 2 3], 1 [4 5 6]}))
+(def v70_l655 (def integer-named {0 [1 2 3], 1 [4 5 6]}))
 
 
-(def v71_l591 integer-named)
+(def v71_l659 integer-named)
 
 
-(def v73_l597 (-> integer-named (pj/lay-point {:x 0, :y 1})))
+(def v73_l665 (-> integer-named (pj/lay-point {:x 0, :y 1})))
 
 
 (deftest
- t74_l600
+ t74_l668
  (is
   ((fn [fr] (= [0.9 3.1] (-> fr pj/plan :panels first :x-domain)))
-   v73_l597)))
+   v73_l665)))
 
 
-(def v76_l608 (-> plants (pj/lay-point {:x 0, :y :weight})))
+(def v76_l680 (-> plants (pj/lay-point {:x 0, :y :weight})))
 
 
 (deftest
- t77_l611
+ t77_l683
  (is
   ((fn [fr] (= [-1.0 1.0] (-> fr pj/plan :panels first :x-domain)))
-   v76_l608)))
+   v76_l680)))
 
 
-(def v79_l619 (-> integer-named (pj/lay-point {:x {:column 0}, :y 1})))
+(def v79_l695 (-> integer-named (pj/lay-point {:x {:column 0}, :y 1})))
 
 
 (deftest
- t80_l622
+ t80_l698
  (is
   ((fn [fr] (= [0.9 3.1] (-> fr pj/plan :panels first :x-domain)))
-   v79_l619)))
+   v79_l695)))
 
 
-(def v82_l628 (-> integer-named (pj/lay-point {:x {:value 0}, :y 1})))
+(def v82_l708 (-> integer-named (pj/lay-point {:x {:value 0}, :y 1})))
 
 
 (deftest
- t83_l631
+ t83_l711
  (is
   ((fn [fr] (= [-1.0 1.0] (-> fr pj/plan :panels first :x-domain)))
-   v82_l628)))
+   v82_l708)))
 
 
 (def
- v85_l642
+ v85_l726
  (->
   plants
   (pj/lay-point
@@ -547,14 +547,14 @@
 
 
 (deftest
- t86_l645
+ t86_l729
  (is
   ((fn [fr] (= :log (-> fr pj/plan :size-legend :scale-type)))
-   v85_l642)))
+   v85_l726)))
 
 
 (def
- v88_l653
+ v88_l740
  (->
   plants
   (pj/lay-point
@@ -564,7 +564,7 @@
 
 
 (deftest
- t89_l657
+ t89_l744
  (is
   ((fn
     [fr]
@@ -584,11 +584,11 @@
         pj/plan
         :size-legend
         :entries
-        (mapv (fn* [p1__79191#] (* 2 (:magnitude p1__79191#))))))
+        (mapv (fn* [p1__79169#] (* 2 (:magnitude p1__79169#))))))
       (every?
        (fn*
-        [p1__79192#]
-        (re-find #":values does not recognize" (refusal p1__79192#)))
+        [p1__79170#]
+        (re-find #":values does not recognize" (refusal p1__79170#)))
        [(fn*
          []
          (->
@@ -603,11 +603,11 @@
           plants
           (pj/lay-point :height :weight {:shape :species})
           (pj/scale :shape {:values [:blob]})))]))))
-   v88_l653)))
+   v88_l740)))
 
 
 (def
- v91_l708
+ v91_l802
  (->
   plants
   (pj/lay-point
@@ -615,14 +615,14 @@
 
 
 (deftest
- t92_l711
+ t92_l805
  (is
   ((fn [fr] (= :log (-> fr pj/plan :panels first :x-scale :type)))
-   v91_l708)))
+   v91_l802)))
 
 
 (def
- v94_l719
+ v94_l818
  (try
   (->
    plants
@@ -634,14 +634,14 @@
 
 
 (deftest
- t95_l728
+ t95_l827
  (is
   ((fn [m] (re-find #"Layers name different scales for the :x axis" m))
-   v94_l719)))
+   v94_l818)))
 
 
 (def
- v97_l740
+ v97_l839
  (try
   (pj/lay-text
    plants
@@ -652,12 +652,12 @@
 
 
 (deftest
- t98_l745
- (is ((fn [m] (re-find #":text has no scale to set" m)) v97_l740)))
+ t98_l844
+ (is ((fn [m] (re-find #":text has no scale to set" m)) v97_l839)))
 
 
 (def
- v100_l761
+ v100_l860
  (kind/table
   {:column-names [:aesthetic :role],
    :row-vectors
@@ -668,11 +668,11 @@
 
 
 (deftest
- t101_l767
+ t101_l866
  (is
   ((fn
     [_]
     (=
      #{:grouping :panel :positional :appearance}
      (set (vals (pj/aesthetic-roles)))))
-   v100_l761)))
+   v100_l860)))

@@ -185,8 +185,16 @@
 
 (kind/test-last
  [(fn [v]
-    (let [panel (-> v pj/frames :panels first)
-          bands (-> v pj/plan :panels first :y-domain vec)
+    (let [panel (-> v
+                    pj/frames
+                    :panels
+                    first)
+          bands (-> v
+                    pj/plan
+                    :panels
+                    first
+                    :y-domain
+                    vec)
           ;; Smaller drawing coordinates are higher on the page, so the
           ;; biggest seller having the smallest one is "at the top".
           height-of (fn [c] (second (pj/to-drawing panel 100 c)))]

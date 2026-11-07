@@ -359,6 +359,10 @@ demo
 ;; and other settings as keys in a single map. `pj/scale`, `pj/coord`,
 ;; and `pj/facet` remain dedicated functions because each carries
 ;; more structure, but everything else merges.
+;;
+;; [ggplot2 Equivalents](./plotje_book.ggplot2_equivalents.html)
+;; gives the Plotje spelling of each of these ggplot2 constructs, one
+;; row each.
 
 ;; ## See Also
 ;;

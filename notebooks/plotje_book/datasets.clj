@@ -216,7 +216,9 @@
            #'rdatasets/datasets-mtcars]}
     tc/dataset
     (tc/map-columns :function :var
-                    #(-> % meta :name))
+                    #(-> %
+                         meta
+                         :name))
     (tc/map-columns :dataset :var
                     #(%))
     (tc/map-columns :rows :dataset

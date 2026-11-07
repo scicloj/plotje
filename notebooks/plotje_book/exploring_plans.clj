@@ -86,7 +86,7 @@ tiny-plan
                         ;; A scatter plot matrix plans as a composite,
                         ;; one plan per cell.
                         (let [matrix-plan (pj/plan (pj/facet {:a [1 2 3] :b [3 1 2]} {:col {:x [:a :b]}
-                                                                                     :row {:y [:a :b]}}))]
+                                                                                      :row {:y [:a :b]}}))]
                           (and (pj/composite-plan? matrix-plan)
                                (= 4 (count (:sub-plots matrix-plan)))))))])
 
@@ -175,7 +175,11 @@ iris-plan
 
 ;; Now we have three groups -- one per species:
 
-(def iris-layer (-> iris-plan :panels first :layers first))
+(def iris-layer (-> iris-plan
+                    :panels
+                    first
+                    :layers
+                    first))
 
 (count (:groups iris-layer))
 
@@ -246,7 +250,11 @@ hist-plan
 
 (kind/test-last [(fn [m] (= 1 (count (:panels m))))])
 
-(def hist-layer (-> hist-plan :panels first :layers first))
+(def hist-layer (-> hist-plan
+                    :panels
+                    first
+                    :layers
+                    first))
 
 (:mark hist-layer)
 
@@ -255,7 +263,10 @@ hist-plan
 ;; The geometry is in `:bars` -- each bin has a lower edge, an upper
 ;; edge, and a count:
 
-(-> hist-layer :groups first :bars)
+(-> hist-layer
+    :groups
+    first
+    :bars)
 
 (kind/test-last [(fn [bars] (and (> (count bars) 3)
                                  (every? #(< (:lo %) (:hi %)) bars)
@@ -280,7 +291,11 @@ hist-plan
                   (pj/lay-bar :island {:color :species})
                   pj/plan))
 
-(def bar-layer (-> bar-plan :panels first :layers first))
+(def bar-layer (-> bar-plan
+                   :panels
+                   first
+                   :layers
+                   first))
 
 ;; The mark type is `:rect` and the layer carries the categories:
 
@@ -322,7 +337,11 @@ bar-layer
                       (pj/lay-bar :island {:position :stack :color :species})
                       pj/plan))
 
-(def stacked-layer (-> stacked-plan :panels first :layers first))
+(def stacked-layer (-> stacked-plan
+                       :panels
+                       first
+                       :layers
+                       first))
 
 (:position stacked-layer)
 
@@ -350,9 +369,16 @@ bar-layer
 
 ;; Two layers -- points and line:
 
-(mapv :mark (-> lm-plan :panels first :layers))
+(mapv :mark (-> lm-plan
+                :panels
+                first
+                :layers))
 (kind/test-last [(fn [marks] (= [:point :line] marks))])
-(def lm-layer (-> lm-plan :panels first :layers second))
+(def lm-layer (-> lm-plan
+                  :panels
+                  first
+                  :layers
+                  second))
 
 ;; Its group has endpoints -- a line segment in data space:
 
@@ -384,11 +410,19 @@ bar-layer
                   (pj/lay-smooth {:stat :linear-model})
                   pj/plan))
 
-(let [line-layer (-> grp-plan :panels first :layers second)]
+(let [line-layer (-> grp-plan
+                     :panels
+                     first
+                     :layers
+                     second)]
   (mapv (fn [g]
           {:color (:color g)
-           :x1 (some-> (:x1 g) (Math/round) int)
-           :x2 (some-> (:x2 g) (Math/round) int)})
+           :x1 (some-> (:x1 g)
+                       (Math/round)
+                       int)
+           :x2 (some-> (:x2 g)
+                       (Math/round)
+                       int)})
         (:groups line-layer)))
 
 (kind/test-last [(fn [gs] (= 3 (count gs)))])
@@ -413,7 +447,13 @@ bar-layer
                    (pj/lay-line :x :y)
                    pj/plan))
 
-(def wave-group (-> wave-plan :panels first :layers first :groups first))
+(def wave-group (-> wave-plan
+                    :panels
+                    first
+                    :layers
+                    first
+                    :groups
+                    first))
 
 {:n-points (count (:xs wave-group))
  :first-x (first (:xs wave-group))
@@ -442,7 +482,13 @@ bar-layer
                     (pj/lay-bar :product :revenue)
                     pj/plan))
 
-(let [g (-> sales-plan :panels first :layers first :groups first)]
+(let [g (-> sales-plan
+            :panels
+            first
+            :layers
+            first
+            :groups
+            first)]
   {:xs (:xs g)
    :ys (:ys g)})
 
@@ -523,7 +569,10 @@ final-plan
 (mapv (fn [l]
         {:mark (:mark l)
          :n-groups (count (:groups l))})
-      (-> final-plan :panels first :layers))
+      (-> final-plan
+          :panels
+          first
+          :layers))
 
 (kind/test-last [(fn [ls] (= 2 (count ls)))])
 
@@ -653,16 +702,33 @@ final-plan
 ;; `:ys`, etc.). The buffers support `nth`, `count`, `seq`, and
 ;; standard sequence operations.
 
-(-> tiny-plan :panels first :layers first :groups first :xs type)
+(-> tiny-plan
+    :panels
+    first
+    :layers
+    first
+    :groups
+    first
+    :xs
+    type)
 
 (kind/test-last [(fn [t] (not= clojure.lang.PersistentVector t))])
 
 ;; You can convert any numeric buffer to a plain vector with `vec`:
 
-(-> tiny-plan :panels first :layers first :groups first :xs vec)
+(-> tiny-plan
+    :panels
+    first
+    :layers
+    first
+    :groups
+    first
+    :xs
+    vec)
 
 (kind/test-last [(fn [v] (and (vector? v) (number? (first v))))])
 
 ;; ## What's Next
 ;;
+;; - [**Membranes**](./plotje_book.membranes.html) -- the fourth stage of the pipeline, which turns a plan into a tree of layout-and-drawing primitives ready to render
 ;; - [**Extensibility**](./plotje_book.extensibility.html) -- add custom marks, stats, and renderers

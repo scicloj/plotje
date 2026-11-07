@@ -275,7 +275,11 @@ sales-by-region
     (pj/lay-bar :quarter [:revenue :cost :tax] {:position :fill}))
 
 (kind/test-last
- [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :y-domain))))])
+ [(fn [v] (= [0.0 1.0] (mapv double (-> v
+                                        pj/plan
+                                        :panels
+                                        first
+                                        :y-domain))))])
 
 ;; ## The columns the pivot invents
 
@@ -487,7 +491,11 @@ sales-by-region
     (pj/lay-area :quarter [:revenue :cost :tax] {:position :fill}))
 
 (kind/test-last
- [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :y-domain))))])
+ [(fn [v] (= [0.0 1.0] (mapv double (-> v
+                                        pj/plan
+                                        :panels
+                                        first
+                                        :y-domain))))])
 
 ;; #### Marks that take a series
 
@@ -542,7 +550,12 @@ sales-by-region
 
 (kind/test-last
  [(fn [v] (and (= 2 (:lines (pj/svg-summary v)))
-               (= :log (-> v pj/plan :panels first :y-scale :type))))])
+               (= :log (-> v
+                           pj/plan
+                           :panels
+                           first
+                           :y-scale
+                           :type))))])
 
 ;; A stat needing a numeric axis column reported an error on the
 ;; quarters above, and runs on these dates, since a date is not a
@@ -562,7 +575,12 @@ sales-by-region
                             :scale {:type :log}}))
 
 (kind/test-last
- [(fn [v] (= :log (-> v pj/plan :panels first :y-scale :type)))])
+ [(fn [v] (= :log (-> v
+                      pj/plan
+                      :panels
+                      first
+                      :y-scale
+                      :type)))])
 
 ;; `pj/scale` on the axis the series is written on says the same thing,
 ;; so the scale can go in either place:
@@ -585,7 +603,12 @@ sales-by-region
     (pj/scale :y {:domain [0 250]}))
 
 (kind/test-last
- [(fn [v] (= [0 250] (-> v pj/plan :panels first :y-domain vec)))])
+ [(fn [v] (= [0 250] (-> v
+                         pj/plan
+                         :panels
+                         first
+                         :y-domain
+                         vec)))])
 
 ;; #### Choosing the colours
 
@@ -634,7 +657,13 @@ sales-by-region
 
 (kind/test-last
  [(fn [v] (= ["tax" "revenue" "cost"]
-             (mapv :label (-> v pj/plan :panels first :layers first :groups))))])
+             (mapv :label (-> v
+                              pj/plan
+                              :panels
+                              first
+                              :layers
+                              first
+                              :groups))))])
 
 ;; ### Column names and missing values
 
@@ -659,8 +688,7 @@ sales-by-region
              (mapv :label (:entries (:legend (pj/plan v))))))])
 
 ;; The pivot happens when the pose is drawn, so the `:color-type` it
-;; writes is visible in the draft. To draw the gradient after all,
-;; write the same key on the layer:
+;; writes is visible in the draft:
 
 (-> {"country" ["a" "b" "c"]
      "2019"    [10 20 30]
@@ -669,7 +697,8 @@ sales-by-region
     pj/draft
     :layers
     first
-    (select-keys [:color :color-type]))
+    (select-keys [:color :color-type])
+    kind/pprint)
 
 (kind/test-last
  [(fn [m] (= {:color :series :color-type :categorical} m))])
@@ -840,7 +869,13 @@ sales-by-region
  [(fn [v] (and (true? (:tooltip (pj/plan v)))
                (= [[:revenue] [:cost] [:tax]]
                   (mapv (fn [group] (vec (distinct (:tooltips group))))
-                        (-> v pj/plan :panels first :layers first :groups)))))])
+                        (-> v
+                            pj/plan
+                            :panels
+                            first
+                            :layers
+                            first
+                            :groups)))))])
 
 ;; `:size` and `:alpha` draw a magnitude, and a measure's name is not
 ;; one, so a series key on either reports an error:
@@ -1010,7 +1045,11 @@ sales-by-region
     (pj/coord :flip))
 
 (kind/test-last
- [(fn [v] (= [0.0 1.0] (mapv double (-> v pj/plan :panels first :x-domain))))])
+ [(fn [v] (= [0.0 1.0] (mapv double (-> v
+                                        pj/plan
+                                        :panels
+                                        first
+                                        :x-domain))))])
 
 ;; #### A named series, scaled and in panels
 
@@ -1031,7 +1070,12 @@ sales-by-region
                  (= 24 (:points s))
                  (contains? (set (:texts s)) "measure")
                  (contains? (set (:texts s)) "Euros")
-                 (= :log (-> v pj/plan :panels first :y-scale :type)))))])
+                 (= :log (-> v
+                             pj/plan
+                             :panels
+                             first
+                             :y-scale
+                             :type)))))])
 
 ;; ### Other layers beside a series
 

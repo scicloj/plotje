@@ -218,7 +218,11 @@
  [(fn [fr]
     ;; The named band was already on the axis, so naming it adds none.
     (= ["2020" "2021" "2022"]
-       (->> fr pj/plan :panels first :x-domain)))])
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :x-domain)))])
 
 ;; ## Moving a Mark Clear of Another
 ;;
@@ -241,7 +245,12 @@
 (kind/test-last
  [(fn [fr]
     (= [nil -6]
-       (->> fr pj/plan :panels first :layers (mapv :offset-y))))])
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
+            (mapv :offset-y))))])
 
 ;; To place a label relative to its own point, anchor it with
 ;; `:align-x`/`:align-y` -- `:align-x :right` puts the label's right
@@ -257,9 +266,15 @@
 (kind/test-last
  [(fn [fr]
     (= :right
-       (->> fr pj/plan :panels first :layers
+       (->> fr
+            pj/plan
+            :panels
+            first
+            :layers
             (filter #(= :text (:mark %)))
-            first :style :align-x)))])
+            first
+            :style
+            :align-x)))])
 
 ;; Anchoring is covered in
 ;; [Placing Marks](./plotje_book.placing_marks.html#anchoring-a-text-mark),
@@ -746,7 +761,11 @@
     (pj/lay-point :displ :hwy)
     (pj/lay-point :displ :year))
 
-(kind/test-last [(fn [v] (let [[lo hi] (-> v pj/plan :panels first :y-domain)
+(kind/test-last [(fn [v] (let [[lo hi] (-> v
+                                           pj/plan
+                                           :panels
+                                           first
+                                           :y-domain)
                                printed (with-out-str (pj/plan v))
                                ;; a twentieth: hwy spans 32 of an axis
                                ;; spanning nearly 2000
@@ -1044,8 +1063,16 @@
   {:x [1 1 2 2 3 3] :y [10 15 20 25 30 35] :group ["A" "B" "A" "B" "A" "B"]})
 
 (defn point-xs [pose]
-  (-> pose pj/plan :panels first :layers first :groups
-      (->> (mapcat :xs) sort vec)))
+  (-> pose
+      pj/plan
+      :panels
+      first
+      :layers
+      first
+      :groups
+      (->> (mapcat :xs)
+           sort
+           vec)))
 
 (= (point-xs (-> points-data (pj/lay-point :x :y {:color :group})))
    (point-xs (-> points-data (pj/lay-point :x :y {:color :group :position :dodge}))))
@@ -1193,7 +1220,7 @@
 
 ;; ## What's Next
 ;;
-;; - [**Inference Rules**](./plotje_book.inference_rules.html) -- how defaults are chosen and overridden
 ;; - [**API Reference**](./plotje_book.api_reference.html) -- complete function listing with docstrings
+;; - [**Inference Rules**](./plotje_book.inference_rules.html) -- how defaults are chosen and overridden
 ;; - [**Exploring Plans**](./plotje_book.exploring_plans.html) -- inspect the data structures behind your plots
 ;; - [**Gallery**](./plotje_book.gallery.html) -- more working examples by chart type

@@ -10,6 +10,13 @@
 ;; `pj/arrange`, `pj/marginal` and explicit composite-pose maps --
 ;; compactly for simple cases, with a bit of literal map construction
 ;; for nested layouts.
+;;
+;; On a first read through the book you can skim or skip the later,
+;; deeper sections -- [Count and Density Axes](#count-and-density-axes),
+;; [Cells Drawn Flipped](#cells-drawn-flipped),
+;; [Cells That Line Up](#cells-that-line-up) and
+;; [Notes on the Current Implementation](#notes-on-the-current-implementation)
+;; -- and return when you build a composite that needs them.
 
 (ns plotje-book.composition
   (:require
@@ -59,7 +66,10 @@
    (-> (rdatasets/datasets-iris) (pj/lay-point :petal-length :petal-width {:color :species}))]])
 
 (kind/test-last
- [(fn [v] (let [layout (-> v pj/plan :chrome :layout)]
+ [(fn [v] (let [layout (-> v
+                           pj/plan
+                           :chrome
+                           :layout)]
             (and (= 3 (:panels (pj/svg-summary v)))
                  ;; four slots, the empty one included
                  (= #{[0 0] [0 1] [1 0] [1 1]} (set (keys layout))))))])
@@ -236,7 +246,11 @@ weighted
 
 (kind/test-last
  [(fn [v] (let [domains (fn [pose axis]
-                          (mapv #(-> % :plan :panels first axis)
+                          (mapv #(-> %
+                                     :plan
+                                     :panels
+                                     first
+                                     axis)
                                 (:sub-plots (pj/plan pose))))]
             (and (apply = (domains v :x-domain))
                  ;; :y is not named, so each cell keeps its own
@@ -287,7 +301,11 @@ weighted
  {:share-scales #{:y}})
 
 (kind/test-last
- [(fn [v] (let [domains (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [domains (mapv #(-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :y-domain)
                               (:sub-plots (pj/plan v)))
                 tallest-stack (+ 60 70)
                 largest-value (reduce max (concat (:sold north-shop) (:sold south-shop)))]
@@ -365,7 +383,11 @@ weighted
     (pj/options {:share-scales #{:x :y}}))
 
 (kind/test-last
- [(fn [v] (let [doms (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [doms (mapv #(-> %
+                                :plan
+                                :panels
+                                first
+                                :y-domain)
                            (:sub-plots (pj/plan v)))]
             (and (= 2 (count doms))
                  (not= (first doms) (second doms))
@@ -396,7 +418,11 @@ weighted
                                 :y [[:hwy :cty]]}}))
 
 (kind/test-last
- [(fn [v] (let [doms (fn [pose] (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [doms (fn [pose] (mapv #(-> %
+                                           :plan
+                                           :panels
+                                           first
+                                           :y-domain)
                                       (:sub-plots (pj/plan pose))))
                 [lo hi] (first (doms v))
                 all (-> (rdatasets/ggplot2-mpg)
@@ -423,7 +449,11 @@ weighted
                                 :y [[:hwy :cty]]}}))
 
 (kind/test-last
- [(fn [v] (let [[hwy cty displ] (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [[hwy cty displ] (mapv #(-> %
+                                           :plan
+                                           :panels
+                                           first
+                                           :y-domain)
                                       (:sub-plots (pj/plan v)))]
             (and (= hwy cty)
                  (not= hwy displ))))])
@@ -440,7 +470,11 @@ weighted
  {:share-scales {:y [[:indoor :outdoor]]}})
 
 (kind/test-last
- [(fn [v] (let [doms (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [doms (mapv #(-> %
+                                :plan
+                                :panels
+                                first
+                                :y-domain)
                            (:sub-plots (pj/plan v)))
                 [lo hi] (first doms)]
             (and (apply = doms)
@@ -484,7 +518,11 @@ weighted
  {:share-scales #{:x :y}})
 
 (kind/test-last
- [(fn [v] (let [domains (mapv #(-> % :plan :panels first :x-domain)
+ [(fn [v] (let [domains (mapv #(-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :x-domain)
                               (:sub-plots (pj/plan v)))]
             (= [["tea" "coffee" "cocoa"] ["tea" "coffee" "cocoa"]] domains)))])
 
@@ -510,7 +548,11 @@ weighted
  {:share-scales #{:y}})
 
 (kind/test-last
- [(fn [v] (let [domains (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [domains (mapv #(-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :y-domain)
                               (:sub-plots (pj/plan v)))]
             (apply = domains)))])
 
@@ -525,7 +567,11 @@ weighted
     (pj/options {:share-scales {:y [[:hwy :cty]]}}))
 
 (kind/test-last
- [(fn [v] (let [count-axes (fn [pose] (mapv #(-> % :plan :panels first :y-domain)
+ [(fn [v] (let [count-axes (fn [pose] (mapv #(-> %
+                                                 :plan
+                                                 :panels
+                                                 first
+                                                 :y-domain)
                                             (:sub-plots (pj/plan pose))))]
             (and (apply = (count-axes v))
                  ;; without the option, a count axis each
@@ -549,7 +595,11 @@ weighted
 
 (kind/test-last
  [(fn [v] (let [[hwy-count cty-count hwy-values]
-                (mapv #(-> % :plan :panels first :y-domain)
+                (mapv #(-> %
+                           :plan
+                           :panels
+                           first
+                           :y-domain)
                       (:sub-plots (pj/plan v)))]
             (and (= hwy-count cty-count)
                  (not= hwy-count hwy-values))))])
@@ -570,12 +620,20 @@ weighted
 ;; as flipped bars, sharing the horizontal axis:
 
 (pj/arrange
- [(-> north-totals (pj/lay-bar :drink :sold) (pj/coord :flip))
-  (-> south-totals (pj/lay-bar :drink :sold) (pj/coord :flip))]
+ [(-> north-totals
+      (pj/lay-bar :drink :sold)
+      (pj/coord :flip))
+  (-> south-totals
+      (pj/lay-bar :drink :sold)
+      (pj/coord :flip))]
  {:share-scales #{:x}})
 
 (kind/test-last
- [(fn [v] (let [panels (mapv #(-> % :plan :panels first) (:sub-plots (pj/plan v)))]
+ [(fn [v] (let [panels (mapv #(-> %
+                                  :plan
+                                  :panels
+                                  first)
+                                (:sub-plots (pj/plan v)))]
             (and (apply = (map :x-domain panels))
                  ;; the horizontal axis holds the numbers
                  (number? (first (:x-domain (first panels))))
@@ -693,7 +751,10 @@ marginal
  [(fn [v]
     (let [s (pj/svg-summary v)
           plans (mapv :plan (:sub-plots (pj/plan marginal)))
-          panels (mapv #(-> % :panels first) plans)
+          panels (mapv #(-> %
+                            :panels
+                            first)
+                       plans)
           [d-x s-x] (mapv :x-domain panels)
           [d-y s-y] (mapv :y-domain panels)]
       (and (= 2 (:panels s))
@@ -751,7 +812,10 @@ marginal
  [(fn [v]
     (let [s (pj/svg-summary v)
           plans (mapv :plan (:sub-plots (pj/plan v)))
-          panels (mapv #(-> % :panels first) plans)]
+          panels (mapv #(-> %
+                            :panels
+                            first)
+                       plans)]
       (and (= 2 (:panels s))
            (= 150 (:points s))
            ;; The scatter comes first here, the strip second -- a
@@ -820,7 +884,10 @@ marginal-by-hand
  [(fn [v]
     (let [s (pj/svg-summary v)
           plans (mapv :plan (:sub-plots (pj/plan marginal-by-hand)))
-          panels (mapv #(-> % :panels first) plans)
+          panels (mapv #(-> %
+                            :panels
+                            first)
+                       plans)
           [d-x s-x] (mapv :x-domain panels)]
       (and (= 2 (:panels s))
            (= 150 (:points s))
@@ -883,7 +950,9 @@ dashboard
 
 (kind/test-last
  [(fn [v]
-    (let [chrome (-> dashboard pj/plan :chrome)]
+    (let [chrome (-> dashboard
+                     pj/plan
+                     :chrome)]
       (and (= 4 (:panels (pj/svg-summary v)))
            ;; The histogram cell has no :color, so :color is not
            ;; shared across all leaves -- each colored cell renders
@@ -1081,11 +1150,23 @@ dashboard
     (let [plan (pj/plan v)
           ;; each cell's colour for versicolor, read off its plan
           versicolor (fn [sp] (some #(when (= "versicolor" (:label %)) (:color %))
-                                    (-> sp :plan :panels first :layers first :groups)))
+                                    (-> sp
+                                        :plan
+                                        :panels
+                                        first
+                                        :layers
+                                        first
+                                        :groups)))
           [left right] (:sub-plots plan)]
-      (and (= #{:color} (-> plan :chrome :shared-aesthetics))
+      (and (= #{:color} (-> plan
+                            :chrome
+                            :shared-aesthetics))
            (= ["setosa" "versicolor" "virginica"]
-              (mapv :label (-> plan :chrome :shared-legend :legend :entries)))
+              (mapv :label (-> plan
+                               :chrome
+                               :shared-legend
+                               :legend
+                               :entries)))
            (some? (versicolor left))
            (= (versicolor left) (versicolor right))
            ;; The dashboard above pairs a histogram with a colored
@@ -1094,7 +1175,9 @@ dashboard
                        [(-> (rdatasets/datasets-iris) (pj/lay-histogram :sepal-length))
                         (-> (rdatasets/datasets-iris)
                             (pj/lay-point :petal-length :petal-width {:color :species}))])
-                      pj/plan :chrome :shared-aesthetics)))))])
+                      pj/plan
+                      :chrome
+                      :shared-aesthetics)))))])
 
 ;; A cell that is itself a composite draws its own grid. Here the left
 ;; cell holds two panels of its own and the right cell holds one, so

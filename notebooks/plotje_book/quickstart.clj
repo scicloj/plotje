@@ -289,11 +289,25 @@
 ;; [**Cookbook**](./plotje_book.cookbook.html#saving-to-png) for other
 ;; export paths.
 
+;; ## Coming from ggplot2
+;;
+;; Readers who know ggplot2 can look up the Plotje spelling of each
+;; ggplot2 function in [ggplot2 Equivalents](./plotje_book.ggplot2_equivalents.html).
+
 ;; ## What's Next
+;;
+;; On a first read, follow these chapters of Foundations in order:
+;; Datasets, Poses, Core Concepts, Panels and Specifying Aesthetics.
+;; Together they teach what Plotje reads, what a pose is, how a mapping
+;; and a layer combine, where panels come from, and how to write a
+;; mapping. The rest of Foundations is reference to come back to when a
+;; question needs the precise rule.
 ;;
 ;; - [**Datasets**](./plotje_book.datasets.html) -- what kinds of data Plotje accepts (Tablecloth datasets, maps of vectors, sequences of row maps)
 ;; - [**Poses**](./plotje_book.pose_model.html) -- the mental model behind composable plotting
 ;; - [**Core Concepts**](./plotje_book.core_concepts.html) -- data formats, marks, stats, color, grouping, coordinates
+;; - [**Panels**](./plotje_book.panels.html) -- where panels come from, and which forms draw two things inside one panel or across panels
+;; - [**Specifying Aesthetics**](./plotje_book.specifying_aesthetics.html) -- how to write what a mapping means, in full or in shorthand
 ;; - [**Relationships**](./plotje_book.relationships.html) -- scatter plots, regression, density, and SPLOM
 ;; - [**Cookbook**](./plotje_book.cookbook.html) -- recipes for common multi-layer plots
 ;; - [**Configuration**](./plotje_book.configuration.html) -- themes, backgrounds, palettes, and other plot-level defaults

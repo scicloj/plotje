@@ -653,8 +653,12 @@
     (pj/scale :size {:range [3 16] :by :area :from-zero true}))
 
 (kind/test-last
- [(fn [v] (= 16.0 (->> v pj/plan :size-legend :entries
-                       (map :magnitude) (apply max))))])
+ [(fn [v] (= 16.0 (->> v
+                       pj/plan
+                       :size-legend
+                       :entries
+                       (map :magnitude)
+                       (apply max))))])
 
 ;; Shape symbols on a discrete aesthetic -- `:domain` orders the
 ;; categories, `:values` picks the markers:
@@ -780,7 +784,10 @@
     (pj/marginal :right))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)
-                               panels (mapv #(-> % :plan :panels first)
+                               panels (mapv #(-> %
+                                                 :plan
+                                                 :panels
+                                                 first)
                                             (:sub-plots (pj/plan v)))]
                            (and (= 2 (:panels s))
                                 (= 150 (:points s))
@@ -832,7 +839,9 @@
 
 ;; Check whether a value is a pose (leaf or composite):
 
-(pj/pose? (-> tiny (pj/pose :x :y) pj/lay-point))
+(pj/pose? (-> tiny
+              (pj/pose :x :y)
+              pj/lay-point))
 
 (kind/test-last [true?])
 
@@ -975,13 +984,22 @@ plan1
 ;; entry per panel with its row and column in the grid, its domains and scale
 ;; specs, whether it can be mapped back to data, and its two frames.
 
-(-> plan1 pj/frames kind/pprint)
+(-> plan1
+    pj/frames
+    kind/pprint)
 
 (kind/test-last
  [(fn [m] (and (= [0.0 0.0 600.0 400.0] (:canvas m))
                (= 1 (count (:panels m)))
-               (true? (-> m :panels first :invertible?))
-               (= 4 (count (-> m :panels first :frames :drawing-area)))))])
+               (true? (-> m
+                          :panels
+                          first
+                          :invertible?))
+               (= 4 (count (-> m
+                               :panels
+                               first
+                               :frames
+                               :drawing-area)))))])
 
 ;; The canvas is given once rather than on every panel: it belongs to
 ;; the plot. Each panel's rectangles are given in canvas coordinates, so
@@ -994,7 +1012,10 @@ plan1
                                 (pj/lay-line tiny :x :y)]
                                {:width 700 :height 300}))
       [_ _ cw ch] (:canvas f)
-      boxes (mapv #(-> % :frames :panel-box) (:panels f))
+      boxes (mapv #(-> %
+                       :frames
+                       :panel-box)
+                  (:panels f))
       inside? (fn [[x y w h]] (and (>= x 0) (>= y 0)
                                    (<= (+ x w) cw) (<= (+ y h) ch)))]
   {:canvas (:canvas f)
@@ -1018,7 +1039,11 @@ plan1
 
 (kind/doc #'pj/to-drawing)
 
-(pj/to-drawing (-> plan1 pj/frames :panels first) 2 5)
+(pj/to-drawing (-> plan1
+                   pj/frames
+                   :panels
+                   first)
+               2 5)
 
 (kind/test-last [(fn [v] (= 2 (count v)))])
 
@@ -1026,7 +1051,10 @@ plan1
 
 ;; Many data values at once go in and come back as a dataset:
 
-(pj/to-drawing (-> plan1 pj/frames :panels first)
+(pj/to-drawing (-> plan1
+                   pj/frames
+                   :panels
+                   first)
                {:x [2 3] :y [5 6]})
 
 (kind/test-last [(fn [ds] (and (= [:x :y] (vec (tc/column-names ds)))
@@ -1034,7 +1062,10 @@ plan1
 
 ;; A value on a continuous axis survives the round trip:
 
-(let [panel (-> plan1 pj/frames :panels first)]
+(let [panel (-> plan1
+                pj/frames
+                :panels
+                first)]
   (->> (pj/to-drawing panel 2 5)
        (apply pj/to-data panel)
        (mapv #(Math/round (double %)))))

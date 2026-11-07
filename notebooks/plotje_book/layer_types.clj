@@ -15,6 +15,9 @@
 ;; All built-in layer types are registered in a data registry. The
 ;; tables below are generated from that registry -- they stay in
 ;; sync with the code.
+;;
+;; On a first read through the book you can skim or skip this chapter,
+;; and return when you need to look up what a layer type draws and computes.
 
 (ns plotje-book.layer-types
   (:require
@@ -290,6 +293,8 @@
 
 ;; ## What's Next
 ;;
+;; - [**Glossary**](./plotje_book.glossary.html) -- the last chapter of
+;;   Foundations, a reference of terms to look up when you meet them
 ;; - [**Relationships**](./plotje_book.relationships.html) -- see point, line, and regression layer types in action
 ;; - [**Distributions**](./plotje_book.distributions.html) -- histograms, density, boxplots, violins
 ;; - [**Customization**](./plotje_book.customization.html) -- colors, palettes, themes, and per-layer styling

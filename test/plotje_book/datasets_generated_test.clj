@@ -164,16 +164,16 @@
   (tc/map-columns
    :function
    :var
-   (fn* [p1__78339#] (-> p1__78339# meta :name)))
-  (tc/map-columns :dataset :var (fn* [p1__78340#] (p1__78340#)))
+   (fn* [p1__78346#] (-> p1__78346# meta :name)))
+  (tc/map-columns :dataset :var (fn* [p1__78347#] (p1__78347#)))
   (tc/map-columns :rows :dataset tc/row-count)
   (tc/map-columns
    :description
    :var
    (fn*
-    [p1__78341#]
+    [p1__78348#]
     (->
-     p1__78341#
+     p1__78348#
      meta
      :doc-link
      slurp
@@ -184,25 +184,25 @@
   (tc/select-columns [:function :rows :description])))
 
 
-(def v41_l242 (tc/head (rdatasets/datasets-iris) 3))
+(def v41_l244 (tc/head (rdatasets/datasets-iris) 3))
 
 
-(deftest t42_l244 (is ((fn [ds] (= 3 (tc/row-count ds))) v41_l242)))
+(deftest t42_l246 (is ((fn [ds] (= 3 (tc/row-count ds))) v41_l244)))
 
 
 (def
- v44_l248
+ v44_l250
  (->
   (rdatasets/datasets-iris)
   (tc/select-rows
-   (fn* [p1__78342#] (= "setosa" (:species p1__78342#))))))
+   (fn* [p1__78349#] (= "setosa" (:species p1__78349#))))))
 
 
-(deftest t45_l251 (is ((fn [ds] (= 50 (tc/row-count ds))) v44_l248)))
+(deftest t45_l253 (is ((fn [ds] (= 50 (tc/row-count ds))) v44_l250)))
 
 
 (def
- v47_l255
+ v47_l257
  (->
   (rdatasets/datasets-iris)
   (tc/group-by [:species])
@@ -211,56 +211,56 @@
     (fn [ds] (/ (reduce + (ds :sepal-length)) (tc/row-count ds)))})))
 
 
-(deftest t48_l260 (is ((fn [ds] (= 3 (tc/row-count ds))) v47_l255)))
+(deftest t48_l262 (is ((fn [ds] (= 3 (tc/row-count ds))) v47_l257)))
 
 
 (def
- v50_l264
+ v50_l266
  (->
   (rdatasets/datasets-mtcars)
   (tc/order-by [:mpg] :desc)
   (tc/head 3)))
 
 
-(deftest t51_l268 (is ((fn [ds] (= 3 (tc/row-count ds))) v50_l264)))
+(deftest t51_l270 (is ((fn [ds] (= 3 (tc/row-count ds))) v50_l266)))
 
 
-(def v53_l272 (tc/column-names (rdatasets/datasets-iris)))
+(def v53_l274 (tc/column-names (rdatasets/datasets-iris)))
 
 
-(deftest t54_l274 (is ((fn [cols] (= 6 (count cols))) v53_l272)))
+(deftest t54_l276 (is ((fn [cols] (= 6 (count cols))) v53_l274)))
 
 
-(def v56_l278 (tc/row-count (rdatasets/ggplot2-diamonds)))
+(def v56_l280 (tc/row-count (rdatasets/ggplot2-diamonds)))
 
 
-(deftest t57_l280 (is ((fn [n] (= 53940 n)) v56_l278)))
+(deftest t57_l282 (is ((fn [n] (= 53940 n)) v56_l280)))
 
 
 (def
- v59_l290
+ v59_l292
  (-> {:height [1 2 3], :weight [4 5 6]} (pj/lay-point :height :weight)))
 
 
 (deftest
- t60_l293
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v59_l290)))
+ t60_l295
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v59_l292)))
 
 
 (def
- v62_l297
+ v62_l299
  (->
   (tc/dataset {:height [1 2 3], :weight [4 5 6]})
   (pj/lay-point :height :weight)))
 
 
 (deftest
- t63_l300
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v62_l297)))
+ t63_l302
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v62_l299)))
 
 
 (def
- v65_l312
+ v65_l314
  (def
   temps-wide
   (tc/dataset
@@ -270,16 +270,16 @@
     :nairobi [22 23 24]})))
 
 
-(def v66_l319 temps-wide)
+(def v66_l321 temps-wide)
 
 
 (deftest
- t67_l321
- (is ((fn [ds] (= 4 (count (tc/column-names ds)))) v66_l319)))
+ t67_l323
+ (is ((fn [ds] (= 4 (count (tc/column-names ds)))) v66_l321)))
 
 
 (def
- v69_l327
+ v69_l329
  (def
   temps-long
   (tc/pivot->longer
@@ -288,29 +288,29 @@
    {:target-columns :city, :value-column-name :temperature})))
 
 
-(def v70_l332 temps-long)
+(def v70_l334 temps-long)
 
 
 (deftest
- t71_l334
+ t71_l336
  (is
   ((fn
     [ds]
     (and (= 3 (count (tc/column-names ds))) (= 9 (tc/row-count ds))))
-   v70_l332)))
+   v70_l334)))
 
 
 (def
- v73_l339
+ v73_l341
  (-> temps-long (pj/lay-line :month :temperature {:color :city})))
 
 
 (deftest
- t74_l343
+ t74_l345
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 3 (:lines s)))))
-   v73_l339)))
+   v73_l341)))

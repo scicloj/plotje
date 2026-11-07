@@ -9,7 +9,7 @@
 
 
 (def
- v3_l40
+ v3_l43
  (defn
   used-by
   "Sorted comma-separated layer-type names whose `field` equals `value`."
@@ -23,7 +23,7 @@
 
 
 (def
- v4_l49
+ v4_l52
  (defn
   distinct-in-order
   "Distinct values of `field` across layer types, in first-seen order."
@@ -41,7 +41,7 @@
 
 
 (def
- v6_l67
+ v6_l70
  (kind/table
   {:column-names
    ["Layer type" "Mark" "Stat" "Position" "Columns" "Presets"],
@@ -56,14 +56,14 @@
      "Presets" (if-let [d (:defaults m)] (kind/code (pr-str d)) "")})}))
 
 
-(deftest t7_l79 (is ((fn [t] (= 26 (count (:row-maps t)))) v6_l67)))
+(deftest t7_l82 (is ((fn [t] (= 26 (count (:row-maps t)))) v6_l70)))
 
 
-(def v9_l92 (layer-type/column-counts :bar))
+(def v9_l95 (layer-type/column-counts :bar))
 
 
 (deftest
- t10_l94
+ t10_l97
  (is
   ((fn
     [cc]
@@ -84,30 +84,30 @@
        [:histogram :flip]
        ((juxt :layer-type :coord)
         (first (:layers (pj/draft (pj/pose data {:y :a})))))))))
-   v9_l92)))
+   v9_l95)))
 
 
-(def v12_l140 (:varies (layer-type/lookup :point)))
+(def v12_l143 (:varies (layer-type/lookup :point)))
 
 
 (deftest
- t13_l142
- (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v12_l140)))
+ t13_l145
+ (is ((fn [m] (= {:size :radius, :alpha :opacity} m)) v12_l143)))
 
 
 (def
- v15_l155
+ v15_l158
  (mapv
   (fn*
-   [p1__81325#]
+   [p1__81319#]
    (select-keys
-    (layer-type/lookup p1__81325#)
+    (layer-type/lookup p1__81319#)
     [:mark :stat :defaults]))
   [:text :label]))
 
 
 (deftest
- t16_l158
+ t16_l161
  (is
   ((fn
     [rows]
@@ -115,11 +115,11 @@
      [{:mark :text, :stat :identity}
       {:mark :text, :stat :identity, :defaults {:box true}}]
      rows))
-   v15_l155)))
+   v15_l158)))
 
 
 (def
- v18_l181
+ v18_l184
  (kind/table
   {:column-names ["Mark" "Shape" "Used by"],
    :row-maps
@@ -131,7 +131,7 @@
 
 
 (deftest
- t19_l189
+ t19_l192
  (is
   ((fn
     [t]
@@ -145,11 +145,11 @@
       :line
       (:mark (layer-type/lookup :line))
       (:mark (layer-type/lookup :smooth)))))
-   v18_l181)))
+   v18_l184)))
 
 
 (def
- v21_l202
+ v21_l205
  (kind/table
   {:column-names ["Stat" "What it computes" "Used by"],
    :row-maps
@@ -160,11 +160,11 @@
      "Used by" (used-by :stat st)})}))
 
 
-(deftest t22_l210 (is ((fn [t] (pos? (count (:row-maps t)))) v21_l202)))
+(deftest t22_l213 (is ((fn [t] (pos? (count (:row-maps t)))) v21_l205)))
 
 
 (def
- v24_l219
+ v24_l222
  (kind/table
   {:column-names ["Position" "What it does" "Used by"],
    :row-maps
@@ -175,11 +175,11 @@
      "Used by" (used-by :position pos)})}))
 
 
-(deftest t25_l227 (is ((fn [t] (pos? (count (:row-maps t)))) v24_l219)))
+(deftest t25_l230 (is ((fn [t] (pos? (count (:row-maps t)))) v24_l222)))
 
 
 (def
- v27_l244
+ v27_l247
  (kind/table
   {:column-names ["Key" "Description"],
    :row-maps
@@ -189,11 +189,11 @@
      "Description" (get layer-type/layer-mapping-docs k)})}))
 
 
-(deftest t28_l251 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l244)))
+(deftest t28_l254 (is ((fn [t] (pos? (count (:row-maps t)))) v27_l247)))
 
 
 (def
- v30_l260
+ v30_l263
  (kind/table
   {:column-names ["Layer type" "Additional keys"],
    :row-maps
@@ -207,11 +207,11 @@
     {"Layer type" (kind/code (pr-str k)), "Additional keys" accepts})}))
 
 
-(deftest t31_l270 (is ((fn [t] (pos? (count (:row-maps t)))) v30_l260)))
+(deftest t31_l273 (is ((fn [t] (pos? (count (:row-maps t)))) v30_l263)))
 
 
 (def
- v33_l275
+ v33_l278
  (kind/table
   {:column-names ["Key" "Description"],
    :row-maps
@@ -221,7 +221,7 @@
 
 
 (deftest
- t34_l282
+ t34_l285
  (is
   ((fn
     [t]
@@ -236,4 +236,4 @@
       (= (count documented) (count (:row-maps t)))
       (empty? (remove documented in-use))
       (empty? (remove in-use documented)))))
-   v33_l275)))
+   v33_l278)))

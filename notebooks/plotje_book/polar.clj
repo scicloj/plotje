@@ -119,7 +119,12 @@
 
 (kind/test-last
  [(fn [v]
-    (let [area (fn [fr] (-> fr pj/frames :panels first :frames :drawing-area))
+    (let [area (fn [fr] (-> fr
+                            pj/frames
+                            :panels
+                            first
+                            :frames
+                            :drawing-area))
           [_ _ w h] (area (-> (rdatasets/datasets-iris)
                               (pj/lay-point :sepal-length :sepal-width {:color :species})
                               (pj/coord :polar)
@@ -158,5 +163,6 @@
 
 ;; ## What's Next
 ;;
+;; - [**Interactivity**](./plotje_book.interactivity.html) -- tooltips and brush selection
 ;; - [**Cookbook**](./plotje_book.cookbook.html) -- recipes for common multi-layer plots
 ;; - [**Customization**](./plotje_book.customization.html) -- colors, themes, and mark styling

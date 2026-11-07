@@ -3,15 +3,24 @@
 ;; A plot can be one set of axes or a grid of them, and which you get is
 ;; never chosen directly. A leaf pose draws one panel, however many
 ;; layers it holds and whatever columns they name. More panels come from
-;; three places:
+;; `pj/facet` and `pj/arrange`.
 ;;
-;; - **`pj/facet` over columns** -- a panel per column, or per pair of
-;;   columns.
-;; - **`pj/facet` over the categories of a column** -- a panel per
-;;   category.
-;; - **`pj/arrange`** -- a panel per pose given to it.
+;; Two things to compare are either two columns or two categories of
+;; one column, and they are drawn either inside one panel or in panels
+;; of their own. The table names the form that draws each combination:
 ;;
-;; This chapter shows each, and how they combine.
+;; | | inside one panel | across panels |
+;; |:--|:--|:--|
+;; | two columns | a series, `{:x [:height :depth]}` | a facet over columns, `(pj/facet pose {:x [...]})`, or `pj/arrange` |
+;; | two categories | an aesthetic, `{:color :species}` | a facet over categories, `(pj/facet pose :species)` |
+;;
+;; A series is drawn by pivoting its columns into a key column,
+;; `:series`, mapped to `:color`, so two columns on one panel are drawn
+;; as two categories are: a color and a legend entry each.
+;; [Series](./plotje_book.series.html) teaches the series, and
+;; [Color and Grouping](./plotje_book.core_concepts.html#color-and-grouping)
+;; the `:color` aesthetic. This chapter shows the forms in the
+;; across-panels column of the table, and how they combine.
 ;; [Faceting](./plotje_book.faceting.html) and
 ;; [Composition](./plotje_book.composition.html) teach each in depth.
 ;;
@@ -254,6 +263,44 @@
 ;; [Composition](./plotje_book.composition.html#shared-scales) gives the
 ;; rule for which cells share an axis, and how `:share-scales` changes it.
 
+;; A `pj/lay-*` call on an arrangement places its layer by the columns
+;; it names. In the arrangement above, `pj/lay-point` names no columns,
+;; so it is **added at the root** of the composite and drawn in every
+;; cell. A call naming columns **joins the last cell** whose panel draws
+;; those columns, or appends a new cell if none does. Here the line of
+;; `:weight` against `:depth` joins the second cell, and the line of
+;; `:height` against `:weight` appends a third, where the points added
+;; at the root are drawn too:
+
+(-> (pj/arrange measurements [{:x :height :y :weight}
+                              {:x :depth :y :weight}])
+    pj/lay-point
+    (pj/lay-line :depth :weight)
+    (pj/lay-line :weight :height))
+
+(kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
+                           (and (= [{:layer-type :point}] (:layers v))
+                                (= [[] [:line] [:line]]
+                                   (mapv #(mapv :layer-type (:layers %)) cells))
+                                (= {:panels 3 :points 12 :lines 2}
+                                   (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
+
+;; A call naming one column joins the last cell drawing that column on
+;; that axis and reads the cell's other column, as on a leaf.
+
+;; A cell may also be a template -- a pose with layers and no data, as
+;; [Reusable Pose Templates](./plotje_book.core_concepts.html#reusable-pose-templates)
+;; describes. When `pj/arrange` is given data first, the template cell
+;; draws from the arrangement's data. Here a cell with layers of its own
+;; sits beside a cell drawn by inference:
+
+(pj/arrange measurements [(-> (pj/lay-point nil :height :weight)
+                              (pj/lay-smooth {:stat :linear-model}))
+                          {:x :depth :y :weight}])
+
+(kind/test-last [(fn [v] (= {:panels 2 :points 8 :lines 1}
+                            (select-keys (pj/svg-summary v) [:panels :points :lines])))])
+
 ;; A composite pose can also be written directly, which
 ;; [Composition](./plotje_book.composition.html#explicit-composite-poses)
 ;; covers. It is the same structure `pj/arrange` builds.
@@ -280,8 +327,9 @@
                                                 pj/lay-point
                                                 (pj/facet :species)))))])
 
-;; [Faceting](./plotje_book.faceting.html#facet-or-arrange) compares the
-;; two forms, and
+;; The [Facet or Arrange](./plotje_book.faceting.html#facet-or-arrange)
+;; section of Faceting compares a facet with cells that filter the data,
+;; and
 ;; [Pose Rules](./plotje_book.pose_rules.html#rule-s5-a-row-filter-combines-column-by-column-at-every-level)
 ;; says how a filter on the pose combines with a cell's.
 
@@ -307,9 +355,13 @@
     (pj/facet {:y [:weight :depth]})
     (pj/facet :species))
 
-(kind/test-last [(fn [v] (let [base (-> measurements (pj/pose {:x :height}) pj/lay-point)]
+(kind/test-last [(fn [v] (let [base (-> measurements
+                                        (pj/pose {:x :height})
+                                        pj/lay-point)]
                            (and (= v (pj/facet base {:col :species :row {:y [:weight :depth]}}))
-                                (= v (-> base (pj/facet :species) (pj/facet {:y [:weight :depth]}))))))])
+                                (= v (-> base
+                                         (pj/facet :species)
+                                         (pj/facet {:y [:weight :depth]}))))))])
 
 ;; `:col` and `:row` are aesthetics, so a facet written on an arranged
 ;; pose reaches every cell:
@@ -322,6 +374,12 @@
 (kind/test-last
  [(fn [v] (= 4 (:panels (pj/svg-summary v))))])
 
+;; ## What's Next
+;;
+;; - [Specifying Aesthetics](./plotje_book.specifying_aesthetics.html) --
+;;   the next chapter: how to write what a mapping means -- where its
+;;   values come from, and whether a scale reads them
+;;
 ;; ## See Also
 ;;
 ;; - [Poses](./plotje_book.pose_model.html) -- leaf and composite poses

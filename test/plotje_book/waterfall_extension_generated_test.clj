@@ -174,7 +174,7 @@
 
 
 (def
- v17_l157
+ v17_l161
  (->
   pnl-data
   (pj/pose :category :amount)
@@ -185,7 +185,7 @@
 
 
 (deftest
- t18_l164
+ t18_l168
  (is
   ((fn
     [v]
@@ -197,25 +197,25 @@
       red
       [0.85 0.25 0.25 1.0]
       positive-bars
-      (mapv (fn* [p1__91128#] (nth waterfall-bars p1__91128#)) [0 2 5])
+      (mapv (fn* [p1__91151#] (nth waterfall-bars p1__91151#)) [0 2 5])
       negative-bars
       (mapv
-       (fn* [p1__91129#] (nth waterfall-bars p1__91129#))
+       (fn* [p1__91152#] (nth waterfall-bars p1__91152#))
        [1 3 4])]
      (and
       (= 1 (:panels s))
       (= 6 (:polygons s))
       (every?
-       (fn* [p1__91130#] (= green (:color p1__91130#)))
+       (fn* [p1__91153#] (= green (:color p1__91153#)))
        positive-bars)
       (every?
-       (fn* [p1__91131#] (= red (:color p1__91131#)))
+       (fn* [p1__91154#] (= red (:color p1__91154#)))
        negative-bars))))
-   v17_l157)))
+   v17_l161)))
 
 
 (def
- v20_l183
+ v20_l187
  (->
   pnl-data
   (pj/pose :category :amount)
@@ -227,13 +227,13 @@
 
 
 (deftest
- t21_l191
+ t21_l195
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v20_l183)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v20_l187)))
 
 
 (def
- v23_l199
+ v23_l203
  (defn
   lay-waterfall
   ([pose] (pj/lay pose :waterfall))
@@ -243,7 +243,7 @@
 
 
 (def
- v25_l213
+ v25_l217
  (->
   pnl-data
   (lay-waterfall :category :amount)
@@ -252,13 +252,13 @@
 
 
 (deftest
- t26_l218
+ t26_l222
  (is
-  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v25_l213)))
+  ((fn [v] (let [s (pj/svg-summary v)] (= 6 (:polygons s)))) v25_l217)))
 
 
 (def
- v28_l226
+ v28_l230
  (defmethod
   stat/compute-stat
   [:waterfall :doc]
@@ -267,7 +267,7 @@
 
 
 (def
- v29_l229
+ v29_l233
  (defmethod
   extract/extract-layer
   [:waterfall :doc]
@@ -276,7 +276,7 @@
 
 
 (def
- v30_l232
+ v30_l236
  (defmethod
   mark/layer->membrane
   [:waterfall :doc]
@@ -284,43 +284,43 @@
   "Filled rectangles positioned by running total"))
 
 
-(def v31_l235 (pj/stat-doc :waterfall))
+(def v31_l239 (pj/stat-doc :waterfall))
 
 
 (deftest
- t32_l237
+ t32_l241
  (is
   ((fn [v] (= "Compute running totals for waterfall bars" v))
-   v31_l235)))
+   v31_l239)))
 
 
-(def v34_l243 (remove-method stat/compute-stat :waterfall))
+(def v34_l247 (remove-method stat/compute-stat :waterfall))
 
 
-(def v35_l244 (remove-method stat/compute-stat [:waterfall :doc]))
+(def v35_l248 (remove-method stat/compute-stat [:waterfall :doc]))
 
 
-(def v36_l245 (remove-method extract/extract-layer :waterfall))
+(def v36_l249 (remove-method extract/extract-layer :waterfall))
 
 
-(def v37_l246 (remove-method extract/extract-layer [:waterfall :doc]))
+(def v37_l250 (remove-method extract/extract-layer [:waterfall :doc]))
 
 
-(def v38_l247 (remove-method mark/layer->membrane :waterfall))
+(def v38_l251 (remove-method mark/layer->membrane :waterfall))
 
 
-(def v39_l248 (remove-method mark/layer->membrane [:waterfall :doc]))
+(def v39_l252 (remove-method mark/layer->membrane [:waterfall :doc]))
 
 
 (def
- v40_l249
+ v40_l253
  (swap!
   @(resolve 'scicloj.plotje.layer-type/registry*)
   dissoc
   :waterfall))
 
 
-(def v42_l253 (nil? (layer-type/lookup :waterfall)))
+(def v42_l257 (nil? (layer-type/lookup :waterfall)))
 
 
-(deftest t43_l255 (is ((fn [v] (true? v)) v42_l253)))
+(deftest t43_l259 (is ((fn [v] (true? v)) v42_l257)))

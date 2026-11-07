@@ -378,7 +378,7 @@ graph LR
 ;; decides which panels of a facet over columns a layer is drawn in,
 ;; whether a layer naming one column is given the panel's other column,
 ;; and whether a column named on `:y` alone is drawn on its side (see
-;; [The columns a layer reads](./plotje_book.architecture.html#the-columns-a-layer-reads)).
+;; [The panel's columns](./plotje_book.panels.html#the-panels-columns)).
 ;; `:accepts` lists
 ;; the keys its mapping takes beyond the keys every layer type accepts,
 ;; tabulated per layer type in
@@ -560,8 +560,18 @@ graph LR
 ;; plan layer's `:color` is a resolved color, and the category moves to
 ;; `:label`.
 
-[(-> scatter-stat :points first :color)
- (-> grouped-scatter pj/plan :panels first :layers first :groups first
+[(-> scatter-stat
+     :points
+     first
+     :color)
+ (-> grouped-scatter
+     pj/plan
+     :panels
+     first
+     :layers
+     first
+     :groups
+     first
      (select-keys [:color :label]))]
 
 (kind/test-last [(fn [[stat-color plan-group]]
@@ -715,7 +725,10 @@ graph LR
   (-> {:x [1 2 3] :y [1 2 3] :n [1 4 9]}
       (pj/lay-point :x :y {:size :n})
       pj/plan
-      :panels first :layers first))
+      :panels
+      first
+      :layers
+      first))
 
 (let [groups (:groups bubble-layer)
       radius-of (layer-type/aesthetic-magnitude-fn bubble-layer :size
@@ -842,7 +855,10 @@ graph LR
                 (pj/lay-point :sepal-length :sepal-width)
                 (pj/lay-rule-h {:y-intercept 3.0})
                 pj/plan
-                :panels first :layers last)]
+                :panels
+                first
+                :layers
+                last)]
   layer)
 
 (kind/test-last [(fn [m] (and (= :rule-h (:mark m))

@@ -485,7 +485,11 @@
 
 (kind/test-last
  [(fn [v]
-    (let [ms (->> v pj/plan :size-legend :entries (mapv :magnitude))]
+    (let [ms (->> v
+                  pj/plan
+                  :size-legend
+                  :entries
+                  (mapv :magnitude))]
       ;; The legend runs from small values to large, and its swatches
       ;; shrink as it goes.
       (and (= 2.0 (last ms)) (apply > ms))))])

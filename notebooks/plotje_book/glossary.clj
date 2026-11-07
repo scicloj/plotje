@@ -166,7 +166,10 @@ my-pose
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
 
-(-> my-pose :layers first :layer-type)
+(-> my-pose
+    :layers
+    first
+    :layer-type)
 
 (kind/test-last [(fn [k] (= :point k))])
 
@@ -266,7 +269,9 @@ my-pose
 ;; the `:scicloj.plotje/row` column on a draft layer's `:data` too: it
 ;; records the row of the pose's dataset each row came from.
 
-(-> my-pose pj/draft kind/pprint)
+(-> my-pose
+    pj/draft
+    kind/pprint)
 
 (kind/test-last [(fn [d] (and (pj/leaf-draft? d)
                               (= 1 (count (:layers d)))
@@ -614,9 +619,16 @@ my-pose
 
 (kind/test-last
  [(fn [v]
-    (let [panel (-> v pj/frames :panels first)
+    (let [panel (-> v
+                    pj/frames
+                    :panels
+                    first)
           at (fn [c] (first (pj/to-drawing panel c 4.5)))]
-      (and (= ["red" "green" "blue"] (-> v pj/plan :panels first :x-domain))
+      (and (= ["red" "green" "blue"] (-> v
+                                         pj/plan
+                                         :panels
+                                         first
+                                         :x-domain))
            ;; Counted from one, so a place and the category it counts
            ;; to meet, and 1.5 is the midpoint of the two it falls
            ;; between.
@@ -703,7 +715,10 @@ my-pose
 
 (kind/test-last
  [(fn [v]
-    (let [panel (-> v pj/frames :panels first)
+    (let [panel (-> v
+                    pj/frames
+                    :panels
+                    first)
           at (fn [c] (first (pj/to-drawing panel c 4.5)))]
       (and
        ;; Half a band from the first category is the place halfway to
@@ -716,7 +731,11 @@ my-pose
        ;; And that place is the midpoint of the two band centres.
        (< (abs (- (at 1.5) (/ (+ (at "red") (at "green")) 2.0))) 1e-9)
        ;; The shift is not a category, so the axis still carries three.
-       (= ["red" "green" "blue"] (-> v pj/plan :panels first :x-domain)))))])
+       (= ["red" "green" "blue"] (-> v
+                                     pj/plan
+                                     :panels
+                                     first
+                                     :x-domain)))))])
 
 ;; ## Jitter
 ;;
@@ -938,7 +957,10 @@ my-pose
 ;; the plan carries its own `:x-ticks` and `:y-ticks` maps with
 ;; parallel `:values` and `:labels` vectors.
 
-(-> my-plan :panels first :x-ticks)
+(-> my-plan
+    :panels
+    first
+    :x-ticks)
 
 (kind/test-last
  [(fn [m]
@@ -1139,32 +1161,9 @@ my-pose
 ;; under its composite -- combine column by column: a column named in
 ;; both takes the later or inner value. An arrangement of cells with a
 ;; `:where` each, in the order the categories appear in the data, draws
-;; what a facet over categories draws. The two poses differ: the facet
-;; is one leaf and the arrangement is a composite, so a `pj/lay-*`
-;; naming other columns, added afterwards, draws in every panel of the
-;; facet but appends a new cell to the arrangement.
-
-(pj/arrange (pj/lay-point (rdatasets/datasets-iris) :sepal-length :sepal-width)
-            [{:where {:species "setosa"}} {:where {:species "versicolor"}} {:where {:species "virginica"}}])
-
-(kind/test-last
- [(fn [v]
-    (and (= (pj/plot v)
-            (pj/plot (-> (rdatasets/datasets-iris)
-                         (pj/lay-point :sepal-length :sepal-width)
-                         (pj/facet :species))))
-         ;; A later lay-* naming other columns: on the facet it draws in
-         ;; the three panels, on the arrangement it appends a fourth cell.
-         (let [base (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
-               panels (fn [pose]
-                        (-> pose
-                            (pj/lay-point :displ :cty)
-                            pj/svg-summary
-                            :panels))]
-           (and (= 3 (panels (pj/facet base :drv)))
-                (= 4 (panels (pj/arrange base [{:where {:drv "f"}}
-                                               {:where {:drv "4"}}
-                                               {:where {:drv "r"}}])))))))])
+;; what a facet over categories draws, and
+;; [Facet or Arrange](./plotje_book.faceting.html#facet-or-arrange) in
+;; the Faceting chapter shows where the two poses differ.
 
 ;; ## Marginal
 ;;
@@ -1194,7 +1193,10 @@ my-pose
     (pj/marginal :right))
 
 (kind/test-last
- [(fn [v] (let [panels (mapv #(-> % :plan :panels first)
+ [(fn [v] (let [panels (mapv #(-> %
+                                  :plan
+                                  :panels
+                                  first)
                              (:sub-plots (pj/plan v)))]
             (and (= 2 (:panels (pj/svg-summary v)))
                  (= (:y-domain (first panels))

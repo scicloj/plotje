@@ -102,13 +102,21 @@
                            (pj/lay-smooth {:stat :linear-model
                                            :confidence-band true})
                            pj/plan
-                           :panels first :layers last :ribbons)
+                           :panels
+                           first
+                           :layers
+                           last
+                           :ribbons)
           explicit-95 (-> base
                           (pj/lay-smooth {:stat :linear-model
                                           :confidence-band true
                                           :level 0.95})
                           pj/plan
-                          :panels first :layers last :ribbons)]
+                          :panels
+                          first
+                          :layers
+                          last
+                          :ribbons)]
       (and (= 150 (:points s))
            (= 3 (:lines s))
            (= 3 (:polygons s))
@@ -142,7 +150,12 @@
                                                      :confidence-band true
                                                      :level level})
                                      pj/plan
-                                     :panels first :layers first :ribbons first)
+                                     :panels
+                                     first
+                                     :layers
+                                     first
+                                     :ribbons
+                                     first)
                                widths (map - (:ymaxs r) (:ymins r))]
                            (nth (sort widths) (quot (count widths) 2))))]
       ;; Wider :level produces a wider median band: 0.99 > 0.95 > 0.80.
@@ -315,7 +328,11 @@
 (kind/test-last
  [(fn [v] (let [s (pj/svg-summary v)
                 subs (:sub-plots (pj/plan v))
-                marks (into {} (map (juxt :path #(mapv :mark (-> % :plan :panels first :layers)))) subs)
+                marks (into {} (map (juxt :path #(mapv :mark (-> %
+                                                                 :plan
+                                                                 :panels
+                                                                 first
+                                                                 :layers)))) subs)
                 w (into {} (map (juxt :path #(get-in % [:plan :panel-width]))) subs)
                 h (into {} (map (juxt :path #(get-in % [:plan :panel-height]))) subs)]
             (and (= 3 (:panels s))
@@ -342,7 +359,8 @@
                 ;; One strip label per column, not one per cell: the
                 ;; lower row is divided by species and draws none, so
                 ;; three of the six panels carry a label.
-                labelled (->> (pj/plan v) :sub-plots
+                labelled (->> (pj/plan v)
+                              :sub-plots
                               (mapcat (comp :panels :plan))
                               (keep :col-label))]
             (and (= 6 (:panels s))
@@ -375,7 +393,12 @@
     (let [marks (->> (:sub-plots (pj/plan v))
                      (mapv (fn [{:keys [path plan]}]
                              (let [[r c] path
-                                   m (-> plan :panels first :layers first :mark)]
+                                   m (-> plan
+                                         :panels
+                                         first
+                                         :layers
+                                         first
+                                         :mark)]
                                [r c m]))))]
       (and (= 4 (:panels (pj/svg-summary v)))
            (every? (fn [[r c m]] (= m (if (= r c) :bar :point))) marks))))])
@@ -408,7 +431,12 @@
            (->> (:sub-plots (pj/plan v))
                 (every? (fn [{:keys [path plan]}]
                           (let [[r c] path
-                                mark (-> plan :panels first :layers first :mark)]
+                                mark (-> plan
+                                         :panels
+                                         first
+                                         :layers
+                                         first
+                                         :mark)]
                             (= mark (if (= r c) :bar :point)))))))))])
 
 ;; Inference picks the layer type for each panel: diagonal panels,
@@ -431,7 +459,12 @@
     (->> (:sub-plots (pj/plan v))
          (every? (fn [{:keys [path plan]}]
                    (let [[r c] path
-                         mark (-> plan :panels first :layers first :mark)]
+                         mark (-> plan
+                                  :panels
+                                  first
+                                  :layers
+                                  first
+                                  :mark)]
                      (= mark (if (= r c) :bar :point)))))))])
 
 ;; A density draws one column, so `pj/lay-density` is drawn on the
@@ -448,7 +481,10 @@
     (->> (:sub-plots (pj/plan v))
          (every? (fn [{:keys [path plan]}]
                    (let [[r c] path
-                         marks (set (map :mark (-> plan :panels first :layers)))]
+                         marks (set (map :mark (-> plan
+                                                   :panels
+                                                   first
+                                                   :layers)))]
                      (= marks (if (= r c) #{:area} #{:point})))))))])
 
 ;; A layer that names its columns is drawn only in the panel of those
@@ -465,10 +501,18 @@
  [(fn [v]
     (let [with-line (->> (:sub-plots (pj/plan v))
                          (filter (fn [{:keys [plan]}]
-                                   (some #{:line} (map :mark (-> plan :panels first :layers))))))]
+                                   (some #{:line} (map :mark (-> plan
+                                                                 :panels
+                                                                 first
+                                                                 :layers))))))]
       (and (= 1 (count with-line))
            (= #{:point :line}
-              (set (map :mark (-> with-line first :plan :panels first :layers)))))))])
+              (set (map :mark (-> with-line
+                                  first
+                                  :plan
+                                  :panels
+                                  first
+                                  :layers)))))))])
 
 ;; A layer that fits no panel -- a histogram written on a pose whose
 ;; panels all name two columns -- is drawn in every panel, as it would be
@@ -486,6 +530,7 @@
 
 ;; ## What's Next
 ;;
+;; - [**Cookbook**](./plotje_book.cookbook.html) -- recipes for common multi-layer plots
 ;; - [**Faceting**](./plotje_book.faceting.html) -- split any chart into panels by category
 ;; - [**Polar Coordinates**](./plotje_book.polar.html) -- radial charts and pie-style visualizations
 ;; - [**Customization**](./plotje_book.customization.html) -- mark styling, palettes, and themes

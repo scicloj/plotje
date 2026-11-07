@@ -600,7 +600,10 @@
       (and (= 3 (:label-boxes s))
            (= 3 (:points s))
            (= [8.0 3.0 0.0]
-              (->> (pj/plan v) :panels first :layers
+              (->> (pj/plan v)
+                   :panels
+                   first
+                   :layers
                    (filter #(= :text (:mark %)))
                    (mapv #(-> % :style :box :corner-radius)))))))])
 
@@ -677,7 +680,10 @@
     (pj/lay-band-v {:x-min 5.5 :x-max 6.5})
     (pj/options {:band-color "#2a9d8f"}))
 
-(kind/test-last [(fn [v] (let [band (->> (pj/plan v) :panels first :layers
+(kind/test-last [(fn [v] (let [band (->> (pj/plan v)
+                                         :panels
+                                         first
+                                         :layers
                                          (filter #(= :band-v (:mark %)))
                                          first)]
                            ;; #2a9d8f is 42, 157, 143 out of 255

@@ -347,6 +347,7 @@ sales-rich
 
 ;; ## What's Next
 ;;
+;; - [**Troubleshooting**](./plotje_book.troubleshooting.html) -- common issues and how to fix them
 ;; - [**Timelines**](./plotje_book.timelines.html) -- interval charts, whose tooltips are shown above
 ;; - [**Customization**](./plotje_book.customization.html) -- titles, palettes, scales
 ;; - [**Architecture**](./plotje_book.architecture.html) -- how the pipeline produces the SVG

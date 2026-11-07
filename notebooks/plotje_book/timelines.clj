@@ -211,11 +211,19 @@
     (let [default-style (-> (pj/lay-interval-h project :start :task
                                                {:x-end :end})
                             pj/plan
-                            :panels first :layers first :style)
+                            :panels
+                            first
+                            :layers
+                            first
+                            :style)
           custom-style (-> (pj/lay-interval-h project :start :task
                                               {:x-end :end :interval-thickness 0.4})
                            pj/plan
-                           :panels first :layers first :style)]
+                           :panels
+                           first
+                           :layers
+                           first
+                           :style)]
       (and (== 0.7 (:interval-thickness default-style))
            (== 0.4 (:interval-thickness custom-style)))))])
 
@@ -508,6 +516,7 @@
 
 ;; ## What's Next
 ;;
+;; - [**Relationships**](./plotje_book.relationships.html) -- scatter plots, regression, smoothing, density, and heatmaps
 ;; - [**Interactivity**](./plotje_book.interactivity.html) -- tooltip, brush, cross-panel linking, save-as-PNG
 ;; - [**Change Over Time**](./plotje_book.change_over_time.html) -- line, step, area on a date axis
 ;; - [**Faceting**](./plotje_book.faceting.html) -- splitting one chart into many panels
