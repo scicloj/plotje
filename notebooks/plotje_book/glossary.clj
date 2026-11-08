@@ -145,7 +145,14 @@ my-pose
 ;;
 ;; A **layer** is a layer type placed on a pose, optionally with
 ;; scoped mappings. Created by `pj/lay-*`.
-;;
+
+(-> my-pose
+    :layers
+    first
+    :layer-type)
+
+(kind/test-last [(fn [k] (= :point k))])
+
 ;; Where a layer goes depends on whether `pj/lay-*` is called on a leaf
 ;; or on a composite:
 ;;
@@ -153,10 +160,11 @@ my-pose
 ;;   the layer draws on the leaf's one panel, whatever columns it
 ;;   names. A layer naming no columns reads the panel's columns -- the
 ;;   ones `pj/pose` wrote, or the ones the first `pj/lay-*` call naming
-;;   columns named -- and under a facet crossing two lists of columns
-;;   it is drawn in the panels whose number of columns its layer type
-;;   draws from. A layer naming one column reads the panel's other
+;;   columns named. A layer naming one column reads the panel's other
 ;;   column where its layer type draws from two.
+;; - **Under a facet over columns** -- including `pj/matrix` -- the pose
+;;   is a leaf, but its panels become cells when the pose is drawn, and
+;;   each layer is placed among those cells as on a composite, below.
 ;; - **On a composite** -- every call adds its layer at the root. A
 ;;   call naming no columns is drawn in every cell whose number of
 ;;   columns its layer type draws from; where no cell has such a number
@@ -165,19 +173,16 @@ my-pose
 ;;   each axis the call names, the cell's panel draws no other column,
 ;;   and when the cell's columns together with the call's are a number
 ;;   of columns the layer type draws from. Where no cell fits, the call
-;;   appends a new cell. A call naming one column reads the cell's
+;;   is drawn in every cell, as written, on that cell's panel; a
+;;   `pj/lay-*` call adds no cell, and `(pj/arrange pose [cell])` adds
+;;   one. Where a cell would then hold no layer at all and the call
+;;   names a column no cell draws, an error names the columns. A call
+;;   naming one column reads the cell's
 ;;   column on the other axis where its layer type draws from two.
 ;;   Layers added at the root are drawn under a cell's own layers.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
-
-(-> my-pose
-    :layers
-    first
-    :layer-type)
-
-(kind/test-last [(fn [k] (= :point k))])
 
 ;; Below, the first two cells draw `:sepal-width` on `:y`, against
 ;; different columns on `:x`, and the third draws `:petal-width` on
@@ -1259,8 +1264,8 @@ my-pose
 ;; is -- see [Layer](#layer). On a leaf they draw on its panel. On a
 ;; composite, a rule or a band naming no columns is added at the root
 ;; and drawn in every cell whose panel draws two columns -- in every
-;; cell, where no cell's panel does -- and a call naming columns is drawn in every cell that fits it, or appends a new
-;; cell where none does.
+;; cell, where no cell's panel does -- and a call naming columns is
+;; drawn in every cell that fits it, or in every cell where none does.
 ;;
 ;; | Constructor | What |
 ;; |:------------|:-----|

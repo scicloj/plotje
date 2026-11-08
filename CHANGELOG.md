@@ -8,9 +8,13 @@ All notable changes to this project will be documented in this file. This change
 
 - **A pose built inside `pj/with-config` and shown after the body returns**, as a notebook shows the value of a form, is drawn under the configuration in effect when it is shown -- the same picture `pj/plot` and `pj/save` draw for it. `pj/with-config` applies to what is rendered inside its body: to keep its theme, end the body in `pj/plot`, as in `(pj/with-config {:theme {:bg "#1a1a2e"}} (-> pose pj/plot))`.
 
-- **A `pj/lay-*` call naming columns on an arrangement** is drawn in every cell that fits it: on each axis the call names, the cell's panel draws no other column, and the cell's columns together with the call's are a number of columns the layer type reads. A smooth naming `:displ` and `:hwy`, added to cells that split the data with `:where`, is drawn in each cell, as in each panel of `(pj/facet :drv)`; a histogram naming `:displ` is not drawn in a scatter cell of `:displ` and `:hwy`. The layer is drawn under a cell's own layers. Where no cell fits, the layer is drawn on a cell of its own.
+- **A `pj/lay-*` call naming columns on a composite pose** -- a pose holding other poses, its cells, as `pj/arrange` builds -- is drawn in every cell that fits it: on each axis the call names, the cell's panel draws no other column, and the cell's columns together with the call's are a number of columns the layer type reads. A smooth naming `:displ` and `:hwy`, added to cells that split the data with `:where`, is drawn in each cell, as in each panel of `(pj/facet :drv)`. The layer is drawn under a cell's own layers.
 
-- **`pj/lay-contour` lines** cross each cell edge of the density grid where the density passes the contour level, whether the density rises or falls along that edge, so the lines are smooth curves. Reported on Zulip - thanks, @generateme.
+- **A `pj/lay-*` call that fits no cell of a composite pose** is drawn in every cell, as written, as on a facet over columns: a histogram naming `:displ`, added to scatter cells, is drawn in each cell beside its points. No cell is added; `(pj/arrange pose [cell])` adds one. Where a cell holds no other layer and the call names a column no cell draws, an error names the columns.
+
+- **A layer with a written colour drawn in some cells of a composite**, such as a black trend line in one panel of a scatter plot matrix, leaves the cells one shared legend for the column they colour by, as they draw without it.
+
+- **`pj/lay-contour` lines** are smooth curves. Where a line passes between two points of the density grid, it is drawn at the place the density reaches the line's level. Reported on Zulip - thanks, @generateme.
 
 - **Tiles of `pj/lay-tile` and `pj/lay-density-2d` in SVG** are drawn with crisp edges, as bars are, so neighbouring tiles meet with no seam showing between them. A tile narrower than one drawing unit is drawn as before. Reported on Zulip - thanks, @generateme.
 
@@ -20,9 +24,9 @@ All notable changes to this project will be documented in this file. This change
 
 ### Warnings and errors
 
-- **The Notes on how 0.16.1 drew a plot are removed.** A layer naming other columns than its pose's, `pj/pose` replacing a column, and a vector of columns read as a series draw with no Note.
+- **The Notes on how 0.16.1 drew a plot are removed.** A layer naming other columns than its pose's, `pj/pose` replacing a column, and a vector of columns read as a series draw with no Note. A layer drawn in only some panels of a facet over columns prints no Note, as on a composite pose.
 
-- **`:panel-size` and `:margin-multi` are retired.** Written as configuration or as a plot option, each warns once, names what to write instead -- `:panel-width` or `:panel-height` for the size of each panel, and `:margin` for the margin of every plot -- and the plot draws without it. Neither changed a plot in 0.17.0, and neither is listed in `pj/config-key-docs`.
+- **`:panel-size` and `:margin-multi` are retired.** Written as configuration or as a plot option, each warns once, names what to write instead -- `:panel-width` or `:panel-height` for the size of each panel, and `:margin` for the margin of every plot -- and the plot draws without it. Neither key is listed in `pj/config-key-docs` or in `(pj/config)`.
 
 ### Fixed
 

@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__86743#]
+      [p1__84385#]
       (+
-       (Math/sin (* p1__86743# 0.2))
+       (Math/sin (* p1__84385# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -418,7 +418,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__86744#] (-> p1__86744# :plan :panels first))
+       (fn* [p1__84386#] (-> p1__84386# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -453,8 +453,8 @@
         (juxt
          :path
          (fn*
-          [p1__86745#]
-          (mapv :mark (-> p1__86745# :plan :panels first :layers)))))
+          [p1__84387#]
+          (mapv :mark (-> p1__84387# :plan :panels first :layers)))))
        subs)
       w
       (into
@@ -462,7 +462,7 @@
        (map
         (juxt
          :path
-         (fn* [p1__86746#] (get-in p1__86746# [:plan :panel-width]))))
+         (fn* [p1__84388#] (get-in p1__84388# [:plan :panel-width]))))
        subs)
       h
       (into
@@ -470,7 +470,7 @@
        (map
         (juxt
          :path
-         (fn* [p1__86747#] (get-in p1__86747# [:plan :panel-height]))))
+         (fn* [p1__84389#] (get-in p1__84389# [:plan :panel-height]))))
        subs)]
      (and
       (= 3 (:panels s))
@@ -594,7 +594,7 @@
 
 
 (def
- v73_l454
+ v73_l457
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -603,7 +603,7 @@
 
 
 (deftest
- t74_l459
+ t74_l462
  (is
   ((fn
     [v]
@@ -615,11 +615,11 @@
        (let
         [[r c] path mark (-> plan :panels first :layers first :mark)]
         (= mark (if (= r c) :bar :point)))))))
-   v73_l454)))
+   v73_l457)))
 
 
 (def
- v76_l475
+ v76_l478
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -629,7 +629,7 @@
 
 
 (deftest
- t77_l481
+ t77_l484
  (is
   ((fn
     [v]
@@ -644,11 +644,11 @@
          marks
          (set (map :mark (-> plan :panels first :layers)))]
         (= marks (if (= r c) #{:area} #{:point})))))))
-   v76_l475)))
+   v76_l478)))
 
 
 (def
- v79_l495
+ v79_l498
  (->
   (rdatasets/datasets-iris)
   (pj/pose {:color :species})
@@ -662,7 +662,7 @@
 
 
 (deftest
- t80_l502
+ t80_l505
  (is
   ((fn
     [v]
@@ -684,4 +684,27 @@
         (map
          :mark
          (-> with-line first :plan :panels first :layers)))))))
-   v79_l495)))
+   v79_l498)))
+
+
+(def
+ v82_l530
+ (->
+  (rdatasets/datasets-iris)
+  (pj/matrix [:sepal-length :sepal-width] [:petal-length :petal-width])
+  pj/lay-histogram))
+
+
+(deftest
+ t83_l534
+ (is
+  ((fn
+    [v]
+    (->>
+     (pj/plan v)
+     :sub-plots
+     (every?
+      (fn
+       [{:keys [plan]}]
+       (= [:bar] (mapv :mark (-> plan :panels first :layers)))))))
+   v82_l530)))

@@ -2541,10 +2541,8 @@
                   (str/join " and " (map (fn [[axis col]] (str (pr-str col) " on " axis)) pairs))
                   (if (next pairs) ", columns" ", a column")
                   " the panel does not draw, so " (if (next pairs) "they are" "it is")
-                  " not read. On a composite pose a " noun "'s columns pick the cells"
-                  " it is drawn in; this pose is not a composite, so the " noun
-                  " is drawn on the panel with the pose's other layers. Name the panel's own columns,"
-                  " or none."))))
+                  " not read, and the " noun " is drawn on the panel with its other layers."
+                  " Name the panel's own columns, or none."))))
 
 (defn- warn-undrawn-density-color
   "Warn, once per plot, about a `:color` on a 2D density or a contour.

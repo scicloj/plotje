@@ -94,15 +94,9 @@
 
 ;; A layer that names columns is drawn in every cell that fits it: on
 ;; each axis the layer names, the cell's panel draws no other column,
-;; and the cell's columns together with the layer's are as many as the
-;; layer type reads. Below, the trend line names the first cell's
-;; columns and is drawn there only. A histogram naming `:sepal-length`
-;; would be drawn in neither cell, because each cell draws two columns
-;; and a histogram reads one. A layer naming columns that no cell fits
-;; is drawn on a new cell appended to the arrangement -- see Rules LP2
-;; and LP3 in
-;; [Pose Rules](./plotje_book.pose_rules.html) and
-;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
+;; and the cell's columns together with the layer's are a number of
+;; columns the layer type reads. Below, the trend line names the first
+;; cell's columns and is drawn there only:
 
 (-> (rdatasets/datasets-iris)
     (pj/arrange [{:x :sepal-length :y :sepal-width}
@@ -120,14 +114,19 @@
 
 ;; The two cells read one dataset, so the two cells share the `:x` axis
 ;; on which both draw `:sepal-length`, and that axis is titled once (see
-;; Shared Scales below). A layer added to the arrangement is drawn under
-;; the layers a cell holds of its own, so points added to cells that
-;; each draw a trend line are drawn beneath the lines.
+;; Shared Scales below). A layer that fits no cell is drawn in every
+;; cell, beside each cell's own layers: a histogram naming
+;; `:sepal-length` fits neither cell, because each cell draws two
+;; columns and a histogram reads one, so it is drawn over the points in
+;; both. A layer added to the arrangement is drawn under the layers a
+;; cell holds of its own. See Rules LP2 and LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html) and
+;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
 ;;
-;; An arrangement can be built in steps, as a plot is built layer by
-;; layer. `pj/arrange` given an arrangement adds the new cells after
-;; its own and draws what one `pj/arrange` call with the longer list
-;; draws, so a third panel joins the row:
+;; A `pj/lay-*` call adds no cell. An arrangement is built in steps with
+;; `pj/arrange`: given an arrangement, it adds the new cells after its
+;; own and draws what one `pj/arrange` call with the longer list draws,
+;; so a third panel joins the row:
 
 (-> (rdatasets/datasets-iris)
     (pj/arrange [{:x :sepal-length :y :sepal-width}
@@ -706,8 +705,9 @@ weighted
            (not (apply == plain)))))])
 
 ;; Pair it with `:share-scales` where the cells are meant to be read
-;; against one another. `pj/marginal` sets both for you -- the next
-;; section takes one apart.
+;; against one another. `pj/marginal` sets both --
+;; [What a marginal is made of](#what-a-marginal-is-made-of) takes one
+;; apart.
 
 ;; ### A Facet Placed as a Cell
 ;;
@@ -1136,8 +1136,8 @@ dashboard
 ;;   `:subtitle` and `:caption` written there are drawn once, around
 ;;   the whole arrangement, and not in each cell. Two layers of one
 ;;   pose cannot read one aesthetic through different scales, and two
-;;   cells can, so a second scale for an aesthetic is drawn in a cell
-;;   of its own.
+;;   cells can: to read an aesthetic through a second scale, put the
+;;   layer in a cell of its own with `pj/arrange`.
 ;; - **Cells that map the same column share one scale and one
 ;;   legend.** If every leaf maps an aesthetic to the same column
 ;;   (for example `:color :species` in all cells), each cell is given one

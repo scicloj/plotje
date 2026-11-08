@@ -117,16 +117,14 @@
 
 ;; Among the places that read it:
 ;;
-;; - A layer naming no columns, added after a facet crossing two lists
-;;   of columns or on a composite, is drawn in the panels whose number
-;;   of columns it draws from -- the
+;; - A layer added to a composite, or after a facet crossing two lists
+;;   of columns, is drawn in the panels whose columns, together with any
+;;   the layer names, are a number of columns its layer type draws from;
+;;   where no panel has such a number, it is drawn in every panel. The
 ;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
-;;   is the case where the panels differ.
-;; - A layer naming columns, added to a composite, is drawn only in cells
-;;   whose columns together with the layer's are as many as its layer
-;;   type reads, so a histogram naming `:height` is not drawn in a
-;;   scatter cell of `:height` and `:weight` -- see Rule LP2 in
-;;   [Pose Rules](./plotje_book.pose_rules.html).
+;;   is the case where the panels differ: a point layer is drawn off the
+;;   diagonal, and the diagonal keeps its histograms. See Rules LP2 and
+;;   LP3 in [Pose Rules](./plotje_book.pose_rules.html).
 ;; - A pose that names a column on `:y` alone, with no `:x`, is drawn
 ;;   with a layer type that draws from one column, turned on its side
 ;;   -- a numerical column gives a horizontal histogram.

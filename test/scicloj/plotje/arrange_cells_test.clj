@@ -113,10 +113,8 @@
     (testing "a pose is a cell when appended, as in one call"
       (is (= (pj/plot (pj/arrange (pj/arrange tiny [{:x :u :y :v}]) [(pj/lay-point tiny :u :w)]))
              (pj/plot (pj/arrange tiny [{:x :u :y :v} (pj/lay-point tiny :u :w)])))))
-    (testing "a lay-* naming new columns adds its cell the same way"
-      (is (= [[{:x :u :y :v} [{:x :u :y :w}]]]
-             (mapv (fn [row] (mapv #(or (:mapping %) (mapv :mapping (:layers %))) (:poses row)))
-                   (:poses (pj/lay-point (pj/arrange tiny [{:x :u :y :v}]) :u :w))))))
+    (testing "a lay-* naming new columns adds no cell: pj/arrange adds cells"
+      (is (= 1 (count (mapcat :poses (:poses (pj/lay-point (pj/arrange tiny [{:x :u :y :v}]) :u :w)))))))
     (testing "rows appended to cells nest, as in one call"
       (is (same? (pj/arrange (pj/arrange tiny [:u :v]) [[:w :u]])
                  (pj/arrange tiny [:u :v [:w :u]]))))
@@ -307,15 +305,15 @@
                       (message #(pj/plan (-> four (pj/arrange [:p :q :r :s] {:cols 2}) pj/lay-point))))))
     (is (= 4 (:panels (pj/svg-summary (-> four (pj/arrange [[:p :q] [:r :s]]) pj/lay-histogram)))))))
 
-(deftest a-root-layer-reaches-an-appended-cell-test
-  ;; A cell a `lay-*` call appended names its columns only on its layer;
-  ;; a layer naming no column is drawn there as in every other cell.
-  (let [base (pj/arrange tiny [{:x :u :y :v}])]
-    (testing "the root layer added before the cell is appended"
-      (is (= {:panels 2 :points 6 :lines 1}
+(deftest a-layer-fitting-no-cell-is-drawn-in-every-cell-test
+  ;; A `lay-*` naming columns no cell draws is drawn in every cell, as
+  ;; written, on that cell's panel -- as a layer is on a single pose.
+  (let [base (pj/arrange tiny [{:x :u :y :v} {:x :u :y :w}])]
+    (testing "the line on other columns is drawn in both cells, beside the points"
+      (is (= {:panels 2 :points 6 :lines 2}
              (select-keys (pj/svg-summary (-> base pj/lay-point (pj/lay-line :v :w)))
                           [:panels :points :lines]))))
-    (testing "and after"
-      (is (= {:panels 2 :points 6 :lines 1}
+    (testing "in either order of the calls"
+      (is (= {:panels 2 :points 6 :lines 2}
              (select-keys (pj/svg-summary (-> base (pj/lay-line :v :w) pj/lay-point))
                           [:panels :points :lines]))))))

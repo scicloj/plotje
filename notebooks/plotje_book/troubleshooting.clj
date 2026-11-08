@@ -609,9 +609,11 @@
 ;;
 ;; **Cause**: A facet over columns draws a panel per column, and a
 ;; layer naming a column is drawn in the panel of that column. A layer
-;; naming a column that is not among the facet's has no panel of its
-;; own. Drawn in every panel in place of the facet's columns, it would
-;; leave those columns drawn nowhere:
+;; naming a column that is not among the facet's fits no panel, so it is
+;; drawn in every panel -- which works only where each panel also has a
+;; layer drawing its own column. Here no other layer does, so drawing
+;; the layer in every panel would leave the facet's columns drawn
+;; nowhere, and the facet reports an error:
 
 (try
   (-> (rdatasets/datasets-iris)
@@ -689,164 +691,39 @@
 ;; [Composition](./plotje_book.composition.html) chapter shows a facet
 ;; over columns and an arrangement of separate poses.
 
-;; ### Coming from 0.16.1
-;;
-;; Plotje 0.16.1 drew a panel for each pair of columns its layers named,
-;; and printed a note saying so. The layers now share the panel, so a
-;; plot written for 0.16.1 can draw something different, and no message
-;; says that the plot changed. Two of the cases below print a message
-;; about the new plot -- a Note where one axis holds columns of very
-;; different size, and a warning where no layer draws the pose's
-;; columns -- and the two retired spellings in the list warn.
-;; An axis stretches to fit everything drawn
-;; on it, so the layers sharing a panel should agree on units. Check
-;; these cases:
-;;
-;; - **Columns of very different size on one axis.** The smaller one is
-;;   drawn flat against the edge of the panel. Below, `:hwy` (miles per
-;;   gallon) shares a y axis with `:year`. This case prints a Note,
-;;   naming the columns and the `pj/facet` call that gives each a panel,
-;;   where one column takes less than a twentieth of the axis.
-;; - **Layers that specify their own colour.** No layer gets a legend
-;;   entry naming its columns; the axis title still names every column.
-;; - **A layer beside a series, on another column.** The layer is drawn
-;;   on the panel of the series, on the axis of the values of the
-;;   series. With no `:color` specified the layer takes a colour and a
-;;   legend entry named after its column, and the axis title lists the
-;;   layer's column after the columns of the series.
-;; - **`pj/pose` called again to add a panel.** A later `pj/pose`
-;;   replaces the pose's columns, and every layer naming no columns
-;;   reads the new ones, so the plot draws the new columns once for each
-;;   such layer and the old columns nowhere. No message is printed.
-;;   Write the panels with `pj/arrange`.
-;; - **The `:scales` option.** It is retired and warns. `:share-scales`
-;;   replaces it and names the axes the panels share, where `:scales`
-;;   named the axes left free: write `{:share-scales #{:x}}` for
-;;   `{:scales :free-y}`, `#{:y}` for `:free-x`, and `#{}` for `:free`.
-;; - **The direction argument of `pj/facet`.** It is retired and warns.
-;;   `(pj/facet pose :species :row)` draws as before; write
-;;   `(pj/facet pose {:row :species})`.
-;; - **A pose's columns beside a layer naming other columns.** The plot
-;;   draws the layer's columns only, and warns that no layer draws the
-;;   pose's `:x` and `:y`. Draw both pairs of columns with `pj/arrange`.
-;;
-;; For each of the first two, split the pose with `pj/facet`, or draw
-;; the layers as separate poses with `pj/arrange`. A series and a facet
-;; over columns on one pose report an error, so for a layer beside a
-;; series draw the series and the layer as separate poses with
-;; `pj/arrange`.
-;;
-;; Some spellings 0.16.1 accepted report an error or warn in place of
-;; drawing something else. A vector of column pairs given to `pj/pose`
-;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
-;; `pj/matrix`, which crosses two lists of columns. `pj/cross` warns
-;; that it is deprecated and returns its pairs, so
-;; `(pj/pose data (pj/cross cols cols))`, the 0.16.1 way to write a
-;; scatter plot matrix, reports the same error; write
-;; `(pj/matrix data cols)`. A vector of columns given
-;; alone to `pj/pose` or to a `pj/lay-*` call is a series, drawn on one
-;; panel, where 0.16.1 drew a panel per column; `pj/arrange` draws a
-;; panel per column.
-;; `pj/overlay` and `{:overlay true}` warn that they are ignored, and
-;; `{:overlay false}` reports an error. `pj/facet-grid` is retired too:
-;; it warns, names the `pj/facet` call to write, and draws the same
-;; panels. Here is the error for pairs of columns:
+;; On an arrangement, a `pj/lay-*` call adds no cell. The layer is drawn
+;; in each cell it fits, and in every cell where it fits none -- see
+;; Rules LP2 and LP3 in [Pose Rules](./plotje_book.pose_rules.html). So
+;; a second bar layer added to an arrangement of one cell is drawn in
+;; that cell, beside the first, and nothing is printed. To draw the layer
+;; on a cell of its own, give that cell to `pj/arrange`, which adds cells
+;; to an arrangement:
 
-(try
-  (pj/lay-point (rdatasets/datasets-iris)
-                [[:sepal-length :sepal-width] [:petal-length :petal-width]])
-  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+(-> (pj/arrange [(pj/lay-bar {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+                             :growth :cohort {:color "#377eb8"})])
+    (pj/arrange [(pj/lay-bar {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+                             :tax :cohort {:color "#e6550d"})]))
 
-(kind/test-last
- [(fn [msg] (and (re-find #"was given pairs of columns" msg)
-                 (re-find #"pj/arrange" msg)
-                 (re-find #"pj/matrix data xs ys" msg)))])
+(kind/test-last [(fn [v] (let [d {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
+                               marks (fn [pose] (mapv #(mapv :mark (-> %
+                                                                       :plan
+                                                                       :panels
+                                                                       first
+                                                                       :layers))
+                                                      (-> pose
+                                                          pj/plan
+                                                          :sub-plots)))]
+                           (and (= 2 (:panels (pj/svg-summary v)))
+                                (= [[:rect] [:rect]] (marks v))
+                                ;; The same bars added with a lay-* call
+                                ;; are drawn in the one cell.
+                                (= [[:rect :rect]]
+                                   (marks (-> (pj/arrange [(pj/lay-bar d :growth :cohort)])
+                                              (pj/lay-bar :tax :cohort)))))))])
 
-;; The plot below draws `:hwy` and `:year` on one axis, the first case
-;; in the list:
-
-(-> (rdatasets/ggplot2-mpg)
-    (pj/lay-point :displ :hwy)
-    (pj/lay-point :displ :year))
-
-(kind/test-last [(fn [v] (let [[lo hi] (-> v
-                                           pj/plan
-                                           :panels
-                                           first
-                                           :y-domain)
-                               printed (with-out-str (pj/plan v))
-                               ;; a twentieth: hwy spans 32 of an axis
-                               ;; spanning nearly 2000
-                               hwy (:hwy (rdatasets/ggplot2-mpg))]
-                           ;; One axis holds both: the hwy points, at
-                           ;; most 44, sit at the bottom of a range
-                           ;; reaching past the year 2000.
-                           (and (< lo 50) (> hi 2000)
-                                (< (* 20 (- (reduce max hwy) (reduce min hwy))) (- hi lo))
-                                (re-find #"Note: the :y axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)" printed)
-                                (re-find #"\(pj/facet pose \{:y \[:hwy :year\]\}\)" printed)
-                                ;; Building the pose prints nothing.
-                                (= "" (with-out-str
-                                        (-> (rdatasets/ggplot2-mpg)
-                                            (pj/lay-point :displ :hwy)
-                                            (pj/lay-point :displ :year)))))))])
-
-;; ### Coming from 0.17.0
-;;
-;; A pose built inside `pj/with-config` and shown after the body
-;; returns -- as a notebook shows the value of a form -- is drawn under
-;; the configuration in effect when it is shown, not under the
-;; configuration `pj/with-config` gave. Plotje 0.17.0 kept that
-;; configuration on the pose. A notebook written for 0.17.0 that returns
-;; a pose from `pj/with-config` draws the default theme, and no message
-;; says so. To keep the configuration, end the body in `pj/plot`:
-
-(pj/with-config {:theme {:bg "#1a1a2e"}}
-  (-> (rdatasets/datasets-iris)
-      (pj/lay-point :sepal-length :sepal-width)
-      pj/plot))
-
-(kind/test-last [(fn [svg] (->> svg
-                                (tree-seq coll? seq)
-                                (filter map?)
-                                (some #(= "rgb(26,26,46)" (:fill %)))))])
-
-;; A `pj/lay-*` call naming columns, written on an arrangement, is drawn
-;; in every cell whose panel draws no other column on an axis the call
-;; names, and whose columns together with the call's are a number of
-;; columns the layer type reads -- see Rules LP2 and LP3 in
-;; [Pose Rules](./plotje_book.pose_rules.html). Plotje 0.17.0 added
-;; such a layer to the last of those cells alone, cells split with
-;; `:where` included. A plot written for 0.17.0 can draw the layer in
-;; more cells, and no message says so. The layer is drawn under the
-;; layers each cell holds of its own, where 0.17.0 drew it on top. To
-;; draw a layer in one cell, add it to that cell before arranging the
-;; cells. Here both cells draw `:displ` against `:hwy`, so the trend
-;; line is drawn in both, under the points:
-
-(-> (pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
-                 (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)])
-    (pj/lay-smooth :displ :hwy))
-
-(kind/test-last [(fn [v] (and (= {:panels 2 :lines 2}
-                                 (select-keys (pj/svg-summary v) [:panels :lines]))
-                              ;; Drawn under each cell's points.
-                              (= [[:line :point] [:line :point]]
-                                 (mapv #(mapv :mark (-> %
-                                                        :plan
-                                                        :panels
-                                                        first
-                                                        :layers))
-                                       (-> v
-                                           pj/plan
-                                           :sub-plots)))))])
-
-;; `pj/lay-line` and `pj/lay-smooth` under `(pj/coord :flip)` join their
-;; points in order of the data's `:x`; to join them in order of the
-;; other column, swap the columns in the mapping. `:margin-multi` and
-;; `:panel-size` warn that they are retired, and the plot draws without
-;; them: write `:margin` for the margin of every plot, and
-;; `:panel-width` or `:panel-height` for the size of each panel.
+;; A plot written for Plotje 0.16.1 or 0.17.0 can draw on one panel
+;; where that release drew two; see
+;; [Upgrading from an Earlier Release](#upgrading-from-an-earlier-release).
 
 ;; ## Dataset Missing Columns a Template References
 ;;
@@ -1276,6 +1153,227 @@
 ;; `{:include 0}` puts zero on the axis and leaves the other end to the
 ;; data. [Scales](./plotje_book.scales.html#making-an-axis-reach-a-value)
 ;; works through the difference.
+
+;; ## Upgrading from an Earlier Release
+;;
+;; A plot written for an earlier release can draw differently, and
+;; most of these changes print no message. The cases below are listed
+;; by the release a plot was written for.
+
+;; ### Coming from 0.16.1
+;;
+;; Plotje 0.16.1 drew a panel for each pair of columns its layers named,
+;; and printed a note saying so. The layers now share the panel, so a
+;; plot written for 0.16.1 can draw something different, and no message
+;; says that the plot changed. Two of the cases below print a message
+;; about the new plot -- a Note where one axis holds columns of very
+;; different size, and a warning where no layer draws the pose's
+;; columns -- and the two retired spellings in the list warn. A plot
+;; written for 0.16.1 also meets every change listed under
+;; [Coming from 0.17.0](#coming-from-0.17.0).
+;; An axis stretches to fit everything drawn
+;; on it, so the layers sharing a panel should agree on units. Check
+;; these cases:
+;;
+;; - **Columns of very different size on one axis.** The smaller one is
+;;   drawn flat against the edge of the panel. Below, `:hwy` (miles per
+;;   gallon) shares a y axis with `:year`. This case prints a Note,
+;;   naming the columns and the `pj/facet` call that gives each a panel,
+;;   where one column takes less than a twentieth of the axis.
+;; - **Layers that specify their own colour.** No layer gets a legend
+;;   entry naming its columns; the axis title still names every column.
+;; - **A layer beside a series, on another column.** The layer is drawn
+;;   on the panel of the series, on the axis of the values of the
+;;   series. With no `:color` specified the layer takes a colour and a
+;;   legend entry named after its column, and the axis title lists the
+;;   layer's column after the columns of the series.
+;; - **`pj/pose` called again to add a panel.** A later `pj/pose`
+;;   replaces the pose's columns, and every layer naming no columns
+;;   reads the new ones, so the plot draws the new columns once for each
+;;   such layer and the old columns nowhere. No message is printed.
+;;   Write the panels with `pj/arrange`.
+;; - **The `:scales` option.** It is retired and warns. `:share-scales`
+;;   replaces it and names the axes the panels share, where `:scales`
+;;   named the axes left free: write `{:share-scales #{:x}}` for
+;;   `{:scales :free-y}`, `#{:y}` for `:free-x`, and `#{}` for `:free`.
+;; - **The direction argument of `pj/facet`.** It is retired and warns.
+;;   `(pj/facet pose :species :row)` draws as before; write
+;;   `(pj/facet pose {:row :species})`.
+;; - **A pose's columns beside a layer naming other columns.** The plot
+;;   draws the layer's columns only, and warns that no layer draws the
+;;   pose's `:x` and `:y`. Draw both pairs of columns with `pj/arrange`.
+;;
+;; For each of the first two, split the pose with `pj/facet`, or draw
+;; the layers as separate poses with `pj/arrange`. A series and a facet
+;; over columns on one pose report an error, so for a layer beside a
+;; series draw the series and the layer as separate poses with
+;; `pj/arrange`.
+;;
+;; Some spellings 0.16.1 accepted report an error or warn in place of
+;; drawing something else. A vector of column pairs given to `pj/pose`
+;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
+;; `pj/matrix`, which crosses two lists of columns. `pj/cross` warns
+;; that it is deprecated and returns its pairs, so
+;; `(pj/pose data (pj/cross cols cols))`, the 0.16.1 way to write a
+;; scatter plot matrix, reports the same error; write
+;; `(pj/matrix data cols)`. A vector of columns given
+;; alone to `pj/pose` or to a `pj/lay-*` call is a series, drawn on one
+;; panel, where 0.16.1 drew a panel per column; `pj/arrange` draws a
+;; panel per column.
+;; `pj/overlay` and `{:overlay true}` warn that they are ignored, and
+;; `{:overlay false}` reports an error. `pj/facet-grid` is retired too:
+;; it warns, names the `pj/facet` call to write, and draws the same
+;; panels. Here is the error for pairs of columns:
+
+(try
+  (pj/lay-point (rdatasets/datasets-iris)
+                [[:sepal-length :sepal-width] [:petal-length :petal-width]])
+  (catch clojure.lang.ExceptionInfo e (ex-message e)))
+
+(kind/test-last
+ [(fn [msg] (and (re-find #"was given pairs of columns" msg)
+                 (re-find #"pj/arrange" msg)
+                 (re-find #"pj/matrix data xs ys" msg)))])
+
+;; The plot below draws `:hwy` and `:year` on one axis, the first case
+;; in the list:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/lay-point :displ :year))
+
+(kind/test-last [(fn [v] (let [[lo hi] (-> v
+                                           pj/plan
+                                           :panels
+                                           first
+                                           :y-domain)
+                               printed (with-out-str (pj/plan v))
+                               ;; a twentieth: hwy spans 32 of an axis
+                               ;; spanning nearly 2000
+                               hwy (:hwy (rdatasets/ggplot2-mpg))]
+                           ;; One axis holds both: the hwy points, at
+                           ;; most 44, sit at the bottom of a range
+                           ;; reaching past the year 2000.
+                           (and (< lo 50) (> hi 2000)
+                                (< (* 20 (- (reduce max hwy) (reduce min hwy))) (- hi lo))
+                                (re-find #"Note: the :y axis holds :hwy \(12 to 44\), :year \(1999 to 2008\)" printed)
+                                (re-find #"\(pj/facet pose \{:y \[:hwy :year\]\}\)" printed)
+                                ;; Building the pose prints nothing.
+                                (= "" (with-out-str
+                                        (-> (rdatasets/ggplot2-mpg)
+                                            (pj/lay-point :displ :hwy)
+                                            (pj/lay-point :displ :year)))))))])
+
+;; ### Coming from 0.17.0
+;;
+;; A pose built inside `pj/with-config` and shown after the body
+;; returns -- as a notebook shows the value of a form -- is drawn under
+;; the configuration in effect when it is shown, not under the
+;; configuration `pj/with-config` gave. Plotje 0.17.0 kept that
+;; configuration on the pose. A notebook written for 0.17.0 that returns
+;; a pose from `pj/with-config` draws the default theme, and no message
+;; says so. To keep the configuration, end the body in `pj/plot`:
+
+(pj/with-config {:theme {:bg "#1a1a2e"}}
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      pj/plot))
+
+(kind/test-last [(fn [svg] (->> svg
+                                (tree-seq coll? seq)
+                                (filter map?)
+                                (some #(= "rgb(26,26,46)" (:fill %)))))])
+
+;; A `pj/lay-*` call naming columns, written on an arrangement, is drawn
+;; in every cell whose panel draws no other column on an axis the call
+;; names, and whose columns together with the call's are a number of
+;; columns the layer type reads -- see Rules LP2 and LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html). Plotje 0.16.1 and
+;; 0.17.0 added such a layer to the last of those cells alone, cells
+;; split with `:where` included. A plot written for those releases can
+;; draw the layer in more cells, and no message says so. The layer is
+;; drawn under the layers each cell holds of its own, where those
+;; releases drew it on top. To draw a layer in one cell, add it to that
+;; cell before arranging the cells. Here both cells draw `:displ`
+;; against `:hwy`, one for front-wheel drive and one for four-wheel
+;; drive, so the trend line is drawn in both, under the points:
+
+(-> (pj/arrange [(-> (rdatasets/ggplot2-mpg)
+                     (pj/pose :displ :hwy {:where {:drv "f"}})
+                     pj/lay-point)
+                 (-> (rdatasets/ggplot2-mpg)
+                     (pj/pose :displ :hwy {:where {:drv "4"}})
+                     pj/lay-point)])
+    (pj/lay-smooth :displ :hwy))
+
+(kind/test-last [(fn [v] (and (= {:panels 2 :lines 2 :points 209}
+                                 (select-keys (pj/svg-summary v) [:panels :lines :points]))
+                              (= "" (with-out-str (pj/plan v)))
+                              ;; Drawn under each cell's points.
+                              (= [[:line :point] [:line :point]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> v
+                                           pj/plan
+                                           :sub-plots)))))])
+
+;; A `pj/lay-*` call naming columns that no cell fits is drawn in every
+;; cell, as written, under each cell's own layers -- see Rule LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html). Plotje 0.16.1 and
+;; 0.17.0 drew such a layer on a new cell appended to the arrangement. A
+;; histogram of `:displ` added to two scatter cells is drawn in both
+;; cells, and a Note says that each cell's `:y` axis reads in two units,
+;; a count and `:hwy` or `:cty`. To draw the histogram on a cell of its
+;; own, give that cell to `pj/arrange`, which adds cells to an
+;; arrangement:
+
+(-> (pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+                 (pj/lay-point (rdatasets/ggplot2-mpg) :displ :cty)])
+    (pj/arrange [(pj/lay-histogram (rdatasets/ggplot2-mpg) :displ)]))
+
+(kind/test-last [(fn [v] (and (= [[:point] [:point] [:bar]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> v
+                                           pj/plan
+                                           :sub-plots)))
+                              ;; The same histogram added with lay-* is
+                              ;; drawn in both scatter cells, under the
+                              ;; points, with a two-units Note per cell.
+                              (= 2 (count (re-seq #"axis reads in two units"
+                                                  (with-out-str
+                                                    (-> (pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+                                                                     (pj/lay-point (rdatasets/ggplot2-mpg) :displ :cty)])
+                                                        (pj/lay-histogram :displ)
+                                                        pj/plan)))))
+                              (= [[:bar :point] [:bar :point]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> (pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
+                                                        (pj/lay-point (rdatasets/ggplot2-mpg) :displ :cty)])
+                                           (pj/lay-histogram :displ)
+                                           pj/plan
+                                           :sub-plots)))))])
+
+;; A layer drawn in only some panels of a facet over columns prints no
+;; Note, as on an arrangement; Plotje 0.17.0 printed one naming the
+;; panels without the layer.
+
+;; `pj/lay-line` and `pj/lay-smooth` under `(pj/coord :flip)` join their
+;; points in order of the data's `:x`; to join them in order of the
+;; other column, swap the columns in the mapping. `:margin-multi` and
+;; `:panel-size` warn that they are retired, and the plot draws without
+;; them: write `:margin` for the margin of every plot, and
+;; `:panel-width` or `:panel-height` for the size of each panel.
 
 ;; ## See Also
 ;;

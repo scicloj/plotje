@@ -78,13 +78,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__79917#] (= :petal-length (:x p1__79917#)))
+        (fn* [p1__79581#] (= :petal-length (:x p1__79581#)))
         layers)
        (every?
-        (fn* [p1__79918#] (= :petal-width (:y p1__79918#)))
+        (fn* [p1__79582#] (= :petal-width (:y p1__79582#)))
         layers)
        (every?
-        (fn* [p1__79919#] (= :species (:color p1__79919#)))
+        (fn* [p1__79583#] (= :species (:color p1__79583#)))
         layers)))
      (= {} (:opts d))))
    v14_l224)))
@@ -147,7 +147,7 @@
  (->>
   trace-membrane
   :drawables
-  (mapv (fn* [p1__79920#] (.getSimpleName (class p1__79920#))))))
+  (mapv (fn* [p1__79584#] (.getSimpleName (class p1__79584#))))))
 
 
 (deftest
@@ -247,7 +247,7 @@
        2
        (count
         (filter
-         (fn* [p1__79921#] (.startsWith p1__79921# "rgb"))
+         (fn* [p1__79585#] (.startsWith p1__79585# "rgb"))
          (:colors s)))))))
    v46_l559)))
 
@@ -263,7 +263,7 @@
    pj/pose->draft)
   :layers
   (mapv
-   (fn* [p1__79922#] (select-keys p1__79922# [:mark :x :y :color])))))
+   (fn* [p1__79586#] (select-keys p1__79586# [:mark :x :y :color])))))
 
 
 (deftest
@@ -279,7 +279,7 @@
 
 
 (def
- v52_l672
+ v52_l663
  (def
   composite-pose
   (->
@@ -290,37 +290,37 @@
    (pj/pose {:color :species}))))
 
 
-(def v53_l678 composite-pose)
+(def v53_l669 composite-pose)
 
 
 (deftest
- t54_l680
+ t54_l671
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v53_l678)))
+   v53_l669)))
 
 
-(def v56_l688 (-> composite-pose pj/draft kind/pprint))
+(def v56_l679 (-> composite-pose pj/draft kind/pprint))
 
 
 (deftest
- t57_l692
+ t57_l683
  (is
   ((fn [d] (and (pj/composite-draft? d) (= 2 (count (:sub-drafts d)))))
-   v56_l688)))
+   v56_l679)))
 
 
 (def
- v59_l703
+ v59_l694
  (-> composite-pose pj/draft :sub-drafts first (update :draft count)))
 
 
 (deftest
- t60_l709
+ t60_l700
  (is
   ((fn
     [sub-draft]
@@ -329,7 +329,7 @@
      (= [0 0] (:path sub-draft))
      (= 1 (:draft sub-draft))
      (true? (-> sub-draft :opts :suppress-color-legend))))
-   v59_l703)))
+   v59_l694)))
 
 
 (def v62_l721 (pj/plan composite-pose))
@@ -370,7 +370,7 @@
   composite-pose
   pj/membrane
   :drawables
-  (mapv (fn* [p1__79923#] (.getSimpleName (class p1__79923#))))))
+  (mapv (fn* [p1__79587#] (.getSimpleName (class p1__79587#))))))
 
 
 (deftest
@@ -624,7 +624,7 @@
          north
          (pj/lay-point :visits :week)
          (pj/lay-point :age :week)))]
-      ["A layer naming a column no cell of a facet over columns has"
+      ["A layer naming a column no cell has, on a facet over columns or an arrangement"
        (fn*
         []
         (->

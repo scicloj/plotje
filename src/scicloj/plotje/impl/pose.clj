@@ -2595,9 +2595,9 @@
    not draw -- nil for every other layer, and nil throughout where no
    layer draws rows.
 
-   On a composite pose a rule's columns pick the cells it is drawn in
-   (`pj/lay-rule-h` and the other three). On a leaf there is no cell to
-   pick, and read as the extent of the rule they stretched the panel's
+   On a composite pose a rule's columns are fitted to its cells, as any
+   layer's are (`pj/lay-rule-h` and the other three). On a leaf there
+   is no cell to fit, and read as the extent of the rule they stretched the panel's
    axes to hold columns no layer draws a row of. `leaf->draft` leaves
    them out of the rule's mapping, so the rule is drawn as one naming
    no column, and marks the layer for `plan`'s warning. A leaf holding
@@ -4996,8 +4996,9 @@
    (`columns-no-cell-has`). The cells are those of a facet over columns,
    or those `pj/arrange` makes from columns for a pose that already has
    the layer: `(-> (pj/lay-point data :a :b) (pj/arrange [{:x :c :y :d}]))`.
-   A `lay-*` call on an arrangement joins a cell or adds one at the
-   call, and does not reach this report."
+   A `lay-*` call on a composite pose reaches it too, where a cell
+   holds no layer of its own: the layer, fitting no cell, would be drawn
+   in every cell in place of the layer inferred for it."
   [layer clashes entries]
   (let [lt (:layer-type layer)
         fn-name (if (keyword? lt) (str "pj/lay-" (name lt)) "A layer")
@@ -5057,165 +5058,11 @@
                 " two side by side with pj/arrange."))
          " A layer naming no column is drawn in every panel.")))
 
-(defn- note-cells-left-to-inference!
-  "Print a Note for a layer drawn in the cells of its own columns while
-   other cells are left with no layer at all.
-
-   A layer naming a column of the facet is drawn in that column's cell
-   only, and a cell left with no layer draws what inference chooses for
-   its columns. Where the layer is the only one written, the picture is
-   one panel of the layer and others of another type, without the
-   layer's options -- drawn with no message, and the scatter inference
-   often chooses can pass for the layer written. The Note is printed
-   only for a cell the layer would be drawn in were its column left to
-   the facet: a cell on the diagonal of a matrix draws one column, and a
-   layer of two columns was never a candidate for it. Nor is it printed
-   where inference chooses the layer's own type and the layer carries
-   nothing but its columns, so the cell is drawn as the layer would be.
-
-   An arrangement prints no such Note: its cells are written out, and a
-   layer naming a cell's columns is how a layer is added to that one
-   cell (Rule LP2 in `pose_rules.clj`). A facet's panels come from one
-   pose written once, where a layer drawn in some of them is the
-   surprise the Note is for.
-
-   The same holds for a cell that other layers draw, none of them of the
-   layer's type: a scatter naming the facet's first column beside a
-   smooth naming only `:x` leaves the other panels a smooth without its
-   points, so a Note says which panels draw the layer and which do not.
-   Not where the layer names a cell's two columns, or where the cell's
-   layers name its column themselves: those layers are placed on
-   purpose.
-
-   `fits` and `kept` are per cell, as `fit-layers` computes them."
-  [layers entries fits kept data]
-  ;; The cells of a facet are marked (`facet-cell`); an arrangement's
-  ;; are not.
-  (when (every? #(:plotje/facet-cell (:leaf %)) entries)
-    (let [cell-columns (fn [e] (into {} (for [k [:x :y]
-                                              :let [c (mapping-source (get (:own e) k))]
-                                              :when c]
-                                          [k c])))
-          left (for [[e ls] (map vector entries kept)
-                     :when (and (empty? ls)
-                                (empty? (:layers (:leaf e)))
-                                (pos? (columns-named (:mapping e))))]
-                 e)
-        ;; Cells other layers draw, with the layers each draws.
-          drawn (for [[e ls] (map vector entries kept)
-                      :when (seq ls)]
-                  [e ls])]
-      (doseq [[i layer] (map-indexed vector layers)
-              :when (some #(nth % i) fits)
-              :let [lm (:mapping layer)
-                  ;; The axes on which the layer names a column the
-                  ;; cell's own mapping does not.
-                    other-axes (fn [e] (filterv (fn [k]
-                                                  (let [mine (mapping-source (get lm k))]
-                                                    (and (contains? (:own e) k) mine
-                                                         (not= mine (mapping-source (get (:own e) k))))))
-                                                [:x :y]))
-                    missed (filterv (fn [e]
-                                      (let [axes (other-axes e)]
-                                        (and (seq axes)
-                                           ;; Not where inference draws the
-                                           ;; layer as written: the same type,
-                                           ;; and nothing on the layer but its
-                                           ;; columns.
-                                             (not (and (empty? (dissoc lm :x :y))
-                                                       (= (:layer-type layer)
-                                                          (infer-layer-type-key
-                                                           (:mapping e)
-                                                           (or (:data (:leaf e)) data)))))
-                                             (layer-fits-cell? (:mapping e)
-                                                               (update layer :mapping
-                                                                       #(apply dissoc % axes))))))
-                                    left)]
-              :when (seq missed)]
-        (let [caller (layer-series-caller layer)
-              axes (vec (distinct (mapcat other-axes missed)))
-              named (str/join " and " (for [k axes] (str (pr-str (mapping-source (get lm k))) " on " k)))
-              panels (fn [es] (str/join ", " (map (comp pr-str cell-columns) es)))
-              drawn-in (filterv (fn [[_ row]] (nth row i)) (map vector entries fits))
-              inferred (vec (distinct (keep (fn [e] (infer-layer-type-key
-                                                     (:mapping e)
-                                                     (or (:data (:leaf e)) data)))
-                                            missed)))
-              many? (next missed)]
-          (println (str "Note: " caller " names " named ", so it is drawn in the "
-                        (if (next drawn-in) "panels" "panel") " of "
-                        (if (next axes) "those columns" "that column")
-                        " only: " (panels (map first drawn-in)) ". "
-                        (if (> (count missed) 3)
-                          (str (count missed) " other panels have")
-                          (str (if many? "The panels " "The panel ") (panels missed)
-                               (if many? " have" " has")))
-                        " no layer, and " (if many? "draw" "draws") " what inference chooses for "
-                        (if many? "their" "its") " columns"
-                        (when (seq inferred)
-                          (str " (" (str/join ", " (map #(str "pj/lay-" (name %)) inferred)) ")"))
-                        ". To draw " caller " in every panel, leave "
-                        (str/join " and " (map str axes)) " off the layer"
-                        (let [kept-axes (remove (set axes) (filter #(mapping-source (get lm %)) [:x :y]))]
-                          (when (seq kept-axes)
-                            (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
-                        "."))))
-      (doseq [[i layer] (map-indexed vector layers)
-              :when (some #(nth % i) fits)
-              :let [lm (:mapping layer)
-                    other-axes (fn [e] (filterv (fn [k]
-                                                  (let [mine (mapping-source (get lm k))]
-                                                    (and (contains? (:own e) k) mine
-                                                         (not= mine (mapping-source (get (:own e) k))))))
-                                                [:x :y]))
-                  ;; Cells the layer is not drawn in, though it would be
-                  ;; with its column left to the facet, whose own layers
-                  ;; include none of its type. Only where the layer
-                  ;; differs from the cell on one axis, and the cell's
-                  ;; layers name no column there: a layer naming a
-                  ;; cell's two columns, or one layer per panel each
-                  ;; naming its own column, is placed on purpose.
-                    missed (filterv (fn [[e ls]]
-                                      (let [axes (other-axes e)]
-                                        (and (= 1 (count axes))
-                                             (not-any? #(mapping-source (get (:mapping %) (first axes))) ls)
-                                             (not-any? #(= (:layer-type layer) (:layer-type %)) ls)
-                                             (layer-fits-cell? (:mapping e)
-                                                               (update layer :mapping
-                                                                       #(apply dissoc % axes))))))
-                                    drawn)]
-              :when (seq missed)]
-        (let [caller (layer-series-caller layer)
-              axes (vec (distinct (mapcat (comp other-axes first) missed)))
-              named (str/join " and " (for [k axes] (str (pr-str (mapping-source (get lm k))) " on " k)))
-              panels (fn [es] (str/join ", " (map (comp pr-str cell-columns) es)))
-              drawn-in (filterv (fn [[_ row]] (nth row i)) (map vector entries fits))
-              others (vec (distinct (for [[_ ls] missed l ls]
-                                      (if (keyword? (:layer-type l))
-                                        (str "pj/lay-" (name (:layer-type l)))
-                                        "a layer"))))
-              many? (next missed)]
-          (println (str "Note: " caller " names " named ", so it is drawn in the "
-                        (if (next drawn-in) "panels" "panel") " of "
-                        (if (next axes) "those columns" "that column")
-                        " only: " (panels (map first drawn-in)) ". "
-                        (if (> (count missed) 3)
-                          (str (count missed) " other panels draw")
-                          (str (if many? "The panels " "The panel ") (panels (map first missed))
-                               (if many? " draw" " draws")))
-                        " only " (str/join " and " others)
-                        ". To draw " caller " in every panel, leave "
-                        (str/join " and " (map str axes)) " off the layer"
-                        (let [kept-axes (remove (set axes) (filter #(mapping-source (get lm %)) [:x :y]))]
-                          (when (seq kept-axes)
-                            (str " and name " (str/join " and " (map str kept-axes)) " on the pose")))
-                        ".")))))))
-
 (defn- cell-panel-mapping
   "A cell's mapping as merged from the composite down, with the panel's
-   columns on an axis it names none (`leaf-columns`): a cell that a
-   `lay-*` call appended names its columns only on its layer, and a
-   layer naming no column fits it as it fits a cell naming them."
+   columns on an axis it names none (`leaf-columns`): a cell whose
+   columns are named only on its own layers is fitted by those columns,
+   as a cell naming them on its mapping is."
   [entry data]
   (let [leaf (:leaf entry)]
     (merge (leaf-columns (assoc leaf
@@ -5259,7 +5106,20 @@
                                                     (or (some true? row)
                                                         (seq (:layers (:leaf e)))))
                                                   (map vector entries fits)))
-                                     (columns-no-cell-has entries layer col-names))]
+                                     ;; A cell's own columns are those its
+                                     ;; mapping or its own layers name, as
+                                     ;; the fitting reads them (`cell-panel-
+                                     ;; mapping`), but not those inherited.
+                                     (columns-no-cell-has
+                                      (mapv (fn [e]
+                                              (let [leaf (:leaf e)]
+                                                (assoc e :own (merge (leaf-columns
+                                                                      (assoc leaf
+                                                                             :mapping (:own e)
+                                                                             :data (or (:data leaf) data)))
+                                                                     (:own e)))))
+                                            entries)
+                                      layer col-names))]
                    (throw (ex-info (layer-fits-no-cell-message layer clashes entries)
                                    {:layer-type (:layer-type layer)
                                     :mapping (:mapping layer)
@@ -5267,7 +5127,6 @@
            kept (vec (for [row fits]
                        (vec (keep-indexed (fn [i f] (when (or f (not (fit-somewhere i))) (layers i)))
                                           row))))
-           _ (note-cells-left-to-inference! layers entries fits kept data)
            changed? (and (seq layers) (some #(not= (count %) (count layers)) kept))
            pose' (if-not changed?
                    pose
@@ -5962,9 +5821,8 @@
 (def ^:dynamic *blank-notes*
   "Bound to an atom by `compositor/composite-pose->draft` while it drafts
    the cells of an arrangement: `leaf->draft` collects there the Note for
-   a cell that draws nothing, in place of printing it. A blank cell beside
-   cells that draw is left to the Note `lay-*` prints when it adds a layer
-   on a cell of its own; the Note is printed where no cell draws."
+   a cell that draws nothing, in place of printing it; the Note is
+   printed where no cell draws."
   nil)
 
 (defn leaf->draft

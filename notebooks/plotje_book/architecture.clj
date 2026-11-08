@@ -650,15 +650,6 @@ graph LR
 ;; colored by a column, `pj/pose->draft` also gives each layer that
 ;; specifies no `:color` a color and a legend entry naming its columns,
 ;; as [Panels](./plotje_book.panels.html#the-panel-of-a-leaf-pose) shows.
-;;
-;; On a composite, every `pj/lay-*` call keeps its layer at the root,
-;; or appends a cell for it, and drafting draws each root layer into
-;; the cells it fits -- those whose panel draws no other column on an
-;; axis the layer names, and whose columns together with the layer's
-;; are a number of columns the layer type draws from -- under each
-;; cell's own layers. A layer naming no columns that fits no cell is
-;; drawn in every cell. The function that does this is
-;; `pose/fit-layers`.
 
 ;; ## Composite Poses
 ;;
@@ -715,6 +706,15 @@ composite-pose
                         (true? (-> sub-draft
                                    :opts
                                    :suppress-color-legend))))])
+
+;; The draft layers of a cell include the composite's own layers. A
+;; `pj/lay-*` call on a composite keeps its layer at the root, and
+;; `pj/pose->draft` draws that layer in each cell it fits, under the
+;; cell's own layers, or in every cell where it fits none. The function
+;; that does this is `pose/fit-layers`; the rule is stated in
+;; [Pose Rules](./plotje_book.pose_rules.html), Rules LP2 and LP3. The
+;; arrangement above has no layers, so each cell's one draft layer is
+;; the one inference chose for it.
 
 ;; `pj/plan` returns a `CompositePlan`:
 
@@ -1018,7 +1018,7 @@ series-by-key
           #(-> north
                (pj/lay-point :visits :week)
                (pj/lay-point :age :week))]
-         ["A layer naming a column no cell of a facet over columns has"
+         ["A layer naming a column no cell has, on a facet over columns or an arrangement"
           #(-> weekly-visits
                (pj/pose {:x :week})
                (pj/lay-point {:y :week})

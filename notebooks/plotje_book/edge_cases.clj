@@ -603,6 +603,27 @@
 
 (kind/test-last [(fn [m] (re-find #"must contain :boxes" m))])
 
+;; ### A layer naming a column no cell of an arrangement draws
+;;
+;; A `pj/lay-*` call on an arrangement adds no cell: a layer that fits
+;; no cell is drawn in every cell. Where the cells hold no layers of
+;; their own and the layer names a column that no cell draws, each cell
+;; would draw only that layer and leave its own columns unread, so
+;; drawing the pose reports an error. The error names the columns, and
+;; suggests adding the column to the cells or drawing the layer on a
+;; pose of its own beside the others with `pj/arrange`:
+
+(try
+  (-> (rdatasets/ggplot2-mpg)
+      (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
+      (pj/lay-point :cty :hwy)
+      pj/plan)
+  (catch clojure.lang.ExceptionInfo e
+    (ex-message e)))
+
+(kind/test-last [(fn [m] (and (re-find #"pj/lay-point names :cty on :x, and no panel draws it" m)
+                              (re-find #"pj/arrange" m)))])
+
 ;; ### A second column given to a layer type that draws from one column
 ;;
 ;; A histogram, a density and a rug each draw from one column. Naming a

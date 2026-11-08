@@ -650,11 +650,13 @@
 ;; ============================================================
 ;;
 ;; The rule extends the Layer Placement section of pose_rules.clj
-;; into composite poses: a lay-* naming columns that some leaf's panel
-;; draws is added at the root and drawn in every leaf whose panel draws
-;; no other column on :x or :y; a lay-* naming columns no leaf's panel
-;; draws appends a new leaf at the root level. Aesthetic-only or bare
-;; lay-* attaches at the root's :layers so descendants inherit it.
+;; into composite poses: a lay-* naming columns is added at the root
+;; and drawn in every leaf it fits -- the leaf's panel draws no other
+;; column on an axis the layer names, and the leaf's columns together
+;; with the layer's are a number the layer type draws from. A layer
+;; that fits no leaf is drawn in every leaf (Rule LP3); no leaf is
+;; appended. Aesthetic-only or bare lay-* attaches at the root's
+;; :layers too.
 
 (deftest composite-lay-every-matching-leaf-test
   (testing "two leaves with identical columns -- the layer is drawn in both"
@@ -667,18 +669,21 @@
           "no leaf is modified")
       (is (= [[:point] [:point]] (drawn result))))))
 
-(deftest composite-lay-miss-creates-root-leaf-test
-  (testing "no matching leaf -- new leaf appended at root :poses"
+(deftest composite-lay-miss-adds-root-layer-test
+  (testing "no leaf fits -- the layer is added at the root and drawn in every leaf"
     (let [fr {:poses [{:layers [] :mapping {:x :c :y :d}}]}
           result (pj/lay-point fr :a :b)]
-      (is (= 2 (count (:poses result))))
+      (is (= 1 (count (:poses result)))
+          "no leaf is appended")
       (is (= {:x :c :y :d} (get-in result [:poses 0 :mapping]))
           "existing leaf is preserved as-is")
-      (is (nil? (get-in result [:poses 1 :mapping]))
-          "new leaf has no mapping of its own")
-      (is (= {:x :a :y :b} (get-in result [:poses 1 :layers 0 :mapping]))
-          "the layer carries the lay-* columns")
-      (is (= :point (get-in result [:poses 1 :layers 0 :layer-type]))))))
+      (is (= [{:layer-type :point :mapping {:x :a :y :b}}]
+             (mapv #(select-keys % [:layer-type :mapping]) (:layers result)))
+          "the layer carries the lay-* columns, at the root")
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"no panel draws them"
+                            (drawn result))
+          "a leaf holding no layer reports the columns, as a facet cell does"))))
 
 (deftest composite-lay-miss-on-empty-poses-test
   (testing "composite with empty :poses -- lay-* extends the leaf in place"
@@ -714,13 +719,11 @@
           "no leaf was modified -- the layer is sketch-level"))))
 
 (deftest composite-lay-keyword-string-strict-test
-  (testing "lay-* with keyword :x/:y does not match a leaf with string-named mapping"
+  (testing "lay-* with keyword :x/:y does not fit a leaf with string-named mapping"
     (let [fr {:poses [{:layers [] :mapping {:x "x" :y "y"}}]}
-          result (pj/lay-point fr :x :y)]
-      (is (zero? (count (get-in result [:poses 0 :layers])))
-          "the existing leaf keeps no new layer -- keyword :x and string \"x\" are distinct")
-      (is (= 2 (count (:poses result)))
-          "a new leaf was appended at the composite root for the keyword position"))))
+          layer (first (:layers (pj/lay-point fr :x :y)))]
+      (is (empty? (pose/cells-fitting-layer fr layer))
+          "keyword :x and string \"x\" are distinct columns"))))
 
 (deftest composite-lay-ancestor-mapping-inherits-test
   (testing "ancestor :mapping with :x/:y makes a bare leaf matchable"
@@ -766,11 +769,11 @@
     (let [fr {:poses [{:layers [{:layer-type :histogram}]
                        :mapping {:x :other}}]}
           result (pj/lay-point fr :a :b)]
-      (is (= 2 (count (:poses result))))
+      (is (= 1 (count (:poses result))))
       (is (= :histogram (get-in result [:poses 0 :layers 0 :layer-type]))
           "existing leaf untouched")
-      (is (= :point (get-in result [:poses 1 :layers 0 :layer-type]))
-          "miss appended a new leaf at root"))))
+      (is (= [:point] (mapv :layer-type (:layers result)))
+          "the layer is added at the root"))))
 
 (deftest composite-lay-returns-composite-test
   (testing "the result of lay-* on a composite remains a composite pose"

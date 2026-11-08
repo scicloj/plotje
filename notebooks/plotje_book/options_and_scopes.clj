@@ -193,11 +193,12 @@
 ;; not plot options. They are added like any other layer. On a pose
 ;; with one panel the rule or band is drawn on that panel; columns
 ;; named in the call that the panel does not draw are not read there,
-;; and a warning says so. On a composite pose, a call naming no columns
-;; is added at the root and drawn in every cell. A call naming columns
-;; is added at the root too, and drawn in every cell whose panel draws
-;; those columns; where no cell's panel draws them, the call appends a
-;; new cell.
+;; and a warning says so. On a composite pose the rule or band is added
+;; at the root and placed as any layer is (Rules LP2 and LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html)): with no columns named,
+;; it is drawn in every cell whose panel draws two columns, and with
+;; columns named, in every cell whose panel draws no other column; where
+;; no cell qualifies, it is drawn in every cell.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)

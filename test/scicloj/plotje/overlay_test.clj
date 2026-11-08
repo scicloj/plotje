@@ -196,11 +196,27 @@
         (is (= "quarter" (:x-label (pj/plan annotated))))))))
 
 (deftest a-layer-on-a-composite-test
-  ;; A composite's cells are separate poses; decision 3c (a layer goes
-  ;; to every cell naming its columns) is not built.
-  (testing "a miss appends a panel"
+  ;; A layer is added at the root and drawn in every cell it fits; a
+  ;; composite adds no cell for it (Rule LP3).
+  (testing "a miss on cells holding no layer reports, as on a facet over columns"
     (let [base (pj/arrange weather [{:x :day :y :reading} {:x :day :y :humidity}])]
-      (is (= 3 (panels (pj/lay-point base :day :other))))))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"names :other on :y, and no panel draws it"
+                            (panels (pj/lay-point base :day :other))))))
+  (testing "a cell whose columns are on its own layer counts them, as the fitting does"
+    ;; The first cell's columns are written on its layer, not its
+    ;; mapping; the second cell holds no layer, and would draw only the
+    ;; layer on :day / :other.
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"names :other on :y, and no panel draws it"
+                          (panels (-> (pj/arrange weather [(pj/lay-point nil :day :reading)
+                                                           {:x :day :y :humidity}])
+                                      (pj/lay-point :day :other))))))
+  (testing "a miss beside other layers is drawn in every cell"
+    (let [base (-> weather
+                   (pj/arrange [{:x :day :y :reading} {:x :day :y :humidity}])
+                   pj/lay-line)]
+      (is (= 2 (panels (pj/lay-point base :day :other))))))
   (testing "a hit lands on the matching leaf"
     (let [base (pj/arrange weather [{:x :day :y :reading} {:x :day :y :humidity}])]
       (is (= 2 (panels (pj/lay-point base :day :humidity)))))))

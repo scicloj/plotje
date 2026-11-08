@@ -130,8 +130,8 @@ gapminder-2007
                        :x-scale
                        :type)))])
 
-;; Written on one pose of a composite, a scale covers that pose alone,
-;; so two of them can differ:
+;; Written on one cell of an arrangement, a scale covers that cell
+;; alone, so two cells can differ:
 
 (def linear-cell
   (-> gapminder-2007

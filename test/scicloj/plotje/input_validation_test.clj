@@ -1497,7 +1497,7 @@
                              (pj/lay-point {:y :hwy})))
                         [:panels :points])))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"pj/lay-point draws from two columns.*no column on :x\. It names :y :drv"
+                          #"pj/lay-point names :drv on :y, and no panel draws it"
                           (pj/plan (-> wide
                                        (pj/arrange [{:x :displ :y :hwy} {:x :displ :y :cty}])
                                        (pj/lay-point {:y :drv}))))))

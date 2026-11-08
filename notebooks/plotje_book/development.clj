@@ -78,8 +78,9 @@ graph TD
 ;; `impl/pose.clj` holds the pose operations: `resolve-tree` (merges
 ;; mappings, data and options from the root down to every leaf),
 ;; `elaborate` (writes in what the draft chooses), `expand-facet-nodes`
-;; and `fit-layers` (a facet over columns as cells, and the layers each
-;; cell draws), `shared-axis-groups` (which cells share an axis), and
+;; (a facet over columns as cells), `fit-layers` (the cells of a
+;; composite, or of a facet over columns, that draw each layer),
+;; `shared-axis-groups` (which cells share an axis), and
 ;; `leaf->draft` (the leaf flattening that the public `pj/pose->draft`
 ;; calls).
 ;;

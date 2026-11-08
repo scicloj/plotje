@@ -446,10 +446,13 @@
 ;; get scatter plots. All panels share the color aesthetic set on the
 ;; pose.
 
-;; A layer written on the matrix is drawn in the panels whose columns it
-;; draws. A scatter draws two columns, so `pj/lay-point` is drawn in the
-;; panels off the diagonal, and each diagonal panel, which names one
-;; column, keeps the histogram that inference gives it:
+;; A layer written on the matrix is drawn in each panel that fits it: a
+;; panel fits a layer when the panel's columns, together with any the
+;; layer names, are a number of columns the layer type draws from (Rule
+;; LP2 in [Pose Rules](./plotje_book.pose_rules.html)). A scatter draws
+;; two columns, so `pj/lay-point` is drawn in the panels off the
+;; diagonal, and each diagonal panel, which names one column, keeps the
+;; histogram that inference gives it:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
@@ -516,9 +519,28 @@
                                   first
                                   :layers)))))))])
 
-;; A layer that fits no panel -- a histogram written on a pose whose
-;; panels all name two columns -- is drawn in every panel, as it would be
-;; on a single pose.
+;; A matrix of two different lists of columns has no diagonal, so every
+;; panel names two columns. A histogram draws from one column, so it fits
+;; none of the panels, and a layer that fits no panel is drawn in every
+;; panel, as written, as it would be on a single pose (Rule LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html)). Here every panel draws a
+;; histogram of its `:x` column in place of the scatter that inference
+;; would give it:
+
+(-> (rdatasets/datasets-iris)
+    (pj/matrix [:sepal-length :sepal-width] [:petal-length :petal-width])
+    pj/lay-histogram)
+
+(kind/test-last
+ [(fn [v]
+    (->> (pj/plan v)
+         :sub-plots
+         (every? (fn [{:keys [plan]}]
+                   (= [:bar] (mapv :mark (-> plan
+                                             :panels
+                                             first
+                                             :layers)))))))])
+
 ;;
 ;; See the [Gallery](./plotje_book.gallery.html#scatter-plot-matrices)
 ;; chapter for more SPLOM variations, and the

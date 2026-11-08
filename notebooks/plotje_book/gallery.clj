@@ -1601,7 +1601,6 @@
                                  (mapv :label (:entries (:legend (pj/plan v)))))))])
 
 ;; ### Two y-variables side by side
-;; Source: [Vega-Lite: Layered Line](https://vega.github.io/vega-lite/examples/layer_line_color_rule.html)
 
 ;; Two different y columns, each in a panel of its own. `pj/arrange`
 ;; takes a mapping naming two columns as a cell, and the layer added
@@ -1613,10 +1612,10 @@
     pj/lay-line
     (pj/options {:title "Unemployment: Total vs Median Duration"}))
 
-(kind/test-last [(fn [v] (>= (:lines (pj/svg-summary v)) 2))])
+(kind/test-last [(fn [v] (= {:panels 2 :lines 2}
+                            (select-keys (pj/svg-summary v) [:panels :lines])))])
 
 ;; ### Three columns side by side
-;; Source: [ECharts: Multi Line](https://echarts.apache.org/examples/en/editor.html?c=line-smooth)
 
 (-> (rdatasets/ggplot2-economics)
     (pj/arrange [{:x :date :y :unemploy}
@@ -1625,7 +1624,8 @@
     pj/lay-line
     (pj/options {:title "US Economic Indicators"}))
 
-(kind/test-last [(fn [v] (>= (:lines (pj/svg-summary v)) 3))])
+(kind/test-last [(fn [v] (= {:panels 3 :lines 3}
+                            (select-keys (pj/svg-summary v) [:panels :lines])))])
 
 ;; ### Scatter + line, one per panel
 

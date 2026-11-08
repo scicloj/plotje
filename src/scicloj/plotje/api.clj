@@ -1357,7 +1357,7 @@
     (some? data) (assoc :data data)
     (seq mapping) (assoc :mapping mapping)))
 
-(declare pose with-data compose-facets append-cells)
+(declare pose with-data compose-facets)
 
 (defn- extend-mapping
   ([p m] (extend-mapping "pj/pose" p m))
@@ -1653,8 +1653,7 @@
 (defn- check-new-panel-columns
   "Safety check fired when a `lay-*` names columns the pose does not
    draw -- on a leaf, where the layer joins the panel (Rule LP5), or on
-   a composite, where no leaf draws them and a new cell is appended
-   (Rule LP3). Verify each non-nil column in `position-mapping` exists in
+   a composite, where the layer is added at the root. Verify each non-nil column in `position-mapping` exists in
    the data that layer will draw from: its own `:data` if it has one,
    otherwise `fallback-data`, the pose's. A focused error here saves the
    user from a deep plan-stage 'column not found' on a column they
@@ -1679,48 +1678,21 @@
                  :key k :column col :available (sort col-names)}))))))
 
 (defn- add-leaf-layer-to-composite
-  "Add a layer naming columns to a composite. A layer that fits some
-   cell (`pose/cells-fitting-layer`) is written at the root, and the
-   draft draws it in every cell it fits (`pose/fit-layers`): a cell
-   excludes it where the cell's panel draws another column on an axis
-   the layer names, or where the cell's columns together with the
-   layer's are not a number of columns the layer type draws from. A
-   layer that fits no cell is drawn on a cell of its own,
-   appended at the root (LP3) after the new-panel column-existence
-   safety check."
+  "Add a layer naming columns to a composite. The layer is written at
+   the root, and the draft draws it in every cell it fits
+   (`pose/fit-layers`): a cell excludes it where the cell's panel draws
+   another column on an axis the layer names, or where the cell's
+   columns together with the layer's are not a number of columns the
+   layer type draws from. A layer that fits no cell is drawn in every
+   cell, as written (Rule LP3), as on a facet over columns. The
+   column-existence check runs first."
   [fr position-mapping layer]
-  ;; The layer keeps the columns it names on its own mapping, at the
-  ;; root and on a new cell alike -- a cell's mapping is what `pj/pose`
-  ;; writes, and `lay-*` never writes it.
-  (let [layer (update layer :mapping #(pose/merge-mappings position-mapping %))
-        fits-some-cell? (seq (pose/cells-fitting-layer fr layer))]
+  ;; The layer keeps the columns it names on its own mapping -- a cell's
+  ;; mapping is what `pj/pose` writes, and `lay-*` never writes it.
+  (let [layer (update layer :mapping #(pose/merge-mappings position-mapping %))]
     (check-new-panel-columns (:layer-type layer)
                              position-mapping layer (:data fr))
-    (if fits-some-cell?
-      (update fr :layers (fnil conj []) layer)
-      (do
-          ;; The new cell reads the root's data. Where the cells carry
-          ;; their own and the root has none, it has nothing to read
-          ;; and draws a panel reading "no data".
-          (when-not (or (:data layer) (:data fr))
-            (let [lay (str "pj/lay-" (layer-type-name (:layer-type layer)))
-                  cols (keep #(pose/mapping-source (get position-mapping %)) [:x :y])
-                  drawn (distinct (keep pose/leaf-place (pose/resolve-tree fr)))]
-              (println (str "Note: " lay " names " (str/join " and " (map pr-str cols))
-                            ", and no cell of this pose draws "
-                            (if (next cols) "those columns" "that column")
-                            ", so the layer is drawn on a cell of its own."
-                            " That cell has no data: the cells carry their own,"
-                            " and the pose they are arranged in has none."
-                            " To draw the layer on a cell, name that cell's columns"
-                            (when (seq drawn)
-                              (str " (the cells draw "
-                                   (str/join ", " (map #(str/join " / " (map pr-str (remove nil? %)))
-                                                       drawn))
-                                   ")"))
-                            ". To keep the new cell, pass its data: (" lay
-                            " pose " (str/join " " (map pr-str cols)) " {:data data})."))))
-          (append-cells fr [{:layers [layer]}] false)))))
+    (update fr :layers (fnil conj []) layer)))
 
 (defn- check-position-mapping
   "Throw a helpful error if `:x` or `:y` is a value that names no column
@@ -2185,8 +2157,9 @@
 
 (defn lay
   "Add a root-scope layer. The layer attaches to `:layers` and is drawn
-   on the single panel (leaf), or in every cell it fits (composite), as
-   a `pj/lay-*` call's layer is.
+   on the single panel (leaf), or in every cell it fits (composite) --
+   and in every cell where it fits none -- as a `pj/lay-*` call's layer
+   is.
 
    The layer type is named either by its keyword or by the entry
    `pj/layer-type-lookup` answers with; both behave the same. An entry
@@ -2329,17 +2302,18 @@
    :mapping, and never on a pose's: the pose's :mapping is what
    `pj/pose` writes.
 
-   Composite + columns: the layer is added at the root where some
-   cell's panel draws no other column on :x or :y (LP2), and the draft
-   draws it in each such cell; otherwise a fresh sub-pose holding it is
-   appended at the root (LP3). See add-leaf-layer-to-composite.
+   Composite + columns: the layer is added at the root, and the draft
+   draws it in each cell it fits (LP2), or in every cell where it fits
+   none (LP3). See add-leaf-layer-to-composite.
 
    Leaf + columns: the layer is appended and drawn on the leaf's one
    panel (LP5) -- the leaf stays a leaf.
 
    No columns (leaf or composite + aesthetic-only): append the bare /
-   aesthetic layer to :layers; it is drawn on every panel, reading
-   that panel's columns."
+   aesthetic layer to :layers; it reads each panel's columns, and on a
+   composite it is drawn in every cell whose number of columns the
+   layer type draws from, or in every cell where none has such a number
+   (see add-leaf-layer-to-composite)."
   [fr layer-type-key position-mapping opts]
   ;; The positional x/y of a lay-* call reach the pose's :mapping without
   ;; passing through build-layer, so they need the same column-reference
@@ -2563,15 +2537,17 @@
   "Add a `:point` (scatter) layer to a pose.
 
    With no columns, the layer reads the panel's columns; on a composite
-   pose it is added at the root and drawn in every cell. With columns,
+   pose it is added at the root and drawn in every cell whose columns
+   are a number the layer type draws from, or in every cell where no
+   cell's columns are. With columns,
    the layer keeps them on its own mapping and is drawn where the pose
    draws those columns: on its panel, or under a facet over columns, in
    the panels of those columns. On a composite pose, a layer naming
    columns is added at the root and drawn in every cell whose panel
    draws no other column on an axis the layer names, and whose columns,
    together with the layer's, are a number of columns the layer type
-   draws from. Where no cell fits, the layer is drawn on a new cell
-   appended to the composite.
+   draws from. Where no cell fits, the layer is drawn in every cell, as
+   written; a `lay-*` call adds no cell -- `pj/arrange` adds cells.
 
    - `(lay-point pose)` -- a layer reading the panel's columns.
    - `(lay-point pose {:color :species})` -- the same, with a mapping.
@@ -2808,12 +2784,12 @@
    and on a composite pose in every cell whose panel draws two
    columns, or in every cell where no cell's panel does. On a composite
    pose the 4-arity draws the rule in every cell whose panel draws no
-   column other than the two it names, and on a cell of its own where
-   no cell's panel does. On a
+   column other than the two it names, and in every cell where no
+   cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the rule is still drawn on that panel.
 
-   - `(lay-rule-h pose {:y-intercept 3})` -- root-level, flows to every panel.
+   - `(lay-rule-h pose {:y-intercept 3})` -- no columns: on every panel of a leaf; on a composite, as above.
    - `(lay-rule-h pose :height :weight {:y-intercept 3})` -- on a composite
      pose, in every cell whose panel draws no column other than
      `:height` and `:weight`.
@@ -2843,12 +2819,12 @@
    and on a composite pose in every cell whose panel draws two
    columns, or in every cell where no cell's panel does. On a composite
    pose the 4-arity draws the rule in every cell whose panel draws no
-   column other than the two it names, and on a cell of its own where
-   no cell's panel does. On a
+   column other than the two it names, and in every cell where no
+   cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the rule is still drawn on that panel.
 
-   - `(lay-rule-v pose {:x-intercept 5})` -- root-level, flows to every panel.
+   - `(lay-rule-v pose {:x-intercept 5})` -- no columns: on every panel of a leaf; on a composite, as above.
    - `(lay-rule-v pose :height :weight {:x-intercept 5})` -- on a composite
      pose, in every cell whose panel draws no column other than
      `:height` and `:weight`.
@@ -2876,12 +2852,12 @@
    and on a composite pose in every cell whose panel draws two
    columns, or in every cell where no cell's panel does. On a composite
    pose the 4-arity draws the band in every cell whose panel draws no
-   column other than the two it names, and on a cell of its own where
-   no cell's panel does. On a
+   column other than the two it names, and in every cell where no
+   cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the band is still drawn on that panel.
 
-   - `(lay-band-h pose {:y-min 2 :y-max 4})` -- root-level, flows to every panel.
+   - `(lay-band-h pose {:y-min 2 :y-max 4})` -- no columns: on every panel of a leaf; on a composite, as above.
    - `(lay-band-h pose :height :weight {:y-min 2 :y-max 4})` -- on a composite
      pose, in every cell whose panel draws no column other than
      `:height` and `:weight`.
@@ -2908,12 +2884,12 @@
    and on a composite pose in every cell whose panel draws two
    columns, or in every cell where no cell's panel does. On a composite
    pose the 4-arity draws the band in every cell whose panel draws no
-   column other than the two it names, and on a cell of its own where
-   no cell's panel does. On a
+   column other than the two it names, and in every cell where no
+   cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the band is still drawn on that panel.
 
-   - `(lay-band-v pose {:x-min 4 :x-max 6})` -- root-level, flows to every panel.
+   - `(lay-band-v pose {:x-min 4 :x-max 6})` -- no columns: on every panel of a leaf; on a composite, as above.
    - `(lay-band-v pose :height :weight {:x-min 4 :x-max 6})` -- on a composite
      pose, in every cell whose panel draws no column other than
      `:height` and `:weight`.
@@ -3972,8 +3948,11 @@
    reports an error.
 
    The columns are checked against the data when `pj/facet` is called.
-   A layer naming one of the facet's columns is drawn only in the
-   panels of that column. A second map of columns crosses the first
+   A layer added to a facet over columns is placed among its panels as
+   on a composite pose (Rules LP2 and LP3 in Pose Rules): a layer naming
+   one of the facet's columns is drawn in the panels of that column
+   where the panel's other column agrees with the layer's, and a layer
+   that fits no panel is drawn in every panel. A second map of columns crosses the first
    where it names the other direction -- `{:x xs}` and then `{:row {:y
    ys}}` is `{:col {:x xs} :row {:y ys}}`; any other second map of
    columns, or one on a composite pose, reports an error.

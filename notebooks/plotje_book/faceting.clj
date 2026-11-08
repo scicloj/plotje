@@ -220,29 +220,28 @@
 
 ;; A layer that names one of the facet's columns is drawn only in the
 ;; panel of that column. A panel left with no layer draws the layer type
-;; inferred from its columns. Plotje then prints a Note naming the
-;; layer, the panels, and the change that draws the layer in every
-;; panel -- unless the layer is the one inference draws in those panels
-;; and carries nothing but its columns. Inference draws a scatter there,
-;; and this layer is a smooth, so the Note is printed:
+;; inferred from its columns -- here a scatter of `:displ` against
+;; `:cty` beside the smooth of `:hwy`. The layer's columns say where it
+;; is drawn -- see Rule LP2 in
+;; [Pose Rules](./plotje_book.pose_rules.html). To draw the smooth in
+;; every panel, leave `:y` off the layer and name `:x` on the pose.
 
-(with-out-str
-  (-> (rdatasets/ggplot2-mpg)
-      (pj/lay-smooth :displ :hwy {:color "black"})
-      (pj/facet {:y [:hwy :cty]})
-      pj/plan))
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-smooth :displ :hwy {:color "black"})
+    (pj/facet {:y [:hwy :cty]}))
 
 (kind/test-last
- [(fn [out] (and (re-find #"pj/lay-smooth names :hwy on :y" out)
-                 (re-find #"\{:y :cty\} has no layer" out)
-                 (re-find #"leave :y off the layer and name :x on the pose" out)
-                 ;; A scatter with nothing but its columns is the layer
-                 ;; inference draws in the other panel: no Note.
-                 (= "" (with-out-str
-                         (-> (rdatasets/ggplot2-mpg)
-                             (pj/lay-point :displ :hwy)
-                             (pj/facet {:y [:hwy :cty]})
-                             pj/plan)))))])
+ [(fn [v] (and (= [[:line] [:point]]
+                  (mapv #(mapv :mark (-> %
+                                         :plan
+                                         :panels
+                                         first
+                                         :layers))
+                        (-> v
+                            pj/plan
+                            :sub-plots)))
+               ;; No Note is printed for a layer drawn in some panels.
+               (= "" (with-out-str (pj/plan v)))))])
 
 ;; ## Grids Crossing Categories and Columns
 ;;

@@ -91,24 +91,18 @@
                           (pj/lay-smooth :a :b)
                           (pj/with-data {:a [1 2 3 4 5 6] :b [2 3 1 5 4 6]}))))))))
 
-(deftest a-new-cell-with-no-data-prints-a-note
+(deftest a-layer-on-cells-with-their-own-data-reads-each-cell
+  ;; A layer naming columns no cell draws is drawn in every cell (Rule
+  ;; LP3), each reading its cell's data: no cell is added, so no panel
+  ;; is left without data, and nothing is printed.
   (let [d {:a [1 2 3 4 5 6] :b [2 3 1 5 4 6] :c [3 1 2 6 5 4]}
-        arranged (pj/arrange [(pj/lay-point d :a :b) (pj/lay-point d :a :c)])]
-    (testing "the cells carry their own data, and the layer names columns no cell draws"
-      (let [note (with-out-str (pj/lay-smooth arranged :b :c))]
-        (is (re-find #"Note: pj/lay-smooth names :b and :c" note))
-        (is (re-find #"That cell has no data" note))
-        (is (re-find #"the cells draw :a / :b, :a / :c" note))
-        (is (re-find #"\(pj/lay-smooth pose :b :c \{:data data\}\)" note)))
-      (is (has-no-data-text? (binding [*out* (java.io.StringWriter.)]
-                               (pj/lay-smooth arranged :b :c)))))
-    (testing "no Note where the layer has data, joins a cell, or the root has data"
-      (is (= "" (with-out-str (pj/lay-smooth arranged :b :c {:data d}))))
-      (is (= "" (with-out-str (pj/lay-smooth arranged :a :c))))
-      (is (= "" (with-out-str (-> d
-                                  (pj/arrange [[:a :b] [:a :c]])
-                                  pj/lay-point
-                                  (pj/lay-smooth :b :c))))))))
+        arranged (pj/arrange [(pj/lay-point d :a :b) (pj/lay-point d :a :c)])
+        out (java.io.StringWriter.)
+        v (binding [*out* out] (pj/lay-smooth arranged :b :c))]
+    (is (= "" (str out)))
+    (is (= {:panels 2 :points 12 :lines 2}
+           (select-keys (pj/svg-summary v) [:panels :points :lines])))
+    (is (not (has-no-data-text? v)))))
 
 (deftest extension-with-custom-slot-does-not-show-no-data
   (testing "an extension that stores geometry in a custom slot

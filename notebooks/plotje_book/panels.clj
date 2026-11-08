@@ -1,9 +1,10 @@
 ;; # Panels
 ;;
 ;; A plot can be one set of axes or a grid of them, and which you get is
-;; never chosen directly. A leaf pose draws one panel, however many
-;; layers it holds and whatever columns they name. More panels come from
-;; `pj/facet` and `pj/arrange`.
+;; never chosen directly. A pose draws one panel, however many layers it
+;; holds and whatever columns they name. More panels come from
+;; `pj/facet`, which splits a pose's one panel, and `pj/arrange`, which
+;; places poses side by side.
 ;;
 ;; Two things to compare are either two columns or two categories of
 ;; one column, and they are drawn either inside one panel or in panels
@@ -270,46 +271,82 @@
 ;; rule for which cells share an axis, and how `:share-scales` changes it.
 
 ;; A `pj/lay-*` call on an arrangement **adds its layer at the root** of
-;; the composite, and each cell decides whether to draw it. A cell draws
-;; the layer when two things hold: on each axis the layer names, the
-;; cell's panel draws no other column, and the cell's columns together
-;; with the layer's are as many as the layer type reads. In the
-;; arrangement above, `pj/lay-point` names no columns, and each cell
-;; draws two, so the points are drawn in every cell. A call naming
-;; columns is **drawn in every cell that fits it**; where no cell fits,
-;; the call appends a new cell. Here the line of `:weight` against
-;; `:depth` is drawn in the second cell, and the line of `:height`
-;; against `:weight` appends a third, where the points added at the root
-;; are drawn too:
+;; the composite. The layer is **drawn in every cell that fits it**. A
+;; cell fits the layer when two things hold: on each axis the layer
+;; names, the cell's panel draws no other column, and the cell's columns
+;; together with the layer's are a number of columns the layer type
+;; reads. In the arrangement above, `pj/lay-point` names no columns, and
+;; each cell draws two, so the points are drawn in every cell. Here the
+;; line of `:weight` against `:depth` is drawn in the second cell only:
 
 (-> (pj/arrange measurements [{:x :height :y :weight}
                               {:x :depth :y :weight}])
     pj/lay-point
-    (pj/lay-line :depth :weight)
-    (pj/lay-line :weight :height))
+    (pj/lay-line :depth :weight))
 
-(kind/test-last [(fn [v] (let [cells (:poses (first (:poses v)))]
-                           (and (= [:point :line] (mapv :layer-type (:layers v)))
-                                (= [[] [] [:line]]
-                                   (mapv #(mapv :layer-type (:layers %)) cells))
-                                (= {:panels 3 :points 12 :lines 2}
-                                   (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
+(kind/test-last [(fn [v] (and (= [:point :line] (mapv :layer-type (:layers v)))
+                              (= [[:point] [:point :line]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> v
+                                           pj/plan
+                                           :sub-plots)))
+                              (= {:panels 2 :points 8 :lines 1}
+                                 (select-keys (pj/svg-summary v) [:panels :points :lines]))
+                              (= "" (with-out-str (pj/plan v)))))])
 
 ;; A call naming one column, of a layer type that draws from two
 ;; columns, is drawn in every cell whose panel draws no other column on
 ;; that axis, and reads the cell's column on the other axis, as on a
-;; leaf. A layer type that draws from one column, such as a histogram,
-;; is not drawn in a cell that draws two columns, since the cell's two
-;; columns are more than the layer type reads. Beside cells that draw
-;; two columns, the call appends a new cell, and the points added at the
-;; root are not drawn there:
+;; leaf.
+;;
+;; Where no cell fits the layer, the layer is drawn in every cell,
+;; beside each cell's own layers, as the layers of a single pose share
+;; its panel. A histogram reads one column, so beside cells that draw
+;; two columns it fits no cell, and it is drawn over the points of
+;; every cell. Each cell's `:y` axis then reads a count beside a column,
+;; and drawing the plot prints a Note for each cell saying so:
 
 (-> (pj/arrange measurements [{:x :height :y :weight}
                               {:x :depth :y :weight}])
     pj/lay-point
     (pj/lay-histogram :height))
 
-(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
+(kind/test-last [(fn [v] (and (= [[:point :bar] [:point :bar]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> v
+                                           pj/plan
+                                           :sub-plots)))
+                              (= 2 (count (re-seq #"Note: the layers of this pose share one panel"
+                                                  (with-out-str (pj/plan v)))))))])
+
+;; A `pj/lay-*` call never adds a cell. A histogram meant for a cell of
+;; its own is given that cell with `pj/arrange`, which adds the cells it
+;; is given to the arrangement's list:
+
+(-> (pj/arrange measurements [{:x :height :y :weight}
+                              {:x :depth :y :weight}])
+    pj/lay-point
+    (pj/arrange [:height]))
+
+(kind/test-last [(fn [v] (and (= [[:point] [:point] [:bar]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> v
+                                           pj/plan
+                                           :sub-plots)))
+                              (= {:panels 3 :points 8 :polygons 3}
+                                 (select-keys (pj/svg-summary v) [:panels :points :polygons]))))])
 
 ;; A cell may also be a template -- a pose with layers and no data, as
 ;; [Reusable Pose Templates](./plotje_book.core_concepts.html#reusable-pose-templates)
@@ -326,8 +363,7 @@
 
 ;; A layer added at the root is drawn under a cell's own layers,
 ;; whatever order the calls come in. Below, the line added to the
-;; arrangement is drawn beneath the first cell's points. An arrangement
-;; prints no message for a layer drawn in only some of its cells:
+;; arrangement is drawn beneath the first cell's points:
 
 (-> (pj/arrange measurements [(pj/lay-point nil :height :weight)
                               {:x :depth :y :weight}])

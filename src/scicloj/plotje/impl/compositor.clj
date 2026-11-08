@@ -389,13 +389,30 @@
 (defn- leaf-aesthetic-values
   "Set of mapping values an aesthetic resolves to inside a single
    leaf (counting both the leaf's :mapping and each layer's
-   :mapping). Two leaves agree on the aesthetic when their value
-   sets are equal -- the same legend will be produced for both."
+   :mapping) that earn a legend entry. Two leaves agree on the
+   aesthetic when their value sets are equal -- the same legend will
+   be produced for both.
+
+   A written value drawn as it stands -- `{:color \"black\"}` on a
+   trend line, where the data has no column of that name -- earns no
+   legend entry, so it is left out: a cell drawing a black line beside
+   points coloured by `:species` draws the same legend as a cell
+   without the line. The data decides whether a value names a column,
+   as it does for the layer; a value written `{:scale true}` is read
+   as data and counts."
   [leaf a]
-  (let [v (get-in leaf [:mapping a])
+  (let [cols (into #{} (mapcat #(tc/column-names %))
+                   (distinct (keep identity (cons (:data leaf) (map :data (:layers leaf))))))
+        ;; A map is kept unless it writes a value drawn as it stands: a
+        ;; scale written for the column, as `pj/scale` writes it, is
+        ;; part of what the legend explains.
+        legend? (fn [v]
+                  (if (map? v)
+                    (not (and (contains? v :value) (not (true? (:scale v)))))
+                    (contains? cols v)))
+        v (get-in leaf [:mapping a])
         layer-vs (keep #(get-in % [:mapping a]) (:layers leaf))]
-    (cond-> (set layer-vs)
-      v (conj v))))
+    (set (filter legend? (cond-> layer-vs v (conj v))))))
 
 (defn- shared-aesthetics-by-leaves
   "The subset of legend-bearing aesthetics that produce the same

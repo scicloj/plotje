@@ -382,8 +382,8 @@ two-panel
 ;; **panel** is a part of the drawing: one set of axes and the marks
 ;; drawn against them. A **cell** is a part of the pose: one of the
 ;; sub-poses `pj/arrange` is given, or the part of a facet over columns
-;; that draws one column. A leaf pose draws one panel; a composite draws
-;; a panel for each of its cells.
+;; that draws one column. A pose without a facet draws one panel, and an
+;; arrangement draws a panel for each of its cells.
 ;;
 ;; On a leaf, `pj/lay-*` **adds the layer to that leaf**. A leaf draws
 ;; one panel, and its layers share it, whatever columns they name:
@@ -402,17 +402,37 @@ two-panel
 ;; Separate panels come from `pj/facet` and `pj/arrange` -- see
 ;; [Panels](./plotje_book.panels.html).
 ;;
-;; On a composite, `pj/lay-*` **adds the layer to the composite as a
-;; whole**, and each cell decides whether to draw it. A cell draws the
-;; layer when the cell's panel draws no other column on an axis the
-;; layer names, and the cell's columns together with the layer's are as
-;; many as the layer type reads -- two for a scatter or a trend line,
-;; one for a histogram. So `(pj/lay-line {:y :weight})` is drawn in
-;; every cell that draws `:weight` on `:y`, and a histogram naming
-;; `:height` is not drawn in a scatter cell of `:height` and `:weight`.
-;; Where no cell fits, a layer naming columns is drawn on a new cell
-;; appended to the composite, and a layer naming no columns is drawn in
-;; every cell -- see
+;; On a composite, and on the cells of a facet over columns,
+;; `pj/lay-*` **adds the layer at the root**. The layer is drawn in
+;; every cell that fits it. A cell fits the layer when two things hold:
+;; on each axis the layer names, the cell's panel draws no other column,
+;; and the cell's columns together with the layer's are a number of
+;; columns the layer type reads -- two for a scatter or a trend line,
+;; one for a histogram. Here the trend line names `:sepal-width` on
+;; `:y`, so it is drawn in the two cells that draw `:sepal-width` on
+;; `:y`, and not in the third:
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :petal-length :y :sepal-width}
+                 {:x :petal-length :y :petal-width}])
+    pj/lay-point
+    (pj/lay-smooth {:y :sepal-width :stat :linear-model}))
+
+(kind/test-last [(fn [v] (= [[:point :line] [:point :line] [:point]]
+                            (mapv #(mapv :mark (-> %
+                                                   :plan
+                                                   :panels
+                                                   first
+                                                   :layers))
+                                  (-> v
+                                      pj/plan
+                                      :sub-plots))))])
+
+;; Where no cell fits the layer, the layer is drawn in every cell,
+;; beside each cell's own layers, as the layers of a single pose share
+;; its panel. A `pj/lay-*` call never adds a cell; `pj/arrange` adds
+;; cells -- see
 ;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side) and
 ;; Rules LP1 to LP3 in [Pose Rules](./plotje_book.pose_rules.html).
 

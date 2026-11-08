@@ -471,10 +471,9 @@
 ;; width. On a composite, a rule or a band written without columns is
 ;; added at the root and drawn in every cell whose panel draws two
 ;; columns -- in every cell, where no cell's panel does. One written
-;; with an `:x` and a `:y` column is added at the root too and drawn in
-;; every cell whose panel draws no column other than those two; where no
-;; cell fits, the rule or band is drawn on a new cell appended to the
-;; composite. On a pose with one panel a rule or a band is drawn on that
+;; with an `:x` and a `:y` column is placed as any `pj/lay-*` naming
+;; columns is ([Pose Rules](./plotje_book.pose_rules.html), Rules LP2
+;; and LP3). On a pose with one panel a rule or a band is drawn on that
 ;; panel, and columns written on it that the panel does not draw are
 ;; not read, with a warning.
 ;;
@@ -758,9 +757,9 @@
 ;; `{:x :sepal-length :y :sepal-width}` is a panel of its two columns.
 ;; A layer added afterwards naming no columns is drawn in every cell
 ;; whose number of columns its layer type draws from. A layer naming
-;; columns is drawn in every cell whose panel draws no other column on
-;; an axis the layer names -- here the trend line, in the first cell,
-;; since the second cell draws `:petal-length` and `:petal-width` (see
+;; columns is drawn in every cell it fits -- here the trend line, in
+;; the first cell only, since the second cell draws `:petal-length` and
+;; `:petal-width`; a layer that fits no cell is drawn in every cell (see
 ;; [Pose Rules](./plotje_book.pose_rules.html), Rules LP2 and LP3, for
 ;; the whole rule):
 
