@@ -669,7 +669,9 @@ numeric-color-pose
    :day     [1 2 3 1 2 3 1 2 3]
    :score   [5 7 6 3 4 5 8 9 7]})
 
-;; Without override -- one group, continuous gradient:
+;; Without override -- one group. A line is drawn once per group, so
+;; it takes one color and does not follow the column as a gradient,
+;; though the legend shows one; Plotje prints a warning saying so:
 
 (def study-continuous-pose
   (-> study-data
@@ -846,6 +848,24 @@ explicit-group-pose
 ;; An explicit `pj/lay-point` with one column on both axes still draws
 ;; the points, and `pj/lay-bar` with one categorical column on both
 ;; axes counts that column.
+
+;; Under a facet over columns, as in `pj/matrix`, each panel that no
+;; layer draws takes the layer type inferred from its own columns. So
+;; the diagonal of a scatter plot matrix, where a column meets itself,
+;; draws that column's histogram, and the other panels draw scatters:
+
+(-> (rdatasets/datasets-iris)
+    (pj/matrix [:sepal-length :sepal-width]))
+
+(kind/test-last
+ [(fn [v]
+    (= [[:bar] [:point] [:point] [:bar]]
+       (mapv #(mapv :mark (-> %
+                              :plan
+                              :panels
+                              first
+                              :layers))
+             (:sub-plots (pj/plan v)))))])
 ;;
 ;; A single numerical column produces a histogram:
 

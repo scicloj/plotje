@@ -917,5 +917,5 @@ scatter
 
 ;; ## What's Next
 ;;
-;; - [**Faceting**](./plotje_book.faceting.html) -- split any chart into panels by one or two variables
+;; - [**Faceting**](./plotje_book.faceting.html) -- a panel for each category of a column, or for each of several columns
 ;; - [**API Reference**](./plotje_book.api_reference.html) -- complete function listing with docstrings

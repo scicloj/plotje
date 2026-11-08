@@ -102,7 +102,8 @@
 ;; Those integer names are what the axes are titled with, and they can
 ;; be mapped like any other column name. `(tc/rename-columns ds [:height :weight])`
 ;; gives them words. A vector of vectors given to `pj/arrange` means
-;; something else -- rows of cells, each cell a pose. What tells the
+;; something else -- rows of cells, each cell a column, a mapping or a
+;; pose. What tells the
 ;; two apart is where the vector is written -- in a mapping, or in
 ;; `pj/arrange`'s list of cells -- not what it holds.
 
@@ -377,6 +378,13 @@ two-panel
 ;; layers find their pose? The rule depends on whether the pose is a
 ;; leaf or a composite.
 ;;
+;; Two words name the parts of a plot with several sets of axes. A
+;; **panel** is a part of the drawing: one set of axes and the marks
+;; drawn against them. A **cell** is a part of the pose: one of the
+;; sub-poses `pj/arrange` is given, or the part of a facet over columns
+;; that draws one column. A leaf pose draws one panel; a composite draws
+;; a panel for each of its cells.
+;;
 ;; On a leaf, `pj/lay-*` **adds the layer to that leaf**. A leaf draws
 ;; one panel, and its layers share it, whatever columns they name:
 
@@ -394,12 +402,19 @@ two-panel
 ;; Separate panels come from `pj/facet` and `pj/arrange` -- see
 ;; [Panels](./plotje_book.panels.html).
 ;;
-;; On a composite, a layer naming no columns is drawn in every cell
-;; whose number of columns its layer type draws from. A layer naming
-;; columns is drawn in every cell whose panel draws no other column than
-;; the layer names, and where no cell's panel does, the call appends a
-;; new cell -- see
-;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
+;; On a composite, `pj/lay-*` **adds the layer to the composite as a
+;; whole**, and each cell decides whether to draw it. A cell draws the
+;; layer when the cell's panel draws no other column on an axis the
+;; layer names, and the cell's columns together with the layer's are as
+;; many as the layer type reads -- two for a scatter or a trend line,
+;; one for a histogram. So `(pj/lay-line {:y :weight})` is drawn in
+;; every cell that draws `:weight` on `:y`, and a histogram naming
+;; `:height` is not drawn in a scatter cell of `:height` and `:weight`.
+;; Where no cell fits, a layer naming columns is drawn on a new cell
+;; appended to the composite, and a layer naming no columns is drawn in
+;; every cell -- see
+;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side) and
+;; Rules LP1 to LP3 in [Pose Rules](./plotje_book.pose_rules.html).
 
 ;; ## The Pose
 ;;

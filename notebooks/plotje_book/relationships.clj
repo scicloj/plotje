@@ -288,13 +288,13 @@
             (and (= 2 (:panels s))
                  (= 150 (:points s)))))])
 
-;; The strip keeps its own value scale, its duplicate ticks and axis
+;; The marginal panel keeps its own value scale, its duplicate ticks and axis
 ;; title are dropped, and the two drawing areas are aligned so a value
 ;; sits at the same place in both. `:histogram` draws bars instead of a
-;; curve, and `:size` sets the strip's share of the height.
+;; curve, and `:size` sets the marginal panel's share of the height.
 ;;
-;; `:right` describes the `:y` column instead, in a strip beside the
-;; scatter. The distribution is drawn under `pj/coord :flip`, so it
+;; `:right` describes the `:y` column instead, in a marginal panel
+;; beside the scatter. The distribution is drawn under `pj/coord :flip`, so it
 ;; runs up the panel with its baseline against the scatter:
 
 (-> (rdatasets/datasets-iris)
@@ -306,13 +306,14 @@
                              (:sub-plots (pj/plan v)))]
             (and (= 2 (:panels (pj/svg-summary v)))
                  (= 150 (:points (pj/svg-summary v)))
-                 ;; The scatter and the strip are pinned to one range
+                 ;; The scatter and the marginal panel are pinned to one range
                  ;; of sepal width.
                  (= (:y-domain (first panels))
                     (:y-domain (second panels))))))])
 
 ;; A pose takes one marginal: `pj/marginal` returns a composite, and a
-;; composite has no single panel for a second strip to sit against. For
+;; composite has no single panel for a second marginal panel to sit
+;; against. For
 ;; a distribution on both edges, `pj/matrix` with `nil` in each list of
 ;; columns draws the scatter and both marginals. A `nil` leaves a place
 ;; with no column on that axis, so that panel draws the distribution of
@@ -343,9 +344,10 @@
                  (<= (Math/abs (- (w [1 0]) (* 3 (w [1 1])))) 3.0)
                  (<= (Math/abs (- (h [1 0]) (* 3 (h [0 0])))) 3.0))))])
 
-;; A `:color` mapping does not reach the strip that `pj/marginal` adds
-;; -- the strip describes the column as a whole. Faceting does reach
-;; the strip, giving one distribution per panel, so facet first and add
+;; A `:color` mapping does not reach the marginal panel that
+;; `pj/marginal` adds -- the marginal panel describes the column as a
+;; whole. Faceting does reach the marginal panel, giving one
+;; distribution per panel, so facet first and add
 ;; the marginal after:
 
 (-> (rdatasets/datasets-iris)

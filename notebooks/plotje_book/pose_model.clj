@@ -97,7 +97,7 @@
 ;; picks the columns); the layer says how it is drawn (points, a
 ;; smooth, error bars). Several layers attached to one pose share
 ;; its mapping and coordinate system, so a scatter and its
-;; regression line stack as one picture. This split -- mapping for
+;; regression line are drawn as one picture. This split -- mapping for
 ;; what, layer for how -- runs through the rest of the library.
 ;; Written as a literal map, `pj/pose` accepts the
 ;; nested-map shape directly:
@@ -149,10 +149,13 @@ multi-layer
 
 ;; ## Layer order is paint order
 ;;
-;; Layers paint in the order they are added: the first `lay-*` call
-;; renders first, and each later one on top of it. When layers overlap,
-;; the order of the layers decides which marks stay visible -- so add
-;; the layer you want on top last.
+;; On a leaf pose, layers paint in the order they are added: the first
+;; `lay-*` call renders first, and each later one on top of it. When
+;; layers overlap, the order of the layers decides which marks stay
+;; visible -- so add the layer you want on top last. (On an arrangement,
+;; a layer added to the arrangement as a whole is drawn under each
+;; cell's own layers -- see
+;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).)
 ;;
 ;; Two points at one spot. The large one is added first and the small
 ;; one second, so the small dot reads on top of the large one:
@@ -257,7 +260,8 @@ multi-layer
 ;; layers share whatever columns they name (a facet multiplies the
 ;; panel). A **composite** pose is a plain map
 ;; that holds sub-poses under `:poses` and an optional `:layout`
-;; describing how to tile them. Composition functions take any
+;; describing how to tile them. Each sub-pose is a **cell** of the
+;; composite. Composition functions take any
 ;; pose and return a pose. Here is a two-panel composite written
 ;; as an explicit map:
 
@@ -297,9 +301,9 @@ two-panel
 
 (kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
-;; Printed, `pj/arrange` always wraps its plots in a top-level
-;; vertical layout whose rows are horizontal strips -- a single
-;; row of two panels shows up here as a vertical-of-horizontal
+;; Printed, `pj/arrange` always wraps its cells in a top-level
+;; vertical layout whose entries are horizontal rows -- a single
+;; row of two cells shows up here as a vertical-of-horizontal
 ;; composite. The sub-poses are leaf maps of the explicit-map form
 ;; above, except that each leaf carries its own `:data`, because each
 ;; pose was built with its data:

@@ -102,6 +102,11 @@
    Overrides take precedence over `set-config!` and defaults,
    but plot options still win.
 
+   The overrides apply to what is rendered inside the body. A pose
+   returned from the body is drawn under the configuration in effect
+   when it is shown, as a notebook shows the value of a form; to keep
+   the overrides, end the body in `pj/plot`.
+
    - `(with-config {:theme {:bg \"#FFF\"}} (plot ...))`"
   [config-map & body]
   `(let [cfg# ~config-map]
@@ -139,7 +144,7 @@
 
 (def ^:deprecated layer-option-docs
   "Deprecated: the earlier name of `pj/layer-mapping-docs`, the same
-   map. It will be removed in the next release."
+   map. It will be removed in a future release."
   layer-mapping-docs)
 
 (defn aesthetic-roles
@@ -515,7 +520,7 @@
    that registers a defmethod; `:svg` is always available.
 
    - `(plan->plot (plan fr) :svg {})`
-   - `(plan->plot (plan fr) :plotly {})`"
+   - `(plan->plot (plan fr) :bufimg {})`"
   [plan format opts]
   (expect-type plan resolve/plan? "plan (from pj/plan)" "pj/plan->plot")
   (render-impl/plan->plot plan format opts))
@@ -815,9 +820,9 @@
 (defn infer-mapping
   "Infer and attach a default mapping to a pose that carries data but
    no mapping yet -- the fresh leaf `pj/->pose` produces from raw
-   input. Position and color are taken from the first 1-3 columns
-   (1 column to `:x`, 2 columns to `:x` and `:y`, 3 columns add
-   `:color`).
+   input. `:x`, `:y` and `:color` are taken from the columns of data
+   with one to three columns (1 column to `:x`, 2 columns to `:x` and
+   `:y`, 3 columns add `:color`).
 
    The default is written where neither the pose's mapping nor any
    layer names an `:x` or a `:y` column, and where the first layer
@@ -904,8 +909,10 @@
    pose shape -- a leaf pose becomes a `LeafDraft` (a record carrying
    `:layers` -- a vector of one map per applicable layer with merged
    scope -- and `:opts` -- the pose-level options that flow into the
-   plan stage); a composite pose, and a leaf with a facet over columns,
-   which is drawn as one cell per column, becomes a `CompositeDraft` carrying
+   plan stage); a composite pose, a leaf with a facet over columns,
+   which is drawn as one cell per column, and a leaf faceted by one
+   category with `{:cols n}`, whose panels are wrapped into rows of
+   cells, become a `CompositeDraft` carrying
    per-leaf drafts (each with the options the arrangement decided for
    its cell -- which axes it shares and which ticks, axis titles and legends
    it suppresses), the resolved chrome geometry, and the layout (path
@@ -1675,8 +1682,10 @@
   "Add a layer naming columns to a composite. A layer that fits some
    cell (`pose/cells-fitting-layer`) is written at the root, and the
    draft draws it in every cell it fits (`pose/fit-layers`): a cell
-   excludes it where the cell's panel draws another column on `:x` or
-   `:y`. A layer that fits no cell is drawn on a cell of its own,
+   excludes it where the cell's panel draws another column on an axis
+   the layer names, or where the cell's columns together with the
+   layer's are not a number of columns the layer type draws from. A
+   layer that fits no cell is drawn on a cell of its own,
    appended at the root (LP3) after the new-panel column-existence
    safety check."
   [fr position-mapping layer]
@@ -2559,8 +2568,10 @@
    draws those columns: on its panel, or under a facet over columns, in
    the panels of those columns. On a composite pose, a layer naming
    columns is added at the root and drawn in every cell whose panel
-   draws no other column on `:x` or `:y`; where every cell's panel draws
-   another column, the layer is appended as a new cell.
+   draws no other column on an axis the layer names, and whose columns,
+   together with the layer's, are a number of columns the layer type
+   draws from. Where no cell fits, the layer is drawn on a new cell
+   appended to the composite.
 
    - `(lay-point pose)` -- a layer reading the panel's columns.
    - `(lay-point pose {:color :species})` -- the same, with a mapping.
@@ -2794,15 +2805,18 @@
    before a scatter sits under its points and one written after sits
    over them.
    Written with no columns, the rule is drawn on the pose's panel,
-   and on a composite pose in every cell. On a composite pose the
-   4-arity draws the rule in every cell whose panel draws those two
-   columns, and on a cell of its own where no cell does. On a
+   and on a composite pose in every cell whose panel draws two
+   columns, or in every cell where no cell's panel does. On a composite
+   pose the 4-arity draws the rule in every cell whose panel draws no
+   column other than the two it names, and on a cell of its own where
+   no cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the rule is still drawn on that panel.
 
    - `(lay-rule-h pose {:y-intercept 3})` -- root-level, flows to every panel.
    - `(lay-rule-h pose :height :weight {:y-intercept 3})` -- on a composite
-     pose, in the cells drawing `:height` and `:weight`.
+     pose, in every cell whose panel draws no column other than
+     `:height` and `:weight`.
    - `(lay-rule-h pose {:y-intercept 3 :color \"red\"})` -- with override color.
    - `(lay-rule-h pose {:y-intercept (java.time.LocalDate/parse \"2024-01-01\")})`
      -- temporal intercept on a date axis."
@@ -2826,15 +2840,18 @@
    before a scatter sits under its points and one written after sits
    over them.
    Written with no columns, the rule is drawn on the pose's panel,
-   and on a composite pose in every cell. On a composite pose the
-   4-arity draws the rule in every cell whose panel draws those two
-   columns, and on a cell of its own where no cell does. On a
+   and on a composite pose in every cell whose panel draws two
+   columns, or in every cell where no cell's panel does. On a composite
+   pose the 4-arity draws the rule in every cell whose panel draws no
+   column other than the two it names, and on a cell of its own where
+   no cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the rule is still drawn on that panel.
 
    - `(lay-rule-v pose {:x-intercept 5})` -- root-level, flows to every panel.
    - `(lay-rule-v pose :height :weight {:x-intercept 5})` -- on a composite
-     pose, in the cells drawing `:height` and `:weight`.
+     pose, in every cell whose panel draws no column other than
+     `:height` and `:weight`.
    - `(lay-rule-v pose {:x-intercept 5 :color \"red\"})` -- with override color.
    - `(lay-rule-v pose {:x-intercept #inst \"2008-09-15\"})` -- temporal
      intercept on a date axis."
@@ -2856,15 +2873,18 @@
    The band is drawn in the order its layer was written, so one written
    before a scatter sits under its points.
    Written with no columns, the band is drawn on the pose's panel,
-   and on a composite pose in every cell. On a composite pose the
-   4-arity draws the band in every cell whose panel draws those two
-   columns, and on a cell of its own where no cell does. On a
+   and on a composite pose in every cell whose panel draws two
+   columns, or in every cell where no cell's panel does. On a composite
+   pose the 4-arity draws the band in every cell whose panel draws no
+   column other than the two it names, and on a cell of its own where
+   no cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the band is still drawn on that panel.
 
    - `(lay-band-h pose {:y-min 2 :y-max 4})` -- root-level, flows to every panel.
    - `(lay-band-h pose :height :weight {:y-min 2 :y-max 4})` -- on a composite
-     pose, in the cells drawing `:height` and `:weight`.
+     pose, in every cell whose panel draws no column other than
+     `:height` and `:weight`.
    - `(lay-band-h pose {:y-min 2 :y-max 4 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-h))
@@ -2885,15 +2905,18 @@
    The band is drawn in the order its layer was written, so one written
    before a scatter sits under its points.
    Written with no columns, the band is drawn on the pose's panel,
-   and on a composite pose in every cell. On a composite pose the
-   4-arity draws the band in every cell whose panel draws those two
-   columns, and on a cell of its own where no cell does. On a
+   and on a composite pose in every cell whose panel draws two
+   columns, or in every cell where no cell's panel does. On a composite
+   pose the 4-arity draws the band in every cell whose panel draws no
+   column other than the two it names, and on a cell of its own where
+   no cell's panel does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the band is still drawn on that panel.
 
    - `(lay-band-v pose {:x-min 4 :x-max 6})` -- root-level, flows to every panel.
    - `(lay-band-v pose :height :weight {:x-min 4 :x-max 6})` -- on a composite
-     pose, in the cells drawing `:height` and `:weight`.
+     pose, in every cell whose panel draws no column other than
+     `:height` and `:weight`.
    - `(lay-band-v pose {:x-min 4 :x-max 6 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-v))
@@ -2963,9 +2986,9 @@
    `{:y-type :categorical}` for a column on `:y`.
 
    When both axes are numeric or temporal (`(pj/lay-bar pose :x :y)` with no
-   categorical axis), each bar sits at its x position with a width taken from
-   `0.9` of the smallest gap between adjacent x values -- a time-series or
-   numeric-position bar chart. Grouped numeric bars currently overlap rather
+   categorical axis), each bar sits at its `:x` value with a width taken from
+   `0.9` of the smallest gap between adjacent x values -- a time-series
+   bar chart, or a bar chart on a numeric `:x`. Grouped numeric bars currently overlap rather
    than dodge.
 
    `:bar-width` sets how wide a bar is drawn, in the unit its axis offers. On
@@ -4196,7 +4219,7 @@
    - `(scale pose :y {:type :linear :breaks [0 5 10]})` -- pin tick locations.
    - `(scale pose :x {:type :linear :breaks [1 2 3 4 5 6 7]
                       :tick-labels [\"Mon\" \"Tue\" \"Wed\" \"Thu\" \"Fri\" \"Sat\" \"Sun\"]})`
-     -- numeric positions with custom tick text.
+     -- numeric breaks with custom tick text.
    - `(scale pose :y {:type :log :domain [1 1000]})` -- log scale with
      explicit range.
    - `(scale pose :size :log)` -- log-spaced point sizes.

@@ -236,7 +236,9 @@ sales-rich
                           (= 150 (count (distinct ids))))))])
 
 ;; A series links its columns the same way: both points drawn from one
-;; row carry that row's number. A facet over the categories of a
+;; row carry that row's number. The cells of an arrangement drawn from
+;; one dataset link the same way, and so do the panels of a scatter plot
+;; matrix, which is a facet over columns. A facet over the categories of a
 ;; column draws each row in one panel only, so there a selection stays
 ;; in the panel it was made in.
 
@@ -349,5 +351,5 @@ sales-rich
 ;;
 ;; - [**Troubleshooting**](./plotje_book.troubleshooting.html) -- common issues and how to fix them
 ;; - [**Timelines**](./plotje_book.timelines.html) -- interval charts, whose tooltips are shown above
-;; - [**Customization**](./plotje_book.customization.html) -- titles, palettes, scales
+;; - [**Customization**](./plotje_book.customization.html) -- titles, labels, palettes, themes and legend placement
 ;; - [**Architecture**](./plotje_book.architecture.html) -- how the pipeline produces the SVG

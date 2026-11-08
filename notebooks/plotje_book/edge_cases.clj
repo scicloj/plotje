@@ -344,7 +344,8 @@
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 24 (:points s))
-                                (= 1 (:lines s)))))])
+                                (= 1 (:lines s))
+                                (some #(re-find #"^\d\d:\d\d$" %) (:texts s)))))])
 
 ;; ### Instant with sub-day precision
 ;;
@@ -377,7 +378,8 @@
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 20 (:points s))
-                                (= 1 (:lines s)))))])
+                                (= 1 (:lines s))
+                                (some #(re-find #"^20\d\d$" %) (:texts s)))))])
 
 ;; ### Polar with many categories
 
@@ -505,9 +507,11 @@
 ;; ### Full grid -- a matrix of columns
 ;;
 ;; A facet crossing a list of columns with itself draws a panel for
-;; every pair of the columns. Each column is named once above its
-;; column of panels and once beside its row of panels, and a panel with one column on both axes
-;; draws a histogram of that column.
+;; every pair of the columns -- the pose `pj/matrix` returns, so
+;; `(pj/matrix data [:sepal-length :sepal-width :petal-length])` draws
+;; the same grid. Each column is named once above its column of panels
+;; and once beside its row of panels, and a panel with one column on
+;; both axes draws a histogram of that column.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})

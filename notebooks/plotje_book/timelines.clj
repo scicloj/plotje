@@ -277,22 +277,17 @@
 ;; ([context and image](https://en.wikipedia.org/wiki/Marey_chart),
 ;; popularized in
 ;; [Edward Tufte's *Visual Display of Quantitative Information*](https://en.wikipedia.org/wiki/The_Visual_Display_of_Quantitative_Information))
-;; has a categorical y-axis (stations, in physical order) and a
-;; temporal x-axis. Each train is a polyline; segments between
-;; stations slope down because time moves forward as the train
-;; moves south.
+;; has a categorical y-axis (stations, in the order of the line, Paris
+;; at the top) and a temporal x-axis. Each train is a polyline; the
+;; segments between stations slope down because time moves forward as
+;; the train moves south.
 ;;
-;; Plotje builds this with `pj/lay-line` plus the existing
-;; `:y-type :categorical` override, since the station order is
-;; the physical north-to-south sequence (not alphabetical).
-;;
-;; The y-axis order follows the order each station first appears
-;; in the data. With every train starting in Paris, Paris ends up
-;; at the bottom and Marseille at the top -- which happens to
-;; give the geographic top-to-bottom Paris->Marseille reading. If
-;; your data has a different first-station-encountered order, the
-;; lanes will reorder accordingly; pre-sorting the rows is the
-;; reliable way to guarantee a chosen lane order.
+;; Plotje builds this with `pj/lay-line`. The station names are text,
+;; so the y axis is categorical, and it lists the stations from the
+;; bottom up in the order each first appears in the data. Every train
+;; starts in Paris, so with no other setting Paris would be at the
+;; bottom. The y scale's `:domain` lists the stations from the bottom
+;; up, Marseille first, to put Paris at the top as Marey drew it.
 
 (def trains
   ;; Four trains, each visiting five stations in order. Express trains
@@ -316,8 +311,9 @@
         :train name}))))
 
 (-> trains
-    (pj/lay-line  :time :station {:color :train :y-type :categorical :size 1.5})
-    (pj/lay-point :time :station {:color :train :y-type :categorical :size 5})
+    (pj/lay-line  :time :station {:color :train :size 1.5})
+    (pj/lay-point :time :station {:color :train :size 5})
+    (pj/scale :y {:domain ["Marseille" "Avignon" "Lyon" "Dijon" "Paris"]})
     (pj/options {:title "Marey schedule -- Paris to Marseille"
                  :y-label ""
                  :x-label "time of day"
@@ -326,10 +322,18 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
                                 (= 4 (:lines s))
-                                (= 20 (:points s)))))])
+                                (= 20 (:points s))
+                                ;; Paris is the last category of the
+                                ;; domain, drawn at the top.
+                                (= ["Marseille" "Avignon" "Lyon" "Dijon" "Paris"]
+                                   (-> v
+                                       pj/plan
+                                       :panels
+                                       first
+                                       :y-domain)))))])
 
-;; The slope of each line carries information: steeper means
-;; slower (more time between two stations). The point layer
+;; The slope of each line carries information: a shallower segment
+;; means a slower stretch, with more time between two stations. The point layer
 ;; marks the actual stops; remove `lay-point` and the schedule
 ;; reads as continuous travel.
 

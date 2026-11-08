@@ -51,7 +51,7 @@
    sales
    :hover
    (fn*
-    [p1__87277#]
+    [p1__84862#]
     (map
      (fn
       [month revenue margin]
@@ -61,9 +61,9 @@
        (format "%.1fM" (/ (double revenue) 1000000.0))
        " at "
        (format "%.1f%%" (* 100.0 margin))))
-     (:month p1__87277#)
-     (:revenue p1__87277#)
-     (:margin p1__87277#))))))
+     (:month p1__84862#)
+     (:revenue p1__84862#)
+     (:margin p1__84862#))))))
 
 
 (def v10_l86 sales-labelled)
@@ -100,7 +100,7 @@
    sales
    :hover
    (fn*
-    [p1__87278#]
+    [p1__84863#]
     (map
      (fn
       [month revenue margin]
@@ -112,9 +112,9 @@
        [:br]
        "margin "
        [:code (format "%.1f%%" (* 100.0 margin))]])
-     (:month p1__87278#)
-     (:revenue p1__87278#)
-     (:margin p1__87278#))))))
+     (:month p1__84863#)
+     (:revenue p1__84863#)
+     (:margin p1__84863#))))))
 
 
 (def v16_l137 sales-rich)
@@ -161,8 +161,8 @@
        (tree-seq vector? seq (pj/plot pose))
        (filter
         (fn*
-         [p1__87279#]
-         (and (vector? p1__87279#) (map? (second p1__87279#)))))
+         [p1__84864#]
+         (and (vector? p1__84864#) (map? (second p1__84864#)))))
        (map second))]
      (=
       ["<b>one reading per point</b>"]
@@ -189,8 +189,8 @@
        (tree-seq vector? seq (pj/plot pose))
        (filter
         (fn*
-         [p1__87280#]
-         (and (vector? p1__87280#) (map? (second p1__87280#)))))
+         [p1__84865#]
+         (and (vector? p1__84865#) (map? (second p1__84865#)))))
        (map second))]
      (and
       (some :data-tooltip attrs)
@@ -255,7 +255,7 @@
 
 
 (def
- v33_l250
+ v33_l252
  (->
   {:start
    [#inst "2024-01-01T00:00:00.000-00:00"
@@ -279,18 +279,18 @@
 
 
 (deftest
- t34_l261
+ t34_l263
  (is
   ((fn
     [pose]
     (let
      [s (str (pj/plot pose))]
      (and (re-find #":data-tooltip" s) (re-find #" → " s))))
-   v33_l250)))
+   v33_l252)))
 
 
 (def
- v36_l272
+ v36_l274
  (let
   [plot-svg
    (pj/plot
@@ -342,7 +342,7 @@
 
 
 (def
- v38_l316
+ v38_l318
  (with-out-str
   (->
    (rdatasets/datasets-iris)
@@ -352,7 +352,7 @@
 
 
 (deftest
- t39_l322
+ t39_l324
  (is
   ((fn
     [out]
@@ -372,4 +372,4 @@
          (pj/options {:tooltip true})
          (pj/plot {:format :bufimg}))))
       (instance? java.awt.image.BufferedImage (deref drawn)))))
-   v38_l316)))
+   v38_l318)))

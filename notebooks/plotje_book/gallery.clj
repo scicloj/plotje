@@ -105,7 +105,7 @@
 ;; ### Density
 ;; Source: [R Graph Gallery: Density Plot](https://r-graph-gallery.com/density-plot.html)
 
-;; Overlaid density curves for carat weight by cut:
+;; Density curves of carat weight, one per cut, on one panel:
 
 (-> (rdatasets/ggplot2-diamonds)
     (pj/pose :carat {:color :cut})
@@ -147,7 +147,7 @@
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (pos? (:polygons s))))])
 
-;; Boxplot with individual points overlaid:
+;; Boxplot with the individual points drawn on the same panel:
 
 (-> (rdatasets/reshape2-tips)
     (pj/pose :day :total-bill)
@@ -345,7 +345,7 @@
 ;; ### Scatter with regression
 ;; Source: [R Graph Gallery: Scatter Plot](https://r-graph-gallery.com/scatterplot.html)
 
-;; Linear regression lines overlaid on a scatter plot:
+;; A scatter plot with a linear regression line for each sex:
 
 (-> (rdatasets/reshape2-tips)
     (pj/pose :total-bill :tip {:color :sex})
@@ -411,11 +411,11 @@
 ;; ### SPLOM (scatter plot matrix)
 ;; Source: [R Graph Gallery: Correlogram](https://r-graph-gallery.com/correlogram.html)
 
-;; All pairwise combinations of iris measurements on a 4x4 grid with
-;; shared x-scales down columns and shared y-scales across rows.
-;; Off-diagonal cells show scatter plots; diagonal cells (where the two
-;; axes use the same column) show histograms -- per-cell inference picks
-;; the layer type:
+;; Every pair of iris measurements on a 4x4 grid of panels. The panels
+;; in a column share the `:x` axis and the panels in a row share the `:y`
+;; axis. Panels off the diagonal draw scatter plots; panels on the
+;; diagonal, where both axes name the same column, draw histograms --
+;; each panel's layer type is inferred from its columns:
 
 (-> (rdatasets/datasets-iris)
     (pj/pose {:color :species})
@@ -864,10 +864,12 @@
 ;; ### Spaghetti plot (many series)
 ;; Source: [Python Graph Gallery: Spaghetti Plot](https://python-graph-gallery.com/125-small-multiples-for-line-chart/)
 
-;; Each subject in the sleep study gets a line showing reaction time over days:
+;; Each subject in the sleep study gets a line showing reaction time over
+;; days. `:group` draws one line per subject in a single color, so the
+;; eye follows the spread of the lines rather than any one subject:
 
 (-> (rdatasets/lme4-sleepstudy)
-    (pj/pose :days :reaction {:color :subject :color-type :categorical})
+    (pj/pose :days :reaction {:group :subject})
     pj/lay-line
     pj/lay-point
     (pj/options {:title "Sleep Deprivation: Reaction Time by Subject"
@@ -875,7 +877,7 @@
                  :y-label "Reaction Time (ms)"}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (pos? (:lines s))
+                           (and (= 18 (:lines s))
                                 (= 180 (:points s)))))])
 
 ;; ### Step chart of a single subject
@@ -1627,10 +1629,9 @@
 
 ;; ### Scatter + line, one per panel
 
-;; Highway MPG as a scatter and city MPG as a line, side by side.
-;; The two columns get separate panels. Each panel uses
-;; a different layer type, threaded onto its own pose via
-;; `pj/arrange`.
+;; Highway MPG as a scatter and city MPG as a line, side by side. Each
+;; pose carries its own layer type, and `pj/arrange` places the two poses
+;; as cells, each drawn as a panel of its own.
 
 (pj/arrange
  [(-> (rdatasets/ggplot2-mpg)

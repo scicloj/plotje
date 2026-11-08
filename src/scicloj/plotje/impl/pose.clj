@@ -4893,11 +4893,11 @@
 ;;
 ;; A layer written above a split reaches every cell below it, and is
 ;; drawn in the cells whose columns it draws: the number of columns the
-;; cell names is one its layer type draws from (`layer-type/column-counts`
-;; -- one for a histogram, two for a scatter, either for a bar), and the
-;; layer names no other column on an axis where the cell's panel draws
-;; one -- whether the cell's mapping, a pose above it, or the cell's own
-;; layers name that column.
+;; cell and the layer name together is one its layer type draws from
+;; (`layer-type/column-counts` -- one for a histogram, two for a scatter,
+;; either for a bar), and the layer names no other column on an axis
+;; where the cell's panel draws one -- whether the cell's mapping, a pose
+;; above it, or the cell's own layers name that column.
 ;; A cell left with no layer is a pose with no layers, so it draws what
 ;; inference chooses for its columns -- the histogram on the diagonal of
 ;; a matrix of points -- and a cell naming no column draws nothing.
@@ -4925,11 +4925,11 @@
                    [:x :y]))))
 
 (defn- layer-fits-cell?
-  "Whether `layer` fits a cell: the cell's panel draws no other column
-   on `:x` or `:y` than the layer names -- wherever the panel's columns
-   are written, on the cell, above it, or on the cell's layers
+  "Whether `layer` fits a cell: on each axis the layer names, the cell's
+   panel draws no other column -- wherever the panel's columns are
+   written, on the cell, above it, or on the cell's layers
    (`cell-mapping`) -- and the layer type draws from the number of
-   columns named."
+   columns the cell and the layer name together."
   [cell-mapping layer]
   (and (not (names-another-column? cell-mapping layer))
        (contains? (layer-type/column-counts (:layer-type layer))
@@ -5299,9 +5299,9 @@
 (defn cells-fitting-layer
   "The panel mappings of the cells of the composite `pose` that `layer`
    fits, by the rule `fit-layers` draws a layer at a composite's root
-   with: the cell's panel draws no other column on `:x` or `:y` than the
-   layer names, and the layer type draws from the number of columns
-   named. A `lay-*` call on a composite asks this to
+   with: on each axis the layer names, the cell's panel draws no other
+   column, and the cell's columns together with the layer's are a
+   number of columns the layer type draws from. A `lay-*` call on a composite asks this to
    decide where its layer goes."
   [pose layer]
   (let [m (or (:mapping pose) {})

@@ -568,16 +568,18 @@ graph LR
 
 ;; Where each kind of inference lives:
 ;;
-;; - **Mapping inference** fills in `:x`, `:y` and `:color` from the
-;;   first one to three columns of the data: one column to `:x`, two
-;;   columns to `:x` and `:y`, and a third column to `:color`. It runs
+;; - **Mapping inference** fills in `:x`, `:y` and `:color` on data of
+;;   one to three columns: one column to `:x`, two columns to `:x` and
+;;   `:y`, and a third column to `:color`. It runs
 ;;   in `pj/pose->draft`, after a facet over columns is expanded into
 ;;   cells, on every leaf, cells of a
 ;;   composite included. It writes the default in two cases: where no
 ;;   mapping and no layer names an `:x` or a `:y` column, and where the
 ;;   first layer names no column, whatever later layers name (the
 ;;   example below this list shows a later layer naming the default's
-;;   columns).
+;;   columns). Where a layer names `:y` alone and its layer type draws
+;;   from two columns, `:x` is filled in with the first column nothing
+;;   names, so `(pj/lay-point data {:y :b})` draws `:b` against `:a`.
 ;;   `pj/infer-mapping` is the same step as a public function: it
 ;;   writes the default onto the pose, where it can be read before
 ;;   drafting. `pj/->pose`, `pj/pose` and the `pj/lay-*` functions read
@@ -651,10 +653,12 @@ graph LR
 ;;
 ;; On a composite, every `pj/lay-*` call keeps its layer at the root,
 ;; or appends a cell for it, and drafting draws each root layer into
-;; the cells it fits -- those whose panel draws no other column on `:x`
-;; or `:y` than the layer names, and whose number of columns the layer
-;; type draws from -- under each cell's own layers. The function that
-;; does this is `pose/fit-layers`.
+;; the cells it fits -- those whose panel draws no other column on an
+;; axis the layer names, and whose columns together with the layer's
+;; are a number of columns the layer type draws from -- under each
+;; cell's own layers. A layer naming no columns that fits no cell is
+;; drawn in every cell. The function that does this is
+;; `pose/fit-layers`.
 
 ;; ## Composite Poses
 ;;
@@ -760,10 +764,10 @@ composite-pose
 (kind/test-last [(fn [s] (and (= 2 (:panels s))
                               (= 300 (:points s))))])
 
-;; The composition holds for both leaf and composite poses --
-;; `pj/plan` is `(-> pose pj/->pose pj/pose->draft pj/draft->plan)`
-;; either way -- because each step dispatches on shape at
-;; the bottom of its call.
+;; The composition holds for both leaf and composite poses -- `pj/plan`
+;; runs the same steps either way, `->pose`, `infer-mapping`,
+;; `pose->draft` and `draft->plan`, as in the pseudocode above --
+;; because each step dispatches on shape at the bottom of its call.
 
 ;; The composite path also performs work across leaves that a single
 ;; leaf has no counterpart for: deciding which cells share an axis, and
@@ -777,8 +781,9 @@ composite-pose
 ;; several panels in two ways, and both follow one rule: **a shared
 ;; axis covers what the panels sharing it draw.**
 ;;
-;; - A facet by the categories of a column, drawn in one row, is one
-;;   plan with several panels.
+;; - A facet by categories -- the categories of one column in one row,
+;;   or a grid crossing the categories of two columns under `:col` and
+;;   `:row` -- is one plan with several panels.
 ;; - An arrangement, a facet over columns, and a facet wrapped into
 ;;   rows with `{:cols n}` are each a `CompositePlan`: one plan per
 ;;   cell.

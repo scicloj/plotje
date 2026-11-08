@@ -231,7 +231,7 @@
   "Compute running totals for waterfall bars")
 
 (defmethod extract/extract-layer [:waterfall :doc] [_ _ _ _]
-  "Colored bars (green/red) with start/end positions")
+  "Colored bars (green/red), each spanning its start and end values")
 
 (defmethod mark/layer->membrane [:waterfall :doc] [_ _]
   "Filled rectangles positioned by running total")

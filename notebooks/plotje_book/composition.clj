@@ -92,11 +92,15 @@
                                 (= 300 (:points s))
                                 (= 1 (count (filter #{"sepal length"} (:texts s)))))))])
 
-;; A layer that names columns is drawn in every cell whose panel draws
-;; no other column on `:x` or `:y` than the layer names. Below, the
-;; trend line names the first cell's columns and is drawn there only. A
-;; layer naming columns that every cell's panel contradicts is drawn on
-;; a new cell appended to the arrangement -- see Rules LP2 and LP3 in
+;; A layer that names columns is drawn in every cell that fits it: on
+;; each axis the layer names, the cell's panel draws no other column,
+;; and the cell's columns together with the layer's are as many as the
+;; layer type reads. Below, the trend line names the first cell's
+;; columns and is drawn there only. A histogram naming `:sepal-length`
+;; would be drawn in neither cell, because each cell draws two columns
+;; and a histogram reads one. A layer naming columns that no cell fits
+;; is drawn on a new cell appended to the arrangement -- see Rules LP2
+;; and LP3 in
 ;; [Pose Rules](./plotje_book.pose_rules.html) and
 ;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
 
@@ -116,7 +120,9 @@
 
 ;; The two cells read one dataset, so the two cells share the `:x` axis
 ;; on which both draw `:sepal-length`, and that axis is titled once (see
-;; Shared Scales below).
+;; Shared Scales below). A layer added to the arrangement is drawn under
+;; the layers a cell holds of its own, so points added to cells that
+;; each draw a trend line are drawn beneath the lines.
 ;;
 ;; An arrangement can be built in steps, as a plot is built layer by
 ;; layer. `pj/arrange` given an arrangement adds the new cells after
@@ -1146,13 +1152,16 @@ dashboard
 ;;   draws its own legend. When the mappings disagree -- or when only
 ;;   some leaves carry the aesthetic, as in the dashboard above --
 ;;   each leaf with that aesthetic draws its own legend.
-;; - **Multi-row layouts go through `pj/arrange`.** A row of rows is
+;; - **Rows of different poses go through `pj/arrange`.** A row of rows is
 ;;   built by passing nested vectors of poses to `pj/arrange` (the
 ;;   dashboard example above shows the shape). A cell may be a
 ;;   composite itself, so an arranged pose can be arranged again and
 ;;   the cell draws its own grid. Cells of unequal size are written
 ;;   with `:col-weights` and `:row-weights`, or with `:panel-width`
 ;;   and `:panel-height` -- see the section on panels of unequal size.
+;;   A facet by one category is drawn in rows with `:cols`, as in
+;;   `(pj/facet pose :class {:cols 4})` -- see
+;;   [Faceting](./plotje_book.faceting.html#wrapping-the-panels-into-rows).
 
 ;; Below, both cells map `:color` to `:species`, and they hold different
 ;; rows: the left cell holds setosa and versicolor, the right cell

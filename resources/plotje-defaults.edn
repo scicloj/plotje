@@ -12,9 +12,8 @@
  ;; *outside* the panel (in y-label-pad / x-label-pad), so this
  ;; margin only reserves visual space for point radius etc. 10px is
  ;; plenty and leaves SPLOM panels usable under the total-first
- ;; layout. :margin-multi is a legacy knob for SPLOMs, still
- ;; respected even though the SPLOM path no longer uses :panel-size.
- :margin 10 :margin-multi 10 :panel-size 200 :legend-width 100
+ ;; layout.
+ :margin 10 :legend-width 100
  ;; Minimum derived panel size before compute-dims throws a helpful
  ;; error. Acts as a sanity guard against "overhead > total dimension"
  ;; layouts. Set at 20px so dense 18-column facet grids still fit in

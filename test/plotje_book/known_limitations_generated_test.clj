@@ -6,11 +6,11 @@
   [clojure.test :refer [deftest is]]))
 
 
-(def v3_l123 (select-keys (pj/config) [:width :height :domain-padding]))
+(def v3_l122 (select-keys (pj/config) [:width :height :domain-padding]))
 
 
 (deftest
- t4_l125
+ t4_l124
  (is
   ((fn [m] (= {:width 600, :height 400, :domain-padding 0.05} m))
-   v3_l123)))
+   v3_l122)))

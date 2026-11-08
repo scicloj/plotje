@@ -246,8 +246,9 @@
 ;; histogram bar counts the rows that fall in its bin, and a boxplot
 ;; summarizes a whole category. Each of these marks covers rows of
 ;; different colors and can only be drawn in one color, so Plotje draws
-;; the mark in the default color and reports that the column was not
-;; used.
+;; the mark in the default color and prints a warning: the legend still
+;; shows the gradient, and the mark does not follow it.
+;; `:color-type :categorical` gives each value its own color instead.
 ;; [Troubleshooting](./plotje_book.troubleshooting.html#numeric-ids-treated-as-continuous-color)
 ;; covers a numeric identifier that was meant as a category.
 

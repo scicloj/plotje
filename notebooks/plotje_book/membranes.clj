@@ -227,7 +227,7 @@ iris-membrane
 
 (kind/test-last [true?])
 
-;; The same pose stages, rendered as raster:
+;; The two plots side by side, drawn as a raster image:
 
 two-up-png
 

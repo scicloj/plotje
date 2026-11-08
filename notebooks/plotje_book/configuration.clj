@@ -22,9 +22,11 @@
 
 ;; We use the iris dataset throughout.
 
-;; We define `base-plot` as a function because
-;; poses render at display time -- calling the function
-;; produces a fresh specification that picks up the current configuration.
+;; A pose holds no configuration: it is drawn under the configuration
+;; in effect when it is rendered. So each example below that changes the
+;; configuration ends in `pj/plot`, which renders the pose while the
+;; change is in place. `base-plot` returns the scatter plot the examples
+;; start from.
 
 (defn base-plot
   [] (-> (rdatasets/datasets-iris)
@@ -68,6 +70,19 @@
                   "Description" desc}))))})
 
 (kind/test-last [(fn [t] (= 46 (count (:row-maps t))))])
+
+;; `:panel-size` and `:margin-multi` are retired. Written as
+;; configuration or as a plot option, each prints a warning naming what
+;; to write instead -- `:panel-width` or `:panel-height` for the size of
+;; each panel, and `:margin` for the margin of every plot -- and the plot
+;; is drawn without it.
+
+(kind/test-last
+ [(fn [_]
+    (let [printed (with-out-str
+                    (pj/plan (pj/options (base-plot) {:panel-size 200})))]
+      (and (clojure.string/includes? printed ":panel-size")
+           (clojure.string/includes? printed ":panel-width"))))])
 
 ;; ### Plot Options
 ;;
@@ -136,9 +151,11 @@
 ;; `pj/set-config!` sets overrides that persist across calls -- useful
 ;; when you want a consistent style for an entire session or notebook.
 
-;; Set a global width override and render. The pages of this book draw
-;; every plot at the width of the text column, so on this page the
-;; wider canvas appears as wide as the plots above, and shorter -- see
+;; Set a global width override and render. The override applies to
+;; what is rendered while it is in place, so the forms that show a plot
+;; end in `pj/plot`. The pages of this book draw every plot at the width
+;; of the text column, so on this page the wider canvas appears as wide
+;; as the plots above, and shorter -- see
 ;; [Customization](./plotje_book.customization.html#dimensions):
 
 (pj/set-config! {:width 800})
@@ -147,22 +164,19 @@
 
 (kind/test-last [(fn [m] (= {:width 800 :height 400} m))])
 
-(-> (base-plot))
+(-> (base-plot)
+    pj/plot)
+
+(kind/test-last [(fn [v] (= 800 (:width (pj/svg-summary v))))])
 
 ;; A plot of several panels takes the width as well -- here a
 ;; scatter plot matrix, which writes no size of its own:
 
 (-> (rdatasets/datasets-iris)
-    (pj/matrix [:sepal-length :sepal-width]))
-
-;; Its width, measured while the override is in place:
-
-(-> (rdatasets/datasets-iris)
     (pj/matrix [:sepal-length :sepal-width])
-    pj/svg-summary
-    :width)
+    pj/plot)
 
-(kind/test-last [(fn [w] (= 800 w))])
+(kind/test-last [(fn [v] (= 800 (:width (pj/svg-summary v))))])
 
 ;; Reset to library defaults by passing `nil`:
 
@@ -224,9 +238,9 @@
 
 ;; Outside the body, the default theme is back:
 
-(select-keys (pj/config) [:width :height])
+(:theme (pj/config))
 
-(kind/test-last [(fn [m] (= {:width 600 :height 400} m))])
+(kind/test-last [(fn [t] (= "#E8E8E8" (:bg t)))])
 
 ;; ## The Precedence Chain
 ;;
@@ -372,12 +386,10 @@ precedence-point-radius
 (pj/arrange
  [(-> (base-plot)
       (pj/options {:title "Light"
-                   :theme {:bg "#FFFFFF" :grid "#EEEEEE" :font-size 8}
-                   :width 350 :height 250}))
+                   :theme {:bg "#FFFFFF" :grid "#EEEEEE" :font-size 8}}))
   (-> (base-plot)
       (pj/options {:title "Dark"
-                   :theme {:bg "#2d2d2d" :grid "#444444" :font-size 8}
-                   :width 350 :height 250}))])
+                   :theme {:bg "#2d2d2d" :grid "#444444" :font-size 8}}))])
 
 (kind/test-last
  [(fn [v]
@@ -435,10 +447,14 @@ precedence-point-radius
 
 (pj/set-config! {:color-values :pastel1})
 
-(-> (base-plot))
+(-> (base-plot)
+    pj/plot)
 
 (kind/test-last
- [(fn [v] (= 150 (:points (pj/svg-summary v))))])
+ [(fn [v]
+    (and (= 150 (:points (pj/svg-summary v)))
+         ;; Pastel1's first colour, #FBB4AE, is rgb(251,180,174) in the SVG.
+         (contains? (:colors (pj/svg-summary v)) "rgb(251,180,174)")))])
 
 (pj/set-config! nil)
 

@@ -57,7 +57,7 @@
 ;; | `:mapping` | pose or layer | column-to-aesthetic mappings (on a layer, also the parameters of its layer type) |
 ;; | `:layers` | pose | per-scope layers |
 ;; | `:poses` | composite only | sub-poses |
-;; | `:layout` | composite | direction + weights |
+;; | `:layout` | composite, or a leaf faceted by one category | on a composite, the direction of its rows and cells, weights, and `:cols`; on a faceted leaf, `:cols` (Rule L3) |
 ;; | `:facet` | leaf | a facet over columns, expanded into cells when the pose is drawn (Rule O3) |
 ;; | `:opts` | root | plot-level options (including composite-level keys like `:share-scales`) |
 ;; | `:share-scales` | composite | the axes the cells share; `pj/arrange` writes it under `:opts`, and `pj/marginal` writes it on the composite itself |
@@ -511,7 +511,10 @@ composite-pose
 ;; the current pose's top-level `:layers`. On a leaf, that is the
 ;; leaf's own `:layers`. On a composite, it is the root `:layers`,
 ;; and the layer is drawn in every leaf whose number of columns its
-;; layer type draws from (Property P-LP1).
+;; layer type draws from (Property P-LP1). Where no leaf has such a
+;; number of columns, the layer is drawn in every leaf, reading the
+;; columns it needs from each leaf's panel: a histogram added to two
+;; scatter cells draws a histogram of each cell's `:x` column.
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -548,6 +551,8 @@ composite-pose
 ;; single entry. Each cell whose number of columns the layer type draws
 ;; from draws the root's layer first, underneath the cell's own layers,
 ;; and a cell that draws the root's layer has no layer inferred for it.
+;; Where no cell has such a number of columns, every cell draws the
+;; root's layer.
 
 (let [before (pj/arrange
               [(pj/pose iris :sepal-length :sepal-width)
@@ -590,17 +595,36 @@ composite-pose
               (marks (-> iris
                          (pj/facet {:col {:x [:sepal-length :sepal-width]}
                                     :row {:y [:sepal-length :sepal-width]}})
-                         pj/lay-point))))))])
+                         pj/lay-point)))
+           ;; A histogram fits neither scatter cell, so it is drawn in
+           ;; both; where one cell fits, it is drawn there only.
+           (= [[:bar] [:bar]]
+              (marks (-> iris
+                         (pj/arrange [{:x :sepal-length :y :sepal-width}
+                                      {:x :petal-length :y :petal-width}])
+                         pj/lay-histogram)))
+           (= [[:point] [:bar]]
+              (marks (-> iris
+                         (pj/arrange [{:x :sepal-length :y :sepal-width}
+                                      :petal-length])
+                         pj/lay-histogram))))))])
 
-;; ### Rule LP2: on a composite, a `lay-*` naming columns is drawn in every cell whose panel draws them
+;; ### Rule LP2: on a composite, a `lay-*` naming columns is drawn in every cell that fits it
 ;;
-;; When a `lay-*` call names `:x` and `:y` on a composite, and the
-;; panel of at least one cell draws no other column on `:x` or `:y`
-;; than the call names, the layer is
-;; added to the composite's root `:layers`, as a bare layer is (Rule
-;; LP1), and its own `:mapping` carries the columns the call named.
-;; It is drawn in **every cell whose panel draws no other column** on
-;; `:x` or `:y` than the layer names. The columns of a cell's panel
+;; When a `lay-*` call names columns on a composite, and at least one
+;; cell fits the layer, the layer is added to the composite's root
+;; `:layers`, as a bare layer is (Rule LP1), and its own `:mapping`
+;; carries the columns the call named. It is drawn in **every cell that
+;; fits it**. A cell fits the layer when two things hold. First, on each
+;; axis the layer names, the cell's panel draws no other column than the
+;; layer names there; an axis the layer does not name is not compared.
+;; Second, the cell's columns together with the layer's are a number of
+;; columns the layer type draws from. So a trend line naming
+;; `{:y :petal-width}` is drawn in every cell drawing `:petal-width` on
+;; `:y`, and a histogram naming `:sepal-length` is not drawn in a scatter
+;; cell of `:sepal-length` and `:sepal-width`, because the scatter
+;; cell's two columns are more than the one a histogram draws from. The
+;; columns of a cell's panel
 ;; are the `:x` and `:y` of the cell's mapping after the mappings above
 ;; the cell are merged in; where that mapping names no column on an
 ;; axis, the panel's column on that axis is the column of the cell's
@@ -652,6 +676,25 @@ composite-pose
                          pj/lay-point
                          (pj/lay-smooth :sepal-length :sepal-width)
                          (pj/facet :species))))))])
+
+;; A facet over columns places a layer naming columns the same way: the
+;; layer is drawn in the panels that fit it. Unlike an arrangement, the
+;; facet prints a Note naming the panels the layer is not drawn in,
+;; since those panels come from one pose written once. Here a trend line
+;; naming `:sepal-length` on `:y` is drawn in the panel of that column
+;; only:
+
+(-> iris
+    (pj/pose {:x :petal-length})
+    (pj/facet {:y [:sepal-length :sepal-width]})
+    (pj/lay-smooth {:y :sepal-length}))
+
+(kind/test-last
+ [(fn [pose]
+    (and (= {:panels 2 :lines 1}
+            (select-keys (pj/svg-summary pose) [:panels :lines]))
+         (re-find #"Note: pj/lay-smooth names :sepal-length on :y"
+                  (with-out-str (pj/plan pose)))))])
 
 ;; A cell built by `lay-*` names its columns on its layer and not in
 ;; its own mapping. The panel's columns are the same either way, so the
@@ -762,11 +805,10 @@ composite-pose
     (and (nil? (:poses pose))
          (= 2 (count (:layers pose)))))])
 
-;; ### Rule LP3: on a composite, a `lay-*` naming columns no leaf draws appends a new leaf
+;; ### Rule LP3: on a composite, a `lay-*` naming columns that no cell fits appends a new leaf
 ;;
-;; When a `lay-*` call names columns and the panel of **every** leaf
-;; draws another column on `:x` or `:y` than the call names, a new leaf
-;; is appended to the composite. It
+;; When a `lay-*` call names columns and no cell fits the layer (Rule
+;; LP2), a new leaf is appended to the composite. It
 ;; holds the one layer, and the layer's own `:mapping` carries the
 ;; columns the call named. On an arrangement made from a flat list of
 ;; cells, the new leaf joins that list, and the arrangement is laid out
@@ -785,7 +827,24 @@ composite-pose
          (= [3] (mapv #(count (:poses %)) (:poses pose)))
          (nil? (:mapping (nth (cells pose) 2)))
          (= [{:x :sepal-length :y :petal-length}]
-            (mapv :mapping (:layers (nth (cells pose) 2))))))])
+            (mapv :mapping (:layers (nth (cells pose) 2))))
+         ;; A histogram naming the first cell's :x column fits no
+         ;; scatter cell -- two columns are more than it draws from --
+         ;; so it is appended too, and the root points are not drawn in
+         ;; its cell.
+         (= [[:point] [:point] [:bar]]
+            (mapv #(mapv :mark (-> %
+                                   :plan
+                                   :panels
+                                   first
+                                   :layers))
+                  (-> iris
+                      (pj/arrange [{:x :sepal-length :y :sepal-width}
+                                   {:x :petal-length :y :petal-width}])
+                      pj/lay-point
+                      (pj/lay-histogram :sepal-length)
+                      pj/plan
+                      :sub-plots)))))])
 
 ;; The new leaf reads the data of the composite's root. Where the cells
 ;; carry their own data and the root has none, the new leaf has no data
@@ -997,8 +1056,8 @@ composite-pose
              {:color "#e6550d" :x :petal-length :y :petal-width}]
             (mapv :mapping (:layers pose)))))])
 
-;; On a composite, LP3 still applies: a layer naming columns no cell
-;; draws is a cell of its own.
+;; On a composite, LP3 still applies: a layer naming columns that no
+;; cell fits is drawn on a cell of its own.
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
@@ -1025,7 +1084,14 @@ composite-pose
 (kind/test-last
  [(fn [msg] (and (re-find #":overlay is retired" msg)
                  (re-find #"pj/facet" msg)
-                 (re-find #"pj/arrange" msg)))])
+                 (re-find #"pj/arrange" msg)
+                 ;; (pj/overlay pose false) reports an error naming both too.
+                 (let [m (try (pj/overlay (pj/lay-point iris :sepal-length :sepal-width) false)
+                              nil
+                              (catch clojure.lang.ExceptionInfo e (ex-message e)))]
+                   (and m
+                        (re-find #"pj/facet" m)
+                        (re-find #"pj/arrange" m)))))])
 
 ;; ### Rule LP6: a layer reads the panel's column where it needs one
 ;;
@@ -1650,11 +1716,12 @@ s2-tree
 ;; ### Rule A1: one rendered layer per applicable (leaf, layer) pair
 ;;
 ;; For each leaf, the rendered layers are the leaf's own, plus each
-;; layer written above it whose layer type draws from as many columns
-;; as the leaf's panel (Property P-LP1) and, where the layer names
-;; columns, whose panel draws no other column on `:x` or `:y` than the
-;; layer names (Rule LP2). A leaf drawing none of these has a layer
-;; inferred for it.
+;; layer written above it that the leaf fits: the leaf's columns
+;; together with the layer's are a number of columns the layer type
+;; draws from (Property P-LP1), and, on each axis the layer names, the
+;; leaf's panel draws no other column (Rule LP2). A layer that fits no
+;; leaf below the composite is drawn in every leaf. A leaf drawing none
+;; of these layers has a layer inferred for it.
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])

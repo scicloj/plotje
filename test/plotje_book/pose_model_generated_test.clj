@@ -136,7 +136,7 @@
 
 
 (def
- v28_l160
+ v28_l163
  (->
   {:height [1], :weight [1]}
   (pj/lay-point :height :weight {:size 30, :color "#a6cee3"})
@@ -144,7 +144,7 @@
 
 
 (deftest
- t29_l164
+ t29_l167
  (is
   ((fn
     [fr]
@@ -157,11 +157,11 @@
       first
       :layers
       (mapv (comp :radius :style)))))
-   v28_l160)))
+   v28_l163)))
 
 
 (def
- v31_l183
+ v31_l186
  (->
   {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
   (pj/lay-bar :species :pct {:color "#a6cee3"})
@@ -170,18 +170,18 @@
 
 
 (deftest
- t32_l189
+ t32_l192
  (is
   ((fn
     [fr]
     (=
      [:rect :text]
      (->> fr pj/plan :panels first :layers (mapv :mark))))
-   v31_l183)))
+   v31_l186)))
 
 
 (def
- v34_l203
+ v34_l206
  (->
   {:species ["setosa" "versicolor" "virginica"], :pct [33.3 33.3 33.3]}
   (pj/lay-text :species :pct {:text :pct, :align-x :right})
@@ -190,34 +190,34 @@
 
 
 (deftest
- t35_l209
+ t35_l212
  (is
   ((fn
     [fr]
     (=
      [:text :rect]
      (->> fr pj/plan :panels first :layers (mapv :mark))))
-   v34_l203)))
+   v34_l206)))
 
 
-(def v37_l224 (-> (rdatasets/datasets-iris) (pj/pose :sepal-length)))
+(def v37_l227 (-> (rdatasets/datasets-iris) (pj/pose :sepal-length)))
 
 
 (deftest
- t38_l227
- (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v37_l224)))
+ t38_l230
+ (is ((fn [v] (pos? (:polygons (pj/svg-summary v)))) v37_l227)))
 
 
 (def
- v40_l233
+ v40_l236
  (-> (rdatasets/datasets-iris) (pj/pose :sepal-length) kind/pprint))
 
 
-(deftest t41_l237 (is ((fn [v] (empty? (:layers v))) v40_l233)))
+(deftest t41_l240 (is ((fn [v] (empty? (:layers v))) v40_l236)))
 
 
 (def
- v43_l264
+ v43_l268
  (def
   two-panel
   (pj/pose
@@ -230,36 +230,36 @@
     :data (rdatasets/datasets-iris)})))
 
 
-(def v44_l273 two-panel)
+(def v44_l277 two-panel)
 
 
 (deftest
- t45_l275
+ t45_l279
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v44_l273)))
+   v44_l277)))
 
 
-(def v47_l281 (kind/pprint two-panel))
+(def v47_l285 (kind/pprint two-panel))
 
 
 (deftest
- t48_l283
+ t48_l287
  (is
   ((fn
     [v]
     (and
      (= 2 (count (:poses v)))
      (= :horizontal (get-in v [:layout :direction]))))
-   v47_l281)))
+   v47_l285)))
 
 
 (def
- v50_l290
+ v50_l294
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -272,12 +272,12 @@
 
 
 (deftest
- t51_l298
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v50_l290)))
+ t51_l302
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v50_l294)))
 
 
 (def
- v53_l307
+ v53_l311
  (->
   (pj/arrange
    [(->
@@ -292,7 +292,7 @@
 
 
 (deftest
- t54_l316
+ t54_l320
  (is
   ((fn
     [v]
@@ -303,4 +303,4 @@
      (= :horizontal (get-in v [:poses 0 :layout :direction]))
      (nil? (:data v))
      (every? (comp some? :data) (:poses (first (:poses v))))))
-   v53_l307)))
+   v53_l311)))

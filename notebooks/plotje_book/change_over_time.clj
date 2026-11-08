@@ -209,9 +209,9 @@ temp-pose
 
 ;; ## Multiple Series Over Time
 
-;; Pass `{:color :group}` to get one line per category. Rows are
-;; drawn in their given order, so pre-sort by date if your data
-;; is not already sorted.
+;; Pass `{:color :group}` to get one line per category. Each line
+;; joins its points in order of the date on `:x`, whatever order the
+;; rows are in, so unsorted data draws the same lines.
 
 (def months
   [#inst "2024-01-01" #inst "2024-02-01" #inst "2024-03-01"
@@ -227,7 +227,18 @@ temp-pose
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 12 (:points s))
-                                (= 2 (:lines s)))))])
+                                (= 2 (:lines s))
+                                ;; The rows in another order draw the
+                                ;; same lines. (The colors follow the
+                                ;; order the cities first appear in, so
+                                ;; only the line paths are compared.)
+                                (let [paths (fn [p] (->> (pj/plot p)
+                                                         (tree-seq coll? seq)
+                                                         (filter map?)
+                                                         (keep #(or (:points %) (:d %)))
+                                                         set))]
+                                  (= (paths v)
+                                     (paths (pj/with-data v (tc/order-by (:data v) [:temperature] :desc))))))))])
 
 ;; ## Area Over Dates
 
@@ -249,8 +260,8 @@ temp-pose
 ;; ## Two Series on One Date Axis
 ;;
 ;; Two series measured over different stretches of time read against
-;; each other only if their axes agree. Stacked by `pj/arrange` with no
-;; other option, each panel spans its own dates across the same width. A
+;; each other only if their axes agree. Stacked by `pj/arrange` with `{:cols 1}`
+;; and no other option, each panel spans its own dates across the same width. A
 ;; reading directly above another then stands for a different month.
 
 (def zurich

@@ -122,6 +122,11 @@
 ;;   of columns it draws from -- the
 ;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;;   is the case where the panels differ.
+;; - A layer naming columns, added to a composite, is drawn only in cells
+;;   whose columns together with the layer's are as many as its layer
+;;   type reads, so a histogram naming `:height` is not drawn in a
+;;   scatter cell of `:height` and `:weight` -- see Rule LP2 in
+;;   [Pose Rules](./plotje_book.pose_rules.html).
 ;; - A pose that names a column on `:y` alone, with no `:x`, is drawn
 ;;   with a layer type that draws from one column, turned on its side
 ;;   -- a numerical column gives a horizontal histogram.

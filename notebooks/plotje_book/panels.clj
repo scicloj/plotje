@@ -185,9 +185,11 @@
 ;; A facet over columns can cross a list of columns with itself:
 ;; `{:col {:x columns} :row {:y columns}}` draws a panel for every pair
 ;; of columns, the columns across drawn on `:x` and the same columns down
-;; drawn on `:y`. A layer added after it is drawn in the panels whose
-;; columns it draws, and a panel with the same column on both axes draws
-;; a histogram:
+;; drawn on `:y`. A layer naming no columns, added after it, is drawn in
+;; the panels that draw as many columns as its layer type reads -- a
+;; point reads two, so it is drawn off the diagonal. A panel with the
+;; same column on both axes draws one column, and draws the layer type
+;; inferred for one column, a histogram:
 
 (-> measurements
     (pj/facet {:col {:x [:height :weight :depth]}
@@ -267,15 +269,18 @@
 ;; [Composition](./plotje_book.composition.html#shared-scales) gives the
 ;; rule for which cells share an axis, and how `:share-scales` changes it.
 
-;; A `pj/lay-*` call on an arrangement places its layer by the columns
-;; it names. In the arrangement above, `pj/lay-point` names no columns,
-;; so it is **added at the root** of the composite and drawn in every
-;; cell. A call naming columns is added at the root too, and is
-;; **drawn in every cell whose panel draws those columns**; where no
-;; cell's panel draws them, the call appends a new cell. Here the line
-;; of `:weight` against `:depth` is drawn in the second cell, and the
-;; line of `:height` against `:weight` appends a third, where the points
-;; added at the root are drawn too:
+;; A `pj/lay-*` call on an arrangement **adds its layer at the root** of
+;; the composite, and each cell decides whether to draw it. A cell draws
+;; the layer when two things hold: on each axis the layer names, the
+;; cell's panel draws no other column, and the cell's columns together
+;; with the layer's are as many as the layer type reads. In the
+;; arrangement above, `pj/lay-point` names no columns, and each cell
+;; draws two, so the points are drawn in every cell. A call naming
+;; columns is **drawn in every cell that fits it**; where no cell fits,
+;; the call appends a new cell. Here the line of `:weight` against
+;; `:depth` is drawn in the second cell, and the line of `:height`
+;; against `:weight` appends a third, where the points added at the root
+;; are drawn too:
 
 (-> (pj/arrange measurements [{:x :height :y :weight}
                               {:x :depth :y :weight}])
@@ -294,9 +299,10 @@
 ;; columns, is drawn in every cell whose panel draws no other column on
 ;; that axis, and reads the cell's column on the other axis, as on a
 ;; leaf. A layer type that draws from one column, such as a histogram,
-;; is drawn only in a cell whose panel draws that one column alone.
-;; Beside cells that draw two columns, the call appends a new cell, and
-;; the points added at the root are not drawn there:
+;; is not drawn in a cell that draws two columns, since the cell's two
+;; columns are more than the layer type reads. Beside cells that draw
+;; two columns, the call appends a new cell, and the points added at the
+;; root are not drawn there:
 
 (-> (pj/arrange measurements [{:x :height :y :weight}
                               {:x :depth :y :weight}])
@@ -317,6 +323,25 @@
 
 (kind/test-last [(fn [v] (= {:panels 2 :points 8 :lines 1}
                             (select-keys (pj/svg-summary v) [:panels :points :lines])))])
+
+;; A layer added at the root is drawn under a cell's own layers,
+;; whatever order the calls come in. Below, the line added to the
+;; arrangement is drawn beneath the first cell's points. An arrangement
+;; prints no message for a layer drawn in only some of its cells:
+
+(-> (pj/arrange measurements [(pj/lay-point nil :height :weight)
+                              {:x :depth :y :weight}])
+    pj/lay-line)
+
+(kind/test-last [(fn [v] (= [[:line :point] [:line]]
+                            (mapv #(mapv :mark (-> %
+                                                   :plan
+                                                   :panels
+                                                   first
+                                                   :layers))
+                                  (-> v
+                                      pj/plan
+                                      :sub-plots))))])
 
 ;; A composite pose can also be written directly, which
 ;; [Composition](./plotje_book.composition.html#explicit-composite-poses)
@@ -343,6 +368,20 @@
                                                 (pj/pose {:x :height :y :weight})
                                                 pj/lay-point
                                                 (pj/facet :species)))))])
+
+;; A layer naming columns is drawn in every cell that splits the data,
+;; as it is drawn in every panel of the facet. A line of `:weight`
+;; against `:height` added to the cells above draws a line in each cell:
+
+(-> measurements
+    (pj/pose {:x :height :y :weight})
+    (pj/arrange [{:where {:species "a"}}
+                 {:where {:species "b"}}])
+    pj/lay-point
+    (pj/lay-line :height :weight))
+
+(kind/test-last [(fn [v] (= {:panels 2 :lines 2}
+                            (select-keys (pj/svg-summary v) [:panels :lines])))])
 
 ;; The [Facet or Arrange](./plotje_book.faceting.html#facet-or-arrange)
 ;; section of Faceting compares a facet with cells that filter the data,

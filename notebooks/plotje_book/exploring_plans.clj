@@ -72,11 +72,11 @@ tiny-plan
 ;; ### The panel
 ;;
 ;; A plan holds one or more panels. A simple plot has one panel, and a
-;; facet over the categories of a column, drawn in one row, has one
-;; panel per category. A scatter plot matrix, a facet over columns, a
-;; facet wrapped into rows with `{:cols n}` and an arrangement are
-;; drawn from a composite plan instead, which holds one plan per cell
-;; under `:sub-plots`. Each panel holds its own data space:
+;; facet by categories has one panel per category, or one per pair of
+;; categories in a grid under `:col` and `:row`. A scatter plot
+;; matrix, a facet over columns, a facet wrapped into rows with
+;; `{:cols n}` and an arrangement are drawn from a composite plan
+;; instead, which holds one plan per cell under `:sub-plots`. Each panel holds its own data space:
 
 (def tiny-panel (first (:panels tiny-plan)))
 

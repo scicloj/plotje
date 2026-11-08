@@ -107,8 +107,9 @@ my-pose
 
 ;; ## Cell
 ;;
-;; A **cell** is one place in the grid of a plot. The word has two
-;; senses.
+;; A **cell** is one part of a pose that is drawn on panels of its
+;; own: a sub-pose of a composite, or the part of a pose for one column
+;; of a facet over columns. The word has two senses.
 ;;
 ;; - In an arrangement, a cell is one entry of the list `pj/arrange` is
 ;;   given: a pose, a composite, a column, a mapping, or `nil` for a
@@ -156,15 +157,17 @@ my-pose
 ;;   it is drawn in the panels whose number of columns its layer type
 ;;   draws from. A layer naming one column reads the panel's other
 ;;   column where its layer type draws from two.
-;; - **On a composite** -- a call naming no columns is added at the
-;;   root and drawn in every cell whose number of columns its layer
-;;   type draws from. A call naming columns is added at the root too,
-;;   and drawn in every cell whose panel draws no other column on `:x`
-;;   or `:y` than the call names; where every cell's panel draws another
-;;   column, the call appends a new cell. A call naming one column reads
-;;   the cell's column on the other axis where its layer type draws from
-;;   two; a layer type that draws from one column is drawn only in a cell
-;;   whose panel draws that one column alone.
+;; - **On a composite** -- every call adds its layer at the root. A
+;;   call naming no columns is drawn in every cell whose number of
+;;   columns its layer type draws from; where no cell has such a number
+;;   of columns, it is drawn in every cell. A call naming columns is
+;;   drawn in every cell that fits it. A cell fits the layer when, on
+;;   each axis the call names, the cell's panel draws no other column,
+;;   and when the cell's columns together with the call's are a number
+;;   of columns the layer type draws from. Where no cell fits, the call
+;;   appends a new cell. A call naming one column reads the cell's
+;;   column on the other axis where its layer type draws from two.
+;;   Layers added at the root are drawn under a cell's own layers.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
@@ -175,6 +178,29 @@ my-pose
     :layer-type)
 
 (kind/test-last [(fn [k] (= :point k))])
+
+;; Below, the first two cells draw `:sepal-width` on `:y`, against
+;; different columns on `:x`, and the third draws `:petal-width` on
+;; `:y`. A smooth naming `{:y :sepal-width}` fits the first two cells
+;; and is drawn in each; the third cell draws another column on `:y`,
+;; so it draws its points alone:
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :petal-length :y :sepal-width}
+                 {:x :sepal-length :y :petal-width}])
+    pj/lay-point
+    (pj/lay-smooth {:y :sepal-width}))
+
+(kind/test-last
+ [(fn [v]
+    (= [[:point :line] [:point :line] [:point]]
+       (mapv #(mapv :mark (-> %
+                              :plan
+                              :panels
+                              first
+                              :layers))
+             (:sub-plots (pj/plan v)))))])
 
 ;; ## Panel's Columns
 ;;
@@ -1043,7 +1069,7 @@ my-pose
 ;; | `:cartesian` | Standard: x rightward, y upward |
 ;; | `:flip` | Swap x and y axes |
 ;; | `:polar` | Radial: x as angle, y as radius |
-;; | `:fixed` | Equal aspect ratio: 1 data unit = 1 data unit |
+;; | `:fixed` | Equal aspect ratio: one data unit on `:x` is drawn at the same length as one data unit on `:y` |
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-bar :species)
@@ -1112,13 +1138,13 @@ my-pose
 
 ;; ## Overlay
 ;;
-;; To **overlay** is to draw a layer on a panel that another layer
-;; already draws on. The layers of a pose overlay one another on its
-;; panel, each keeping its own columns, and each axis covers every
-;; column drawn on it. Separate panels come from `pj/facet` over the
-;; columns or from `pj/arrange`.
+;; **Overlay** is the name of a retired function and layer setting.
+;; The layers of a leaf pose share its one panel without it, each
+;; keeping its own columns, and each axis covers every column drawn on
+;; it. Below, two bar layers naming different columns are drawn on one
+;; panel. Separate panels come from `pj/facet` over the columns or from
+;; `pj/arrange`.
 ;;
-;; `pj/overlay` and the `:overlay` layer setting are retired.
 ;; `pj/overlay` and `{:overlay true}` print a warning and are ignored;
 ;; `{:overlay false}` reports an error that suggests `pj/facet` over
 ;; the columns or `pj/arrange`.
@@ -1230,10 +1256,11 @@ my-pose
 ;;   and the axis domains are unaffected. See **Drawing Area**.
 ;;
 ;; Annotations are regular layers, so they are placed as any `lay-*`
-;; is: on a leaf they draw on its panel; on a composite, a call naming
-;; no columns is added at the root, and a call naming columns is drawn
-;; in every cell whose panel draws them, or appends a new cell where
-;; none does.
+;; is -- see [Layer](#layer). On a leaf they draw on its panel. On a
+;; composite, a rule or a band naming no columns is added at the root
+;; and drawn in every cell whose panel draws two columns -- in every
+;; cell, where no cell's panel does -- and a call naming columns is drawn in every cell that fits it, or appends a new
+;; cell where none does.
 ;;
 ;; | Constructor | What |
 ;; |:------------|:-----|
@@ -1606,7 +1633,7 @@ annotated
 ;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet` |
 ;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
 ;; | Cell | One entry of an arrangement, or the part of a pose for one column in a facet over columns | `pj/arrange`, `pj/facet` |
-;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names; `pj/overlay` and `:overlay` are retired | `pj/lay-*` on a leaf |
+;; | Overlay | Retired: the layers of a leaf share one panel without it | -- |
 ;; | Series | A vector of columns written where one column goes, drawn on one panel | `{:y [:a :b]}` in a mapping |
 ;; | Pivot | Turn columns into the categories of a key column | A series when drawn; `tc/pivot->longer` |
 ;; | Row filter | The rows a pose draws, by column values | `:where` on a pose or a cell |

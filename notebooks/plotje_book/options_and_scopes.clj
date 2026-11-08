@@ -157,7 +157,8 @@
 ;; one of each. A composite has a scope for them: every cell is a
 ;; pose, so each cell can have its own title and its own scales, and
 ;; the options written on the composite itself apply to every cell
-;; that does not set them.
+;; that does not set them -- except the title, subtitle and caption,
+;; which an arrangement draws once, above and below its cells.
 ;;
 ;; Two functions are dedicated to plot options, and write them to the
 ;; pose's `:opts` field:
@@ -267,7 +268,10 @@
 ;;
 ;; 1. **Plot options** on the pose (`pj/options`) -- a
 ;;    per-plot override that wins for that one plot.
-;; 2. **Thread-local overrides** via `pj/with-config`.
+;; 2. **Thread-local overrides** via `pj/with-config`, for what is
+;;    rendered inside its body. A pose returned from the body is drawn
+;;    under the configuration in effect when it is shown, so end the
+;;    body in `pj/plot` to keep the override.
 ;; 3. **Global overrides** via `pj/set-config!`.
 ;; 4. **Project file** (`plotje.edn`), if present.
 ;; 5. **Library defaults** -- the baseline included with

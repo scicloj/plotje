@@ -469,11 +469,12 @@
 ;; reference color, `:alpha` the opacity -- which on a band overrides
 ;; the `:band-opacity` configuration default -- and `:size` a rule's
 ;; width. On a composite, a rule or a band written without columns is
-;; added at the root and drawn in every cell, and one written with an
-;; `:x` and a `:y` column is added at the root too and drawn in every
-;; cell whose panel draws no other column on `:x` or `:y`; where every
-;; cell draws other columns, the rule or band is drawn on a new cell
-;; appended to the composite. On a pose with one panel a rule or a band is drawn on that
+;; added at the root and drawn in every cell whose panel draws two
+;; columns -- in every cell, where no cell's panel does. One written
+;; with an `:x` and a `:y` column is added at the root too and drawn in
+;; every cell whose panel draws no column other than those two; where no
+;; cell fits, the rule or band is drawn on a new cell appended to the
+;; composite. On a pose with one panel a rule or a band is drawn on that
 ;; panel, and columns written on it that the panel does not draw are
 ;; not read, with a warning.
 ;;
@@ -755,9 +756,13 @@
 
 ;; Mappings as cells -- given the data first, a mapping such as
 ;; `{:x :sepal-length :y :sepal-width}` is a panel of its two columns.
-;; A layer added afterwards naming no columns is drawn in every cell,
-;; and a layer naming columns is drawn in the cells whose panels draw
-;; them -- here the trend line, in the first cell:
+;; A layer added afterwards naming no columns is drawn in every cell
+;; whose number of columns its layer type draws from. A layer naming
+;; columns is drawn in every cell whose panel draws no other column on
+;; an axis the layer names -- here the trend line, in the first cell,
+;; since the second cell draws `:petal-length` and `:petal-width` (see
+;; [Pose Rules](./plotje_book.pose_rules.html), Rules LP2 and LP3, for
+;; the whole rule):
 
 (-> (rdatasets/datasets-iris)
     (pj/arrange [{:x :sepal-length :y :sepal-width}
@@ -1303,6 +1308,21 @@ plan1
   (:color-values (pj/config)))
 
 (kind/test-last [(fn [p] (= :pastel1 p))])
+
+;; `pj/with-config` applies to what is rendered inside its body. A pose
+;; returned from the body is drawn under the configuration in effect
+;; when it is shown, so end the body in `pj/plot` to keep the
+;; configuration:
+
+(pj/with-config {:theme {:bg "#1a1a2e"}}
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      pj/plot))
+
+(kind/test-last
+ [(fn [v]
+    ;; #1a1a2e is rgb(26,26,46) in the SVG.
+    (boolean (re-find #"rgb\(26,26,46\)" (str v))))])
 
 ;; ## Documentation Metadata
 

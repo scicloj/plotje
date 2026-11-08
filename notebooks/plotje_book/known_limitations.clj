@@ -20,9 +20,6 @@
 ;;   given a color and a legend entry. Workaround: color each layer
 ;;   explicitly.
 ;;
-;; - Histograms, stacked bars, step plots, and other stat-derived
-;;   marks do not default to a `"count"` or `"density"` y-label.
-;;
 ;; - A scatter plot matrix of many variables at the default
 ;;   `:width` and `:height` has tight panels. Increase `:width`/`:height` or pin
 ;;   `:panel-width`/`:panel-height`.
@@ -94,11 +91,13 @@
 ;;   would put the strip between the panel and the axis that describes
 ;;   it, so they report an error.
 ;;
-;; - A pose gets one marginal at a time. `pj/marginal` takes a leaf
-;;   pose and returns a composite, and a composite has no single panel
-;;   to put a second strip beside, so a scatter with a density above it
-;;   and another to its right has to be written out as a composite by
-;;   hand.
+;; - `pj/marginal` adds one marginal to a leaf pose. `pj/marginal`
+;;   returns a composite, and a composite has no single panel to put a
+;;   second strip beside. For a scatter with a histogram above it and
+;;   another to its right, write
+;;   `(pj/matrix data [:a nil] [nil :b] {:col-weights [3 1] :row-weights [1 3]})`:
+;;   a panel where a column meets `nil` draws that column alone, as a
+;;   histogram, and the corner where two `nil`s meet is left empty.
 ;;
 ;; - `(pj/marginal pose :top :histogram)` draws its tallest bar close to
 ;;   the top of the marginal panel. The value axis is padded by the same

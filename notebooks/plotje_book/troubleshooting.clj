@@ -478,8 +478,9 @@
 ;; **Fix**: write the panel aesthetic on the pose -- `(pj/facet pose
 ;; :species)` across, `(pj/facet pose {:row :species})` down, or
 ;; `{:col ... :row ...}` for both -- or put `:col` and `:row` in the
-;; pose's mapping. Faceting is a mapping and obeys the scope rules, so on a composite it goes on the cell whose panels it
-;; divides:
+;; pose's mapping. Faceting is a mapping and obeys the scope rules, so
+;; a facet written on a composite divides every cell, and a facet
+;; written on one cell divides that cell alone:
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width)
@@ -738,7 +739,11 @@
 ;; Some spellings 0.16.1 accepted report an error or warn in place of
 ;; drawing something else. A vector of column pairs given to `pj/pose`
 ;; or to a `pj/lay-*` call reports an error naming `pj/arrange` and
-;; `pj/matrix`, which crosses two lists of columns. A vector of columns given
+;; `pj/matrix`, which crosses two lists of columns. `pj/cross` warns
+;; that it is deprecated and returns its pairs, so
+;; `(pj/pose data (pj/cross cols cols))`, the 0.16.1 way to write a
+;; scatter plot matrix, reports the same error; write
+;; `(pj/matrix data cols)`. A vector of columns given
 ;; alone to `pj/pose` or to a `pj/lay-*` call is a series, drawn on one
 ;; panel, where 0.16.1 drew a panel per column; `pj/arrange` draws a
 ;; panel per column.
@@ -788,20 +793,60 @@
 
 ;; ### Coming from 0.17.0
 ;;
+;; A pose built inside `pj/with-config` and shown after the body
+;; returns -- as a notebook shows the value of a form -- is drawn under
+;; the configuration in effect when it is shown, not under the
+;; configuration `pj/with-config` gave. Plotje 0.17.0 kept that
+;; configuration on the pose. A notebook written for 0.17.0 that returns
+;; a pose from `pj/with-config` draws the default theme, and no message
+;; says so. To keep the configuration, end the body in `pj/plot`:
+
+(pj/with-config {:theme {:bg "#1a1a2e"}}
+  (-> (rdatasets/datasets-iris)
+      (pj/lay-point :sepal-length :sepal-width)
+      pj/plot))
+
+(kind/test-last [(fn [svg] (->> svg
+                                (tree-seq coll? seq)
+                                (filter map?)
+                                (some #(= "rgb(26,26,46)" (:fill %)))))])
+
 ;; A `pj/lay-*` call naming columns, written on an arrangement, is drawn
-;; in every cell whose panel draws no other column on `:x` or `:y`.
-;; Plotje 0.17.0 added such a layer to the last of those cells alone,
-;; cells split with `:where` included. A plot written for 0.17.0 can
-;; draw the layer in more cells, and no message says so. To draw a layer in one cell, add it to that cell before
-;; arranging the cells. Here both cells draw `:displ` against `:hwy`,
-;; so the trend line is drawn in both:
+;; in every cell whose panel draws no other column on an axis the call
+;; names, and whose columns together with the call's are a number of
+;; columns the layer type reads -- see Rules LP2 and LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html). Plotje 0.17.0 added
+;; such a layer to the last of those cells alone, cells split with
+;; `:where` included. A plot written for 0.17.0 can draw the layer in
+;; more cells, and no message says so. The layer is drawn under the
+;; layers each cell holds of its own, where 0.17.0 drew it on top. To
+;; draw a layer in one cell, add it to that cell before arranging the
+;; cells. Here both cells draw `:displ` against `:hwy`, so the trend
+;; line is drawn in both, under the points:
 
 (-> (pj/arrange [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)
                  (pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)])
     (pj/lay-smooth :displ :hwy))
 
-(kind/test-last [(fn [v] (= {:panels 2 :lines 2}
-                            (select-keys (pj/svg-summary v) [:panels :lines])))])
+(kind/test-last [(fn [v] (and (= {:panels 2 :lines 2}
+                                 (select-keys (pj/svg-summary v) [:panels :lines]))
+                              ;; Drawn under each cell's points.
+                              (= [[:line :point] [:line :point]]
+                                 (mapv #(mapv :mark (-> %
+                                                        :plan
+                                                        :panels
+                                                        first
+                                                        :layers))
+                                       (-> v
+                                           pj/plan
+                                           :sub-plots)))))])
+
+;; `pj/lay-line` and `pj/lay-smooth` under `(pj/coord :flip)` join their
+;; points in order of the data's `:x`; to join them in order of the
+;; other column, swap the columns in the mapping. `:margin-multi` and
+;; `:panel-size` warn that they are retired, and the plot draws without
+;; them: write `:margin` for the margin of every plot, and
+;; `:panel-width` or `:panel-height` for the size of each panel.
 
 ;; ## Dataset Missing Columns a Template References
 ;;
@@ -956,7 +1001,7 @@
 ;; `:rule-color` now.
 
 (with-out-str
-  (pj/with-config {:annotation-stroke "firebrick"} (constantly nil)))
+  (pj/with-config {:annotation-stroke "firebrick"} nil))
 
 (kind/test-last
  [(fn [msg] (and (re-find #"does not recognize configuration key" msg)

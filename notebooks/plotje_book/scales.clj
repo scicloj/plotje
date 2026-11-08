@@ -357,7 +357,9 @@ gapminder-2007
 ;; draws. For
 ;; `:size` that is a radius in drawing units, so the column below
 ;; holds 4, 8 and 12 -- not a population count, which would ask for
-;; circles millions of units across:
+;; circles millions of units across. The pose below also sets a range
+;; for `:size`, and Plotje prints a warning that the layer's
+;; `:scale false` leaves nothing to read that range:
 
 (def measured-radii
   [{:reading 1 :level 2 :spread 4}

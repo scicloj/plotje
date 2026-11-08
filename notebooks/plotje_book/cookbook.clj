@@ -148,14 +148,17 @@
                            (and (= 1 (:panels s))
                                 (pos? (:polygons s)))))])
 
-;; ## Multi-Layer Compositions
+;; ## Several Layers on One Panel
 
 ;; ### Overall regression with per-group points
 ;;
-;; Color points by group, but fit a single overall regression line.
+;; Map `:species` to color on the pose, so every layer is grouped by
+;; it, and write `:color nil` on the smooth to fit one line through all
+;; the points.
 
 (-> (rdatasets/datasets-iris)
-    (pj/lay-point :sepal-length :sepal-width {:color :species})
+    (pj/pose :sepal-length :sepal-width {:color :species})
+    pj/lay-point
     (pj/lay-smooth {:stat :linear-model :color nil}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
@@ -327,8 +330,8 @@
 
 ;; ### Contour + scatter
 
-;; Density contour lines overlaid on a scatter plot -- reveals
-;; high-density regions in a point cloud.
+;; Density contour lines drawn on the same panel as a scatter plot
+;; show where the points are dense.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:color :species :alpha 0.4})
@@ -894,10 +897,12 @@ longest-per-species
                                 (= 3 (:lines s)))))])
 
 ;; Without grouping, the overall trend appears negative -- an example
-;; of Simpson's paradox.
+;; of Simpson's paradox. The pose is the same; `:color nil` on the
+;; smooth fits one line through all the points.
 
 (-> (rdatasets/palmerpenguins-penguins)
-    (pj/lay-point :bill-length-mm :bill-depth-mm {:color :species})
+    (pj/pose :bill-length-mm :bill-depth-mm {:color :species})
+    pj/lay-point
     (pj/lay-smooth {:stat :linear-model :color nil})
     (pj/options {:title "Simpson's Paradox: Overall vs Per-Group Trend"}))
 
@@ -1022,8 +1027,9 @@ longest-per-species
 ;; By default Plotje renders to SVG, which produces scalable charts
 ;; that stay sharp at any zoom. But when a plot has tens of thousands
 ;; of points, the browser
-;; must parse and layout a huge SVG DOM. For example, the full diamonds
-;; dataset (53,940 rows) produces an 11 MB SVG file.
+;; must parse and lay out a huge SVG DOM. For example, the full
+;; diamonds dataset produces an SVG file of several megabytes, with one
+;; element for each diamond.
 ;;
 ;; Setting `:format :bufimg` renders the plot to a
 ;; `java.awt.image.BufferedImage` via Membrane's Java2D backend instead
