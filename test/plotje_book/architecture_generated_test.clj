@@ -78,13 +78,13 @@
       (and
        (= [:point :line] (mapv :mark layers))
        (every?
-        (fn* [p1__79581#] (= :petal-length (:x p1__79581#)))
+        (fn* [p1__89849#] (= :petal-length (:x p1__89849#)))
         layers)
        (every?
-        (fn* [p1__79582#] (= :petal-width (:y p1__79582#)))
+        (fn* [p1__89850#] (= :petal-width (:y p1__89850#)))
         layers)
        (every?
-        (fn* [p1__79583#] (= :species (:color p1__79583#)))
+        (fn* [p1__89851#] (= :species (:color p1__89851#)))
         layers)))
      (= {} (:opts d))))
    v14_l224)))
@@ -147,7 +147,7 @@
  (->>
   trace-membrane
   :drawables
-  (mapv (fn* [p1__79584#] (.getSimpleName (class p1__79584#))))))
+  (mapv (fn* [p1__89852#] (.getSimpleName (class p1__89852#))))))
 
 
 (deftest
@@ -247,7 +247,7 @@
        2
        (count
         (filter
-         (fn* [p1__79585#] (.startsWith p1__79585# "rgb"))
+         (fn* [p1__89853#] (.startsWith p1__89853# "rgb"))
          (:colors s)))))))
    v46_l559)))
 
@@ -263,7 +263,7 @@
    pj/pose->draft)
   :layers
   (mapv
-   (fn* [p1__79586#] (select-keys p1__79586# [:mark :x :y :color])))))
+   (fn* [p1__89854#] (select-keys p1__89854# [:mark :x :y :color])))))
 
 
 (deftest
@@ -370,7 +370,7 @@
   composite-pose
   pj/membrane
   :drawables
-  (mapv (fn* [p1__79587#] (.getSimpleName (class p1__79587#))))))
+  (mapv (fn* [p1__89855#] (.getSimpleName (class p1__89855#))))))
 
 
 (deftest

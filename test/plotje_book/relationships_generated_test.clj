@@ -239,9 +239,9 @@
     :y
     (mapv
      (fn*
-      [p1__84385#]
+      [p1__82418#]
       (+
-       (Math/sin (* p1__84385# 0.2))
+       (Math/sin (* p1__82418# 0.2))
        (* 0.3 (- (rng/drandom r) 0.5))))
      xs)})
   (pj/lay-point :x :y)
@@ -418,7 +418,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__84386#] (-> p1__84386# :plan :panels first))
+       (fn* [p1__82419#] (-> p1__82419# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -453,8 +453,8 @@
         (juxt
          :path
          (fn*
-          [p1__84387#]
-          (mapv :mark (-> p1__84387# :plan :panels first :layers)))))
+          [p1__82420#]
+          (mapv :mark (-> p1__82420# :plan :panels first :layers)))))
        subs)
       w
       (into
@@ -462,7 +462,7 @@
        (map
         (juxt
          :path
-         (fn* [p1__84388#] (get-in p1__84388# [:plan :panel-width]))))
+         (fn* [p1__82421#] (get-in p1__82421# [:plan :panel-width]))))
        subs)
       h
       (into
@@ -470,7 +470,7 @@
        (map
         (juxt
          :path
-         (fn* [p1__84389#] (get-in p1__84389# [:plan :panel-height]))))
+         (fn* [p1__82422#] (get-in p1__82422# [:plan :panel-height]))))
        subs)]
      (and
       (= 3 (:panels s))

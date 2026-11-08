@@ -408,7 +408,7 @@
   (tc/map-columns
    :time
    [:time]
-   (fn* [p1__80429#] (java.time.Instant/ofEpochMilli p1__80429#)))
+   (fn* [p1__80408#] (java.time.Instant/ofEpochMilli p1__80408#)))
   (pj/lay-line :time :level)))
 
 
@@ -422,7 +422,7 @@
      (and
       (false? (:categorical? ticks))
       (every?
-       (fn* [p1__80430#] (re-matches #"\d\d:\d\d" p1__80430#))
+       (fn* [p1__80409#] (re-matches #"\d\d:\d\d" p1__80409#))
        (:labels ticks))
       (try
        (->

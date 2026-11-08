@@ -381,8 +381,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./plotje_book.ggplot2_equivalents.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">ggplot2 Equivalents</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./plotje_book.known_limitations.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Known Limitations</span></span></a>
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Known Limitations</span></span></a>
   </div>
 </li>
       </ul>
@@ -399,7 +405,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.gallery.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Gallery</span></span></a>
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Gallery</span></span></a>
   </div>
 </li>
       </ul>
@@ -416,43 +422,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.architecture.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Architecture</span></span></a>
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Architecture</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.exploring_plans.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Exploring Plans</span></span></a>
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Exploring Plans</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.membranes.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Membranes</span></span></a>
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Membranes</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.extensibility.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Extensibility</span></span></a>
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Extensibility</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.waterfall_extension.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Waterfall Extension</span></span></a>
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Waterfall Extension</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.edge_cases.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Edge Cases</span></span></a>
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Edge Cases</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.development.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Development</span></span></a>
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Development</span></span></a>
   </div>
 </li>
       </ul>
@@ -525,8 +531,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>stat</strong> – what computation to apply first (pass through, bin, count, regress, …)</li>
 <li><strong>position</strong> – how overlapping groups share space (identity, dodge, stack, fill)</li>
 </ul>
-<p>Layer functions (<code>pj/lay-point</code>, <code>pj/lay-histogram</code>, <code>pj/lay-bar</code>, <code>(pj/lay-smooth {:stat :linear-model})</code>, etc.) each add a layer with the corresponding layer type. When no layer is added, Plotje infers a layer type from the column types.</p>
+<p>Layer functions (<code>pj/lay-point</code>, <code>pj/lay-histogram</code>, <code>pj/lay-bar</code>, <code>(pj/lay-smooth {:stat :linear-model})</code>, and the others) each add a layer with the corresponding layer type. When no layer is added, Plotje infers a layer type from the column types.</p>
 <p>All built-in layer types are registered in a data registry. The tables below are generated from that registry – they stay in sync with the code.</p>
+<p>On a first read through the book you can skim or skip this chapter, and return when you need to look up what a layer type draws and computes.</p>
 <div class="sourceClojure">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">ns</span> plotje-book.layer-types</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  (<span class="at">:require</span></span>
@@ -1087,8 +1094,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 <p>Among the places that read it:</p>
 <ul>
-<li><p>A layer added after a facet crossing two lists of columns, or on the root of a composite, is drawn in the panels whose number of columns it draws from – the <a href="./plotje_book.relationships.html#scatter-plot-matrix-splom">scatter plot matrix</a> is the case where the panels differ.</p></li>
-<li><p>A pose that names a column only on <code>:y</code> draws a layer that draws from one column on its side.</p></li>
+<li><p>A layer added to a composite, or after a facet crossing two lists of columns, is drawn in the panels whose columns, together with any the layer names, are a number of columns its layer type draws from; where no panel has such a number, it is drawn in every panel. The <a href="./plotje_book.relationships.html#scatter-plot-matrix-splom">scatter plot matrix</a> is the case where the panels differ: a point layer is drawn off the diagonal, and the diagonal keeps its histograms. See Rules LP2 and LP3 in <a href="./plotje_book.pose_rules.html">Pose Rules</a>.</p></li>
+<li><p>A pose that names a column on <code>:y</code> alone, with no <code>:x</code>, is drawn with a layer type that draws from one column, turned on its side – a numerical column gives a horizontal histogram.</p></li>
 <li><p>A layer that names one column is given the panel’s column on the other axis only where its layer type cannot draw from one column: after <code>(pj/lay-point data :a :b)</code>, <code>(pj/lay-line {:y :c})</code> draws <code>:c</code> against <code>:a</code>, and <code>(pj/lay-rug {:x :c})</code> draws <code>:c</code> alone.</p></li>
 </ul>
 <p>A layer type registered without <code>:column-counts</code> draws from two columns, or from one where it is registered <code>:x-only true</code>.</p>
@@ -1109,7 +1116,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb141"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb141-1"><a href="#cb141-1" aria-hidden="true" tabindex="-1"></a>[{<span class="at">:mark</span> <span class="at">:text</span>, <span class="at">:stat</span> <span class="at">:identity</span>}</span>
 <span id="cb141-2"><a href="#cb141-2" aria-hidden="true" tabindex="-1"></a> {<span class="at">:mark</span> <span class="at">:text</span>, <span class="at">:stat</span> <span class="at">:identity</span>, <span class="at">:defaults</span> {<span class="at">:box</span> <span class="va">true</span>}}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The “Position” column shows each layer-type’s registered default. A few marks (<code>:bar</code>, <code>:lollipop</code>, <code>:boxplot</code>, <code>:violin</code>) carry no registered default and the table therefore lists <code>:identity</code> for them, but they apply <code>:dodge</code> at extract time when a categorical color or group splits the data into multiple sub-bars per category. So a colored <code>(pj/lay-bar :species {:color :group})</code> produces dodged bars even though the table shows <code>:identity</code> for <code>:bar</code>. To force a different layout, write <code>:position</code> in the layer’s mapping.</p>
+<p>The “Position” column shows each layer-type’s registered default. A few marks (<code>:bar</code>, <code>:lollipop</code>, <code>:boxplot</code>, <code>:violin</code>) carry no registered default and the table therefore lists <code>:identity</code> for them, but they apply <code>:dodge</code> when the plot is planned, if a categorical color or group splits the data into multiple sub-bars per category. So a colored <code>(pj/lay-bar data :cohort {:color :site})</code> produces dodged bars even though the table shows <code>:identity</code> for <code>:bar</code>. To force a different layout, write <code>:position</code> in the layer’s mapping.</p>
 </section>
 </section>
 <section id="marks" class="level2">
@@ -2231,9 +2238,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="whats-next" class="level2">
 <h2 class="anchored" data-anchor-id="whats-next">What’s Next</h2>
 <ul>
-<li><a href="./plotje_book.relationships.html"><strong>Relationships</strong></a> – see point, line, and regression layer types in action</li>
-<li><a href="./plotje_book.distributions.html"><strong>Distributions</strong></a> – histograms, density, boxplots, violins</li>
-<li><a href="./plotje_book.customization.html"><strong>Customization</strong></a> – colors, palettes, themes, and per-layer styling</li>
+<li><p><a href="./plotje_book.glossary.html"><strong>Glossary</strong></a> – the last chapter of Foundations, a reference of terms to look up when you meet them</p></li>
+<li><p><a href="./plotje_book.relationships.html"><strong>Relationships</strong></a> – see point, line, and regression layer types in action</p></li>
+<li><p><a href="./plotje_book.distributions.html"><strong>Distributions</strong></a> – histograms, density, boxplots, violins</p></li>
+<li><p><a href="./plotje_book.customization.html"><strong>Customization</strong></a> – colors, palettes, themes, and per-layer styling</p></li>
 </ul>
 <div style="background-color:grey;height:2px;width:100%;"></div>
 <div><pre><small><small>source: <a href="https://github.com/scicloj/plotje/blob/main/notebooks/plotje_book/layer_types.clj">notebooks/plotje_book/layer_types.clj</a></small></small></pre></div>

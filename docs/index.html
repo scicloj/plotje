@@ -380,8 +380,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./plotje_book.ggplot2_equivalents.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">ggplot2 Equivalents</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./plotje_book.known_limitations.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Known Limitations</span></span></a>
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Known Limitations</span></span></a>
   </div>
 </li>
       </ul>
@@ -398,7 +404,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.gallery.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Gallery</span></span></a>
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Gallery</span></span></a>
   </div>
 </li>
       </ul>
@@ -415,43 +421,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.architecture.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Architecture</span></span></a>
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Architecture</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.exploring_plans.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Exploring Plans</span></span></a>
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Exploring Plans</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.membranes.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Membranes</span></span></a>
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Membranes</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.extensibility.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Extensibility</span></span></a>
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Extensibility</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.waterfall_extension.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Waterfall Extension</span></span></a>
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Waterfall Extension</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.edge_cases.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Edge Cases</span></span></a>
+ <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Edge Cases</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./plotje_book.development.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">39</span>&nbsp; <span class="chapter-title">Development</span></span></a>
+ <span class="menu-text"><span class="chapter-number">40</span>&nbsp; <span class="chapter-title">Development</span></span></a>
   </div>
 </li>
       </ul>
@@ -567,9 +573,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Scatter plot matrix (SPLOM) – all pairwise combinations with color grouping:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode clj code-with-copy"><code class="sourceCode clojure"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">-&gt;</span> (rdatasets/datasets-iris)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    (pj/pose {<span class="at">:color</span> <span class="at">:species</span>})</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    (pj/facet {<span class="at">:col</span> {<span class="at">:x</span> [<span class="at">:sepal-length</span> <span class="at">:sepal-width</span> <span class="at">:petal-length</span> <span class="at">:petal-width</span>]}</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">:row</span> {<span class="at">:y</span> [<span class="at">:sepal-length</span> <span class="at">:sepal-width</span> <span class="at">:petal-length</span> <span class="at">:petal-width</span>]}})</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    (pj/options {<span class="at">:title</span> <span class="st">"Iris SPLOM"</span>}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    (pj/matrix [<span class="at">:sepal-length</span> <span class="at">:sepal-width</span> <span class="at">:petal-length</span> <span class="at">:petal-width</span>])</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    (pj/options {<span class="at">:title</span> <span class="st">"Iris SPLOM"</span>}))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><img src="readme_files/image2.svg" class="img-fluid"></p>
 </section>
 <section id="license" class="level2">
@@ -623,6 +628,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>📖 Reference
 <ul>
 <li><a href="plotje_book.api_reference.html">API Reference</a></li>
+<li><a href="plotje_book.ggplot2_equivalents.html">ggplot2 Equivalents</a></li>
 <li><a href="plotje_book.known_limitations.html">Known Limitations</a></li>
 </ul></li>
 <li>🖼 Gallery

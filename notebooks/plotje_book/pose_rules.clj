@@ -828,7 +828,7 @@ composite-pose
 
 (-> (pj/arrange [(pj/lay-point iris :sepal-length :sepal-width)
                  (pj/lay-point iris :petal-length :petal-width)])
-    (pj/lay-smooth :sepal-length :petal-length))
+    pj/lay-smooth)
 
 (kind/test-last
  [(fn [pose]
@@ -1118,7 +1118,6 @@ composite-pose
                  second
                  (select-keys [:mark :x :y]))))])
 
-;; ---
 ;; **Property: column-existence safety check.**
 ;; When a `lay-*` call names a column on an axis where the pose already
 ;; draws another column, it first checks that those columns exist in the data the layer would draw

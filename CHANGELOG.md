@@ -4,33 +4,35 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+## [0.18.0 - 2026-11-09]
+
 ### Plots that look different after upgrading
 
-- **A pose built inside `pj/with-config` and shown after the body returns**, as a notebook shows the value of a form, is drawn under the configuration in effect when it is shown -- the same picture `pj/plot` and `pj/save` draw for it. `pj/with-config` applies to what is rendered inside its body: to keep its theme, end the body in `pj/plot`, as in `(pj/with-config {:theme {:bg "#1a1a2e"}} (-> pose pj/plot))`.
+- **A pose returned from the body of `pj/with-config`** is drawn without the configuration given to `pj/with-config`. To keep the configuration, end the body in `pj/plot`.
 
-- **A `pj/lay-*` call naming columns on a composite pose** -- a pose holding other poses, its cells, as `pj/arrange` builds -- is drawn in every cell that fits it: on each axis the call names, the cell's panel draws no other column, and the cell's columns together with the call's are a number of columns the layer type reads. A smooth naming `:displ` and `:hwy`, added to cells that split the data with `:where`, is drawn in each cell, as in each panel of `(pj/facet :drv)`. The layer is drawn under a cell's own layers.
+- **A `pj/lay-*` call naming columns on a composite pose** adds its layer to every cell that fits it. A cell fits the layer when the cell draws no other column on the axes the layer names. In each cell, the layer is drawn under the cell's own layers.
 
-- **A `pj/lay-*` call that fits no cell of a composite pose** is drawn in every cell, as written, as on a facet over columns: a histogram naming `:displ`, added to scatter cells, is drawn in each cell beside its points. No cell is added; `(pj/arrange pose [cell])` adds one. Where a cell holds no other layer and the call names a column no cell draws, an error names the columns.
+- **A `pj/lay-*` call that fits no cell of a composite pose** adds its layer to every cell. A `pj/lay-*` call never adds a cell; `pj/arrange` adds cells.
 
-- **A layer with a written colour drawn in some cells of a composite**, such as a black trend line in one panel of a scatter plot matrix, leaves the cells one shared legend for the column they colour by, as they draw without it.
+- **Cells of a composite that colour by the same column share one legend**, also when some cells write a colour or an opacity. Cells that map no column reserve no room for a legend.
 
-- **`pj/lay-contour` lines** are smooth curves. Where a line passes between two points of the density grid, it is drawn at the place the density reaches the line's level. Reported on Zulip - thanks, @generateme.
+- **`pj/lay-contour` lines** are drawn where the density equals the line's level, so they do not step along the grid. Reported on Zulip - thanks, @generateme.
 
-- **Tiles of `pj/lay-tile` and `pj/lay-density-2d` in SVG** are drawn with crisp edges, as bars are, so neighbouring tiles meet with no seam showing between them. A tile narrower than one drawing unit is drawn as before. Reported on Zulip - thanks, @generateme.
+- **Filled rectangles in SVG** -- heatmap tiles, panel backgrounds, and the steps of a continuous colour bar -- are drawn with crisp edges, so neighbouring tiles meet with no seam. Reported on Zulip - thanks, @generateme.
 
 ### Added
 
-- **`:cols` wraps a facet into rows.** `(pj/facet pose :class {:cols 4})` draws the panels of a facet by one category in rows of four, each under its strip, sharing both axes -- what ggplot2 writes as `facet_wrap(~ class, ncol = 4)`. The facet draws what `pj/arrange` draws from the cells of that facet given the same `:cols`. When a facet has too many panels to fit, the error suggests `:cols` and a height.
+- **`:cols` wraps a facet into rows** of that many panels. When a facet has too many panels to fit, the error suggests `:cols`.
 
 ### Warnings and errors
 
-- **The Notes on how 0.16.1 drew a plot are removed.** A layer naming other columns than its pose's, `pj/pose` replacing a column, and a vector of columns read as a series draw with no Note. A layer drawn in only some panels of a facet over columns prints no Note, as on a composite pose.
+- **The Notes about 0.16.1 are removed**, and so is the Note for a layer drawn in only some panels.
 
-- **`:panel-size` and `:margin-multi` are retired.** Written as configuration or as a plot option, each warns once, names what to write instead -- `:panel-width` or `:panel-height` for the size of each panel, and `:margin` for the margin of every plot -- and the plot draws without it. Neither key is listed in `pj/config-key-docs` or in `(pj/config)`.
+- **`:panel-size` and `:margin-multi` are retired.** Each warns and names what to write instead, and the plot draws without it.
 
 ### Fixed
 
-- **`pj/lay-line` and `pj/lay-smooth` under `(pj/coord :flip)`** join their points in order of the data's `:x`, as `pj/lay-step`, `pj/lay-area` and ggplot2's `geom_line` do. A flipped time series follows time, and a flipped smooth whose fit turns is drawn as one curve. To join the points in order of the other column, swap the columns in the mapping.
+- **`pj/lay-line` and `pj/lay-smooth` under `(pj/coord :flip)`** join their points in order of the data's `:x`.
 
 ## [0.17.0 - 2026-11-06]
 

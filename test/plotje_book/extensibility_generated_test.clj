@@ -178,17 +178,17 @@
        [line]
        (mapv
         (fn*
-         [p1__83086#]
-         (parse-double (second (str/split p1__83086# #","))))
+         [p1__90676#]
+         (parse-double (second (str/split p1__90676# #","))))
         (str/split (:points (second line)) #" ")))
       lines
       (filterv
        (fn*
-        [p1__83087#]
+        [p1__90677#]
         (and
-         (vector? p1__83087#)
-         (= :polyline (first p1__83087#))
-         (< 1 (:stroke-width (second p1__83087#)))))
+         (vector? p1__90677#)
+         (= :polyline (first p1__90677#))
+         (< 1 (:stroke-width (second p1__90677#)))))
        (tree-seq vector? seq v))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -236,8 +236,8 @@
     keys
     (filter
      (fn*
-      [p1__83088#]
-      (and (vector? p1__83088#) (= :computes (second p1__83088#)))))
+      [p1__90678#]
+      (and (vector? p1__90678#) (= :computes (second p1__90678#)))))
     (map first)
     sort
     (mapv
@@ -255,7 +255,7 @@
     (=
      [":bin" ":count" ":density"]
      (mapv
-      (fn* [p1__83089#] (first (get p1__83089# "Stat")))
+      (fn* [p1__90679#] (first (get p1__90679# "Stat")))
       (:row-maps t))))
    v33_l239)))
 
@@ -430,9 +430,9 @@
   scatter-stat
   :points
   first
-  (update :xs (fn* [p1__83090#] (vec (take 3 p1__83090#))))
-  (update :ys (fn* [p1__83091#] (vec (take 3 p1__83091#))))
-  (update :row-indices (fn* [p1__83092#] (vec (take 3 p1__83092#))))))
+  (update :xs (fn* [p1__90680#] (vec (take 3 p1__90680#))))
+  (update :ys (fn* [p1__90681#] (vec (take 3 p1__90681#))))
+  (update :row-indices (fn* [p1__90682#] (vec (take 3 p1__90682#))))))
 
 
 (deftest
@@ -630,7 +630,7 @@
 
 (deftest
  t101_l895
- (is ((fn* [p1__83093#] (= :drawing-area p1__83093#)) v100_l893)))
+ (is ((fn* [p1__90683#] (= :drawing-area p1__90683#)) v100_l893)))
 
 
 (def v102_l897 (mark/mark-clip-region :rug))
@@ -638,7 +638,7 @@
 
 (deftest
  t103_l899
- (is ((fn* [p1__83094#] (= :panel-box p1__83094#)) v102_l897)))
+ (is ((fn* [p1__90684#] (= :panel-box p1__90684#)) v102_l897)))
 
 
 (def
@@ -651,7 +651,7 @@
 
 (deftest
  t107_l913
- (is ((fn* [p1__83095#] (= :panel-box p1__83095#)) v106_l911)))
+ (is ((fn* [p1__90685#] (= :panel-box p1__90685#)) v106_l911)))
 
 
 (def v109_l917 (remove-method mark/mark-clip-region :margin-glyph))
@@ -842,7 +842,7 @@
   ((juxt
     :position
     :dodge-ctx
-    (fn* [p1__83096#] (mapv :dodge-idx (:groups p1__83096#)))))))
+    (fn* [p1__90686#] (mapv :dodge-idx (:groups p1__90686#)))))))
 
 
 (deftest

@@ -7,7 +7,7 @@
 ;; Add Plotje to your `deps.edn`. Current release: [![Clojars Project](https://img.shields.io/clojars/v/org.scicloj/plotje.svg)](https://clojars.org/org.scicloj/plotje)
 ;;
 ;; ```clojure
-;; org.scicloj/plotje {:mvn/version "0.17.0"}
+;; org.scicloj/plotje {:mvn/version "0.18.0"}
 ;; ```
 ;;
 ;; For this demo, you will also need:

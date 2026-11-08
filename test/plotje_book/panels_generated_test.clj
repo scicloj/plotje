@@ -222,8 +222,8 @@
       [:bar :point :point :point :bar :point :point :point :bar]
       (mapv
        (fn*
-        [p1__83374#]
-        (:mark (first (:layers (first (:panels (:plan p1__83374#)))))))
+        [p1__78609#]
+        (:mark (first (:layers (first (:panels (:plan p1__78609#)))))))
        (:sub-plots (pj/plan v))))))
    v34_l195)))
 
@@ -333,8 +333,8 @@
       [[:point] [:point :line]]
       (mapv
        (fn*
-        [p1__83375#]
-        (mapv :mark (-> p1__83375# :plan :panels first :layers)))
+        [p1__78610#]
+        (mapv :mark (-> p1__78610# :plan :panels first :layers)))
        (-> v pj/plan :sub-plots)))
      (=
       {:panels 2, :points 8, :lines 1}
@@ -363,8 +363,8 @@
       [[:point :bar] [:point :bar]]
       (mapv
        (fn*
-        [p1__83376#]
-        (mapv :mark (-> p1__83376# :plan :panels first :layers)))
+        [p1__78611#]
+        (mapv :mark (-> p1__78611# :plan :panels first :layers)))
        (-> v pj/plan :sub-plots)))
      (=
       2
@@ -395,8 +395,8 @@
       [[:point] [:point] [:bar]]
       (mapv
        (fn*
-        [p1__83377#]
-        (mapv :mark (-> p1__83377# :plan :panels first :layers)))
+        [p1__78612#]
+        (mapv :mark (-> p1__78612# :plan :panels first :layers)))
        (-> v pj/plan :sub-plots)))
      (=
       {:panels 3, :points 8, :polygons 3}
@@ -443,8 +443,8 @@
      [[:line :point] [:line]]
      (mapv
       (fn*
-       [p1__83378#]
-       (mapv :mark (-> p1__83378# :plan :panels first :layers)))
+       [p1__78613#]
+       (mapv :mark (-> p1__78613# :plan :panels first :layers)))
       (-> v pj/plan :sub-plots))))
    v61_l368)))
 

@@ -224,7 +224,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__85310#] (= :text (:mark p1__85310#))))
+      (filter (fn* [p1__87216#] (= :text (:mark p1__87216#))))
       first
       :style
       :align-x)))
@@ -657,8 +657,8 @@
        [pose]
        (mapv
         (fn*
-         [p1__85311#]
-         (mapv :mark (-> p1__85311# :plan :panels first :layers)))
+         [p1__87217#]
+         (mapv :mark (-> p1__87217# :plan :panels first :layers)))
         (-> pose pj/plan :sub-plots)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -752,7 +752,7 @@
     [fr]
     (let
      [radii
-      (fn* [p1__85312#] (sort (:sizes (pj/svg-summary p1__85312#))))
+      (fn* [p1__87218#] (sort (:sizes (pj/svg-summary p1__87218#))))
       now
       (radii fr)
       before
@@ -1183,7 +1183,7 @@
      svg
      (tree-seq coll? seq)
      (filter map?)
-     (some (fn* [p1__85313#] (= "rgb(26,26,46)" (:fill p1__85313#))))))
+     (some (fn* [p1__87219#] (= "rgb(26,26,46)" (:fill p1__87219#))))))
    v185_l1277)))
 
 
@@ -1216,8 +1216,8 @@
       [[:line :point] [:line :point]]
       (mapv
        (fn*
-        [p1__85314#]
-        (mapv :mark (-> p1__85314# :plan :panels first :layers)))
+        [p1__87220#]
+        (mapv :mark (-> p1__87220# :plan :panels first :layers)))
        (-> v pj/plan :sub-plots)))))
    v188_l1301)))
 
@@ -1241,8 +1241,8 @@
       [[:point] [:point] [:bar]]
       (mapv
        (fn*
-        [p1__85315#]
-        (mapv :mark (-> p1__85315# :plan :panels first :layers)))
+        [p1__87221#]
+        (mapv :mark (-> p1__87221# :plan :panels first :layers)))
        (-> v pj/plan :sub-plots)))
      (=
       2
@@ -1260,8 +1260,8 @@
       [[:bar :point] [:bar :point]]
       (mapv
        (fn*
-        [p1__85316#]
-        (mapv :mark (-> p1__85316# :plan :panels first :layers)))
+        [p1__87222#]
+        (mapv :mark (-> p1__87222# :plan :panels first :layers)))
        (->
         (pj/arrange
          [(pj/lay-point (rdatasets/ggplot2-mpg) :displ :hwy)

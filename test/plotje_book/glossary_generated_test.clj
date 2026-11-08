@@ -64,7 +64,7 @@
        :panels
        (mapv
         (comp
-         (fn* [p1__82736#] (nth p1__82736# 2))
+         (fn* [p1__81275#] (nth p1__81275# 2))
          :drawing-area
          :frames)))]
      (and (= 2 (:panels (pj/svg-summary v))) (> wide (* 1.5 narrow)))))
@@ -118,8 +118,8 @@
      [[:point :line] [:point :line] [:point]]
      (mapv
       (fn*
-       [p1__82737#]
-       (mapv :mark (-> p1__82737# :plan :panels first :layers)))
+       [p1__81276#]
+       (mapv :mark (-> p1__81276# :plan :panels first :layers)))
       (:sub-plots (pj/plan v)))))
    v19_l193)))
 
@@ -660,7 +660,7 @@
     (let
      [panels
       (mapv
-       (fn* [p1__82738#] (-> p1__82738# :plan :panels first))
+       (fn* [p1__81277#] (-> p1__81277# :plan :panels first))
        (:sub-plots (pj/plan v)))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -750,11 +750,11 @@
       sizes
       (frequencies
        (keep
-        (fn* [p1__82739#] (get-in p1__82739# [1 :font-size]))
+        (fn* [p1__81278#] (get-in p1__81278# [1 :font-size]))
         (filter
          (fn*
-          [p1__82740#]
-          (and (vector? p1__82740#) (= :text (first p1__82740#))))
+          [p1__81279#]
+          (and (vector? p1__81279#) (= :text (first p1__81279#))))
          (tree-seq vector? seq (pj/plot small)))))
       panel
       (first (:panels (pj/plan small)))

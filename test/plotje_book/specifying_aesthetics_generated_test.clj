@@ -584,11 +584,11 @@
         pj/plan
         :size-legend
         :entries
-        (mapv (fn* [p1__89037#] (* 2 (:magnitude p1__89037#))))))
+        (mapv (fn* [p1__78820#] (* 2 (:magnitude p1__78820#))))))
       (every?
        (fn*
-        [p1__89038#]
-        (re-find #":values does not recognize" (refusal p1__89038#)))
+        [p1__78821#]
+        (re-find #":values does not recognize" (refusal p1__78821#)))
        [(fn*
          []
          (->

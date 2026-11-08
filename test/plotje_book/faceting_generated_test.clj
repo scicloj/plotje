@@ -64,7 +64,7 @@
      (filterv
       #{"4" "f" "r"}
       (drop-while
-       (fn* [p1__81157#] (not= "r" p1__81157#))
+       (fn* [p1__85712#] (not= "r" p1__85712#))
        (:texts (pj/svg-summary v))))))
    v6_l65)))
 
@@ -297,8 +297,8 @@
       [[:line] [:point]]
       (mapv
        (fn*
-        [p1__81158#]
-        (mapv :mark (-> p1__81158# :plan :panels first :layers)))
+        [p1__85713#]
+        (mapv :mark (-> p1__85713# :plan :panels first :layers)))
        (-> v pj/plan :sub-plots)))
      (= "" (with-out-str (pj/plan v)))))
    v33_l229)))
@@ -374,7 +374,7 @@
          (map
           (juxt
            :path
-           (fn* [p1__81159#] (first (:panels (:plan p1__81159#))))))
+           (fn* [p1__85714#] (first (:panels (:plan p1__85714#))))))
          (:sub-plots (pj/plan v)))]
        (every?
         (fn
@@ -552,7 +552,7 @@
      (=
       [3 1]
       (mapv
-       (fn* [p1__81160#] (count (:panels (:plan p1__81160#))))
+       (fn* [p1__85715#] (count (:panels (:plan p1__85715#))))
        (:sub-plots (pj/plan fr))))))
    v63_l458)))
 
@@ -896,7 +896,7 @@
            (:class
             (tc/select-rows
              mpg
-             (fn* [p1__81161#] (= drv (:drv p1__81161#))))))
+             (fn* [p1__85716#] (= drv (:drv p1__85716#))))))
           (distinct (:drv mpg)))))))))
    v106_l753)))
 
@@ -1020,7 +1020,7 @@
     [drive ["4" "f" "r"]]
     (->
      (rdatasets/ggplot2-mpg)
-     (tc/select-rows (fn* [p1__81162#] (= drive (:drv p1__81162#))))
+     (tc/select-rows (fn* [p1__85717#] (= drive (:drv p1__85717#))))
      (pj/lay-point :displ :hwy)
      (pj/options {:title drive}))))))
 
@@ -1053,7 +1053,7 @@
          (->
           (rdatasets/ggplot2-mpg)
           (tc/select-rows
-           (fn* [p1__81163#] (= drive (:drv p1__81163#))))
+           (fn* [p1__85718#] (= drive (:drv p1__85718#))))
           (pj/lay-point :displ :hwy))))
        {:share-scales #{:y}})]
      (apply

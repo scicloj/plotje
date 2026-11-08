@@ -103,8 +103,8 @@
    :value
    (map
     (fn*
-     [p1__81459#]
-     (+ 100.0 (* 30.0 (Math/sin (* (double p1__81459#) 0.12)))))
+     [p1__82739#]
+     (+ 100.0 (* 30.0 (Math/sin (* (double p1__82739#) 0.12)))))
     (range 52))}))
 
 
@@ -555,7 +555,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__81460#] (= :text (:mark p1__81460#))))
+       (filter (fn* [p1__82740#] (= :text (:mark p1__82740#))))
        first)]
      (= :right (-> text-layer :style :align-x))))
    v75_l394)))
@@ -582,7 +582,7 @@
       :panels
       first
       :layers
-      (filter (fn* [p1__81461#] (= :text (:mark p1__81461#))))
+      (filter (fn* [p1__82741#] (= :text (:mark p1__82741#))))
       first
       :groups
       first
@@ -614,7 +614,7 @@
        [mark]
        (->>
         layers
-        (filter (fn* [p1__81462#] (= mark (:mark p1__81462#))))
+        (filter (fn* [p1__82742#] (= mark (:mark p1__82742#))))
         first
         :groups
         (mapv (juxt :label :dodge-idx))))]
@@ -676,8 +676,8 @@
  (->
   {:x (range 20),
    :y
-   (map (fn* [p1__81463#] (Math/sin (/ p1__81463# 3.0))) (range 20)),
-   :change (map (fn* [p1__81464#] (- p1__81464# 10)) (range 20))}
+   (map (fn* [p1__82743#] (Math/sin (/ p1__82743# 3.0))) (range 20)),
+   :change (map (fn* [p1__82744#] (- p1__82744# 10)) (range 20))}
   (pj/lay-point :x :y {:color :change})
   (pj/options
    {:color-range :diverging,
@@ -879,9 +879,9 @@
    (rdatasets/gapminder-gapminder)
    (tc/select-rows
     (fn*
-     [p1__81465#]
+     [p1__82745#]
      (#{"Cambodia" "Botswana" "Japan" "Rwanda" "China"}
-      (:country p1__81465#))))
+      (:country p1__82745#))))
    (tc/select-columns [:country :year :life-exp]))))
 
 
@@ -908,7 +908,7 @@
    {:data
     (tc/select-rows
      life-tracks
-     (fn* [p1__81466#] (= 2007 (:year p1__81466#)))),
+     (fn* [p1__82746#] (= 2007 (:year p1__82746#)))),
     :x :year,
     :y :life-exp,
     :text :country,
@@ -941,7 +941,7 @@
  (->
   (rdatasets/gapminder-gapminder)
   (tc/select-rows
-   (fn* [p1__81467#] (= "Rwanda" (:country p1__81467#))))
+   (fn* [p1__82747#] (= "Rwanda" (:country p1__82747#))))
   (pj/lay-line :year :life-exp {:color "#4477aa"})
   (pj/lay-point
    {:data {:year [1992], :life-exp [23.599]},
@@ -1003,7 +1003,7 @@
   ends-highest
   (->
    life-history
-   (tc/select-rows (fn* [p1__81468#] (= 2007 (:year p1__81468#))))
+   (tc/select-rows (fn* [p1__82748#] (= 2007 (:year p1__82748#))))
    (tc/order-by :life-exp :desc)
    (tc/rows :as-maps)
    first
@@ -1072,7 +1072,7 @@
    chosen
    (tc/select-rows
     life-history
-    (fn* [p1__81469#] (named (:country p1__81469#))))]
+    (fn* [p1__82749#] (named (:country p1__82749#))))]
   (->
    life-history
    (pj/lay-line :year :life-exp {:group :country, :color "#d0d0d0"})
@@ -1082,7 +1082,7 @@
     {:data
      (tc/select-rows
       chosen
-      (fn* [p1__81470#] (= 2007 (:year p1__81470#)))),
+      (fn* [p1__82750#] (= 2007 (:year p1__82750#)))),
      :x :year,
      :y :life-exp,
      :text :country,
@@ -1132,11 +1132,11 @@
       (every? (set (:texts s)) ["Japan" "Oman" "Rwanda"])
       (some
        (fn*
-        [p1__81471#]
-        (re-find #"^Rwanda, 1992: a fall of 20 years" p1__81471#))
+        [p1__82751#]
+        (re-find #"^Rwanda, 1992: a fall of 20 years" p1__82751#))
        (:texts s))
       (some
-       (fn* [p1__81472#] (= "142 countries, 1952-2007" p1__81472#))
+       (fn* [p1__82752#] (= "142 countries, 1952-2007" p1__82752#))
        (:texts s)))))
    v135_l821)))
 
@@ -1151,8 +1151,8 @@
    ys
    (map
     (fn*
-     [p1__81473#]
-     (+ (* 3 p1__81473#) 5 (* 2 (- (rng/drandom r) 0.5))))
+     [p1__82753#]
+     (+ (* 3 p1__82753#) 5 (* 2 (- (rng/drandom r) 0.5))))
     xs)]
   (->
    {:x xs, :y ys}
@@ -1513,7 +1513,7 @@
    (let
     [bs (byte-array 8)]
     (.read in bs)
-    (mapv (fn* [p1__81474#] (bit-and p1__81474# 255)) (vec bs))))))
+    (mapv (fn* [p1__82754#] (bit-and p1__82754# 255)) (vec bs))))))
 
 
 (deftest

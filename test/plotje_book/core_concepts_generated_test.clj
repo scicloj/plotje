@@ -271,7 +271,7 @@
   setosa
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__80385#] (= "setosa" (:species p1__80385#))))))
+   (fn* [p1__78233#] (= "setosa" (:species p1__78233#))))))
 
 
 (def
@@ -280,7 +280,7 @@
   versicolor
   (tc/select-rows
    (rdatasets/datasets-iris)
-   (fn* [p1__80386#] (= "versicolor" (:species p1__80386#))))))
+   (fn* [p1__78234#] (= "versicolor" (:species p1__78234#))))))
 
 
 (def
@@ -408,8 +408,8 @@
      [[:point :line] [:point :line] [:point]]
      (mapv
       (fn*
-       [p1__80387#]
-       (mapv :mark (-> p1__80387# :plan :panels first :layers)))
+       [p1__78235#]
+       (mapv :mark (-> p1__78235# :plan :panels first :layers)))
       (-> v pj/plan :sub-plots))))
    v66_l415)))
 
