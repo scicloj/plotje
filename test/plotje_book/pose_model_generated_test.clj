@@ -217,7 +217,7 @@
 
 
 (def
- v43_l263
+ v43_l264
  (def
   two-panel
   (pj/pose
@@ -230,36 +230,36 @@
     :data (rdatasets/datasets-iris)})))
 
 
-(def v44_l272 two-panel)
+(def v44_l273 two-panel)
 
 
 (deftest
- t45_l274
+ t45_l275
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 2 (:panels s)) (= 300 (:points s)))))
-   v44_l272)))
+   v44_l273)))
 
 
-(def v47_l280 (kind/pprint two-panel))
+(def v47_l281 (kind/pprint two-panel))
 
 
 (deftest
- t48_l282
+ t48_l283
  (is
   ((fn
     [v]
     (and
      (= 2 (count (:poses v)))
      (= :horizontal (get-in v [:layout :direction]))))
-   v47_l280)))
+   v47_l281)))
 
 
 (def
- v50_l289
+ v50_l290
  (pj/arrange
   [(->
     (rdatasets/datasets-iris)
@@ -272,12 +272,12 @@
 
 
 (deftest
- t51_l297
- (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v50_l289)))
+ t51_l298
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v50_l290)))
 
 
 (def
- v53_l306
+ v53_l307
  (->
   (pj/arrange
    [(->
@@ -292,7 +292,7 @@
 
 
 (deftest
- t54_l315
+ t54_l316
  (is
   ((fn
     [v]
@@ -303,4 +303,4 @@
      (= :horizontal (get-in v [:poses 0 :layout :direction]))
      (nil? (:data v))
      (every? (comp some? :data) (:poses (first (:poses v))))))
-   v53_l306)))
+   v53_l307)))

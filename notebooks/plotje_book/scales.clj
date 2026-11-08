@@ -1806,10 +1806,10 @@ gapminder-2007
 ;; ## One legend per aesthetic
 ;;
 ;; A size legend's swatches are computed from the same function as the
-;; marks, so on a single panel the swatch next to a value is the size
-;; a mark of that value is drawn at. Across the panels of a facet it
-;; is not, for the reason given under
-;; [Not supported yet](#not-supported-yet) below.
+;; marks, so the swatch next to a value is the size a mark of that value
+;; is drawn at. Under a facet this holds in every panel, since the
+;; panels read `:size` through one scale -- see
+;; [Faceting](./plotje_book.faceting.html#appearance-aesthetics-across-panels).
 ;;
 ;; A swatch is also drawn in the shape of the quantity it explains. One
 ;; column mapped to both `:size` and `:alpha` is drawn with two

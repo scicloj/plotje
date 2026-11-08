@@ -9,7 +9,7 @@
 
 
 (def
- v3_l38
+ v3_l45
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -18,7 +18,7 @@
 
 
 (deftest
- t4_l43
+ t4_l50
  (is
   ((fn
     [v]
@@ -32,11 +32,11 @@
        (pj/pose
         (rdatasets/datasets-iris)
         {:x :sepal-length, :y :sepal-width})))))
-   v3_l38)))
+   v3_l45)))
 
 
 (def
- v6_l60
+ v6_l67
  (->
   (rdatasets/datasets-iris)
   (pj/pose :sepal-length :sepal-width)
@@ -46,23 +46,23 @@
     :data
     (tc/select-rows
      (rdatasets/datasets-iris)
-     (fn* [p1__80469#] (= "setosa" (:species p1__80469#))))})
+     (fn* [p1__85051#] (= "setosa" (:species p1__85051#))))})
   (pj/facet :species)))
 
 
 (deftest
- t7_l68
+ t7_l75
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 3 (:panels s)) (= 150 (:points s)) (= 3 (:lines s)))))
-   v6_l60)))
+   v6_l67)))
 
 
 (def
- v9_l93
+ v9_l100
  (->
   {:population [1000 5000 50000 200000 1000000 5000000],
    :area [2 8 30 120 500 2100]}
@@ -72,7 +72,7 @@
 
 
 (deftest
- t10_l99
+ t10_l106
  (is
   ((fn
     [v]
@@ -82,11 +82,11 @@
       (= 6 (:points (pj/svg-summary v)))
       (= :log (-> panel :x-scale :type))
       (= [2500.0 0.0] (mapv double (:y-domain panel))))))
-   v9_l93)))
+   v9_l100)))
 
 
 (def
- v12_l114
+ v12_l121
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -94,7 +94,7 @@
 
 
 (deftest
- t13_l118
+ t13_l125
  (is
   ((fn
     [v]
@@ -112,11 +112,11 @@
            :color
            {:values ["#E74C3C" "#3498DB" "#2ECC71"]}))))
        "none"))))
-   v12_l114)))
+   v12_l121)))
 
 
 (def
- v15_l152
+ v15_l159
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width)
@@ -124,7 +124,7 @@
 
 
 (deftest
- t16_l156
+ t16_l163
  (is
   ((fn
     [v]
@@ -135,11 +135,11 @@
       (= 1 (:clips s))
       (= 150 (:points (pj/svg-summary (pj/coord v :flip))))
       (= 150 (:points (pj/svg-summary (pj/coord v :fixed)))))))
-   v15_l152)))
+   v15_l159)))
 
 
 (def
- v18_l180
+ v18_l188
  (->
   (rdatasets/ggplot2-mpg)
   (pj/lay-point :displ :hwy)
@@ -147,7 +147,7 @@
 
 
 (deftest
- t19_l184
+ t19_l192
  (is
   ((fn
     [v]
@@ -171,11 +171,11 @@
          (pj/matrix
           (rdatasets/datasets-iris)
           [:sepal-length :petal-length])))))))
-   v18_l180)))
+   v18_l188)))
 
 
 (def
- v21_l211
+ v21_l219
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})
@@ -187,7 +187,7 @@
 
 
 (deftest
- t22_l218
+ t22_l226
  (is
   ((fn
     [v]
@@ -199,11 +199,11 @@
        "Length (cm)"
        "Width (cm)"
        "Species"])))
-   v21_l211)))
+   v21_l219)))
 
 
 (def
- v24_l238
+ v24_l246
  (try
   (->
    (rdatasets/datasets-iris)
@@ -214,7 +214,7 @@
 
 
 (deftest
- t25_l246
+ t25_l254
  (is
   ((fn
     [m]
@@ -229,4 +229,4 @@
          :quarter
          :revenue
          {:stroke-dash [5 5]}))))))
-   v24_l238)))
+   v24_l246)))

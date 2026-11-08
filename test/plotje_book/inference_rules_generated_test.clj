@@ -374,20 +374,20 @@
      [[six-hours three-days nine-years]
       (mapv
        (fn*
-        [p1__80870#]
-        (-> p1__80870# :plan :panels first :x-ticks :labels))
+        [p1__85481#]
+        (-> p1__85481# :plan :panels first :x-ticks :labels))
        (:sub-plots (pj/plan v)))]
      (and
       (every?
-       (fn* [p1__80871#] (re-matches #"\d{2}:\d{2}" p1__80871#))
+       (fn* [p1__85482#] (re-matches #"\d{2}:\d{2}" p1__85482#))
        six-hours)
       (every?
        (fn*
-        [p1__80872#]
-        (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__80872#))
+        [p1__85483#]
+        (re-matches #"[A-Z][a-z]{2} \d{2}:\d{2}" p1__85483#))
        three-days)
       (every?
-       (fn* [p1__80873#] (re-matches #"\d{4}" p1__80873#))
+       (fn* [p1__85484#] (re-matches #"\d{4}" p1__85484#))
        nine-years)
       (= 9 (count nine-years)))))
    v54_l377)))
@@ -1390,7 +1390,7 @@
         (=
          [:single :single]
          (mapv
-          (fn* [p1__80874#] (get-in p1__80874# [:plan :layout-type]))
+          (fn* [p1__85485#] (get-in p1__85485# [:plan :layout-type]))
           (:sub-plots plan))))))))
    v214_l1328)))
 

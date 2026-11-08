@@ -102,7 +102,7 @@
 ;; Those integer names are what the axes are titled with, and they can
 ;; be mapped like any other column name. `(tc/rename-columns ds [:height :weight])`
 ;; gives them words. A vector of vectors given to `pj/arrange` means
-;; something else -- rows of cells, each cell one panel. What tells the
+;; something else -- rows of cells, each cell a pose. What tells the
 ;; two apart is where the vector is written -- in a mapping, or in
 ;; `pj/arrange`'s list of cells -- not what it holds.
 
@@ -394,8 +394,11 @@ two-panel
 ;; Separate panels come from `pj/facet` and `pj/arrange` -- see
 ;; [Panels](./plotje_book.panels.html).
 ;;
-;; On a composite, a layer naming no columns is drawn in every cell,
-;; and a layer naming columns is drawn in the cells that draw them -- see
+;; On a composite, a layer naming no columns is drawn in every cell
+;; whose number of columns its layer type draws from. A layer naming
+;; columns is drawn in every cell whose panel draws no other column than
+;; the layer names, and where no cell's panel does, the call appends a
+;; new cell -- see
 ;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
 
 ;; ## The Pose

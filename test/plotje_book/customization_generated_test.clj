@@ -268,7 +268,7 @@
  v39_l212
  (->
   {:product
-   (map (fn* [p1__85135#] (str "Product " p1__85135#)) (range 12)),
+   (map (fn* [p1__81753#] (str "Product " p1__81753#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45})))
@@ -289,7 +289,7 @@
  v42_l226
  (->
   {:product
-   (map (fn* [p1__85136#] (str "Product " p1__85136#)) (range 12)),
+   (map (fn* [p1__81754#] (str "Product " p1__81754#)) (range 12)),
    :revenue [120 95 140 60 175 80 110 150 90 130 70 160]}
   (pj/lay-bar :product :revenue)
   (pj/options {:x-tick-angle -45, :x-tick-label-pad 90})))
@@ -447,7 +447,7 @@
    (pj/options {:thousands-separator ","})
    pj/svg-summary
    :texts)
-  (filter (fn* [p1__85137#] (re-find #"," p1__85137#)))
+  (filter (fn* [p1__81755#] (re-find #"," p1__81755#)))
   distinct
   sort))
 
@@ -796,11 +796,11 @@
         :panels
         first
         :layers
-        (filter (fn* [p1__85138#] (= :text (:mark p1__85138#))))
+        (filter (fn* [p1__81756#] (= :text (:mark p1__81756#))))
         (mapv
          (fn*
-          [p1__85139#]
-          (-> p1__85139# :style :box :corner-radius))))))))
+          [p1__81757#]
+          (-> p1__81757# :style :box :corner-radius))))))))
    v107_l588)))
 
 
@@ -906,7 +906,7 @@
        :panels
        first
        :layers
-       (filter (fn* [p1__85140#] (= :band-v (:mark p1__85140#))))
+       (filter (fn* [p1__81758#] (= :band-v (:mark p1__81758#))))
        first)]
      (= [(/ 42 255.0) (/ 157 255.0) (/ 143 255.0) 1.0] (:color band))))
    v125_l678)))

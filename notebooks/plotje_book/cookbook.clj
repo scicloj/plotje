@@ -1,6 +1,6 @@
 ;; # Cookbook
 ;;
-;; Practical plotting recipes -- how to combine marks, overlay stats,
+;; Practical plotting recipes -- how to combine marks, add stats,
 ;; and build finished charts.
 
 (ns plotje-book.cookbook
@@ -23,7 +23,7 @@
 
 ;; ### Boxplot with jittered points
 ;;
-;; Overlay raw observations on a boxplot summary. On a categorical axis,
+;; Draw the raw observations over a boxplot summary. On a categorical axis,
 ;; the [jitter](https://en.wikipedia.org/wiki/Jitter) spreads the points
 ;; only within the width of each band.
 
@@ -36,7 +36,7 @@
                                 (pos? (:points s))
                                 (= 3 (:polygons s)))))])
 
-;; ### Histogram with density overlay
+;; ### Histogram with a density curve
 ;;
 ;; Normalize the histogram to density scale so it is comparable with the KDE (kernel density estimation) curve.
 
@@ -165,7 +165,7 @@
 ;; ### Different data per layer
 ;;
 ;; Each `lay-*` accepts `{:data ...}` to override the pose-level
-;; dataset. This lets you overlay marks from two different tables --
+;; dataset. This draws marks from two different tables on one panel --
 ;; ggplot2's `geom_line(data=df2) + geom_point(data=df1)` pattern.
 ;;
 ;; Unlike ggplot2, `pj/facet` does not divide a layer's own `:data`:
@@ -379,7 +379,7 @@ longest-per-species
 
 ;; ### Value labels inside bars
 ;;
-;; To print a value on each bar, overlay a `lay-text` layer added after
+;; To print a value on each bar, add a `lay-text` layer after
 ;; the bar so it paints on top. Use `:align-x :right` so the label's
 ;; right edge sits at the bar's end, so the text extends leftward
 ;; inside the bar rather than past its end.

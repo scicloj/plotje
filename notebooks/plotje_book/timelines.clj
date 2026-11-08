@@ -329,7 +329,7 @@
                                 (= 20 (:points s)))))])
 
 ;; The slope of each line carries information: steeper means
-;; slower (more time between two stations). The point overlay
+;; slower (more time between two stations). The point layer
 ;; marks the actual stops; remove `lay-point` and the schedule
 ;; reads as continuous travel.
 

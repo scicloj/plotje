@@ -30,6 +30,13 @@
 ;; | `+ geom_point()` | `pj/lay-point` | [Core Concepts](./plotje_book.core_concepts.html#mappings-and-layers) |
 ;; | `+ geom_smooth(method = "lm")` | `(pj/lay-smooth {:stat :linear-model})` | [Relationships](./plotje_book.relationships.html#linear-regression) |
 ;; | `+ geom_point(data = df2)` | `(pj/lay-point {:data df2})` | [Core Concepts](./plotje_book.core_concepts.html#layer-level-data) |
+;; | `+ geom_point(aes(x = c, y = d))`, a layer on other columns | `(pj/lay-point :c :d)`, drawn on the same panel, each axis titled by both columns | [Panels](./plotje_book.panels.html#the-panel-of-a-leaf-pose) |
+;; | `pivot_longer()` then `aes(color = name)` | `(pj/lay-line df :x [:a :b])`, a series | [Series](./plotje_book.series.html#a-series-is-a-layer-per-column) |
+;;
+;; Where the layers of a panel draw different columns and no layer is
+;; colored by a column, Plotje gives each layer a color and a legend
+;; entry naming its columns; ggplot2 draws both layers in one color with
+;; no legend.
 ;;
 ;; A pose with a point layer and a linear-model smooth, the Plotje
 ;; spelling of `ggplot(iris, aes(Sepal.Length, Sepal.Width)) +
@@ -169,6 +176,7 @@
 ;; | `+ facet_wrap(~ drv)` | `(pj/facet pose :drv)`, which draws its panels in one row | [Faceting](./plotje_book.faceting.html#coming-from-ggplot2) |
 ;; | `+ facet_wrap(~ class, ncol = 4)` | `(pj/facet pose :class {:cols 4})` | [Wrapping the panels into rows](./plotje_book.faceting.html#wrapping-the-panels-into-rows) |
 ;; | `+ facet_grid(cyl ~ drv)` | `(pj/facet pose {:col :drv :row :cyl})` | [Faceting](./plotje_book.faceting.html#coming-from-ggplot2) |
+;; | `pivot_longer()` then `facet_wrap(~ name, scales = "free_y")` | `(pj/facet pose {:y [:a :b]})` | [A Panel per Column](./plotje_book.faceting.html#a-panel-per-column) |
 ;; | patchwork's <code>p1 &#124; p2</code> | `(pj/arrange [p1 p2])` | [Composition](./plotje_book.composition.html#side-by-side-via-pjarrange) |
 ;; | `GGally::ggpairs(df, columns = cols)` | `(pj/matrix df cols)` | [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom) |
 ;;

@@ -10,11 +10,17 @@ All notable changes to this project will be documented in this file. This change
 
 - **A `pj/lay-*` call naming columns on an arrangement** is drawn in every cell whose panel draws no other column on `:x` or `:y` than the call names, and where the call names one column it reads that cell's other column. A smooth naming `:displ` and `:hwy`, added to cells that split the data with `:where`, is drawn in each cell, as it is drawn in each panel of `(pj/facet :drv)`. The layer is drawn under a cell's own layers, as a layer naming no columns is. Where every cell's panel draws another column, the layer is drawn on a cell of its own.
 
+- **`pj/lay-contour` lines** cross each cell edge of the density grid where the density passes the contour level, whether the density rises or falls along that edge, so the lines are smooth curves. Reported on Zulip - thanks, generateme.
+
+- **Tiles of `pj/lay-tile` and `pj/lay-density-2d` in SVG** are drawn with crisp edges, as bars are, so neighbouring tiles meet with no seam showing between them. A tile narrower than one drawing unit is drawn as before. Reported on Zulip - thanks, generateme.
+
 ### Added
 
 - **`:cols` wraps a facet into rows.** `(pj/facet pose :class {:cols 4})` draws the panels of a facet by one category in rows of four, each under its strip, sharing both axes -- what ggplot2 writes as `facet_wrap(~ class, ncol = 4)`. The facet draws what `pj/arrange` draws from the cells of that facet given the same `:cols`. When a facet has too many panels to fit, the error suggests `:cols` and a height.
 
 ### Warnings and errors
+
+- **A layer naming other columns than its pose's, `pj/pose` replacing a column, and a vector of columns read as a series print no Note.** In 0.17.0 each printed a Note describing what 0.16.1 drew instead.
 
 - **`:panel-size` and `:margin-multi` are retired.** Written as configuration or as a plot option, each warns once, names what to write instead -- `:panel-width` or `:panel-height` for the size of each panel, and `:margin` for the margin of every plot -- and the plot draws without it. Neither changed a plot in 0.17.0, and neither is listed in `pj/config-key-docs`.
 

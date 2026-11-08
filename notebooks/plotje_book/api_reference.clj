@@ -470,8 +470,10 @@
 ;; the `:band-opacity` configuration default -- and `:size` a rule's
 ;; width. On a composite, a rule or a band written without columns is
 ;; added at the root and drawn in every cell, and one written with an
-;; `:x` and a `:y` column is drawn in the cell that draws those two
-;; columns. On a pose with one panel a rule or a band is drawn on that
+;; `:x` and a `:y` column is added at the root too and drawn in every
+;; cell whose panel draws no other column on `:x` or `:y`; where every
+;; cell draws other columns, the rule or band is drawn on a new cell
+;; appended to the composite. On a pose with one panel a rule or a band is drawn on that
 ;; panel, and columns written on it that the panel does not draw are
 ;; not read, with a warning.
 ;;
@@ -705,6 +707,16 @@
                            (and (= 3 (:panels s))
                                 (= 150 (:points s)))))])
 
+;; `:cols` in the options map wraps a facet by one category into rows
+;; of that many panels:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :class {:cols 4}))
+
+(kind/test-last [(fn [v] (and (= {:cols 4} (:layout v))
+                              (= 7 (:panels (pj/svg-summary v)))))])
+
 ;; A map under `:col` and `:row` draws a grid of categories, a panel for
 ;; every pair of values:
 
@@ -742,17 +754,21 @@
                               (= [0.0 0.0 600.0 250.0] (:canvas (pj/frames v)))))])
 
 ;; Mappings as cells -- given the data first, a mapping such as
-;; `{:x :sepal-length :y :sepal-width}` is a panel of its two columns,
-;; and a layer added afterwards is drawn in every cell:
+;; `{:x :sepal-length :y :sepal-width}` is a panel of its two columns.
+;; A layer added afterwards naming no columns is drawn in every cell,
+;; and a layer naming columns is drawn in the cells whose panels draw
+;; them -- here the trend line, in the first cell:
 
 (-> (rdatasets/datasets-iris)
     (pj/arrange [{:x :sepal-length :y :sepal-width}
                  {:x :petal-length :y :petal-width}])
-    (pj/lay-point {:color :species}))
+    (pj/lay-point {:color :species})
+    (pj/lay-smooth :sepal-length :sepal-width))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 2 (:panels s))
-                                (= 300 (:points s)))))])
+                                (= 300 (:points s))
+                                (= 1 (:lines s)))))])
 
 (kind/doc #'pj/marginal)
 

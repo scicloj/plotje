@@ -346,9 +346,12 @@
 ;; Two different lists cross the same way: `{:col {:x xs} :row {:y ys}}`,
 ;; or `(pj/matrix data xs ys)`, draws each column of `xs` against each
 ;; column of `ys`. Written
-;; without `:col` and `:row`, `{:x xs :y ys}` pairs the columns one by
-;; one instead, a panel per pair, as the section on layers on different
-;; columns shows below. The
+;; without `:col` and `:row`, `pj/facet` given `{:x xs :y ys}` pairs the
+;; columns one by one instead, a panel per pair, as
+;; [Layers on different columns, faceted](#layers-on-different-columns-faceted)
+;; shows below. A list of pairs given to `pj/pose` or to a `pj/lay-*`
+;; call is not read this way: it reports an error naming `pj/arrange`
+;; and `pj/matrix`. The
 ;; [Relationships](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;; chapter builds scatter plot matrices with more layers.
 

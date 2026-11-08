@@ -905,5 +905,5 @@
 ;; ## What's Next
 ;;
 ;; - [**Placing Marks**](./plotje_book.placing_marks.html) -- where a mark goes, and in what units
-;; - [**Faceting**](./plotje_book.faceting.html) -- split any chart into panels by one or two variables
+;; - [**Faceting**](./plotje_book.faceting.html) -- divide a chart into panels by category, or give each of several columns a panel of its own
 ;; - [**API Reference**](./plotje_book.api_reference.html) -- complete function listing with docstrings

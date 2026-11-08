@@ -92,6 +92,28 @@
                                 (= 300 (:points s))
                                 (= 1 (count (filter #{"sepal length"} (:texts s)))))))])
 
+;; A layer that names columns is drawn in every cell whose panel draws
+;; no other column on `:x` or `:y` than the layer names. Below, the
+;; trend line names the first cell's columns and is drawn there only. A
+;; layer naming columns that every cell's panel contradicts is drawn on
+;; a new cell appended to the arrangement -- see Rules LP2 and LP3 in
+;; [Pose Rules](./plotje_book.pose_rules.html) and
+;; [Panels](./plotje_book.panels.html#arranging-poses-side-by-side).
+
+(-> (rdatasets/datasets-iris)
+    (pj/arrange [{:x :sepal-length :y :sepal-width}
+                 {:x :sepal-length :y :petal-length}])
+    pj/lay-point
+    (pj/lay-smooth :sepal-length :sepal-width))
+
+(kind/test-last [(fn [v] (= [[:point :line] [:point]]
+                            (mapv #(mapv :mark (-> %
+                                                   :plan
+                                                   :panels
+                                                   first
+                                                   :layers))
+                                  (:sub-plots (pj/plan v)))))])
+
 ;; The two cells read one dataset, so the two cells share the `:x` axis
 ;; on which both draw `:sepal-length`, and that axis is titled once (see
 ;; Shared Scales below).
@@ -979,17 +1001,17 @@ dashboard
 ;; Here a base scatter gets a second set of points from another
 ;; dataset, whose columns are named `:x` and `:y`:
 
-(def overlay-base
+(def base-data
   {:fitted   [1 2 3]
    :residual [1 2 3]})
 
-(def overlay-other
+(def other-data
   (tc/dataset {:x [0.5 1.5 2.5]
                :y [1.5 2.5 3.5]}))
 
-(-> overlay-base
+(-> base-data
     (pj/lay-point :fitted :residual {:color "#377eb8"})
-    (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
+    (pj/lay-point :x :y {:color "#e6550d" :data other-data}))
 
 (kind/test-last
  [(fn [v]
@@ -1007,18 +1029,18 @@ dashboard
 ;; another name, renaming them to the pose's columns with
 ;; `tc/rename-columns` draws the same marks under one name per axis:
 
-(-> overlay-base
+(-> base-data
     (pj/lay-point :fitted :residual {:color "#377eb8"})
     (pj/lay-point :fitted :residual
                   {:color "#e6550d"
-                   :data (tc/rename-columns overlay-other
+                   :data (tc/rename-columns other-data
                                             {:x :fitted :y :residual})}))
 
 (kind/test-last
  [(fn [v]
-    (let [unrenamed (-> overlay-base
+    (let [unrenamed (-> base-data
                         (pj/lay-point :fitted :residual {:color "#377eb8"})
-                        (pj/lay-point :x :y {:color "#e6550d" :data overlay-other}))
+                        (pj/lay-point :x :y {:color "#e6550d" :data other-data}))
           titles (fn [pose] ((juxt :x-label :y-label) (pj/plan pose)))
           domains (fn [pose] ((juxt :x-domain :y-domain) (first (:panels (pj/plan pose)))))]
       (and (= ["fitted" "residual"] (titles v))
@@ -1032,8 +1054,8 @@ dashboard
 ;; To draw the other dataset beside the base scatter, build each as a
 ;; pose and arrange them:
 
-(pj/arrange [(pj/lay-point overlay-base :fitted :residual {:color "#377eb8"})
-             (pj/lay-point overlay-other :x :y {:color "#e6550d"})])
+(pj/arrange [(pj/lay-point base-data :fitted :residual {:color "#377eb8"})
+             (pj/lay-point other-data :x :y {:color "#e6550d"})])
 
 (kind/test-last
  [(fn [v]

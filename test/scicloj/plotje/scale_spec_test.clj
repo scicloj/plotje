@@ -1259,12 +1259,10 @@
                (pj/lay-point :gdp :life {:x {:scale :log}})
                pj/draft :layers (->> (mapv :x)))))))
 
-(deftest pj-pose-replacing-a-column-prints-a-note-test
-  ;; For this release only: 0.16.1 added a panel here.
-  (testing "another :x or :y column"
-    (is (re-find #"Note: on this pose, pj/pose replaces :x :gdp with :year; in 0.16.1 it added a panel.*\(pj/arrange data \[\{:x :gdp :y :life\} \{:x :year :y :life\}\]\)"
-                 (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x :year}))))))
-  (testing "no Note for the same column, a first mapping, nil, or another aesthetic"
+(deftest pj-pose-replacing-a-column-prints-nothing-test
+  (testing "another :x or :y column replaces the pose's with no message"
+    (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x :year}))))))
+  (testing "nor the same column, a first mapping, nil, or another aesthetic"
     (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x :gdp})))))
     (is (= "" (with-out-str (-> scaled-data pj/pose (pj/pose :gdp :life)))))
     (is (= "" (with-out-str (-> scaled-data (pj/pose :gdp :life) (pj/pose {:x nil})))))

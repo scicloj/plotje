@@ -306,7 +306,7 @@
 
 ;; ## From Wide to Long
 ;;
-;; Plotje plots **long-form** (tidy) data: one row per observation,
+;; Plotje reads **long-form** (tidy) data most directly: one row per observation,
 ;; with categories and groupings in their own columns. Real
 ;; datasets often arrive in **wide form** -- each measurement in
 ;; its own column. `tc/pivot->longer` is the canonical reshape:
@@ -345,6 +345,20 @@ temps-long
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
                                 (= 3 (:lines s)))))])
+
+;; A wide table can also be plotted as it stands. A vector of columns
+;; written where one column goes is a **series**: the columns are drawn
+;; on one panel, each in a color of its own with a legend entry, and
+;; the axis is titled by the columns. [Series](./plotje_book.series.html)
+;; teaches it.
+
+(-> temps-wide
+    (pj/lay-line :month [:tokyo :paris :nairobi]))
+
+(kind/test-last [(fn [v] (and (= {:panels 1 :lines 3}
+                                 (select-keys (pj/svg-summary v) [:panels :lines]))
+                              (= ["tokyo" "paris" "nairobi"]
+                                 (mapv :label (:entries (:legend (pj/plan v)))))))])
 
 ;; The inverse, `tc/pivot->wider`, reshapes long back to wide --
 ;; useful for tabular reports but rarely the right shape for

@@ -238,7 +238,7 @@
 
 ;; ## Density 2D with Points
 
-;; Overlay scatter points on the density heatmap.
+;; Scatter points drawn on top of the density heatmap.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-density-2d :sepal-length :sepal-width)
@@ -261,7 +261,7 @@
 
 ;; ## Contour with Points
 
-;; Contour lines overlaid on scatter points.
+;; Contour lines drawn over scatter points.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-point :sepal-length :sepal-width {:alpha 0.3})
@@ -531,6 +531,6 @@
 ;; ## What's Next
 ;;
 ;; - [**Cookbook**](./plotje_book.cookbook.html) -- recipes for common multi-layer plots
-;; - [**Faceting**](./plotje_book.faceting.html) -- split any chart into panels by category
+;; - [**Faceting**](./plotje_book.faceting.html) -- divide a chart into panels by category, or give each of several columns a panel of its own
 ;; - [**Polar Coordinates**](./plotje_book.polar.html) -- radial charts and pie-style visualizations
 ;; - [**Customization**](./plotje_book.customization.html) -- mark styling, palettes, and themes

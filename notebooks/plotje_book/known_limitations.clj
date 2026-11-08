@@ -13,10 +13,12 @@
 
 ;; ## Layout and Visuals
 ;;
-;; - Multi-layer overlays like
+;; - Layers that draw the same columns are drawn in one color with no
+;;   legend entry per layer, so the two curves of
 ;;   `(-> data (pj/lay-point ...) (pj/lay-smooth {:stat :linear-model}) (pj/lay-smooth {:stat :loess}))`
-;;   do not draw a legend entry per layer to distinguish the two
-;;   regression curves. Workaround: color each layer explicitly.
+;;   cannot be told apart. Layers that draw different columns are each
+;;   given a color and a legend entry. Workaround: color each layer
+;;   explicitly.
 ;;
 ;; - Histograms, stacked bars, step plots, and other stat-derived
 ;;   marks do not default to a `"count"` or `"density"` y-label.

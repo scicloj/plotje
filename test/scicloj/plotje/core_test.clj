@@ -4147,7 +4147,7 @@
       (is (= "" (out (-> sales (pj/lay-line :week :units {:color :region}))))))))
 
 (deftest rule-columns-on-a-leaf-are-not-read-for-its-extent-test
-  ;; On a composite pose a rule's columns pick the cell it is drawn in.
+  ;; On a composite pose a rule's columns pick the cells it is drawn in.
   ;; On a leaf there is no cell to pick: columns the panel does not draw
   ;; are left out, with a warning, so they do not stretch the axes.
   (let [mpg (rdatasets/ggplot2-mpg)

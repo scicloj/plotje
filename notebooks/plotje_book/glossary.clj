@@ -114,9 +114,9 @@ my-pose
 ;;   given: a pose, a composite, a column, a mapping, or `nil` for a
 ;;   cell left empty. A cell is written the way the argument after the
 ;;   data is written in `pj/pose`.
-;; - In a facet over columns, a cell is the panel of one column, or of
-;;   one pair of columns: the pose is expanded into a cell per column
-;;   when it is drawn.
+;; - In a facet over columns, a cell is the part of the pose for one
+;;   column, or for one combination of columns, and draws one panel: the
+;;   pose is expanded into a cell per column when it is drawn.
 ;;
 ;; Each cell is planned as a [sub-plot](#sub-plot). Below, an
 ;; arrangement of three cells: a column, a mapping, and a cell left
@@ -161,8 +161,10 @@ my-pose
 ;;   type draws from. A call naming columns is added at the root too,
 ;;   and drawn in every cell whose panel draws no other column on `:x`
 ;;   or `:y` than the call names; where every cell's panel draws another
-;;   column, the call appends a new cell. A call naming one column reads the cell's
-;;   other column.
+;;   column, the call appends a new cell. A call naming one column reads
+;;   the cell's column on the other axis where its layer type draws from
+;;   two; a layer type that draws from one column is drawn only in a cell
+;;   whose panel draws that one column alone.
 ;;
 ;; In each case the columns a `pj/lay-*` call names are written on the
 ;; layer's own mapping, never on the pose's.
@@ -803,8 +805,9 @@ my-pose
 ;;
 ;; A **panel** is one set of axes in the rendered plot, with the marks
 ;; drawn against them. A leaf pose draws one panel, which its layers
-;; share; a facet over categories draws a panel per category, and a
-;; facet over columns and `pj/arrange` draw a panel per cell.
+;; share; a facet over categories draws a panel per category, a facet
+;; over columns draws a panel per cell, and `pj/arrange` draws each
+;; cell's panels in a grid.
 ;;
 ;; In a plan, a panel is a map holding the x and y domains, scale
 ;; specs, ticks, coordinate type, and layers. A facet over categories
@@ -871,7 +874,7 @@ my-pose
 ;; ## Sub-plot
 ;;
 ;; A **sub-plot** is the plan of one cell: one leaf of a composite
-;; pose, or the panel of one column in a facet over columns. Where the
+;; pose, or the cell of one column in a facet over columns. Where the
 ;; plan of a leaf pose carries `:panels` (one per category of a facet),
 ;; the plan of a composite pose, and of a leaf with a facet over
 ;; columns, carries `:sub-plots`, one per cell, each with its own
@@ -987,7 +990,7 @@ my-pose
 ;;   legend explains a scale.
 ;; - `{:color {:value "Model A" :scale true}}` sends a written value
 ;;   through the scale as though it were a column of one distinct
-;;   value, which is how a whole layer is labelled as a named series.
+;;   value, which is how a whole layer is given a name in the legend.
 ;;
 ;; Omitting `:scale` leaves the choice to the conventions: a column is
 ;; read through its scale, and a written value is drawn as it stands on
@@ -1065,8 +1068,11 @@ my-pose
 ;; row.
 ;;
 ;; - `pj/facet` given a column creates a panel per category of that
-;;   column; given a map of columns, a panel per column or per pair of
-;;   columns
+;;   column; given a map of columns, a panel per column, or, crossing
+;;   two lists of columns as `pj/matrix` does, a panel per combination
+;;   of an `:x` column and a `:y` column
+;; - `pj/facet` given a column and `{:cols n}` wraps the panels into
+;;   rows of `n`
 ;; - `pj/facet` given `{:col ... :row ...}` creates a grid, the entries
 ;;   under `:col` across and those under `:row` down -- the categories
 ;;   of two columns, columns, or one of each
@@ -1112,8 +1118,10 @@ my-pose
 ;; column drawn on it. Separate panels come from `pj/facet` over the
 ;; columns or from `pj/arrange`.
 ;;
-;; `pj/overlay` and the `:overlay` layer setting are retired: written
-;; as `true`, they print a warning and are ignored.
+;; `pj/overlay` and the `:overlay` layer setting are retired.
+;; `pj/overlay` and `{:overlay true}` print a warning and are ignored;
+;; `{:overlay false}` reports an error that suggests `pj/facet` over
+;; the columns or `pj/arrange`.
 
 (-> {:cohort [:a :b :c] :growth [12 19 15] :tax [3 5 4]}
     (pj/lay-bar :growth :cohort {:color "#377eb8"})
@@ -1597,7 +1605,7 @@ annotated
 ;; | Coord | Coordinate system (cartesian, flip, polar, fixed) | `pj/coord` |
 ;; | Facet | Split one pose into panels, by the categories of a column or by columns | `pj/facet` |
 ;; | Arrange | Compose poses or columns into a grid of cells | `pj/arrange` |
-;; | Cell | One entry of an arrangement, or the panel of one column in a facet over columns | `pj/arrange`, `pj/facet` |
+;; | Cell | One entry of an arrangement, or the part of a pose for one column in a facet over columns | `pj/arrange`, `pj/facet` |
 ;; | Overlay | Draw a layer on a panel another layer already draws on, whatever columns it names; `pj/overlay` and `:overlay` are retired | `pj/lay-*` on a leaf |
 ;; | Series | A vector of columns written where one column goes, drawn on one panel | `{:y [:a :b]}` in a mapping |
 ;; | Pivot | Turn columns into the categories of a key column | A series when drawn; `tc/pivot->longer` |

@@ -178,17 +178,17 @@
        [line]
        (mapv
         (fn*
-         [p1__90765#]
-         (parse-double (second (str/split p1__90765# #","))))
+         [p1__83086#]
+         (parse-double (second (str/split p1__83086# #","))))
         (str/split (:points (second line)) #" ")))
       lines
       (filterv
        (fn*
-        [p1__90766#]
+        [p1__83087#]
         (and
-         (vector? p1__90766#)
-         (= :polyline (first p1__90766#))
-         (< 1 (:stroke-width (second p1__90766#)))))
+         (vector? p1__83087#)
+         (= :polyline (first p1__83087#))
+         (< 1 (:stroke-width (second p1__83087#)))))
        (tree-seq vector? seq v))]
      (and
       (= 2 (:panels (pj/svg-summary v)))
@@ -236,8 +236,8 @@
     keys
     (filter
      (fn*
-      [p1__90767#]
-      (and (vector? p1__90767#) (= :computes (second p1__90767#)))))
+      [p1__83088#]
+      (and (vector? p1__83088#) (= :computes (second p1__83088#)))))
     (map first)
     sort
     (mapv
@@ -255,7 +255,7 @@
     (=
      [":bin" ":count" ":density"]
      (mapv
-      (fn* [p1__90768#] (first (get p1__90768# "Stat")))
+      (fn* [p1__83089#] (first (get p1__83089# "Stat")))
       (:row-maps t))))
    v33_l239)))
 
@@ -350,7 +350,7 @@
 
 
 (def
- v53_l396
+ v53_l397
  (def
   grouped-scatter
   (->
@@ -358,14 +358,14 @@
    (pj/lay-point :sepal-length :sepal-width {:color :species}))))
 
 
-(def v54_l400 (-> grouped-scatter pj/plot pj/svg-summary :points))
+(def v54_l401 (-> grouped-scatter pj/plot pj/svg-summary :points))
 
 
-(deftest t55_l405 (is ((fn [n] (= 150 n)) v54_l400)))
+(deftest t55_l406 (is ((fn [n] (= 150 n)) v54_l401)))
 
 
 (def
- v57_l419
+ v57_l420
  (def
   resolved-layer
   (->
@@ -377,7 +377,7 @@
 
 
 (def
- v59_l429
+ v59_l430
  (->
   resolved-layer
   (select-keys
@@ -385,7 +385,7 @@
 
 
 (deftest
- t60_l432
+ t60_l433
  (is
   ((fn
     [m]
@@ -400,50 +400,50 @@
       :x-type :numerical,
       :y-type :numerical}
      m))
-   v59_l429)))
+   v59_l430)))
 
 
 (def
- v62_l490
+ v62_l491
  (def
   scatter-stat
   (-> resolved-layer (assoc :cfg {}) stat/compute-stat)))
 
 
-(def v63_l495 (sort (keys scatter-stat)))
+(def v63_l496 (sort (keys scatter-stat)))
 
 
 (deftest
- t64_l497
- (is ((fn [ks] (= [:points :x-domain :y-domain] ks)) v63_l495)))
+ t64_l498
+ (is ((fn [ks] (= [:points :x-domain :y-domain] ks)) v63_l496)))
 
 
-(def v66_l506 (count (:points scatter-stat)))
+(def v66_l507 (count (:points scatter-stat)))
 
 
-(deftest t67_l508 (is ((fn [n] (= 3 n)) v66_l506)))
+(deftest t67_l509 (is ((fn [n] (= 3 n)) v66_l507)))
 
 
 (def
- v69_l513
+ v69_l514
  (->
   scatter-stat
   :points
   first
-  (update :xs (fn* [p1__90769#] (vec (take 3 p1__90769#))))
-  (update :ys (fn* [p1__90770#] (vec (take 3 p1__90770#))))
-  (update :row-indices (fn* [p1__90771#] (vec (take 3 p1__90771#))))))
+  (update :xs (fn* [p1__83090#] (vec (take 3 p1__83090#))))
+  (update :ys (fn* [p1__83091#] (vec (take 3 p1__83091#))))
+  (update :row-indices (fn* [p1__83092#] (vec (take 3 p1__83092#))))))
 
 
 (deftest
- t70_l520
+ t70_l521
  (is
   ((fn [g] (and (= "setosa" (:color g)) (= [5.1 4.9 4.7] (:xs g))))
-   v69_l513)))
+   v69_l514)))
 
 
 (def
- v72_l563
+ v72_l564
  [(-> scatter-stat :points first :color)
   (->
    grouped-scatter
@@ -458,7 +458,7 @@
 
 
 (deftest
- t73_l577
+ t73_l578
  (is
   ((fn
     [[stat-color plan-group]]
@@ -466,35 +466,35 @@
      (= "setosa" stat-color)
      (= "setosa" (:label plan-group))
      (vector? (:color plan-group))))
-   v72_l563)))
+   v72_l564)))
 
 
 (def
- v75_l595
+ v75_l596
  (->
   (rdatasets/datasets-iris)
   (pj/lay-line :sepal-length {:stat :density})))
 
 
 (deftest
- t76_l598
- (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v75_l595)))
+ t76_l599
+ (is ((fn [v] (= 1 (:lines (pj/svg-summary v)))) v75_l596)))
 
 
 (def
- v78_l604
+ v78_l605
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :species :sepal-width {:stat :summary})))
 
 
 (deftest
- t79_l607
- (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v78_l604)))
+ t79_l608
+ (is ((fn [v] (= 3 (:points (pj/svg-summary v)))) v78_l605)))
 
 
 (def
- v81_l642
+ v81_l643
  (kind/table
   {:column-names ["Dispatch value" "Output"],
    :row-maps
@@ -511,23 +511,23 @@
        "Output" (pj/mark-doc k)})))}))
 
 
-(deftest t82_l653 (is ((fn [t] (= 22 (count (:row-maps t)))) v81_l642)))
+(deftest t82_l654 (is ((fn [t] (= 22 (count (:row-maps t)))) v81_l643)))
 
 
 (def
- v84_l658
+ v84_l659
  (->
   (rdatasets/datasets-iris)
   (pj/lay-point :sepal-length :sepal-width {:color :species})))
 
 
 (deftest
- t85_l661
- (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v84_l658)))
+ t85_l662
+ (is ((fn [v] (= 150 (:points (pj/svg-summary v)))) v84_l659)))
 
 
 (def
- v87_l665
+ v87_l666
  (let
   [s
    (->
@@ -540,16 +540,16 @@
 
 
 (deftest
- t88_l671
+ t88_l672
  (is
   ((fn
     [m]
     (and (= :point (:mark m)) (number? (get-in m [:style :opacity]))))
-   v87_l665)))
+   v87_l666)))
 
 
 (def
- v90_l698
+ v90_l699
  (kind/table
   {:column-names ["Dispatch value" "Membrane output"],
    :row-maps
@@ -566,11 +566,11 @@
        "Membrane output" (pj/membrane-mark-doc k)})))}))
 
 
-(deftest t91_l709 (is ((fn [t] (= 22 (count (:row-maps t)))) v90_l698)))
+(deftest t91_l710 (is ((fn [t] (= 22 (count (:row-maps t)))) v90_l699)))
 
 
 (def
- v93_l724
+ v93_l725
  (def
   bubble-layer
   (->
@@ -584,7 +584,7 @@
 
 
 (def
- v94_l733
+ v94_l734
  (let
   [groups
    (:groups bubble-layer)
@@ -597,13 +597,13 @@
 
 
 (deftest
- t95_l738
+ t95_l739
  (is
-  ((fn [radii] (= [2.0 8.0] [(first radii) (last radii)])) v94_l733)))
+  ((fn [radii] (= [2.0 8.0] [(first radii) (last radii)])) v94_l734)))
 
 
 (def
- v97_l854
+ v97_l855
  (let
   [layer
    (->
@@ -619,54 +619,54 @@
 
 
 (deftest
- t98_l864
+ t98_l865
  (is
   ((fn [m] (and (= :rule-h (:mark m)) (= 3.0 (:y-intercept m))))
-   v97_l854)))
+   v97_l855)))
 
 
-(def v100_l892 (mark/mark-clip-region :point))
-
-
-(deftest
- t101_l894
- (is ((fn* [p1__90772#] (= :drawing-area p1__90772#)) v100_l892)))
-
-
-(def v102_l896 (mark/mark-clip-region :rug))
+(def v100_l893 (mark/mark-clip-region :point))
 
 
 (deftest
- t103_l898
- (is ((fn* [p1__90773#] (= :panel-box p1__90773#)) v102_l896)))
+ t101_l895
+ (is ((fn* [p1__83093#] (= :drawing-area p1__83093#)) v100_l893)))
+
+
+(def v102_l897 (mark/mark-clip-region :rug))
+
+
+(deftest
+ t103_l899
+ (is ((fn* [p1__83094#] (= :panel-box p1__83094#)) v102_l897)))
 
 
 (def
- v105_l908
+ v105_l909
  (defmethod mark/mark-clip-region :margin-glyph [_] :panel-box))
 
 
-(def v106_l910 (mark/mark-clip-region :margin-glyph))
+(def v106_l911 (mark/mark-clip-region :margin-glyph))
 
 
 (deftest
- t107_l912
- (is ((fn* [p1__90774#] (= :panel-box p1__90774#)) v106_l910)))
+ t107_l913
+ (is ((fn* [p1__83095#] (= :panel-box p1__83095#)) v106_l911)))
 
 
-(def v109_l916 (remove-method mark/mark-clip-region :margin-glyph))
+(def v109_l917 (remove-method mark/mark-clip-region :margin-glyph))
 
 
 (def
- v110_l918
+ v110_l919
  (contains? (methods mark/mark-clip-region) :margin-glyph))
 
 
-(deftest t111_l920 (is (false? v110_l918)))
+(deftest t111_l921 (is (false? v110_l919)))
 
 
 (def
- v113_l944
+ v113_l945
  (def
   my-plan
   (->
@@ -675,44 +675,44 @@
    pj/plan)))
 
 
-(def v114_l949 (first (pj/plan->plot my-plan :svg {})))
+(def v114_l950 (first (pj/plan->plot my-plan :svg {})))
 
 
-(deftest t115_l951 (is ((fn [v] (= :svg v)) v114_l949)))
+(deftest t115_l952 (is ((fn [v] (= :svg v)) v114_l950)))
 
 
-(def v117_l955 (def my-figure (pj/plan->plot my-plan :svg {})))
+(def v117_l956 (def my-figure (pj/plan->plot my-plan :svg {})))
 
 
-(def v118_l957 (vector? my-figure))
+(def v118_l958 (vector? my-figure))
 
 
-(deftest t119_l959 (is ((fn [v] (true? v)) v118_l957)))
+(deftest t119_l960 (is ((fn [v] (true? v)) v118_l958)))
 
 
-(def v121_l1017 (def my-membrane (pj/plan->membrane my-plan)))
+(def v121_l1018 (def my-membrane (pj/plan->membrane my-plan)))
 
 
-(def v122_l1019 (pj/membrane? my-membrane))
+(def v122_l1020 (pj/membrane? my-membrane))
 
 
-(deftest t123_l1021 (is ((fn [v] (true? v)) v122_l1019)))
+(deftest t123_l1022 (is ((fn [v] (true? v)) v122_l1020)))
 
 
-(def v124_l1023 (membrane.ui/width my-membrane))
+(def v124_l1024 (membrane.ui/width my-membrane))
 
 
-(deftest t125_l1025 (is ((fn [v] (number? v)) v124_l1023)))
+(deftest t125_l1026 (is ((fn [v] (number? v)) v124_l1024)))
 
 
-(def v126_l1027 (first (pj/membrane->plot my-membrane :svg {})))
+(def v126_l1028 (first (pj/membrane->plot my-membrane :svg {})))
 
 
-(deftest t127_l1029 (is ((fn [v] (= :svg v)) v126_l1027)))
+(deftest t127_l1030 (is ((fn [v] (= :svg v)) v126_l1028)))
 
 
 (def
- v129_l1035
+ v129_l1036
  (def
   shortcut-membrane
   (pj/membrane
@@ -721,14 +721,14 @@
     (pj/lay-point :sepal-length :sepal-width {:color :species})))))
 
 
-(def v130_l1040 (pj/membrane? shortcut-membrane))
+(def v130_l1041 (pj/membrane? shortcut-membrane))
 
 
-(deftest t131_l1042 (is ((fn [v] (true? v)) v130_l1040)))
+(deftest t131_l1043 (is ((fn [v] (true? v)) v130_l1041)))
 
 
 (def
- v133_l1085
+ v133_l1086
  (kind/table
   {:column-names ["Dispatch value" "Scale type"],
    :row-maps
@@ -745,12 +745,12 @@
 
 
 (deftest
- t134_l1095
- (is ((fn [t] (= 3 (count (:row-maps t)))) v133_l1085)))
+ t134_l1096
+ (is ((fn [t] (= 3 (count (:row-maps t)))) v133_l1086)))
 
 
 (def
- v136_l1111
+ v136_l1112
  (kind/table
   {:column-names ["Dispatch value" "Behavior"],
    :row-maps
@@ -768,12 +768,12 @@
 
 
 (deftest
- t137_l1122
- (is ((fn [t] (= 4 (count (:row-maps t)))) v136_l1111)))
+ t137_l1123
+ (is ((fn [t] (= 4 (count (:row-maps t)))) v136_l1112)))
 
 
 (def
- v139_l1134
+ v139_l1135
  (->>
   (methods scicloj.plotje.impl.coord/make-inverse)
   keys
@@ -784,28 +784,28 @@
 
 
 (deftest
- t140_l1141
- (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v139_l1134)))
+ t140_l1142
+ (is ((fn [ks] (= [:cartesian :fixed :flip] ks)) v139_l1135)))
 
 
 (def
- v142_l1152
+ v142_l1153
  (-> (rdatasets/datasets-iris) (pj/lay-bar :species) (pj/coord :flip)))
 
 
 (deftest
- t143_l1156
+ t143_l1157
  (is
   ((fn
     [v]
     (let
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (pos? (:polygons s)))))
-   v142_l1152)))
+   v142_l1153)))
 
 
 (def
- v145_l1170
+ v145_l1171
  (kind/table
   {:column-names ["Dispatch value" "What it does"],
    :row-maps
@@ -823,12 +823,12 @@
 
 
 (deftest
- t146_l1181
- (is ((fn [t] (= 4 (count (:row-maps t)))) v145_l1170)))
+ t146_l1182
+ (is ((fn [t] (= 4 (count (:row-maps t)))) v145_l1171)))
 
 
 (def
- v148_l1189
+ v148_l1190
  (->
   {:site ["north" "north" "south" "south"],
    :yield [3 5 4 6],
@@ -842,16 +842,16 @@
   ((juxt
     :position
     :dodge-ctx
-    (fn* [p1__90775#] (mapv :dodge-idx (:groups p1__90775#)))))))
+    (fn* [p1__83096#] (mapv :dodge-idx (:groups p1__83096#)))))))
 
 
 (deftest
- t149_l1200
- (is ((fn [v] (= [:dodge {:n-groups 2} [0 1]] v)) v148_l1189)))
+ t149_l1201
+ (is ((fn [v] (= [:dodge {:n-groups 2} [0 1]] v)) v148_l1190)))
 
 
 (def
- v151_l1214
+ v151_l1215
  (defmethod
   stat/compute-stat
   :quantile
@@ -860,7 +860,7 @@
 
 
 (def
- v152_l1217
+ v152_l1218
  (defmethod
   stat/compute-stat
   [:quantile :doc]
@@ -868,32 +868,32 @@
   "Quantile regression bands"))
 
 
-(def v154_l1222 (pj/stat-doc :quantile))
+(def v154_l1223 (pj/stat-doc :quantile))
 
 
 (deftest
- t155_l1224
- (is ((fn [v] (= "Quantile regression bands" v)) v154_l1222)))
+ t155_l1225
+ (is ((fn [v] (= "Quantile regression bands" v)) v154_l1223)))
 
 
-(def v157_l1232 (remove-method stat/compute-stat [:quantile :doc]))
+(def v157_l1233 (remove-method stat/compute-stat [:quantile :doc]))
 
 
-(def v158_l1234 (pj/stat-doc :quantile))
+(def v158_l1235 (pj/stat-doc :quantile))
 
 
-(deftest t159_l1236 (is ((fn [v] (= "(no description)" v)) v158_l1234)))
+(deftest t159_l1237 (is ((fn [v] (= "(no description)" v)) v158_l1235)))
 
 
-(def v161_l1242 (remove-method stat/compute-stat :quantile))
+(def v161_l1243 (remove-method stat/compute-stat :quantile))
 
 
 (def
- v162_l1244
+ v162_l1245
  (count
   (remove
    #{:default}
    (filter keyword? (keys (methods stat/compute-stat))))))
 
 
-(deftest t163_l1246 (is ((fn [v] (= 11 v)) v162_l1244)))
+(deftest t163_l1247 (is ((fn [v] (= 11 v)) v162_l1245)))

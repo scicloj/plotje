@@ -253,7 +253,7 @@ plants
 ;; value in it. The color scale is built from that, so it assigns one
 ;; color, and a legend appears with one entry reading `"Model A"`.
 ;;
-;; This is how a whole layer is labelled as a named series. The value
+;; This is how a whole layer is given a name in the legend. The value
 ;; is not a color -- it is data, and the scale supplies the color.
 
 (-> plants
@@ -364,6 +364,10 @@ plants
 ;; `{:column :species}`, because the data carries a `:species` column;
 ;; and `{:color "#0077BB"}` has the source of `{:value "#0077BB"}`,
 ;; because no column is named that.
+;;
+;; A vector of column names where one column goes, as in
+;; `{:y [:height :weight]}`, is a [series](./plotje_book.series.html):
+;; the columns are drawn on one panel, each in a color of its own.
 
 ;; ### How the scale is decided
 ;;

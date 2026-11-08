@@ -193,8 +193,10 @@
 ;; with one panel the rule or band is drawn on that panel; columns
 ;; named in the call that the panel does not draw are not read there,
 ;; and a warning says so. On a composite pose, a call naming no columns
-;; is added at the root and drawn in every cell, and a call naming two
-;; columns is drawn only in the cell that draws those two columns.
+;; is added at the root and drawn in every cell. A call naming columns
+;; is added at the root too, and drawn in every cell whose panel draws
+;; those columns; where no cell's panel draws them, the call appends a
+;; new cell.
 
 (-> (rdatasets/datasets-iris)
     (pj/pose :sepal-length :sepal-width)

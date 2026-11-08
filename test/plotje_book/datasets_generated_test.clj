@@ -164,16 +164,16 @@
   (tc/map-columns
    :function
    :var
-   (fn* [p1__78346#] (-> p1__78346# meta :name)))
-  (tc/map-columns :dataset :var (fn* [p1__78347#] (p1__78347#)))
+   (fn* [p1__82240#] (-> p1__82240# meta :name)))
+  (tc/map-columns :dataset :var (fn* [p1__82241#] (p1__82241#)))
   (tc/map-columns :rows :dataset tc/row-count)
   (tc/map-columns
    :description
    :var
    (fn*
-    [p1__78348#]
+    [p1__82242#]
     (->
-     p1__78348#
+     p1__82242#
      meta
      :doc-link
      slurp
@@ -195,7 +195,7 @@
  (->
   (rdatasets/datasets-iris)
   (tc/select-rows
-   (fn* [p1__78349#] (= "setosa" (:species p1__78349#))))))
+   (fn* [p1__82243#] (= "setosa" (:species p1__82243#))))))
 
 
 (deftest t45_l253 (is ((fn [ds] (= 50 (tc/row-count ds))) v44_l250)))
@@ -314,3 +314,23 @@
      [s (pj/svg-summary v)]
      (and (= 1 (:panels s)) (= 3 (:lines s)))))
    v73_l341)))
+
+
+(def
+ v76_l355
+ (-> temps-wide (pj/lay-line :month [:tokyo :paris :nairobi])))
+
+
+(deftest
+ t77_l358
+ (is
+  ((fn
+    [v]
+    (and
+     (=
+      {:panels 1, :lines 3}
+      (select-keys (pj/svg-summary v) [:panels :lines]))
+     (=
+      ["tokyo" "paris" "nairobi"]
+      (mapv :label (:entries (:legend (pj/plan v)))))))
+   v76_l355)))

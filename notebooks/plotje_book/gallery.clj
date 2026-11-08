@@ -684,7 +684,7 @@
                            (and (= 150 (:points s))
                                 (pos? (:lines s)))))])
 
-;; ### Violin + boxplot overlay
+;; ### Violin + boxplot
 ;; Source: [Python Graph Gallery: Violin with Box](https://python-graph-gallery.com/violin-plot/)
 
 (-> (rdatasets/reshape2-tips)
@@ -730,7 +730,7 @@
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; ### Density normalized histogram overlay
+;; ### Density-normalized histogram + density curve
 ;; Source: [Python Graph Gallery: Histogram + Density](https://python-graph-gallery.com/density-and-histogram-together/)
 
 ;; Both layers would be drawn in the default grey, so the density is
@@ -831,7 +831,7 @@
                            (and (pos? (:lines s))
                                 (pos? (:polygons s)))))])
 
-;; ### Area chart with line overlay
+;; ### Area chart with line
 ;; Source: [ECharts: Basic Area](https://echarts.apache.org/examples/en/editor.html?c=area-basic)
 
 ;; Layering area and line gives a filled region with a sharp boundary:
@@ -1125,7 +1125,7 @@
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; ### Diamond depth histogram + density overlay
+;; ### Diamond depth histogram + density
 ;; Source: [Python Graph Gallery: Histogram + Density](https://python-graph-gallery.com/density-and-histogram-together/)
 
 (-> (rdatasets/ggplot2-diamonds)
@@ -1448,7 +1448,7 @@
 
 (kind/test-last [(fn [v] (pos? (:visible-tiles (pj/svg-summary v))))])
 
-;; ### Scatter + density2d overlay on Old Faithful
+;; ### Scatter + 2D density on Old Faithful
 ;; Source: [Python Graph Gallery: Scatter + 2D Density](https://python-graph-gallery.com/2d-density-plot-with-ggplot2/)
 
 (-> (rdatasets/datasets-faithful)
@@ -1583,6 +1583,21 @@
 ;; ---
 ;; ## Multi-Variable
 
+;; ### Two columns on one axis
+;; Source: [Vega-Lite: Multi Series Line](https://vega.github.io/vega-lite/examples/line_color.html)
+
+;; A vector of columns where one column goes draws each column as a
+;; line on one panel, with a color and a legend entry per column:
+
+(-> (rdatasets/ggplot2-economics)
+    (pj/lay-line :date [:psavert :uempmed])
+    (pj/options {:title "Savings Rate and Unemployment Duration"}))
+
+(kind/test-last [(fn [v] (and (= {:panels 1 :lines 2}
+                                 (select-keys (pj/svg-summary v) [:panels :lines]))
+                              (= ["psavert" "uempmed"]
+                                 (mapv :label (:entries (:legend (pj/plan v)))))))])
+
 ;; ### Two y-variables side by side
 ;; Source: [Vega-Lite: Layered Line](https://vega.github.io/vega-lite/examples/layer_line_color_rule.html)
 
@@ -1598,7 +1613,7 @@
 
 (kind/test-last [(fn [v] (>= (:lines (pj/svg-summary v)) 2))])
 
-;; ### Three series side by side
+;; ### Three columns side by side
 ;; Source: [ECharts: Multi Line](https://echarts.apache.org/examples/en/editor.html?c=line-smooth)
 
 (-> (rdatasets/ggplot2-economics)
@@ -1714,7 +1729,7 @@
 (-> (rdatasets/ggplot2-mpg)
     (pj/pose :displ :hwy)
     pj/lay-point
-    (pj/facet :class)
+    (pj/facet :class {:cols 4})
     (pj/options {:title "MPG: Faceted by Vehicle Class"
                  :x-label "Displacement"
                  :y-label "Highway MPG"}))
@@ -1873,18 +1888,25 @@
 ;; ### Faceted line + point (sleepstudy per subject)
 ;; Source: [Python Graph Gallery: Small Multiples](https://python-graph-gallery.com/125-small-multiples-for-line-chart/)
 
+;; Eighteen subjects do not fit in one row, so `{:cols 6}` wraps the
+;; panels into rows of six.
+
 (-> (rdatasets/lme4-sleepstudy)
     (pj/pose :days :reaction)
     pj/lay-line
     pj/lay-point
-    (pj/facet :subject)
+    (pj/facet :subject {:cols 6})
     (pj/options {:title "Sleep Study: Each Subject"
                  :x-label "Days"
-                 :y-label "Reaction Time (ms)"}))
+                 :y-label "Reaction Time (ms)"
+                 :height 600}))
 
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
-                           (and (pos? (:lines s))
-                                (= 180 (:points s)))))])
+                           (and (= 18 (:panels s))
+                                (pos? (:lines s))
+                                (= 180 (:points s))
+                                ;; Wrapped into rows of six: three rows.
+                                (= {:cols 6} (:layout v)))))])
 
 ;; ### Faceted scatter + LOESS (mpg by cylinder)
 ;; Source: [Vega-Lite: Faceted with Loess](https://vega.github.io/vega-lite/examples/trellis_scatter.html)
@@ -1966,7 +1988,7 @@
 
 (kind/test-last [(fn [v] (pos? (:polygons (pj/svg-summary v))))])
 
-;; ### Bar + point overlay
+;; ### Bar + point
 
 ;; Bars of the mean bill for each day, with every bill drawn over them.
 ;; The bar layer reads a dataset of its own, the means computed with

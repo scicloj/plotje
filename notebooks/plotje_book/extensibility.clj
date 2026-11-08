@@ -375,7 +375,8 @@ graph LR
 ;; x and a y column, `#{1 2}` for either. It is listed per layer type in
 ;; [Layer Types](./plotje_book.layer_types.html#columns-a-layer-type-draws-from),
 ;; and `:x-only true` is the older way to write `#{1}`. `:column-counts`
-;; decides which panels of a facet over columns a layer is drawn in,
+;; decides which panels of a facet over columns, and which cells of an
+;; arrangement, a layer is drawn in,
 ;; whether a layer naming one column is given the panel's other column,
 ;; and whether a column named on `:y` alone is drawn on its side (see
 ;; [The panel's columns](./plotje_book.panels.html#the-panels-columns)).

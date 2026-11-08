@@ -1109,10 +1109,11 @@ sales-by-region
  [(fn [v] (let [s (pj/svg-summary v)]
             (and (= 1 (:panels s)) (pos? (:points s)) (pos? (:lines s)))))])
 
-;; A layer naming no columns draws at the same place in the default
-;; colour. The key column is mapped on the layer that asked for the
-;; series, and a layer added afterwards reads the pose rather than that
-;; layer, so the twelve points come out one colour:
+;; A layer naming no columns reads the columns of the panel -- those of
+;; the series layer, `:quarter` and `:value` -- so it draws at the same
+;; places. It does not read the series layer's `:color`: the key column
+;; is mapped to `:color` on the layer that asked for the series alone,
+;; so the twelve points come out one colour:
 
 (-> sales
     (pj/lay-line :quarter [:revenue :cost :tax])

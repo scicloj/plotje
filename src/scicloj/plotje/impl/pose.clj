@@ -2595,7 +2595,7 @@
    not draw -- nil for every other layer, and nil throughout where no
    layer draws rows.
 
-   On a composite pose a rule's columns pick the cell it is drawn in
+   On a composite pose a rule's columns pick the cells it is drawn in
    (`pj/lay-rule-h` and the other three). On a leaf there is no cell to
    pick, and read as the extent of the rule they stretched the panel's
    axes to hold columns no layer draws a row of. `leaf->draft` leaves

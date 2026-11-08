@@ -28,10 +28,10 @@
 ;; ## Grouped Lines
 
 ;; Color separates multiple series. Real datasets often start in
-;; **wide form** -- each series in its own column. Plotje plots
-;; **long form** -- one row per observation, with the series label
-;; in a column. Use `tc/pivot->longer` to reshape, then map the
-;; label column to `:color`. See
+;; **wide form** -- each series in its own column. One way is to
+;; reshape to **long form** -- one row per observation, with the series
+;; label in a column -- with `tc/pivot->longer`, then map the label
+;; column to `:color`. See
 ;; [Datasets](./plotje_book.datasets.html#from-wide-to-long) for more on the
 ;; wide-to-long reshape.
 
@@ -53,6 +53,19 @@
                            (and (= 1 (:panels s))
                                 (= 2 (:lines s)))))])
 
+;; A vector of columns written where one column goes does that reshape
+;; inside Plotje: the wide table draws one panel with a line, a color
+;; and a legend entry for each column -- see
+;; [Series](./plotje_book.series.html).
+
+(-> waves-wide
+    (pj/lay-line :x [:sin :cos]))
+
+(kind/test-last [(fn [v] (and (= {:panels 1 :lines 2}
+                                 (select-keys (pj/svg-summary v) [:panels :lines]))
+                              (= ["sin" "cos"]
+                                 (mapv :label (:entries (:legend (pj/plan v)))))))])
+
 ;; ## Thick Line
 
 ;; Constant stroke width via `:size`.
@@ -66,7 +79,7 @@
 
 ;; ## Line with Points
 
-;; Overlay points on a grouped line plot.
+;; Points added to a grouped line plot, on the same panel.
 
 (def growth
   {:day [1 2 3 4 5 1 2 3 4 5]
@@ -342,7 +355,7 @@ temp-pose
 
 ;; ## Smoothed Time Series
 
-;; A LOESS smoother overlaid on a noisy time series makes the
+;; A LOESS smoother drawn over a noisy time series makes the
 ;; underlying trend easier to see. `pj/lay-smooth` fits a numerical `:y`
 ;; against dates on `:x` as it does against numbers.
 
@@ -358,7 +371,7 @@ temp-pose
 (kind/test-last [(fn [v] (let [s (pj/svg-summary v)]
                            (and (= 1 (:panels s))
                                 ;; one raw line plus the LOESS smooth
-                                ;; overlay -- two lines total.
+                                ;; -- two lines total.
                                 (= 2 (:lines s)))))])
 
 ;; ## Zero-Line Baseline

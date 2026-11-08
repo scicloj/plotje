@@ -233,6 +233,10 @@
 ;; The panels share both axes, so the categories can be read against
 ;; each other: species "a" spans 1 to 2 on `:height` and species "b" 3
 ;; to 4, and both panels run from below 1 to above 4.
+;;
+;; Many categories make a long row of panels. `{:cols n}` wraps them
+;; into rows of `n` panels, as in `(pj/facet pose :class {:cols 4})` --
+;; see [Wrapping the panels into rows](./plotje_book.faceting.html#wrapping-the-panels-into-rows).
 
 ;; ## Arranging poses side by side
 
@@ -286,9 +290,20 @@
                                 (= {:panels 3 :points 12 :lines 2}
                                    (select-keys (pj/svg-summary v) [:panels :points :lines])))))])
 
-;; A call naming one column is drawn in every cell whose panel draws no
-;; other column on that axis, and reads the cell's other column, as on
-;; a leaf.
+;; A call naming one column, of a layer type that draws from two
+;; columns, is drawn in every cell whose panel draws no other column on
+;; that axis, and reads the cell's column on the other axis, as on a
+;; leaf. A layer type that draws from one column, such as a histogram,
+;; is drawn only in a cell whose panel draws that one column alone.
+;; Beside cells that draw two columns, the call appends a new cell, and
+;; the points added at the root are not drawn there:
+
+(-> (pj/arrange measurements [{:x :height :y :weight}
+                              {:x :depth :y :weight}])
+    pj/lay-point
+    (pj/lay-histogram :height))
+
+(kind/test-last [(fn [v] (= 3 (:panels (pj/svg-summary v))))])
 
 ;; A cell may also be a template -- a pose with layers and no data, as
 ;; [Reusable Pose Templates](./plotje_book.core_concepts.html#reusable-pose-templates)

@@ -1334,35 +1334,11 @@
       (seq merged)    (assoc :mapping merged)
       (empty? merged) (dissoc :mapping))))
 
-(defn- note-pose-replaces-columns!
-  "Print, for this release, that `pj/pose` given another `:x` or `:y`
-   column replaces the pose's, where 0.16.1 added a panel for it, and
-   how to draw the panels side by side."
-  [mapping incoming-mapping]
-  (let [changed (for [k [:x :y]
-                      :let [before (pose/mapping-source (get mapping k))
-                            after (pose/mapping-source (get incoming-mapping k))]
-                      :when (and (some? before) (some? after) (not= before after))]
-                  [k before after])
-        pair (fn [m] (str "{" (str/join " " (for [k [:x :y]
-                                                  :let [c (pose/mapping-source (get m k))]
-                                                  :when (some? c)]
-                                              (str k " " (pr-str c))))
-                          "}"))]
-    (when (seq changed)
-      (println (str "Note: on this pose, pj/pose replaces "
-                    (str/join " and " (for [[k before after] changed]
-                                        (str k " " (pr-str before) " with " (pr-str after))))
-                    "; in 0.16.1 it added a panel. For panels side by"
-                    " side, write (pj/arrange data [" (pair mapping) " "
-                    (pair (merge mapping incoming-mapping)) "]).")))))
-
 (defn- extend-pose
   "`(pj/pose existing-pose incoming-mapping)`: the mapping is merged into
    the pose's own -- the root's, on a composite. A new `:x` or `:y`
    replaces the one the pose had; `pj/pose` never adds a panel."
   [fr incoming-mapping]
-  (note-pose-replaces-columns! (:mapping fr) incoming-mapping)
   (extend-mapping-of fr incoming-mapping))
 
 (defn- pose-from-data
@@ -1374,7 +1350,7 @@
     (some? data) (assoc :data data)
     (seq mapping) (assoc :mapping mapping)))
 
-(declare pose with-data note-lone-vector! compose-facets append-cells)
+(declare pose with-data compose-facets append-cells)
 
 (defn- extend-mapping
   ([p m] (extend-mapping "pj/pose" p m))
@@ -1513,8 +1489,6 @@
   ([pose-or-data x-or-mapping]
    (when-not (pose? pose-or-data)
      (validate-template-data! "pj/pose" pose-or-data))
-   (when (and (sequential? x-or-mapping) (series-mapping? x-or-mapping))
-     (note-lone-vector! x-or-mapping nil))
    (cond
      (pose? x-or-mapping)
      (pose-after-data pose-or-data x-or-mapping)
@@ -1530,8 +1504,6 @@
      (pose-after-data x y-or-mapping))
    (when (and (pose? x) (not (map? y-or-mapping)))
      (report-columns-after-pose! [y-or-mapping]))
-   (when (and (map? y-or-mapping) (sequential? x) (series-mapping? x))
-     (note-lone-vector! x nil))
    (cond
      ;; (pj/pose data p mapping) -- the pose drawn from the data, with
      ;; the mapping merged in as (pj/pose p mapping) merges it
@@ -2203,9 +2175,9 @@
 (declare check-one-column-layer! identity-columns)
 
 (defn lay
-  "Add a root-scope layer. The layer attaches to `:layers` and flows to
-   every descendant leaf at plan time (composite) or renders on the
-   single panel (leaf).
+  "Add a root-scope layer. The layer attaches to `:layers` and is drawn
+   on the single panel (leaf), or in every cell it fits (composite), as
+   a `pj/lay-*` call's layer is.
 
    The layer type is named either by its keyword or by the entry
    `pj/layer-type-lookup` answers with; both behave the same. An entry
@@ -2236,15 +2208,14 @@
 
 (defn- identity-columns
   "The `:x` / `:y` entries of a layer's own mapping that name a column of
-   `data` -- the part of a mapping that says which panel the layer
-   belongs on.
+   `data` -- the columns that decide which cells of a composite draw
+   the layer.
 
-   Identity reads the columns a layer names, and a layer names them
-   either in a `lay-*` argument slot or in its mapping. Both reach
-   here. A written value is not a column: it places a mark on the panel
-   the layer is added to and asks for no panel of its own, so
+   A layer names its columns either in a `lay-*` argument slot or in
+   its mapping. Both reach here. A written value is not a column: it
+   places a mark and decides no cell, so
    `(pj/lay-text pose {:x 7.5 :y 4.2 :text \"note\"})` annotates the
-   panel rather than starting one. The layer's data answers which of the
+   panel it is drawn on. The layer's data answers which of the
    two a value is -- the same question `pose/leaf->draft` asks when it
    draws the layer. With no data to ask, a keyword or a string is taken
    for a column name, which is the reading the draft will give it."
@@ -2341,34 +2312,18 @@
                      :x (pose/mapping-source (:x position-mapping))
                      :y (pose/mapping-source (:y position-mapping))}))))
 
-(defn- note-layer-joins-panel!
-  "Print, for this release, that a layer naming other columns than the
-   pose's is drawn on the pose's panel, where 0.16.1 gave it a panel of
-   its own, and how to draw a panel per column. `differing` holds
-   `[axis pose-column layer-column]` for each axis where the two differ."
-  [layer-type-key differing]
-  (println (str "Note: pj/lay-" (layer-type-name layer-type-key) " names "
-                (str/join " and " (for [[k _ c] differing] (str (pr-str c) " on " k)))
-                " where this pose draws "
-                (str/join " and " (for [[k p _] differing] (str (pr-str p) " on " k)))
-                ", and is drawn on the same panel; in 0.16.1 it was given a panel of"
-                " its own. For a panel per " (if (next differing) "pair of columns" "column")
-                ", write (pj/facet pose {"
-                (str/join " " (for [[k p c] differing] (str k " " (pr-str [p c]))))
-                "}), or arrange separate poses with pj/arrange.")))
-
 (defn- lay-on-pose*
-  "Append a layer to a pose following the DFS-last identity rule.
+  "Append a layer to a pose, following the Layer Placement rules in
+   pose_rules.clj.
 
    The columns the call names are written on the layer's own
    :mapping, and never on a pose's: the pose's :mapping is what
    `pj/pose` writes.
 
-   Composite + columns: the layer lands on the last leaf whose
-   effective :x/:y match (via add-leaf-layer-to-composite) -- for one
-   column, the last leaf drawing it on that axis where none matches
-   exactly -- or a fresh sub-pose holding it is appended at the root
-   (LP3).
+   Composite + columns: the layer is added at the root where some
+   cell's panel draws no other column on :x or :y (LP2), and the draft
+   draws it in each such cell; otherwise a fresh sub-pose holding it is
+   appended at the root (LP3). See add-leaf-layer-to-composite.
 
    Leaf + columns: the layer is appended and drawn on the leaf's one
    panel (LP5) -- the leaf stays a leaf.
@@ -2417,19 +2372,15 @@
       ;; as scope says. Which panel the layer draws on is decided at
       ;; draft time, from every layer's columns read together.
       (seq position-mapping)
-      (do (when-let [differing (seq (for [k [:x :y]
-                                          :let [pos-v (pose/mapping-source (get position-mapping k))
-                                                leaf-v (get (pose/leaf-columns fr) k)]
-                                          :when (and pos-v leaf-v (not= pos-v leaf-v))]
-                                      [k leaf-v pos-v]))]
+      (do (when (some (fn [k]
+                        (let [pos-v (pose/mapping-source (get position-mapping k))
+                              leaf-v (get (pose/leaf-columns fr) k)]
+                          (and pos-v leaf-v (not= pos-v leaf-v))))
+                      [:x :y])
             ;; The layer names columns the pose does not draw: say which
             ;; column is missing here rather than deep in the plan.
             (check-new-panel-columns layer-type-key position-mapping
-                                     bare-layer (:data fr))
-            ;; Under a facet over columns the layer is placed in the
-            ;; panels of its columns, which has a Note of its own.
-            (when-not (:facet fr)
-              (note-layer-joins-panel! layer-type-key differing)))
+                                     bare-layer (:data fr)))
           (update fr :layers (fnil conj [])
                   (elide-empty-maps
                    ;; The layer's own mapping wins: the final map may
@@ -2469,20 +2420,6 @@
          " layer on its side, name the column on :y, as in (" lay
          " data {:y " (pr-str x) "}).")))
 
-(defn- note-lone-vector!
-  "Print, for this release, that a vector of columns given where one
-   column goes is read as a series on one panel, where 0.16.1 drew a
-   panel per column, and how to draw the panels. `then` is the layer
-   call to show after `pj/arrange`, or nil for `pj/pose`."
-  [cols then]
-  (println (str "Note: a vector of columns, " (pr-str (vec cols)) ", is read as a"
-                " series on one panel; in 0.16.1 it drew a panel per column."
-                " For a panel per column, write "
-                (if then
-                  (str "(-> data (pj/arrange " (pr-str (vec cols)) ") " then ")")
-                  (str "(pj/arrange data " (pr-str (vec cols)) ")"))
-                ".")))
-
 (defn- lay-target
   "The pose a `lay-*` call adds its layer to. `nil` with columns or a
    mapping is a template, as in `pj/pose`: `(pj/lay-point nil :a :b)` is
@@ -2498,21 +2435,19 @@
 
    Raw data coerces to a fresh leaf pose. Poses (leaf or composite)
    pass through. All dispatches then route through lay-on-pose, which
-   follows the DFS-last identity rule in pose_rules.clj.
+   follows the Layer Placement rules in pose_rules.clj.
 
    1-arity: append a bare layer. Its columns are the panel's, or the
             first one to three columns of the data, read at draft time.
    2-arity: a column -> a layer naming it on `:x`;
-            a vector of columns -> a series on `:x`, with a Note for
-            this release;
+            a vector of columns -> a series on `:x`;
             a vector of pairs -> an error;
             a map -> a layer with that mapping.
    3-arity: two columns -> a layer naming both;
             a column and a vector of columns -> a series;
             a column and a map -> a layer naming it on `:x`, with that
             mapping;
-            a vector of columns and a map -> a series on `:x`, with a
-            Note for this release.
+            a vector of columns and a map -> a series on `:x`.
    4-arity: two columns and a map.
 
    `nil` in place of the pose, with columns or a map, is a template, as
@@ -2536,8 +2471,7 @@
        ;; A vector of columns is a series on `:x`, one panel, as in
        ;; `pj/pose`.
        (and (sequential? x-or-opts) (series-mapping? x-or-opts))
-       (do (note-lone-vector! x-or-opts (lay-caller-name layer-type-key))
-           (lay-on-pose fr layer-type-key {:x (vec x-or-opts)} nil))
+       (lay-on-pose fr layer-type-key {:x (vec x-or-opts)} nil)
 
        (sequential? x-or-opts)
        (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x-or-opts})
@@ -2584,8 +2518,7 @@
 
        ;; A vector of columns and a mapping: a series on `:x`.
        (and (sequential? x) (series-mapping? x) (map? y-or-opts))
-       (do (note-lone-vector! x (lay-caller-name layer-type-key))
-           (lay-on-pose fr layer-type-key {:x (vec x)} y-or-opts))
+       (lay-on-pose fr layer-type-key {:x (vec x)} y-or-opts)
 
        (and (sequential? x) (map? y-or-opts))
        (do (check-position-mapping (str "pj/lay-" (name layer-type-key)) {:x x})
@@ -2624,8 +2557,10 @@
    pose it is added at the root and drawn in every cell. With columns,
    the layer keeps them on its own mapping and is drawn where the pose
    draws those columns: on its panel, or under a facet over columns, in
-   the panels of those columns. On a composite pose, a layer naming columns joins the last
-   cell that draws those columns, or is appended as a new cell.
+   the panels of those columns. On a composite pose, a layer naming
+   columns is added at the root and drawn in every cell whose panel
+   draws no other column on `:x` or `:y`; where every cell's panel draws
+   another column, the layer is appended as a new cell.
 
    - `(lay-point pose)` -- a layer reading the panel's columns.
    - `(lay-point pose {:color :species})` -- the same, with a mapping.
@@ -2860,14 +2795,14 @@
    over them.
    Written with no columns, the rule is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
-   4-arity draws the rule only in the cell that draws those two
+   4-arity draws the rule in every cell whose panel draws those two
    columns, and on a cell of its own where no cell does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the rule is still drawn on that panel.
 
    - `(lay-rule-h pose {:y-intercept 3})` -- root-level, flows to every panel.
    - `(lay-rule-h pose :height :weight {:y-intercept 3})` -- on a composite
-     pose, in the cell drawing `:height` and `:weight`.
+     pose, in the cells drawing `:height` and `:weight`.
    - `(lay-rule-h pose {:y-intercept 3 :color \"red\"})` -- with override color.
    - `(lay-rule-h pose {:y-intercept (java.time.LocalDate/parse \"2024-01-01\")})`
      -- temporal intercept on a date axis."
@@ -2892,14 +2827,14 @@
    over them.
    Written with no columns, the rule is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
-   4-arity draws the rule only in the cell that draws those two
+   4-arity draws the rule in every cell whose panel draws those two
    columns, and on a cell of its own where no cell does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the rule is still drawn on that panel.
 
    - `(lay-rule-v pose {:x-intercept 5})` -- root-level, flows to every panel.
    - `(lay-rule-v pose :height :weight {:x-intercept 5})` -- on a composite
-     pose, in the cell drawing `:height` and `:weight`.
+     pose, in the cells drawing `:height` and `:weight`.
    - `(lay-rule-v pose {:x-intercept 5 :color \"red\"})` -- with override color.
    - `(lay-rule-v pose {:x-intercept #inst \"2008-09-15\"})` -- temporal
      intercept on a date axis."
@@ -2922,14 +2857,14 @@
    before a scatter sits under its points.
    Written with no columns, the band is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
-   4-arity draws the band only in the cell that draws those two
+   4-arity draws the band in every cell whose panel draws those two
    columns, and on a cell of its own where no cell does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the band is still drawn on that panel.
 
    - `(lay-band-h pose {:y-min 2 :y-max 4})` -- root-level, flows to every panel.
    - `(lay-band-h pose :height :weight {:y-min 2 :y-max 4})` -- on a composite
-     pose, in the cell drawing `:height` and `:weight`.
+     pose, in the cells drawing `:height` and `:weight`.
    - `(lay-band-h pose {:y-min 2 :y-max 4 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-h))
@@ -2951,14 +2886,14 @@
    before a scatter sits under its points.
    Written with no columns, the band is drawn on the pose's panel,
    and on a composite pose in every cell. On a composite pose the
-   4-arity draws the band only in the cell that draws those two
+   4-arity draws the band in every cell whose panel draws those two
    columns, and on a cell of its own where no cell does. On a
    pose with one panel, a column the panel does not draw is not read,
    and a warning names it; the band is still drawn on that panel.
 
    - `(lay-band-v pose {:x-min 4 :x-max 6})` -- root-level, flows to every panel.
    - `(lay-band-v pose :height :weight {:x-min 4 :x-max 6})` -- on a composite
-     pose, in the cell drawing `:height` and `:weight`.
+     pose, in the cells drawing `:height` and `:weight`.
    - `(lay-band-v pose {:x-min 4 :x-max 6 :color \"blue\" :alpha 0.3})`
      -- with color and opacity overrides."
   ([_pose-or-data] (assert-band-1-arity! :band-v))
@@ -3036,8 +2971,8 @@
    `:bar-width` sets how wide a bar is drawn, in the unit its axis offers. On
    a categorical axis it is the fraction of the category band the bar fills,
    `0.8` by default, as `:box-width` is for a box: `{:bar-width 0.4}` draws a
-   bar half the usual thickness, which is how a second bar layer is read as an
-   overlay rather than a stack. On a numeric or temporal axis, where there is
+   bar half the usual thickness, which is how a second bar layer is read as
+   drawn over the first rather than stacked on it. On a numeric or temporal axis, where there is
    no band, it is a width in data units."
   ([pose-or-data] (lay-layer-type :bar pose-or-data))
   ([pose-or-data x-or-mapping] (lay-layer-type :bar pose-or-data x-or-mapping))

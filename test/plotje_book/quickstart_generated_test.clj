@@ -274,7 +274,9 @@
   {:cols 2}))
 
 
-(deftest t55_l244 (is ((fn [v] (pj/pose? v)) v54_l240)))
+(deftest
+ t55_l244
+ (is ((fn [v] (= 2 (:panels (pj/svg-summary v)))) v54_l240)))
 
 
 (def

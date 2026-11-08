@@ -78,8 +78,9 @@
 ;; ---
 ;; ## Construction
 ;;
-;; How poses and composites come into existence. Nine rules
-;; covering every `pj/pose` call shape plus `pj/arrange`.
+;; How poses and composites come into existence: every `pj/pose` call
+;; shape, `pj/arrange`, and the facet that crosses two lists of
+;; columns.
 
 ;; ### Rule C1: `pj/pose` on raw data creates a leaf
 ;;
@@ -509,7 +510,8 @@ composite-pose
 ;; A `lay-*` call naming no columns attaches the layer to
 ;; the current pose's top-level `:layers`. On a leaf, that is the
 ;; leaf's own `:layers`. On a composite, it is the root `:layers`,
-;; and the layer flows into every descendant leaf when rendered.
+;; and the layer is drawn in every leaf whose number of columns its
+;; layer type draws from (Property P-LP1).
 
 (-> iris
     (pj/pose :sepal-length :sepal-width)
@@ -593,7 +595,8 @@ composite-pose
 ;; ### Rule LP2: on a composite, a `lay-*` naming columns is drawn in every cell whose panel draws them
 ;;
 ;; When a `lay-*` call names `:x` and `:y` on a composite, and the
-;; panel of at least one cell draws those two columns, the layer is
+;; panel of at least one cell draws no other column on `:x` or `:y`
+;; than the call names, the layer is
 ;; added to the composite's root `:layers`, as a bare layer is (Rule
 ;; LP1), and its own `:mapping` carries the columns the call named.
 ;; It is drawn in **every cell whose panel draws no other column** on
@@ -770,7 +773,7 @@ composite-pose
 ;; as one `pj/arrange` call with the longer list would lay it out: here
 ;; the new leaf joins the row as its third cell.
 ;; A leaf given other columns stays a leaf instead, and its layers share
-;; its panel -- see LP2 above.
+;; its panel -- see Rule LP5.
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
@@ -1539,8 +1542,9 @@ s2-tree
 ;; `pj/lay-rule-h`, `pj/lay-rule-v`, `pj/lay-band-h` and `pj/lay-band-v`
 ;; produce layers, and the layers are placed as any other `lay-*` layer
 ;; is: a call naming no columns attaches at the root and is drawn in
-;; every panel, and on a composite a call naming two columns attaches
-;; to the leaf that draws them. On a pose with one panel, columns
+;; every panel, and on a composite a call naming two columns is added
+;; at the root too, and drawn in every cell whose panel draws no other
+;; column on `:x` or `:y` (Rule LP2). On a pose with one panel, columns
 ;; written on a rule or a band that the panel does not draw are not
 ;; read: the rule is drawn on that panel, and a warning names the
 ;; columns. Where the line or the band sits
@@ -1559,8 +1563,8 @@ s2-tree
       (and (some? rule)
            (= 3.0 (get-in rule [:mapping :y-intercept])))))])
 
-;; A rule naming two columns, on a composite, is drawn in the panel of
-;; the cell that draws them only:
+;; A rule naming two columns, on a composite, is drawn only in the cells
+;; whose panels draw those columns -- here the first cell:
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
@@ -1647,14 +1651,17 @@ s2-tree
 ;;
 ;; For each leaf, the rendered layers are the leaf's own, plus each
 ;; layer written above it whose layer type draws from as many columns
-;; as the leaf's panel (Property P-LP1). A leaf drawing none of these
-;; has a layer inferred for it.
+;; as the leaf's panel (Property P-LP1) and, where the layer names
+;; columns, whose panel draws no other column on `:x` or `:y` than the
+;; layer names (Rule LP2). A leaf drawing none of these has a layer
+;; inferred for it.
 
 (-> iris
     (pj/arrange [{:x :sepal-length :y :sepal-width} {:x :petal-length :y :petal-width}])
-    ;; written on the root; reaches both
+    ;; written on the root; drawn in both cells
     pj/lay-point
-    ;; written on sub-pose 1 only
+    ;; written on the root; drawn only in the cell whose panel draws
+    ;; these columns
     (pj/lay-smooth :sepal-length :sepal-width
                    {:stat :linear-model}))
 
@@ -1743,11 +1750,11 @@ s2-tree
     (and (nil? (:poses pose))
          (= 1 (:panels (pj/svg-summary pose)))))])
 
-;; ### Rule L2: layers of a leaf overlay within its panel
+;; ### Rule L2: the layers of a leaf share its panel
 ;;
 ;; Layers applicable to a leaf (the leaf's own plus the layers written
-;; on the root that it draws) draw on the same axis pair -- they overlay
-;; within the leaf's panel, not on separate panels (Rule LP5).
+;; on the root that it draws) draw on the same axis pair -- the leaf's
+;; one panel, not separate panels (Rule LP5).
 
 (-> iris
     (pj/pose :sepal-length :sepal-width {:color :species})
@@ -1792,6 +1799,21 @@ s2-tree
            (= "Faceted"
               (get-in (pj/facet mpg-pose {:y [:hwy :cty]} {:title "Faceted"})
                       [:opts :title])))))])
+
+;; The options map of a facet by one category across may also hold
+;; `:cols`, the number of panels in a row. `(pj/facet pose :class
+;; {:cols 4})` writes `{:cols 4}` on the pose's `:layout`, not on its
+;; `:opts`, and draws the panels in rows of four:
+
+(-> (rdatasets/ggplot2-mpg)
+    (pj/lay-point :displ :hwy)
+    (pj/facet :class {:cols 4}))
+
+(kind/test-last
+ [(fn [pose]
+    (and (= {:cols 4} (:layout pose))
+         (nil? (:poses pose))
+         (= 7 (:panels (pj/svg-summary pose)))))])
 
 ;; ### Rule L4: composite layout is controlled by `:layout` and optional `:share-scales`
 ;;

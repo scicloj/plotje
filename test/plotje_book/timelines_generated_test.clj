@@ -96,9 +96,9 @@
    (rdatasets/ggplot2-economics)
    (tc/select-rows
     (fn*
-     [p1__82484#]
+     [p1__89269#]
      (let
-      [d (:date p1__82484#)]
+      [d (:date p1__89269#)]
       (and (>= (.getYear d) 2000) (<= (.getYear d) 2014))))))))
 
 
@@ -614,7 +614,7 @@
        (mapv :y-domain panels))
       (apply = (mapv :x-domain panels))
       (every?
-       (fn* [p1__82485#] (= 5 (count (:y-domain p1__82485#))))
+       (fn* [p1__89270#] (= 5 (count (:y-domain p1__89270#))))
        shared))))
    v46_l468)))
 

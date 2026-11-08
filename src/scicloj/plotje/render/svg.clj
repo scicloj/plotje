@@ -251,9 +251,15 @@
 
   Rectangle
   (-to-svg [elem ctx]
+    ;; A filled rectangle -- a heatmap tile -- is snapped by the rule a
+    ;; filled polygon is (`crisp-edges?`), so neighbouring tiles of one
+    ;; colour meet with no seam, as neighbouring bars do.
     (let [{:keys [width height]} elem
           attrs (apply-style-attrs ctx)]
-      [:rect (merge attrs {:x 0 :y 0 :width width :height height})]))
+      [:rect (cond-> (merge attrs {:x 0 :y 0 :width width :height height})
+               (and (not= :stroke (:style ctx))
+                    (crisp-edges? [[0 0] [width 0] [width height] [0 height]]))
+               (assoc :shape-rendering "crispEdges"))]))
 
   Label
   (-to-svg [elem ctx]

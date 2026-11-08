@@ -72,8 +72,9 @@ tiny-plan
 ;; ### The panel
 ;;
 ;; A plan holds one or more panels. A simple plot has one panel, and a
-;; facet over the categories of a column has one panel per category. A
-;; scatter plot matrix, a facet over columns and an arrangement are
+;; facet over the categories of a column, drawn in one row, has one
+;; panel per category. A scatter plot matrix, a facet over columns, a
+;; facet wrapped into rows with `{:cols n}` and an arrangement are
 ;; drawn from a composite plan instead, which holds one plan per cell
 ;; under `:sub-plots`. Each panel holds its own data space:
 
@@ -85,8 +86,7 @@ tiny-plan
                    (and (every? (set ks) [:x-domain :y-domain :layers])
                         ;; A scatter plot matrix plans as a composite,
                         ;; one plan per cell.
-                        (let [matrix-plan (pj/plan (pj/facet {:a [1 2 3] :b [3 1 2]} {:col {:x [:a :b]}
-                                                                                      :row {:y [:a :b]}}))]
+                        (let [matrix-plan (pj/plan (pj/matrix {:a [1 2 3] :b [3 1 2]} [:a :b]))]
                           (and (pj/composite-plan? matrix-plan)
                                (= 4 (count (:sub-plots matrix-plan)))))))])
 
@@ -588,7 +588,9 @@ final-plan
 ;;
 ;; A facet over the categories of a column produces a plan with
 ;; multiple panels. Each panel has its own domains, ticks, and layers,
-;; plus its place in the grid.
+;; plus its place in the grid. A facet wrapped into rows with
+;; `{:cols n}` is planned as a composite instead, one plan per cell, as
+;; the scatter plot matrix is.
 
 (def faceted-plan
   (-> (rdatasets/datasets-iris)

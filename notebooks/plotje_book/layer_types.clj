@@ -117,9 +117,9 @@
 
 ;; Among the places that read it:
 ;;
-;; - A layer added after a facet crossing two lists of columns, or on
-;;   the root of a composite, is drawn in the panels whose number of
-;;   columns it draws from -- the
+;; - A layer naming no columns, added after a facet crossing two lists
+;;   of columns or on a composite, is drawn in the panels whose number
+;;   of columns it draws from -- the
 ;;   [scatter plot matrix](./plotje_book.relationships.html#scatter-plot-matrix-splom)
 ;;   is the case where the panels differ.
 ;; - A pose that names a column on `:y` alone, with no `:x`, is drawn
@@ -170,7 +170,7 @@
 ;; lists `:identity` for them, but they apply `:dodge` when the plot
 ;; is planned, if a categorical color or group splits the data into
 ;; multiple sub-bars per category. So a colored
-;; `(pj/lay-bar :cohort {:color :site})` produces dodged bars
+;; `(pj/lay-bar data :cohort {:color :site})` produces dodged bars
 ;; even though the table shows `:identity` for `:bar`. To force a
 ;; different layout, write `:position` in the layer's mapping.
 

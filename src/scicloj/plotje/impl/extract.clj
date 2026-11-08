@@ -919,9 +919,14 @@
                      (aget densities (+ (* i n-grid) j))
                      0.0))
         interp (fn [v1 v2 p1 p2]
-                 ;; Linear interpolation between two points based on threshold.
-                 ;; Clamp t to [0,1] to prevent numerical blowup when v1 and v2 are nearly equal.
-                 (let [t (/ (- threshold v1) (max 1e-15 (- v2 v1)))
+                 ;; Linear interpolation between two points based on
+                 ;; threshold, on an edge where the density rises or falls.
+                 ;; Where v1 and v2 are nearly equal the crossing is taken
+                 ;; at the midpoint, and t is clamped to [0,1].
+                 (let [dv (- v2 v1)
+                       t (if (< (Math/abs (double dv)) 1e-15)
+                           0.5
+                           (/ (- threshold v1) dv))
                        t (max 0.0 (min 1.0 t))]
                    (+ p1 (* t (- p2 p1)))))]
     (loop [i 0 segments (transient [])]

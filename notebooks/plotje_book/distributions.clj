@@ -80,7 +80,7 @@
 ;;
 ;; Pass `{:normalize :density}` so the y-axis shows probability
 ;; density instead of raw counts. This makes the histogram directly
-;; comparable with a density curve overlay.
+;; comparable with a density curve drawn on the same panel.
 
 (-> (rdatasets/datasets-iris)
     (pj/lay-histogram :sepal-length {:normalize :density :alpha 0.5})

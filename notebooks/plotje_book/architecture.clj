@@ -65,8 +65,9 @@ graph LR
 ;;   `:layers` (a vector of one map per applicable layer with all
 ;;   scope merged in -- `:data`, `:x`, `:y`, `:mark`, `:stat`, and
 ;;   aesthetic keys) and `:opts` (the pose-level options that flow
-;;   into the plan stage). A composite pose, and a leaf with a facet
-;;   over columns, which is drawn as one cell per column, produce a
+;;   into the plan stage). A composite pose, a leaf with a facet over
+;;   columns, which is drawn as one cell per column, and a leaf whose
+;;   facet is wrapped into rows with `{:cols n}` produce a
 ;;   `CompositeDraft` instead, carrying per-leaf drafts
 ;;   (`:sub-drafts`), the resolved composite-framing geometry (`:chrome-spec`),
 ;;   the layout map from leaf path to rect (`:layout`), and the
@@ -647,13 +648,21 @@ graph LR
 ;; colored by a column, `pj/pose->draft` also gives each layer that
 ;; specifies no `:color` a color and a legend entry naming its columns,
 ;; as [Panels](./plotje_book.panels.html#the-panel-of-a-leaf-pose) shows.
+;;
+;; On a composite, every `pj/lay-*` call keeps its layer at the root,
+;; or appends a cell for it, and drafting draws each root layer into
+;; the cells it fits -- those whose panel draws no other column on `:x`
+;; or `:y` than the layer names, and whose number of columns the layer
+;; type draws from -- under each cell's own layers. The function that
+;; does this is `pose/fit-layers`.
 
 ;; ## Composite Poses
 ;;
 ;; A composite pose -- one with `:poses` inside --
 ;; flows through the same steps. Each step dispatches
 ;; internally on shape: a leaf pose produces a `LeafDraft`; a
-;; composite pose, and a leaf with a facet over columns, produce a
+;; composite pose, a leaf with a facet over columns, and a leaf whose
+;; facet is wrapped into rows with `{:cols n}` produce a
 ;; `CompositeDraft`. The user-facing pipeline is unchanged.
 
 (def composite-pose
@@ -768,10 +777,11 @@ composite-pose
 ;; several panels in two ways, and both follow one rule: **a shared
 ;; axis covers what the panels sharing it draw.**
 ;;
-;; - A facet by the categories of a column is one plan with several
-;;   panels.
-;; - An arrangement, and a facet over columns, is a `CompositePlan`: one
-;;   plan per cell.
+;; - A facet by the categories of a column, drawn in one row, is one
+;;   plan with several panels.
+;; - An arrangement, a facet over columns, and a facet wrapped into
+;;   rows with `{:cols n}` are each a `CompositePlan`: one plan per
+;;   cell.
 ;;
 ;; The same two clinics drawn by each path:
 

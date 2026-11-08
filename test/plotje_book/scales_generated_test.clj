@@ -17,7 +17,7 @@
   gapminder-2007
   (->
    (rdatasets/gapminder-gapminder)
-   (tc/select-rows (fn* [p1__84531#] (= 2007 (:year p1__84531#)))))))
+   (tc/select-rows (fn* [p1__87741#] (= 2007 (:year p1__87741#)))))))
 
 
 (def v4_l41 gapminder-2007)
@@ -101,8 +101,8 @@
       :sub-plots
       (mapv
        (fn*
-        [p1__84532#]
-        (-> p1__84532# :plan :panels first :x-scale :type))))))
+        [p1__87742#]
+        (-> p1__87742# :plan :panels first :x-scale :type))))))
    v16_l146)))
 
 
@@ -774,7 +774,7 @@
 (def
  v121_l868
  (->
-  {:bin (map (fn* [p1__84533#] (str "bin-" p1__84533#)) (range 40)),
+  {:bin (map (fn* [p1__87743#] (str "bin-" p1__87743#)) (range 40)),
    :count (range 40)}
   (pj/lay-bar :bin :count)
   (pj/scale :x {:n-ticks 8})))
@@ -788,7 +788,7 @@
     (let
      [labels
       (filter
-       (fn* [p1__84534#] (.startsWith p1__84534# "bin-"))
+       (fn* [p1__87744#] (.startsWith p1__87744# "bin-"))
        (:texts (pj/svg-summary v)))]
      (= 8 (count labels))))
    v121_l868)))
@@ -1215,7 +1215,7 @@
         (update
          squares
          :n
-         (fn [ns] (mapv (fn* [p1__84535#] (* 100 p1__84535#)) ns)))
+         (fn [ns] (mapv (fn* [p1__87745#] (* 100 p1__87745#)) ns)))
         (pj/lay-point :step :row {:size :n})
         pj/plan
         :size-legend
@@ -1464,7 +1464,7 @@
    :row (range 40),
    :n
    (map
-    (fn* [p1__84536#] (Math/pow 10 (/ p1__84536# 10.0)))
+    (fn* [p1__87746#] (Math/pow 10 (/ p1__87746# 10.0)))
     (range 40))}
   (pj/lay-point :step :row {:color :n})
   (pj/scale :color {:type :log, :range :viridis})))

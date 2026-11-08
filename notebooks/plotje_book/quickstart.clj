@@ -241,7 +241,7 @@
              (pj/lay-histogram (rdatasets/datasets-iris) :sepal-length {:color :species})]
             {:cols 2})
 
-(kind/test-last [(fn [v] (pj/pose? v))])
+(kind/test-last [(fn [v] (= 2 (:panels (pj/svg-summary v))))])
 
 ;; ## Getting the SVG
 ;;

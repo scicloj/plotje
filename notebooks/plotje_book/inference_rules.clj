@@ -110,7 +110,7 @@ scatter-pose
 ;; | Size legend | 5 graduated circles when `:size` maps to numerical column | `:size` mapping controls presence |
 ;; | Alpha legend | ~5 graduated opacity squares (count varies with range) when `:alpha` maps to numerical column | `:alpha` mapping controls presence |
 ;; | Layout padding | adjusts for title, labels, legend | `:width`, `:height` in options |
-;; | Layout type | single, facet-grid | `pj/facet` |
+;; | Layout type | single panel, facet grid, or a composite for a facet over columns and for `pj/arrange` | `pj/facet`, `pj/arrange`, `pj/matrix` |
 ;; | Coordinate system | `:cartesian` | `(pj/coord :flip)`, `(pj/coord :polar)` |
 ;;
 ;; The sections follow roughly the order in which a pose is resolved
